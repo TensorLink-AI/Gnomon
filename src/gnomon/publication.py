@@ -12,6 +12,7 @@ import hashlib
 import json
 import math
 import statistics
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -498,6 +499,48 @@ def _normalize_sampled_prior_uncertainty(
     }
 
 
+def _scope_candidate_to_windows(
+    candidate: list[dict[str, Any]], fallback: list[dict[str, Any]],
+    windows: list[dict[str, Any]], *, fallback_source: str,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Keep a bounded contextual prior from rewriting unrelated horizons."""
+    if not windows:
+        return candidate, {"applied": False, "reason": "unbounded_candidate"}
+    if not candidate or len(candidate) != len(fallback):
+        return candidate, {"applied": False, "reason": "unaligned_paths"}
+    parsed_windows = []
+    try:
+        for window in windows:
+            start = datetime.fromisoformat(str(window["start"]))
+            end = datetime.fromisoformat(str(window["end"]))
+            if end < start:
+                raise ValueError
+            parsed_windows.append((start, end))
+    except (KeyError, TypeError, ValueError):
+        return candidate, {"applied": False, "reason": "invalid_windows"}
+    rows = []
+    conditioned = 0
+    for candidate_row, fallback_row in zip(candidate, fallback):
+        if str(candidate_row.get("timestamp")) != str(fallback_row.get("timestamp")):
+            return candidate, {"applied": False, "reason": "unaligned_timestamps"}
+        try:
+            timestamp = datetime.fromisoformat(str(candidate_row["timestamp"]))
+        except (KeyError, TypeError, ValueError):
+            return candidate, {"applied": False, "reason": "invalid_timestamp"}
+        inside = any(start <= timestamp <= end
+                     for start, end in parsed_windows)
+        rows.append(dict(candidate_row if inside else fallback_row))
+        conditioned += int(inside)
+    return rows, {
+        "applied": conditioned > 0,
+        "basis": "host_validated_context_windows",
+        "conditioned_rows": conditioned,
+        "fallback_rows_preserved": len(rows) - conditioned,
+        "outside_window_source": fallback_source,
+        "primary_forecast_unchanged": True,
+    }
+
+
 def _scenario(identifier: str, role: str, rows: list[dict[str, Any]], *,
               support: str, automation_eligible: bool,
               selection_eligible: bool = True,
@@ -816,6 +859,8 @@ def build_scenario_catalog(result: dict[str, Any], *,
     )]
     model_assisted = result.get("model_assisted") or {}
     assisted_points = model_assisted.get("points") or []
+    assisted_rows: list[dict[str, Any]] = []
+    assisted_human_eligible = False
     if (isinstance(model_assisted, dict)
             and len(assisted_points) == len(primary) and primary):
         assisted_validation = model_assisted.get("validation") or {}
@@ -823,8 +868,11 @@ def build_scenario_catalog(result: dict[str, Any], *,
             model_assisted.get("support") == "conditionally_supported"
             or (assisted_validation.get("basis") == "full_cycle_prequential"
                 and assisted_validation.get(
-                    "complete_phase_coverage") is True))
-        assisted_rows: list[dict[str, Any]] = []
+                    "complete_phase_coverage") is True)
+            or (assisted_validation.get("basis") ==
+                "single_observed_calendar_cycle_prior"
+                and assisted_validation.get(
+                    "complete_cycle_observed") is True))
         for row, raw_point in zip(primary, assisted_points):
             point = float(raw_point)
             centre = float(row.get("q50", row.get("point", point)))
@@ -845,8 +893,12 @@ def build_scenario_catalog(result: dict[str, Any], *,
             selection_eligible=assisted_human_eligible,
             human_selection_eligible=assisted_human_eligible,
             assumptions=[
-                "The point path won only the disclosed reduced-rigor "
-                "out-of-sample comparison.",
+                ("The point path is a structural calendar prior from one "
+                 "observed cycle; it has no out-of-sample skill evidence."
+                 if assisted_validation.get("basis") ==
+                 "single_observed_calendar_cycle_prior" else
+                 "The point path won only the disclosed reduced-rigor "
+                 "out-of-sample comparison."),
                 "Scenario interval offsets are inherited from the immutable "
                 "primary and are not independently calibrated for this path.",
             ],
@@ -1371,6 +1423,20 @@ def build_scenario_catalog(result: dict[str, Any], *,
                          and not governed_by_transformation
                          and not governed_by_deterministic_claim)))
             candidate_rows = _candidate_rows(candidate, primary)
+            conditional_scope = None
+            elicitation = candidate.get("elicitation") or {}
+            if (candidate_origin == "model_authored"
+                    and elicitation.get("conditional_windows")):
+                scoped_fallback = (
+                    assisted_rows if assisted_human_eligible
+                    and len(assisted_rows) == len(primary) else primary)
+                scoped_fallback_source = (
+                    "model_assisted_prior" if scoped_fallback is assisted_rows
+                    else "immutable_primary")
+                candidate_rows, conditional_scope = _scope_candidate_to_windows(
+                    candidate_rows, scoped_fallback,
+                    list(elicitation.get("conditional_windows") or []),
+                    fallback_source=scoped_fallback_source)
             uncertainty_normalization = None
             if (candidate_origin == "model_authored"
                     and (candidate.get("elicitation") or {}).get(
@@ -1419,6 +1485,8 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 effect={
                     "candidate_origin": candidate_origin,
                     "elicitation": candidate.get("elicitation") or {},
+                    **({"conditional_scope": conditional_scope}
+                       if conditional_scope is not None else {}),
                     # Every model-authored path exposes one typed uncertainty
                     # contract. Empirical paths are the richer representation;
                     # a compiler-authored quantile path remains a real sealed

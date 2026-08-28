@@ -2344,6 +2344,7 @@ def attach_host_candidate_elicitation(
     request_mode: str = "batch_request",
     sample_paths: list[list[float]] | None = None,
     governed_fallback: str | None = None,
+    conditional_windows: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
     """Seal narrow host-observed elicitation metadata onto a model candidate.
 
@@ -2373,6 +2374,21 @@ def attach_host_candidate_elicitation(
     if governed_fallback not in {
             None, "structured_companion_mapping_not_admitted"}:
         raise ValueError("candidate elicitation governed fallback is unsupported")
+    clean_windows = []
+    candidate_timestamps = [str(row.get("timestamp")) for row in
+                            dossier["forecast_candidate"].get("quantiles") or []]
+    for window in conditional_windows or []:
+        if not isinstance(window, dict):
+            raise ValueError("candidate conditional window is invalid")
+        start = _timestamp(window.get("start"))
+        end = _timestamp(window.get("end"))
+        if start is None or end is None or end < start:
+            raise ValueError("candidate conditional window is invalid")
+        if not any(start <= parsed <= end for parsed in
+                   (_timestamp(value) for value in candidate_timestamps)
+                   if parsed is not None):
+            raise ValueError("candidate conditional window misses forecast grid")
+        clean_windows.append({"start": start.isoformat(), "end": end.isoformat()})
     if not isinstance(temperature, (int, float)) or isinstance(temperature, bool) \
             or not math.isfinite(float(temperature)) or temperature < 0:
         raise ValueError("candidate elicitation temperature is invalid")
@@ -2438,6 +2454,9 @@ def attach_host_candidate_elicitation(
         "automation_eligible": False,
         **({"governed_fallback": governed_fallback}
            if governed_fallback is not None else {}),
+        **({"conditional_windows": clean_windows,
+            "outside_window_source": "publication_resolved_default"}
+           if clean_windows else {}),
         **({"stability": json.loads(json.dumps(stability))}
            if stability is not None else {}),
     }

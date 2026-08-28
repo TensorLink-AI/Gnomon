@@ -11,6 +11,11 @@ def _stamps(count: int) -> list[datetime]:
     return [start + timedelta(days=index) for index in range(count)]
 
 
+def _hourly_stamps(count: int) -> list[datetime]:
+    start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    return [start + timedelta(hours=index) for index in range(count)]
+
+
 def _assessment(**overrides) -> SimpleNamespace:
     base = dict(
         selection_guardrail_applied=True,
@@ -113,6 +118,45 @@ def test_complete_cycle_gate_rarely_admits_unrelated_random_walks() -> None:
                 and lane["validation"]["basis"] == "full_cycle_prequential":
             admitted += 1
     assert admitted <= 10
+
+
+def test_one_observed_intraday_week_is_visible_only_as_calendar_prior() -> None:
+    day = [1.0 + 8.0 * max(0.0, 1.0 - abs(hour - 12) / 8.0)
+           for hour in range(24)]
+    values = []
+    for weekday in range(7):
+        values.extend([value * (0.6 if weekday >= 5 else 1.0)
+                       for value in day])
+    lane, disclosure, _ = build_model_assisted_lane(
+        "traffic", values, horizon=72, season=24,
+        future_timestamps=_hourly_stamps(72), assessment=_assessment(
+            strongest_baseline="seasonal_naive",
+            selection_scores={"last_value": 3.0, "seasonal_naive": 1.0}),
+        published_support="degraded", selected_model="seasonal_naive")
+
+    assert lane is not None
+    assert lane["selected_model"] == "calendar_seasonal_naive"
+    assert lane["support"] == "prior_assisted"
+    assert lane["points"] == values[:72]
+    assert lane["validation"]["basis"] == \
+        "single_observed_calendar_cycle_prior"
+    assert lane["validation"]["historical_skill_evidence"] is False
+    assert lane["automation_eligible"] is False
+    assert "no out-of-sample skill evidence" in disclosure.message
+
+
+def test_calendar_prior_requires_intraday_grid_and_complete_week() -> None:
+    for values, timestamps in [
+            ([float(index) for index in range(167)], _hourly_stamps(72)),
+            ([float(index) for index in range(168)], _stamps(72))]:
+        lane, _, _ = build_model_assisted_lane(
+            "traffic", values, horizon=72, season=24,
+            future_timestamps=timestamps, assessment=_assessment(
+                strongest_baseline="seasonal_naive",
+                selection_scores={"last_value": 3.0,
+                                  "seasonal_naive": 1.0}),
+            published_support="degraded", selected_model="seasonal_naive")
+        assert lane is None
 
 
 def test_lane_stays_absent_when_a_candidate_was_published_as_primary() -> None:

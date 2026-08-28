@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Bound qualitative future-event priors to their validated event windows.
+  Model-authored values may shape the cited holiday, deployment, closure, or
+  campaign interval, while every unrelated row comes from the best already
+  visible default (a governed primary or explicitly labelled model-assisted
+  prior). The sealed dossier records the windows and fallback provenance.
+- Expose one complete observed week of an intraday series as a structurally
+  labelled `calendar_seasonal_naive` prior when two-week replay is impossible.
+  It carries no historical-skill or automation claim. A bounded future event
+  can compose over this visible default inside its own window while the
+  immutable primary remains separately intact.
+  When the governed primary already identifies the intraday daily cycle, this
+  calendar prior precedes unrelated trend extrapolation from one weak holdout;
+  the disclosure still states that it has no out-of-sample skill evidence.
 - Compile explicitly ended recurring disruptions into the existing fold-safe
   observation-counterfactual executable. The schedule identifies affected
   historical rows without guessing their numeric effect; a candidate may lead

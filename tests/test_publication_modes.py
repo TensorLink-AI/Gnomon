@@ -4,7 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from gnomon.llm_dossier import validate_temporal_dossier
+from gnomon.llm_dossier import (attach_host_candidate_elicitation,
+                                validate_temporal_dossier)
 from gnomon.publication import (build_scenario_catalog, publish_result,
                                 best_effort_prior_selection,
                                 dominant_scenario_id,
@@ -932,6 +933,61 @@ def test_best_effort_sampled_prior_policy_is_human_only_and_mode_specific():
     assert distribution["probabilistic_consumers_should_use"] == "quantiles"
     assert distribution["raw_model_paths_are"] == (
         "elicitation_stability_only")
+
+
+def test_bounded_sampled_prior_preserves_primary_outside_context_window():
+    dossier = attach_host_candidate_elicitation(
+        _dossier(), requested_paths=3, accepted_paths=3,
+        aggregation="linear_empirical_marginal_q10_q50_q90",
+        temperature=1.0, sample_paths=[[11.0, 12.0]] * 3,
+        conditional_windows=[{"start": TIMES[0], "end": TIMES[0]}])
+
+    scenarios, _ = build_scenario_catalog(_result(), dossiers=[dossier])
+    sampled = next(item for item in scenarios
+                   if item["scenario_id"] == "prior-assisted-1")
+
+    assert [row["q50"] for row in sampled["forecast"]] == [11.0, 10.0]
+    assert sampled["effect"]["conditional_scope"] == {
+        "applied": True,
+        "basis": "host_validated_context_windows",
+        "conditioned_rows": 1,
+        "fallback_rows_preserved": 1,
+        "outside_window_source": "immutable_primary",
+        "primary_forecast_unchanged": True,
+    }
+    assert sampled["automation_eligible"] is False
+
+
+def test_bounded_context_composes_with_visible_calendar_prior():
+    dossier = attach_host_candidate_elicitation(
+        _dossier(), requested_paths=3, accepted_paths=3,
+        aggregation="linear_empirical_marginal_q10_q50_q90",
+        temperature=1.0, sample_paths=[[11.0, 12.0]] * 3,
+        conditional_windows=[{"start": TIMES[0], "end": TIMES[0]}])
+    result = _result()
+    result["model_assisted"] = {
+        "support": "prior_assisted",
+        "selected_model": "calendar_seasonal_naive",
+        "points": [20.0, 30.0],
+        "validation": {
+            "basis": "single_observed_calendar_cycle_prior",
+            "complete_cycle_observed": True,
+            "historical_skill_evidence": False,
+        },
+        "automation_eligible": False,
+        "primary_forecast_unchanged": True,
+    }
+
+    scenarios, _ = build_scenario_catalog(result, dossiers=[dossier])
+    sampled = next(item for item in scenarios
+                   if item["scenario_id"] == "prior-assisted-1")
+
+    assert [row["q50"] for row in sampled["forecast"]] == [11.0, 30.0]
+    assert sampled["effect"]["conditional_scope"][
+        "outside_window_source"] == "model_assisted_prior"
+    assert sampled["effect"]["conditional_scope"][
+        "fallback_rows_preserved"] == 1
+    assert sampled["automation_eligible"] is False
 
 
 def test_under_sampled_prior_remains_visible_but_not_human_selectable():

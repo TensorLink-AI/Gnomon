@@ -429,7 +429,16 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: Version 199: daily ended-disruption counterfactuals may retain a fixed
 #: weekday-phase family, and separately sampled fallback paths remain explicitly
 #: model-authored instead of colliding with the governed counterfactual dossier.
-MCP_CONTRACT_VERSION = 199
+#: Version 200: sampled priors for bounded future events may alter only their
+#: host-validated event windows; unrelated horizon rows come verbatim from the
+#: immutable primary rather than from an unsupported full-path rewrite.
+#: Version 201: one complete intraday week may form an explicit prior-only
+#: calendar scenario; bounded event priors compose over that visible default
+#: while the immutable primary and automation prohibition remain unchanged.
+#: Version 202: when the governed primary already identifies an intraday daily
+#: season, its one-week calendar prior precedes unrelated trend extrapolation
+#: in best-effort mode; it remains explicitly unvalidated and non-automatable.
+MCP_CONTRACT_VERSION = 202
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -5494,7 +5503,12 @@ class _Run:
                         sample_paths=model_candidate_sample_paths,
                         governed_fallback=(
                             "structured_companion_mapping_not_admitted"
-                            if companion_prior_needed else None))
+                            if companion_prior_needed else None),
+                        conditional_windows=([{
+                            "start": str(event.effective_start),
+                            "end": str(event.effective_end),
+                        } for event in events]
+                            if qualitative_future_event_prior_needed else None))
                 dossiers.append(model_dossier)
                 model_candidate_status = "accepted"
             else:
