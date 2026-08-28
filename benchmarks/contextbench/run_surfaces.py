@@ -547,6 +547,18 @@ def summarize(rows: list[dict[str, Any]], profile: str,
     recall = (sum(row["applied"] for row in influence) / len(influence)
               if influence else 0.0)
     missed = [row for row in influence if not row["applied"]]
+    numerically_changed = [row for row in answered
+                           if bool(row.get("primary_changed"))]
+    admitted_unchanged = [row for row in answered
+                          if bool(row.get("applied"))
+                          and not bool(row.get("primary_changed"))]
+    beneficial = [row for row in numerically_changed
+                  if float(row.get("incremental_smape", 0.0)) > 1e-12]
+    harmful = [row for row in numerically_changed
+               if float(row.get("incremental_smape", 0.0)) < -1e-12]
+    neutral_changed = [row for row in numerically_changed
+                       if abs(float(row.get(
+                           "incremental_smape", 0.0))) <= 1e-12]
     calls = [row["history_calls"] + row["context_calls"] for row in answered]
     observed_stages = sorted({stage for row in attempts
                               for stage in (row.get("stage_seconds") or {})})
@@ -594,6 +606,23 @@ def summarize(rows: list[dict[str, Any]], profile: str,
             for dimension, groups in sorted(dimension_groups.items())},
         "metrics": {
             "admission_precision": precision, "admission_recall": recall,
+            "context_effect_accounting": {
+                "answered_cases": len(answered),
+                "admitted_cases": sum(bool(row.get("applied"))
+                                      for row in answered),
+                "numerically_changed_cases": len(numerically_changed),
+                "admitted_without_numeric_change": len(admitted_unchanged),
+                "beneficial_changes": len(beneficial),
+                "harmful_changes": len(harmful),
+                "neutral_changes": len(neutral_changed),
+                "numeric_change_rate": (
+                    len(numerically_changed) / len(answered)
+                    if answered else None),
+                "mean_uplift_when_changed": (
+                    mean(float(row["incremental_smape"])
+                         for row in numerically_changed)
+                    if numerically_changed else None),
+            },
             "missed_influence_cases": len(missed),
             "missed_influence_by_family": dict(sorted(Counter(
                 str(row["family"]) for row in missed).items())),

@@ -331,6 +331,54 @@ def test_surface_summary_reports_agent_context_explanation_contract():
             "rejection_evidence_cited": 1.0,
             "scenario_consequence_preserved": 1.0,
         }
+    assert summary["metrics"]["context_effect_accounting"] == {
+        "answered_cases": 1,
+        "admitted_cases": 0,
+        "numerically_changed_cases": 0,
+        "admitted_without_numeric_change": 0,
+        "beneficial_changes": 0,
+        "harmful_changes": 0,
+        "neutral_changes": 0,
+        "numeric_change_rate": 0.0,
+        "mean_uplift_when_changed": None,
+    }
+
+
+def test_surface_summary_separates_admission_change_and_uplift() -> None:
+    base = {
+        "family": "repeated_event", "status": "answered",
+        "history_smape": 3.0, "should_influence": True,
+        "oracle_dimensions": {}, "disposition_valid": True,
+        "temporal_leakage": False, "publication_parity": True,
+        "history_calls": 0, "context_calls": 1,
+        "surface_required_calls": 1,
+    }
+    rows = [
+        {**base, "case_id": "admitted-unchanged", "context_smape": 3.0,
+         "incremental_smape": 0.0, "applied": True,
+         "primary_changed": False},
+        {**base, "case_id": "helpful", "context_smape": 2.0,
+         "incremental_smape": 1.0, "applied": True,
+         "primary_changed": True},
+        {**base, "case_id": "harmful", "context_smape": 4.0,
+         "incremental_smape": -1.0, "applied": True,
+         "primary_changed": True},
+    ]
+
+    summary = surface_runner.summarize(
+        rows, "evidence", {"seed": 1, "fresh_seed": True}, "compiled")
+
+    assert summary["metrics"]["context_effect_accounting"] == {
+        "answered_cases": 3,
+        "admitted_cases": 3,
+        "numerically_changed_cases": 2,
+        "admitted_without_numeric_change": 1,
+        "beneficial_changes": 1,
+        "harmful_changes": 1,
+        "neutral_changes": 0,
+        "numeric_change_rate": 2 / 3,
+        "mean_uplift_when_changed": 0.0,
+    }
 
 
 def test_automation_limit_needs_typed_parity_and_explicit_ineligibility():
