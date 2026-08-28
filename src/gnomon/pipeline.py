@@ -1395,6 +1395,65 @@ def _reassert_claims_stage(
     return projected
 
 
+def _scenario_consequence(
+    primary_rows: list[dict[str, Any]],
+    scenario_rows: list[dict[str, Any]],
+) -> tuple[dict[str, Any], str]:
+    """Decision-relevant delta between immutable primary and one scenario."""
+    pairs = list(zip(primary_rows, scenario_rows))
+    deltas = [
+        float(candidate.get("q50", candidate["point"])) -
+        float(primary.get("q50", primary["point"]))
+        for primary, candidate in pairs
+    ]
+    affected = [index for index, delta in enumerate(deltas)
+                if abs(delta) > 1e-12]
+    if not pairs or not affected:
+        consequence = {
+            "status": "no_numeric_difference",
+            "affected_steps": 0,
+            "max_abs_delta_q50": 0.0,
+        }
+        return consequence, (
+            "The conditional scenario produces no numeric q50 difference "
+            "over this horizon; the canonical primary remains unchanged.")
+
+    first_index = affected[0]
+    first_primary, first_scenario = pairs[first_index]
+    end_primary, end_scenario = pairs[-1]
+    first_primary_q50 = float(first_primary.get(
+        "q50", first_primary["point"]))
+    first_scenario_q50 = float(first_scenario.get(
+        "q50", first_scenario["point"]))
+    end_primary_q50 = float(end_primary.get("q50", end_primary["point"]))
+    end_scenario_q50 = float(end_scenario.get(
+        "q50", end_scenario["point"]))
+    consequence = {
+        "status": "numeric_difference",
+        "affected_steps": len(affected),
+        "first_affected_timestamp": first_scenario.get("timestamp"),
+        "first_affected_primary_q50": first_primary_q50,
+        "first_affected_scenario_q50": first_scenario_q50,
+        "first_affected_delta_q50": deltas[first_index],
+        "horizon_end_timestamp": end_scenario.get("timestamp"),
+        "horizon_end_primary_q50": end_primary_q50,
+        "horizon_end_scenario_q50": end_scenario_q50,
+        "horizon_end_delta_q50": deltas[-1],
+        "max_abs_delta_q50": max(abs(delta) for delta in deltas),
+    }
+    summary = (
+        f"At the first affected step {first_scenario.get('timestamp')}, "
+        f"conditional q50 is {first_scenario_q50:.6g} versus primary "
+        f"{first_primary_q50:.6g} (delta {deltas[first_index]:.6g}); at "
+        f"horizon end {end_scenario.get('timestamp')}, conditional q50 is "
+        f"{end_scenario_q50:.6g} versus primary {end_primary_q50:.6g} "
+        f"(delta {deltas[-1]:.6g}); maximum absolute q50 delta is "
+        f"{max(abs(delta) for delta in deltas):.6g}. The canonical primary "
+        "remains unchanged."
+    )
+    return consequence, summary
+
+
 def _future_context_stage(
     state: SeriesState,
     context_events: list[ContextEvent],
@@ -1451,23 +1510,8 @@ def _future_context_stage(
         # dropping zero deltas would overstate the assumed effect magnitude.
         location = mean(deltas) if deltas else 0.0
         scale = stdev(deltas) if len(deltas) > 1 else 0.0
-        first = scenario_rows[0] if scenario_rows else {}
-        last = scenario_rows[-1] if scenario_rows else {}
-        first_q50 = float(first.get("q50", first.get("point", 0.0)))
-        last_q50 = float(last.get("q50", last.get("point", 0.0)))
-        consequence = {
-            "first_timestamp": first.get("timestamp"),
-            "first_q50": first_q50,
-            "last_timestamp": last.get("timestamp"),
-            "last_q50": last_q50,
-            "delta_q50": last_q50 - first_q50,
-        }
-        consequence_summary = (
-            f"Conditional scenario q50 is {first_q50:.6g} at "
-            f"{first.get('timestamp')} and {last_q50:.6g} at "
-            f"{last.get('timestamp')} (delta {last_q50 - first_q50:.6g}); "
-            "the canonical primary remains unchanged."
-        )
+        consequence, consequence_summary = _scenario_consequence(
+            rows, scenario_rows)
         state.sensitivity_scenarios.append({
             "events": event_ids,
             "support": "prior_assisted_structural",

@@ -21,6 +21,7 @@ from gnomon.future_context import (
     assess_future_events,
 )
 from gnomon.runtime import forecast
+from gnomon.pipeline import _scenario_consequence
 
 START = datetime(2026, 1, 1)
 HISTORY = [200.0 + (day % 7) for day in range(60)]
@@ -283,10 +284,12 @@ def test_flag_on_preserves_primary_and_discloses_structural_scenario(
     assert scenario["effect"]["provenance"]["provenance_class"] == \
         "human_assumption"
     assert scenario["effect"]["shape"] == "trend_change"
-    assert scenario["consequence"]["first_q50"] == scenario_points[0]
-    assert scenario["consequence"]["last_q50"] == scenario_points[-1]
-    assert scenario["consequence"]["delta_q50"] == \
-        scenario_points[-1] - scenario_points[0]
+    assert scenario["consequence"]["status"] == "numeric_difference"
+    assert scenario["consequence"]["first_affected_primary_q50"] != \
+        scenario["consequence"]["first_affected_scenario_q50"]
+    assert scenario["consequence"]["horizon_end_scenario_q50"] == \
+        scenario_points[-1]
+    assert scenario["consequence"]["max_abs_delta_q50"] > 0
     assert "canonical primary remains unchanged" in \
         scenario["consequence_summary"]
     gate = treated_result.future_context
@@ -296,6 +299,35 @@ def test_flag_on_preserves_primary_and_discloses_structural_scenario(
     assert failure["passed"] is False
     # the flag enters the artifact ID payload
     assert treated.forecast_id != baseline.forecast_id
+
+
+def test_scenario_consequence_starts_at_first_actual_effect_not_window_start():
+    primary = _rows([100.0 + step for step in range(4)])
+    scenario = [dict(row) for row in primary]
+    # The contextual condition starts before the numeric transformation has
+    # any effect: continuity leaves two leading rows unchanged.
+    scenario[2]["point"] = scenario[2]["q50"] = 101.0
+    scenario[3]["point"] = scenario[3]["q50"] = 101.0
+
+    consequence, summary = _scenario_consequence(primary, scenario)
+
+    assert consequence["first_affected_timestamp"] == primary[2]["timestamp"]
+    assert consequence["first_affected_delta_q50"] == -1.0
+    assert consequence["horizon_end_delta_q50"] == -2.0
+    assert consequence["max_abs_delta_q50"] == 2.0
+    assert primary[0]["timestamp"] not in summary
+
+
+def test_scenario_consequence_names_a_noop_without_inventing_effect():
+    primary = _rows([100.0, 100.0, 100.0])
+    consequence, summary = _scenario_consequence(
+        primary, [dict(row) for row in primary])
+
+    assert consequence == {
+        "status": "no_numeric_difference", "affected_steps": 0,
+        "max_abs_delta_q50": 0.0,
+    }
+    assert "no numeric q50 difference" in summary
 
 
 def test_flag_off_is_byte_identical(tmp_path: Path):

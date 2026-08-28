@@ -422,9 +422,10 @@ def test_validated_structural_context_reaches_scenario_lane_automatically(
     assert scenario["effect"]["shape"] == "trend_change"
     assert len(scenario["forecast_preview"]) == 2
     assert {"timestamp", "q50"} <= set(scenario["forecast_preview"][0])
-    assert scenario["consequence"]["first_q50"] == \
-        scenario["forecast_preview"][0]["q50"]
-    assert scenario["consequence"]["last_q50"] == \
+    assert scenario["consequence"]["status"] == "numeric_difference"
+    assert scenario["consequence"]["first_affected_timestamp"] != \
+        scenario["forecast_preview"][0]["timestamp"]
+    assert scenario["consequence"]["horizon_end_scenario_q50"] == \
         scenario["forecast_preview"][-1]["q50"]
     assert "canonical primary remains unchanged" in \
         scenario["consequence_summary"]

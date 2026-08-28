@@ -1904,7 +1904,8 @@ class _Run(_RunBase):
             text += (
                 "If Gnomon exposes a scenario consequence_summary, copy it "
                 "exactly into cited_scenario_consequences and communicate "
-                "its first and last q50 values in the human-facing reasoning. "
+                "its first-affected and horizon-end primary-versus-scenario "
+                "q50 deltas in the human-facing reasoning. "
                 "Do not present those conditional values as the primary.\n")
         if self.row.get("_require_gnomon_execution"):
             text += ("\nThis product run delegates every published numeric "
