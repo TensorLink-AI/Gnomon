@@ -277,6 +277,12 @@ returned `selection_contract`, an agent may instead call
 `gnomon_select_scenario` with the publication path and a number-free ranking.
 That follow-up reuses every scenario seal, leaves the original sidecar intact,
 forces automation off, and records which publication seal it supersedes.
+`recommendation_authority.selection_pass_performed` says only that this
+bounded selection step occurred. `selector_independence` remains
+`not_attested`, and the compatibility field `independent_selection_performed`
+remains false, unless a future protocol supplies and verifies a genuinely
+distinct selector identity. A second call to the same model is separation of
+duties in the workflow, not independent review.
 
 `automation_policy` is a caller-owned authorization contract with exactly
 three fields: `authorize` (boolean), a non-empty `policy_id`, and

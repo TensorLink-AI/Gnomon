@@ -1904,11 +1904,17 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
         **({"selection_role": "human_facing_recommendation"}
            if selected_id in (item.get("scenario_ids") or []) else {}),
     } for item in dispositions])
+    separate_selection_pass = bool(selection is not None and not policy_selected)
     recommendation_authority = {
         "selected_role": selected_role,
         "selection_method": selection_method,
-        "independent_selection_performed": (
-            selection is not None and not policy_selected),
+        "selection_pass_performed": separate_selection_pass,
+        "selector_independence": (
+            "not_attested" if separate_selection_pass else "not_applicable"),
+        # Kept for compatibility, but independence requires a distinct,
+        # attested selector identity. A separate pass by the same model is
+        # not independent review.
+        "independent_selection_performed": False,
         "historically_admitted": selected_role == "historically_admitted",
         "conditional_replay_admitted": (
             selected_role == "observation_counterfactual"
@@ -2112,15 +2118,18 @@ def select_publication(payload: dict[str, Any], raw_selection: dict[str, Any]
         "recommendation_authority": {
             "selected_role": str(selected.get("role") or "unknown"),
             "selection_method": "governed_scenario_selection",
-            "independent_selection_performed": True,
+            "selection_pass_performed": True,
+            "selector_independence": "not_attested",
+            "independent_selection_performed": False,
             "historically_admitted": (
                 selected.get("role") == "historically_admitted"),
             "prior_assisted": selected.get("support") == "prior_assisted",
             "human_review_required": not bool(
                 selected.get("automation_eligible")),
             "reason": (
-                "A bounded number-free ranking selected one existing sealed "
-                "path; forecast values and support were unchanged."),
+                "A separate bounded selection pass chose one existing sealed "
+                "path; selector independence was not attested, and forecast "
+                "values and support were unchanged."),
         },
         "automation": {
             "eligible": False,

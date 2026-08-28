@@ -686,7 +686,11 @@ def test_governed_selection_repoints_sealed_path_without_reforecasting():
     assert selected["recommended_support"] == "prior_assisted"
     assert selected["automation"]["eligible"] is False
     assert selected["recommendation_authority"][
-        "independent_selection_performed"] is True
+        "selection_pass_performed"] is True
+    assert selected["recommendation_authority"][
+        "selector_independence"] == "not_attested"
+    assert selected["recommendation_authority"][
+        "independent_selection_performed"] is False
     assert selected["supersedes_publication_seal_sha256"] == original[
         "publication_seal_sha256"]
     assert verify_publication(original)
@@ -1078,7 +1082,9 @@ def test_validated_context_event_is_citable_without_a_dossier_claim():
     assert payload["scenario_selection"]["cited_claim_ids"] == ["event-1"]
     authority = payload["recommendation_authority"]
     assert authority["selection_method"] == "governed_scenario_selection"
-    assert authority["independent_selection_performed"] is True
+    assert authority["selection_pass_performed"] is True
+    assert authority["selector_independence"] == "not_attested"
+    assert authority["independent_selection_performed"] is False
     assert payload["context_summary"]["status"] == "used"
     assert verify_publication(payload)
 
