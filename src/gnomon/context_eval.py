@@ -60,6 +60,23 @@ MINIMUM_SHRINKAGE = 0.1
 EPISODE_MINIMUM_IMPROVEMENT = 0.05
 
 
+def episode_effect_lower_bound(amplitudes: list[float], z: float = 1.96) -> float:
+    """Conservative absolute episode effect after sampling uncertainty.
+
+    Episodes, rather than overlapping forecast folds, are the independent
+    unit. The bound is used to compare a recurring event with displaced copies
+    of its schedule; returning zero for fewer than two episodes prevents a
+    one-off coincidence from becoming evidence.
+    """
+    if len(amplitudes) < 2:
+        return 0.0
+    average = mean(amplitudes)
+    variance = sum((value - average) ** 2 for value in amplitudes) / (
+        len(amplitudes) - 1)
+    standard_error = (variance / len(amplitudes)) ** 0.5
+    return max(0.0, abs(average) - z * standard_error)
+
+
 def shrinkage_factor(improvements: list[float]) -> float:
     """How much of the measured effect the fold evidence actually supports.
 
@@ -609,16 +626,18 @@ def assess_context(
             except ValueError:
                 continue
         actual_amplitude = abs(amplitude_mean)
+        actual_lower = episode_effect_lower_bound(amplitudes)
         placebo_max = max(placebo_amplitudes, default=float("inf"))
         assessment.record_check(
             "episode_effect_beats_displaced_schedules",
-            actual_amplitude > placebo_max,
+            actual_lower > placebo_max,
             measured={"actual_amplitude": round(actual_amplitude, 6),
+                      "actual_lower_95": round(actual_lower, 6),
                       "placebo_max": round(placebo_max, 6),
                       "placebos": len(placebo_amplitudes)},
             threshold=round(placebo_max, 6),
-            detail=("a displaced version of the same recurring schedule has "
-                    "an equal or larger apparent effect"),
+            detail=("the event effect's episode-level 95% lower bound does "
+                    "not exceed the strongest displaced-schedule placebo"),
         )
     # A fold whose forecast window contains no eligible event is a valid
     # zero-lift observation for the *mean* comparison, but it says nothing

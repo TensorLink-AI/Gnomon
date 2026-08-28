@@ -1,5 +1,11 @@
 # Changelog
 
+- **Recurring events must separate from calendar placebos beyond sampling
+  noise.** Event admission now requires the episode-level 95% lower bound of
+  the measured effect to exceed the strongest displaced copy of the same
+  schedule. A point estimate that wins by less than its own uncertainty can no
+  longer alter the conditioned publication.
+
 - **Short-history panel pooling now requires repeatable transfer.** The
   within-file pooled-trend candidate must win at every available disjoint
   target origin as well as at least 75% of leave-one-channel-out donor

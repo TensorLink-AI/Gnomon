@@ -9,10 +9,18 @@ import pytest
 from gnomon.cli import main
 from gnomon.context import ContextEvent, ContextSource
 from gnomon.context_model import event_adjusted
+from gnomon.context_eval import episode_effect_lower_bound
 from gnomon.runtime import forecast
 
 START = datetime(2026, 1, 1, tzinfo=timezone.utc)
 PROMO_EFFECT = 30.0
+
+
+def test_episode_effect_lower_bound_prices_sampling_noise() -> None:
+    assert episode_effect_lower_bound([0.4]) == 0.0
+    noisy = episode_effect_lower_bound([0.30, 0.50, 0.35, 0.55])
+    stable = episode_effect_lower_bound([0.39, 0.40, 0.41, 0.40])
+    assert noisy < stable < 0.41
 
 
 def _promo_days(length: int) -> set[int]:
