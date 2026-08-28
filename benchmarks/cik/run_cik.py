@@ -109,6 +109,55 @@ def _process_tree_rss_mb(root_pid: int) -> int:
     return sum(processes.get(pid, (0, 0))[1] for pid in family) // 1024
 
 
+def _task_information_profile(task) -> dict:
+    """Describe whether a scored case contains forecast information.
+
+    This is computed after the forecasting method returns and is never passed
+    into a model prompt. It does not alter the official score. Its purpose is
+    to stop a constant-history/identical-constant-future case from being
+    mistaken for evidence that a forecaster learned anything.
+    """
+    frames = {"past": task.past_time, "future": task.future_time}
+    columns = list(getattr(task.past_time, "columns", []))
+    profiles: dict[str, dict] = {}
+    for name, frame in frames.items():
+        per_column = {}
+        for column in columns:
+            values = [float(value) for value in frame[column].tolist()]
+            finite = [value for value in values if math.isfinite(value)]
+            unique = set(finite)
+            per_column[str(column)] = {
+                "points": len(values),
+                "finite_points": len(finite),
+                "unique_finite_values": len(unique),
+                "constant_value": (
+                    finite[0] if finite and len(unique) == 1 else None),
+            }
+        profiles[name] = per_column
+    same_constant_channels = []
+    for column in columns:
+        past = profiles["past"][str(column)]
+        future = profiles["future"][str(column)]
+        if (past["finite_points"] == past["points"]
+                and future["finite_points"] == future["points"]
+                and past["constant_value"] is not None
+                and past["constant_value"] == future["constant_value"]):
+            same_constant_channels.append(str(column))
+    return {
+        "version": "0.1",
+        "computed_after_forecast": True,
+        "passed_to_forecaster": False,
+        "channels": len(columns),
+        "past": profiles["past"],
+        "future": profiles["future"],
+        "same_constant_past_and_future_channels": same_constant_channels,
+        "degenerate_same_constant_case": bool(
+            columns and len(same_constant_channels) == len(columns)),
+        "interpretation": (
+            "benchmark_information_diagnostic_not_forecast_evidence"),
+    }
+
+
 def _isolated_case_worker(conn, task_name: str, seed: int, args_dict: dict,
                           n_samples: int, runs_dir: str) -> None:
     """Evaluate exactly one task/seed and return serializable state."""
@@ -122,8 +171,20 @@ def _isolated_case_worker(conn, task_name: str, seed: int, args_dict: dict,
         # worker owns exactly one case, so bind the runner's authoritative
         # identity to the method for trace/receipt naming.
         setattr(method, "benchmark_seed", seed)
+
+        def profiled_method(*, task_instance, n_samples):
+            result = method(task_instance=task_instance, n_samples=n_samples)
+            if isinstance(result, tuple):
+                samples, extra_info = result
+                extra_info = dict(extra_info or {})
+            else:
+                samples, extra_info = result, {}
+            extra_info["benchmark_input_profile"] = (
+                _task_information_profile(task_instance))
+            return samples, extra_info
+
         name, row = evaluate_task(
-            classes[task_name], seed, method, n_samples,
+            classes[task_name], seed, profiled_method, n_samples,
             output_folder=Path(runs_dir),
         )
         conn.send({"ok": True, "name": name, "row": row})
@@ -440,6 +501,8 @@ def write_outputs(results: dict, method, args, output_dir: Path) -> None:
     scored: list[float] = []
     abstentions = 0
     errors = 0
+    degenerate_same_constant_runs = 0
+    perfect_scores_on_degenerate_runs = 0
     with scores_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
         writer.writerow(["task", "seed", "rcrps", "error"])
@@ -460,6 +523,13 @@ def write_outputs(results: dict, method, args, output_dir: Path) -> None:
                     [task_name, seed, score if finite else "", error]
                 )
                 extra_info = load_run_extra_info(runs_dir, task_name, seed)
+                input_profile = extra_info.get("benchmark_input_profile") or {}
+                degenerate = bool(
+                    input_profile.get("degenerate_same_constant_case"))
+                if degenerate:
+                    degenerate_same_constant_runs += 1
+                    if finite and float(score) == 0.0:
+                        perfect_scores_on_degenerate_runs += 1
                 latency = extra_info.get("total_time")
                 jsonl.write(RunRecord(
                     task_id=f"{task_name}-seed{seed}",
@@ -482,8 +552,14 @@ def write_outputs(results: dict, method, args, output_dir: Path) -> None:
                         float(latency)
                         if isinstance(latency, (int, float)) else 0.0
                     ),
-                    extra={"rcrps": float(score) if finite else None,
-                           "method": method.cache_name},
+                    extra={
+                        "rcrps": float(score) if finite else None,
+                        "method": method.cache_name,
+                        "benchmark_input_profile": input_profile or None,
+                        "score_information": (
+                            "uninformative_same_constant_past_and_future"
+                            if degenerate else "ordinary_scored_case"),
+                    },
                 ))
 
     summary = {
@@ -496,6 +572,9 @@ def write_outputs(results: dict, method, args, output_dir: Path) -> None:
         "runs_scored": len(scored),
         "runs_abstained": abstentions,
         "runs_errored": errors,
+        "degenerate_same_constant_runs": degenerate_same_constant_runs,
+        "perfect_scores_on_degenerate_runs": (
+            perfect_scores_on_degenerate_runs),
         "rcrps_cap": RCRPS_CAP,
         "mean_rcrps_capped_imputed": capped_imputed_mean(
             scored, abstentions + errors
@@ -512,7 +591,9 @@ def write_outputs(results: dict, method, args, output_dir: Path) -> None:
             "flattered by abstention — never quote it without the "
             "abstention and error counts beside it. Both are unweighted "
             "over runs; the official per-task weighting is not "
-            "reproduced here."
+            "reproduced here. Degenerate same-constant past/future cases "
+            "remain in the official aggregate but are counted separately; "
+            "a perfect score on such a case is not forecasting uplift."
         ),
     }
     (output_dir / "summary.json").write_text(

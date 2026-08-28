@@ -1,6 +1,39 @@
 import json
+from types import SimpleNamespace
 
-from benchmarks.cik.run_cik import _load_checkpoint, build_parser
+from benchmarks.cik.run_cik import (
+    _load_checkpoint, _task_information_profile, build_parser,
+)
+
+
+def test_information_profile_flags_only_identical_constant_past_and_future():
+    class Series:
+        def __init__(self, values):
+            self._values = values
+
+        def tolist(self):
+            return list(self._values)
+
+    class Frame:
+        columns = ["x"]
+
+        def __init__(self, values):
+            self._values = values
+
+        def __getitem__(self, column):
+            assert column == "x"
+            return Series(self._values)
+
+    degenerate = SimpleNamespace(
+        past_time=Frame([0.0, 0.0]), future_time=Frame([0.0]))
+    shifted = SimpleNamespace(
+        past_time=Frame([0.0, 0.0]), future_time=Frame([1.0]))
+
+    profile = _task_information_profile(degenerate)
+    assert profile["degenerate_same_constant_case"] is True
+    assert profile["passed_to_forecaster"] is False
+    assert _task_information_profile(shifted)[
+        "degenerate_same_constant_case"] is False
 
 
 def test_resume_retries_provider_and_process_failures_but_keeps_model_results(tmp_path):
