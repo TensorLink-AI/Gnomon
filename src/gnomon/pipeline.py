@@ -739,10 +739,79 @@ def conditional_stage(
     # the same event. Keep the weaker lane only where measurement was absent.
     measured_ids = {event_id for item in state.conditional_forecasts
                     for event_id in item.get("events", [])}
+    # The context gate can establish a useful point path while independently
+    # rejecting its interval calibration.  Preserve that fitted path as a
+    # labelled, non-automatable scenario instead of replacing it with the
+    # generic one-innovation sensitivity.  The primary remains untouched.
+    point_candidate = list(getattr(state.context_assessment,
+                                   "point_candidate", []) or [])
+    point_candidate_ids = list(getattr(state.context_assessment,
+                                       "events_used", []) or [])
+    point_scenario: dict[str, Any] | None = None
+    if point_candidate and len(point_candidate) == len(state.future_timestamps):
+        from statistics import mean, stdev
+
+        from .effects import (
+            EffectDistribution, EffectProvenance, effect_contract,
+            latest_knowledge_time,
+        )
+
+        measured_ids.update(point_candidate_ids)
+        deltas = [candidate - primary for candidate, primary
+                  in zip(point_candidate, state.points)]
+        used = set(point_candidate_ids)
+        used_events = [event for event in context_events
+                       if event.event_id in used]
+        sources = sorted({event.source.reference for event in used_events
+                          if event.source is not None})
+        location = mean(deltas)
+        scale = stdev(deltas) if len(deltas) > 1 else 0.0
+        typed_effect = effect_contract(
+            EffectDistribution(
+                "empirical", location, scale, min(deltas), max(deltas),
+                None, len(deltas),
+            ),
+            EffectProvenance(
+                "same_event_same_series", True,
+                latest_knowledge_time(
+                    state.timestamps[-1],
+                    [event.known_at for event in used_events],
+                ),
+                ", ".join(sources) or None, 1.0,
+                max(0.0, min(1.0, float(
+                    getattr(state.context_assessment,
+                            "mean_improvement", 0.0) or 0.0))),
+                "historically point-useful fitted event path; interval gate failed",
+            ),
+            shape=str(getattr(state.context_assessment,
+                              "effect_shape", "unknown")),
+        )
+        point_scenario = {
+            "events": point_candidate_ids,
+            "support": "point_supported_interval_weak",
+            "primary_forecast_changed": False,
+            "forecast": [
+                {"timestamp": timestamp.isoformat(), "point": point,
+                 "q50": point, "tier": "best_effort"}
+                for timestamp, point in
+                zip(state.future_timestamps, point_candidate)
+            ],
+            "assumptions": [
+                "the event effect improved point forecasts on historical folds",
+                "the independent interval-coverage gate failed",
+                "this path is for human comparison only and is not automation eligible",
+            ],
+            "intervals_available": False,
+            "automation_eligible": False,
+            "selection_eligible": True,
+            "effect": typed_effect,
+        }
     state.sensitivity_scenarios = [
         item for item in scenarios
         if not measured_ids.intersection(item.get("events", []))
     ]
+    if point_scenario is not None:
+        state.sensitivity_scenarios.insert(0, point_scenario)
     excluded.extend(scenario_excluded)
     if forecasts or state.sensitivity_scenarios or excluded:
         state.evidence.append(Evidence(

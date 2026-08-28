@@ -1001,6 +1001,52 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
             projected["selected_projection_differs_from_primary"] = bool(changed)
             projected["canonical_primary_preserved"] = bool(
                 projected.get("canonical_primary_preserved", True))
+        # Repeated operational events can number in the hundreds.  Their
+        # individual receipts remain in the immutable artifact; the agent
+        # response carries the decision-relevant aggregate and a bounded
+        # preview so context does not crowd the forecast out of its budget.
+        events = list(projected.get("events") or [])
+        if len(events) > 8:
+            projected["event_count"] = len(events)
+            projected["events"] = events[:8]
+            projected["events_omitted"] = len(events) - 8
+            projected["events_location"] = (
+                "artifact.results[].context_outcome.events")
+        dispositions = list(projected.get("dispositions") or [])
+        if len(dispositions) > 8:
+            counts: dict[str, int] = {}
+            for disposition in dispositions:
+                label = str(disposition.get("disposition") or "unknown")
+                counts[label] = counts.get(label, 0) + 1
+            projected["disposition_counts"] = counts
+            projected["dispositions"] = dispositions[:8]
+            projected["dispositions_omitted"] = len(dispositions) - 8
+            projected["dispositions_location"] = (
+                "artifact.results[].context_outcome.dispositions")
+        hypotheses = list(projected.get("hypotheses") or [])
+        if len(hypotheses) > 8:
+            signatures: dict[str, dict[str, Any]] = {}
+            for hypothesis in hypotheses:
+                signature_fields = {
+                    key: hypothesis.get(key) for key in (
+                        "direction", "duration", "duration_steps",
+                        "effect_family", "entity_kind", "entity_scope",
+                        "grounding_status", "numeric_status",
+                        "may_affect_numbers", "may_affect_primary_forecast",
+                    ) if key in hypothesis
+                }
+                signature = json.dumps(
+                    signature_fields, sort_keys=True, separators=(",", ":"))
+                if signature not in signatures:
+                    signatures[signature] = {
+                        **signature_fields, "count": 0,
+                        "representative_event_id": hypothesis.get("event_id"),
+                    }
+                signatures[signature]["count"] += 1
+            projected["hypothesis_count"] = len(hypotheses)
+            projected["hypotheses"] = list(signatures.values())
+            projected["hypotheses_location"] = (
+                "artifact.results[].context_outcome.hypotheses")
         return projected
 
     def response_facts(item: Any) -> dict[str, Any] | None:
@@ -1070,6 +1116,12 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
                 "assumed_effect": scenario.get("assumed_effect"),
                 "assumed_effect_unit": scenario.get("assumed_effect_unit"),
                 "assumptions": scenario.get("assumptions", []),
+                "automation_eligible": bool(
+                    scenario.get("automation_eligible", False)),
+                "selection_eligible": bool(
+                    scenario.get("selection_eligible", True)),
+                "intervals_available": bool(
+                    scenario.get("intervals_available", True)),
                 "forecast_rows": len(scenario.get("forecast", [])),
                 "location": "artifact.results[].sensitivity_scenarios",
             } for scenario in item.sensitivity_scenarios]}

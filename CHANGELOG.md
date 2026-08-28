@@ -1,5 +1,14 @@
 # Changelog
 
+- **Point usefulness and interval reliability are now separate context
+  claims.** When an event path improves point forecasts on every admission
+  gate except independent interval coverage, Gnomon retains it as a typed
+  `point_supported_interval_weak` scenario. It cannot replace the immutable
+  primary or authorize automation, and it carries an effect distribution,
+  provenance, knowledge time, and the failed coverage reason. Agent briefs
+  aggregate large repeated-event sets while the immutable artifact retains
+  every event and hypothesis.
+
 - **A fold winner must remain executable on the complete visible history.**
   Built-in candidates now receive a domain-only final-fit check before
   calibration. If later visible observations invalidate the model (for

@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from gnomon.context import ContextEvent, ContextSource, validate_context_event
+from gnomon.context_eval import ContextAssessment
 from gnomon.soft_context import (
     context_outcome,
     make_context_receipt,
@@ -36,6 +37,30 @@ def test_grounded_unestimated_event_is_scenario_only() -> None:
     assert outcome["primary_forecast_changed"] is False
     assert outcome["hypotheses"][0]["magnitude"] is None
     assert outcome["recovery_actions"]
+
+
+def test_point_supported_interval_weak_context_is_explicitly_non_automatable() -> None:
+    assessment = ContextAssessment(
+        considered=True, admitted=False,
+        reasons=["interval coverage failed"],
+        events_used=["event-1"], point_candidate=[101.0, 102.0],
+        point_support="point_supported_interval_weak",
+    )
+
+    outcome = context_outcome(
+        [_event()], "heart_rate", context_assessment=assessment,
+        sensitivity_scenarios=[{
+            "events": ["event-1"],
+            "support": "point_supported_interval_weak",
+        }],
+    )
+
+    assert outcome["status"] == "scenario_only"
+    assert outcome["selected_output_role"] == "interval_weak_context_scenario"
+    assert outcome["scenario_support"] == "point_supported_interval_weak"
+    assert outcome["automation_eligible"] is False
+    assert outcome["primary_forecast_changed"] is False
+    assert "intervals failed" in outcome["basis"]
 
 
 def test_failed_deterministic_claim_is_rejected_not_scenario() -> None:

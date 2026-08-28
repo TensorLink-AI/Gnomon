@@ -170,6 +170,12 @@ class ContextAssessment:
     # this says what was measured, so admission rates and rejection causes
     # are countable across a run rather than parsed out of sentences.
     gate_checks: list[dict[str, Any]] = field(default_factory=list)
+    # A context path may demonstrate repeatable point improvement while its
+    # intervals fail the independent coverage gate.  Keep that path separate
+    # from ``points``: it is useful for a labelled human scenario, but it is
+    # never publication- or automation-eligible.
+    point_candidate: list[float] = field(default_factory=list)
+    point_support: str | None = None
 
     def record_check(self, code: str, passed: bool, *, measured: Any = None,
                      threshold: Any = None, detail: str | None = None) -> None:
@@ -200,6 +206,9 @@ class ContextAssessment:
             "shrinkage": self.shrinkage,
             "measured_coverage": self.coverage,
             "gate_checks": self.gate_checks,
+            **({"point_candidate_available": True,
+                "point_support": self.point_support}
+               if self.point_candidate else {}),
             # Additive: absent unless a shape was nominated, so artifacts
             # from nomination-free runs serialise exactly as before.
             **({"nominated_shape": self.nominated_shape}
@@ -797,13 +806,13 @@ def assess_context(
     # before anything is decided on it.
     assessment.shrinkage = shrinkage_factor(improvements)
 
-    if assessment.reasons:
-        return assessment
-
-    assessment.admitted = True
+    failed_codes = {
+        str(check.get("code")) for check in assessment.gate_checks
+        if not check.get("passed")
+    }
     final_cutoff = timestamps[-1]
     if selected_estimator == "episode":
-        assessment.points = episode_residual_adjusted(
+        candidate_points = episode_residual_adjusted(
             values, horizon, season,
             event_flags(eligible, timestamps, final_cutoff),
             event_flags(eligible, future_timestamps, final_cutoff),
@@ -811,7 +820,7 @@ def assess_context(
             base.selected_model, selected_shape,
         )
     elif selected_estimator == "residual":
-        assessment.points = residual_event_adjusted(
+        candidate_points = residual_event_adjusted(
             base_residuals, horizon,
             event_flags(eligible, timestamps, final_cutoff),
             event_flags(eligible, future_timestamps, final_cutoff),
@@ -819,13 +828,13 @@ def assess_context(
             selected_shape,
         )
     else:
-        assessment.points = event_adjusted(
+        candidate_points = event_adjusted(
             values, horizon, season,
             event_flags(eligible, timestamps, final_cutoff),
             event_flags(eligible, future_timestamps, final_cutoff),
             selected_shape,
         )
-    if shrink:
+    if shrink and not assessment.reasons:
         # Move only as far from the history-only forecast as the fold
         # evidence supports. `admitted` stays a clean boolean for readers of
         # the frozen shape -- it is exactly `shrinkage > 0` -- and the factor
@@ -844,10 +853,23 @@ def assess_context(
             measured=round(assessment.shrinkage, 6), threshold=MINIMUM_SHRINKAGE,
         )
         history_only = base_predict(values)
-        assessment.points = [
+        candidate_points = [
             plain + assessment.shrinkage * (adjusted - plain)
-            for plain, adjusted in zip(history_only, assessment.points)
+            for plain, adjusted in zip(history_only, candidate_points)
         ]
+    # Coverage is an interval claim, not a point-forecast claim.  When it is
+    # the *only* failed gate, retain the fitted path as an explicitly
+    # interval-weak scenario.  This lets a human or an LLM inspect the useful
+    # conditional without weakening the immutable primary or authorising an
+    # automated action from an uncalibrated tail.
+    if failed_codes == {"coverage_not_degraded"}:
+        assessment.point_candidate = candidate_points
+        assessment.point_support = "point_supported_interval_weak"
+    if assessment.reasons:
+        return assessment
+
+    assessment.admitted = True
+    assessment.points = candidate_points
     if assessment.coverage < 0.7:
         assessment.warnings.append(
             f"Final-test 80% interval coverage was {assessment.coverage:.1%}, below 70%."

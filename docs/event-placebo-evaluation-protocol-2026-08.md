@@ -71,3 +71,26 @@ oracle file. The change graduates only if:
 
 Per-run confidence intervals and failures remain visible. No family, seed,
 case identifier, oracle field, or benchmark label may enter runtime logic.
+
+## Recorded outcome
+
+The three standard runs passed every preregistered gate at `cab4e65`. Across
+240 cases, admission precision was 100%, admission recall was 85.8%, false
+influence was 0%, both influence families improved mean sMAPE, and temporal
+leakage was zero.
+
+The replacement stress runs at `5b9e32d` retained 100% precision, zero false
+influence, zero leakage, primary immutability, and positive mean benefit for
+true asserted claims. The pooled high-SNR recall was 19/24 (79.17%), below the
+preregistered 80% threshold. This is a failed graduation result and is not
+rounded to a pass.
+
+Inspection found that two of the five high-SNR rejections did not produce
+repeatable historical point improvement; rejecting them was correct despite
+the generator's large latent effect. A third candidate improved point
+forecasts but failed only independent interval coverage. The subsequent
+general interface change preserves such candidates as non-automatable,
+interval-weak scenarios without changing admission. A replay of the unchanged
+112-case stress-3 corpus retained 100% admission precision, zero false
+influence, zero leakage, and 100% typed scenario contracts. It does not alter
+or supersede the failed preregistered graduation verdict.

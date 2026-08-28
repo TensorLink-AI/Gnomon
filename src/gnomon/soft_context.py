@@ -186,6 +186,8 @@ def context_outcome(
             "disposition": ("scenario" if event.event_id in generic_ids
                             else "rejected"),
         } for event in applicable]
+        point_candidate = bool(
+            getattr(context_assessment, "point_candidate", None))
         return {
             "status": ("partially_represented"
                        if len(generic) != len(applicable) else "scenario_only"),
@@ -196,10 +198,21 @@ def context_outcome(
             "hypotheses": hypotheses,
             "conditional_forecasts_produced": len(conditional),
             "sensitivity_scenarios_produced": len(sensitivity),
+            **({
+                "selected_output_role": "interval_weak_context_scenario",
+                "scenario_support": getattr(
+                    context_assessment, "point_support",
+                    "point_supported_interval_weak"),
+                "automation_eligible": False,
+            } if point_candidate else {}),
             "basis": (
-                "the event is grounded, but no admitted numerical effect may alter "
-                "the primary forecast; an event-effect magnitude remains null unless "
-                "measured from data, and any sensitivity path is explicitly standardized"
+                ("the event effect improved historical point forecasts, but its "
+                 "intervals failed the independent coverage gate; the fitted path "
+                 "is available only as a non-automatable scenario"
+                 if point_candidate else
+                 "the event is grounded, but no admitted numerical effect may alter "
+                 "the primary forecast; an event-effect magnitude remains null unless "
+                 "measured from data, and any sensitivity path is explicitly standardized")
             ),
             "recovery_actions": [
                 "provide prior occurrences of the same event type for effect estimation",
