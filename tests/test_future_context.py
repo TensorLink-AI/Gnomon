@@ -584,6 +584,39 @@ def test_override_with_source_cited_exact_endpoints_sets_every_quantile():
     assert all(entry["boundary_step"] is False for entry in applications)
 
 
+def test_override_with_exact_start_and_duration_sets_every_quantile():
+    start, end = FUTURE[2].isoformat(), FUTURE[3].isoformat()
+    admitted = [FutureEvent(
+        "o1", "override", start, end,
+        f"the plant is offline from {start} for 2 days and output is zero",
+        value=0.0,
+    )]
+
+    projected, applications = apply_future_events(_rows(), admitted)
+
+    for index in (2, 3):
+        assert projected[index]["point"] == 0.0
+        assert projected[index]["q10"] == 0.0
+        assert projected[index]["q50"] == 0.0
+        assert projected[index]["q90"] == 0.0
+    assert all(entry["boundary_step"] is False for entry in applications)
+
+
+def test_duration_cannot_upgrade_a_mismatched_event_window():
+    start = FUTURE[2].isoformat()
+    admitted = [FutureEvent(
+        "o1", "override", start, start,
+        f"the plant is offline from {start} for 2 days and output is zero",
+        value=0.0,
+    )]
+
+    projected, applications = apply_future_events(_rows(), admitted)
+
+    assert projected[2]["q50"] == 0.0
+    assert projected[2]["q90"] == pytest.approx(212.0)
+    assert applications[0]["boundary_step"] is True
+
+
 def test_no_admitted_events_is_a_strict_no_op():
     rows = _rows()
     projected, applications = apply_future_events(rows, [])

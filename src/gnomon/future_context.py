@@ -76,9 +76,10 @@ experiment.
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from statistics import median
@@ -648,6 +649,48 @@ def _timestamp_is_explicit(timestamp: str, span: str) -> bool:
         value.strftime("%Y-%m-%dT%H:%M"),
     }
     return any(candidate in span for candidate in candidates)
+
+
+def _duration_window_is_exact_on_grid(
+        event: FutureEvent, rows: list[dict[str, Any]], steps: list[int],
+) -> bool:
+    """Whether an exact source duration fully determines covered grid rows."""
+    if not steps or re.search(
+            r"\b(?:approximately|about|roughly|around)\b",
+            event.source_span, re.I):
+        return False
+    if not _timestamp_is_explicit(event.effective_start, event.source_span):
+        return False
+    matches = re.findall(
+        r"\b(?:last(?:ed|s)?|continu(?:ed|es)|for)\s+(?:for\s+)?"
+        r"(\d+(?:\.\d+)?)\s*(minutes?|hours?|days?|weeks?)\b",
+        event.source_span, re.I)
+    if len(matches) != 1:
+        return False
+    amount = float(matches[0][0])
+    unit = matches[0][1].casefold()
+    seconds = amount * (60 if unit.startswith("minute") else
+                        3600 if unit.startswith("hour") else
+                        604800 if unit.startswith("week") else 86400)
+    if not math.isfinite(seconds) or seconds <= 0:
+        return False
+    start = datetime.fromisoformat(event.effective_start)
+    exclusive_end = start + timedelta(seconds=seconds)
+    covered = [datetime.fromisoformat(str(rows[index]["timestamp"]))
+               for index in steps]
+    aligned_start, first = _align(start, covered[0])
+    aligned_end, _ = _align(exclusive_end, covered[0])
+    if first != aligned_start or any(
+            not aligned_start <= _align(stamp, covered[0])[0] < aligned_end
+            for stamp in covered):
+        return False
+    next_index = steps[-1] + 1
+    if next_index < len(rows):
+        next_stamp = datetime.fromisoformat(str(rows[next_index]["timestamp"]))
+        _, aligned_next = _align(aligned_end, next_stamp)
+        if aligned_next < aligned_end:
+            return False
+    return True
 
 
 @dataclass
@@ -1575,12 +1618,14 @@ def apply_future_events(
         # its closing edge only when the window actually ends inside the
         # horizon — a window running past the horizon has no closing edge
         # here, and its final visible step is interior.
-        boundary = set() if event.boundary_exact else {steps[0]}
+        exact_window = event.boundary_exact or _duration_window_is_exact_on_grid(
+            event, projected, steps)
+        boundary = set() if exact_window else {steps[0]}
         window_end, horizon_end = _align(
             datetime.fromisoformat(event.effective_end),
             datetime.fromisoformat(str(projected[-1]["timestamp"])),
         )
-        if not event.boundary_exact and window_end <= horizon_end:
+        if not exact_window and window_end <= horizon_end:
             boundary.add(steps[-1])
         for index in steps:
             row = projected[index]

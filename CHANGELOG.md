@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Treat an exact cited start plus an exact duration as a fully determined
+  override window only when it aligns with every covered host-grid row. This
+  collapses all quantiles for known outages/depletions instead of retaining an
+  incoherent upper tail, while approximate or mismatched windows keep widened
+  boundary uncertainty.
 - Preserve explicit descriptive statistics (averages, medians, typical rates,
   and historical extrema) through a deterministic, quote-preserving recall
   pass when the model compiler omits them. Restored facts remain scenario-only
