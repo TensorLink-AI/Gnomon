@@ -2696,7 +2696,11 @@ def _select_publication_fail_closed(
         completed = {**selection, "selected_scenario_id": selected,
                      "ranking": ranking,
                      "host_completed_live_portfolio": ranking != proposed}
-        return select_publication(publication, completed), None
+        selection_channel = str(selection.get("channel") or
+                                "governed_scenario_selection")
+        return select_publication(
+            publication, completed,
+            selection_channel=selection_channel), None
     except (TypeError, ValueError) as error:
         return publication, f"selector incompatible with live portfolio: {error}"
 

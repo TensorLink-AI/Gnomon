@@ -1313,6 +1313,41 @@ def test_unknown_citations_and_tampering_fail_loudly():
     assert not verify_publication(damaged)
 
 
+def test_host_sampled_prior_policy_is_not_mislabeled_as_model_selection():
+    dossier = _dossier()
+    dossier["forecast_candidate"]["elicitation"] = {
+        "kind": "sampled_point_paths", "host_observed": True,
+        "requested_paths": 5, "accepted_paths": 5,
+        "aggregation": "linear_empirical_marginal_q10_q50_q90",
+        "request_mode": "concurrent_single_sample_requests",
+        "historical_skill_evidence": False, "automation_eligible": False,
+        "stability": _stable_sampling(5),
+    }
+    import hashlib
+    import json
+    body = {key: value for key, value in dossier.items()
+            if key != "seal_sha256"}
+    dossier["seal_sha256"] = hashlib.sha256(json.dumps(
+        body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    payload = publish_result(_result(), mode="scenario", dossiers=[dossier])
+    selection = best_effort_prior_selection(
+        scenarios=payload["candidate_portfolio"], dossiers=[dossier])
+    assert selection is not None
+
+    selected = select_publication(
+        payload, selection,
+        selection_channel="best_effort_sampled_prior_policy")
+
+    authority = selected["recommendation_authority"]
+    assert authority["selection_method"] == \
+        "best_effort_sampled_prior_policy"
+    assert authority["selection_pass_performed"] is False
+    assert authority["selector_independence"] == "not_applicable"
+    assert selected["scenario_selection"]["channel"] == \
+        "best_effort_sampled_prior_policy"
+    assert verify_publication(selected)
+
+
 @pytest.mark.parametrize("mutation", [
     "missing_recovery", "dangling_scenario", "false_summary", "wrong_count",
 ])

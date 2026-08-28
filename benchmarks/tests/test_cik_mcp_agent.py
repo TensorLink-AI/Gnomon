@@ -761,7 +761,7 @@ def test_pre_call_ranking_is_completed_for_extra_live_scenarios(monkeypatch):
         {"scenario_id": "product-sensitivity"}]}
     observed = {}
 
-    def accept(payload, selection):
+    def accept(payload, selection, **_kwargs):
         observed.update(selection)
         return {**payload, "selected": selection["selected_scenario_id"]}
 

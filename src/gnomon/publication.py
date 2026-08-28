@@ -2329,8 +2329,13 @@ def verify_publication(payload: dict[str, Any]) -> bool:
     return True
 
 
-def select_publication(payload: dict[str, Any], raw_selection: dict[str, Any]
-                       ) -> dict[str, Any]:
+def select_publication(
+    payload: dict[str, Any], raw_selection: dict[str, Any], *,
+    selection_channel: Literal[
+        "governed_scenario_selection",
+        "best_effort_sampled_prior_policy",
+    ] = "governed_scenario_selection",
+) -> dict[str, Any]:
     """Apply a number-free governed ranking to an existing sealed portfolio.
 
     Forecast paths and their seals are reused byte-for-byte. The operation may
@@ -2341,6 +2346,10 @@ def select_publication(payload: dict[str, Any], raw_selection: dict[str, Any]
         raise ValueError("refusing to select from an invalid publication")
     if payload.get("mode") == "strict":
         raise ValueError("strict publications cannot be reranked")
+    if selection_channel not in {
+            "governed_scenario_selection",
+            "best_effort_sampled_prior_policy"}:
+        raise ValueError("unknown scenario selection channel")
     portfolio = [dict(item) for item in payload.get("candidate_portfolio") or []]
     evidence = (payload.get("selection_contract") or {}).get("claims") or []
     known_evidence_ids = {
@@ -2365,6 +2374,7 @@ def select_publication(payload: dict[str, Any], raw_selection: dict[str, Any]
         required_counterevidence_ids=required_counterevidence_ids)
     if selection is None:
         raise ValueError("scenario selection is required")
+    selection["channel"] = selection_channel
     selected = next(item for item in portfolio
                     if item["scenario_id"] == selection["selected_scenario_id"])
     primary = next(item for item in portfolio
@@ -2374,11 +2384,13 @@ def select_publication(payload: dict[str, Any], raw_selection: dict[str, Any]
     dispositions = _mark_selected_dispositions(
         list(payload.get("context_dispositions") or []),
         str(selected["scenario_id"]))
+    policy_selected = selection_channel == "best_effort_sampled_prior_policy"
     selected_authority = {
         "selected_role": str(selected.get("role") or "unknown"),
-        "selection_method": "governed_scenario_selection",
-        "selection_pass_performed": True,
-        "selector_independence": "not_attested",
+        "selection_method": selection_channel,
+        "selection_pass_performed": not policy_selected,
+        "selector_independence": (
+            "not_applicable" if policy_selected else "not_attested"),
         "independent_selection_performed": False,
         "historically_admitted": (
             selected.get("role") == "historically_admitted"),
@@ -2387,6 +2399,11 @@ def select_publication(payload: dict[str, Any], raw_selection: dict[str, Any]
         "prior_assisted": selected.get("support") == "prior_assisted",
         "human_review_required": not bool(selected.get("automation_eligible")),
         "reason": (
+            "The caller selected best_effort publication, and the host's "
+            "predeclared sampled-prior policy chose the one eligible sealed "
+            "prior. Sampling agreement is not historical skill; forecast "
+            "values and support were unchanged."
+            if policy_selected else
             "A separate bounded selection pass chose one existing sealed "
             "path; selector independence was not attested, and forecast "
             "values and support were unchanged."),

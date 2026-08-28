@@ -10,6 +10,10 @@
   strong fixed specification is no longer mislabeled as hypothetical
   sensitivity, while remaining distinct from bitemporal historical admission
   and ineligible for automation.
+- Preserve the provenance of deterministic sampled-prior selection when a
+  sealed portfolio is re-ranked. Host policy is no longer reported as an
+  unattested LLM selection pass; model rankings and policy decisions remain
+  distinct while both leave numbers, support, and automation unchanged.
 - Make context dispositions part of publication verification, not merely
   sealed payload data. A correctly re-sealed receipt is now rejected when it
   drops an actionable recovery, references a missing scenario, misstates its
