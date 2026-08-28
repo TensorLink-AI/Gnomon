@@ -995,6 +995,16 @@ def test_context_authority_omission_gets_one_artifact_reuse_repair():
                for problem in misattributed["problems"])
     assert run.submission is None
 
+    both_true = run._handle_submit({
+        **base,
+        "reasoning": (
+            "Automation was not requested; separately, context evidence "
+            "alone cannot authorize automation. The canonical primary "
+            "remains preserved."),
+    })
+    assert both_true["accepted"] is True
+    run.submission = None
+
     accepted = run._handle_submit({
         **base,
         "reasoning": ("The canonical primary remains preserved; context "

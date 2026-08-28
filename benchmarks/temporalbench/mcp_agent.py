@@ -2382,17 +2382,20 @@ class _Run(_RunBase):
             }
             reasoning_text = str(arguments.get("reasoning") or "").lower()
             authority_problems: list[str] = []
-            if (engine_automation == {False} and not any(
+            context_authority_stated = (
+                "context_evidence_automation_eligible=false" in reasoning_text
+                or "context_automation_eligible=false" in reasoning_text
+                or ("context" in reasoning_text and any(
                     token in reasoning_text for token in (
-                        "not eligible", "ineligible", "cannot automate",
-                        "cannot authorize", "no automation",
-                        "eligibility is false", "eligible is false",
-                        "automation_eligible=false"))):
+                        "cannot automate", "cannot authorize",
+                        "does not authorize", "no automation authority"))))
+            if engine_automation == {False} and not context_authority_stated:
                 authority_problems.append(
                     "context_authority_omitted: state that context evidence "
                     "alone cannot authorize automation; 'not requested' is "
                     "not equivalent")
-            if engine_automation == {False} and "not requested" in reasoning_text:
+            if (engine_automation == {False} and "not requested" in reasoning_text
+                    and not context_authority_stated):
                 authority_problems.append(
                     "context_authority_misattributed: automation is ineligible "
                     "because context evidence lacks authority, not because "
