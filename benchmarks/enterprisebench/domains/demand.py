@@ -68,6 +68,7 @@ CONFIG: dict[str, Any] = {
     "promo_uplift_percent": (40.0, 150.0), "promo_length": (7, 21),
     "holiday_spike_percent": (30.0, 120.0),
     "replenish_every": 7, "cover_factor": (1.2, 1.6),
+    "shock_day_probability": 0.02, "shock_multiplier": (2.0, 4.0),
     "trap_total_shift_min_fraction": 0.12,
     "outcome_targets": {"plain": 0.85, "trap": 0.15},
 }
@@ -91,8 +92,13 @@ def _sku_demand(rng: random.Random, length: int, base: float,
         if rng.random() < zero_p:
             values.append(0)
         else:
-            values.append(max(0, round(rng.gauss(rate,
-                                                 max(1.0, rate ** 0.5)))))
+            quantity = rng.gauss(rate, max(1.0, rate ** 0.5))
+            # Rare demand shocks (a viral mention, a weather day):
+            # real intermittent series carry occasional multiples of
+            # the base rate that Gaussian noise never produces.
+            if rng.random() < CONFIG["shock_day_probability"]:
+                quantity *= rng.uniform(*CONFIG["shock_multiplier"])
+            values.append(max(0, round(quantity)))
     return values
 
 
@@ -424,7 +430,7 @@ def _extra_metrics(decision: dict[str, Any],
 
 PACK = DomainPack(
     name="demand",
-    version="0.1",
+    version="0.2",
     decision_kind="quantity",
     simulate=simulate,
     cost_model=CostModel(

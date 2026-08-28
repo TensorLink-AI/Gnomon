@@ -63,6 +63,7 @@ from benchmarks.enterprisebench.harness import (
     CostModel,
     DomainPack,
     register,
+    tail_shock,
 )
 from benchmarks.enterprisebench.textgen import register_templates
 
@@ -78,6 +79,14 @@ CONFIG: dict[str, Any] = {
     "temp_sensitivity_fraction_per_degree": (0.008, 0.02),
     "temp_norm": (10.0, 22.0), "temp_ar": 0.7,
     "solar_share": (0.15, 0.35), "noise_fraction": 0.015,
+    #: Deep-solar portfolios: enough midday feed-in that *net* load
+    #: shows the duck curve — midday dip, evening peak — the regime a
+    #: modern balancing desk actually schedules against. The remainder
+    #: keep the consumption-dominated midday-peak profile. Achieved mix
+    #: disclosed in provenance.
+    "deep_solar_case_share": 0.5,
+    "deep_solar_share": (0.45, 0.7),
+    "evening_peak_hour": 19, "midday_peak_hour": 12,
     "outage_share": 0.35,
     "trap_position_shift_min_fraction": 0.06,
     "outcome_targets": {"plain": 0.85, "trap": 0.15},
@@ -87,12 +96,13 @@ CONFIG: dict[str, Any] = {
 def _load_series(rng: random.Random, hours: int, base: float,
                  swing: float, weekday: float, sensitivity: float,
                  day_temps: list[float], norm: float, solar: float,
+                 peak_hour: int,
                  outages: list[dict[str, Any]]) -> list[float]:
     values = []
     for hour in range(hours):
         day, hour_of_day = divmod(hour, 24)
-        level = base * (1.0 + swing * math.sin(
-            (hour_of_day - 6) / 24.0 * 2.0 * math.pi))
+        level = base * (1.0 + swing * math.cos(
+            (hour_of_day - peak_hour) / 24.0 * 2.0 * math.pi))
         if day % 7 < 5:
             level *= 1.0 + weekday
         level += base * sensitivity * abs(day_temps[day] - norm)
@@ -103,8 +113,8 @@ def _load_series(rng: random.Random, hours: int, base: float,
             if outage["from"] <= hour <= outage["to"]:
                 feed_in = max(0.0, feed_in - outage["mw"])
         level -= feed_in
-        values.append(level + rng.gauss(0.0, CONFIG["noise_fraction"]
-                                        * base))
+        values.append(level + tail_shock(rng, CONFIG["noise_fraction"]
+                                         * base))
     return values
 
 
@@ -134,7 +144,13 @@ def simulate(seed: int, count: int) -> tuple[list[Case], dict[str, Any]]:
         sensitivity = rng.uniform(
             *CONFIG["temp_sensitivity_fraction_per_degree"])
         norm = rng.uniform(*CONFIG["temp_norm"])
-        solar = rng.uniform(*CONFIG["solar_share"])
+        deep_solar = rng.random() < CONFIG["deep_solar_case_share"]
+        if deep_solar:
+            solar = rng.uniform(*CONFIG["deep_solar_share"])
+            peak_hour = CONFIG["evening_peak_hour"]
+        else:
+            solar = rng.uniform(*CONFIG["solar_share"])
+            peak_hour = CONFIG["midday_peak_hour"]
 
         day_temps = [norm]
         for _ in range(days - 1):
@@ -190,7 +206,7 @@ def simulate(seed: int, count: int) -> tuple[list[Case], dict[str, Any]]:
             f"enterprisebench:energy:{seed}:{attempts}:series")
         values = _load_series(series_rng, hours, base, swing, weekday,
                               sensitivity, day_temps, norm, solar,
-                              outages)
+                              peak_hour, outages)
         if trap:
             stale_temps = list(day_temps)
             stale_temps[delivery_day] = stale_forecast
@@ -198,7 +214,7 @@ def simulate(seed: int, count: int) -> tuple[list[Case], dict[str, Any]]:
                 f"enterprisebench:energy:{seed}:{attempts}:series")
             stale_values = _load_series(
                 stale_rng, hours, base, swing, weekday, sensitivity,
-                stale_temps, norm, solar, outages)
+                stale_temps, norm, solar, peak_hour, outages)
         history, future = values[:HISTORY], values[HISTORY:]
         real_total = sum(future)
         if trap:
@@ -245,6 +261,8 @@ def simulate(seed: int, count: int) -> tuple[list[Case], dict[str, Any]]:
             series_id=f"portfolio-{len(cases):04d}",
             meta={"truth_event": True, "truth_first_step": None,
                   "outcome_cell": cell,
+                  "regime": ("deep_solar_duck" if deep_solar
+                             else "consumption_dominated"),
                   "realized_total": round(shown_real_total, 4)}))
     if len(cases) < count:
         raise ValueError(
@@ -256,6 +274,10 @@ def simulate(seed: int, count: int) -> tuple[list[Case], dict[str, Any]]:
         "attempts": attempts, "skipped": skipped,
         "outcome_distribution": dict(sorted(cell_counts.items())),
         "trap_share": cell_counts.get("trap", 0) / len(cases),
+        "regime_mix": {
+            regime: sum(1 for case in cases
+                        if case.meta["regime"] == regime)
+            for regime in ("deep_solar_duck", "consumption_dominated")},
         "cases_per_series": {case.series_id: 1 for case in cases},
         "independence": (
             "one independent simulated series per case; futures cannot "
@@ -360,7 +382,7 @@ def _question(case: Case) -> str:
 
 PACK = DomainPack(
     name="energy",
-    version="0.1",
+    version="0.2",
     decision_kind="quantity",
     simulate=simulate,
     cost_model=CostModel(

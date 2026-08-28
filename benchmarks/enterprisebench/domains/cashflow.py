@@ -61,6 +61,7 @@ from benchmarks.enterprisebench.harness import (
     governed_engine_decision,
     parse_binary_decision,
     register,
+    tail_shock,
 )
 from benchmarks.enterprisebench.textgen import register_templates
 
@@ -118,7 +119,7 @@ def _mechanism(rng: random.Random, length: int
             net -= payroll
         net += sum(invoice["amount"] for invoice in invoices
                    if invoice["pay"] == index)
-        net += rng.gauss(0.0, noise_sigma)
+        net += tail_shock(rng, noise_sigma)
         flows.append(net)
     return flows, invoices, opening
 
@@ -350,7 +351,7 @@ def _question(case: Case) -> str:
 
 PACK = DomainPack(
     name="cashflow",
-    version="0.1",
+    version="0.2",
     decision_kind="binary",
     simulate=simulate,
     cost_model=binary_cost_model(COST_DRAW, COST_SHORTFALL,

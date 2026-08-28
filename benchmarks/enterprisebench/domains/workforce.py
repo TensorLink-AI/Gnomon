@@ -53,6 +53,7 @@ from benchmarks.enterprisebench.harness import (
     governed_engine_decision,
     parse_binary_decision,
     register,
+    tail_shock,
 )
 from benchmarks.enterprisebench.textgen import register_templates
 
@@ -90,8 +91,8 @@ def _volume(rng: random.Random, hours: int, base: float, weekday: float,
         for outage in outages:
             if outage["from"] <= hour <= outage["to"]:
                 level += base * outage["surge"]
-        values.append(max(0.0, level + rng.gauss(
-            0.0, CONFIG["noise_fraction"] * base)))
+        values.append(max(0.0, level + tail_shock(
+            rng, CONFIG["noise_fraction"] * base)))
     return values
 
 
@@ -323,7 +324,7 @@ def _question(case: Case) -> str:
 
 PACK = DomainPack(
     name="workforce",
-    version="0.1",
+    version="0.2",
     decision_kind="binary",
     simulate=simulate,
     cost_model=binary_cost_model(COST_STAFF, COST_SLA,

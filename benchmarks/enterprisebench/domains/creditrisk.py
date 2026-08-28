@@ -57,6 +57,7 @@ from benchmarks.enterprisebench.harness import (
     governed_engine_decision,
     parse_binary_decision,
     register,
+    tail_shock,
 )
 from benchmarks.enterprisebench.textgen import register_templates
 
@@ -94,7 +95,7 @@ def _roll_path(rng: random.Random, months: int, base: float,
         seasonal = amplitude * math.sin(month / 12.0 * 2.0 * math.pi)
         driver = macro[max(0, month - CONFIG["mechanism_lag_months"])]
         values.append(base * (1.0 + seasonal) + beta * (driver - mu)
-                      + rng.gauss(0.0, sigma))
+                      + tail_shock(rng, sigma))
     return values
 
 
@@ -315,7 +316,7 @@ def _question(case: Case) -> str:
 
 PACK = DomainPack(
     name="creditrisk",
-    version="0.1",
+    version="0.2",
     decision_kind="binary",
     simulate=simulate,
     cost_model=binary_cost_model(COST_TIGHTEN, COST_BREACH,

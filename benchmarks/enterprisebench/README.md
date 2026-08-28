@@ -98,6 +98,44 @@ rejection, and the compiled-vs-oracle gap are published together. The
 cross-domain rollup is a per-domain verdict table that **refuses to
 publish a single aggregate number** — the units differ.
 
+## Gaming resistance: every run can be fresh data
+
+The corpus is a pure function of `(seed, simulator config)` — there is
+no static dataset to memorize, leak into training data, or overfit
+against. An unused seed regenerates entirely new series, futures,
+facts, thresholds, and memo text; a test asserts two seeds share no
+12-step stretch of series content and no memo text. Combined with the
+frozen `9xxxxxxx` validation range (stamped mechanically as
+`scope: validation`), the protocol is: iterate on development seeds,
+then judge on a never-before-used frozen seed — the corpus is spent the
+moment the product iterates against it, and a spent seed is simply
+never reused. Per-case affine anonymization and the pre-spend leakage
+lint close the remaining channels.
+
+## Realism: measured, not asserted
+
+The simulators are held to stylized facts of their real-world
+counterparts by permanent tests, not by claims in prose:
+
+- **noise is heavy-tailed** (Student-t, kurtosis verified ≫ Gaussian) —
+  real spend, cash, load, and contact data throw wild points;
+- **demand** is overdispersed like real intermittent retail
+  (variance/mean verified in the 2–10+ band, not Poisson), spans slow
+  and fast movers, has rare shock days, and shows realistic
+  out-of-stock day rates;
+- **energy** produces both grid regimes — consumption-dominated
+  midday-peak portfolios and deep-solar portfolios whose *net* load
+  shows the duck curve (midday dip, evening peak), mix disclosed;
+- **workforce** volume concentrates in business hours like a real
+  contact center; **cashflow** balances are jump-diffusions with a
+  visible biweekly payroll sawtooth; **creditrisk** macro indices
+  persist like unemployment-style series and arrive with a real
+  publication lag;
+- **context is mostly signal plus real noise**: each case's memos are
+  interleaved by date with one to three pure-noise distractor memos
+  that state no fact — numerifying one scores as a hallucination,
+  which is exactly what it would be.
+
 ## Limitations and scale (read before citing)
 
 - **Synthetic, mechanistic corpora.** Ground truth is exact because the

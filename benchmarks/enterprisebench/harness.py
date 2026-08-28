@@ -68,7 +68,7 @@ for entry in (str(ROOT), str(ROOT / "src")):
 
 from benchmarks.common.openrouter import extract_json_objects  # noqa: E402
 
-GENERATOR_VERSION = "0.2"
+GENERATOR_VERSION = "0.3"
 #: Arms that require a model call. ``engine`` is deterministic and free.
 #: ``model_facts_compiled`` is the loop a client actually runs: text
 #: context in, ONE call out returning ``{claims, decision}`` — the
@@ -281,6 +281,20 @@ def registry() -> dict[str, DomainPack]:
 # ---------------------------------------------------------------------------
 # Shared helpers packs build on (binary breach-style domains)
 # ---------------------------------------------------------------------------
+
+def tail_shock(rng: Any, sigma: float, df: int = 5) -> float:
+    """Observation noise with the fat tails real operational data has:
+    a Student-t draw with ``df`` degrees of freedom scaled by ``sigma``.
+    Gaussian noise makes every excursion mean something; real spend,
+    cash, load, and contact series throw occasional wild points that a
+    robust decision layer must not chase. Deterministic in the caller's
+    seeded rng."""
+    import math as _math
+
+    z = rng.gauss(0.0, 1.0)
+    chi2 = sum(rng.gauss(0.0, 1.0) ** 2 for _ in range(df))
+    return sigma * z / _math.sqrt(max(chi2 / df, 1e-12))
+
 
 def binary_cost_model(act_cost: float, miss_cost: float,
                       act_name: str, miss_name: str) -> CostModel:
@@ -1755,6 +1769,16 @@ def _domain_summary(pack: DomainPack, args: Any, cases: list[Case],
                 "renderings round to two significant figures, so their "
                 "shown number is the target); decision truth always "
                 "uses the precise structured value"),
+            "context_noise": (
+                "one to three seeded pure-noise distractor memos per "
+                "case, interleaved by date; a claim extracted from one "
+                "matches no simulator fact and scores as a "
+                "hallucination"),
+            "data_freshness": (
+                "the corpus is a pure function of (seed, simulator "
+                "config); any unused seed regenerates entirely new "
+                "series, futures, facts, and memos — there is no "
+                "static dataset to memorize or overfit"),
             "independence": (
                 "each case simulates an independent series (per-series "
                 "case counts in provenance); labels can still co-move "

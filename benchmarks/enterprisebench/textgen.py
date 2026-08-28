@@ -43,6 +43,43 @@ _FILLERS = (
     " (the wiki page has {n1} watchers)",
 )
 
+#: Whole memos that carry no fact at all. A real inbox is mostly noise;
+#: a numerifier that turns these into claims is hallucinating, and the
+#: suite scores exactly that (the claims match no simulator fact).
+DISTRACTOR_RANGE = (1, 3)
+_DISTRACTORS = (
+    "Facilities notice {ref}: badge-system maintenance is scheduled; "
+    "expect about {n1} minutes of downtime.",
+    "All-hands logistics ({ref}): {n1} attendees confirmed so far; the "
+    "agenda doc is on revision {n2}.",
+    "IT bulletin {ref}: password rotation is due; {n1} accounts are "
+    "still pending.",
+    "Team newsletter {ref}: {n1} sign-ups this week; the survey closes "
+    "soon.",
+    "Parking memo {ref}: lot B repainting affects {n1} spaces; use the "
+    "visitor row.",
+    "Onboarding note ({ref}): {n1} new starters this cycle; buddy "
+    "assignments go out Friday.",
+)
+
+
+def distractor_lines(case: Any) -> list[tuple[int, str]]:
+    """Seeded pure-noise memos for one case: (known_at step, text)
+    pairs, deterministic in the case id alone. Their numbers are small
+    integers so they can never collide with the leakage lint's numeric
+    markers, and their reference codes derive from a distinct namespace
+    so they can never collide with item codes."""
+    rng = random.Random(f"{case.case_id}:distractors")
+    count = rng.randint(*DISTRACTOR_RANGE)
+    lines = []
+    for index in range(count):
+        template = _DISTRACTORS[rng.randrange(len(_DISTRACTORS))]
+        step = rng.randrange(0, max(1, case.cutoff))
+        lines.append((step, template.format(
+            ref=ref_code(case.case_id, f"distractor-{index}"),
+            n1=rng.randrange(5, 480), n2=rng.randrange(2, 60))))
+    return lines
+
 
 def register_templates(kind: str, base: tuple[str, ...],
                        revision: tuple[str, ...] | None = None) -> None:
@@ -121,17 +158,23 @@ def render_context_block(case: Any, resolved: list[Any],
                          prev_values: dict[str, float],
                          ) -> tuple[str, dict[str, float]]:
     """The text context block for one case: every as-of resolved item
-    rendered as a dated memo line. Returns the block and the per-item
-    shown values (extraction ground truth). Deterministic in the case
-    and item ids alone."""
+    rendered as a dated memo line, interleaved by date with seeded
+    pure-noise distractor memos (the way a real inbox arrives). Returns
+    the block and the per-item shown values (extraction ground truth —
+    distractors have no entry because they state no fact).
+    Deterministic in the case and item ids alone."""
     from benchmarks.enterprisebench.harness import grid_date
 
-    lines = []
+    entries: list[tuple[int, int, str]] = []
     shown_values: dict[str, float] = {}
-    for item in resolved:
+    for order, item in enumerate(resolved):
         rng = random.Random(f"{case.case_id}:{item.item_id}:text")
         text, shown = render_item(item, case, rng,
                                   prev_values.get(item.item_id))
         shown_values[item.item_id] = shown
-        lines.append(f"- [{grid_date(case, item.known_at)}] {text}")
+        entries.append((item.known_at, order, text))
+    for order, (step, text) in enumerate(distractor_lines(case)):
+        entries.append((step, len(resolved) + order, text))
+    lines = [f"- [{grid_date(case, step)}] {text}"
+             for step, _, text in sorted(entries)]
     return "\n".join(lines) if lines else "- (no memos)", shown_values

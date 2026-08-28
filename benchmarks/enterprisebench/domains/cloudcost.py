@@ -46,6 +46,7 @@ from benchmarks.enterprisebench.harness import (
     governed_engine_decision,
     parse_binary_decision,
     register,
+    tail_shock,
 )
 from benchmarks.enterprisebench.textgen import register_templates
 
@@ -85,7 +86,7 @@ def _spend_series(rng: random.Random, length: int,
                 ramp = min(1.0, (step - effect["from"] + 1)
                            / CONFIG["migration_ramp"])
                 level *= 1.0 - effect["depth"] * ramp
-        values.append(max(1.0, level + rng.gauss(0.0, sigma)))
+        values.append(max(1.0, level + tail_shock(rng, sigma)))
     return values
 
 
@@ -345,7 +346,7 @@ def _question(case: Case) -> str:
 
 PACK = DomainPack(
     name="cloudcost",
-    version="0.1",
+    version="0.2",
     decision_kind="binary",
     simulate=simulate,
     cost_model=binary_cost_model(COST_INTERVENE, COST_OVERAGE,

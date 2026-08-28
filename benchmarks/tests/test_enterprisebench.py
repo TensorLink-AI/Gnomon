@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import re
+import statistics as st
 import sys
 from types import SimpleNamespace
 
@@ -752,6 +753,152 @@ def test_compiled_extraction_is_scored_against_exact_expectations(
     assert gap is not None and "gap_mean_cost" in gap
     model_own = summary["metrics"]["model_facts_compiled"]["model_own"]
     assert model_own["decision_invalid_rate"] == 0.0
+
+
+# ---------------------------------------------------------------------------
+# Freshness: a new seed is new data — nothing static to game
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("name", sorted(PACKS))
+def test_every_new_seed_is_an_entirely_new_corpus(name):
+    """Gaming resistance is mechanical, not procedural: the corpus is a
+    pure function of (seed, config), so an unused seed yields new
+    series, new futures, new facts, and new memos. Nothing static
+    exists to memorize."""
+    pack = PACKS[name]
+    first, _ = pack.simulate(11, 3)
+    other, _ = pack.simulate(12, 3)
+    for a, b in zip(first, other):
+        assert a.values != b.values
+        assert a.future != b.future
+        assert text_context(a)[0] != text_context(b)[0]
+    # No shared stretch of series content between corpora. Windows, not
+    # value sets: count domains legitimately reuse small integers, but
+    # an identical 12-step contiguous window across independent seeds
+    # would mean shared generation.
+    width = 12
+
+    def windows(cases):
+        found = set()
+        for case in cases:
+            sequence = tuple(case.values) + tuple(case.future)
+            for i in range(len(sequence) - width + 1):
+                found.add(sequence[i:i + width])
+        return found
+
+    assert not windows(first) & windows(other), \
+        "two seeds must not share any stretch of series content"
+
+
+def test_context_includes_pure_noise_distractor_memos():
+    """A real inbox is mostly noise: every case interleaves one to
+    three dated memos that state no fact. They are absent from the
+    extraction ground truth, so numerifying them scores as
+    hallucination — and they never collide with item reference codes."""
+    from benchmarks.enterprisebench.textgen import distractor_lines
+
+    pack = PACKS["cashflow"]
+    for case in pack.simulate(11, 4)[0]:
+        block, shown = text_context(case)
+        noise = distractor_lines(case)
+        assert 1 <= len(noise) <= 3
+        for step, text in noise:
+            assert step <= case.cutoff
+            assert text.split(":")[0].split("(")[-1].rstrip(")") not in \
+                shown
+            ref = [tok for tok in text.replace("(", " ").replace(
+                ")", " ").split() if tok.startswith("REF-")][0]
+            assert ref in block
+            assert all(ref != textgen.ref_code(case.case_id, i.item_id)
+                       for i in case.items)
+        # Deterministic: same case, same noise.
+        assert distractor_lines(case) == noise
+
+
+# ---------------------------------------------------------------------------
+# Realism: measured against stylized facts, not asserted
+# ---------------------------------------------------------------------------
+
+def test_noise_has_the_fat_tails_real_operational_data_has():
+    import random as _random
+
+    from benchmarks.enterprisebench.harness import tail_shock
+
+    rng = _random.Random("realism:tails")
+    draws = [tail_shock(rng, 1.0) for _ in range(4000)]
+    mean = st.mean(draws)
+    variance = st.pvariance(draws)
+    kurtosis = st.mean([(d - mean) ** 4 for d in draws]) / variance ** 2
+    assert kurtosis > 4.0, (
+        f"excess kurtosis missing (got {kurtosis:.1f}; Gaussian is 3)")
+
+
+def test_demand_matches_intermittent_retail_stylized_facts():
+    cases, _ = PACKS["demand"].simulate(21, 12)
+    dispersion, zero_shares, stockout_shares = [], [], []
+    for case in cases:
+        for sku, sales in case.meta["sku_sales"].items():
+            mean = st.mean(sales)
+            if mean > 0:
+                dispersion.append(st.pvariance(sales) / mean)
+            zero_shares.append(sum(1 for v in sales if v == 0)
+                               / len(sales))
+            stockout_shares.append(
+                len(case.meta["sku_stockout_steps"][sku]) / len(sales))
+    assert 2.0 <= st.mean(dispersion) <= 15.0, "real retail runs 2-10+"
+    assert max(zero_shares) > 0.2 and min(zero_shares) < 0.2, \
+        "the mix must span slow and fast movers"
+    assert 0.005 <= st.mean(stockout_shares) <= 0.15, \
+        "real out-of-stock day rates run 2-8%"
+
+
+def test_energy_produces_both_grid_regimes_including_the_duck_curve():
+    cases, provenance = PACKS["energy"].simulate(21, 12)
+    assert provenance["regime_mix"]["deep_solar_duck"] > 0
+    assert provenance["regime_mix"]["consumption_dominated"] > 0
+    for case in cases:
+        by_hour = [st.mean(list(case.values)[h::24]) for h in range(24)]
+        midday = st.mean(by_hour[11:15])
+        evening = st.mean(by_hour[18:22])
+        if case.meta["regime"] == "deep_solar_duck":
+            assert evening > midday, "net load must dip midday (duck)"
+
+
+def test_workforce_volume_concentrates_in_business_hours():
+    cases, _ = PACKS["workforce"].simulate(21, 6)
+    for case in cases:
+        values = list(case.values)
+        floor = min(values)
+        above = [v - floor for v in values]
+        day = sum(above[h] for h in range(len(above)) if 8 <= h % 24 <= 19)
+        share = day / max(1e-9, sum(above))
+        assert share > 0.7, "real contact centers run ~85-95% in-hours"
+
+
+def test_creditrisk_macro_has_realistic_persistence_and_lags():
+    import random as _random
+
+    from benchmarks.enterprisebench.domains.creditrisk import _macro_path
+
+    autocorrs = []
+    for k in range(50):
+        path = _macro_path(_random.Random(f"realism:{k}"), 66, 6.0)
+        autocorrs.append(st.correlation(path[:-1], path[1:]))
+    assert st.mean(autocorrs) > 0.6, \
+        "unemployment-style indices persist at ~0.8-0.95"
+
+
+def test_cashflow_balance_is_a_jump_diffusion_with_payroll_sawtooth():
+    cases, _ = PACKS["cashflow"].simulate(21, 6)
+    sawtooth_cases = 0
+    for case in cases:
+        diffs = [b - a for a, b in zip(case.values, case.values[1:])]
+        spread = st.pstdev(diffs)
+        big_drops = sum(1 for d in diffs if d < -2.0 * spread)
+        if big_drops >= 3:
+            sawtooth_cases += 1
+    assert sawtooth_cases >= len(cases) // 2, \
+        "biweekly payroll must show as discrete drops"
 
 
 # ---------------------------------------------------------------------------
