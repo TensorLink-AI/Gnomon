@@ -117,8 +117,11 @@ def _narrative(events: list[dict[str, Any]], fallback: str = "",
     lines: list[str] = []
     for event in events:
         span = (event.get("attributes") or {}).get("source_span")
+        scopes = [str(item) for item in event.get("entity_scope") or ["*"]]
+        scope_label = ("the value series" if scopes == ["*"] else
+                       ", ".join(scopes))
         statement = span or (
-            f"{event['event_type']} affects the value series from "
+            f"{event['event_type']} affects {scope_label} from "
             f"{event['effective_start']} through {event['effective_end']}."
         )
         if style == "ticket":
@@ -185,12 +188,19 @@ def generate(seed: int, per_stratum: int = 8,
         }
         Case.from_dict(case)
         cases.append(case)
+        expected_disposition = (
+            "applied" if should_influence else
+            "not_considered" if family == "entity_scope" else
+            "rejected" if family in {
+                "future_covariate", "numeric_claim", "structural_change"}
+            else "scenario_only"
+        )
         oracles.append({
             "case_id": case_id,
             "actual": [round(value, 8) for value in actual],
             "counterfactual": [round(value, 8) for value in counterfactual],
             "should_influence": should_influence,
-            "expected_disposition": "applied" if should_influence else "scenario_only",
+            "expected_disposition": expected_disposition,
             "effect_direction": direction, "effect_magnitude": magnitude,
             "onset_step": onset, "duration_steps": duration,
             "dimensions": dimensions,
@@ -329,7 +339,7 @@ def generate(seed: int, per_stratum: int = 8,
             span = (f"From {_stamp(change, frequency)}, the prior trend will cease and "
                     "the series will continue without that drift.")
             event = _event(
-                case_id, "structural:trend_cessation", change,
+                case_id, "structural:trend_ceases", change,
                 total - change, frequency=frequency, attributes={
                     "source_span": span, "effect": "trend_ceases"})
             add(case_id=case_id, family="structural_change",

@@ -31,7 +31,7 @@ from gnomon.workflows import (  # noqa: E402
     normalise_context_response_containers, parse_context_response,
 )
 
-from .run_contextbench import run_case, smape  # noqa: E402
+from .run_contextbench import EPOCH, frequency_step, run_case, smape  # noqa: E402
 from .schema import Case, Oracle, load_cases, load_oracles  # noqa: E402
 
 
@@ -227,13 +227,18 @@ def compile_events(case: Case, client: OpenRouterClient) -> dict[str, Any]:
                    else "narrative_assertion")
     lines = case.narrative.splitlines()
     header = lines[0] if lines else ""
-    event_lines = [line for line in lines if " affects the value series from " in line]
+    event_lines = [line for line in lines
+                   if " affects " in line and " from " in line]
     footer = lines[-1] if lines else ""
     source_reference = ("contextbench:" + hashlib.sha256(
         case.case_id.encode()).hexdigest()[:16])
     known_times = {str(event.get("known_at"))
                    for event in case.context_events if event.get("known_at")}
     document_known_at = known_times.pop() if len(known_times) == 1 else None
+    forecast_window_end = (
+        EPOCH + (len(case.history) + case.horizon - 1) *
+        frequency_step(case.frequency)
+    ).isoformat()
     full_document = DocumentRef(
         "context.txt", case.narrative, source_type=source_type,
         reference=source_reference, known_at=document_known_at)
@@ -248,23 +253,30 @@ def compile_events(case: Case, client: OpenRouterClient) -> dict[str, Any]:
         str((event.get("attributes") or {}).get("evidence_quote", ""))
         for event in explicit["events"]
     }
-    # Only residual schedule-like lines go to the semantic compiler. Literal
-    # ISO schedule rows are already losslessly parsed and quote-grounded.
+    # Literal ISO schedule rows are losslessly parsed and quote-grounded. Any
+    # remaining schedule rows, or an otherwise unparsed narrative, must reach
+    # the semantic compiler rather than disappearing merely because it uses a
+    # different temporal vocabulary (for example a structural regime claim).
     event_lines = [line for line in event_lines if line not in consumed_quotes]
-    chunks = [event_lines[index:index + _CONTEXT_CHUNK_EVENTS]
-              for index in range(0, len(event_lines),
-                                 _CONTEXT_CHUNK_EVENTS)]
+    schedule_shaped = bool(event_lines or consumed_quotes)
+    chunks = ([event_lines[index:index + _CONTEXT_CHUNK_EVENTS]
+               for index in range(0, len(event_lines),
+                                  _CONTEXT_CHUNK_EVENTS)]
+              if schedule_shaped else
+              [lines] if case.narrative.strip() else [])
 
     def compile_chunk(item: tuple[int, list[str]]) -> dict[str, Any]:
         chunk_index, chunk_lines = item
-        content = "\n".join([header, *chunk_lines, footer])
+        content = ("\n".join([header, *chunk_lines, footer])
+                   if schedule_shaped else "\n".join(chunk_lines))
         document = DocumentRef(
             f"context-chunk-{chunk_index}.txt", content,
             source_type=source_type,
             reference=(source_reference + f":chunk:{chunk_index}"),
             known_at=document_known_at)
         request = build_context_investigation_prompt(
-            [document], ["*"], future_events=False)
+            [document], ["*"], future_events=True,
+            forecast_window_end=forecast_window_end)
         tool = _bounded_context_tool(request, len(chunk_lines))
         response = client.chat(
             [{"role": "system", "content": request["instructions"]}],
@@ -277,7 +289,8 @@ def compile_events(case: Case, client: OpenRouterClient) -> dict[str, Any]:
         coerced.extend(context_repairs)
         parsed = parse_context_response(
             raw, [document], proposer={"proposer_id": f"llm:{client.model}",
-                                      "kind": "llm"})
+                                      "kind": "llm"},
+            default_effective_end=forecast_window_end)
         for event_index, event in enumerate(parsed["events"]):
             event["event_id"] = (
                 f"event_llm_chunk_{chunk_index:03d}_{event_index:03d}")

@@ -238,7 +238,7 @@ def normalise_context_response_containers(
 
 def build_context_investigation_prompt(
     documents: list[DocumentRef], series_names: list[str], default_timezone: str = "+00:00",
-    future_events: bool = False,
+    future_events: bool = False, forecast_window_end: str | None = None,
 ) -> dict[str, Any]:
     """``future_events`` mirrors ``context.future_events``: when the run
     that will consume these events has the lane on, the prompt also
@@ -304,6 +304,16 @@ def build_context_investigation_prompt(
             "the bound or value is rejected. Never compute or estimate a "
             "number yourself.\n"
         )
+        instructions += (
+            "- A qualitative structural state change may use only one of "
+            "event_type structural:trend_ceases, "
+            "structural:level_matches_seasonal_high, or "
+            "structural:level_matches_seasonal_low. Never supply a numeric "
+            "effect: the engine derives it from the observed series."
+            + (f" For an open-ended structural statement, bound "
+               f"effective_end to the current forecast window end "
+               f"{forecast_window_end}.\n" if forecast_window_end else "\n")
+        )
     instructions += (
         "\nRespond with JSON matching the provided schema.\n\n"
         f"{document_block}"
@@ -330,6 +340,7 @@ def parse_context_response(
     *, covariate_known_at: str | None = None,
     as_of: str | None = None,
     active_target: str | None = None,
+    default_effective_end: str | None = None,
 ) -> dict[str, Any]:
     """Ground, validate, and split proposed events into accepted/rejected.
 
@@ -390,6 +401,34 @@ def parse_context_response(
             rejected.append({"proposal": proposal, "problems": ["evidence_quote is not verbatim from the cited document"]})
             continue
         event_type = str(proposal.get("event_type", ""))
+        structural_normalizations: list[dict[str, Any]] = []
+        # A narrow semantic alias repair keeps a correctly quoted, qualitative
+        # trend-cessation claim inside the closed structural vocabulary. It
+        # neither invents a magnitude nor generalises arbitrary "break" text.
+        if (event_type in {"structural_break", "trend_cessation",
+                           "trend_ceases"}
+                and re.search(r"\btrend\b.*\b(?:cease|ceases|ceased)\b",
+                              quote, re.IGNORECASE)):
+            structural_normalizations.append({
+                "field": "event_type", "supplied": event_type,
+                "normalized": "structural:trend_ceases",
+                "reason": "verified quote names trend cessation",
+            })
+            event_type = "structural:trend_ceases"
+        effective_end = proposal.get("effective_end")
+        if (event_type.startswith("structural:") and not effective_end
+                and default_effective_end):
+            structural_normalizations.append({
+                "field": "effective_end", "supplied": effective_end,
+                "normalized": default_effective_end,
+                "reason": "open-ended structural claim bounded to forecast window",
+            })
+            effective_end = default_effective_end
+        if structural_normalizations:
+            attributes["compiler_normalizations"] = [
+                *(attributes.get("compiler_normalizations") or []),
+                *structural_normalizations,
+            ]
         scope = proposal.get("entity_scope")
         if active_target is not None and event_type.startswith(
                 ("constraint:", "override:")):
@@ -499,7 +538,7 @@ def parse_context_response(
             event_type=event_type,
             entity_scope=tuple(str(item) for item in proposal.get("entity_scope", ())),
             effective_start=str(proposal.get("effective_start", "")),
-            effective_end=str(proposal.get("effective_end", "")),
+            effective_end=str(effective_end or ""),
             known_at=resolved_known_at,
             status=str(proposal.get("status", "tentative")),
             confidence=confidence,

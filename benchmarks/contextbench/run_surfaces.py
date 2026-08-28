@@ -261,7 +261,7 @@ def preserves_automation_limit(
         token in lowered for token in (
             "not eligible", "ineligible", "cannot automate",
             "cannot authorize", "no automation", "eligibility is false",
-            "eligible is false",
+            "eligible is false", "automation_eligible=false",
         ))
 
 
@@ -384,9 +384,13 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
         interval_weak = (
             context_gate.get("selected_output_role") ==
             "interval_weak_context_scenario")
-        preserved_primary = "primary" in explanation and any(
-            token in explanation for token in (
-                "unchanged", "preserved", "remain", "did not change"))
+        primary_projection = contextual.get(
+            "context_primary_projection") or {}
+        preserved_primary = (
+            primary_projection.get("matched") is True and
+            "primary" in explanation and any(
+                token in explanation for token in (
+                    "unchanged", "preserved", "remain", "did not change")))
         represented_scenario = (
             disposition != "scenario_only" or
             any(token in explanation for token in (
@@ -447,6 +451,7 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
             },
             "context_gate_citations": citations,
             "context_automation_projection": automation_projection,
+            "context_primary_projection": primary_projection,
             "history_route": (history.get("channel_route") or {}).get("value"),
             "context_route": (contextual.get("channel_route") or {}).get("value"),
             "history_calls": int((history.get("mcp") or {}).get("calls", 0)),

@@ -1070,6 +1070,21 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
             projected["selected_projection_differs_from_primary"] = bool(changed)
             projected["canonical_primary_preserved"] = bool(
                 projected.get("canonical_primary_preserved", True))
+        canonical_preserved = bool(
+            projected.get("canonical_primary_preserved", True))
+        projection_differs = bool(
+            projected.get("selected_projection_differs_from_primary", False))
+        automation_eligible = projected.get("automation_eligible") is True
+        projected["authority_summary"] = (
+            ("Context changed the selected conditional projection; "
+             "the canonical primary forecast remains preserved. "
+             if projection_differs else
+             "Context did not change the canonical primary forecast. ") +
+            ("An explicit automation policy is still required."
+             if automation_eligible else
+             "Context evidence alone cannot authorize automation.")
+        )
+        projected["canonical_primary_preserved"] = canonical_preserved
         # Repeated operational events can number in the hundreds.  Their
         # individual receipts remain in the immutable artifact; the agent
         # response carries the decision-relevant aggregate and a bounded

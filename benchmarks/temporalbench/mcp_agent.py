@@ -1805,12 +1805,22 @@ class _Run(_RunBase):
                     "type": "boolean",
                     "description": (
                         "Copy context_outcome.automation_eligible exactly. "
-                        "Scenario-only and rejected context is false."),
+                        "False means context evidence alone cannot authorize "
+                        "automation; do not weaken it to 'not requested'."),
+                }
+                parameters["properties"]["canonical_primary_preserved"] = {
+                    "type": "boolean",
+                    "description": (
+                        "Copy context_outcome.canonical_primary_preserved "
+                        "exactly; conditional projection changes do not mutate "
+                        "the canonical primary."),
                 }
                 parameters["required"].append("reasoning")
                 parameters["required"].append("cited_context_gate_codes")
                 parameters["required"].append(
                     "context_automation_eligible")
+                parameters["required"].append(
+                    "canonical_primary_preserved")
             else:
                 parameters["properties"].pop("reasoning", None)
             if getattr(self, "temporal_compilation", {}).get("questions"):
@@ -1866,6 +1876,15 @@ class _Run(_RunBase):
                      + json.dumps(compact_context_compilation_for_prompt(
                          self.context_compilation), separators=(",", ":"))
                      + "\n")
+        if self.row.get("_require_context_explanation"):
+            text += (
+                "\nThe final human-facing reasoning must preserve both "
+                "authority facts from context_outcome. If "
+                "canonical_primary_preserved is true, say the canonical "
+                "primary remains preserved. If automation_eligible is false, "
+                "say context evidence alone cannot authorize automation; "
+                "'not requested' is not equivalent. The verifier rejects a "
+                "submission that hides either fact.\n")
         if self.row.get("_require_gnomon_execution"):
             text += ("\nThis product run delegates every published numeric "
                      "trajectory to Gnomon. Submit the forecast artifact "
@@ -1987,6 +2006,15 @@ class _Run(_RunBase):
                 "support": str(support),
                 "automation_eligible": disposition.get(
                     "automation_eligible"),
+                "canonical_primary_preserved": (
+                    bool(disposition.get("canonical_primary_preserved", True))
+                    if status else None),
+                "selected_projection_differs_from_primary": (
+                    disposition.get("selected_projection_differs_from_primary",
+                                    disposition.get(
+                                        "primary_forecast_changed", False))
+                    if status else None),
+                "authority_summary": disposition.get("authority_summary"),
                 "admitted_event_ids": [
                     str(item.get("event_id")) for item in admitted
                     if isinstance(item, dict) and item.get("event_id")
@@ -2215,6 +2243,55 @@ class _Run(_RunBase):
                 "matched": (len(engine_automation) == 1 and
                             supplied_automation in engine_automation),
             }
+            engine_primary = {
+                value.get("canonical_primary_preserved")
+                for value in self.context_execution.values()
+                if value.get("canonical_primary_preserved") is not None
+            }
+            supplied_primary = arguments.get(
+                "canonical_primary_preserved")
+            self.submission["context_primary_projection"] = {
+                "engine": (next(iter(engine_primary))
+                           if len(engine_primary) == 1 else None),
+                "supplied": supplied_primary,
+                "matched": (len(engine_primary) == 1 and
+                            supplied_primary in engine_primary),
+            }
+            reasoning_text = str(arguments.get("reasoning") or "").lower()
+            authority_problems: list[str] = []
+            if (engine_automation == {False} and not any(
+                    token in reasoning_text for token in (
+                        "not eligible", "ineligible", "cannot automate",
+                        "cannot authorize", "no automation",
+                        "eligibility is false", "eligible is false",
+                        "automation_eligible=false"))):
+                authority_problems.append(
+                    "context_authority_omitted: state that context evidence "
+                    "alone cannot authorize automation; 'not requested' is "
+                    "not equivalent")
+            if (engine_primary == {True} and not (
+                    "primary" in reasoning_text and any(
+                        token in reasoning_text for token in (
+                            "unchanged", "preserved", "remain",
+                            "did not change")))):
+                authority_problems.append(
+                    "canonical_primary_omitted: state that the canonical "
+                    "primary forecast remains preserved")
+            citations = self.submission["context_gate_citations"]
+            if citations["invalid"] or (
+                    citations["expected"] and not citations["matched"]):
+                authority_problems.append(
+                    "context_gate_citation_invalid: cite only failed gate "
+                    "codes returned by Gnomon")
+            if authority_problems:
+                self.submission = None
+                return {"accepted": False, "authored_by": "harness",
+                        "problems": authority_problems,
+                        "ready_to_retry": {
+                            "tool": "submit_answer",
+                            "reuse_forecast_artifact": True,
+                            "rerun_gnomon": False,
+                        }}
         return {"accepted": True, "routes": routes}
 
     def _project_receipt_choices(self) -> dict[str, dict[str, Any]]:
@@ -2305,6 +2382,10 @@ class _Run(_RunBase):
                 self.submission["context_automation_projection"]}
                if self.submission.get(
                    "context_automation_projection") is not None else {}),
+            **({"context_primary_projection":
+                self.submission["context_primary_projection"]}
+               if self.submission.get(
+                   "context_primary_projection") is not None else {}),
             "canonical_mcq": self.submission.get("canonical_mcq", {}),
             "synthesized_mcq": self.submission.get("synthesized_mcq", {}),
             "choice_authority": self.submission.get("choice_authority", {}),

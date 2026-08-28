@@ -127,7 +127,8 @@ def context_outcome(
     })
     if not applicable:
         return {"status": "not_considered", "primary_forecast_changed": False,
-                "events": []}
+                "canonical_primary_preserved": True,
+                "automation_eligible": False, "events": []}
     admitted = list((future_context or {}).get("admitted") or [])
     if bool(getattr(context_assessment, "admitted", False)) or admitted:
         historical_admission = bool(getattr(context_assessment, "admitted", False))
@@ -202,6 +203,7 @@ def context_outcome(
             "status": ("partially_represented"
                        if len(generic) != len(applicable) else "scenario_only"),
             "primary_forecast_changed": False,
+            "canonical_primary_preserved": True,
             "automation_eligible": False,
             "events": [event.event_id for event in applicable],
             "dispositions": dispositions,
@@ -236,6 +238,7 @@ def context_outcome(
         }
     return {
         "status": "rejected", "primary_forecast_changed": False,
+        "canonical_primary_preserved": True,
         "automation_eligible": False,
         "events": [event.event_id for event in applicable],
         **({"context_receipt_ids": receipt_ids} if receipt_ids else {}),

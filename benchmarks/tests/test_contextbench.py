@@ -127,6 +127,17 @@ def test_stress_generator_is_reproducible_and_covers_production_strata():
     assert len(mixed) == 1 and mixed[0]["family"] == "confounded"
 
 
+def test_stress_scope_narrative_and_oracle_preserve_named_entity():
+    cases, oracles = generate_stress(8182, per_stratum=1)
+    case = next(row for row in cases if row["family"] == "entity_scope")
+    oracle = next(row for row in oracles
+                  if row["case_id"] == case["case_id"])
+
+    assert "affects other-series from" in case["narrative"]
+    assert "affects the value series" not in case["narrative"]
+    assert oracle["expected_disposition"] == "not_considered"
+
+
 def test_stress_summary_separates_empirical_admission_from_asserted_truth():
     rows = []
     for case_id, warrant, truth, applied, changed in (
@@ -326,6 +337,8 @@ def test_automation_limit_needs_typed_parity_and_explicit_ineligibility():
 
     assert check("Automation eligibility is false.", restricted=True,
                  projection=matched)
+    assert check("automation_eligible=false", restricted=True,
+                 projection=matched)
     assert check("This scenario cannot authorize automation.", restricted=True,
                  projection=matched)
     assert not check("Automation was not requested.", restricted=True,
@@ -429,6 +442,40 @@ def test_scripted_compiler_is_quote_grounded_and_magnitude_free():
     assert compiled["events"][0]["known_at"] == source["known_at"]
     assert "magnitude" not in attributes
     assert attributes["evidence_quote"] == quote
+
+
+def test_non_schedule_structural_narrative_reaches_semantic_compiler():
+    raw_cases, _ = generate_stress(8183, per_stratum=1)
+    structural = Case.from_dict(next(
+        row for row in raw_cases
+        if row["case_id"] == "stress-structural-true-0000"))
+    source = structural.context_events[0]
+    client = _ScriptedClient({"events": [{
+        "document_index": 0,
+        "event_type": "structural_break",
+        "entity_scope": ["*"],
+        "effective_start": source["effective_start"],
+        "effective_end": None,
+        "known_at": source["known_at"],
+        "evidence_quote": structural.narrative,
+        "effect_family": "regime_change",
+        "direction": "unknown",
+        "duration": "persistent",
+    }]})
+
+    compiled = compile_events(structural, client)
+
+    assert compiled["compiler_called"] is True
+    assert compiled["compiler_calls"] == 1
+    assert len(compiled["events"]) == 1
+    assert compiled["events"][0]["event_type"] == \
+        "structural:trend_ceases"
+    assert compiled["events"][0]["effective_end"] > \
+        compiled["events"][0]["effective_start"]
+    normalizations = compiled["events"][0]["attributes"][
+        "compiler_normalizations"]
+    assert {item["field"] for item in normalizations} >= {
+        "event_type", "effective_end"}
 
 
 def test_schedule_compiler_schema_is_bounded_and_source_grounded_only():

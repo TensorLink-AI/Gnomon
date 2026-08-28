@@ -320,11 +320,38 @@ def test_prompt_describes_future_classes_only_when_asked() -> None:
     off = build_context_investigation_prompt([BOUND_DOCUMENT], ["*"])
     on = build_context_investigation_prompt(
         [BOUND_DOCUMENT], ["*"], future_events=True,
+        forecast_window_end="2026-08-31T23:59:59+00:00",
     )
     assert "constraint:<label>" not in off["instructions"]
     assert "constraint:<label>" in on["instructions"]
     assert "override:<label>" in on["instructions"]
     assert "Never compute or estimate a number yourself" in on["instructions"]
+    assert "structural:trend_ceases" in on["instructions"]
+    assert "2026-08-31T23:59:59+00:00" in on["instructions"]
+
+
+def test_grounded_open_ended_trend_cessation_gets_one_bounded_repair() -> None:
+    quote = ("From 2026-08-02T00:00:00+00:00, the prior trend will cease "
+             "and continue without that drift.")
+    document = DocumentRef(
+        "plan.md", quote, known_at="2026-07-01T00:00:00+00:00")
+    result = parse_context_response({"events": [{
+        "document_index": 0, "event_type": "structural_break",
+        "entity_scope": ["*"],
+        "effective_start": "2026-08-02T00:00:00+00:00",
+        "effective_end": None,
+        "known_at": "2026-08-02T00:00:00+00:00",
+        "evidence_quote": quote,
+    }]}, [document],
+        default_effective_end="2026-08-31T23:59:59+00:00")
+
+    assert not result["rejected"]
+    event = result["events"][0]
+    assert event["event_type"] == "structural:trend_ceases"
+    assert event["effective_end"] == "2026-08-31T23:59:59+00:00"
+    assert {item["field"] for item in event["attributes"][
+        "compiler_normalizations"]} >= {
+            "event_type", "effective_end", "known_at"}
 
 
 def test_verified_quote_becomes_the_source_span_for_namespaced_events() -> None:

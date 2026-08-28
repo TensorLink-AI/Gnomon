@@ -1,5 +1,24 @@
 # Changelog
 
+- **Context authority is now single-source and verifier-enforced.** Every
+  context disposition carries `canonical_primary_preserved` and an explicit
+  non-automation decision, while the compact tool response adds one quotable
+  authority summary. Context-agent submissions copy both booleans; omissions
+  receive a bounded artifact-reuse repair that never reruns Gnomon. A new-seed
+  five-disposition diagnostic preserved publication identity, zero leakage,
+  one Gnomon call, exact gate citations, and 100% disposition accuracy; the
+  previously failing out-of-scope explanation passed after the verifier rule.
+
+- **Unparsed temporal prose now reaches semantic compilation.** Literal
+  schedules still take the zero-call deterministic path, but non-schedule
+  narratives no longer disappear. The compiler prompt names the closed
+  structural vocabulary and forecast boundary; one conservative normalization
+  maps a verbatim “trend will cease” claim into `structural:trend_ceases` and
+  bounds an open end to the forecast window, with both repairs recorded.
+  Stress generation now preserves named entity scope in prose and uses
+  family-correct expected dispositions, closing a benchmark case whose text
+  contradicted its hidden scope metadata.
+
 - **Context scenarios cannot imply automation authority.** Every applied,
   scenario-only, partially represented, and rejected context outcome now says
   explicitly that context admission alone is not automation eligibility. The

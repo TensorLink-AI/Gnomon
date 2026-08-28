@@ -40,6 +40,17 @@ def test_grounded_unestimated_event_is_scenario_only() -> None:
     assert outcome["recovery_actions"]
 
 
+def test_out_of_scope_context_cannot_imply_automation_authority() -> None:
+    outcome = context_outcome([_event()], "blood_pressure")
+    assert outcome == {
+        "status": "not_considered",
+        "primary_forecast_changed": False,
+        "canonical_primary_preserved": True,
+        "automation_eligible": False,
+        "events": [],
+    }
+
+
 def test_point_supported_interval_weak_context_is_explicitly_non_automatable() -> None:
     assessment = ContextAssessment(
         considered=True, admitted=False,
@@ -65,6 +76,7 @@ def test_point_supported_interval_weak_context_is_explicitly_non_automatable() -
     assert outcome["scenario_support"] == "point_supported_interval_weak"
     assert outcome["automation_eligible"] is False
     assert outcome["primary_forecast_changed"] is False
+    assert outcome["canonical_primary_preserved"] is True
     assert outcome["failed_gate_codes"] == ["coverage_not_degraded"]
     assert "intervals failed" in outcome["basis"]
 
@@ -73,6 +85,7 @@ def test_failed_deterministic_claim_is_rejected_not_scenario() -> None:
     outcome = context_outcome([_event("constraint:capacity")], "heart_rate")
     assert outcome["status"] == "rejected"
     assert outcome["primary_forecast_changed"] is False
+    assert outcome["canonical_primary_preserved"] is True
     assert outcome["automation_eligible"] is False
 
 

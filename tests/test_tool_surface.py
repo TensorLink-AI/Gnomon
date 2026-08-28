@@ -264,7 +264,15 @@ def test_batched_forecast_accepts_scoped_validated_context(tmp_path) -> None:
         "selected_projection_differs_from_primary"] is False
     assert by_series["cpu"]["context_outcome"][
         "canonical_primary_preserved"] is True
+    assert by_series["cpu"]["context_outcome"][
+        "automation_eligible"] is False
+    assert by_series["cpu"]["context_outcome"]["authority_summary"] == (
+        "Context did not change the canonical primary forecast. Context "
+        "evidence alone cannot authorize automation.")
     assert by_series["mem"]["context_outcome"]["status"] == "not_considered"
+    assert by_series["mem"]["context_outcome"]["authority_summary"] == (
+        "Context did not change the canonical primary forecast. Context "
+        "evidence alone cannot authorize automation.")
 
 
 def test_batched_forecast_emits_scoped_sealed_publications(tmp_path) -> None:
