@@ -33,6 +33,18 @@ graduate the revised implementation:
 Standard corpora contain 20 cases per family; stress corpora contain eight
 cases per stratum.
 
+The revised estimator-specific gate at `968c1d3` is evaluated only on this
+second, untouched graduation set, frozen before execution:
+
+| Corpus | Seed | Cases SHA-256 | Oracle SHA-256 |
+| --- | ---: | --- | --- |
+| standard-1 | 4865898794418414059 | `cf05ce47ad0953367a32c03049a7682ffe072bc105ee0d2488ad916cd9dc4fb2` | `ed92d108a56185546182cb0022a4d4ea8d88d1deae188eb53b781221b3255ca5` |
+| standard-2 | 3581236821206984004 | `cb924e1b21a947a040fc4d6438526b8d47493ebd5201c27fab737bc84d23c66f` | `9dae78ca7a2cb220e7c876b05bf79501c8d6b96a7ef0a2d732fb7266942e9a59` |
+| standard-3 | 1982017067946730369 | `44ac3b9bbd49057f8286f0dd1af5daf4391656f1e23abd7575f7f79f836f8955` | `5fcc50a1d1cf8ba7f8daa80e20a92dc67e74596232dd551f3c7497c3c9272dc6` |
+| stress-1 | 5575011721418376358 | `b5e74050b1473b4187e23360f131677dad0c5130e631bc08fd11c8f6c8824066` | `1f6e0d7f88f361d63385819f0dbdc646f50382acd92841467ccd9cc25e698b92` |
+| stress-2 | 8027168944844480793 | `e96762c9ead57dcd8494cdd9863cb3f75bd84fc2cc12c1aaca1bece1638e1835` | `96efe4d08117ac9083e10bff03afe51a82ee8bbdff08c0ff20e721346b55f6c7` |
+| stress-3 | 5510475529957827327 | `ae64f37b21be1e52fd7674fe3e35cd19ea72ce91070f47fc37bd4c390fbf7691` | `935497b9a2867f720a479e8537299c5db99b3172dbc10f184ad67d5534d947ca` |
+
 Run the repository's unchanged ContextBench scorer and retain every case and
 oracle file. The change graduates only if:
 
