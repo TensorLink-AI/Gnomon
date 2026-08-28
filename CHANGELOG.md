@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Plan optional LLM scenario selection from the exact sealed portfolio returned
+  by the live forecast call. A governed executable fitted during execution can
+  now establish evidence dominance before selection, avoiding a redundant
+  model call and a confusing rejected stale ranking.
+- Give retrospective validation its own public evidence-authority class. A
+  strong fixed specification is no longer mislabeled as hypothetical
+  sensitivity, while remaining distinct from bitemporal historical admission
+  and ineligible for automation.
 - Make context dispositions part of publication verification, not merely
   sealed payload data. A correctly re-sealed receipt is now rejected when it
   drops an actionable recovery, references a missing scenario, misstates its

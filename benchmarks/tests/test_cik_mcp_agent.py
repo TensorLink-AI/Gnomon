@@ -36,6 +36,7 @@ from benchmarks.cik.mcp_agent import (
     _restore_cited_power_literals,
     _bind_transformation_provenance,
     _select_publication_fail_closed,
+    _selection_inputs,
     _canonicalize_scenario_selection_evidence,
     _has_material_numeric_context,
     _future_numeric_path_needs_executable,
@@ -690,6 +691,29 @@ def test_single_live_scenario_needs_no_selector_and_reports_no_error():
 
     assert retained is publication
     assert error is None
+
+
+def test_selector_uses_exact_live_portfolio_not_preexecution_rebuild(monkeypatch):
+    live_portfolio = [
+        {"scenario_id": "primary"},
+        {"scenario_id": "fitted-during-forecast"},
+    ]
+    contract = {"selection_required": False,
+                "deterministic_scenario_id": "fitted-during-forecast"}
+    live = {"candidate_portfolio": live_portfolio,
+            "selection_contract": contract}
+
+    def stale_rebuild(*_args, **_kwargs):
+        raise AssertionError("live selection must not rebuild a stale catalog")
+
+    monkeypatch.setattr(
+        "gnomon.publication.build_scenario_catalog", stale_rebuild)
+    scenarios, selected_contract = _selection_inputs(
+        live_publication=live,
+        artifact_result={"forecast": []}, dossiers=[])
+
+    assert scenarios == live_portfolio
+    assert selected_contract is contract
 
 
 def test_scenario_selector_overlap_is_repaired_from_selected_claim_ownership():

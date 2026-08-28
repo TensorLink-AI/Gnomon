@@ -106,6 +106,8 @@ def _context_summary(
         and authority.get("selected_role") not in {None, "immutable_primary"})
     if authority.get("historically_admitted") is True:
         evidence_authority = "historically_admitted"
+    elif authority.get("retrospectively_validated") is True:
+        evidence_authority = "retrospectively_validated"
     elif authority.get("prior_assisted") is True:
         evidence_authority = "prior_assisted"
     elif context_changed_recommendation:
@@ -2149,6 +2151,8 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
         # not independent review.
         "independent_selection_performed": False,
         "historically_admitted": selected_role == "historically_admitted",
+        "retrospectively_validated": (
+            selected_role == "retrospectively_validated"),
         "conditional_replay_admitted": (
             selected_role == "observation_counterfactual"
             and ((selected.get("effect") or {}).get(
@@ -2378,6 +2382,8 @@ def select_publication(payload: dict[str, Any], raw_selection: dict[str, Any]
         "independent_selection_performed": False,
         "historically_admitted": (
             selected.get("role") == "historically_admitted"),
+        "retrospectively_validated": (
+            selected.get("role") == "retrospectively_validated"),
         "prior_assisted": selected.get("support") == "prior_assisted",
         "human_review_required": not bool(selected.get("automation_eligible")),
         "reason": (

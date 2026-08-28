@@ -1883,6 +1883,12 @@ def test_mcp_fits_source_stated_lag_structure_without_model_coefficients(tmp_pat
     assert validation["specification_known_at_each_origin"] is False
     assert publication["recommendation_authority"]["selected_role"] == \
         "retrospectively_validated"
+    assert publication["recommendation_authority"][
+        "retrospectively_validated"] is True
+    assert publication["context_summary"]["context_evidence_authority"] == \
+        "retrospectively_validated"
+    assert publication["context_summary"][
+        "authoritative_for_publication"] is False
     assert publication["primary_forecast_unchanged"] is True
     assert publication["automation"]["eligible"] is False
     assert not any(item["context_id"] in {

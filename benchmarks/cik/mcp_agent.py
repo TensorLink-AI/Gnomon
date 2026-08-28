@@ -420,7 +420,10 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: median-consensus estimator before the prior-assisted fallback is opened.
 #: Version 196: relationship/state replay separates proven historical
 #: admission from explicitly best-effort retrospective human use.
-MCP_CONTRACT_VERSION = 196
+#: Version 197: scenario selection is planned from the exact sealed live MCP
+#: portfolio, so a pre-execution catalog cannot trigger a redundant selector
+#: that the subsequently fitted governed executable must reject.
+MCP_CONTRACT_VERSION = 197
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -2698,6 +2701,25 @@ def _select_publication_fail_closed(
         return publication, f"selector incompatible with live portfolio: {error}"
 
 
+def _selection_inputs(
+        *, live_publication: dict[str, Any] | None,
+        artifact_result: dict[str, Any], dossiers: list[dict[str, Any]],
+        ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+    """Return the exact portfolio an optional human selector may rank.
+
+    A forecast call can fit candidates that do not exist in the compiler's
+    pre-execution view. Once a live publication exists it is the only sound
+    selection surface; rebuilding from partial inputs creates a stale choice.
+    """
+    if live_publication:
+        return (list(live_publication.get("candidate_portfolio") or []),
+                live_publication.get("selection_contract"))
+    from gnomon.publication import build_scenario_catalog
+    scenarios, _ = build_scenario_catalog(
+        artifact_result, dossiers=dossiers)
+    return scenarios, None
+
+
 def _canonicalize_scenario_selection_evidence(
         raw: Any, scenarios: list[dict[str, Any]], *,
         known_claim_ids: set[str] | None = None,
@@ -3182,13 +3204,13 @@ class McpAgentForecaster:
             selection_attempted = False
             selection_policy_applied = False
             if self.output_role == "publication_best_effort":
-                from gnomon.publication import (build_scenario_catalog,
-                                                best_effort_prior_selection,
+                from gnomon.publication import (best_effort_prior_selection,
                                                 scenario_selection_contract,
                                                 validate_scenario_selection)
                 from gnomon.temporal_state import build_temporal_state
-                scenarios, _ = build_scenario_catalog(
-                    artifact_result, dossiers=dossiers)
+                scenarios, contract = _selection_inputs(
+                    live_publication=live_publication,
+                    artifact_result=artifact_result, dossiers=dossiers)
                 policy_selection = best_effort_prior_selection(
                     scenarios=scenarios, dossiers=dossiers)
                 if policy_selection is not None:
@@ -3196,11 +3218,11 @@ class McpAgentForecaster:
                     selection_policy_applied = True
                     scenarios = []
                 if len(scenarios) > 1:
-                    contract = scenario_selection_contract(
-                        scenarios=scenarios, dossiers=dossiers,
-                        temporal_state=build_temporal_state(
-                            artifact_result, dossiers=dossiers),
-                        allow_prior_assisted_choice=True)
+                    contract = contract or scenario_selection_contract(
+                            scenarios=scenarios, dossiers=dossiers,
+                            temporal_state=build_temporal_state(
+                                artifact_result, dossiers=dossiers),
+                            allow_prior_assisted_choice=True)
                     if contract.get("selection_required") is False:
                         # A host should not pay for a choice the verifier would
                         # reject. Emptying this local list only skips the model
