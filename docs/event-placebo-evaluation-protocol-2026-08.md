@@ -45,6 +45,18 @@ second, untouched graduation set, frozen before execution:
 | stress-2 | 8027168944844480793 | `e96762c9ead57dcd8494cdd9863cb3f75bd84fc2cc12c1aaca1bece1638e1835` | `96efe4d08117ac9083e10bff03afe51a82ee8bbdff08c0ff20e721346b55f6c7` |
 | stress-3 | 5510475529957827327 | `ae64f37b21be1e52fd7674fe3e35cd19ea72ce91070f47fc37bd4c390fbf7691` | `935497b9a2867f720a479e8537299c5db99b3172dbc10f184ad67d5534d947ca` |
 
+The first stress execution exposed a pre-existing final-fit domain crash in
+Croston-SBA. The three standard results above remain evaluations of the event
+gate at clean commit `cab4e65`; the stress set is diagnostic and cannot
+graduate the repaired engine. After the general final-domain fallback landed
+at `818e2c9`, this replacement stress-only set was frozen before execution:
+
+| Corpus | Seed | Cases SHA-256 | Oracle SHA-256 |
+| --- | ---: | --- | --- |
+| stress-1 | 4980103135766468476 | `36b53a7449423dc9643837bd858328cc297689be61ed532f7a1cee06363e5b9c` | `73804f338dbe02f3a08306fe350f1693aed9413101c8bc757f8c51611b6fb193` |
+| stress-2 | 6120661279311270264 | `f14ebf9b6c9182b506a9baa8e3275b0f100e36bb9d1adfa28447839ff79562c0` | `fb2b2847a9e752714ed2dab873f6d0c681cb00085e66cdc71bb2249360663362` |
+| stress-3 | 1480469107934715842 | `406bac3b378bbb8869562a2a1001d28d186fa334f103d53fbf4c357e20ad6049` | `ad3d12c313cd5c102e763a1f6296ca76657134806bcfd02cba3354f48d4f7ab2` |
+
 Run the repository's unchanged ContextBench scorer and retain every case and
 oracle file. The change graduates only if:
 
