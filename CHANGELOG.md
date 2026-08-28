@@ -1,5 +1,13 @@
 # Changelog
 
+- **Short-history panel pooling now requires repeatable transfer.** The
+  within-file pooled-trend candidate must win at every available disjoint
+  target origin as well as at least 75% of leave-one-channel-out donor
+  comparisons. Its admission receipt reports the target comparison count and
+  win rate. This replaces the single-target-window gate that could promote a
+  lucky marginal relationship. The independent benchmark now rejects any
+  harmful marginal admission and its documented direct command is executable.
+
 - **Resolved decision skill reuses the synthesis ledger.** Categorical
   canonical-versus-model selections now aggregate by proposer with paired
   wins/losses, an exact sign test, and shrunk net improvement. The CLI and MCP

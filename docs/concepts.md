@@ -176,6 +176,16 @@ Panel series can behave differently. Gnomon evaluates and selects each one
 independently rather than forcing one model across an entire panel. One series
 may retain seasonal-naive while another selects a candidate model or abstains.
 
+On a short panel with at least four aligned channels, Gnomon may also test a
+within-file pooled-trend candidate. It borrows only a half-shrunk median
+normalised trend from sibling prefixes available at each forecast origin. The
+candidate is published only when the relationship transfers on at least 75%
+of leave-one-channel-out donor comparisons and wins at every available
+disjoint target origin under both point and scaled error. Its admission state
+is `pooled_validated`, so consumers can distinguish borrowed strength from a
+single-series fit. A heterogeneous, weak, or inconsistently transferring
+panel remains on its per-series baseline.
+
 ## Improvement threshold
 
 If baseline error is `B` and candidate error is `C`, candidate improvement is:

@@ -882,8 +882,8 @@ def _admit_pooled_lightweight(
     """Admit a within-panel executable without calling donor evidence local folds.
 
     The candidate itself owns a leave-one-channel-out comparability check.
-    Gnomon additionally requires a held-out target win under both WAPE and
-    fold-local scaled error.  This lane is distinct from external transfer:
+    Gnomon additionally requires repeated disjoint target-origin wins under
+    both WAPE and fold-local scaled error.  This lane is distinct from external transfer:
     every borrowed observation belongs to the caller's current snapshot.
     """
     if not assessment.supported or assessment.strongest_baseline != "last_value":
@@ -904,15 +904,14 @@ def _admit_pooled_lightweight(
     from .admission import AdmissionDecision, AdmissionEvidence, OutputDiagnostics
     admission_evidence = AdmissionEvidence(
         model_class="locally_fitted",
-        independent_folds=1,
-        paired_folds=1,
+        independent_folds=pooled.target_pairs,
+        paired_folds=pooled.target_pairs,
         candidate_loss=pooled.target_loss,
         baseline_loss=pooled.baseline_loss,
         relative_improvement=(
             (pooled.baseline_loss - pooled.target_loss) / pooled.baseline_loss),
-        candidate_win_rate=1.0,
-        median_relative_gain=(
-            (pooled.baseline_loss - pooled.target_loss) / pooled.baseline_loss),
+        candidate_win_rate=pooled.target_win_rate,
+        median_relative_gain=pooled.target_median_gain,
         local_gain_standard_error=None,
         diagnostics=OutputDiagnostics(),
     )
@@ -922,9 +921,11 @@ def _admit_pooled_lightweight(
         (f"borrowed strength from {len(candidate.donors)} sibling channels",
          f"leave-one-channel-out donor comparisons: {pooled.donor_pairs}",
          f"donor win rate: {pooled.donor_win_rate:.3f}",
+         f"disjoint target-origin comparisons: {pooled.target_pairs}",
+         f"target win rate: {pooled.target_win_rate:.3f}",
          f"normalised pooled-trend strength: {pooled.normalised_pool_strength:.3f}",
          "target held-out WAPE and scaled-error gates both passed"),
-        policy_version="within-panel-pooling-v1",
+        policy_version="within-panel-pooling-v2",
     )
     from .candidate import CandidateIdentity, CandidateSpec, FittedCandidate
     from .ids import content_id
@@ -935,6 +936,7 @@ def _admit_pooled_lightweight(
         config={
             "admission_state": "pooled_validated",
             "donor_pairs": pooled.donor_pairs,
+            "target_pairs": pooled.target_pairs,
             "comparability": "leave_one_channel_out_fold_transfer",
         },
         revisions={"runtime": RUNTIME_VERSION},
@@ -962,8 +964,8 @@ def _admit_pooled_lightweight(
         improvement=admission_evidence.relative_improvement,
         residuals=residuals,
         warnings=[*assessment.warnings,
-                  "Short-history pooled forecast: the target has one held-out "
-                  "window; sibling-channel transfer was validated with "
+                  "Short-history pooled forecast: the target passed repeated "
+                  "disjoint historical origins; sibling-channel transfer was validated with "
                   "leave-one-channel-out historical forecasts. The result "
                   "borrows strength and remains degraded."],
         notes=[*assessment.notes,
@@ -973,9 +975,9 @@ def _admit_pooled_lightweight(
         final_candidate=final, admission_decision=decision,
         selection_guardrail_applied=False,
         selection_stability={
-            "paired_folds": 1,
-            "candidate_win_rate": 1.0,
-            "median_relative_gain": admission_evidence.relative_improvement,
+            "paired_folds": pooled.target_pairs,
+            "candidate_win_rate": pooled.target_win_rate,
+            "median_relative_gain": pooled.target_median_gain,
             "scaled_error_improvement": pooled.target_scaled_gain,
             "scaled_error_passed": True,
             "passed": True,

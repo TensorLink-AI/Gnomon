@@ -12,8 +12,13 @@ import argparse
 import json
 import math
 import random
+import sys
 from pathlib import Path
 from statistics import mean, median
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "src"))
 
 from benchmarks.common.manifest import code_revision, write_manifest
 from gnomon.models import MODELS, last_value, predict
@@ -188,6 +193,8 @@ def run(seed: int = 82631, cases_per_family: int = 40) -> dict[str, object]:
             result["pooling"]["null"]["admission_rate"] < .05),
         "marginal_admission_rate_below_05": (
             result["pooling"]["comparable_marginal"]["admission_rate"] < .05),
+        "marginal_harmful_admissions_zero": (
+            result["pooling"]["comparable_marginal"]["outcomes"]["regression"] == 0),
         "mixed_direction_admission_rate_below_05": (
             result["pooling"]["mixed_direction"]["admission_rate"] < .05),
         "raw_records_retained": len(rows) == cases_per_family * 9,
