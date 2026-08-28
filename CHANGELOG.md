@@ -1,5 +1,13 @@
 # Changelog
 
+- **Context explanations must cite the engine evidence they rely on.** The
+  context-agent evaluation now asks for bounded typed citations to Gnomon's
+  failed admission gates and checks them against the gates actually returned
+  by the submitted artifact. Fluent prose can no longer pass the explanation
+  contract while attributing a scenario decision to invented evidence. In a
+  matched three-case DeepSeek diagnostic every failed gate was cited without
+  an invented code, with one Gnomon call per task and the primary unchanged.
+
 - **Context rejection is now typed through the agent boundary.** Scenario and
   rejection outcomes expose the exact failed admission-gate codes alongside
   human-readable reasons, and the MCP benchmark projection retains them. A

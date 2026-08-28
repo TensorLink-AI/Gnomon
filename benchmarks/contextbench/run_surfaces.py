@@ -386,6 +386,12 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
             ("automat" in explanation and any(
                 token in explanation for token in (
                     "not", "no ", "ineligible", "cannot"))))
+        citations = contextual.get("context_gate_citations") or {}
+        expected_citations = list(citations.get("expected") or [])
+        rejection_evidence_cited = (
+            not expected_citations or (
+                bool(citations.get("matched")) and
+                not citations.get("invalid")))
         return {
             "case_id": case.case_id, "public_id": _public_id(case.case_id),
             "family": case.family, "status": "answered",
@@ -415,11 +421,14 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
                 "scenario_represented": represented_scenario,
                 "interval_limit_preserved": preserved_interval_limit,
                 "automation_limit_preserved": preserved_automation_limit,
+                "rejection_evidence_cited": rejection_evidence_cited,
                 "complete": all((
                     preserved_primary, represented_scenario,
                     preserved_interval_limit, preserved_automation_limit,
+                    rejection_evidence_cited,
                 )),
             },
+            "context_gate_citations": citations,
             "history_route": (history.get("channel_route") or {}).get("value"),
             "context_route": (contextual.get("channel_route") or {}).get("value"),
             "history_calls": int((history.get("mcp") or {}).get("calls", 0)),
@@ -585,6 +594,7 @@ def summarize(rows: list[dict[str, Any]], profile: str,
                 for key in (
                     "complete", "primary_preserved", "scenario_represented",
                     "interval_limit_preserved", "automation_limit_preserved",
+                    "rejection_evidence_cited",
                 )
             },
             "observed_agent_calls_mean": mean(calls) if calls else None,

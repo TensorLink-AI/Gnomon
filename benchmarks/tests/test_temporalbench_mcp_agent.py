@@ -915,6 +915,22 @@ def test_product_contract_submit_schema_cannot_spend_tokens_on_reasoning():
         "properties"]
 
 
+def test_context_contract_requires_bounded_typed_gate_citations():
+    run = object.__new__(mcp_agent._Run)
+    run.row = {"_require_gnomon_execution": True,
+               "_require_context_explanation": True}
+    run.temporal_compilation = {}
+
+    parameters = run._submit_tool()["function"]["parameters"]
+
+    assert parameters["required"] == [
+        "forecast", "reasoning", "cited_context_gate_codes"]
+    citations = parameters["properties"]["cited_context_gate_codes"]
+    assert citations["maxItems"] == 8
+    assert citations["items"] == {"type": "string"}
+    assert parameters["properties"]["reasoning"]["maxLength"] == 600
+
+
 def test_typed_questions_require_explicit_synthesis_and_basis_maps():
     run = object.__new__(mcp_agent._Run)
     run.row = {"_require_gnomon_execution": True}

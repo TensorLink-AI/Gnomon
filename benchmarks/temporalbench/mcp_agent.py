@@ -1792,7 +1792,17 @@ class _Run(_RunBase):
                 # requiring enough text to verify that the model preserved
                 # disposition, uncertainty, and authority.
                 parameters["properties"]["reasoning"]["maxLength"] = 600
+                parameters["properties"]["cited_context_gate_codes"] = {
+                    "type": "array",
+                    "description": (
+                        "Exact failed_gate_codes from the Gnomon result that "
+                        "support the explanation; empty only when no context "
+                        "admission gate failed."),
+                    "items": {"type": "string"},
+                    "maxItems": 8,
+                }
                 parameters["required"].append("reasoning")
+                parameters["required"].append("cited_context_gate_codes")
             else:
                 parameters["properties"].pop("reasoning", None)
             if getattr(self, "temporal_compilation", {}).get("questions"):
@@ -2163,6 +2173,24 @@ class _Run(_RunBase):
                 for key, value in projected.items()},
             "choice_basis": accepted_overrides,
         }
+        if self.row.get("_require_context_explanation"):
+            supplied_codes = arguments.get("cited_context_gate_codes") or []
+            if not isinstance(supplied_codes, list):
+                supplied_codes = []
+            expected_codes = sorted({
+                str(code)
+                for outcome in self.context_execution.values()
+                for code in (outcome.get("rejection_codes") or [])
+            })
+            supplied = [str(code) for code in supplied_codes[:8]]
+            self.submission["context_gate_citations"] = {
+                "expected": expected_codes,
+                "supplied": supplied,
+                "matched": [code for code in supplied
+                            if code in expected_codes],
+                "invalid": [code for code in supplied
+                            if code not in expected_codes],
+            }
         return {"accepted": True, "routes": routes}
 
     def _project_receipt_choices(self) -> dict[str, dict[str, Any]]:
@@ -2245,6 +2273,10 @@ class _Run(_RunBase):
             "sensitivity_forecast": self.submission.get(
                 "sensitivity_forecast", {}),
             "submit_reasoning": self.submission["reasoning"],
+            **({"context_gate_citations":
+                self.submission["context_gate_citations"]}
+               if self.submission.get("context_gate_citations") is not None
+               else {}),
             "canonical_mcq": self.submission.get("canonical_mcq", {}),
             "synthesized_mcq": self.submission.get("synthesized_mcq", {}),
             "choice_authority": self.submission.get("choice_authority", {}),

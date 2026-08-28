@@ -304,6 +304,7 @@ def test_surface_summary_reports_agent_context_explanation_contract():
             "scenario_represented": True,
             "interval_limit_preserved": True,
             "automation_limit_preserved": True,
+            "rejection_evidence_cited": True,
         },
     }
 
@@ -315,6 +316,7 @@ def test_surface_summary_reports_agent_context_explanation_contract():
         "scenario_represented": 1.0,
         "interval_limit_preserved": 1.0,
         "automation_limit_preserved": 1.0,
+        "rejection_evidence_cited": 1.0,
     }
 
 
