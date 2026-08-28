@@ -1,10 +1,12 @@
 # Changelog
 
 - **Recurring events must separate from calendar placebos beyond sampling
-  noise.** Event admission now requires the episode-level 95% lower bound of
-  the measured effect to exceed the strongest displaced copy of the same
-  schedule. A point estimate that wins by less than its own uncertainty can no
-  longer alter the conditioned publication.
+  noise.** Episode candidates require their episode-level 95% lower bound to
+  exceed the strongest displaced copy of the schedule. Residual and detrended
+  candidates replay their own fold scorer under those same fixed placebos and
+  must beat the strongest by the ordinary admission margin. A lucky calendar
+  alignment can no longer bypass the test by winning through another
+  estimator family.
 
 - **Short-history panel pooling now requires repeatable transfer.** The
   within-file pooled-trend candidate must win at every available disjoint

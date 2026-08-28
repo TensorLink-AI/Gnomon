@@ -58,6 +58,8 @@ MINIMUM_SHRINKAGE = 0.1
 # opportunity; otherwise adding an estimator makes admission easier merely by
 # giving noise another chance to win.
 EPISODE_MINIMUM_IMPROVEMENT = 0.05
+SCHEDULE_PLACEBO_OFFSETS = (-19, -17, -13, -11, -9, -7,
+                            7, 9, 11, 13, 17, 19)
 
 
 def episode_effect_lower_bound(amplitudes: list[float], z: float = 1.96) -> float:
@@ -584,8 +586,9 @@ def assess_context(
                     if selected_estimator == "episode" else minimum_improvement)),
     )
     if selected_estimator == "episode":
+        episode_gate_observations = episode_cache[selection_origins[-1]]
         amplitudes = episode_residual_amplitudes(
-            episode_cache[selection_origins[-1]], selected_shape)
+            episode_gate_observations, selected_shape)
         amplitude_mean = mean(amplitudes)
         variance = (sum((value - amplitude_mean) ** 2 for value in amplitudes) /
                     (len(amplitudes) - 1))
@@ -612,7 +615,7 @@ def assess_context(
         fold_values, fold_timestamps = history_at(origin)
         actual_flags = event_flags(eligible, fold_timestamps, cutoff)
         placebo_amplitudes: list[float] = []
-        for offset in (-19, -17, -13, -11, -9, -7, 7, 9, 11, 13, 17, 19):
+        for offset in SCHEDULE_PLACEBO_OFFSETS:
             if offset > 0:
                 shifted = [False] * offset + actual_flags[:-offset]
             else:
@@ -638,6 +641,73 @@ def assess_context(
             threshold=round(placebo_max, 6),
             detail=("the event effect's episode-level 95% lower bound does "
                     "not exceed the strongest displaced-schedule placebo"),
+        )
+    else:
+        # Residual and detrended-level candidates express effects differently,
+        # so episode amplitudes can reject a genuine periodic intervention
+        # already absorbed by the base. Price schedule search in their own
+        # scoring space: replay identical selection folds with fixed displaced
+        # schedules and require the real schedule's lift to clear the strongest
+        # placebo by the ordinary admission margin. No report-only fold enters
+        # this comparison.
+        placebo_improvements: list[float] = []
+        for offset in SCHEDULE_PLACEBO_OFFSETS:
+            displaced_scores: list[float] = []
+            failed = False
+            for origin in selection_origins:
+                cutoff = timestamps[origin - 1]
+                actual = values[origin : origin + horizon]
+                fold_values, fold_timestamps = history_at(origin)
+                timeline = [*fold_timestamps,
+                            *timestamps[origin : origin + horizon]]
+                flags = event_flags(eligible, timeline, cutoff)
+                if offset > 0:
+                    shifted = [False] * offset + flags[:-offset]
+                else:
+                    distance = -offset
+                    shifted = flags[distance:] + [False] * distance
+                split = len(fold_timestamps)
+                historical_flags = shifted[:split]
+                future_flags = shifted[split:]
+                try:
+                    if selected_estimator == "residual":
+                        prediction = residual_event_adjusted(
+                            base_residuals[:len(fold_values)], horizon,
+                            historical_flags, future_flags,
+                            base_paths[origin], selected_shape)
+                    else:
+                        prediction = event_adjusted(
+                            fold_values, horizon, season, historical_flags,
+                            future_flags, selected_shape)
+                except ValueError:
+                    failed = True
+                    break
+                base_score = error_score(actual, base_paths[origin])
+                displaced_score = error_score(actual, prediction)
+                if base_score is None or displaced_score is None:
+                    failed = True
+                    break
+                denominator = max(base_score, displaced_score)
+                displaced_scores.append(
+                    0.0 if denominator <= 1e-12
+                    else (base_score - displaced_score) / denominator)
+            if not failed and displaced_scores:
+                placebo_improvements.append(mean(displaced_scores))
+        placebo_max = max(placebo_improvements, default=float("inf"))
+        separation = assessment.mean_improvement - placebo_max
+        assessment.record_check(
+            "selected_schedule_beats_displaced_schedules",
+            separation >= minimum_improvement,
+            measured={
+                "actual_mean_improvement": round(
+                    assessment.mean_improvement, 6),
+                "placebo_max_mean_improvement": round(placebo_max, 6),
+                "separation": round(separation, 6),
+                "placebos": len(placebo_improvements),
+            },
+            threshold=minimum_improvement,
+            detail=("the selected event schedule does not beat the strongest "
+                    "displaced-schedule placebo by the admission margin"),
         )
     # A fold whose forecast window contains no eligible event is a valid
     # zero-lift observation for the *mean* comparison, but it says nothing

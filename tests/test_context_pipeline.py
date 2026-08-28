@@ -245,7 +245,8 @@ def test_gate_records_every_check_and_names_the_decider(tmp_path) -> None:
     # An admitted run records the conditions it passed, not only failures.
     codes = {check["code"] for check in payload["checks"]}
     assert {"events_eligible", "mean_improvement_meets_margin",
-            "majority_of_folds_improve"} <= codes
+            "majority_of_folds_improve",
+            "selected_schedule_beats_displaced_schedules"} <= codes
     stability = next(check for check in payload["checks"]
                      if check["code"] == "majority_of_folds_improve")
     fitted = next(check for check in payload["checks"]

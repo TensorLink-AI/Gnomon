@@ -4,10 +4,12 @@ Status: preregistered before fresh evaluation on 2026-08-28.
 
 ## Change under test
 
-For the recurring-event executable, the episode-level 95% lower bound of the
-absolute effect must exceed the strongest of the twelve fixed displaced
-schedule placebos. The immutable history-only primary, known-at filtering,
-fold construction, minimum-improvement threshold, shrinkage, and publication
+For the recurring-event executable, episode estimators require the
+episode-level 95% lower bound of the absolute effect to exceed the strongest
+of twelve fixed displaced-schedule placebos. Residual and detrended estimators
+replay their own identical-fold scorer under the same placebos and must beat
+the strongest by the ordinary admission margin. The immutable history-only
+primary, known-at filtering, fold construction, shrinkage, and publication
 policy are unchanged.
 
 The previously inspected standard corpus with seed
@@ -15,9 +17,9 @@ The previously inspected standard corpus with seed
 
 ## Frozen validation
 
-Six corpora were generated once with the benchmark's cryptographically fresh
-seed mode and frozen before executing the estimator. Do not replace a failed
-corpus:
+The following first corpus set diagnosed an estimator-family bypass and was
+therefore spent during development. It is retained for audit but cannot
+graduate the revised implementation:
 
 | Corpus | Seed | Cases SHA-256 | Oracle SHA-256 |
 | --- | ---: | --- | --- |
