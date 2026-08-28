@@ -2531,6 +2531,45 @@ def test_dated_qualitative_event_gets_sealed_best_effort_prior(tmp_path):
     assert extra["publication"]["automation"]["eligible"] is False
 
 
+def test_dated_direction_front_door_skips_dossier_and_samples_bounded_prior(
+        tmp_path):
+    task = _task()
+    day = task.future_time[1][:10]
+    task.background = (
+        f"{day} is a public holiday. Traffic typically reduces on holidays.")
+    task.scenario = None
+    sampled = ["<forecast>\n" + "\n".join(
+        f"({stamp.replace('T', ' ').replace('+00:00', '')}, "
+        f"{124 + draw + index})"
+        for index, stamp in enumerate(task.future_time)) + "\n</forecast>"
+        for draw in range(5)]
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        sampled)
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 3)
+
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    assert receipt["compiler"]["contract"] == (
+        "explicit_dated_directional_event")
+    assert receipt["compiler"]["deterministic_front_door"] is True
+    stages = [item["stage"] for item in receipt["compiler"]["calls"]]
+    assert "initial_compile" not in stages
+    assert stages[0] == "deterministic_dated_directional_event_parse"
+    assert receipt["dossier"]["effect_proposal"] is None
+    assert receipt["compiler"]["model_candidate_status"] == "accepted"
+    publication = extra["publication"]
+    assert publication["recommended_scenario_id"].startswith("prior-assisted-")
+    assert publication["primary_forecast_unchanged"] is True
+    assert publication["automation"]["eligible"] is False
+
+
 def test_one_sample_transport_failure_preserves_other_governed_paths(tmp_path):
     import threading
 

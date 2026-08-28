@@ -406,7 +406,9 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: reranking, not only hypotheses marked as mandatory counterevidence.
 #: Version 189: one explicit future zero-activity window is compiled without
 #: an LLM round trip; its stated duration is bound to the host forecast grid.
-MCP_CONTRACT_VERSION = 189
+#: Version 190: an unambiguous dated qualitative target direction is retained
+#: as a non-numeric event before bounded model-candidate elicitation.
+MCP_CONTRACT_VERSION = 190
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -3391,6 +3393,7 @@ class _Run:
         )
         from gnomon.llm_dossier import (
             deterministic_dated_multiplier_dossier,
+            deterministic_dated_directional_event_dossier,
             deterministic_dated_zero_window_dossier,
             deterministic_ended_recurring_disruption_dossier,
             deterministic_historical_observation_claim,
@@ -3477,6 +3480,17 @@ class _Run:
                 target_name=self.target_name)
             if (deterministic_calibration_claim is None
                 and deterministic_zero_window is None
+                and categorical_schedule is None and not relationship_contract
+                and not observation_contract and not companion_contract)
+            else None)
+        deterministic_directional_event = (
+            deterministic_dated_directional_event_dossier(
+                context, cutoff=self.timestamps[-1],
+                future_timestamps=future_timestamps,
+                target_name=self.target_name)
+            if (deterministic_calibration_claim is None
+                and deterministic_zero_window is None
+                and deterministic_multiplier is None
                 and categorical_schedule is None and not relationship_contract
                 and not observation_contract and not companion_contract)
             else None)
@@ -3792,6 +3806,12 @@ class _Run:
             raw = bind_active_target(deterministic_multiplier)
             compiler_calls.append({
                 "stage": "deterministic_dated_multiplier_parse",
+                "elapsed_seconds": 0.0,
+            })
+        elif deterministic_directional_event is not None:
+            raw = bind_active_target(deterministic_directional_event)
+            compiler_calls.append({
+                "stage": "deterministic_dated_directional_event_parse",
                 "elapsed_seconds": 0.0,
             })
         else:
@@ -5251,7 +5271,8 @@ class _Run:
             or deterministic_named_relationship is not None
             or deterministic_calibration_claim is not None
             or deterministic_zero_window is not None
-            or deterministic_multiplier is not None)
+            or deterministic_multiplier is not None
+            or deterministic_directional_event is not None)
         payload = {
             "schema_version": 1,
             "compiler": {
@@ -5283,6 +5304,8 @@ class _Run:
                              if deterministic_zero_window is not None else
                              "explicit_dated_multiplier"
                              if deterministic_multiplier is not None else
+                             "explicit_dated_directional_event"
+                             if deterministic_directional_event is not None else
                              "universal_dossier"),
                 "prompt_bytes": (model_candidate_prompt_bytes
                                  if deterministic_front_door

@@ -278,6 +278,94 @@ def deterministic_dated_zero_window_dossier(
     }
 
 
+def deterministic_dated_directional_event_dossier(
+    context_text: str, *, cutoff: str, future_timestamps: list[str],
+    target_name: str | None = None,
+) -> dict[str, Any] | None:
+    """Retain one explicitly dated qualitative target direction.
+
+    The output is deliberately non-numeric: it makes a user's dated calendar
+    fact available to the scenario/candidate lane while leaving magnitude,
+    support, and automation authority untouched. Ambiguous dates, hedged
+    direction, and prose naming only a driver are refused.
+    """
+    text = " ".join(str(context_text or "").split())
+    normalized = _normalise(text)
+    if not text or re.search(
+            r"\b(?:may|might|could|possibly|perhaps)\b", normalized):
+        return None
+    dates = re.findall(r"\b\d{4}-\d{2}-\d{2}\b", text)
+    if len(set(dates)) != 1:
+        return None
+    target_terms = (
+        "production", "output", "traffic", "flow", "generation",
+        "withdrawals", "transactions", "sales", "arrivals", "departures",
+        "rides", "trips", "requests", "visitors", "customers",
+        "passengers", "calls", "orders", "deliveries", "operations",
+        "activity", "usage", "demand", "consumption", "readings",
+    )
+    normalized_target = _normalise(target_name)
+    target_owned = bool(
+        (normalized_target and not normalized_target.isdigit()
+         and normalized_target in normalized)
+        or any(term in normalized for term in target_terms))
+    if not target_owned:
+        return None
+    decrease = re.search(
+        r"\b(?:traffic|production|output|flow|generation|withdrawals|"
+        r"transactions|sales|arrivals|departures|rides|trips|requests|"
+        r"visitors|customers|passengers|calls|orders|deliveries|operations|"
+        r"activity|usage|demand|consumption|readings?)\b.{0,60}"
+        r"\b(?:reduce[sd]?|decrease[sd]?|decline[sd]?|drop[sp]?|lower)\b",
+        normalized)
+    increase = re.search(
+        r"\b(?:traffic|production|output|flow|generation|withdrawals|"
+        r"transactions|sales|arrivals|departures|rides|trips|requests|"
+        r"visitors|customers|passengers|calls|orders|deliveries|operations|"
+        r"activity|usage|demand|consumption|readings?)\b.{0,60}"
+        r"\b(?:increase[sd]?|rise[sn]?|grow(?:s|th)?|higher|surge[sd]?)\b",
+        normalized)
+    if bool(decrease) == bool(increase):
+        return None
+    cutoff_time = _timestamp(cutoff)
+    future = [_timestamp(value) for value in future_timestamps]
+    if cutoff_time is None or not future or any(value is None for value in future):
+        return None
+    active = [index for index, stamp in enumerate(future)
+              if stamp is not None and stamp.date().isoformat() == dates[0]]
+    if not active or active != list(range(active[0], active[-1] + 1)):
+        return None
+    start, end = future[active[0]], future[active[-1]]
+    assert start is not None and end is not None
+    if start <= cutoff_time:
+        return None
+    direction = "decrease" if decrease else "increase"
+    relation = "supports_decrease" if decrease else "supports_increase"
+    event_type = "calendar:stated_directional_effect"
+    return {
+        "events": [{
+            "event_type": event_type, "document_index": 0,
+            "entity_scope": [target_name or "*"],
+            "effective_start": start.isoformat(),
+            "effective_end": end.isoformat(),
+            "confidence": .75, "status": "confirmed",
+            "evidence_quote": context_text,
+            "effect_family": "temporary_pulse", "direction": direction,
+            "duration": "temporary", "entity_kind": "calendar",
+        }],
+        "claims": [{
+            "source_span": context_text, "relation": relation,
+            "effective_start": start.isoformat(),
+            "effective_end": end.isoformat(),
+            "mechanism": "explicit dated qualitative target direction",
+            "confidence": .75,
+        }],
+        "hypotheses": [], "covariate_tables": [], "transformations": [],
+        "observation_interpretations": [], "forecast_candidate": None,
+        "effect_proposal": None,
+    }
+
+
 def deterministic_ended_recurring_disruption_dossier(
     context_text: str, *, cutoff: str,
 ) -> dict[str, Any] | None:

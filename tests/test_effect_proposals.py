@@ -8,6 +8,7 @@ from gnomon.effect_proposals import (assess_composed_effect, compose_effect,
                                      validate_effect_proposal)
 from gnomon.llm_dossier import (
     deterministic_dated_multiplier_dossier,
+    deterministic_dated_directional_event_dossier,
     deterministic_dated_zero_window_dossier,
     deterministic_ended_recurring_disruption_dossier,
     deterministic_named_driver_relationship_dossier,
@@ -103,6 +104,35 @@ def test_explicit_dated_zero_window_binds_exclusive_duration_to_grid():
 ])
 def test_dated_zero_window_refuses_incomplete_or_wrong_target_facts(text):
     assert deterministic_dated_zero_window_dossier(
+        text, cutoff="2026-01-02T00:00:00+00:00",
+        future_timestamps=TIMES, target_name="withdrawals") is None
+
+
+def test_explicit_dated_direction_is_retained_without_invented_magnitude():
+    text = (
+        "2026-01-03 is a public holiday. Traffic typically reduces on "
+        "public holidays.")
+    raw = deterministic_dated_directional_event_dossier(
+        text, cutoff="2026-01-02T00:00:00+00:00",
+        future_timestamps=TIMES, target_name="0")
+
+    assert raw is not None
+    assert raw["effect_proposal"] is None
+    assert raw["forecast_candidate"] is None
+    assert raw["events"][0]["direction"] == "decrease"
+    assert raw["events"][0]["effective_start"] == TIMES[0]
+    assert raw["events"][0]["effective_end"] == TIMES[0]
+
+
+@pytest.mark.parametrize("text", [
+    "Traffic may reduce on the 2026-01-03 public holiday.",
+    "Traffic typically reduces on holidays.",
+    ("2026-01-03 and 2026-01-04 are holidays; traffic typically reduces "
+     "on holidays."),
+    "2026-01-03 is hot and temperature typically reduces traffic.",
+])
+def test_dated_direction_refuses_hedged_ambiguous_or_driver_only_text(text):
+    assert deterministic_dated_directional_event_dossier(
         text, cutoff="2026-01-02T00:00:00+00:00",
         future_timestamps=TIMES, target_name="withdrawals") is None
 

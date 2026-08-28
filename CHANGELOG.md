@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Retain one unambiguous, explicitly dated qualitative target direction as a
+  typed calendar event without asking an LLM to reproduce its provenance.
+  Best-effort mode may then elicit only bounded numeric paths; Gnomon seals
+  them, preserves the immutable primary, and keeps automation disabled.
+  Hedged, multi-date, driver-only, and direction-conflicted prose is refused.
+  On one spent holiday-traffic diagnostic this replaced a 59-second failed
+  dossier compile with a 30.5-second successful three-path elicitation and
+  moved RCRPS from 0.3165 to 0.2072; an untouched adjacent seed scored 0.2180.
+  These small probes validate routing behavior, not population uplift.
 - Compile explicit future zero-activity windows (for example a shutdown,
   stockout, or depleted service with a stated start and duration) without an
   LLM round trip. The conservative numeric parser must independently recover
