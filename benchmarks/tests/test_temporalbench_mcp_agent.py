@@ -925,7 +925,8 @@ def test_context_contract_requires_bounded_typed_gate_citations():
 
     assert parameters["required"] == [
         "forecast", "reasoning", "cited_context_gate_codes",
-        "context_automation_eligible", "canonical_primary_preserved"]
+        "context_automation_eligible", "canonical_primary_preserved",
+        "cited_scenario_consequences"]
     citations = parameters["properties"]["cited_context_gate_codes"]
     assert citations["maxItems"] == 8
     assert citations["items"] == {"type": "string"}
@@ -969,6 +970,7 @@ def test_context_authority_omission_gets_one_artifact_reuse_repair():
         "cited_context_gate_codes": [],
         "context_automation_eligible": False,
         "canonical_primary_preserved": True,
+        "cited_scenario_consequences": [],
     }
 
     rejected = run._handle_submit({
@@ -981,12 +983,75 @@ def test_context_authority_omission_gets_one_artifact_reuse_repair():
                for problem in rejected["problems"])
     assert run.submission is None
 
+    misattributed = run._handle_submit({
+        **base,
+        "reasoning": ("The canonical primary remains preserved. Automation "
+                      "is not eligible because it was not requested."),
+    })
+    assert misattributed["accepted"] is False
+    assert any("context_authority_misattributed" in problem
+               for problem in misattributed["problems"])
+    assert run.submission is None
+
     accepted = run._handle_submit({
         **base,
         "reasoning": ("The canonical primary remains preserved; context "
                       "evidence alone cannot authorize automation."),
     })
     assert accepted["accepted"] is True
+
+
+def test_context_scenario_consequence_requires_exact_artifact_reuse_repair():
+    run = object.__new__(mcp_agent._Run)
+    run.row = {"_require_gnomon_execution": True,
+               "_require_context_explanation": True}
+    run.target_keys = ["value"]
+    run.horizon = 1
+    run.submission = None
+    run.mcp_calls = 1
+    run.trace = []
+    run.artifact_paths = set()
+    run.context_execution = {}
+    run._project_receipt_choices = lambda: {}
+    summary = (
+        "Conditional scenario q50 is 10 at 2026-01-01 and 12 at "
+        "2026-01-02 (delta 2); the canonical primary remains unchanged.")
+
+    def artifact_rows(path, channel):
+        run._pending_support[channel] = "supported"
+        run.context_execution[channel] = {
+            "automation_eligible": False,
+            "canonical_primary_preserved": True,
+            "rejection_codes": [],
+            "scenario_consequence_summaries": [summary],
+        }
+        return [10.0]
+
+    run._artifact_channel_rows = artifact_rows
+    base = {
+        "forecast": {"value": {"artifact_path": "/sealed/artifact.json"}},
+        "reasoning": ("The canonical primary remains preserved and context "
+                      "cannot authorize automation."),
+        "cited_context_gate_codes": [],
+        "context_automation_eligible": False,
+        "canonical_primary_preserved": True,
+    }
+
+    rejected = run._handle_submit({
+        **base, "cited_scenario_consequences": []})
+    assert rejected["accepted"] is False
+    assert any("scenario_consequence_omitted" in problem
+               for problem in rejected["problems"])
+    assert run.submission is None
+
+    accepted = run._handle_submit({
+        **base, "cited_scenario_consequences": [summary],
+        "reasoning": (base["reasoning"] +
+                      " The conditional scenario runs from q50 10 to 12."),
+    })
+    assert accepted["accepted"] is True
+    assert run.submission["context_consequence_projection"]["matched"] == [
+        summary]
 
 
 def test_typed_questions_require_explicit_synthesis_and_basis_maps():

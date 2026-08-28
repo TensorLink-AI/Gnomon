@@ -283,6 +283,12 @@ def test_flag_on_preserves_primary_and_discloses_structural_scenario(
     assert scenario["effect"]["provenance"]["provenance_class"] == \
         "human_assumption"
     assert scenario["effect"]["shape"] == "trend_change"
+    assert scenario["consequence"]["first_q50"] == scenario_points[0]
+    assert scenario["consequence"]["last_q50"] == scenario_points[-1]
+    assert scenario["consequence"]["delta_q50"] == \
+        scenario_points[-1] - scenario_points[0]
+    assert "canonical primary remains unchanged" in \
+        scenario["consequence_summary"]
     gate = treated_result.future_context
     assert gate["scenarios"][0]["effect"] == "trend_ceases"
     failure = next(check for check in gate["checks"]

@@ -1047,7 +1047,10 @@ def _compact_sensitivity_projection(items: list[dict[str, Any]]) \
                 "assumptions": assumptions,
                 **({"effect": compact_effect(scenario.get("effect")),
                     "forecast_preview": preview(
-                        scenario.get("forecast") or [])}
+                        scenario.get("forecast") or []),
+                    "consequence": scenario.get("consequence"),
+                    "consequence_summary": scenario.get(
+                        "consequence_summary")}
                    if (scenario.get("effect") and scenario.get("support") ==
                        "prior_assisted_structural") else {}),
                 "automation_eligible": bool(

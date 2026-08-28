@@ -1451,6 +1451,23 @@ def _future_context_stage(
         # dropping zero deltas would overstate the assumed effect magnitude.
         location = mean(deltas) if deltas else 0.0
         scale = stdev(deltas) if len(deltas) > 1 else 0.0
+        first = scenario_rows[0] if scenario_rows else {}
+        last = scenario_rows[-1] if scenario_rows else {}
+        first_q50 = float(first.get("q50", first.get("point", 0.0)))
+        last_q50 = float(last.get("q50", last.get("point", 0.0)))
+        consequence = {
+            "first_timestamp": first.get("timestamp"),
+            "first_q50": first_q50,
+            "last_timestamp": last.get("timestamp"),
+            "last_q50": last_q50,
+            "delta_q50": last_q50 - first_q50,
+        }
+        consequence_summary = (
+            f"Conditional scenario q50 is {first_q50:.6g} at "
+            f"{first.get('timestamp')} and {last_q50:.6g} at "
+            f"{last.get('timestamp')} (delta {last_q50 - first_q50:.6g}); "
+            "the canonical primary remains unchanged."
+        )
         state.sensitivity_scenarios.append({
             "events": event_ids,
             "support": "prior_assisted_structural",
@@ -1458,6 +1475,8 @@ def _future_context_stage(
             "forecast": scenario_rows,
             "automation_eligible": False,
             "selection_eligible": True,
+            "consequence": consequence,
+            "consequence_summary": consequence_summary,
             "assumptions": [
                 "the quoted structural condition occurs as stated",
                 "the transformation is resolved entirely from Gnomon's data",

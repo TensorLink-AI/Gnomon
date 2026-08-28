@@ -314,8 +314,9 @@ def test_surface_summary_reports_agent_context_explanation_contract():
             "complete": True, "primary_preserved": True,
             "scenario_represented": True,
             "interval_limit_preserved": True,
-            "automation_limit_preserved": True,
-            "rejection_evidence_cited": True,
+                "automation_limit_preserved": True,
+                "rejection_evidence_cited": True,
+                "scenario_consequence_preserved": True,
         },
     }
 
@@ -326,9 +327,10 @@ def test_surface_summary_reports_agent_context_explanation_contract():
         "complete": 1.0, "primary_preserved": 1.0,
         "scenario_represented": 1.0,
         "interval_limit_preserved": 1.0,
-        "automation_limit_preserved": 1.0,
-        "rejection_evidence_cited": 1.0,
-    }
+            "automation_limit_preserved": 1.0,
+            "rejection_evidence_cited": 1.0,
+            "scenario_consequence_preserved": 1.0,
+        }
 
 
 def test_automation_limit_needs_typed_parity_and_explicit_ineligibility():

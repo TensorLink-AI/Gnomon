@@ -417,6 +417,15 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
             not expected_citations or (
                 bool(citations.get("matched")) and
                 not citations.get("invalid")))
+        consequence_projection = contextual.get(
+            "context_consequence_projection") or {}
+        expected_consequences = set(
+            consequence_projection.get("expected") or [])
+        scenario_consequence_preserved = (
+            not expected_consequences or (
+                set(consequence_projection.get("matched") or []) ==
+                expected_consequences and
+                not consequence_projection.get("invalid")))
         return {
             "case_id": case.case_id, "public_id": _public_id(case.case_id),
             "family": case.family, "status": "answered",
@@ -447,10 +456,13 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
                 "interval_limit_preserved": preserved_interval_limit,
                 "automation_limit_preserved": preserved_automation_limit,
                 "rejection_evidence_cited": rejection_evidence_cited,
+                "scenario_consequence_preserved":
+                    scenario_consequence_preserved,
                 "complete": all((
                     preserved_primary, represented_scenario,
                     preserved_interval_limit, preserved_automation_limit,
                     rejection_evidence_cited,
+                    scenario_consequence_preserved,
                 )),
             },
             "context_gate_citations": citations,
@@ -622,6 +634,7 @@ def summarize(rows: list[dict[str, Any]], profile: str,
                     "complete", "primary_preserved", "scenario_represented",
                     "interval_limit_preserved", "automation_limit_preserved",
                     "rejection_evidence_cited",
+                    "scenario_consequence_preserved",
                 )
             },
             "observed_agent_calls_mean": mean(calls) if calls else None,

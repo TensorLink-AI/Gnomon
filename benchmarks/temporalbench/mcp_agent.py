@@ -1820,12 +1820,23 @@ class _Run(_RunBase):
                         "exactly; conditional projection changes do not mutate "
                         "the canonical primary."),
                 }
+                parameters["properties"]["cited_scenario_consequences"] = {
+                    "type": "array",
+                    "description": (
+                        "Copy each consequence_summary exposed by Gnomon for "
+                        "a represented numeric scenario; use an empty array "
+                        "when no numeric scenario consequence is present."),
+                    "items": {"type": "string"},
+                    "maxItems": 8,
+                }
                 parameters["required"].append("reasoning")
                 parameters["required"].append("cited_context_gate_codes")
                 parameters["required"].append(
                     "context_automation_eligible")
                 parameters["required"].append(
                     "canonical_primary_preserved")
+                parameters["required"].append(
+                    "cited_scenario_consequences")
             else:
                 parameters["properties"].pop("reasoning", None)
             if getattr(self, "temporal_compilation", {}).get("questions"):
@@ -1890,6 +1901,11 @@ class _Run(_RunBase):
                 "say context evidence alone cannot authorize automation; "
                 "'not requested' is not equivalent. The verifier rejects a "
                 "submission that hides either fact.\n")
+            text += (
+                "If Gnomon exposes a scenario consequence_summary, copy it "
+                "exactly into cited_scenario_consequences and communicate "
+                "its first and last q50 values in the human-facing reasoning. "
+                "Do not present those conditional values as the primary.\n")
         if self.row.get("_require_gnomon_execution"):
             text += ("\nThis product run delegates every published numeric "
                      "trajectory to Gnomon. Submit the forecast artifact "
@@ -2031,6 +2047,12 @@ class _Run(_RunBase):
                      (disposition.get("failed_gate_codes") or [])],
                 "gate_reasons": [str(reason) for reason in
                                  (disposition.get("gate_reasons") or [])][:8],
+                "scenario_consequence_summaries": [
+                    str(scenario.get("consequence_summary"))
+                    for scenario in (result.get("sensitivity_scenarios") or [])
+                    if isinstance(scenario, dict)
+                    and scenario.get("consequence_summary")
+                ][:8],
             }
         return [float(row.get("q50", row["point"])) for row in rows]
 
@@ -2262,6 +2284,22 @@ class _Run(_RunBase):
                 "matched": (len(engine_primary) == 1 and
                             supplied_primary in engine_primary),
             }
+            expected_consequences = sorted({
+                summary for outcome in self.context_execution.values()
+                for summary in outcome.get(
+                    "scenario_consequence_summaries", [])
+            })
+            supplied_consequences = [str(value) for value in
+                                     (arguments.get(
+                                         "cited_scenario_consequences") or [])[:8]]
+            self.submission["context_consequence_projection"] = {
+                "expected": expected_consequences,
+                "supplied": supplied_consequences,
+                "matched": [value for value in supplied_consequences
+                            if value in expected_consequences],
+                "invalid": [value for value in supplied_consequences
+                            if value not in expected_consequences],
+            }
             reasoning_text = str(arguments.get("reasoning") or "").lower()
             authority_problems: list[str] = []
             if (engine_automation == {False} and not any(
@@ -2274,6 +2312,11 @@ class _Run(_RunBase):
                     "context_authority_omitted: state that context evidence "
                     "alone cannot authorize automation; 'not requested' is "
                     "not equivalent")
+            if engine_automation == {False} and "not requested" in reasoning_text:
+                authority_problems.append(
+                    "context_authority_misattributed: automation is ineligible "
+                    "because context evidence lacks authority, not because "
+                    "automation was not requested")
             if (engine_primary == {True} and not (
                     "primary" in reasoning_text and any(
                         token in reasoning_text for token in (
@@ -2288,6 +2331,15 @@ class _Run(_RunBase):
                 authority_problems.append(
                     "context_gate_citation_invalid: cite only failed gate "
                     "codes returned by Gnomon")
+            consequences = self.submission["context_consequence_projection"]
+            if consequences["invalid"] or (
+                    consequences["expected"] and
+                    set(consequences["matched"]) !=
+                    set(consequences["expected"])):
+                authority_problems.append(
+                    "scenario_consequence_omitted: copy every Gnomon "
+                    "consequence_summary exactly and communicate its "
+                    "conditional q50 endpoints without calling them primary")
             if authority_problems:
                 self.submission = None
                 return {"accepted": False, "authored_by": "harness",
@@ -2391,6 +2443,10 @@ class _Run(_RunBase):
                 self.submission["context_primary_projection"]}
                if self.submission.get(
                    "context_primary_projection") is not None else {}),
+            **({"context_consequence_projection":
+                self.submission["context_consequence_projection"]}
+               if self.submission.get(
+                   "context_consequence_projection") is not None else {}),
             "canonical_mcq": self.submission.get("canonical_mcq", {}),
             "synthesized_mcq": self.submission.get("synthesized_mcq", {}),
             "choice_authority": self.submission.get("choice_authority", {}),
