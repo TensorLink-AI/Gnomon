@@ -1,5 +1,16 @@
 # Changelog
 
+- **Forward structural claims now remain useful without gaining unearned
+  authority.** A resolved structural transformation is published as a typed,
+  non-automatable prior-assisted scenario unless the transformation itself has
+  at least four separated historical or analogue evaluations. Generic
+  forecast-model selection folds no longer stand in for effect evidence. On a
+  frozen fresh-seed 112-case ContextBench run, structural primary changes and
+  structural harm both fell from 2/16 and 1/16 to 0/16, while the numeric
+  scenarios remained available, admission precision stayed 100%, high-SNR
+  recall stayed 87.5%, interval coverage stayed 76.8%, and leakage stayed zero.
+  This is safety preservation and scenario usefulness, not forecast uplift.
+
 - **Context authority is now single-source and verifier-enforced.** Every
   context disposition carries `canonical_primary_preserved` and an explicit
   non-automation decision, while the compact tool response adds one quotable

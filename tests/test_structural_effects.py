@@ -82,6 +82,44 @@ def test_trend_cessation_admits_a_directionally_stable_emitted_path():
     assert [event.event_id for event in assessment.admitted] == ["s1"]
 
 
+def test_structural_effect_without_separated_folds_is_scenario_only():
+    events = [_event("s1", "structural:repair",
+                     {"source_span": SPAN, "effect": "trend_ceases"})]
+    trending = [200.0 + 0.5 * day + (day % 7) for day in range(60)]
+    base = [200.0 + 0.5 * day + (day % 7) for day in range(60, 67)]
+    assessment = assess_future_events(
+        events, "s", trending, TIMESTAMPS, FUTURE, 7,
+        base_points=base, structural_evidence_folds=0,
+    )
+
+    assert not assessment.admitted
+    assert [event.event_id for event in assessment.scenarios] == ["s1"]
+    failure = next(check for check in assessment.checks
+                   if check["code"] == "separated_model_folds_available")
+    assert failure["passed"] is False
+    assert failure["data"] == {"measured_folds": 0, "required_folds": 4}
+
+    primary = _rows(base)
+    projected, _ = apply_future_events(
+        [dict(row) for row in primary], assessment.scenarios)
+    assert projected != primary
+    assert [row["point"] for row in primary] == base
+
+
+def test_structural_effect_with_four_separated_folds_can_be_admitted():
+    events = [_event("s1", "structural:repair",
+                     {"source_span": SPAN, "effect": "trend_ceases"})]
+    trending = [200.0 + 0.5 * day + (day % 7) for day in range(60)]
+    base = [200.0 + 0.5 * day + (day % 7) for day in range(60, 67)]
+    assessment = assess_future_events(
+        events, "s", trending, TIMESTAMPS, FUTURE, 7,
+        base_points=base, structural_evidence_folds=4,
+    )
+
+    assert [event.event_id for event in assessment.admitted] == ["s1"]
+    assert not assessment.scenarios
+
+
 def test_an_effect_outside_the_menu_is_rejected():
     events = [_event("s1", "structural:repair",
                      {"source_span": SPAN, "effect": "level_resets"})]
@@ -205,7 +243,8 @@ def _write_trending_csv(path: Path, days=120):
             ])
 
 
-def test_flag_on_applies_and_discloses(tmp_path: Path):
+def test_flag_on_preserves_primary_and_discloses_structural_scenario(
+        tmp_path: Path):
     source = tmp_path / "series.csv"
     _write_trending_csv(source)
     h_start = START + timedelta(days=120)
@@ -226,22 +265,29 @@ def test_flag_on_applies_and_discloses(tmp_path: Path):
     treated, _ = forecast(str(source), output=str(tmp_path / "b"),
                           context_events=events, config=config, **kwargs)
     base_points = [row["point"] for row in baseline.results[0].forecast]
-    treated_points = [row["point"] for row in treated.results[0].forecast]
-    # the baseline drifts upward; the treated path does not
+    treated_result = treated.results[0]
+    treated_points = [row["point"] for row in treated_result.forecast]
+    # A forward structural assertion is useful as a what-if, but generic
+    # model-selection folds are not evidence for that transformation.
     assert base_points[-1] > base_points[0]
-    assert abs(treated_points[-1] - treated_points[0]) < \
+    assert treated_points == base_points
+    assert not any(item.kind == "future_context_applied"
+                   for item in treated.evidence)
+    scenario = next(item for item in treated_result.sensitivity_scenarios
+                    if item["support"] == "prior_assisted_structural")
+    scenario_points = [row["point"] for row in scenario["forecast"]]
+    assert abs(scenario_points[-1] - scenario_points[0]) < \
         (base_points[-1] - base_points[0]) / 2
-    assert treated.results[0].support == "context_trusted"
-    applied = [item for item in treated.evidence
-               if item.kind == "future_context_applied"]
-    assert applied and applied[0].payload["applications"][0]["effect"] == \
-        "trend_ceases"
-    # every applied quantity is derived from the emitted path: the
-    # recorded slope equals the counterfactual path's own fitted drift
-    counterfactual = applied[0].payload["history_only_counterfactual"]
-    from gnomon.future_context import _path_slope
-    assert applied[0].payload["applications"][0]["slope_removed"] == \
-        _path_slope([float(row["point"]) for row in counterfactual])
+    assert scenario["primary_forecast_changed"] is False
+    assert scenario["automation_eligible"] is False
+    assert scenario["effect"]["provenance"]["provenance_class"] == \
+        "human_assumption"
+    assert scenario["effect"]["shape"] == "trend_change"
+    gate = treated_result.future_context
+    assert gate["scenarios"][0]["effect"] == "trend_ceases"
+    failure = next(check for check in gate["checks"]
+                   if check["code"] == "separated_model_folds_available")
+    assert failure["passed"] is False
     # the flag enters the artifact ID payload
     assert treated.forecast_id != baseline.forecast_id
 

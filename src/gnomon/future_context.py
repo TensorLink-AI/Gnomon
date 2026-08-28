@@ -656,6 +656,10 @@ class FutureContextAssessment:
 
     considered: bool
     admitted: list[FutureEvent] = field(default_factory=list)
+    # Fully resolved engine-derived paths that lack enough separated model
+    # evidence for publication. They remain useful human what-if candidates,
+    # but can neither alter the primary nor authorize automation.
+    scenarios: list[FutureEvent] = field(default_factory=list)
     rejected: list[dict[str, Any]] = field(default_factory=list)
     checks: list[dict[str, Any]] = field(default_factory=list)
 
@@ -712,16 +716,20 @@ class FutureContextAssessment:
         return {
             "considered": self.considered,
             "admitted": [item.to_public_dict() for item in self.admitted],
+            "scenarios": [item.to_public_dict() for item in self.scenarios],
             "rejected": self.rejected,
             "checks": self.checks,
             "by_class": self.class_counts(),
             "admission_basis": (
-                "textual verifiability: numbers re-parsed from the quoted "
-                "source span, never taken from the proposal; recent "
-                "history's relation to a claimed bound disclosed, never "
-                "used to reject a forward-scoped claim; fold ablation "
-                "deliberately not applicable — these windows have no "
-                "historical precedent"
+                "constraints and overrides use textual verifiability: numbers "
+                "are re-parsed from the quoted source span, never taken from "
+                "the proposal; recent history's relation to a claimed bound "
+                "is disclosed, never used to reject a forward-scoped claim. "
+                "Structural transformations additionally require at least four "
+                "transformation-specific separated historical or analogue "
+                "evaluations to alter the selected path; "
+                "otherwise the resolved transformation is retained only as a "
+                "non-automatable prior-assisted scenario"
             ),
         }
 
@@ -758,6 +766,7 @@ def assess_future_events(
     base_points: list[float] | None = None,
     allow_future: bool = True,
     allow_structural: bool = True,
+    structural_evidence_folds: int | None = None,
 ) -> FutureContextAssessment:
     """Run every namespaced event through the lane's admission checks.
 
@@ -874,6 +883,24 @@ def assess_future_events(
                 assessment, event, span, values=values, season=season,
                 future_count=len(future_timestamps), base_points=base_points,
             )
+            if (admitted is not None and structural_evidence_folds is not None
+                    and structural_evidence_folds < 4):
+                assessment.record_check(
+                    event, event_class, "separated_model_folds_available",
+                    False,
+                    detail=(
+                        "a structural transformation needs at least four "
+                        "transformation-specific separated historical or "
+                        "analogue evaluations before it may alter "
+                        "the selected projection; the resolved path remains a "
+                        "prior-assisted scenario"
+                    ),
+                    source_span=span,
+                    data={"measured_folds": structural_evidence_folds,
+                          "required_folds": 4},
+                )
+                assessment.scenarios.append(admitted)
+                admitted = None
         else:
             admitted = _admit_override(assessment, event, span, window_values)
         if admitted is not None:

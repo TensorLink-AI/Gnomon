@@ -150,7 +150,15 @@ def valid_disposition(family: str, applied: bool, disposition: str) -> bool:
         return disposition in {"applied", "rejected", "scenario_only"}
     if applied:
         return disposition == "applied"
-    if family in {"future_covariate", "numeric_claim", "structural_change"}:
+    if family == "structural_change":
+        # A namespaced structural transformation can be represented as a
+        # prior-assisted scenario while the independent historical-ablation
+        # lane rejects the same event.  The aggregate public state is then
+        # intentionally ``partially_represented`` rather than scenario_only.
+        return disposition in {
+            "rejected", "scenario_only", "partially_represented",
+        }
+    if family in {"future_covariate", "numeric_claim"}:
         return disposition == "rejected"
     if family == "entity_scope":
         return disposition == "not_considered"

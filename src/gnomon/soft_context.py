@@ -190,8 +190,12 @@ def context_outcome(
     # contract: a failed parser/admission is a rejection, never a scenario.
     generic = [event for event in applicable if not event.event_type.startswith(
         ("constraint:", "override:", "structural:"))]
-    if generic:
-        generic_ids = {event.event_id for event in generic}
+    scenario_ids = {str(event_id) for item in sensitivity
+                    for event_id in item.get("events", [])}
+    represented = [event for event in applicable
+                   if event in generic or event.event_id in scenario_ids]
+    if represented:
+        generic_ids = {event.event_id for event in represented}
         dispositions = [{
             "context_id": event.event_id,
             "disposition": ("scenario" if event.event_id in generic_ids

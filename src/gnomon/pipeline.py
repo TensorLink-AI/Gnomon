@@ -1419,6 +1419,11 @@ def _future_context_stage(
         state.future_timestamps, state.season,
         base_points=[float(row["point"]) for row in rows],
         allow_future=allow_future, allow_structural=allow_structural,
+        # Forecast-model selection folds do not validate a proposed
+        # structural transformation. Until this particular effect has
+        # transformation-specific historical/analogue evidence, keep the
+        # resolved path as a human what-if scenario only.
+        structural_evidence_folds=0,
     )
     if not assessment.considered:
         return rows, False
@@ -1426,6 +1431,57 @@ def _future_context_stage(
     counterfactual = [dict(row) for row in rows] if assessment.admitted else None
     if assessment.admitted:
         rows, applications = apply_future_events(rows, assessment.admitted)
+    if assessment.scenarios:
+        from statistics import mean, stdev
+        from .effects import (
+            EffectDistribution, EffectProvenance, effect_contract,
+            latest_knowledge_time,
+        )
+
+        scenario_rows, _ = apply_future_events(
+            [dict(row) for row in rows], assessment.scenarios)
+        deltas = [float(candidate["point"]) - float(primary["point"])
+                  for primary, candidate in zip(rows, scenario_rows)]
+        event_ids = [item.event_id for item in assessment.scenarios]
+        inputs = [event for event in context_events
+                  if event.event_id in set(event_ids)]
+        sources = sorted({event.source.reference for event in inputs
+                          if event.source is not None})
+        # Summarise the complete horizon, including continuity/no-op steps;
+        # dropping zero deltas would overstate the assumed effect magnitude.
+        location = mean(deltas) if deltas else 0.0
+        scale = stdev(deltas) if len(deltas) > 1 else 0.0
+        state.sensitivity_scenarios.append({
+            "events": event_ids,
+            "support": "prior_assisted_structural",
+            "primary_forecast_changed": False,
+            "forecast": scenario_rows,
+            "automation_eligible": False,
+            "selection_eligible": True,
+            "assumptions": [
+                "the quoted structural condition occurs as stated",
+                "the transformation is resolved entirely from Gnomon's data",
+                "fewer than four transformation-specific separated evaluations were available",
+                "this is a human what-if path, not the canonical primary forecast",
+            ],
+            "effect": effect_contract(
+                EffectDistribution(
+                    "assumption", location, scale,
+                    min(deltas) if deltas else 0.0,
+                    max(deltas) if deltas else 0.0,
+                    None, len(deltas),
+                ),
+                EffectProvenance(
+                    "human_assumption", False,
+                    latest_knowledge_time(
+                        state.timestamps[-1],
+                        [event.known_at for event in inputs]),
+                    ", ".join(sources) or None, None, None,
+                    "closed structural class; publication withheld by fold gate",
+                ),
+                shape="trend_change",
+            ),
+        })
     state.future_context_public = assessment.to_public_dict()
     state.evidence.append(Evidence(
         f"future_context_gate:{state.name}", "future_context_gate", state.name,
