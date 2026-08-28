@@ -416,7 +416,9 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
         rejection_evidence_cited = (
             not expected_citations or (
                 bool(citations.get("matched")) and
-                not citations.get("invalid")))
+                not citations.get("invalid") and
+                all(str(code).casefold() in explanation
+                    for code in expected_citations)))
         consequence_projection = contextual.get(
             "context_consequence_projection") or {}
         expected_consequences = set(

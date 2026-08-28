@@ -1054,6 +1054,57 @@ def test_context_scenario_consequence_requires_exact_artifact_reuse_repair():
         summary]
 
 
+def test_context_gate_citation_must_be_visible_in_reasoning():
+    run = object.__new__(mcp_agent._Run)
+    run.row = {"_require_gnomon_execution": True,
+               "_require_context_explanation": True}
+    run.target_keys = ["value"]
+    run.horizon = 1
+    run.submission = None
+    run.mcp_calls = 1
+    run.trace = []
+    run.artifact_paths = set()
+    run.context_execution = {}
+    run._project_receipt_choices = lambda: {}
+
+    def artifact_rows(path, channel):
+        run._pending_support[channel] = "supported"
+        run.context_execution[channel] = {
+            "automation_eligible": False,
+            "canonical_primary_preserved": True,
+            "rejection_codes": ["separated_model_folds_available"],
+            "scenario_consequence_summaries": [],
+        }
+        return [10.0]
+
+    run._artifact_channel_rows = artifact_rows
+    base = {
+        "forecast": {"value": {"artifact_path": "/sealed/artifact.json"}},
+        "cited_context_gate_codes": ["separated_model_folds_available"],
+        "context_automation_eligible": False,
+        "canonical_primary_preserved": True,
+        "cited_scenario_consequences": [],
+    }
+    rejected = run._handle_submit({
+        **base,
+        "reasoning": ("The canonical primary remains preserved and context "
+                      "evidence cannot authorize automation."),
+    })
+    assert rejected["accepted"] is False
+    assert any("context_gate_not_human_visible" in problem
+               for problem in rejected["problems"])
+    assert run.submission is None
+
+    accepted = run._handle_submit({
+        **base,
+        "reasoning": ("The canonical primary remains preserved and context "
+                      "evidence cannot authorize automation. The "
+                      "separated_model_folds_available gate failed, so the "
+                      "structural effect lacks separated evaluations."),
+    })
+    assert accepted["accepted"] is True
+
+
 def test_typed_questions_require_explicit_synthesis_and_basis_maps():
     run = object.__new__(mcp_agent._Run)
     run.row = {"_require_gnomon_execution": True}

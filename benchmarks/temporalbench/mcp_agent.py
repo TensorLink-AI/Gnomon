@@ -1907,6 +1907,11 @@ class _Run(_RunBase):
                 "its first-affected and horizon-end primary-versus-scenario "
                 "q50 deltas in the human-facing reasoning. "
                 "Do not present those conditional values as the primary.\n")
+            text += (
+                "If failed_gate_codes is non-empty, name every cited code in "
+                "the human-facing reasoning and explain its practical meaning. "
+                "A code copied only into the structured submit field is not a "
+                "human-visible explanation.\n")
         if self.row.get("_require_gnomon_execution"):
             text += ("\nThis product run delegates every published numeric "
                      "trajectory to Gnomon. Submit the forecast artifact "
@@ -2332,6 +2337,15 @@ class _Run(_RunBase):
                 authority_problems.append(
                     "context_gate_citation_invalid: cite only failed gate "
                     "codes returned by Gnomon")
+            prose_missing_codes = [
+                code for code in citations["expected"]
+                if code.casefold() not in reasoning_text
+            ]
+            if prose_missing_codes:
+                authority_problems.append(
+                    "context_gate_not_human_visible: name these failed gate "
+                    "codes in the reasoning and explain what they mean: " +
+                    ", ".join(prose_missing_codes))
             consequences = self.submission["context_consequence_projection"]
             if consequences["invalid"] or (
                     consequences["expected"] and
