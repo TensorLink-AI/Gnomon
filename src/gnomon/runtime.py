@@ -804,6 +804,12 @@ def _series_result(
                 future_context=state.future_context_public,
                 conditional_forecasts=state.conditional_forecasts,
                 sensitivity_scenarios=state.sensitivity_scenarios,
+                primary_forecast_changed=(
+                    any(abs(float(row.get("q50", row.get("point", 0.0))) -
+                            float(primary.get(
+                                "q50", primary.get("point", 0.0)))) > 1e-12
+                        for row, primary in zip(rows, primary_forecast))
+                    if primary_forecast else None),
             ) if context_events else None
         ),
         admission=(admission.to_payload(compact=True)

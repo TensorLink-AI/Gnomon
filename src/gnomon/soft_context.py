@@ -118,6 +118,7 @@ def context_outcome(
     future_context: dict[str, Any] | None = None,
     conditional_forecasts: list[dict[str, Any]] | None = None,
     sensitivity_scenarios: list[dict[str, Any]] | None = None,
+    primary_forecast_changed: bool | None = None,
 ) -> dict[str, Any]:
     """Project all context lanes into one unambiguous public disposition."""
     applicable = [event for event in events if event_applies(event, series_name)]
@@ -131,6 +132,8 @@ def context_outcome(
                 "automation_eligible": False, "events": []}
     admitted = list((future_context or {}).get("admitted") or [])
     if bool(getattr(context_assessment, "admitted", False)) or admitted:
+        changed = (True if primary_forecast_changed is None
+                   else bool(primary_forecast_changed))
         historical_admission = bool(getattr(context_assessment, "admitted", False))
         used = list(getattr(context_assessment, "events_used", []) or [])
         used.extend(str(item.get("event_id")) for item in admitted
@@ -143,13 +146,15 @@ def context_outcome(
                                          else "rejected")}
                         for event in applicable]
         return {
-            "status": "applied", "primary_forecast_changed": True,
+            "status": "applied", "primary_forecast_changed": changed,
             # Numeric admission permits a labelled context-conditioned
             # recommendation. Automation remains a separate explicit policy
             # decision; this context outcome alone never grants it.
             "automation_eligible": False,
             "canonical_primary_preserved": True,
-            "selected_output_role": "context_conditioned_projection",
+            "selected_output_role": (
+                "context_conditioned_projection" if changed
+                else "primary_forecast_no_numeric_context_change"),
             "canonical_primary_location": "artifact.results[].primary_forecast",
             "events": used_ids,
             "dispositions": dispositions,
@@ -157,7 +162,12 @@ def context_outcome(
                                 if historical_admission
                                 else "future_context_contract"),
             **({"context_receipt_ids": receipt_ids} if receipt_ids else {}),
-            "basis": "a deterministic context candidate passed its numeric admission gate",
+            "basis": (
+                "a deterministic context candidate passed its numeric "
+                "admission gate and changed this horizon" if changed else
+                "a deterministic context candidate passed its numeric "
+                "admission gate, but no admitted effect changed this horizon"
+            ),
         }
     conditional = list(conditional_forecasts or [])
     sensitivity = list(sensitivity_scenarios or [])

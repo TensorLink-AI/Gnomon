@@ -89,6 +89,22 @@ def test_failed_deterministic_claim_is_rejected_not_scenario() -> None:
     assert outcome["automation_eligible"] is False
 
 
+def test_admitted_history_without_horizon_effect_does_not_claim_change() -> None:
+    assessment = ContextAssessment(
+        considered=True, admitted=True, reasons=[], events_used=["event-1"],
+        points=[10.0], residuals=[0.0],
+    )
+    outcome = context_outcome(
+        [_event()], "heart_rate", context_assessment=assessment,
+        primary_forecast_changed=False)
+
+    assert outcome["status"] == "applied"
+    assert outcome["primary_forecast_changed"] is False
+    assert outcome["selected_output_role"] == \
+        "primary_forecast_no_numeric_context_change"
+    assert "no admitted effect changed this horizon" in outcome["basis"]
+
+
 def test_structural_scenario_reports_its_decisive_future_gate() -> None:
     assessment = ContextAssessment(
         considered=True, admitted=False,
