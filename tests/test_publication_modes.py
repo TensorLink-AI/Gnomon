@@ -1313,6 +1313,35 @@ def test_unknown_citations_and_tampering_fail_loudly():
     assert not verify_publication(damaged)
 
 
+@pytest.mark.parametrize("mutation", [
+    "missing_recovery", "dangling_scenario", "false_summary", "wrong_count",
+])
+def test_resealed_publication_cannot_bypass_context_contract(mutation):
+    result = _result()
+    result["context_rejections"] = [{
+        "context_id": "bad-context", "reason_code": "context_unresolved",
+        "reason": "No executable fact was grounded.",
+    }]
+    payload = publish_result(result, mode="scenario")
+    damaged = deepcopy(payload)
+    if mutation == "missing_recovery":
+        damaged["context_dispositions"][0].pop("recovery_action")
+    elif mutation == "dangling_scenario":
+        damaged["context_dispositions"][0]["scenario_ids"] = ["missing"]
+    elif mutation == "false_summary":
+        damaged["context_summary"]["status"] = "used"
+    else:
+        damaged["scenario_count"] += 1
+    import hashlib
+    import json
+    body = {key: value for key, value in damaged.items()
+            if key != "publication_seal_sha256"}
+    damaged["publication_seal_sha256"] = hashlib.sha256(json.dumps(
+        body, sort_keys=True, separators=(",", ":"),
+        default=str).encode()).hexdigest()
+    assert not verify_publication(damaged)
+
+
 def test_prior_assisted_selection_must_receive_and_cite_counter_hypothesis():
     dossier = _dossier()
     dossier["hypotheses"] = [{

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Make context dispositions part of publication verification, not merely
+  sealed payload data. A correctly re-sealed receipt is now rejected when it
+  drops an actionable recovery, references a missing scenario, misstates its
+  canonical context summary, or reports the wrong portfolio size.
 - Separate forecast-valid admission from retrospective human usefulness for
   governed relationship and categorical-state candidates. Replay can claim
   historical skill only when the caller proves per-origin input availability;

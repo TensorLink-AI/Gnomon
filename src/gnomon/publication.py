@@ -2263,6 +2263,38 @@ def verify_publication(payload: dict[str, Any]) -> bool:
     ids = [item.get("scenario_id") for item in portfolio]
     if len(ids) != len(set(ids)):
         return False
+    if payload.get("scenario_count") != len(portfolio):
+        return False
+    dispositions = payload.get("context_dispositions")
+    if not isinstance(dispositions, list):
+        return False
+    valid_dispositions = {"used", "scenario", "rejected", "superseded"}
+    portfolio_ids = {str(identifier) for identifier in ids}
+    for disposition in dispositions:
+        if (not isinstance(disposition, dict)
+                or not str(disposition.get("context_id") or "").strip()
+                or disposition.get("disposition") not in valid_dispositions
+                or not str(disposition.get("reason_code") or "").strip()):
+            return False
+        scenario_ids = disposition.get("scenario_ids", [])
+        if (not isinstance(scenario_ids, list)
+                or any(str(identifier) not in portfolio_ids
+                       for identifier in scenario_ids)):
+            return False
+        if disposition.get("disposition") == "rejected":
+            recovery = disposition.get("recovery_action")
+            if (not isinstance(recovery, dict)
+                    or not str(recovery.get("code") or "").strip()
+                    or not str(recovery.get("message") or "").strip()
+                    or not isinstance(recovery.get("required_evidence"), list)
+                    or not recovery["required_evidence"]
+                    or recovery.get("automation_eligible") is not False):
+                return False
+    expected_summary = _context_summary(
+        dispositions, payload.get("context_input_evaluation"),
+        payload.get("recommendation_authority"))
+    if payload.get("context_summary") != expected_summary:
+        return False
     primary = next((item for item in portfolio
                     if item.get("scenario_id") == "primary"), None)
     if not primary or primary.get("forecast") != payload.get("primary_forecast"):
