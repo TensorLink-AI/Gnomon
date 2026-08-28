@@ -2570,6 +2570,46 @@ def test_dated_direction_front_door_skips_dossier_and_samples_bounded_prior(
     assert publication["automation"]["eligible"] is False
 
 
+def test_external_reference_front_door_routes_only_bounded_prior_paths(
+        tmp_path):
+    task = _task()
+    task.background = (
+        "As reference, maximal request volume in a similar region on "
+        "January 10th was 125 at 21:10:00.")
+    task.scenario = None
+    sampled = ["<forecast>\n" + "\n".join(
+        f"({stamp.replace('T', ' ').replace('+00:00', '')}, "
+        f"{124 + draw + index})"
+        for index, stamp in enumerate(task.future_time)) + "\n</forecast>"
+        for draw in range(5)]
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        sampled)
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 3)
+
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    assert receipt["compiler"]["contract"] == "external_reference_point"
+    stages = [item["stage"] for item in receipt["compiler"]["calls"]]
+    assert "initial_compile" not in stages
+    assert stages[0] == "deterministic_external_reference_point_parse"
+    assert receipt["dossier"]["hypotheses"][0]["kind"] == (
+        "historical_analogue")
+    assert receipt["compiler"]["model_candidate_status"] == "accepted"
+    publication = extra["publication"]
+    assert publication["recommended_scenario_id"].startswith("prior-assisted-")
+    assert publication["recommendation_authority"]["historically_admitted"] \
+        is False
+    assert publication["primary_forecast_unchanged"] is True
+    assert publication["automation"]["eligible"] is False
+
+
 def test_one_sample_transport_failure_preserves_other_governed_paths(tmp_path):
     import threading
 

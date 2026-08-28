@@ -20,6 +20,7 @@ SAMPLED_PRIOR_MIN_PATHS = 3
 SAMPLED_PRIOR_MIN_VALID_FRACTION = 0.75
 SAMPLED_PRIOR_MIN_DIRECTION_AGREEMENT = 0.60
 SAMPLED_PRIOR_MAX_PAIRWISE_TO_POINTWISE_RATIO = 2.0
+SAMPLED_PRIOR_MAX_ANCHORS = 32
 
 
 def _seal(payload: dict[str, Any]) -> str:
@@ -516,6 +517,7 @@ def candidate_from_sampled_paths(
     response_shapes: list[dict[str, Any]] = []
     rationales: list[str] = []
     expected = len(future_timestamps)
+    anchor_indices = sampled_path_anchor_indices(expected)
     display_timestamps = []
     for timestamp in future_timestamps:
         try:
@@ -561,11 +563,13 @@ def candidate_from_sampled_paths(
                 values = parsed_values
                 shape["fallback_format"] = "timestamp_value_rows"
                 shape["observed_values"] = len(values)
-        if not isinstance(values, list) or len(values) != expected:
+        if not isinstance(values, list) or len(values) not in {
+                expected, len(anchor_indices)}:
             shape["status"] = "rejected_wrong_shape"
             response_shapes.append(shape)
             rejection_reasons.append(
-                f"forecast response requires {expected} host-grid-bound values")
+                f"forecast response requires {expected} full-grid values or "
+                f"{len(anchor_indices)} host-selected anchor values")
             continue
         try:
             path = [float(value) for value in values]
@@ -579,6 +583,13 @@ def candidate_from_sampled_paths(
             response_shapes.append(shape)
             rejection_reasons.append("forecast_path contains a non-finite value")
             continue
+        if len(path) == len(anchor_indices) and len(anchor_indices) < expected:
+            path = _interpolate_sampled_anchors(
+                path, anchor_indices, future_timestamps)
+            shape["path_representation"] = "host_anchor_linear_interpolation"
+            shape["anchor_count"] = len(anchor_indices)
+        else:
+            shape["path_representation"] = "full_host_grid"
         if path_transform is not None:
             try:
                 path = [float(value) for value in path_transform(path)]
@@ -638,6 +649,51 @@ def candidate_from_sampled_paths(
     return candidate, diagnostics
 
 
+def sampled_path_anchor_indices(
+        horizon: int, *, maximum: int = SAMPLED_PRIOR_MAX_ANCHORS,
+) -> list[int]:
+    """Return deterministic near-uniform anchors including both boundaries."""
+    if isinstance(horizon, bool) or not isinstance(horizon, int) or horizon < 1:
+        raise ValueError("horizon must be a positive integer")
+    if isinstance(maximum, bool) or not isinstance(maximum, int) or maximum < 2:
+        raise ValueError("maximum must be an integer of at least two")
+    if horizon <= maximum:
+        return list(range(horizon))
+    indices = [round(index * (horizon - 1) / (maximum - 1))
+               for index in range(maximum)]
+    # Rounding a monotone grid cannot duplicate at horizon > maximum, but keep
+    # the invariant explicit so a future selection rule cannot silently alter
+    # the wire contract.
+    if len(set(indices)) != maximum or indices[0] != 0 \
+            or indices[-1] != horizon - 1:
+        raise AssertionError("invalid sampled-path anchor grid")
+    return indices
+
+
+def _interpolate_sampled_anchors(
+    values: list[float], indices: list[int], timestamps: list[str],
+) -> list[float]:
+    """Linearly interpolate validated anchors on the host-owned time grid."""
+    if len(values) != len(indices) or not indices:
+        raise ValueError("anchor values and indices must align")
+    parsed = [datetime.fromisoformat(value.replace("Z", "+00:00"))
+              for value in timestamps]
+    if any(right <= left for left, right in zip(parsed, parsed[1:])):
+        raise ValueError("future timestamps must be strictly increasing")
+    result = [0.0] * len(timestamps)
+    for segment, (left_index, right_index) in enumerate(
+            zip(indices, indices[1:])):
+        left_value, right_value = values[segment], values[segment + 1]
+        left_time, right_time = parsed[left_index], parsed[right_index]
+        span = (right_time - left_time).total_seconds()
+        if span <= 0:
+            raise ValueError("anchor timestamps must be strictly increasing")
+        for index in range(left_index, right_index + 1):
+            fraction = (parsed[index] - left_time).total_seconds() / span
+            result[index] = left_value + fraction * (right_value - left_value)
+    return result
+
+
 def build_sampled_context_prior_prompt(
     *, timestamps: list[str], values: list[float],
     future_timestamps: list[str], context: str,
@@ -657,6 +713,16 @@ def build_sampled_context_prior_prompt(
                     f"step_seconds={steps[0]:.12g}, count={len(grid)}")
         return "timestamps=" + json.dumps(grid, separators=(",", ":"))
 
+    anchor_indices = sampled_path_anchor_indices(len(future_timestamps))
+    sparse = len(anchor_indices) < len(future_timestamps)
+    output_instruction = (
+        f"Return exactly {len(anchor_indices)} finite values at these zero-based "
+        f"future-grid indices, in order: {anchor_indices}. The host will "
+        "linearly interpolate between these fixed time anchors."
+        if sparse else
+        "Return exactly one finite value per future grid point, in order.")
+    representation = ("host-selected sparse anchors" if sparse
+                      else "the complete host grid")
     return f"""\
 I have a time series forecasting task for you.
 
@@ -674,8 +740,8 @@ are in exact grid order:
 
 Predict the future grid ({grid_summary(future_timestamps)}).
 
-Return only compact JSON with exactly one finite value per future grid point,
-in order. Do not echo timestamps:
+{output_instruction}
+Return only compact JSON for {representation}. Do not echo timestamps:
 
 {{"forecast_path":{{"values":[1.0,2.0],"rationale":"brief basis"}}}}
 

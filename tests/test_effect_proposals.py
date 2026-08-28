@@ -10,6 +10,7 @@ from gnomon.llm_dossier import (
     deterministic_dated_multiplier_dossier,
     deterministic_dated_directional_event_dossier,
     deterministic_dated_zero_window_dossier,
+    deterministic_external_reference_point_dossier,
     deterministic_ended_recurring_disruption_dossier,
     deterministic_named_driver_relationship_dossier,
     deterministic_reference_power_dossier,
@@ -135,6 +136,40 @@ def test_dated_direction_refuses_hedged_ambiguous_or_driver_only_text(text):
     assert deterministic_dated_directional_event_dossier(
         text, cutoff="2026-01-02T00:00:00+00:00",
         future_timestamps=TIMES, target_name="withdrawals") is None
+
+
+def test_external_reference_point_is_typed_as_non_authoritative_analogue():
+    text = (
+        "As reference, maximal power production in similar regions on "
+        "June 20th was 25.83 at 21:10:00.")
+    raw = deterministic_external_reference_point_dossier(
+        text, cutoff="2026-07-11T07:30:00+00:00", target_name="0")
+
+    assert raw is not None
+    assert raw["forecast_candidate"] is None
+    assert raw["effect_proposal"] is None
+    assert raw["hypotheses"][0]["kind"] == "historical_analogue"
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=text, cutoff="2026-07-11T07:30:00+00:00",
+        future_timestamps=["2026-07-11T07:40:00+00:00"],
+        history=[8, 9, 10], compiler_model="deterministic")
+    assert not reasons
+    assert dossier["claims"][0]["effective_window_binding"]["kind"] == (
+        "most_recent_historical_month_day")
+    assert dossier["candidate_support"] is None
+    assert dossier["automation_eligible"] is False
+
+
+@pytest.mark.parametrize("text", [
+    "Maximum production was 25.83 on June 20th.",
+    "A similar region exists, but no numeric observation is supplied.",
+    "A similar region reached 20 and another reached 30 on June 20th.",
+    "For reference, similar-region temperature was 25.83 on June 20th.",
+])
+def test_external_reference_point_refuses_unowned_or_ambiguous_facts(text):
+    assert deterministic_external_reference_point_dossier(
+        text, cutoff="2026-07-11T07:30:00+00:00",
+        target_name="production") is None
 
 
 def test_ended_recurring_disruption_is_preserved_without_inferred_effect():

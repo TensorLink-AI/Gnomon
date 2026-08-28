@@ -408,7 +408,11 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: an LLM round trip; its stated duration is bound to the host forecast grid.
 #: Version 190: an unambiguous dated qualitative target direction is retained
 #: as a non-numeric event before bounded model-candidate elicitation.
-MCP_CONTRACT_VERSION = 190
+#: Version 191: one dated numeric comparable-entity observation is retained
+#: as a non-authoritative historical analogue before bounded elicitation.
+#: Version 192: long sampled priors use 32 host-owned time anchors and
+#: deterministic interpolation instead of fragile 100-value model payloads.
+MCP_CONTRACT_VERSION = 192
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -3395,6 +3399,7 @@ class _Run:
             deterministic_dated_multiplier_dossier,
             deterministic_dated_directional_event_dossier,
             deterministic_dated_zero_window_dossier,
+            deterministic_external_reference_point_dossier,
             deterministic_ended_recurring_disruption_dossier,
             deterministic_historical_observation_claim,
             deterministic_named_driver_relationship_dossier,
@@ -3491,6 +3496,17 @@ class _Run:
             if (deterministic_calibration_claim is None
                 and deterministic_zero_window is None
                 and deterministic_multiplier is None
+                and categorical_schedule is None and not relationship_contract
+                and not observation_contract and not companion_contract)
+            else None)
+        deterministic_reference_point = (
+            deterministic_external_reference_point_dossier(
+                context, cutoff=self.timestamps[-1],
+                target_name=self.target_name)
+            if (deterministic_calibration_claim is None
+                and deterministic_zero_window is None
+                and deterministic_multiplier is None
+                and deterministic_directional_event is None
                 and categorical_schedule is None and not relationship_contract
                 and not observation_contract and not companion_contract)
             else None)
@@ -3812,6 +3828,12 @@ class _Run:
             raw = bind_active_target(deterministic_directional_event)
             compiler_calls.append({
                 "stage": "deterministic_dated_directional_event_parse",
+                "elapsed_seconds": 0.0,
+            })
+        elif deterministic_reference_point is not None:
+            raw = bind_active_target(deterministic_reference_point)
+            compiler_calls.append({
+                "stage": "deterministic_external_reference_point_parse",
                 "elapsed_seconds": 0.0,
             })
         else:
@@ -5272,7 +5294,8 @@ class _Run:
             or deterministic_calibration_claim is not None
             or deterministic_zero_window is not None
             or deterministic_multiplier is not None
-            or deterministic_directional_event is not None)
+            or deterministic_directional_event is not None
+            or deterministic_reference_point is not None)
         payload = {
             "schema_version": 1,
             "compiler": {
@@ -5306,6 +5329,8 @@ class _Run:
                              if deterministic_multiplier is not None else
                              "explicit_dated_directional_event"
                              if deterministic_directional_event is not None else
+                             "external_reference_point"
+                             if deterministic_reference_point is not None else
                              "universal_dossier"),
                 "prompt_bytes": (model_candidate_prompt_bytes
                                  if deterministic_front_door

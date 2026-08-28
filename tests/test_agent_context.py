@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
 from gnomon.llm_dossier import validate_temporal_dossier
@@ -12,6 +14,7 @@ from gnomon.agent_context import (
     decision_selection_synthesis_payload,
     recommended_initial_sample_count,
     recommended_sample_count,
+    sampled_path_anchor_indices,
     sampled_prior_sufficiency,
     sample_path_stability,
     seal_temporal_decision_selection,
@@ -131,6 +134,62 @@ def test_provider_neutral_prior_prompt_keeps_host_owned_regular_grid_compact():
     assert "[1,2,3]" in prompt
     assert '"forecast_path"' in prompt
     assert "Do not echo timestamps" in prompt
+
+
+def test_long_prior_prompt_uses_host_owned_sparse_anchor_contract():
+    history = [f"2026-01-01T{hour:02d}:00:00+00:00" for hour in range(4)]
+    future = [f"2026-01-{2 + index // 24:02d}T{index % 24:02d}:00:00+00:00"
+              for index in range(40)]
+
+    prompt = build_sampled_context_prior_prompt(
+        timestamps=history, values=[1, 2, 3, 4], future_timestamps=future,
+        context="A comparable site supplies one reference point.")
+
+    anchors = sampled_path_anchor_indices(40)
+    assert len(anchors) == 32
+    assert anchors[0] == 0 and anchors[-1] == 39
+    assert "Return exactly 32 finite values" in prompt
+    assert str(anchors) in prompt
+    assert "linearly interpolate" in prompt
+
+
+def test_sparse_anchor_paths_expand_deterministically_on_host_time_grid():
+    future = [f"2026-01-{2 + index // 24:02d}T{index % 24:02d}:00:00+00:00"
+              for index in range(40)]
+    anchors = sampled_path_anchor_indices(len(future))
+    values = [2.0 * index for index in anchors]
+
+    candidate, diagnostics = candidate_from_sampled_paths([
+        '{"forecast_path":{"values":' + str(values) + '}}',
+    ], future, history_values=[-2, -1, 0])
+
+    assert candidate is not None
+    assert candidate["_validated_sample_paths"][0] == [
+        2.0 * index for index in range(40)]
+    shape = diagnostics["response_shapes"][0]
+    assert shape["path_representation"] == (
+        "host_anchor_linear_interpolation")
+    assert shape["anchor_count"] == 32
+
+
+def test_sparse_anchor_interpolation_uses_time_not_row_distance():
+    epoch = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    elapsed_hours = [0]
+    for index in range(1, 40):
+        elapsed_hours.append(elapsed_hours[-1] + (3 if index % 7 == 0 else 1))
+    future = [(epoch + timedelta(hours=value)).isoformat()
+              for value in elapsed_hours]
+    anchors = sampled_path_anchor_indices(len(future))
+    values = [2.0 * elapsed_hours[index] for index in anchors]
+
+    candidate, diagnostics = candidate_from_sampled_paths([
+        '{"forecast_path":{"values":' + str(values) + '}}',
+    ], future, history_values=[-2, -1, 0])
+
+    assert diagnostics["accepted"] == 1
+    assert candidate is not None
+    assert candidate["_validated_sample_paths"][0] == pytest.approx([
+        2.0 * value for value in elapsed_hours])
 
 
 def test_provider_neutral_prior_parser_retains_valid_paths_independently():

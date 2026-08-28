@@ -141,6 +141,39 @@ def test_claims_only_context_is_retained_without_claiming_numeric_use():
     assert "did not alter" in disposition["reason"]
 
 
+def test_same_claim_in_multiple_sealed_dossiers_is_presented_once():
+    span = "A comparable site reached 120 last summer."
+    dossier, reasons = validate_temporal_dossier({
+        "claims": [{
+            "source_span": span, "relation": "unknown",
+            "effective_start": TIMES[0], "effective_end": TIMES[1],
+            "mechanism": "Weak external analogue", "confidence": .3,
+        }],
+        "hypotheses": [{
+            "kind": "historical_analogue", "claim_ids": ["claim-1"],
+            "target_series": ["*"], "known_at":
+                "2026-01-02T00:00:00+00:00", "lag_steps": 0,
+            "direction": "unknown", "rationale": "Comparable site.",
+        }],
+    }, context_text=span, cutoff="2026-01-02T00:00:00+00:00",
+       future_timestamps=TIMES, history=[8, 9, 10], compiler_model="test")
+    assert not reasons
+
+    payload = publish_result(
+        _result(), mode="best_effort",
+        dossiers=[dossier, deepcopy(dossier)])
+
+    assert payload["context_summary"]["counts"] == {
+        "used": 0, "scenario": 1, "rejected": 0}
+    assert len(payload["context_dispositions"]) == 1
+    disposition = payload["context_dispositions"][0]
+    assert disposition["representation_count"] == 2
+    assert disposition["source_context_ids"] == [
+        "dossier-1:claim-1", "dossier-2:claim-1"]
+    assert disposition["cited_fact"]["source_span"] == span
+    assert verify_publication(payload)
+
+
 def test_valid_covariate_input_is_distinct_from_forecast_admission():
     result = _result()
     result["covariates"] = {

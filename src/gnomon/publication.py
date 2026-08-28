@@ -637,6 +637,12 @@ def _claim_disposition(
         "relation": claim.get("relation"),
         "confidence": claim.get("confidence"),
     }
+    claim_fingerprint = hashlib.sha256(json.dumps({
+        **cited_fact,
+        "effective_start": claim.get("effective_start"),
+        "effective_end": claim.get("effective_end"),
+        "timing_status": claim.get("timing_status"),
+    }, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     if claim.get("timing_status") == "unresolved_trigger":
         return {
             "context_id": f"dossier-{dossier_index}:{claim.get('claim_id')}",
@@ -649,6 +655,7 @@ def _claim_disposition(
             "claim_id": claim.get("claim_id"),
             "cited_fact": cited_fact,
             "scenario_ids": list(scenario_ids or []),
+            "_claim_fingerprint": claim_fingerprint,
             "recovery_action": {
                 "code": "provide_dated_trigger",
                 "message": (
@@ -675,6 +682,7 @@ def _claim_disposition(
             "claim_id": claim.get("claim_id"),
             "cited_fact": cited_fact,
             "scenario_ids": list(scenario_ids or []),
+            "_claim_fingerprint": claim_fingerprint,
             "recovery_action": {
                 "code": "provide_applicability_evidence",
                 "message": (
@@ -704,9 +712,68 @@ def _claim_disposition(
         "disposition": disposition, "reason_code": reason_code,
         "reason": reason, "claim_id": claim.get("claim_id"),
         "cited_fact": cited_fact,
+        "_claim_fingerprint": claim_fingerprint,
         **({"scenario_ids": list(scenario_ids)} if scenario_ids is not None
            else {}),
     }
+
+
+def _deduplicate_claim_dispositions(
+        dispositions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Merge repeated projections of one authenticated source claim.
+
+    A governed executable and a model-authored alternative can legitimately
+    carry the same claims in separate sealed dossiers. They are two numeric
+    representations, not two pieces of user context. Keep every scenario id
+    and reason code while counting and presenting the source fact once.
+    """
+    merged: list[dict[str, Any]] = []
+    by_fingerprint: dict[str, int] = {}
+    priority = {"used": 4, "scenario": 3, "superseded": 2, "rejected": 1}
+    for raw in dispositions:
+        item = dict(raw)
+        fingerprint = str(item.pop("_claim_fingerprint", ""))
+        if not fingerprint:
+            merged.append(item)
+            continue
+        if fingerprint not in by_fingerprint:
+            item["source_context_ids"] = [str(item.get("context_id"))]
+            item["representation_count"] = 1
+            item["representation_reason_codes"] = [str(
+                item.get("reason_code") or "unknown")]
+            by_fingerprint[fingerprint] = len(merged)
+            merged.append(item)
+            continue
+        index = by_fingerprint[fingerprint]
+        existing = merged[index]
+        source_ids = list(existing.get("source_context_ids") or [])
+        source_id = str(item.get("context_id"))
+        if source_id not in source_ids:
+            source_ids.append(source_id)
+        scenario_ids = list(existing.get("scenario_ids") or [])
+        for scenario_id in item.get("scenario_ids") or []:
+            if scenario_id not in scenario_ids:
+                scenario_ids.append(scenario_id)
+        reason_codes = list(existing.get("representation_reason_codes") or [])
+        reason_code = str(item.get("reason_code") or "unknown")
+        if reason_code not in reason_codes:
+            reason_codes.append(reason_code)
+        if priority.get(str(item.get("disposition")), 0) > priority.get(
+                str(existing.get("disposition")), 0):
+            retained = {
+                "context_id": existing.get("context_id"),
+                "claim_id": existing.get("claim_id"),
+                "cited_fact": existing.get("cited_fact"),
+            }
+            existing.update(item)
+            existing.update({key: value for key, value in retained.items()
+                             if value is not None})
+        existing["source_context_ids"] = source_ids
+        existing["representation_count"] = len(source_ids)
+        existing["representation_reason_codes"] = reason_codes
+        if scenario_ids:
+            existing["scenario_ids"] = scenario_ids
+    return merged
 
 
 def build_scenario_catalog(result: dict[str, Any], *,
@@ -1426,7 +1493,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
             # malformed teaching signal must not crash an agent adapter or
             # masquerade as a ready-to-issue action.
             disposition["recovery_action"] = _context_recovery(disposition)
-    return scenarios, dispositions
+    return scenarios, _deduplicate_claim_dispositions(dispositions)
 
 
 def validate_scenario_selection(raw: Any, *, scenarios: list[dict[str, Any]],

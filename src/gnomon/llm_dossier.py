@@ -366,6 +366,91 @@ def deterministic_dated_directional_event_dossier(
     }
 
 
+def deterministic_external_reference_point_dossier(
+    context_text: str, *, cutoff: str, target_name: str | None = None,
+) -> dict[str, Any] | None:
+    """Retain one dated numeric observation from a comparable entity.
+
+    A single external reference point cannot determine a target trajectory or
+    establish historical skill. This parser therefore emits only a cited
+    historical-analogue hypothesis. It exists to avoid losing useful context
+    to a provider/schema failure and to route any numeric interpretation into
+    the separately sealed prior-assisted candidate lane.
+    """
+    text = " ".join(str(context_text or "").split())
+    normalized = _normalise(text)
+    if not text or not re.search(
+            r"\b(?:reference|comparable|similar|peer)\b", normalized):
+        return None
+    target_terms = (
+        "production", "output", "traffic", "flow", "generation",
+        "withdrawals", "transactions", "sales", "arrivals", "departures",
+        "rides", "trips", "requests", "visitors", "customers",
+        "passengers", "calls", "orders", "deliveries", "operations",
+        "activity", "usage", "demand", "consumption", "readings", "power",
+        "rate", "volume", "revenue", "price",
+    )
+    normalized_target = _normalise(target_name)
+    if not ((normalized_target and not normalized_target.isdigit()
+             and normalized_target in normalized)
+            or any(term in normalized for term in target_terms)):
+        return None
+    if not re.search(
+            r"\b(?:was|were|reached|recorded|reported|observed|measured|"
+            r"peaked|maximum|maximal|minimum|minimal)\b", normalized):
+        return None
+    # Remove calendar and clock quantities before requiring exactly one
+    # externally observed value. Identifier/date digits must never become the
+    # analogue measurement by accident.
+    stripped = re.sub(
+        r"\b\d{4}-\d{2}-\d{2}(?:[T ]\d{1,2}:\d{2}(?::\d{2})?)?\b",
+        " ", text)
+    stripped = re.sub(
+        r"\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|"
+        r"jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|"
+        r"nov(?:ember)?|dec(?:ember)?)\s+\d{1,2}(?:st|nd|rd|th)?\b",
+        " ", stripped, flags=re.IGNORECASE)
+    stripped = re.sub(
+        r"\b\d{1,2}:\d{2}(?::\d{2})?(?:\s*[ap]m)?\b", " ", stripped,
+        flags=re.IGNORECASE)
+    values = re.findall(
+        r"(?<![A-Za-z0-9_.])[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?![A-Za-z0-9_.])",
+        stripped)
+    if len(values) != 1 or not math.isfinite(float(values[0])):
+        return None
+    date_match = re.search(r"\b\d{4}-\d{2}-\d{2}\b", text)
+    partial_match = re.search(
+        r"\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|"
+        r"jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|"
+        r"nov(?:ember)?|dec(?:ember)?)\s+\d{1,2}(?:st|nd|rd|th)?\b",
+        text, flags=re.IGNORECASE)
+    reference_date = (date_match.group(0) if date_match else
+                      partial_match.group(0) if partial_match else None)
+    if reference_date is None or _timestamp(cutoff) is None:
+        return None
+    return {
+        "events": [],
+        "claims": [{
+            "source_span": context_text, "relation": "unknown",
+            "effective_start": reference_date,
+            "effective_end": reference_date,
+            "mechanism": "explicit external reference observation",
+            "confidence": .5,
+        }],
+        "hypotheses": [{
+            "kind": "historical_analogue", "claim_ids": ["claim-1"],
+            "target_series": ["*"], "predictor_series": None,
+            "known_at": cutoff, "lag_steps": 0, "direction": "unknown",
+            "rationale": (
+                "One comparable-entity observation is retained as a prior; "
+                "it is not target-history validation."),
+        }],
+        "covariate_tables": [], "transformations": [],
+        "observation_interpretations": [], "forecast_candidate": None,
+        "effect_proposal": None,
+    }
+
+
 def deterministic_ended_recurring_disruption_dossier(
     context_text: str, *, cutoff: str,
 ) -> dict[str, Any] | None:

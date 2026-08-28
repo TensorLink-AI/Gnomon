@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- Preserve one explicit dated numeric observation from a comparable entity as
+  a typed, non-authoritative historical analogue. It cannot establish target
+  skill or automation authority; in best-effort mode it only routes a bounded
+  model prior into the existing seal and sufficiency gates. For long horizons,
+  that provider-neutral prior contract now requests at most 32 host-selected
+  time anchors and deterministically interpolates the full host grid. Full-grid
+  responses remain accepted for compatibility. Independent tests cover exact
+  grid binding, irregular-time interpolation, malformed paths, and the
+  immutable/non-automation contract. On solar-analogue seeds 210–212, two
+  coherent anchor candidates scored 0.0665 and 0.0694; one transport/dispersion
+  failure retained the 0.3258 primary. The three-run mean was 0.1539. A matched
+  direct-control seed exhausted its 600-second case budget, so these results
+  establish routing behavior and within-Gnomon improvement, not comparative
+  model uplift.
+- Deduplicate identical authenticated claims carried by multiple sealed
+  candidate dossiers in the public context projection. Scenario identifiers
+  and representation reason codes remain merged and auditable, but one user
+  fact is no longer counted twice merely because both a governed executable
+  and a model-authored alternative cite it.
 - Retain one unambiguous, explicitly dated qualitative target direction as a
   typed calendar event without asking an LLM to reproduce its provenance.
   Best-effort mode may then elicit only bounded numeric paths; Gnomon seals
