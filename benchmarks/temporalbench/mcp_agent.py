@@ -1864,10 +1864,11 @@ class _Run(_RunBase):
                 parameters["properties"]["cited_context_gate_codes"] = {
                     "type": "array",
                     "description": (
-                        "Exact failed_gate_codes and context_dispositions[]."
-                        "reason_code values from the Gnomon result that "
-                        "support the explanation; empty only when neither "
-                        "kind of context rejection exists."),
+                        "Exact failed_gate_codes and reason_code values only "
+                        "from context_dispositions whose disposition is "
+                        "rejected or scenario. Do not cite successful "
+                        "reason_code values such as applied; use an empty "
+                        "array when no admission/rejection gate failed."),
                     "items": {"type": "string"},
                     "maxItems": 8,
                 }
@@ -1978,8 +1979,10 @@ class _Run(_RunBase):
                 "A code copied only into the structured submit field is not a "
                 "human-visible explanation.\n")
             text += (
-                "Treat context_dispositions[].reason_code the same way: copy "
-                "only the exact engine-authored code and explain it. Use "
+                "For a rejected or scenario context_disposition, treat its "
+                "reason_code the same way: copy the exact engine-authored "
+                "code and explain it. Never cite a successful `applied` "
+                "reason_code as a failed gate. Use "
                 "context_summary.context_evidence_automation_eligible for "
                 "context authority; the separate global automation reason "
                 "'not requested' does not grant context authority.\n")
