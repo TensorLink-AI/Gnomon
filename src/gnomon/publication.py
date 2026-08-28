@@ -463,7 +463,7 @@ def _normalize_sampled_prior_uncertainty(
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Prevent a handful of LLM draws from masquerading as calibrated tails.
 
-    The candidate median remains untouched.  Five stochastic paths cannot
+    The candidate median remains untouched. A handful of stochastic paths cannot
     estimate calibrated 10th/90th percentiles, so their dispersion remains a
     diagnostic while the conditional path inherits the immutable primary's
     calibrated offsets. The derived scenario is resealed and carries this rule
@@ -1427,12 +1427,22 @@ def build_scenario_catalog(result: dict[str, Any], *,
                     # from treating a missing metadata object as either a point
                     # forecast or implicit confidence evidence.
                     "distribution": ({
-                        "kind": "sealed_empirical_model_paths",
+                        "kind": (
+                            "calibrated_quantile_offsets_around_model_median"
+                            if uncertainty_normalization.get("applied") is True
+                            else "sealed_empirical_model_paths"),
                         "sample_count": len(candidate.get("sample_paths") or []),
                         "horizon": len(candidate_rows),
                         "quantile_levels": [0.1, 0.5, 0.9],
-                        "source": "sealed_context_receipt",
-                        "probabilistic_consumers_should_use": "sample_paths",
+                        "source": (
+                            "sealed_context_receipt_plus_immutable_primary_calibration"
+                            if uncertainty_normalization.get("applied") is True
+                            else "sealed_context_receipt"),
+                        "probabilistic_consumers_should_use": (
+                            "quantiles"
+                            if uncertainty_normalization.get("applied") is True
+                            else "sample_paths"),
+                        "raw_model_paths_are": "elicitation_stability_only",
                         "stability_evidence": "host_observed",
                         "compact_human_summary": "recommended_forecast",
                         "automation_eligible": False,

@@ -909,6 +909,8 @@ def test_best_effort_sampled_prior_policy_is_human_only_and_mode_specific():
         "historical_skill_evidence": False, "automation_eligible": False,
         "stability": _stable_sampling(4),
     }
+    dossier["forecast_candidate"]["sample_paths"] = [
+        [10.0 + draw, 11.0 + draw] for draw in range(4)]
     import hashlib, json
     body = {key: value for key, value in dossier.items()
             if key != "seal_sha256"}
@@ -924,6 +926,12 @@ def test_best_effort_sampled_prior_policy_is_human_only_and_mode_specific():
     assert normalization["rows_adjusted"] == 2
     assert normalization["candidate_centre_unchanged"] is True
     assert normalization["primary_forecast_unchanged"] is True
+    distribution = sampled["effect"]["distribution"]
+    assert distribution["kind"] == (
+        "calibrated_quantile_offsets_around_model_median")
+    assert distribution["probabilistic_consumers_should_use"] == "quantiles"
+    assert distribution["raw_model_paths_are"] == (
+        "elicitation_stability_only")
 
 
 def test_under_sampled_prior_remains_visible_but_not_human_selectable():

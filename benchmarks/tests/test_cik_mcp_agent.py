@@ -2458,11 +2458,12 @@ def test_ended_recurring_disruption_is_preserved_during_compiler_outage(
 
     _, extra = forecaster(task, 1)
 
-    assert len(client.completion_prompts) == 3
+    # The verified schedule is executable without a provider call. Its replay
+    # loses on this unrelated synthetic history, so it remains visible but the
+    # selector is not asked to promote it.
+    assert client.completion_prompts == []
     assert not any("Compile supplied temporal context" in prompt
                    for prompt in client.completion_prompts)
-    assert all("forecast_path" in prompt
-               for prompt in client.completion_prompts)
     receipt = json.loads(Path(extra["context_compilation"][
         "receipt_path"]).read_text())
     assert receipt["compiler"]["contract"] == \
@@ -2471,17 +2472,56 @@ def test_ended_recurring_disruption_is_preserved_during_compiler_outage(
     assert stages[0] == "deterministic_ended_recurring_disruption_parse"
     assert "initial_compile" not in stages
     assert "dossier_repair" not in stages
-    adaptive = receipt["compiler"]["model_candidate_sampling"][
-        "adaptive_sampling"]
-    assert adaptive["expanded"] is False
-    assert adaptive["expansion_skipped_reason"] == \
-        "workflow_deadline_exhausted"
+    assert receipt["compiler"]["model_candidate_sampling"]["status"] == \
+        "provider_request_failed"
     assert receipt["dossier"]["hypotheses"][0]["kind"] == "regime_shift"
-    assert receipt["dossier"]["forecast_candidate"] is None
+    interpretation = receipt["dossier"]["observation_interpretations"][0]
+    assert interpretation["predicate"] == {
+        "op": "recurring_window", "start": "2023-12-01T00:00:00+00:00",
+        "duration_steps": 4, "period_steps": 14, "unit": "day"}
+    assert receipt["dossier"]["forecast_candidate"] is not None
+    assert receipt["dossier"]["candidate_critique"][
+        "human_selection_eligible"] is False
     publication = extra["publication"]
     assert publication["recommended_scenario_id"] == "primary"
     assert publication["primary_forecast_unchanged"] is True
     assert publication["automation"]["eligible"] is False
+    assert extra["scenario_selector"]["attempted"] is False
+
+
+def test_admitted_ended_disruption_uses_governed_candidate_without_sampling(
+        tmp_path):
+    task = _task(horizon=14, n=90)
+    task.past_time = [
+        (timestamp, 2.0 if index % 15 < 4 else 20.0 + index % 3)
+        for index, (timestamp, _) in enumerate(task.past_time)]
+    task.scenario = (
+        "The service was under maintenance for 4 days, periodically every "
+        "15 days, starting from 2024-01-01 00:00:00. Assume that the service "
+        "will not be in maintenance in the future.")
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}])
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 2)
+
+    assert client.completion_prompts == []
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    assert receipt["dossier"]["candidate_critique"][
+        "candidate_origin"] == "observation_interpretation_counterfactual"
+    assert receipt["dossier"]["candidate_critique"][
+        "selection_eligible"] is True
+    assert receipt["compiler"]["model_candidate_status"] == "not_requested"
+    assert extra["publication"]["recommended_scenario_id"] == \
+        "prior-assisted-1"
+    assert extra["publication"]["primary_forecast_unchanged"] is True
+    assert extra["publication"]["automation"]["eligible"] is False
+    assert extra["scenario_selector"]["attempted"] is False
 
 
 def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
@@ -2623,10 +2663,13 @@ def test_typed_interpretation_without_executable_gets_sealed_sampled_prior(
         resolved = [[row[0] for row in path] for path in samples]
     assert len(resolved) == 3
     assert all(len(path) == horizon for path in resolved)
-    assert all(path in [[float(124 + draw + index)
-                         for index in range(horizon)]
-                        for draw in range(expected_paths)]
-               for path in resolved)
+    assert extra["governed_distribution"][
+        "probabilistic_consumers_should_use"] == "quantiles"
+    assert extra["governed_distribution"][
+        "scoring_representation"] == "recommended_forecast_quantiles"
+    expected = mcp_agent_module.samples_from_quantile_rows(
+        publication["recommended_forecast"], 3)
+    assert resolved == expected
 
 
 def test_dated_qualitative_event_gets_sealed_best_effort_prior(tmp_path):
@@ -2688,7 +2731,9 @@ def test_dated_qualitative_event_gets_sealed_best_effort_prior(tmp_path):
     assert extra["publication"]["recommended_scenario_id"].startswith(
         "prior-assisted-")
     assert extra["publication"]["recommended_distribution"]["kind"] == \
-        "sealed_empirical_model_paths"
+        "calibrated_quantile_offsets_around_model_median"
+    assert extra["publication"]["recommended_distribution"][
+        "probabilistic_consumers_should_use"] == "quantiles"
     assert extra["publication"]["primary_forecast_unchanged"] is True
     assert extra["publication"]["automation"]["eligible"] is False
 

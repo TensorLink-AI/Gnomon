@@ -91,6 +91,12 @@ def _daily_period(timestamps: list[str] | None) -> int | None:
     if any(abs(delta - step) > max(1e-6, step * 1e-6) for delta in deltas):
         return None
     candidate = round(86400.0 / step)
+    if candidate == 1 and abs(step - 86400.0) <= 1.0:
+        # Daily operational and business series commonly retain a weekday
+        # profile after an outage/closure regime is removed. This is one fixed
+        # calendar candidate, not data-mined period discovery; chronological
+        # replay still decides whether it may lead.
+        return 7
     if not 2 <= candidate <= 168 or abs(candidate * step - 86400.0) > 1.0:
         return None
     return candidate
@@ -140,6 +146,7 @@ def _seasonal_phase_point(
 def fit_observation_counterfactual(
     history: list[float], exclusion_mask: list[bool],
     future_timestamps: list[str], history_timestamps: list[str] | None = None,
+    *, rotate_mask_phases: bool = False,
 ) -> tuple[dict[str, Any] | None, dict[str, Any]]:
     """Fit and replay a small fixed-family conditional counterfactual.
 
@@ -175,7 +182,7 @@ def fit_observation_counterfactual(
     excluded_phase_offsets = (sorted({
         index % daily_period for index, excluded in enumerate(exclusion_mask)
         if excluded
-    }) if daily_period is not None else [])
+    }) if daily_period is not None and rotate_mask_phases else [])
     families = ("robust_level", "rebased_croston_sba", *(
         ("seasonal_phase_median", "seasonal_phase_last")
         if daily_period is not None else ()))

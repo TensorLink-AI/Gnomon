@@ -423,7 +423,13 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: Version 197: scenario selection is planned from the exact sealed live MCP
 #: portfolio, so a pre-execution catalog cannot trigger a redundant selector
 #: that the subsequently fitted governed executable must reject.
-MCP_CONTRACT_VERSION = 197
+#: Version 198: explicit ended recurring disruptions enter the existing
+#: fold-replayed observation-counterfactual lane; replay losers remain visible
+#: but cannot trigger or win a human-facing selector call.
+#: Version 199: daily ended-disruption counterfactuals may retain a fixed
+#: weekday-phase family, and separately sampled fallback paths remain explicitly
+#: model-authored instead of colliding with the governed counterfactual dossier.
+MCP_CONTRACT_VERSION = 199
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -3167,6 +3173,7 @@ class McpAgentForecaster:
     def __call__(self, task_instance: Any, n_samples: int):
         run = _Run(self, task_instance)
         governed_distribution_paths: list[list[float]] | None = None
+        governed_distribution_contract: dict[str, Any] | None = None
         try:
             submission, extra_info = run.drive()
         finally:
@@ -3369,8 +3376,12 @@ class McpAgentForecaster:
                 and (item.get("forecast_candidate") or {}).get("sample_paths")
             ]
             selected_dossier = None
+            source_seal = None
             if (isinstance(selected_item, dict)
                     and selected_item.get("role") == "model_authored"):
+                governed_distribution_contract = dict(
+                    (selected_item.get("effect") or {}).get(
+                        "distribution") or {}) or None
                 source_seal = selected_item.get("source_seal_sha256")
                 selected_dossier = next((
                     item for item in model_distribution_dossiers
@@ -3382,7 +3393,11 @@ class McpAgentForecaster:
                 # when product publication correctly refuses to promote it.
                 selected_dossier = model_distribution_dossiers[0]
                 source_seal = selected_dossier.get("seal_sha256")
-            if selected_dossier is not None:
+            if (selected_dossier is not None
+                    and (self.output_role == "llm_candidate_shadow"
+                         or (governed_distribution_contract or {}).get(
+                             "probabilistic_consumers_should_use") ==
+                         "sample_paths")):
                 raw_paths = ((selected_dossier or {}).get(
                     "forecast_candidate") or {}).get("sample_paths")
                 if isinstance(raw_paths, list) and raw_paths:
@@ -3414,7 +3429,13 @@ class McpAgentForecaster:
                         "horizon": len(governed_distribution_paths[0]),
                         "source_seal_sha256": source_seal,
                         "compact_summary": "recommended_forecast",
-                    }} if governed_distribution_paths else {}),
+                    }} if governed_distribution_paths else
+                       {"governed_distribution": {
+                           **governed_distribution_contract,
+                           "source_seal_sha256": source_seal,
+                           "scoring_representation":
+                               "recommended_forecast_quantiles",
+                       }} if governed_distribution_contract else {}),
                 }
             extra_info = {
                 **extra_info,
@@ -3431,7 +3452,13 @@ class McpAgentForecaster:
                     "horizon": len(governed_distribution_paths[0]),
                     "source_seal_sha256": source_seal,
                     "compact_summary": "recommended_forecast",
-                }} if governed_distribution_paths else {}),
+                }} if governed_distribution_paths else
+                   {"governed_distribution": {
+                       **governed_distribution_contract,
+                       "source_seal_sha256": source_seal,
+                       "scoring_representation":
+                           "recommended_forecast_quantiles",
+                   }} if governed_distribution_contract else {}),
             }
             run.final_submission = {
                 "route": extra_info.get("route"),
@@ -3458,7 +3485,12 @@ class McpAgentForecaster:
                     "kind": "sealed_empirical_model_paths",
                     "sample_count": len(governed_distribution_paths),
                     "horizon": len(governed_distribution_paths[0]),
-                }} if governed_distribution_paths else {}),
+                }} if governed_distribution_paths else
+                   {"governed_distribution": {
+                       **governed_distribution_contract,
+                       "scoring_representation":
+                           "recommended_forecast_quantiles",
+                   }} if governed_distribution_contract else {}),
             }
             # ``drive`` closes the MCP process before governed selection to
             # avoid holding an idle server during the second model call. Rewrite
@@ -5189,6 +5221,13 @@ class _Run:
         accepted_initial_candidate = bool(
             raw.get("forecast_candidate")
             and preliminary_dossier.get("forecast_candidate") is not None)
+        preliminary_candidate_critique = (
+            preliminary_dossier.get("candidate_critique") or {})
+        admitted_observation_counterfactual = bool(
+            preliminary_candidate_critique.get("candidate_origin") ==
+            "observation_interpretation_counterfactual"
+            and preliminary_candidate_critique.get(
+                "selection_eligible") is True)
         deterministic_context_executable_available = bool(
             deterministic_companion_tables or categorical_schedule
             or deterministic_ended_disruption is not None
@@ -5222,6 +5261,7 @@ class _Run:
             # A complete calibration counterfactual already determines the
             # numeric path; a second model-authored prior adds no information.
             and deterministic_calibration_claim is None
+            and not admitted_observation_counterfactual
             and not events
             and not accepted_effect_proposal
             and not accepted_transformation
@@ -5434,7 +5474,8 @@ class _Run:
                     history=self.values,
                     history_timestamps=self.timestamps,
                     compiler_model=self.forecaster.openrouter_model,
-                    validated_events=events))
+                    validated_events=events,
+                    prefer_explicit_forecast_candidate=True))
             if model_dossier.get("forecast_candidate") is not None:
                 if model_candidate_sampling is not None:
                     from gnomon.llm_dossier import (

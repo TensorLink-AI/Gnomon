@@ -457,9 +457,10 @@ def deterministic_ended_recurring_disruption_dossier(
     """Preserve an explicit historical schedule stated not to continue.
 
     No target effect is inferred from words such as maintenance or closure.
-    The schedule is retained as a typed regime hypothesis so a provider outage
-    cannot erase useful context, while the primary remains the only numeric
-    answer until an executable learns an effect from observations.
+    The cited schedule identifies affected historical rows, and the existing
+    observation-counterfactual executable must learn any numeric consequence
+    through chronological replay. The primary remains authoritative unless
+    that replay earns the human recommendation gate.
     """
     text = " ".join(str(context_text or "").split())
     schedule = re.search(
@@ -483,6 +484,10 @@ def deterministic_ended_recurring_disruption_dossier(
     if start.tzinfo is None:
         start = start.replace(tzinfo=cutoff_dt.tzinfo)
     duration, period = int(schedule.group(1)), int(schedule.group(3))
+    duration_unit = schedule.group(2).lower().rstrip("s")
+    period_unit = schedule.group(4).lower().rstrip("s")
+    if duration_unit != period_unit:
+        return None
     if start > cutoff_dt or duration <= 0 or period < duration:
         return None
     return {
@@ -509,7 +514,20 @@ def deterministic_ended_recurring_disruption_dossier(
                 "Its numeric target effect has not been inferred."),
         }],
         "covariate_tables": [], "transformations": [],
-        "observation_interpretations": [], "effect_proposal": None,
+        "observation_interpretations": [{
+            "kind": "historical_contamination",
+            "claim_ids": ["claim-1"],
+            "predicate": {
+                "op": "recurring_window", "start": start.isoformat(),
+                "duration_steps": duration, "period_steps": period,
+                "unit": duration_unit,
+            },
+            "window": "cited_window",
+            "rationale": (
+                "The cited recurring disruption schedule is excluded from "
+                "the conditional fit without assuming a numeric effect."),
+            "proposal_origin": "verified_claim_semantics",
+        }], "effect_proposal": None,
         "forecast_candidate": None,
     }
 
@@ -1109,6 +1127,7 @@ def validate_temporal_dossier(
     candidate_selection_eligible: bool = True,
     candidate_selection_reason: str | None = None,
     governed_candidate: dict[str, Any] | None = None,
+    prefer_explicit_forecast_candidate: bool = False,
 ) -> tuple[dict[str, Any], list[str]]:
     """Return a sealed dossier and every rejected-field reason.
 
@@ -1380,14 +1399,19 @@ def validate_temporal_dossier(
         observation_interpretations and
         ((observation_interpretations[0].get("predicate_normalization") or {}).get(
             "kind") == "semantic_zero_to_separated_near_zero_cluster"))
-    use_calibration_candidate = calibration_candidate is not None
+    explicit_candidate_preferred = bool(
+        prefer_explicit_forecast_candidate
+        and raw.get("forecast_candidate") not in (None, {}))
+    use_calibration_candidate = bool(
+        calibration_candidate is not None and not explicit_candidate_preferred)
     if use_calibration_candidate:
         # Host-validated deterministic evidence owns this lane. A malformed
         # model-authored transformation may be retained as a rejection, but it
         # cannot veto an independently compiled counterfactual.
         candidate_selection_eligible = True
         candidate_selection_reason = None
-    use_derived_candidate = bool(not use_calibration_candidate and
+    use_derived_candidate = bool(not explicit_candidate_preferred
+        and not use_calibration_candidate and
         derived_candidate is not None and (
             derived_replay_admitted or derived_replay_human_eligible
             or derived_scenario_is_deterministic
@@ -1395,11 +1419,13 @@ def validate_temporal_dossier(
     candidate_was_derived_from_observation_interpretation = use_derived_candidate
     if candidate_was_derived_from_observation_interpretation:
         replay = derived_replay
-        # Mechanical validity and evidence dominance are distinct. A sealed
-        # prior-assisted sensitivity may be chosen by a human-facing governed
-        # selector even when it cannot auto-lead; publication separately reads
-        # conditional_replay.selection_eligible for evidence dominance.
-        candidate_selection_eligible = True
+        # Mechanical validity and recommendation authority are distinct. A
+        # counterfactual that loses its fold-safe replay remains visible for
+        # inspection and outcome scoring, but neither an LLM nor a human-facing
+        # default may promote it merely because its transformation is valid.
+        candidate_selection_eligible = bool(
+            derived_replay_admitted or derived_replay_human_eligible
+            or derived_scenario_is_deterministic)
         if replay.get("human_recommendation_eligible") is True \
                 and replay.get("selection_eligible") is not True:
             candidate_selection_reason = (
@@ -1409,8 +1435,9 @@ def validate_temporal_dossier(
         elif replay.get("selection_eligible") is not True:
             candidate_selection_reason = (
                 "Historical-contamination filtering is mechanically valid but "
-                "did not earn evidence dominance; retain it as a visible, "
-                "human-reviewed prior-assisted scenario only.")
+                "did not earn the human recommendation gate; retain it as a "
+                "visible prior-assisted scenario for inspection and outcome "
+                "scoring only.")
     candidate_reason_start = len(reasons)
     candidate_input = (governed_candidate if governed_candidate is not None else
                        calibration_candidate if use_calibration_candidate else
@@ -1817,7 +1844,15 @@ def _validate_observation_interpretations(
             re.search(r"\b(?:zero|no)\b.{0,40}\b(?:recorded|withdrawal|sale|order|request|reading|transaction|event)s?\b", span)
             or re.search(r"\b(?:recorded|withdrawal|sale|order|request|reading|transaction|event)s?\b.{0,40}\b(?:zero|none)\b", span)
             for span in spans)
-        if not zero_entailed:
+        ended_disruption_entailed = (
+            predicate_op in {"recurring_window", "recurring_clock_window"}
+            and any(re.search(
+                r"\b(?:maintenance|outage|clos(?:ed|ure)|unavailable)\b",
+                span) for span in spans)
+            and any(re.search(
+                r"\b(?:will not|won't)\b.{0,80}\b(?:future|again)\b",
+                span) for span in spans))
+        if not zero_entailed and not ended_disruption_entailed:
             rejected.append({"index": index, "code": "PREDICATE_NOT_ENTAILED"})
             continue
         if not history_timestamps:
@@ -1867,16 +1902,19 @@ def _validate_observation_interpretations(
             try:
                 duration = int(predicate["duration_steps"])
                 period = int(predicate["period_steps"])
+                unit = str(predicate.get("unit") or "day").lower().rstrip("s")
                 recurrence_start = _timestamp(predicate["start"])
                 if recurrence_start is None:
                     naive_start = datetime.fromisoformat(str(predicate["start"]))
                     recurrence_start = naive_start.replace(tzinfo=start.tzinfo)
             except (KeyError, TypeError, ValueError):
                 duration = period = 0
+                unit = ""
                 recurrence_start = None
             source = " ".join(spans)
             schedule_entailed = (
                 duration > 0 and period >= duration and recurrence_start is not None
+                and unit in {"day", "hour"}
                 and str(duration) in source and str(period) in source
                 and recurrence_start.strftime("%Y-%m-%d") in source)
             if not schedule_entailed:
@@ -1889,11 +1927,14 @@ def _validate_observation_interpretations(
                 if not inside or observed is None or observed < recurrence_start:
                     mask.append(False)
                     continue
-                step = (observed.date() - recurrence_start.date()).days
+                elapsed_seconds = (observed - recurrence_start).total_seconds()
+                unit_seconds = 86400.0 if unit == "day" else 3600.0
+                step = int(elapsed_seconds // unit_seconds)
                 mask.append(step % period < duration)
             applied_predicate = {
                 "op": "recurring_window", "start": recurrence_start.isoformat(),
                 "duration_steps": duration, "period_steps": period,
+                "unit": unit,
             }
         elif predicate_op == "recurring_clock_window":
             start_text = str(predicate.get("start_time") or "")
@@ -2160,7 +2201,10 @@ def _validate_observation_interpretations(
     from .observation_counterfactual import fit_observation_counterfactual
     candidate, replay = fit_observation_counterfactual(
         history, accepted_masks[0], future_timestamps,
-        history_timestamps=history_timestamps)
+        history_timestamps=history_timestamps,
+        rotate_mask_phases=(
+            accepted[0]["predicate"].get("op") ==
+            "recurring_clock_window"))
     normalization = accepted[0].get("predicate_normalization") or {}
     if normalization.get("kind") == \
             "semantic_zero_to_separated_near_zero_cluster":

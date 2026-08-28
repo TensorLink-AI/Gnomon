@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -192,6 +193,42 @@ def test_ended_recurring_disruption_is_preserved_without_inferred_effect():
     assert dossier["hypotheses"][0]["kind"] == "regime_shift"
     assert dossier["forecast_candidate"] is None
     assert dossier["effect_proposal"] is None
+
+
+def test_ended_recurring_disruption_earns_fold_safe_clean_regime_candidate():
+    start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    history_timestamps = [
+        (start + timedelta(days=index)).isoformat() for index in range(90)]
+    # The schedule, not a value predicate, identifies affected observations.
+    # Values within the maintenance window need not be zero.
+    history = [2.0 if index % 15 < 4 else 20.0 + index % 3
+               for index in range(90)]
+    future = [(start + timedelta(days=90 + index)).isoformat()
+              for index in range(14)]
+    text = (
+        "The service was under maintenance for 4 days, periodically every "
+        "15 days, starting from 2026-01-01 00:00:00. Assume that the service "
+        "will not be in maintenance in the future.")
+
+    raw = deterministic_ended_recurring_disruption_dossier(
+        text, cutoff=history_timestamps[-1])
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=text, cutoff=history_timestamps[-1],
+        future_timestamps=future, history=history,
+        history_timestamps=history_timestamps, compiler_model="deterministic")
+
+    assert not reasons
+    interpretation = dossier["observation_interpretations"][0]
+    assert interpretation["excluded_observations"] == 24
+    replay = interpretation["conditional_replay"]
+    assert replay["uses_future_observations"] is False
+    assert replay["selection_eligible"] is True
+    assert replay["chronological_block_wins"] >= 2
+    assert dossier["candidate_critique"]["selection_eligible"] is True
+    assert all(row["q50"] == 21.0
+               for row in dossier["forecast_candidate"]["quantiles"])
+    assert dossier["primary_forecast_unchanged"] is True
+    assert dossier["automation_eligible"] is False
 
 
 def test_reference_power_law_is_preserved_without_inventing_transition_path():

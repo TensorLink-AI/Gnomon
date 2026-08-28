@@ -447,7 +447,9 @@ def test_historical_zero_contamination_derives_sealed_counterfactual():
     assert interpretation["retained_observations"] == 3
     assert interpretation["input_mutated"] is False
     assert dossier["forecast_candidate"]["quantiles"][0]["q50"] == 12
-    assert dossier["candidate_critique"]["selection_eligible"] is True
+    assert dossier["candidate_critique"]["selection_eligible"] is False
+    assert "did not earn the human recommendation gate" in dossier[
+        "candidate_critique"]["selection_reason"]
     assert dossier["forecast_candidate"]["conditional_replay"][
         "selection_eligible"] is False
     assert dossier["candidate_critique"]["candidate_origin"] == \

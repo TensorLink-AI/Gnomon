@@ -104,7 +104,8 @@ def test_daily_phase_family_is_fold_safe_and_beats_raw_comparators():
               for step in range(24)]
 
     candidate, evidence = fit_observation_counterfactual(
-        history, mask, future, history_timestamps=timestamps)
+        history, mask, future, history_timestamps=timestamps,
+        rotate_mask_phases=True)
 
     assert candidate is not None
     assert evidence["family"] == "seasonal_phase_median"

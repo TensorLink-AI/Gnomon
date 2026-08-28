@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Compile explicitly ended recurring disruptions into the existing fold-safe
+  observation-counterfactual executable. The schedule identifies affected
+  historical rows without guessing their numeric effect; a candidate may lead
+  only after it beats raw-history comparators across chronological replay.
+  Replay losers remain inspectable and outcome-scoreable but can no longer be
+  promoted by an LLM selector. Daily and hourly schedules retain their units.
+  Daily histories also contest one fixed weekday-phase family under the same
+  replay gate, preserving ordinary weekly shape after disruption rows are
+  removed without data-mining a period or widening the public model zoo.
+- Align prior-assisted probability consumption with the published answer.
+  Raw LLM paths remain sealed receipt evidence for elicitation stability, but
+  once Gnomon replaces their uncalibrated spread with immutable-primary
+  residual offsets, agents and benchmark adapters consume the displayed
+  calibrated quantiles rather than a different hidden raw-path distribution.
 - Remove a contradictory selected-context disclosure: a claim that grounds a
   sealed human-facing scenario no longer simultaneously says it “did not alter
   the selected numeric forecast.” The stable evidence-lane reason code remains
