@@ -364,6 +364,63 @@ def test_qualitative_context_lane_produces_non_automatable_sensitivity(
     assert "temporal_state" not in publication["selection_contract"]
     assert len(json.dumps(publication["selection_contract"])) < 3_500
 
+
+def test_brief_compacts_large_repeated_context_without_losing_counts(
+        tmp_path) -> None:
+    import json
+    from datetime import date, timedelta
+
+    from gnomon.toolspec import runner_for
+
+    path = tmp_path / "repeated-context.csv"
+    start = date(2026, 1, 1)
+    path.write_text("\n".join(["timestamp,demand"] + [
+        f"{start + timedelta(days=day)},{100 + day % 4}"
+        for day in range(40)
+    ]) + "\n")
+    events = [{
+        "event_id": f"campaign-{index}",
+        "entity_scope": ["demand"],
+        "effective_start": "2026-02-10T00:00:00+00:00",
+        "effective_end": "2026-02-11T00:00:00+00:00",
+        "known_at": "2026-02-09T00:00:00+00:00",
+        "direction": "increase", "effect_family": "temporary_pulse",
+        "duration": "temporary", "source_span": (
+            f"Campaign pulse {index} starts on 2026-02-10 and is expected "
+            "to increase demand; "
+            "its magnitude is unknown."),
+        "source_reference": "campaign-plan",
+    } for index in range(10)]
+
+    payload = runner_for("gnomon_forecast")({
+        "input": str(path), "time_column": "timestamp",
+        "target_column": "demand", "frequency": "D", "horizon": 2,
+        "qualitative_context_events": events,
+        "publication_mode": "scenario",
+        "output_dir": str(tmp_path / "out-repeated-context"),
+    })
+
+    outcome = payload["results"][0]["context_outcome"]
+    assert outcome["event_count"] == 10
+    assert len(outcome["events"]) == 4
+    assert outcome["events_omitted"] == 6
+    assert outcome["disposition_counts"] == {"scenario": 10}
+    assert outcome["hypothesis_count"] == 10
+    assert len(outcome["hypotheses"]) == 1
+    hypothesis = outcome["hypotheses"][0]
+    assert hypothesis["count"] == 10
+    assert hypothesis["representative_event_id"] == "campaign-0"
+    assert hypothesis["direction"] == "increase"
+    assert hypothesis["numeric_status"] == (
+        "standardized_sensitivity_not_event_effect")
+    assert hypothesis["may_affect_primary_forecast"] is False
+    # The protected decision/support contract may exceed the ordinary 9 KiB
+    # bulk budget, but repeated events must not grow the answer linearly.
+    assert len(json.dumps(payload)) <= 16_000
+
+    source = (
+        "A confirmed campaign begins on 2026-02-10 and is expected to "
+        "increase demand, but its magnitude is unknown.")
     strict = runner_for("gnomon_forecast")({
             "input": str(path), "time_column": "timestamp",
             "target_column": "demand", "frequency": "D", "horizon": 2,

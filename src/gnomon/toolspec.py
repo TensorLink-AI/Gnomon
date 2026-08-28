@@ -7,6 +7,8 @@ the single source of truth for the public agent contract.
 
 from __future__ import annotations
 
+import json
+
 from typing import Any, Callable
 
 from .context import load_events_file
@@ -501,6 +503,17 @@ def compact_publication_for_wire(payload: dict[str, Any]) -> dict[str, Any]:
         "candidate_admission", "publication_seal_sha256",
     )
     projection = {key: publication[key] for key in keys if key in publication}
+    dispositions = list(projection.get("context_dispositions") or [])
+    if len(dispositions) > 4:
+        counts: dict[str, int] = {}
+        for disposition in dispositions:
+            label = str(disposition.get("disposition") or "unknown")
+            counts[label] = counts.get(label, 0) + 1
+        projection["context_dispositions"] = dispositions[:4]
+        projection["context_disposition_counts"] = counts
+        projection["context_dispositions_omitted"] = len(dispositions) - 4
+        projection["context_dispositions_location"] = (
+            "receipt.context_dispositions")
     contract = projection.get("selection_contract")
     if isinstance(contract, dict):
         compact_contract = {key: contract.get(key) for key in (
@@ -514,11 +527,18 @@ def compact_publication_for_wire(payload: dict[str, Any]) -> dict[str, Any]:
                     "would change the selection. Do not alter numbers, "
                     "support, or automation."),
                 "scenarios": [{
-                    key: scenario.get(key) for key in (
+                    key: ((list(scenario.get(key) or [])[:4])
+                          if key == "claim_ids" else scenario.get(key))
+                    for key in (
                         "scenario_id", "role", "support", "claim_ids",
                         "human_selection_eligible", "forecast_seal", "summary")
                     if scenario.get(key) is not None
-                } | ({"evidence": {
+                } | ({
+                    "claim_count": len(scenario.get("claim_ids") or []),
+                    "claim_ids_omitted": max(
+                        0, len(scenario.get("claim_ids") or []) - 4),
+                    "claim_ids_location": "receipt.selection_contract.scenarios",
+                } if len(scenario.get("claim_ids") or []) > 4 else {}) | ({"evidence": {
                     key: value for key, value in
                     (scenario.get("derivation") or {}).items()
                     if value not in (None, False, [], {}, "not_applicable")
@@ -527,7 +547,12 @@ def compact_publication_for_wire(payload: dict[str, Any]) -> dict[str, Any]:
                      else {})
                     for scenario in contract.get("scenarios") or []
                     if isinstance(scenario, dict)],
-                "claims": contract.get("claims") or [],
+                "claims": list(contract.get("claims") or [])[:4],
+                **({
+                    "claim_count": len(contract.get("claims") or []),
+                    "claims_omitted": len(contract.get("claims") or []) - 4,
+                    "claims_location": "receipt.selection_contract.claims",
+                } if len(contract.get("claims") or []) > 4 else {}),
                 "observation_evidence": contract.get(
                     "observation_evidence") or [],
             })
@@ -862,6 +887,7 @@ def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
         else:
             facts.pop("temporal_profile", None)
         return facts
+
     payload = {
         "schema_version": "0.1",
         "status": "complete",
@@ -972,6 +998,49 @@ def _attach_tsfm_on_ramp(payload: dict[str, Any],
     }
 
 
+def _compact_sensitivity_projection(items: list[dict[str, Any]]) \
+        -> list[dict[str, Any]]:
+    """Group numerically identical scenarios for a bounded wire response."""
+    grouped: dict[str, dict[str, Any]] = {}
+    for scenario in items:
+        assumptions = [str(value) for value in scenario.get("assumptions", [])
+                       if not str(value).startswith("assumes ")]
+        key = json.dumps({
+            "support": scenario.get("support"),
+            "assumed_effect": scenario.get("assumed_effect"),
+            "assumed_effect_unit": scenario.get("assumed_effect_unit"),
+            "assumptions": assumptions,
+            "forecast": scenario.get("forecast") or [],
+        }, sort_keys=True, default=str, separators=(",", ":"))
+        events = [str(value) for value in scenario.get("events", [])]
+        if key not in grouped:
+            grouped[key] = {
+                "events": [], "support": scenario.get("support"),
+                "primary_forecast_changed": False,
+                "assumed_effect": scenario.get("assumed_effect"),
+                "assumed_effect_unit": scenario.get("assumed_effect_unit"),
+                "assumptions": assumptions,
+                "automation_eligible": bool(
+                    scenario.get("automation_eligible", False)),
+                "selection_eligible": bool(
+                    scenario.get("selection_eligible", True)),
+                "intervals_available": bool(
+                    scenario.get("intervals_available", True)),
+                "forecast_rows": len(scenario.get("forecast", [])),
+                "location": "artifact.results[].sensitivity_scenarios",
+            }
+        grouped[key]["events"].extend(events)
+    projected = []
+    for scenario in grouped.values():
+        events = sorted(set(scenario["events"]))
+        scenario["event_count"] = len(events)
+        scenario["events"] = events[:4]
+        if len(events) > 4:
+            scenario["events_omitted"] = len(events) - 4
+        projected.append(scenario)
+    return projected
+
+
 def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
     """The compact forecast payload: q50 path, one q10–q90 interval, the
     selection, and every disclosure — roughly summary.md as JSON.
@@ -1006,25 +1075,25 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
         # response carries the decision-relevant aggregate and a bounded
         # preview so context does not crowd the forecast out of its budget.
         events = list(projected.get("events") or [])
-        if len(events) > 8:
+        if len(events) > 4:
             projected["event_count"] = len(events)
-            projected["events"] = events[:8]
-            projected["events_omitted"] = len(events) - 8
+            projected["events"] = events[:4]
+            projected["events_omitted"] = len(events) - 4
             projected["events_location"] = (
                 "artifact.results[].context_outcome.events")
         dispositions = list(projected.get("dispositions") or [])
-        if len(dispositions) > 8:
+        if len(dispositions) > 4:
             counts: dict[str, int] = {}
             for disposition in dispositions:
                 label = str(disposition.get("disposition") or "unknown")
                 counts[label] = counts.get(label, 0) + 1
             projected["disposition_counts"] = counts
-            projected["dispositions"] = dispositions[:8]
-            projected["dispositions_omitted"] = len(dispositions) - 8
+            projected["dispositions"] = dispositions[:4]
+            projected["dispositions_omitted"] = len(dispositions) - 4
             projected["dispositions_location"] = (
                 "artifact.results[].context_outcome.dispositions")
         hypotheses = list(projected.get("hypotheses") or [])
-        if len(hypotheses) > 8:
+        if len(hypotheses) > 4:
             signatures: dict[str, dict[str, Any]] = {}
             for hypothesis in hypotheses:
                 signature_fields = {
@@ -1047,6 +1116,18 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
             projected["hypotheses"] = list(signatures.values())
             projected["hypotheses_location"] = (
                 "artifact.results[].context_outcome.hypotheses")
+        excluded = list(projected.get("excluded") or [])
+        if len(excluded) > 4:
+            reason_counts: dict[str, int] = {}
+            for exclusion in excluded:
+                reason = str(exclusion.get("reason") or "unspecified")
+                reason_counts[reason] = reason_counts.get(reason, 0) + 1
+            projected["excluded"] = excluded[:4]
+            projected["excluded_count"] = len(excluded)
+            projected["excluded_reason_counts"] = reason_counts
+            projected["excluded_omitted"] = len(excluded) - 4
+            projected["excluded_location"] = (
+                "artifact.results[].context_outcome.excluded")
         return projected
 
     def response_facts(item: Any) -> dict[str, Any] | None:
@@ -1109,22 +1190,8 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
             **({"threshold": item.threshold} if item.threshold else {}),
             **({"context_outcome": context_outcome_projection(item)}
                if item.context_outcome else {}),
-            **({"sensitivity_scenarios": [{
-                "events": scenario.get("events", []),
-                "support": scenario.get("support"),
-                "primary_forecast_changed": False,
-                "assumed_effect": scenario.get("assumed_effect"),
-                "assumed_effect_unit": scenario.get("assumed_effect_unit"),
-                "assumptions": scenario.get("assumptions", []),
-                "automation_eligible": bool(
-                    scenario.get("automation_eligible", False)),
-                "selection_eligible": bool(
-                    scenario.get("selection_eligible", True)),
-                "intervals_available": bool(
-                    scenario.get("intervals_available", True)),
-                "forecast_rows": len(scenario.get("forecast", [])),
-                "location": "artifact.results[].sensitivity_scenarios",
-            } for scenario in item.sensitivity_scenarios]}
+            **({"sensitivity_scenarios": _compact_sensitivity_projection(
+                item.sensitivity_scenarios)}
                if item.sensitivity_scenarios else {}),
             **_model_assisted_summary(item),
         })

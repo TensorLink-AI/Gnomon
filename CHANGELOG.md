@@ -1,5 +1,12 @@
 # Changelog
 
+- **Repeated context is one decision, not repeated token tax.** Numerically
+  identical sensitivity paths now collapse into one sealed publication
+  scenario with every context id retained. MCP briefs group repeated events,
+  hypotheses, exclusions, dispositions, and claims into bounded previews plus
+  exact counts and receipt locations. The complete artifact and publication
+  receipt remain unchanged and auditable.
+
 - **Point usefulness and interval reliability are now separate context
   claims.** When an event path improves point forecasts on every admission
   gate except independent interval coverage, Gnomon retains it as a typed

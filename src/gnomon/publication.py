@@ -755,12 +755,35 @@ def build_scenario_catalog(result: dict[str, Any], *,
     for index, raw in enumerate(result.get("sensitivity_scenarios") or [], 1):
         rows = _rows(raw.get("forecast"))
         if rows:
-            scenarios.append(_scenario(
+            claim_ids = sorted({str(item) for item in raw.get("events") or []})
+            assumptions = [str(item) for item in raw.get("assumptions") or []
+                           if not str(item).startswith("assumes ")]
+            candidate = _scenario(
                 f"sensitivity-{index}", "conditional_sensitivity", rows,
                 support=str(raw.get("support") or "hypothetical_sensitivity"),
                 automation_eligible=False,
-                assumptions=[str(item) for item in raw.get("assumptions") or []],
-            ))
+                claim_ids=claim_ids,
+                assumptions=assumptions,
+                effect=(raw.get("effect") if isinstance(raw.get("effect"), dict)
+                        else None),
+            )
+            # Equivalent repeated-event sensitivities are one numerical
+            # scenario with several supporting context ids, not N choices an
+            # agent must rank separately.  Preserve every id and regenerate
+            # the seal over the merged contract.
+            duplicate = next((item for item in scenarios
+                              if item.get("role") == candidate["role"]
+                              and item.get("support") == candidate["support"]
+                              and _same_rows(item.get("forecast") or [], rows)), None)
+            if duplicate is None:
+                scenarios.append(candidate)
+            else:
+                duplicate["claim_ids"] = sorted(set(
+                    duplicate.get("claim_ids") or []) | set(claim_ids))
+                duplicate["grouped_context_count"] = len(
+                    duplicate["claim_ids"])
+                duplicate.pop("scenario_seal_sha256", None)
+                duplicate["scenario_seal_sha256"] = _seal(duplicate)
 
     # Fitted context executables may nominate a sealed conditional path.  They
     # are ranked only by disclosed out-of-sample evidence and can never inherit
