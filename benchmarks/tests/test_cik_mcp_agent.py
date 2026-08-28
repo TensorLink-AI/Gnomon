@@ -37,6 +37,8 @@ from benchmarks.cik.mcp_agent import (
     _bind_transformation_provenance,
     _select_publication_fail_closed,
     _selection_inputs,
+    _eligible_prior_claims,
+    _numeric_prior_claims,
     _canonicalize_scenario_selection_evidence,
     _has_material_numeric_context,
     _future_numeric_path_needs_executable,
@@ -714,6 +716,37 @@ def test_selector_uses_exact_live_portfolio_not_preexecution_rebuild(monkeypatch
 
     assert scenarios == live_portfolio
     assert selected_contract is contract
+
+
+def test_numeric_prior_excludes_unresolved_and_associational_claims():
+    claims = [
+        {"claim_id": "baseline", "timing_status": "atemporal_context"},
+        {"claim_id": "dated", "timing_status": "resolved"},
+        {"claim_id": "undated-promise",
+         "timing_status": "unresolved_trigger"},
+        {"claim_id": "correlation", "timing_status": "atemporal_context",
+         "relationship_authority": "associational_only"},
+    ]
+
+    assert [claim["claim_id"] for claim in
+            _eligible_prior_claims(claims)] == ["baseline", "dated"]
+
+
+def test_numeric_prior_requires_an_explicit_number_in_the_eligible_span():
+    claims = [
+        {"claim_id": "qualitative", "timing_status": "atemporal_context",
+         "source_span": "Demand is usually stable."},
+        {"claim_id": "quantitative", "timing_status": "atemporal_context",
+         "source_span": "Demand averages 85 incidents per year."},
+        {"claim_id": "unresolved", "timing_status": "unresolved_trigger",
+         "source_span": "A launch will reduce demand by 50%."},
+        {"claim_id": "correlation", "timing_status": "atemporal_context",
+         "relationship_authority": "associational_only",
+         "source_span": "The correlation is 0.9."},
+    ]
+
+    assert [claim["claim_id"] for claim in
+            _numeric_prior_claims(claims)] == ["quantitative"]
 
 
 def test_scenario_selector_overlap_is_repaired_from_selected_claim_ownership():

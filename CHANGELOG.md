@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Prevent one rejected context representation from suppressing safe use of
+  other grounded facts. The sampled interpretation lane now receives only
+  applicability-resolved, quantitative, non-associational source spans and
+  seals those exact claim IDs;
+  unresolved triggers and correlations remain visible as counterevidence but
+  cannot influence its numeric path.
 - Plan optional LLM scenario selection from the exact sealed portfolio returned
   by the live forecast call. A governed executable fitted during execution can
   now establish evidence dominance before selection, avoiding a redundant

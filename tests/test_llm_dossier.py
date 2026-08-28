@@ -57,6 +57,34 @@ def test_only_host_can_attach_bounded_sampling_provenance():
             temperature=1, sample_paths=[[1.0], [1.0, 2.0]])
 
 
+def test_candidate_preserves_exact_cited_claim_subset():
+    safe = "Demand averages 10 units per day."
+    unresolved = "A future launch will immediately eliminate demand."
+    raw = {
+        "claims": [
+            {"source_span": safe, "relation": "supports_stability",
+             "effective_start": None, "effective_end": None,
+             "timing_status": "atemporal_context", "confidence": .8},
+            {"source_span": unresolved, "relation": "supports_decrease",
+             "effective_start": None, "effective_end": None,
+             "timing_status": "unresolved_trigger", "confidence": .2},
+        ],
+        "forecast_candidate": {
+            "quantiles": [{"timestamp": "2026-01-02T00:00:00+00:00",
+                           "q10": 9, "q50": 10, "q90": 11}],
+            "claim_ids": ["claim-1"], "rationale": "safe numeric prior"},
+    }
+
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=f"{safe} {unresolved}",
+        cutoff="2026-01-01T00:00:00+00:00",
+        future_timestamps=["2026-01-02T00:00:00+00:00"],
+        history=[9.0, 10.0], compiler_model="test")
+
+    assert dossier["forecast_candidate"]["claim_ids"] == ["claim-1"]
+    assert not any("unresolved trigger" in reason for reason in reasons)
+
+
 def test_host_sampling_stability_is_sealed_but_cannot_upgrade_support():
     span = "The promotion may increase demand."
     raw = {

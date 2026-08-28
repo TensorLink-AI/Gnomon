@@ -2724,6 +2724,24 @@ def _selection_inputs(
     return scenarios, None
 
 
+def _eligible_prior_claims(
+        claims: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Keep only claims allowed to condition an unsupported numeric prior."""
+    return [
+        claim for claim in claims
+        if claim.get("timing_status") != "unresolved_trigger"
+        and claim.get("relationship_authority") != "associational_only"]
+
+
+def _numeric_prior_claims(
+        claims: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return eligible claims that contain an explicit quantitative fact."""
+    return [
+        claim for claim in _eligible_prior_claims(claims)
+        if re.search(r"(?<![A-Za-z])[-+]?\d", str(
+            claim.get("source_span") or ""))]
+
+
 def _canonicalize_scenario_selection_evidence(
         raw: Any, scenarios: list[dict[str, Any]], *,
         known_claim_ids: set[str] | None = None,
@@ -5120,14 +5138,50 @@ class _Run:
                 "absolute_value", "bound", "additive_change",
                 "multiplicative_change", "regime_shift", "relationship",
                 "historical_analogue"}]
+        # A bad side-lane representation must not suppress safe use of other
+        # grounded context. Numeric best-effort priors may condition only on
+        # claims whose applicability does not depend on an unresolved trigger
+        # and which are not merely associational. Rejected/unresolved claims
+        # remain in the dossier as counterevidence; they are deliberately
+        # absent from the numeric prompt and candidate provenance.
+        prior_eligible_claims = _eligible_prior_claims(
+            preliminary_dossier.get("claims") or [])
+        prior_eligible_claim_ids = {
+            str(claim["claim_id"]) for claim in prior_eligible_claims}
+        quantitative_prior_claims = _numeric_prior_claims(
+            preliminary_dossier.get("claims") or [])
+        quantitative_prior_claim_ids = {
+            str(claim["claim_id"]) for claim in quantitative_prior_claims}
+        numeric_interpretation_hypotheses = [
+            item for item in numeric_interpretation_hypotheses
+            if prior_eligible_claim_ids.intersection(
+                str(claim_id) for claim_id in item.get("claim_ids") or [])]
+        accepted_effect_proposal = bool(
+            raw.get("effect_proposal")
+            and preliminary_dossier.get("effect_proposal") is not None)
+        accepted_transformation = bool(
+            raw.get("transformations") and not remaining_transform_failures)
+        accepted_initial_candidate = bool(
+            raw.get("forecast_candidate")
+            and preliminary_dossier.get("forecast_candidate") is not None)
+        deterministic_context_executable_available = bool(
+            deterministic_companion_tables or categorical_schedule
+            or deterministic_ended_disruption is not None
+            or deterministic_reference_power is not None
+            or deterministic_named_relationship is not None
+            or deterministic_calibration_claim is not None
+            or deterministic_zero_window is not None
+            or deterministic_multiplier is not None
+            or deterministic_directional_event is not None
+            or deterministic_reference_point is not None)
         qualitative_future_event_prior_needed = bool(
             categorical_schedule is None
             and model_candidate_proposal is None
             and governed_candidate is None
             and events
-            and not raw.get("effect_proposal")
-            and not raw.get("transformations")
-            and preliminary_dossier.get("forecast_candidate") is None
+            and not accepted_effect_proposal
+            and not accepted_transformation
+            and not accepted_initial_candidate
             and any(
                 str((event.attributes or {}).get(
                     "soft_context", {}).get("direction") or "unknown")
@@ -5140,11 +5194,15 @@ class _Run:
             and named_relationship_spec is None
             and model_candidate_proposal is None
             and governed_candidate is None
+            # A complete calibration counterfactual already determines the
+            # numeric path; a second model-authored prior adds no information.
+            and deterministic_calibration_claim is None
             and not events
-            and not raw.get("effect_proposal")
-            and not raw.get("transformations")
-            and preliminary_dossier.get("forecast_candidate") is None
-            and numeric_interpretation_hypotheses
+            and not accepted_effect_proposal
+            and not accepted_transformation
+            and not accepted_initial_candidate
+            and (numeric_interpretation_hypotheses
+                 or quantitative_prior_claims)
             and _has_material_numeric_context(context))
         if ((categorical_prior_needed or companion_prior_needed
              or interpretation_prior_needed
@@ -5168,7 +5226,15 @@ class _Run:
                     + str(reference_power_spec["driver"])
                     + ", not the target. Gnomon will apply the cited "
                       "reference power law to every returned driver value."
-                    if reference_power_spec is not None else context))
+                    if reference_power_spec is not None else
+                    "Eligible background facts for this numeric prior:\n" +
+                    "\n".join(
+                        str(claim.get("source_span") or "")
+                        for claim in quantitative_prior_claims) +
+                    "\n\nOther supplied claims were unresolved, rejected, "
+                    "or associational-only. They remain visible as "
+                    "counterevidence but must not alter this numeric path."
+                    if interpretation_prior_needed else context))
             model_candidate_prompt_bytes = len(context_prompt.encode("utf-8"))
             def transform_sampled_path(path: list[float]) -> list[float]:
                 if reference_power_spec is None:
@@ -5279,6 +5345,9 @@ class _Run:
                         "elicitation is malformed or materially incoherent"),
                 }
                 if isinstance(proposed, dict):
+                    if interpretation_prior_needed:
+                        proposed["claim_ids"] = sorted(
+                            quantitative_prior_claim_ids)
                     model_candidate_sample_paths = proposed.pop(
                         "_validated_sample_paths", None)
                     model_candidate_proposal = proposed
@@ -5381,16 +5450,7 @@ class _Run:
                 "context_unresolved: the compiler returned no grounded event, "
                 "claim, covariate, transformation, or candidate; the immutable "
                 "primary remains visible and the context did not influence it")
-        deterministic_front_door = bool(
-            deterministic_companion_tables or categorical_schedule
-            or deterministic_ended_disruption is not None
-            or deterministic_reference_power is not None
-            or deterministic_named_relationship is not None
-            or deterministic_calibration_claim is not None
-            or deterministic_zero_window is not None
-            or deterministic_multiplier is not None
-            or deterministic_directional_event is not None
-            or deterministic_reference_point is not None)
+        deterministic_front_door = deterministic_context_executable_available
         payload = {
             "schema_version": 1,
             "compiler": {

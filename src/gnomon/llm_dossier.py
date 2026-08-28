@@ -2561,6 +2561,27 @@ def _validate_candidate(
     if not claims:
         reasons.append("forecast_candidate requires a verified cited claim")
         return None
+    supplied_claim_ids = raw.get("claim_ids")
+    if supplied_claim_ids is not None:
+        if (not isinstance(supplied_claim_ids, list)
+                or not supplied_claim_ids
+                or any(not isinstance(item, str) or not item.strip()
+                       for item in supplied_claim_ids)):
+            reasons.append(
+                "forecast_candidate claim_ids must be a non-empty string list")
+            return None
+        requested_claim_ids = list(dict.fromkeys(supplied_claim_ids))
+        claims_by_id = {str(claim["claim_id"]): claim for claim in claims}
+        if any(claim_id not in claims_by_id
+               for claim_id in requested_claim_ids):
+            reasons.append("forecast_candidate cites an unknown claim")
+            return None
+        # Validate plausibility and numeric constraints only against the exact
+        # claims the candidate says influenced its path. Other dossier claims
+        # remain counterevidence; silently attaching them would corrupt both
+        # provenance and the unresolved-trigger safety gate.
+        claims = [claims_by_id[claim_id]
+                  for claim_id in requested_claim_ids]
     rows = raw.get("quantiles")
     path_normalization = None
     compact = raw.get("constant_quantiles")
