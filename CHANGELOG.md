@@ -1,5 +1,19 @@
 # Changelog
 
+- **Context knowledge time is host-owned, and literal tickets stay cheap.**
+  A document-bound `known_at` now overrides model-authored timestamps with a
+  disclosed normalization, so compiler and canonical folds use the same
+  information set. The explicit schedule parser accepts narrowly structured
+  ticket prefixes and trailing metadata; a 32-event diagnostic fell from 19
+  compiler calls to zero while retaining verbatim source grounding.
+
+- **ContextBench now measures the human-facing synthesis.** Compiled forecast
+  routing still requires one Gnomon call, but context rows receive one bounded
+  post-tool turn and retain its explanation. Reports separately measure
+  preservation of the immutable primary, scenario status, interval limits,
+  and automation limits instead of silently auto-submitting the artifact and
+  calling that agent behavior.
+
 - **Repeated context is one decision, not repeated token tax.** Numerically
   identical sensitivity paths now collapse into one sealed publication
   scenario with every context id retained. MCP briefs group repeated events,

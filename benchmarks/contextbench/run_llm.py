@@ -231,9 +231,12 @@ def compile_events(case: Case, client: OpenRouterClient) -> dict[str, Any]:
     footer = lines[-1] if lines else ""
     source_reference = ("contextbench:" + hashlib.sha256(
         case.case_id.encode()).hexdigest()[:16])
+    known_times = {str(event.get("known_at"))
+                   for event in case.context_events if event.get("known_at")}
+    document_known_at = known_times.pop() if len(known_times) == 1 else None
     full_document = DocumentRef(
         "context.txt", case.narrative, source_type=source_type,
-        reference=source_reference)
+        reference=source_reference, known_at=document_known_at)
     explicit_raw = extract_explicit_schedule_context([full_document])
     explicit = parse_context_response(
         {"events": explicit_raw["events"]}, [full_document],
@@ -258,7 +261,8 @@ def compile_events(case: Case, client: OpenRouterClient) -> dict[str, Any]:
         document = DocumentRef(
             f"context-chunk-{chunk_index}.txt", content,
             source_type=source_type,
-            reference=(source_reference + f":chunk:{chunk_index}"))
+            reference=(source_reference + f":chunk:{chunk_index}"),
+            known_at=document_known_at)
         request = build_context_investigation_prompt(
             [document], ["*"], future_events=False)
         tool = _bounded_context_tool(request, len(chunk_lines))

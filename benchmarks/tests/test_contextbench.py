@@ -279,12 +279,43 @@ def test_surface_row_is_oracle_sealed_and_family_neutral():
     assert row["tier"] == "T4"
     assert row["_require_gnomon_execution"] is True
     assert row["_host_compiled_forecast"] is True
+    assert row["_require_context_explanation"] is True
     assert row["_time_origin"] == "2025-01-01T00:00:00+00:00"
     assert row["input"]["future_covariates"]
     assert row["input"]["covariate_mapping"][0]["type"] == "binary"
     assert len(row["input"]["history"]["value"]) == len(case.history)
     assert "Input (JSON)" not in row["prompt"]
     assert "dataset is bound by the host" in row["prompt"]
+    assert "Preserve any interval limitation" in row["prompt"]
+
+
+def test_surface_summary_reports_agent_context_explanation_contract():
+    row = {
+        "case_id": "case-1", "family": "repeated_event",
+        "status": "answered", "history_smape": 2.0,
+        "context_smape": 2.0, "incremental_smape": 0.0,
+        "should_influence": True, "primary_changed": False,
+        "applied": False, "oracle_dimensions": {},
+        "disposition_valid": True, "temporal_leakage": False,
+        "publication_parity": True, "history_calls": 0,
+        "context_calls": 1, "surface_required_calls": 1,
+        "context_explanation_contract": {
+            "complete": True, "primary_preserved": True,
+            "scenario_represented": True,
+            "interval_limit_preserved": True,
+            "automation_limit_preserved": True,
+        },
+    }
+
+    summary = surface_runner.summarize(
+        [row], "evidence", {"seed": 1, "fresh_seed": True}, "compiled")
+
+    assert summary["metrics"]["context_explanation_contract"] == {
+        "complete": 1.0, "primary_preserved": 1.0,
+        "scenario_represented": 1.0,
+        "interval_limit_preserved": 1.0,
+        "automation_limit_preserved": 1.0,
+    }
 
 
 def test_history_surface_row_excludes_all_outside_context():
@@ -370,7 +401,7 @@ def test_scripted_compiler_is_quote_grounded_and_magnitude_free():
         "entity_scope": ["*"],
         "effective_start": source["effective_start"],
         "effective_end": source["effective_end"],
-        "known_at": "2025-01-01T00:00:00+00:00",
+        "known_at": "2099-01-01T00:00:00+00:00",
         "evidence_quote": quote, "effect_family": "temporary_pulse",
         "direction": "unknown", "duration": "temporary",
         "attributes": {"magnitude": 999999},
@@ -378,6 +409,7 @@ def test_scripted_compiler_is_quote_grounded_and_magnitude_free():
     compiled = compile_events(repeated, client)
     assert len(compiled["events"]) == 1
     attributes = compiled["events"][0]["attributes"]
+    assert compiled["events"][0]["known_at"] == source["known_at"]
     assert "magnitude" not in attributes
     assert attributes["evidence_quote"] == quote
 

@@ -113,6 +113,31 @@ def test_context_workflow_refuses_tables_without_host_knowledge_time() -> None:
     assert "host-owned" in result["covariate_rejections"][0]
 
 
+def test_explicit_schedule_parser_accepts_ticket_wrappers_with_host_time() -> None:
+    document = DocumentRef(
+        name="tickets.txt",
+        content=(
+            "OPS-17: deploy affects the value series from "
+            "2026-08-14T01:00:00+00:00 through "
+            "2026-08-14T02:00:00+00:00. Owner: on-call."),
+        source_type="calendar", reference="tickets:17",
+        known_at="2026-08-13T00:00:00+00:00",
+    )
+
+    result = extract_explicit_schedule_context([document])
+
+    assert result["residual_lines"] == []
+    assert result["events"] == [{
+        "document_index": 0, "event_type": "deploy",
+        "entity_scope": ["*"],
+        "effective_start": "2026-08-14T01:00:00+00:00",
+        "effective_end": "2026-08-14T02:00:00+00:00",
+        "known_at": "2026-08-13T00:00:00+00:00",
+        "evidence_quote": document.content,
+        "status": "tentative", "confidence": 0.5,
+    }]
+
+
 def test_valid_proposal_is_grounded_from_document_metadata() -> None:
     result = parse_context_response({"events": [PROPOSAL]}, [DOCUMENT])
     assert result["rejected"] == []
@@ -123,6 +148,23 @@ def test_valid_proposal_is_grounded_from_document_metadata() -> None:
     assert result["receipt_id"].startswith("context_receipt:")
     assert result["context_receipt"]["documents"][0][
         "content_fingerprint"].startswith("sha256:")
+
+
+def test_host_bound_document_known_at_overrides_model_authored_time() -> None:
+    document = DocumentRef(
+        name=DOCUMENT.name, content=DOCUMENT.content,
+        source_type=DOCUMENT.source_type, reference=DOCUMENT.reference,
+        known_at="2026-07-20T00:00:00+10:00",
+    )
+
+    result = parse_context_response({"events": [PROPOSAL]}, [document])
+
+    event = result["events"][0]
+    assert event["known_at"] == "2026-07-20T00:00:00+10:00"
+    normalizations = event["attributes"]["compiler_normalizations"]
+    assert any(item["field"] == "known_at"
+               and item["reason"].startswith("host-bound")
+               for item in normalizations)
 
 
 def test_context_receipt_is_stable_and_compiler_identity_is_versioned() -> None:

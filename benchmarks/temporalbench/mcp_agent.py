@@ -1349,6 +1349,8 @@ class _RunBase:
                 if self.complete_artifact_ready and not self.submission:
                     if (self.row.get("_host_compiled_forecast")
                             and self.row.get("_require_gnomon_execution")
+                            and not self.row.get(
+                                "_require_context_explanation")
                             and self.artifact_paths
                             and hasattr(self, "target_keys")
                             # Typed questions require the model's distinct
@@ -1783,8 +1785,16 @@ class _Run(_RunBase):
             # an otherwise trivial final submission.
             tool = json.loads(json.dumps(SUBMIT_TOOL))
             parameters = tool["function"]["parameters"]
-            parameters["properties"].pop("reasoning", None)
             parameters["required"] = ["forecast"]
+            if self.row.get("_require_context_explanation"):
+                # A bounded synthesis is the object under test for context
+                # surfaces. Keep the historical anti-runaway guard while
+                # requiring enough text to verify that the model preserved
+                # disposition, uncertainty, and authority.
+                parameters["properties"]["reasoning"]["maxLength"] = 600
+                parameters["required"].append("reasoning")
+            else:
+                parameters["properties"].pop("reasoning", None)
             if getattr(self, "temporal_compilation", {}).get("questions"):
                 # A forecast-only auto-submit would erase the agent layer.
                 # Empty choice_basis is valid when every canonical answer is

@@ -63,9 +63,9 @@ _CONFIRMED_SCHEDULE_RE = re.compile(
     re.IGNORECASE,
 )
 _SCHEDULE_ROW_RE = re.compile(
-    rf"^(?P<event_type>[^.]+?)\s+affects\s+(?:the\s+)?"
+    rf"(?:^|:\s+)(?P<event_type>[^.:]+?)\s+affects\s+(?:the\s+)?"
     rf"(?P<scope>[^.]+?)\s+from\s+(?P<start>{_ISO_TIMESTAMP})\s+"
-    rf"through\s+(?P<end>{_ISO_TIMESTAMP})\.?$", re.IGNORECASE)
+    rf"through\s+(?P<end>{_ISO_TIMESTAMP})(?:\.|$)", re.IGNORECASE)
 
 
 def extract_explicit_schedule_context(
@@ -74,21 +74,23 @@ def extract_explicit_schedule_context(
     """Parse literal schedule rows without asking an LLM to copy timestamps.
 
     This intentionally recognises one narrow, auditable grammar.  Every value
-    comes from a verbatim source line, and a document-wide ``known_at`` must be
-    stated explicitly.  Unrecognised prose is returned as ``residual_lines``
-    for a semantic compiler; it is never guessed or silently discarded.
+    comes from a verbatim source line, and document knowledge time must be
+    either stated explicitly or bound by the host. Unrecognised prose is
+    returned as ``residual_lines`` for a semantic compiler; it is never
+    guessed or silently discarded.
     """
     proposals: list[dict[str, Any]] = []
     residual: list[dict[str, Any]] = []
     for document_index, document in enumerate(documents):
         known_match = _KNOWN_AT_RE.search(document.content)
-        known_at = known_match.group("known_at") if known_match else None
+        known_at = (document.known_at or
+                    (known_match.group("known_at") if known_match else None))
         confirmed_schedule = bool(_CONFIRMED_SCHEDULE_RE.search(
             document.content))
         for line_number, source_line in enumerate(
                 document.content.splitlines(), start=1):
             line = source_line.strip()
-            match = _SCHEDULE_ROW_RE.fullmatch(line)
+            match = _SCHEDULE_ROW_RE.search(line)
             if not match:
                 if line and not (known_match and known_match.group(0) in line):
                     residual.append({
@@ -484,13 +486,21 @@ def parse_context_response(
                 *(attributes.get("compiler_normalizations") or []),
                 {"field": "confidence", **confidence_normalization},
             ]
+        proposed_known_at = str(proposal.get("known_at", ""))
+        resolved_known_at = str(document.known_at or proposed_known_at)
+        if document.known_at and proposed_known_at != resolved_known_at:
+            attributes.setdefault("compiler_normalizations", []).append({
+                "field": "known_at", "supplied": proposed_known_at or None,
+                "normalized": resolved_known_at,
+                "reason": "host-bound document knowledge time is authoritative",
+            })
         event = ContextEvent(
             event_id=f"event_llm_{index:02d}",
             event_type=event_type,
             entity_scope=tuple(str(item) for item in proposal.get("entity_scope", ())),
             effective_start=str(proposal.get("effective_start", "")),
             effective_end=str(proposal.get("effective_end", "")),
-            known_at=str(proposal.get("known_at", "")),
+            known_at=resolved_known_at,
             status=str(proposal.get("status", "tentative")),
             confidence=confidence,
             attributes=attributes,

@@ -113,6 +113,13 @@ def surface_row(case: Case, *, include_context: bool,
         "produces one, otherwise use an explicitly labeled alternative.\n\n" +
         narrative
     )
+    if include_context:
+        prompt += (
+            "\n\nIn the submitted reasoning, briefly state whether context "
+            "changed the primary, remained a scenario, or was rejected. "
+            "Preserve any interval limitation and automation restriction "
+            "reported by Gnomon; do not infer authority from the narrative."
+        )
     if routing_policy == "compiled":
         # The host already binds the validated dataset and forecast arguments
         # to the execution call. Repeating hundreds of values in the model
@@ -136,6 +143,11 @@ def surface_row(case: Case, *, include_context: bool,
         # verb; the unrouted diagnostic leaves that choice to the agent.
         "_require_gnomon_execution": True,
         "_host_compiled_forecast": routing_policy == "compiled",
+        # ContextBench measures whether the model preserves the tool's
+        # disposition in its human-facing synthesis.  The generic adapter's
+        # immediate host submission is correct for forecast-only tasks but
+        # would skip that turn and make explanation fidelity unobservable.
+        "_require_context_explanation": include_context,
         # The generic TemporalBench adapter otherwise uses its own synthetic
         # epoch. ContextBench events are absolute-time evidence, so silently
         # rebasing the values makes every historical event unmeasurable.
@@ -174,7 +186,12 @@ def compiled_surface_context(case: Case, client: OpenRouterClient,
     """Compile once per replicate using ContextBench's bounded chunker."""
     receipt_dir.mkdir(parents=True, exist_ok=True)
     path = receipt_dir / (_public_id(case.case_id) + ".json")
-    fingerprint = hashlib.sha256(case.narrative.encode()).hexdigest()
+    fingerprint = hashlib.sha256(json.dumps({
+        "narrative": case.narrative,
+        "document_known_at": sorted({
+            str(event.get("known_at")) for event in case.context_events
+            if event.get("known_at")}),
+    }, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     if path.is_file():
         cached = json.loads(path.read_text())
         if cached.get("narrative_sha256") != fingerprint:
@@ -347,6 +364,28 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
         changed = [index for index, pair in enumerate(zip(baseline, enriched))
                    if abs(pair[0] - pair[1]) > 1e-9]
         parity, leakage = _artifact_contract(contextual, enriched)
+        agent_reasoning = str(contextual.get("submit_reasoning") or "").strip()
+        explanation = agent_reasoning.lower()
+        interval_weak = (
+            context_gate.get("selected_output_role") ==
+            "interval_weak_context_scenario")
+        preserved_primary = "primary" in explanation and any(
+            token in explanation for token in (
+                "unchanged", "preserved", "remain", "did not change"))
+        represented_scenario = (
+            disposition != "scenario_only" or
+            any(token in explanation for token in (
+                "scenario", "conditional", "what-if", "what if")))
+        preserved_interval_limit = (
+            not interval_weak or
+            ("interval" in explanation and any(
+                token in explanation for token in (
+                    "weak", "coverage", "failed", "unreliable"))))
+        preserved_automation_limit = (
+            not interval_weak or
+            ("automat" in explanation and any(
+                token in explanation for token in (
+                    "not", "no ", "ineligible", "cannot"))))
         return {
             "case_id": case.case_id, "public_id": _public_id(case.case_id),
             "family": case.family, "status": "answered",
@@ -369,6 +408,18 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
             "disposition_valid": valid_disposition(
                 case.family, applied, disposition),
             "publication_parity": parity, "temporal_leakage": leakage,
+            "agent_reasoning": agent_reasoning,
+            "context_explanation_contract": {
+                "required": True,
+                "primary_preserved": preserved_primary,
+                "scenario_represented": represented_scenario,
+                "interval_limit_preserved": preserved_interval_limit,
+                "automation_limit_preserved": preserved_automation_limit,
+                "complete": all((
+                    preserved_primary, represented_scenario,
+                    preserved_interval_limit, preserved_automation_limit,
+                )),
+            },
             "history_route": (history.get("channel_route") or {}).get("value"),
             "context_route": (contextual.get("channel_route") or {}).get("value"),
             "history_calls": int((history.get("mcp") or {}).get("calls", 0)),
@@ -527,6 +578,15 @@ def summarize(rows: list[dict[str, Any]], profile: str,
             "publication_parity_rate": (mean(
                 row["publication_parity"] is True for row in answered)
                 if answered else None),
+            "context_explanation_contract": {
+                key: (mean(bool((row.get(
+                    "context_explanation_contract") or {}).get(key))
+                           for row in answered) if answered else None)
+                for key in (
+                    "complete", "primary_preserved", "scenario_represented",
+                    "interval_limit_preserved", "automation_limit_preserved",
+                )
+            },
             "observed_agent_calls_mean": mean(calls) if calls else None,
             "observed_agent_calls_median": (
                 sorted(calls)[len(calls) // 2] if calls else None),
