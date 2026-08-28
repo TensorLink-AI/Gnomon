@@ -5,7 +5,9 @@ from gnomon.agent_context import (
     build_sampled_context_prior_prompt,
     candidate_from_sampled_paths,
     decision_selection_synthesis_payload,
+    recommended_initial_sample_count,
     recommended_sample_count,
+    sampled_prior_sufficiency,
     sample_path_stability,
     seal_temporal_decision_selection,
     seal_temporal_decision_prior,
@@ -60,6 +62,8 @@ def test_provider_neutral_prior_rejects_nonfinite_and_wrong_grid_paths():
 
 
 def test_sample_count_policy_is_bounded_and_requires_a_distribution():
+    assert recommended_initial_sample_count(4) == 3
+    assert recommended_initial_sample_count(96) == 3
     assert recommended_sample_count(4) == 5
     assert recommended_sample_count(95) == 5
     assert recommended_sample_count(96) == 4
@@ -70,6 +74,82 @@ def test_sample_count_policy_is_bounded_and_requires_a_distribution():
 def test_stability_rejects_empty_paths():
     with pytest.raises(ValueError, match="non-empty"):
         sample_path_stability([], [1, 2])
+
+
+def test_sampled_prior_sufficiency_accepts_valid_coherent_elicitation():
+    stability = sample_path_stability(
+        [[10, 11, 12], [10.2, 11.1, 12.1], [9.8, 10.9, 11.9]],
+        [7, 8, 9, 10],
+    )
+
+    result = sampled_prior_sufficiency({
+        "requested": 3, "accepted": 3, "stability": stability})
+
+    assert result["eligible_for_human_recommendation"] is True
+    assert result["reason_codes"] == []
+    assert result["historical_skill_evidence"] is False
+    assert result["automation_eligible"] is False
+
+
+def test_sampled_prior_sufficiency_demotes_malformed_dispersed_paths():
+    stability = {
+        "version": "0.1",
+        "interpretation": "stability_not_historical_skill",
+        "scale_basis": "median_nonzero_history_increment",
+        "path_count": 3, "horizon": 95,
+        "median_pointwise_q80_width_scaled": 1.17,
+        "p90_pointwise_q80_width_scaled": 13.38,
+        "median_pairwise_mae_scaled": 3.92,
+        "max_pairwise_mae_scaled": 4.53,
+        "mean_direction_agreement": .82,
+        "unanimous_direction_fraction": .47,
+    }
+
+    result = sampled_prior_sufficiency({
+        "requested": 5, "accepted": 3, "stability": stability})
+
+    assert result["eligible_for_human_recommendation"] is False
+    assert "low_valid_path_fraction" in result["reason_codes"]
+    assert set(result["reason_codes"]) & {
+        "directionally_unstable_paths", "dispersed_sampled_paths"}
+
+
+def test_sampled_prior_sufficiency_is_invariant_to_units_and_level():
+    paths = [[10, 11, 13], [10.1, 11.2, 13.1], [9.9, 10.8, 12.9]]
+    transformed = [[1000 + 25 * value for value in path] for path in paths]
+    base = sampled_prior_sufficiency({
+        "requested": 3, "accepted": 3,
+        "stability": sample_path_stability(paths, [7, 8, 9, 10]),
+    })
+    rescaled = sampled_prior_sufficiency({
+        "requested": 3, "accepted": 3,
+        "stability": sample_path_stability(
+            transformed, [1175, 1200, 1225, 1250]),
+    })
+
+    assert rescaled["eligible_for_human_recommendation"] == base[
+        "eligible_for_human_recommendation"]
+    assert rescaled["reason_codes"] == base["reason_codes"]
+    assert rescaled["observed_direction_agreement"] == pytest.approx(
+        base["observed_direction_agreement"])
+    assert rescaled["observed_pairwise_to_pointwise_ratio"] == pytest.approx(
+        base["observed_pairwise_to_pointwise_ratio"])
+
+
+def test_sampled_prior_sufficiency_fails_closed_on_invalid_diagnostics():
+    result = sampled_prior_sufficiency({
+        "requested": 3, "accepted": 3,
+        "stability": {
+            "interpretation": "stability_not_historical_skill",
+            "path_count": 2,
+            "mean_direction_agreement": 1,
+            "median_pairwise_mae_scaled": -1,
+            "median_pointwise_q80_width_scaled": 0,
+        },
+    })
+
+    assert result["eligible_for_human_recommendation"] is False
+    assert "invalid_stability_diagnostics" in result["reason_codes"]
 
 
 def _prior(**updates):

@@ -16,6 +16,12 @@ from datetime import datetime
 from typing import Any
 
 
+SAMPLED_PRIOR_MIN_PATHS = 3
+SAMPLED_PRIOR_MIN_VALID_FRACTION = 0.75
+SAMPLED_PRIOR_MIN_DIRECTION_AGREEMENT = 0.60
+SAMPLED_PRIOR_MAX_PAIRWISE_TO_POINTWISE_RATIO = 2.0
+
+
 def _seal(payload: dict[str, Any]) -> str:
     return hashlib.sha256(json.dumps(
         payload, sort_keys=True, separators=(",", ":"),
@@ -376,6 +382,129 @@ def sample_path_stability(
     }
 
 
+def sampled_prior_sufficiency(
+    diagnostics: dict[str, Any],
+) -> dict[str, Any]:
+    """Assess whether sampled paths are coherent enough to headline.
+
+    This is deliberately an operational publication gate, not historical
+    skill evidence.  It asks only whether the host received enough valid,
+    mutually coherent paths to summarize the model's prior without presenting
+    transport failures or a visibly multimodal elicitation as one answer.
+    Candidates that fail remain useful labelled scenarios and retain their
+    immutable receipts; they simply cannot displace the primary forecast.
+    """
+    requested = diagnostics.get("requested")
+    accepted = diagnostics.get("accepted")
+    reasons: list[dict[str, Any]] = []
+    if (isinstance(requested, bool) or not isinstance(requested, int)
+            or isinstance(accepted, bool) or not isinstance(accepted, int)
+            or requested < 1 or accepted < 0 or accepted > requested):
+        return {
+            "version": "0.1",
+            "eligible_for_human_recommendation": False,
+            "reason_codes": ["invalid_path_accounting"],
+            "reasons": [{
+                "code": "invalid_path_accounting",
+                "message": "Sample request accounting is invalid.",
+            }],
+            "historical_skill_evidence": False,
+            "automation_eligible": False,
+        }
+
+    valid_fraction = accepted / requested
+    if accepted < SAMPLED_PRIOR_MIN_PATHS:
+        reasons.append({
+            "code": "too_few_valid_paths",
+            "message": (
+                f"Only {accepted} valid paths survived; at least "
+                f"{SAMPLED_PRIOR_MIN_PATHS} are required."),
+        })
+    if valid_fraction < SAMPLED_PRIOR_MIN_VALID_FRACTION:
+        reasons.append({
+            "code": "low_valid_path_fraction",
+            "message": (
+                f"Only {valid_fraction:.0%} of requested paths were valid; "
+                f"at least {SAMPLED_PRIOR_MIN_VALID_FRACTION:.0%} are "
+                "required for a headline recommendation."),
+        })
+
+    stability = diagnostics.get("stability")
+    if not isinstance(stability, dict):
+        reasons.append({
+            "code": "stability_not_measured",
+            "message": "Host-observed path stability was not measured.",
+        })
+        direction_agreement = None
+        pairwise_ratio = None
+    else:
+        try:
+            direction_agreement = float(stability["mean_direction_agreement"])
+            median_pairwise = float(stability["median_pairwise_mae_scaled"])
+            median_width = float(
+                stability["median_pointwise_q80_width_scaled"])
+            pairwise_limit = max(
+                2.0,
+                SAMPLED_PRIOR_MAX_PAIRWISE_TO_POINTWISE_RATIO * median_width,
+            )
+            pairwise_ratio = median_pairwise / max(median_width, 1e-12)
+        except (KeyError, TypeError, ValueError, ZeroDivisionError):
+            reasons.append({
+                "code": "invalid_stability_diagnostics",
+                "message": "Host-observed stability diagnostics are invalid.",
+            })
+            direction_agreement = None
+            pairwise_ratio = None
+        else:
+            valid_stability = bool(
+                stability.get("interpretation") ==
+                "stability_not_historical_skill"
+                and stability.get("path_count") == accepted
+                and all(math.isfinite(value) and value >= 0 for value in (
+                    direction_agreement, median_pairwise, median_width))
+                and direction_agreement <= 1)
+            if not valid_stability:
+                reasons.append({
+                    "code": "invalid_stability_diagnostics",
+                    "message": "Host-observed stability diagnostics are invalid.",
+                })
+            elif direction_agreement < SAMPLED_PRIOR_MIN_DIRECTION_AGREEMENT:
+                reasons.append({
+                    "code": "directionally_unstable_paths",
+                    "message": (
+                        "Sampled paths do not agree sufficiently on temporal "
+                        "direction to support one headline path."),
+                })
+            if valid_stability and median_pairwise > pairwise_limit:
+                reasons.append({
+                    "code": "dispersed_sampled_paths",
+                    "message": (
+                        "Typical path-to-path disagreement is too large "
+                        "relative to the sampled marginal spread."),
+                })
+
+    return {
+        "version": "0.1",
+        "eligible_for_human_recommendation": not reasons,
+        "reason_codes": [str(item["code"]) for item in reasons],
+        "reasons": reasons,
+        "requested_paths": requested,
+        "accepted_paths": accepted,
+        "valid_path_fraction": round(valid_fraction, 6),
+        "minimum_paths": SAMPLED_PRIOR_MIN_PATHS,
+        "minimum_valid_fraction": SAMPLED_PRIOR_MIN_VALID_FRACTION,
+        "minimum_direction_agreement":
+            SAMPLED_PRIOR_MIN_DIRECTION_AGREEMENT,
+        "maximum_pairwise_to_pointwise_ratio":
+            SAMPLED_PRIOR_MAX_PAIRWISE_TO_POINTWISE_RATIO,
+        "observed_direction_agreement": direction_agreement,
+        "observed_pairwise_to_pointwise_ratio": pairwise_ratio,
+        "interpretation": "elicitation_sufficiency_not_historical_skill",
+        "historical_skill_evidence": False,
+        "automation_eligible": False,
+    }
+
+
 def candidate_from_sampled_paths(
     outputs: list[str], future_timestamps: list[str],
     *, history_values: list[float] | None = None,
@@ -521,3 +650,8 @@ def recommended_sample_count(horizon: int) -> int:
     if horizon < 1:
         raise ValueError("horizon must be positive")
     return 4 if horizon >= 96 else 5
+
+
+def recommended_initial_sample_count(horizon: int) -> int:
+    """Start with the minimum distribution; expand only if it is insufficient."""
+    return min(SAMPLED_PRIOR_MIN_PATHS, recommended_sample_count(horizon))

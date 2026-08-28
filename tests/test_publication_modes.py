@@ -20,6 +20,22 @@ from gnomon.toolspec import enforce_response_budget
 TIMES = ["2026-01-03T00:00:00+00:00", "2026-01-04T00:00:00+00:00"]
 
 
+def _stable_sampling(path_count: int) -> dict:
+    return {
+        "version": "0.1",
+        "interpretation": "stability_not_historical_skill",
+        "scale_basis": "median_nonzero_history_increment",
+        "path_count": path_count,
+        "horizon": len(TIMES),
+        "median_pointwise_q80_width_scaled": .5,
+        "p90_pointwise_q80_width_scaled": .7,
+        "median_pairwise_mae_scaled": .4,
+        "max_pairwise_mae_scaled": .8,
+        "mean_direction_agreement": .9,
+        "unanimous_direction_fraction": .5,
+    }
+
+
 def _result():
     return {
         "support": "supported",
@@ -857,6 +873,7 @@ def test_best_effort_sampled_prior_policy_is_human_only_and_mode_specific():
         "aggregation": "linear_empirical_marginal_q10_q50_q90",
         "temperature": 1.0, "host_observed": True,
         "historical_skill_evidence": False, "automation_eligible": False,
+        "stability": _stable_sampling(4),
     }
     import hashlib, json
     body = {key: value for key, value in dossier.items()
@@ -896,10 +913,52 @@ def test_under_sampled_prior_remains_visible_but_not_human_selectable():
                    if item["scenario_id"] == "prior-assisted-1")
     assert sampled["human_selection_eligible"] is False
     assert sampled["automation_eligible"] is False
-    assert any("Fewer than three independent" in assumption
+    assert any("Only 2 valid paths survived" in assumption
                for assumption in sampled["assumptions"])
     assert best_effort_prior_selection(
         scenarios=scenarios, dossiers=[dossier]) is None
+
+
+def test_unstable_sampled_prior_stays_visible_without_displacing_primary():
+    dossier = _dossier()
+    dossier["forecast_candidate"]["elicitation"] = {
+        "kind": "sampled_point_paths", "requested_paths": 5,
+        "accepted_paths": 3,
+        "aggregation": "linear_empirical_marginal_q10_q50_q90",
+        "temperature": 1.0, "host_observed": True,
+        "historical_skill_evidence": False, "automation_eligible": False,
+        "stability": {
+            **_stable_sampling(3),
+            "median_pointwise_q80_width_scaled": 1.17,
+            "p90_pointwise_q80_width_scaled": 13.38,
+            "median_pairwise_mae_scaled": 3.92,
+            "max_pairwise_mae_scaled": 4.53,
+            "mean_direction_agreement": .82,
+            "unanimous_direction_fraction": .47,
+        },
+    }
+    import hashlib, json
+    body = {key: value for key, value in dossier.items()
+            if key != "seal_sha256"}
+    dossier["seal_sha256"] = hashlib.sha256(json.dumps(
+        body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+    scenarios, _ = build_scenario_catalog(_result(), dossiers=[dossier])
+    sampled = next(item for item in scenarios
+                   if item["scenario_id"] == "prior-assisted-1")
+    assessment = sampled["effect"]["elicitation_sufficiency"]
+
+    assert sampled["human_selection_eligible"] is False
+    assert assessment["eligible_for_human_recommendation"] is False
+    assert assessment["reason_codes"] == [
+        "low_valid_path_fraction", "dispersed_sampled_paths"]
+    assert best_effort_prior_selection(
+        scenarios=scenarios, dossiers=[dossier]) is None
+    publication = publish_result(
+        _result(), mode="best_effort", dossiers=[dossier])
+    assert publication["recommended_scenario_id"] == "primary"
+    assert any(item["scenario_id"] == "prior-assisted-1"
+               for item in publication["candidate_portfolio"])
 
 
 def test_sampled_outliers_remain_diagnostics_not_published_tail_width():
@@ -914,6 +973,7 @@ def test_sampled_outliers_remain_diagnostics_not_published_tail_width():
         "temperature": 1.0, "request_mode":
         "concurrent_single_sample_requests", "host_observed": True,
         "historical_skill_evidence": False, "automation_eligible": False,
+        "stability": _stable_sampling(5),
     }
     import hashlib, json
     body = {key: value for key, value in dossier.items()
@@ -945,6 +1005,13 @@ def test_sampled_outliers_remain_diagnostics_not_published_tail_width():
     assert "consensus" not in best["recommendation_authority"]["reason"]
     assert best["recommendation_authority"][
         "independent_selection_performed"] is False
+    selected_disposition = next(item for item in best[
+        "context_dispositions"] if item.get("disposition") == "used")
+    assert selected_disposition["selection_reason_code"] == \
+        "selected_human_facing_scenario"
+    assert selected_disposition["reason_code"]
+    assert "does not upgrade support" in selected_disposition[
+        "selection_reason"]
     assert strict["recommended_scenario_id"] == "primary"
 
 

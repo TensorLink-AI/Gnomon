@@ -1,5 +1,29 @@
 # Changelog
 
+- **Validated structural prose now survives the complete agent path.** The
+  context compiler copies its verified quote and closed effect label into the
+  executable event, the MCP forecast boundary automatically recognizes that
+  typed event, and the brief response includes a bounded first/last scenario
+  preview plus typed effect provenance. Compiler receipts are versioned at
+  0.3, so older receipts lacking those fields are regenerated instead of
+  silently producing a rejection. The common context outcome now projects the
+  transformation-specific gate rather than a displaced generic-ablation gate.
+  In a fresh live DeepSeek replay, both true and false structural claims became
+  explicit non-automatable scenarios in one Gnomon call, with the primary
+  preserved, exact artifact parity, complete authority explanations, and zero
+  leakage.
+
+- **Unstable sampled priors no longer become the headline merely by parsing.**
+  Provider-neutral model priors now receive a host-computed elicitation gate
+  over valid-path survival, direction agreement, and scale-free path
+  dispersion. Insufficient priors remain sealed, visible, and outcome-scoreable
+  but cannot displace the immutable primary; passing the gate still grants no
+  historical support or automation authority. Hosts start with three paths and
+  expand to the bounded cap only when the initial elicitation is malformed or
+  incoherent. Context traces now count hypothesis and candidate rejections,
+  report candidate availability across every dossier, and separate a selected
+  scenario's recommendation reason from its original evidence-lane diagnosis.
+
 - **Forward structural claims now remain useful without gaining unearned
   authority.** A resolved structural transformation is published as a typed,
   non-automatable prior-assisted scenario unless the transformation itself has

@@ -79,19 +79,25 @@ shipped `gnomon.agent_context` module provides the integration primitives:
 
 - `build_sampled_context_prior_prompt(...)` encodes host-owned regular grids
   compactly and asks for indexed values without re-echoing timestamps;
-- `recommended_sample_count(horizon)` bounds provider work while allowing one
-  rejected long-horizon draw and still retaining three independent paths; and
+- `recommended_initial_sample_count(horizon)` starts with three independent
+  paths, while `recommended_sample_count(horizon)` provides the expansion cap;
 - `candidate_from_sampled_paths(...)` rejects malformed, non-finite, partial,
   or wrong-grid paths independently, aggregates valid paths into q10/q50/q90,
-  and reports draw stability separately from historical skill.
+  and reports draw stability separately from historical skill; and
+- `sampled_prior_sufficiency(...)` decides whether the elicitation is coherent
+  enough to become a human-facing recommendation. It checks path survival and
+  scale-free agreement only; it does not claim historical forecast skill.
 
 The host then attaches the validated paths with
 `gnomon.llm_dossier.attach_host_candidate_elicitation` and submits the sealed
-dossier through `gnomon_forecast.temporal_dossiers`. Fewer than three surviving
-paths remain visible only as an insufficient scenario. Even with three or more,
-the result is `prior_assisted`, requires human review, and is never automation
-eligible unless separate historical admission exists. These helpers make no
-network calls and accept no provider credentials.
+dossier through `gnomon_forecast.temporal_dossiers`. A host should request the
+initial sample, assess it, and expand to the cap only when paths are malformed
+or materially incoherent. Too few valid paths, a low valid-path fraction, or
+material disagreement keeps the prior visible as a labelled scenario but
+prevents it from displacing the primary. A passing result is still
+`prior_assisted`, requires human review, and is never automation eligible
+unless separate historical admission exists. These helpers make no network
+calls and accept no provider credentials.
 
 ### Preserve an independent decision prior
 

@@ -45,7 +45,9 @@ from benchmarks.common.openrouter import (  # noqa: E402
 from gnomon.agent_context import (  # noqa: E402
     build_sampled_context_prior_prompt,
     candidate_from_sampled_paths,
+    recommended_initial_sample_count,
     recommended_sample_count,
+    sampled_prior_sufficiency,
 )
 
 MAX_ROUNDS = 10
@@ -3332,6 +3334,7 @@ class _Run:
         )
         from gnomon.llm_dossier import (
             deterministic_dated_multiplier_dossier,
+            deterministic_ended_recurring_disruption_dossier,
             deterministic_historical_observation_claim,
             validate_temporal_dossier,
         )
@@ -3353,11 +3356,18 @@ class _Run:
             not relationship_contract and not observation_contract
             and _looks_like_structured_companion_context(
                 context, future_timestamps))
+        deterministic_ended_disruption = (
+            deterministic_ended_recurring_disruption_dossier(
+                context, cutoff=self.timestamps[-1])
+            if (categorical_schedule is None and not relationship_contract
+                and not observation_contract and not companion_contract)
+            else None)
         deterministic_calibration_claim = (
             deterministic_additive_drift_claim(
                 context, history_start=self.timestamps[0],
                 cutoff=self.timestamps[-1])
-            if (categorical_schedule is None and not relationship_contract
+            if (deterministic_ended_disruption is None
+                and categorical_schedule is None and not relationship_contract
                 and not observation_contract and not companion_contract)
             else None)
         deterministic_multiplier = (
@@ -3627,6 +3637,12 @@ class _Run:
                     model_candidate_status = "request_failed"
                     compile_rejections.append(
                         f"model companion candidate failed: {error}")
+        elif deterministic_ended_disruption is not None:
+            raw = bind_active_target(deterministic_ended_disruption)
+            compiler_calls.append({
+                "stage": "deterministic_ended_recurring_disruption_parse",
+                "elapsed_seconds": 0.0,
+            })
         elif deterministic_calibration_claim is not None:
             raw = bind_active_target({
                 "events": [], "claims": [deterministic_calibration_claim],
@@ -4792,13 +4808,49 @@ class _Run:
             try:
                 requested_paths = recommended_sample_count(
                     len(future_timestamps))
+                initial_paths = recommended_initial_sample_count(
+                    len(future_timestamps))
                 responses = complete_many(
-                    context_prompt, "model_context_candidate_samples",
-                    n=requested_paths)
-                proposed, model_candidate_sampling = (
-                    candidate_from_sampled_paths(
-                        responses, future_timestamps,
-                        history_values=self.values))
+                    context_prompt, "model_context_candidate_samples_initial",
+                    n=initial_paths)
+                proposed, model_candidate_sampling = candidate_from_sampled_paths(
+                    responses, future_timestamps, history_values=self.values)
+                initial_sufficiency = sampled_prior_sufficiency(
+                    model_candidate_sampling)
+                expanded = False
+                expansion_skipped_reason = None
+                if (requested_paths > initial_paths
+                        and not initial_sufficiency[
+                            "eligible_for_human_recommendation"]
+                        and compilation_deadline - time.monotonic() >= 5.0):
+                    responses.extend(complete_many(
+                        context_prompt,
+                        "model_context_candidate_samples_expansion",
+                        n=requested_paths - initial_paths))
+                    proposed, model_candidate_sampling = (
+                        candidate_from_sampled_paths(
+                            responses, future_timestamps,
+                            history_values=self.values))
+                    expanded = True
+                elif (requested_paths > initial_paths
+                      and not initial_sufficiency[
+                          "eligible_for_human_recommendation"]):
+                    expansion_skipped_reason = "workflow_deadline_exhausted"
+                final_sufficiency = sampled_prior_sufficiency(
+                    model_candidate_sampling)
+                model_candidate_sampling["sufficiency"] = final_sufficiency
+                model_candidate_sampling["adaptive_sampling"] = {
+                    "initial_requested": initial_paths,
+                    "maximum_requested": requested_paths,
+                    "expanded": expanded,
+                    "expansion_skipped_reason": expansion_skipped_reason,
+                    "expansion_reason_codes": (
+                        initial_sufficiency["reason_codes"] if expanded else []),
+                    "stopped_early": not expanded,
+                    "interpretation": (
+                        "additional paths are requested only when the initial "
+                        "elicitation is malformed or materially incoherent"),
+                }
                 if isinstance(proposed, dict):
                     model_candidate_sample_paths = proposed.pop(
                         "_validated_sample_paths", None)
@@ -4897,6 +4949,7 @@ class _Run:
                 "primary remains visible and the context did not influence it")
         deterministic_front_door = bool(
             deterministic_companion_tables or categorical_schedule
+            or deterministic_ended_disruption is not None
             or deterministic_calibration_claim is not None
             or deterministic_multiplier is not None)
         payload = {
@@ -4918,6 +4971,8 @@ class _Run:
                              if categorical_schedule else
                              "structured_companion_paths"
                              if companion_contract else
+                             "ended_recurring_disruption_hypothesis"
+                             if deterministic_ended_disruption is not None else
                              "explicit_additive_measurement_drift"
                              if deterministic_calibration_claim is not None else
                              "explicit_dated_multiplier"
@@ -4987,6 +5042,18 @@ class _Run:
         name = getattr(self.task, "name", self.task.__class__.__name__)
         seed = getattr(
             self.forecaster, "benchmark_seed", getattr(self.task, "seed", "x"))
+        compiled_dossiers = (
+            self.context_compilation.get("dossiers") or
+            [self.context_compilation.get("dossier") or {}]
+            if self.context_compilation is not None else [])
+        hypothesis_rejections = sum(len(
+            (item.get("hypothesis_critique") or {}).get("rejected") or [])
+            for item in compiled_dossiers)
+        candidate_rejections = sum(
+            (item.get("candidate_critique") or {}).get("status") == "rejected"
+            for item in compiled_dossiers)
+        top_level_rejections = len(
+            (self.context_compilation or {}).get("rejections") or [])
         payload = {
             "task": str(name), "seed": seed,
             "mcp_calls": self.mcp_calls,
@@ -5001,10 +5068,9 @@ class _Run:
                         self.context_compilation["dossier"]["claims"]),
                     "hypothesis_count": len(
                         self.context_compilation["dossier"].get("hypotheses") or []),
-                    "candidate_available": bool(
-                        self.context_compilation["dossier"].get("effect_proposal")
-                        or self.context_compilation["dossier"].get(
-                            "forecast_candidate")),
+                    "candidate_available": any(
+                        item.get("effect_proposal") or item.get(
+                            "forecast_candidate") for item in compiled_dossiers),
                     "dossier_count": len(
                         self.context_compilation.get("dossiers") or
                         [self.context_compilation["dossier"]]),
@@ -5024,7 +5090,12 @@ class _Run:
                         "covariates"]["rows_validated"],
                     "transformations_proposed": len(
                         self.context_compilation.get("transformations") or []),
-                    "rejection_count": len(self.context_compilation["rejections"]),
+                    "rejection_count": (
+                        top_level_rejections + hypothesis_rejections
+                        + candidate_rejections),
+                    "top_level_rejection_count": top_level_rejections,
+                    "hypothesis_rejection_count": hypothesis_rejections,
+                    "candidate_rejection_count": candidate_rejections,
                     "future_observations_exposed": False,
                     "compiler_timing": self.context_compilation["compiler"],
                 }
@@ -5314,6 +5385,9 @@ class _Run:
                             "disposition": item.get("disposition"),
                             "reason_code": item.get("reason_code"),
                             "reason": item.get("reason"),
+                            "selection_reason_code": item.get(
+                                "selection_reason_code"),
+                            "selection_reason": item.get("selection_reason"),
                             "recovery_action": ({
                                 key: (item.get("recovery_action") or {}).get(key)
                                 for key in ("code", "message",
@@ -5328,6 +5402,11 @@ class _Run:
                             "role": item.get("role"),
                             "support": item.get("support"),
                             "selection_eligible": item.get("selection_eligible"),
+                            "human_selection_eligible": item.get(
+                                "human_selection_eligible"),
+                            "elicitation_sufficiency": (
+                                item.get("effect") or {}).get(
+                                    "elicitation_sufficiency"),
                             "conditional_replay": (
                                 item.get("effect") or {}).get(
                                     "conditional_replay"),
@@ -5490,6 +5569,14 @@ class _Run:
             dossiers = [item for item in (
                 self.context_compilation.get("dossiers") or [dossier])
                 if isinstance(item, dict)]
+            top_level_rejections = len(
+                self.context_compilation.get("rejections") or [])
+            hypothesis_rejections = sum(len(
+                (item.get("hypothesis_critique") or {}).get("rejected") or [])
+                for item in dossiers)
+            candidate_rejections = sum(
+                (item.get("candidate_critique") or {}).get("status") ==
+                "rejected" for item in dossiers)
             model_dossier = next((
                 item for item in reversed(dossiers)
                 if (item.get("candidate_critique") or {}).get(
@@ -5522,7 +5609,12 @@ class _Run:
                     "covariates"]["rows_validated"],
                 "transformations_proposed": len(
                     self.context_compilation.get("transformations") or []),
-                "rejection_count": len(self.context_compilation["rejections"]),
+                "rejection_count": (
+                    top_level_rejections + hypothesis_rejections
+                    + candidate_rejections),
+                "top_level_rejection_count": top_level_rejections,
+                "hypothesis_rejection_count": hypothesis_rejections,
+                "candidate_rejection_count": candidate_rejections,
                 "future_observations_exposed": False,
             }
             shadow_dossier = model_dossier or dossier

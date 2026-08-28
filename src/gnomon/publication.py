@@ -21,6 +21,7 @@ from .llm_dossier import (deterministic_events_from_claims,
 from .effect_proposals import assess_composed_effect, compose_effect
 from .temporal_state import build_temporal_state
 from .context_intelligence import candidate_evidence_score
+from .agent_context import sampled_prior_sufficiency
 
 PublicationMode = Literal["strict", "best_effort", "scenario"]
 PUBLICATION_VERSION = "0.1"
@@ -1249,10 +1250,16 @@ def build_scenario_catalog(result: dict[str, Any], *,
             sampled_prior = bool(
                 candidate_origin == "model_authored"
                 and elicitation.get("kind") == "sampled_point_paths")
+            sampled_prior_assessment = (
+                sampled_prior_sufficiency({
+                    "requested": elicitation.get("requested_paths"),
+                    "accepted": elicitation.get("accepted_paths"),
+                    "stability": elicitation.get("stability"),
+                }) if sampled_prior else None)
             sampled_prior_sufficient = bool(
                 not sampled_prior
-                or (isinstance(elicitation.get("accepted_paths"), int)
-                    and int(elicitation["accepted_paths"]) >= 3))
+                or sampled_prior_assessment.get(
+                    "eligible_for_human_recommendation") is True)
             human_selection_eligible = bool(
                 sampled_prior_sufficient
                 and (selection_eligible
@@ -1297,9 +1304,8 @@ def build_scenario_catalog(result: dict[str, Any], *,
                     *([str(candidate_critique.get("selection_reason"))]
                       if not candidate_critique.get(
                           "selection_eligible", True) else []),
-                    *(["Fewer than three independent sampled paths survived; "
-                       "the candidate remains visible but is insufficient "
-                       "for human-facing recommendation selection."]
+                    *([str(item.get("message")) for item in
+                       sampled_prior_assessment.get("reasons") or []]
                       if sampled_prior and not sampled_prior_sufficient else []),
                     *(["A governed transformation over the same cited claims "
                         "owns recommendation authority."]
@@ -1356,6 +1362,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
                     }),
                     "primary_disagreement": _primary_disagreement(
                         candidate_rows, primary),
+                    "elicitation_sufficiency": sampled_prior_assessment,
                     "uncertainty_normalization": uncertainty_normalization,
                     "governed_companion_evidence": governed_companion_evidence,
                     "conditional_replay": conditional_replay,
@@ -1542,14 +1549,17 @@ def best_effort_prior_selection(
         return None
     sampled = []
     for item in scenarios:
-        elicitation = ((item.get("effect") or {}).get("elicitation") or {})
+        effect = item.get("effect") or {}
+        elicitation = effect.get("elicitation") or {}
+        sufficiency = effect.get("elicitation_sufficiency") or {}
         if (item.get("role") == "model_authored"
                 and item.get("human_selection_eligible") is True
+                and sufficiency.get(
+                    "eligible_for_human_recommendation") is True
                 and elicitation.get("host_observed") is True
                 and elicitation.get("historical_skill_evidence") is False
                 and elicitation.get("automation_eligible") is False
-                and isinstance(elicitation.get("accepted_paths"), int)
-                and int(elicitation["accepted_paths"]) >= 3):
+                and isinstance(elicitation.get("accepted_paths"), int)):
             sampled.append(item)
     if len(sampled) != 1:
         return None
@@ -1579,9 +1589,10 @@ def best_effort_prior_selection(
         "confidence": .5,
         "rationale": (
             "The caller selected best_effort publication, and one bounded "
-            "host-sampled model prior directly conditions on the supplied "
-            "claims. Sampling agreement is stability context, not historical "
-            "skill; the immutable primary and counterevidence remain visible."),
+            "host-sampled model prior passed the host's elicitation-sufficiency "
+            "gate and directly conditions on the supplied claims. Sampling "
+            "agreement is stability context, not historical skill; the "
+            "immutable primary and counterevidence remain visible."),
         "what_would_change_selection": (
             "Historical replay, resolved outcomes, or a supported executable "
             "that contradicts this prior would change the recommendation."),
@@ -1732,6 +1743,15 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
                     "candidate_origin")),
                 "elicitation": ((item.get("effect") or {}).get(
                     "elicitation") or None),
+                "elicitation_sufficiency": ({
+                    key: ((item.get("effect") or {}).get(
+                        "elicitation_sufficiency") or {}).get(key)
+                    for key in (
+                        "eligible_for_human_recommendation", "reason_codes",
+                        "valid_path_fraction", "observed_direction_agreement",
+                        "observed_pairwise_to_pointwise_ratio")
+                } if (item.get("effect") or {}).get(
+                    "elicitation_sufficiency") else None),
                 "candidate_validation": candidate_validation_summary(item),
                 "conditional_replay_status": str(
                     (((item.get("effect") or {}).get(
@@ -1956,14 +1976,8 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
     else:
         selection_method = "immutable_primary_default"
     prior_assisted_default = selection_method == "default_prior_assisted_lane"
-    dispositions = _scope_recovery_actions([{
-        **item,
-        "disposition": (
-            "used" if selected_id in (item.get("scenario_ids") or [])
-            else item.get("disposition")),
-        **({"selection_role": "human_facing_recommendation"}
-           if selected_id in (item.get("scenario_ids") or []) else {}),
-    } for item in dispositions])
+
+    dispositions = _mark_selected_dispositions(dispositions, selected_id)
     separate_selection_pass = bool(selection is not None and not policy_selected)
     recommendation_authority = {
         "selected_role": selected_role,
@@ -1972,7 +1986,7 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
         "selector_independence": (
             "not_attested" if separate_selection_pass else "not_applicable"),
         # Kept for compatibility, but independence requires a distinct,
-        # attested selector identity. A separate pass by the same model is
+        # attested selector identity.  A separate pass by the same model is
         # not independent review.
         "independent_selection_performed": False,
         "historically_admitted": selected_role == "historically_admitted",

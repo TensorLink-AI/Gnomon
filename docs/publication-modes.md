@@ -11,7 +11,12 @@ ignored in this mode.
 `best_effort` may put a sealed `prior_assisted` conditional path first when a
 governed executable earned that role or an explicit governed scenario
 selection chose an eligible sealed path. A plain model-authored path is not
-promoted merely because it exists. The
+promoted merely because it exists. A host-sampled model prior must also pass
+the elicitation-sufficiency gate: at least three valid paths, an adequate
+valid-path fraction, and bounded scale-free path disagreement. This is a check
+that one coherent prior was elicited, not evidence that the prior forecasts
+well. An insufficient prior remains visible and outcome-scoreable as a
+scenario while the primary stays first. The
 history-only primary remains present, the weaker support label remains attached,
 and the recommendation is never automation-eligible. Use this mode for a human
 who wants the best bounded answer available from new information.

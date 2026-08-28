@@ -7,7 +7,9 @@ import pytest
 from gnomon.effect_proposals import (assess_composed_effect, compose_effect,
                                      validate_effect_proposal)
 from gnomon.llm_dossier import (
-    deterministic_dated_multiplier_dossier, deterministic_events_from_claims,
+    deterministic_dated_multiplier_dossier,
+    deterministic_ended_recurring_disruption_dossier,
+    deterministic_events_from_claims,
     validate_temporal_dossier,
 )
 from gnomon.publication import publish_result, verify_publication
@@ -60,6 +62,41 @@ def test_dated_multiplier_failover_refuses_missing_or_wrong_target_facts(text):
     assert deterministic_dated_multiplier_dossier(
         text, cutoff="2026-01-02T00:00:00+00:00",
         future_timestamps=TIMES, target_name="sales") is None
+
+
+def test_ended_recurring_disruption_is_preserved_without_inferred_effect():
+    text = (
+        "The service was under maintenance for 4 days, periodically every "
+        "14 days, starting from 2025-10-01 00:00:00. Assume that the service "
+        "will not be in maintenance in the future.")
+
+    raw = deterministic_ended_recurring_disruption_dossier(
+        text, cutoff="2026-01-02T00:00:00+00:00")
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=text, cutoff="2026-01-02T00:00:00+00:00",
+        future_timestamps=TIMES, history=[8, 9, 10],
+        history_timestamps=[
+            "2025-12-30T00:00:00+00:00",
+            "2025-12-31T00:00:00+00:00",
+            "2026-01-02T00:00:00+00:00"], compiler_model="deterministic")
+
+    assert not reasons
+    assert dossier["hypotheses"][0]["kind"] == "regime_shift"
+    assert dossier["forecast_candidate"] is None
+    assert dossier["effect_proposal"] is None
+
+
+@pytest.mark.parametrize("text", [
+    ("Maintenance lasted 4 days every 14 days starting from "
+     "2025-10-01 00:00:00."),
+    ("Maintenance lasted 4 days every 2 days starting from "
+     "2025-10-01 00:00:00 and will not continue in the future."),
+    ("Maintenance may have happened periodically and will not continue in "
+     "the future."),
+])
+def test_recurring_disruption_fallback_refuses_incomplete_or_invalid_schedule(text):
+    assert deterministic_ended_recurring_disruption_dossier(
+        text, cutoff="2026-01-02T00:00:00+00:00") is None
 
 
 def _proposal(**updates):

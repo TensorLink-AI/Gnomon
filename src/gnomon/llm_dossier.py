@@ -189,6 +189,69 @@ def deterministic_dated_multiplier_dossier(
     }
 
 
+def deterministic_ended_recurring_disruption_dossier(
+    context_text: str, *, cutoff: str,
+) -> dict[str, Any] | None:
+    """Preserve an explicit historical schedule stated not to continue.
+
+    No target effect is inferred from words such as maintenance or closure.
+    The schedule is retained as a typed regime hypothesis so a provider outage
+    cannot erase useful context, while the primary remains the only numeric
+    answer until an executable learns an effect from observations.
+    """
+    text = " ".join(str(context_text or "").split())
+    schedule = re.search(
+        r"\b(?:maintenance|an? outage|clos(?:ed|ure)|unavailable)\b"
+        r".{0,80}?for\s+(\d+)\s+(days?|hours?)"
+        r".{0,80}?every\s+(\d+)\s+(days?|hours?)"
+        r".{0,100}?starting\s+(?:from\s+)?"
+        r"(\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}:\d{2})?)",
+        text, re.I)
+    ended = re.search(
+        r"\b(?:will not|won't)\s+(?:be\s+)?(?:in|under|on)?\s*"
+        r"(?:maintenance|an? outage|closed|unavailable)\b.{0,30}\bfuture\b",
+        text, re.I)
+    cutoff_dt = _timestamp(cutoff)
+    if not schedule or not ended or cutoff_dt is None:
+        return None
+    try:
+        start = datetime.fromisoformat(schedule.group(5).replace(" ", "T"))
+    except ValueError:
+        return None
+    if start.tzinfo is None:
+        start = start.replace(tzinfo=cutoff_dt.tzinfo)
+    duration, period = int(schedule.group(1)), int(schedule.group(3))
+    if start > cutoff_dt or duration <= 0 or period < duration:
+        return None
+    return {
+        "events": [],
+        "claims": [{
+            "source_span": context_text,
+            "relation": "unknown",
+            "effective_start": start.isoformat(),
+            "effective_end": cutoff_dt.isoformat(),
+            "mechanism": (
+                "explicit historical recurring disruption stated not to "
+                "continue; target effect not inferred"),
+            "confidence": 1.0,
+        }],
+        "hypotheses": [{
+            "kind": "regime_shift", "claim_ids": ["claim-1"],
+            "target_series": ["*"], "predictor_series": None,
+            "known_at": cutoff_dt.isoformat(), "lag_steps": 0,
+            "direction": "unknown",
+            "rationale": (
+                f"A historical {duration}-{schedule.group(2).lower()} "
+                f"disruption recurred every {period} "
+                f"{schedule.group(4).lower()} and is stated not to continue. "
+                "Its numeric target effect has not been inferred."),
+        }],
+        "covariate_tables": [], "transformations": [],
+        "observation_interpretations": [], "effect_proposal": None,
+        "forecast_candidate": None,
+    }
+
+
 def _robust_scale(values: list[float]) -> float:
     differences = [abs(b - a) for a, b in zip(values, values[1:])]
     positive = [value for value in differences if value > 0]

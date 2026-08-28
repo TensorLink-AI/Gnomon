@@ -2245,6 +2245,51 @@ def test_additive_drift_front_door_survives_compiler_unavailability(tmp_path):
     assert publication["automation"]["eligible"] is False
 
 
+def test_ended_recurring_disruption_is_preserved_during_compiler_outage(
+        tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        mcp_agent_module, "MAX_CONTEXT_COMPILATION_SECONDS", .01)
+    task = _task()
+    task.scenario = (
+        "The service was under maintenance for 4 days, periodically every "
+        "14 days, starting from 2023-12-01 00:00:00. Assume that the service "
+        "will not be in maintenance in the future.")
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}])
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 1)
+
+    assert len(client.completion_prompts) == 3
+    assert not any("Compile supplied temporal context" in prompt
+                   for prompt in client.completion_prompts)
+    assert all("forecast_path" in prompt
+               for prompt in client.completion_prompts)
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    assert receipt["compiler"]["contract"] == \
+        "ended_recurring_disruption_hypothesis"
+    stages = [item["stage"] for item in receipt["compiler"]["calls"]]
+    assert stages[0] == "deterministic_ended_recurring_disruption_parse"
+    assert "initial_compile" not in stages
+    assert "dossier_repair" not in stages
+    adaptive = receipt["compiler"]["model_candidate_sampling"][
+        "adaptive_sampling"]
+    assert adaptive["expanded"] is False
+    assert adaptive["expansion_skipped_reason"] == \
+        "workflow_deadline_exhausted"
+    assert receipt["dossier"]["hypotheses"][0]["kind"] == "regime_shift"
+    assert receipt["dossier"]["forecast_candidate"] is None
+    publication = extra["publication"]
+    assert publication["recommended_scenario_id"] == "primary"
+    assert publication["primary_forecast_unchanged"] is True
+    assert publication["automation"]["eligible"] is False
+
+
 def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
     from datetime import datetime, timedelta, timezone
 
@@ -2286,12 +2331,14 @@ def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
         receipt["dossiers"][1]["seal_sha256"])
     assert receipt["compiler"]["model_candidate_status"] == (
         "accepted")
-    assert receipt["compiler"]["model_candidate_sampling"]["accepted"] == 5
+    assert receipt["compiler"]["model_candidate_sampling"]["accepted"] == 3
+    assert receipt["compiler"]["model_candidate_sampling"][
+        "adaptive_sampling"]["stopped_early"] is True
     model_candidate = receipt["dossiers"][1]["forecast_candidate"]
     assert model_candidate["sample_paths"] == [
-        [16.0, 17.0, 18.0, 19.0]] * 5
+        [16.0, 17.0, 18.0, 19.0]] * 3
     assert extra["governed_distribution"] == {
-        "kind": "sealed_empirical_model_paths", "sample_count": 5,
+        "kind": "sealed_empirical_model_paths", "sample_count": 3,
         "horizon": 4,
         "source_seal_sha256": receipt["dossiers"][1]["seal_sha256"],
         "compact_summary": "recommended_forecast",
@@ -2304,10 +2351,10 @@ def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
     else:
         resolved_samples = [[row[0] for row in path] for path in samples]
     assert resolved_samples == [[16.0, 17.0, 18.0, 19.0]] * 3
-    assert client.completion_ns == [1] * 5
-    assert client.completion_temperatures == [1] * 5
-    assert client.completion_reasoning_efforts == [None] * 5
-    assert len(client.completion_prompts) == 5
+    assert client.completion_ns == [1] * 3
+    assert client.completion_temperatures == [1] * 3
+    assert client.completion_reasoning_efforts == [None] * 3
+    assert len(client.completion_prompts) == 3
     compact_prompt = " ".join(client.completion_prompts[0].split())
     assert "Factor in relevant background" in compact_prompt
     assert "mapping failed" not in compact_prompt
@@ -2315,9 +2362,9 @@ def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
 
 @pytest.mark.parametrize(
     ("hypothesis_kind", "horizon", "expected_paths"), [
-        ("historical_analogue", 4, 5),
-        ("bound", 4, 5),
-        ("historical_analogue", 97, 4),
+        ("historical_analogue", 4, 3),
+        ("bound", 4, 3),
+        ("historical_analogue", 97, 3),
     ])
 def test_typed_interpretation_without_executable_gets_sealed_sampled_prior(
         tmp_path, hypothesis_kind, horizon, expected_paths):
@@ -2439,7 +2486,11 @@ def test_dated_qualitative_event_gets_sealed_best_effort_prior(tmp_path):
     receipt = json.loads(Path(extra["context_compilation"][
         "receipt_path"]).read_text())
     assert receipt["compiler"]["model_candidate_status"] == "accepted"
-    assert receipt["compiler"]["model_candidate_sampling"]["accepted"] == 5
+    sampling = receipt["compiler"]["model_candidate_sampling"]
+    assert sampling["accepted"] == 3
+    assert sampling["adaptive_sampling"]["stopped_early"] is True
+    assert sampling["sufficiency"][
+        "eligible_for_human_recommendation"] is True
     assert extra["publication"]["recommended_scenario_id"].startswith(
         "prior-assisted-")
     assert extra["publication"]["recommended_distribution"]["kind"] == \
@@ -2508,6 +2559,11 @@ def test_one_sample_transport_failure_preserves_other_governed_paths(tmp_path):
     assert sampling["requested"] == 5
     assert sampling["accepted"] == 4
     assert sampling["rejected"] == 1
+    assert sampling["adaptive_sampling"]["expanded"] is True
+    assert "low_valid_path_fraction" in sampling["adaptive_sampling"][
+        "expansion_reason_codes"]
+    assert sampling["sufficiency"][
+        "eligible_for_human_recommendation"] is True
     assert receipt["compiler"]["model_candidate_status"] == "accepted"
     failures = [item for item in receipt["compiler"]["calls"]
                 if item["stage"].endswith("_partial_failures")]
