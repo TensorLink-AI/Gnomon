@@ -687,8 +687,8 @@ def _duration_window_is_exact_on_grid(
     next_index = steps[-1] + 1
     if next_index < len(rows):
         next_stamp = datetime.fromisoformat(str(rows[next_index]["timestamp"]))
-        _, aligned_next = _align(aligned_end, next_stamp)
-        if aligned_next < aligned_end:
+        comparable_end, aligned_next = _align(aligned_end, next_stamp)
+        if aligned_next < comparable_end:
             return False
     return True
 

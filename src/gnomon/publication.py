@@ -172,6 +172,10 @@ def _mark_selected_dispositions(
             # field instead of rewriting a value downstream consumers may
             # already use for recovery routing.
             "selection_reason_code": "selected_human_facing_scenario",
+            "reason": (
+                "This context did not independently define a numeric path; "
+                "it grounds the separately sealed scenario selected for the "
+                "human-facing recommendation."),
             "selection_reason": (
                 "This context grounds the selected human-facing scenario. "
                 "Its evidence-lane reason remains visible; selection does not "

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Remove a contradictory selected-context disclosure: a claim that grounds a
+  sealed human-facing scenario no longer simultaneously says it “did not alter
+  the selected numeric forecast.” The stable evidence-lane reason code remains
+  available, while the human-readable reason now distinguishes independent
+  execution from scenario grounding.
 - Treat an exact cited start plus an exact duration as a fully determined
   override window only when it aligns with every covered host-grid row. This
   collapses all quantiles for known outages/depletions instead of retaining an

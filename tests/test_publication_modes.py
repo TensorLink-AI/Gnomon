@@ -1044,6 +1044,10 @@ def test_sampled_outliers_remain_diagnostics_not_published_tail_width():
     assert selected_disposition["selection_reason_code"] == \
         "selected_human_facing_scenario"
     assert selected_disposition["reason_code"]
+    assert "did not alter the selected numeric forecast" not in \
+        selected_disposition["reason"]
+    assert "grounds the separately sealed scenario" in \
+        selected_disposition["reason"]
     assert "does not upgrade support" in selected_disposition[
         "selection_reason"]
     assert strict["recommended_scenario_id"] == "primary"
