@@ -1536,7 +1536,8 @@ def compile_context_hypotheses(
     accepted.sort(key=lambda item: item["hypothesis_id"])
     return accepted[:MAX_HYPOTHESES], {
         "status": ("accepted" if accepted and not rejected else
-                   "partially_accepted" if accepted else "rejected"),
+                   "partially_accepted" if accepted else
+                   "rejected" if rejected else "not_proposed"),
         "attempts_used": len(attempts), "attempts_remaining": 2 - len(attempts),
         "accepted": len(accepted), "rejected": rejected, "attempts": attempts,
         "bounded": True, "maximum_hypotheses": MAX_HYPOTHESES,

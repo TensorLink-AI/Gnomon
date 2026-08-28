@@ -49,6 +49,16 @@ def test_cited_history_segments_require_entailment_complete_nonoverlap():
 CLAIMS = [{"claim_id": "claim-1"}, {"claim_id": "claim-2"}]
 
 
+def test_absent_hypothesis_is_not_reported_as_rejected():
+    hypotheses, critique = compile_context_hypotheses(
+        None, claims=CLAIMS, series=["sales"], cutoff=_stamp(5))
+
+    assert hypotheses == []
+    assert critique["status"] == "not_proposed"
+    assert critique["accepted"] == 0
+    assert critique["rejected"] == []
+
+
 def test_multi_hypothesis_compilation_is_stable_and_repair_is_bounded():
     valid = {"kind": "relationship", "claim_ids": ["claim-1"],
              "target_series": ["sales"], "predictor_series": "traffic",
