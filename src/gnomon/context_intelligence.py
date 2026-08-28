@@ -1979,6 +1979,191 @@ def fit_companion_panel_candidate(
     }
 
 
+def fit_reference_power_candidate(
+    target_history: list[float], driver_history: list[float],
+    future_driver: list[float], *, primary: list[dict[str, Any]],
+    input_reference: float, output_reference: float, exponent: int,
+    claim_ids: list[str], hypothesis_id: str, minimum_overlap: int = 12,
+) -> dict[str, Any]:
+    """Replay and execute an explicitly cited reference-normalized law.
+
+    The law and its constants come from verified context; Gnomon supplies no
+    scientific coefficient.  Historical target/driver pairs are used only to
+    test applicability and to estimate a prefix-safe residual correction and
+    uncertainty.  A relationship learned after the fact can lead a labelled
+    human-review scenario, but it cannot become automation evidence because
+    the context's historical ``known_at`` is not established.
+    """
+    if len(target_history) != len(driver_history):
+        raise ValueError("target and driver histories must align")
+    if len(target_history) < minimum_overlap:
+        raise ValueError(
+            f"reference-law replay requires {minimum_overlap} rows")
+    if len(future_driver) != len(primary) or not primary:
+        raise ValueError("future driver path must match the forecast horizon")
+    if (not isinstance(exponent, int) or isinstance(exponent, bool)
+            or not 1 <= exponent <= 8):
+        raise ValueError("reference-law exponent must be an integer in [1, 8]")
+    input_reference = float(input_reference)
+    output_reference = float(output_reference)
+    if (not math.isfinite(input_reference) or input_reference <= 0
+            or not math.isfinite(output_reference) or output_reference <= 0):
+        raise ValueError("reference-law reference values must be positive")
+    target = [float(value) for value in target_history]
+    driver = [float(value) for value in driver_history]
+    future = [float(value) for value in future_driver]
+    if not all(math.isfinite(value) for value in [*target, *driver, *future]):
+        raise ValueError("reference-law values must be finite")
+
+    def law(value: float) -> float:
+        return output_reference * (value / input_reference) ** exponent
+
+    # The conditional question concerns a material future driver transition.
+    # Score the fixed law on comparable historical transitions instead of
+    # letting long steady-state stretches make last-value look decisive.  The
+    # robust threshold is derived only from the observed driver increments;
+    # no benchmark labels or target outcomes define the replay subset.
+    changes = [abs(driver[index] - driver[index - 1])
+               for index in range(1, len(driver))]
+    change_center = statistics.median(changes)
+    change_mad = statistics.median(
+        abs(value - change_center) for value in changes)
+    material_threshold = change_center + 3 * 1.4826 * change_mad
+    replay_start = max(8, minimum_overlap - 1)
+    origins = [index for index in range(replay_start, len(target))
+               if abs(driver[index] - driver[index - 1])
+               > material_threshold]
+    replay_subset = "robust_material_driver_transitions"
+    if len(origins) < 8:
+        # A smooth/ramping driver may have no separated jump population. In
+        # that case the law is evaluated on every eligible origin and the
+        # response says so; this fallback cannot selectively cherry-pick.
+        origins = list(range(replay_start, len(target)))
+        replay_subset = "all_origins_no_separated_transition_population"
+    predictions: list[float] = []
+    actuals: list[float] = []
+    baselines: dict[str, list[float]] = {
+        "last_value": [], "expanding_mean": [], "robust_drift": []}
+    for origin in origins:
+        prefix_residuals = [
+            target[index] - law(driver[index]) for index in range(origin)]
+        predictions.append(law(driver[origin]) + statistics.median(
+            prefix_residuals))
+        actuals.append(target[origin])
+        baselines["last_value"].append(target[origin - 1])
+        baselines["expanding_mean"].append(statistics.mean(target[:origin]))
+        increments = [target[index] - target[index - 1]
+                      for index in range(1, origin)]
+        baselines["robust_drift"].append(
+            target[origin - 1] + statistics.median(increments))
+    if len(actuals) < 2:
+        raise ValueError("reference-law replay produced too few material origins")
+    candidate_mae = statistics.mean(
+        abs(actual - predicted)
+        for actual, predicted in zip(actuals, predictions))
+    baseline_scores = {
+        name: statistics.mean(abs(actual - predicted)
+                              for actual, predicted in zip(actuals, values))
+        for name, values in baselines.items()}
+    baseline_name, baseline_mae = min(
+        baseline_scores.items(), key=lambda item: (item[1], item[0]))
+    chosen_baseline = baselines[baseline_name]
+    split = max(1, len(actuals) // 2)
+    blocks = [(0, split), (split, len(actuals))]
+    block_wins = sum(
+        statistics.mean(abs(actuals[index] - predictions[index])
+                        for index in range(start, end))
+        < statistics.mean(abs(actuals[index] - chosen_baseline[index])
+                          for index in range(start, end))
+        for start, end in blocks if end > start)
+    actuals_count = len(actuals)
+    skill = 1 - candidate_mae / max(baseline_mae, 1e-12)
+    human_eligible = bool(
+        actuals_count >= 8 and block_wins >= 1 and skill >= .05)
+
+    def quantile(values: list[float], probability: float) -> float:
+        ordered = sorted(values)
+        position = probability * (len(ordered) - 1)
+        left = math.floor(position)
+        right = math.ceil(position)
+        if left == right:
+            return ordered[left]
+        weight = position - left
+        return ordered[left] * (1 - weight) + ordered[right] * weight
+
+    fitted = [law(value) for value in driver]
+    residuals = [actual - predicted
+                 for actual, predicted in zip(target, fitted)]
+    center = statistics.median(residuals)
+    centered = sorted(value - center for value in residuals)
+    q10 = quantile(centered, .1)
+    q90 = quantile(centered, .9)
+    level_scale = max(statistics.median(abs(value) for value in target), 1.0)
+    minimum_width = level_scale * 1e-6
+    rows = []
+    for source, value in zip(primary, future):
+        point = law(value) + center
+        rows.append({
+            "timestamp": source.get("timestamp"), "point": point,
+            "q10": min(point + q10, point - minimum_width),
+            "q50": point,
+            "q90": max(point + q90, point + minimum_width),
+        })
+    return {
+        "hypothesis_id": hypothesis_id,
+        "kind": "fitted_reference_power_mapping",
+        "forecast": rows,
+        "quantiles": [{key: row[key] for key in
+                       ("timestamp", "q10", "q50", "q90")} for row in rows],
+        "claim_ids": list(dict.fromkeys(str(item) for item in claim_ids)),
+        "rationale": (
+            "Source-stated reference-normalized law replayed against "
+            "historical target/driver pairs with prefix-only residual "
+            "correction and empirical residual uncertainty."),
+        "provenance_class": "governed_reference_law_mapping",
+        "validation": {
+            "scheme": "expanding_origin_fixed_reference_law",
+            "validation_points": actuals_count,
+            "candidate_mae": candidate_mae,
+            "baseline_mae": baseline_mae,
+            "baseline": baseline_name,
+            "baseline_scores": baseline_scores,
+            "replay_subset": replay_subset,
+            "driver_change_threshold": material_threshold,
+            "skill": skill,
+            "chronological_block_wins": block_wins,
+            "required_block_wins": 2,
+            "best_effort_minimum_block_wins": 1,
+            "chronologically_consistent": block_wins == 2,
+            "retrospective_skill_not_automation_evidence": True,
+            "retrospective_skill_not_admission": True,
+            "relationship_known_at_each_origin": False,
+            "input_observations_known_at_each_origin": True,
+            "per_origin_observation_availability_checked": True,
+            "validation_interpretation": "retrospective_reference_law_replay",
+            "beats_baseline": candidate_mae < baseline_mae,
+            "best_effort_human_gate_passed": human_eligible,
+            "publication_evidence_weight": 1.0,
+            "publication_shrunk_to_baseline": False,
+        },
+        "support": "prior_assisted",
+        # Best-effort may publish a retrospectively useful, source-stated law
+        # for human review.  Strict/automation authority remains unavailable
+        # because the document's historical known-at is not established.
+        "selection_eligible": human_eligible,
+        "human_selection_eligible": human_eligible,
+        "automation_eligible": False,
+        "primary_forecast_unchanged": True,
+        "executable": {
+            "kind": "fitted_reference_power_mapping", "version": "0.1",
+            "input_reference": input_reference,
+            "output_reference": output_reference,
+            "exponent": exponent,
+            "residual_center": center,
+        },
+    }
+
+
 def fit_companion_relationship_candidate(
     target_history: list[float], companion_history: list[float],
     future_companion: list[float], *, primary: list[dict[str, Any]],

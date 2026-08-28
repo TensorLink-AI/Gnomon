@@ -58,6 +58,22 @@ def test_failed_alternatives_do_not_trigger_a_model_selection_call():
     assert dominant_scenario_id(scenarios) == "primary"
 
 
+def test_replayed_reference_law_answers_best_effort_conditional_question():
+    scenarios = [
+        {"scenario_id": "primary", "role": "immutable_primary",
+         "selection_eligible": True, "human_selection_eligible": True},
+        {"scenario_id": "model-assisted", "role": "model_assisted",
+         "selection_eligible": True, "human_selection_eligible": True,
+         "support": "conditionally_supported"},
+        {"scenario_id": "law", "role": "governed_reference_law_mapping",
+         "selection_eligible": True, "human_selection_eligible": True,
+         "support": "prior_assisted", "effect": {"validation": {
+             "best_effort_human_gate_passed": True}}},
+    ]
+
+    assert dominant_scenario_id(scenarios) == "law"
+
+
 def _dossier():
     raw = {
         "claims": [{"source_span": "promotion begins tomorrow",

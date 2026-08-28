@@ -438,7 +438,11 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: Version 202: when the governed primary already identifies an intraday daily
 #: season, its one-week calendar prior precedes unrelated trend extrapolation
 #: in best-effort mode; it remains explicitly unvalidated and non-automatable.
-MCP_CONTRACT_VERSION = 202
+#: Version 203: an explicit reference-normalized law is replayed on robustly
+#: identified historical driver transitions and executed over the stated
+#: future driver state. It can lead only best-effort human review; strict
+#: publication, immutable primary, and automation authority remain unchanged.
+MCP_CONTRACT_VERSION = 203
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -5077,6 +5081,43 @@ class _Run:
                 hypothesis_id=(
                     "host-verified-categorical-state:"
                     + str(categorical_schedule["name"])))
+        governed_reference_power = None
+        reference_future_driver = None
+        if reference_power_spec is not None:
+            from gnomon.context_intelligence import fit_reference_power_candidate
+            driver_name = str(reference_power_spec["driver"])
+            observed_driver = self.companion_histories.get(driver_name)
+            if observed_driver:
+                # "Changes to X" identifies the state from the stated
+                # transition onward.  This is a source-grounded conditional
+                # path, not a hidden future observation.  Applicability and
+                # residual uncertainty are measured on pre-cutoff pairs.
+                reference_future_driver = [
+                    float(reference_power_spec["future_driver_endpoint"])
+                    for _ in future_timestamps]
+                try:
+                    governed_reference_power = fit_reference_power_candidate(
+                        self.values, observed_driver, reference_future_driver,
+                        primary=[{"timestamp": timestamp}
+                                 for timestamp in future_timestamps],
+                        input_reference=float(
+                            reference_power_spec["input_reference"]),
+                        output_reference=float(
+                            reference_power_spec["output_reference"]),
+                        exponent=int(reference_power_spec["exponent"]),
+                        claim_ids=[str(item["claim_id"]) for item in
+                                   preliminary_dossier.get("claims") or []],
+                        hypothesis_id=(
+                            "host-replayed-reference-law:" + driver_name))
+                    governed_reference_power["future_driver_assumption"] = {
+                        "driver": driver_name,
+                        "transition_value": float(reference_power_spec[
+                            "future_driver_endpoint"]),
+                        "shape": "piecewise_constant_after_stated_transition",
+                        "basis": "source-stated future driver state",
+                    }
+                except ValueError:
+                    governed_reference_power = None
         governed_named_relationship = None
         named_future_driver = None
         if named_relationship_spec is not None:
@@ -5132,6 +5173,7 @@ class _Run:
             governed_companion["selection_eligible"] = bool(
                 provisional_companion.get("selection_eligible"))
         governed_candidate = (governed_categorical or governed_companion
+                              or governed_reference_power
                               or governed_named_relationship)
         relationship_prior_needed = bool(
             named_relationship_spec is not None

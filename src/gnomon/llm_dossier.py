@@ -1465,11 +1465,16 @@ def validate_temporal_dossier(
             use_calibration_candidate
             or bool(
                 isinstance(governed_candidate, dict)
-                and governed_candidate.get("provenance_class") ==
-                "model_authored_relationship_prior"
-                and ((governed_candidate.get("validation") or {}).get(
-                    "elicitation") or {}).get(
-                        "eligible_for_human_recommendation") is True
+                and (
+                    (governed_candidate.get("provenance_class") ==
+                     "model_authored_relationship_prior"
+                     and ((governed_candidate.get("validation") or {}).get(
+                         "elicitation") or {}).get(
+                            "eligible_for_human_recommendation") is True)
+                    or (governed_candidate.get("provenance_class") ==
+                        "governed_reference_law_mapping"
+                        and governed_candidate.get(
+                            "human_selection_eligible") is True))
                 and governed_candidate.get("automation_eligible") is False)
             or (
                 candidate_was_derived_from_observation_interpretation

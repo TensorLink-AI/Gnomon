@@ -244,6 +244,22 @@ def dominant_scenario_id(scenarios: list[dict[str, Any]]) -> str | None:
         # sweep already made the numeric choice; an LLM may explain it but
         # cannot inconsistently demote it in best-effort publication.
         return str(seasonal_assisted[0]["scenario_id"])
+    reference_law = [
+        item for item in scenarios
+        if item.get("role") == "governed_reference_law_mapping"
+        and item.get("human_selection_eligible") is True
+        and item.get("support") == "prior_assisted"
+        and ((item.get("effect") or {}).get("validation") or {}).get(
+            "best_effort_human_gate_passed") is True]
+    if len(reference_law) == 1:
+        # The caller asked a conditional question and supplied the numeric
+        # law and future driver state that define it. Once that fixed law has
+        # beaten a target-only baseline on comparable historical transitions,
+        # a generic drift extrapolation is not an equally relevant answer.
+        # Best-effort may therefore choose the sealed conditional executable
+        # without an LLM vote. Strict mode still publishes the primary and
+        # this retrospective evidence can never authorize automation.
+        return str(reference_law[0]["scenario_id"])
     governed_replay = []
     for item in scenarios:
         effect = item.get("effect") or {}
@@ -1452,7 +1468,8 @@ def build_scenario_catalog(result: dict[str, Any], *,
                  "observation_interpretation_counterfactual" else
                  candidate_origin if candidate_origin in {
                      "governed_companion_mapping",
-                     "governed_categorical_state_mapping"} else
+                     "governed_categorical_state_mapping",
+                     "governed_reference_law_mapping"} else
                  "model_authored"),
                 candidate_rows,
                 support=("conditionally_supported" if replay_admitted
@@ -1566,6 +1583,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
             "fitted_context_candidate": 80,
             "governed_companion_mapping": 80,
             "governed_categorical_state_mapping": 80,
+            "governed_reference_law_mapping": 82,
             "model_assisted": 78,
             "effect_composed": 70,
             "model_authored": 60,

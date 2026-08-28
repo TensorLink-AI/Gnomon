@@ -12,6 +12,7 @@ from gnomon.context_intelligence import (
     fit_historical_analogue, fit_lagged_relationship,
     fit_companion_level_candidate, fit_companion_panel_candidate,
     fit_companion_relationship_candidate,
+    fit_reference_power_candidate,
     fit_categorical_state_candidate,
     fit_structured_arx_candidate, fit_vintage_exogenous,
     validate_transformation,
@@ -24,6 +25,41 @@ UTC = timezone.utc
 
 def _stamp(index):
     return (datetime(2026, 1, 1, tzinfo=UTC) + timedelta(days=index)).isoformat()
+
+
+def test_reference_power_law_replays_context_without_model_numbers():
+    driver = [300.0 + 25 * index for index in range(30)]
+    target = [37.5 * (value / 3000.0) ** 2 + .2 for value in driver]
+    primary = [{"timestamp": _stamp(31)}, {"timestamp": _stamp(32)}]
+
+    candidate = fit_reference_power_candidate(
+        target, driver, [1500.0, 1600.0], primary=primary,
+        input_reference=3000.0, output_reference=37.5, exponent=2,
+        claim_ids=["law", "transition"], hypothesis_id="fixed-law")
+
+    assert candidate["forecast"][0]["q50"] == pytest.approx(9.575)
+    assert candidate["forecast"][1]["q50"] == pytest.approx(
+        37.5 * (1600 / 3000) ** 2 + .2)
+    assert candidate["validation"]["beats_baseline"] is True
+    assert candidate["human_selection_eligible"] is True
+    assert candidate["selection_eligible"] is True
+    assert candidate["support"] == "prior_assisted"
+    assert candidate["automation_eligible"] is False
+    assert candidate["primary_forecast_unchanged"] is True
+
+
+def test_reference_power_law_keeps_bad_domain_rule_scenario_only():
+    driver = [300.0 + 25 * index for index in range(30)]
+    target = [10.0 + index % 2 for index in range(30)]
+    candidate = fit_reference_power_candidate(
+        target, driver, [1500.0], primary=[{"timestamp": _stamp(31)}],
+        input_reference=3000.0, output_reference=37.5, exponent=2,
+        claim_ids=["law"], hypothesis_id="bad-law")
+
+    assert candidate["validation"]["beats_baseline"] is False
+    assert candidate["human_selection_eligible"] is False
+    assert candidate["selection_eligible"] is False
+    assert candidate["automation_eligible"] is False
 
 
 def test_relationship_family_learns_power_law_without_assuming_exponent():
