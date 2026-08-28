@@ -1,9 +1,14 @@
 import pytest
 
+from gnomon.llm_dossier import validate_temporal_dossier
+from gnomon.publication import publish_result, verify_publication
+
 from gnomon.agent_context import (
+    build_relationship_prior_prompt,
     build_temporal_decision_reconciliation,
     build_sampled_context_prior_prompt,
     candidate_from_sampled_paths,
+    candidate_from_relationship_prior_specs,
     decision_selection_synthesis_payload,
     recommended_initial_sample_count,
     recommended_sample_count,
@@ -15,6 +20,103 @@ from gnomon.agent_context import (
     verify_temporal_decision_selection,
     verify_temporal_decision_prior,
 )
+
+
+def test_relationship_prior_prompt_requests_only_safe_declarative_form():
+    prompt = build_relationship_prior_prompt(
+        context="Pressure follows the affinity laws.",
+        target_name="pressure", driver_name="speed")
+    assert '"family":"linear|power"' in prompt
+    assert "Do not output coefficients" in prompt
+    assert "code" in prompt
+
+
+def test_relationship_prior_executes_stable_power_specs_host_side():
+    outputs = [
+        '{"relationship_prior":{"family":"power","exponent":2,'
+        '"rationale":"affinity law"}}' for _ in range(5)]
+    driver = [10.0 + index for index in range(12)]
+    target = [3.0 * value ** 2 for value in driver]
+    candidate, diagnostics = candidate_from_relationship_prior_specs(
+        outputs, target_history=target, driver_history=driver,
+        future_driver=[22.0, 23.0], future_timestamps=["a", "b"],
+        claim_ids=["law", "transition"])
+
+    assert candidate is not None
+    assert candidate["forecast"][0]["q50"] == pytest.approx(3 * 22 ** 2)
+    assert candidate["provenance_class"] == "model_authored_relationship_prior"
+    assert candidate["automation_eligible"] is False
+    assert diagnostics["historical_skill_evidence"] is False
+
+
+def test_relationship_prior_allows_signed_target_scale():
+    outputs = [
+        '{"relationship_prior":{"family":"power","exponent":2}}'
+        for _ in range(4)]
+    candidate, diagnostics = candidate_from_relationship_prior_specs(
+        outputs, target_history=[-2, -8, -18, -32],
+        driver_history=[1, 2, 3, 4], future_driver=[5],
+        future_timestamps=["a"], claim_ids=["law"])
+    assert candidate is not None
+    assert candidate["forecast"][0]["q50"] == pytest.approx(-50)
+    assert diagnostics["eligible_for_human_recommendation"] is True
+
+
+def test_sealed_relationship_prior_survives_large_contextual_jump_as_scenario():
+    outputs = [
+        '{"relationship_prior":{"family":"power","exponent":2}}'
+        for _ in range(4)]
+    candidate, _ = candidate_from_relationship_prior_specs(
+        outputs, target_history=[.01, .04, .09, .16],
+        driver_history=[1, 2, 3, 4], future_driver=[100],
+        future_timestamps=["2026-01-02T00:00:00+00:00"],
+        claim_ids=["claim-1", "claim-2"])
+    context = (
+        "Output is estimated from speed using a named power law. "
+        "At 00:00 speed changes to 100.")
+    dossier, reasons = validate_temporal_dossier({"claims": [{
+        "source_span": "Output is estimated from speed using a named power law.",
+        "relation": "unknown", "confidence": 1.0,
+        "effective_start": None, "effective_end": None,
+        "timing_status": "atemporal_context",
+    }, {
+        "source_span": "At 00:00 speed changes to 100.",
+        "relation": "unknown", "confidence": 1.0,
+        "effective_start": "2026-01-02T00:00:00+00:00",
+        "effective_end": "2026-01-02T00:00:00+00:00",
+        "timing_status": "resolved",
+    }]}, context_text=context, cutoff="2026-01-01T00:00:00+00:00",
+        future_timestamps=["2026-01-02T00:00:00+00:00"],
+        history=[.01, .04, .09, .16], compiler_model="host-model",
+        governed_candidate=candidate)
+    assert not reasons
+    assert dossier["forecast_candidate"] is not None
+    assert dossier["candidate_support"] == "prior_assisted"
+    assert dossier["automation_eligible"] is False
+    payload = publish_result({
+        "support": "best_effort",
+        "forecast": [{"timestamp": "2026-01-02T00:00:00+00:00",
+                      "point": .16, "q10": .1, "q50": .16, "q90": .2}],
+    }, mode="scenario", dossiers=[dossier])
+    assert len(payload["candidate_portfolio"]) == 2
+    assert payload["primary_forecast_unchanged"] is True
+    assert payload["automation"]["eligible"] is False
+    assert verify_publication(payload)
+
+
+def test_relationship_prior_rejects_disagreement_and_unsafe_specs():
+    outputs = [
+        '{"relationship_prior":{"family":"power","exponent":2}}',
+        '{"relationship_prior":{"family":"linear","exponent":1}}',
+        '{"relationship_prior":{"family":"power","exponent":9}}',
+        '{"relationship_prior":null}',
+    ]
+    candidate, diagnostics = candidate_from_relationship_prior_specs(
+        outputs, target_history=[2, 3, 4, 5],
+        driver_history=[1, 2, 3, 4], future_driver=[5],
+        future_timestamps=["a"], claim_ids=["law"])
+    assert candidate is None
+    assert diagnostics["eligible_for_human_recommendation"] is False
 
 
 def test_provider_neutral_prior_prompt_keeps_host_owned_regular_grid_compact():

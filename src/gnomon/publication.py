@@ -1432,6 +1432,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
 def validate_scenario_selection(raw: Any, *, scenarios: list[dict[str, Any]],
                                 dossiers: list[dict[str, Any]] | None = None,
                                 known_evidence_ids: set[str] | None = None,
+                                known_hypothesis_ids: set[str] | None = None,
                                 required_counterevidence_ids: set[str] | None = None,
                                 ) -> dict[str, Any] | None:
     """Validate an LLM ranking without accepting any model-authored number."""
@@ -1466,6 +1467,8 @@ def validate_scenario_selection(raw: Any, *, scenarios: list[dict[str, Any]],
                       required_counterevidence_ids or set()}
     # A sealed publication carries hypotheses in its compact evidence table.
     # Preserve their type when re-ranking without the original dossier.
+    hypothesis_ids.update(str(item) for item in
+                          known_hypothesis_ids or set())
     hypothesis_ids.update(required_known)
     claim_ids.update(str(item) for item in known_evidence_ids or set()
                      if str(item) not in required_known)
@@ -1711,6 +1714,26 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
                 "relationship_known_at_each_origin")
             if validation.get(key) is not None
         }
+        elicitation = validation.get("elicitation") or {}
+        if elicitation:
+            summary["domain_prior_elicitation"] = {
+                key: elicitation.get(key) for key in (
+                    "eligible_for_human_recommendation", "accepted",
+                    "requested", "winning_family", "family_agreement",
+                    "exponent_width", "historical_skill_evidence",
+                    "automation_eligible")
+                if elicitation.get(key) is not None
+            }
+        historical = validation.get("historical_mapping_counterevidence") or {}
+        if historical:
+            summary["historical_mapping_counterevidence"] = {
+                key: historical.get(key) for key in (
+                    "mapping", "validation_points", "skill",
+                    "beats_baseline", "baseline",
+                    "multiplicity_adjusted_threshold",
+                    "chronological_block_wins", "required_block_wins")
+                if historical.get(key) is not None
+            }
         summary["evidence_sufficiency"] = (
             "supported_replay" if beats and points >= 8 else
             "preliminary_short_replay" if beats else "not_admitted")
@@ -2172,9 +2195,16 @@ def select_publication(payload: dict[str, Any], raw_selection: dict[str, Any]
         if isinstance(item, dict) and item.get("claim_id")
         and item.get("relation") == "counterevidence"
     }
+    known_hypothesis_ids = {
+        str(item.get("claim_id")) for item in evidence
+        if isinstance(item, dict) and item.get("claim_id")
+        and (item.get("relation") == "counterevidence"
+             or str(item.get("relation") or "").startswith("hypothesis:"))
+    }
     selection = validate_scenario_selection(
         raw_selection, scenarios=portfolio, dossiers=None,
         known_evidence_ids=known_evidence_ids,
+        known_hypothesis_ids=known_hypothesis_ids,
         required_counterevidence_ids=required_counterevidence_ids)
     if selection is None:
         raise ValueError("scenario selection is required")

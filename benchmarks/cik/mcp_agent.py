@@ -43,7 +43,9 @@ from benchmarks.common.openrouter import (  # noqa: E402
     extract_json_objects,
 )
 from gnomon.agent_context import (  # noqa: E402
+    build_relationship_prior_prompt,
     build_sampled_context_prior_prompt,
+    candidate_from_relationship_prior_specs,
     candidate_from_sampled_paths,
     recommended_initial_sample_count,
     recommended_sample_count,
@@ -397,7 +399,12 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: scenario; rejected/unattached context can appear only as counterevidence.
 #: Version 186: named driver relationships use a prefix-replayed, complexity-
 #: penalized relationship family before any model-authored path is requested.
-MCP_CONTRACT_VERSION = 186
+#: Version 187: when replay cannot identify a useful mapping, the host model
+#: may supply only a repeated declarative family/exponent prior; Gnomon fits
+#: scale, constructs uncertainty, seals the path, and keeps automation off.
+#: Version 188: all typed hypothesis identities survive sealed publication
+#: reranking, not only hypotheses marked as mandatory counterevidence.
+MCP_CONTRACT_VERSION = 188
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -3142,8 +3149,11 @@ class McpAgentForecaster:
                                         str(item.get("claim_id"))
                                         for item in contract.get("claims") or []
                                         if item.get("claim_id")
-                                        and item.get("relation") ==
-                                        "counterevidence"}))
+                                        and (item.get("relation") ==
+                                             "counterevidence"
+                                             or str(item.get("relation") or
+                                                    "").startswith(
+                                                        "hypothesis:"))}))
                             selection = validate_scenario_selection(
                                 normalized_selection, scenarios=scenarios,
                                 dossiers=dossiers)
@@ -4853,6 +4863,7 @@ class _Run:
                     "host-verified-categorical-state:"
                     + str(categorical_schedule["name"])))
         governed_named_relationship = None
+        named_future_driver = None
         if named_relationship_spec is not None:
             from gnomon.context_intelligence import (
                 fit_companion_relationship_candidate)
@@ -4863,7 +4874,7 @@ class _Run:
             transition_value = float(named_relationship_spec[
                 "transition_value"])
             observed_driver = self.companion_histories[driver_name]
-            future_driver = [
+            named_future_driver = [
                 transition_value if datetime.fromisoformat(
                     timestamp.replace("Z", "+00:00")) >= transition_time
                 else float(observed_driver[-1])
@@ -4871,7 +4882,7 @@ class _Run:
             try:
                 governed_named_relationship = (
                     fit_companion_relationship_candidate(
-                        self.values, observed_driver, future_driver,
+                        self.values, observed_driver, named_future_driver,
                         primary=[{"timestamp": timestamp}
                                  for timestamp in future_timestamps],
                         claim_ids=[str(item["claim_id"]) for item in
@@ -4905,6 +4916,60 @@ class _Run:
                 provisional_companion.get("selection_eligible"))
         governed_candidate = (governed_categorical or governed_companion
                               or governed_named_relationship)
+        relationship_prior_needed = bool(
+            named_relationship_spec is not None
+            and not (governed_named_relationship or {}).get(
+                "selection_eligible")
+            and self.forecaster.output_role in {
+                "publication_best_effort", "llm_candidate_shadow"})
+        if relationship_prior_needed and named_future_driver is not None:
+            relationship_prompt = build_relationship_prior_prompt(
+                context=context, target_name=self.target_name,
+                driver_name=str(named_relationship_spec["driver"]))
+            model_candidate_prompt_bytes = len(
+                relationship_prompt.encode("utf-8"))
+            try:
+                responses = complete_many(
+                    relationship_prompt,
+                    "model_relationship_prior_samples", n=5)
+                relationship_prior, model_candidate_sampling = (
+                    candidate_from_relationship_prior_specs(
+                        [response for response in responses if response.strip()],
+                        target_history=self.values,
+                        driver_history=self.companion_histories[str(
+                            named_relationship_spec["driver"])],
+                        future_driver=named_future_driver,
+                        future_timestamps=future_timestamps,
+                        claim_ids=[str(item["claim_id"]) for item in
+                                   preliminary_dossier.get("claims") or []]))
+                model_candidate_sampling["transport"] = {
+                    "requested": 5,
+                    "returned": sum(bool(item.strip()) for item in responses),
+                    "failed": sum(not item.strip() for item in responses),
+                }
+                if relationship_prior is not None:
+                    relationship_prior["validation"][
+                        "historical_mapping_counterevidence"] = (
+                            (governed_named_relationship or {}).get(
+                                "validation"))
+                    for hypothesis in raw.get("hypotheses") or []:
+                        if hypothesis.get("kind") == "relationship":
+                            hypothesis["rationale"] = (
+                                "Repeated model elicitation supplied one "
+                                "stable declarative relationship family. "
+                                "Gnomon fitted its scale and path; the prior "
+                                "has no historical skill authority, and the "
+                                "failed/weak replay remains counterevidence.")
+                    governed_candidate = relationship_prior
+                    model_candidate_status = (
+                        "sealed_declarative_relationship_prior")
+                else:
+                    model_candidate_status = (
+                        "withheld_unstable_relationship_prior")
+            except Exception as error:
+                model_candidate_status = "relationship_prior_request_failed"
+                compile_rejections.append(
+                    f"model relationship prior failed: {error}")
         categorical_prior_needed = bool(
             categorical_schedule is not None
             and governed_categorical is not None
@@ -4932,6 +4997,7 @@ class _Run:
                 for event in events))
         interpretation_prior_needed = bool(
             categorical_schedule is None
+            and named_relationship_spec is None
             and model_candidate_proposal is None
             and governed_candidate is None
             and not events

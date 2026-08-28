@@ -1127,7 +1127,16 @@ def validate_temporal_dossier(
         candidate_input, claims=claims,
         future_timestamps=future_timestamps, history=history, reasons=reasons,
         governed_counterfactual_justifies_boundary_jump=(
-            use_calibration_candidate or (
+            use_calibration_candidate
+            or bool(
+                isinstance(governed_candidate, dict)
+                and governed_candidate.get("provenance_class") ==
+                "model_authored_relationship_prior"
+                and ((governed_candidate.get("validation") or {}).get(
+                    "elicitation") or {}).get(
+                        "eligible_for_human_recommendation") is True
+                and governed_candidate.get("automation_eligible") is False)
+            or (
                 candidate_was_derived_from_observation_interpretation
             and (derived_replay_admitted or derived_replay_human_eligible))))
     governed_candidate_accepted = bool(

@@ -683,6 +683,182 @@ Use no observations after the cutoff.
 """
 
 
+def build_relationship_prior_prompt(
+    *, context: str, target_name: str, driver_name: str,
+) -> str:
+    """Ask a host model for a tiny declarative relationship prior.
+
+    This is intentionally not a forecast request. The model may contribute
+    domain knowledge about functional form, while the host retains all numeric
+    execution, scaling, uncertainty, path binding, and publication authority.
+    """
+    return f"""\
+Extract the named relationship between target {target_name!r} and driver
+{driver_name!r} from the supplied context using your general domain knowledge.
+Return ONLY compact JSON in this exact shape:
+{{"relationship_prior":{{"family":"linear|power","exponent":1.0,
+"rationale":"brief named-law basis"}}}}
+
+Use family linear only for an affine/linear relationship and exponent 1.
+Use family power only for a power law and give its dimensionless exponent.
+Do not output coefficients, intercepts, forecasts, observations, code, support,
+or automation advice. If the named law does not determine either family,
+return {{"relationship_prior":null}}.
+
+<context>
+{context}
+</context>
+"""
+
+
+def candidate_from_relationship_prior_specs(
+    outputs: list[str], *, target_history: list[float],
+    driver_history: list[float], future_driver: list[float],
+    future_timestamps: list[str], claim_ids: list[str],
+) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+    """Execute stable model-authored relationship forms as a sealed prior.
+
+    Repeated model outputs contribute only an allowed family and exponent.
+    Gnomon fits the scale from observed history and deterministically constructs
+    the path and uncertainty. Agreement is elicitation evidence, never
+    historical skill, and the resulting candidate cannot authorize automation.
+    """
+    if len(target_history) != len(driver_history) or len(target_history) < 4:
+        raise ValueError("relationship prior requires aligned target/driver history")
+    if len(future_driver) != len(future_timestamps) or not future_timestamps:
+        raise ValueError("future driver must match the host-owned grid")
+    target = [float(value) for value in target_history]
+    driver = [float(value) for value in driver_history]
+    future = [float(value) for value in future_driver]
+    if not all(math.isfinite(value) for value in [*target, *driver, *future]):
+        raise ValueError("relationship prior inputs must be finite")
+
+    accepted: list[tuple[str, float]] = []
+    shapes: list[dict[str, Any]] = []
+    reasons: list[str] = []
+    for output in outputs:
+        objects = _json_objects(output)
+        first = objects[0] if objects else {}
+        raw = first.get("relationship_prior") if isinstance(first, dict) else None
+        shape = {
+            "sha256": hashlib.sha256(output.encode("utf-8")).hexdigest(),
+            "characters": len(output), "json_objects": len(objects),
+        }
+        if raw is None:
+            shape["status"] = "withheld"
+            shapes.append(shape); reasons.append("relationship prior withheld")
+            continue
+        if not isinstance(raw, dict):
+            shape["status"] = "rejected_shape"
+            shapes.append(shape); reasons.append("relationship prior must be an object")
+            continue
+        family = str(raw.get("family") or "").strip().casefold()
+        try:
+            exponent = float(raw.get("exponent"))
+        except (TypeError, ValueError):
+            exponent = math.nan
+        valid = (family in {"linear", "power"}
+                 and math.isfinite(exponent) and -4 <= exponent <= 4
+                 and (family != "linear" or math.isclose(exponent, 1.0)))
+        if not valid:
+            shape["status"] = "rejected_semantics"
+            shapes.append(shape); reasons.append("unsupported family or exponent")
+            continue
+        if family == "power" and min([*driver, *future]) <= 0:
+            shape["status"] = "rejected_domain"
+            shapes.append(shape); reasons.append(
+                "power prior requires positive driver values")
+            continue
+        accepted.append((family, exponent))
+        shape.update({"status": "accepted", "family": family,
+                      "exponent": exponent})
+        shapes.append(shape)
+    requested = len(outputs)
+    family_counts = {family: sum(item[0] == family for item in accepted)
+                     for family in {item[0] for item in accepted}}
+    winning_family = (max(family_counts, key=lambda key: (
+        family_counts[key], key)) if family_counts else None)
+    winning = [item[1] for item in accepted if item[0] == winning_family]
+    family_agreement = (len(winning) / len(accepted) if accepted else 0.0)
+    valid_fraction = len(accepted) / requested if requested else 0.0
+    exponent_width = (max(winning) - min(winning) if winning else math.inf)
+    eligible = bool(len(accepted) >= 3 and valid_fraction >= .75
+                    and family_agreement >= .8 and exponent_width <= .5)
+    diagnostics = {
+        "version": "0.1", "requested": requested,
+        "accepted": len(accepted), "rejected": requested - len(accepted),
+        "response_shapes": shapes, "rejection_reasons": reasons[:8],
+        "family_counts": family_counts, "winning_family": winning_family,
+        "family_agreement": family_agreement,
+        "valid_fraction": valid_fraction, "exponent_width": exponent_width,
+        "eligible_for_human_recommendation": eligible,
+        "interpretation": "domain_prior_stability_not_historical_skill",
+        "historical_skill_evidence": False, "automation_eligible": False,
+    }
+    if not eligible or winning_family is None:
+        return None, diagnostics
+    exponent = statistics.median(winning)
+
+    def basis(value: float, family: str, power: float) -> float:
+        return value if family == "linear" else value ** power
+
+    bases = [basis(value, winning_family, exponent) for value in driver]
+    if winning_family == "linear":
+        xbar, ybar = statistics.mean(bases), statistics.mean(target)
+        denom = sum((value - xbar) ** 2 for value in bases)
+        slope = (sum((x - xbar) * (y - ybar)
+                     for x, y in zip(bases, target)) / denom
+                 if denom > 1e-12 else 0.0)
+        intercept = ybar - slope * xbar
+        predict = lambda value, exp=exponent: intercept + slope * basis(
+            value, winning_family, exp)
+        fitted = [predict(value) for value in driver]
+    else:
+        scales = [y / basis(x, winning_family, exponent)
+                  for x, y in zip(driver, target)]
+        scale = statistics.median(scales)
+        predict = lambda value, exp=exponent: scale * basis(
+            value, winning_family, exp)
+        fitted = [predict(value) for value in driver]
+    residuals = [actual - estimate for actual, estimate in zip(target, fitted)]
+    center = statistics.median(residuals)
+    mad = statistics.median(abs(value - center) for value in residuals)
+    base_width = max(1.2815515655446004 * 1.4826 * mad,
+                     max(abs(value) for value in residuals),
+                     max(statistics.median(abs(value) for value in target), 1.0)
+                     * 1e-6)
+    rows = []
+    for timestamp, value in zip(future_timestamps, future):
+        alternatives = [predict(value, exp) for exp in winning]
+        point = predict(value)
+        width = max(base_width, max(abs(item - point) for item in alternatives))
+        rows.append({"timestamp": timestamp, "point": point,
+                     "q10": point - width, "q50": point,
+                     "q90": point + width})
+    candidate = {
+        "kind": "model_authored_relationship_prior",
+        "forecast": rows,
+        "quantiles": [{key: row[key] for key in
+                       ("timestamp", "q10", "q50", "q90")} for row in rows],
+        "claim_ids": list(dict.fromkeys(str(item) for item in claim_ids)),
+        "rationale": (
+            "Host-executed relationship prior: the model supplied only a "
+            "bounded functional family; Gnomon fitted scale and uncertainty."),
+        "provenance_class": "model_authored_relationship_prior",
+        "validation": {
+            "scheme": "repeated_domain_prior_elicitation",
+            "family": winning_family, "exponent": exponent,
+            "elicitation": diagnostics, "historical_skill_evidence": False,
+            "beats_baseline": False,
+        },
+        "support": "prior_assisted", "selection_eligible": True,
+        "automation_eligible": False, "primary_forecast_unchanged": True,
+        "executable": {"kind": "sealed_relationship_prior", "version": "0.1",
+                       "family": winning_family, "exponent": exponent},
+    }
+    return candidate, diagnostics
+
+
 def recommended_sample_count(horizon: int) -> int:
     """Bound host inference while tolerating one rejected long path."""
     if horizon < 1:

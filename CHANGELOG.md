@@ -16,6 +16,19 @@
 - Add privacy-safe structural diagnostics for model-authored sampled paths
   (response hash, shape, value count, and rejection class) without retaining
   raw provider output or user context.
+- When a named relationship lacks executable parameters and historical replay
+  cannot admit a mapping, allow the host model to contribute only a repeated,
+  declarative `linear` or bounded `power` family prior. Gnomon fits scale,
+  constructs uncertainty, seals the scenario, and keeps it prior-assisted and
+  non-automatable. Functional-form agreement does not force headline
+  selection: a spent diagnostic showed that doing so can be catastrophically
+  wrong when the named law leaves target normalization or sign ambiguous.
+- Preserve all typed hypothesis identities across publication sealing and
+  reranking, so a valid relationship hypothesis cannot become an “unknown” ID
+  between the initial selector check and the live artifact selection.
+- Permit signed target scales for positive-driver power priors. The power-law
+  domain restriction belongs to the driver/basis; pressure differences,
+  returns, deltas, and net cash flows may legitimately be negative.
 
 - **Explicit driver laws now produce governed conditional answers instead of
   target-identity mistakes.** High-precision reference-normalized square/cube

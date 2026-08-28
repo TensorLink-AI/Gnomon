@@ -1325,6 +1325,36 @@ def test_prior_assisted_selection_must_receive_and_cite_counter_hypothesis():
     assert reranked["recommended_scenario_id"] == "prior-assisted-1"
 
 
+def test_sealed_rerank_preserves_nonrequired_typed_hypothesis_identity():
+    dossier = _dossier()
+    dossier["hypotheses"] = [{
+        "hypothesis_id": "hyp-relationship", "kind": "relationship",
+        "claim_ids": ["claim-1"], "direction": "increase",
+        "rationale": "A named relationship may apply prospectively.",
+        "validation": {"grounded": True, "known_at_cutoff": True,
+                       "series_resolved": True},
+    }]
+    body = {key: value for key, value in dossier.items()
+            if key != "seal_sha256"}
+    import hashlib, json
+    dossier["seal_sha256"] = hashlib.sha256(json.dumps(
+        body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    payload = publish_result(_result(), mode="best_effort", dossiers=[dossier])
+    reranked = select_publication(payload, {
+        "selected_scenario_id": "prior-assisted-1",
+        "ranking": ["prior-assisted-1", "primary"],
+        "cited_claim_ids": ["claim-1"],
+        "counterevidence_claim_ids": [],
+        "counterevidence_hypothesis_ids": ["hyp-relationship"],
+        "confidence": .55,
+        "rationale": "Use the sealed prior while acknowledging uncertainty.",
+        "what_would_change_selection": "Historical replay rejects the law.",
+    })
+    assert reranked["recommended_scenario_id"] == "prior-assisted-1"
+    assert reranked["scenario_selection"][
+        "counterevidence_hypothesis_ids"] == ["hyp-relationship"]
+
+
 def test_invalid_context_is_typed_rejection_not_silent_drop():
     broken = _dossier()
     broken["compiler_model"] = "tampered"
