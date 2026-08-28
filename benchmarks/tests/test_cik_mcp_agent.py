@@ -2191,6 +2191,56 @@ def test_dated_multiplier_front_door_survives_compiler_unavailability(tmp_path):
     assert summary["context_can_authorize_automation"] is False
 
 
+def test_additive_drift_front_door_survives_compiler_unavailability(tmp_path):
+    from datetime import datetime, timedelta, timezone
+
+    epoch = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    stamps = [(epoch + timedelta(hours=index)).isoformat()
+              for index in range(192)]
+    drift_start = 48
+    rate = .2
+    values = []
+    for index in range(168):
+        clean = 20 + 5 * math.sin(2 * math.pi * (index % 24) / 24)
+        drift = rate * (index - drift_start + 1) \
+            if index >= drift_start else 0
+        values.append(clean + drift)
+    scenario = (
+        "The sensor had a calibration problem starting from "
+        f"{epoch + timedelta(hours=drift_start):%Y-%m-%d %H:%M:%S} "
+        "which resulted in an additive trend in the series that increases by "
+        f"{rate:.4f} at every hour. At timestep {stamps[168]}, the sensor was "
+        "repaired and this additive trend will disappear.")
+    task = SimpleNamespace(
+        past_time=list(zip(stamps[:168], values)), future_time=stamps[168:],
+        background="Hourly occupancy readings.", scenario=scenario,
+        constraints=None, name="CalibrationDriftTask", seed=1)
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "h"})]}])
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 1)
+
+    assert client.completion_prompts == []
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    assert receipt["compiler"]["deterministic_front_door"] is True
+    assert receipt["compiler"]["contract"] == \
+        "explicit_additive_measurement_drift"
+    assert [item["stage"] for item in receipt["compiler"]["calls"]] == [
+        "deterministic_additive_drift_parse"]
+    assert receipt["dossier"]["candidate_critique"]["candidate_origin"] == \
+        "calibration_counterfactual"
+    publication = extra["publication"]
+    assert publication["recommended_scenario_id"] != "primary"
+    assert publication["primary_forecast_unchanged"] is True
+    assert publication["automation"]["eligible"] is False
+
+
 def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
     from datetime import datetime, timedelta, timezone
 

@@ -264,6 +264,18 @@ def dominant_scenario_id(scenarios: list[dict[str, Any]]) -> str | None:
         # a human-only prior-assisted recommendation unless the stronger
         # historical-admission requirements are independently satisfied.
         return str(governed_replay[0]["scenario_id"])
+    calibration_repairs = [
+        item for item in selectable_alternatives
+        if item.get("role") == "calibration_counterfactual"
+        and item.get("support") == "prior_assisted"
+        and ((item.get("effect") or {}).get("calibration_replay") or {}).get(
+            "status") == "source_determined_prior_assisted"]
+    if len(calibration_repairs) == 1:
+        # The source states the measurement equation and exact repair
+        # boundary; Gnomon fits the corrected copy of history. A selector has
+        # no evidence-bearing choice left to make. The path remains
+        # prior-assisted, human-reviewed, and non-automatable.
+        return str(calibration_repairs[0]["scenario_id"])
     source_determined_scenarios = [item for item in scenarios
                        if item.get("role") == "effect_composed"
                        and item.get("support") == "hypothetical_sensitivity"

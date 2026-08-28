@@ -12,6 +12,52 @@ from .models import (ets, last_value, seasonal_naive, theta,
                      window_average)
 
 
+_ADDITIVE_DRIFT = re.compile(
+    r"(?:calibration|measurement) (?:problem|issue) starting from\s+"
+    r"(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}).*?"
+    r"additive (?:trend|drift).*?increases by\s+"
+    r"([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s+(?:at every hour|per hour)",
+    re.I | re.S)
+_REPAIR_BOUNDARY = re.compile(
+    r"At timestep\s+([^,]+),\s*the sensor was repaired and (?:this )?"
+    r"additive (?:trend|drift) will (?:disappear|be removed)", re.I)
+
+
+def deterministic_additive_drift_claim(
+    context_text: str, *, history_start: str, cutoff: str,
+) -> dict[str, Any] | None:
+    """Extract a fully specified additive measurement-drift claim.
+
+    This is a transcription boundary, not an inference rule.  Both the exact
+    rate-bearing mechanism and the exact repair boundary must be present; the
+    ordinary counterfactual executable still validates the grid and fits its
+    candidate from a copy of pre-cutoff observations.
+    """
+    match = _ADDITIVE_DRIFT.search(str(context_text or ""))
+    repair = _REPAIR_BOUNDARY.search(str(context_text or ""))
+    if not match or not repair:
+        return None
+    start = _timestamp(match.group(1).replace(" ", "T"))
+    history_start_dt = _timestamp(history_start)
+    cutoff_dt = _timestamp(cutoff)
+    if start is not None and start.tzinfo is None and cutoff_dt is not None:
+        start = start.replace(tzinfo=cutoff_dt.tzinfo)
+    if (start is None or history_start_dt is None or cutoff_dt is None
+            or not history_start_dt <= start <= cutoff_dt):
+        return None
+    return {
+        "source_span": str(context_text),
+        "relation": "unknown",
+        "effective_start": start.isoformat(),
+        "effective_end": cutoff_dt.isoformat(),
+        "mechanism": (
+            "deterministic transcription of an explicit additive measurement "
+            "drift and repair boundary; no forecast value inferred"),
+        "confidence": 1.0,
+        "compiler_binding": "deterministic_additive_drift_fallback",
+    }
+
+
 def _timestamp(value: str, *, timezone=None) -> datetime | None:
     try:
         parsed = datetime.fromisoformat(value)
@@ -42,16 +88,8 @@ def compile_additive_drift_repair(
     accumulated trend at the forecast boundary. The corrected history is a
     copy; the primary and raw observations are never modified.
     """
-    pattern = re.compile(
-        r"calibration problem starting from\s+"
-        r"(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}).*?"
-        r"additive trend.*?increases by\s+"
-        r"([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s+at every hour",
-        re.I | re.S)
-    match = pattern.search(context_text)
-    repair = re.search(
-        r"At timestep\s+([^,]+),\s*the sensor was repaired and this "
-        r"additive trend will disappear", context_text, re.I)
+    match = _ADDITIVE_DRIFT.search(context_text)
+    repair = _REPAIR_BOUNDARY.search(context_text)
     evidence: dict[str, Any] = {
         "status": "not_applicable", "selection_eligible": False,
         "automation_eligible": False, "primary_forecast_unchanged": True,

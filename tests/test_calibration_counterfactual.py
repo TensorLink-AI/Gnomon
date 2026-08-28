@@ -1,7 +1,9 @@
 from datetime import datetime, timedelta, timezone
 import math
 
-from gnomon.calibration_counterfactual import compile_additive_drift_repair
+from gnomon.calibration_counterfactual import (
+    compile_additive_drift_repair, deterministic_additive_drift_claim,
+)
 from gnomon.llm_dossier import validate_temporal_dossier
 from gnomon.publication import publish_result
 
@@ -49,6 +51,30 @@ def test_source_determined_drift_repair_recovers_clean_daily_path():
                 for index in range(24)]
     actual = [row["q50"] for row in candidate["quantiles"]]
     assert max(abs(left - right) for left, right in zip(actual, expected)) < 0.1
+
+
+def test_fully_specified_drift_claim_has_deterministic_transcription_fallback():
+    _, timestamps, _, context, _ = _case()
+
+    claim = deterministic_additive_drift_claim(
+        context, history_start=timestamps[0], cutoff=timestamps[-1])
+
+    assert claim is not None
+    assert claim["effective_start"] == timestamps[48]
+    assert claim["effective_end"] == timestamps[-1]
+    assert claim["compiler_binding"] == \
+        "deterministic_additive_drift_fallback"
+
+
+def test_drift_claim_fallback_refuses_qualitative_or_multiplicative_repairs():
+    _, timestamps, _, context, _ = _case()
+    for invalid in (
+        context.replace("increases by 0.2000 at every hour", "increases"),
+        context.replace("additive trend", "multiplicative trend"),
+        context.replace("At timestep", "Around"),
+    ):
+        assert deterministic_additive_drift_claim(
+            invalid, history_start=timestamps[0], cutoff=timestamps[-1]) is None
 
 
 def test_dossier_and_best_effort_publish_calibration_without_mutating_primary():
