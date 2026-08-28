@@ -299,7 +299,7 @@ BOUND_DOCUMENT = DocumentRef(
     name="ops.md",
     content=(
         "Written 2026-07-01. Maintenance: the plant is offline from 10 to "
-        "12 August 2026. Capacity: output will not exceed 340 units."
+        "12 August 2026. Capacity policy: output will not exceed 340 units."
     ),
     source_type="planning_file",
     reference="/notes/ops.md",
@@ -312,7 +312,7 @@ CONSTRAINT_PROPOSAL = {
     "effective_start": "2026-08-01T00:00:00+00:00",
     "effective_end": "2026-08-31T23:59:59+00:00",
     "known_at": "2026-07-01T00:00:00+00:00",
-    "evidence_quote": "output will not exceed 340 units",
+    "evidence_quote": "Capacity policy: output will not exceed 340 units",
 }
 
 
@@ -362,7 +362,24 @@ def test_verified_quote_becomes_the_source_span_for_namespaced_events() -> None:
     )
     assert not result["rejected"]
     attributes = result["events"][0]["attributes"]
-    assert attributes["source_span"] == "output will not exceed 340 units"
+    assert attributes["source_span"] == \
+        "Capacity policy: output will not exceed 340 units"
+
+
+def test_bare_future_prediction_cannot_gain_constraint_authority() -> None:
+    document = DocumentRef(
+        name="outlook.md",
+        content=("Written 2026-07-01. Analysts expect output will not exceed "
+                 "340 units."),
+        source_type="analysis", reference="/notes/outlook.md")
+    proposal = {
+        **CONSTRAINT_PROPOSAL,
+        "evidence_quote": "output will not exceed 340 units",
+    }
+    result = parse_context_response({"events": [proposal]}, [document])
+    assert result["events"] == []
+    assert result["rejected"][0]["reason_code"] == \
+        "external_prediction_not_constraint"
 
 
 def test_a_model_supplied_source_span_is_never_trusted() -> None:
@@ -375,7 +392,8 @@ def test_a_model_supplied_source_span_is_never_trusted() -> None:
     }
     result = parse_context_response({"events": [forged]}, [BOUND_DOCUMENT])
     attributes = result["events"][0]["attributes"]
-    assert attributes["source_span"] == "output will not exceed 340 units"
+    assert attributes["source_span"] == \
+        "Capacity policy: output will not exceed 340 units"
     unquoted = {
         **CONSTRAINT_PROPOSAL,
         "evidence_quote": "output will not exceed 9999 units",

@@ -42,7 +42,7 @@ from .llm_covariates import (
     validate_llm_covariate_tables,
 )
 
-CONTEXT_COMPILER_CONTRACT_VERSION = "0.3"
+CONTEXT_COMPILER_CONTRACT_VERSION = "0.4"
 
 
 @dataclass(frozen=True)
@@ -292,10 +292,13 @@ def build_context_investigation_prompt(
             "\nTwo additional typed classes are admitted for FUTURE-dated "
             "statements (their windows must lie entirely after the observed "
             "history):\n"
-            "- A stated numeric bound on future values (\"between A and B\", "
-            "\"will not exceed X\", \"cannot be negative\"): use event_type "
+            "- A binding numeric bound on future values (\"policy requires "
+            "between A and B\", \"hard cap X\", \"cannot be negative\"): use event_type "
             "\"constraint:<label>\" and make evidence_quote the verbatim "
-            "sentence stating the bound, dated over the forecast window.\n"
+            "sentence stating the bound, dated over the forecast window. "
+            "A bare prediction such as \"will not exceed X\" is not a "
+            "constraint unless the same quote identifies a policy, contract, "
+            "schedule, guarantee, physical limit, or equivalent authority.\n"
             "- A stated deterministic state for a stated window (\"offline "
             "Tue-Thu\", \"closed\", \"output drops to 0\"): use event_type "
             "\"override:<label>\" and make evidence_quote the verbatim "
@@ -403,6 +406,19 @@ def parse_context_response(
             rejected.append({"proposal": proposal, "problems": ["evidence_quote is not verbatim from the cited document"]})
             continue
         event_type = str(proposal.get("event_type", ""))
+        if quote and event_type.startswith(("constraint:", "override:")):
+            from .future_context import literal_authority
+            predictive, binding = literal_authority(quote)
+            if predictive and not binding:
+                rejected.append({
+                    "proposal": proposal,
+                    "reason_code": "external_prediction_not_constraint",
+                    "problems": [
+                        "the quoted future value is predictive, not a "
+                        "binding constraint or deterministic state"
+                    ],
+                })
+                continue
         structural_normalizations: list[dict[str, Any]] = []
         # A narrow semantic alias repair keeps a correctly quoted, qualitative
         # trend-cessation claim inside the closed structural vocabulary. It

@@ -1613,3 +1613,27 @@ def apply_future_events(
         for index in steps:
             _assert_monotone(projected[index])
     return projected, applications
+_PREDICTIVE_SOURCE_RE = re.compile(
+    r"\b(?:forecasts?|forecasting|predicts?|predicted|projects?|projected|"
+    r"expects?|expected|estimates?|estimated|anticipates?|outlook|will|"
+    r"likely|probably)\b", re.IGNORECASE)
+_BINDING_SOURCE_RE = re.compile(
+    r"\b(?:must|shall|required?|policy|rule|contract|schedule|scheduled|"
+    r"guaranteed?|binding|hard\s+cap|capped?|ceiling|floor|limit|"
+    r"design\s+capacity|rated\s+capacity|"
+    r"cannot|prohibited?|mandated?)\b", re.IGNORECASE)
+
+
+def literal_authority(text: str) -> tuple[bool, bool]:
+    """Return whether a quoted numeric statement is predictive and binding.
+
+    A future-tense number (``will not exceed 80``) is a forecast, not a
+    constraint, unless the same quoted sentence carries an independently
+    recognizable source of authority such as a policy, contract, schedule,
+    physical limit, or guarantee.  Keeping this classifier shared prevents
+    the workflow compiler and compact MCP lane from assigning different
+    authority to the same words.
+    """
+    value = str(text or "")
+    return bool(_PREDICTIVE_SOURCE_RE.search(value)), bool(
+        _BINDING_SOURCE_RE.search(value))

@@ -930,6 +930,7 @@ def test_context_contract_requires_bounded_typed_gate_citations():
     citations = parameters["properties"]["cited_context_gate_codes"]
     assert citations["maxItems"] == 8
     assert citations["items"] == {"type": "string"}
+    assert "context_dispositions[].reason_code" in citations["description"]
     assert parameters["properties"]["reasoning"]["maxLength"] == 600
     assert parameters["properties"]["context_automation_eligible"] == {
         "type": "boolean",

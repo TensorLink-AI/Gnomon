@@ -797,7 +797,8 @@ def test_general_purpose_path_from_document_to_trusted_forecast(tmp_path):
             "effective_start": h_start.isoformat(),
             "effective_end": (h_start + timedelta(days=6)).isoformat(),
             "known_at": START.isoformat(),
-            "evidence_quote": "values will stay between 0 and 340 units",
+                "evidence_quote": (
+                    "Design capacity: values will stay between 0 and 340 units"),
         },
         {
             "document_index": 0,

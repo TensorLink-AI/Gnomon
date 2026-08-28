@@ -579,6 +579,19 @@ def test_external_prediction_cannot_masquerade_as_literal_constraint() -> None:
     assert shortened["context_rejections"][0]["reason_code"] == \
         "external_prediction_not_constraint"
 
+    # Future tense is itself a prediction.  A numeric grammar must not turn
+    # it into authority merely because the words also parse as a bound.
+    bare = {"target_column": "throughput", "context_events": [{
+        "event_id": "bare-cap-forecast", "claim_kind": "max",
+        "effective_start": "2026-02-10T00:00:00+00:00",
+        "effective_end": "2026-02-10T23:59:59+00:00",
+        "known_at": "2026-02-09T00:00:00+00:00",
+        "source_span": "throughput will not exceed 80 on 2026-02-10",
+    }]}
+    assert _context_events_from(bare) == []
+    assert bare["context_rejections"][0]["reason_code"] == \
+        "external_prediction_not_constraint"
+
 
 def test_context_span_must_exist_in_host_bound_document() -> None:
     from gnomon.toolspec import _context_events_from
@@ -823,6 +836,10 @@ def test_direct_context_rejection_is_receipted_without_changing_numbers(
     assert publication["recommended_scenario_id"] == "primary"
     assert publication["primary_forecast_unchanged"] is True
     assert publication["automation"]["eligible"] is False
+    assert publication["context_summary"][
+        "context_evidence_automation_eligible"] is False
+    assert publication["context_summary"][
+        "canonical_primary_preserved"] is True
     rejection = publication["context_dispositions"][0]
     assert rejection["reason_code"] == "known_after_cutoff"
     assert rejection["source_span"] == \

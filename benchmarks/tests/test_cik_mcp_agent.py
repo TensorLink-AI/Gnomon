@@ -1264,7 +1264,8 @@ def test_evidence_executes_one_server_authored_grid_repair(tmp_path):
 
 def test_evidence_compiles_and_host_binds_context(tmp_path):
     task = _task()
-    span = "Values will not exceed 120 during the forecast window."
+    span = ("Policy requires values will not exceed 120 during the "
+            "forecast window.")
     task.scenario = span
     proposal = json.dumps({"events": [{
             "event_type": "constraint:announced_cap",
@@ -2435,7 +2436,7 @@ def test_literal_zero_event_without_duplicate_claim_uses_override(tmp_path):
     task = _task()
     start, end = task.future_time[1], task.future_time[2]
     span = (
-        f"the meter will be offline for maintenance between {start} and "
+        f"the meter will be offline for scheduled maintenance between {start} and "
         f"{end}, which results in zero readings")
     task.scenario = span
     compiler_output = json.dumps({

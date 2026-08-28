@@ -504,6 +504,17 @@ def compact_publication_for_wire(payload: dict[str, Any]) -> dict[str, Any]:
     )
     projection = {key: publication[key] for key in keys if key in publication}
     dispositions = list(projection.get("context_dispositions") or [])
+    if dispositions and isinstance(projection.get("context_summary"), dict):
+        # Global automation may truthfully say "not requested", but that is
+        # not the context-authority answer an agent needs.  Put the two
+        # context-specific facts beside the disposition so the model never
+        # has to infer them from unrelated publication policy fields.
+        projection["context_summary"] = {
+            **projection["context_summary"],
+            "canonical_primary_preserved": bool(
+                publication.get("primary_forecast_unchanged", True)),
+            "context_evidence_automation_eligible": False,
+        }
     if len(dispositions) > 4:
         counts: dict[str, int] = {}
         for disposition in dispositions:
@@ -1929,16 +1940,9 @@ def _context_events_from(arguments: dict[str, Any]):
                     semantic_text = source_document[left:right]
                 else:
                     semantic_text = span
-                predictive_source = bool(re.search(
-                    r"\b(?:forecasts?|forecasting|predicts?|predicted|"
-                    r"projects?|projected|expects?|expected|estimates?|"
-                    r"estimated|anticipates?|outlook)\b",
-                    semantic_text, re.IGNORECASE))
-                binding_source = bool(re.search(
-                    r"\b(?:must|shall|required?|policy|rule|contract|"
-                    r"schedule|guaranteed?|binding|limit|capped?|ceiling|"
-                    r"floor|not\s+exceed)\b",
-                    semantic_text, re.IGNORECASE))
+                from .future_context import literal_authority
+                predictive_source, binding_source = literal_authority(
+                    semantic_text)
                 if predictive_source and not binding_source:
                     arguments.setdefault("context_rejections", []).append({
                         "context_id": str(item.get("event_id") or
