@@ -2151,6 +2151,40 @@ def test_categorical_state_front_door_skips_llm_and_fits_governed_candidate(
     assert extra["publication"]["automation"]["eligible"] is False
 
 
+def test_dated_multiplier_front_door_survives_compiler_unavailability(tmp_path):
+    task = _task()
+    start = task.future_time[0]
+    task.scenario = (
+        f"A promotion began on {start.replace('T', ' ').split('+', 1)[0]} "
+        "and lasted for approximately 2 days. Requests reached "
+        "approximately 4 times the typical usage.")
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}])
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 1)
+
+    assert client.completion_prompts == []
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    assert receipt["compiler"]["deterministic_front_door"] is True
+    assert receipt["compiler"]["contract"] == "explicit_dated_multiplier"
+    assert [item["stage"] for item in receipt["compiler"]["calls"]] == [
+        "deterministic_dated_multiplier_parse"]
+    proposal = receipt["dossier"]["effect_proposal"]
+    assert proposal["location"] == 3.0
+    assert proposal["duration_steps"] == 2
+    publication = extra["publication"]
+    assert publication["recommended_scenario_id"] != "primary"
+    assert publication["recommended_support"] == "hypothetical_sensitivity"
+    assert publication["primary_forecast_unchanged"] is True
+    assert publication["automation"]["eligible"] is False
+
+
 def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
     from datetime import datetime, timedelta, timezone
 

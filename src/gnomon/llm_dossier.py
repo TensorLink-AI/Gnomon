@@ -87,6 +87,108 @@ def deterministic_historical_observation_claim(
     return None
 
 
+def deterministic_dated_multiplier_dossier(
+    context_text: str, *, cutoff: str, future_timestamps: list[str],
+    target_name: str | None = None,
+) -> dict[str, Any] | None:
+    """Compile one explicit future timestamp, duration, and level multiple.
+
+    This deliberately handles only the high-precision intersection of three
+    source-stated facts. It does not infer an event window, magnitude, or
+    target from qualitative prose. Ambiguous documents remain the LLM
+    compiler's job, while explicit promotions, outages, launches, and weather
+    events remain usable during provider failure.
+    """
+    from .future_context import parse_override_scale
+
+    text = " ".join(str(context_text or "").split())
+    if not text:
+        return None
+    multiplier, problem = parse_override_scale(text)
+    if problem is not None or multiplier is None or multiplier <= 0:
+        return None
+    timestamps = re.findall(
+        r"\b\d{4}-\d{2}-\d{2}[ T]\d{1,2}:\d{2}(?::\d{2})?"
+        r"(?:Z|[+-]\d{2}:?\d{2})?\b", text)
+    duration_matches = re.findall(
+        r"\b(?:last(?:ed|s)?|continu(?:ed|es)|for)\s+(?:for\s+)?"
+        r"(?:approximately\s+|about\s+|roughly\s+)?"
+        r"(\d+(?:\.\d+)?)\s*(minutes?|hours?|days?)\b",
+        text, flags=re.IGNORECASE)
+    if len(timestamps) != 1 or len(duration_matches) != 1:
+        return None
+    target_terms = (
+        "consumption", "demand", "sales", "traffic", "requests",
+        "withdrawals", "output", "usage", "readings", "transactions",
+        "target value", "forecast value",
+    )
+    normalized_target = _normalise(target_name)
+    if (normalized_target and not normalized_target.isdigit()
+            and normalized_target not in _normalise(text)
+            and not any(term in _normalise(text) for term in target_terms)):
+        return None
+    if (not normalized_target or normalized_target.isdigit()) and not any(
+            term in _normalise(text) for term in target_terms):
+        return None
+
+    future = [_timestamp(value) for value in future_timestamps]
+    cutoff_time = _timestamp(cutoff)
+    if (not future or cutoff_time is None
+            or any(value is None for value in future)):
+        return None
+    raw_start = timestamps[0].replace(" ", "T")
+    try:
+        start = datetime.fromisoformat(raw_start)
+    except ValueError:
+        return None
+    if start.tzinfo is None:
+        start = start.replace(tzinfo=cutoff_time.tzinfo)
+    amount = float(duration_matches[0][0])
+    unit = duration_matches[0][1].casefold()
+    seconds = amount * (60 if unit.startswith("minute") else
+                        3600 if unit.startswith("hour") else 86400)
+    if not math.isfinite(seconds) or seconds <= 0:
+        return None
+    end = start + timedelta(seconds=seconds)
+    active = [index for index, stamp in enumerate(future)
+              if stamp is not None and start <= stamp < end]
+    if (not active or active != list(range(active[0], active[-1] + 1))
+            or start <= cutoff_time):
+        return None
+    approximate = bool(re.search(
+        r"\b(?:approximately|about|roughly)\b", text, re.IGNORECASE))
+    relation = ("supports_increase" if multiplier > 1 else
+                "supports_decrease" if multiplier < 1 else
+                "supports_stability")
+    delta = float(multiplier) - 1.0
+    return {
+        "events": [],
+        "claims": [{
+            "source_span": context_text,
+            "relation": relation,
+            "effective_start": start.isoformat(),
+            "effective_end": end.isoformat(),
+            "mechanism": "explicit dated baseline multiplier",
+            "confidence": .75 if approximate else 1.0,
+        }],
+        "hypotheses": [], "covariate_tables": [], "transformations": [],
+        "observation_interpretations": [], "forecast_candidate": None,
+        "effect_proposal": {
+            "shape": ("temporary_pulse" if len(active) < len(future)
+                      else "level_shift"),
+            "unit": "fraction_of_level",
+            "location": delta, "lower": delta, "upper": delta,
+            "confidence": .75 if approximate else 1.0,
+            "delay_steps": active[0], "duration_steps": len(active),
+            "scope": {"kind": "single_series", "series": ["*"]},
+            "claim_ids": ["claim-1"],
+            "rationale": (
+                "Deterministic compilation of one verbatim future timestamp, "
+                "duration, and baseline multiplier."),
+        },
+    }
+
+
 def _robust_scale(values: list[float]) -> float:
     differences = [abs(b - a) for a, b in zip(values, values[1:])]
     positive = [value for value in differences if value > 0]

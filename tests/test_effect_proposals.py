@@ -6,8 +6,10 @@ import pytest
 
 from gnomon.effect_proposals import (assess_composed_effect, compose_effect,
                                      validate_effect_proposal)
-from gnomon.llm_dossier import validate_temporal_dossier
-from gnomon.llm_dossier import deterministic_events_from_claims
+from gnomon.llm_dossier import (
+    deterministic_dated_multiplier_dossier, deterministic_events_from_claims,
+    validate_temporal_dossier,
+)
 from gnomon.publication import publish_result, verify_publication
 from gnomon.toolspec import runner_for
 
@@ -17,6 +19,47 @@ PRIMARY = [
     {"timestamp": TIMES[0], "point": 10.0, "q10": 9.0, "q50": 10.0, "q90": 11.0},
     {"timestamp": TIMES[1], "point": 10.0, "q10": 9.0, "q50": 10.0, "q90": 11.0},
 ]
+
+
+def test_explicit_dated_multiplier_has_deterministic_failover_dossier():
+    text = (
+        "A heatwave began on 2026-01-03 00:00:00 and lasted for "
+        "approximately 2 days. Sales reached approximately 4 times the "
+        "typical usage.")
+    raw = deterministic_dated_multiplier_dossier(
+        text, cutoff="2026-01-02T00:00:00+00:00",
+        future_timestamps=TIMES, target_name="sales")
+
+    assert raw is not None
+    assert raw["effect_proposal"]["location"] == 3.0
+    assert raw["effect_proposal"]["delay_steps"] == 0
+    assert raw["effect_proposal"]["duration_steps"] == 2
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=text, cutoff="2026-01-02T00:00:00+00:00",
+        future_timestamps=TIMES, history=[8, 9, 10],
+        history_timestamps=[
+            "2025-12-30T00:00:00+00:00",
+            "2025-12-31T00:00:00+00:00",
+            "2026-01-02T00:00:00+00:00"], compiler_model="deterministic")
+    assert not reasons
+    assert dossier["effect_proposal"] is not None
+    codes = {item["code"] for item in dossier["effect_proposal"].get(
+        "semantic_normalizations") or []}
+    assert "APPROXIMATE_CITED_LEVEL_MULTIPLIER" in codes
+
+
+@pytest.mark.parametrize("text", [
+    "Sales may increase during the promotion.",
+    "Sales reached 4 times typical usage, but no start time was supplied.",
+    ("Sales reached 4 times typical usage starting 2026-01-03 00:00:00, "
+     "but no duration was supplied."),
+    ("Temperatures reached 4 times normal starting 2026-01-03 00:00:00 "
+     "for 2 days."),
+])
+def test_dated_multiplier_failover_refuses_missing_or_wrong_target_facts(text):
+    assert deterministic_dated_multiplier_dossier(
+        text, cutoff="2026-01-02T00:00:00+00:00",
+        future_timestamps=TIMES, target_name="sales") is None
 
 
 def _proposal(**updates):

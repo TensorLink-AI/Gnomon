@@ -3328,6 +3328,7 @@ class _Run:
         """
         from gnomon.context import event_from_dict, event_to_dict
         from gnomon.llm_dossier import (
+            deterministic_dated_multiplier_dossier,
             deterministic_historical_observation_claim,
             validate_temporal_dossier,
         )
@@ -3349,6 +3350,14 @@ class _Run:
             not relationship_contract and not observation_contract
             and _looks_like_structured_companion_context(
                 context, future_timestamps))
+        deterministic_multiplier = (
+            deterministic_dated_multiplier_dossier(
+                context, cutoff=self.timestamps[-1],
+                future_timestamps=future_timestamps,
+                target_name=self.target_name)
+            if (categorical_schedule is None and not relationship_contract
+                and not observation_contract and not companion_contract)
+            else None)
         compiler_context = (narrative_context if relationship_contract else context)
         history = _compiler_target_evidence(
             self.timestamps, self.values,
@@ -3607,6 +3616,12 @@ class _Run:
                     model_candidate_status = "request_failed"
                     compile_rejections.append(
                         f"model companion candidate failed: {error}")
+        elif deterministic_multiplier is not None:
+            raw = bind_active_target(deterministic_multiplier)
+            compiler_calls.append({
+                "stage": "deterministic_dated_multiplier_parse",
+                "elapsed_seconds": 0.0,
+            })
         else:
             try:
                 completion = complete(prompt, "initial_compile")
@@ -4855,7 +4870,8 @@ class _Run:
                 "claim, covariate, transformation, or candidate; the immutable "
                 "primary remains visible and the context did not influence it")
         deterministic_front_door = bool(
-            deterministic_companion_tables or categorical_schedule)
+            deterministic_companion_tables or categorical_schedule
+            or deterministic_multiplier is not None)
         payload = {
             "schema_version": 1,
             "compiler": {
@@ -4874,7 +4890,10 @@ class _Run:
                              "categorical_state_schedule"
                              if categorical_schedule else
                              "structured_companion_paths"
-                             if companion_contract else "universal_dossier"),
+                             if companion_contract else
+                             "explicit_dated_multiplier"
+                             if deterministic_multiplier is not None else
+                             "universal_dossier"),
                 "prompt_bytes": (model_candidate_prompt_bytes
                                  if deterministic_front_door
                                  else len(prompt.encode("utf-8"))),
