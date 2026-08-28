@@ -2248,6 +2248,12 @@ def test_categorical_state_front_door_skips_llm_and_fits_governed_candidate(
     assert receipt["compiler"]["deterministic_front_door"] is True
     assert receipt["dossier"]["candidate_critique"]["candidate_origin"] == (
         "governed_categorical_state_mapping")
+    assert receipt["dossier"]["candidate_critique"][
+        "selection_eligible"] is False
+    assert receipt["dossier"]["candidate_critique"][
+        "human_selection_eligible"] is True
+    assert extra["publication"]["recommended_scenario_id"].startswith(
+        "prior-assisted-")
     assert extra["publication"]["primary_forecast_unchanged"] is True
     assert extra["publication"]["automation"]["eligible"] is False
 

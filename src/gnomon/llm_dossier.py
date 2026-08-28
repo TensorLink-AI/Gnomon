@@ -1565,6 +1565,12 @@ def validate_temporal_dossier(
                 }
                 if candidate_reasons else None),
             "selection_eligible": bool(candidate and candidate_selection_eligible),
+            "human_selection_eligible": bool(
+                candidate and (
+                    governed_candidate.get("human_selection_eligible",
+                                           candidate_selection_eligible)
+                    if governed_candidate_accepted
+                    else candidate_selection_eligible)),
             "selection_reason": (candidate_selection_reason
                                  if candidate and not candidate_selection_eligible
                                  else None),

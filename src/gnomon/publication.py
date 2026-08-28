@@ -256,6 +256,18 @@ def dominant_scenario_id(scenarios: list[dict[str, Any]]) -> str | None:
         item for item in alternatives
         if item.get("human_selection_eligible",
                     item.get("selection_eligible", True)) is True]
+    retrospective_governed = [
+        item for item in selectable_alternatives
+        if str(((item.get("effect") or {}).get(
+            "candidate_origin") or "")).startswith("governed_")
+        and ((item.get("effect") or {}).get("validation") or {}).get(
+            "retrospective_skill_not_admission") is True]
+    if (len(retrospective_governed) == 1
+            and selectable_alternatives == retrospective_governed):
+        # Explicit best-effort may use one source-grounded retrospective fit as
+        # today's human recommendation. It is not historical admission: the
+        # response retains that limitation and automation remains forbidden.
+        return str(retrospective_governed[0]["scenario_id"])
     if (len(governed_replay) == 1
             and selectable_alternatives == governed_replay):
         # A single sealed, fitted executable that beat its declared baseline
@@ -1332,6 +1344,9 @@ def build_scenario_catalog(result: dict[str, Any], *,
             human_selection_eligible = bool(
                 sampled_prior_sufficient
                 and (selection_eligible
+                     or (candidate_origin.startswith("governed_")
+                         and candidate_critique.get(
+                             "human_selection_eligible") is True)
                      or governed_companion_evidence
                      # In best-effort publication, repeated independently
                      # validated paths may remain human-selectable after the
@@ -2029,7 +2044,8 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
                             if item["role"] in {"effect_composed",
                                                 "model_authored_transformation"}
                             and item.get("selection_eligible", True) is True),
-                           "primary")
+                           None)
+        selected_id = selected_id or dominant_scenario_id(scenarios) or "primary"
     else:
         selected_id = "primary"
     selected = by_id[selected_id]

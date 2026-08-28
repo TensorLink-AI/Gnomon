@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Separate forecast-valid admission from retrospective human usefulness for
+  governed relationship and categorical-state candidates. Replay can claim
+  historical skill only when the caller proves per-origin input availability;
+  otherwise its score is labelled `retrospective_unvintaged_*`, cannot upgrade
+  support, and cannot authorize automation. In explicit best-effort mode, one
+  strong source-grounded retrospective executable may still answer the user's
+  conditional question without replacing the immutable primary or spawning a
+  less accountable model-authored duplicate. Strict publication remains on
+  historically admitted evidence.
 - Add one fold-safe panel-consensus candidate for aligned companion series.
   Each replay origin fits robust target-minus-companion offsets from its prefix,
   aggregates peers by a column-order-invariant median, compares the single

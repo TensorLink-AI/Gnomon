@@ -33,7 +33,8 @@ def test_relationship_family_learns_power_law_without_assuming_exponent():
 
     candidate = fit_companion_relationship_candidate(
         target, driver, [41.0, 42.0], primary=primary,
-        claim_ids=["law", "future-driver"], hypothesis_id="h")
+        claim_ids=["law", "future-driver"], hypothesis_id="h",
+        replay_origin_eligible=[True] * len(target))
 
     validation = candidate["validation"]
     assert validation["mapping"] == "log_power"
@@ -51,10 +52,27 @@ def test_relationship_family_rejects_unpredictive_driver():
 
     candidate = fit_companion_relationship_candidate(
         target, driver, [4.0, 5.0], primary=primary,
-        claim_ids=["law"], hypothesis_id="h")
+        claim_ids=["law"], hypothesis_id="h",
+        replay_origin_eligible=[True] * len(target))
 
     assert candidate["validation"]["beats_baseline"] is False
     assert candidate["selection_eligible"] is False
+
+
+def test_relationship_skill_without_origin_availability_stays_retrospective():
+    driver = [10.0 + index for index in range(30)]
+    target = [2.5 * value ** 1.7 for value in driver]
+    candidate = fit_companion_relationship_candidate(
+        target, driver, [40.0], primary=[{"timestamp": _stamp(30)}],
+        claim_ids=["late-document"], hypothesis_id="late")
+    validation = candidate["validation"]
+    assert validation["skill"] > .9
+    assert validation["beats_baseline"] is False
+    assert validation["input_observations_known_at_each_origin"] is False
+    assert validation["per_origin_observation_availability_checked"] is False
+    assert validation["retrospective_skill_not_admission"] is True
+    assert candidate["selection_eligible"] is False
+    assert candidate["human_selection_eligible"] is True
 
 
 def test_relationship_admission_resists_shared_trend_confounding():
@@ -69,10 +87,12 @@ def test_relationship_admission_resists_shared_trend_confounding():
         primary = [{"timestamp": _stamp(41)}, {"timestamp": _stamp(42)}]
         true_admissions += fit_companion_relationship_candidate(
             true_target, driver, [31, 32], primary=primary,
-            claim_ids=["law"], hypothesis_id="true")["selection_eligible"]
+            claim_ids=["law"], hypothesis_id="true",
+            replay_origin_eligible=[True] * len(driver))["selection_eligible"]
         confounded_admissions += fit_companion_relationship_candidate(
             confounded_target, driver, [31, 32], primary=primary,
-            claim_ids=["law"], hypothesis_id="confounded")[
+            claim_ids=["law"], hypothesis_id="confounded",
+            replay_origin_eligible=[True] * len(driver))[
                 "selection_eligible"]
 
     assert true_admissions >= 34
@@ -356,7 +376,8 @@ def test_categorical_state_mapping_replays_levels_and_stays_manual():
 
     candidate = fit_categorical_state_candidate(
         target, states, ["closed", "open", "closed", "open"],
-        primary=primary, claim_ids=["claim-1"], hypothesis_id="hours")
+        primary=primary, claim_ids=["claim-1"], hypothesis_id="hours",
+        replay_origin_eligible=[True] * len(target))
 
     points = [row["q50"] for row in candidate["forecast"]]
     assert points[0] < points[1] and points[2] < points[3]
@@ -373,7 +394,8 @@ def test_categorical_state_mapping_rejects_unseen_and_most_null_schedules():
     primary = [{"timestamp": _stamp(20 + index)} for index in range(2)]
     unseen = fit_categorical_state_candidate(
         list(range(20)), ["a", "b"] * 10, ["new", "a"], primary=primary,
-        claim_ids=[], hypothesis_id="unseen")
+        claim_ids=[], hypothesis_id="unseen",
+        replay_origin_eligible=[True] * 20)
     assert unseen["selection_eligible"] is False
     assert unseen["validation"]["future_state_counts"]["new"] == 0
 
@@ -387,9 +409,26 @@ def test_categorical_state_mapping_rejects_unseen_and_most_null_schedules():
             target.append(value)
         candidate = fit_categorical_state_candidate(
             target, states, ["a", "b"], primary=primary,
-            claim_ids=[], hypothesis_id=f"null-{seed}")
+            claim_ids=[], hypothesis_id=f"null-{seed}",
+            replay_origin_eligible=[True] * len(target))
         admitted += int(candidate["selection_eligible"])
     assert admitted <= 10
+
+
+def test_late_known_state_schedule_cannot_turn_fit_into_admission():
+    states = ["open", "closed"] * 12
+    target = [20.0 if state == "open" else 5.0 for state in states]
+    candidate = fit_categorical_state_candidate(
+        target, states, ["open", "closed"],
+        primary=[{"timestamp": _stamp(24)}, {"timestamp": _stamp(25)}],
+        claim_ids=["late-schedule"], hypothesis_id="late")
+    validation = candidate["validation"]
+    assert validation["skill"] > .5
+    assert validation["beats_baseline"] is False
+    assert validation["validation_interpretation"] == (
+        "retrospective_unvintaged_state_fit")
+    assert candidate["selection_eligible"] is False
+    assert candidate["human_selection_eligible"] is True
 
 
 def test_structured_arx_fits_coefficients_and_beats_last_value():

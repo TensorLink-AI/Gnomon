@@ -1983,6 +1983,7 @@ def fit_companion_relationship_candidate(
     target_history: list[float], companion_history: list[float],
     future_companion: list[float], *, primary: list[dict[str, Any]],
     claim_ids: list[str], hypothesis_id: str, minimum_overlap: int = 12,
+    replay_origin_eligible: list[bool] | None = None,
 ) -> dict[str, Any]:
     """Fit a small fold-safe family for a named target/driver relationship.
 
@@ -1999,6 +2000,9 @@ def fit_companion_relationship_candidate(
     if len(target_history) < minimum_overlap:
         raise ValueError(
             f"relationship mapping requires {minimum_overlap} rows")
+    if (replay_origin_eligible is not None
+            and len(replay_origin_eligible) != len(target_history)):
+        raise ValueError("relationship replay availability must align")
     if len(future_companion) != len(primary) or not primary:
         raise ValueError("future companion path must match the forecast horizon")
     target = [float(value) for value in target_history]
@@ -2041,6 +2045,9 @@ def fit_companion_relationship_candidate(
         last_baselines, mean_baselines, drift_baselines = [], [], []
         try:
             for origin in range(replay_start, len(target)):
+                if (replay_origin_eligible is not None
+                        and not replay_origin_eligible[origin]):
+                    continue
                 predictions.append(fit_predict(
                     family, target[:origin], driver[:origin], driver[origin]))
                 actuals.append(target[origin])
@@ -2103,9 +2110,12 @@ def fit_companion_relationship_candidate(
     # Require a material margin over the strongest target-only baseline in
     # addition to the family-complexity penalty and chronological consistency.
     threshold = min(.30, .10 + .02 * math.log2(len(scores)))
-    eligible = bool(best["validation_points"] >= 8
-                    and best["chronological_block_wins"] >= 2
-                    and best["skill"] >= threshold)
+    availability_proven = replay_origin_eligible is not None
+    retrospective_human_eligible = bool(
+        best["validation_points"] >= 8
+        and best["chronological_block_wins"] >= 2
+        and best["skill"] >= threshold)
+    eligible = bool(availability_proven and retrospective_human_eligible)
     fitted_history = [fit_predict(
         str(best["family"]), target, driver, value) for value in driver]
     residuals = [actual - fitted for actual, fitted in
@@ -2156,11 +2166,17 @@ def fit_companion_relationship_candidate(
             "chronological_block_wins": best["chronological_block_wins"],
             "required_block_wins": best["required_block_wins"],
             "relationship_known_at_each_origin": False,
-            "input_observations_known_at_each_origin": True,
+            "input_observations_known_at_each_origin": availability_proven,
+            "per_origin_observation_availability_checked": availability_proven,
+            "validation_interpretation": (
+                "forecast_valid_replay" if availability_proven else
+                "retrospective_unvintaged_relationship_fit"),
+            "retrospective_skill_not_admission": not availability_proven,
             "publication_evidence_weight": evidence_weight,
             "publication_shrunk_to_baseline": evidence_weight < 1.0,
         },
         "support": "prior_assisted", "selection_eligible": eligible,
+        "human_selection_eligible": retrospective_human_eligible,
         "automation_eligible": False, "primary_forecast_unchanged": True,
         "executable": {
             "kind": "fitted_companion_relationship_mapping", "version": "0.1",
@@ -2177,6 +2193,7 @@ def fit_categorical_state_candidate(
     future_states: list[str], *, primary: list[dict[str, Any]],
     claim_ids: list[str], hypothesis_id: str,
     minimum_overlap: int = 8, shrinkage: float = 2.0,
+    replay_origin_eligible: list[bool] | None = None,
 ) -> dict[str, Any]:
     """Fit a fold-safe state-conditional level forecast.
 
@@ -2192,6 +2209,9 @@ def fit_categorical_state_candidate(
     if len(target_history) < minimum_overlap:
         raise ValueError(
             f"categorical-state mapping requires {minimum_overlap} rows")
+    if (replay_origin_eligible is not None
+            and len(replay_origin_eligible) != len(target_history)):
+        raise ValueError("state replay availability must align")
     if len(future_states) != len(primary) or not primary:
         raise ValueError("future states must match the forecast horizon")
     if shrinkage <= 0 or not math.isfinite(shrinkage):
@@ -2216,6 +2236,9 @@ def fit_categorical_state_candidate(
     predictions, actuals, baselines = [], [], []
     replay_start = max(4, minimum_overlap // 2)
     for origin in range(replay_start, len(target)):
+        if (replay_origin_eligible is not None
+                and not replay_origin_eligible[origin]):
+            continue
         prediction, _ = estimate(target[:origin], states[:origin], states[origin])
         predictions.append(prediction)
         actuals.append(target[origin])
@@ -2254,7 +2277,10 @@ def fit_categorical_state_candidate(
     future_state_counts = {state: state_counts.get(state, 0)
                            for state in sorted(set(future))}
     states_supported = all(count >= 2 for count in future_state_counts.values())
-    eligible = bool(replay_points >= 3 and states_supported and skill >= .02)
+    availability_proven = replay_origin_eligible is not None
+    retrospective_human_eligible = bool(
+        replay_points >= 3 and states_supported and skill >= .02)
+    eligible = bool(availability_proven and retrospective_human_eligible)
     return {
         "hypothesis_id": hypothesis_id,
         "kind": "fitted_categorical_state_mapping",
@@ -2280,12 +2306,18 @@ def fit_categorical_state_candidate(
             "future_state_counts": future_state_counts,
             "all_future_states_observed_twice": states_supported,
             "relationship_known_at_each_origin": False,
-            "input_observations_known_at_each_origin": True,
+            "input_observations_known_at_each_origin": availability_proven,
+            "per_origin_observation_availability_checked": availability_proven,
+            "validation_interpretation": (
+                "forecast_valid_replay" if availability_proven else
+                "retrospective_unvintaged_state_fit"),
+            "retrospective_skill_not_admission": not availability_proven,
             "publication_evidence_weight": evidence_weight,
             "publication_shrunk_to_baseline": evidence_weight < 1.0,
         },
         "support": "prior_assisted",
         "selection_eligible": eligible,
+        "human_selection_eligible": retrospective_human_eligible,
         "automation_eligible": False,
         "primary_forecast_unchanged": True,
         "executable": {

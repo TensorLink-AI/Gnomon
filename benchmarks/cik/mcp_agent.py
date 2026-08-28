@@ -418,7 +418,9 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: replacing an unmeasured one-shot model-authored quantile candidate.
 #: Version 195: multiple aligned companions also enter one fixed fold-safe
 #: median-consensus estimator before the prior-assisted fallback is opened.
-MCP_CONTRACT_VERSION = 195
+#: Version 196: relationship/state replay separates proven historical
+#: admission from explicitly best-effort retrospective human use.
+MCP_CONTRACT_VERSION = 196
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -5025,6 +5027,8 @@ class _Run:
             named_relationship_spec is not None
             and not (governed_named_relationship or {}).get(
                 "selection_eligible")
+            and not (governed_named_relationship or {}).get(
+                "human_selection_eligible")
             and self.forecaster.output_role in {
                 "publication_best_effort", "llm_candidate_shadow"})
         if relationship_prior_needed and named_future_driver is not None:
@@ -5078,7 +5082,8 @@ class _Run:
         categorical_prior_needed = bool(
             categorical_schedule is not None
             and governed_categorical is not None
-            and not governed_categorical.get("selection_eligible"))
+            and not governed_categorical.get("selection_eligible")
+            and not governed_categorical.get("human_selection_eligible"))
         companion_prior_needed = bool(
             companion_contract and deterministic_companion_tables
             and model_candidate_proposal is None
