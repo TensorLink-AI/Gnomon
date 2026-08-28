@@ -3828,9 +3828,12 @@ class _Run:
                 "numeric_context_unresolved": bool(
                     unresolved_numeric_context),
                 "context_unresolved": bool(unresolved_context),
+                "future_numeric_path_required": bool(
+                    future_path_needs_executable),
                 "future_numeric_path_needs_executable": bool(
                     future_path_needs_executable
-                    and not companion_mapping_pending),
+                    and not companion_mapping_pending
+                    and not accepted_executable),
                 "governed_companion_mapping_pending": companion_mapping_pending,
                 "top_level_rejections": len(probe_rejections),
                 **({

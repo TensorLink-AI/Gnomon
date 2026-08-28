@@ -1784,6 +1784,7 @@ def test_accepted_effect_does_not_recompile_for_malformed_optional_lane(
         "required_observation_lane_missing": False,
         "numeric_context_unresolved": False,
         "context_unresolved": False,
+        "future_numeric_path_required": False,
         "future_numeric_path_needs_executable": False,
         "governed_companion_mapping_pending": False,
         "top_level_rejections": 1,
@@ -2233,6 +2234,9 @@ def test_additive_drift_front_door_survives_compiler_unavailability(tmp_path):
         "explicit_additive_measurement_drift"
     assert [item["stage"] for item in receipt["compiler"]["calls"]] == [
         "deterministic_additive_drift_parse"]
+    decision = receipt["compiler"]["repair_decisions"][0]
+    assert decision["future_numeric_path_required"] is True
+    assert decision["future_numeric_path_needs_executable"] is False
     assert receipt["dossier"]["candidate_critique"]["candidate_origin"] == \
         "calibration_counterfactual"
     publication = extra["publication"]
