@@ -2183,6 +2183,12 @@ def test_dated_multiplier_front_door_survives_compiler_unavailability(tmp_path):
     assert publication["recommended_support"] == "hypothetical_sensitivity"
     assert publication["primary_forecast_unchanged"] is True
     assert publication["automation"]["eligible"] is False
+    summary = publication["context_summary"]
+    assert summary["summary_is_canonical"] is True
+    assert summary["authoritative_for_publication"] is False
+    assert summary["context_evidence_authority"] == "hypothetical_sensitivity"
+    assert summary["context_changed_human_recommendation"] is True
+    assert summary["context_can_authorize_automation"] is False
 
 
 def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):

@@ -1112,7 +1112,11 @@ def test_publication_summarizes_mixed_context_lanes_without_contradiction():
     assert payload["recommended_scenario_id"] == "transformation-1"
     assert payload["context_summary"] == {
         "status": "partially_used",
+        "summary_is_canonical": True,
         "authoritative_for_publication": True,
+        "context_evidence_authority": "historically_admitted",
+        "context_changed_human_recommendation": True,
+        "context_can_authorize_automation": False,
         "counts": {"used": 1, "scenario": 0, "rejected": 1},
         "follow_up_required_for_current_recommendation": False,
         "further_calls_add_nothing_for_current_recommendation": True,

@@ -58,6 +58,7 @@ def _covariate_input_evaluation(result: dict[str, Any]) -> dict[str, Any] | None
 def _context_summary(
         dispositions: list[dict[str, Any]],
         input_evaluation: dict[str, Any] | None = None,
+        recommendation_authority: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Return one authoritative publication-level context disposition.
 
@@ -98,9 +99,30 @@ def _context_summary(
     else:
         status = "rejected"
         message = "No supplied context representation passed its governed lane."
+    authority = recommendation_authority or {}
+    context_changed_recommendation = bool(
+        counts["used"]
+        and authority.get("selected_role") not in {None, "immutable_primary"})
+    if authority.get("historically_admitted") is True:
+        evidence_authority = "historically_admitted"
+    elif authority.get("prior_assisted") is True:
+        evidence_authority = "prior_assisted"
+    elif context_changed_recommendation:
+        evidence_authority = "hypothetical_sensitivity"
+    elif input_evaluation and input_evaluation.get("admitted") is True:
+        evidence_authority = "historically_admitted"
+    else:
+        evidence_authority = "none"
     return {
         "status": status,
-        "authoritative_for_publication": True,
+        # ``summary_is_canonical`` describes this disposition record.  It must
+        # not be confused with evidence authority of the supplied context.
+        "summary_is_canonical": True,
+        "authoritative_for_publication": (
+            evidence_authority == "historically_admitted"),
+        "context_evidence_authority": evidence_authority,
+        "context_changed_human_recommendation": context_changed_recommendation,
+        "context_can_authorize_automation": False,
         "counts": counts,
         "message": message,
         "follow_up_required_for_current_recommendation": status in {
@@ -128,6 +150,32 @@ def _scope_recovery_actions(
             }}
         scoped.append(item)
     return scoped
+
+
+def _mark_selected_dispositions(
+    dispositions: list[dict[str, Any]], selected_id: str,
+) -> list[dict[str, Any]]:
+    """Make selected context status internally coherent without erasing provenance."""
+    marked = []
+    for item in dispositions:
+        if selected_id not in (item.get("scenario_ids") or []):
+            marked.append(item)
+            continue
+        marked.append({
+            **item,
+            "disposition": "used",
+            # ``reason_code`` remains the stable evidence-lane diagnosis.
+            # Selection is a distinct decision and therefore gets a distinct
+            # field instead of rewriting a value downstream consumers may
+            # already use for recovery routing.
+            "selection_reason_code": "selected_human_facing_scenario",
+            "selection_reason": (
+                "This context grounds the selected human-facing scenario. "
+                "Its evidence-lane reason remains visible; selection does not "
+                "upgrade support or authorize automation."),
+            "selection_role": "human_facing_recommendation",
+        })
+    return _scope_recovery_actions(marked)
 
 
 def dominant_scenario_id(scenarios: list[dict[str, Any]]) -> str | None:
@@ -1981,7 +2029,8 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
         "context_dispositions": dispositions,
         **({"context_input_evaluation": input_evaluation}
            if input_evaluation else {}),
-        "context_summary": _context_summary(dispositions, input_evaluation),
+        "context_summary": _context_summary(
+            dispositions, input_evaluation, recommendation_authority),
         "temporal_state": build_temporal_state(result, dossiers=dossiers),
         "scenario_selection": selection,
         "recommendation_authority": recommendation_authority,
@@ -2094,15 +2143,24 @@ def select_publication(payload: dict[str, Any], raw_selection: dict[str, Any]
                    if item["scenario_id"] == "primary")
     result = {key: value for key, value in payload.items()
               if key != "publication_seal_sha256"}
-    dispositions = _scope_recovery_actions([{
-        **item,
-        "disposition": (
-            "used" if selected["scenario_id"] in
-            (item.get("scenario_ids") or []) else item.get("disposition")),
-        **({"selection_role": "human_facing_recommendation"}
-           if selected["scenario_id"] in (item.get("scenario_ids") or [])
-           else {}),
-    } for item in payload.get("context_dispositions") or []])
+    dispositions = _mark_selected_dispositions(
+        list(payload.get("context_dispositions") or []),
+        str(selected["scenario_id"]))
+    selected_authority = {
+        "selected_role": str(selected.get("role") or "unknown"),
+        "selection_method": "governed_scenario_selection",
+        "selection_pass_performed": True,
+        "selector_independence": "not_attested",
+        "independent_selection_performed": False,
+        "historically_admitted": (
+            selected.get("role") == "historically_admitted"),
+        "prior_assisted": selected.get("support") == "prior_assisted",
+        "human_review_required": not bool(selected.get("automation_eligible")),
+        "reason": (
+            "A separate bounded selection pass chose one existing sealed "
+            "path; selector independence was not attested, and forecast "
+            "values and support were unchanged."),
+    }
     result.update({
         "recommended_scenario_id": selected["scenario_id"],
         "recommended_forecast": selected["forecast"],
@@ -2112,25 +2170,11 @@ def select_publication(payload: dict[str, Any], raw_selection: dict[str, Any]
         "scenario_selection": selection,
         "context_dispositions": dispositions,
         "context_summary": _context_summary(
-            dispositions, payload.get("context_input_evaluation")),
+            dispositions, payload.get("context_input_evaluation"),
+            selected_authority),
         "scenarios": (portfolio if payload.get("mode") == "scenario" else
                       [primary, selected] if selected is not primary else [primary]),
-        "recommendation_authority": {
-            "selected_role": str(selected.get("role") or "unknown"),
-            "selection_method": "governed_scenario_selection",
-            "selection_pass_performed": True,
-            "selector_independence": "not_attested",
-            "independent_selection_performed": False,
-            "historically_admitted": (
-                selected.get("role") == "historically_admitted"),
-            "prior_assisted": selected.get("support") == "prior_assisted",
-            "human_review_required": not bool(
-                selected.get("automation_eligible")),
-            "reason": (
-                "A separate bounded selection pass chose one existing sealed "
-                "path; selector independence was not attested, and forecast "
-                "values and support were unchanged."),
-        },
+        "recommendation_authority": selected_authority,
         "automation": {
             "eligible": False,
             "explicit_policy_supplied": False,

@@ -75,6 +75,16 @@ an explicit policy with a `policy_id`, `authorize: true`, and a supported
 minimum tier; a prior-assisted scenario is never automation-eligible regardless
 of that policy.
 
+The compact `context_summary` also separates record authority from evidence
+authority. `summary_is_canonical` means the disposition record is the engine's
+canonical account of what happened; it does not mean the context was validated.
+`context_evidence_authority` is independently labelled `historically_admitted`,
+`prior_assisted`, `hypothetical_sensitivity`, or `none`. The legacy
+`authoritative_for_publication` flag is true only for historically admitted
+context. `context_changed_human_recommendation` reports whether a weaker lane
+was intentionally shown first, while `context_can_authorize_automation` remains
+false: selection for a human never manufactures execution authority.
+
 CLI example:
 
 ```bash
