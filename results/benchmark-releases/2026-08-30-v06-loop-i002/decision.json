@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "iteration": "I002",
+  "priority": "P2",
+  "decision": "reject_candidate_and_complete_no_build",
+  "evaluated_commit": "5a2ee55",
+  "protocol": "docs/v0.6-p2-short-history-protocol.md",
+  "user_outcome": "Agents keep honest robust short-history fallback behavior instead of receiving an unvalidated pretrained path that is unstable across domains; humans keep visible support and transfer provenance without a false accuracy upgrade.",
+  "candidate": {
+    "name": "toto2_4m",
+    "backend": "sandbox",
+    "revision": "Datadog/Toto-2.0-4m@8306a9801cf98c0f5ffe4b2dcc8f496e616d84d9",
+    "independent_registry": "results/toto2-transfer-registry-20260820/model-evidence.json",
+    "registry_provenance": "84 held-out synthetic cases; no TemporalBench cases"
+  },
+  "matched_expansion": {
+    "cases_expected": 20,
+    "cases_completed_baseline": 20,
+    "cases_completed_candidate": 20,
+    "channels_expected": 70,
+    "channels_scoreable": 70,
+    "candidate_identity_complete": 70,
+    "failures": 0,
+    "abstentions": 0,
+    "forecast_jobs": 1,
+    "infrastructure_retries": 0,
+    "combined": {
+      "paired_relative_smape_improvement_median": -0.016454,
+      "paired_relative_smape_improvement_90pct_ci": [-0.098024, 0.031026],
+      "wins": 33,
+      "losses": 37,
+      "ties": 0,
+      "paired_sign_p_value": 0.7202027723528613
+    },
+    "domains": {
+      "MIMIC": {
+        "channels": 60,
+        "paired_relative_smape_improvement_median": 0.007088,
+        "paired_relative_smape_improvement_90pct_ci": [-0.051601, 0.091136],
+        "wins": 32,
+        "losses": 28
+      },
+      "causal_chambers": {
+        "channels": 10,
+        "paired_relative_smape_improvement_median": -0.304304,
+        "paired_relative_smape_improvement_90pct_ci": [-0.654794, -0.124529],
+        "wins": 1,
+        "losses": 9,
+        "paired_sign_p_value": 0.021484375
+      }
+    }
+  },
+  "gate_results": {
+    "candidate_completion_at_least_99pct": true,
+    "no_silent_fallback": true,
+    "overall_median_relative_smape_improvement_at_least_5pct": false,
+    "more_wins_than_losses": false,
+    "bootstrap_lower_bound_above_zero": false,
+    "no_domain_worse_than_2pct": false
+  },
+  "governed_smoke": {
+    "channels": 14,
+    "channels_changed_by_admission": 6,
+    "channels_preserving_baseline": 8,
+    "candidate_identity_and_revision_visible_on_changed_channels": true,
+    "paired_relative_smape_improvement_all_channels": 0.0,
+    "paired_relative_smape_improvement_changed_channels": -0.002555,
+    "note": "The larger governed arm was not run after supply failed, as preregistered."
+  },
+  "candidate_family_disposition": {
+    "classical_univariate": "Retain current governed selection and robust fallback. Synthetic gains were family-uneven and naturalistic fold-starved channels do not justify a new default.",
+    "pretrained_univariate": "Toto2-4M, the only candidate with an independent versioned transfer registry, failed the naturalistic matched gate. Other installed-capable TSFMs have no equivalent independent registry and are no-build for default admission until one exists.",
+    "cross_series_or_covariate": "Deferred to P4, where identical-fold multivariate evidence is required rather than treating pooling as an univariate short-history fix.",
+    "context_analog": "Deferred to P3 and remains scenario/evidence work; it is not admitted as an unsourced numeric short-history estimator."
+  },
+  "production_behavior_change": "none",
+  "promoted_general_fixes": [
+    "engine-only evidence-registry benchmark plumbing",
+    "explicit sequential local forecast worker cap",
+    "retained engine model/admission/warning provenance",
+    "install-time TSFM worker materialization",
+    "output-alias-aware per-channel scoring",
+    "paired sMAPE relative effects and deterministic bootstrap reporting"
+  ],
+  "raw_evidence": [
+    "results/v06-p2-i002-smoke-v3/",
+    "results/v06-p2-i002-expanded/"
+  ]
+}
+

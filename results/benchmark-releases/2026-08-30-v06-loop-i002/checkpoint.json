@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "loop": "v0.6-product-improvement",
+  "status": "active",
+  "branch": "agent/v0.6-reasoning-loop",
+  "head_commit": "5a2ee55",
+  "protocol": "docs/v0.6-improvement-loop.md",
+  "preservation": {
+    "preserve_preexisting_committed_work": true,
+    "preserve_preexisting_benchmark_artifacts": true,
+    "preserve_all_preexisting_untracked_files": true,
+    "excluded_from_commits": ["docs/astrid-btc-agent-plan.md"]
+  },
+  "completed_iteration": {
+    "id": "I002",
+    "priority": "P2",
+    "decision": "reject_candidate_and_complete_no_build",
+    "user_outcome": "Do not replace honest robust short-history fallback with a pretrained path whose naturalistic performance is unstable across domains.",
+    "decision_evidence": "results/benchmark-releases/2026-08-30-v06-loop-i002/decision.json",
+    "focused_tests": "192 passed across TemporalBench, TSFM installation, TSFM contracts, and multitask seams with an isolated empty test sandbox; 129 TemporalBench tests passed before the TSFM reliability fix.",
+    "remaining_risk": "The naturalistic expansion contains two domains and 20 cases. It rejects this default candidate but does not prove that every future independently validated model will fail.",
+    "production_default_changed": false
+  },
+  "active_iteration": {
+    "id": "I003",
+    "priority": "P3",
+    "phase": "baseline",
+    "user_hypothesis": "Dated, sourced context can help agents explain and condition forecasts on real plans or events while humans can see exactly which evidence changed an answer and which claims stayed scenario-only.",
+    "must_not_regress": [
+      "immutable primary forecasts remain unchanged unless a typed admissible numeric path is independently supported",
+      "no future or benchmark-label leakage",
+      "source identity, timing, extraction confidence, and application state remain visible",
+      "unsupported effects stay scenario-only or no-distinct-numeric-path",
+      "agent preservation is scored separately from engine completeness"
+    ],
+    "next_action": "Audit the retained ContextBench naturalistic/evidence runs and current source-receipt contract; freeze P3 supply, admission, outcome, and preservation gates before changing production behavior."
+  },
+  "priorities": [
+    {"id": "P1", "name": "three-layer release scorecard", "status": "complete"},
+    {"id": "P2", "name": "short-history forecast skill", "status": "complete_no_build"},
+    {"id": "P3", "name": "sourced contextual evidence", "status": "in_progress"},
+    {"id": "P4", "name": "covariate-aware and multivariate candidates", "status": "pending"},
+    {"id": "P5", "name": "outcome-adaptive champion/challenger routing", "status": "pending"},
+    {"id": "P6", "name": "joint multi-horizon uncertainty", "status": "pending"},
+    {"id": "P7", "name": "hierarchical reconciliation", "status": "pending"},
+    {"id": "P8", "name": "agent decision brief and preservation contract", "status": "pending"},
+    {"id": "P9", "name": "value-of-information recovery", "status": "pending"},
+    {"id": "P10", "name": "production inference reliability", "status": "pending"}
+  ]
+}

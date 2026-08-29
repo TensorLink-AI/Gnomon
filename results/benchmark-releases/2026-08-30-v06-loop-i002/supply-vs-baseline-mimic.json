@@ -1,0 +1,818 @@
+{
+  "release_metadata": {
+    "arm": "toto2_4m-vs-classical-mimic",
+    "benchmark": "temporalbench-per-channel",
+    "configuration_identity": "frozen classical pool vs pinned toto2_4m direct supply; forecast_jobs=1; retries=0",
+    "dataset_identity": "TemporalBench labeled split; T2; first 10 MIMIC cases; 60 channels",
+    "evaluated_commit": "5a2ee55",
+    "harness_commit": "5a2ee55",
+    "notes": [
+      "Candidate supply experiment; not governed default admission."
+    ],
+    "scope": "subset",
+    "source": "results/v06-p2-i002-expanded/supply-vs-baseline-mimic.json",
+    "source_sha256": "47c957fa8ffd2335170e5273237727a24c0b75aa01e6288b0e4ae064d525d5fe",
+    "status": "complete"
+  },
+  "summary": {
+    "baseline_code_revision": "5a2ee55",
+    "coverage": {
+      "base_only": 0,
+      "both": 60,
+      "neither": 0,
+      "treat_only": 0
+    },
+    "outcome_counts_vs_last_value": {
+      "regression": 28,
+      "safety_preservation": 0,
+      "unclassified": 0,
+      "uplift": 32
+    },
+    "overall": {
+      "baseline_median": 1.3101,
+      "n": 60,
+      "near_constant_denominators_excluded": 0,
+      "paired_relative_improvement_90pct_ci": [
+        -0.053249,
+        0.081571
+      ],
+      "paired_relative_improvement_median": 0.006228,
+      "paired_sign_p_value": 0.6988834276200057,
+      "ties": 0,
+      "treatment_losses": 28,
+      "treatment_median": 1.1482,
+      "treatment_wins": 32
+    },
+    "overall_smape": {
+      "baseline_median": 7.578,
+      "n": 60,
+      "near_constant_denominators_excluded": 0,
+      "paired_relative_improvement_90pct_ci": [
+        -0.051601,
+        0.091136
+      ],
+      "paired_relative_improvement_median": 0.007088,
+      "paired_sign_p_value": 0.6988834276200057,
+      "ties": 0,
+      "treatment_losses": 28,
+      "treatment_median": 7.1369,
+      "treatment_wins": 32
+    },
+    "overall_stable_history": {
+      "baseline_median": 1.3054,
+      "n": 55,
+      "near_constant_denominators_excluded": 0,
+      "paired_relative_improvement_90pct_ci": [
+        -0.058651,
+        0.110409
+      ],
+      "paired_relative_improvement_median": 0.007184,
+      "paired_sign_p_value": 0.7877061896700435,
+      "ties": 0,
+      "treatment_losses": 26,
+      "treatment_median": 1.1515,
+      "treatment_wins": 29
+    },
+    "per_channel": {
+      "dbp": {
+        "baseline_median": 1.4421,
+        "n": 10,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          -0.254156,
+          0.05244
+        ],
+        "paired_relative_improvement_median": -0.02669,
+        "paired_sign_p_value": 1.0,
+        "stable_history": {
+          "baseline_median": 1.4421,
+          "n": 10,
+          "near_constant_denominators_excluded": 0,
+          "paired_relative_improvement_90pct_ci": [
+            -0.254156,
+            0.05244
+          ],
+          "paired_relative_improvement_median": -0.02669,
+          "paired_sign_p_value": 1.0,
+          "ties": 0,
+          "treatment_losses": 5,
+          "treatment_median": 1.5751,
+          "treatment_wins": 5
+        },
+        "ties": 0,
+        "treatment_losses": 5,
+        "treatment_median": 1.5751,
+        "treatment_wins": 5
+      },
+      "heart_rate": {
+        "baseline_median": 1.7053,
+        "n": 10,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          -0.843218,
+          0.304263
+        ],
+        "paired_relative_improvement_median": 0.222217,
+        "paired_sign_p_value": 0.75390625,
+        "stable_history": {
+          "baseline_median": 1.7053,
+          "n": 10,
+          "near_constant_denominators_excluded": 0,
+          "paired_relative_improvement_90pct_ci": [
+            -0.843218,
+            0.304263
+          ],
+          "paired_relative_improvement_median": 0.222217,
+          "paired_sign_p_value": 0.75390625,
+          "ties": 0,
+          "treatment_losses": 4,
+          "treatment_median": 1.5457,
+          "treatment_wins": 6
+        },
+        "ties": 0,
+        "treatment_losses": 4,
+        "treatment_median": 1.5457,
+        "treatment_wins": 6
+      },
+      "resp_rate": {
+        "baseline_median": 1.0701,
+        "n": 10,
+        "near_constant_denominators_excluded": 2,
+        "paired_relative_improvement_90pct_ci": [
+          -0.011709,
+          0.302374
+        ],
+        "paired_relative_improvement_median": 0.14051,
+        "paired_sign_p_value": 0.34375,
+        "stable_history": {
+          "baseline_median": 1.0701,
+          "n": 8,
+          "near_constant_denominators_excluded": 0,
+          "paired_relative_improvement_90pct_ci": [
+            -0.008428,
+            0.248273
+          ],
+          "paired_relative_improvement_median": 0.14051,
+          "paired_sign_p_value": 0.2890625,
+          "ties": 0,
+          "treatment_losses": 2,
+          "treatment_median": 0.8864,
+          "treatment_wins": 6
+        },
+        "ties": 0,
+        "treatment_losses": 3,
+        "treatment_median": 0.8183,
+        "treatment_wins": 7
+      },
+      "sbp": {
+        "baseline_median": 1.3295,
+        "n": 10,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          -0.099578,
+          0.103804
+        ],
+        "paired_relative_improvement_median": -0.011033,
+        "paired_sign_p_value": 1.0,
+        "stable_history": {
+          "baseline_median": 1.3295,
+          "n": 10,
+          "near_constant_denominators_excluded": 0,
+          "paired_relative_improvement_90pct_ci": [
+            -0.099578,
+            0.103804
+          ],
+          "paired_relative_improvement_median": -0.011033,
+          "paired_sign_p_value": 1.0,
+          "ties": 0,
+          "treatment_losses": 5,
+          "treatment_median": 1.154,
+          "treatment_wins": 5
+        },
+        "ties": 0,
+        "treatment_losses": 5,
+        "treatment_median": 1.154,
+        "treatment_wins": 5
+      },
+      "spo2": {
+        "baseline_median": 1.4215,
+        "n": 10,
+        "near_constant_denominators_excluded": 3,
+        "paired_relative_improvement_90pct_ci": [
+          -0.292266,
+          0.292598
+        ],
+        "paired_relative_improvement_median": 0.006784,
+        "paired_sign_p_value": 0.75390625,
+        "stable_history": {
+          "baseline_median": 1.1262,
+          "n": 7,
+          "near_constant_denominators_excluded": 0,
+          "paired_relative_improvement_90pct_ci": [
+            -0.526416,
+            0.381108
+          ],
+          "paired_relative_improvement_median": 0.110409,
+          "paired_sign_p_value": 1.0,
+          "ties": 0,
+          "treatment_losses": 3,
+          "treatment_median": 1.1515,
+          "treatment_wins": 4
+        },
+        "ties": 0,
+        "treatment_losses": 4,
+        "treatment_median": 1.2594,
+        "treatment_wins": 6
+      },
+      "temperature_c": {
+        "baseline_median": 0.7981,
+        "n": 10,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          -1.614046,
+          0.092659
+        ],
+        "paired_relative_improvement_median": -0.281903,
+        "paired_sign_p_value": 0.34375,
+        "stable_history": {
+          "baseline_median": 0.7981,
+          "n": 10,
+          "near_constant_denominators_excluded": 0,
+          "paired_relative_improvement_90pct_ci": [
+            -1.614046,
+            0.092659
+          ],
+          "paired_relative_improvement_median": -0.281903,
+          "paired_sign_p_value": 0.34375,
+          "ties": 0,
+          "treatment_losses": 7,
+          "treatment_median": 1.3047,
+          "treatment_wins": 3
+        },
+        "ties": 0,
+        "treatment_losses": 7,
+        "treatment_median": 1.3047,
+        "treatment_wins": 3
+      }
+    },
+    "per_channel_smape": {
+      "dbp": {
+        "baseline_median": 12.1168,
+        "n": 10,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          -0.261126,
+          0.063812
+        ],
+        "paired_relative_improvement_median": -0.026752,
+        "paired_sign_p_value": 1.0,
+        "ties": 0,
+        "treatment_losses": 5,
+        "treatment_median": 11.7334,
+        "treatment_wins": 5
+      },
+      "heart_rate": {
+        "baseline_median": 8.5828,
+        "n": 10,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          -0.916983,
+          0.305263
+        ],
+        "paired_relative_improvement_median": 0.222892,
+        "paired_sign_p_value": 0.75390625,
+        "ties": 0,
+        "treatment_losses": 4,
+        "treatment_median": 9.9435,
+        "treatment_wins": 6
+      },
+      "resp_rate": {
+        "baseline_median": 20.9256,
+        "n": 10,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          -0.007444,
+          0.255864
+        ],
+        "paired_relative_improvement_median": 0.1334,
+        "paired_sign_p_value": 0.34375,
+        "ties": 0,
+        "treatment_losses": 3,
+        "treatment_median": 15.2714,
+        "treatment_wins": 7
+      },
+      "sbp": {
+        "baseline_median": 8.8383,
+        "n": 10,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          -0.098024,
+          0.123161
+        ],
+        "paired_relative_improvement_median": -0.012715,
+        "paired_sign_p_value": 1.0,
+        "ties": 0,
+        "treatment_losses": 5,
+        "treatment_median": 10.3758,
+        "treatment_wins": 5
+      },
+      "spo2": {
+        "baseline_median": 1.5993,
+        "n": 10,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          -0.28723,
+          0.300854
+        ],
+        "paired_relative_improvement_median": 0.006692,
+        "paired_sign_p_value": 0.75390625,
+        "ties": 0,
+        "treatment_losses": 4,
+        "treatment_median": 1.7779,
+        "treatment_wins": 6
+      },
+      "temperature_c": {
+        "baseline_median": 0.5129,
+        "n": 10,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          -1.556062,
+          0.094087
+        ],
+        "paired_relative_improvement_median": -0.280156,
+        "paired_sign_p_value": 0.34375,
+        "ties": 0,
+        "treatment_losses": 7,
+        "treatment_median": 0.833,
+        "treatment_wins": 3
+      }
+    },
+    "publication": {
+      "abstention_priced_as_last_value": {
+        "baseline_median": 1.3101,
+        "n": 60,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          -0.055289,
+          0.081571
+        ],
+        "paired_relative_improvement_median": 0.006228,
+        "paired_sign_p_value": 0.6988834276200057,
+        "ties": 0,
+        "treatment_losses": 28,
+        "treatment_median": 1.1482,
+        "treatment_wins": 32
+      },
+      "abstention_priced_as_last_value_smape": {
+        "baseline_median": 7.578,
+        "n": 60,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          -0.056455,
+          0.091136
+        ],
+        "paired_relative_improvement_median": 0.007088,
+        "paired_sign_p_value": 0.6988834276200057,
+        "ties": 0,
+        "treatment_losses": 28,
+        "treatment_median": 7.1369,
+        "treatment_wins": 32
+      },
+      "eligible_channel_slots_with_naive_scale": 60,
+      "treatment_abstained_where_baseline_published": 0,
+      "treatment_published": 60
+    },
+    "records": [
+      {
+        "baseline": {
+          "OW_MASE": 1.7959305566804245,
+          "OW_RMSSE": 1.1291096137925494,
+          "OW_sMAPE": 9.210630171456192,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000001_T2",
+        "treatment": {
+          "OW_MASE": 1.6886222526961139,
+          "OW_RMSSE": 0.8653983067038836,
+          "OW_sMAPE": 8.067086565066328,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.3243122854668217,
+          "OW_RMSSE": 0.2639576350076217,
+          "OW_sMAPE": 13.02710164616004,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000002_T2",
+        "treatment": {
+          "OW_MASE": 1.258942734405051,
+          "OW_RMSSE": 0.26049369345704504,
+          "OW_sMAPE": 13.084179728697942,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 0.9468003596819001,
+          "OW_RMSSE": 0.11995127330999951,
+          "OW_sMAPE": 9.852613740352323,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000003_T2",
+        "treatment": {
+          "OW_MASE": 0.8762237430657327,
+          "OW_RMSSE": 0.13556116438909496,
+          "OW_sMAPE": 8.720744204477732,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.3735860185634767,
+          "OW_RMSSE": 0.3067019890492132,
+          "OW_sMAPE": 12.09964843498316,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000004_T2",
+        "treatment": {
+          "OW_MASE": 1.5534777383337457,
+          "OW_RMSSE": 0.30269202282188434,
+          "OW_sMAPE": 13.912394945373672,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.9967701805901468,
+          "OW_RMSSE": 0.24979663214612585,
+          "OW_sMAPE": 19.452188544418174,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000005_T2",
+        "treatment": {
+          "OW_MASE": 1.0451282388056993,
+          "OW_RMSSE": 0.1882173038587515,
+          "OW_sMAPE": 11.206093227069914,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 2.4635380980784984,
+          "OW_RMSSE": 0.9393908828263497,
+          "OW_sMAPE": 13.863909107542085,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000006_T2",
+        "treatment": {
+          "OW_MASE": 2.412678120750047,
+          "OW_RMSSE": 1.0616467145455617,
+          "OW_sMAPE": 10.810973380075573,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.675081806448662,
+          "OW_RMSSE": 0.3552469724288468,
+          "OW_sMAPE": 12.572529875124113,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000007_T2",
+        "treatment": {
+          "OW_MASE": 1.7252140017930349,
+          "OW_RMSSE": 0.5544483839690459,
+          "OW_sMAPE": 10.401795560725777,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.2385695787248125,
+          "OW_RMSSE": 0.33196099410233304,
+          "OW_sMAPE": 6.729532191116555,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000008_T2",
+        "treatment": {
+          "OW_MASE": 1.1218981548622526,
+          "OW_RMSSE": 0.42831595685331375,
+          "OW_sMAPE": 6.432884694856241,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.9684383787653803,
+          "OW_RMSSE": 0.6365153031900933,
+          "OW_sMAPE": 5.911106174922956,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000009_T2",
+        "treatment": {
+          "OW_MASE": 1.7475046187293963,
+          "OW_RMSSE": 0.6012789000447796,
+          "OW_sMAPE": 6.043700291751435,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 0.8925573779162225,
+          "OW_RMSSE": 0.26070192170645706,
+          "OW_sMAPE": 6.643307323354628,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000010_T2",
+        "treatment": {
+          "OW_MASE": 1.085872192829637,
+          "OW_RMSSE": 0.2860297625697027,
+          "OW_sMAPE": 7.808753126654072,
+          "weight_mode": "length"
+        }
+      }
+    ],
+    "scoring_coverage": {
+      "base_only": 0,
+      "both": 60,
+      "neither": 0,
+      "treat_only": 0
+    },
+    "support_mix": {
+      "baseline": {
+        "best_effort": 9,
+        "degraded": 51
+      },
+      "treatment": {
+        "experimental_named_model": 60
+      }
+    },
+    "treatment_code_revision": "5a2ee55",
+    "treatment_vs_last_value": {
+      "dbp": {
+        "baseline_median": 1.4421,
+        "n": 10,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          -0.254156,
+          0.05244
+        ],
+        "paired_relative_improvement_median": -0.02669,
+        "paired_sign_p_value": 1.0,
+        "ties": 0,
+        "treatment_losses": 5,
+        "treatment_median": 1.5751,
+        "treatment_wins": 5
+      },
+      "heart_rate": {
+        "baseline_median": 1.7053,
+        "n": 10,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          -0.843218,
+          0.304263
+        ],
+        "paired_relative_improvement_median": 0.222217,
+        "paired_sign_p_value": 0.75390625,
+        "ties": 0,
+        "treatment_losses": 4,
+        "treatment_median": 1.5457,
+        "treatment_wins": 6
+      },
+      "resp_rate": {
+        "baseline_median": 1.0701,
+        "n": 10,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          -0.011709,
+          0.302374
+        ],
+        "paired_relative_improvement_median": 0.14051,
+        "paired_sign_p_value": 0.34375,
+        "ties": 0,
+        "treatment_losses": 3,
+        "treatment_median": 0.8183,
+        "treatment_wins": 7
+      },
+      "sbp": {
+        "baseline_median": 1.3295,
+        "n": 10,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          -0.099578,
+          0.103804
+        ],
+        "paired_relative_improvement_median": -0.011033,
+        "paired_sign_p_value": 1.0,
+        "ties": 0,
+        "treatment_losses": 5,
+        "treatment_median": 1.154,
+        "treatment_wins": 5
+      },
+      "spo2": {
+        "baseline_median": 1.4215,
+        "n": 10,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          -0.292266,
+          0.292598
+        ],
+        "paired_relative_improvement_median": 0.006784,
+        "paired_sign_p_value": 0.75390625,
+        "ties": 0,
+        "treatment_losses": 4,
+        "treatment_median": 1.2594,
+        "treatment_wins": 6
+      },
+      "temperature_c": {
+        "baseline_median": 0.7981,
+        "n": 10,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          -1.614046,
+          0.092659
+        ],
+        "paired_relative_improvement_median": -0.281903,
+        "paired_sign_p_value": 0.34375,
+        "ties": 0,
+        "treatment_losses": 7,
+        "treatment_median": 1.3047,
+        "treatment_wins": 3
+      }
+    },
+    "treatment_vs_last_value_smape": {
+      "dbp": {
+        "baseline_median": 12.1168,
+        "n": 10,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          -0.261126,
+          0.063812
+        ],
+        "paired_relative_improvement_median": -0.026752,
+        "paired_sign_p_value": 1.0,
+        "ties": 0,
+        "treatment_losses": 5,
+        "treatment_median": 11.7334,
+        "treatment_wins": 5
+      },
+      "heart_rate": {
+        "baseline_median": 8.5828,
+        "n": 10,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          -0.916983,
+          0.305263
+        ],
+        "paired_relative_improvement_median": 0.222892,
+        "paired_sign_p_value": 0.75390625,
+        "ties": 0,
+        "treatment_losses": 4,
+        "treatment_median": 9.9435,
+        "treatment_wins": 6
+      },
+      "resp_rate": {
+        "baseline_median": 20.9256,
+        "n": 10,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          -0.007444,
+          0.255864
+        ],
+        "paired_relative_improvement_median": 0.1334,
+        "paired_sign_p_value": 0.34375,
+        "ties": 0,
+        "treatment_losses": 3,
+        "treatment_median": 15.2714,
+        "treatment_wins": 7
+      },
+      "sbp": {
+        "baseline_median": 8.8383,
+        "n": 10,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          -0.098024,
+          0.123161
+        ],
+        "paired_relative_improvement_median": -0.012715,
+        "paired_sign_p_value": 1.0,
+        "ties": 0,
+        "treatment_losses": 5,
+        "treatment_median": 10.3758,
+        "treatment_wins": 5
+      },
+      "spo2": {
+        "baseline_median": 1.5993,
+        "n": 10,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          -0.28723,
+          0.300854
+        ],
+        "paired_relative_improvement_median": 0.006692,
+        "paired_sign_p_value": 0.75390625,
+        "ties": 0,
+        "treatment_losses": 4,
+        "treatment_median": 1.7779,
+        "treatment_wins": 6
+      },
+      "temperature_c": {
+        "baseline_median": 0.5129,
+        "n": 10,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          -1.556062,
+          0.094087
+        ],
+        "paired_relative_improvement_median": -0.280156,
+        "paired_sign_p_value": 0.34375,
+        "ties": 0,
+        "treatment_losses": 7,
+        "treatment_median": 0.833,
+        "treatment_wins": 3
+      }
+    }
+  }
+}
