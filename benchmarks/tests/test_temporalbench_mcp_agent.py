@@ -990,7 +990,7 @@ def test_context_contract_requires_bounded_typed_gate_citations():
     assert parameters["required"] == [
         "forecast", "reasoning", "cited_context_gate_codes",
         "context_automation_eligible", "canonical_primary_preserved",
-        "cited_scenario_consequences", "cited_context_sources"]
+        "cited_scenario_consequences"]
     citations = parameters["properties"]["cited_context_gate_codes"]
     assert citations["maxItems"] == 8
     assert citations["items"] == {"type": "string"}
@@ -1009,6 +1009,7 @@ def test_context_contract_requires_bounded_typed_gate_citations():
     sources = parameters["properties"]["cited_context_sources"]
     assert sources["maxItems"] == 8
     assert "source.reference" in sources["description"]
+    assert "host projects omitted values" in sources["description"]
 
 
 def test_context_authority_omission_gets_one_artifact_reuse_repair():
@@ -1177,25 +1178,29 @@ def test_context_source_requires_exact_human_visible_projection():
 
     omitted = run._handle_submit({**base, "cited_context_sources": []})
     assert omitted["accepted"] is False
-    assert any("context_source_omitted" in problem
+    assert any("context_source_not_human_visible" in problem
                for problem in omitted["problems"])
     assert run.submission is None
 
-    hidden = run._handle_submit({
-        **base, "cited_context_sources": [source_reference]})
-    assert hidden["accepted"] is False
-    assert any("context_source_not_human_visible" in problem
-               for problem in hidden["problems"])
+    invented = run._handle_submit({
+        **base,
+        "cited_context_sources": ["invented.md"],
+        "reasoning": (base["reasoning"] + " Source: invented.md."),
+    })
+    assert invented["accepted"] is False
+    assert any("context_source_omitted" in problem
+               for problem in invented["problems"])
     assert run.submission is None
 
     accepted = run._handle_submit({
         **base,
-        "cited_context_sources": [source_reference],
         "reasoning": (base["reasoning"] + f" Source: {source_reference}."),
     })
     assert accepted["accepted"] is True
     assert run.submission["context_source_projection"]["matched"] == [
         source_reference]
+    assert run.submission["context_source_projection"]["agent_supplied"] == []
+    assert run.submission["context_source_projection"]["host_projected"] is True
 
 
 def test_context_scenario_cannot_be_described_as_admitted():

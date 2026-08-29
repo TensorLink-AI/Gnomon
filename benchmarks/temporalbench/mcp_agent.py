@@ -1908,10 +1908,11 @@ class _Run(_RunBase):
                 parameters["properties"]["cited_context_sources"] = {
                     "type": "array",
                     "description": (
-                        "Copy every source.reference exposed in Gnomon's "
-                        "context source_evidence for considered context. Use "
-                        "an empty array when no validated source reference is "
-                        "present; never infer or paraphrase a source."),
+                        "Optional exact copies of source.reference values "
+                        "exposed in Gnomon's context source_evidence. The "
+                        "host projects omitted values from the immutable "
+                        "artifact; supplied values must be exact and must "
+                        "never be inferred or paraphrased."),
                     "items": {"type": "string"},
                     "maxItems": 8,
                 }
@@ -1929,7 +1930,6 @@ class _Run(_RunBase):
                     "canonical_primary_preserved")
                 parameters["required"].append(
                     "cited_scenario_consequences")
-                parameters["required"].append("cited_context_sources")
             else:
                 parameters["properties"].pop("reasoning", None)
             if getattr(self, "temporal_compilation", {}).get("questions"):
@@ -2440,16 +2440,22 @@ class _Run(_RunBase):
                 and isinstance(evidence.get("source"), dict)
                 and (evidence.get("source") or {}).get("reference")
             })
-            supplied_sources = [str(value) for value in
-                                (arguments.get(
-                                    "cited_context_sources") or [])[:8]]
+            agent_supplied_sources = [str(value) for value in
+                                      (arguments.get(
+                                          "cited_context_sources") or [])[:8]]
+            supplied_sources = (agent_supplied_sources
+                                if agent_supplied_sources
+                                else expected_sources)
             self.submission["context_source_projection"] = {
                 "expected": expected_sources,
+                "agent_supplied": agent_supplied_sources,
                 "supplied": supplied_sources,
                 "matched": [value for value in supplied_sources
                             if value in expected_sources],
                 "invalid": [value for value in supplied_sources
                             if value not in expected_sources],
+                "host_projected": bool(expected_sources
+                                       and not agent_supplied_sources),
             }
             reasoning_text = str(arguments.get("reasoning") or "").lower()
             authority_problems: list[str] = []
