@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 import math
 import random
+import statistics
 
 import pytest
 
@@ -483,7 +484,7 @@ def test_categorical_state_mapping_preserves_phase_while_learning_state_effect()
         replay_origin_eligible=[True] * len(target), seasonal_period=period)
 
     assert candidate["validation"]["mapping"] == (
-        "seasonal_phase_plus_shrunk_state_residual")
+        "seasonal_phase_plus_shrunk_phase_state_residual")
     assert candidate["validation"]["seasonal_period"] == period
     assert candidate["validation"]["beats_baseline"] is True
     assert candidate["validation"]["historically_admitted"] is True
@@ -584,6 +585,32 @@ def test_phase_aware_categorical_mapping_recovers_effect_across_seeds():
             seasonal_period=period)
         admitted += int(candidate["selection_eligible"])
     assert admitted >= 27
+
+
+def test_phase_aware_categorical_mapping_learns_phase_dependent_effect():
+    period = 8
+    generator = random.Random(91)
+    states = [generator.choice(["active", "inactive"]) for _ in range(160)]
+    target = []
+    for index, state in enumerate(states):
+        phase = index % period
+        baseline = 40.0 + 15.0 * math.sin(2 * math.pi * phase / period)
+        effect = 16.0 if state == "active" and phase in {1, 2, 3} else 0.0
+        target.append(baseline + effect + generator.gauss(0, 1.0))
+    future_states = ["active"] * period
+    primary = [{"timestamp": _stamp(160 + index)} for index in range(period)]
+    candidate = fit_categorical_state_candidate(
+        target, states, future_states, primary=primary,
+        claim_ids=["schedule"], hypothesis_id="phase-interaction",
+        replay_origin_eligible=[True] * len(target), seasonal_period=period)
+
+    points = [row["q50"] for row in candidate["forecast"]]
+    phase_only = [40.0 + 15.0 * math.sin(2 * math.pi * phase / period)
+                  for phase in range(period)]
+    learned_effect = [point - base for point, base in zip(points, phase_only)]
+    assert statistics.mean(learned_effect[1:4]) > 8
+    assert max(abs(learned_effect[index]) for index in (0, 4, 5, 6, 7)) < 5
+    assert candidate["validation"]["beats_baseline"] is True
 
 
 def test_late_known_state_schedule_cannot_turn_fit_into_admission():

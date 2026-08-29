@@ -52,6 +52,7 @@ from benchmarks.cik.mcp_agent import (
     _looks_like_structured_companion_context,
     _extract_structured_companion_tables,
     _extract_categorical_state_schedule,
+    _categorical_seasonal_period,
     _deterministic_explicit_recursive_relationship,
     _deterministic_explicit_parent_relationship,
     _candidate_from_sampled_paths,
@@ -353,6 +354,19 @@ def test_categorical_state_schedule_is_exact_labelled_and_fail_closed():
         history, future) is None
     assert _extract_categorical_state_schedule(
         text.replace("04:00:00", "04:30:00"), history, future) is None
+
+
+def test_categorical_phase_prefers_timestamp_calendar_over_noisy_acf():
+    from datetime import datetime, timedelta, timezone
+
+    epoch = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    timestamps = [(epoch + timedelta(hours=index)).isoformat()
+                  for index in range(72)]
+    # The sample deliberately carries a strong non-calendar 21-step peak.
+    # An hourly categorical effect must still be conditioned on the
+    # timestamp-established daily cycle when two full days exist.
+    values = [math.sin(2 * math.pi * index / 21) for index in range(72)]
+    assert _categorical_seasonal_period(values, timestamps) == 24
 
 
 @pytest.mark.parametrize("wrapper", [
@@ -1468,7 +1482,8 @@ def test_structured_context_keeps_governed_and_model_candidates_separate(
     assert extra["scenario_selector"]["accepted"] is True
     assert client.completion_request_timeouts[-1] <= \
         mcp_agent_module.MAX_SCENARIO_SELECTOR_SECONDS
-    assert client.completion_request_timeouts[-2] <= 20
+    assert client.completion_request_timeouts[-2] <= \
+        mcp_agent_module.MAX_OPTIONAL_PRIOR_SECONDS
     assert client.completion_request_timeouts[-1] >= \
         mcp_agent_module.MIN_SCENARIO_SELECTOR_REPAIR_SECONDS
     assert extra["publication"]["primary_forecast_unchanged"] is True
@@ -2008,7 +2023,7 @@ def test_transformation_gets_one_bounded_provenance_repair(tmp_path):
     assert client.total_prompt_tokens >= 200
     assert client.completion_temperatures == [0, 0]
     assert client.completion_reasoning_efforts == ["none", "none"]
-    assert 49 <= client.completion_request_timeouts[0] <= 50
+    assert 79 <= client.completion_request_timeouts[0] <= 80
     assert client.completion_request_timeouts[1] >= 10
     assert client.completion_transport_retries == [0, 0]
 

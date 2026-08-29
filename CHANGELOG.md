@@ -33,9 +33,15 @@
   cloud, staffing, open/closed, promotion, and maintenance effects from
   flattening genuine periodic structure. Admission compares the contextual
   candidate with the same phase-only estimator, so it cannot claim ordinary
-  seasonality as context uplift. Retrospective skill is now reported separately
-  from vintage admission, and selected categorical paths carry truthful
-  recommendation provenance.
+  seasonality as context uplift. Phase-by-state interactions are hierarchically
+  shrunk toward the global state effect, allowing state consequences to vary
+  across a cycle without admitting random categorical partitions. Retrospective
+  skill is now reported separately from vintage admission, and selected
+  categorical paths carry truthful recommendation provenance.
+- Give explicitly requested best-effort publication a larger but still bounded
+  optional-prior and scenario-selection budget. Strict publication remains on
+  the deterministic fast path; slow or malformed model calls remain typed
+  transport failures and can never alter the primary or authorize automation.
 - Preserve structured comparable-entity range tables and explicit target
   descriptors through a deterministic, verbatim context front door. Analogue
   selection remains a sealed prior-assisted model judgment. Each sampled path

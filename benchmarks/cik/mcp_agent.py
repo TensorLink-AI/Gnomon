@@ -56,13 +56,13 @@ MAX_ROUNDS = 10
 MAX_MCP_CALLS = 24
 MAX_RUN_TOKENS = 250_000
 MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
-    300.0, float(os.environ.get("GNOMON_CONTEXT_COMPILATION_SECONDS", "60"))))
+    300.0, float(os.environ.get("GNOMON_CONTEXT_COMPILATION_SECONDS", "90"))))
 MIN_CONTEXT_REPAIR_SECONDS = 10.0
 MAX_OPTIONAL_PRIOR_SECONDS = max(1.0, min(
-    60.0, float(os.environ.get("GNOMON_OPTIONAL_PRIOR_SECONDS", "15"))))
+    60.0, float(os.environ.get("GNOMON_OPTIONAL_PRIOR_SECONDS", "30"))))
 MAX_SCENARIO_SELECTOR_SECONDS = max(1.0, min(
-    60.0, float(os.environ.get("GNOMON_SCENARIO_SELECTOR_SECONDS", "30"))))
-MIN_SCENARIO_SELECTOR_REPAIR_SECONDS = 10.0
+    60.0, float(os.environ.get("GNOMON_SCENARIO_SELECTOR_SECONDS", "45"))))
+MIN_SCENARIO_SELECTOR_REPAIR_SECONDS = 15.0
 MODEL_PRIOR_PATH_SAMPLES = 5
 #: Bump when the system prompt, the caps, or the submit contract change:
 #: the official cache reuses results by cache_name, and a cached run made
@@ -495,7 +495,7 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: comparable rows remain visible scenarios/counterevidence.
 #: Version 218: unresolved and atemporal dispositions expose claim_id as a
 #: first-class join key instead of requiring agents to parse context_id.
-MCP_CONTRACT_VERSION = 227
+MCP_CONTRACT_VERSION = 229
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -1436,6 +1436,23 @@ def _extract_categorical_state_schedule(
         "history_states": history_states, "future_states": future_states,
         "claim_ids": claim_ids, "schedule": schedule,
     }
+
+
+def _categorical_seasonal_period(
+        values: list[float], timestamps: list[str]) -> int | None:
+    """Choose a fold-supported phase period from the governed time grid."""
+    from gnomon.temporal import default_season, detect_season, infer_frequency
+
+    parsed = [datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+              for value in timestamps]
+    frequency = infer_frequency(parsed)
+    detected_period, _, _ = detect_season(values, frequency)
+    calendar_period = default_season(frequency)
+    # Timestamp-established calendar cycles are preferable to a noisy sample
+    # ACF peak. Fall back to detected arbitrary cycles only when the grid has
+    # no supported natural period.
+    preferred = calendar_period if calendar_period >= 2 else detected_period
+    return preferred if preferred >= 2 and len(values) >= 2 * preferred else None
 
 
 def _validated_item_count(value: Any) -> int:
@@ -5453,15 +5470,8 @@ class _Run:
         if categorical_schedule is not None:
             from gnomon.context_intelligence import (
                 fit_categorical_state_candidate)
-            from gnomon.temporal import detect_season, infer_frequency
-            parsed_history_times = [datetime.fromisoformat(
-                str(value).replace("Z", "+00:00")) for value in self.timestamps]
-            categorical_frequency = infer_frequency(parsed_history_times)
-            detected_period, _, _ = detect_season(
-                self.values, categorical_frequency)
-            categorical_period = (
-                detected_period if detected_period >= 2
-                and len(self.values) >= 2 * detected_period else None)
+            categorical_period = _categorical_seasonal_period(
+                self.values, self.timestamps)
             governed_categorical = fit_categorical_state_candidate(
                 self.values, categorical_schedule["history_states"],
                 categorical_schedule["future_states"],

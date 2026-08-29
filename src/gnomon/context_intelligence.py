@@ -2505,26 +2505,35 @@ def fit_categorical_state_candidate(
         for index, value in enumerate(values):
             by_phase.setdefault(index % seasonal_period, []).append(value)
         phase_values = by_phase.get(phase, [])
-        phase_weight = len(phase_values) / (len(phase_values) + shrinkage)
-        phase_level = global_level + phase_weight * (
-            statistics.median(phase_values) - global_level
-            if phase_values else 0.0)
+        phase_level = (statistics.median(phase_values)
+                       if phase_values else global_level)
         # State effects are learned as deviations from their contemporaneous
         # seasonal phase, not as absolute levels. All terms are fit only from
         # the prefix available at the replay origin.
         residuals = []
+        phase_residuals = []
         for index, (value, label) in enumerate(zip(values, labels)):
             same_phase = by_phase[index % seasonal_period]
-            local_weight = len(same_phase) / (len(same_phase) + shrinkage)
-            local_level = global_level + local_weight * (
-                statistics.median(same_phase) - global_level)
+            local_level = statistics.median(same_phase)
             if label == state:
-                residuals.append(value - local_level)
+                residual = value - local_level
+                residuals.append(residual)
+                if index % seasonal_period == phase:
+                    phase_residuals.append(residual)
         if not residuals:
             return phase_level, 0
         state_weight = len(residuals) / (len(residuals) + shrinkage)
-        return phase_level + state_weight * statistics.median(residuals), len(
-            residuals)
+        state_effect = state_weight * statistics.median(residuals)
+        # A state can have different consequences at different phases (cloud
+        # at noon versus night, open/closed during peak versus off-hours).
+        # Shrink the sparse phase-by-state interaction toward the global state
+        # effect rather than fitting an unstable cell mean.
+        if phase_residuals:
+            interaction_weight = len(phase_residuals) / (
+                len(phase_residuals) + shrinkage)
+            state_effect += interaction_weight * (
+                statistics.median(phase_residuals) - state_effect)
+        return phase_level + state_effect, len(residuals)
 
     def estimate_phase_only(values: list[float], phase: int) -> float:
         """Fit the context-free comparator on the identical prefix."""
@@ -2535,9 +2544,7 @@ def fit_categorical_state_candidate(
                         if index % seasonal_period == phase]
         if not phase_values:
             return global_level
-        weight = len(phase_values) / (len(phase_values) + shrinkage)
-        return global_level + weight * (
-            statistics.median(phase_values) - global_level)
+        return statistics.median(phase_values)
 
     predictions, actuals, baselines = [], [], []
     replay_start = max(4, minimum_overlap // 2,
@@ -2613,7 +2620,7 @@ def fit_categorical_state_candidate(
             "scheme": ("expanding_origin_phase_residual_state_mapping"
                        if seasonal_period else
                        "expanding_origin_state_conditional_level"),
-            "mapping": ("seasonal_phase_plus_shrunk_state_residual"
+            "mapping": ("seasonal_phase_plus_shrunk_phase_state_residual"
                         if seasonal_period else "shrunk_state_median"),
             "seasonal_period": seasonal_period,
             "overlap_points": len(target),
