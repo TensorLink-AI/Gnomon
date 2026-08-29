@@ -464,7 +464,11 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: Version 208: explicit confounding/non-causality uses a deterministic,
 #: non-numeric front door. Compiler transport failures are telemetry rather
 #: than context rejection when another validated lane retained the source.
-MCP_CONTRACT_VERSION = 208
+#: Version 209: a calendar event may bind its explicitly named holiday date
+#: even when the request also enumerates other forecast dates; its optional
+#: magnitude goes directly to the bounded prior lane without a duplicate
+#: dossier-repair call.
+MCP_CONTRACT_VERSION = 209
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -4109,6 +4113,12 @@ class _Run:
         if categorical_schedule is not None:
             # State labels are categorical observations, not numeric paths.
             # The deterministic fitted executable below owns their influence.
+            future_path_needs_executable = False
+        if deterministic_directional_event is not None:
+            # The host already retained the dated qualitative direction. Its
+            # magnitude belongs to the bounded sampled-prior lane below; a
+            # dossier repair cannot add source evidence and would duplicate
+            # that optional call.
             future_path_needs_executable = False
         companion_mapping_pending = bool(
             companion_contract and raw.get("covariate_tables")

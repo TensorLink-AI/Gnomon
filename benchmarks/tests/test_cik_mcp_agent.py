@@ -2816,6 +2816,38 @@ def test_dated_direction_front_door_skips_dossier_and_samples_bounded_prior(
     assert publication["automation"]["eligible"] is False
 
 
+def test_dated_direction_front_door_ignores_non_event_grid_dates(tmp_path):
+    task = _task()
+    event_day = task.future_time[1][:10]
+    listed = ", ".join(stamp[:10] for stamp in task.future_time[:3])
+    task.background = (
+        f"The forecast covers {listed}. Note that {event_day} is a holiday. "
+        "Traffic typically reduces on holidays.")
+    task.scenario = None
+    sampled = ["<forecast>\n" + "\n".join(
+        f"({stamp.replace('T', ' ').replace('+00:00', '')}, "
+        f"{124 + draw + index})"
+        for index, stamp in enumerate(task.future_time)) + "\n</forecast>"
+        for draw in range(3)]
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        sampled)
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 3)
+
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    assert receipt["compiler"]["contract"] == (
+        "explicit_dated_directional_event")
+    assert receipt["events"][0]["effective_start"].startswith(event_day)
+    assert receipt["rejections"] == []
+
+
 def test_external_reference_front_door_routes_only_bounded_prior_paths(
         tmp_path):
     task = _task()

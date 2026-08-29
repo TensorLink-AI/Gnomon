@@ -9,6 +9,12 @@
   compiler timeouts and provider failures are now availability telemetry rather
   than false user-facing context rejections; malformed or unresolved semantics
   still fail loudly.
+- Bind a dated qualitative calendar effect to the date explicitly named as a
+  holiday even when surrounding prose also enumerates the forecast grid. The
+  citation is narrowed to the holiday and directional-rule sentences, and its
+  unknown magnitude routes directly to the existing bounded prior lane rather
+  than consuming a redundant dossier-repair call. Multiple ambiguous holiday
+  dates remain unresolved instead of being guessed.
 
 - Route explicit historical zero-recording claims and ended recurring
   disruptions through deterministic, replay-validated front doors before any

@@ -294,9 +294,30 @@ def deterministic_dated_directional_event_dossier(
     if not text or re.search(
             r"\b(?:may|might|could|possibly|perhaps)\b", normalized):
         return None
+    sentences = [item.strip() for item in re.split(
+        r"(?<=[.!?])\s+|[\r\n]+", text) if item.strip()]
     dates = re.findall(r"\b\d{4}-\d{2}-\d{2}\b", text)
-    if len(set(dates)) != 1:
+    unique_dates = list(dict.fromkeys(dates))
+    if len(unique_dates) != 1:
+        # Operational prompts often enumerate the whole requested grid before
+        # identifying one exceptional calendar day. Bind only a date in a
+        # sentence that explicitly names the holiday; never guess among the
+        # other listed dates.
+        holiday_dates = []
+        for sentence in sentences:
+            if re.search(r"\bholiday\b", sentence, re.I):
+                holiday_dates.extend(re.findall(
+                    r"\b\d{4}-\d{2}-\d{2}\b", sentence))
+        unique_dates = list(dict.fromkeys(holiday_dates))
+    if len(unique_dates) != 1:
         return None
+    event_date = unique_dates[0]
+    cited_sentences = [sentence for sentence in sentences if (
+        event_date in sentence and re.search(r"\bholiday\b", sentence, re.I))
+        or (re.search(r"\bholiday\b", sentence, re.I)
+            and re.search(r"\b(?:reduce|decrease|decline|drop|lower|increase|"
+                         r"rise|grow|higher|surge)\w*\b", sentence, re.I))]
+    evidence_text = " ".join(cited_sentences) or context_text
     target_terms = (
         "production", "output", "traffic", "flow", "generation",
         "withdrawals", "transactions", "sales", "arrivals", "departures",
@@ -332,7 +353,7 @@ def deterministic_dated_directional_event_dossier(
     if cutoff_time is None or not future or any(value is None for value in future):
         return None
     active = [index for index, stamp in enumerate(future)
-              if stamp is not None and stamp.date().isoformat() == dates[0]]
+              if stamp is not None and stamp.date().isoformat() == event_date]
     if not active or active != list(range(active[0], active[-1] + 1)):
         return None
     start, end = future[active[0]], future[active[-1]]
@@ -349,12 +370,12 @@ def deterministic_dated_directional_event_dossier(
             "effective_start": start.isoformat(),
             "effective_end": end.isoformat(),
             "confidence": .75, "status": "confirmed",
-            "evidence_quote": context_text,
+            "evidence_quote": evidence_text,
             "effect_family": "temporary_pulse", "direction": direction,
             "duration": "temporary", "entity_kind": "calendar",
         }],
         "claims": [{
-            "source_span": context_text, "relation": relation,
+            "source_span": evidence_text, "relation": relation,
             "effective_start": start.isoformat(),
             "effective_end": end.isoformat(),
             "mechanism": "explicit dated qualitative target direction",
