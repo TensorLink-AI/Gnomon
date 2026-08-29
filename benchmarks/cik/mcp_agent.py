@@ -468,7 +468,11 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: even when the request also enumerates other forecast dates; its optional
 #: magnitude goes directly to the bounded prior lane without a duplicate
 #: dossier-repair call.
-MCP_CONTRACT_VERSION = 209
+#: Version 210: complete source-stated linear lag equations compile through an
+#: all-or-nothing deterministic recurrence front door. Complete parent/lag
+#: topology compiles separately to fold-fitted coefficients; neither lane
+#: depends on model transcription or permits partial equations.
+MCP_CONTRACT_VERSION = 210
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -1864,6 +1868,183 @@ def _extract_explicit_driver_schedule(
             return None
         future.append(float(matches[0]["value"]))
     return historical, future
+
+
+def _deterministic_explicit_recursive_relationship(
+    text: str, *, target_name: str, driver_names: set[str], cutoff: str,
+    future_timestamps: list[str],
+) -> dict[str, Any] | None:
+    """Compile a complete cited linear lag equation without an LLM.
+
+    The parser is deliberately all-or-nothing: every non-noise RHS term must
+    be a finite coefficient times a named lagged series, the LHS must be the
+    host target, every driver must be host-observed, and each future driver
+    value must be covered by an exact cited schedule. Partial equations never
+    execute.
+    """
+    equations = list(re.finditer(
+        r"(?m)^\s*([A-Za-z_]\w*)\s*\^\s*\{\s*t\s*\}\s*=\s*(.+?)\s*$",
+        str(text or "")))
+    equation = next(
+        (candidate for candidate in equations
+         if candidate.group(1) == target_name), None)
+    if equation is None:
+        return None
+    rhs = equation.group(2)
+    term_pattern = re.compile(
+        r"([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*\*\s*"
+        r"([A-Za-z_]\w*)\s*\^\s*\{\s*t\s*-\s*(\d+)\s*\}")
+    matches = list(term_pattern.finditer(rhs))
+    if not matches:
+        return None
+    ar_terms: list[dict[str, Any]] = []
+    driver_terms: list[dict[str, Any]] = []
+    referenced_drivers: set[str] = set()
+    for match in matches:
+        coefficient = float(match.group(1))
+        series, lag = match.group(2), int(match.group(3))
+        if not math.isfinite(coefficient) or lag < 1:
+            return None
+        row = {"lag": lag, "coefficient": coefficient}
+        if series == target_name:
+            ar_terms.append(row)
+        elif series in driver_names:
+            driver_terms.append({"series": series, **row})
+            referenced_drivers.add(series)
+        else:
+            return None
+    # Refuse partial parses: after removing every recognized lag term and one
+    # additive noise symbol, only plus signs and whitespace may remain.
+    remainder = term_pattern.sub("", rhs)
+    remainder = re.sub(
+        r"\\?epsilon(?:_\{?\w+\}?|_\w+)?\s*\^\s*\{\s*t\s*\}",
+        "", remainder)
+    if re.sub(r"[+\s]", "", remainder):
+        return None
+    if not ar_terms or not referenced_drivers:
+        return None
+    historical_segments: dict[str, list[dict[str, Any]]] = {}
+    series_values: dict[str, dict[str, Any]] = {}
+    for driver in sorted(referenced_drivers):
+        schedule = _extract_explicit_driver_schedule(
+            text, series=driver, cutoff=cutoff,
+            future_timestamps=future_timestamps, claim_id="claim-1")
+        if schedule is None:
+            return None
+        historical, future = schedule
+        historical_segments[driver] = historical
+        series_values[driver] = {
+            "values": future, "known_at": cutoff,
+            "source_claim_ids": ["claim-1"],
+        }
+    return {
+        "events": [],
+        "claims": [{
+            "source_span": text, "relation": "unknown",
+            "effective_start": future_timestamps[0],
+            "effective_end": future_timestamps[-1],
+            "mechanism": "complete source-stated linear lag equation and driver schedule",
+            "confidence": 1.0,
+        }],
+        "hypotheses": [], "covariate_tables": [],
+        "transformations": [{
+            "transformation": {
+                "known_at": cutoff, "claim_ids": ["claim-1"],
+                "lane": "historically_testable", "output_unit": "target_units",
+                "expression": {
+                    "op": "recursive_linear", "output_unit": "target_units",
+                    "intercept": 0.0,
+                    "autoregressive_terms": sorted(
+                        ar_terms, key=lambda item: item["lag"]),
+                    "driver_terms": sorted(
+                        driver_terms,
+                        key=lambda item: (item["series"], item["lag"])),
+                },
+            },
+            "units": {"primary": "target_units", **{
+                driver: "target_units" for driver in referenced_drivers}},
+            "series_values": series_values,
+            "historical_series_segments": historical_segments,
+        }],
+        "observation_interpretations": [], "effect_proposal": None,
+        "forecast_candidate": None,
+    }
+
+
+def _deterministic_explicit_parent_relationship(
+    text: str, *, target_name: str, driver_names: set[str], cutoff: str,
+    future_timestamps: list[str],
+) -> dict[str, Any] | None:
+    """Compile a complete declared lag topology into a fitted executable."""
+    pattern = re.compile(
+        r"(?mi)^\s*Parents\s+for\s+variable\s+([A-Za-z_]\w*)\s+at\s+"
+        r"lag\s+(\d+)\s*:\s*([^\n.]+)\.?\s*$")
+    rows = [match for match in pattern.finditer(str(text or ""))
+            if match.group(1) == target_name]
+    if not rows:
+        return None
+    ar_lags: set[int] = set()
+    driver_lags: dict[str, set[int]] = {}
+    for match in rows:
+        lag = int(match.group(2))
+        parents = [item.strip() for item in match.group(3).split(",")
+                   if item.strip()]
+        if lag < 1 or not parents:
+            return None
+        for parent in parents:
+            if parent == target_name:
+                ar_lags.add(lag)
+            elif parent in driver_names:
+                driver_lags.setdefault(parent, set()).add(lag)
+            else:
+                return None
+    if not ar_lags or not driver_lags:
+        return None
+    historical_segments: dict[str, list[dict[str, Any]]] = {}
+    series_values: dict[str, dict[str, Any]] = {}
+    for driver in sorted(driver_lags):
+        schedule = _extract_explicit_driver_schedule(
+            text, series=driver, cutoff=cutoff,
+            future_timestamps=future_timestamps, claim_id="claim-1")
+        if schedule is None:
+            return None
+        historical, future = schedule
+        historical_segments[driver] = historical
+        series_values[driver] = {
+            "values": future, "known_at": cutoff,
+            "source_claim_ids": ["claim-1"],
+        }
+    return {
+        "events": [],
+        "claims": [{
+            "source_span": text, "relation": "unknown",
+            "effective_start": future_timestamps[0],
+            "effective_end": future_timestamps[-1],
+            "mechanism": "complete source-stated lag topology and driver schedule",
+            "confidence": 1.0,
+        }],
+        "hypotheses": [], "covariate_tables": [],
+        "transformations": [{
+            "transformation": {
+                "known_at": cutoff, "claim_ids": ["claim-1"],
+                "lane": "historically_testable", "output_unit": "target_units",
+                "expression": {
+                    "op": "fit_recursive_linear", "output_unit": "target_units",
+                    "autoregressive_lags": sorted(ar_lags),
+                    "driver_lags": [{"series": driver,
+                                     "lags": sorted(lags)}
+                                    for driver, lags in sorted(
+                                        driver_lags.items())],
+                },
+            },
+            "units": {"primary": "target_units", **{
+                driver: "target_units" for driver in driver_lags}},
+            "series_values": series_values,
+            "historical_series_segments": historical_segments,
+        }],
+        "observation_interpretations": [], "effect_proposal": None,
+        "forecast_candidate": None,
+    }
 
 
 class StdioMcpSession:
@@ -3666,6 +3847,21 @@ class _Run:
         relationship_contract = bool(
             categorical_schedule is None
             and _has_explicit_lag_relationship(context))
+        deterministic_explicit_equation = (
+            _deterministic_explicit_recursive_relationship(
+                narrative_context, target_name=self.target_name,
+                driver_names=set(self.companion_histories),
+                cutoff=self.timestamps[-1],
+                future_timestamps=future_timestamps)
+            if relationship_contract else None)
+        deterministic_parent_relationship = (
+            _deterministic_explicit_parent_relationship(
+                narrative_context, target_name=self.target_name,
+                driver_names=set(self.companion_histories),
+                cutoff=self.timestamps[-1],
+                future_timestamps=future_timestamps)
+            if relationship_contract
+            and deterministic_explicit_equation is None else None)
         observation_contract = (
             not relationship_contract
             and _expects_historical_zero_interpretation(context))
@@ -3972,6 +4168,18 @@ class _Run:
             raw = bind_active_target(deterministic_reference_power)
             compiler_calls.append({
                 "stage": "deterministic_reference_power_parse",
+                "elapsed_seconds": 0.0,
+            })
+        elif deterministic_explicit_equation is not None:
+            raw = bind_active_target(deterministic_explicit_equation)
+            compiler_calls.append({
+                "stage": "deterministic_explicit_recursive_relationship_parse",
+                "elapsed_seconds": 0.0,
+            })
+        elif deterministic_parent_relationship is not None:
+            raw = bind_active_target(deterministic_parent_relationship)
+            compiler_calls.append({
+                "stage": "deterministic_explicit_parent_relationship_parse",
                 "elapsed_seconds": 0.0,
             })
         elif deterministic_named_relationship is not None:
@@ -5389,6 +5597,8 @@ class _Run:
             or deterministic_ended_disruption is not None
             or deterministic_observation_claim is not None
             or deterministic_reference_power is not None
+            or deterministic_explicit_equation is not None
+            or deterministic_parent_relationship is not None
             or deterministic_named_relationship is not None
             or deterministic_calibration_claim is not None
             or deterministic_zero_window is not None
@@ -5720,6 +5930,10 @@ class _Run:
                              if deterministic_ended_disruption is not None else
                              "explicit_reference_power_relationship"
                              if deterministic_reference_power is not None else
+                             "explicit_recursive_linear_relationship"
+                             if deterministic_explicit_equation is not None else
+                             "explicit_fitted_lag_relationship"
+                             if deterministic_parent_relationship is not None else
                              "named_driver_relationship_prior"
                              if deterministic_named_relationship is not None else
                              "explicit_additive_measurement_drift"

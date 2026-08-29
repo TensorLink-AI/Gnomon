@@ -15,6 +15,14 @@
   unknown magnitude routes directly to the existing bounded prior lane rather
   than consuming a redundant dossier-repair call. Multiple ambiguous holiday
   dates remain unresolved instead of being guessed.
+- Compile complete source-stated linear lag equations and future driver
+  schedules deterministically into the existing replay-tested recurrence
+  executable. A separate topology-only lane extracts declared parent/lag
+  structure and fits coefficients inside historical folds. Both parsers are
+  all-or-nothing: unknown series, unparsed terms, missing schedules, or partial
+  future coverage fall back to typed compilation instead of executing guessed
+  arithmetic. Publication still requires replay evidence, remains human-review
+  only, and preserves the immutable primary.
 
 - Route explicit historical zero-recording claims and ended recurring
   disruptions through deterministic, replay-validated front doors before any

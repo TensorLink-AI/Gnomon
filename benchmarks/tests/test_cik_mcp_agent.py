@@ -52,6 +52,8 @@ from benchmarks.cik.mcp_agent import (
     _looks_like_structured_companion_context,
     _extract_structured_companion_tables,
     _extract_categorical_state_schedule,
+    _deterministic_explicit_recursive_relationship,
+    _deterministic_explicit_parent_relationship,
     _candidate_from_sampled_paths,
     _sample_path_stability,
     _sampled_context_prior_prompt,
@@ -79,6 +81,58 @@ def test_only_compiler_transport_errors_are_availability_telemetry():
         "dossier repair returned no JSON object")
     assert not _is_compiler_transport_failure(
         "context_unresolved: no grounded claim")
+
+
+def test_complete_explicit_lag_equation_compiles_without_model_code():
+    text = (
+        "For the next days, X_0 takes 2 from 2026-01-03 to 2026-01-04.\n"
+        "X_1^{t} = -1.5 * X_0^{t-1} + 0.75 * X_1^{t-1} + "
+        "0.25 * X_1^{t-2} + \\epsilon_1^{t}")
+    dossier = _deterministic_explicit_recursive_relationship(
+        text, target_name="X_1", driver_names={"X_0"},
+        cutoff="2026-01-02T00:00:00+00:00",
+        future_timestamps=["2026-01-03T00:00:00+00:00",
+                           "2026-01-04T00:00:00+00:00"])
+    assert dossier is not None
+    expression = dossier["transformations"][0]["transformation"]["expression"]
+    assert expression["autoregressive_terms"] == [
+        {"lag": 1, "coefficient": .75},
+        {"lag": 2, "coefficient": .25}]
+    assert expression["driver_terms"] == [
+        {"series": "X_0", "lag": 1, "coefficient": -1.5}]
+    assert dossier["transformations"][0]["series_values"]["X_0"][
+        "values"] == [2.0, 2.0]
+    assert _deterministic_explicit_recursive_relationship(
+        text.replace(" + \\epsilon_1^{t}", " + mystery[t]"),
+        target_name="X_1", driver_names={"X_0"},
+        cutoff="2026-01-02T00:00:00+00:00",
+        future_timestamps=["2026-01-03T00:00:00+00:00",
+                           "2026-01-04T00:00:00+00:00"]) is None
+
+
+def test_complete_parent_lag_topology_compiles_to_fold_fitted_executable():
+    text = (
+        "X_0 takes 2 from 2026-01-01 to 2026-01-04.\n"
+        "Parents for variable X_1 at lag 1: X_0, X_1.\n"
+        "Parents for variable X_1 at lag 2: X_1.")
+    dossier = _deterministic_explicit_parent_relationship(
+        text, target_name="X_1", driver_names={"X_0"},
+        cutoff="2026-01-02T00:00:00+00:00",
+        future_timestamps=["2026-01-03T00:00:00+00:00",
+                           "2026-01-04T00:00:00+00:00"])
+    assert dossier is not None
+    expression = dossier["transformations"][0]["transformation"]["expression"]
+    assert expression == {
+        "op": "fit_recursive_linear", "output_unit": "target_units",
+        "autoregressive_lags": [1, 2],
+        "driver_lags": [{"series": "X_0", "lags": [1]}],
+    }
+    assert _deterministic_explicit_parent_relationship(
+        text.replace("X_0, X_1", "unknown, X_1"),
+        target_name="X_1", driver_names={"X_0"},
+        cutoff="2026-01-02T00:00:00+00:00",
+        future_timestamps=["2026-01-03T00:00:00+00:00",
+                           "2026-01-04T00:00:00+00:00"]) is None
 
 
 def test_sampled_paths_are_host_bound_and_aggregated_without_dependencies():
