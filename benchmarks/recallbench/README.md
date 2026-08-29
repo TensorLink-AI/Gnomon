@@ -43,6 +43,9 @@ uv run python benchmarks/recallbench/run_recallbench.py \
 Reasoning mode is explicit and part of resume identity. The default is
 `none`, matching the low-latency agent lane; a reasoning-enabled run is a
 separate treatment and cannot reuse non-reasoning rows.
+Matching resume runs preserve cumulative request/token/cost accounting. A
+non-resume run replaces prior rows in its output directory, so repeated runs
+cannot silently double the sample.
 
 Operational guarantees match the sibling harnesses: held-out futures
 verified absent from every prompt (history-excised sentinel), durable

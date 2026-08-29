@@ -388,6 +388,21 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
     output = Path(args.output_dir)
     output.mkdir(parents=True, exist_ok=True)
     rows_path = output / "rows.jsonl"
+    summary_path = output / "summary.json"
+    prior_usage = None
+    if args.resume and summary_path.exists():
+        try:
+            prior_summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            if (prior_summary.get("model") == model_name
+                    and prior_summary.get("reasoning_effort") == getattr(
+                        args, "reasoning_effort", "none")
+                    and (prior_summary.get("provenance") or {}).get(
+                        "dataset_identity") == dataset_identity):
+                prior_usage = prior_summary.get("usage")
+        except (OSError, json.JSONDecodeError):
+            prior_usage = None
+    if not args.resume:
+        rows_path.unlink(missing_ok=True)
     valid_ids = {case.case_id for case in cases}
     completed: dict[tuple[str, str], dict[str, Any]] = {}
     if args.resume and rows_path.exists():
@@ -528,8 +543,21 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
         },
     }
     if hasattr(client, "usage_summary"):
-        summary["usage"] = client.usage_summary
-    (output / "summary.json").write_text(
+        current_usage = dict(client.usage_summary)
+        if isinstance(prior_usage, dict):
+            additive = {
+                "requests", "transport_attempts", "prompt_tokens",
+                "completion_tokens", "truncation_escalations", "cost_usd"}
+            for key in additive:
+                current_usage[key] = (
+                    float(prior_usage.get(key, 0) or 0)
+                    + float(current_usage.get(key, 0) or 0))
+                if key != "cost_usd":
+                    current_usage[key] = int(current_usage[key])
+            current_usage["accounting"] = (
+                "cumulative_across_matching_resume_invocations")
+        summary["usage"] = current_usage
+    summary_path.write_text(
         json.dumps(summary, indent=2, sort_keys=True) + "\n",
         encoding="utf-8")
     print(json.dumps(summary, indent=2, sort_keys=True))

@@ -40,6 +40,11 @@ class ScriptedClient:
         return [json.dumps([values[-1]] * HORIZON)]
 
 
+class UsageClient(ScriptedClient):
+    def __init__(self, usage):
+        self.usage_summary = usage
+
+
 def test_cases_pair_identical_windows_across_arms() -> None:
     first, provenance, futures = generate_cases(11, 10)
     again, _, _ = generate_cases(11, 10)
@@ -122,3 +127,32 @@ def test_futures_transform_with_the_arm() -> None:
     anon_future = arm_future(case, "anon", futures[case.case_id])
     for r, a in zip(raw_future, anon_future):
         assert abs(case.scale_a * r + case.shift_b - a) < 1e-6
+
+
+def test_resume_preserves_cumulative_usage_and_nonresume_replaces_rows(
+        tmp_path) -> None:
+    args = _args(tmp_path, cases=2)
+    first_usage = {
+        "model": args.model, "base_url": "test", "requests": 4,
+        "transport_attempts": 4, "prompt_tokens": 100,
+        "completion_tokens": 20, "truncation_escalations": 0,
+        "cost_usd": .1,
+    }
+    run(args, client=UsageClient(first_usage))
+    rows_path = tmp_path / "out" / "rows.jsonl"
+    assert len(rows_path.read_text().splitlines()) == 4
+
+    resumed = _args(tmp_path, cases=2, resume=True)
+    summary = run(resumed, client=UsageClient({
+        "model": args.model, "base_url": "test", "requests": 0,
+        "transport_attempts": 0, "prompt_tokens": 0,
+        "completion_tokens": 0, "truncation_escalations": 0,
+        "cost_usd": 0,
+    }))
+    assert summary["usage"]["requests"] == 4
+    assert summary["usage"]["prompt_tokens"] == 100
+    assert summary["usage"]["accounting"] == \
+        "cumulative_across_matching_resume_invocations"
+
+    run(args, client=UsageClient(first_usage))
+    assert len(rows_path.read_text().splitlines()) == 4

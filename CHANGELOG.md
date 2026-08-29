@@ -55,6 +55,10 @@
 - Pin RecallBench's hosted-model reasoning mode (default `none`) and include it
   in every row, summary, and resume identity. Reasoning and non-reasoning runs
   can no longer silently reuse each other's real-series forecast records.
+- Make RecallBench resume accounting cumulative and non-resume output
+  replacement-safe. A zero-call resume no longer erases the original request,
+  token, or cost totals, and rerunning without `--resume` cannot append a
+  duplicate scored sample to an existing `rows.jsonl`.
 - Use the existing bounded four/five-path cap on the first model-prior
   elicitation rather than estimating a human-facing median from three draws.
   Requests remain concurrent; sampled spread remains a coherence diagnostic,
