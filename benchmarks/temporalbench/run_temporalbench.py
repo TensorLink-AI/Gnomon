@@ -231,7 +231,8 @@ def answer_row(row: dict[str, Any], condition: str,
                mcp_call_timeout: float | None = None,
                named_tsfm: str | None = None,
                model_evidence_registry: str | None = None,
-               forecast_jobs: int | None = None) -> dict[str, Any]:
+               forecast_jobs: int | None = None,
+               forecast_candidates: list[str] | None = None) -> dict[str, Any]:
     """Produce the row's answer object under the given condition.
 
     ``channel_support`` in the result maps each forecast channel to its
@@ -293,7 +294,7 @@ def answer_row(row: dict[str, Any], condition: str,
     analysis = gnomon_runner.analyse_row(
         row, best_effort=best_effort, named_tsfm=named_tsfm,
         model_evidence_registry=model_evidence_registry,
-        max_workers=forecast_jobs)
+        max_workers=forecast_jobs, candidates=forecast_candidates)
     tier = row.get("tier")
     if condition == "gnomon-pure":
         if tier not in ("T2", "T4"):
@@ -502,6 +503,11 @@ def main() -> int:
         help="gnomon-agent/gnomon-pure only: cap local per-channel forecast "
              "workers. Use 1 for crash-safe sequential probes.")
     parser.add_argument(
+        "--forecast-candidates",
+        help="gnomon-agent/gnomon-pure only: comma-separated governed "
+             "candidate pool. Mandatory baselines remain present. This "
+             "freezes a baseline against optional models installed later.")
+    parser.add_argument(
         "--model-evidence-registry",
         help="Gnomon conditions: explicitly request evidence-weighted model "
              "admission from this versioned registry. The MCP arm copies it "
@@ -539,10 +545,17 @@ def main() -> int:
             parser.error("--forecast-jobs applies only to gnomon-agent or gnomon-pure")
         if args.forecast_jobs < 1:
             parser.error("--forecast-jobs must be at least 1")
+    forecast_candidates = ([item.strip() for item in
+                            args.forecast_candidates.split(",") if item.strip()]
+                           if args.forecast_candidates else None)
+    if forecast_candidates and args.condition not in {"gnomon-agent", "gnomon-pure"}:
+        parser.error("--forecast-candidates applies only to gnomon-agent or gnomon-pure")
     if args.model_evidence_registry and args.condition == "control":
         parser.error("--model-evidence-registry applies to Gnomon conditions only")
     if args.named_tsfm and args.model_evidence_registry:
         parser.error("--named-tsfm and --model-evidence-registry are separate arms")
+    if args.named_tsfm and forecast_candidates:
+        parser.error("--named-tsfm bypasses selection and cannot use --forecast-candidates")
 
     tiers = tuple(t.strip() for t in args.tiers.split(",") if t.strip() in TIERS)
     # gnomon-pure produces forecasts and nothing else, so it is a T2/T4
@@ -588,6 +601,7 @@ def main() -> int:
         "best_effort": args.best_effort or None,
         "named_tsfm": args.named_tsfm,
         "forecast_jobs": args.forecast_jobs,
+        "forecast_candidates": forecast_candidates,
         "mcp_profile": (args.mcp_profile
                         if args.condition == "gnomon-mcp" else None),
         "compile_context": (args.compile_context
@@ -728,6 +742,7 @@ def main() -> int:
                             named_tsfm=args.named_tsfm,
                             model_evidence_registry=args.model_evidence_registry,
                             forecast_jobs=args.forecast_jobs,
+                            forecast_candidates=forecast_candidates,
                         )
                         break
                     except Exception as error:
@@ -1022,6 +1037,11 @@ def main() -> int:
                         "choice_authority": choice_authority or None,
                         "choice_basis": outcome.get("choice_basis") or None,
                         "mcp": outcome.get("mcp"),
+                        # Pure/agent engine provenance is evidence, not
+                        # transient debug output. Without it, a retained row
+                        # cannot prove which model, admission state, revision,
+                        # warning, or fallback produced the submitted array.
+                        "engine_analysis": outcome.get("analysis") or None,
                         "answer": outcome["answer"]}, indent=2,
                        default=str) + "\n",
             encoding="utf-8",
@@ -1131,6 +1151,7 @@ def main() -> int:
         "best_effort": args.best_effort,
         "named_tsfm": args.named_tsfm,
         "forecast_jobs": args.forecast_jobs,
+        "forecast_candidates": forecast_candidates,
         "mcp_profile": args.mcp_profile if args.condition == "gnomon-mcp" else None,
         "compile_context": args.compile_context if args.condition == "gnomon-mcp" else None,
         "context_receipts_dir": (args.context_receipts_dir

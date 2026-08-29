@@ -541,11 +541,13 @@ def test_forecast_channels_passes_governed_registry_and_worker_cap(
     outcomes = forecast_channels(
         {"a": [1.0, 2.0], "b": [2.0, 3.0]}, 1,
         work_dir=str(tmp_path), best_effort=True,
-        model_evidence_registry="registry.json", max_workers=1)
+        model_evidence_registry="registry.json", max_workers=1,
+        candidates=["last_value", "drift"])
 
     assert seen["max_workers"] == 1
     assert seen["config"].models.admission_policy == "evidence_weighted"
     assert seen["config"].models.evidence_registry_path == "registry.json"
+    assert seen["candidates"] == ["last_value", "drift"]
     assert outcomes["a"]["admission"]["candidate"] == "toto2_4m"
     assert outcomes["a"]["warnings"] == ["transfer prior"]
 
@@ -557,6 +559,11 @@ def test_forecast_channels_keeps_supply_and_admission_arms_separate():
         forecast_channels(
             {"a": [1.0], "b": [2.0]}, 1,
             named_tsfm="toto2_4m", model_evidence_registry="registry.json")
+
+    with pytest.raises(ValueError, match="cannot use a candidate pool"):
+        forecast_channels(
+            {"a": [1.0], "b": [2.0]}, 1,
+            named_tsfm="toto2_4m", candidates=["last_value"])
 
 
 def test_forecast_payload_carries_support_labels():

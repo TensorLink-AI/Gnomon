@@ -1870,6 +1870,9 @@ def test_voided_rows_stay_out_of_the_accuracy_denominators(tmp_path,
              "labels": {"trend": "upward"}}]
     outcomes = {
         "answered": {"answer": {"trend": "upward"}, "abstained": [],
+                     "analysis": {"channels": {
+                         "x": {"selected_model": "last_value",
+                               "warnings": ["disclosed fallback"]}}},
                      "mcp": {"calls": 2, "run_tokens": 120,
                              "schema_bytes": 2000}},
         "voided": {"answer": {}, "abstained": ["cap:tokens exceeded"],
@@ -1925,6 +1928,11 @@ def test_voided_rows_stay_out_of_the_accuracy_denominators(tmp_path,
     manifest = json.loads((output / "manifest.json").read_text())
     assert manifest["base_url"] == "http://x"
     assert manifest["mcp_profile"] == "evidence"
+    detail = json.loads((output / "details" / "answered.json").read_text())
+    assert detail["engine_analysis"]["channels"]["x"] == {
+        "selected_model": "last_value",
+        "warnings": ["disclosed fallback"],
+    }
 
 
 def test_row_offset_makes_long_sweeps_shardable(tmp_path, monkeypatch):
