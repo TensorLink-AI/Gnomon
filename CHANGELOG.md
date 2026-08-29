@@ -2,6 +2,61 @@
 
 ## Unreleased
 
+## 0.5.0 — governed context intelligence (2026-08-30)
+
+Gnomon 0.5.0 adds a governed context-intelligence layer without surrendering
+numeric authority to an LLM. The history-only primary remains immutable;
+context may be rejected, represented as a conditional scenario, or lead a
+human-review recommendation only through explicit typed evidence contracts.
+
+### Highlights
+
+- Add strict, best-effort, and conditional-scenario publication modes with
+  explicit support, provenance, primary-versus-selected relationships, and
+  automation authority.
+- Compile deterministic schedules, recurrences, relationships, categorical
+  states, cited covariate tables, and bounded model-authored candidates into
+  the same replay-tested publication machinery. Unresolved or weak claims fail
+  closed or remain visibly conditional.
+- Expand the MCP boundary for production agents with compact evidence-first
+  profiles, reusable data and context references, structured recovery actions,
+  bounded repairs, and verifier-enforced human-facing explanations.
+- Preserve the immutable primary across every prior-assisted path. Uncertain
+  timing and structurally indistinct changes remain scenario-only or report
+  `no_distinct_numeric_path`; neither can silently mutate the primary or
+  authorize automation.
+- Add prospective, series-scoped outcome learning for candidate evidence,
+  including cutoff-safe tracking, conservative multiplicity handling, and a
+  fixed compromise path for supported best-effort recommendations.
+- Extend decision and threshold-risk outputs with bounded assessments,
+  evidence sufficiency, explicit automation eligibility, action utility, and
+  independently scored human judgment.
+- Add and harden ContextBench, OutcomeLearningBench, BreachBench, RecallBench,
+  CiK, and workflow adapters with crash-safe checkpoints, strict resume
+  identities, bounded concurrency, retained diagnostics, and sealed evidence.
+- Improve bitemporal safety, context provenance, scenario consequence
+  reporting, gate explanations, rejection-reason accounting, and agent
+  preservation measurement throughout the CLI, Python, MCP, and artifact
+  surfaces.
+
+### Validation
+
+- Full repository suite: 2,528 passed, 1 skipped.
+- Crash-safe ContextBench engine stress run: 112/112 completed, every declared
+  gate passed, zero temporal leakage, 100% empirical admission precision, and
+  45.833% empirical admission recall.
+- Final Evidence/DeepSeek agent-boundary shard: 2/2 completed with publication
+  parity, one exposed `no_distinct_numeric_path` relationship preserved 1/1,
+  one exposed conditional-scenario contract preserved 1/1, and an exact
+  zero-call resume replay.
+- CI passes on Python 3.11, 3.12, and 3.13, including package installation,
+  deterministic benchmark evidence, and container smoke tests.
+
+The complete change-by-change record follows and remains part of the source
+distribution for auditability.
+
+## Development log for 0.5.0
+
 - Give host integrations an explicit, receipted 3–16 path inference budget
   for model-authored conditional candidates. The budget is part of benchmark
   cache identity and cannot alter support or automation authority; the default
@@ -621,8 +676,6 @@
   endpoint, token budget, reasoning mode, and temperature. Resume rejects
   legacy or mismatched rows instead of silently mixing answers elicited under
   different product behavior; scorer-only changes can still reuse raw rows.
-
-## Unreleased
 
 - Upgrade BreachBench's answer contract to separate binary prediction,
   evidence sufficiency (`breach`/`no_breach`/`indeterminate`), and cost-aware
@@ -1529,8 +1582,6 @@
   candidate is always `prior_assisted`, non-automatable, and additive; canonical
   Gnomon output remains immutable. CiK retains the exact shadow candidate for
   matched scoring and exposes an explicit diagnostic output role.
-
-## Unreleased
 
 - **LLMs may now contribute governed tabular evidence without becoming a data
   authority.** The product context workflow accepts cited numeric covariate
