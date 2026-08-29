@@ -626,6 +626,23 @@ def test_score_per_channel_loader_reads_support_labels(tmp_path):
     assert "row2" in forecasts and "row2" not in support
 
 
+def test_score_per_channel_truth_maps_output_alias_to_history(tmp_path):
+    import json as _json
+
+    from benchmarks.temporalbench.score_per_channel import load_truth
+    from benchmarks.temporalbench.tasks import LABELED_FILE
+
+    row = {
+        "id": "single", "tier": "T2",
+        "meta": {"main_key": "pressure", "n_horizon": 2},
+        "input": {"history": {"pressure": [1.0, 2.0, 3.0]}},
+        "ground_truth": {"future_main": [4.0, 5.0]},
+    }
+    (tmp_path / LABELED_FILE).write_text(_json.dumps(row) + "\n")
+    truth = load_truth(tmp_path)["single"]
+    assert truth["history"] == {"future_main": [1.0, 2.0, 3.0]}
+
+
 def test_limit_is_stratified_across_tiers(tmp_path):
     """On a tier-grouped file, head-truncation reduced every limited
     multi-tier run to the earliest tier — --limit defeated --tiers."""
