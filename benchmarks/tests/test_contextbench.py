@@ -14,6 +14,7 @@ from benchmarks.contextbench.generate import generate, main as generate_main
 from benchmarks.contextbench.generate_stress import generate as generate_stress
 from benchmarks.contextbench import run_surfaces as surface_runner
 from benchmarks.contextbench.run_contextbench import (
+    _append_checkpoint, _load_checkpoint, _structural_scenario,
     run_case, smape, summarize, valid_disposition,
 )
 from benchmarks.contextbench.run_contextbench import main as run_main
@@ -129,6 +130,29 @@ def test_documented_engine_runner_executes_from_clean_checkout(tmp_path):
     )
     assert result.returncode == 0, result.stderr
     assert (output / "summary.json").is_file()
+    resumed = subprocess.run(
+        [sys.executable, "-m", "benchmarks.contextbench.run_contextbench",
+         "--corpus-dir", str(corpus), "--output-dir", str(output),
+         "--limit", "1", "--resume", "--allow-gate-failure"],
+        cwd=Path(__file__).resolve().parents[2], check=False,
+        capture_output=True, text=True,
+    )
+    assert resumed.returncode == 0, resumed.stderr
+    assert len((output / "observations.jsonl").read_text().splitlines()) == 1
+
+
+def test_contextbench_checkpoint_is_durable_and_strict(tmp_path):
+    checkpoint = tmp_path / "observations.jsonl"
+    _append_checkpoint(checkpoint, {"case_id": "a", "score": 1})
+    _append_checkpoint(checkpoint, {"case_id": "b", "score": 2})
+    assert [row["case_id"] for row in _load_checkpoint(
+        checkpoint, {"a", "b"})] == ["a", "b"]
+
+    with pytest.raises(SystemExit, match="not in this corpus"):
+        _load_checkpoint(checkpoint, {"a"})
+    _append_checkpoint(checkpoint, {"case_id": "a", "score": 3})
+    with pytest.raises(SystemExit, match="repeats case"):
+        _load_checkpoint(checkpoint, {"a", "b"})
 
 
 def test_stress_generator_is_reproducible_and_covers_production_strata():
@@ -217,6 +241,37 @@ def test_asserted_context_cannot_change_primary_under_default_policy(tmp_path):
     oracle = load_oracles_from_rows(raw_oracles)[case.case_id]
     row = run_case(case, oracle, tmp_path)
     assert row["default_policy_primary_changed"] is False
+
+
+def test_structural_scenario_is_scored_without_becoming_primary(tmp_path):
+    raw_cases, raw_oracles = generate_stress(74, per_stratum=1)
+    raw = next(row for row in raw_cases
+               if row["family"] == "structural_change"
+               and "structural-true" in row["case_id"])
+    case = Case.from_dict(raw)
+    oracle = load_oracles_from_rows(raw_oracles)[case.case_id]
+
+    row = run_case(case, oracle, tmp_path)
+
+    assert row["primary_changed"] is False
+    # This generated path already has no stable emitted trend to remove, so
+    # the engine correctly refuses to manufacture a distinct scenario.
+    assert row["conditional_scenario_available"] is False
+    assert "emitted_trend_is_directionally_stable" in (
+        row["context_outcome"]["failed_gate_codes"])
+
+    # When a result does contain the independently tested structural path,
+    # the benchmark reads that labelled lane rather than replacing primary.
+    scenario = {
+        "support": "prior_assisted_structural",
+        "primary_forecast_changed": False,
+        "automation_eligible": False,
+        "forecast": [{"point": 2.0}, {"point": 3.0, "q50": 2.5}],
+    }
+    selected, points = _structural_scenario(SimpleNamespace(
+        sensitivity_scenarios=[scenario]))
+    assert selected is scenario
+    assert points == [2.0, 2.5]
 
 
 def test_disposition_contract_does_not_demand_oracle_omniscience():

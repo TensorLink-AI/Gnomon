@@ -7,6 +7,7 @@ import csv
 import hashlib
 import json
 import math
+import os
 import tempfile
 import time
 from collections import defaultdict
@@ -118,6 +119,20 @@ def _points(result: Any) -> list[float]:
     return [float(row.get("q50", row["point"])) for row in result.forecast]
 
 
+def _structural_scenario(result: Any) -> tuple[dict[str, Any] | None,
+                                                list[float] | None]:
+    """Return the labelled structural what-if without promoting it."""
+    scenarios = [
+        scenario for scenario in result.sensitivity_scenarios
+        if scenario.get("support") == "prior_assisted_structural"
+        and isinstance(scenario.get("forecast"), list)
+    ]
+    scenario = scenarios[0] if scenarios else None
+    points = ([float(row.get("q50", row["point"]))
+               for row in scenario["forecast"]] if scenario else None)
+    return scenario, points
+
+
 def _leaked(artifact: Any, frequency: str) -> bool:
     # A run may read future-valid covariates only when they were published by
     # the forecast origin. Leakage is about known_time, never valid_time.
@@ -207,6 +222,13 @@ def run_case(case: Case, oracle: Oracle, work_root: Path, *,
         and bool(contract["provenance"].get("known_at"))
         for contract in scenario_contracts
     )
+    # ContextBench historically scored only the canonical primary.  That is
+    # the right safety measurement, but it made a useful, explicitly
+    # non-automatable structural what-if look identical to ignored context.
+    # Preserve both measurements: primary uplift remains admission evidence;
+    # conditional uplift measures the bounded scenario offered to a human or
+    # reasoning agent.  Never substitute the scenario into the primary arm.
+    structural_scenario, structural_points = _structural_scenario(context_result)
     contextual = _points(context_result)
     if len(baseline) != case.horizon or len(contextual) != case.horizon:
         raise RuntimeError(f"{case.case_id}: an arm did not publish the full horizon")
@@ -281,6 +303,19 @@ def run_case(case: Case, oracle: Oracle, work_root: Path, *,
         "context_outcome": context_result.context_outcome,
         "scenario_contract_count": len(scenario_contracts),
         "typed_scenario_contracts": typed_scenario_contracts,
+        "conditional_scenario_available": structural_scenario is not None,
+        "conditional_scenario_smape": (
+            smape(oracle.actual, structural_points)
+            if structural_points is not None else None),
+        "conditional_scenario_incremental_smape": (
+            smape(oracle.actual, baseline) - smape(oracle.actual, structural_points)
+            if structural_points is not None else None),
+        "conditional_scenario_automation_eligible": (
+            bool(structural_scenario.get("automation_eligible", False))
+            if structural_scenario else None),
+        "conditional_scenario_primary_unchanged": (
+            not bool(structural_scenario.get("primary_forecast_changed", False))
+            if structural_scenario else None),
         "latency_seconds": round(time.perf_counter() - started, 6),
     }
 
@@ -341,6 +376,19 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
             "counterfactual_context_opportunity_smape": (
                 mean(opportunity) if opportunity else None
             ),
+            "conditional_scenarios": sum(
+                bool(row.get("conditional_scenario_available")) for row in members),
+            "conditional_scenario_smape": (mean(
+                float(row["conditional_scenario_smape"]) for row in members
+                if row.get("conditional_scenario_smape") is not None
+            ) if any(row.get("conditional_scenario_smape") is not None
+                     for row in members) else None),
+            "conditional_scenario_incremental_smape": (mean(
+                float(row["conditional_scenario_incremental_smape"])
+                for row in members
+                if row.get("conditional_scenario_incremental_smape") is not None
+            ) if any(row.get("conditional_scenario_incremental_smape") is not None
+                     for row in members) else None),
         }
     base_gates = {
         "complete": len(rows) == int(manifest["cases"]),
@@ -536,11 +584,47 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
     }
 
 
+def _load_checkpoint(path: Path, expected_ids: set[str]) -> list[dict[str, Any]]:
+    """Load only complete, unique observations from a durable checkpoint."""
+    if not path.exists():
+        return []
+    rows: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for line_number, line in enumerate(
+            path.read_text(encoding="utf-8").splitlines(), start=1):
+        if not line.strip():
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise SystemExit(
+                f"checkpoint has invalid JSON on line {line_number}: {exc}")
+        case_id = str(row.get("case_id") or "")
+        if case_id not in expected_ids:
+            raise SystemExit(
+                f"checkpoint case {case_id!r} is not in this corpus selection")
+        if case_id in seen:
+            raise SystemExit(f"checkpoint repeats case {case_id!r}")
+        seen.add(case_id)
+        rows.append(row)
+    return rows
+
+
+def _append_checkpoint(path: Path, row: dict[str, Any]) -> None:
+    """Persist one completed case before beginning the next one."""
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(row, sort_keys=True) + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--corpus-dir", required=True)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--limit", type=int)
+    parser.add_argument("--resume", action="store_true",
+                        help="continue a matching interrupted run")
     parser.add_argument("--allow-gate-failure", action="store_true")
     args = parser.parse_args()
     corpus = Path(args.corpus_dir)
@@ -570,11 +654,40 @@ def main() -> int:
     if missing:
         raise SystemExit(f"oracle is missing case IDs: {missing}")
     output = Path(args.output_dir); output.mkdir(parents=True, exist_ok=True)
+    corpus_identity = {
+        "benchmark": "contextbench",
+        "cases_sha256": manifest.get("cases_sha256"),
+        "oracle_sha256": manifest.get("oracle_sha256"),
+        "selected_case_ids": [case.case_id for case in cases],
+    }
+    identity_path = output / "run_identity.json"
+    checkpoint_path = output / "observations.jsonl"
+    if identity_path.exists():
+        existing_identity = json.loads(identity_path.read_text(encoding="utf-8"))
+        if existing_identity != corpus_identity:
+            raise SystemExit(
+                "output directory belongs to a different corpus or case selection")
+        if not args.resume and checkpoint_path.exists():
+            raise SystemExit(
+                "output already contains observations; pass --resume or use a new directory")
+    else:
+        if checkpoint_path.exists():
+            raise SystemExit(
+                "observations exist without run_identity.json; refusing unsafe resume")
+        identity_path.write_text(
+            json.dumps(corpus_identity, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8")
+    observations = _load_checkpoint(
+        checkpoint_path, {case.case_id for case in cases}) if args.resume else []
+    completed = {str(row["case_id"]) for row in observations}
     work = Path(tempfile.mkdtemp(prefix="contextbench-", dir=str(output)))
-    observations = [run_case(case, oracles[case.case_id], work) for case in cases]
-    with (output / "observations.jsonl").open("w", encoding="utf-8") as handle:
-        for row in observations:
-            handle.write(json.dumps(row, sort_keys=True) + "\n")
+    for case in cases:
+        if case.case_id in completed:
+            continue
+        row = run_case(case, oracles[case.case_id], work)
+        _append_checkpoint(checkpoint_path, row)
+        observations.append(row)
+        completed.add(case.case_id)
     summary = summarize(observations, manifest)
     summary["corpus_manifest_sha256"] = hashlib.sha256(
         (corpus / "manifest.json").read_bytes()).hexdigest()
