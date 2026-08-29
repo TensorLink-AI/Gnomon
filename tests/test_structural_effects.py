@@ -69,6 +69,22 @@ def test_trend_cessation_rejects_a_seasonal_or_irregular_emitted_path():
     assert not assessment.admitted
     assert assessment.rejected[0]["code"] == \
         "emitted_trend_is_directionally_stable"
+    rejection = assessment.rejected[0]
+    data = rejection["data"]
+    assert data["directional_agreement_passed"] is (
+        data["directional_agreement"] >= data["agreement_threshold"])
+    assert data["same_direction_passed"] is (
+        data["historical_slope_per_step"] * data["emitted_slope_per_step"] > 0)
+    lower, upper = data["magnitude_ratio_bounds"]
+    assert data["magnitude_ratio_passed"] is (
+        lower <= data["magnitude_ratio"] <= upper)
+    for label, key in (
+        ("directional agreement", "directional_agreement_passed"),
+        ("slope direction", "same_direction_passed"),
+        ("magnitude ratio", "magnitude_ratio_passed"),
+    ):
+        status = "passed" if data[key] else "failed"
+        assert f"{label} {status}" in rejection["reason"]
 
 
 def test_trend_cessation_admits_a_directionally_stable_emitted_path():

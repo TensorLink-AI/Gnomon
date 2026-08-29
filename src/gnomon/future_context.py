@@ -1407,19 +1407,27 @@ def _admit_structural(
         same_direction = historical_slope * emitted_slope > 0
         magnitude_ratio = (abs(emitted_slope / historical_slope)
                            if abs(historical_slope) > 1e-12 else 0.0)
-        if (agreement < 0.75 or not same_direction
-                or not 0.25 <= magnitude_ratio <= 4.0):
+        agreement_passed = agreement >= 0.75
+        magnitude_ratio_passed = 0.25 <= magnitude_ratio <= 4.0
+        if (not agreement_passed or not same_direction
+                or not magnitude_ratio_passed):
             assessment.record_check(
                 event, "structural", "emitted_trend_is_directionally_stable",
                 False,
                 detail=(
                     "the emitted path does not contain a stable continuation "
-                    "of the seasonally adjusted historical trend "
-                    f"(agreement={agreement:.1%}, historical slope="
+                    "of the seasonally adjusted historical trend; subchecks: "
+                    f"directional agreement "
+                    f"{'passed' if agreement_passed else 'failed'} "
+                    f"({agreement:.1%}, required >=75%); slope direction "
+                    f"{'passed' if same_direction else 'failed'} "
+                    "(same direction required; historical slope="
                     f"{historical_slope:.6g}, emitted slope="
-                    f"{emitted_slope:.6g}, ratio={magnitude_ratio:.3g}); "
-                    "at least 75% directional agreement and a same-direction "
-                    "magnitude ratio in [0.25, 4] are required"
+                    f"{emitted_slope:.6g}); magnitude ratio "
+                    f"{'passed' if magnitude_ratio_passed else 'failed'} "
+                    f"({magnitude_ratio:.3g} "
+                    f"{'within' if magnitude_ratio_passed else 'outside'} "
+                    "[0.25, 4])"
                 ),
                 source_span=span,
                 data={"historical_slope_per_step": historical_slope,
@@ -1427,7 +1435,10 @@ def _admit_structural(
                       "directional_agreement": agreement,
                       "magnitude_ratio": magnitude_ratio,
                       "agreement_threshold": 0.75,
-                      "magnitude_ratio_bounds": [0.25, 4.0]},
+                      "magnitude_ratio_bounds": [0.25, 4.0],
+                      "directional_agreement_passed": agreement_passed,
+                      "same_direction_passed": same_direction,
+                      "magnitude_ratio_passed": magnitude_ratio_passed},
             )
             return None
         resolved_slope = emitted_slope
