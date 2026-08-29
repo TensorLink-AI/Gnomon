@@ -273,11 +273,32 @@ def context_outcome(
                if failed_gate_codes else {}),
             **({"excluded": exclusions} if exclusions else {}),
         }
+    no_distinct_structural_path = (
+        bool(future_failures)
+        and all(str(check.get("code")) ==
+                "emitted_trend_is_directionally_stable"
+                for check in future_failures)
+        and all(event.event_type == "structural:trend_ceases"
+                for event in applicable)
+    )
     return {
         "status": "rejected", "primary_forecast_changed": False,
         "canonical_primary_preserved": True,
         "automation_eligible": False,
         "events": [event.event_id for event in applicable],
+        **({
+            "relationship_to_primary": "no_distinct_numeric_path",
+            "selected_output_role": "primary_forecast_already_noncontinuing",
+            "basis": (
+                "the emitted primary does not contain a stable continuation "
+                "of the historical trend, so applying trend_ceases would not "
+                "create a defensibly distinct numeric path"
+            ),
+            "recovery_actions": [
+                "use the immutable primary as the no-continuation path",
+                "track the outcome before assigning a recurring structural effect",
+            ],
+        } if no_distinct_structural_path else {}),
         **({"context_receipt_ids": receipt_ids} if receipt_ids else {}),
         **({"failed_gate_codes": failed_gate_codes}
            if failed_gate_codes else {}),

@@ -259,6 +259,8 @@ def test_structural_scenario_is_scored_without_becoming_primary(tmp_path):
     assert row["conditional_scenario_available"] is False
     assert "emitted_trend_is_directionally_stable" in (
         row["context_outcome"]["failed_gate_codes"])
+    assert row["context_outcome"]["relationship_to_primary"] == \
+        "no_distinct_numeric_path"
 
     # When a result does contain the independently tested structural path,
     # the benchmark reads that labelled lane rather than replacing primary.

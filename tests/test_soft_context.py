@@ -131,6 +131,30 @@ def test_structural_scenario_reports_its_decisive_future_gate() -> None:
         "four transformation-specific evaluations are required"]
 
 
+def test_flat_primary_makes_trend_ceases_a_typed_noop_not_an_opaque_rejection():
+    event = _event("structural:trend_ceases")
+    outcome = context_outcome(
+        [event], "heart_rate",
+        future_context={"checks": [{
+            "event_id": "event-1", "event_class": "structural",
+            "code": "emitted_trend_is_directionally_stable", "passed": False,
+            "detail": "the emitted path has no stable continuing trend",
+        }], "rejected": [{
+            "event_id": "event-1",
+            "code": "emitted_trend_is_directionally_stable",
+        }]},
+    )
+
+    assert outcome["status"] == "rejected"
+    assert outcome["relationship_to_primary"] == "no_distinct_numeric_path"
+    assert outcome["selected_output_role"] == \
+        "primary_forecast_already_noncontinuing"
+    assert outcome["primary_forecast_changed"] is False
+    assert outcome["automation_eligible"] is False
+    assert "would not create a defensibly distinct" in outcome["basis"]
+    assert outcome["recovery_actions"]
+
+
 def test_mixed_context_preserves_scenario_and_rejected_dispositions() -> None:
     generic = _event()
     rejected = ContextEvent(**{
