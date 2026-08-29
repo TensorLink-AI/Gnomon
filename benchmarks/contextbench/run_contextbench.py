@@ -126,6 +126,11 @@ def _points(result: Any) -> list[float]:
     return [float(row.get("q50", row["point"])) for row in result.forecast]
 
 
+def _raw_points(result: Any) -> list[float]:
+    """Uncalibrated executable path used for effect timing attribution."""
+    return [float(row["point"]) for row in result.forecast]
+
+
 def _structural_scenario(result: Any) -> tuple[dict[str, Any] | None,
                                                 list[float] | None]:
     """Return the labelled structural what-if without promoting it."""
@@ -199,6 +204,7 @@ def run_case(case: Case, oracle: Oracle, work_root: Path, *,
         use_covariates=use_covariates)
     baseline_result = baseline_artifact.results[0]
     baseline = _points(baseline_result)
+    baseline_raw = _raw_points(baseline_result)
     default_policy_changed: bool | None = None
     default_policy_smape: float | None = None
     if oracle.dimensions.get("admission_warrant") == "asserted":
@@ -213,6 +219,7 @@ def run_case(case: Case, oracle: Oracle, work_root: Path, *,
         )
         default_policy_smape = smape(oracle.actual, default_points)
     context_result = context_artifact.results[0]
+    contextual_raw = _raw_points(context_result)
     scenario_contracts = [
         item.get("effect") for item in (
             [*context_result.conditional_forecasts,
@@ -241,12 +248,20 @@ def run_case(case: Case, oracle: Oracle, work_root: Path, *,
         raise RuntimeError(f"{case.case_id}: an arm did not publish the full horizon")
     changed_steps = [index for index, (left, right) in enumerate(
         zip(baseline, contextual)) if abs(left - right) > 1e-9]
+    point_changed_steps = [index for index, (left, right) in enumerate(
+        zip(baseline_raw, contextual_raw)) if abs(left - right) > 1e-9]
+    calibration_only_changed_steps = sorted(
+        set(changed_steps) - set(point_changed_steps))
     disposition = (context_result.context_outcome or {}).get("status", "not_considered")
     applied = disposition == "applied" or bool(
         (context_result.covariates or {}).get("admitted"))
     if case.family == "future_covariate":
         disposition = "applied" if applied else "rejected"
-    deltas = [right - left for left, right in zip(baseline, contextual)]
+    # Effect direction, onset, duration, and magnitude belong to the fitted
+    # executable's raw path. q50 additionally includes model-specific
+    # residual calibration and can legitimately move on inactive steps.
+    deltas = [right - left for left, right in
+              zip(baseline_raw, contextual_raw)]
     nonzero = [value for value in deltas if abs(value) > 1e-9]
     inferred_direction = (("increase" if mean(nonzero) > 0 else "decrease")
                           if nonzero else "none")
@@ -265,6 +280,11 @@ def run_case(case: Case, oracle: Oracle, work_root: Path, *,
         "oracle_dimensions": dict(oracle.dimensions),
         "history_smape": smape(oracle.actual, baseline),
         "context_smape": smape(oracle.actual, contextual),
+        "history_point_smape": smape(oracle.actual, baseline_raw),
+        "context_point_smape": smape(oracle.actual, contextual_raw),
+        "point_incremental_smape": (
+            smape(oracle.actual, baseline_raw)
+            - smape(oracle.actual, contextual_raw)),
         "counterfactual_smape": smape(oracle.counterfactual, contextual),
         "default_policy_primary_changed": default_policy_changed,
         "default_policy_selected_projection_differs_from_primary": (
@@ -279,6 +299,9 @@ def run_case(case: Case, oracle: Oracle, work_root: Path, *,
         "canonical_primary_preserved": bool(
             (not context_effect_admitted) or primary == baseline_result.forecast),
         "changed_steps": changed_steps,
+        "point_projection_differs_from_primary": bool(point_changed_steps),
+        "point_changed_steps": point_changed_steps,
+        "calibration_only_changed_steps": calibration_only_changed_steps,
         "should_influence": oracle.should_influence, "disposition": disposition,
         "expected_disposition": oracle.expected_disposition, "applied": applied,
         "disposition_valid": valid_disposition(
@@ -298,9 +321,11 @@ def run_case(case: Case, oracle: Oracle, work_root: Path, *,
             (mean(nonzero) if nonzero else 0.0)
         ),
         "onset_step_expected": oracle.onset_step,
-        "onset_step_inferred": min(changed_steps) if changed_steps else None,
+        "onset_step_inferred": (min(point_changed_steps)
+                                if point_changed_steps else None),
         "duration_steps_expected": oracle.duration_steps,
-        "duration_steps_inferred": len(changed_steps) if changed_steps else None,
+        "duration_steps_inferred": (len(point_changed_steps)
+                                    if point_changed_steps else None),
         "interval_coverage": mean(covered) if covered else None,
         "temporal_leakage": _leaked(context_artifact, case.frequency),
         "publication_parity": (persisted_baseline == baseline_result.forecast
@@ -313,6 +338,8 @@ def run_case(case: Case, oracle: Oracle, work_root: Path, *,
                 and persisted_context_result.get("primary_forecast") == primary)
         ),
         "history_forecast": baseline, "context_forecast": contextual,
+        "history_point_forecast": baseline_raw,
+        "context_point_forecast": contextual_raw,
         "actual": list(oracle.actual), "counterfactual": list(oracle.counterfactual),
         "context_gate": context_result.context,
         "covariate_gate": context_result.covariates,
@@ -386,6 +413,15 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
             "history_smape": mean(row["history_smape"] for row in members),
             "context_smape": mean(row["context_smape"] for row in members),
             "incremental_smape": mean(row["incremental_smape"] for row in members),
+            "history_point_smape": mean(
+                row.get("history_point_smape", row["history_smape"])
+                for row in members),
+            "context_point_smape": mean(
+                row.get("context_point_smape", row["context_smape"])
+                for row in members),
+            "point_incremental_smape": mean(
+                row.get("point_incremental_smape", row["incremental_smape"])
+                for row in members),
             "applied": sum(row["applied"] for row in members),
             "selected_projection_differs_from_primary": sum(
                 selected_projection_changed(row) for row in members),
@@ -596,6 +632,8 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
             "leakage_count": sum(row["temporal_leakage"] for row in rows),
             "scenario_contracts": sum(
                 row.get("scenario_contract_count", 0) for row in rows),
+            "calibration_only_changed_steps": sum(len(
+                row.get("calibration_only_changed_steps") or []) for row in rows),
             "typed_scenario_contract_rate": (sum(
                 row.get("scenario_contract_count", 0)
                 for row in rows if row.get("typed_scenario_contracts", True)) /

@@ -14,7 +14,7 @@ from benchmarks.contextbench.generate import generate, main as generate_main
 from benchmarks.contextbench.generate_stress import generate as generate_stress
 from benchmarks.contextbench import run_surfaces as surface_runner
 from benchmarks.contextbench.run_contextbench import (
-    _append_checkpoint, _load_checkpoint, _structural_scenario,
+    _append_checkpoint, _load_checkpoint, _raw_points, _structural_scenario,
     run_case, smape, summarize, valid_disposition,
 )
 from benchmarks.contextbench.run_contextbench import main as run_main
@@ -229,6 +229,14 @@ def test_stress_summary_separates_empirical_admission_from_asserted_truth():
 def test_smape_is_symmetric_and_zero_safe():
     assert smape([0.0, 10.0], [0.0, 12.0]) == smape([0.0, 12.0], [0.0, 10.0])
     assert smape([0.0], [0.0]) == 0.0
+
+
+def test_effect_timing_uses_raw_executable_not_calibrated_median():
+    result = SimpleNamespace(forecast=[
+        {"point": 10.0, "q50": 9.5},
+        {"point": 12.0, "q50": 11.5},
+    ])
+    assert _raw_points(result) == [10.0, 12.0]
 
 
 def test_context_residuals_respect_ets_minimum_history():

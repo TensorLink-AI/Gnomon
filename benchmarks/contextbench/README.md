@@ -65,6 +65,11 @@ to resume a different corpus, fails closed.
 
 Stress reports include admission precision/recall by stratum, a full SNR
 curve, onset and magnitude error, harmful admissions, and realized accuracy.
+Realized forecast accuracy is scored on the published calibrated `q50`.
+Effect direction, onset, duration, and magnitude are scored on the executable's
+raw `point` path: model-specific residual calibration may move `q50` on an
+otherwise inactive step and is reported separately as a calibration-only
+change, not mislabelled as an early causal effect.
 Pulse duration and recurrence are normalized by elapsed time for each grid;
 otherwise a fixed number of steps makes daily cases far more event-saturated
 than sub-hourly cases. The high-signal recall gate applies to the strongest
