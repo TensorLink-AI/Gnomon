@@ -129,6 +129,240 @@ def _resolve_schema(args) -> list[str]:
     return assumptions
 
 
+def _attach_publication(payload, artifact, path, args) -> None:
+    """Attach and persist the requested projection without editing artifact."""
+    mode = getattr(args, "publication_mode", "strict")
+    dossier_paths = getattr(args, "dossier", None) or []
+    selection_path = getattr(args, "scenario_selection", None)
+    policy_path = getattr(args, "automation_policy", None)
+    proposal_path = getattr(args, "context_proposal", None)
+    compile_mode = getattr(args, "context_compile", None)
+    transformation_paths = getattr(args, "context_transformation", None) or []
+    # Strict with no publication inputs is the compatibility path: no new
+    # stdout keys or sidecar for callers that did not request this feature.
+    if mode == "strict" and not (dossier_paths or proposal_path or compile_mode
+                                  or transformation_paths
+                                  or selection_path or policy_path):
+        return
+    def read(path_value, label):
+        path_value = Path(path_value).expanduser()
+        try:
+            return json.loads(path_value.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise GnomonError("INVALID_ARGUMENTS",
+                              f"{label} is not readable JSON: {exc}") from exc
+    dossiers = [read(item, "--dossier") for item in dossier_paths]
+    selection = read(selection_path, "--scenario-selection") \
+        if selection_path else None
+    policy = read(policy_path, "--automation-policy") if policy_path else None
+    if len(artifact.results) != 1:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "Publication modes currently require one target series; invoke "
+            "forecast once per target so each recommendation has one owner.")
+    from .publication import (compile_dossier_for_result, publish_result,
+                              write_publication)
+    result = artifact.to_dict()["results"][0]
+    from .pipeline import load_stage
+    publication_input = load_stage(
+        args.input, time_column=args.time_column,
+        target_column=args.target_column,
+        series_column=getattr(args, "series_column", None),
+        frequency=getattr(args, "frequency", None),
+        as_of=getattr(args, "as_of", None),
+        store_path=getattr(args, "store_path", None),
+        repair=getattr(args, "repair", "safe"),
+        regrid=getattr(args, "regrid", None))
+    observations = publication_input.groups.get(artifact.results[0].series)
+    if observations is None and len(publication_input.groups) == 1:
+        observations = next(iter(publication_input.groups.values()))
+    governed_history = [float(item.value) for item in (observations or [])]
+    inline_transformations = []
+    if compile_mode:
+        if proposal_path or transformation_paths:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "--context-compile cannot be combined with --context-proposal "
+                "or --context-transformation")
+        context_text = getattr(args, "context_text", None)
+        known_at = getattr(args, "context_known_at", None)
+        if not context_text or not known_at:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "--context-compile requires --context-text and --context-known-at")
+        from .relationship_text import compile_linear_relationship_text
+        future_timestamps = [str(row["timestamp"])
+                             for row in result.get("forecast") or []
+                             if isinstance(row, dict) and row.get("timestamp")]
+        compiled_relationship = compile_linear_relationship_text(
+            context_text, target_name=str(args.target_column), cutoff=known_at,
+            future_timestamps=future_timestamps)
+        if compiled_relationship is None:
+            result.setdefault("context_rejections", []).append({
+                "context_id": "deterministic-linear-compiler",
+                "reason_code": "DETERMINISTIC_RELATIONSHIP_UNRESOLVED",
+                "reason": "No complete linear relationship was compiled; no partial arithmetic was executed.",
+                "source_span": context_text,
+            })
+        else:
+            raw, compilation_kind = compiled_relationship
+            dossier, _ = compile_dossier_for_result(
+                raw, context_text=context_text, known_at=known_at,
+                result=result,
+                history=governed_history,
+                compiler_model="gnomon:deterministic_linear:" + compilation_kind)
+            dossiers.append(dossier)
+            inline_transformations = list(raw.get("transformations") or [])
+    if proposal_path:
+        context_text = getattr(args, "context_text", None)
+        known_at = getattr(args, "context_known_at", None)
+        if not context_text or not known_at:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "--context-proposal requires --context-text and --context-known-at")
+        raw = read(proposal_path, "--context-proposal")
+        dossier, _ = compile_dossier_for_result(
+            raw, context_text=context_text, known_at=known_at, result=result,
+            history=governed_history,
+            compiler_model=getattr(args, "context_compiler_model", None) or "agent")
+        dossiers.append(dossier)
+    if transformation_paths or inline_transformations:
+        known_at = getattr(args, "context_known_at", None)
+        if not known_at:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "--context-transformation requires --context-known-at")
+        from .context_intelligence import (compile_transformation,
+                                           execute_transformation)
+        claims = [claim for dossier in dossiers
+                  for claim in dossier.get("claims") or []]
+        claim_ids = [str(claim.get("claim_id")) for claim in claims
+                     if claim.get("claim_id")]
+        claim_spans = {str(claim.get("claim_id")): str(
+            claim.get("source_span") or "") for claim in claims
+                       if claim.get("claim_id")}
+        result["transformation_candidates"] = []
+        result["transformation_rejections"] = []
+
+        def trusted_recurrence_history(expression, historical_segments=None):
+            if not isinstance(expression, dict) or expression.get("op") not in {
+                    "recursive_linear", "fit_recursive_linear"}:
+                return [], {}
+            from .pipeline import load_stage
+
+            def observations_for(target):
+                loaded = load_stage(
+                    args.input, time_column=args.time_column,
+                    target_column=target,
+                    series_column=getattr(args, "series_column", None),
+                    frequency=getattr(args, "frequency", None),
+                    as_of=getattr(args, "as_of", None),
+                    store_path=getattr(args, "store_path", None),
+                    regrid=getattr(args, "regrid", None),
+                    repair=getattr(args, "repair", "safe"))
+                if len(loaded.groups) != 1:
+                    raise GnomonError(
+                        "AMBIGUOUS_RECURSIVE_HISTORY",
+                        "Recursive context execution requires exactly one series per target.")
+                return list(next(iter(loaded.groups.values())))
+
+            driver_terms = (expression.get("driver_terms") or []
+                            if expression.get("op") == "recursive_linear"
+                            else expression.get("driver_lags") or [])
+            drivers = sorted({str(term.get("series"))
+                              for term in driver_terms
+                              if term.get("series")})
+            target_observations = observations_for(args.target_column)
+            target_map = {item.timestamp: float(item.value)
+                          for item in target_observations}
+            common = sorted(target_map)
+            histories = {}
+            if historical_segments:
+                from .context_intelligence import expand_cited_history_segments
+                documented = expand_cited_history_segments(
+                    historical_segments, timestamps=common, cutoff=max(common),
+                    claim_spans=claim_spans, allowed_claim_ids=claim_ids)
+                unknown = set(documented) - set(drivers)
+                if unknown:
+                    raise GnomonError(
+                        "UNKNOWN_HISTORY_SERIES",
+                        "Document history names are not recurrence drivers: "
+                        + ", ".join(sorted(unknown)))
+                histories.update(documented)
+            for name in drivers:
+                if name in histories:
+                    continue
+                observations = observations_for(name)
+                mapping = {item.timestamp: float(item.value)
+                           for item in observations}
+                common = [timestamp for timestamp in common
+                          if timestamp in mapping]
+                histories[name] = [mapping[timestamp] for timestamp in common]
+            if historical_segments:
+                documented = expand_cited_history_segments(
+                    historical_segments, timestamps=common,
+                    cutoff=max(common), claim_spans=claim_spans,
+                    allowed_claim_ids=claim_ids)
+                histories.update(documented)
+            return ([target_map[timestamp] for timestamp in common], histories)
+
+        transformation_inputs = [
+            *(read(path, "--context-transformation")
+              for path in transformation_paths[:6]),
+            *inline_transformations,
+        ]
+        for index, wrapper in enumerate(transformation_inputs[:6], 1):
+            compiled, critique = compile_transformation(
+                wrapper.get("transformation", wrapper),
+                series=list((wrapper.get("series_values") or {}).keys()),
+                claim_ids=claim_ids, cutoff=known_at,
+                units=wrapper.get("units"), repair=wrapper.get("repair"))
+            if compiled is None:
+                result["transformation_rejections"].append({
+                    "transformation_id": f"transformation-{index}",
+                    "reason_code": "transformation_validation_failed",
+                    "reason": "Declarative transformation was rejected.",
+                    "violations": critique["violations"],
+                })
+                continue
+            try:
+                target_history, driver_history = trusted_recurrence_history(
+                    compiled.get("expression"),
+                    wrapper.get("historical_series_segments"))
+                candidate = execute_transformation(
+                    compiled,
+                    primary=(result.get("primary_forecast")
+                             or result.get("forecast") or []),
+                    series_values=wrapper.get("series_values"),
+                    historical_validation=wrapper.get("historical_validation"),
+                    claim_spans=claim_spans,
+                    history_values=target_history,
+                    history_series=driver_history)
+                if wrapper.get("historical_series_segments"):
+                    candidate["validation"]["recurrence_history_source"] = (
+                        "document_cited_segments")
+                    candidate["validation"]["document_history_series"] = sorted(
+                        wrapper["historical_series_segments"])
+                result["transformation_candidates"].append(candidate)
+            except (ValueError, GnomonError) as exc:
+                result["transformation_rejections"].append({
+                    "transformation_id": compiled["transformation_id"],
+                    "reason_code": getattr(exc, "code", "transformation_execution_failed"),
+                    "reason": str(exc),
+                    "violations": [getattr(exc, "as_dict", lambda: {})()],
+                })
+    try:
+        publication = publish_result(
+            result, mode=mode, dossiers=dossiers,
+            scenario_selection=selection, automation_policy=policy,
+            artifact_id=artifact.forecast_id)
+    except ValueError as exc:
+        raise GnomonError("INVALID_ARGUMENTS", str(exc)) from exc
+    publication_path = write_publication(path, publication)
+    payload["publication"] = publication
+    payload["publication_path"] = str(publication_path)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = _StructuredArgumentParser(prog="gnomon", description="Evidence-backed local forecasting")
     parser.add_argument("--version", action="version", version="gnomon 0.5.0")
@@ -296,6 +530,50 @@ def build_parser() -> argparse.ArgumentParser:
         "--multivariate", action="store_true",
         help="Let a cross-series VAR candidate compete on the same folds "
              "as everything else; it is admitted only if it wins",
+    )
+    forecast_parser.add_argument(
+        "--publication-mode", choices=("strict", "best_effort", "scenario"),
+        default="strict",
+        help="Human-facing projection: strict keeps historically admitted "
+             "evidence authoritative; best_effort may recommend a sealed "
+             "prior-assisted path; scenario returns every bounded path.",
+    )
+    forecast_parser.add_argument(
+        "--dossier", action="append", default=None,
+        help="Sealed temporal-dossier JSON (repeatable). Invalid seals are "
+             "retained as typed rejections, never silently ignored.",
+    )
+    forecast_parser.add_argument(
+        "--context-proposal",
+        help="Unsealed JSON with cited claims and a typed effect_proposal; "
+             "Gnomon validates, composes, and seals it during this run.",
+    )
+    forecast_parser.add_argument(
+        "--context-text", help="Source text quoted by --context-proposal.")
+    forecast_parser.add_argument(
+        "--context-compile", choices=("deterministic_linear",),
+        help="Compile a complete cited linear lag specification directly; "
+             "requires --context-text and --context-known-at and refuses "
+             "partial arithmetic.")
+    forecast_parser.add_argument(
+        "--context-known-at", help="Timezone-aware knowledge time for context.")
+    forecast_parser.add_argument(
+        "--context-transformation", action="append", default=None,
+        help="JSON file containing a bounded declarative transformation "
+             "(repeatable, maximum six). Requires cited claims and "
+             "--context-known-at; generated code is never executed.")
+    forecast_parser.add_argument(
+        "--context-compiler-model", default="agent",
+        help="Identity of the model or human that extracted the proposal.")
+    forecast_parser.add_argument(
+        "--scenario-selection",
+        help="Governed LLM scenario-selection JSON. It may rank sealed paths "
+             "but cannot supply or edit forecast numbers.",
+    )
+    forecast_parser.add_argument(
+        "--automation-policy",
+        help="Explicit JSON automation policy. Human recommendation never "
+             "implies automation eligibility.",
     )
 
     covariate_parser = subcommands.add_parser(
@@ -655,6 +933,17 @@ def build_parser() -> argparse.ArgumentParser:
                                  help="Restrict to one proposer id")
     track_proposers.add_argument("--event-type", default=None,
                                  help="Restrict to one event type")
+
+    track_decision_skill = track_commands.add_parser(
+        "decision-skill",
+        help="Outcome-derived skill for model-authored temporal decisions",
+    )
+    track_decision_skill.add_argument("--project", required=True)
+    track_decision_skill.add_argument(
+        "--proposer", default=None, help="Restrict to one proposer id")
+    track_decision_skill.add_argument(
+        "--minimum-resolved", type=int, default=20,
+        help="Resolved comparisons required before human-prior graduation")
 
     track_effects = track_commands.add_parser(
         "effects",
@@ -1685,6 +1974,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 ), indent=2))
                 return 0
 
+            elif args.track_command == "decision-skill":
+                print(json.dumps(store.decision_synthesis_skill(
+                    args.project, proposer_id=args.proposer,
+                    minimum_resolved=args.minimum_resolved,
+                ), indent=2))
+                return 0
+
             elif args.track_command == "effects":
                 print(json.dumps(store.event_effects(
                     args.project, event_type=args.event_type,
@@ -1940,6 +2236,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             from .toolspec import brief_summary
             payload = (brief_summary(artifact, path) if args.brief
                        else forecast_summary(artifact, path))
+            _attach_publication(payload, artifact, path, args)
         else:
             from .context import load_events_file
             from .runtime import forecast
@@ -2029,15 +2326,23 @@ def main(argv: Sequence[str] | None = None) -> int:
                 payload = brief_summary(artifact, path)
             else:
                 payload = forecast_summary(artifact, path)
+            _attach_publication(payload, artifact, path, args)
             if context_cache:
                 payload = {**payload, "context_ref": args.context_ref,
                            "context_cache": context_cache}
 
             # Auto-register in tracking store if --project is set
             if getattr(args, "project", None):
-                from .tracking import register_artifact
+                from .tracking import TrackingStore, register_artifact
                 register_artifact(artifact, args.project, str(path),
                                   context_events=events)
+                if payload.get("publication"):
+                    from .publication import record_publication
+                    payload["publication_synthesis_id"] = record_publication(
+                        TrackingStore(), project=args.project,
+                        forecast_id=artifact.forecast_id,
+                        series=artifact.results[0].series,
+                        payload=payload["publication"])
                 print(f"Registered forecast {artifact.forecast_id} in project '{args.project}'", file=sys.stderr)
 
         decorated = _disclose_assumptions(payload, schema_assumptions)

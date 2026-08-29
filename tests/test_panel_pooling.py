@@ -25,6 +25,14 @@ def test_pooled_candidate_never_reads_donor_future() -> None:
     assert candidate(10, 3) == before
 
 
+def test_pool_evidence_reserves_the_latest_complete_target_origin() -> None:
+    candidate = PanelTrendCandidate("metric_0", _panel(18))
+    evidence = candidate.lightweight_evidence(3, 1, 0.02)
+    assert evidence is not None
+    assert evidence.target_origin == 15
+    assert evidence.target_pairs >= 2
+
+
 def test_short_wide_panel_can_earn_distinct_pooled_admission(tmp_path) -> None:
     panel = _panel()
     source = tmp_path / "panel.csv"
@@ -49,7 +57,7 @@ def test_short_wide_panel_can_earn_distinct_pooled_admission(tmp_path) -> None:
                  if item.kind == "model_admission"]
     assert len(admission) == len(columns)
     assert {item["state"] for item in admission} == {"pooled_validated"}
-    assert all(item["evidence"]["independent_folds"] == 1
+    assert all(item["evidence"]["independent_folds"] >= 2
                for item in admission)
 
 
@@ -86,3 +94,14 @@ def test_heterogeneous_panel_rejects_itself() -> None:
                            for index in [int(channel.rsplit("_", 1)[1])]]
     candidate = PanelTrendCandidate("metric_0", series)
     assert candidate.lightweight_evidence(5, 1, 0.02) is None
+
+
+def test_one_lucky_target_window_cannot_admit_pooling() -> None:
+    """Repeated target origins reject transfer that only works at the end."""
+    panel = _panel(18)
+    # The target is flat for most historical origins, then happens to align
+    # with the donors only in the final holdout. A one-window gate would
+    # mistake that coincidence for transferable panel structure.
+    panel["metric_0"] = [100.0] * 15 + [101.0, 102.0, 103.0]
+    candidate = PanelTrendCandidate("metric_0", panel)
+    assert candidate.lightweight_evidence(3, 1, 0.02) is None

@@ -57,8 +57,19 @@ PYTHONPATH=src:. python -m benchmarks.contextbench.run_contextbench \
   --output-dir results/contextbench/stress-run
 ```
 
+The engine runner writes and `fsync`s one observation after every completed
+case. If the host, shell, or process stops, rerun the identical command with
+`--resume`; corpus hashes and selected case IDs must match, and only unfinished
+cases execute. Reusing an output directory without `--resume`, or attempting
+to resume a different corpus, fails closed.
+
 Stress reports include admission precision/recall by stratum, a full SNR
 curve, onset and magnitude error, harmful admissions, and realized accuracy.
+Realized forecast accuracy is scored on the published calibrated `q50`.
+Effect direction, onset, duration, and magnitude are scored on the executable's
+raw `point` path: model-specific residual calibration may move `q50` on an
+otherwise inactive step and is reported separately as a calibration-only
+change, not mislabelled as an early causal effect.
 Pulse duration and recurrence are normalized by elapsed time for each grid;
 otherwise a fixed number of steps makes daily cases far more event-saturated
 than sub-hourly cases. The high-signal recall gate applies to the strongest
@@ -68,15 +79,21 @@ the decision boundary.
 Empirically testable context and asserted future claims have different
 warrants and therefore different denominators. Admission precision applies to
 effects Gnomon can backtest. For a numeric or structural claim whose truth is
-only revealed later, the report instead shows whether it changed the primary
-forecast and its realized sMAPE benefit or harm; requiring rejection based on
-the sealed future would reward oracle leakage.
+only revealed later, the report instead shows whether the explicitly enabled
+conditional projection differs from the immutable primary and its realized
+sMAPE benefit or harm; requiring rejection based on the sealed future would
+reward oracle leakage. The legacy observation field `primary_changed` is
+retained only for result-file compatibility and means
+`selected_projection_differs_from_primary`. It never means the artifact's
+canonical primary was mutated.
 
 Asserted claims also receive a matched default-policy run. Gnomon's default
-configuration keeps future numeric and structural assertions out of the
-primary forecast; only explicit opt-in enables those lanes. The report scores
-both the opt-in outcome and the invariant that asserted claims never change
-the primary under defaults. Historical evidence cannot identify a confident
+configuration keeps future numeric and structural assertions from becoming
+the selected projection; only explicit opt-in enables those lanes. The report
+scores both the opt-in outcome and the invariant that asserted claims never
+select a different projection under defaults. The immutable primary is retained
+in either mode, and context evidence alone never authorizes automation.
+Historical evidence cannot identify a confident
 future statement as a lie when its observed history is identical, so this
 policy boundary is part of the product's safety contract rather than an
 oracle-trained classifier.
@@ -137,6 +154,36 @@ resolved from a single 80-case corpus.
 
 ## LLM arms
 
+The ordinary corpus uses a literal schedule grammar so the deterministic fast
+path can prove timestamp and execution parity without model variance. It is
+not evidence about semantic compilation. For that question, generate a
+separate naturalistic-prose corpus. It preserves the same sealed numeric
+construction but paraphrases every schedule row outside the literal grammar;
+the compiled arm must therefore report non-zero compiler calls:
+
+```bash
+PYTHONPATH=src:. python -m benchmarks.contextbench.generate \
+  --output-dir results/contextbench/naturalistic-corpus --fresh \
+  --per-family 20 --narrative-style naturalistic
+```
+
+Never pool explicit and naturalistic results. Report compiler calls, event
+precision/recall, product failures, forecast lift, tokens, and latency for the
+naturalistic stratum. A zero-call compiled run is a fast-path engine test, not
+an LLM-interface result. Semantic schedule rows are capped at eight per
+compiler request; that cap is recorded in run identity and cannot change
+across resume.
+
+After both matched arms finish, produce the case-paired report (including raw
+rows, exact sign tests, bootstrap intervals, harm rates, and usage):
+
+```bash
+PYTHONPATH=src:. python -m benchmarks.contextbench.report_llm \
+  --raw-dir results/contextbench/raw \
+  --compiled-dir results/contextbench/compiled \
+  --output results/contextbench/llm-comparison.json
+```
+
 After validating the deterministic corpus, run the identical cases through a
 raw model or Gnomon's compiler. For Engy DeepSeek V4:
 
@@ -157,7 +204,9 @@ PYTHONPATH=src:. python -m benchmarks.contextbench.run_llm \
 If an endpoint transport fails, rerun the same command with `--resume
 --retry-errors`. Answered rows are retained and only errored or missing case
 IDs execute again; ordinary `--resume` retains all terminal rows. The summary
-discloses retained versus newly executed counts.
+discloses retained versus newly executed counts. Resume fails closed unless
+the corpus hash, selected case set, condition, model, endpoint, temperature,
+and reasoning mode match the original `run_identity.json`.
 
 The raw arm sees history, narrative, and future-known covariates but never the
 oracle. It makes two history-only calls around the contextual call. Their

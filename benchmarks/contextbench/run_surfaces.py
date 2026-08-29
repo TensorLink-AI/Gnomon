@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
 from benchmarks.common.envfile import load_env_file  # noqa: E402
+from benchmarks.common.manifest import code_revision  # noqa: E402
 from benchmarks.common.openrouter import OpenRouterClient  # noqa: E402
 from benchmarks.common.openrouter import OpenRouterError  # noqa: E402
 from benchmarks.temporalbench.mcp_agent import run_row  # noqa: E402
@@ -50,14 +51,32 @@ def _usage_sum(rows: list[dict[str, Any]], scope: str) -> dict[str, Any]:
                      for row in rows) for key in keys}
 
 
+def _fsync_directory(path: Path) -> None:
+    """Persist directory-entry changes after an atomic replace or create."""
+    descriptor = os.open(str(path), os.O_RDONLY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _atomic_write(path: Path, text: str) -> None:
+    """Write, fsync, replace, then fsync the containing directory."""
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    with temporary.open("w", encoding="utf-8") as handle:
+        handle.write(text)
+        handle.flush()
+        os.fsync(handle.fileno())
+    temporary.replace(path)
+    _fsync_directory(path.parent)
+
+
 def _checkpoint(path: Path, cases: list[Case],
                 rows_by_id: dict[str, dict[str, Any]]) -> None:
     """Atomically persist every completed case in corpus order."""
-    temporary = path.with_suffix(".jsonl.tmp")
-    temporary.write_text("".join(
+    _atomic_write(path, "".join(
         json.dumps(rows_by_id[case.case_id], sort_keys=True) + "\n"
         for case in cases if case.case_id in rows_by_id))
-    temporary.replace(path)
 
 
 def _append_attempt(path: Path, row: dict[str, Any], attempt: int) -> None:
@@ -66,6 +85,40 @@ def _append_attempt(path: Path, row: dict[str, Any], attempt: int) -> None:
                "recorded_at": datetime.now().astimezone().isoformat()}
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(payload, sort_keys=True) + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+    _fsync_directory(path.parent)
+
+
+def _prepare_run_identity(output: Path, identity: dict[str, Any],
+                          *, resume: bool) -> None:
+    """Fail closed before old rows can be mixed with a different treatment."""
+    identity_path = output / "run_identity.json"
+    state_paths = (
+        output / "observations.jsonl",
+        output / "attempts.jsonl",
+        output / "summary.json",
+    )
+    if identity_path.exists():
+        existing = json.loads(identity_path.read_text(encoding="utf-8"))
+        if existing != identity:
+            raise SystemExit(
+                "resume identity mismatch; use a new output directory")
+        if not resume:
+            raise SystemExit(
+                "output directory is already initialized; pass --resume or "
+                "use a new output directory")
+        return
+    if any(path.exists() for path in state_paths):
+        if resume:
+            raise SystemExit(
+                "cannot resume surface observations without run_identity.json")
+        raise SystemExit(
+            "output directory already contains surface run state; pass "
+            "--resume only if its run_identity.json is present")
+    _atomic_write(
+        identity_path,
+        json.dumps(identity, indent=2, sort_keys=True) + "\n")
 
 
 def _public_id(case_id: str) -> str:
@@ -113,6 +166,13 @@ def surface_row(case: Case, *, include_context: bool,
         "produces one, otherwise use an explicitly labeled alternative.\n\n" +
         narrative
     )
+    if include_context:
+        prompt += (
+            "\n\nIn the submitted reasoning, briefly state whether context "
+            "changed the primary, remained a scenario, or was rejected. "
+            "Preserve any interval limitation and automation restriction "
+            "reported by Gnomon; do not infer authority from the narrative."
+        )
     if routing_policy == "compiled":
         # The host already binds the validated dataset and forecast arguments
         # to the execution call. Repeating hundreds of values in the model
@@ -136,6 +196,11 @@ def surface_row(case: Case, *, include_context: bool,
         # verb; the unrouted diagnostic leaves that choice to the agent.
         "_require_gnomon_execution": True,
         "_host_compiled_forecast": routing_policy == "compiled",
+        # ContextBench measures whether the model preserves the tool's
+        # disposition in its human-facing synthesis.  The generic adapter's
+        # immediate host submission is correct for forecast-only tasks but
+        # would skip that turn and make explanation fidelity unobservable.
+        "_require_context_explanation": include_context,
         # The generic TemporalBench adapter otherwise uses its own synthetic
         # epoch. ContextBench events are absolute-time evidence, so silently
         # rebasing the values makes every historical event unmeasurable.
@@ -174,15 +239,24 @@ def compiled_surface_context(case: Case, client: OpenRouterClient,
     """Compile once per replicate using ContextBench's bounded chunker."""
     receipt_dir.mkdir(parents=True, exist_ok=True)
     path = receipt_dir / (_public_id(case.case_id) + ".json")
-    fingerprint = hashlib.sha256(case.narrative.encode()).hexdigest()
+    fingerprint = hashlib.sha256(json.dumps({
+        "narrative": case.narrative,
+        "document_known_at": sorted({
+            str(event.get("known_at")) for event in case.context_events
+            if event.get("known_at")}),
+    }, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     if path.is_file():
         cached = json.loads(path.read_text())
         if cached.get("narrative_sha256") != fingerprint:
             raise ValueError("cached surface context does not match narrative")
-        return {**cached["validated"], "compiler_called": False,
-                "receipt_reused": True}
+        from gnomon.workflows import CONTEXT_COMPILER_CONTRACT_VERSION
+        if (cached.get("validated") or {}).get("schema_version") == \
+                CONTEXT_COMPILER_CONTRACT_VERSION:
+            return {**cached["validated"], "compiler_called": False,
+                    "receipt_reused": True}
     compiled = compile_events(case, client)
     validated = {
+        "schema_version": compiled.get("schema_version"),
         "events": compiled.get("events") or [],
         "hypotheses": compiled.get("hypotheses") or [],
         "rejected": compiled.get("rejected") or [],
@@ -231,6 +305,40 @@ def _artifact_contract(outcome: dict[str, Any], forecast: list[float] | None
                         datetime.fromisoformat(str(cutoff)):
                     leakage = True
     return parity, leakage
+
+
+def preserves_automation_limit(
+    explanation: str, *, restricted: bool, projection: dict[str, Any],
+) -> bool:
+    """Require typed parity plus an unambiguous human-facing authority limit."""
+    if not restricted:
+        return True
+    lowered = explanation.lower()
+    return projection.get("matched") is True and any(
+        token in lowered for token in (
+            "not eligible", "ineligible", "cannot automate",
+            "cannot authorize", "no automation", "eligibility is false",
+            "eligible is false", "automation_eligible=false",
+        ))
+
+
+def preserves_primary_relationship(reasoning: str, relationship: str) -> bool:
+    """Whether an agent retained the engine's typed primary relationship."""
+    if not relationship:
+        return True
+    explanation = reasoning.casefold()
+    if relationship == "no_distinct_numeric_path":
+        return any(phrase in explanation for phrase in (
+            "no distinct numeric path",
+            "no defensibly distinct",
+            "not create a distinct numeric path",
+            "already noncontinuing",
+            "already non-continuing",
+            "does not contain a stable continuation",
+        ))
+    # Unknown future relationship classes fail closed until a deliberate
+    # semantic projection is added for them.
+    return False
 
 
 def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
@@ -347,6 +455,56 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
         changed = [index for index, pair in enumerate(zip(baseline, enriched))
                    if abs(pair[0] - pair[1]) > 1e-9]
         parity, leakage = _artifact_contract(contextual, enriched)
+        agent_reasoning = str(contextual.get("submit_reasoning") or "").strip()
+        explanation = agent_reasoning.lower()
+        interval_weak = (
+            context_gate.get("selected_output_role") ==
+            "interval_weak_context_scenario")
+        primary_projection = contextual.get(
+            "context_primary_projection") or {}
+        preserved_primary = (
+            primary_projection.get("matched") is True and
+            "primary" in explanation and any(
+                token in explanation for token in (
+                    "unchanged", "preserved", "remain", "did not change")))
+        scenario_required = bool(context_gate.get("scenario_only"))
+        represented_scenario = (
+            not scenario_required or
+            any(token in explanation for token in (
+                "scenario", "conditional", "what-if", "what if")))
+        preserved_interval_limit = (
+            not interval_weak or
+            ("interval" in explanation and any(
+                token in explanation for token in (
+                    "weak", "coverage", "failed", "unreliable"))))
+        automation_projection = contextual.get(
+            "context_automation_projection") or {}
+        automation_restricted = (
+            context_gate.get("automation_eligible") is False)
+        preserved_automation_limit = preserves_automation_limit(
+            explanation, restricted=automation_restricted,
+            projection=automation_projection)
+        citations = contextual.get("context_gate_citations") or {}
+        expected_citations = list(citations.get("expected") or [])
+        rejection_evidence_cited = (
+            not expected_citations or (
+                bool(citations.get("matched")) and
+                not citations.get("invalid") and
+                all(str(code).casefold() in explanation
+                    for code in expected_citations)))
+        consequence_projection = contextual.get(
+            "context_consequence_projection") or {}
+        expected_consequences = set(
+            consequence_projection.get("expected") or [])
+        scenario_consequence_preserved = (
+            not expected_consequences or (
+                set(consequence_projection.get("matched") or []) ==
+                expected_consequences and
+                not consequence_projection.get("invalid")))
+        primary_relationship = str(
+            context_gate.get("relationship_to_primary") or "")
+        primary_relationship_preserved = preserves_primary_relationship(
+            agent_reasoning, primary_relationship)
         return {
             "case_id": case.case_id, "public_id": _public_id(case.case_id),
             "family": case.family, "status": "answered",
@@ -357,18 +515,45 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
             "history_forecast": baseline, "context_forecast": enriched,
             "should_influence": oracle.should_influence,
             "oracle_dimensions": dict(oracle.dimensions),
-            "primary_changed": bool(changed), "changed_steps": changed,
+            "primary_changed": bool(changed),
+            "selected_projection_differs_from_primary": bool(changed),
+            "changed_steps": changed,
             "applied": applied, "disposition": disposition,
-            "admission_rejection_reasons": (
-                list(context_gate.get("gate_reasons") or []) + [
+            "admission_rejection_reasons": (list(dict.fromkeys(
+                list(context_gate.get("rejection_codes") or []) + [
                     str(item.get("reason")) for item in
                     (covariate_gate.get("rejected") or [])
                     if isinstance(item, dict) and item.get("reason")
-                ] if not applied else []),
+                ])) if not applied else []),
             "expected_disposition": oracle.expected_disposition,
             "disposition_valid": valid_disposition(
                 case.family, applied, disposition),
             "publication_parity": parity, "temporal_leakage": leakage,
+            "agent_reasoning": agent_reasoning,
+            "context_explanation_contract": {
+                "required": True,
+                "primary_preserved": preserved_primary,
+                "scenario_represented": represented_scenario,
+                "scenario_contract_expected": scenario_required,
+                "interval_limit_preserved": preserved_interval_limit,
+                "automation_limit_preserved": preserved_automation_limit,
+                "rejection_evidence_cited": rejection_evidence_cited,
+                "scenario_consequence_preserved":
+                    scenario_consequence_preserved,
+                "primary_relationship_expected": primary_relationship or None,
+                "primary_relationship_preserved":
+                    primary_relationship_preserved,
+                "complete": all((
+                    preserved_primary, represented_scenario,
+                    preserved_interval_limit, preserved_automation_limit,
+                    rejection_evidence_cited,
+                    scenario_consequence_preserved,
+                    primary_relationship_preserved,
+                )),
+            },
+            "context_gate_citations": citations,
+            "context_automation_projection": automation_projection,
+            "context_primary_projection": primary_projection,
             "history_route": (history.get("channel_route") or {}).get("value"),
             "context_route": (contextual.get("channel_route") or {}).get("value"),
             "history_calls": int((history.get("mcp") or {}).get("calls", 0)),
@@ -417,6 +602,14 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
                 "latency_seconds": round(time.perf_counter() - started, 6)}
 
 
+def _rejection_reason_case_counts(
+        rows: list[dict[str, Any]]) -> dict[str, int]:
+    return dict(sorted(Counter(
+        reason for row in rows for reason in set(map(
+            str, row.get("admission_rejection_reasons", [])))
+    ).items()))
+
+
 def summarize(rows: list[dict[str, Any]], profile: str,
               manifest: dict[str, Any], routing_policy: str,
               attempts: list[dict[str, Any]] | None = None) -> dict[str, Any]:
@@ -440,12 +633,28 @@ def summarize(rows: list[dict[str, Any]], profile: str,
                       if (row.get("oracle_dimensions") or {}).get(
                           "admission_warrant") == "asserted"
                       and not row["should_influence"]]
-    false_changes = sum(row["primary_changed"] for row in false_trials)
+    def projection_changed(row: dict[str, Any]) -> bool:
+        return bool(row.get(
+            "selected_projection_differs_from_primary",
+            row.get("primary_changed", False)))
+
+    false_changes = sum(projection_changed(row) for row in false_trials)
     precision = (sum(row["should_influence"] for row in applied) / len(applied)
                  if applied else 1.0)
     recall = (sum(row["applied"] for row in influence) / len(influence)
               if influence else 0.0)
     missed = [row for row in influence if not row["applied"]]
+    numerically_changed = [row for row in answered if projection_changed(row)]
+    admitted_unchanged = [row for row in answered
+                          if bool(row.get("applied"))
+                          and not projection_changed(row)]
+    beneficial = [row for row in numerically_changed
+                  if float(row.get("incremental_smape", 0.0)) > 1e-12]
+    harmful = [row for row in numerically_changed
+               if float(row.get("incremental_smape", 0.0)) < -1e-12]
+    neutral_changed = [row for row in numerically_changed
+                       if abs(float(row.get(
+                           "incremental_smape", 0.0))) <= 1e-12]
     calls = [row["history_calls"] + row["context_calls"] for row in answered]
     observed_stages = sorted({stage for row in attempts
                               for stage in (row.get("stage_seconds") or {})})
@@ -459,6 +668,16 @@ def summarize(rows: list[dict[str, Any]], profile: str,
                 groups[str(value)].append(row)
         if groups:
             dimension_groups[dimension] = groups
+    primary_relationship_rows = [
+        row for row in answered
+        if (row.get("context_explanation_contract") or {}).get(
+            "primary_relationship_expected")
+    ]
+    scenario_contract_rows = [
+        row for row in answered
+        if (row.get("context_explanation_contract") or {}).get(
+            "scenario_contract_expected")
+    ]
     return {
         "benchmark": "contextbench-surfaces", "profile": profile,
         "routing_policy": routing_policy,
@@ -482,7 +701,8 @@ def summarize(rows: list[dict[str, Any]], profile: str,
             "context_smape": mean(row["context_smape"] for row in members),
             "incremental_smape": mean(row["incremental_smape"] for row in members),
             "applied": sum(row["applied"] for row in members),
-            "primary_changed": sum(row["primary_changed"] for row in members),
+            "selected_projection_differs_from_primary": sum(
+                projection_changed(row) for row in members),
         } for family, members in sorted(families.items())},
         "dimensions": {dimension: {value: {
             "cases": len(members),
@@ -493,21 +713,42 @@ def summarize(rows: list[dict[str, Any]], profile: str,
             for dimension, groups in sorted(dimension_groups.items())},
         "metrics": {
             "admission_precision": precision, "admission_recall": recall,
+            "context_effect_accounting": {
+                "answered_cases": len(answered),
+                "admitted_cases": sum(bool(row.get("applied"))
+                                      for row in answered),
+                "numerically_changed_cases": len(numerically_changed),
+                "admitted_without_numeric_change": len(admitted_unchanged),
+                "beneficial_changes": len(beneficial),
+                "harmful_changes": len(harmful),
+                "neutral_changes": len(neutral_changed),
+                "numeric_change_rate": (
+                    len(numerically_changed) / len(answered)
+                    if answered else None),
+                "mean_uplift_when_changed": (
+                    mean(float(row["incremental_smape"])
+                         for row in numerically_changed)
+                    if numerically_changed else None),
+            },
             "missed_influence_cases": len(missed),
             "missed_influence_by_family": dict(sorted(Counter(
                 str(row["family"]) for row in missed).items())),
-            "admission_rejection_reasons": dict(sorted(Counter(
-                reason for row in missed
-                for reason in row.get("admission_rejection_reasons", [])
-            ).items())),
+            "rejection_reason_cases": _rejection_reason_case_counts(
+                [row for row in answered if not row.get("applied")]),
+            "missed_influence_rejection_reason_cases": (
+                _rejection_reason_case_counts(missed)),
+            # Compatibility alias: this covers only empirical should-influence
+            # cases that were not applied.
+            "admission_rejection_reasons": (
+                _rejection_reason_case_counts(missed)),
             "disposition_accuracy": (mean(bool(row.get("disposition_valid"))
                                           for row in answered)
                                      if answered else None),
             "false_influence_rate": (false_changes / len(false_trials)
                                      if false_trials else 0.0),
             "false_influence_95ci": wilson(false_changes, len(false_trials)),
-            "false_asserted_claim_primary_change_rate": (
-                mean(bool(row["primary_changed"]) for row in false_asserted)
+            "false_asserted_claim_selected_projection_rate": (
+                mean(projection_changed(row) for row in false_asserted)
                 if false_asserted else None),
             "false_asserted_claim_mean_incremental_smape": (
                 mean(float(row["incremental_smape"]) for row in false_asserted)
@@ -527,6 +768,30 @@ def summarize(rows: list[dict[str, Any]], profile: str,
             "publication_parity_rate": (mean(
                 row["publication_parity"] is True for row in answered)
                 if answered else None),
+            "context_explanation_contract": {
+                **{key: (mean(bool((row.get(
+                    "context_explanation_contract") or {}).get(key))
+                           for row in answered) if answered else None)
+                for key in (
+                    "complete", "primary_preserved",
+                    "interval_limit_preserved", "automation_limit_preserved",
+                    "rejection_evidence_cited",
+                    "scenario_consequence_preserved",
+                )},
+                "scenario_contracts_exposed": len(scenario_contract_rows),
+                "scenario_represented": (mean(bool((row.get(
+                    "context_explanation_contract") or {}).get(
+                        "scenario_represented"))
+                    for row in scenario_contract_rows)
+                    if scenario_contract_rows else None),
+                "primary_relationship_contracts_exposed": len(
+                    primary_relationship_rows),
+                "primary_relationship_preserved": (mean(bool((row.get(
+                    "context_explanation_contract") or {}).get(
+                        "primary_relationship_preserved"))
+                    for row in primary_relationship_rows)
+                    if primary_relationship_rows else None),
+            },
             "observed_agent_calls_mean": mean(calls) if calls else None,
             "observed_agent_calls_median": (
                 sorted(calls)[len(calls) // 2] if calls else None),
@@ -636,7 +901,37 @@ def main() -> int:
         "max_tokens": 8000,
         "reasoning_effort": args.reasoning_effort,
     }
+    corpus_manifest_sha256 = hashlib.sha256(
+        (corpus / "manifest.json").read_bytes()).hexdigest()
+    selected_case_ids_sha256 = hashlib.sha256(json.dumps(
+        [case.case_id for case in cases], separators=(",", ":"))
+        .encode()).hexdigest()
+    resolved_base_url = OpenRouterClient(
+        args.model, **client_kwargs).base_url
     output = Path(args.output_dir); output.mkdir(parents=True, exist_ok=True)
+    run_identity = {
+        "schema_version": 1,
+        "condition": "contextbench-surface",
+        "model": args.model,
+        "base_url": resolved_base_url,
+        "temperature": args.temperature,
+        "reasoning_effort": args.reasoning_effort,
+        "corpus_manifest_sha256": corpus_manifest_sha256,
+        "selected_case_ids_sha256": selected_case_ids_sha256,
+        "selected_cases": len(cases),
+        "code_revision": code_revision(),
+        "request_timeout_seconds": args.request_timeout,
+        "tool_timeout_seconds": args.tool_timeout,
+        "max_retries": args.max_retries,
+        "infrastructure_retries": args.infrastructure_retries,
+        "jobs": args.jobs,
+        "context_receipts_dir": str(Path(args.context_receipts_dir).resolve()),
+        "profile": args.profile,
+        "routing_policy": args.routing_policy,
+        "baseline_mode": args.baseline_mode,
+        "replicate_id": str(args.replicate_id),
+    }
+    _prepare_run_identity(output, run_identity, resume=args.resume)
     observation_path = output / "observations.jsonl"
     attempt_path = output / "attempts.jsonl"
     retained: dict[str, dict[str, Any]] = {}
@@ -702,11 +997,11 @@ def main() -> int:
     summary["llm_usage_this_invocation"] = _usage_sum(
         invocation_attempts, "total")
     summary["executions_this_invocation"] = len(invocation_attempts)
-    summary["corpus_manifest_sha256"] = hashlib.sha256(
-        (corpus / "manifest.json").read_bytes()).hexdigest()
+    summary["corpus_manifest_sha256"] = corpus_manifest_sha256
+    summary["run_identity"] = run_identity
     summary["run_provenance"] = {
         "model": args.model,
-        "base_url": OpenRouterClient(args.model, **client_kwargs).base_url,
+        "base_url": resolved_base_url,
         "temperature": args.temperature,
         "reasoning_effort": args.reasoning_effort,
         "request_timeout_seconds": args.request_timeout,
@@ -719,8 +1014,8 @@ def main() -> int:
         "baseline_mode": args.baseline_mode,
         "replicate_id": str(args.replicate_id),
     }
-    (output / "summary.json").write_text(
-        json.dumps(summary, indent=2, sort_keys=True) + "\n")
+    _atomic_write(output / "summary.json",
+                  json.dumps(summary, indent=2, sort_keys=True) + "\n")
     print(json.dumps(summary, indent=2, sort_keys=True))
     return 0 if summary["errors"] == 0 else 2
 

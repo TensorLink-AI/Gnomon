@@ -1,0 +1,76 @@
+{
+  "release": "2026-08-29-naturalistic-context",
+  "benchmark": "contextbench",
+  "status": "complete",
+  "claim_scope": "semantic compilation and governed use of dated forecasting context",
+  "evaluated_commit": "88af874",
+  "dataset_identity": "contextbench-synthetic-v2:seed=8100279222526145038:cases=80:narrative=naturalistic",
+  "configuration_identity": "DeepSeek V4 Flash 0731 via Engy; reasoning_effort=none; temperature=0; eight-event bounded compiler chunks",
+  "artifacts": {
+    "corpus_manifest": {
+      "path": "results/contextbench-naturalistic-20260829-corpus/manifest.json",
+      "sha256": "6a1b872eb51e19908f3eac267471c61b98be3a870f078f216e3613305ae25d72"
+    },
+    "cases": {
+      "path": "results/contextbench-naturalistic-20260829-corpus/cases.jsonl",
+      "sha256": "6984b424b0947a24f9cd3c75d714f1bbdecf386f16c42f800e2f30f145979afb"
+    },
+    "sealed_oracle": {
+      "path": "results/contextbench-naturalistic-20260829-corpus/oracle.jsonl",
+      "sha256": "11eb3153bd12aa40bfbe24130993045003ce7de13ff7a88c2748b5f95f3f6d30"
+    },
+    "engine_summary": {
+      "path": "results/contextbench-naturalistic-20260829-engine/summary.json",
+      "sha256": "98bad33ede43560589f177d567dd09c22032fbab2fb0fa9370f3eff47b3c9190"
+    },
+    "engine_rows": {
+      "path": "results/contextbench-naturalistic-20260829-engine/observations.jsonl",
+      "sha256": "13cab6c288b2b9b0ca903821b313d3f1c28fb00cbbd36c1816b4b9b5c74c51bc"
+    },
+    "raw_summary": {
+      "path": "results/contextbench-naturalistic-20260829-raw-deepseek/summary.json",
+      "sha256": "e4ca99b187d279f10d0c17b096108f644b2d8b7375d4d81520a65f46c9a9ae4f"
+    },
+    "raw_rows": {
+      "path": "results/contextbench-naturalistic-20260829-raw-deepseek/observations.jsonl",
+      "sha256": "628aff59990e0215d5bdc85f5309d69a9ec231d185700d4fa40ce421cdc632bb"
+    },
+    "compiled_summary": {
+      "path": "results/contextbench-naturalistic-20260829-compiled-deepseek-chunk8/summary.json",
+      "sha256": "35d8698069008250487ae23843af3d5c40d5e7a73c86d2ea84d3b98c9395970c"
+    },
+    "compiled_rows": {
+      "path": "results/contextbench-naturalistic-20260829-compiled-deepseek-chunk8/observations.jsonl",
+      "sha256": "be34484d93e108e90272dd18a2547bb28c9eafc32734b7f38f99f1ecb1390f42"
+    },
+    "paired_report": {
+      "path": "results/contextbench-naturalistic-20260829-comparison-chunk8.json",
+      "sha256": "f3a2122b47789a6a597d413a0cfa2bf0d6e4484c69d93d6b8effe73ae4abc129"
+    }
+  },
+  "result": {
+    "cases": 80,
+    "compiled_wins": 67,
+    "compiled_losses": 13,
+    "raw_mean_smape": 4.037116988542152,
+    "compiled_mean_smape": 1.7611467341445468,
+    "mean_raw_minus_compiled_smape": 2.2759702543976053,
+    "mean_delta_95ci": [1.709996476908377, 2.88187346808953],
+    "exact_sign_p": 6.415141174951122e-10,
+    "raw_context_harm_rate": 0.475,
+    "compiled_context_harm_rate": 0.075,
+    "compiler_event_precision": 1.0,
+    "compiler_event_recall": 0.9984871406959153,
+    "compiler_false_events": 0,
+    "compiler_requests": 201,
+    "compiler_prompt_tokens": 333126,
+    "compiler_completion_tokens": 197182
+  },
+  "interpretation": "On this fresh synthetic intervention corpus, semantic extraction plus governed numeric execution materially outperformed asking the same model to forecast directly from history and prose. The result supports the compiler-to-engine architecture; it does not establish uplift for unstructured model-authored numeric candidates.",
+  "limitations": [
+    "The numeric processes and contextual effects are synthetic even though the prose is semantically varied.",
+    "The corpus tests one model and four context families; replication across fresh seeds, models, messier documents, and lower signal-to-noise remains required for a broad product claim.",
+    "ContextBench tests forecast accuracy and context safety, not downstream decision utility or automation eligibility.",
+    "The explicit-grammar corpus remains a separate zero-call engine fast-path test and is not pooled with this result."
+  ]
+}

@@ -7,6 +7,8 @@ the single source of truth for the public agent contract.
 
 from __future__ import annotations
 
+import json
+
 from typing import Any, Callable
 
 from .context import load_events_file
@@ -17,35 +19,64 @@ from .runtime import capabilities, forecast, inspect_dataset
 #: events. Complete enough that a model holding only this schema can
 #: construct a valid event — that is the point of it existing.
 _CONTEXT_EVENTS_PROPERTY: dict[str, Any] = {
+    "context_source_text": {
+        "type": "string",
+        "description": "Source containing each verbatim source_span.",
+    },
     "context_events": {
         "type": "array",
-        "description": (
-            "Inline context events; combined with context_events_file. "
-            "Admission remains strict; preflight deterministic claims first."
-        ),
+        "description": "Dated quoted min/max/exact claims.",
         "items": {
             "type": "object",
             "properties": {
-                "event_id": {"type": "string", "description": "Unique id for this event."},
-                "event_type": {"type": "string", "description": "constraint:<label> (stated bound), override:<label> (stated level/state), structural:<label> (stated cessation; needs attributes.effect), or a plain type for the fold-ablation gate."},
-                "entity_scope": {"type": "array", "items": {"type": "string"}, "description": "Series names the event applies to; [\"*\"] for all."},
-                "effective_start": {"type": "string", "description": "ISO-8601 with an explicit timezone offset."},
-                "effective_end": {"type": "string", "description": "ISO-8601 with an explicit offset; not before effective_start."},
-                "known_at": {"type": "string", "description": "When the information became knowable; ISO-8601 with an explicit offset."},
-                "attributes": {"type": "object", "description": "Per-class payload: source_span (the claim sentence, quoted VERBATIM — the only admissible source of numbers), effect (trend_ceases | level_matches_seasonal_high | level_matches_seasonal_low), or claim ({kind: min|max, value: number})."},
-                "source": {"type": "object", "properties": {"type": {"type": "string"}, "reference": {"type": "string"}}, "description": "Where the information came from."},
-                "created_by": {"type": "string", "description": "user | llm | pipeline."},
+                "event_id": {"type": "string"},
+                "claim_kind": {"type": "string",
+                               "enum": ["min", "max", "exact"]},
+                "entity_scope": {"type": "array", "items": {"type": "string"},
+                                 "description": "Optional target names."},
+                "effective_start": {"type": "string"},
+                "effective_end": {"type": "string"},
+                "known_at": {"type": "string"},
+                "source_span": {"type": "string"},
+                "source_reference": {"type": "string"},
             },
-            "required": ["event_id", "event_type", "entity_scope",
-                         "effective_start", "effective_end", "known_at"],
+            "required": ["event_id", "effective_start", "effective_end", "known_at"],
         },
     },
     "context_ref": {
         "type": "string",
-        "description": (
-            "Prior context receipt; replaces both event inputs. Timing and "
-            "admission are rechecked."
-        ),
+        "description": "Prior context receipt; timing is rechecked.",
+    },
+    "qualitative_context_events": {
+        "type": "array",
+        "description": "Quoted unknown-magnitude event; scenario-only.",
+        "items": {
+            "type": "object", "additionalProperties": False,
+            "properties": {
+                "event_id": {"type": "string"},
+                "effective_start": {"type": "string"},
+                "effective_end": {"type": "string"},
+                "known_at": {"type": "string"},
+                "source_span": {"type": "string",
+                                "description": "Quote the start date."},
+                "direction": {"type": "string",
+                              "enum": ["increase", "decrease", "unknown"]},
+                "effect_family": {"type": "string", "enum": [
+                    "level_shift", "temporary_pulse", "variance_change",
+                    "seasonal_regime_change"]},
+                "duration": {"type": "string",
+                             "enum": ["temporary", "persistent", "unknown"]},
+                "entity_scope": {"type": "array", "items": {"type": "string"}},
+                "source_reference": {"type": "string"},
+            },
+            "required": ["event_id", "effective_start", "effective_end",
+                         "known_at", "source_span", "direction",
+                         "effect_family", "duration"],
+        },
+    },
+    "context_rejections": {
+        "type": "array", "items": {"type": "object"},
+        "description": "Rejected context with id, reason_code, reason, quote.",
     },
 }
 
@@ -56,11 +87,8 @@ _COVARIATES_PROPERTY: dict[str, Any] = {
     "covariates": {
         "type": "array",
         "description": (
-            "Point-in-time covariate vintages supplied inline: row "
-            "objects with the covariate time column (default "
-            "`timestamp`), the known-at column (default `known_at`), and "
-            "one key per covariate named in covariate_mapping. Same "
-            "validation as covariates_file; mutually exclusive with it."
+            "Inline point-in-time rows: timestamp, known_at, and mapped "
+            "covariates. Mutually exclusive with covariates_file."
         ),
         "items": {"type": "object"},
     },
@@ -76,11 +104,8 @@ _COVARIATE_MAPPING_PROPERTY: dict[str, Any] = {
         "type": ["string", "array"],
         "items": {"type": ["string", "object"]},
         "description": (
-            "Covariate declarations: comma-separated "
-            "name:type:future_known entries, an array of those strings, "
-            "or objects with name, type (continuous, binary, or "
-            "cyclic_<positive-period>), and "
-            "availability (future_known) keys."
+            "Covariates as name:type:future_known strings or objects with "
+            "name, type, and availability."
         ),
     },
 }
@@ -112,7 +137,7 @@ _DATA_REF_PROPERTY: dict[str, Any] = {
 }
 
 _INPUT_PROPERTIES: dict[str, Any] = {
-    "input": {"type": "string", "description": "Path to a local CSV, TSV, JSON, JSONL, Parquet, or Excel file; `store:<dataset>`; or a read-only `prom://.../api/v1/query_range?...` source whose host is allowlisted by GNOMON_PROMETHEUS_ALLOWED_HOSTS. Callers without either pass observations inline."},
+    "input": {"type": "string", "description": "Local table, store:<dataset>, or allowlisted read-only prom:// range query. Otherwise pass observations."},
     **_OBSERVATIONS_PROPERTY,
     **_DATA_REF_PROPERTY,
     "time_column": {"type": "string", "description": (
@@ -130,23 +155,16 @@ _INPUT_PROPERTIES: dict[str, Any] = {
         "type": "string",
         "pattern": "^([1-9][0-9]*)?(s|min|h)$|^(D|W|MS)$",
         "description": (
-            "Observation frequency: s (seconds), min (minutes), h (hourly), "
-            "D (daily), W (weekly), MS (month start), or any whole-second "
-            "sub-daily step as <N>s, <N>min, or <N>h (e.g. 5min, 90s, 2h). "
-            "Omit to infer; ambiguity fails loudly."
+            "Grid: s|min|h|D|W|MS or <N>s|<N>min|<N>h. Omit to infer; "
+            "ambiguity fails loudly."
         ),
     },
     "regrid": {
         "type": "string", "enum": ["business_daily", "month_start"],
         "description": (
-            "Declared calendar regrid, applied before validation: "
-            "business_daily forward-fills weekends and holidays so Mon-Fri "
-            "market data lands on the continuous daily grid (implies "
-            "frequency=D); month_start restamps monthly data (typically "
-            "month-end stamps) to the first of each month (implies "
-            "frequency=MS). A statement about the data's calendar, not a "
-            "repair of messiness: fills and restamps are disclosed as "
-            "warnings but not charged against the repair ceiling."
+            "Calendar declaration before validation: business_daily fills "
+            "non-business days (implies D); month_start restamps months "
+            "(implies MS). Every change is disclosed."
         ),
     },
 }
@@ -180,6 +198,18 @@ _TEMPORAL_QUESTIONS_PROPERTY: dict[str, Any] = {
 }
 
 FORECAST_PREVIEW_ROWS = 12
+FORECAST_PREVIEW_SMALL_HORIZON = 16
+
+
+def _bounded_forecast_preview(rows: list[Any]) -> tuple[list[Any], int]:
+    """Keep both decision-near and horizon-end rows in a brief response."""
+    # Avoid hiding a support-tier transition to save only a handful of rows;
+    # short split-horizon answers are more useful intact.
+    if len(rows) <= FORECAST_PREVIEW_SMALL_HORIZON:
+        return list(rows), 0
+    head = FORECAST_PREVIEW_ROWS // 2
+    tail = FORECAST_PREVIEW_ROWS - head
+    return [*rows[:head], *rows[-tail:]], len(rows) - FORECAST_PREVIEW_ROWS
 
 #: Hard ceiling on a tool response's serialised size. Tuned to hold a
 #: single-series brief forecast (~5KB with its full support assessment)
@@ -211,6 +241,11 @@ _PROTECTED_KEYS = frozenset({
     # survive any budget trim.
     "triage",
     "reasoning", "sufficiency", "facts", "rejection",
+    # The default wire publication is a bounded, seal-linked decision
+    # projection. Its complete authenticated receipt and forecast arrays live
+    # at publication_path; format=full explicitly requests that bulk inline.
+    # Either projection must retain every decision/authority disclosure.
+    "publication", "publication_path",
 })
 
 _TRIM_HEAD = 3
@@ -367,10 +402,164 @@ def apply_response_contract(payload: dict[str, Any]) -> dict[str, Any]:
             }
             for message in sorted(warning_series)
         ]
+    bounded_threshold_brief = any(
+        isinstance(entry.get("threshold"), dict)
+        and bool(entry["threshold"].get("bounded_assessment"))
+        for entry in entries)
+    if (result.get("format") == "brief" and result.get("limitation_groups")
+            and bounded_threshold_brief):
+        # The grouped form above retains every distinct warning verbatim plus
+        # affected-series counts/examples. Repeating those same strings under
+        # every result makes wide and fold-starved answers expensive without
+        # adding evidence. The sealed artifact remains the per-series source.
+        for entry in entries:
+            warnings = {str(value) for value in entry.get("warnings") or []}
+            assessment = entry.get("support_assessment") or {}
+            if isinstance(assessment, dict):
+                compact = dict(assessment)
+                reasons = [dict(value) for value in
+                           compact.get("reasons") or []]
+                grouped_reason_codes = {
+                    "warning", "degraded_evaluation",
+                    "selection_underpowered",
+                } if warnings else set()
+                filtered_reasons = [
+                    value for value in reasons
+                    if value.get("code") not in grouped_reason_codes
+                ]
+                if len(filtered_reasons) != len(reasons):
+                    compact["reasons"] = filtered_reasons
+                    compact["grouped_reason_codes"] = sorted({
+                        str(value.get("code")) for value in reasons
+                        if value.get("code") in grouped_reason_codes})
+                disclosures = [dict(value) for value in
+                               compact.get("disclosures") or []]
+                if entry.get("model_assisted"):
+                    filtered_disclosures = [
+                        value for value in disclosures
+                        if value.get("code") != "model_assisted_lane"]
+                    if len(filtered_disclosures) != len(disclosures):
+                        compact["disclosures"] = filtered_disclosures
+                entry["support_assessment"] = compact
+            threshold = entry.get("threshold") or {}
+            if isinstance(threshold, dict) and threshold.get(
+                    "bounded_assessment"):
+                # The structured threshold block carries probability status,
+                # range relation, conflict, and automation eligibility. Drop
+                # only the note that restates those same fields in prose.
+                notes = [
+                    note for note in entry.get("notes") or []
+                    if not (str(note).startswith("threshold ")
+                            and "no crossing probability" in str(note))
+                ]
+                if notes:
+                    entry["notes"] = notes
+                else:
+                    entry.pop("notes", None)
+            if entry.get("warnings"):
+                entry.pop("warnings", None)
+        # artifact_path already names the complete result; this prose merely
+        # restated the same pointer and consumed every subsequent agent turn.
+        result.pop("note", None)
     if recoveries and "recovery_actions" not in result:
         result["recovery_actions"] = recoveries
     from .reasoning_boundary import apply_reasoning_boundary
     return apply_reasoning_boundary(result)
+
+
+def compact_publication_for_wire(payload: dict[str, Any]) -> dict[str, Any]:
+    """Project a signed publication without repeating its forecast arrays.
+
+    The complete, verifiable receipt remains at ``publication_path``.  Agents
+    get the decision contract and authority fields needed to reason or invoke
+    ``gnomon_select_scenario``; requesting ``format=full`` bypasses this
+    projection at the runner boundary.
+    """
+    publication = payload.get("publication")
+    path = payload.get("publication_path")
+    if not isinstance(publication, dict) or not path:
+        return payload
+    keys = (
+        "schema_version", "artifact_id", "mode", "recommended_scenario_id",
+        "recommended_support", "primary_scenario_id",
+        "primary_forecast_unchanged", "scenario_count",
+        "context_dispositions", "context_summary", "temporal_state",
+        "scenario_selection",
+        "recommendation_authority", "automation", "selection_contract",
+        "candidate_admission", "publication_seal_sha256",
+    )
+    projection = {key: publication[key] for key in keys if key in publication}
+    dispositions = list(projection.get("context_dispositions") or [])
+    if dispositions and isinstance(projection.get("context_summary"), dict):
+        # Global automation may truthfully say "not requested", but that is
+        # not the context-authority answer an agent needs.  Put the two
+        # context-specific facts beside the disposition so the model never
+        # has to infer them from unrelated publication policy fields.
+        projection["context_summary"] = {
+            **projection["context_summary"],
+            "canonical_primary_preserved": bool(
+                publication.get("primary_forecast_unchanged", True)),
+            "context_evidence_automation_eligible": False,
+        }
+    if len(dispositions) > 4:
+        counts: dict[str, int] = {}
+        for disposition in dispositions:
+            label = str(disposition.get("disposition") or "unknown")
+            counts[label] = counts.get(label, 0) + 1
+        projection["context_dispositions"] = dispositions[:4]
+        projection["context_disposition_counts"] = counts
+        projection["context_dispositions_omitted"] = len(dispositions) - 4
+        projection["context_dispositions_location"] = (
+            "receipt.context_dispositions")
+    contract = projection.get("selection_contract")
+    if isinstance(contract, dict):
+        compact_contract = {key: contract.get(key) for key in (
+            "selection_required", "deterministic_scenario_id",
+            "selection_basis")}
+        if contract.get("selection_required") is True:
+            compact_contract.update({
+                "instruction": (
+                    "Rank eligible scenario_ids using cited claims and "
+                    "counterevidence; give confidence, rationale, and what "
+                    "would change the selection. Do not alter numbers, "
+                    "support, or automation."),
+                "scenarios": [{
+                    key: ((list(scenario.get(key) or [])[:4])
+                          if key == "claim_ids" else scenario.get(key))
+                    for key in (
+                        "scenario_id", "role", "support", "claim_ids",
+                        "human_selection_eligible", "forecast_seal", "summary")
+                    if scenario.get(key) is not None
+                } | ({
+                    "claim_count": len(scenario.get("claim_ids") or []),
+                    "claim_ids_omitted": max(
+                        0, len(scenario.get("claim_ids") or []) - 4),
+                    "claim_ids_location": "receipt.selection_contract.scenarios",
+                } if len(scenario.get("claim_ids") or []) > 4 else {}) | ({"evidence": {
+                    key: value for key, value in
+                    (scenario.get("derivation") or {}).items()
+                    if value not in (None, False, [], {}, "not_applicable")
+                }} if any(value not in (None, False, [], {}, "not_applicable")
+                          for value in (scenario.get("derivation") or {}).values())
+                     else {})
+                    for scenario in contract.get("scenarios") or []
+                    if isinstance(scenario, dict)],
+                "claims": list(contract.get("claims") or [])[:4],
+                **({
+                    "claim_count": len(contract.get("claims") or []),
+                    "claims_omitted": len(contract.get("claims") or []) - 4,
+                    "claims_location": "receipt.selection_contract.claims",
+                } if len(contract.get("claims") or []) > 4 else {}),
+                "observation_evidence": contract.get(
+                    "observation_evidence") or [],
+            })
+        projection["selection_contract"] = compact_contract
+    projection.update({
+        "projection": "compact",
+        "receipt_path": str(path),
+        "receipt_is_complete_and_sealed": True,
+    })
+    return {**payload, "publication": projection}
 
 
 def apply_temporal_grounding(payload: dict[str, Any]) -> dict[str, Any]:
@@ -695,6 +884,7 @@ def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
         else:
             facts.pop("temporal_profile", None)
         return facts
+
     payload = {
         "schema_version": "0.1",
         "status": "complete",
@@ -773,6 +963,7 @@ def _model_assisted_summary(item: Any) -> dict[str, Any]:
         "timestamps_match_primary_forecast": True,
         "validation": lane.get("validation"),
         "automation_eligible": False,
+        "primary_forecast_unchanged": True,
         "location": "artifact.results[].model_assisted",
     }}
 
@@ -804,6 +995,78 @@ def _attach_tsfm_on_ramp(payload: dict[str, Any],
     }
 
 
+def _compact_sensitivity_projection(items: list[dict[str, Any]]) \
+        -> list[dict[str, Any]]:
+    """Group numerically identical scenarios for a bounded wire response."""
+    def compact_effect(effect: Any) -> dict[str, Any] | None:
+        if not isinstance(effect, dict):
+            return None
+        distribution = effect.get("distribution") or {}
+        provenance = effect.get("provenance") or {}
+        return {
+            "shape": effect.get("shape"),
+            "distribution": {
+                key: distribution.get(key) for key in (
+                    "distribution", "location", "lower", "upper", "unit")
+                if distribution.get(key) is not None
+            },
+            "provenance": {
+                key: provenance.get(key) for key in (
+                    "provenance_class", "observed", "known_at")
+                if provenance.get(key) is not None
+            },
+        }
+
+    grouped: dict[str, dict[str, Any]] = {}
+    for scenario in items:
+        assumptions = [str(value) for value in scenario.get("assumptions", [])
+                       if not str(value).startswith("assumes ")]
+        key = json.dumps({
+            "support": scenario.get("support"),
+            "assumed_effect": scenario.get("assumed_effect"),
+            "assumed_effect_unit": scenario.get("assumed_effect_unit"),
+            "assumptions": assumptions,
+            "effect": scenario.get("effect"),
+            "forecast": scenario.get("forecast") or [],
+        }, sort_keys=True, default=str, separators=(",", ":"))
+        events = [str(value) for value in scenario.get("events", [])]
+        if key not in grouped:
+            grouped[key] = {
+                "events": [], "support": scenario.get("support"),
+                "primary_forecast_changed": False,
+                **({"assumed_effect": scenario.get("assumed_effect")}
+                   if scenario.get("assumed_effect") is not None else {}),
+                **({"assumed_effect_unit": scenario.get(
+                    "assumed_effect_unit")}
+                   if scenario.get("assumed_effect_unit") is not None else {}),
+                "assumptions": assumptions,
+                **({"effect": compact_effect(scenario.get("effect")),
+                    "consequence": scenario.get("consequence"),
+                    "consequence_summary": scenario.get(
+                        "consequence_summary")}
+                   if (scenario.get("effect") and scenario.get("support") ==
+                       "prior_assisted_structural") else {}),
+                "automation_eligible": bool(
+                    scenario.get("automation_eligible", False)),
+                "selection_eligible": bool(
+                    scenario.get("selection_eligible", True)),
+                **({"intervals_available": False}
+                   if scenario.get("intervals_available") is False else {}),
+                "forecast_rows": len(scenario.get("forecast", [])),
+                "location": "artifact.results[].sensitivity_scenarios",
+            }
+        grouped[key]["events"].extend(events)
+    projected = []
+    for scenario in grouped.values():
+        events = sorted(set(scenario["events"]))
+        scenario["event_count"] = len(events)
+        scenario["events"] = events[:4]
+        if len(events) > 4:
+            scenario["events_omitted"] = len(events) - 4
+        projected.append(scenario)
+    return projected
+
+
 def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
     """The compact forecast payload: q50 path, one q10–q90 interval, the
     selection, and every disclosure — roughly summary.md as JSON.
@@ -820,6 +1083,97 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
     from .support import forecast_notability
     from .temporal_profile import compact_temporal_profile
 
+    def context_outcome_projection(item: Any) -> dict[str, Any] | None:
+        if not item.context_outcome:
+            return None
+        projected = dict(item.context_outcome)
+        changed = projected.pop("primary_forecast_changed", None)
+        if changed is not None:
+            # The persisted v0.2 field means that the selected conditional
+            # projection differs from the history-only primary. Its old name
+            # is easily misread as mutation, so the public brief names the
+            # distinction while the frozen artifact remains byte-compatible.
+            projected["selected_projection_differs_from_primary"] = bool(changed)
+            projected["canonical_primary_preserved"] = bool(
+                projected.get("canonical_primary_preserved", True))
+        canonical_preserved = bool(
+            projected.get("canonical_primary_preserved", True))
+        projection_differs = bool(
+            projected.get("selected_projection_differs_from_primary", False))
+        automation_eligible = projected.get("automation_eligible") is True
+        projected["authority_summary"] = (
+            ("Context changed the selected conditional projection; "
+             "the canonical primary forecast remains preserved. "
+             if projection_differs else
+             "Context did not change the canonical primary forecast. ") +
+            ("An explicit automation policy is still required."
+             if automation_eligible else
+             "Context evidence alone cannot authorize automation.")
+        )
+        projected["canonical_primary_preserved"] = canonical_preserved
+        # Repeated operational events can number in the hundreds.  Their
+        # individual receipts remain in the immutable artifact; the agent
+        # response carries the decision-relevant aggregate and a bounded
+        # preview so context does not crowd the forecast out of its budget.
+        events = list(projected.get("events") or [])
+        if len(events) > 4:
+            projected["event_count"] = len(events)
+            projected["events"] = events[:4]
+            projected["events_omitted"] = len(events) - 4
+            projected["events_location"] = (
+                "artifact.results[].context_outcome.events")
+        dispositions = list(projected.get("dispositions") or [])
+        if len(dispositions) > 4:
+            counts: dict[str, int] = {}
+            for disposition in dispositions:
+                label = str(disposition.get("disposition") or "unknown")
+                counts[label] = counts.get(label, 0) + 1
+            projected["disposition_counts"] = counts
+            projected["dispositions"] = dispositions[:4]
+            projected["dispositions_omitted"] = len(dispositions) - 4
+            projected["dispositions_location"] = (
+                "artifact.results[].context_outcome.dispositions")
+        hypotheses = list(projected.get("hypotheses") or [])
+        if hypotheses:
+            signatures: dict[str, dict[str, Any]] = {}
+            for hypothesis in hypotheses:
+                signature_fields = {
+                    key: hypothesis.get(key) for key in (
+                        "direction", "duration", "duration_steps",
+                        "effect_family", "entity_kind", "entity_scope",
+                        "grounding_status", "numeric_status",
+                        "may_affect_numbers", "may_affect_primary_forecast",
+                    ) if (key in hypothesis and hypothesis.get(key) is not None
+                          and hypothesis.get(key) != "unknown")
+                }
+                signature = json.dumps(
+                    signature_fields, sort_keys=True, separators=(",", ":"))
+                if signature not in signatures:
+                    signatures[signature] = {
+                        **signature_fields, "count": 0,
+                        "representative_event_id": hypothesis.get("event_id"),
+                    }
+                signatures[signature]["count"] += 1
+            projected["hypothesis_count"] = len(hypotheses)
+            projected["hypotheses"] = list(signatures.values())
+            projected["hypotheses_location"] = (
+                "artifact.results[].context_outcome.hypotheses")
+        if projected.get("conditional_forecasts_produced") == 0:
+            projected.pop("conditional_forecasts_produced", None)
+        excluded = list(projected.get("excluded") or [])
+        if len(excluded) > 4:
+            reason_counts: dict[str, int] = {}
+            for exclusion in excluded:
+                reason = str(exclusion.get("reason") or "unspecified")
+                reason_counts[reason] = reason_counts.get(reason, 0) + 1
+            projected["excluded"] = excluded[:4]
+            projected["excluded_count"] = len(excluded)
+            projected["excluded_reason_counts"] = reason_counts
+            projected["excluded_omitted"] = len(excluded) - 4
+            projected["excluded_location"] = (
+                "artifact.results[].context_outcome.excluded")
+        return projected
+
     def response_facts(item: Any) -> dict[str, Any] | None:
         if not item.temporal_facts:
             return None
@@ -833,6 +1187,7 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
         return facts
     results = []
     for item in artifact.results:
+        preview, omitted_middle = _bounded_forecast_preview(item.forecast)
         results.append({
             "series": item.series,
             "support": item.support,
@@ -848,10 +1203,16 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
                  # The unstrippable label rides on every row in every
                  # format; brief may drop quantile levels, never the tier.
                  **({"tier": row["tier"]} if "tier" in row else {})}
-                for row in item.forecast
+                for row in preview
             ],
             # The row count survives even when the budget trims the rows.
             "forecast_rows": len(item.forecast),
+            **({"forecast_preview": {
+                "strategy": "first_and_last",
+                "returned_rows": len(preview),
+                "omitted_middle_rows": omitted_middle,
+                "full_path": "artifact.results[].forecast",
+            }} if omitted_middle else {}),
             **({
                 "primary_forecast_preview": [
                     {"timestamp": row["timestamp"], "q50": row["q50"],
@@ -871,18 +1232,10 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
             **({"temporal_facts": response_facts(item)}
                if item.temporal_facts else {}),
             **({"threshold": item.threshold} if item.threshold else {}),
-            **({"context_outcome": item.context_outcome}
+            **({"context_outcome": context_outcome_projection(item)}
                if item.context_outcome else {}),
-            **({"sensitivity_scenarios": [{
-                "events": scenario.get("events", []),
-                "support": scenario.get("support"),
-                "primary_forecast_changed": False,
-                "assumed_effect": scenario.get("assumed_effect"),
-                "assumed_effect_unit": scenario.get("assumed_effect_unit"),
-                "assumptions": scenario.get("assumptions", []),
-                "forecast_rows": len(scenario.get("forecast", [])),
-                "location": "artifact.results[].sensitivity_scenarios",
-            } for scenario in item.sensitivity_scenarios]}
+            **({"sensitivity_scenarios": _compact_sensitivity_projection(
+                item.sensitivity_scenarios)}
                if item.sensitivity_scenarios else {}),
             **_model_assisted_summary(item),
         })
@@ -1460,16 +1813,48 @@ def _run_validate_covariates(arguments: dict[str, Any]) -> dict[str, Any]:
 
 
 def _context_events_from(arguments: dict[str, Any]):
-    """Events from the file channel, the inline channel, or both.
+    """Events from file, strict inline, and qualitative inline channels.
 
     The inline channel exists because an MCP client holds no
     filesystem: with a file-only parameter the admission lanes were
     unreachable from the published tool surface — a model could be
     told about future_events and still have no way to supply an event.
-    Both channels validate loudly through the same contract check.
+    All channels validate loudly through the same contract check. Qualitative
+    events are structurally unable to enter numeric admission: they can only
+    create labelled, non-automatable sensitivity scenarios.
     """
+    import re
+
     from .context import events_from_list
     from .contracts import GnomonError
+
+    def normalize_daily_times(item: dict[str, Any]) -> list[dict[str, str]]:
+        """Resolve unambiguous date-only fields on a daily grid."""
+        if str(arguments.get("frequency") or "") != "D":
+            return []
+        normalizations = []
+        for field in ("effective_start", "effective_end", "known_at"):
+            value = item.get(field)
+            if not isinstance(value, str):
+                continue
+            try:
+                from datetime import datetime
+                parsed = datetime.fromisoformat(value)
+            except ValueError:
+                continue
+            if parsed.tzinfo is not None:
+                continue
+            if len(value) == 10:
+                suffix = "T23:59:59+00:00" if field == "effective_end" \
+                    else "T00:00:00+00:00"
+                item[field] = value + suffix
+            else:
+                item[field] = value + "+00:00"
+            normalizations.append({
+                "field": field, "from": value, "to": item[field],
+                "basis": "daily_grid_calendar_boundary",
+            })
+        return normalizations
 
     events = None
     if arguments.get("context_events_file"):
@@ -1481,7 +1866,225 @@ def _context_events_from(arguments: dict[str, Any]):
                 "INVALID_ARGUMENTS",
                 "context_events must be an array of event objects",
             )
-        events = (events or []) + events_from_list(inline)
+        normalized_inline = []
+        for index, raw in enumerate(inline, 1):
+            if not isinstance(raw, dict):
+                raise GnomonError(
+                    "INVALID_ARGUMENTS", "context_events items must be objects",
+                    {"item_index": index})
+            item = dict(raw)
+            time_normalizations = normalize_daily_times(item)
+            claim_kind = item.pop("claim_kind", None)
+            if claim_kind is not None:
+                legacy_type = str(item.pop("event_type", "") or "")
+                item.pop("attributes", None)
+                expected_prefix = ("override:" if claim_kind == "exact"
+                                   else "constraint:")
+                if legacy_type and not legacy_type.startswith(expected_prefix):
+                    raise GnomonError(
+                        "INVALID_ARGUMENTS",
+                        "compact claim_kind conflicts with legacy event_type",
+                        {"item_index": index, "claim_kind": claim_kind})
+                if claim_kind not in {"min", "max", "exact"}:
+                    raise GnomonError(
+                        "INVALID_ARGUMENTS", "unknown context claim_kind",
+                        {"item_index": index, "claim_kind": claim_kind})
+                span = str(item.pop("source_span", "") or "").strip()
+                if not span:
+                    raise GnomonError(
+                        "INVALID_ARGUMENTS",
+                        "compact literal context requires verbatim source_span",
+                        {"item_index": index})
+                reference = str(item.pop("source_reference", "inline") or "inline")
+                source_document = str(arguments.get(
+                    "_trusted_context_source_text") or arguments.get(
+                        "context_source_text") or "").strip()
+                document_folded = source_document.casefold()
+                span_offset = document_folded.find(span.casefold()) \
+                    if source_document else -1
+                if source_document and span_offset < 0:
+                    arguments.setdefault("context_rejections", []).append({
+                        "context_id": str(item.get("event_id") or
+                                          f"context-event-{index}"),
+                        "reason_code": "source_span_not_in_context_document",
+                        "reason": (
+                            "The claimed verbatim span is not present in the "
+                            "host-bound source document."),
+                        "source_span": span,
+                    })
+                    continue
+                if span_offset >= 0:
+                    # Classify the sentence that owns the quote, not an
+                    # unrelated task instruction elsewhere in the message.
+                    left = max(source_document.rfind(mark, 0, span_offset)
+                               for mark in ".!?\n") + 1
+                    span_end = span_offset + len(span)
+                    endings = [source_document.find(mark, span_end)
+                               for mark in ".!?\n"]
+                    right = min((end for end in endings if end >= 0),
+                                default=len(source_document))
+                    semantic_text = source_document[left:right]
+                else:
+                    semantic_text = span
+                from .future_context import literal_authority
+                predictive_source, binding_source = literal_authority(
+                    semantic_text)
+                if predictive_source and not binding_source:
+                    arguments.setdefault("context_rejections", []).append({
+                        "context_id": str(item.get("event_id") or
+                                          f"context-event-{index}"),
+                        "reason_code": "external_prediction_not_constraint",
+                        "reason": (
+                            "The quoted source predicts a value; it does not "
+                            "state a binding constraint or observed outcome."),
+                        "source_span": span,
+                    })
+                    continue
+                if not item.get("entity_scope"):
+                    target = str(arguments.get("target_column") or "").strip()
+                    candidates = [name.strip() for name in target.split(",")
+                                  if name.strip() and name.strip().lower() != "auto"]
+                    matches = [name for name in candidates if re.search(
+                        rf"(?<![\w-]){re.escape(name)}(?![\w-])", span,
+                        re.IGNORECASE)]
+                    if len(candidates) == 1:
+                        item["entity_scope"] = candidates
+                    elif len(matches) == 1:
+                        item["entity_scope"] = matches
+                    else:
+                        raise GnomonError(
+                            "INVALID_ARGUMENTS",
+                            "compact literal context requires entity_scope "
+                            "unless its quote names exactly one requested target",
+                            {"item_index": index,
+                             "requested_targets": candidates,
+                             "targets_named_in_source_span": matches})
+                from .future_context import parse_bound_span, parse_override_span
+                parsed_bound, _ = parse_bound_span(span)
+                parsed_override, _ = parse_override_span(span)
+                explicit_bound = bool(re.search(
+                    r"\b(?:caps?|capped|ceiling|floor|maximum|minimum|"
+                    r"at\s+most|no\s+more\s+than|not\s+exceed|at\s+least|"
+                    r"no\s+less\s+than)\b", span, re.IGNORECASE))
+                source_class = (
+                    "constraint" if parsed_bound is not None
+                    and (parsed_override is None or explicit_bound) else
+                    "override" if parsed_override is not None
+                    and parsed_bound is None else
+                    "override" if claim_kind == "exact" else "constraint"
+                )
+                requested_class = ("override" if claim_kind == "exact"
+                                   else "constraint")
+                class_normalization = (None if source_class == requested_class else {
+                    "code": "literal_claim_reclassified_from_source",
+                    "from": requested_class, "to": source_class,
+                    "reason": "the quoted text, not the model label, determines semantics",
+                })
+                item.update({
+                    "event_type": f"{source_class}:literal_{claim_kind}",
+                    "attributes": {
+                        "source_span": span,
+                        **({"compiler_normalizations": [
+                            *time_normalizations,
+                            *([class_normalization] if class_normalization else []),
+                        ]} if time_normalizations or class_normalization else {}),
+                    },
+                    "source": {"type": "user_supplied", "reference": reference},
+                    "created_by": "llm",
+                })
+            elif not item.get("event_type"):
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "context_events requires claim_kind or event_type",
+                    {"item_index": index})
+            normalized_inline.append(item)
+        events = (events or []) + events_from_list(normalized_inline)
+    qualitative = arguments.get("qualitative_context_events")
+    if qualitative is not None:
+        if not isinstance(qualitative, list):
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "qualitative_context_events must be an array of event objects",
+            )
+        normalized = []
+        for raw_item in qualitative:
+            item = dict(raw_item) if isinstance(raw_item, dict) else raw_item
+            if not isinstance(item, dict):
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "qualitative_context_events items must be objects",
+                )
+            time_normalizations = normalize_daily_times(item)
+            allowed_fields = {
+                "event_id", "entity_scope", "effective_start",
+                "effective_end", "known_at", "direction", "effect_family",
+                "duration", "source_span", "source_reference",
+            }
+            unknown_fields = sorted(set(item) - allowed_fields)
+            if unknown_fields:
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "qualitative_context_events contains unsupported fields",
+                    {"unknown_fields": unknown_fields},
+                )
+            required_fields = {
+                "event_id", "effective_start", "effective_end", "known_at",
+                "direction", "effect_family", "duration", "source_span",
+            }
+            missing_fields = sorted(field for field in required_fields
+                                    if item.get(field) in (None, ""))
+            if missing_fields:
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "qualitative_context_events is missing required fields",
+                    {"missing_fields": missing_fields},
+                )
+            source_span = str(item.get("source_span") or "").strip()
+            if not source_span:
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "qualitative_context_events.source_span is required",
+                )
+            effective_day = str(item.get("effective_start") or "")[:10]
+            if len(effective_day) != 10 or effective_day not in source_span:
+                arguments.setdefault("context_rejections", []).append({
+                    "context_id": str(item.get("event_id")),
+                    "reason_code": "ambiguous_timing",
+                    "reason": (
+                        "The source does not state the exact effective date "
+                        "proposed by the qualitative event."),
+                    "source_span": source_span,
+                })
+                continue
+            normalized.append({
+                "event_id": item.get("event_id"),
+                # A non-reserved namespace makes numeric future-context
+                # admission structurally unreachable for this lane.
+                "event_type": "qualitative:" + str(item.get("event_id")),
+                "entity_scope": item.get("entity_scope") or ["*"],
+                "effective_start": item.get("effective_start"),
+                "effective_end": item.get("effective_end"),
+                "known_at": item.get("known_at"),
+                "status": "confirmed",
+                "confidence": 1.0,
+                "attributes": {
+                    "source_span": source_span,
+                    **({"compiler_normalizations": time_normalizations}
+                       if time_normalizations else {}),
+                    "soft_context": {
+                        "effect_family": item.get("effect_family"),
+                        "direction": item.get("direction"),
+                        "duration": item.get("duration"),
+                        "entity_kind": "unknown",
+                    },
+                },
+                "source": {
+                    "type": "user_supplied",
+                    "reference": str(item.get("source_reference") or "inline"),
+                },
+                "created_by": "llm",
+            })
+        events = (events or []) + events_from_list(normalized)
     return events
 
 
@@ -1489,6 +2092,31 @@ def _materialized_or_public_events(arguments: dict[str, Any]):
     """Consume trusted internal events or validate the public channels."""
     events = arguments.pop("_materialized_context_events", None)
     return events if events is not None else _context_events_from(arguments)
+
+
+def _align_single_target_context_scope(events: list[Any] | None,
+                                       arguments: dict[str, Any]) -> list[Any] | None:
+    """Map the public target name onto the engine's singleton identity.
+
+    A single-column run is represented internally as ``__default__`` while
+    callers only know the requested target column. Treating ``[target]`` as a
+    non-match silently discards correctly scoped context. Other names remain
+    untouched, so this does not broaden an unrelated event to all series.
+    """
+    if not events or arguments.get("series_column"):
+        return events
+    target = str(arguments.get("target_column") or "").strip()
+    if not target or "," in target or target.lower() == "auto":
+        return events
+    from dataclasses import replace
+
+    aligned = []
+    for event in events:
+        scope = tuple("*" if name == target else name
+                      for name in event.entity_scope)
+        aligned.append(replace(event, entity_scope=scope)
+                       if scope != event.entity_scope else event)
+    return aligned
 
 
 def _materialise_context(
@@ -1502,7 +2130,8 @@ def _materialise_context(
         raise GnomonError(
             "INVALID_ARGUMENTS", "reserved internal context field supplied")
     carries_context = any(arguments.get(key) is not None for key in (
-        "context_ref", "context_events", "context_events_file"))
+        "context_ref", "context_events", "context_events_file",
+        "qualitative_context_events"))
     if not carries_context:
         return arguments, None
     from .context import event_to_dict
@@ -1510,12 +2139,13 @@ def _materialise_context(
     from .soft_context import make_context_receipt
 
     supplied = [key for key in ("context_ref", "context_events",
-                                "context_events_file")
+                                "context_events_file",
+                                "qualitative_context_events")
                 if arguments.get(key) is not None]
     if "context_ref" in supplied and len(supplied) > 1:
         raise GnomonError(
             "INVALID_ARGUMENTS",
-            "context_ref replaces context_events and context_events_file; "
+            "context_ref replaces all inline/file context event channels; "
             "do not supply both.",
             {"conflicts": supplied},
         )
@@ -1531,8 +2161,9 @@ def _materialise_context(
                 {"context_ref": reference},
                 repair_options=[{
                     "action": "resupply_context",
-                    "description": ("Send context_events or context_events_file "
-                                    "again to receive a fresh context_ref."),
+                    "description": (
+                        "Send context_events, qualitative_context_events, or "
+                        "context_events_file again to receive a fresh context_ref."),
                 }],
             ) from error
         events = []
@@ -1551,14 +2182,36 @@ def _materialise_context(
             events, trust_declared_creator=True)
         return ({**{key: value for key, value in arguments.items()
                     if key not in {"context_ref", "context_events_file",
-                                   "context_events"}},
-                 "_materialized_context_events": materialized}, {
+                                   "context_events",
+                                   "qualitative_context_events"}},
+                 "_materialized_context_events": materialized,
+                 "_context_was_supplied": True}, {
             "status": "hit", "context_ref": reference,
             "receipt_id": receipt["receipt_id"], "compiler_reused": True,
             "store_schema_version": "0.1",
         })
 
     parsed = _context_events_from(arguments) or []
+    event_ids = {str(event.event_id) for event in parsed}
+    rejection_ids = {
+        str(item.get("context_id") or item.get("event_id") or "").strip()
+        for item in arguments.get("context_rejections") or []
+        if isinstance(item, dict)
+    }
+    disposition_conflicts = sorted(event_ids & (rejection_ids - {""}))
+    if disposition_conflicts:
+        raise GnomonError(
+            "CONTEXT_DISPOSITION_CONFLICT",
+            "A context claim cannot be both executable and rejected in the "
+            "same request.",
+            {"context_ids": disposition_conflicts},
+            repair_options=[{
+                "action": "choose_context_disposition",
+                "description": (
+                    "For each listed context_id, keep either its executable "
+                    "event or its typed rejection, never both."),
+            }],
+        )
     raw_events = [event_to_dict(event) for event in parsed]
     receipt = make_context_receipt(
         documents=[], events=raw_events, hypotheses=[], rejected=[],
@@ -1585,8 +2238,10 @@ def _materialise_context(
         materialized.append(replace(
             event, attributes=dict(raw.get("attributes") or {})))
     return ({**{key: value for key, value in arguments.items()
-                if key not in {"context_events_file", "context_events"}},
-             "_materialized_context_events": materialized}, {
+                if key not in {"context_events_file", "context_events",
+                               "qualitative_context_events"}},
+             "_materialized_context_events": materialized,
+             "_context_was_supplied": True}, {
         "status": "stored", "context_ref": reference,
         "receipt_id": receipt["receipt_id"], "compiler_reused": False,
         "store_schema_version": "0.1",
@@ -1729,9 +2384,16 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
     target_spec = str(arguments["target_column"])
     if "," in target_spec or target_spec.strip().lower() == "auto":
         return _run_forecast_multi(arguments, target_spec)
-    events = _materialized_or_public_events(arguments)
+    events = _align_single_target_context_scope(
+        _materialized_or_public_events(arguments), arguments)
+    typed_future_context = any(
+        event.event_type.startswith(("constraint:literal_", "override:literal_"))
+        for event in events or [])
+    typed_structural_context = any(
+        event.event_type.startswith("structural:") for event in events or [])
     config = None
-    if (arguments.get("future_events") or arguments.get("structural_events")
+    if (arguments.get("future_events") or typed_future_context
+            or arguments.get("structural_events") or typed_structural_context
             or arguments.get("model_admission") == "evidence_weighted"):
         # MCP tool calls do not read ambient project config — deliberately,
         # so the admission lanes must be reachable as explicit
@@ -1740,9 +2402,10 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
         from .config import GnomonConfig
 
         config = GnomonConfig()
-        config.context.future_events = bool(arguments.get("future_events"))
+        config.context.future_events = bool(
+            arguments.get("future_events") or typed_future_context)
         config.context.structural_events = bool(
-            arguments.get("structural_events"))
+            arguments.get("structural_events") or typed_structural_context)
         if arguments.get("model_admission") == "evidence_weighted":
             registry = arguments.get("model_evidence_registry")
             if not registry:
@@ -1783,6 +2446,7 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
     payload = (forecast_summary(artifact, path)
                if arguments.get("format") == "full"
                else brief_summary(artifact, path))
+    _attach_publication(payload, artifact, path, arguments)
     _attach_temporal_answers(payload, artifact, path, arguments)
     if arguments.get("project"):
         from .tracking import register_artifact
@@ -1791,7 +2455,488 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
             context_events=events,
         )
         payload["project"] = str(arguments["project"])
+        if payload.get("publication"):
+            from .publication import record_publication
+            from .tracking import TrackingStore
+            payload["publication_synthesis_id"] = record_publication(
+                TrackingStore(), project=str(arguments["project"]),
+                forecast_id=artifact.forecast_id,
+                series=artifact.results[0].series,
+                payload=payload["publication"])
     return payload
+
+
+def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
+                        path: Any, arguments: dict[str, Any], *,
+                        result_index: int = 0) -> None:
+    """MCP projection boundary; forecast artifacts remain byte-immutable."""
+    mode = str(arguments.get("publication_mode") or "strict")
+    dossiers = arguments.get("temporal_dossiers") or []
+    submission = arguments.get("context_submission") or {}
+    if not isinstance(submission, dict):
+        raise GnomonError("INVALID_ARGUMENTS", "context_submission must be an object")
+    submission = dict(submission)
+    direct_rejections = arguments.get("context_rejections")
+    if direct_rejections is not None:
+        if not isinstance(direct_rejections, list):
+            raise GnomonError(
+                "INVALID_ARGUMENTS", "context_rejections must be an array")
+        allowed_rejection_fields = {
+            "context_id", "event_id", "reason_code", "reason", "source_span"}
+        required_rejection_fields = {
+            "context_id", "reason_code", "reason", "source_span"}
+        normalized_rejections = []
+        trusted_source = str(arguments.get(
+            "_trusted_context_source_text") or "").strip()
+        for index, item in enumerate(direct_rejections, 1):
+            if not isinstance(item, dict):
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "context_rejections items must be objects",
+                    {"item_index": index})
+            unknown = sorted(set(item) - allowed_rejection_fields)
+            normalized = dict(item)
+            event_alias = str(normalized.pop("event_id", "") or "").strip()
+            context_id = str(normalized.get("context_id") or "").strip()
+            if event_alias and context_id and event_alias != context_id:
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "context_rejections event_id alias conflicts with context_id",
+                    {"item_index": index})
+            if event_alias:
+                normalized["context_id"] = event_alias
+            if trusted_source:
+                normalized.setdefault("context_id", f"context-rejection-{index}")
+                normalized.setdefault("reason_code", "context_unresolved")
+                normalized.setdefault(
+                    "reason", "Context was rejected by the agent compiler; "
+                    "see the typed reason code and host-bound source.")
+                normalized.setdefault("source_span", trusted_source)
+            missing = sorted(key for key in required_rejection_fields
+                             if not str(normalized.get(key) or "").strip())
+            if unknown or missing:
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "context_rejections require context_id, reason_code, "
+                    "reason, and verbatim source_span",
+                    {"item_index": index, "unknown_fields": unknown,
+                     "missing_fields": missing})
+            normalized_rejections.append(normalized)
+        submission["rejections"] = [
+            *(submission.get("rejections") or []), *normalized_rejections]
+    raw_proposal = submission.get("proposal")
+    raw_model_candidate = submission.get("model_candidate")
+    deterministic_compile = submission.get("compile")
+    if deterministic_compile not in (None, "deterministic_linear"):
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "context_submission.compile supports only deterministic_linear")
+    if raw_model_candidate is not None and raw_proposal is not None:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "context_submission accepts proposal or model_candidate, not both")
+    if deterministic_compile and (raw_proposal is not None
+                                  or raw_model_candidate is not None
+                                  or submission.get("transformations")):
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "deterministic context compilation cannot be combined with an "
+            "agent proposal or caller-authored transformations")
+    selection = arguments.get("scenario_selection")
+    policy = arguments.get("automation_policy")
+    if mode == "strict" and not (dossiers or raw_proposal
+                                  or deterministic_compile
+                                  or submission.get("transformations")
+                                  or submission.get("rejections")
+                                  or arguments.get("_context_was_supplied")
+                                  or selection or policy):
+        return
+    if result_index < 0 or result_index >= len(artifact.results):
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "Publication result index is outside the artifact.")
+    from .publication import (compile_dossier_for_result, publish_result,
+                              write_publication)
+    result = artifact.to_dict()["results"][result_index]
+    # Ungrouped artifacts use ``__default__`` as their storage series key.
+    # Preserve the semantic target supplied by the caller for claim-ownership
+    # checks at the publication boundary; this metadata never changes points.
+    result["target_identity"] = str(arguments.get("target_column") or "")
+    # Candidate plausibility is defined at the last *observed* boundary.  Load
+    # that boundary through the exact same repair/as-of/store seam as the
+    # immutable forecast.  Using the primary's future q50 path here makes a
+    # candidate's validity depend on a competing forecast and can reject a
+    # perfectly plausible conditional path.
+    from .pipeline import load_stage
+    publication_input = load_stage(
+        arguments["input"], time_column=arguments["time_column"],
+        target_column=arguments["target_column"],
+        series_column=arguments.get("series_column"),
+        frequency=arguments.get("frequency"),
+        as_of=_parse_as_of(arguments.get("as_of")),
+        store_path=arguments.get("store_path"),
+        repair=arguments.get("repair", "safe"),
+        regrid=arguments.get("regrid"))
+    result_series = artifact.results[result_index].series
+    observations = publication_input.groups.get(result_series)
+    if observations is None and len(publication_input.groups) == 1:
+        observations = next(iter(publication_input.groups.values()))
+    if not observations:
+        raise GnomonError(
+            "EMPTY_SNAPSHOT",
+            "Publication validation could not resolve the forecast's observed history.")
+    governed_history = [float(item.value) for item in observations]
+    model_candidate_paths: list[list[float]] | None = None
+    model_candidate_diagnostics: dict[str, Any] | None = None
+    if raw_model_candidate is not None:
+        if not isinstance(raw_model_candidate, dict):
+            raise GnomonError(
+                "INVALID_ARGUMENTS", "model_candidate must be an object")
+        allowed = {
+            "source_spans", "quantiles", "sample_paths", "rationale",
+            "temperature",
+        }
+        unknown = sorted(set(raw_model_candidate) - allowed)
+        if unknown:
+            raise GnomonError(
+                "INVALID_ARGUMENTS", "model_candidate has unknown fields",
+                {"unknown_fields": unknown})
+        context_text = str(submission.get("text") or "")
+        known_at = str(submission.get("known_at") or "")
+        spans = raw_model_candidate.get("source_spans")
+        if (not context_text or not known_at or not isinstance(spans, list)
+                or not 1 <= len(spans) <= 8
+                or any(not isinstance(span, str) or not span.strip()
+                       or span not in context_text for span in spans)):
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "model_candidate requires text, known_at, and 1-8 exact "
+                "source_spans copied from text")
+        quantiles = raw_model_candidate.get("quantiles")
+        sample_paths = raw_model_candidate.get("sample_paths")
+        if (quantiles is None) == (sample_paths is None):
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "model_candidate requires exactly one of quantiles or sample_paths")
+        forecast_rows = result.get("primary_forecast") or result.get("forecast") or []
+        future_timestamps = [str(row.get("timestamp")) for row in forecast_rows]
+        claim_ids = [f"claim-{index}" for index in range(1, len(spans) + 1)]
+        if sample_paths is not None:
+            if (not isinstance(sample_paths, list)
+                    or not 3 <= len(sample_paths) <= 16):
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "model_candidate.sample_paths requires 3-16 paths")
+            from .agent_context import candidate_from_sampled_paths
+            serialized = [json.dumps({"forecast_path": {
+                "values": path,
+                "rationale": str(raw_model_candidate.get("rationale") or ""),
+            }}) for path in sample_paths]
+            candidate, model_candidate_diagnostics = (
+                candidate_from_sampled_paths(
+                    serialized, future_timestamps,
+                    history_values=governed_history))
+            if candidate is None:
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "model_candidate.sample_paths did not contain a valid "
+                    "host-grid-bound path",
+                    {"diagnostics": model_candidate_diagnostics})
+            model_candidate_paths = candidate.pop("_validated_sample_paths")
+            candidate.pop("_selected_claim_ids", None)
+        else:
+            candidate = {
+                "quantiles": quantiles,
+                "rationale": str(raw_model_candidate.get("rationale") or
+                                 "Caller-supplied model forecast candidate."),
+            }
+        candidate["claim_ids"] = claim_ids
+        raw_proposal = {
+            "events": [],
+            "claims": [{
+                "source_span": span,
+                "relation": "unknown",
+                "effective_start": None,
+                "effective_end": None,
+                "timing_status": "atemporal_context",
+                "mechanism": "model-authored forecast prior",
+                "confidence": 0.5,
+            } for span in spans],
+            "hypotheses": [],
+            "effect_proposal": None,
+            "forecast_candidate": candidate,
+            "covariate_tables": [],
+            "transformations": [],
+            "observation_interpretations": [],
+        }
+    raw_context_rejections = submission.get("rejections") or []
+    if not isinstance(raw_context_rejections, list):
+        raise GnomonError(
+            "INVALID_ARGUMENTS", "context_submission.rejections must be a list")
+    if len(raw_context_rejections) > 16:
+        raise GnomonError(
+            "INVALID_ARGUMENTS", "context_submission.rejections is limited to 16 items")
+    result["context_rejections"] = []
+    for index, item in enumerate(raw_context_rejections, 1):
+        if isinstance(item, str):
+            code, separator, reason = item.partition(":")
+            result["context_rejections"].append({
+                "context_id": f"context-submission-{index}",
+                "reason_code": code.strip() if separator else "context_unresolved",
+                "reason": reason.strip() if separator else item.strip(),
+            })
+        elif isinstance(item, dict):
+            result["context_rejections"].append({
+                "context_id": str(item.get("context_id") or
+                                  f"context-submission-{index}"),
+                "reason_code": str(item.get("reason_code") or
+                                   "context_unresolved"),
+                "reason": str(item.get("reason") or
+                              "Supplied context could not be grounded or executed."),
+                **({"source_span": str(item["source_span"])}
+                   if item.get("source_span") else {}),
+            })
+        else:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "context_submission.rejections items must be strings or objects")
+
+    def trusted_recurrence_history(
+            expression: Any, historical_segments: Any = None,
+            verified_claim_ids: list[str] | None = None,
+            verified_claim_spans: dict[str, str] | None = None,
+    ) -> tuple[list[float], dict[str, list[float]]]:
+        """Reload recurrence state through the same governed snapshot seam."""
+        if not isinstance(expression, dict) or expression.get("op") not in {
+                "recursive_linear", "fit_recursive_linear"}:
+            return [], {}
+        from .pipeline import load_stage
+
+        def observations_for(target: str) -> list[Any]:
+            loaded = load_stage(
+                arguments["input"], time_column=arguments["time_column"],
+                target_column=target, series_column=arguments.get("series_column"),
+                frequency=arguments.get("frequency"),
+                as_of=_parse_as_of(arguments.get("as_of")),
+                store_path=arguments.get("store_path"),
+                regrid=arguments.get("regrid"),
+                repair=arguments.get("repair", "safe"))
+            if len(loaded.groups) != 1:
+                raise GnomonError(
+                    "AMBIGUOUS_RECURSIVE_HISTORY",
+                    "Recursive context execution requires exactly one series per target.")
+            return list(next(iter(loaded.groups.values())))
+
+        target_observations = observations_for(str(arguments["target_column"]))
+        target_map = {item.timestamp: float(item.value)
+                      for item in target_observations}
+        common = sorted(target_map)
+        driver_terms = (expression.get("driver_terms") or []
+                        if expression.get("op") == "recursive_linear"
+                        else expression.get("driver_lags") or [])
+        driver_names = sorted({str(term.get("series")) for term in driver_terms
+                               if term.get("series")})
+        histories: dict[str, list[float]] = {}
+        if historical_segments:
+            from .context_intelligence import expand_cited_history_segments
+            documented = expand_cited_history_segments(
+                historical_segments, timestamps=common,
+                cutoff=max(common), claim_spans=verified_claim_spans or {},
+                allowed_claim_ids=verified_claim_ids or [])
+            unknown = set(documented) - set(driver_names)
+            if unknown:
+                raise GnomonError(
+                    "UNKNOWN_HISTORY_SERIES",
+                    "Document history names are not recurrence drivers: "
+                    + ", ".join(sorted(unknown)))
+            histories.update(documented)
+        # A cited document may be the governed source for a driver that is
+        # absent from the input table. Only unresolved drivers are loaded as
+        # columns, avoiding a false UNKNOWN_TARGET before cited history can be
+        # reconstructed.
+        for name in driver_names:
+            if name in histories:
+                continue
+            observations = observations_for(name)
+            mapping = {item.timestamp: float(item.value) for item in observations}
+            common = [timestamp for timestamp in common if timestamp in mapping]
+            histories[name] = [mapping[timestamp] for timestamp in common]
+        if historical_segments:
+            documented = expand_cited_history_segments(
+                historical_segments, timestamps=common,
+                cutoff=max(common), claim_spans=verified_claim_spans or {},
+                allowed_claim_ids=verified_claim_ids or [])
+            histories.update(documented)
+        return ([target_map[timestamp] for timestamp in common], histories)
+    if deterministic_compile:
+        context_text = str(submission.get("text") or "")
+        known_at = str(submission.get("known_at") or "")
+        if not context_text or not known_at:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "deterministic context compilation requires text and known_at")
+        forecast_timestamps = [str(row["timestamp"])
+                               for row in result.get("forecast") or []
+                               if isinstance(row, dict) and row.get("timestamp")]
+        from .relationship_text import compile_linear_relationship_text
+        compiled_relationship = compile_linear_relationship_text(
+            context_text,
+            target_name=str(arguments.get("target_column") or ""),
+            cutoff=known_at, future_timestamps=forecast_timestamps)
+        if compiled_relationship is None:
+            result["context_rejections"].append({
+                "context_id": "deterministic-linear-compiler",
+                "reason_code": "DETERMINISTIC_RELATIONSHIP_UNRESOLVED",
+                "reason": (
+                    "The cited text was not a complete, mechanically "
+                    "checkable linear lag specification with a full future "
+                    "driver schedule. No partial arithmetic was executed."),
+                "source_span": context_text,
+            })
+        else:
+            raw_proposal, compilation_kind = compiled_relationship
+            submission["transformations"] = list(
+                raw_proposal.get("transformations") or [])
+            submission["compiler"] = (
+                "gnomon:deterministic_linear:" + compilation_kind)
+    if raw_proposal is not None:
+        context_text = str(submission.get("text") or "")
+        known_at = str(submission.get("known_at") or "")
+        if not context_text or not known_at:
+            raise GnomonError("INVALID_ARGUMENTS",
+                              "context_proposal requires context_text and context_known_at")
+        dossier, dossier_rejections = compile_dossier_for_result(
+            raw_proposal, context_text=context_text, known_at=known_at,
+            result=result,
+            compiler_model=str(submission.get("compiler") or "agent"),
+            history=governed_history,
+            prefer_explicit_forecast_candidate=(
+                raw_model_candidate is not None))
+        if model_candidate_paths is not None:
+            if not isinstance(dossier.get("forecast_candidate"), dict):
+                # An optional interpretation candidate must not erase a
+                # successfully computed immutable primary. Preserve the
+                # validator's reasons as a typed disposition so an agent can
+                # repair the candidate or simply use the primary.
+                result["context_rejections"].append({
+                    "context_id": "model-authored-forecast-candidate",
+                    "reason_code": "model_candidate_validation_failed",
+                    "reason": "The supplied model-authored candidate did not "
+                              "pass the governed forecast-candidate contract.",
+                    "violations": dossier_rejections[:8],
+                    "sampling_diagnostics": model_candidate_diagnostics,
+                })
+            else:
+                from .agent_context import sample_path_stability
+                from .llm_dossier import attach_host_candidate_elicitation
+                temperature = raw_model_candidate.get("temperature", 1.0)
+                try:
+                    temperature = float(temperature)
+                    stability = sample_path_stability(
+                        model_candidate_paths,
+                        [float(row.get("q50", row.get("point"))) for row in
+                         (result.get("primary_forecast") or
+                          result.get("forecast") or [])])
+                    dossier = attach_host_candidate_elicitation(
+                        dossier, requested_paths=len(sample_paths),
+                        accepted_paths=len(model_candidate_paths),
+                        aggregation="linear_empirical_marginal_q10_q50_q90",
+                        temperature=temperature, stability=stability,
+                        request_mode="batch_request",
+                        sample_paths=model_candidate_paths)
+                except (TypeError, ValueError) as exc:
+                    raise GnomonError("INVALID_ARGUMENTS", str(exc)) from exc
+        dossiers = [*dossiers, dossier]
+    transformations = submission.get("transformations") or []
+    if transformations:
+        from .context_intelligence import (compile_transformation,
+                                           execute_transformation)
+        claims = [claim for dossier in dossiers
+                  for claim in dossier.get("claims") or []]
+        claim_ids = [str(claim.get("claim_id")) for claim in claims
+                     if claim.get("claim_id")]
+        claim_spans = {str(claim.get("claim_id")): str(
+            claim.get("source_span") or "") for claim in claims}
+        cutoff = str(submission.get("known_at") or "")
+        if not cutoff:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "context transformations require context_submission.known_at")
+        result["transformation_candidates"] = []
+        result["transformation_rejections"] = []
+        if len(transformations) > 6:
+            result["transformation_rejections"].append({
+                "transformation_id": "transformation-overflow",
+                "reason_code": "bounded_transformation_overflow",
+                "reason": "Only the first six transformations were evaluated.",
+            })
+        for index, item in enumerate(transformations[:6], 1):
+            wrapper = item if isinstance(item, dict) else {}
+            compiled, critique = compile_transformation(
+                wrapper.get("transformation", wrapper),
+                series=list((wrapper.get("series_values") or {}).keys()),
+                claim_ids=claim_ids, cutoff=cutoff,
+                units=wrapper.get("units"), repair=wrapper.get("repair"),
+                claim_spans=claim_spans)
+            if compiled is None:
+                result["transformation_rejections"].append({
+                    "transformation_id": f"transformation-{index}",
+                    "reason_code": "transformation_validation_failed",
+                    "reason": "Declarative transformation was rejected.",
+                    "violations": critique["violations"],
+                })
+                continue
+            try:
+                target_history, driver_history = trusted_recurrence_history(
+                    compiled.get("expression"),
+                    wrapper.get("historical_series_segments"),
+                    claim_ids, claim_spans)
+                candidate = execute_transformation(
+                    compiled,
+                    primary=(result.get("primary_forecast") or
+                             result.get("forecast") or []),
+                    series_values=wrapper.get("series_values"),
+                    historical_validation=wrapper.get("historical_validation"),
+                    claim_spans=claim_spans,
+                    history_values=target_history,
+                    history_series=driver_history)
+                if wrapper.get("historical_series_segments"):
+                    candidate["validation"]["recurrence_history_source"] = (
+                        "document_cited_segments")
+                    candidate["validation"]["document_history_series"] = sorted(
+                        wrapper["historical_series_segments"])
+            except (ValueError, GnomonError) as exc:
+                result["transformation_rejections"].append({
+                    "transformation_id": compiled["transformation_id"],
+                    "reason_code": getattr(exc, "code", "transformation_execution_failed"),
+                    "reason": str(exc),
+                    "violations": [getattr(exc, "as_dict", lambda: {})()],
+                })
+                continue
+            result["transformation_candidates"].append(candidate)
+    candidate_outcome_evidence = None
+    if mode == "best_effort" and arguments.get("project"):
+        from .tracking import TrackingStore
+        cutoff = (arguments.get("as_of") or artifact.task.as_of
+                  or artifact.created_at)
+        if cutoff is not None:
+            series_name = artifact.results[result_index].series
+            candidate_outcome_evidence = TrackingStore().candidate_outcome_summary(
+                str(arguments["project"]), series=str(series_name),
+                resolved_before=str(cutoff))
+    try:
+            publication = publish_result(
+                result, mode=mode,
+                dossiers=list(dossiers), scenario_selection=selection,
+                automation_policy=policy,
+                automation_authority=not bool(arguments.get(
+                    "_mcp_agent_boundary")),
+                candidate_outcome_evidence=candidate_outcome_evidence,
+                artifact_id=artifact.forecast_id)
+    except ValueError as exc:
+        raise GnomonError("INVALID_ARGUMENTS", str(exc)) from exc
+    payload["publication"] = publication
+    payload["publication_path"] = str(write_publication(path, publication))
 
 
 def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str, Any]:
@@ -1799,6 +2944,14 @@ def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str
     in target_column batches several columns into one run and one
     combined artifact — same numbers per channel as separate calls."""
     from .contracts import GnomonError
+    if (arguments.get("temporal_dossiers")
+            or arguments.get("context_submission")
+            or arguments.get("scenario_selection")):
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "Cross-series dossier or scenario ranking requires one target; "
+            "plain strict, best_effort, and scenario publication modes are "
+            "supported in one batched call.")
     from .data import resolve_target_spec
     from .runtime import forecast_multi
 
@@ -1825,12 +2978,17 @@ def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str
     events = _materialized_or_public_events(arguments)
     covariates = _covariates_from(arguments)
     config = None
-    if (arguments.get("future_events") or arguments.get("structural_events")
+    typed_future_context = any(
+        event.event_type.startswith(("constraint:literal_", "override:literal_"))
+        for event in events or [])
+    if (arguments.get("future_events") or typed_future_context
+            or arguments.get("structural_events")
             or arguments.get("model_admission") == "evidence_weighted"):
         from .config import GnomonConfig
 
         config = GnomonConfig()
-        config.context.future_events = bool(arguments.get("future_events"))
+        config.context.future_events = bool(
+            arguments.get("future_events") or typed_future_context)
         config.context.structural_events = bool(arguments.get("structural_events"))
         if arguments.get("model_admission") == "evidence_weighted":
             registry = arguments.get("model_evidence_registry")
@@ -1867,6 +3025,49 @@ def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str
     payload = (forecast_summary(artifact, path)
                if arguments.get("format") == "full"
                else brief_summary(artifact, path))
+    if (arguments.get("publication_mode") is not None
+            or arguments.get("automation_policy")
+            or arguments.get("_context_was_supplied")):
+        publications = []
+        for index, result in enumerate(artifact.results):
+            child: dict[str, Any] = {}
+            _attach_publication(
+                child, artifact, path,
+                {**arguments, "target_column": result.series},
+                result_index=index)
+            publication = child.get("publication")
+            if not publication:
+                continue
+            publications.append({
+                "series": result.series,
+                "mode": publication.get("mode"),
+                "recommended_scenario_id": publication.get(
+                    "recommended_scenario_id"),
+                "recommended_support": publication.get("recommended_support"),
+                "primary_forecast_unchanged": publication.get(
+                    "primary_forecast_unchanged"),
+                "scenario_count": publication.get("scenario_count"),
+                "context_summary": publication.get("context_summary"),
+                "context_dispositions": publication.get(
+                    "context_dispositions") or [],
+                "automation": publication.get("automation"),
+                "publication_seal_sha256": publication.get(
+                    "publication_seal_sha256"),
+                "publication_path": child.get("publication_path"),
+            })
+        payload["publications"] = publications
+        payload["publication_summary"] = {
+            "mode": str(arguments.get("publication_mode") or "strict"),
+            "series_count": len(publications),
+            "primary_forecast_unchanged": all(
+                item.get("primary_forecast_unchanged") is True
+                for item in publications),
+            "automation_eligible": bool(publications) and all(
+                (item.get("automation") or {}).get("eligible") is True
+                for item in publications),
+            "scenario_count": sum(int(item.get("scenario_count") or 0)
+                                  for item in publications),
+        }
     _attach_temporal_answers(payload, artifact, path, arguments)
     return payload
 
@@ -2091,12 +3292,10 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "gnomon_describe",
         "description": (
-            "Execute typed temporal questions without changing a primary "
-            "forecast: description, ADF/KPSS stationarity, explicit-period "
-            "additive decomposition, and exogenous regression with expanding-"
-            "window validation. Unsupported methods return one typed refusal; "
-            "Gnomon never substitutes anomaly detection for stationarity, "
-            "period discovery for decomposition, or forecasting for regression."
+            "Answer typed temporal questions without changing a primary: "
+            "description, stationarity, fixed-period decomposition, or "
+            "exogenous regression. Unsupported methods fail typed; semantic "
+            "substitution is forbidden."
         ),
         "inputSchema": {
             "type": "object",
@@ -2119,12 +3318,9 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "gnomon_forecast",
         "description": (
-            "Forecast columns (`target_column`: `\"cpu,mem,requests\"` or `\"auto\"`). "
-            "Call directly: it infers an unambiguous schema, "
-            "validates, backtests, and returns a quotable preview; do not call "
-            "capabilities, inspect, or get_artifact first. Each series gets a "
-            "selected model or disclosed abstention. Context and covariates "
-            "earn influence only through measured fold lift."
+            "Forecast columns (`\"cpu,mem,requests\"` or `\"auto\"`) directly. "
+            "Schema is inferred and "
+            "candidates are backtested; weak support is disclosed."
         ),
         "inputSchema": {
             "type": "object",
@@ -2132,13 +3328,8 @@ TOOLS: list[dict[str, Any]] = [
                 **_INPUT_PROPERTIES,
                 **_REPLAY_PROPERTIES,
                 "target_column": {"type": "string", "description": (
-                    "Column to forecast, a comma list "
-                    "(`\"cpu,mem,requests\"`), or `\"auto\"` (every "
-                    "numeric non-time column): one load pass, one "
-                    "combined artifact, one result per channel — an "
-                    "abstaining channel never blocks the others. Omit to "
-                    "infer when exactly one column qualifies (disclosed "
-                    "as an assumption)."
+                    "Column, comma list (`\"cpu,mem,requests\"`), or `\"auto\"` "
+                    "for every numeric channel. Omit only when one qualifies."
                 )},
                 "horizon": {"type": "integer", "description": (
                     "Future periods, in units of the data frequency. "
@@ -2146,30 +3337,23 @@ TOOLS: list[dict[str, Any]] = [
                     "assumption."
                 )},
                 "format": {"type": "string", "enum": ["full", "brief"], "description": (
-                    "brief (default): q50 with one q10-q90 interval per "
-                    "step plus every disclosure verbatim; full adds all "
-                    "quantile levels. The on-disk artifact is identical "
-                    "either way."
+                    "brief (default): q50, q10-q90 and disclosures; full "
+                    "adds quantiles. The artifact is identical."
                 )},
                 "candidates": {"type": "array", "items": {"type": "string"}, "description": "Restrict candidates; mandatory baselines still compete."},
                 "model_admission": {"type": "string", "enum": ["strict", "evidence_weighted"], "description": "Default: strict."},
                 "model_evidence_registry": {"type": "string", "description": "Registry for evidence_weighted."},
                 "output_dir": {"type": "string", "description": (
-                    "Directory for the immutable artifact. Omit to use "
-                    "workspace.default_output_dir from gnomon_capabilities "
-                    "— do not guess a path; a jailed host refuses paths "
-                    "outside its workspace."
+                    "Artifact directory; default from gnomon_capabilities."
                 )},
-                "minimum_baseline_improvement": {"type": "number", "minimum": 0, "description": "Minimum relative improvement over the strongest baseline to select a candidate (default 0.02; must be >= 0)."},
-                "context_events_file": {"type": "string", "description": "Optional validated context-events JSON file (the output of `gnomon context validate`)."},
+                "minimum_baseline_improvement": {"type": "number", "minimum": 0, "description": "Required relative gain over baseline (default 0.02)."},
+                "context_events_file": {"type": "string", "description": "Validated context-events JSON."},
                 **_CONTEXT_EVENTS_PROPERTY,
                 "threshold": {"type": "number", "description": "Optional decision threshold: the result reports when and how likely the forecast crosses this value."},
                 "project": {"type": "string", "description": "Optional tracking project. When set, register the forecast for realised scoring."},
                 "covariates_file": {"type": "string", "description": (
-                    "Local CSV of point-in-time covariate vintages: one "
-                    "row per (timestamp, known_at); a backtest fold only "
-                    "uses rows known at or before its cutoff. Validate "
-                    "first with gnomon_validate_covariates."
+                    "Point-in-time CSV keyed by timestamp and known_at; "
+                    "folds cannot see later vintages."
                 )},
                 **_COVARIATES_PROPERTY,
                 **_COVARIATE_MAPPING_PROPERTY,
@@ -2177,36 +3361,87 @@ TOOLS: list[dict[str, Any]] = [
                 "covariate_known_at_column": {"type": "string", "description": "Availability timestamp column (default known_at)."},
                 **_TEMPORAL_QUESTIONS_PROPERTY,
                 "covariate_series_column": {"type": "string", "description": "Optional series column in the covariate CSV."},
-                "repair": {"type": "string", "enum": ["off", "safe", "aggressive"], "description": "Messy-data handling (default safe): off rejects anything non-strict; safe normalises cell text; aggressive also fills gaps and snaps timestamps — every fix disclosed in warnings and evidence."},
+                "repair": {"type": "string", "enum": ["off", "safe", "aggressive"], "description": "Data repair (default safe); aggressive may fill gaps or snap times. Every change is disclosed."},
+                "best_effort": {"type": "boolean", "description": (
+                    "Deprecated alias for minimum_support=best_effort."
+                )},
                 "minimum_support": {"type": "string",
                                     "enum": ["supported",
                                              "conditionally_supported",
                                              "best_effort"],
                                     "description": (
-                    "Publication floor (default best_effort: always "
-                    "answers, a naive fallback is labeled and carries a "
-                    "NO RELIABLE FORECAST warning; `supported` restores "
-                    "the strict refusal with typed recovery). No tier "
-                    "gets easier to earn."
+                    "Floor (default best_effort); supported refuses weaker results."
                 )},
-                "best_effort": {"type": "boolean", "description": (
-                    "DEPRECATED: `true` maps to minimum_support "
-                    "'best_effort' (now the default); an explicit "
-                    "minimum_support wins."
-                )},
+                "publication_mode": {"type": "string",
+                    "enum": ["strict", "best_effort", "scenario"],
+                    "description": (
+                        "strict=evidence-only; best_effort may recommend context; "
+                        "scenario returns alternatives. Primary stays fixed.")},
+                "temporal_dossiers": {"type": "array", "items": {"type": "object"},
+                    "description": "Sealed temporal dossiers."},
+                "context_submission": {
+                    "type": "object", "additionalProperties": False,
+                    "description": (
+                        "Context or a cited human-only forecast prior; never "
+                        "changes the primary or permits automation."),
+                    "properties": {
+                        "text": {"type": "string"},
+                        "known_at": {"type": "string"},
+                        "compiler": {"type": "string"},
+                        "compile": {"type": "string",
+                                    "enum": ["deterministic_linear"]},
+                        "proposal": {"type": "object"},
+                        "transformations": {"type": "array",
+                                            "items": {"type": "object"}},
+                        "rejections": {"type": "array"},
+                        "model_candidate": {
+                            "type": "object", "additionalProperties": False,
+                            "description": (
+                                "Cited prior: source_spans plus quantiles xor "
+                                "3-16 full-grid sample_paths."),
+                            "properties": {
+                                "source_spans": {"type": "array", "minItems": 1,
+                                    "maxItems": 8,
+                                    "items": {"type": "string"}},
+                                "quantiles": {"type": "array",
+                                    "items": {"type": "object"}},
+                                "sample_paths": {"type": "array", "minItems": 3,
+                                    "maxItems": 16,
+                                    "items": {"type": "array",
+                                              "items": {"type": "number"}}},
+                                "rationale": {"type": "string"},
+                                "temperature": {"type": "number", "minimum": 0},
+                            },
+                            "required": ["source_spans"],
+                        },
+                    },
+                },
+                "scenario_selection": {"type": "object",
+                    "description": "Number-free governed ranking of scenario ids."},
+                "automation_policy": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "authorize": {"type": "boolean", "description": (
+                            "Request automation; omission stays advisory.")},
+                        "policy_id": {"type": "string", "minLength": 1,
+                            "description": "Caller policy id."},
+                        "minimum_support": {"type": "string",
+                            "enum": ["supported", "context_trusted"],
+                            "description": "Required evidence tier."},
+                    },
+                    "required": ["authorize", "policy_id", "minimum_support"],
+                    "description": (
+                        "Explicit automation policy; recommendations alone grant no authority.")},
                 "future_events": {"type": "boolean", "description": (
-                    "Admit future-dated constraint:/override: context "
-                    "events by textual verifiability (default false); an "
-                    "influenced forecast reports support "
-                    "`context_trusted` with a history-only "
-                    "counterfactual. Dry-run with "
-                    "gnomon_preflight_context."
+                    "Admit verified future constraints (default false); "
+                    "retains a history-only counterfactual."
                 )},
                 "structural_events": {"type": "boolean", "description": (
-                    "Additionally admit LLM-classified structural: events "
-                    "from a closed effect menu (default false); every "
-                    "applied quantity derives from the forecast's own "
-                    "path, never model-supplied numbers. Experimental."
+                    "Recognize closed-menu structural events (experimental); "
+                    "validated typed structural context is recognized "
+                    "automatically. Quantities remain engine-derived and an "
+                    "unvalidated effect stays a non-automatable scenario."
                 )},
             },
             "required": [],
@@ -2743,14 +3978,50 @@ def _run_track(arguments: dict[str, Any]) -> dict[str, Any]:
     if action == "synthesis_status":
         from .tracking import TrackingStore
         rows = TrackingStore().temporal_synthesis_receipts(
-            str(arguments["project"]), resolved=arguments.get("resolved"))
+            str(arguments["project"]), resolved=arguments.get("resolved"),
+            series=arguments.get("series"),
+            resolved_before=arguments.get("as_of"))
         return {"status": "ok", "project": arguments["project"],
                 "syntheses": rows}
+    if action == "candidate_outcomes":
+        from .tracking import TrackingStore
+        rows = TrackingStore().candidate_outcome_summary(
+            str(arguments["project"]),
+            minimum_resolved=int(arguments.get("min_outcomes", 8)),
+            series=arguments.get("series"),
+            resolved_before=arguments.get("as_of"))
+        return {
+            "status": "ok", "project": arguments["project"],
+            "series": arguments.get("series"),
+            "as_of": arguments.get("as_of"),
+            "candidate_outcomes": rows,
+            "authority": {
+                "human_prior_only": True,
+                "support_upgrade_allowed": False,
+                "automation_upgrade_allowed": False,
+            },
+        }
+    if action == "decision_skill":
+        from .tracking import TrackingStore
+        rows = TrackingStore().decision_synthesis_skill(
+            str(arguments["project"]),
+            proposer_id=arguments.get("proposer_id"),
+            minimum_resolved=int(arguments.get("min_outcomes", 20)))
+        return {
+            "status": "ok", "project": arguments["project"],
+            "decision_skill": rows,
+            "authority": {
+                "human_prior_only": True,
+                "support_upgrade_allowed": False,
+                "automation_upgrade_allowed": False,
+            },
+        }
     raise GnomonError("INVALID_ARGUMENTS", "action is required.",
                       {"allowed": ["status", "submit_actuals", "resolve_outcome",
                                    "record_adapter_shadow",
                                    "assess_adapter_shadow", "record_synthesis",
-                                   "resolve_synthesis", "synthesis_status"]})
+                                   "resolve_synthesis", "synthesis_status",
+                                   "candidate_outcomes", "decision_skill"]})
 
 
 def _run_explain_run(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -2796,6 +4067,50 @@ def _run_explain_run(arguments: dict[str, Any]) -> dict[str, Any]:
     if summary.is_file():
         explanation["summary_md"] = summary.read_text(encoding="utf-8")
     return explanation
+
+
+def _run_select_scenario(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Rerank sealed paths without rerunning or rewriting a forecast."""
+    import json as _json
+    from pathlib import Path
+
+    from .contracts import GnomonError
+    from .publication import (select_publication,
+                              write_selected_publication)
+
+    source = Path(str(arguments["publication_path"]))
+    if not source.is_file():
+        raise GnomonError(
+            "INVALID_ARGUMENTS", "publication_path must name an existing file")
+    try:
+        publication = _json.loads(source.read_text(encoding="utf-8"))
+        selected = select_publication(
+            publication, dict(arguments["scenario_selection"]))
+        selected_path = write_selected_publication(source, selected)
+    except (OSError, ValueError, TypeError, _json.JSONDecodeError) as exc:
+        raise GnomonError("INVALID_ARGUMENTS", str(exc)) from exc
+    scenario_id = selected["recommended_scenario_id"]
+    return {
+        "schema_version": "0.1", "status": "ok", "verb": "select_scenario",
+        "headline": (
+            f"Selected {scenario_id} as the human-facing recommendation. "
+            "The governed primary forecast is unchanged and this selection "
+            "does not authorize automation."
+        ),
+        "artifact_id": selected.get("artifact_id"),
+        "publication_path": str(selected_path),
+        "supersedes_publication_seal_sha256": selected[
+            "supersedes_publication_seal_sha256"],
+        "publication_seal_sha256": selected["publication_seal_sha256"],
+        "recommended_scenario_id": scenario_id,
+        "recommended_forecast": selected["recommended_forecast"],
+        "recommended_support": selected["recommended_support"],
+        "support": selected["recommended_support"],
+        "primary_forecast_unchanged": True,
+        "scenario_selection": selected["scenario_selection"],
+        "recommendation_authority": selected["recommendation_authority"],
+        "automation": selected["automation"],
+    }
 
 
 def _run_install_tsfm(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -2869,6 +4184,32 @@ def _registry_tools() -> list[dict[str, Any]]:
 TOOLS.extend(_registry_tools())
 TOOLS.extend([
     {
+        "name": "gnomon_select_scenario",
+        "description": (
+            "Choose sealed path. Cannot change numbers, support, primary, "
+            "automation."
+        ),
+        "inputSchema": {"type": "object", "properties": {
+            "publication_path": {"type": "string", "description": (
+                "publication_path returned by gnomon_forecast.")},
+            "scenario_selection": {"type": "object", "properties": {
+                "selected_scenario_id": {"type": "string"},
+                "ranking": {"type": "array", "items": {"type": "string"}},
+                "cited_claim_ids": {"type": "array", "items": {"type": "string"}},
+                "counterevidence_claim_ids": {"type": "array", "items": {"type": "string"}},
+                "counterevidence_hypothesis_ids": {"type": "array", "items": {"type": "string"}},
+                "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                "rationale": {"type": "string"},
+                "what_would_change_selection": {"type": "string"},
+            }, "required": [
+                "selected_scenario_id", "ranking", "cited_claim_ids",
+                "counterevidence_claim_ids", "confidence", "rationale",
+                "what_would_change_selection",
+            ]},
+        }, "required": ["publication_path", "scenario_selection"]},
+        "runner": _run_select_scenario,
+    },
+    {
         "name": "gnomon_run",
         "description": (
             "Experimental unified temporal execution verb. Set question.kind "
@@ -2923,13 +4264,16 @@ TOOLS.extend([
         "description": (
             "Experimental tracking verb. action selects status, "
             "outcome submission/resolution, adapter shadow evidence, or "
-            "separately labelled synthesis receipts."
+            "separately labelled synthesis receipts and resolved candidate "
+            "uplift. Candidate evidence can inform a human prior but never "
+            "upgrades support or automation authority."
         ),
         "inputSchema": {"type": "object", "properties": {
             "action": {"type": "string", "enum": [
                 "status", "submit_actuals", "resolve_outcome",
                 "record_adapter_shadow", "assess_adapter_shadow",
-                "record_synthesis", "resolve_synthesis", "synthesis_status"]},
+                "record_synthesis", "resolve_synthesis", "synthesis_status",
+                "candidate_outcomes", "decision_skill"]},
             "project": {"type": "string"},
             "section": {"type": "string", "enum": [
                 "open_forecasts", "performance", "decisions", "all"]},
@@ -2963,6 +4307,7 @@ TOOLS.extend([
             "outcome": {"type": "object"},
             "resolved_at": {"type": "string"},
             "resolved": {"type": "boolean"},
+            "proposer_id": {"type": "string"},
         }, "required": ["action"]},
         "runner": _run_track,
     },
@@ -3144,7 +4489,8 @@ _CORE_PROFILE = frozenset({
 PROFILES: dict[str, frozenset[str]] = {
     "core": _CORE_PROFILE,
     "describe": _CORE_PROFILE | {"gnomon_describe"},
-    "evidence": frozenset({"gnomon_describe", "gnomon_forecast"}),
+    "evidence": frozenset({
+        "gnomon_describe", "gnomon_forecast", "gnomon_select_scenario"}),
     "mega": frozenset({"gnomon_inspect", "gnomon_run", "gnomon_track"}),
     "decision": _CORE_PROFILE | {
         "gnomon_decide", "gnomon_monitor", "gnomon_route",
@@ -3426,8 +4772,13 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
                 budget = (DESCRIBE_RESPONSE_BUDGET_BYTES
                           if _name == "gnomon_describe"
                           else RESPONSE_BUDGET_BYTES)
+                if arguments.get("format") != "full":
+                    payload = compact_publication_for_wire(payload)
                 payload = triage_wide_response(payload)
                 payload = compact_support_details(payload)
+                if isinstance(payload, dict) and "verb" not in payload:
+                    payload = {**payload,
+                               "verb": _name.removeprefix("gnomon_")}
                 return apply_response_contract(
                     enforce_response_budget(payload, budget))
 

@@ -12,6 +12,9 @@ with a genuine COVID regime break, real US retail sales — provenance in
 recent maximum plus a sampled robust-scale margin. Ground truth is what
 the **realized future** did: breach or not, and at which step — held out
 from the model and from Gnomon, verified absent from every prompt.
+History lengths are preregistered at 24, 48, 96, and 168 observations and
+reported as short/medium/long strata; this prevents a benchmark containing
+only mature series from hiding fold-starved behavior common in new deployments.
 Gnomon is fed each series' **true cadence** (5-minute, daily, monthly —
 read from the corpus filenames), because season detection and support
 tiers are frequency-aware. Realized futures **never overlap** within a
@@ -44,6 +47,17 @@ an arm can dodge the metric by never naming a step. The breach base
 rate is held near the cost break-even (~30% against a 0.2 break-even),
 where neither constant policy is close to optimal and only genuine
 discrimination reduces regret.
+
+The answer contract deliberately separates three questions operators
+otherwise collapse: the model's binary best prediction, whether the evidence
+distinguishes breach from no breach (including `indeterminate`), and whether
+acting is worthwhile under the supplied costs. An optional breach probability
+is scored with Brier loss and explicit coverage, so omission cannot improve the
+probability metric invisibly. For bounded short-history Gnomon answers, the
+report also measures whether the agent preserves the typed assessment while
+keeping unsupported automation separately visible. Human `action` advice is
+scored for economic usefulness; `automation_action` is a separate channel and
+may copy a policy action only when Gnomon marks it automation-eligible.
 
 Deterministic references bound everything at zero API cost: the product's
 governed dependence-aware policy (with withholding priced as monitor by

@@ -25,7 +25,7 @@ available](#not-currently-available) at the end.
 `gnomon store list` · `gnomon status` · `gnomon context prompt|validate` ·
 `gnomon covariates guide|validate` · `gnomon mcp serve` ·
 `gnomon tsfm list|install|install-all|remove` ·
-`gnomon track actuals|compare|coverage|decision|due|export|leaderboard|list|outcome|performance|relocate|score` ·
+`gnomon track actuals|compare|coverage|decision|decision-skill|due|export|leaderboard|list|outcome|performance|relocate|score` ·
 `gnomon eval compare|episodes`
 
 ## Global options
@@ -361,6 +361,7 @@ gnomon track list --project capacity
 gnomon track performance --project capacity --model seasonal_naive
 gnomon track leaderboard --project capacity
 gnomon track leaderboard --project capacity --task forecast
+gnomon track decision-skill --project capacity --proposer host:agent
 gnomon track compare --a FORECAST_ID --b FORECAST_ID
 gnomon track due --project capacity
 gnomon track decision record --decision-id scale-001 --project capacity \
@@ -371,6 +372,12 @@ gnomon track decision resolve --decision-id scale-001 \
 gnomon track export --project capacity --output capacity-registry.json
 gnomon track relocate --forecast-id FORECAST_ID --artifact-path /new/artifact/path
 ```
+
+`decision-skill` compares resolved model-authored temporal decisions with the
+canonical action on the same outcomes. It uses paired discordant calls,
+shrinkage, and a minimum resolved count before setting
+`graduated_for_human_prior`. Graduation may inform human-facing reconciliation
+only; it never upgrades forecast support or automation authority.
 
 Single-series actuals require `timestamp,value` columns. For panel forecasts,
 use `series,timestamp,value`; Gnomon rejects ambiguous panel actuals. Timestamps

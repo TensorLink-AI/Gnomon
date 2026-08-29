@@ -144,6 +144,13 @@ computed source). Do not spend calls on `gnomon_capabilities`,
 asked for feature discovery, the schema is genuinely ambiguous, or deeper
 artifact evidence is required.
 
+When a publication contains multiple sealed scenarios, its
+`selection_contract` is the complete input to `gnomon_select_scenario`. The
+follow-up ranks existing scenario IDs with cited claims and counterevidence;
+it writes a new content-addressed publication sidecar without recomputing or
+editing any forecast. Skip this call when Gnomon's evidence already determines
+the path or the user did not ask to reconsider the displayed recommendation.
+
 ## Response sizes
 
 Tool responses are budgeted (`RESPONSE_BUDGET_BYTES`, reported by
@@ -184,6 +191,18 @@ is grouped with its affected-series count and up to three examples; the full
 warning remains attached to every series in the integrity-sealed artifact. These
 fields, the headline, support, assumptions, staleness, and artifact references
 are protected from trimming.
+
+Scenario and best-effort forecasts likewise return a compact `publication`
+decision projection by default. Use its `selection_contract` to reason and its
+`publication_path` with `gnomon_select_scenario`; the complete signed receipt
+stays at that path. Set `format: "full"` only to inline the full repeated
+forecast arrays.
+
+For horizons longer than 12 steps, the default brief forecast returns the
+first six and last six rows and states the omitted-middle count. This keeps
+both the near-term decision and horizon-end behavior visible; the complete
+path remains in the immutable artifact. Use `format: "full"` when every step
+must be inline.
 
 When schema ambiguity blocks a forecast, each repair option contains a literal
 `tool_call` with the complete argument object—one per candidate plus the

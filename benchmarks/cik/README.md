@@ -57,13 +57,19 @@ the run ends with `submit_forecast` — either an `artifact_path` whose
 trajectory is used byte-for-byte, or the model's own per-step
 quantiles. The route is classified from the transcript afterwards
 (`gnomon` / `direct` / `informed-direct`), caps (10 rounds, 24 calls,
-250k tokens, 600 s) abstain rather than fall back, and a path jail
+250k tokens, 7,200 s) abstain rather than fall back, and a path jail
 keeps the model away from the cached benchmark datasets. Per-run
 transcripts land in `<output-dir>/mcp-traces/`.
 
 On any arm, an optional-tool win is evidence about the *pipeline*,
 never about Gnomon's own forecasting quality — it can come entirely
 from knowing when not to call.
+
+For diagnostics, `--mcp-output-role canonical` scores the public artifact
+trajectory, which may already be context-conditioned.
+`--mcp-output-role immutable_primary` explicitly ignores that recommendation
+and scores the preserved primary. Only the latter is a valid within-run
+context-uplift comparator; it is not a product output.
 
 `gnomon-conditional` is the stable, manifest-visible form of the conditional
 arm. It enables Gnomon's `context.future_events` lane while retaining the
@@ -83,7 +89,7 @@ this flag is pre-registered in `results/future-context-ab/HYPOTHESIS.md`.
 python -m venv .venv-cik && source .venv-cik/bin/activate
 pip install -r benchmarks/cik/requirements.txt   # heavy: official deps
 pip install -e .                                 # gnomon
-export OPENROUTER_API_KEY=sk-or-...
+export ENGY_API_KEY=...
 
 # One-time: build the official metric scaling cache (downloads task data).
 python -c "import runpy; runpy.run_path('precompute_scaling_cache.py')" \
@@ -98,7 +104,7 @@ the scaling cache the official metric returns NaN — build it first.
 ## Run
 
 ```bash
-# Control: official LLM baseline, any OpenRouter model
+# Control: official LLM protocol through the default Engy endpoint
 python -m benchmarks.cik.run_cik --method control \
     --model openai/gpt-4o --output-dir results/cik-gpt4o-control
 
@@ -118,10 +124,62 @@ python -m benchmarks.cik.run_cik --method gnomon-pure \
 python -m benchmarks.cik.run_cik --method gnomon-mcp \
     --model openai/gpt-4o --output-dir results/cik-gpt4o-mcp
 
+# Production-style governed agent: the host compiles the supplied context into
+# a provenance receipt, injects validated typed events into the model's one
+# Gnomon call, and binds the first valid artifact. Model-authored numeric
+# fallback is disabled.
+python -m benchmarks.cik.run_cik --method gnomon-mcp \
+    --mcp-profile evidence --model openai/gpt-4o \
+    --output-dir results/cik-gpt4o-mcp-evidence
+
+# Diagnostic only: score the sealed LLM candidate rather than the canonical
+# artifact. It remains prior_assisted, non-automatable, and cannot replace the
+# product answer. Ordinary canonical runs also retain this exact candidate in
+# extra_info for matched post-hoc scoring without a second stochastic call.
+python -m benchmarks.cik.run_cik --method gnomon-mcp \
+    --mcp-profile evidence --mcp-output-role llm_candidate_shadow \
+    --model openai/gpt-4o \
+    --output-dir results/cik-gpt4o-mcp-candidate-shadow
+
+# Product best-effort mode: score the candidate only after the publication
+# verifier preserves the primary, support label, and automation separation.
+python -m benchmarks.cik.run_cik --method gnomon-mcp \
+    --mcp-profile evidence --mcp-output-role publication_best_effort \
+    --model deepseek-v4-flash-0731 \
+    --output-dir results/cik-deepseek-best-effort
+
+# Controlled candidate-compute/evidence ablations. These change only the
+# host's prior-assisted, non-automatable candidate lane; the immutable primary
+# and support contract are unchanged. Defaults are 4-5 paths, 64 raw rows,
+# and compact full-history temporal facts enabled.
+python -m benchmarks.cik.run_cik --method gnomon-mcp \
+    --mcp-profile evidence --mcp-output-role publication_best_effort \
+    --mcp-candidate-paths 10 --mcp-candidate-history-rows 64 \
+    --no-mcp-candidate-temporal-facts \
+    --model deepseek-v4-flash-0731 \
+    --output-dir results/cik-candidate-ablation
+
 # Quick pass on a task family while iterating
 python -m benchmarks.cik.run_cik --method gnomon-pure \
     --task-filter sensor --seeds 1 --output-dir /tmp/cik-smoke
+
+# Preregistered held-out task instances: seed 6 only, never silently mixed
+# with the development seeds recorded in earlier output directories.
+python -m benchmarks.cik.run_cik --method gnomon-mcp \
+    --mcp-profile evidence --mcp-output-role publication_best_effort \
+    --model deepseek-v4-flash-0731 --seed-start 6 --seeds 1 \
+    --output-dir results/cik-heldout-seed6-gnomon
 ```
+
+CiK tasks always execute sequentially in disposable child processes. The
+runner measures resident memory across each entire process tree, terminates a
+case above `--case-memory-mb` (4 GiB by default), terminates it after
+`--case-timeout-seconds` (15 minutes), and refuses to start another case below
+`--min-free-memory-mb` (2 GiB). It writes `case-checkpoint.json` atomically
+after every task/seed and resumes it by default. A killed case is retained as
+an explicit error and receives the usual capped/imputed score; it cannot vanish
+from the aggregate. `--max-parallel` must remain `1`; shard across separate
+machines and output directories when parallel execution is required.
 
 Outputs per run: `summary.json`, `scores.csv` (official
 per-task-per-seed scores), `runs/` (the official per-run artifacts:
@@ -159,6 +217,34 @@ the official code.
 - Some CiK tasks use frequencies outside Gnomon's supported grid; Gnomon
   abstains on those, and the abstention shows up in `summary.json`
   rather than as a silent skip.
+- `gnomon-mcp --mcp-profile evidence` is the governed product arm. The agent
+  chooses whether to invoke Gnomon. Before that loop, the host compiles the
+  benchmark-supplied prose into typed events and an auditable receipt containing
+  the source hash, compiler identity, rejected proposals, and an explicit
+  declaration that future target observations were not exposed. The host binds
+  those events, the task data, and the horizon to `gnomon_forecast`; once it
+  produces a valid artifact the host publishes it verbatim. This avoids testing
+  event-schema recall or path copying. Because CiK's requested verb is known,
+  this arm exposes only `gnomon_forecast` rather than inviting a descriptive
+  detour. `informed-direct` is structurally unavailable in the governed arm.
+  Other profiles retain the direct/informed-direct exits as explicitly labelled
+  autonomy experiments.
+
+  This production-style arm stamps the assembled context as known at the
+  forecast cutoff, when the host actually received it. It therefore cannot use
+  a retrospective task description inside earlier backtest folds. The legacy
+  `gnomon-agent` arm retains its documented benchmark assumption that the task
+  context was known from the history start, so old experiments remain
+  comparable rather than silently changing meaning.
+
+  The compiler also emits a richer cited dossier—qualitative temporal claims,
+  timing, mechanism, direction, uncertainty, and an optional probabilistic
+  forecast candidate. Deterministic validation rejects uncited claims,
+  malformed or misaligned quantiles, and grossly implausible paths. A surviving
+  candidate is sealed as `prior_assisted`, never automation-eligible, and kept
+  beside the immutable canonical artifact. It can be shadow-scored now and
+  upgraded only by historical replay or realised outcomes; the LLM's confidence
+  cannot grant publication authority.
 - `--n-samples` defaults to the official `DEFAULT_N_SAMPLES`; change it
   only symmetrically across conditions.
 - `--fail-on-invalid` (control only) defaults to `True`, the official

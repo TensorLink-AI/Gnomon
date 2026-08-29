@@ -231,13 +231,14 @@ def test_monitor_single_shot_policy_is_typed_and_may_withhold(tmp_path):
     assert decision["primary_risk_unchanged"] is True
     # This short fixture has too few independent origins: the estimate
     # degrades down the disclosed ladder rather than vanishing, and the
-    # expected-loss recommendation is published at best-effort authority
-    # — never as a governed action.
+    # expected-loss calculation is published as concrete advice at
+    # best-effort authority — never as a governed recommendation.
     assert event["support"] == "best_effort"
     assert event["dependence_preserved"] is False
     assert {"insufficient_joint_paths"} <= {
         reason["code"] for reason in event["reasons"]}
-    assert decision["recommended_action"] in {"act", "monitor"}
+    assert decision["recommended_action"] is None
+    assert decision["advisory_action"] in {"act", "monitor"}
     assert decision["decision_support"] == "best_effort"
     assert decision["reason_code"] == \
         "event_estimate_not_governed_point_estimate_used"

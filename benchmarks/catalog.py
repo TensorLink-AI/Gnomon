@@ -45,6 +45,11 @@ CATALOG: dict[str, BenchmarkContract] = {
     "volatilitybench": BenchmarkContract("engine", "fitted volatility executable", "Volatility estimation and calibration only."),
     "propertybench": BenchmarkContract("engine", "fitted temporal-property executables", "Independent property classification and calibration only."),
     "transitionbench": BenchmarkContract("engine", "production TemporalEvidence computation", "Observed-transition evidence quality only."),
+    "outcomelearningbench": BenchmarkContract(
+        "policy", "production publication and tracking outcome loop",
+        "Prequential same-series candidate learning, cutoff discipline, "
+        "proposer isolation, reversal response, and safety invariants; not "
+        "LLM forecast accuracy."),
     "modelbench": BenchmarkContract("engine", "immutable primary forecast pipeline", "Forecast-model admission/accuracy; agent behaviour excluded."),
     "contextcachebench": BenchmarkContract("safety_contract", "production context receipt/cache tools", "Replay parity, identity, and payload economics."),
     "adapterbench": BenchmarkContract("safety_contract", "production forecast-adapter protocol", "Backend conformance and rejection, not accuracy."),

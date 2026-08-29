@@ -24,8 +24,17 @@ EffectProvenanceClass = Literal[
 
 EffectShape = Literal[
     "temporary_pulse", "level_shift", "trend_change", "variance_change",
-    "seasonal_regime_change", "saturation_bound", "unknown",
+    "ramp_recovery", "seasonal_amplitude", "seasonal_phase",
+    "cross_series_relationship", "saturation_bound", "custom_scenario",
+    "seasonal_regime_change", "unknown",
 ]
+
+EFFECT_SHAPES = frozenset({
+    "temporary_pulse", "level_shift", "trend_change", "variance_change",
+    "ramp_recovery", "seasonal_amplitude", "seasonal_phase",
+    "cross_series_relationship", "saturation_bound", "custom_scenario",
+    "seasonal_regime_change", "unknown",
+})
 
 _PROVENANCE_CLASSES = {
     "same_event_same_series", "same_event_related_series",
@@ -126,9 +135,5 @@ def effect_contract(
     return {
         "distribution": distribution.to_dict(),
         "provenance": provenance.to_dict(),
-        "shape": shape if shape in {
-            "temporary_pulse", "level_shift", "trend_change",
-            "variance_change", "seasonal_regime_change", "saturation_bound",
-            "unknown",
-        } else "unknown",
+        "shape": shape if shape in EFFECT_SHAPES else "unknown",
     }

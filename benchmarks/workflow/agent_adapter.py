@@ -108,6 +108,21 @@ def _extract_engine_facts(value: Any, requested: set[str]) -> dict[str, Any]:
                 found.setdefault(key, item)
     return found
 
+
+def _canonical_choice_sources(case: dict[str, Any]) -> dict[str, str]:
+    """Return declared engine provenance for machine-readable choices."""
+    value = (case.get("answer_schema") or {}).get("choice_sources") or {}
+    return ({str(key): str(source) for key, source in value.items()}
+            if isinstance(value, dict) else {})
+
+
+def _canonical_engine_choices(case: dict[str, Any],
+                              evidence: dict[str, Any]) -> dict[str, str]:
+    facts = evidence.get("engine_facts") or {}
+    return {choice: str(facts[source])
+            for choice, source in _canonical_choice_sources(case).items()
+            if source in facts and facts[source] is not None}
+
 SUBMIT = {
     "type": "function", "function": {
         "name": "submit_answer",
@@ -198,7 +213,9 @@ Revealed stage input: {json.dumps(case.get('revealed') or {}, separators=(',', '
 
 Return numbers under stable names requested by the question, categorical answers under choices,
 and populate every requested facts key from the supplied case or Gnomon artifact. Preserve material
-limitations in disclosures. When Gnomon returns an artifact_id or forecast_id, copy it exactly to
+limitations in disclosures. Copy rejected-context reason codes and the associated recovery action
+code exactly; do not translate them into a different diagnosis. Copy automation reason codes;
+do not translate them into a different diagnosis. When Gnomon returns an artifact_id or forecast_id, copy it exactly to
 artifact_id in submit_answer. Never claim to have observed post-cutoff data.
 """
 
@@ -215,6 +232,25 @@ def _compile_execution_arguments(
     # output paths) instead of merging them into the host-resolved call.
     compiled = {"input": str(csv_path), "time_column": "timestamp",
                 "frequency": "D"}
+    # The host owns transport and data identity, while the agent owns the
+    # user's explicitly supplied context and publication intent. Preserve the
+    # latter through the compilation boundary so this arm measures the real
+    # MCP contract instead of silently deleting the feature under test.
+    for key in (
+        "context_submission", "temporal_dossiers", "publication_mode",
+        "scenario_selection", "automation_policy", "context_events",
+        "qualitative_context_events", "context_rejections", "context_ref", "future_events",
+        "structural_events",
+    ):
+        if key in arguments:
+            compiled[key] = arguments[key]
+    if any(key in compiled for key in (
+            "context_events", "qualitative_context_events",
+            "context_submission", "context_rejections")):
+        # The benchmark host, not the model, owns the source-document
+        # boundary. This mirrors a real agent host forwarding the untouched
+        # user message beside model-selected spans.
+        compiled["_trusted_context_source_text"] = str(case.get("question") or "")
     columns = [key for key in _columns(case["available_at_cutoff"])
                if key != "timestamp"]
     revealed_target = (case.get("revealed") or {}).get("target_column")
@@ -231,10 +267,31 @@ def _compile_execution_arguments(
         target = None
     if target is not None:
         compiled["target_column"] = target
+        # The host may replace a semantic target with a transport column
+        # (for example demand -> value). With exactly one data column, bind
+        # context to that same resolved target across the host boundary.
+        if len(columns) == 1:
+            for channel in ("context_events", "qualitative_context_events"):
+                for item in compiled.get(channel) or []:
+                    if isinstance(item, dict) and item.get("entity_scope"):
+                        item["entity_scope"] = [
+                            "*" if name == "*" else target
+                            for name in item["entity_scope"]]
     elif intentionally_ambiguous:
         compiled.pop("target_column", None)
     if name in {"gnomon_forecast", "gnomon_run"}:
-        compiled["horizon"] = 1
+        # Horizon is user intent, not host transport. Preserve a valid model-
+        # compiled value; when omitted, let Gnomon's disclosed one-season
+        # default apply. Hard-coding one step here silently changed questions
+        # such as "next week's peak" into tomorrow's value.
+        horizon = arguments.get("horizon")
+        if isinstance(horizon, int) and not isinstance(horizon, bool) \
+                and horizon >= 1:
+            compiled["horizon"] = horizon
+        threshold = arguments.get("threshold")
+        if isinstance(threshold, (int, float)) \
+                and not isinstance(threshold, bool) and math.isfinite(threshold):
+            compiled["threshold"] = float(threshold)
         compiled["output_dir"] = str(jail / "gnomon-output")
     if name == "gnomon_forecast":
         compiled["format"] = "brief"
@@ -287,6 +344,13 @@ def _normalize(case: dict[str, Any], value: dict[str, Any], *, calls: int,
     choices = {str(key): str(item) for key, item in (
         raw_choices if isinstance(raw_choices, dict) else {}).items()
                if item is not None}
+    canonical_choices = _canonical_engine_choices(case, engine_evidence or {})
+    attempted_choice_overrides = {
+        key: {"submitted": choices.get(key), "canonical": canonical}
+        for key, canonical in canonical_choices.items()
+        if choices.get(key) != canonical
+    }
+    choices.update(canonical_choices)
     raw_facts = value.get("facts")
     facts = dict(raw_facts) if isinstance(raw_facts, dict) else {}
     facts.update(_host_facts(case))
@@ -298,6 +362,16 @@ def _normalize(case: dict[str, Any], value: dict[str, Any], *, calls: int,
               [str(raw_claims)] if raw_claims else [])
     engine_evidence = engine_evidence or {}
     artifact_numbers = engine_evidence.get("artifact_numbers") or {}
+    evaluated_fingerprint = engine_evidence.get("evaluated_fingerprint")
+    published_fingerprint = engine_evidence.get("published_fingerprint")
+    host_publish_parity = (
+        evaluated_fingerprint == published_fingerprint
+        if evaluated_fingerprint is not None
+        and published_fingerprint is not None else None)
+    host_quote_match = (
+        all(key in numbers and numbers[key] == item
+            for key, item in artifact_numbers.items())
+        if artifact_numbers else None)
     return {
         "case_id": case["id"], "status": status, "support": support,
         "numbers": numbers, "choices": choices,
@@ -307,12 +381,14 @@ def _normalize(case: dict[str, Any], value: dict[str, Any], *, calls: int,
         # This is a harness access-control measurement, not an agent's claim.
         # The digest lets audits bind the verdict to the exact cutoff projection.
         "temporal_leakage": False,
-        "publish_matches_evaluated": value.get("publish_matches_evaluated"),
+        # These are attestations over host-held evidence. Never accept the
+        # model's self-assessment: absence remains unknown rather than false.
+        "publish_matches_evaluated": host_publish_parity,
         "repair_completed": value.get("repair_completed"),
         "tracking_completed": value.get("tracking_completed"),
-        "quote_matches": value.get("quote_matches"),
-        "evaluated_fingerprint": engine_evidence.get("evaluated_fingerprint"),
-        "published_fingerprint": engine_evidence.get("published_fingerprint"),
+        "quote_matches": host_quote_match,
+        "evaluated_fingerprint": evaluated_fingerprint,
+        "published_fingerprint": published_fingerprint,
         "artifact_numbers": artifact_numbers,
         "headline_numbers": {key: numbers[key] for key in artifact_numbers if key in numbers},
         "tool_calls": calls,
@@ -327,6 +403,32 @@ def _normalize(case: dict[str, Any], value: dict[str, Any], *, calls: int,
                          "surface_required_calls", 0),
                      "recovery_calls": engine_evidence.get("recovery_calls", 0),
                      "redundant_calls": engine_evidence.get("redundant_calls", 0),
+                     "tool_schema_bytes": engine_evidence.get("tool_schema_bytes"),
+                     "tool_response_bytes_raw": engine_evidence.get(
+                         "tool_response_bytes_raw", []),
+                     "tool_response_bytes_sent": engine_evidence.get(
+                         "tool_response_bytes_sent", []),
+                     "tool_response_top_level_bytes": engine_evidence.get(
+                         "tool_response_top_level_bytes", []),
+                     "context_arguments": engine_evidence.get(
+                         "context_arguments", []),
+                     "context_behavior": engine_evidence.get(
+                         "context_behavior"),
+                     "future_context_behavior": engine_evidence.get(
+                         "future_context_behavior"),
+                     "qualitative_context_input": engine_evidence.get(
+                         "qualitative_context_input", []),
+                     "literal_context_input": engine_evidence.get(
+                         "literal_context_input", []),
+                     "context_rejection_input_shape": engine_evidence.get(
+                         "context_rejection_input_shape", []),
+                     "resolved_horizon": engine_evidence.get(
+                         "resolved_horizon"),
+                     "threshold_supplied": engine_evidence.get(
+                         "threshold_supplied"),
+                     "canonical_choice_sources": _canonical_choice_sources(case),
+                     "attempted_choice_overrides": attempted_choice_overrides,
+                     "tool_errors": engine_evidence.get("tool_errors", []),
                      **({"error": "model_submission_error"} if status == "error" else {}),
                      "artifact_id": engine_evidence.get("artifact_id"),
                      "agent_artifact_id": value.get("artifact_id"),
@@ -380,9 +482,46 @@ def _submission_problems(case: dict[str, Any], value: dict[str, Any],
     for key in (case.get("answer_schema") or {}).get("choices") or []:
         if key not in choices:
             problems.append(f"choices.{key} is missing")
+    for key, canonical in _canonical_engine_choices(case, evidence).items():
+        if choices.get(key) != canonical:
+            problems.append(
+                f"choices.{key} must equal canonical engine fact {canonical!r}")
     if value.get("artifact_id") != evidence["artifact_id"]:
         problems.append("artifact_id must copy the immutable artifact identity")
     return problems
+
+
+def _publication_recommendation_numbers(
+        publication: dict[str, Any], answer_keys: set[str]) -> dict[str, float]:
+    """Project the sealed recommendation, not the artifact's active lane."""
+    if "next" not in answer_keys:
+        return {}
+    selected_id = publication.get("recommended_scenario_id")
+    scenarios = (publication.get("selection_contract") or {}).get(
+        "scenarios") or []
+    selected = next((item for item in scenarios
+                     if item.get("scenario_id") == selected_id), None)
+    value = ((selected or {}).get("summary") or {}).get("first_q50")
+    if isinstance(value, (int, float)) and not isinstance(value, bool) \
+            and math.isfinite(value):
+        return {"next": float(value)}
+    return {}
+
+
+def _preferred_tool(case: dict[str, Any], profile: str) -> str:
+    """Choose by requested verb before dataset shape.
+
+    A wide forecast remains a forecast; routing every multiseries input to
+    describe silently drops publication and context semantics.
+    """
+    if profile == "mega":
+        return "gnomon_run"
+    forecast_intent = str(case.get("question") or "").lstrip().lower().startswith(
+        "forecast")
+    if case.get("kind") == "multiseries" and not forecast_intent:
+        return ("gnomon_describe" if profile in {"describe", "evidence", "full"}
+                else "gnomon_inspect")
+    return "gnomon_forecast"
 
 
 def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
@@ -402,25 +541,25 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
     calls = 0
     sequence: list[str] = []
     engine_evidence: dict[str, Any] = {"surface_required_calls": 1}
+    recommendation: dict[str, float] = {}
     computation_complete = False
     recovery_calls = 0
     try:
         session.initialize()
         tools = openai_tool_specs(session.list_tools(), SUBMIT)
-        preferred_name = (
-            "gnomon_run" if profile == "mega" else
-            "gnomon_describe" if case.get("kind") == "multiseries"
-            and profile in {"describe", "evidence", "full"} else
-            "gnomon_inspect" if case.get("kind") == "multiseries" else
-            "gnomon_forecast"
-        )
+        engine_evidence["tool_schema_bytes"] = len(json.dumps(
+            tools, sort_keys=True, separators=(",", ":")).encode("utf-8"))
+        preferred_name = _preferred_tool(case, profile)
+        skill_path = repository / "skills" / "use-gnomon" / "SKILL.md"
+        skill = skill_path.read_text(encoding="utf-8")
         messages = [
             {"role": "system", "content": (
                 "Use Gnomon for temporal computation. The CSV is inside your path jail. "
                 "End with submit_answer. Gnomon-authored numbers must be quoted faithfully; "
                 "if support is weak, return the forecast with its degraded/best_effort label. "
                 f"For this task, call {preferred_name} exactly once, then submit from that response. "
-                "Do not inspect first, read an artifact, or repeat a successful tool."
+                "Do not inspect first, read an artifact, or repeat a successful tool.\n\n"
+                "Installed Gnomon skill:\n" + skill
             )},
             {"role": "user", "content": _prompt(case, csv_path)},
         ]
@@ -431,6 +570,9 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
             if calls == 0 and not computation_complete:
                 tool_choice = {"type": "function", "function": {
                     "name": preferred_name}}
+            elif computation_complete:
+                tool_choice = {"type": "function", "function": {
+                    "name": "submit_answer"}}
             response = client.chat(messages, n=1, tools=available,
                                    tool_choice=tool_choice, max_tokens=6000)
             message = response.choices[0].message
@@ -467,11 +609,192 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                 sequence.append(name)
                 arguments = _compile_execution_arguments(
                     case, name, arguments, csv_path, jail)
+                if arguments.get("horizon") is not None:
+                    engine_evidence["resolved_horizon"] = arguments["horizon"]
+                engine_evidence["threshold_supplied"] = (
+                    arguments.get("threshold") is not None)
+                qualitative_inputs = arguments.get(
+                    "qualitative_context_events") or []
+                if isinstance(qualitative_inputs, list):
+                    engine_evidence["qualitative_context_input"] = [{
+                        key: item.get(key) for key in (
+                            "event_id", "effective_start", "effective_end",
+                            "known_at", "entity_scope", "direction",
+                            "effect_family", "duration")
+                        if item.get(key) is not None
+                    } for item in qualitative_inputs if isinstance(item, dict)]
+                literal_inputs = arguments.get("context_events") or []
+                if isinstance(literal_inputs, list):
+                    # Privacy-safe interface telemetry: retain only routing
+                    # shape, never quoted text, values, or source content.
+                    engine_evidence["literal_context_input"] = [{
+                        key: item.get(key) for key in (
+                            "event_id", "claim_kind", "event_type",
+                            "entity_scope", "effective_start", "effective_end",
+                            "known_at")
+                        if item.get(key) is not None
+                    } | {"source_span_present": bool(item.get("source_span"))}
+                       for item in literal_inputs if isinstance(item, dict)]
+                rejection_inputs = arguments.get("context_rejections") or []
+                if isinstance(rejection_inputs, list):
+                    engine_evidence["context_rejection_input_shape"] = [
+                        sorted(str(key) for key in item)
+                        for item in rejection_inputs if isinstance(item, dict)]
+                context_keys = [key for key in (
+                    "context_submission", "temporal_dossiers",
+                    "context_events", "qualitative_context_events", "context_rejections",
+                    "context_ref", "publication_mode",
+                    "scenario_selection", "automation_policy",
+                ) if key in arguments]
+                if context_keys:
+                    engine_evidence["context_arguments"] = context_keys
+                policy_input = arguments.get("automation_policy")
+                if isinstance(policy_input, dict):
+                    engine_evidence["automation_policy_input"] = {
+                        "authorize": policy_input.get(
+                            "authorize", policy_input.get("allow")),
+                        "policy_id_present": bool(policy_input.get("policy_id")),
+                        "minimum_support": policy_input.get("minimum_support"),
+                        "used_legacy_allow_alias": (
+                            "allow" in policy_input and
+                            "authorize" not in policy_input),
+                    }
                 if calls > MAX_TOOL_CALLS:
                     content = json.dumps({"code": "TOOL_BUDGET_SPENT"})
                 else:
                     result = session.call_tool(name, arguments)
                     structured = result.get("structuredContent") or {}
+                    if isinstance(structured, dict):
+                        engine_evidence.setdefault(
+                            "tool_response_top_level_bytes", []).append({
+                                str(key): len(json.dumps(
+                                    value, sort_keys=True, separators=(",", ":"),
+                                    default=str).encode("utf-8"))
+                                for key, value in structured.items()})
+                    if isinstance(structured, dict) and structured.get(
+                            "status") in {"error", "invalid"}:
+                        error = structured.get("error") or structured
+                        if isinstance(error, dict):
+                            details = error.get("details") or {}
+                            problems = (details.get("problems")
+                                        if isinstance(details, dict) else None)
+                            engine_evidence.setdefault("tool_errors", []).append({
+                                "tool": name,
+                                "code": error.get("code"),
+                                "message": str(error.get("message") or "")[:300],
+                                "detail_keys": sorted((error.get("details") or {}).keys())
+                                if isinstance(error.get("details"), dict) else [],
+                                **({"missing_fields": details.get("missing_fields")}
+                                   if isinstance(details, dict) and
+                                   details.get("missing_fields") else {}),
+                                **({"unknown_fields": details.get("unknown_fields")}
+                                   if isinstance(details, dict) and
+                                   details.get("unknown_fields") else {}),
+                                **({"problems": problems} if problems else {}),
+                            })
+                    publication = (structured.get("publication")
+                                   if isinstance(structured, dict) else None)
+                    if not isinstance(publication, dict) and isinstance(
+                            structured, dict):
+                        publications = [item for item in
+                                        structured.get("publications") or []
+                                        if isinstance(item, dict)]
+                        summary = structured.get("publication_summary") or {}
+                        if publications and isinstance(summary, dict):
+                            child_statuses = [str((item.get(
+                                "context_summary") or {}).get("status") or
+                                "not_supplied") for item in publications]
+                            used = any(status in {"used", "partially_used"}
+                                       for status in child_statuses)
+                            mixed = len(set(child_statuses)) > 1
+                            publication = {
+                                "mode": summary.get("mode"),
+                                "primary_forecast_unchanged": summary.get(
+                                    "primary_forecast_unchanged"),
+                                "scenario_count": summary.get("scenario_count"),
+                                "context_summary": {
+                                    "status": ("partially_used" if used and mixed
+                                               else "used" if used
+                                               else "partially_represented"
+                                               if mixed else child_statuses[0]),
+                                },
+                                "context_dispositions": [{
+                                    **disposition,
+                                    "series": item.get("series"),
+                                } for item in publications for disposition in
+                                    item.get("context_dispositions") or []
+                                   if isinstance(disposition, dict)],
+                                "automation": {
+                                    "eligible": summary.get(
+                                        "automation_eligible")},
+                            }
+                    if isinstance(publication, dict):
+                        summary = publication.get("context_summary") or {}
+                        automation = publication.get("automation") or {}
+                        engine_evidence["context_behavior"] = {
+                            "publication_mode": publication.get("mode"),
+                            "status": summary.get("status"),
+                            "recommended_scenario_id": publication.get(
+                                "recommended_scenario_id"),
+                            "recommended_support": publication.get(
+                                "recommended_support"),
+                            "primary_forecast_unchanged": publication.get(
+                                "primary_forecast_unchanged"),
+                            "automation_eligible": automation.get("eligible"),
+                            "automation_requested": automation.get("requested"),
+                            "automation_policy_complete": automation.get(
+                                "policy_complete"),
+                            "automation_reason_code": automation.get(
+                                "reason_code"),
+                            "scenario_count": publication.get(
+                                "scenario_count", len(
+                                    publication.get("scenarios") or [])),
+                            "dispositions": [{
+                                key: item.get(key) for key in (
+                                    "context_id", "disposition", "reason_code")
+                                if item.get(key) is not None
+                            } | ({"recovery_code": item["recovery_action"].get(
+                                "code")} if isinstance(item.get(
+                                    "recovery_action"), dict) and item[
+                                        "recovery_action"].get("code") else {})
+                            for item in publication.get(
+                                "context_dispositions") or []
+                            if isinstance(item, dict)],
+                        }
+                        recommendation = _publication_recommendation_numbers(
+                            publication, set((case.get("answer_schema") or {}).get(
+                                "numbers") or []))
+                    result_rows = (structured.get("results") or []
+                                   if isinstance(structured, dict) else [])
+                    if result_rows and isinstance(result_rows[0], dict):
+                        future = result_rows[0].get("future_context") or {}
+                        if isinstance(future, dict):
+                            engine_evidence["future_context_behavior"] = {
+                                "considered": future.get("considered"),
+                                "admitted": [{
+                                    key: item.get(key) for key in (
+                                        "event_id", "event_class")
+                                    if item.get(key) is not None
+                                } for item in future.get("admitted") or []
+                                   if isinstance(item, dict)],
+                                "rejected": [{
+                                    key: item.get(key) for key in (
+                                        "event_id", "event_class", "code")
+                                    if item.get(key) is not None
+                                } for item in future.get("rejected") or []
+                                   if isinstance(item, dict)],
+                            }
+                        if recommendation:
+                            engine_evidence["recommendation_numbers"] = recommendation
+                        result_rows = structured.get("results") or []
+                        if result_rows and isinstance(result_rows[0], dict):
+                            outcome = result_rows[0].get("context_outcome") or {}
+                            if (isinstance(outcome, dict) and outcome
+                                    and "context_behavior" in engine_evidence):
+                                engine_evidence["context_behavior"][
+                                    "numeric_sensitivity_count"] = int(
+                                        outcome.get(
+                                            "sensitivity_scenarios_produced") or 0)
                     if isinstance(structured, dict) and structured.get("status") not in {
                             "error", "invalid"}:
                         # The product host owns this state transition. Once a
@@ -482,8 +805,13 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                     elif not computation_complete:
                         recovery_calls += 1
                     if isinstance(structured, dict):
+                        artifact_identity = (structured.get("artifact_id")
+                                             or structured.get("forecast_id"))
+                        if artifact_identity:
+                            engine_evidence["artifact_id"] = artifact_identity
                         requested = set((case.get("answer_schema") or {}).get(
                             "facts") or [])
+                        requested.update(_canonical_choice_sources(case).values())
                         harvested = _extract_engine_facts(structured, requested)
                         if harvested:
                             engine_evidence.setdefault("engine_facts", {}).update(
@@ -501,8 +829,7 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                                         str(evaluated["name"]), str(source)),
                                     "published_fingerprint": _identity_fingerprint(
                                         str(published["name"]), str(source)),
-                                    "artifact_id": structured.get("artifact_id")
-                                        or structured.get("forecast_id"),
+                                    "artifact_id": artifact_identity,
                                     "parity_evidence_level": "response_execution_identity",
                                 })
                             answer_keys = set((case.get("answer_schema") or {}).get("numbers") or [])
@@ -514,6 +841,40 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                                 if point is not None:
                                     engine_evidence["artifact_numbers"] = {
                                         "next": float(point)}
+                        elif len(response_results) > 1:
+                            identities = []
+                            for response_result in response_results:
+                                identity = response_result.get(
+                                    "execution_identity") or {}
+                                evaluated = identity.get("evaluated") or {}
+                                published = identity.get("published") or {}
+                                source = published.get("data_fingerprint")
+                                if not (response_result.get("series")
+                                        and evaluated.get("name")
+                                        and published.get("name") and source):
+                                    identities = []
+                                    break
+                                identities.append((
+                                    str(response_result["series"]),
+                                    str(evaluated["name"]),
+                                    str(published["name"]), str(source)))
+                            if identities:
+                                source = "|".join(
+                                    f"{series}:{fingerprint}" for
+                                    series, _, _, fingerprint in identities)
+                                engine_evidence.update({
+                                    "evaluated_fingerprint": _identity_fingerprint(
+                                        "|".join(f"{series}:{evaluated}" for
+                                                 series, evaluated, _, _ in identities),
+                                        source),
+                                    "published_fingerprint": _identity_fingerprint(
+                                        "|".join(f"{series}:{published}" for
+                                                 series, _, published, _ in identities),
+                                        source),
+                                    "artifact_id": artifact_identity,
+                                    "parity_evidence_level": (
+                                        "response_multi_execution_identity"),
+                                })
                     artifact_path = structured.get("artifact_path") if isinstance(structured, dict) else None
                     if artifact_path:
                         try:
@@ -532,10 +893,19 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                                     }
                         except Exception:
                             pass
+                    if engine_evidence.get("recommendation_numbers"):
+                        engine_evidence["raw_artifact_numbers"] = dict(
+                            engine_evidence.get("artifact_numbers") or {})
+                        engine_evidence["artifact_numbers"] = dict(
+                            engine_evidence["recommendation_numbers"])
                     blocks = result.get("content") or []
                     content = blocks[0].get("text", "") if blocks else json.dumps(result.get("structuredContent") or {})
+                    engine_evidence.setdefault("tool_response_bytes_raw", []).append(
+                        len(content.encode("utf-8")))
                     if len(content) > 16000:
                         content = content[:8000] + "\n...[tool result bounded]...\n" + content[-8000:]
+                    engine_evidence.setdefault("tool_response_bytes_sent", []).append(
+                        len(content.encode("utf-8")))
                 messages.append({"role": "tool", "tool_call_id": call["id"], "content": content})
                 engine_evidence["recovery_calls"] = recovery_calls
                 engine_evidence["redundant_calls"] = 0

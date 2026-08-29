@@ -192,10 +192,10 @@
         "horizon_event": {
           "method": "independence_composed_marginals_v1",
           "residual_source": "selection_folds_reused",
-          "probability_any_breach": 1.0,
+          "probability_any_breach": 0.833333,
           "probability_any_breach_interval_90": {
-            "lower": null,
-            "upper": null
+            "lower": 0.425031,
+            "upper": 1.0
           },
           "breach_more_likely_than_not": true,
           "first_breach_step_probability": {
@@ -211,6 +211,7 @@
           "bootstrap_path_count": 200,
           "bootstrap_diagnostic_probability": 1.0,
           "independence_composed_reference": 1.0,
+          "finite_sample_regularized_probability": 0.833333,
           "effective_origins": 2,
           "calibration_partition": "post_selection_disjoint_origins",
           "dependence_preserved": false,
@@ -237,6 +238,10 @@
             {
               "code": "independence_composition_used",
               "message": "The probability composes published per-step marginals as though forecast leads were independent; the leads are dependent, so this is a best-effort estimate, not a governed joint-event measurement."
+            },
+            {
+              "code": "finite_sample_regularization_used",
+              "message": "The communicated horizon-event probability uses one Jeffreys half-success/half-failure regularisation based on 2 real rolling-origin clusters; the raw independence composition remains a diagnostic."
             }
           ],
           "assumptions": [

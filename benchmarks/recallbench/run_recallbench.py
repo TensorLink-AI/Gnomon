@@ -341,7 +341,8 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
         client = OpenRouterClient(
             args.model, api_key=os.environ.get(args.api_key_env),
             base_url=args.base_url, temperature=0, max_tokens=600,
-            max_retries=4)
+            max_retries=4,
+            reasoning_effort=getattr(args, "reasoning_effort", "none"))
     cases, corpus_provenance, futures = generate_cases(
         args.seed, args.cases)
     verify_no_future_leakage(cases, futures)
@@ -387,6 +388,21 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
     output = Path(args.output_dir)
     output.mkdir(parents=True, exist_ok=True)
     rows_path = output / "rows.jsonl"
+    summary_path = output / "summary.json"
+    prior_usage = None
+    if args.resume and summary_path.exists():
+        try:
+            prior_summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            if (prior_summary.get("model") == model_name
+                    and prior_summary.get("reasoning_effort") == getattr(
+                        args, "reasoning_effort", "none")
+                    and (prior_summary.get("provenance") or {}).get(
+                        "dataset_identity") == dataset_identity):
+                prior_usage = prior_summary.get("usage")
+        except (OSError, json.JSONDecodeError):
+            prior_usage = None
+    if not args.resume:
+        rows_path.unlink(missing_ok=True)
     valid_ids = {case.case_id for case in cases}
     completed: dict[tuple[str, str], dict[str, Any]] = {}
     if args.resume and rows_path.exists():
@@ -399,7 +415,9 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
                 continue
             if (row.get("case_id") in valid_ids and row.get("arm") in ARMS
                     and row.get("dataset") == dataset_identity
-                    and row.get("model") == model_name):
+                    and row.get("model") == model_name
+                    and row.get("reasoning_effort") == getattr(
+                        args, "reasoning_effort", "none")):
                 completed[(row["case_id"], row["arm"])] = row
             else:
                 stale += 1
@@ -417,6 +435,7 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
         row: dict[str, Any] = {
             "case_id": case.case_id, "arm": arm,
             "dataset": dataset_identity, "model": model_name,
+            "reasoning_effort": getattr(args, "reasoning_effort", "none"),
             "origin": case.origin, "frequency": case.frequency,
             "valid": forecast is not None,
         }
@@ -489,6 +508,7 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
     summary = {
         "schema_version": "0.1", "seed": args.seed, "cases": args.cases,
         "model": model_name, "temperature": 0, "horizon": HORIZON,
+        "reasoning_effort": getattr(args, "reasoning_effort", "none"),
         "provenance": {
             "evaluated_commit": _git_sha(),
             "harness_sha256": hashlib.sha256(
@@ -523,8 +543,21 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
         },
     }
     if hasattr(client, "usage_summary"):
-        summary["usage"] = client.usage_summary
-    (output / "summary.json").write_text(
+        current_usage = dict(client.usage_summary)
+        if isinstance(prior_usage, dict):
+            additive = {
+                "requests", "transport_attempts", "prompt_tokens",
+                "completion_tokens", "truncation_escalations", "cost_usd"}
+            for key in additive:
+                current_usage[key] = (
+                    float(prior_usage.get(key, 0) or 0)
+                    + float(current_usage.get(key, 0) or 0))
+                if key != "cost_usd":
+                    current_usage[key] = int(current_usage[key])
+            current_usage["accounting"] = (
+                "cumulative_across_matching_resume_invocations")
+        summary["usage"] = current_usage
+    summary_path.write_text(
         json.dumps(summary, indent=2, sort_keys=True) + "\n",
         encoding="utf-8")
     print(json.dumps(summary, indent=2, sort_keys=True))
@@ -539,6 +572,10 @@ def main() -> int:
     parser.add_argument("--cases", type=int, default=120)
     parser.add_argument("--seed", type=int, default=20260827)
     parser.add_argument("--concurrency", type=int, default=8)
+    parser.add_argument(
+        "--reasoning-effort", default="none",
+        choices=["none", "low", "medium", "high"],
+        help="Hosted-model reasoning mode; part of resume identity.")
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--resume", action="store_true")
     run(parser.parse_args())

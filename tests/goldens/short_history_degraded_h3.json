@@ -54,7 +54,7 @@
       "interval_coverage": null,
       "warnings": [
         "Degraded forecast: model selection used a single trailing 1-observation holdout; rolling-origin calibration and final testing were unavailable. At least 20 observations (have 6) are needed for separated selection and calibration.",
-        "Selection under-powered: a single trailing holdout cannot rank candidates or structured baselines. The robust level baseline (last_value) is published; candidate scores are reported as evidence, not a ranking."
+        "Selection under-powered: a single trailing holdout cannot rank incremental candidates. The admitted robust baseline (last_value) is published; candidate scores are reported as evidence, not a ranking."
       ],
       "forecast": [
         {
@@ -123,7 +123,7 @@
           },
           {
             "code": "warning",
-            "message": "Selection under-powered: a single trailing holdout cannot rank candidates or structured baselines. The robust level baseline (last_value) is published; candidate scores are reported as evidence, not a ranking."
+            "message": "Selection under-powered: a single trailing holdout cannot rank incremental candidates. The admitted robust baseline (last_value) is published; candidate scores are reported as evidence, not a ranking."
           }
         ],
         "assumptions": [
@@ -204,7 +204,7 @@
         "support": "degraded",
         "warnings": [
           "Degraded forecast: model selection used a single trailing 1-observation holdout; rolling-origin calibration and final testing were unavailable. At least 20 observations (have 6) are needed for separated selection and calibration.",
-          "Selection under-powered: a single trailing holdout cannot rank candidates or structured baselines. The robust level baseline (last_value) is published; candidate scores are reported as evidence, not a ranking."
+          "Selection under-powered: a single trailing holdout cannot rank incremental candidates. The admitted robust baseline (last_value) is published; candidate scores are reported as evidence, not a ranking."
         ],
         "row_tiers": {
           "conditionally_supported": 3

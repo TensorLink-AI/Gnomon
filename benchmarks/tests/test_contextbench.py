@@ -14,20 +14,25 @@ from benchmarks.contextbench.generate import generate, main as generate_main
 from benchmarks.contextbench.generate_stress import generate as generate_stress
 from benchmarks.contextbench import run_surfaces as surface_runner
 from benchmarks.contextbench.run_contextbench import (
+    _append_checkpoint, _load_checkpoint, _raw_points, _structural_scenario,
     run_case, smape, summarize, valid_disposition,
 )
 from benchmarks.contextbench.run_contextbench import main as run_main
 from benchmarks.contextbench.run_llm import (
-    _bounded_context_tool, compile_events, raw_case, safe_payload,
+    _bounded_context_tool, _prepare_run_identity, compile_events, raw_case,
+    safe_payload,
 )
 from benchmarks.contextbench.run_surfaces import surface_row
+from benchmarks.contextbench.run_surfaces import preserves_primary_relationship
 from benchmarks.contextbench.report_surfaces import aggregate
 from benchmarks.contextbench.report_contextbench import (
     aggregate as aggregate_contextbench,
 )
+from benchmarks.contextbench.report_llm import compare as compare_llm
 from benchmarks.contextbench.schema import Case, load_cases, load_oracles
 from gnomon.context_model import rolling_residuals
 from gnomon.workflows import normalise_context_response_containers
+from gnomon.workflows import extract_explicit_schedule_context, DocumentRef
 
 
 def test_generator_is_reproducible_seed_sensitive_and_balanced():
@@ -41,6 +46,24 @@ def test_generator_is_reproducible_seed_sensitive_and_balanced():
         "irrelevant", "future_covariate", "repeated_event", "prior_only"}
     assert all("actual" not in row and "counterfactual" not in row
                and "effect_magnitude" not in row for row in first_cases)
+
+
+def test_naturalistic_corpus_requires_semantic_compilation_without_truth_leak():
+    cases, oracles = generate(43, per_family=1,
+                              narrative_style="naturalistic")
+    event_case = next(row for row in cases if row["family"] == "prior_only")
+    parsed = extract_explicit_schedule_context([
+        DocumentRef("context.txt", event_case["narrative"],
+                    source_type="narrative_assertion",
+                    known_at=event_case["context_events"][0]["known_at"])
+    ])
+
+    assert parsed["events"] == []
+    assert len(parsed["residual_lines"]) >= 1
+    assert "narrative:naturalistic" in event_case["tags"]
+    assert "effect_magnitude" not in json.dumps(event_case)
+    assert "actual" not in json.dumps(event_case)
+    assert len(oracles) == 4
 
 
 def test_family_truth_and_cutoff_contracts_are_explicit():
@@ -71,10 +94,21 @@ def test_generated_files_are_strict_and_hash_addressed(tmp_path, monkeypatch):
     assert len(load_cases(output / "cases.jsonl")) == 4
     assert len(load_oracles(output / "oracle.jsonl")) == 4
     manifest = json.loads((output / "manifest.json").read_text())
-    assert manifest["generator"] == "contextbench-synthetic-v1"
+    assert manifest["generator"] == "contextbench-synthetic-v2"
     assert manifest["fresh_seed"] is False
     assert len(manifest["cases_sha256"]) == 64
     assert len(manifest["oracle_sha256"]) == 64
+
+
+def test_generated_manifest_records_narrative_treatment(tmp_path, monkeypatch):
+    output = tmp_path / "naturalistic"
+    monkeypatch.setattr("sys.argv", [
+        "generate", "--output-dir", str(output), "--seed", "6",
+        "--per-family", "1", "--narrative-style", "naturalistic",
+    ])
+    assert generate_main() == 0
+    manifest = json.loads((output / "manifest.json").read_text())
+    assert manifest["narrative_style"] == "naturalistic"
 
 
 def test_documented_engine_runner_executes_from_clean_checkout(tmp_path):
@@ -97,6 +131,29 @@ def test_documented_engine_runner_executes_from_clean_checkout(tmp_path):
     )
     assert result.returncode == 0, result.stderr
     assert (output / "summary.json").is_file()
+    resumed = subprocess.run(
+        [sys.executable, "-m", "benchmarks.contextbench.run_contextbench",
+         "--corpus-dir", str(corpus), "--output-dir", str(output),
+         "--limit", "1", "--resume", "--allow-gate-failure"],
+        cwd=Path(__file__).resolve().parents[2], check=False,
+        capture_output=True, text=True,
+    )
+    assert resumed.returncode == 0, resumed.stderr
+    assert len((output / "observations.jsonl").read_text().splitlines()) == 1
+
+
+def test_contextbench_checkpoint_is_durable_and_strict(tmp_path):
+    checkpoint = tmp_path / "observations.jsonl"
+    _append_checkpoint(checkpoint, {"case_id": "a", "score": 1})
+    _append_checkpoint(checkpoint, {"case_id": "b", "score": 2})
+    assert [row["case_id"] for row in _load_checkpoint(
+        checkpoint, {"a", "b"})] == ["a", "b"]
+
+    with pytest.raises(SystemExit, match="not in this corpus"):
+        _load_checkpoint(checkpoint, {"a"})
+    _append_checkpoint(checkpoint, {"case_id": "a", "score": 3})
+    with pytest.raises(SystemExit, match="repeats case"):
+        _load_checkpoint(checkpoint, {"a", "b"})
 
 
 def test_stress_generator_is_reproducible_and_covers_production_strata():
@@ -127,6 +184,17 @@ def test_stress_generator_is_reproducible_and_covers_production_strata():
     assert len(mixed) == 1 and mixed[0]["family"] == "confounded"
 
 
+def test_stress_scope_narrative_and_oracle_preserve_named_entity():
+    cases, oracles = generate_stress(8182, per_stratum=1)
+    case = next(row for row in cases if row["family"] == "entity_scope")
+    oracle = next(row for row in oracles
+                  if row["case_id"] == case["case_id"])
+
+    assert "affects other-series from" in case["narrative"]
+    assert "affects the value series" not in case["narrative"]
+    assert oracle["expected_disposition"] == "not_considered"
+
+
 def test_stress_summary_separates_empirical_admission_from_asserted_truth():
     rows = []
     for case_id, warrant, truth, applied, changed in (
@@ -152,13 +220,24 @@ def test_stress_summary_separates_empirical_admission_from_asserted_truth():
                                "seed": 1, "fresh_seed": True, "cases": 2})
     assert summary["metrics"]["admission_precision"] == 1.0
     assert summary["metrics"]["false_influence_rate"] == 0.0
-    assert summary["metrics"]["false_asserted_claim_primary_change_rate"] == 1.0
+    assert summary["metrics"][
+        "false_asserted_claim_selected_projection_rate"] == 1.0
+    assert summary["deprecated_fields"]["observations.primary_changed"] == \
+        "use selected_projection_differs_from_primary"
     assert "frequency" in summary["dimensions"]
 
 
 def test_smape_is_symmetric_and_zero_safe():
     assert smape([0.0, 10.0], [0.0, 12.0]) == smape([0.0, 12.0], [0.0, 10.0])
     assert smape([0.0], [0.0]) == 0.0
+
+
+def test_effect_timing_uses_raw_executable_not_calibrated_median():
+    result = SimpleNamespace(forecast=[
+        {"point": 10.0, "q50": 9.5},
+        {"point": 12.0, "q50": 11.5},
+    ])
+    assert _raw_points(result) == [10.0, 12.0]
 
 
 def test_context_residuals_respect_ets_minimum_history():
@@ -174,6 +253,43 @@ def test_asserted_context_cannot_change_primary_under_default_policy(tmp_path):
     oracle = load_oracles_from_rows(raw_oracles)[case.case_id]
     row = run_case(case, oracle, tmp_path)
     assert row["default_policy_primary_changed"] is False
+    assert row[
+        "default_policy_selected_projection_differs_from_primary"] is False
+
+
+def test_structural_scenario_is_scored_without_becoming_primary(tmp_path):
+    raw_cases, raw_oracles = generate_stress(74, per_stratum=1)
+    raw = next(row for row in raw_cases
+               if row["family"] == "structural_change"
+               and "structural-true" in row["case_id"])
+    case = Case.from_dict(raw)
+    oracle = load_oracles_from_rows(raw_oracles)[case.case_id]
+
+    row = run_case(case, oracle, tmp_path)
+
+    assert row["primary_changed"] is False
+    assert row["selected_projection_differs_from_primary"] is False
+    assert row["canonical_primary_preserved"] is True
+    # This generated path already has no stable emitted trend to remove, so
+    # the engine correctly refuses to manufacture a distinct scenario.
+    assert row["conditional_scenario_available"] is False
+    assert "emitted_trend_is_directionally_stable" in (
+        row["context_outcome"]["failed_gate_codes"])
+    assert row["context_outcome"]["relationship_to_primary"] == \
+        "no_distinct_numeric_path"
+
+    # When a result does contain the independently tested structural path,
+    # the benchmark reads that labelled lane rather than replacing primary.
+    scenario = {
+        "support": "prior_assisted_structural",
+        "primary_forecast_changed": False,
+        "automation_eligible": False,
+        "forecast": [{"point": 2.0}, {"point": 3.0, "q50": 2.5}],
+    }
+    selected, points = _structural_scenario(SimpleNamespace(
+        sensitivity_scenarios=[scenario]))
+    assert selected is scenario
+    assert points == [2.0, 2.5]
 
 
 def test_disposition_contract_does_not_demand_oracle_omniscience():
@@ -279,12 +395,185 @@ def test_surface_row_is_oracle_sealed_and_family_neutral():
     assert row["tier"] == "T4"
     assert row["_require_gnomon_execution"] is True
     assert row["_host_compiled_forecast"] is True
+    assert row["_require_context_explanation"] is True
     assert row["_time_origin"] == "2025-01-01T00:00:00+00:00"
     assert row["input"]["future_covariates"]
     assert row["input"]["covariate_mapping"][0]["type"] == "binary"
     assert len(row["input"]["history"]["value"]) == len(case.history)
     assert "Input (JSON)" not in row["prompt"]
     assert "dataset is bound by the host" in row["prompt"]
+    assert "Preserve any interval limitation" in row["prompt"]
+
+
+def test_surface_summary_reports_agent_context_explanation_contract():
+    row = {
+        "case_id": "case-1", "family": "repeated_event",
+        "status": "answered", "history_smape": 2.0,
+        "context_smape": 2.0, "incremental_smape": 0.0,
+        "should_influence": True, "primary_changed": False,
+        "applied": False, "oracle_dimensions": {},
+        "disposition_valid": True, "temporal_leakage": False,
+        "publication_parity": True, "history_calls": 0,
+        "context_calls": 1, "surface_required_calls": 1,
+        "admission_rejection_reasons": ["insufficient_history",
+                                        "insufficient_history"],
+        "context_explanation_contract": {
+            "complete": True, "primary_preserved": True,
+            "scenario_represented": True,
+            "scenario_contract_expected": True,
+            "interval_limit_preserved": True,
+                "automation_limit_preserved": True,
+                "rejection_evidence_cited": True,
+                "scenario_consequence_preserved": True,
+                "primary_relationship_expected":
+                    "no_distinct_numeric_path",
+                "primary_relationship_preserved": True,
+        },
+    }
+
+    summary = surface_runner.summarize(
+        [row], "evidence", {"seed": 1, "fresh_seed": True}, "compiled")
+
+    assert summary["metrics"]["context_explanation_contract"] == {
+        "complete": 1.0, "primary_preserved": 1.0,
+        "scenario_contracts_exposed": 1,
+        "scenario_represented": 1.0,
+        "interval_limit_preserved": 1.0,
+            "automation_limit_preserved": 1.0,
+            "rejection_evidence_cited": 1.0,
+            "scenario_consequence_preserved": 1.0,
+            "primary_relationship_contracts_exposed": 1,
+            "primary_relationship_preserved": 1.0,
+        }
+    assert summary["metrics"]["context_effect_accounting"] == {
+        "answered_cases": 1,
+        "admitted_cases": 0,
+        "numerically_changed_cases": 0,
+        "admitted_without_numeric_change": 0,
+        "beneficial_changes": 0,
+        "harmful_changes": 0,
+        "neutral_changes": 0,
+        "numeric_change_rate": 0.0,
+        "mean_uplift_when_changed": None,
+    }
+    assert summary["metrics"]["rejection_reason_cases"] == {
+        "insufficient_history": 1}
+    assert summary["metrics"][
+        "missed_influence_rejection_reason_cases"] == {
+            "insufficient_history": 1}
+    assert summary["metrics"]["admission_rejection_reasons"] == {
+        "insufficient_history": 1}
+
+
+def test_agent_relationship_measure_is_semantic_and_fail_closed():
+    relationship = "no_distinct_numeric_path"
+    assert preserves_primary_relationship(
+        "The primary already has no defensibly distinct continuation path.",
+        relationship)
+    assert preserves_primary_relationship(
+        "The event would not create a distinct numeric path.",
+        relationship)
+    assert not preserves_primary_relationship(
+        "The context was rejected.", relationship)
+    assert not preserves_primary_relationship(
+        "Some explanation.", "future_unknown_relationship")
+    assert preserves_primary_relationship("anything", "")
+
+
+def test_surface_checkpoints_are_durable_and_resume_identity_is_strict(
+        tmp_path):
+    output = tmp_path / "surface"
+    output.mkdir()
+    cases = [SimpleNamespace(case_id="a"), SimpleNamespace(case_id="b")]
+    surface_runner._checkpoint(
+        output / "observations.jsonl", cases,
+        {"b": {"case_id": "b"}, "a": {"case_id": "a"}})
+    assert (output / "observations.jsonl").read_text().splitlines() == [
+        '{"case_id": "a"}', '{"case_id": "b"}']
+    surface_runner._append_attempt(
+        output / "attempts.jsonl", {"case_id": "a", "status": "error"}, 1)
+    attempt = json.loads((output / "attempts.jsonl").read_text())
+    assert attempt["case_id"] == "a"
+    assert attempt["attempt"] == 1
+    assert attempt["recorded_at"]
+
+    identity = {
+        "schema_version": 1,
+        "model": "provider/model",
+        "profile": "evidence",
+        "selected_case_ids_sha256": "abc",
+    }
+    legacy = tmp_path / "legacy"
+    legacy.mkdir()
+    (legacy / "observations.jsonl").write_text('{"case_id":"a"}\n')
+    with pytest.raises(SystemExit, match="without run_identity"):
+        surface_runner._prepare_run_identity(
+            legacy, identity, resume=True)
+
+    fresh = tmp_path / "fresh"
+    fresh.mkdir()
+    surface_runner._prepare_run_identity(fresh, identity, resume=False)
+    assert json.loads((fresh / "run_identity.json").read_text()) == identity
+    surface_runner._prepare_run_identity(fresh, identity, resume=True)
+    with pytest.raises(SystemExit, match="already initialized"):
+        surface_runner._prepare_run_identity(fresh, identity, resume=False)
+    with pytest.raises(SystemExit, match="identity mismatch"):
+        surface_runner._prepare_run_identity(
+            fresh, {**identity, "profile": "core"}, resume=True)
+
+
+def test_surface_summary_separates_admission_change_and_uplift() -> None:
+    base = {
+        "family": "repeated_event", "status": "answered",
+        "history_smape": 3.0, "should_influence": True,
+        "oracle_dimensions": {}, "disposition_valid": True,
+        "temporal_leakage": False, "publication_parity": True,
+        "history_calls": 0, "context_calls": 1,
+        "surface_required_calls": 1,
+    }
+    rows = [
+        {**base, "case_id": "admitted-unchanged", "context_smape": 3.0,
+         "incremental_smape": 0.0, "applied": True,
+         "primary_changed": False},
+        {**base, "case_id": "helpful", "context_smape": 2.0,
+         "incremental_smape": 1.0, "applied": True,
+         "primary_changed": True},
+        {**base, "case_id": "harmful", "context_smape": 4.0,
+         "incremental_smape": -1.0, "applied": True,
+         "primary_changed": True},
+    ]
+
+    summary = surface_runner.summarize(
+        rows, "evidence", {"seed": 1, "fresh_seed": True}, "compiled")
+
+    assert summary["metrics"]["context_effect_accounting"] == {
+        "answered_cases": 3,
+        "admitted_cases": 3,
+        "numerically_changed_cases": 2,
+        "admitted_without_numeric_change": 1,
+        "beneficial_changes": 1,
+        "harmful_changes": 1,
+        "neutral_changes": 0,
+        "numeric_change_rate": 2 / 3,
+        "mean_uplift_when_changed": 0.0,
+    }
+
+
+def test_automation_limit_needs_typed_parity_and_explicit_ineligibility():
+    check = surface_runner.preserves_automation_limit
+    matched = {"engine": False, "supplied": False, "matched": True}
+
+    assert check("Automation eligibility is false.", restricted=True,
+                 projection=matched)
+    assert check("automation_eligible=false", restricted=True,
+                 projection=matched)
+    assert check("This scenario cannot authorize automation.", restricted=True,
+                 projection=matched)
+    assert not check("Automation was not requested.", restricted=True,
+                     projection=matched)
+    assert not check("Automation is not eligible.", restricted=True,
+                     projection={**matched, "matched": False})
+    assert check("", restricted=False, projection={})
 
 
 def test_history_surface_row_excludes_all_outside_context():
@@ -370,7 +659,7 @@ def test_scripted_compiler_is_quote_grounded_and_magnitude_free():
         "entity_scope": ["*"],
         "effective_start": source["effective_start"],
         "effective_end": source["effective_end"],
-        "known_at": "2025-01-01T00:00:00+00:00",
+        "known_at": "2099-01-01T00:00:00+00:00",
         "evidence_quote": quote, "effect_family": "temporary_pulse",
         "direction": "unknown", "duration": "temporary",
         "attributes": {"magnitude": 999999},
@@ -378,8 +667,125 @@ def test_scripted_compiler_is_quote_grounded_and_magnitude_free():
     compiled = compile_events(repeated, client)
     assert len(compiled["events"]) == 1
     attributes = compiled["events"][0]["attributes"]
+    assert compiled["events"][0]["known_at"] == source["known_at"]
     assert "magnitude" not in attributes
     assert attributes["evidence_quote"] == quote
+
+
+def test_semantic_compiler_binds_public_target_before_runtime_alias():
+    raw_cases, _ = generate(44, per_family=1,
+                            narrative_style="naturalistic")
+    case = Case.from_dict(next(
+        row for row in raw_cases if row["family"] == "prior_only"))
+    source = case.context_events[0]
+    quote = next(line for line in case.narrative.splitlines()
+                 if source["effective_start"] in line)
+    client = _ScriptedClient({"events": [{
+        "document_index": 0, "event_type": source["event_type"],
+        "entity_scope": ["value"],
+        "effective_start": source["effective_start"],
+        "effective_end": source["effective_end"],
+        "known_at": source["known_at"], "evidence_quote": quote,
+    }]})
+
+    compiled = compile_events(case, client)
+
+    assert compiled["compiler_called"] is True
+    assert compiled["events"][0]["entity_scope"] == ["*"]
+    assert "from: value" in client.messages[0][0]["content"]
+
+
+def test_context_llm_resume_identity_fails_closed(tmp_path):
+    output = tmp_path / "run"
+    output.mkdir()
+    identity = {"schema_version": 1, "condition": "compiled-context"}
+    _prepare_run_identity(output, identity, resume=False)
+    (output / "observations.jsonl").write_text("{}\n")
+
+    _prepare_run_identity(output, identity, resume=True)
+    with pytest.raises(ValueError, match="resume identity mismatch"):
+        _prepare_run_identity(
+            output, {**identity, "condition": "raw-llm"}, resume=True)
+
+
+def test_llm_report_requires_matched_corpus_and_preserves_pairs(tmp_path):
+    raw, compiled = tmp_path / "raw", tmp_path / "compiled"
+    raw.mkdir(); compiled.mkdir()
+    raw_summary = {
+        "condition": "raw-llm", "corpus_manifest_sha256": "same",
+        "reasoning_effort": "none", "narrative_style": "naturalistic",
+        "llm_usage": {"model": "test"},
+        "llm_usage_observations": {"requests": 6},
+    }
+    compiled_summary = {
+        "condition": "compiled-context", "corpus_manifest_sha256": "same",
+        "compiler_calls": 2, "compiler_event_precision": 1.0,
+        "compiler_event_recall": 1.0, "compiler_false_events": 0,
+        "llm_usage_observations": {"requests": 2},
+    }
+    (raw / "summary.json").write_text(json.dumps(raw_summary))
+    (compiled / "summary.json").write_text(json.dumps(compiled_summary))
+    raw_rows = [
+        {"case_id": "a", "family": "repeated_event", "status": "answered",
+         "context_smape": 3.0, "history_smape": 2.0},
+        {"case_id": "b", "family": "irrelevant", "status": "answered",
+         "context_smape": 2.0, "history_smape": 1.0},
+    ]
+    compiled_rows = [
+        {"case_id": "a", "family": "repeated_event", "status": "answered",
+         "context_smape": 1.0, "history_smape": 2.0},
+        {"case_id": "b", "family": "irrelevant", "status": "answered",
+         "context_smape": 1.0, "history_smape": 1.0},
+    ]
+    for directory, rows in ((raw, raw_rows), (compiled, compiled_rows)):
+        (directory / "observations.jsonl").write_text(
+            "".join(json.dumps(row) + "\n" for row in rows))
+
+    report = compare_llm(raw, compiled)
+
+    assert report["overall"]["mean_raw_minus_compiled_smape"] == 1.5
+    assert report["overall"]["compiled_wins"] == 2
+    assert report["families"]["irrelevant"][
+        "compiled_context_harm_rate"] == 0.0
+    assert len(report["paired_rows"]) == 2
+    compiled_summary["corpus_manifest_sha256"] = "different"
+    (compiled / "summary.json").write_text(json.dumps(compiled_summary))
+    with pytest.raises(ValueError, match="same corpus"):
+        compare_llm(raw, compiled)
+
+
+def test_non_schedule_structural_narrative_reaches_semantic_compiler():
+    raw_cases, _ = generate_stress(8183, per_stratum=1)
+    structural = Case.from_dict(next(
+        row for row in raw_cases
+        if row["case_id"] == "stress-structural-true-0000"))
+    source = structural.context_events[0]
+    client = _ScriptedClient({"events": [{
+        "document_index": 0,
+        "event_type": "structural_break",
+        "entity_scope": ["*"],
+        "effective_start": source["effective_start"],
+        "effective_end": None,
+        "known_at": source["known_at"],
+        "evidence_quote": structural.narrative,
+        "effect_family": "regime_change",
+        "direction": "unknown",
+        "duration": "persistent",
+    }]})
+
+    compiled = compile_events(structural, client)
+
+    assert compiled["compiler_called"] is True
+    assert compiled["compiler_calls"] == 1
+    assert len(compiled["events"]) == 1
+    assert compiled["events"][0]["event_type"] == \
+        "structural:trend_ceases"
+    assert compiled["events"][0]["effective_end"] > \
+        compiled["events"][0]["effective_start"]
+    normalizations = compiled["events"][0]["attributes"][
+        "compiler_normalizations"]
+    assert {item["field"] for item in normalizations} >= {
+        "event_type", "effective_end"}
 
 
 def test_schedule_compiler_schema_is_bounded_and_source_grounded_only():

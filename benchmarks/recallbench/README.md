@@ -36,8 +36,16 @@ Run (~2 model calls per case; Gnomon references are local and free):
 
 ```
 uv run python benchmarks/recallbench/run_recallbench.py \
-  --model <model> --cases 120 --output-dir results/recallbench/<run>
+  --model <model> --reasoning-effort none --cases 120 \
+  --output-dir results/recallbench/<run>
 ```
+
+Reasoning mode is explicit and part of resume identity. The default is
+`none`, matching the low-latency agent lane; a reasoning-enabled run is a
+separate treatment and cannot reuse non-reasoning rows.
+Matching resume runs preserve cumulative request/token/cost accounting. A
+non-resume run replaces prior rows in its output directory, so repeated runs
+cannot silently double the sample.
 
 Operational guarantees match the sibling harnesses: held-out futures
 verified absent from every prompt (history-excised sentinel), durable
@@ -45,3 +53,9 @@ resumable rows stamped with the full dataset identity and answering
 model, one failed API call fails loudly after saving completed rows,
 malformed forecasts are recorded rather than crashing, and API usage
 and cost land in `summary.json`.
+
+The product boundary is deliberately narrow: failure on the anonymized arm
+blocks automatic promotion of a model forecast derived only from numeric
+history or sampled-path agreement. It does not reject a separately sealed
+candidate conditioned on verified future context, or a candidate class that
+later earns same-series resolved-outcome evidence.

@@ -19,7 +19,17 @@ ORACLE_FIELDS = {"numbers", "tolerances", "choices", "required_disclosures",
                  "forbidden_claims", "allowed_support", "should_abstain",
                  "requires_repair", "requires_tracking",
                  "requires_publish_parity", "requires_quote_match",
-                 "required_facts", "engine_required_facts", "choice_aliases"}
+                 "required_facts", "engine_required_facts", "choice_aliases",
+                 "context_behavior"}
+CONTEXT_BEHAVIOR_FIELDS = {
+    "status", "required_argument", "primary_forecast_unchanged",
+    "automation_eligible", "minimum_scenario_count", "publication_mode",
+    "recommended_scenario_id", "allowed_statuses", "allowed_arguments",
+    "required_arguments", "allowed_publication_modes",
+    "recommended_scenario_by_mode",
+    "automation_requested", "automation_policy_complete",
+    "automation_reason_code",
+}
 OBSERVATION_FIELDS = {"case_id", "status", "support", "numbers", "choices",
                       "disclosures", "claims", "temporal_leakage",
                       "publish_matches_evaluated", "repair_completed",
@@ -63,10 +73,14 @@ class Oracle:
     required_facts: dict[str, Any] = field(default_factory=dict)
     engine_required_facts: dict[str, Any] = field(default_factory=dict)
     choice_aliases: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    context_behavior: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "Oracle":
         _reject_unknown(value, ORACLE_FIELDS, "oracle")
+        context_behavior = dict(value.get("context_behavior") or {})
+        _reject_unknown(context_behavior, CONTEXT_BEHAVIOR_FIELDS,
+                        "oracle context_behavior")
         numbers = {str(k): float(v) for k, v in (value.get("numbers") or {}).items()}
         tolerances = {str(k): float(v) for k, v in (value.get("tolerances") or {}).items()}
         _require(all(math.isfinite(v) for v in numbers.values()), "oracle numbers must be finite")
@@ -90,6 +104,7 @@ class Oracle:
             choice_aliases={str(key): tuple(str(item) for item in aliases)
                             for key, aliases in
                             (value.get("choice_aliases") or {}).items()},
+            context_behavior=context_behavior,
         )
 
 
@@ -100,7 +115,7 @@ class Case:
     domain: str
     question: str
     available_at_cutoff: dict[str, Any]
-    answer_schema: dict[str, tuple[str, ...]]
+    answer_schema: dict[str, Any]
     oracle: Oracle
     tags: tuple[str, ...] = ()
     stages: tuple[dict[str, Any], ...] = ()
@@ -123,17 +138,26 @@ class Case:
         raw_answer_schema = value.get("answer_schema") or {}
         _require(isinstance(raw_answer_schema, dict),
                  f"case {case_id}: answer_schema must be an object")
-        _reject_unknown(raw_answer_schema, {"numbers", "choices", "facts"},
+        _reject_unknown(raw_answer_schema,
+                        {"numbers", "choices", "facts", "choice_sources"},
                         f"case {case_id} answer_schema")
         answer_schema = {
             kind: tuple(str(item) for item in raw_answer_schema.get(kind, ()))
             for kind in ("numbers", "choices", "facts")
         }
+        raw_choice_sources = raw_answer_schema.get("choice_sources") or {}
+        _require(isinstance(raw_choice_sources, dict),
+                 f"case {case_id}: choice_sources must be an object")
+        answer_schema["choice_sources"] = {
+            str(key): str(source) for key, source in raw_choice_sources.items()}
         oracle = Oracle.from_dict(value.get("oracle") or {})
         _require(set(oracle.numbers) <= set(answer_schema["numbers"]),
                  f"case {case_id}: numeric oracle keys missing from answer_schema")
         _require(set(oracle.choices) <= set(answer_schema["choices"]),
                  f"case {case_id}: choice oracle keys missing from answer_schema")
+        _require(set(answer_schema["choice_sources"]) <=
+                 set(answer_schema["choices"]),
+                 f"case {case_id}: canonical choice source keys missing from answer_schema")
         _require(set(oracle.required_facts) <= set(answer_schema["facts"]),
                  f"case {case_id}: required fact keys missing from answer_schema")
         _require(set(oracle.engine_required_facts) <= set(answer_schema["facts"]),

@@ -653,10 +653,11 @@ def _series_result(
         # threshold-crossing probabilities need calibrated residuals, which
         # best_effort and horizon-split rows do not have.
         state.notes.append(
-            f"threshold {threshold} was requested but no crossing analysis "
+            f"threshold {threshold} was requested but no crossing probability "
             f"is reported: exceedance probabilities require calibrated "
             f"residuals, which best_effort rows (and the fallback range of "
-            f"a horizon split) do not have."
+            f"a horizon split) do not have. A bounded point/range assessment "
+            f"is reported separately and is not automation-eligible."
         )
     # The unstrippable label: every published row names its tier, uniform
     # on a single-tier forecast, changing at the split point on a split
@@ -694,6 +695,21 @@ def _series_result(
         if model_assisted_lane is not None:
             support_assessment.disclosures.append(lane_disclosure)
             state.evidence.append(lane_evidence)
+    if threshold is not None and rows and threshold_analysis is None:
+        # Probability support can be absent while the published path still
+        # answers useful bounded questions. Keep that distinction explicit,
+        # and surface disagreement with the labelled model-assisted lane
+        # without promoting it into the immutable primary.
+        from .pipeline import bounded_threshold_assessment
+        alternates = []
+        if model_assisted_lane is not None:
+            alternates.append({
+                "path": "model_assisted",
+                "points": model_assisted_lane.get("points") or [],
+                "support": model_assisted_lane.get("support"),
+            })
+        threshold_analysis = bounded_threshold_assessment(
+            threshold, rows, alternate_paths=alternates)
     primary_forecast: list[dict[str, Any]] = []
     context_changed_output = (
         bool(getattr(state.context_assessment, "admitted", False))
@@ -770,6 +786,16 @@ def _series_result(
             "frequency": loaded.frequency,
             "source": "computed_from_observations",
             "temporal_profile": profile,
+            **({
+                "threshold_decision": threshold_analysis[
+                    "bounded_assessment"]["decision"],
+                "threshold_best_estimate": threshold_analysis[
+                    "bounded_assessment"]["best_estimate"],
+                "threshold_model_conflict": threshold_analysis[
+                    "bounded_assessment"]["model_conflict"],
+            } if threshold_analysis
+                 and isinstance(threshold_analysis.get("bounded_assessment"), dict)
+               else {}),
         },
         context_outcome=(
             project_context_outcome(
@@ -778,6 +804,12 @@ def _series_result(
                 future_context=state.future_context_public,
                 conditional_forecasts=state.conditional_forecasts,
                 sensitivity_scenarios=state.sensitivity_scenarios,
+                primary_forecast_changed=(
+                    any(abs(float(row.get("q50", row.get("point", 0.0))) -
+                            float(primary.get(
+                                "q50", primary.get("point", 0.0)))) > 1e-12
+                        for row, primary in zip(rows, primary_forecast))
+                    if primary_forecast else None),
             ) if context_events else None
         ),
         admission=(admission.to_payload(compact=True)
@@ -1632,6 +1664,13 @@ def capabilities() -> dict[str, object]:
                 "median backtest residual, whose few-fold location "
                 "estimate measured as noise; disclosed as "
                 "'point_recentring_suppressed'"
+            ),
+            "degraded_baseline_admission": (
+                "when the requested horizon prevents full-horizon folds, a "
+                "predeclared seasonal-naive baseline may replace last-value "
+                "only after at least six non-overlapping seasonal probes, "
+                "at least 10% mean improvement, and wins in two of three "
+                "chronological blocks; incremental candidates remain locked"
             ),
         },
         # Where this process writes. Agents used to guess output_dir (and

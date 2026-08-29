@@ -22,6 +22,7 @@ from gnomon.future_context import (
     apply_future_events,
     assess_future_events,
     parse_bound_span,
+    parse_override_scale,
     parse_override_span,
 )
 from gnomon.runtime import forecast
@@ -36,6 +37,7 @@ START = datetime(2026, 1, 1, tzinfo=timezone.utc)
     ("demand ranges from 1,200 to 4,500 units", 1200.0, 4500.0),
     ("the load will not exceed 500 MW", None, 500.0),
     ("output is capped at 96", None, 96.0),
+    ("capacity is capped at exactly 40 units", None, 40.0),
     ("at most 12 vehicles per hour", None, 12.0),
     ("occupancy remains below 0.95", None, 0.95),
     ("the count cannot be negative", 0.0, None),
@@ -89,6 +91,33 @@ def test_date_and_clock_ranges_are_not_read_as_bounds(span):
 def test_more_override_phrasings_parse(span, value):
     parsed, problem = parse_override_span(span)
     assert problem is None and parsed == value
+
+
+def test_explicit_case_correction_selects_the_operative_multiplier():
+    span = (
+        "A heat wave would typically cause 9 times the usual electricity, "
+        "but in this case conservation results in only 5 times the usual "
+        "electricity.")
+    scale, problem = parse_override_scale(span)
+    assert problem is None
+    assert scale == 5.0
+
+
+def test_relative_multiplier_is_not_misparsed_as_absolute_override():
+    value, problem = parse_override_span(
+        "Electricity will be 5 times the usual level.")
+    assert value is None
+    assert "relative-scale lane" in problem
+
+
+@pytest.mark.parametrize("span", [
+    "Either 9 times or 5 times the usual electricity.",
+    "In this case either 9 times or 5 times the usual electricity.",
+])
+def test_multiple_multipliers_without_one_operative_correction_reject(span):
+    scale, problem = parse_override_scale(span)
+    assert scale is None
+    assert "multiple different" in problem
 
 
 @pytest.mark.parametrize("span, minimum, maximum", [
@@ -537,6 +566,57 @@ def test_overrides_set_the_stated_value_and_widen_the_boundaries():
     assert [e["boundary_step"] for e in override_steps] == [True, False, True]
 
 
+def test_override_with_source_cited_exact_endpoints_sets_every_quantile():
+    start, end = FUTURE[2].isoformat(), FUTURE[4].isoformat()
+    admitted = [FutureEvent(
+        "o1", "override", start, end,
+        f"the plant is offline from {start} to {end} and output is zero",
+        value=0.0, boundary_exact=True,
+    )]
+
+    projected, applications = apply_future_events(_rows(), admitted)
+
+    for index in (2, 3, 4):
+        assert projected[index]["point"] == 0.0
+        assert projected[index]["q10"] == 0.0
+        assert projected[index]["q50"] == 0.0
+        assert projected[index]["q90"] == 0.0
+    assert all(entry["boundary_step"] is False for entry in applications)
+
+
+def test_override_with_exact_start_and_duration_sets_every_quantile():
+    start, end = FUTURE[2].isoformat(), FUTURE[3].isoformat()
+    admitted = [FutureEvent(
+        "o1", "override", start, end,
+        f"the plant is offline from {start} for 2 days and output is zero",
+        value=0.0,
+    )]
+
+    projected, applications = apply_future_events(_rows(), admitted)
+
+    for index in (2, 3):
+        assert projected[index]["point"] == 0.0
+        assert projected[index]["q10"] == 0.0
+        assert projected[index]["q50"] == 0.0
+        assert projected[index]["q90"] == 0.0
+    assert all(entry["boundary_step"] is False for entry in applications)
+
+
+def test_duration_cannot_upgrade_a_mismatched_event_window():
+    start = FUTURE[2].isoformat()
+    admitted = [FutureEvent(
+        "o1", "override", start, start,
+        f"the plant is offline from {start} for 2 days and output is zero",
+        value=0.0,
+    )]
+
+    projected, applications = apply_future_events(_rows(), admitted)
+
+    assert projected[2]["q50"] == 0.0
+    assert projected[2]["q90"] == pytest.approx(212.0)
+    assert applications[0]["boundary_step"] is True
+
+
 def test_no_admitted_events_is_a_strict_no_op():
     rows = _rows()
     projected, applications = apply_future_events(rows, [])
@@ -750,7 +830,8 @@ def test_general_purpose_path_from_document_to_trusted_forecast(tmp_path):
             "effective_start": h_start.isoformat(),
             "effective_end": (h_start + timedelta(days=6)).isoformat(),
             "known_at": START.isoformat(),
-            "evidence_quote": "values will stay between 0 and 340 units",
+                "evidence_quote": (
+                    "Design capacity: values will stay between 0 and 340 units"),
         },
         {
             "document_index": 0,

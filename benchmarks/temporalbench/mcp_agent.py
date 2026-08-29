@@ -456,14 +456,19 @@ def compile_row_context(row: dict[str, Any], client: Any,
         receipt_path = Path(receipt_dir) / f"{safe_id}.json"
         if receipt_path.is_file():
             cached = json.loads(receipt_path.read_text(encoding="utf-8"))
+            from gnomon.workflows import CONTEXT_COMPILER_CONTRACT_VERSION
             from gnomon.soft_context import content_fingerprint
             documents = ((cached.get("context_receipt") or {}).get(
                 "documents") or [])
-            if not documents or documents[0].get("content_fingerprint") != \
-                    content_fingerprint(narrative):
+            if (cached.get("schema_version") !=
+                    CONTEXT_COMPILER_CONTRACT_VERSION):
+                cached = None
+            elif (not documents or documents[0].get("content_fingerprint") !=
+                  content_fingerprint(narrative)):
                 raise ValueError("cached context receipt does not match task narrative")
-            return {**cached, "attempted": True, "compiler_called": False,
-                    "receipt_reused": True}
+            if cached is not None:
+                return {**cached, "attempted": True, "compiler_called": False,
+                        "receipt_reused": True}
     document = DocumentRef(
         name=f"{row.get('id', 'temporalbench')}-context",
         content=narrative,
@@ -1349,6 +1354,8 @@ class _RunBase:
                 if self.complete_artifact_ready and not self.submission:
                     if (self.row.get("_host_compiled_forecast")
                             and self.row.get("_require_gnomon_execution")
+                            and not self.row.get(
+                                "_require_context_explanation")
                             and self.artifact_paths
                             and hasattr(self, "target_keys")
                             # Typed questions require the model's distinct
@@ -1594,6 +1601,29 @@ class _RunBase:
             arguments = {**arguments,
                          "context_events_file": str(self.context_events_file),
                          "future_events": True}
+        if name in {"gnomon_forecast", "gnomon_run"} \
+                and context_compilation.get("rejected"):
+            rejections = []
+            for index, rejected in enumerate(
+                    context_compilation.get("rejected") or [], 1):
+                if not isinstance(rejected, dict):
+                    continue
+                proposal = rejected.get("proposal") or {}
+                problems = rejected.get("problems") or []
+                rejections.append({
+                    "context_id": str(
+                        proposal.get("event_id") or
+                        f"compiler-rejection-{index}"),
+                    "reason_code": str(
+                        rejected.get("reason_code") or "context_unresolved"),
+                    "reason": str(problems[0] if problems else
+                                  "Context failed deterministic validation."),
+                    "source_span": str(
+                        proposal.get("evidence_quote") or
+                        "Compiler rejected context without a usable quote."),
+                })
+            if rejections:
+                arguments = {**arguments, "context_rejections": rejections}
         covariate_arguments = getattr(self, "covariate_arguments", {})
         if name in {"gnomon_forecast", "gnomon_run"} \
                 and covariate_arguments:
@@ -1656,6 +1686,51 @@ class _RunBase:
             self.complete_description_ready = True
         structured = result.get("structuredContent") or {}
         if isinstance(structured, dict):
+            publication = structured.get("publication") or {}
+            dispositions = publication.get("context_dispositions") or []
+            context_summary = publication.get("context_summary") or {}
+            if dispositions and getattr(self, "target_keys", None):
+                rejected_codes = [
+                    str(item.get("reason_code")) for item in dispositions
+                    if isinstance(item, dict) and item.get("reason_code")]
+                status = str(context_summary.get("status") or "rejected")
+                for channel in self.target_keys:
+                    self.context_execution[channel] = {
+                        "status": status,
+                        "considered": 1,
+                        "admitted": int(status == "used"),
+                        "rejected": sum(
+                            1 for item in dispositions
+                            if isinstance(item, dict)
+                            and item.get("disposition") == "rejected"),
+                        "scenario_only": sum(
+                            1 for item in dispositions
+                            if isinstance(item, dict)
+                            and item.get("disposition") == "scenario"),
+                        "applied": int(status == "used"),
+                        "support": str(publication.get(
+                            "recommended_support") or ""),
+                        "automation_eligible": (
+                            publication.get("automation") or {}).get(
+                                "eligible"),
+                        "canonical_primary_preserved": publication.get(
+                            "primary_forecast_unchanged"),
+                        "selected_projection_differs_from_primary": False,
+                        "relationship_to_primary": context_summary.get(
+                            "relationship_to_primary"),
+                        "selected_output_role": context_summary.get(
+                            "selected_output_role"),
+                        "authority_summary": (
+                            publication.get("recommendation_authority") or {}
+                        ).get("reason"),
+                        "admitted_event_ids": [],
+                        "rejection_codes": rejected_codes,
+                        "gate_reasons": [
+                            str(item.get("reason")) for item in dispositions
+                            if isinstance(item, dict) and item.get("reason")
+                        ][:8],
+                        "scenario_consequence_summaries": [],
+                    }
             sufficiency = ((structured.get("reasoning") or {}).get(
                 "sufficiency") or {})
             if (getattr(self, "sufficient_at_call", None) is None
@@ -1783,8 +1858,63 @@ class _Run(_RunBase):
             # an otherwise trivial final submission.
             tool = json.loads(json.dumps(SUBMIT_TOOL))
             parameters = tool["function"]["parameters"]
-            parameters["properties"].pop("reasoning", None)
             parameters["required"] = ["forecast"]
+            if self.row.get("_require_context_explanation"):
+                # A bounded synthesis is the object under test for context
+                # surfaces. Keep the historical anti-runaway guard while
+                # requiring enough text to verify that the model preserved
+                # disposition, uncertainty, and authority.
+                parameters["properties"]["reasoning"]["maxLength"] = 600
+                parameters["properties"]["cited_context_gate_codes"] = {
+                    "type": "array",
+                    "description": (
+                        "Exact failed_gate_codes and reason_code values only "
+                        "from context_dispositions whose disposition is "
+                        "rejected or scenario. Do not cite successful "
+                        "reason_code values such as applied; use an empty "
+                        "array when no admission/rejection gate failed."),
+                    "items": {"type": "string"},
+                    "maxItems": 8,
+                }
+                parameters["properties"]["context_automation_eligible"] = {
+                    "type": "boolean",
+                    "description": (
+                        "Copy context_outcome.automation_eligible exactly. "
+                        "False means context evidence alone cannot authorize "
+                        "automation; do not weaken it to 'not requested'."),
+                }
+                parameters["properties"]["canonical_primary_preserved"] = {
+                    "type": "boolean",
+                    "description": (
+                        "Copy context_outcome.canonical_primary_preserved "
+                        "exactly; conditional projection changes do not mutate "
+                        "the canonical primary."),
+                }
+                parameters["properties"]["cited_scenario_consequences"] = {
+                    "type": "array",
+                    "description": (
+                        "Copy each consequence_summary exposed by Gnomon for "
+                        "a represented numeric scenario; use an empty array "
+                        "when no numeric scenario consequence is present."),
+                    "items": {"type": "string"},
+                    "maxItems": 8,
+                }
+                parameters["properties"]["reasoning"]["description"] = (
+                    "Human-facing explanation of Gnomon's typed context "
+                    "outcome. Scenario representation is not numeric "
+                    "admission: say represented or retained as a scenario, "
+                    "never admitted as a scenario, when admitted/applied "
+                    "counts are zero.")
+                parameters["required"].append("reasoning")
+                parameters["required"].append("cited_context_gate_codes")
+                parameters["required"].append(
+                    "context_automation_eligible")
+                parameters["required"].append(
+                    "canonical_primary_preserved")
+                parameters["required"].append(
+                    "cited_scenario_consequences")
+            else:
+                parameters["properties"].pop("reasoning", None)
             if getattr(self, "temporal_compilation", {}).get("questions"):
                 # A forecast-only auto-submit would erase the agent layer.
                 # Empty choice_basis is valid when every canonical answer is
@@ -1832,11 +1962,45 @@ class _Run(_RunBase):
                      "artifact. No inspection call is available or needed.\n")
         if self.context_compilation.get("attempted"):
             text += ("\nThe host compiled the task narrative through Gnomon's "
-                     "quoted-context validator. This receipt is authoritative; "
-                     "only accepted events were supplied to execution:\n"
-                     + json.dumps({key: self.context_compilation.get(key, [])
-                                  for key in ("events", "hypotheses", "rejected")},
-                                  separators=(",", ":")) + "\n")
+                     "quoted-context validator. The complete authoritative "
+                     "receipt is host-bound to execution; this bounded summary "
+                     "is for routing and provenance only:\n"
+                     + json.dumps(compact_context_compilation_for_prompt(
+                         self.context_compilation), separators=(",", ":"))
+                     + "\n")
+        if self.row.get("_require_context_explanation"):
+            text += (
+                "\nThe final human-facing reasoning must preserve both "
+                "authority facts from context_outcome. If "
+                "canonical_primary_preserved is true, say the canonical "
+                "primary remains preserved. If automation_eligible is false, "
+                "say context evidence alone cannot authorize automation; "
+                "'not requested' is not equivalent. The verifier rejects a "
+                "submission that hides either fact.\n")
+            text += (
+                "If Gnomon exposes a scenario consequence_summary, copy it "
+                "exactly into cited_scenario_consequences and communicate "
+                "its first-affected and horizon-end primary-versus-scenario "
+                "q50 deltas in the human-facing reasoning. "
+                "Do not present those conditional values as the primary.\n")
+            text += (
+                "Scenario representation is not numeric admission. When "
+                "Gnomon reports a scenario but no admitted or applied "
+                "context, say represented or retained as a scenario; never "
+                "say admitted as a scenario.\n")
+            text += (
+                "If failed_gate_codes is non-empty, name every cited code in "
+                "the human-facing reasoning and explain its practical meaning. "
+                "A code copied only into the structured submit field is not a "
+                "human-visible explanation.\n")
+            text += (
+                "For a rejected or scenario context_disposition, treat its "
+                "reason_code the same way: copy the exact engine-authored "
+                "code and explain it. Never cite a successful `applied` "
+                "reason_code as a failed gate. Use "
+                "context_summary.context_evidence_automation_eligible for "
+                "context authority; the separate global automation reason "
+                "'not requested' does not grant context authority.\n")
         if self.row.get("_require_gnomon_execution"):
             text += ("\nThis product run delegates every published numeric "
                      "trajectory to Gnomon. Submit the forecast artifact "
@@ -1941,6 +2105,11 @@ class _Run(_RunBase):
             rejected = gate.get("rejected") or []
             status = disposition.get("status")
             outcome_events = disposition.get("events") or []
+            scenario_dispositions = sum(
+                1 for item in (disposition.get("dispositions") or [])
+                if isinstance(item, dict)
+                and item.get("disposition") == "scenario"
+            )
             self.context_execution[channel] = {
                 "status": status,
                 "considered": int(bool(gate.get("considered")
@@ -1949,21 +2118,46 @@ class _Run(_RunBase):
                              len(outcome_events) if status == "applied" else 0),
                 "rejected": (len(rejected) if rejected else
                              len(outcome_events) if status == "rejected" else 0),
-                "scenario_only": (len(outcome_events)
-                                  if status == "scenario_only" else 0),
+                "scenario_only": (
+                    len(outcome_events) if status == "scenario_only"
+                    else scenario_dispositions),
                 # The runtime makes influence explicit by lowering support to
                 # context_trusted only when at least one admitted event was
                 # actually applied to the emitted trajectory.
                 "applied": (len(outcome_events) if status == "applied" else 0),
                 "support": str(support),
+                "automation_eligible": disposition.get(
+                    "automation_eligible"),
+                "canonical_primary_preserved": (
+                    bool(disposition.get("canonical_primary_preserved", True))
+                    if status else None),
+                "selected_projection_differs_from_primary": (
+                    disposition.get("selected_projection_differs_from_primary",
+                                    disposition.get(
+                                        "primary_forecast_changed", False))
+                    if status else None),
+                "relationship_to_primary": disposition.get(
+                    "relationship_to_primary"),
+                "selected_output_role": disposition.get(
+                    "selected_output_role"),
+                "authority_summary": disposition.get("authority_summary"),
                 "admitted_event_ids": [
                     str(item.get("event_id")) for item in admitted
                     if isinstance(item, dict) and item.get("event_id")
                 ],
-                "rejection_codes": [
+                "rejection_codes": list(dict.fromkeys([
                     str(item.get("code")) for item in rejected
                     if isinstance(item, dict) and item.get("code")
-                ],
+                ] + [str(code) for code in
+                     (disposition.get("failed_gate_codes") or [])])),
+                "gate_reasons": [str(reason) for reason in
+                                 (disposition.get("gate_reasons") or [])][:8],
+                "scenario_consequence_summaries": [
+                    str(scenario.get("consequence_summary"))
+                    for scenario in (result.get("sensitivity_scenarios") or [])
+                    if isinstance(scenario, dict)
+                    and scenario.get("consequence_summary")
+                ][:8],
             }
         return [float(row.get("q50", row["point"])) for row in rows]
 
@@ -2149,6 +2343,150 @@ class _Run(_RunBase):
                 for key, value in projected.items()},
             "choice_basis": accepted_overrides,
         }
+        if self.row.get("_require_context_explanation"):
+            supplied_codes = arguments.get("cited_context_gate_codes") or []
+            if not isinstance(supplied_codes, list):
+                supplied_codes = []
+            expected_codes = sorted({
+                str(code)
+                for outcome in self.context_execution.values()
+                for code in (outcome.get("rejection_codes") or [])
+            })
+            supplied = [str(code) for code in supplied_codes[:8]]
+            self.submission["context_gate_citations"] = {
+                "expected": expected_codes,
+                "supplied": supplied,
+                "matched": [code for code in supplied
+                            if code in expected_codes],
+                "invalid": [code for code in supplied
+                            if code not in expected_codes],
+            }
+            engine_automation = {
+                value.get("automation_eligible")
+                for value in self.context_execution.values()
+                if value.get("automation_eligible") is not None
+            }
+            supplied_automation = arguments.get(
+                "context_automation_eligible")
+            self.submission["context_automation_projection"] = {
+                "engine": (next(iter(engine_automation))
+                           if len(engine_automation) == 1 else None),
+                "supplied": supplied_automation,
+                "matched": (len(engine_automation) == 1 and
+                            supplied_automation in engine_automation),
+            }
+            engine_primary = {
+                value.get("canonical_primary_preserved")
+                for value in self.context_execution.values()
+                if value.get("canonical_primary_preserved") is not None
+            }
+            supplied_primary = arguments.get(
+                "canonical_primary_preserved")
+            self.submission["context_primary_projection"] = {
+                "engine": (next(iter(engine_primary))
+                           if len(engine_primary) == 1 else None),
+                "supplied": supplied_primary,
+                "matched": (len(engine_primary) == 1 and
+                            supplied_primary in engine_primary),
+            }
+            expected_consequences = sorted({
+                summary for outcome in self.context_execution.values()
+                for summary in outcome.get(
+                    "scenario_consequence_summaries", [])
+            })
+            supplied_consequences = [str(value) for value in
+                                     (arguments.get(
+                                         "cited_scenario_consequences") or [])[:8]]
+            self.submission["context_consequence_projection"] = {
+                "expected": expected_consequences,
+                "supplied": supplied_consequences,
+                "matched": [value for value in supplied_consequences
+                            if value in expected_consequences],
+                "invalid": [value for value in supplied_consequences
+                            if value not in expected_consequences],
+            }
+            reasoning_text = str(arguments.get("reasoning") or "").lower()
+            authority_problems: list[str] = []
+            scenario_count = sum(
+                int(outcome.get("scenario_only") or 0)
+                for outcome in self.context_execution.values())
+            admitted_count = sum(
+                int(outcome.get("admitted") or 0)
+                for outcome in self.context_execution.values())
+            applied_count = sum(
+                int(outcome.get("applied") or 0)
+                for outcome in self.context_execution.values())
+            scenario_admission_conflated = bool(re.search(
+                r"(?:\badmitted\s+(?:only\s+)?as\s+(?:an?\s+)?scenario\b|"
+                r"\bscenario\s+(?:was|is|has been)\s+admitted\b)",
+                reasoning_text,
+            ))
+            if (scenario_count and not admitted_count and not applied_count
+                    and scenario_admission_conflated):
+                authority_problems.append(
+                    "scenario_admission_conflated: scenario representation "
+                    "is not numeric admission; say represented or retained "
+                    "as a scenario, with the canonical primary unchanged")
+            context_authority_stated = (
+                "context_evidence_automation_eligible=false" in reasoning_text
+                or "context_automation_eligible=false" in reasoning_text
+                or ("context" in reasoning_text and any(
+                    token in reasoning_text for token in (
+                        "cannot automate", "cannot authorize",
+                        "does not authorize", "no automation authority"))))
+            if engine_automation == {False} and not context_authority_stated:
+                authority_problems.append(
+                    "context_authority_omitted: state that context evidence "
+                    "alone cannot authorize automation; 'not requested' is "
+                    "not equivalent")
+            if (engine_automation == {False} and "not requested" in reasoning_text
+                    and not context_authority_stated):
+                authority_problems.append(
+                    "context_authority_misattributed: automation is ineligible "
+                    "because context evidence lacks authority, not because "
+                    "automation was not requested")
+            if (engine_primary == {True} and not (
+                    "primary" in reasoning_text and any(
+                        token in reasoning_text for token in (
+                            "unchanged", "preserved", "remain",
+                            "did not change")))):
+                authority_problems.append(
+                    "canonical_primary_omitted: state that the canonical "
+                    "primary forecast remains preserved")
+            citations = self.submission["context_gate_citations"]
+            if citations["invalid"] or (
+                    citations["expected"] and not citations["matched"]):
+                authority_problems.append(
+                    "context_gate_citation_invalid: cite exactly these "
+                    "Gnomon context codes and no others: " +
+                    (", ".join(citations["expected"]) or "(none)"))
+            prose_missing_codes = [
+                code for code in citations["expected"]
+                if code.casefold() not in reasoning_text
+            ]
+            if prose_missing_codes:
+                authority_problems.append(
+                    "context_gate_not_human_visible: name these failed gate "
+                    "codes in the reasoning and explain what they mean: " +
+                    ", ".join(prose_missing_codes))
+            consequences = self.submission["context_consequence_projection"]
+            if consequences["invalid"] or (
+                    consequences["expected"] and
+                    set(consequences["matched"]) !=
+                    set(consequences["expected"])):
+                authority_problems.append(
+                    "scenario_consequence_omitted: copy every Gnomon "
+                    "consequence_summary exactly and communicate its "
+                    "conditional q50 endpoints without calling them primary")
+            if authority_problems:
+                self.submission = None
+                return {"accepted": False, "authored_by": "harness",
+                        "problems": authority_problems,
+                        "ready_to_retry": {
+                            "tool": "submit_answer",
+                            "reuse_forecast_artifact": True,
+                            "rerun_gnomon": False,
+                        }}
         return {"accepted": True, "routes": routes}
 
     def _project_receipt_choices(self) -> dict[str, dict[str, Any]]:
@@ -2231,6 +2569,22 @@ class _Run(_RunBase):
             "sensitivity_forecast": self.submission.get(
                 "sensitivity_forecast", {}),
             "submit_reasoning": self.submission["reasoning"],
+            **({"context_gate_citations":
+                self.submission["context_gate_citations"]}
+               if self.submission.get("context_gate_citations") is not None
+               else {}),
+            **({"context_automation_projection":
+                self.submission["context_automation_projection"]}
+               if self.submission.get(
+                   "context_automation_projection") is not None else {}),
+            **({"context_primary_projection":
+                self.submission["context_primary_projection"]}
+               if self.submission.get(
+                   "context_primary_projection") is not None else {}),
+            **({"context_consequence_projection":
+                self.submission["context_consequence_projection"]}
+               if self.submission.get(
+                   "context_consequence_projection") is not None else {}),
             "canonical_mcq": self.submission.get("canonical_mcq", {}),
             "synthesized_mcq": self.submission.get("synthesized_mcq", {}),
             "choice_authority": self.submission.get("choice_authority", {}),
@@ -2312,10 +2666,12 @@ class _McqRun(_RunBase):
             max_rounds=MAX_ROUNDS, max_calls=MAX_MCP_CALLS,
         )
         if self.context_compilation.get("attempted"):
-            text += ("\nValidated context compiler receipt:\n"
-                     + json.dumps({key: self.context_compilation.get(key, [])
-                                   for key in ("events", "hypotheses", "rejected")},
-                                  separators=(",", ":")) + "\n")
+            text += ("\nThe complete validated context compiler receipt is "
+                     "host-bound to execution. This bounded summary is for "
+                     "routing and provenance only:\n"
+                     + json.dumps(compact_context_compilation_for_prompt(
+                         self.context_compilation), separators=(",", ":"))
+                     + "\n")
         return text
 
     def _abstain_outcome(self, reason: str) -> dict[str, Any]:
@@ -2456,3 +2812,38 @@ def _ensure_checkout_importable() -> None:
         *[root for root in roots if root not in existing],
         *[item for item in existing if item],
     ])
+
+
+# The host binds the complete compiler receipt to the execution call.  The
+# tool-driving model needs routing and provenance facts, not a second inline
+# copy of every event that will then be re-sent after the tool result.
+def compact_context_compilation_for_prompt(
+        compilation: Mapping[str, Any]) -> dict[str, Any]:
+    events = [item for item in compilation.get("events", [])
+              if isinstance(item, Mapping)]
+    hypotheses = [item for item in compilation.get("hypotheses", [])
+                  if isinstance(item, Mapping)]
+    rejected = [item for item in compilation.get("rejected", [])
+                if isinstance(item, Mapping)]
+    event_types = sorted({str(item.get("event_type")) for item in events
+                          if item.get("event_type")})
+    known_times = sorted({str(item.get("known_at")) for item in events
+                          if item.get("known_at")})
+    rejection_codes: dict[str, int] = {}
+    for item in rejected:
+        code = str(item.get("reason_code") or "unspecified")
+        rejection_codes[code] = rejection_codes.get(code, 0) + 1
+    return {
+        "receipt_id": compilation.get("receipt_id"),
+        "accepted_event_count": len(events),
+        "accepted_hypothesis_count": len(hypotheses),
+        "rejected_count": len(rejected),
+        "event_types": event_types[:8],
+        **({"event_types_omitted": len(event_types) - 8}
+           if len(event_types) > 8 else {}),
+        **({"known_at_min": known_times[0], "known_at_max": known_times[-1]}
+           if known_times else {}),
+        **({"rejection_code_counts": rejection_codes}
+           if rejection_codes else {}),
+        "execution_binding": "host-bound complete receipt",
+    }

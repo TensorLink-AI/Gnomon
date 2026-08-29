@@ -36,8 +36,8 @@ def test_default_answers_on_fold_starved_data(tmp_path) -> None:
     result = payload["results"][0]
     assert result["forecast"], "default must answer, not abstain"
     assert result["support"] == "best_effort"
-    assert any("NO RELIABLE FORECAST" in warning
-               for warning in result["warnings"])
+    assert any("NO RELIABLE FORECAST" in group["message"]
+               for group in payload["limitation_groups"])
     # The abstention's reasons are preserved, typed, alongside the rows.
     codes = {reason["code"]
              for reason in result["support_assessment"]["reasons"]}
@@ -361,8 +361,10 @@ def test_requested_threshold_is_disclosed_not_dropped(tmp_path) -> None:
     })
     result = payload["results"][0]
     assert result["support"] == "best_effort"
-    assert any("threshold 150.0 was requested" in note
-               for note in result["notes"])
+    assert result["threshold"]["probability_status"] == \
+        "unavailable_uncalibrated"
+    assert result["threshold"]["bounded_assessment"][
+        "automation_eligible"] is False
 
 
 def test_decide_and_monitor_never_rest_on_fallback_rows(tmp_path) -> None:

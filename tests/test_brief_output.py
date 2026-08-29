@@ -94,6 +94,38 @@ def test_brief_abstention_is_the_same_structured_abstention(tmp_path):
     assert brief["warnings"] == full["warnings"]
 
 
+def test_brief_preserves_context_relationship_and_typed_recovery(tmp_path):
+    artifact, path = forecast(
+        SHORT, time_column="timestamp", target_column="value",
+        horizon=3, output=str(tmp_path), clock=CLOCK,
+    )
+    artifact.results[0].context_outcome = {
+        "status": "rejected",
+        "primary_forecast_changed": False,
+        "canonical_primary_preserved": True,
+        "automation_eligible": False,
+        "events": ["structural-1"],
+        "relationship_to_primary": "no_distinct_numeric_path",
+        "selected_output_role": "primary_forecast_already_noncontinuing",
+        "basis": "the emitted primary has no stable continuing trend",
+        "recovery_actions": [
+            "use the immutable primary as the no-continuation path"],
+    }
+
+    projected = brief_summary(artifact, path)["results"][0]["context_outcome"]
+
+    assert projected["relationship_to_primary"] == "no_distinct_numeric_path"
+    assert projected["selected_output_role"] == \
+        "primary_forecast_already_noncontinuing"
+    assert projected["basis"] == \
+        "the emitted primary has no stable continuing trend"
+    assert projected["recovery_actions"] == [
+        "use the immutable primary as the no-continuation path"]
+    assert projected["selected_projection_differs_from_primary"] is False
+    assert projected["canonical_primary_preserved"] is True
+    assert projected["automation_eligible"] is False
+
+
 def test_cli_brief_changes_stdout_but_not_the_artifact(tmp_path, capsys):
     from gnomon.cli import main
 

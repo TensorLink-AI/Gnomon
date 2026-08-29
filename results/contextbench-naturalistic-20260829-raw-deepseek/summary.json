@@ -1,0 +1,100 @@
+{
+  "answered": 80,
+  "benchmark": "contextbench",
+  "completion_rate": 1.0,
+  "condition": "raw-llm",
+  "context_claim_accuracy": 0.5625,
+  "corpus_manifest_sha256": "6a1b872eb51e19908f3eac267471c61b98be3a870f078f216e3613305ae25d72",
+  "errors": 0,
+  "failure_denominators": {
+    "attempted_cases": 80,
+    "harness_failures": 0,
+    "product_failures": 0,
+    "provider_failures": 0,
+    "successful_cases": 80
+  },
+  "families": {
+    "future_covariate": {
+      "context_smape": 4.700722648485926,
+      "history_smape": 6.6788355692282835,
+      "incremental_smape": 1.9781129207423573,
+      "incremental_smape_beyond_noise_floor": 1.6775748320497952,
+      "null_replication_absolute_delta": 0.30053808869256204,
+      "rows": 20
+    },
+    "irrelevant": {
+      "context_smape": 3.9818217767363215,
+      "history_smape": 3.08015871733986,
+      "incremental_smape": -0.9016630593964615,
+      "incremental_smape_beyond_noise_floor": -2.381632968148099,
+      "null_replication_absolute_delta": 1.4799699087516378,
+      "rows": 20
+    },
+    "prior_only": {
+      "context_smape": 3.2275910296554584,
+      "history_smape": 2.5408808186515066,
+      "incremental_smape": -0.6867102110039518,
+      "incremental_smape_beyond_noise_floor": -1.193185020079735,
+      "null_replication_absolute_delta": 0.5064748090757832,
+      "rows": 20
+    },
+    "repeated_event": {
+      "context_smape": 4.2383324992909035,
+      "history_smape": 4.65091215096259,
+      "incremental_smape": 0.4125796516716866,
+      "incremental_smape_beyond_noise_floor": -0.9044685642293959,
+      "null_replication_absolute_delta": 1.3170482159010826,
+      "rows": 20
+    }
+  },
+  "fresh_seed": true,
+  "generator": "contextbench-synthetic-v2",
+  "llm_usage": {
+    "accounting_scope": "this_invocation",
+    "base_url": "https://api.engy.ai/v1",
+    "completion_tokens": 54609,
+    "cost_usd": 0.0,
+    "model": "deepseek-v4-flash-0731",
+    "prompt_tokens": 887062,
+    "requests": 240,
+    "transport_attempts": 240,
+    "truncation_escalations": 0
+  },
+  "llm_usage_observations": {
+    "accounting_complete": true,
+    "completion_tokens": 54609,
+    "prompt_tokens": 887062,
+    "requests": 240
+  },
+  "llm_usage_this_invocation": {
+    "accounting_scope": "this_invocation",
+    "base_url": "https://api.engy.ai/v1",
+    "completion_tokens": 54609,
+    "cost_usd": 0.0,
+    "model": "deepseek-v4-flash-0731",
+    "prompt_tokens": 887062,
+    "requests": 240,
+    "transport_attempts": 240,
+    "truncation_escalations": 0
+  },
+  "mean_null_replication_absolute_delta": 0.9010077556052665,
+  "narrative_style": "naturalistic",
+  "product_failures": 0,
+  "reasoning_effort": "none",
+  "resumed_answered_rows": 0,
+  "resumed_terminal_rows": 0,
+  "rows": 80,
+  "rows_executed_this_invocation": 80,
+  "run_identity": {
+    "base_url": "https://api.engy.ai/v1",
+    "condition": "raw-llm",
+    "corpus_manifest_sha256": "6a1b872eb51e19908f3eac267471c61b98be3a870f078f216e3613305ae25d72",
+    "model": "deepseek-v4-flash-0731",
+    "reasoning_effort": "none",
+    "schema_version": 1,
+    "selected_case_ids_sha256": "f2311fe1a1f418ef9fc5978afe93834a6549bf90fd411588f02ce8ee768519e7",
+    "selected_cases": 80,
+    "temperature": 0.0
+  },
+  "seed": 8100279222526145038
+}

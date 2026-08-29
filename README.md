@@ -119,9 +119,12 @@ Then ask your agent one complete operational question:
 > What changed in it, and when should we alert if crossing 340 costs us 20x
 > a false alarm?
 
-The agent gets 2 tools on the default `evidence` profile:
-`gnomon_describe` for fast temporal evidence and `gnomon_forecast` for
-evaluated publication. Broader operational, tracking, ingestion, and artifact
+The agent gets 3 tools on the default `evidence` profile:
+`gnomon_describe` for fast temporal evidence, `gnomon_forecast` for evaluated
+publication, and `gnomon_select_scenario` for a bounded follow-up ranking of
+already sealed paths. Selection never reruns a forecast or changes numbers,
+support, the immutable primary, or automation authority. Broader operational,
+tracking, ingestion, and artifact
 tools remain available through explicit profiles, and every number it
 quotes comes from an evidence-linked, verified artifact. It cannot invent
 values for an unsupported series; it can only report Gnomon's abstention and

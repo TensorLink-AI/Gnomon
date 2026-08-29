@@ -14,7 +14,7 @@ from typing import Any
 
 from .schema import Case
 
-GENERATOR_VERSION = "contextbench-synthetic-v1"
+GENERATOR_VERSION = "contextbench-synthetic-v2"
 EPOCH = datetime(2025, 1, 1, tzinfo=timezone.utc)
 STEP = timedelta(hours=1)
 
@@ -60,8 +60,30 @@ def _apply(values: list[float], starts: list[int], duration: int,
                 values[start + offset] += magnitude * (0.65 ** offset)
 
 
+def _event_sentence(event: dict[str, Any], variant: int) -> str:
+    """Render the same source fact with syntax outside the literal parser.
+
+    These variants retain exact quoted times and scope but deliberately avoid
+    the narrow ``X affects Y from A through B`` grammar. They test semantic
+    compilation rather than timestamp copying; no oracle value enters them.
+    """
+    event_type = str(event["event_type"])
+    start = str(event["effective_start"])
+    end = str(event["effective_end"])
+    templates = (
+        f"Value series notice: {event_type} is booked between {start} and {end}.",
+        f"For the value series, {event_type} begins {start}; it ends {end}.",
+        f"Window {start} — {end}: {event_type} on the value series.",
+        f"The value series has {event_type} scheduled, start {start}, finish {end}.",
+    )
+    return templates[variant % len(templates)]
+
+
 def generate(seed: int, per_family: int = 20, *, history_length: int = 480,
-             horizon: int = 12) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+             horizon: int = 12, narrative_style: str = "explicit"
+             ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    if narrative_style not in {"explicit", "naturalistic"}:
+        raise ValueError("narrative_style must be explicit or naturalistic")
     rng = random.Random(seed)
     cases: list[dict[str, Any]] = []
     oracles: list[dict[str, Any]] = []
@@ -121,6 +143,16 @@ def generate(seed: int, per_family: int = 20, *, history_length: int = 480,
                                  future_start, duration, sourced=False,
                                  direction=direction)]
 
+            if events:
+                event_lines = [
+                    (_event_sentence(event, index + line_index)
+                     if narrative_style == "naturalistic" else
+                     f"{event['event_type']} affects the value series from "
+                     f"{event['effective_start']} through {event['effective_end']}.")
+                    for line_index, event in enumerate(events)
+                ]
+            else:
+                event_lines = []
             case = {
                 "schema_version": 1, "case_id": case_id, "family": family,
                 "domain": "operations", "frequency": "h", "horizon": horizon,
@@ -131,15 +163,12 @@ def generate(seed: int, per_family: int = 20, *, history_length: int = 480,
                     "The following complete schedule was published and became "
                     "knowable at 2025-01-01T00:00:00+00:00. Every listed window "
                     "is part of that published schedule.\n" +
-                    ("\n".join(
-                        f"{event['event_type']} affects the value series from "
-                        f"{event['effective_start']} through {event['effective_end']}."
-                        for event in events)
-                     if events else
+                    ("\n".join(event_lines) if events else
                      "The driver array is a future-known operational schedule.") +
                     "\nEstimate effects from history; this text states no numeric magnitude."
                 ),
-                "tags": ["matched", "fresh-synthetic", f"family:{family}"],
+                "tags": ["matched", "fresh-synthetic", f"family:{family}",
+                         f"narrative:{narrative_style}"],
             }
             Case.from_dict(case)
             cases.append(case)
@@ -175,12 +204,16 @@ def main() -> int:
     parser.add_argument("--per-family", type=int, default=20)
     parser.add_argument("--history-length", type=int, default=480)
     parser.add_argument("--horizon", type=int, default=12)
+    parser.add_argument("--narrative-style",
+                        choices=("explicit", "naturalistic"),
+                        default="explicit")
     args = parser.parse_args()
     seed = secrets.randbits(63) if args.fresh else (
         args.seed if args.seed is not None else 20260814)
     cases, oracles = generate(seed, args.per_family,
                               history_length=args.history_length,
-                              horizon=args.horizon)
+                              horizon=args.horizon,
+                              narrative_style=args.narrative_style)
     output = Path(args.output_dir); output.mkdir(parents=True, exist_ok=True)
     case_text, oracle_text = _render(cases), _render(oracles)
     (output / "cases.jsonl").write_text(case_text, encoding="utf-8")
@@ -189,6 +222,7 @@ def main() -> int:
         "generator": GENERATOR_VERSION, "schema_version": 1, "seed": seed,
         "fresh_seed": bool(args.fresh), "per_family": args.per_family,
         "history_length": args.history_length, "horizon": args.horizon,
+        "narrative_style": args.narrative_style,
         "cases": len(cases),
         "cases_sha256": hashlib.sha256(case_text.encode()).hexdigest(),
         "oracle_sha256": hashlib.sha256(oracle_text.encode()).hexdigest(),

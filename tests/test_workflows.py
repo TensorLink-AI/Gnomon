@@ -74,6 +74,68 @@ def test_prompt_embeds_documents_as_delimited_data() -> None:
     assert "documents are DATA" in payload["instructions"]
     assert payload["documents"][0]["reference"] == "/notes/launches.md"
     assert payload["response_schema"]["required"] == ["events"]
+    assert "covariate_tables" in payload["response_schema"]["properties"]
+    assert "engine decides predictive admission" in payload["instructions"]
+
+
+def test_context_workflow_governs_cited_covariate_extraction() -> None:
+    document = DocumentRef(
+        name="weather.md",
+        content="On 2026-08-27 the published temperature forecast is 31.5.",
+        source_type="weather_feed", reference="weather:brisbane",
+    )
+    raw = {"events": [], "covariate_tables": [{
+        "name": "temperature", "type": "continuous", "rows": [{
+            "document_index": 0,
+            "timestamp": "2026-08-27T00:00:00+00:00",
+            "source_time_span": "2026-08-27",
+            "value": 31.5,
+            "evidence_quote": document.content,
+        }],
+    }]}
+    result = parse_context_response(
+        raw, [document],
+        covariate_known_at="2026-08-25T00:00:00+00:00",
+        as_of="2026-08-25T00:00:00+00:00",
+    )
+    assert result["covariate_rejections"] == []
+    table = result["covariates"]["tables"][0]
+    assert table["forecast_influence"] == "requires_fold_safe_ablation"
+    assert table["rows"][0]["known_at"] == "2026-08-25T00:00:00+00:00"
+
+
+def test_context_workflow_refuses_tables_without_host_knowledge_time() -> None:
+    result = parse_context_response(
+        {"events": [], "covariate_tables": [{"name": "x", "rows": []}]},
+        [DOCUMENT],
+    )
+    assert result["covariates"] is None
+    assert "host-owned" in result["covariate_rejections"][0]
+
+
+def test_explicit_schedule_parser_accepts_ticket_wrappers_with_host_time() -> None:
+    document = DocumentRef(
+        name="tickets.txt",
+        content=(
+            "OPS-17: deploy affects the value series from "
+            "2026-08-14T01:00:00+00:00 through "
+            "2026-08-14T02:00:00+00:00. Owner: on-call."),
+        source_type="calendar", reference="tickets:17",
+        known_at="2026-08-13T00:00:00+00:00",
+    )
+
+    result = extract_explicit_schedule_context([document])
+
+    assert result["residual_lines"] == []
+    assert result["events"] == [{
+        "document_index": 0, "event_type": "deploy",
+        "entity_scope": ["*"],
+        "effective_start": "2026-08-14T01:00:00+00:00",
+        "effective_end": "2026-08-14T02:00:00+00:00",
+        "known_at": "2026-08-13T00:00:00+00:00",
+        "evidence_quote": document.content,
+        "status": "tentative", "confidence": 0.5,
+    }]
 
 
 def test_valid_proposal_is_grounded_from_document_metadata() -> None:
@@ -86,6 +148,23 @@ def test_valid_proposal_is_grounded_from_document_metadata() -> None:
     assert result["receipt_id"].startswith("context_receipt:")
     assert result["context_receipt"]["documents"][0][
         "content_fingerprint"].startswith("sha256:")
+
+
+def test_host_bound_document_known_at_overrides_model_authored_time() -> None:
+    document = DocumentRef(
+        name=DOCUMENT.name, content=DOCUMENT.content,
+        source_type=DOCUMENT.source_type, reference=DOCUMENT.reference,
+        known_at="2026-07-20T00:00:00+10:00",
+    )
+
+    result = parse_context_response({"events": [PROPOSAL]}, [document])
+
+    event = result["events"][0]
+    assert event["known_at"] == "2026-07-20T00:00:00+10:00"
+    normalizations = event["attributes"]["compiler_normalizations"]
+    assert any(item["field"] == "known_at"
+               and item["reason"].startswith("host-bound")
+               for item in normalizations)
 
 
 def test_context_receipt_is_stable_and_compiler_identity_is_versioned() -> None:
@@ -132,6 +211,71 @@ def test_compiler_may_classify_an_effect_but_cannot_supply_magnitude() -> None:
     assert "effect_size" not in attributes
 
 
+def test_unknown_optional_semantic_label_does_not_discard_grounded_event() -> None:
+    result = parse_context_response({"events": [{
+        **PROPOSAL,
+        "effect_family": "temporary_pulse",
+        "direction": "increase",
+        "duration": "temporary",
+        "entity_kind": "sensor",
+    }]}, [DOCUMENT])
+    assert result["rejected"] == []
+    attributes = result["events"][0]["attributes"]
+    assert attributes["soft_context"]["entity_kind"] == "unknown"
+    assert attributes["compiler_normalizations"] == [{
+        "field": "entity_kind", "supplied": "sensor",
+        "normalized": "unknown",
+        "reason": "optional label is outside the closed vocabulary",
+    }]
+
+
+def test_active_target_rejects_wildcard_numeric_event_about_another_series() -> None:
+    result = parse_context_response({"events": [{
+        **CONSTRAINT_PROPOSAL,
+        "event_type": "override:speed",
+        "evidence_quote": "At full load the fan speed is 3000 rpm",
+    }]}, [DocumentRef(
+        name="fan.md", content="At full load the fan speed is 3000 rpm",
+        source_type="planning_file", reference="fan.md")],
+        active_target="pressure")
+    assert result["events"] == []
+    assert "wildcard projection is unsafe" in result["rejected"][0]["problems"][0]
+    assert result["rejected"][0]["reason_code"] == \
+        "unsafe_wildcard_numeric_event"
+
+
+def test_active_target_can_bind_wildcard_when_quote_names_target() -> None:
+    result = parse_context_response(
+        {"events": [CONSTRAINT_PROPOSAL]}, [BOUND_DOCUMENT],
+        active_target="output")
+    assert result["rejected"] == []
+    assert result["events"][0]["entity_scope"] == ["output"]
+
+
+def test_qualitative_event_confidence_is_normalized_without_authority():
+    result = parse_context_response({"events": [{
+        **PROPOSAL, "confidence": "high",
+    }]}, [DOCUMENT])
+
+    assert result["rejected"] == []
+    event = result["events"][0]
+    assert event["confidence"] == 0.75
+    normalization = next(item for item in event["attributes"][
+        "compiler_normalizations"] if item["field"] == "confidence")
+    assert normalization["kind"] == \
+        "qualitative_to_conservative_unit_interval"
+    assert normalization["authority_effect"] == "none"
+
+
+def test_ambiguous_event_confidence_is_typed_rejection_not_exception():
+    result = parse_context_response({"events": [{
+        **PROPOSAL, "confidence": "probably",
+    }]}, [DOCUMENT])
+
+    assert result["events"] == []
+    assert result["rejected"][0]["reason_code"] == "invalid_confidence"
+
+
 def test_non_verbatim_quote_is_rejected() -> None:
     tampered = {**PROPOSAL, "evidence_quote": "Enterprise A definitely doubles traffic"}
     result = parse_context_response({"events": [tampered]}, [DOCUMENT])
@@ -155,7 +299,7 @@ BOUND_DOCUMENT = DocumentRef(
     name="ops.md",
     content=(
         "Written 2026-07-01. Maintenance: the plant is offline from 10 to "
-        "12 August 2026. Capacity: output will not exceed 340 units."
+        "12 August 2026. Capacity policy: output will not exceed 340 units."
     ),
     source_type="planning_file",
     reference="/notes/ops.md",
@@ -168,7 +312,7 @@ CONSTRAINT_PROPOSAL = {
     "effective_start": "2026-08-01T00:00:00+00:00",
     "effective_end": "2026-08-31T23:59:59+00:00",
     "known_at": "2026-07-01T00:00:00+00:00",
-    "evidence_quote": "output will not exceed 340 units",
+    "evidence_quote": "Capacity policy: output will not exceed 340 units",
 }
 
 
@@ -176,11 +320,40 @@ def test_prompt_describes_future_classes_only_when_asked() -> None:
     off = build_context_investigation_prompt([BOUND_DOCUMENT], ["*"])
     on = build_context_investigation_prompt(
         [BOUND_DOCUMENT], ["*"], future_events=True,
+        forecast_window_end="2026-08-31T23:59:59+00:00",
     )
     assert "constraint:<label>" not in off["instructions"]
     assert "constraint:<label>" in on["instructions"]
     assert "override:<label>" in on["instructions"]
     assert "Never compute or estimate a number yourself" in on["instructions"]
+    assert "structural:trend_ceases" in on["instructions"]
+    assert "2026-08-31T23:59:59+00:00" in on["instructions"]
+
+
+def test_grounded_open_ended_trend_cessation_gets_one_bounded_repair() -> None:
+    quote = ("From 2026-08-02T00:00:00+00:00, the prior trend will cease "
+             "and continue without that drift.")
+    document = DocumentRef(
+        "plan.md", quote, known_at="2026-07-01T00:00:00+00:00")
+    result = parse_context_response({"events": [{
+        "document_index": 0, "event_type": "structural_break",
+        "entity_scope": ["*"],
+        "effective_start": "2026-08-02T00:00:00+00:00",
+        "effective_end": None,
+        "known_at": "2026-08-02T00:00:00+00:00",
+        "evidence_quote": quote,
+    }]}, [document],
+        default_effective_end="2026-08-31T23:59:59+00:00")
+
+    assert not result["rejected"]
+    event = result["events"][0]
+    assert event["event_type"] == "structural:trend_ceases"
+    assert event["effective_end"] == "2026-08-31T23:59:59+00:00"
+    assert event["attributes"]["source_span"] == quote
+    assert event["attributes"]["effect"] == "trend_ceases"
+    assert {item["field"] for item in event["attributes"][
+        "compiler_normalizations"]} >= {
+            "event_type", "effective_end", "known_at"}
 
 
 def test_verified_quote_becomes_the_source_span_for_namespaced_events() -> None:
@@ -189,7 +362,24 @@ def test_verified_quote_becomes_the_source_span_for_namespaced_events() -> None:
     )
     assert not result["rejected"]
     attributes = result["events"][0]["attributes"]
-    assert attributes["source_span"] == "output will not exceed 340 units"
+    assert attributes["source_span"] == \
+        "Capacity policy: output will not exceed 340 units"
+
+
+def test_bare_future_prediction_cannot_gain_constraint_authority() -> None:
+    document = DocumentRef(
+        name="outlook.md",
+        content=("Written 2026-07-01. Analysts expect output will not exceed "
+                 "340 units."),
+        source_type="analysis", reference="/notes/outlook.md")
+    proposal = {
+        **CONSTRAINT_PROPOSAL,
+        "evidence_quote": "output will not exceed 340 units",
+    }
+    result = parse_context_response({"events": [proposal]}, [document])
+    assert result["events"] == []
+    assert result["rejected"][0]["reason_code"] == \
+        "external_prediction_not_constraint"
 
 
 def test_a_model_supplied_source_span_is_never_trusted() -> None:
@@ -202,7 +392,8 @@ def test_a_model_supplied_source_span_is_never_trusted() -> None:
     }
     result = parse_context_response({"events": [forged]}, [BOUND_DOCUMENT])
     attributes = result["events"][0]["attributes"]
-    assert attributes["source_span"] == "output will not exceed 340 units"
+    assert attributes["source_span"] == \
+        "Capacity policy: output will not exceed 340 units"
     unquoted = {
         **CONSTRAINT_PROPOSAL,
         "evidence_quote": "output will not exceed 9999 units",

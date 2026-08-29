@@ -55,6 +55,97 @@ separate `hypothetical_sensitivity` path using one robust innovation scale
 from the target history. Hosts must present that path as a what-if sensitivity,
 never as the primary forecast, expected effect, or probability-bearing claim.
 
+On the MCP surface, use `context_events` only when the source states a literal
+numeric bound, override, or cessation. When direction or shape is known but
+magnitude is not, send `qualitative_context_events` with the verbatim
+`source_span`, timing, direction, effect family, and duration. Gnomon keeps the
+history-only primary immutable and exposes the claim only as a labelled,
+non-automatable sensitivity scenario. Use `context_submission` for non-event
+claims and dossiers. Malformed context is rejected with typed repair
+information rather than silently ignored or coerced into a numeric claim.
+For a complete linear lag specification, the host can avoid model transcription
+entirely: send `context_submission` with `text`, timezone-aware `known_at`, and
+`compile: "deterministic_linear"`. Gnomon accepts exact coefficient equations,
+equivalent per-lag coefficient prose, or a complete parent/lag topology. The
+topology form fits coefficients inside replay folds. Every form requires a
+complete cited future driver schedule and refuses partial arithmetic; a
+successful candidate still has to beat the baseline and remains advisory.
+The equivalent CLI is `--context-compile deterministic_linear --context-text
+"..." --context-known-at <ISO-8601>`.
+When timing is ambiguous, a fact was first known after the cutoff, no temporal
+mechanism is stated, or a third party is merely forecasting a value, send the
+compact `context_rejections` array. Each item requires `context_id`,
+`reason_code`, `reason`, and the verbatim `source_span`; Gnomon persists that
+disposition without changing any number. It rejects qualitative event windows
+whose effective start date is absent from the quoted source, preventing an
+agent from converting “sometime next month” into an invented timestamp.
+
+### Provider-neutral sampled priors
+
+For `best_effort` or `scenario` workflows, a host may let its own model propose
+a conditional numeric path while Gnomon retains the immutable primary. The
+shipped `gnomon.agent_context` module provides the integration primitives:
+
+- `build_sampled_context_prior_prompt(...)` encodes host-owned regular grids
+  compactly and asks for indexed values without re-echoing timestamps;
+- `recommended_initial_sample_count(horizon)` requests the bounded four- or
+  five-path set used to stabilize the empirical centre;
+- `candidate_from_sampled_paths(...)` rejects malformed, non-finite, partial,
+  or wrong-grid paths independently, aggregates valid paths into q10/q50/q90,
+  and reports draw stability separately from historical skill; and
+- `sampled_prior_sufficiency(...)` decides whether the elicitation is coherent
+  enough to become a human-facing recommendation. It checks path survival and
+  scale-free agreement only; it does not claim historical forecast skill.
+
+An MCP host can submit these directly in the forecast call as
+`context_submission: {text, known_at, model_candidate: {source_spans,
+sample_paths}}`; timestamped q10/q50/q90 rows may replace `sample_paths`.
+Every span must be an exact quote from `text`. Gnomon performs the grid
+validation and sealing, so the caller does not need to construct an internal
+dossier. Python hosts may instead attach validated paths with
+`gnomon.llm_dossier.attach_host_candidate_elicitation` and submit the sealed
+dossier through `gnomon_forecast.temporal_dossiers`. A host should request the
+initial sample, assess it, and expand to the cap only when paths are malformed
+or materially incoherent. Too few valid paths, a low valid-path fraction, or
+material disagreement keeps the prior visible as a labelled scenario but
+prevents it from displacing the primary. A passing result is still
+`prior_assisted`, requires human review, and is never automation eligible
+unless separate historical admission exists. These helpers make no network
+calls and accept no provider credentials.
+
+### Preserve an independent decision prior
+
+For consequential threshold decisions, a one-call evidence prompt can anchor a
+model and erase useful temporal judgment it held before seeing Gnomon. A host
+may preserve that view without granting it authority:
+
+1. ask the model the user's unchanged question without Gnomon evidence;
+2. validate the structured answer and call
+   `seal_temporal_decision_prior(...)` with a hash of that exact question;
+3. compute the normal immutable Gnomon packet; and
+4. call `build_temporal_decision_reconciliation(...)` to expose agreements and
+   conflicts under a sealed selection policy.
+
+The reconciliation response is accepted through
+`seal_temporal_decision_selection(...)`. It must name the selected source, a
+distinct counterevidence source when the inputs conflict, confidence, and a
+falsifiable `what_would_change` condition. Missing reasoning slots are a typed
+contract failure rather than silently successful “reconciliation.”
+
+The receipt is always `prior_assisted`, host-attested as captured before
+evidence, and automation-ineligible. Reconciliation may choose a human-facing
+action, but it cannot edit either input, upgrade support, mutate the primary,
+or authorize automation. Hosts should outcome-score those choices before
+making this a default; the helper preserves a prior, it does not prove that the
+prior is skilled.
+
+Record sealed selections through the existing temporal-synthesis tracking
+lane and resolve them when outcomes arrive. `gnomon track decision-skill`
+(or MCP `gnomon_track` with `action: "decision_skill"`) reports paired,
+shrunk skill for each proposer. Reconciliation accepts that evidence only when
+its proposer identity matches and its `known_at` precedes the decision cutoff.
+Cold-start or non-graduated evidence stays visible but cannot create authority.
+
 ## Is OpenRouter a planned option?
 
 Not in the runtime, and there is no committed date. OpenRouter is a
@@ -95,14 +186,18 @@ Concretely, an LLM layer may:
 - propose context events (verbatim-quote-verified) and *nominate* — never
   pick — an effect shape via `expected_shape`;
 - extract quoted temporal hypotheses for deterministic verification;
+- propose a separately sealed conditional path in an explicit `best_effort` or
+  `scenario` lane; it remains `prior_assisted`, human-reviewed, outcome-scored,
+  and non-automatable unless independent historical evidence later admits it;
 - restrict the model contest via `candidates` (the mandatory baselines
   always compete, and the restriction is disclosed);
 - propose bounded experiments; and
 - explain immutable forecast artifacts and evidence.
 
-It must not generate, edit, or override forecast values, evaluation scores,
-quantiles, model selection, warnings, or abstention. Provider failure must not
-change numerical results.
+It must not generate, edit, or override the immutable primary forecast,
+evaluation scores, engine quantiles, model selection, warnings, or abstention.
+A model-authored conditional path must remain in its typed lane and provider
+failure must leave the primary numerical result unchanged.
 
 ## Proposed future configuration
 

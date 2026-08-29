@@ -1,0 +1,14 @@
+{
+  "cases": 80,
+  "cases_sha256": "6984b424b0947a24f9cd3c75d714f1bbdecf386f16c42f800e2f30f145979afb",
+  "fresh_seed": true,
+  "generated_at": "2026-08-29T09:36:35.140375+00:00",
+  "generator": "contextbench-synthetic-v2",
+  "history_length": 480,
+  "horizon": 12,
+  "narrative_style": "naturalistic",
+  "oracle_sha256": "11eb3153bd12aa40bfbe24130993045003ce7de13ff7a88c2748b5f95f3f6d30",
+  "per_family": 20,
+  "schema_version": 1,
+  "seed": 8100279222526145038
+}

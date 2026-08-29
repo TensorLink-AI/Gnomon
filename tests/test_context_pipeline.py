@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -9,10 +10,18 @@ import pytest
 from gnomon.cli import main
 from gnomon.context import ContextEvent, ContextSource
 from gnomon.context_model import event_adjusted
+from gnomon.context_eval import episode_effect_lower_bound
 from gnomon.runtime import forecast
 
 START = datetime(2026, 1, 1, tzinfo=timezone.utc)
 PROMO_EFFECT = 30.0
+
+
+def test_episode_effect_lower_bound_prices_sampling_noise() -> None:
+    assert episode_effect_lower_bound([0.4]) == 0.0
+    noisy = episode_effect_lower_bound([0.30, 0.50, 0.35, 0.55])
+    stable = episode_effect_lower_bound([0.39, 0.40, 0.41, 0.40])
+    assert noisy < stable < 0.41
 
 
 def _promo_days(length: int) -> set[int]:
@@ -94,12 +103,44 @@ def test_context_admitted_when_it_demonstrates_stable_lift(tmp_path) -> None:
     assert result.context_outcome["canonical_primary_location"] == (
         "artifact.results[].primary_forecast")
     assert result.context["mean_improvement"] > 0.02
+    if str(result.context.get("effect_estimator", "")).startswith("base_model_"):
+        for primary_row, conditioned_row in zip(
+                result.primary_forecast, result.forecast):
+            if conditioned_row["point"] == pytest.approx(primary_row["point"]):
+                # An inactive event step is the same fitted point executable;
+                # its median calibration must remain the base calibration too.
+                assert conditioned_row["q50"] == pytest.approx(
+                    primary_row["q50"])
     assert any(evidence.kind == "context_ablation" for evidence in artifact.evidence)
     # Day 135 (a promo day, %10 == 5) falls inside the 7-day horizon:
     # the forecast must carry the promo bump on that day.
     promo_row = result.forecast[5]
     plain_row = result.forecast[4]
     assert promo_row["point"] - plain_row["point"] > PROMO_EFFECT / 2
+
+
+def test_unresolved_timing_range_stays_a_scenario_not_exact_primary(tmp_path) -> None:
+    csv_path = tmp_path / "promo.csv"
+    _write_csv(csv_path, 130)
+    uncertain = [replace(event, attributes={"soft_context": {
+        "effect_family": "temporary_pulse", "direction": "increase",
+        "duration": "temporary", "delay_steps": [0, 2],
+        "duration_steps": [2, 2],
+    }}) for event in _events(140)]
+
+    artifact, _ = forecast(
+        str(csv_path), time_column="timestamp", target_column="requests",
+        horizon=7, frequency="D", output=str(tmp_path / "uncertain"),
+        context_events=uncertain,
+    )
+    result = artifact.results[0]
+
+    assert result.context["admitted"] is False
+    assert result.context_outcome["status"] == "scenario_only"
+    assert result.context_outcome["primary_forecast_changed"] is False
+    assert result.context["events_excluded"]
+    assert all("bounded timing scenario" in item["reason"]
+               for item in result.context["events_excluded"])
 
 
 def test_context_selection_skips_pre_event_folds_without_rejecting_candidate(
@@ -237,7 +278,8 @@ def test_gate_records_every_check_and_names_the_decider(tmp_path) -> None:
     # An admitted run records the conditions it passed, not only failures.
     codes = {check["code"] for check in payload["checks"]}
     assert {"events_eligible", "mean_improvement_meets_margin",
-            "majority_of_folds_improve"} <= codes
+            "majority_of_folds_improve",
+            "selected_schedule_beats_displaced_schedules"} <= codes
     stability = next(check for check in payload["checks"]
                      if check["code"] == "majority_of_folds_improve")
     fitted = next(check for check in payload["checks"]

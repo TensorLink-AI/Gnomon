@@ -2,6 +2,1613 @@
 
 ## Unreleased
 
+## 0.5.0 — governed context intelligence (2026-08-30)
+
+Gnomon 0.5.0 adds a governed context-intelligence layer without surrendering
+numeric authority to an LLM. The history-only primary remains immutable;
+context may be rejected, represented as a conditional scenario, or lead a
+human-review recommendation only through explicit typed evidence contracts.
+
+### Highlights
+
+- Add strict, best-effort, and conditional-scenario publication modes with
+  explicit support, provenance, primary-versus-selected relationships, and
+  automation authority.
+- Compile deterministic schedules, recurrences, relationships, categorical
+  states, cited covariate tables, and bounded model-authored candidates into
+  the same replay-tested publication machinery. Unresolved or weak claims fail
+  closed or remain visibly conditional.
+- Expand the MCP boundary for production agents with compact evidence-first
+  profiles, reusable data and context references, structured recovery actions,
+  bounded repairs, and verifier-enforced human-facing explanations.
+- Preserve the immutable primary across every prior-assisted path. Uncertain
+  timing and structurally indistinct changes remain scenario-only or report
+  `no_distinct_numeric_path`; neither can silently mutate the primary or
+  authorize automation.
+- Add prospective, series-scoped outcome learning for candidate evidence,
+  including cutoff-safe tracking, conservative multiplicity handling, and a
+  fixed compromise path for supported best-effort recommendations.
+- Extend decision and threshold-risk outputs with bounded assessments,
+  evidence sufficiency, explicit automation eligibility, action utility, and
+  independently scored human judgment.
+- Add and harden ContextBench, OutcomeLearningBench, BreachBench, RecallBench,
+  CiK, and workflow adapters with crash-safe checkpoints, strict resume
+  identities, bounded concurrency, retained diagnostics, and sealed evidence.
+- Improve bitemporal safety, context provenance, scenario consequence
+  reporting, gate explanations, rejection-reason accounting, and agent
+  preservation measurement throughout the CLI, Python, MCP, and artifact
+  surfaces.
+
+### Validation
+
+- Full repository suite: 2,528 passed, 1 skipped.
+- Crash-safe ContextBench engine stress run: 112/112 completed, every declared
+  gate passed, zero temporal leakage, 100% empirical admission precision, and
+  45.833% empirical admission recall.
+- Final Evidence/DeepSeek agent-boundary shard: 2/2 completed with publication
+  parity, one exposed `no_distinct_numeric_path` relationship preserved 1/1,
+  one exposed conditional-scenario contract preserved 1/1, and an exact
+  zero-call resume replay.
+- CI passes on Python 3.11, 3.12, and 3.13, including package installation,
+  deterministic benchmark evidence, and container smoke tests.
+
+The complete change-by-change record follows and remains part of the source
+distribution for auditability.
+
+## Development log for 0.5.0
+
+- Give host integrations an explicit, receipted 3–16 path inference budget
+  for model-authored conditional candidates. The budget is part of benchmark
+  cache identity and cannot alter support or automation authority; the default
+  remains the bounded horizon-aware four/five-path policy.
+- Keep numeric candidate prompts to 64 aligned raw observations by default and
+  add deterministic full-history temporal facts: frequency, robust trend,
+  detected/calendar season, and a future-aligned same-phase median baseline.
+  The facts are past-only descriptive evidence, never historical skill. CiK's
+  adapter exposes bounded on/off and row-budget ablations and records the exact
+  policy in each receipt.
+- Retain CiK's per-case post-forecast candidate scores in
+  `selection-diagnostics.jsonl` instead of discarding them after aggregate
+  reporting. Each row names the task/seed, complete candidate set, selected
+  role, immutability and automation flags, and explicitly states that the
+  diagnostics were never passed to the forecaster.
+- Add a preregisterable `prior_compromise_shadow` CiK arm that scores the
+  fixed equal-weight midpoint between the immutable primary and one eligible
+  sealed model prior. It is explicitly non-authoritative and non-automatable,
+  rejects mismatched grids or malformed quantiles, and never fits its weight
+  to benchmark outcomes. This tests conservative shrinkage before any product
+  publication policy is changed.
+  The diagnostics separately report whether that arm actually applied; a run
+  without an eligible model prior retains its governed product selection and
+  cannot be counted as compromise coverage.
+- Make candidate-outcome evidence safe to consume prospectively: tracking
+  summaries and `gnomon_track` now accept both a series scope and an `as_of`
+  resolution cutoff. This prevents project-wide negative transfer and stops a
+  historical replay from seeing candidate outcomes resolved after its cutoff;
+  the returned evidence names its exact scope.
+- Close the outcome-learning loop for `best_effort` publication. When a
+  project and series have enough pre-cutoff resolved candidate outcomes to
+  clear the existing positive-uplift and Wilson-lower-bound gate, that exact
+  candidate class may guide the human-facing prior. Cold starts retain the
+  existing policy; strict mode, support, the immutable primary, and automation
+  authority are unchanged.
+- Add OutcomeLearningBench, a chronological same-series benchmark for the
+  realised-candidate loop. It covers useful and harmful priors, delayed
+  outcomes, cross-series contamination, and abrupt reversal. Candidate skill
+  is now keyed by proposer and collapses correlated same-class variants to one
+  conservative observation per forecast origin, preventing multiplicity from
+  manufacturing confidence.
+- Publish a graduated outcome prior through a fixed equal-weight compromise
+  with the immutable primary instead of jumping directly to the candidate.
+  OutcomeLearningBench retains stable-series uplift while reducing reversal
+  regret versus the full-prior counterfactual; the compromise remains
+  `prior_assisted`, human-reviewed, and categorically non-automatable.
+- Extend OutcomeLearningBench with 20 seeded moderate-noise and no-skill
+  streams. The summary reports promotion and false-promotion rates while raw
+  chronological records live in a separate JSONL artifact, keeping the
+  decision report compact without discarding audit evidence.
+- Pin RecallBench's hosted-model reasoning mode (default `none`) and include it
+  in every row, summary, and resume identity. Reasoning and non-reasoning runs
+  can no longer silently reuse each other's real-series forecast records.
+- Make RecallBench resume accounting cumulative and non-resume output
+  replacement-safe. A zero-call resume no longer erases the original request,
+  token, or cost totals, and rerunning without `--resume` cannot append a
+  duplicate scored sample to an existing `rows.jsonl`.
+- Require a cold-start sampled model prior to cite verified context before it
+  can become the default `best_effort` recommendation. Numeric-history-only
+  forecasts and path coherence remain visible for outcome scoring but cannot
+  outrank the primary without later same-series outcome skill. This applies
+  RecallBench's leakage-controlled finding without disabling genuinely
+  context-conditioned candidates.
+- Add a separately identified naturalistic-prose ContextBench stratum. It
+  preserves the sealed numeric construction while forcing real semantic
+  compilation, so a zero-call literal-parser run can no longer masquerade as
+  evidence about the LLM interface. A matched report retains case-level rows,
+  harm rates, bootstrap intervals, exact sign tests, and usage.
+- Bind the actual public target name into semantic context compilation before
+  converting it to the engine's singleton identity. This prevents correctly
+  extracted events from being discarded when a host exposed only a wildcard
+  and the model invented an unresolvable scope alias.
+- Fail ContextBench LLM resume closed across corpus, case-set, model, endpoint,
+  mode, temperature, or compiler-chunk changes. Increase the source-grounded
+  schedule chunk from four to eight events after matched validation preserved
+  forecast output and extraction recall while reducing compiler requests.
+- Keep events with non-degenerate delay or duration ranges in the existing
+  typed scenario lane instead of silently running them through an exact-window
+  primary executable. Three fresh production-stress replicates found every
+  admitted timing-uncertain path harmful; fixed timing remains fold-admissible,
+  while uncertain timing stays visible without false precision or automation.
+- Use the existing bounded four/five-path cap on the first model-prior
+  elicitation rather than estimating a human-facing median from three draws.
+  Requests remain concurrent; sampled spread remains a coherence diagnostic,
+  never calibration or historical skill.
+- Add a first-class `context_submission.model_candidate` forecast input for
+  cited q10/q50/q90 rows or 3–16 full-grid sample paths. Gnomon validates the
+  host grid, seals the candidate through the existing dossier and publication
+  machinery, preserves the history-only primary, labels the result
+  `prior_assisted`, and prohibits automation. Naive timestamps from ordinary
+  CSV inputs are normalized to the runtime's UTC convention at this boundary.
+- Distinguish comparable-range rows whose matching attributes are source-stated
+  from rows whose selection necessarily uses model prior knowledge. The latter
+  now require an explicit external matching assumption, remain
+  automation-ineligible, and return a typed request for comparable attributes
+  and a matching rule when no stable choice can be made.
+- Do not declare that further calls add nothing when a selected prior-assisted
+  recommendation still has a typed applicability or analogue-matching evidence
+  gap. The compact context summary now distinguishes a usable answer from an
+  answer that additional evidence could materially change.
+- Route externally matched analogue priors through the existing bounded
+  scenario selector instead of auto-promoting them merely because sampled
+  paths agree. Best-effort mode permits the choice but does not itself prove
+  peer comparability; selector failure retains the immutable primary.
+- Reserve ten seconds of the rare ambiguous-scenario selector's 30-second
+  deadline for its one
+  bounded repair, so an invalid first response cannot leave a nominal but
+  unusable retry. Ordinary and evidence-dominant forecasts skip this lane; its
+  total latency remains bounded and configurable.
+- Apply the same bounded-selection rule to model-authored fallbacks after a
+  categorical-state mapping fails admission as after a structured companion
+  mapping fails. Equivalent context wording can no longer change whether an
+  unvalidated fallback auto-promotes merely by taking a different parser lane.
+- Make CiK direct-control reasoning mode explicit (`none`) and part of its
+  cache identity, matching Gnomon's bounded compiler/selector calls. This
+  prevents hidden provider reasoning from turning ten-path controls into
+  unexplained case timeouts or contaminating comparisons across modes.
+- Fit categorical schedules relative to a fold-safe seasonal phase baseline
+  when two cycles are available, then learn shrunk state residuals. This keeps
+  cloud, staffing, open/closed, promotion, and maintenance effects from
+  flattening genuine periodic structure. Admission compares the contextual
+  candidate with the same phase-only estimator, so it cannot claim ordinary
+  seasonality as context uplift. Phase-by-state interactions are hierarchically
+  shrunk toward the global state effect, allowing state consequences to vary
+  across a cycle without admitting random categorical partitions. Retrospective
+  skill is now reported separately from vintage admission, and selected
+  categorical paths carry truthful recommendation provenance.
+- Give explicitly requested best-effort publication a larger but still bounded
+  optional-prior and scenario-selection budget. Strict publication remains on
+  the deterministic fast path; slow or malformed model calls remain typed
+  transport failures and can never alter the primary or authorize automation.
+- Preserve verbatim background and target descriptors alongside deterministic
+  categorical schedules, so the bounded selector sees why a state may matter
+  without granting prose numeric authority. Sampled-prior coherence now uses
+  mean pointwise width against horizon-averaged path disagreement; inactive
+  phases can no longer create a false dispersion rejection. CiK run artifacts
+  also retain post-outcome counterfactual candidate scores, never exposed to
+  the forecaster, to separate candidate quality from selector quality.
+- Supply the bounded selector with host-computed support facts instead of
+  expecting it to infer that `conditionally_supported` is not fully supported.
+  Eligible source-grounded priors may headline a human-review answer while the
+  immutable primary remains visible and automation remains prohibited.
+- Preserve structured comparable-entity range tables and explicit target
+  descriptors through a deterministic, verbatim context front door. Analogue
+  selection remains a sealed prior-assisted model judgment. Each sampled path
+  must cite the target descriptors and exactly one grounded comparable; only a
+  majority-consistent choice is aggregated, while alternatives remain visible
+  as counterevidence. These claims do not mutate the immutable primary, gain
+  historical support, or authorize automation.
+- Fail closed when sampled prior paths have zero median marginal dispersion
+  but material trajectory-level disagreement. The former absolute tolerance
+  could label a visibly contradictory path ensemble sufficient; the corrected
+  scale-free gate demotes it to a labelled scenario instead of letting it
+  replace the immutable primary.
+- Mark only claims explicitly cited by the selected numeric scenario as used.
+  Competing analogue rows and other dossier context remain visible as scenarios
+  or counterevidence instead of falsely appearing to ground the recommendation.
+- Expose `claim_id` directly on unresolved and atemporal context dispositions,
+  matching resolved claims and removing a fragile `context_id` parsing step
+  from agent citation workflows.
+- Preserve explicit correlation, co-occurrence, and move-together statements
+  as non-causal context even when the source omits a formal non-causality
+  disclaimer. The deterministic lane avoids a needless model-compiler call,
+  retains adjacent descriptive statistics, and still cannot alter the primary
+  forecast, create numeric authority, or authorize automation.
+- Preserve explicit association-without-causation and common-cause statements
+  through a deterministic, non-numeric context lane. These claims can prevent
+  an unsafe intervention inference but cannot create a forecast candidate or
+  automation authority. When another validated lane retains supplied context,
+  compiler timeouts and provider failures are now availability telemetry rather
+  than false user-facing context rejections; malformed or unresolved semantics
+  still fail loudly.
+- Bind a dated qualitative calendar effect to the date explicitly named as a
+  holiday even when surrounding prose also enumerates the forecast grid. The
+  citation is narrowed to the holiday and directional-rule sentences, and its
+  unknown magnitude routes directly to the existing bounded prior lane rather
+  than consuming a redundant dossier-repair call. Multiple ambiguous holiday
+  dates remain unresolved instead of being guessed.
+- Compile complete source-stated linear lag equations and future driver
+  schedules deterministically into the existing replay-tested recurrence
+  executable. A separate topology-only lane extracts declared parent/lag
+  structure and fits coefficients inside historical folds. Both parsers are
+  all-or-nothing: unknown series, unparsed terms, missing schedules, or partial
+  future coverage fall back to typed compilation instead of executing guessed
+  arithmetic. Publication still requires replay evidence, remains human-review
+  only, and preserves the immutable primary.
+- Accept the equivalent complete recurrence when coefficients are written one
+  lag per sentence rather than in equation notation. Each stated parent set
+  must exactly equal the parsed coefficient terms, every residual token must
+  be accounted for, and the ordinary host-series/schedule checks still apply;
+  discrepancies refuse execution rather than relying on model transcription.
+- Expose that strict relationship compiler on the production MCP forecast
+  boundary through `context_submission.compile="deterministic_linear"`.
+  Complete text enters the existing replay-tested transformation machinery;
+  unresolved text receives a typed disposition. CiK now calls this same
+  product module rather than maintaining a benchmark-only execution path.
+  The CLI exposes the same module through
+  `--context-compile deterministic_linear` with cited text and knowledge time.
+
+- Route explicit historical zero-recording claims and ended recurring
+  disruptions through deterministic, replay-validated front doors before any
+  optional model call. Historical claims can no longer be re-promoted as
+  future absolute-value events, so a successful counterfactual is not paired
+  with a false event rejection. Optional sampled priors now have their own
+  bounded provider timeout; a slow speculative path cannot delay the already
+  available primary and governed context answer for the full workflow budget.
+  The optional scenario selector and its single repair likewise share one
+  bounded deadline rather than two independent two-minute requests.
+  A target-outcome-inferred contamination mask must clear the full replay
+  margin on both point and probabilistic metrics before it may lead even a
+  human-only best-effort answer; directional wins alone remain sufficient only
+  for source-defined masks. A total sampled-prior transport outage no longer
+  triggers a second futile request wave.
+- Execute explicitly cited reference-normalized laws without asking an LLM to
+  invent their arithmetic. Gnomon replays the fixed law against pre-cutoff
+  target/driver pairs at robustly identified material driver transitions,
+  learns only a prefix-safe residual correction and uncertainty, and applies
+  the source-stated future driver state. A candidate that is not contradicted
+  beyond a disclosed 2% non-inferiority margin on a genuine historical
+  material-transition population may lead an explicit `best_effort` human
+  recommendation. Without comparable transitions it must instead show
+  positive, chronologically consistent skill. Strict publication,
+  the immutable primary, and automation authority remain unchanged. Failed
+  or chronologically inconsistent laws stay visible as rejected scenarios.
+  Every stated future driver transition is retained in one ordered piecewise
+  schedule; a later return-to-normal can no longer be discarded after the
+  first transition.
+- Bound qualitative future-event priors to their validated event windows.
+  Model-authored values may shape the cited holiday, deployment, closure, or
+  campaign interval, while every unrelated row comes from the best already
+  visible default (a governed primary or explicitly labelled model-assisted
+  prior). The sealed dossier records the windows and fallback provenance.
+- Expose one complete observed week of an intraday series as a structurally
+  labelled `calendar_seasonal_naive` prior when two-week replay is impossible.
+  It carries no historical-skill or automation claim. A bounded future event
+  can compose over this visible default inside its own window while the
+  immutable primary remains separately intact.
+  When the governed primary already identifies the intraday daily cycle, this
+  calendar prior precedes unrelated trend extrapolation from one weak holdout;
+  the disclosure still states that it has no out-of-sample skill evidence.
+- Compile explicitly ended recurring disruptions into the existing fold-safe
+  observation-counterfactual executable. The schedule identifies affected
+  historical rows without guessing their numeric effect; a candidate may lead
+  only after it beats raw-history comparators across chronological replay.
+  Replay losers remain inspectable and outcome-scoreable but can no longer be
+  promoted by an LLM selector. Daily and hourly schedules retain their units.
+  Daily histories also contest one fixed weekday-phase family under the same
+  replay gate, preserving ordinary weekly shape after disruption rows are
+  removed without data-mining a period or widening the public model zoo.
+- Align prior-assisted probability consumption with the published answer.
+  Raw LLM paths remain sealed receipt evidence for elicitation stability, but
+  once Gnomon replaces their uncalibrated spread with immutable-primary
+  residual offsets, agents and benchmark adapters consume the displayed
+  calibrated quantiles rather than a different hidden raw-path distribution.
+- Remove a contradictory selected-context disclosure: a claim that grounds a
+  sealed human-facing scenario no longer simultaneously says it “did not alter
+  the selected numeric forecast.” The stable evidence-lane reason code remains
+  available, while the human-readable reason now distinguishes independent
+  execution from scenario grounding.
+- Treat an exact cited start plus an exact duration as a fully determined
+  override window only when it aligns with every covered host-grid row. This
+  collapses all quantiles for known outages/depletions instead of retaining an
+  incoherent upper tail, while approximate or mismatched windows keep widened
+  boundary uncertainty.
+- Preserve explicit descriptive statistics (averages, medians, typical rates,
+  and historical extrema) through a deterministic, quote-preserving recall
+  pass when the model compiler omits them. Restored facts remain scenario-only
+  until a separately sealed candidate uses them and can never authorize
+  automation.
+- Prevent one rejected context representation from suppressing safe use of
+  other grounded facts. The sampled interpretation lane now receives only
+  applicability-resolved, quantitative, non-associational source spans and
+  seals those exact claim IDs;
+  unresolved triggers and correlations remain visible as counterevidence but
+  cannot influence its numeric path.
+- Plan optional LLM scenario selection from the exact sealed portfolio returned
+  by the live forecast call. A governed executable fitted during execution can
+  now establish evidence dominance before selection, avoiding a redundant
+  model call and a confusing rejected stale ranking.
+- Give retrospective validation its own public evidence-authority class. A
+  strong fixed specification is no longer mislabeled as hypothetical
+  sensitivity, while remaining distinct from bitemporal historical admission
+  and ineligible for automation.
+- Preserve the provenance of deterministic sampled-prior selection when a
+  sealed portfolio is re-ranked. Host policy is no longer reported as an
+  unattested LLM selection pass; model rankings and policy decisions remain
+  distinct while both leave numbers, support, and automation unchanged.
+- Make context dispositions part of publication verification, not merely
+  sealed payload data. A correctly re-sealed receipt is now rejected when it
+  drops an actionable recovery, references a missing scenario, misstates its
+  canonical context summary, or reports the wrong portfolio size.
+- Separate forecast-valid admission from retrospective human usefulness for
+  governed relationship and categorical-state candidates. Replay can claim
+  historical skill only when the caller proves per-origin input availability;
+  otherwise its score is labelled `retrospective_unvintaged_*`, cannot upgrade
+  support, and cannot authorize automation. In explicit best-effort mode, one
+  strong source-grounded retrospective executable may still answer the user's
+  conditional question without replacing the immutable primary or spawning a
+  less accountable model-authored duplicate. Strict publication remains on
+  historically admitted evidence.
+- Add one fold-safe panel-consensus candidate for aligned companion series.
+  Each replay origin fits robust target-minus-companion offsets from its prefix,
+  aggregates peers by a column-order-invariant median, compares the single
+  estimator with the strongest target-only baseline, requires chronological
+  wins, and rejects excessive cross-peer heterogeneity. One outlying column
+  cannot move the median; the panel remains one fixed candidate while existing
+  individual mappings remain multiplicity-guarded. Publication stays
+  prior-assisted and non-automatable. The
+  receipt now exposes a bounded estimator scoreboard. Independent randomized
+  tests admit shared-signal panels in at least 36/40 seeds and unrelated panels
+  in at most 4/40. Per-origin availability is checked from every row's
+  `known_at`; late-arriving context cannot be backdated into replay skill. On
+  CiK unemployment seed 210 all four estimators correctly reported zero replay
+  origins because the document became known only at the present cutoff, and
+  retained the 0.3352 primary. Earlier seeds 210–211 also retained their
+  primaries (0.3352 and 0.7558). These probes validate discrimination,
+  integration, and vintage discipline—not benchmark uplift.
+- Replace one-shot model forecasts over weak structured companion panels with
+  repeated, independently validated point paths. Gnomon first attempts its
+  fold-safe deterministic mapping; only a failed admission opens the sampled
+  prior lane. The host seals the aggregate, records path/transport sufficiency,
+  keeps it human-only, and requires a bounded evidence-citing selector rather
+  than silently promoting it over the immutable primary. Selector guidance now
+  states that model-path agreement is elicitation coherence—not forecast
+  skill—and that an empty primary `claim_ids` list is normal. On spent panel
+  seed 210 an unconstrained rationale opportunistically selected the prior and
+  scored 0.1230; after the semantic guard it correctly retained the 0.3352
+  primary, and a fresh seed likewise retained its primary at 0.7879. These
+  probes validate safe behavior, not comparative uplift.
+- Separate optional prior-provider availability from user-context validity.
+  When every bounded sampled-path request fails at transport, the cited event,
+  analogue, or interpretation remains a valid labelled scenario and the
+  primary remains recommended. Transport counts, failure diagnostics, and
+  elapsed time stay visible, but the public context summary no longer calls
+  the user's evidence rejected or asks them to correct it.
+- Preserve one explicit dated numeric observation from a comparable entity as
+  a typed, non-authoritative historical analogue. It cannot establish target
+  skill or automation authority; in best-effort mode it only routes a bounded
+  model prior into the existing seal and sufficiency gates. For long horizons,
+  that provider-neutral prior contract now requests at most 32 host-selected
+  time anchors and deterministically interpolates the full host grid. Full-grid
+  responses remain accepted for compatibility. Independent tests cover exact
+  grid binding, irregular-time interpolation, malformed paths, and the
+  immutable/non-automation contract. On solar-analogue seeds 210–212, two
+  coherent anchor candidates scored 0.0665 and 0.0694; one transport/dispersion
+  failure retained the 0.3258 primary. The three-run mean was 0.1539. A matched
+  direct-control seed exhausted its 600-second case budget, so these results
+  establish routing behavior and within-Gnomon improvement, not comparative
+  model uplift.
+- Deduplicate identical authenticated claims carried by multiple sealed
+  candidate dossiers in the public context projection. Scenario identifiers
+  and representation reason codes remain merged and auditable, but one user
+  fact is no longer counted twice merely because both a governed executable
+  and a model-authored alternative cite it.
+- Retain one unambiguous, explicitly dated qualitative target direction as a
+  typed calendar event without asking an LLM to reproduce its provenance.
+  Best-effort mode may then elicit only bounded numeric paths; Gnomon seals
+  them, preserves the immutable primary, and keeps automation disabled.
+  Hedged, multi-date, driver-only, and direction-conflicted prose is refused.
+  On one spent holiday-traffic diagnostic this replaced a 59-second failed
+  dossier compile with a 30.5-second successful three-path elicitation and
+  moved RCRPS from 0.3165 to 0.2072; an untouched adjacent seed scored 0.2180.
+  These small probes validate routing behavior, not population uplift.
+- Compile explicit future zero-activity windows (for example a shutdown,
+  stockout, or depleted service with a stated start and duration) without an
+  LLM round trip. The conservative numeric parser must independently recover
+  zero; operational prose alone cannot imply it. Inclusive public windows are
+  bound to the host grid so a ten-day statement changes exactly ten daily
+  rows. Symbolic input-column names retain the host-verified target binding.
+  On the observed ATM diagnostic, compilation fell from about 59 seconds to
+  about 2 milliseconds and RCRPS improved from 0.1168 to 0.0503; an untouched
+  adjacent seed scored 0.0936. These are behavior checks, not an uplift claim.
+- Govern named but numerically incomplete target/driver relationships through
+  a fixed, low-dimensional relationship family (level-offset, linear, and
+  positive-data log-power). Selection uses prefix-only expanding-origin replay,
+  a complexity penalty, chronological block consistency, and the strongest of
+  last-value, expanding-mean, and robust-drift baselines. This resists shared-
+  trend confounding; weak relationships remain visible but cannot lead the
+  human recommendation or authorize automation.
+- Prevent governed scenario selectors from citing context as support for a
+  sealed scenario that does not carry that claim. Unattached context must be
+  represented as counterevidence, avoiding explanations that rhetorically bind
+  rejected evidence to an unchanged primary forecast.
+- Add privacy-safe structural diagnostics for model-authored sampled paths
+  (response hash, shape, value count, and rejection class) without retaining
+  raw provider output or user context.
+- When a named relationship lacks executable parameters and historical replay
+  cannot admit a mapping, allow the host model to contribute only a repeated,
+  declarative `linear` or bounded `power` family prior. Gnomon fits scale,
+  constructs uncertainty, seals the scenario, and keeps it prior-assisted and
+  non-automatable. Functional-form agreement does not force headline
+  selection: a spent diagnostic showed that doing so can be catastrophically
+  wrong when the named law leaves target normalization or sign ambiguous.
+- Preserve all typed hypothesis identities across publication sealing and
+  reranking, so a valid relationship hypothesis cannot become an “unknown” ID
+  between the initial selector check and the live artifact selection.
+- Permit signed target scales for positive-driver power priors. The power-law
+  domain restriction belongs to the driver/basis; pressure differences,
+  returns, deltas, and net cash flows may legitimately be negative.
+
+- **Explicit driver laws now produce governed conditional answers instead of
+  target-identity mistakes.** High-precision reference-normalized square/cube
+  relationships receive a deterministic typed front door. The host asks its
+  model only for independent future driver paths, then applies the cited law
+  itself; driver values can no longer become target overrides or model
+  arithmetic silently change the relationship. Transport failures are
+  reported separately from returned-path coherence, and ungrouped MCP runs
+  retain the caller's semantic target through publication. The CiK MCP jail is
+  now pinned to the working-tree source, closing a benchmark defect that ran
+  the current host against a stale installed server. On the spent diagnostic
+  `ExplicitPressureFromSpeedTask` seed 175, current-code RCRPS moved from
+  0.992 to 0.299 and latency from about 59s to 12.5s; this validates behavior,
+  not held-out uplift. The immutable primary remained visible and the selected
+  prior-assisted answer remained ineligible for automation.
+
+- **Validated structural prose now survives the complete agent path.** The
+  context compiler copies its verified quote and closed effect label into the
+  executable event, the MCP forecast boundary automatically recognizes that
+  typed event, and the brief response includes a bounded first/last scenario
+  preview plus typed effect provenance. Compiler receipts are versioned at
+  0.3, so older receipts lacking those fields are regenerated instead of
+  silently producing a rejection. The common context outcome now projects the
+  transformation-specific gate rather than a displaced generic-ablation gate.
+  In a fresh live DeepSeek replay, both true and false structural claims became
+  explicit non-automatable scenarios in one Gnomon call, with the primary
+  preserved, exact artifact parity, complete authority explanations, and zero
+  leakage.
+
+- **Unstable sampled priors no longer become the headline merely by parsing.**
+  Provider-neutral model priors now receive a host-computed elicitation gate
+  over valid-path survival, direction agreement, and scale-free path
+  dispersion. Insufficient priors remain sealed, visible, and outcome-scoreable
+  but cannot displace the immutable primary; passing the gate still grants no
+  historical support or automation authority. Hosts start with three paths and
+  expand to the bounded cap only when the initial elicitation is malformed or
+  incoherent. Context traces now count hypothesis and candidate rejections,
+  report candidate availability across every dossier, and separate a selected
+  scenario's recommendation reason from its original evidence-lane diagnosis.
+
+- **Forward structural claims now remain useful without gaining unearned
+  authority.** A resolved structural transformation is published as a typed,
+  non-automatable prior-assisted scenario unless the transformation itself has
+  at least four separated historical or analogue evaluations. Generic
+  forecast-model selection folds no longer stand in for effect evidence. On a
+  frozen fresh-seed 112-case ContextBench run, structural primary changes and
+  structural harm both fell from 2/16 and 1/16 to 0/16, while the numeric
+  scenarios remained available, admission precision stayed 100%, high-SNR
+  recall stayed 87.5%, interval coverage stayed 76.8%, and leakage stayed zero.
+  This is safety preservation and scenario usefulness, not forecast uplift.
+
+- **Context authority is now single-source and verifier-enforced.** Every
+  context disposition carries `canonical_primary_preserved` and an explicit
+  non-automation decision, while the compact tool response adds one quotable
+  authority summary. Context-agent submissions copy both booleans; omissions
+  receive a bounded artifact-reuse repair that never reruns Gnomon. A new-seed
+  five-disposition diagnostic preserved publication identity, zero leakage,
+  one Gnomon call, exact gate citations, and 100% disposition accuracy; the
+  previously failing out-of-scope explanation passed after the verifier rule.
+
+- **Unparsed temporal prose now reaches semantic compilation.** Literal
+  schedules still take the zero-call deterministic path, but non-schedule
+  narratives no longer disappear. The compiler prompt names the closed
+  structural vocabulary and forecast boundary; one conservative normalization
+  maps a verbatim “trend will cease” claim into `structural:trend_ceases` and
+  bounds an open end to the forecast window, with both repairs recorded.
+  Stress generation now preserves named entity scope in prose and uses
+  family-correct expected dispositions, closing a benchmark case whose text
+  contradicted its hidden scope metadata.
+
+- **Context scenarios cannot imply automation authority.** Every applied,
+  scenario-only, partially represented, and rejected context outcome now says
+  explicitly that context admission alone is not automation eligibility. The
+  agent evaluation requires the model to copy that boolean and state the limit
+  unambiguously; “automation was not requested” no longer substitutes for
+  “this scenario is not eligible.” The matched diagnostic preserved the false
+  value on all three cases without changing the primary forecast.
+
+- **Context explanations must cite the engine evidence they rely on.** The
+  context-agent evaluation now asks for bounded typed citations to Gnomon's
+  failed admission gates and checks them against the gates actually returned
+  by the submitted artifact. Fluent prose can no longer pass the explanation
+  contract while attributing a scenario decision to invented evidence. In a
+  matched three-case DeepSeek diagnostic every failed gate was cited without
+  an invented code, with one Gnomon call per task and the primary unchanged.
+
+- **Context rejection is now typed through the agent boundary.** Scenario and
+  rejection outcomes expose the exact failed admission-gate codes alongside
+  human-readable reasons, and the MCP benchmark projection retains them. A
+  matched DeepSeek diagnostic now attributes every missed influence to its
+  measured gates instead of reporting an empty reason set, while preserving
+  one-call execution, artifact identity, and zero leakage.
+
+- **Complete context receipts are no longer repaid as prompt history.** The
+  benchmark host still binds every accepted event and hypothesis to Gnomon's
+  execution and preserves the complete immutable receipt, but gives the
+  tool-driving model only bounded routing/provenance counts. On a matched
+  three-case DeepSeek diagnostic this cut prompt usage from 81,386 to 37,465
+  tokens while preserving the explanation contract, one-call execution,
+  artifact identity, and zero leakage. This is diagnostic efficiency evidence,
+  not a context-admission graduation claim.
+
+- **Context knowledge time is host-owned, and literal tickets stay cheap.**
+  A document-bound `known_at` now overrides model-authored timestamps with a
+  disclosed normalization, so compiler and canonical folds use the same
+  information set. The explicit schedule parser accepts narrowly structured
+  ticket prefixes and trailing metadata; a 32-event diagnostic fell from 19
+  compiler calls to zero while retaining verbatim source grounding.
+
+- **ContextBench now measures the human-facing synthesis.** Compiled forecast
+  routing still requires one Gnomon call, but context rows receive one bounded
+  post-tool turn and retain its explanation. Reports separately measure
+  preservation of the immutable primary, scenario status, interval limits,
+  and automation limits instead of silently auto-submitting the artifact and
+  calling that agent behavior.
+
+- **Repeated context is one decision, not repeated token tax.** Numerically
+  identical sensitivity paths now collapse into one sealed publication
+  scenario with every context id retained. MCP briefs group repeated events,
+  hypotheses, exclusions, dispositions, and claims into bounded previews plus
+  exact counts and receipt locations. The complete artifact and publication
+  receipt remain unchanged and auditable.
+
+- **Point usefulness and interval reliability are now separate context
+  claims.** When an event path improves point forecasts on every admission
+  gate except independent interval coverage, Gnomon retains it as a typed
+  `point_supported_interval_weak` scenario. It cannot replace the immutable
+  primary or authorize automation, and it carries an effect distribution,
+  provenance, knowledge time, and the failed coverage reason. Agent briefs
+  aggregate large repeated-event sets while the immutable artifact retains
+  every event and hypothesis.
+
+- **A fold winner must remain executable on the complete visible history.**
+  Built-in candidates now receive a domain-only final-fit check before
+  calibration. If later visible observations invalidate the model (for
+  example, a negative demand value invalidating Croston-SBA), Gnomon
+  recalibrates and publishes the strongest baseline instead of crashing after
+  selection or attaching the failed candidate's intervals to a fallback.
+
+- **Recurring events must separate from calendar placebos beyond sampling
+  noise.** Episode candidates require their episode-level 95% lower bound to
+  exceed the strongest displaced copy of the schedule. Residual and detrended
+  candidates replay their own fold scorer under those same fixed placebos and
+  must beat the strongest by the ordinary admission margin. A lucky calendar
+  alignment can no longer bypass the test by winning through another
+  estimator family.
+
+- **Short-history panel pooling now requires repeatable transfer.** The
+  within-file pooled-trend candidate must win at every available disjoint
+  target origin as well as at least 75% of leave-one-channel-out donor
+  comparisons. Its admission receipt reports the target comparison count and
+  win rate. This replaces the single-target-window gate that could promote a
+  lucky marginal relationship. The independent benchmark now rejects any
+  harmful marginal admission and its documented direct command is executable.
+
+- **Resolved decision skill reuses the synthesis ledger.** Categorical
+  canonical-versus-model selections now aggregate by proposer with paired
+  wins/losses, an exact sign test, and shrunk net improvement. The CLI and MCP
+  expose this as human-prior evidence only. Reconciliation accepts it only
+  when proposer identity matches and `known_at` is cutoff-safe; support and
+  automation upgrades remain impossible.
+
+- **Host-sealed pre-evidence temporal priors.** Provider-neutral helpers now
+  validate and seal an LLM's threshold decision before it sees Gnomon, then
+  build a deterministic reconciliation packet with explicit prediction,
+  action, and probability conflicts. The prior remains `prior_assisted`, the
+  primary stays immutable, and reconciliation is never automation-eligible.
+  A request-bound BreachBench reconciliation runner measures whether this
+  two-stage lane recovers useful model judgment instead of assuming it does.
+- **Reconciliation must expose its reasoning choice.** A validated selection
+  receipt now requires the chosen source, distinct counterevidence under
+  conflict, confidence, and a bounded falsifiable condition. The benchmark
+  counts a structurally valid forecast answer with missing reconciliation
+  fields as a failed reconciliation rather than crediting opaque copying.
+- **Reconciliation reports conflict-conditioned behavior.** The diagnostic
+  now counts which source an agent names when actions conflict, whether its
+  chosen action follows the prior or primary, and purported synthesis that
+  simply reproduces the primary. This prevents a valid-looking reasoning
+  receipt from masquerading as actual use of the preserved prior.
+- **Proposer skill stability is split, never post-selected.** Reconciliation
+  diagnostics now report prior-versus-primary paired wins independently on
+  calibration and evaluation partitions. The retrospective row is explicitly
+  excluded from selection; an apparent advantage that reverses out of sample
+  cannot be promoted into product authority.
+
+- **Weak breach evidence no longer communicates exact certainty.** Short-
+  history horizon-event estimates based on independence-composed per-step
+  marginals now retain the raw composition as a diagnostic but publish a
+  once-per-event Jeffreys-regularised probability and 90% finite-sample
+  interval using the real rolling-origin count. Neither synthetic bootstrap
+  paths nor additional horizon leads inflate that count, and regularisation
+  is not repeated per lead, avoiding prior-driven horizon inflation. The
+  estimate remains `best_effort` and automation-ineligible.
+- **Probability regularisation cannot manufacture an intervention.** The
+  regularised horizon probability remains the reader-facing uncertainty
+  estimate, while best-effort policy projection uses the disclosed raw
+  empirical composition as `decision_probability`. Both roles and bases are
+  returned; a Jeffreys pseudo-count can no longer push an otherwise zero-event
+  sample across a client's action boundary.
+- **Breach probability and advice roles are machine-readable.** Policy output
+  now identifies the sole quotable event probability separately from its raw
+  calculation input, and labels supported human advice `binding` versus
+  best-effort advice `advisory`. Agents may exercise outcome-scored human
+  judgment over advisory advice without gaining automation authority.
+- **Weak policy calculations no longer occupy a recommendation field.** A
+  supported action is returned as `recommended_action`; the same concrete
+  calculation at best-effort authority is returned as `advisory_action` with
+  `recommended_action: null`. This preserves usefulness without making an
+  agent fight an instruction-shaped field to exercise permitted judgment.
+- **BreachBench distinguishes useful model judgment from safety failures.**
+  Divergence from a best-effort human recommendation is now reported as an
+  outcome-scored beneficial/harmful/neutral override with regret delta, while
+  automation preservation remains a strict invariant. The legacy
+  `preservation_rate` is retained for compatibility but is explicitly an
+  adherence measure, not a requirement that the model surrender judgment.
+- **BreachBench resume is request-bound.** Every paid row now fingerprints
+  the exact system prompt, arm prompt including the Gnomon packet, model,
+  endpoint, token budget, reasoning mode, and temperature. Resume rejects
+  legacy or mismatched rows instead of silently mixing answers elicited under
+  different product behavior; scorer-only changes can still reuse raw rows.
+
+- Upgrade BreachBench's answer contract to separate binary prediction,
+  evidence sufficiency (`breach`/`no_breach`/`indeterminate`), and cost-aware
+  action. It now carries bounded product assessments, reports assessment and
+  probability coverage, scores supplied probabilities with Brier loss, and
+  measures preservation of bounded conclusions independently of automation.
+- Separate breach advice from automation authority. The production breach
+  policy now exposes `automation_eligible` only for supported decisions;
+  BreachBench prices human advice independently while requiring unsupported
+  automation to remain withheld.
+
+- Return a bounded threshold assessment when short histories cannot support a
+  calibrated breach probability. The response separates the primary point
+  answer, displayed-range relation, model-assisted disagreement, and an
+  `indeterminate` conclusion; it never manufactures probability or automation
+  authority, and decide/monitor remain unarmed without calibrated risk.
+- Deduplicate MCP brief responses losslessly: repeated per-series warnings
+  become exact counted limitation groups, warning reasons point to those
+  groups, and model-assisted prose points to its typed lane. Full CLI output
+  and sealed artifacts remain unchanged; the difficult short-history
+  threshold response now fits the response-byte budget.
+
+- Bind benchmark choice slots to declared canonical engine facts so agents may
+  explain temporal categories without rewriting their machine-readable value;
+  retain attempted overrides as diagnostics rather than silently accepting
+  them. Workflow observations now also retain resolved horizon and threshold
+  routing telemetry.
+- Derive publication parity and quote fidelity only from host-held execution
+  identities and artifact numbers. Model-authored trust booleans are ignored;
+  missing evidence stays unknown instead of becoming a false attestation.
+
+- Derive response sufficiency from the actual invoked verb at the shared tool
+  boundary. Completed forecasts now declare exactly what they answer and that
+  further forecast/explanation calls add nothing; previously the missing verb
+  made valid answers advertise `requires_follow_up: true` and encouraged
+  redundant agent calls.
+- Repair the workflow reference adapter's context-free path and make failed-
+  stage resume honest. Ordinary forecasts no longer read uninitialized
+  context recommendation state, context sensitivity telemetry is emitted only
+  when context exists, and `--resume` reruns observations whose required
+  repair/outcome stage failed. Stage failures retain one bounded diagnostic
+  line for debugging without copying full subprocess transcripts.
+- Preserve the agent-compiled forecast horizon through the benchmark host
+  boundary instead of forcing every question to one step. If omitted, the
+  product's disclosed one-season default applies. The installed skill now
+  states the grid conversion explicitly (`next week` = 7 daily or 168 hourly
+  periods), preserves finite decision thresholds, and instructs agents to ask
+  Gnomon for breach evidence rather than eyeballing interval rows. Benchmark
+  telemetry records the resolved horizon and threshold presence.
+- Remove an ambiguous legacy field from the default brief projection. The
+  frozen artifact still records `primary_forecast_changed`, but the agent wire
+  response now says `selected_projection_differs_from_primary` alongside
+  `canonical_primary_preserved`, so a conditional path cannot be mistaken for
+  mutation of the immutable primary. External benchmark adapters accept both
+  spellings during the compatibility transition.
+- Bind compact literal claims to their source document and classify the
+  sentence containing the quoted span. External forecasts can no longer be
+  relabelled as binding constraints, while unrelated task wording cannot
+  poison a genuine rule in a later sentence. Rejections return a typed path
+  into the governed forecast-candidate lane.
+- Convert ambiguous qualitative timing into a one-call typed rejection instead
+  of a schema-error loop. Host-bound benchmark calls may complete incomplete
+  rejection objects deterministically; the common `event_id` spelling is
+  normalized to `context_id`, while conflicting aliases and unknown fields
+  still fail loudly.
+- Treat context scoped to another series as absent for that series, not as an
+  invented `engine-context` rejection requiring repair.
+- Reject cross-lane disposition conflicts before numeric execution: the same
+  context id can no longer be both an executable event and a rejection in one
+  request. The typed error names the conflicting ids and the single required
+  repair, preventing contradictory human-facing publications.
+- Make automation authorization explicit and actionable. The MCP schema now
+  names the complete caller-owned policy contract; publications distinguish
+  not-requested, incomplete-policy, evidence-ineligible, and authorized
+  outcomes with stable reason codes and missing-field guidance. The legacy
+  `allow` spelling remains a disclosed alias, while recommendations and
+  conversational policy prose still cannot grant automation authority.
+- Add an independent automation-pressure workflow corpus covering quantified,
+  qualitative, and contradictory context. Privacy-safe benchmark telemetry
+  separates policy shape from recommendation behavior without retaining policy
+  identifiers or source text.
+- Measure whether the agent preserves canonical context disposition codes in
+  its final answer, separately from engine correctness, and instruct the
+  reference integration to copy those codes rather than reinterpret them.
+- Compact scenario-selection contracts on the default MCP wire projection:
+  omit duplicated schemas, repeated temporal state, null derivation fields,
+  and long workflow prose while retaining identities, seals, eligibility,
+  summaries, claims, non-empty evidence, and the complete sealed receipt. The
+  workflow benchmark now attributes schema and tool-response bytes separately
+  from model tokens.
+- Diet the default Evidence schema and installed agent skill by removing prose
+  already enforced by enums and JSON Schema while retaining every field,
+  safety invariant, context lane, publication mode, and recovery rule. Exact
+  disposition-fidelity scoring applies to rejected facts, where the reason is
+  material, rather than requiring internal success codes in human prose.
+- Treat public MCP automation arguments as advisory, because a model-authored
+  tool call is not an authorization credential. Host-controlled CLI/daemon
+  policies can still authorize supported paths; MCP returns the stable
+  `untrusted_authorization_channel` denial instead. Benchmark reporting now
+  measures preservation of typed recovery codes for rejected context.
+- Support strict, best-effort, and scenario publication for batched
+  multi-target forecasts. Each series receives its own sealed publication and
+  sidecar while the response carries a compact aggregate; scoped context can
+  affect one channel without changing another, and automation remains a
+  per-series policy decision. Cross-series dossier ranking still fails loudly.
+- Route wide requests by the user-requested verb before dataset shape, so a
+  multi-series forecast no longer becomes a descriptive call. When a compact
+  literal omits scope in a multi-target request, bind it only if its quoted
+  source names exactly one requested target; otherwise require explicit scope.
+
+- Make mixed qualitative and literal context reliable through the agent
+  boundary. Single-target calls can omit redundant event scope, host-resolved
+  transport names remain aligned with context scope, daily date-only times are
+  normalized to disclosed UTC boundaries, and quoted source semantics correct
+  a mistaken cap-versus-fixed-state label without trusting a model-authored
+  number. Mixed outcomes now preserve per-item used, scenario, and rejected
+  dispositions; the immutable primary and automation policy remain unchanged.
+- Once a workflow engine response is sufficient, require the agent to submit
+  its answer instead of spending calls on exploratory or nonexistent tools.
+  Workflow diagnostics now retain privacy-safe context-routing and admission
+  codes so interface failures can be distinguished from forecast failures.
+
+- Preserve every host-validated sampled forecast path inside the sealed context
+  receipt instead of discarding temporal dependence after computing compact
+  q10/q50/q90 rows. Publication exposes a bounded distribution descriptor;
+  humans still receive the compact forecast, while probabilistic consumers can
+  use the authenticated empirical paths without synthetic reconstruction.
+- Elicit each sampled forecast path through a separate concurrent model
+  request under one shared deadline. This avoids treating potentially
+  correlated choices from one provider batch as independent evidence, records
+  the request protocol in the sealed dossier, and preserves bounded latency.
+- Stop applying the deterministic compiler's non-reasoning, 2,500-token policy
+  to numeric forecasting. Sampled forecast candidates now inherit the selected
+  model/provider reasoning mode and the same 10,000-token ceiling as the
+  matched direct forecasting interface; semantic compilation remains bounded
+  and non-reasoning.
+- Let the numeric candidate lane use the conventional timestamp-value forecast
+  response that forecasting models handle well. Gnomon validates every returned
+  timestamp against its host-owned grid before converting the path to sealed
+  internal JSON; the earlier JSON value-path format remains accepted. The call
+  also carries an explicit forecasting system role.
+- Align the bounded numeric-candidate prompt with ordinary forecasting intent:
+  explicitly use relevant background, satisfy constraints and respect
+  scenarios. Host-owned timestamps, finite-value validation, receipts,
+  immutable primary output and non-automation policy remain unchanged.
+- Seal host-computed, scale-free sampled-prior stability diagnostics: marginal
+  dispersion, pairwise path disagreement and temporal-direction agreement.
+  These facts are visible to agents and humans as uncertainty evidence but are
+  explicitly barred from masquerading as historical skill, support upgrades,
+  or automation authority.
+- Prevent a small set of model path samples from presenting their dispersion
+  as calibrated q10/q90 tails. The sampled median supplies location while the
+  published conditional path inherits the immutable primary's calibrated
+  per-timestamp offsets. Sample dispersion stays visible as a diagnostic; the
+  derivation is explicit and resealed, and neither source path is mutated.
+- Elicit categorical best-effort model priors as five independent point paths
+  in one bounded request, validate each draw against the host-owned grid, and
+  derive marginal q10/q50/q90 deterministically. This replaces unreliable
+  one-shot self-reported quantiles while retaining sealed prior-assisted
+  provenance, immutable primary output, and a categorical automation ban.
+- Separate semantic compilation from numeric prior elicitation. The bounded
+  path sampler now receives only the exact history, context, host grid and
+  numeric output contract—never raw replay scores, failed surrogate-model
+  diagnostics or compiler instructions. Failed replay remains visible in the
+  sealed receipt without anchoring an independent numeric forecast.
+- Fix CiK shadow attribution when a context receipt contains both a governed
+  rejected executable and a later model-authored candidate. Shadow scoring now
+  follows the retained candidate's dossier seal instead of silently scoring
+  the first dossier under the model candidate's label.
+- Seal host-observed path-sampling counts and aggregation method into the model
+  candidate dossier and expose them to bounded selection as stability context,
+  explicitly not as historical skill or automation evidence.
+- Make an explicit `best_effort` request choose one valid host-sampled prior
+  when at least three sampled paths survived validation and no governed
+  path dominates. Strict mode still publishes primary, scenario mode retains
+  choice, support remains `prior_assisted`, and automation remains forbidden.
+- Label that choice as an explicit best-effort policy action rather than an
+  independent LLM ranking or an error. Recommendation receipts now distinguish
+  policy selection, historical admission, and governed scenario selection.
+- Expose an out-of-sample-winning short-history seasonal-naive path through
+  the existing model-assisted lane instead of forcing the strict primary to
+  abandon its last-value guardrail. Best-effort publication may rank this
+  human-review-only path; its display intervals retain the primary's offsets,
+  are explicitly not candidate-calibrated, and can never authorize automation.
+- Make that seasonal best-effort choice deterministic only after a fold-safe
+  prequential sweep covers every phase of a complete held-out cycle, clears a
+  25% margin over last value, and wins at least three of four phase blocks.
+  Independent random-walk seeds guard its false-admission rate.
+- Keep a model-assisted path based only on a partial trailing holdout visible
+  for comparison but ineligible for the human-facing recommendation. It earns
+  recommendation authority only from a full-horizon win or the complete-cycle
+  prequential gate; neither path can authorize automation.
+- Let best-effort context publication request one sealed model-authored state
+  forecast after the governed categorical executable fails replay. The model
+  sees the failed validation as counterevidence; its path remains a distinct,
+  human-review-only candidate and cannot mutate the primary, upgrade support,
+  or authorize automation.
+- Make the scenario-ranking contract explicit that historically rejected or
+  otherwise ineligible paths remain visible counterevidence but cannot outrank
+  a human-eligible path. The verifier remains fail-closed if a selector ignores
+  that rule.
+- Add a governed short-history companion-path executable. It fits only a
+  robust contemporaneous level difference, evaluates that mapping on
+  expanding origins against last value, emits explicit uncertainty and a
+  sealed lineage record, and remains prior-assisted and non-automatable even
+  when it earns human recommendation eligibility.
+- Preserve governed companion-candidate validation and executable lineage
+  through the sealed dossier boundary. Model-authored provenance cannot claim
+  this origin; only a host-supplied validated candidate may use it.
+- Bind exact validated companion rows into narrow cited claims and require the
+  table identity itself to appear in source before fitting. Unlabelled numeric
+  arrays, partial future grids, and fewer than four overlapping observations
+  remain non-executable.
+- Ground companion identity by complete source-token coverage rather than one
+  contiguous label. Split document headings such as a geography plus a metric
+  description now work, while an invented meaningful token still blocks fit.
+- Evaluate multiple aligned companion paths and apply a candidate-count-aware
+  replay threshold before human recommendation eligibility. Only the selected
+  table's source rows become dossier claims, keeping receipts bounded and
+  preventing first-table order from deciding the answer.
+- Route structured companion data through a compact extraction-only compiler
+  contract. The model no longer receives the full event/effect/transformation
+  grammar or authors forecast numbers for this lane, and a successfully
+  extracted table proceeds directly to the governed mapper without a redundant
+  second LLM repair call.
+- Detect structured reference/peer/driver tables from their source text rather
+  than benchmark-only metadata, and preserve the pre-claim candidate count and
+  adjusted threshold in the selected candidate's final validation receipt.
+- Add a deterministic, fail-closed front door for explicit
+  heading/separator/timestamp-value blocks. Exact host-grid tables no longer
+  spend an LLM call on transcription; ambiguous, incomplete, duplicate-name,
+  or non-finite layouts fall back to the governed LLM compiler.
+- Add an independent 100-seed admission check for the companion executable:
+  stable offset signals must be admitted while unrelated random walks remain
+  below a five-percent false-admission ceiling.
+- Shrink short, noisy companion displacements toward last-value until they
+  accumulate the eight replay origins required by the supported tier, and
+  retain the unadmitted displacement in the interval. Exact identities and
+  sufficiently replayed mappings remain unchanged.
+- Preserve both a replayed companion executable and a separately sealed
+  model-authored interpretation in best-effort portfolios. The selector now
+  sees compact candidate validation, evidence volume and shrinkage rather than
+  inferring quality from role names; model paths remain human-review-only.
+- Give malformed or prose-only model candidate responses one bounded repair,
+  record candidate origin/status and the final ranking in traces, and repair
+  the shadow evaluator so it scores the intended sealed model path rather than
+  silently falling back to the primary.
+- Retain candidate role, provenance origin and scenario seal in resolved
+  synthesis receipts, and expose a `candidate_outcomes` tracking summary.
+  Human-prior graduation requires at least eight resolved numeric paths,
+  positive mean uplift and a 95% Wilson lower win-rate bound above chance;
+  it can never upgrade support or automation authority.
+- Bound compiler rejection diagnostics only at the MCP wire projection. A
+  context receipt with more than 16 rejection reasons now sends 15 plus a
+  typed overflow pointer while retaining the complete lossless receipt, so
+  diagnostic detail cannot invalidate the forecast call it is meant to
+  explain.
+- Give dated companion-series paths one bounded semantic repair when an LLM
+  leaves them as prose or a future-only table without an executable mapping.
+  The repair must extract verbatim rows and either seal a human-review-only
+  mapped candidate or name why the mapping is unidentifiable; it never grants
+  automation or changes the immutable primary by itself.
+- Canonicalize human-readable covariate table labels into collision-safe
+  internal identifiers when no executable references them. Punctuation in an
+  otherwise verbatim table can no longer discard its values; referenced names
+  remain strict to prevent silent semantic rebinding.
+- Recover a normalized covariate timestamp's exact source token from its
+  verbatim quote when the instant is unambiguous. Equivalent ISO formatting
+  can no longer discard a row, while uncited or ambiguous times still fail.
+- Resolve duplicate context semantics toward the safer lane: when an LLM emits
+  the same cited companion-series row as both a covariate and a target override,
+  the override is demoted and the receipt records the normalization. A driver
+  observation can no longer masquerade as an exact target intervention.
+- Separate context ingestion from forecast influence in publication responses.
+  A valid covariate that cannot be evaluated on a short history now reports
+  `received_not_evaluable`, while evaluated-but-rejected and admitted inputs
+  have distinct states; users no longer see “nothing passed” after their table
+  was successfully validated.
+- Recover a malformed covariate evidence quote only when one unique source line
+  contains both its exact normalized timestamp and numeric value. This makes
+  punctuation variance repairable without permitting ambiguous or invented
+  observations.
+- Give the governed scenario selector compact interior-shape evidence: extrema
+  and timestamps, turning points, and the largest deviation from the immutable
+  primary. Temporary closures, campaigns, outages, and interventions can no
+  longer look flat merely because their first and last values match.
+- Let a host-parsed deterministic absolute/range event supersede a broader
+  model-authored event over the identical source quote. Compiler ordering can
+  no longer make a qualitative `closure` shadow an exact zero or bounded
+  contract; the superseded type remains disclosed in event attributes.
+- Allow literal value parsing after an explicit source date reconciles a
+  model-authored unresolved-timing label. The reconciliation itself still
+  grants no magnitude authority; the independent parser must recover the
+  stated zero or bound, so identical text no longer changes lane with compiler
+  metadata.
+- Let an already target-bound event quote establish the omitted grammatical
+  subject of a claim in a single-series request. Elliptical operational prose
+  such as “the building containing the machine is closed” can reach the
+  deterministic parser without globally treating every building or device
+  number as the forecast target.
+- Reserve a bounded share of the context-workflow deadline for its single
+  repair turn. A slow empty initial completion can no longer leave the repair
+  with a one-second timeout and turn recoverable model formatting into a
+  context-free answer.
+- Distinguish an unstated domain constant from an unsafe or source-
+  contradictory transformation failure. In best-effort mode only, a sealed
+  model prior may remain human-selection eligible when the deterministic lane
+  failed solely because the cited document omitted that constant; timing,
+  provenance, safety, and explicit-quantity failures remain hard blocks.
+- Treat a verified numeric bound as recommendation authority only when the
+  deterministic context contract actually applied it. A loose or inoperative
+  bound still constrains plausibility, but no longer suppresses an otherwise
+  valid prior-assisted human scenario merely because both cite the same text.
+- Canonicalize the common selector formatting error where one claim is listed
+  as both support and counterevidence. Claim ownership by the already selected
+  sealed scenario resolves only that duplicate classification; ranking,
+  confidence, rationale, numbers, and support remain model-authored and
+  verifier checked.
+- Reconcile exact clock-time transition statements against the host-owned
+  forecast grid. Operational context may now apply a cited intraday change
+  at the first forecast step or observation cutoff without inventing a
+  calendar date, while bare report times remain categorically insufficient to
+  authorize a numeric effect.
+- Prevent a model-authored forecast from retaining stale human-selection
+  eligibility after a governed executable or deterministic context contract
+  over the same claims takes numeric authority. The model path remains in the
+  receipt for comparison and outcome scoring, but cannot override the engine.
+- Make one fully validated, source-grounded declarative transformation the
+  non-discretionary human recommendation in best-effort mode. Its
+  prior-assisted support and automation prohibition remain unchanged; the LLM
+  no longer spends a call deciding whether to ignore the caller's executable
+  conditional question.
+- Make every CiK pre-validation normalizer total over arbitrary model output
+  shapes and reapply idempotent host-owned relationship bindings after the one
+  bounded repair. Scalars and malformed collections now become typed
+  rejections instead of adapter crashes, while repaired exact relationships
+  retain their verified claim windows and provenance.
+- Distinguish relationship data insufficiency from malformed context: short
+  histories now return the aligned-observation requirement and a collect-then-
+  rerun action. A historically tested relationship that fails to beat
+  last-value remains visible but can no longer displace the immutable primary
+  or tell users to rewrite otherwise valid context.
+- Canonicalize top-level fitted-relationship proposals without a second LLM
+  call and make every provenance-binding pass tolerate malformed nested
+  transformation or series shapes. Invalid model output now reaches typed
+  validation instead of crashing; valid compact output remains one-call.
+- Make cited driver-range reconstruction authoritative over malformed
+  model-authored history, bind relationship-claim applicability to the
+  host-owned forecast grid, and ignore impossible empty ranges that cover no
+  timestamp. This removes compiler-shape variance without changing source
+  values, lags, schedules, or estimator admission.
+- Bind deterministic literal extraction to exact symbolic target identifiers
+  such as `X_1` and remove identifier digits before numeric parsing. Mixed
+  target/driver paragraphs can no longer turn a driver's schedule—or the
+  target's numeric suffix—into a target override. Claims already represented
+  by a sealed transformation are no longer duplicated as contradictory
+  "interpretation only" dispositions.
+- Add a governed fitted-relationship lane for documents that state temporal
+  parents and lags but not numeric coefficients. `fit_recursive_linear` lets
+  the model cite structure and driver schedules while Gnomon alone fits the
+  coefficients, requires expanding-origin skill over last-value, preserves the
+  immutable primary, labels the result retrospectively validated, and forbids
+  automation. Cited driver history may now supply a column absent from the
+  input table instead of failing before the governed representation bridge.
+- Preserve relevant qualitative rules with undated triggers as typed
+  `unresolved_trigger` claims. They remain scenario-only, cannot produce
+  deterministic effects or automation, and return a concrete request for the
+  missing trigger identity and effective window. A one-path publication now
+  also reports selector work as unnecessary rather than as an error.
+- Reconcile a compiler's erroneous unresolved-timing label when its verbatim
+  cited clause explicitly dates the supplied onset. This correction grants no
+  numeric or automation authority; genuinely undated and merely reported-at
+  context remains scenario-only.
+- Skip the bounded LLM repair when all retained claims lack trigger timing. A
+  retry cannot create missing source evidence and can mis-bind a replacement
+  hypothesis; the response now preserves the cited claims and returns the
+  dated-trigger recovery directly instead of guessing in a second call.
+- Distinguish atemporal background evidence from undated future triggers.
+  Historical summaries and timeless relationships now receive applicability
+  recovery rather than a nonsensical request for an event date, remain
+  scenario-only by default, and cannot authorize deterministic effects or
+  automation.
+- Mark explicitly correlational/co-occurring claims as associational rather
+  than causal. A model-authored path that cites them remains inspectable but
+  cannot become the recommendation without a fold-validated relationship
+  executable, preventing lucky causal leaps from gaining product authority.
+- Derive stable non-numeric hypotheses from verified atemporal claims when an
+  LLM formats that optional lane incorrectly. This preserves historical
+  background and associational caveats in one call instead of asking a second
+  model response to recreate evidence the validator already understands.
+- Join a magnitude-only claim to a uniquely containing, validated event quote
+  when the source separates arithmetic from timing. Exact baseline multipliers
+  now compile deterministically into a non-automatable conditional effect, and
+  the adapter avoids an LLM repair while the validated join is pending.
+- Recover exact multipliers stated in an adjacent sentence only when one
+  validated event, one same-paragraph source segment, a bounded distance, and
+  compatible direction make the join unambiguous. Approximate multipliers keep
+  their cited center but discard model-invented numeric ranges; uncertainty
+  remains inherited from the immutable primary path. A sole source-determined
+  numeric scenario cannot then be silently demoted by the LLM selector; it
+  remains hypothetical, human-reviewed, and ineligible for automation.
+- Derive an effect's relative execution delay from an explicit onset cited in
+  the same source paragraph instead of trusting a model-authored step index.
+  Optional effect bounds emitted as JSON `null` now mean an unbounded point
+  proposal rather than forcing a repair; primary forecast uncertainty remains.
+- Let a unique, verified multiple or percentage of a stated baseline repair an
+  invalid model-authored effect distribution before validation. The cited
+  number supplies the conditional point effect; invented or reversed bounds
+  cannot veto it, and the resulting path remains non-automatable.
+- Distinguish `retrospectively_validated` transformation paths from truly
+  `historically_admitted` paths when the source specification was not known at
+  each replay origin. Retrospective winners may remain the human-facing best
+  estimate, but cannot imply bitemporal admission or automation authority.
+
+- Add an explicit CiK `immutable_primary` diagnostic role. The previous
+  `canonical` label referred to the public artifact trajectory, which may be
+  context-conditioned and therefore could not serve as a context-free matched
+  comparator.
+
+- Bind deterministic absolute-value and range extraction to the forecast
+  target before applying it. Numeric driver schedules can no longer be
+  silently reinterpreted as target overrides; mixed driver/target constraint
+  sentences are narrowed to the target clause before parsing.
+
+- Normalize validator count/list shapes before writing context diagnostics;
+  historical-observation cases can no longer crash by calling `len()` on an
+  accepted-count integer.
+- Give governed scenario selection symmetric observation-quality evidence:
+  accepted historical-contamination counts and replay sufficiency now appear
+  beside both the immutable primary and alternatives, so a nominally
+  supported primary cannot hide that it retains observations the verified
+  context identifies as non-recurring artifacts.
+- Separate human best-effort selection from historical admission: a sealed
+  model-authored conditional path may be recommended when the only replay
+  defect is insufficient origins, while support remains `prior_assisted`, the
+  immutable primary remains visible, and automation remains forbidden.
+
+- Label claims-only context as interpretation-only scenario evidence rather
+  than numerically used, so an unchanged primary forecast never tells humans
+  or agents that context affected the recommendation.
+- Do not spend the sole bounded LLM repair on a malformed optional
+  transformation after a valid effect or observation executable already
+  exists; retain the rejected lane and reason in provenance while publishing
+  the complete governed answer without an avoidable second call.
+- Collapse a submission-level transformation preflight summary into
+  superseded provenance when its violation codes are already represented by
+  typed transformation rejections, preventing one defect from inflating the
+  public rejection count while retaining both source identities.
+
+- Treat model-authored effect proposals that duplicate an exact deterministic
+  context contract as superseded provenance rather than rejected context, so
+  a fully resolved instruction is not mislabeled as partially used; pin CiK's
+  legacy Lightning environment to a compatible Setuptools release.
+- Expose validated dossier hypotheses to the governed scenario selector as
+  citable evidence, and require prior-assisted recommendations to acknowledge
+  compiled unsupported-context counterevidence instead of ranking from the
+  attractive claim alone.
+- Route material numeric context explicitly on the compiler's first pass so
+  quantities cannot disappear into an empty dossier, while excluding bare
+  dates and clock times from that obligation to avoid unnecessary repair and
+  invented numeric influence.
+- Retain typed hypothesis violation codes in context-compiler receipts so a
+  bounded repair or product diagnosis can distinguish citation, series,
+  timing, and schema failures instead of reporting only a rejected count.
+- Make hypothesis knowledge time host-owned at receipt creation, matching
+  claims and transformations, so a model-authored future timestamp cannot
+  create leakage or waste a second LLM call repairing metadata the host knows.
+
+- Governed transformation units now treat universal normalized quantities
+  (`fraction`, `proportion`, `probability`, `ratio`, `share`, and `unitless`)
+  as dimensionless. This allows relationships such as duty-cycle times rated
+  speed to retain their physical output unit. `percent` remains distinct and
+  still requires an explicit scale conversion.
+- A source-stated exact level multiplier may now produce a sealed
+  `hypothetical_sensitivity` path even when the requested shock lies far
+  outside historical variation. The exception is restricted to an exact
+  cited multiplier and `scenario_only` publication; approximate, uncited, or
+  model-authored extremes retain the displacement guard, and no such path may
+  alter the primary or authorize automation.
+- Contrasting multiplier prose now resolves only an explicitly operative
+  correction such as “typically 9×, but in this case 5×.” Alternative values
+  without that correction grammar remain ambiguous, including cases where a
+  permissive baseline regex could previously swallow the second multiplier.
+- Context compilation is now lane-prioritized: once an effect, forecast
+  candidate, or required observation interpretation validates, malformed
+  optional side lanes remain visible as typed critiques but cannot consume the
+  sole repair call or replace the useful executable. Required data semantics
+  and wholly unresolved numeric context still receive one bounded repair.
+- Context receipts now retain deterministic repair-decision telemetry: lane
+  status, failure counts, whether a required semantic lane was missing, and
+  why each bounded repair stage fired or was skipped. This separates endpoint
+  latency from necessary semantic repair without exposing hidden reasoning.
+  Rejected effect diagnostics retain only bounded typed scalar fields and
+  violation codes—never free-form model reasoning or unbounded payloads.
+- Effect-distribution fields now parse independently from confidence metadata,
+  so malformed confidence cannot turn valid bounds into NaNs. The common
+  `tentative` and `confirmed` labels normalize conservatively through the same
+  non-authoritative confidence contract used by context events; unknown labels
+  remain typed rejections.
+- When a compiler splits contrasting multipliers into separate verified
+  claims, one uniquely marked operative correction (`only`, `in this case`,
+  `instead`, or equivalent narrow wording) may resolve the scenario. Multiple
+  corrected values or unmarked alternatives remain conflicting and rejected.
+- A single exact cited operative scenario is now evidence-dominant for the
+  human-facing recommendation: a scenario-ranking LLM may explain it but may
+  not silently substitute the context-free primary and answer a different
+  question. The primary remains visible and immutable, support remains
+  `hypothetical_sensitivity`, and automation remains prohibited.
+- Scenario-selector receipts now distinguish a selector that was called and
+  rejected from one intentionally skipped because an exact cited scenario was
+  already evidence-dominant. This makes latency, autonomy, and failure-rate
+  measurements reflect the calls the agent actually made.
+- Conditional effect distributions now carry a typed provenance class.
+  Numeric values are `source_stated_distribution` only when verified source
+  text actually states the distribution (or an exact multiplier passes its
+  stricter parser); otherwise they are explicitly `model_authored_prior`.
+  Free-form model claims of historical calibration are no longer repeated in
+  public assumptions without corresponding observations.
+- Sealed model-authored forecast candidates apply the same rule: public
+  assumptions identify them as uncalibrated prior-assisted paths, while the
+  model's original rationale is retained only in the immutable receipt under
+  an explicitly `model_rationale_unverified` field.
+- Publications now include one authoritative `context_summary` across all
+  governed lanes. A rejected event representation alongside an admitted
+  transformation is reported as `partially_used`, not as contradictory
+  top-level “rejected” and “used” claims; detailed lane dispositions remain.
+  The summary is protected in compact MCP responses and benchmark traces, so
+  agents do not need to open the bulk receipt to resolve the lane outcome.
+- When the live publication already contains an evidence-dominant path, MCP
+  telemetry now records the omitted ranking call as
+  `skipped_evidence_dominance`, not as a generic no-selection condition.
+- When one governed representation has already supplied the recommendation,
+  repair actions attached to rejected side representations are explicitly
+  optional and scoped to that lane. The aggregate summary states that further
+  calls add nothing to the current recommendation, preventing repair loops.
+- Relative statements such as “5 times the usual level” can no longer be
+  misparsed as the absolute value `5`; they remain in the disclosed baseline-
+  scale lane. Conversely, an exact absolute/range claim (including “zero
+  readings”) owns its deterministic representation, so an LLM cannot publish
+  a second additive `+0` or otherwise contradictory effect scenario.
+  A model-authored full forecast over the same claim may remain in the sealed
+  receipt for outcome scoring, but is explicitly selection-ineligible.
+- Recurring observation-contamination candidates are now evaluated on rotated
+  placebo blocks matching the observed corruption geometry. Raw comparators
+  receive the same fold-local simulated corruption, so admission measures the
+  reconstruction job rather than diluting it over unaffected timestamps.
+- Ambiguous recurring schedule endpoints may be resolved only from repeated
+  pre-cutoff observations matching a source-stated corruption value. Mixed
+  boundary evidence fails closed; receipts disclose the counts and confirm
+  that no future observations were used.
+- The deterministic-claim shadow rule applies only to model-authored paths;
+  Gnomon's own fold-admitted observation counterfactual remains selection-
+  eligible and non-automatable.
+- CiK's isolated runner now injects its authoritative case seed into MCP trace
+  identity. Multi-seed runs retain one behavioral trace per case instead of
+  overwriting them under the upstream task object's missing `seed` attribute.
+
+- Safe declarative transformations may now bind additional verbatim source
+  lines containing their exact AST literals. The host neither interprets nor
+  changes the formula; it only completes numeric citation provenance. This
+  prevents a useful equation from failing when its semantics and parameter
+  values appear in separate source sentences. Static parameter claims are
+  effective at the host cutoff, not misrepresented as future events, and
+  already-valid model-extracted parameter claims participate in the same
+  deterministic citation binding.
+- A missing unit on a safe AST literal may be filled only when the exact
+  literal is immediately followed by one unambiguous unit in its verified
+  source and that unit is already declared by the transformation. Gnomon does
+  not infer units from domain knowledge or change the arithmetic.
+- Future-driver inputs expressed as timestamp/value rows now normalize to the
+  executor's numeric-array form only after their timestamps exactly cover the
+  complete host forecast grid. Off-grid, missing, duplicate, or extra rows
+  remain rejected; no interpolation is performed.
+- Undated claims used to specify a declarative transformation now bind to the
+  host cutoff when their window is missing or malformed. Valid supplied claim
+  windows are preserved, and future driver schedules retain their separate
+  point-in-time provenance.
+- For an explicit `series / literal` normalization in a safe AST, one
+  unambiguous source-adjacent denominator unit may type both the literal and
+  named series. This repairs a missing driver-unit field without inferring a
+  relationship or changing arithmetic; ambiguous units still reject.
+- Exact numeric provenance matching now recognizes an integral value and the
+  same value written with trailing decimal zeroes (for example `298` and
+  `298.0`). It remains token-exact otherwise and uses no fuzzy tolerance.
+- Verified future-driver schedule claims now bind to both the individual
+  series payload and the parent transformation claim set, preserving the
+  executor's provenance-subset invariant.
+- Piecewise-constant future drivers may now cross the LLM boundary as one
+  initial value plus cited change points. Gnomon resolves exact timestamps or
+  unique clock times onto its host grid and forward-fills deterministically;
+  ambiguous/off-grid times and uncited values reject.
+- Exact algebraic identity operations emitted by a model (`x/1`, `x*1`,
+  `x+0`, `x-0`, `x^1`) are removed before AST provenance validation. No
+  material constant or operation is simplified, inferred, or exempted.
+- A compact schedule may include historical change points: the latest cited
+  change at or before the first forecast instant establishes the initial
+  forecast state. Subsequent changes must still resolve exactly on-grid, and
+  multiple claims for the same instant remain invalid.
+- When a declarative transformation is proposed, malformed optional side lanes
+  no longer consume the sole repair round before transformation preflight.
+  Compiler guidance also requires source literals and operations to remain
+  explicit rather than replacing them with uncited derived constants.
+- Exact numeric citation matching now distinguishes a sentence-ending period
+  from a continued decimal: `1591.7.` is valid provenance for `1591.7`, while
+  `1591.75` remains a non-match.
+- Citation completion now attaches separate verbatim source lines containing
+  semantic constant forms already recognized by the core validator (such as
+  `square`, `cube`, `double`, and `half`) when the AST already proposes the
+  corresponding operation/value. It does not create an operation or number.
+- A bounded transformation repair no longer has to retransmit every verified
+  claim. Prior claims are preserved byte-for-byte, new verbatim claims append,
+  and only the rejected transformation set is replaced. Other dossier lanes
+  remain unchanged.
+- Initial and repaired transformations now pass through the same host-owned
+  provenance binding before execution. An exactly evaluated square or cube
+  may be restored to its source-shaped expression only when one cited base and
+  matching power word uniquely entail it; arithmetic coincidences, ambiguous
+  bases, and uncited power semantics remain rejected.
+
+- Long regular forecast grids now cross the LLM compiler boundary as exact
+  first/last timestamps, step size, and count rather than hundreds of repeated
+  timestamps. Irregular grids remain explicit. This reduces latency and
+  transcription pressure without relaxing host-grid anchor validation.
+
+- Unparseable model-generated claim confidence no longer discards otherwise
+  verbatim grounded context and every candidate that cites it. It normalizes to
+  a disclosed conservative floor with no authority effect; explicit numeric
+  values outside the valid range still fail validation.
+
+- Model-authored conditional paths may now provide only meaningful interior
+  quantile anchors. Gnomon interpolates between supplied anchors while leaving
+  unanchored horizon edges equal to the immutable primary, records that
+  completion in provenance, and keeps the candidate non-automatable. This
+  avoids forcing an LLM to fabricate boundary values merely to express a
+  supported turning-point shape.
+
+- The compiler's formal `forecast_candidate` schema now includes an explicit
+  compact-anchor shape where the model forms its JSON.
+- Sparse timestamped `quantiles` rows are now accepted as a disclosed alias
+  for `quantile_anchors` when they pass the identical grid, ordering,
+  finiteness, and plausibility checks. This removes schema-friction retries
+  without weakening the candidate boundary.
+- Explicit compiler-confidence ranges such as `0.6-0.8` now normalize to the
+  conservative endpoint instead of causing an otherwise grounded claim to be
+  discarded. The supplied range and normalization remain visible, and parsing
+  confidence continues to grant no recommendation or automation authority.
+- The numeric-context sufficiency repair now states the `best_effort` contract
+  honestly: when a domain description plus cited reference supports a bounded
+  conditional estimate, the model may supply compact anchor numbers labelled
+  as model prior. The sealed scenario remains `prior_assisted`, requires human
+  review, cannot mutate the primary, and can never authorize automation;
+  `unsupported` remains correct when no useful bounded path can be formed.
+- Historical-analogue and other non-relationship hypotheses now normalize an
+  inapplicable `lag_steps: null` to zero instead of rejecting the evidence.
+  Prior-assisted model candidates may also provide compact ordered quantile
+  anchors at meaningful requested timestamps; Gnomon validates them,
+  interpolates deterministically on the host grid, seals the resolved
+  path, and retains the same human-review-only authority.
+- Past-tense historical references containing a month and day but no year now
+  bind to the latest occurrence at or before the host-owned cutoff, with the
+  supplied token, resolved date, cutoff, and basis retained in the claim.
+  Future or prospective yearless dates remain invalid rather than being
+  silently backdated.
+- The governed context compiler no longer treats an empty dossier as success
+  when supplied prose contains numeric information. It spends the existing one
+  bounded repair round to produce a verbatim cited hypothesis, a sealed
+  prior-assisted scenario when supportable, or an explicit unsupported reason.
+  This keeps sparse historical references visible without granting them
+  automation authority.
+- Governed context now turns a vague `custom_scenario` label into an executable
+  temporary pulse or level shift when the cited source supplies an exact
+  multiplier and bounded timing. Percentage prose such as "10% of usual" also
+  entails the equivalent `0.1` declarative transformation constant. Separately,
+  the integrated Evidence host executes one server-authored, capped aggressive
+  grid repair before abstaining; the repair remains disclosed and consumes a
+  second tool call, but requires no model improvisation.
+- Fold-starved forecasts no longer discard repeatable seasonal shape merely
+  because a long requested horizon prevents full-horizon folds. The lightweight
+  path may admit the predeclared `seasonal_naive` baseline over `last_value`
+  after at least six non-overlapping seasonal probes, at least 10% mean error
+  improvement, and wins in two of three chronological blocks. The evidence is
+  disclosed, incremental candidates remain locked, and level series still
+  publish `last_value`.
+- Corrected temporary effect composition. A source-stated effect that holds
+  "during" a bounded window is now a plateau for that duration; changing
+  intensity remains the separate `ramp_recovery`/`trend_change` contract.
+  Fraction-of-level effects now transform each quantile multiplicatively
+  rather than adding a median-scaled displacement to both bounds. Thus an
+  exact 3x demand rule maps `(q10, q50, q90)` to three times each bound while
+  preserving the immutable primary beside the conditional path.
+- Exact, source-cited historical sensor glitches now compile to a bounded
+  half-open timestamp-window interpretation when the source also says the
+  glitch will not recur. Gnomon excludes only those observations from a copied
+  history, exposes the conditional replay and retained/excluded counts, and
+  leaves the primary and stored data untouched. This replaces `claims_only`
+  behavior without granting a one-off anomaly automatic authority.
+- Added a source-determined calibration counterfactual for repaired additive
+  sensor drift. When context verbatim supplies the drift start, per-hour rate,
+  and exact repair boundary, Gnomon subtracts the accumulated measurement bias
+  from a copy of history and chooses a fixed classical family on expanding
+  corrected-history origins. The path may lead only in `best_effort`, remains
+  `prior_assisted` and non-automatable, and never changes the raw observations
+  or immutable primary. Vague timing, incompatible grids, and incomplete rules
+  do not activate the executable.
+  An independently compiled calibration candidate also owns its selection
+  eligibility: a rejected LLM-authored transformation is retained in the
+  receipt but cannot veto the deterministic path.
+- LLM-authored context events no longer crash compilation when confidence is
+  expressed as `low`, `medium`, `moderate`, `high`, or a percentage. These
+  values normalize to conservative, non-authoritative metadata recorded in the
+  receipt; ambiguous confidence is a typed `invalid_confidence` rejection.
+  Inline MCP events use the same boundary and now raise `INVALID_CONTEXT_EVENT`
+  rather than leaking a raw conversion exception.
+- Context-event proposal failures now retain typed reason codes through the
+  compiler, MCP submission, and publication projection. In particular, an
+  unsafe wildcard numeric proposal is no longer mislabeled as generic
+  `context_unresolved`; it returns a bounded action asking for verbatim target
+  identity while leaving any independently verified event and primary result
+  intact. Historical events outside the forecast window likewise receive a
+  distinct retain-as-history action.
+- Exact-value future overrides now distinguish precise source-cited endpoints
+  from model-located or vague windows. A literal scheduled zero applies to
+  every quantile at its inclusive endpoints; uncertain windows retain the
+  conservative one-step boundary union. The receipt discloses which boundary
+  policy was used.
+- Historical observation interpretation now supports source-cited recurring
+  daily clock windows such as `20:00`–`00:00`. The half-open window is applied
+  in the history timestamps' timezone, recorded verbatim, and must clear the
+  same point and probabilistic replay gates before it can lead. A replay-earned
+  correction may cross a contaminated final observation without failing the
+  generic model-authored boundary-jump guard.
+- Recurring daily observation counterfactuals now add fold-safe median and
+  recent-value daily-phase families when history has a regular sub-daily grid.
+  Each replay origin learns its phase only from earlier retained observations;
+  the family must beat the same raw point and probabilistic comparators before
+  it can lead. This lets scheduled outages preserve ordinary intraday shape
+  instead of replacing it with a flat level.
+- Publication authority now distinguishes strict counterfactual admission from
+  a human-facing best effort. A fixed executable that improves both point and
+  probabilistic replay and wins two chronological blocks may lead only in
+  `best_effort`; missing the 10% strict margin leaves it `prior_assisted`,
+  non-automatable, and unable to alter strict publication.
+- When both the deterministic observation executable and an LLM-authored path
+  cite the same historical corruption, proposal order no longer decides which
+  survives. Strictly admitted or human-best-effort replay evidence takes the
+  candidate lane; an unvalidated model path cannot crowd it out.
+- The governed scenario-selector packet now exposes compact point and
+  probabilistic replay improvements, chronological block wins, and separate
+  human-recommendation eligibility. Agents no longer see a misleading bare
+  `not_admitted` label when a candidate missed only the stricter automation-
+  style margin.
+- CiK shadow-candidate scoring now reports a retained lane with no numeric
+  candidate explicitly instead of crashing, preserving incomplete diagnostic
+  runs without treating absence as a forecast.
+- Added a governed historical-observation interpretation lane for cited
+  outages, maintenance, stockouts, and reporting failures. Literal historical
+  zero-recording claims may define an exact-value or cited recurring-window
+  filter over a copied pre-cutoff history; the receipt records retained and
+  excluded observations, semantic normalizations, provenance, and an immutable
+  primary. A derived empirical counterfactual is visible and outcome-scoreable
+  and enters a fixed robust-level/Croston family contest. Recommendation
+  authority requires at least twelve expanding origins on unaffected targets,
+  a 10% win over the strongest fixed raw classical comparator under both point
+  MAE and fold-safe q10/q50/q90 pinball loss, and probabilistic wins in two of
+  three chronological blocks. This prevents a better median with a worse
+  published distribution from earning recommendation authority. The receipt distinguishes this retrospective
+  conditional replay from historical knowledge-time admission; automation
+  remains forbidden. Qualitative and percentage compiler confidence is
+  conservatively normalized with no authority effect, and one bounded repair
+  now covers malformed claims and hypotheses as well as numeric candidates.
+  Replay-admitted observation counterfactuals are evidence-dominant and cannot
+  be displaced by an LLM ranking. Plain model-authored paths remain visible
+  but require an explicit governed scenario selection; they are no longer the
+  automatic best-effort fallback.
+  When a source literally states zero recorded activity but the input contains
+  no exact zero, Gnomon may expose a sharply separated noisy near-zero cluster
+  as a sealed sensitivity. The split has deterministic minimum-size,
+  separation, and zero-compatibility checks. Because membership is inferred
+  from target outcomes, it can never self-admit through replay; it requires an
+  explicit human-facing selection and remains non-automatable.
+- Added governed `linear_combination` and `recursive_linear` transformations.
+  Gnomon derives omitted coefficient units for cited additive equations and
+  executes ARX-style recurrences using target and driver history reloaded from
+  the same point-in-time snapshot as the primary forecast. The LLM never
+  supplies future target lags; recursion and conservative interval-width
+  propagation are deterministic and sealed.
+- Recursive equations now have to beat last-value on at least eight aligned
+  pre-cutoff replay origins before they may lead a `best_effort`
+  recommendation. Replay uses the fixed cited equation, observed lags only,
+  and timestamp-intersected target/driver histories. A plausible recurrence
+  that lacks skill remains visible and scoreable as a non-automatable scenario.
+  Compiler spellings that redundantly encode the lag in both the driver name
+  and typed lag are normalized to the governed base series only when the lags
+  agree and every duplicate future schedule is identical.
+  When a typed transformation exists for a set of cited claims, its governed
+  candidate now exclusively owns numeric recommendation authority. A parallel
+  model-authored path remains visible and outcome-scoreable but cannot bypass
+  a failed replay or plausibility gate.
+- The governed CiK context workflow now applies one 60-second deadline across
+  initial compilation and its optional repair, rather than allowing multiple
+  per-call timeouts to stack. Receipts and traces disclose per-stage latency;
+  an exhausted budget preserves the primary and records a typed rejection.
+  Offline evaluations may override the bound with
+  `GNOMON_CONTEXT_COMPILATION_SECONDS` (clamped to 1–300 seconds).
+- Explicit lag equations now route to a compact relationship-extraction
+  contract instead of paying for the universal event/candidate/covariate
+  schema. The LLM sees only a short target tail and supplies cited equation
+  structure; Gnomon retains the complete governed histories for replay and
+  execution. Routing is based on equation syntax, never benchmark labels.
+  If the compact compiler emits a typed transformation but fails to repeat a
+  long equation verbatim, the host supplies one sealed document-level claim
+  anchor and rebinds its cited IDs. This removes copy fidelity as a failure
+  mode without granting authority: constants remain source-entailed and the
+  recurrence must still beat baseline in historical replay.
+  A compact `recursive_linear` object returned beside its metadata is now
+  normalized deterministically into the public transformation envelope,
+  including timestamp-ordered driver schedules. This is syntax repair only;
+  ordinary validation, entailment, replay, and authority gates are unchanged.
+  Host-verified plural claim IDs take precedence over stale singular compiler
+  IDs when these two normalizers compose.
+  Compact future schedules expressed as `{timestamp, value}` rows are reduced
+  to numeric arrays only when their timestamps exactly equal the host-owned
+  forecast grid; mismatches remain typed validation failures.
+  CiK traces now retain recurrence replay points, skill, candidate MAE, and
+  baseline MAE so a safe demotion can be distinguished from an alignment or
+  representation defect.
+- Added governed `historical_series_segments` for recursive drivers. Callers
+  may provide source-cited `{start, end, value}` ranges when a document defines
+  semantic driver values that differ from an encoded tabular column. Gnomon
+  checks every endpoint/value against verified claims, rejects overlap or
+  incomplete grid coverage, labels the provenance, and uses the documented
+  history only for recurrence replay/execution. It never infers a scale.
+  Equivalent `{type: recursive_linear, ...}` compiler output is normalized to
+  the public AST, and cited future range schedules expand only when their
+  endpoints occur verbatim in the source and cover every host-owned forecast
+  timestamp exactly once.
+  A verbatim source date now entails the same date normalized to midnight ISO
+  on the governed daily grid; non-midnight times and changed dates still fail.
+  CiK traces also retain typed context dispositions from live publication so
+  execution-stage transformation failures cannot look like silent omission.
+  The composed context host now overwrites compiler-authored transformation
+  and supplied-series `known_at` values with the sealed receipt cutoff before
+  every validation pass. Models extract content; they cannot backdate or
+  future-date when that content became known.
+  The compact equation host can now extract an explicitly named
+  piecewise-constant driver schedule from the narrow grammar `VALUE from DATE
+  to DATE` when the compiler omits it. Extraction is scoped to a line naming
+  the recurrence driver; future ranges must cover the requested grid exactly,
+  and the original cited ranges feed the governed historical-history validator.
+  Recurrence replay now projects points, skill, baseline comparison, scheme,
+  and knowledge checks into the generic candidate-evidence contract.
+  Successfully replay-admitted transformations are labelled
+  `historically_admitted` / `conditionally_supported` and take precedence in
+  best-effort publication; hypothetical paths no longer carry earned evidence
+  under a weaker label.
+- Bounded every governed compiler, repair, and selector request to one
+  no-retry transport attempt. A slow provider now returns the immutable primary
+  instead of parking a worker. Model-authored candidates whose accompanying
+  governed derivation fails remain visible but cannot become the recommendation.
+
+- Added a sealed, non-Turing-complete context transformation language for
+  safe arithmetic, lag, change, rolling, bounds, and quantile operations over
+  immutable forecasts and point-in-time future inputs. Validation enforces
+  units, finite values, verified claims, cutoff knowledge, bounded complexity,
+  and one field-scoped repair. Historically tested, prior-assisted, and
+  scenario-only lanes reuse publication admission, explicit automation policy,
+  typed rejection, and candidate outcome receipts; no transformation executes
+  model-generated code or mutates the primary forecast.
+
+- Added stable multi-hypothesis context compilation, field-scoped bounded
+  repair, point-in-time vintage alignment, expanding-origin exogenous and
+  lagged-relationship executables, and leave-one-episode-out historical
+  analogue evaluation. Fitted context candidates are ranked by disclosed
+  out-of-sample evidence, remain non-automatable, preserve the immutable
+  primary, and are retained for realized-outcome scoring.
+
+- Prefer typed, cited context-effect proposals over model-authored forecast
+  arrays. Gnomon now composes bounded effect scenarios over the immutable
+  primary, exposes typed one-repair critiques and compact temporal state,
+  retains every sealed candidate for outcome scoring, and accepts raw context
+  proposals through the existing forecast CLI/MCP call.
+
+- Added unified `strict`, `best_effort`, and `scenario` publication modes over
+  immutable forecast artifacts. Sealed prior-assisted paths may be recommended
+  to humans without changing their support or granting automation authority.
+- Added a governed scenario-selection contract, typed context dispositions,
+  integrity-sealed publication sidecars, and numeric outcome scoring through
+  the existing synthesis-receipt machinery.
+
+- **CiK Evidence now exercises the composed context-intelligence path.** The
+  host compiles task prose once into validated typed events and an immutable
+  provenance receipt, then binds those events plus the history, target, and
+  horizon to the agent's governed forecast call. The LLM chooses whether to
+  invoke forecasting but no longer has to reproduce Gnomon's event schema or
+  can silently discard context already gathered by the host. Receipts record
+  compiler identity, source hash, rejected proposals, and that no future target
+  observations were exposed. Unlike the legacy CiK treatment, composed Evidence
+  stamps the dossier at the forecast cutoff instead of backdating it to the
+  history start, preventing retrospective context from entering earlier folds.
+- **LLM context extraction now has a governed rich-dossier lane.** Alongside
+  narrow deterministic events, the compiler may emit verbatim-cited temporal
+  claims and a sealed q10/q50/q90 candidate. Deterministic code validates source
+  spans, timing, horizon alignment, quantile order, and gross plausibility. The
+  candidate is always `prior_assisted`, non-automatable, and additive; canonical
+  Gnomon output remains immutable. CiK retains the exact shadow candidate for
+  matched scoring and exposes an explicit diagnostic output role.
+
+- **LLMs may now contribute governed tabular evidence without becoming a data
+  authority.** The product context workflow accepts cited numeric covariate
+  tables, verifies every value and source-time token against caller-provided
+  documents, assigns host-owned `known_at`, seals provenance, and feeds a
+  single validated table through the existing inline loader and fold-safe
+  ablation. Invented values, timestamp substitutions, backdating, and silent
+  multi-table merges fail closed. CiK Evidence exercises this same public
+  boundary; the feature contains no benchmark-label logic.
+
+- **CiK execution is now bounded and crash-resumable.** Every task/seed runs in
+  a disposable spawned process with process-tree RSS monitoring, a wall-clock
+  timeout, and a system available-memory preflight. Atomic per-case checkpoints
+  make interrupted runs resumable, while killed or resource-exhausted cases
+  remain explicit capped/imputed failures. The runner rejects in-process
+  parallelism; intentional sharding belongs on separate machines.
+
+- **CiK's MCP Evidence arm now matches the production ownership boundary.**
+  The agent chooses the Gnomon operation, while the host deterministically
+  binds the first valid forecast artifact as the immutable numeric answer;
+  model-authored quantiles are rejected in this governed profile. The profile
+  is an explicit CLI argument, is forwarded to the MCP subprocess, and rides
+  in cache identity. This replaces a failure-prone second model decision that
+  made DeepSeek obtain four valid artifacts yet exhaust ten rounds without
+  submitting one. Non-governed MCP profiles retain labelled `direct` and
+  `informed-direct` routes for autonomy experiments.
+
 - **Governed Evidence can no longer fall through to an informed-direct
   forecast, and the withdrawn ReasoningBench is retired in code as well as
   prose.** Selecting the Evidence profile now installs the immutable-primary

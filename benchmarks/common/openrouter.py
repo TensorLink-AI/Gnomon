@@ -71,6 +71,26 @@ class OpenRouterError(RuntimeError):
     """A request to OpenRouter failed after all retries."""
 
 
+class _TransientProviderError(OpenRouterError):
+    """A retryable error returned inside an otherwise successful HTTP body."""
+
+
+def _provider_error_is_retryable(value: Any) -> bool:
+    """Recognize OpenAI-wire transient errors without retrying semantics.
+
+    Some compatible gateways return HTTP 200 with an ``error`` object whose
+    nested code is the real upstream status. Treat only standard transport
+    statuses as retryable; invalid requests and content errors remain loud.
+    """
+    if not isinstance(value, dict):
+        return False
+    try:
+        code = int(value.get("code"))
+    except (TypeError, ValueError):
+        return False
+    return code in RETRYABLE_STATUS
+
+
 def _truncated_empty(response: SimpleNamespace) -> bool:
     """True when every choice ran out of budget before writing anything."""
     choices = getattr(response, "choices", None) or []
@@ -154,6 +174,9 @@ class OpenRouterClient:
         max_tokens: int | None = None,
         tools: list[dict[str, Any]] | None = None,
         tool_choice: str | None = None,
+        reasoning_effort: str | None = None,
+        request_timeout: float | None = None,
+        transport_retries: int | None = None,
     ) -> SimpleNamespace:
         """Send one chat-completion request and return the parsed response.
 
@@ -180,6 +203,9 @@ class OpenRouterClient:
             response = self._request(
                 messages, n=n, temperature=temperature, max_tokens=budget,
                 tools=tools, tool_choice=tool_choice,
+                reasoning_effort=reasoning_effort,
+                request_timeout=request_timeout,
+                transport_retries=transport_retries,
             )
             if not _truncated_empty(response) or budget >= MAX_TOKENS_CEILING:
                 break
@@ -209,6 +235,9 @@ class OpenRouterClient:
                     messages, n=1, temperature=temperature,
                     max_tokens=max_tokens, tools=tools,
                     tool_choice=tool_choice,
+                    reasoning_effort=reasoning_effort,
+                    request_timeout=request_timeout,
+                    transport_retries=transport_retries,
                 )
 
             # All singles at once: a wave of 24 multi-minute requests
@@ -233,6 +262,9 @@ class OpenRouterClient:
         max_tokens: int,
         tools: list[dict[str, Any]] | None,
         tool_choice: str | None,
+        reasoning_effort: str | None = None,
+        request_timeout: float | None = None,
+        transport_retries: int | None = None,
     ) -> SimpleNamespace:
         """Perform one request, retrying transient HTTP failures."""
         payload = {
@@ -244,15 +276,21 @@ class OpenRouterClient:
             # Ask OpenRouter to report token accounting and cost.
             "usage": {"include": True},
         }
-        if self.reasoning_effort is not None:
-            payload["reasoning_effort"] = self.reasoning_effort
+        effective_reasoning = (self.reasoning_effort
+                               if reasoning_effort is None
+                               else reasoning_effort)
+        if effective_reasoning is not None:
+            payload["reasoning_effort"] = effective_reasoning
         if tools:
             payload["tools"] = tools
         if tool_choice:
             payload["tool_choice"] = tool_choice
         body = json.dumps(payload).encode("utf-8")
         last_error: Exception | None = None
-        attempts = self.max_retries + 1
+        attempts = (self.max_retries if transport_retries is None
+                    else max(0, int(transport_retries))) + 1
+        effective_timeout = (self.timeout if request_timeout is None
+                             else max(.001, float(request_timeout)))
         for attempt in range(attempts):
             with self._usage_lock:
                 self.total_transport_attempts += 1
@@ -279,7 +317,7 @@ class OpenRouterClient:
                 def transport() -> None:
                     try:
                         with urllib.request.urlopen(
-                                request, timeout=self.timeout) as raw:
+                                request, timeout=effective_timeout) as raw:
                             result.append(json.loads(
                                 raw.read().decode("utf-8")))
                     except BaseException as error:  # handed back to caller
@@ -288,11 +326,11 @@ class OpenRouterClient:
                 worker = threading.Thread(
                     target=transport, name="gnomon-llm-transport", daemon=True)
                 worker.start()
-                worker.join(self.timeout)
+                worker.join(effective_timeout)
                 if worker.is_alive():
                     raise TimeoutError(
                         f"absolute request deadline exceeded after "
-                        f"{self.timeout}s")
+                        f"{effective_timeout}s")
                 if not result:
                     raise TimeoutError("transport ended without a result")
                 if isinstance(result[0], BaseException):
@@ -302,7 +340,10 @@ class OpenRouterClient:
                     raise json.JSONDecodeError(
                         "response must be a JSON object", repr(parsed), 0)
                 if "error" in parsed and "choices" not in parsed:
-                    raise OpenRouterError(str(parsed["error"]))
+                    error = parsed["error"]
+                    if _provider_error_is_retryable(error):
+                        raise _TransientProviderError(str(error))
+                    raise OpenRouterError(str(error))
                 self._account(parsed)
                 response = _to_namespace(parsed)
                 if not getattr(response, "provider", None):
@@ -315,6 +356,8 @@ class OpenRouterClient:
                     raise OpenRouterError(
                         f"OpenRouter returned HTTP {error.code}: {detail}"
                     ) from error
+            except _TransientProviderError as error:
+                last_error = error
             except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as error:
                 last_error = error
             if attempt + 1 < attempts:
@@ -323,14 +366,23 @@ class OpenRouterClient:
             f"OpenRouter request failed after {attempts} attempts: {last_error}"
         )
 
-    def completions(self, messages: list[dict[str, Any]], *, n: int = 1) -> list[str]:
+    def completions(self, messages: list[dict[str, Any]], *, n: int = 1,
+                    temperature: float | None = None,
+                    max_tokens: int | None = None,
+                    reasoning_effort: str | None = None,
+                    request_timeout: float | None = None,
+                    transport_retries: int | None = None) -> list[str]:
         """Convenience wrapper returning just the completion texts.
 
         An empty completion is an error, not an answer: returning it
         would reach a scorer as a missing or unparseable response and be
         recorded as a wrong answer the model never gave.
         """
-        response = self.chat(messages, n=n)
+        response = self.chat(messages, n=n, temperature=temperature,
+                             max_tokens=max_tokens,
+                             reasoning_effort=reasoning_effort,
+                             request_timeout=request_timeout,
+                             transport_retries=transport_retries)
         texts = [choice.message.content for choice in response.choices]
         if any(not text for text in texts):
             reasons = [getattr(choice, "finish_reason", None)

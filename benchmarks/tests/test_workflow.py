@@ -13,7 +13,9 @@ from benchmarks.workflow.compare import compare
 from benchmarks.workflow.audit import audit
 from benchmarks.workflow.provenance import corpus_sha256
 from benchmarks.workflow.generate import generate_publication_cases
-from benchmarks.workflow.agent_adapter import _compile_execution_arguments
+from benchmarks.workflow.agent_adapter import (
+    _compile_execution_arguments, _preferred_tool,
+    _publication_recommendation_numbers)
 
 
 def _observation(case, **overrides):
@@ -52,6 +54,146 @@ def test_smoke_corpus_covers_all_case_kinds_and_hides_oracle():
     assert all("oracle" not in case_payload(case) for case in cases)
 
 
+def test_context_interface_corpus_scores_the_engine_contract_separately():
+    path = Path(__file__).parents[1] / "workflow" / "cases" / \
+        "context-interface.jsonl"
+    cases = load_cases(path)
+    assert len(cases) == 4
+    observations = []
+    for case in cases:
+        expected = case.oracle.context_behavior
+        mode = (expected.get("publication_mode")
+                or (expected.get("allowed_publication_modes") or [None])[0])
+        status = (expected.get("status")
+                  or (expected.get("allowed_statuses") or [None])[0])
+        recommended = (expected.get("recommended_scenario_id")
+                       or (expected.get("recommended_scenario_by_mode") or {}).get(
+                           mode))
+        observations.append(_observation(case, metadata={
+            "leakage_measurement": "cutoff_projection_v1",
+            "cutoff_projection_sha256": "a" * 64,
+            "surface_required_calls": 1,
+            "context_arguments": [expected["required_argument"],
+                                  "publication_mode"],
+            "context_behavior": {
+                "publication_mode": mode, "status": status,
+                "recommended_scenario_id": recommended,
+                "primary_forecast_unchanged": expected[
+                    "primary_forecast_unchanged"],
+                "automation_eligible": expected["automation_eligible"],
+                "scenario_count": expected["minimum_scenario_count"],
+            },
+        }))
+    result = score_run(cases, observations, "fixture")
+    assert result["context_contract"] == {
+        "required_cases": 4, "passed_cases": 4, "pass_rate": 1.0,
+        "agent_disposition_preservation_rate": None,
+        "agent_recovery_preservation_rate": None,
+    }
+    assert all(row["context_contract"]["pass"] for row in result["rows"])
+
+
+def test_installed_agent_skill_is_compact_without_hiding_safety_contracts():
+    path = Path(__file__).parents[2] / "skills" / "use-gnomon" / "SKILL.md"
+    text = path.read_text(encoding="utf-8")
+    assert len(text.encode("utf-8")) <= 5_000
+    for required in (
+        "immutable primary", "context_events", "qualitative_context_events",
+        "context_rejections", "strict", "best_effort", "scenario",
+        "automation", "artifact_id", "data_ref",
+    ):
+        assert required in text
+
+
+def test_context_recovery_preservation_is_measured_separately():
+    case = load_cases(Path(__file__).parents[1] / "workflow" / "cases" /
+                      "context-automation-pressure.jsonl")[2]
+    observation = _observation(case, claims=[
+        "conflicting_authoritative_claims; correct_rejected_context"],
+        metadata={
+            "leakage_measurement": "cutoff_projection_v1",
+            "cutoff_projection_sha256": "a" * 64,
+            "context_arguments": ["context_rejections"],
+            "context_behavior": {
+                "publication_mode": "strict", "status": "rejected",
+                "primary_forecast_unchanged": True,
+                "automation_eligible": False,
+                "automation_requested": False,
+                "automation_reason_code": "not_requested",
+                "scenario_count": 1,
+                "dispositions": [{
+                    "context_id": "conflict", "disposition": "rejected",
+                    "reason_code": "conflicting_authoritative_claims",
+                    "recovery_code": "correct_rejected_context",
+                }],
+            },
+        })
+    row = score_run([case], [observation], "fixture")["rows"][0]
+    assert row["context_contract"]["agent_disposition_preservation"] is True
+    assert row["context_contract"]["agent_recovery_preservation"] is True
+
+
+def test_adversarial_context_corpus_has_explicit_safe_dispositions():
+    path = Path(__file__).parents[1] / "workflow" / "cases" / \
+        "context-adversarial.jsonl"
+    cases = load_cases(path)
+    assert len(cases) == 4
+    assert all("rejected" in case.oracle.context_behavior["allowed_statuses"]
+               for case in cases)
+    assert all(case.oracle.context_behavior["primary_forecast_unchanged"]
+               is True for case in cases)
+    assert all(case.oracle.context_behavior["automation_eligible"] is False
+               for case in cases)
+    assert all("context-interface" in case.tags for case in cases)
+
+
+def test_mixed_context_corpus_requires_multiple_disposition_channels():
+    path = Path(__file__).parents[1] / "workflow" / "cases" / \
+        "context-mixed.jsonl"
+    cases = load_cases(path)
+    assert len(cases) == 3
+    assert all(len(case.oracle.context_behavior["required_arguments"]) == 2
+               for case in cases)
+    assert {case.oracle.context_behavior["allowed_statuses"][0]
+            for case in cases} == {
+        "used", "partially_used", "partially_represented"}
+
+
+def test_context_generalization_corpus_is_frozen_and_diverse():
+    path = Path(__file__).parents[1] / "workflow" / "cases" / \
+        "context-generalization.jsonl"
+    cases = load_cases(path)
+    assert len(cases) == 8
+    assert len({case.domain for case in cases}) >= 6
+    assert {tag for case in cases for tag in case.tags} >= {
+        "literal-floor", "literal-ceiling", "zero-state",
+        "conflicting-context", "strict-mode", "scenario-mode",
+        "multi-series", "qualitative", "irrelevant",
+    }
+
+
+def test_publication_recommendation_overrides_active_artifact_lane_for_answer():
+    publication = {
+        "recommended_scenario_id": "primary",
+        "selection_contract": {"scenarios": [
+            {"scenario_id": "primary", "summary": {"first_q50": 70.72}},
+            {"scenario_id": "context_conditioned",
+             "summary": {"first_q50": 40.0}},
+        ]},
+    }
+    assert _publication_recommendation_numbers(publication, {"next"}) == {
+        "next": 70.72}
+    assert _publication_recommendation_numbers(publication, set()) == {}
+
+
+def test_multiseries_routing_follows_requested_verb_before_shape():
+    base = {"kind": "multiseries"}
+    assert _preferred_tool({**base, "question": "Forecast CPU and memory."},
+                           "evidence") == "gnomon_forecast"
+    assert _preferred_tool({**base, "question": "Describe CPU and memory."},
+                           "evidence") == "gnomon_describe"
+
+
 def test_execution_compiler_binds_known_fields_but_preserves_ambiguity(tmp_path):
     base = {
         "kind": "synthetic",
@@ -63,12 +205,47 @@ def test_execution_compiler_binds_known_fields_but_preserves_ambiguity(tmp_path)
     )
     assert result["input"] == str(tmp_path / "history.csv")
     assert result["target_column"] == "value"
-    assert result["horizon"] == 1
+    assert "horizon" not in result
     assert result["minimum_support"] == "best_effort"
+    weekly = _compile_execution_arguments(
+        base, "gnomon_forecast", {"horizon": 7, "threshold": 125},
+        tmp_path / "history.csv", tmp_path,
+    )
+    assert weekly["horizon"] == 7
+    assert weekly["threshold"] == 125.0
     assert "data_ref" not in _compile_execution_arguments(
         base, "gnomon_forecast", {"data_ref": "stale", "series_column": "x"},
         tmp_path / "history.csv", tmp_path,
     )
+
+    governed = _compile_execution_arguments(
+        base, "gnomon_forecast", {
+            "input": "/invented", "output_dir": "/invented-output",
+            "context_submission": {
+                "text": "A closure is scheduled tomorrow.",
+                "known_at": "2026-01-01T00:00:00+00:00",
+                "compiler": "host-model", "proposal": {"events": []},
+            },
+            "publication_mode": "scenario",
+            "automation_policy": {"allow": False},
+            "future_events": True,
+        }, tmp_path / "history.csv", tmp_path)
+    assert governed["input"] == str(tmp_path / "history.csv")
+    assert governed["output_dir"] == str(tmp_path / "gnomon-output")
+    assert governed["context_submission"]["compiler"] == "host-model"
+    assert governed["publication_mode"] == "scenario"
+    assert governed["automation_policy"] == {"allow": False}
+    assert governed["future_events"] is True
+
+    scoped = _compile_execution_arguments(
+        base, "gnomon_forecast", {
+            "context_events": [{"event_id": "closure",
+                                "entity_scope": ["demand"]}],
+            "qualitative_context_events": [{"event_id": "campaign",
+                                             "entity_scope": ["sales"]}],
+        }, tmp_path / "history.csv", tmp_path)
+    assert scoped["context_events"][0]["entity_scope"] == ["value"]
+    assert scoped["qualitative_context_events"][0]["entity_scope"] == ["value"]
 
     ambiguous = {
         "kind": "messy",
@@ -514,6 +691,16 @@ def test_runner_retries_infrastructure_and_resume_keeps_success(tmp_path):
                            retries=1, prior=[retained])
     assert resumed.metadata["sentinel"] is True
 
+    stage_failed = _observation(case, metadata={
+        "sentinel": True,
+        "stage_infrastructure_failures": [{
+            "stage": "repair", "error": "subprocess_failure"}],
+    })
+    rerun, = run_command([case], f"{sys.executable} {script}", 2,
+                         retries=1, prior=[stage_failed])
+    assert rerun.status == "answered"
+    assert "sentinel" not in rerun.metadata
+
 
 def test_adapter_finds_triage_through_router_envelope():
     from benchmarks.workflow.agent_adapter import _extract_engine_facts, _find_triage
@@ -547,6 +734,74 @@ def test_adapter_repairs_malformed_optional_containers():
     assert row["claims"] == ["claim"]
     assert row["metadata"]["envelope_repairs"]["facts"] == \
         "coerced_to_empty_object"
+
+
+def test_adapter_projects_declared_canonical_choice_without_answer_label():
+    from benchmarks.workflow.agent_adapter import _normalize, _submission_problems
+
+    class Client:
+        total_prompt_tokens = 1
+        total_completion_tokens = 1
+
+    case = {
+        "id": "canonical-choice", "kind": "synthetic",
+        "answer_schema": {"numbers": [], "choices": ["pattern"], "facts": [],
+                          "choice_sources": {
+                              "pattern": "seasonal_period_label"}},
+    }
+    evidence = {
+        "artifact_id": "artifact-1",
+        "engine_facts": {"seasonal_period_label": "period-4"},
+        "resolved_horizon": 7,
+        "threshold_supplied": True,
+    }
+    submitted = {
+        "status": "answered", "support": "supported", "numbers": {},
+        "choices": {"pattern": "seasonal_naive (period-4)"},
+        "facts": {}, "disclosures": [], "claims": [],
+        "artifact_id": "artifact-1",
+    }
+    assert _submission_problems(case, submitted, evidence) == [
+        "choices.pattern must equal canonical engine fact 'period-4'"]
+    row = _normalize(case, submitted, calls=1, client=Client(), started=0,
+                     tool_names=["gnomon_forecast"],
+                     engine_evidence=evidence)
+    assert row["choices"] == {"pattern": "period-4"}
+    assert row["metadata"]["attempted_choice_overrides"] == {
+        "pattern": {
+            "submitted": "seasonal_naive (period-4)",
+            "canonical": "period-4",
+        }}
+    assert row["metadata"]["resolved_horizon"] == 7
+    assert row["metadata"]["threshold_supplied"] is True
+
+
+def test_adapter_ignores_model_authored_trust_attestations():
+    from benchmarks.workflow.agent_adapter import _normalize
+
+    class Client:
+        total_prompt_tokens = 1
+        total_completion_tokens = 1
+
+    case = {"id": "trust", "kind": "synthetic", "answer_schema": {}}
+    submitted = {
+        "status": "answered", "support": "supported", "numbers": {"next": 4},
+        "choices": {}, "facts": {}, "disclosures": [], "claims": [],
+        "publish_matches_evaluated": False, "quote_matches": False,
+    }
+    row = _normalize(case, submitted, calls=1, client=Client(), started=0,
+                     tool_names=["gnomon_forecast"], engine_evidence={
+                         "evaluated_fingerprint": "same",
+                         "published_fingerprint": "same",
+                         "artifact_numbers": {"next": 4.0},
+                     })
+    assert row["publish_matches_evaluated"] is True
+    assert row["quote_matches"] is True
+
+    unknown = _normalize(case, submitted, calls=0, client=Client(), started=0,
+                         tool_names=[], engine_evidence={})
+    assert unknown["publish_matches_evaluated"] is None
+    assert unknown["quote_matches"] is None
 
 
 def test_adapter_host_binds_routing_facts_over_model_paraphrases():

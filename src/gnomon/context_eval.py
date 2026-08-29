@@ -58,6 +58,25 @@ MINIMUM_SHRINKAGE = 0.1
 # opportunity; otherwise adding an estimator makes admission easier merely by
 # giving noise another chance to win.
 EPISODE_MINIMUM_IMPROVEMENT = 0.05
+SCHEDULE_PLACEBO_OFFSETS = (-19, -17, -13, -11, -9, -7,
+                            7, 9, 11, 13, 17, 19)
+
+
+def episode_effect_lower_bound(amplitudes: list[float], z: float = 1.96) -> float:
+    """Conservative absolute episode effect after sampling uncertainty.
+
+    Episodes, rather than overlapping forecast folds, are the independent
+    unit. The bound is used to compare a recurring event with displaced copies
+    of its schedule; returning zero for fewer than two episodes prevents a
+    one-off coincidence from becoming evidence.
+    """
+    if len(amplitudes) < 2:
+        return 0.0
+    average = mean(amplitudes)
+    variance = sum((value - average) ** 2 for value in amplitudes) / (
+        len(amplitudes) - 1)
+    standard_error = (variance / len(amplitudes)) ** 0.5
+    return max(0.0, abs(average) - z * standard_error)
 
 
 def shrinkage_factor(improvements: list[float]) -> float:
@@ -151,6 +170,12 @@ class ContextAssessment:
     # this says what was measured, so admission rates and rejection causes
     # are countable across a run rather than parsed out of sentences.
     gate_checks: list[dict[str, Any]] = field(default_factory=list)
+    # A context path may demonstrate repeatable point improvement while its
+    # intervals fail the independent coverage gate.  Keep that path separate
+    # from ``points``: it is useful for a labelled human scenario, but it is
+    # never publication- or automation-eligible.
+    point_candidate: list[float] = field(default_factory=list)
+    point_support: str | None = None
 
     def record_check(self, code: str, passed: bool, *, measured: Any = None,
                      threshold: Any = None, detail: str | None = None) -> None:
@@ -181,6 +206,9 @@ class ContextAssessment:
             "shrinkage": self.shrinkage,
             "measured_coverage": self.coverage,
             "gate_checks": self.gate_checks,
+            **({"point_candidate_available": True,
+                "point_support": self.point_support}
+               if self.point_candidate else {}),
             # Additive: absent unless a shape was nominated, so artifacts
             # from nomination-free runs serialise exactly as before.
             **({"nominated_shape": self.nominated_shape}
@@ -206,6 +234,13 @@ def eligible_events(
     eligible: list[ContextEvent] = []
     excluded: list[dict[str, str]] = []
     for event in events:
+        soft = event.attributes.get("soft_context", {})
+        unresolved_ranges = [
+            name for name in ("delay_steps", "duration_steps")
+            if isinstance(soft.get(name), list)
+            and len(soft[name]) == 2
+            and soft[name][0] != soft[name][1]
+        ]
         if not event_applies(event, series_name):
             excluded.append({"event_id": event.event_id, "reason": "scope does not include this series"})
         elif problems := validate_context_event(event):
@@ -222,6 +257,20 @@ def eligible_events(
             excluded.append({
                 "event_id": event.event_id,
                 "reason": "cancelled event cannot affect the primary forecast",
+            })
+        elif unresolved_ranges:
+            # The binary event executable has one exact active window. Treating
+            # a caller's range as that window silently converts timing
+            # uncertainty into false precision. Preserve the event in the
+            # typed scenario/effect receipt, but do not let it alter the strict
+            # primary until a timing-robust executable has been validated.
+            excluded.append({
+                "event_id": event.event_id,
+                "reason": (
+                    "non-degenerate " + ", ".join(unresolved_ranges) +
+                    " requires a bounded timing scenario; the exact-window "
+                    "executable is not admissible for the primary forecast"
+                ),
             })
         elif not backtest_admissible(event):
             excluded.append({
@@ -567,8 +616,9 @@ def assess_context(
                     if selected_estimator == "episode" else minimum_improvement)),
     )
     if selected_estimator == "episode":
+        episode_gate_observations = episode_cache[selection_origins[-1]]
         amplitudes = episode_residual_amplitudes(
-            episode_cache[selection_origins[-1]], selected_shape)
+            episode_gate_observations, selected_shape)
         amplitude_mean = mean(amplitudes)
         variance = (sum((value - amplitude_mean) ** 2 for value in amplitudes) /
                     (len(amplitudes) - 1))
@@ -595,7 +645,7 @@ def assess_context(
         fold_values, fold_timestamps = history_at(origin)
         actual_flags = event_flags(eligible, fold_timestamps, cutoff)
         placebo_amplitudes: list[float] = []
-        for offset in (-19, -17, -13, -11, -9, -7, 7, 9, 11, 13, 17, 19):
+        for offset in SCHEDULE_PLACEBO_OFFSETS:
             if offset > 0:
                 shifted = [False] * offset + actual_flags[:-offset]
             else:
@@ -609,16 +659,85 @@ def assess_context(
             except ValueError:
                 continue
         actual_amplitude = abs(amplitude_mean)
+        actual_lower = episode_effect_lower_bound(amplitudes)
         placebo_max = max(placebo_amplitudes, default=float("inf"))
         assessment.record_check(
             "episode_effect_beats_displaced_schedules",
-            actual_amplitude > placebo_max,
+            actual_lower > placebo_max,
             measured={"actual_amplitude": round(actual_amplitude, 6),
+                      "actual_lower_95": round(actual_lower, 6),
                       "placebo_max": round(placebo_max, 6),
                       "placebos": len(placebo_amplitudes)},
             threshold=round(placebo_max, 6),
-            detail=("a displaced version of the same recurring schedule has "
-                    "an equal or larger apparent effect"),
+            detail=("the event effect's episode-level 95% lower bound does "
+                    "not exceed the strongest displaced-schedule placebo"),
+        )
+    else:
+        # Residual and detrended-level candidates express effects differently,
+        # so episode amplitudes can reject a genuine periodic intervention
+        # already absorbed by the base. Price schedule search in their own
+        # scoring space: replay identical selection folds with fixed displaced
+        # schedules and require the real schedule's lift to clear the strongest
+        # placebo by the ordinary admission margin. No report-only fold enters
+        # this comparison.
+        placebo_improvements: list[float] = []
+        for offset in SCHEDULE_PLACEBO_OFFSETS:
+            displaced_scores: list[float] = []
+            failed = False
+            for origin in selection_origins:
+                cutoff = timestamps[origin - 1]
+                actual = values[origin : origin + horizon]
+                fold_values, fold_timestamps = history_at(origin)
+                timeline = [*fold_timestamps,
+                            *timestamps[origin : origin + horizon]]
+                flags = event_flags(eligible, timeline, cutoff)
+                if offset > 0:
+                    shifted = [False] * offset + flags[:-offset]
+                else:
+                    distance = -offset
+                    shifted = flags[distance:] + [False] * distance
+                split = len(fold_timestamps)
+                historical_flags = shifted[:split]
+                future_flags = shifted[split:]
+                try:
+                    if selected_estimator == "residual":
+                        prediction = residual_event_adjusted(
+                            base_residuals[:len(fold_values)], horizon,
+                            historical_flags, future_flags,
+                            base_paths[origin], selected_shape)
+                    else:
+                        prediction = event_adjusted(
+                            fold_values, horizon, season, historical_flags,
+                            future_flags, selected_shape)
+                except ValueError:
+                    failed = True
+                    break
+                base_score = error_score(actual, base_paths[origin])
+                displaced_score = error_score(actual, prediction)
+                if base_score is None or displaced_score is None:
+                    failed = True
+                    break
+                denominator = max(base_score, displaced_score)
+                displaced_scores.append(
+                    0.0 if denominator <= 1e-12
+                    else (base_score - displaced_score) / denominator)
+            if not failed and displaced_scores:
+                placebo_improvements.append(mean(displaced_scores))
+        placebo_max = max(placebo_improvements, default=float("inf"))
+        separation = assessment.mean_improvement - placebo_max
+        assessment.record_check(
+            "selected_schedule_beats_displaced_schedules",
+            separation >= minimum_improvement,
+            measured={
+                "actual_mean_improvement": round(
+                    assessment.mean_improvement, 6),
+                "placebo_max_mean_improvement": round(placebo_max, 6),
+                "separation": round(separation, 6),
+                "placebos": len(placebo_improvements),
+            },
+            threshold=minimum_improvement,
+            detail=("the selected event schedule does not beat the strongest "
+                    "displaced-schedule placebo by the admission margin"),
         )
     # A fold whose forecast window contains no eligible event is a valid
     # zero-lift observation for the *mean* comparison, but it says nothing
@@ -676,12 +795,27 @@ def assess_context(
     spreads = conformal_spreads(
         assessment.residuals_by_lead, horizon, assessment.residuals,
     )
+    # Residual-based event executables are exactly the base point path when
+    # the event is inactive. Their calibration must preserve that same
+    # identity. Applying an event model's pooled residual correction to quiet
+    # steps moved published q50 before the event even though raw points were
+    # byte-identical. Detrended-level is a complete alternative model and
+    # therefore retains its own calibration on every step.
+    inherits_base_when_inactive = selected_estimator in {"residual", "episode"}
+    base_spreads = conformal_spreads(
+        base.residuals_by_lead, horizon, base.residuals,
+    ) if inherits_base_when_inactive else {}
 
     test_prediction = context_prediction(test_origin)
     test_actual = values[test_origin : test_origin + horizon]
+    test_active = event_flags(
+        eligible, timestamps[test_origin : test_origin + horizon],
+        timestamps[test_origin - 1])
     covered = []
-    for step, (actual, prediction) in enumerate(zip(test_actual, test_prediction), 1):
-        spread = spreads.get(step)
+    for step, (actual, prediction, active) in enumerate(
+            zip(test_actual, test_prediction, test_active), 1):
+        spread = (base_spreads.get(step) if inherits_base_when_inactive
+                  and not active else spreads.get(step))
         if spread is None:
             continue
         low, _, high = interval_from_spread(prediction, spread)
@@ -708,35 +842,36 @@ def assess_context(
     # before anything is decided on it.
     assessment.shrinkage = shrinkage_factor(improvements)
 
-    if assessment.reasons:
-        return assessment
-
-    assessment.admitted = True
+    failed_codes = {
+        str(check.get("code")) for check in assessment.gate_checks
+        if not check.get("passed")
+    }
     final_cutoff = timestamps[-1]
+    final_active = event_flags(eligible, future_timestamps, final_cutoff)
     if selected_estimator == "episode":
-        assessment.points = episode_residual_adjusted(
+        candidate_points = episode_residual_adjusted(
             values, horizon, season,
             event_flags(eligible, timestamps, final_cutoff),
-            event_flags(eligible, future_timestamps, final_cutoff),
+            final_active,
             base_predict(values),
             base.selected_model, selected_shape,
         )
     elif selected_estimator == "residual":
-        assessment.points = residual_event_adjusted(
+        candidate_points = residual_event_adjusted(
             base_residuals, horizon,
             event_flags(eligible, timestamps, final_cutoff),
-            event_flags(eligible, future_timestamps, final_cutoff),
+            final_active,
             base_predict(values),
             selected_shape,
         )
     else:
-        assessment.points = event_adjusted(
+        candidate_points = event_adjusted(
             values, horizon, season,
             event_flags(eligible, timestamps, final_cutoff),
-            event_flags(eligible, future_timestamps, final_cutoff),
+            final_active,
             selected_shape,
         )
-    if shrink:
+    if shrink and not assessment.reasons:
         # Move only as far from the history-only forecast as the fold
         # evidence supports. `admitted` stays a clean boolean for readers of
         # the frozen shape -- it is exactly `shrinkage > 0` -- and the factor
@@ -755,10 +890,33 @@ def assess_context(
             measured=round(assessment.shrinkage, 6), threshold=MINIMUM_SHRINKAGE,
         )
         history_only = base_predict(values)
-        assessment.points = [
+        candidate_points = [
             plain + assessment.shrinkage * (adjusted - plain)
-            for plain, adjusted in zip(history_only, assessment.points)
+            for plain, adjusted in zip(history_only, candidate_points)
         ]
+    # Coverage is an interval claim, not a point-forecast claim.  When it is
+    # the *only* failed gate, retain the fitted path as an explicitly
+    # interval-weak scenario.  This lets a human or an LLM inspect the useful
+    # conditional without weakening the immutable primary or authorising an
+    # automated action from an uncalibrated tail.
+    if failed_codes == {"coverage_not_degraded"}:
+        assessment.point_candidate = candidate_points
+        assessment.point_support = "point_supported_interval_weak"
+    if assessment.reasons:
+        return assessment
+
+    if inherits_base_when_inactive:
+        for step, active in enumerate(final_active, 1):
+            if not active and base.residuals_by_lead.get(step):
+                assessment.residuals_by_lead[step] = list(
+                    base.residuals_by_lead[step])
+        assessment.residuals = [
+            residual for step in range(1, horizon + 1)
+            for residual in assessment.residuals_by_lead.get(step, [])
+        ]
+
+    assessment.admitted = True
+    assessment.points = candidate_points
     if assessment.coverage < 0.7:
         assessment.warnings.append(
             f"Final-test 80% interval coverage was {assessment.coverage:.1%}, below 70%."

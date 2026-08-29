@@ -118,6 +118,7 @@ def context_outcome(
     future_context: dict[str, Any] | None = None,
     conditional_forecasts: list[dict[str, Any]] | None = None,
     sensitivity_scenarios: list[dict[str, Any]] | None = None,
+    primary_forecast_changed: bool | None = None,
 ) -> dict[str, Any]:
     """Project all context lanes into one unambiguous public disposition."""
     applicable = [event for event in events if event_applies(event, series_name)]
@@ -127,20 +128,46 @@ def context_outcome(
     })
     if not applicable:
         return {"status": "not_considered", "primary_forecast_changed": False,
-                "events": []}
+                "canonical_primary_preserved": True,
+                "automation_eligible": False, "events": []}
     admitted = list((future_context or {}).get("admitted") or [])
     if bool(getattr(context_assessment, "admitted", False)) or admitted:
+        changed = (True if primary_forecast_changed is None
+                   else bool(primary_forecast_changed))
+        historical_admission = bool(getattr(context_assessment, "admitted", False))
         used = list(getattr(context_assessment, "events_used", []) or [])
         used.extend(str(item.get("event_id")) for item in admitted
                     if isinstance(item, dict) and item.get("event_id"))
+        used_ids = sorted(set(used))
+        dispositions = [{"context_id": event.event_id,
+                         "disposition": ("used" if event.event_id in used_ids
+                                         else "scenario" if not event.event_type.startswith(
+                                             ("constraint:", "override:", "structural:"))
+                                         else "rejected")}
+                        for event in applicable]
         return {
-            "status": "applied", "primary_forecast_changed": True,
+            "status": "applied", "primary_forecast_changed": changed,
+            # Numeric admission permits a labelled context-conditioned
+            # recommendation. Automation remains a separate explicit policy
+            # decision; this context outcome alone never grants it.
+            "automation_eligible": False,
             "canonical_primary_preserved": True,
-            "selected_output_role": "context_conditioned_projection",
+            "selected_output_role": (
+                "context_conditioned_projection" if changed
+                else "primary_forecast_no_numeric_context_change"),
             "canonical_primary_location": "artifact.results[].primary_forecast",
-            "events": sorted(set(used)),
+            "events": used_ids,
+            "dispositions": dispositions,
+            "admission_basis": ("historical_fold_ablation"
+                                if historical_admission
+                                else "future_context_contract"),
             **({"context_receipt_ids": receipt_ids} if receipt_ids else {}),
-            "basis": "a deterministic context candidate passed its numeric admission gate",
+            "basis": (
+                "a deterministic context candidate passed its numeric "
+                "admission gate and changed this horizon" if changed else
+                "a deterministic context candidate passed its numeric "
+                "admission gate, but no admitted effect changed this horizon"
+            ),
         }
     conditional = list(conditional_forecasts or [])
     sensitivity = list(sensitivity_scenarios or [])
@@ -162,35 +189,119 @@ def context_outcome(
                 hypothesis["may_affect_primary_forecast"] = False
     exclusions = list(getattr(context_assessment, "events_excluded", []) or [])
     gate_reasons = list(getattr(context_assessment, "reasons", []) or [])
+    failed_gate_codes = [
+        str(check.get("code"))
+        for check in (getattr(context_assessment, "gate_checks", []) or [])
+        if isinstance(check, dict) and check.get("code")
+        and check.get("passed") is False
+    ]
+    future_failures = [
+        check for check in ((future_context or {}).get("checks") or [])
+        if isinstance(check, dict) and check.get("code")
+        and check.get("passed") is False
+    ]
+    future_failure_ids = {str(check.get("event_id"))
+                          for check in future_failures if check.get("event_id")}
+    # When every applicable event is governed by the dedicated future lane,
+    # its transformation-specific gate is the decisive explanation. The
+    # generic historical-ablation lane may also have declined the same event,
+    # but projecting that displaced gate instead caused agents to explain the
+    # wrong decision.
+    if future_failures and future_failure_ids >= {
+            event.event_id for event in applicable}:
+        failed_gate_codes = []
+        gate_reasons = []
+    for check in future_failures:
+        code = str(check["code"])
+        if code not in failed_gate_codes:
+            failed_gate_codes.append(code)
+        detail = str(check.get("detail") or code)
+        if detail not in gate_reasons:
+            gate_reasons.append(detail)
     # Generic, grounded events are useful scenarios even when their effect
     # size is not measurable. Namespaced deterministic claims have a stricter
     # contract: a failed parser/admission is a rejection, never a scenario.
     generic = [event for event in applicable if not event.event_type.startswith(
         ("constraint:", "override:", "structural:"))]
-    if generic:
+    scenario_ids = {str(event_id) for item in sensitivity
+                    for event_id in item.get("events", [])}
+    represented = [event for event in applicable
+                   if event in generic or event.event_id in scenario_ids]
+    if represented:
+        generic_ids = {event.event_id for event in represented}
+        dispositions = [{
+            "context_id": event.event_id,
+            "disposition": ("scenario" if event.event_id in generic_ids
+                            else "rejected"),
+        } for event in applicable]
+        point_candidate = bool(
+            getattr(context_assessment, "point_candidate", None))
         return {
-            "status": "scenario_only", "primary_forecast_changed": False,
-            "events": [event.event_id for event in generic],
+            "status": ("partially_represented"
+                       if len(generic) != len(applicable) else "scenario_only"),
+            "primary_forecast_changed": False,
+            "canonical_primary_preserved": True,
+            "automation_eligible": False,
+            "events": [event.event_id for event in applicable],
+            "dispositions": dispositions,
             **({"context_receipt_ids": receipt_ids} if receipt_ids else {}),
             "hypotheses": hypotheses,
             "conditional_forecasts_produced": len(conditional),
             "sensitivity_scenarios_produced": len(sensitivity),
+            **({
+                "selected_output_role": "interval_weak_context_scenario",
+                "scenario_support": getattr(
+                    context_assessment, "point_support",
+                    "point_supported_interval_weak"),
+                "automation_eligible": False,
+            } if point_candidate else {}),
             "basis": (
-                "the event is grounded, but no admitted numerical effect may alter "
-                "the primary forecast; an event-effect magnitude remains null unless "
-                "measured from data, and any sensitivity path is explicitly standardized"
+                ("the event effect improved historical point forecasts, but its "
+                 "intervals failed the independent coverage gate; the fitted path "
+                 "is available only as a non-automatable scenario"
+                 if point_candidate else
+                 "the event is grounded, but no admitted numerical effect may alter "
+                 "the primary forecast; an event-effect magnitude remains null unless "
+                 "measured from data, and any sensitivity path is explicitly standardized")
             ),
             "recovery_actions": [
                 "provide prior occurrences of the same event type for effect estimation",
                 "track post-event outcomes and rerun once an effect can be measured",
             ],
             **({"gate_reasons": gate_reasons} if gate_reasons else {}),
+            **({"failed_gate_codes": failed_gate_codes}
+               if failed_gate_codes else {}),
             **({"excluded": exclusions} if exclusions else {}),
         }
+    no_distinct_structural_path = (
+        bool(future_failures)
+        and all(str(check.get("code")) ==
+                "emitted_trend_is_directionally_stable"
+                for check in future_failures)
+        and all(event.event_type == "structural:trend_ceases"
+                for event in applicable)
+    )
     return {
         "status": "rejected", "primary_forecast_changed": False,
+        "canonical_primary_preserved": True,
+        "automation_eligible": False,
         "events": [event.event_id for event in applicable],
+        **({
+            "relationship_to_primary": "no_distinct_numeric_path",
+            "selected_output_role": "primary_forecast_already_noncontinuing",
+            "basis": (
+                "the emitted primary does not contain a stable continuation "
+                "of the historical trend, so applying trend_ceases would not "
+                "create a defensibly distinct numeric path"
+            ),
+            "recovery_actions": [
+                "use the immutable primary as the no-continuation path",
+                "track the outcome before assigning a recurring structural effect",
+            ],
+        } if no_distinct_structural_path else {}),
         **({"context_receipt_ids": receipt_ids} if receipt_ids else {}),
+        **({"failed_gate_codes": failed_gate_codes}
+           if failed_gate_codes else {}),
         "reasons": ((future_context or {}).get("rejected") or exclusions
                     or gate_reasons or ["context did not pass numeric admission"]),
     }

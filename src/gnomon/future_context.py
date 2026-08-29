@@ -76,9 +76,10 @@ experiment.
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from statistics import median
@@ -280,7 +281,9 @@ _MAX_PATTERNS = [
     rf"(?:below|under|less\s+than)\s+({_N}){_AFTER_NUMBER}",
     # "a maximum speed of 3000 rpm" — up to three words may name the
     # bounded quantity between the superlative and "of".
-    rf"(?:capped?\s+at|cap\s+of|ceiling\s+of|a?\s*max(?:imum|imal)?\s+(?:[\w-]+\s+){{0,3}}?of)\s+({_N}){_AFTER_NUMBER}",
+    rf"(?:capped\s+at|caps?\s+(?:[\w-]+\s+){{0,3}}?at|cap\s+of|"
+    rf"ceiling\s+of|a?\s*max(?:imum|imal)?\s+(?:[\w-]+\s+){{0,3}}?of)"
+    rf"\s+(?:exactly\s+)?({_N}){_AFTER_NUMBER}",
     # Attributive: "the maximal fan speed is 3000 rpm". The superlative
     # names the bounded quantity and the copula states the number; a
     # trailing unit is fine (the number guard only refuses percent and
@@ -479,6 +482,19 @@ def parse_override_span(span: str) -> tuple[float | None, str | None]:
     120 while the line is partially shut down" reads as 120, not 0.
     """
     text = " ".join(str(span).split())
+    # Relative levels must be resolved against a disclosed baseline by the
+    # scale lane. Without this guard, the broad "will be N" pattern reads
+    # "will be 5 times the usual level" as the absolute value 5 and creates a
+    # second, materially different deterministic scenario.
+    if re.search(
+            rf"{_N}{_AFTER_NUMBER}\s*(?:times\b|x\b|×).*?\b{_BASELINE}\b",
+            text, re.IGNORECASE):
+        scale, problem = parse_override_scale(text)
+        if problem is not None:
+            return None, problem
+        return None, (
+            f"the source span states {scale:g} times a baseline, not an "
+            "absolute override value; use the relative-scale lane")
     for pattern in _OVERRIDE_VALUE_PATTERNS:
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
@@ -517,9 +533,50 @@ def parse_override_scale(span: str) -> tuple[float | None, str | None]:
     is applied.
     """
     text = " ".join(str(span).split())
-    match = re.search(_SCALED_BASELINE, text, re.IGNORECASE)
-    if match:
-        return _scale_from(match), None
+    matches = list(re.finditer(_SCALED_BASELINE, text, re.IGNORECASE))
+    if matches:
+        scales = [_scale_from(match) for match in matches]
+        # The baseline matcher intentionally tolerates intervening nouns, but
+        # that must not let it swallow a second competing multiplier in a
+        # phrase such as “either 9 times or 5 times the usual level.”
+        surface_times = [
+            _to_float(match.group(1)) for match in re.finditer(
+                rf"({_N}){_AFTER_NUMBER}\s*(?:times\b|x\b|×)",
+                text, re.IGNORECASE)]
+        surface_pct = [
+            _to_float(match.group(1)) / 100.0 for match in re.finditer(
+                rf"({_N})\s*(?:%|percent\b|pct\b)\s+of\b",
+                text, re.IGNORECASE)]
+        distinct = {round(value, 12)
+                    for value in [*scales, *surface_times, *surface_pct]}
+        if len(distinct) == 1:
+            return scales[0], None
+        # A source may contrast a generic/default multiple with the explicit
+        # operative case. Resolve only narrow correction language whose tail
+        # contains exactly one multiplier. This is not recency guessing: the
+        # grammar itself says that the following clause supersedes the prior
+        # expectation (for example, “typically 9×, but in this case 5×”).
+        corrections = list(re.finditer(
+            r"\b(?:but\s+in\s+this\s+case|in\s+this\s+case|instead|"
+            r"actually|in\s+practice)\b", text, re.IGNORECASE))
+        if corrections:
+            operative = text[corrections[-1].end():]
+            operative_matches = list(re.finditer(
+                _SCALED_BASELINE, operative, re.IGNORECASE))
+            operative_scales = [_scale_from(match)
+                                for match in operative_matches]
+            operative_surface = [
+                _to_float(match.group(1)) for match in re.finditer(
+                    rf"({_N}){_AFTER_NUMBER}\s*(?:times\b|x\b|×)",
+                    operative, re.IGNORECASE)]
+            operative_distinct = {round(value, 12) for value in
+                                  [*operative_scales, *operative_surface]}
+            if len(operative_distinct) == 1 and operative_scales:
+                return operative_scales[0], None
+        return None, (
+            "the source span states multiple different baseline multiples; "
+            "a deterministic parser cannot choose which scenario is operative"
+        )
     return None, (
         "the source span does not state a multiple or percentage of a "
         "usual/normal/typical level"
@@ -551,6 +608,9 @@ class FutureEvent:
     #: trend_ceases only: the engine-measured, seasonally adjusted slope
     #: already present in the emitted base path. The text never supplies it.
     slope: float | None = None
+    #: Exact source-cited endpoints do not need the conservative one-step
+    #: boundary union used for vague or model-located windows.
+    boundary_exact: bool = False
 
     def to_public_dict(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -571,7 +631,66 @@ class FutureEvent:
                 payload["resolved_levels"] = list(self.levels)
         else:
             payload["value"] = self.value
+            payload["boundary_exact"] = self.boundary_exact
         return payload
+
+
+def _timestamp_is_explicit(timestamp: str, span: str) -> bool:
+    """Whether the source literally states this endpoint to grid precision."""
+    try:
+        value = datetime.fromisoformat(timestamp)
+    except ValueError:
+        return False
+    candidates = {
+        value.isoformat(), value.isoformat().replace("T", " "),
+        value.strftime("%Y-%m-%d %H:%M:%S"),
+        value.strftime("%Y-%m-%dT%H:%M:%S"),
+        value.strftime("%Y-%m-%d %H:%M"),
+        value.strftime("%Y-%m-%dT%H:%M"),
+    }
+    return any(candidate in span for candidate in candidates)
+
+
+def _duration_window_is_exact_on_grid(
+        event: FutureEvent, rows: list[dict[str, Any]], steps: list[int],
+) -> bool:
+    """Whether an exact source duration fully determines covered grid rows."""
+    if not steps or re.search(
+            r"\b(?:approximately|about|roughly|around)\b",
+            event.source_span, re.I):
+        return False
+    if not _timestamp_is_explicit(event.effective_start, event.source_span):
+        return False
+    matches = re.findall(
+        r"\b(?:last(?:ed|s)?|continu(?:ed|es)|for)\s+(?:for\s+)?"
+        r"(\d+(?:\.\d+)?)\s*(minutes?|hours?|days?|weeks?)\b",
+        event.source_span, re.I)
+    if len(matches) != 1:
+        return False
+    amount = float(matches[0][0])
+    unit = matches[0][1].casefold()
+    seconds = amount * (60 if unit.startswith("minute") else
+                        3600 if unit.startswith("hour") else
+                        604800 if unit.startswith("week") else 86400)
+    if not math.isfinite(seconds) or seconds <= 0:
+        return False
+    start = datetime.fromisoformat(event.effective_start)
+    exclusive_end = start + timedelta(seconds=seconds)
+    covered = [datetime.fromisoformat(str(rows[index]["timestamp"]))
+               for index in steps]
+    aligned_start, first = _align(start, covered[0])
+    aligned_end, _ = _align(exclusive_end, covered[0])
+    if first != aligned_start or any(
+            not aligned_start <= _align(stamp, covered[0])[0] < aligned_end
+            for stamp in covered):
+        return False
+    next_index = steps[-1] + 1
+    if next_index < len(rows):
+        next_stamp = datetime.fromisoformat(str(rows[next_index]["timestamp"]))
+        comparable_end, aligned_next = _align(aligned_end, next_stamp)
+        if aligned_next < comparable_end:
+            return False
+    return True
 
 
 @dataclass
@@ -580,6 +699,10 @@ class FutureContextAssessment:
 
     considered: bool
     admitted: list[FutureEvent] = field(default_factory=list)
+    # Fully resolved engine-derived paths that lack enough separated model
+    # evidence for publication. They remain useful human what-if candidates,
+    # but can neither alter the primary nor authorize automation.
+    scenarios: list[FutureEvent] = field(default_factory=list)
     rejected: list[dict[str, Any]] = field(default_factory=list)
     checks: list[dict[str, Any]] = field(default_factory=list)
 
@@ -636,16 +759,20 @@ class FutureContextAssessment:
         return {
             "considered": self.considered,
             "admitted": [item.to_public_dict() for item in self.admitted],
+            "scenarios": [item.to_public_dict() for item in self.scenarios],
             "rejected": self.rejected,
             "checks": self.checks,
             "by_class": self.class_counts(),
             "admission_basis": (
-                "textual verifiability: numbers re-parsed from the quoted "
-                "source span, never taken from the proposal; recent "
-                "history's relation to a claimed bound disclosed, never "
-                "used to reject a forward-scoped claim; fold ablation "
-                "deliberately not applicable — these windows have no "
-                "historical precedent"
+                "constraints and overrides use textual verifiability: numbers "
+                "are re-parsed from the quoted source span, never taken from "
+                "the proposal; recent history's relation to a claimed bound "
+                "is disclosed, never used to reject a forward-scoped claim. "
+                "Structural transformations additionally require at least four "
+                "transformation-specific separated historical or analogue "
+                "evaluations to alter the selected path; "
+                "otherwise the resolved transformation is retained only as a "
+                "non-automatable prior-assisted scenario"
             ),
         }
 
@@ -682,6 +809,7 @@ def assess_future_events(
     base_points: list[float] | None = None,
     allow_future: bool = True,
     allow_structural: bool = True,
+    structural_evidence_folds: int | None = None,
 ) -> FutureContextAssessment:
     """Run every namespaced event through the lane's admission checks.
 
@@ -798,6 +926,24 @@ def assess_future_events(
                 assessment, event, span, values=values, season=season,
                 future_count=len(future_timestamps), base_points=base_points,
             )
+            if (admitted is not None and structural_evidence_folds is not None
+                    and structural_evidence_folds < 4):
+                assessment.record_check(
+                    event, event_class, "separated_model_folds_available",
+                    False,
+                    detail=(
+                        "a structural transformation needs at least four "
+                        "transformation-specific separated historical or "
+                        "analogue evaluations before it may alter "
+                        "the selected projection; the resolved path remains a "
+                        "prior-assisted scenario"
+                    ),
+                    source_span=span,
+                    data={"measured_folds": structural_evidence_folds,
+                          "required_folds": 4},
+                )
+                assessment.scenarios.append(admitted)
+                admitted = None
         else:
             admitted = _admit_override(assessment, event, span, window_values)
         if admitted is not None:
@@ -1142,6 +1288,9 @@ def _admit_override(
     return FutureEvent(
         event.event_id, "override", event.effective_start,
         event.effective_end, span, value=value,
+        boundary_exact=(
+            _timestamp_is_explicit(event.effective_start, span)
+            and _timestamp_is_explicit(event.effective_end, span)),
     )
 
 
@@ -1258,19 +1407,27 @@ def _admit_structural(
         same_direction = historical_slope * emitted_slope > 0
         magnitude_ratio = (abs(emitted_slope / historical_slope)
                            if abs(historical_slope) > 1e-12 else 0.0)
-        if (agreement < 0.75 or not same_direction
-                or not 0.25 <= magnitude_ratio <= 4.0):
+        agreement_passed = agreement >= 0.75
+        magnitude_ratio_passed = 0.25 <= magnitude_ratio <= 4.0
+        if (not agreement_passed or not same_direction
+                or not magnitude_ratio_passed):
             assessment.record_check(
                 event, "structural", "emitted_trend_is_directionally_stable",
                 False,
                 detail=(
                     "the emitted path does not contain a stable continuation "
-                    "of the seasonally adjusted historical trend "
-                    f"(agreement={agreement:.1%}, historical slope="
+                    "of the seasonally adjusted historical trend; subchecks: "
+                    f"directional agreement "
+                    f"{'passed' if agreement_passed else 'failed'} "
+                    f"({agreement:.1%}, required >=75%); slope direction "
+                    f"{'passed' if same_direction else 'failed'} "
+                    "(same direction required; historical slope="
                     f"{historical_slope:.6g}, emitted slope="
-                    f"{emitted_slope:.6g}, ratio={magnitude_ratio:.3g}); "
-                    "at least 75% directional agreement and a same-direction "
-                    "magnitude ratio in [0.25, 4] are required"
+                    f"{emitted_slope:.6g}); magnitude ratio "
+                    f"{'passed' if magnitude_ratio_passed else 'failed'} "
+                    f"({magnitude_ratio:.3g} "
+                    f"{'within' if magnitude_ratio_passed else 'outside'} "
+                    "[0.25, 4])"
                 ),
                 source_span=span,
                 data={"historical_slope_per_step": historical_slope,
@@ -1278,7 +1435,10 @@ def _admit_structural(
                       "directional_agreement": agreement,
                       "magnitude_ratio": magnitude_ratio,
                       "agreement_threshold": 0.75,
-                      "magnitude_ratio_bounds": [0.25, 4.0]},
+                      "magnitude_ratio_bounds": [0.25, 4.0],
+                      "directional_agreement_passed": agreement_passed,
+                      "same_direction_passed": same_direction,
+                      "magnitude_ratio_passed": magnitude_ratio_passed},
             )
             return None
         resolved_slope = emitted_slope
@@ -1469,12 +1629,14 @@ def apply_future_events(
         # its closing edge only when the window actually ends inside the
         # horizon — a window running past the horizon has no closing edge
         # here, and its final visible step is interior.
-        boundary = {steps[0]}
+        exact_window = event.boundary_exact or _duration_window_is_exact_on_grid(
+            event, projected, steps)
+        boundary = set() if exact_window else {steps[0]}
         window_end, horizon_end = _align(
             datetime.fromisoformat(event.effective_end),
             datetime.fromisoformat(str(projected[-1]["timestamp"])),
         )
-        if window_end <= horizon_end:
+        if not exact_window and window_end <= horizon_end:
             boundary.add(steps[-1])
         for index in steps:
             row = projected[index]
@@ -1507,3 +1669,27 @@ def apply_future_events(
         for index in steps:
             _assert_monotone(projected[index])
     return projected, applications
+_PREDICTIVE_SOURCE_RE = re.compile(
+    r"\b(?:forecasts?|forecasting|predicts?|predicted|projects?|projected|"
+    r"expects?|expected|estimates?|estimated|anticipates?|outlook|will|"
+    r"likely|probably)\b", re.IGNORECASE)
+_BINDING_SOURCE_RE = re.compile(
+    r"\b(?:must|shall|required?|policy|rule|contract|schedule|scheduled|"
+    r"guaranteed?|binding|hard\s+cap|capped?|ceiling|floor|limit|"
+    r"design\s+capacity|rated\s+capacity|"
+    r"cannot|prohibited?|mandated?)\b", re.IGNORECASE)
+
+
+def literal_authority(text: str) -> tuple[bool, bool]:
+    """Return whether a quoted numeric statement is predictive and binding.
+
+    A future-tense number (``will not exceed 80``) is a forecast, not a
+    constraint, unless the same quoted sentence carries an independently
+    recognizable source of authority such as a policy, contract, schedule,
+    physical limit, or guarantee.  Keeping this classifier shared prevents
+    the workflow compiler and compact MCP lane from assigning different
+    authority to the same words.
+    """
+    value = str(text or "")
+    return bool(_PREDICTIVE_SOURCE_RE.search(value)), bool(
+        _BINDING_SOURCE_RE.search(value))

@@ -495,7 +495,10 @@ def decide(
 
     from .contracts import interval_calibration_is_verifiable
     calibration_ok = interval_calibration_is_verifiable(result.interval_coverage)
-    if not result.forecast or not result.threshold or not calibration_ok:
+    probabilities_available = bool(
+        (result.threshold or {}).get("probability_above"))
+    if (not result.forecast or not result.threshold or not calibration_ok
+            or not probabilities_available):
         evaluation: dict[str, Any] = {"evaluations": [], "selected": None}
         # Two distinct honest refusals: no rows at all, or rows published
         # below the calibrated tiers (best_effort / horizon split) — which
@@ -816,7 +819,10 @@ def monitor(
     for result in artifact.results:
         calibration_ok = interval_calibration_is_verifiable(
             result.interval_coverage)
-        if not result.forecast or not result.threshold or not calibration_ok:
+        probabilities_available = bool(
+            (result.threshold or {}).get("probability_above"))
+        if (not result.forecast or not result.threshold or not calibration_ok
+                or not probabilities_available):
             if result.forecast and not calibration_ok:
                 assessment = inconclusive(
                     "interval_coverage_out_of_band",

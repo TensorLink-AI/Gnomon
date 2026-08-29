@@ -20,14 +20,16 @@ Admission follows the evidence, in the admission vocabulary already used by
   holdout shorter than the horizon) and passed deterministic plausibility
   checks.
 
-A candidate with no out-of-sample win at all earns no lane: with zero
-evidence in its favour, the governed floor is already the better-evidenced
-answer, and publishing a bare assertion beside it would be exactly the
-laundering the abstention contract forbids.
+A candidate with no out-of-sample win ordinarily earns no lane. One narrow
+structural prior is explicit: an intraday series with one complete observed
+week may expose that week as a labelled calendar prior. It is not historical
+skill evidence, never authorizes automation, and exists only to make the
+best-effort surface useful when a two-week replay is mathematically impossible.
 """
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from .admission import OutputDiagnostics, output_diagnostics
@@ -42,6 +44,9 @@ MODEL_ASSISTED_LANE_VERSION = "0.1"
 #: than the history), not to second-guess a candidate the evidence admitted.
 MAX_BOUNDARY_JUMP = 10.0
 MAX_SCALE_RATIO = 20.0
+SEASONAL_PREQUENTIAL_MARGIN = .25
+SEASONAL_PHASE_BLOCKS = 4
+SEASONAL_REQUIRED_BLOCK_WINS = 3
 
 
 def _plausible(values: list[float], candidate: list[float],
@@ -79,9 +84,17 @@ def _scored_candidate(assessment: Any) -> tuple[str, float, float] | None:
     baseline_score = scores.get(baseline)
     if baseline_score is None:
         return None
+    # ``seasonal_naive`` is a structured baseline, but when the governed
+    # short-history floor is ``last_value`` it is also the cheapest useful
+    # temporal prior available.  It may enter this explicitly non-automatable
+    # lane on the same out-of-sample evidence as an incremental model; it does
+    # not replace the stricter primary-selection rule.
     valid = {
         name: float(score) for name, score in scores.items()
-        if score is not None and name not in BASELINES and name in MODELS
+        if score is not None and name in MODELS
+        and name != baseline
+        and (name not in BASELINES
+             or (baseline == "last_value" and name == "seasonal_naive"))
     }
     if not valid:
         return None
@@ -118,7 +131,8 @@ def _holdout_candidate(values: list[float], horizon: int,
         return None
     best: tuple[str, float] | None = None
     for name in sorted(MODELS):
-        if name in BASELINES:
+        if name == "last_value" or (
+                name in BASELINES and name != "seasonal_naive"):
             continue
         try:
             score = error_score(actual, predict(name, train, holdout, season))
@@ -131,6 +145,97 @@ def _holdout_candidate(values: list[float], horizon: int,
     if best is None:
         return None
     return best[0], best[1], float(baseline_score), holdout
+
+
+def _seasonal_prequential_candidate(
+        values: list[float], season: int) -> dict[str, Any] | None:
+    """Admit one predeclared seasonal baseline over a complete past cycle.
+
+    Every one-step prediction is made from observations strictly before its
+    origin.  Requiring a complete phase sweep and wins in three of four phase
+    blocks prevents a single favourable segment from standing in for a cycle.
+    This is still only one held-out cycle, so the result remains prior-assisted
+    and never becomes automation evidence.
+    """
+    if season < 4 or len(values) < 2 * season:
+        return None
+    start = len(values) - season
+    actual = values[start:]
+    seasonal = [values[index - season]
+                for index in range(start, len(values))]
+    last = [values[index - 1] for index in range(start, len(values))]
+    seasonal_errors = [abs(float(a) - float(p))
+                       for a, p in zip(actual, seasonal)]
+    last_errors = [abs(float(a) - float(p))
+                   for a, p in zip(actual, last)]
+    seasonal_mae = sum(seasonal_errors) / season
+    last_mae = sum(last_errors) / season
+    if last_mae <= 1e-12:
+        return None
+    block_wins = 0
+    for block in range(SEASONAL_PHASE_BLOCKS):
+        left = block * season // SEASONAL_PHASE_BLOCKS
+        right = (block + 1) * season // SEASONAL_PHASE_BLOCKS
+        if right > left and (
+                sum(seasonal_errors[left:right]) / (right - left)
+                < sum(last_errors[left:right]) / (right - left)):
+            block_wins += 1
+    relative_improvement = (last_mae - seasonal_mae) / last_mae
+    admitted = (
+        relative_improvement >= SEASONAL_PREQUENTIAL_MARGIN
+        and block_wins >= SEASONAL_REQUIRED_BLOCK_WINS)
+    if not admitted:
+        return None
+    return {
+        "basis": "full_cycle_prequential",
+        "out_of_sample_steps": season,
+        "comparisons": season,
+        "candidate_score": seasonal_mae,
+        "baseline_score": last_mae,
+        "baseline": "last_value",
+        "relative_improvement": relative_improvement,
+        "phase_blocks": SEASONAL_PHASE_BLOCKS,
+        "phase_block_wins": block_wins,
+        "required_phase_block_wins": SEASONAL_REQUIRED_BLOCK_WINS,
+        "required_margin": SEASONAL_PREQUENTIAL_MARGIN,
+        "complete_phase_coverage": True,
+        "scores_are_evidence_not_a_ranking": True,
+    }
+
+
+def _single_week_calendar_prior(
+    values: list[float], season: int, horizon: int,
+    future_timestamps: list[Any],
+) -> tuple[list[float], dict[str, Any]] | None:
+    """Return one explicitly prior-only weekly path for an intraday grid."""
+    if season < 2 or len(future_timestamps) < 2:
+        return None
+    try:
+        parsed = [value if isinstance(value, datetime)
+                  else datetime.fromisoformat(str(value))
+                  for value in future_timestamps]
+    except (TypeError, ValueError):
+        return None
+    steps = [(right - left).total_seconds()
+             for left, right in zip(parsed, parsed[1:])]
+    if (not steps or any(step <= 0 for step in steps)
+            or any(abs(step - steps[0]) > max(1e-6, steps[0] * 1e-6)
+                   for step in steps[1:])
+            or abs(season * steps[0] - 86400.0) > 1.0):
+        return None
+    weekly_period = 7 * season
+    if len(values) < weekly_period:
+        return None
+    points = [float(values[-weekly_period + index % weekly_period])
+              for index in range(horizon)]
+    return points, {
+        "basis": "single_observed_calendar_cycle_prior",
+        "calendar_cycle": "week", "period_steps": weekly_period,
+        "observed_cycles": 1, "out_of_sample_steps": 0, "comparisons": 0,
+        "historical_skill_evidence": False,
+        "complete_cycle_observed": True,
+        "scores_are_evidence_not_a_ranking": False,
+    }
 
 
 def build_model_assisted_lane(
@@ -154,11 +259,30 @@ def build_model_assisted_lane(
         return None, None, None
 
     candidate: str | None = None
+    candidate_points: list[float] | None = None
     validation: dict[str, Any] | None = None
     evidence_steps = 0
+    if selected_model == "last_value":
+        seasonal_validation = _seasonal_prequential_candidate(values, season)
+        if seasonal_validation is not None:
+            candidate = "seasonal_naive"
+            validation = seasonal_validation
+            evidence_steps = season
+    if candidate is None and selected_model == "seasonal_naive":
+        # The governed engine has already identified the intraday daily cycle.
+        # With exactly one week, a weekly replay cannot be backtested, but the
+        # calendar-shaped prior is less assumptive than promoting an unrelated
+        # trend from one short holdout. It remains visibly prior-only.
+        calendar_prior = _single_week_calendar_prior(
+            values, season, horizon, future_timestamps)
+        if calendar_prior is not None:
+            candidate = "calendar_seasonal_naive"
+            candidate_points, validation = calendar_prior
+            evidence_steps = 0
     if (assessment is not None
             and getattr(assessment, "selection_guardrail_applied", False)
-            and selected_model == assessment.strongest_baseline):
+            and selected_model == assessment.strongest_baseline
+            and candidate is None):
         scored = _scored_candidate(assessment)
         if scored is not None:
             candidate, candidate_score, baseline_score = scored
@@ -176,7 +300,7 @@ def build_model_assisted_lane(
                 "baseline": assessment.strongest_baseline,
                 "scores_are_evidence_not_a_ranking": True,
             }
-    elif published_support == "best_effort":
+    elif published_support == "best_effort" and candidate is None:
         held = _holdout_candidate(values, horizon, season)
         if held is not None:
             candidate, candidate_score, baseline_score, evidence_steps = held
@@ -193,7 +317,8 @@ def build_model_assisted_lane(
         return None, None, None
 
     try:
-        points = predict(candidate, values, horizon, season)
+        points = (candidate_points if candidate_points is not None else
+                  predict(candidate, values, horizon, season))
         baseline_points = predict("last_value", values, horizon, season)
     except (ValueError, ArithmeticError):
         return None, None, None
@@ -220,16 +345,24 @@ def build_model_assisted_lane(
         "automation_eligible": False,
         "primary_forecast_unchanged": True,
     }
-    disclosure = SupportReason(
-        "model_assisted_lane",
-        f"A {support} model-assisted forecast ({candidate}) is published in "
-        f"the model_assisted lane beside the governed rows: it beat "
-        f"{validation['baseline']} on {validation['basis']} "
-        f"({evidence_steps} out-of-sample step"
-        f"{'s' if evidence_steps != 1 else ''}) and passed plausibility "
-        f"checks. It carries no calibrated intervals, is not eligible for "
-        f"automatic action, and never replaces the primary forecast.",
-    )
+    if validation["basis"] == "single_observed_calendar_cycle_prior":
+        disclosure_text = (
+            f"A {support} model-assisted forecast ({candidate}) is published "
+            "beside the governed rows from one complete observed calendar "
+            "week. It has no out-of-sample skill evidence; it passed only "
+            "deterministic grid and plausibility checks, carries no calibrated "
+            "intervals, is not eligible for automatic action, and never "
+            "replaces the primary forecast.")
+    else:
+        disclosure_text = (
+            f"A {support} model-assisted forecast ({candidate}) is published "
+            f"in the model_assisted lane beside the governed rows: it beat "
+            f"{validation['baseline']} on {validation['basis']} "
+            f"({evidence_steps} out-of-sample step"
+            f"{'s' if evidence_steps != 1 else ''}) and passed plausibility "
+            "checks. It carries no calibrated intervals, is not eligible for "
+            "automatic action, and never replaces the primary forecast.")
+    disclosure = SupportReason("model_assisted_lane", disclosure_text)
     evidence = Evidence(
         f"model_assisted:{series}", "model_assisted_lane", series, {
             "support": support,

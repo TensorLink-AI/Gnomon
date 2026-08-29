@@ -41,7 +41,13 @@ disclosed in `method`, `residual_source`, and `reasons`:
    assumption. They carry the same conformal recentring and per-lead
    spread scaling as the published intervals, which measured better on
    decision cost than raw few-origin residual paths (1.40 vs 2.01 per
-   case on the diagnostic corpus). A blocked residual bootstrap over the
+   case on the diagnostic corpus). The raw composition is retained as
+   `independence_composed_reference`; the communicated event probability
+   applies one Jeffreys half-success/half-failure regularisation using the
+   number of real rolling-origin clusters behind the marginals and carries a
+   90% finite-sample interval. Regularisation is applied once to the horizon
+   event—not once per lead—so a long horizon cannot accumulate prior mass
+   into an artificial breach. A blocked residual bootstrap over the
    richest available residual source still runs, contributing the timing
    and maximum distributions and a disclosed
    `bootstrap_diagnostic_probability`.
@@ -52,6 +58,15 @@ disclosed in `method`, `residual_source`, and `reasons`:
 
 Only when nothing can be estimated at all is the probability withheld
 (`support: insufficient`).
+
+For this best-effort rung, regularisation and policy have deliberately
+different roles. `probability_any_breach` is the finite-sample-regularised
+value communicated to a reader; `independence_composed_reference` is the raw
+empirical diagnostic. The single-shot policy uses that raw reference as
+`decision_probability`, because a half-success pseudo-count represents
+uncertainty and is not allowed to manufacture an intervention. Both values
+and `decision_probability_basis` are returned. This distinction never upgrades
+the event or decision beyond `best_effort`.
 
 ## Single-shot policy
 
@@ -65,15 +80,25 @@ break_even    = action_cost / (miss_cost × e)
 ```
 
 Whenever a probability exists, the expected-loss comparison at the point
-estimate yields a recommendation; what varies is its authority.
+estimate yields an action calculation; its field reflects its authority.
 `decision_support: supported` requires a supported event estimate whose
 90% interval clears break-even entirely on one side. A best-effort
 estimate, or an interval straddling the boundary, publishes the same
-expected-loss recommendation at `decision_support: best_effort` with the
-demotion's reason attached. The recommendation is `null` only when no
-probability could be formed (`event_probability_unavailable`): silence
-defaulting to monitor was measured to invert the cost asymmetry it
-exists to respect.
+expected-loss result at `decision_support: best_effort` with the demotion's
+reason attached. Supported results occupy `recommended_action`; best-effort
+results occupy `advisory_action` and leave `recommended_action` null. Thus a
+weak calculation remains concrete without presenting itself as governed
+advice. Both are null only when no probability could be formed
+(`event_probability_unavailable`).
+
+`human_action_authority` makes that distinction executable: `binding` means
+the supported governed recommendation should be followed, while `advisory`
+means an LLM or human may choose differently using the visible history and
+evidence.
+Such a choice is separately receipted and outcome-scored; it never upgrades
+support or automation eligibility. `probability_roles` identifies the single
+quotable event probability and keeps the raw policy-calculation input from
+being accidentally repeated as the forecast probability.
 
 This policy assumes one irreversible choice now. It does not price the option
 to observe another period and act later. `alert_cost` remains a separate

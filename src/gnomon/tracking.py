@@ -904,18 +904,43 @@ class TrackingStore:
         # Only typed categorical equality is scored here. Numeric claims need
         # a property-specific scoring rule and remain unresolved rather than
         # acquiring a convenient tolerance at this generic boundary.
-        comparable = isinstance(realised, (str, bool))
-        canonical_correct = (canonical_value == realised if comparable else None)
-        synthesis_correct = (synthesis_value == realised if comparable else None)
-        score = {
-            "rule": "typed_categorical_exact_v1",
-            "canonical_correct": canonical_correct,
-            "synthesis_correct": synthesis_correct,
-            "synthesis_delta": (
-                int(synthesis_correct) - int(canonical_correct)
-                if canonical_correct is not None and synthesis_correct is not None
-                else None),
-        }
+        actual_points = outcome.get("points")
+        canonical_points = canonical.get("forecast")
+        synthesis_points = synthesis.get("forecast")
+        if (isinstance(actual_points, list) and canonical_points
+                and synthesis_points):
+            from .evaluation import error_score
+            def values(rows):
+                return [float(row.get("q50", row.get("point"))) for row in rows]
+            n = min(len(actual_points), len(canonical_points), len(synthesis_points))
+            canonical_error = error_score(
+                [float(item) for item in actual_points[:n]], values(canonical_points)[:n])
+            synthesis_error = error_score(
+                [float(item) for item in actual_points[:n]], values(synthesis_points)[:n])
+            score = {
+                "rule": "numeric_path_wape_v1", "points": n,
+                "canonical_error": canonical_error,
+                "synthesis_error": synthesis_error,
+                "synthesis_delta": (canonical_error - synthesis_error
+                                    if canonical_error is not None
+                                    and synthesis_error is not None else None),
+                "synthesis_won": (synthesis_error < canonical_error
+                                  if canonical_error is not None
+                                  and synthesis_error is not None else None),
+            }
+        else:
+            comparable = isinstance(realised, (str, bool))
+            canonical_correct = (canonical_value == realised if comparable else None)
+            synthesis_correct = (synthesis_value == realised if comparable else None)
+            score = {
+                "rule": "typed_categorical_exact_v1",
+                "canonical_correct": canonical_correct,
+                "synthesis_correct": synthesis_correct,
+                "synthesis_delta": (
+                    int(synthesis_correct) - int(canonical_correct)
+                    if canonical_correct is not None and synthesis_correct is not None
+                    else None),
+            }
         with self._connect() as conn:
             changed = conn.execute("""
                 UPDATE temporal_synthesis_receipts
@@ -931,9 +956,13 @@ class TrackingStore:
 
     def temporal_synthesis_receipts(
         self, project: str, *, resolved: bool | None = None,
+        series: str | None = None, resolved_before: str | None = None,
     ) -> list[dict[str, Any]]:
         query = "SELECT * FROM temporal_synthesis_receipts WHERE project = ?"
         params: list[Any] = [project]
+        if series is not None:
+            query += " AND series = ?"
+            params.append(series)
         if resolved is not None:
             query += " AND resolved_at IS " + ("NOT NULL" if resolved else "NULL")
         query += " ORDER BY created_at, synthesis_id"
@@ -946,7 +975,187 @@ class TrackingStore:
                         "outcome_payload", "score_payload"):
                 item[key] = json.loads(item[key]) if item[key] else None
             decoded.append(item)
+        if resolved_before is not None:
+            try:
+                cutoff = datetime.fromisoformat(
+                    str(resolved_before).replace("Z", "+00:00"))
+            except ValueError as exc:
+                raise ValueError("resolved_before must be an ISO timestamp") from exc
+            if cutoff.tzinfo is None:
+                raise ValueError("resolved_before must be timezone-aware")
+            cutoff = cutoff.astimezone(timezone.utc)
+            filtered = []
+            for item in decoded:
+                raw = item.get("resolved_at")
+                if not raw:
+                    continue
+                try:
+                    resolved_at = datetime.fromisoformat(
+                        str(raw).replace("Z", "+00:00"))
+                except ValueError:
+                    continue
+                if (resolved_at.tzinfo is not None
+                        and resolved_at.astimezone(timezone.utc) <= cutoff):
+                    filtered.append(item)
+            decoded = filtered
         return decoded
+
+    def candidate_outcome_summary(
+        self, project: str, *, minimum_resolved: int = 8,
+        series: str | None = None, resolved_before: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Aggregate resolved candidate uplift without granting authority.
+
+        Candidate types are keyed by their sealed publication role and
+        provenance origin.  Graduation is deliberately conservative: at least
+        ``minimum_resolved`` numeric comparisons, positive mean uplift, and a
+        95% Wilson lower bound above chance.  The result is an evidence report;
+        callers must not translate it into automation or support upgrades.
+        """
+        if minimum_resolved < 1:
+            raise ValueError("minimum_resolved must be positive")
+        groups: dict[
+            tuple[str, str, str], dict[str, list[tuple[bool, float]]]
+        ] = {}
+        for receipt in self.temporal_synthesis_receipts(
+                project, resolved=True, series=series,
+                resolved_before=resolved_before):
+            score = receipt.get("score_payload") or {}
+            synthesis = receipt.get("synthesis_payload") or {}
+            won = score.get("synthesis_won")
+            delta = score.get("synthesis_delta")
+            if not isinstance(won, bool) or not isinstance(delta, (int, float)) \
+                    or not math.isfinite(float(delta)):
+                continue
+            role = str(synthesis.get("scenario_role") or "unknown")
+            origin = str(synthesis.get("candidate_origin") or role)
+            proposer = str(synthesis.get("candidate_proposer") or "unknown")
+            groups.setdefault((role, origin, proposer), {}).setdefault(
+                str(receipt.get("forecast_id") or "unknown"), []).append(
+                    (won, float(delta)))
+        summaries = []
+        z = 1.959963984540054
+        for (role, origin, proposer), per_forecast in sorted(groups.items()):
+            raw_count = sum(len(items) for items in per_forecast.values())
+            # Several same-class candidates from one forecast are correlated
+            # alternatives, not independent evidence. Collapse each origin
+            # conservatively: the class wins only if every variant won and its
+            # uplift is the least favorable variant's uplift.
+            outcomes = [
+                (all(won for won, _ in items),
+                 min(delta for _, delta in items))
+                for items in per_forecast.values()
+            ]
+            n = len(outcomes)
+            wins = sum(int(won) for won, _ in outcomes)
+            rate = wins / n
+            denominator = 1 + z * z / n
+            centre = rate + z * z / (2 * n)
+            margin = z * math.sqrt(
+                rate * (1 - rate) / n + z * z / (4 * n * n))
+            lower = max(0.0, (centre - margin) / denominator)
+            mean_delta = statistics.mean(delta for _, delta in outcomes)
+            graduated = bool(
+                n >= minimum_resolved and mean_delta > 0 and lower > .5)
+            summaries.append({
+                "scenario_role": role, "candidate_origin": origin,
+                "candidate_proposer": proposer,
+                "resolved": n, "wins": wins, "win_rate": rate,
+                "raw_candidates_resolved": raw_count,
+                "independent_forecast_origins": n,
+                "win_rate_wilson_95_lower": lower,
+                "mean_uplift_vs_primary": mean_delta,
+                "minimum_resolved": minimum_resolved,
+                "graduated_for_human_prior": graduated,
+                "support_upgrade_allowed": False,
+                "automation_upgrade_allowed": False,
+                "scope": {
+                    "project": project,
+                    "series": series,
+                    "resolved_before": resolved_before,
+                },
+                "rule": "resolved_numeric_paths_wilson95_and_positive_mean",
+            })
+        return summaries
+
+    def decision_synthesis_skill(
+        self, project: str, *, proposer_id: str | None = None,
+        minimum_resolved: int = 20,
+    ) -> list[dict[str, Any]]:
+        """Outcome-derived skill for model-authored categorical decisions.
+
+        Uses the existing immutable synthesis receipts. Only exact categorical
+        outcomes where canonical and synthesis were both scoreable enter the
+        ledger. Graduation is paired: the synthesis must win significantly
+        more discordant cases than it loses, have positive shrunk net wins,
+        and meet a predeclared resolved-count floor. This may justify a
+        human-facing prior weight; it can never upgrade support or automation.
+        """
+        if minimum_resolved < 1:
+            raise ValueError("minimum_resolved must be positive")
+        groups: dict[str, list[tuple[bool, bool]]] = {}
+        for receipt in self.temporal_synthesis_receipts(project, resolved=True):
+            score = receipt.get("score_payload") or {}
+            synthesis = receipt.get("synthesis_payload") or {}
+            canonical_correct = score.get("canonical_correct")
+            synthesis_correct = score.get("synthesis_correct")
+            if not isinstance(canonical_correct, bool) \
+                    or not isinstance(synthesis_correct, bool):
+                continue
+            origin = str(synthesis.get("proposer_id")
+                         or synthesis.get("candidate_origin") or "unknown")
+            if proposer_id is not None and origin != proposer_id:
+                continue
+            groups.setdefault(origin, []).append(
+                (canonical_correct, synthesis_correct))
+
+        summaries = []
+        k = PROPOSER_SKILL_SHRINKAGE
+        for origin, outcomes in sorted(groups.items()):
+            resolved = len(outcomes)
+            wins = sum(synthesis and not canonical
+                       for canonical, synthesis in outcomes)
+            losses = sum(canonical and not synthesis
+                         for canonical, synthesis in outcomes)
+            ties = resolved - wins - losses
+            discordant = wins + losses
+            # Exact two-sided sign test over paired discordant outcomes.
+            if discordant:
+                tail = sum(math.comb(discordant, index)
+                           for index in range(min(wins, losses) + 1))
+                exact_p = min(1.0, 2.0 * tail / (2 ** discordant))
+            else:
+                exact_p = 1.0
+            shrunk_net = (wins - losses) / (resolved + k)
+            synthesis_accuracy = sum(
+                synthesis for _, synthesis in outcomes) / resolved
+            canonical_accuracy = sum(
+                canonical for canonical, _ in outcomes) / resolved
+            graduated = bool(
+                resolved >= minimum_resolved
+                and discordant >= 8
+                and wins > losses
+                and exact_p < .05
+                and shrunk_net > 0)
+            summaries.append({
+                "proposer_id": origin,
+                "resolved": resolved,
+                "wins_vs_canonical": wins,
+                "losses_vs_canonical": losses,
+                "ties": ties,
+                "discordant": discordant,
+                "exact_sign_p": exact_p,
+                "synthesis_accuracy": synthesis_accuracy,
+                "canonical_accuracy": canonical_accuracy,
+                "shrunk_net_wins_per_resolved": shrunk_net,
+                "shrinkage_k": k,
+                "minimum_resolved": minimum_resolved,
+                "graduated_for_human_prior": graduated,
+                "support_upgrade_allowed": False,
+                "automation_upgrade_allowed": False,
+                "rule": "paired_categorical_sign_test_and_shrunk_net_v1",
+            })
+        return summaries
 
     def _resolve_temporal_answers(
         self, record: ForecastRecord, actuals: list[float], resolved_at: str,
@@ -1248,6 +1457,21 @@ class TrackingStore:
             f"{cov:.1%}" if cov is not None else "N/A",
             drift or "none",
         )
+        # Publication recommendations share the existing synthesis receipt
+        # machinery. Score their numeric path independently of the immutable
+        # primary when actuals arrive; automation safety is not inferred from
+        # recommendation accuracy.
+        for receipt in self.temporal_synthesis_receipts(
+                record.project, resolved=False):
+            if (receipt["forecast_id"] == forecast_id
+                    and receipt["series"] == record.series
+                    and receipt["question_id"] == "publication"):
+                self.resolve_temporal_synthesis(
+                    project=record.project, forecast_id=forecast_id,
+                    series=record.series,
+                    question_id="publication",
+                    synthesis_id=receipt["synthesis_id"],
+                    outcome={"points": list(actuals)}, resolved_at=scored_at)
         return ScoreResult(forecast_id, mase, wape, mape, bias, cov, thresh_acc,
                            scored_at, drift)
 

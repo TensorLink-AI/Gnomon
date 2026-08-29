@@ -25,6 +25,7 @@ from .context import (
     ContextSource,
     backtest_admissible,
     event_to_dict,
+    normalize_context_confidence,
     validate_context_event,
 )
 from .temporal import normalise_frequency
@@ -36,6 +37,12 @@ from .soft_context import (
     content_fingerprint,
     make_context_receipt,
 )
+from .llm_covariates import (
+    COVARIATE_TABLES_SCHEMA,
+    validate_llm_covariate_tables,
+)
+
+CONTEXT_COMPILER_CONTRACT_VERSION = "0.4"
 
 
 @dataclass(frozen=True)
@@ -44,6 +51,7 @@ class DocumentRef:
     content: str
     source_type: str = "planning_file"
     reference: str = ""
+    known_at: str | None = None
 
 
 _ISO_TIMESTAMP = (
@@ -57,9 +65,9 @@ _CONFIRMED_SCHEDULE_RE = re.compile(
     re.IGNORECASE,
 )
 _SCHEDULE_ROW_RE = re.compile(
-    rf"^(?P<event_type>[^.]+?)\s+affects\s+(?:the\s+)?"
+    rf"(?:^|:\s+)(?P<event_type>[^.:]+?)\s+affects\s+(?:the\s+)?"
     rf"(?P<scope>[^.]+?)\s+from\s+(?P<start>{_ISO_TIMESTAMP})\s+"
-    rf"through\s+(?P<end>{_ISO_TIMESTAMP})\.?$", re.IGNORECASE)
+    rf"through\s+(?P<end>{_ISO_TIMESTAMP})(?:\.|$)", re.IGNORECASE)
 
 
 def extract_explicit_schedule_context(
@@ -68,21 +76,23 @@ def extract_explicit_schedule_context(
     """Parse literal schedule rows without asking an LLM to copy timestamps.
 
     This intentionally recognises one narrow, auditable grammar.  Every value
-    comes from a verbatim source line, and a document-wide ``known_at`` must be
-    stated explicitly.  Unrecognised prose is returned as ``residual_lines``
-    for a semantic compiler; it is never guessed or silently discarded.
+    comes from a verbatim source line, and document knowledge time must be
+    either stated explicitly or bound by the host. Unrecognised prose is
+    returned as ``residual_lines`` for a semantic compiler; it is never
+    guessed or silently discarded.
     """
     proposals: list[dict[str, Any]] = []
     residual: list[dict[str, Any]] = []
     for document_index, document in enumerate(documents):
         known_match = _KNOWN_AT_RE.search(document.content)
-        known_at = known_match.group("known_at") if known_match else None
+        known_at = (document.known_at or
+                    (known_match.group("known_at") if known_match else None))
         confirmed_schedule = bool(_CONFIRMED_SCHEDULE_RE.search(
             document.content))
         for line_number, source_line in enumerate(
                 document.content.splitlines(), start=1):
             line = source_line.strip()
-            match = _SCHEDULE_ROW_RE.fullmatch(line)
+            match = _SCHEDULE_ROW_RE.search(line)
             if not match:
                 if line and not (known_match and known_match.group(0) in line):
                     residual.append({
@@ -169,6 +179,7 @@ CONTEXT_RESPONSE_SCHEMA: dict[str, Any] = {
                              "value", "evidence_quote"],
             },
         },
+        "covariate_tables": COVARIATE_TABLES_SCHEMA,
     },
     "required": ["events"],
 }
@@ -229,7 +240,7 @@ def normalise_context_response_containers(
 
 def build_context_investigation_prompt(
     documents: list[DocumentRef], series_names: list[str], default_timezone: str = "+00:00",
-    future_events: bool = False,
+    future_events: bool = False, forecast_window_end: str | None = None,
 ) -> dict[str, Any]:
     """``future_events`` mirrors ``context.future_events``: when the run
     that will consume these events has the lane on, the prompt also
@@ -269,16 +280,25 @@ def build_context_investigation_prompt(
         "quoted text supports them. Use unknown or null otherwise. Normalize "
         "names, not meaning: do not infer aliases. Never supply or estimate a "
         "magnitude.\n"
+        "9. You may extract numeric covariate rows only when one verbatim "
+        "evidence_quote contains both the numeric value and its source time. "
+        "Put the exact source time token in source_time_span and its "
+        "timezone-aware normalization in timestamp. Never interpolate, infer "
+        "a value from qualitative language, or supply known_at; the host owns "
+        "knowledge time and the engine decides predictive admission.\n"
     )
     if future_events:
         instructions += (
             "\nTwo additional typed classes are admitted for FUTURE-dated "
             "statements (their windows must lie entirely after the observed "
             "history):\n"
-            "- A stated numeric bound on future values (\"between A and B\", "
-            "\"will not exceed X\", \"cannot be negative\"): use event_type "
+            "- A binding numeric bound on future values (\"policy requires "
+            "between A and B\", \"hard cap X\", \"cannot be negative\"): use event_type "
             "\"constraint:<label>\" and make evidence_quote the verbatim "
-            "sentence stating the bound, dated over the forecast window.\n"
+            "sentence stating the bound, dated over the forecast window. "
+            "A bare prediction such as \"will not exceed X\" is not a "
+            "constraint unless the same quote identifies a policy, contract, "
+            "schedule, guarantee, physical limit, or equivalent authority.\n"
             "- A stated deterministic state for a stated window (\"offline "
             "Tue-Thu\", \"closed\", \"output drops to 0\"): use event_type "
             "\"override:<label>\" and make evidence_quote the verbatim "
@@ -288,6 +308,16 @@ def build_context_investigation_prompt(
             "a deterministic parser; a quote that does not literally state "
             "the bound or value is rejected. Never compute or estimate a "
             "number yourself.\n"
+        )
+        instructions += (
+            "- A qualitative structural state change may use only one of "
+            "event_type structural:trend_ceases, "
+            "structural:level_matches_seasonal_high, or "
+            "structural:level_matches_seasonal_low. Never supply a numeric "
+            "effect: the engine derives it from the observed series."
+            + (f" For an open-ended structural statement, bound "
+               f"effective_end to the current forecast window end "
+               f"{forecast_window_end}.\n" if forecast_window_end else "\n")
         )
     instructions += (
         "\nRespond with JSON matching the provided schema.\n\n"
@@ -312,6 +342,10 @@ def build_context_investigation_prompt(
 def parse_context_response(
     raw: dict[str, Any], documents: list[DocumentRef],
     proposer: dict[str, Any] | None = None,
+    *, covariate_known_at: str | None = None,
+    as_of: str | None = None,
+    active_target: str | None = None,
+    default_effective_end: str | None = None,
 ) -> dict[str, Any]:
     """Ground, validate, and split proposed events into accepted/rejected.
 
@@ -372,6 +406,69 @@ def parse_context_response(
             rejected.append({"proposal": proposal, "problems": ["evidence_quote is not verbatim from the cited document"]})
             continue
         event_type = str(proposal.get("event_type", ""))
+        if quote and event_type.startswith(("constraint:", "override:")):
+            from .future_context import literal_authority
+            predictive, binding = literal_authority(quote)
+            if predictive and not binding:
+                rejected.append({
+                    "proposal": proposal,
+                    "reason_code": "external_prediction_not_constraint",
+                    "problems": [
+                        "the quoted future value is predictive, not a "
+                        "binding constraint or deterministic state"
+                    ],
+                })
+                continue
+        structural_normalizations: list[dict[str, Any]] = []
+        # A narrow semantic alias repair keeps a correctly quoted, qualitative
+        # trend-cessation claim inside the closed structural vocabulary. It
+        # neither invents a magnitude nor generalises arbitrary "break" text.
+        if (event_type in {"structural_break", "trend_cessation",
+                           "trend_ceases"}
+                and re.search(r"\btrend\b.*\b(?:cease|ceases|ceased)\b",
+                              quote, re.IGNORECASE)):
+            structural_normalizations.append({
+                "field": "event_type", "supplied": event_type,
+                "normalized": "structural:trend_ceases",
+                "reason": "verified quote names trend cessation",
+            })
+            event_type = "structural:trend_ceases"
+        effective_end = proposal.get("effective_end")
+        if (event_type.startswith("structural:") and not effective_end
+                and default_effective_end):
+            structural_normalizations.append({
+                "field": "effective_end", "supplied": effective_end,
+                "normalized": default_effective_end,
+                "reason": "open-ended structural claim bounded to forecast window",
+            })
+            effective_end = default_effective_end
+        if structural_normalizations:
+            attributes["compiler_normalizations"] = [
+                *(attributes.get("compiler_normalizations") or []),
+                *structural_normalizations,
+            ]
+        scope = proposal.get("entity_scope")
+        if active_target is not None and event_type.startswith(
+                ("constraint:", "override:")):
+            names = [str(value) for value in scope or []]
+            if names == ["*"] or not names:
+                target = str(active_target or "").strip()
+                if not target or target.casefold() not in quote.casefold():
+                    rejected.append({
+                        "proposal": proposal,
+                        "reason_code": "unsafe_wildcard_numeric_event",
+                        "problems": [
+                            "numeric context event must explicitly identify "
+                            "the active target; wildcard projection is unsafe"
+                        ],
+                    })
+                    continue
+                proposal = {**proposal, "entity_scope": [target]}
+                attributes.setdefault("compiler_normalizations", []).append({
+                    "field": "entity_scope", "supplied": names or None,
+                    "normalized": [target],
+                    "reason": "verified quote explicitly names the active target",
+                })
         soft_values = {
             "effect_family": str(proposal.get("effect_family", "unknown")),
             "direction": str(proposal.get("direction", "unknown")),
@@ -386,14 +483,26 @@ def parse_context_response(
             if proposal.get(range_name) is not None:
                 soft_values[range_name] = proposal[range_name]
         soft_problems = []
-        if soft_values["effect_family"] not in EFFECT_FAMILIES:
-            soft_problems.append("effect_family is not in the closed vocabulary")
-        if soft_values["direction"] not in EFFECT_DIRECTIONS:
-            soft_problems.append("direction is not in the closed vocabulary")
-        if soft_values["duration"] not in EFFECT_DURATIONS:
-            soft_problems.append("duration is not in the closed vocabulary")
-        if soft_values.get("entity_kind", "unknown") not in ENTITY_KINDS:
-            soft_problems.append("entity_kind is not in the closed vocabulary")
+        soft_normalizations = []
+        # These labels are optional descriptive metadata; they never size an
+        # effect or upgrade support. A reasonable out-of-vocabulary noun such
+        # as "sensor" should not discard an otherwise grounded event. Preserve
+        # the raw value in the receipt and demote only that field to unknown.
+        vocabularies = {
+            "effect_family": EFFECT_FAMILIES,
+            "direction": EFFECT_DIRECTIONS,
+            "duration": EFFECT_DURATIONS,
+            "entity_kind": ENTITY_KINDS,
+        }
+        for field_name, vocabulary in vocabularies.items():
+            value = soft_values.get(field_name, "unknown")
+            if value not in vocabulary:
+                soft_normalizations.append({
+                    "field": field_name, "supplied": value,
+                    "normalized": "unknown",
+                    "reason": "optional label is outside the closed vocabulary",
+                })
+                soft_values[field_name] = "unknown"
         for range_name in ("delay_steps", "duration_steps"):
             value = soft_values.get(range_name)
             if value is not None and (
@@ -409,21 +518,58 @@ def parse_context_response(
             rejected.append({"proposal": proposal, "problems": soft_problems})
             continue
         attributes["soft_context"] = soft_values
-        if quote and (event_type.startswith("constraint:")
-                      or event_type.startswith("override:")):
+        if soft_normalizations:
+            attributes["compiler_normalizations"] = [
+                *(attributes.get("compiler_normalizations") or []),
+                *soft_normalizations,
+            ]
+        if quote and event_type.startswith(
+                ("constraint:", "override:", "structural:")):
             # The quote has just been verified verbatim against the caller's
             # document, which is exactly the check `source_span` exists to
             # carry; the lane's deterministic parser takes it from here.
             attributes["source_span"] = quote
+        if event_type.startswith("structural:"):
+            effect = event_type.split(":", 1)[1]
+            if effect in {
+                "trend_ceases", "level_matches_seasonal_high",
+                "level_matches_seasonal_low",
+            }:
+                # The event type is already constrained by the compiler's
+                # closed vocabulary. Copy only that class label; all numeric
+                # quantities remain derived by the engine from its own path.
+                attributes["effect"] = effect
+        try:
+            confidence, confidence_normalization = normalize_context_confidence(
+                proposal.get("confidence", 0.5), default=0.5)
+        except ValueError as error:
+            rejected.append({
+                "proposal": proposal, "reason_code": "invalid_confidence",
+                "problems": [str(error)],
+            })
+            continue
+        if confidence_normalization:
+            attributes["compiler_normalizations"] = [
+                *(attributes.get("compiler_normalizations") or []),
+                {"field": "confidence", **confidence_normalization},
+            ]
+        proposed_known_at = str(proposal.get("known_at", ""))
+        resolved_known_at = str(document.known_at or proposed_known_at)
+        if document.known_at and proposed_known_at != resolved_known_at:
+            attributes.setdefault("compiler_normalizations", []).append({
+                "field": "known_at", "supplied": proposed_known_at or None,
+                "normalized": resolved_known_at,
+                "reason": "host-bound document knowledge time is authoritative",
+            })
         event = ContextEvent(
             event_id=f"event_llm_{index:02d}",
             event_type=event_type,
             entity_scope=tuple(str(item) for item in proposal.get("entity_scope", ())),
             effective_start=str(proposal.get("effective_start", "")),
-            effective_end=str(proposal.get("effective_end", "")),
-            known_at=str(proposal.get("known_at", "")),
+            effective_end=str(effective_end or ""),
+            known_at=resolved_known_at,
             status=str(proposal.get("status", "tentative")),
-            confidence=float(proposal.get("confidence", 0.5)),
+            confidence=confidence,
             attributes=attributes,
             source=ContextSource(document.source_type, document.reference or document.name),
             created_by="llm",
@@ -479,12 +625,27 @@ def parse_context_response(
             "status": "proposed_for_numeric_verification",
             "may_affect_numbers": False,
         })
+    covariates = None
+    covariate_rejections: list[str] = []
+    if covariate_known_at is not None or (isinstance(raw, dict)
+                                          and raw.get("covariate_tables")):
+        if covariate_known_at is None or as_of is None:
+            covariate_rejections.append(
+                "covariate tables require host-owned covariate_known_at and as_of")
+        else:
+            covariates, covariate_rejections = validate_llm_covariate_tables(
+                raw.get("covariate_tables"),
+                documents=[document.content for document in documents],
+                known_at=covariate_known_at, as_of=as_of,
+                document_known_at=[document.known_at for document in documents],
+            )
     document_receipts = [
         {
             "index": index, "name": document.name,
             "source_type": document.source_type,
             "reference": document.reference or document.name,
             "content_fingerprint": content_fingerprint(document.content),
+            "known_at": document.known_at,
         }
         for index, document in enumerate(documents)
     ]
@@ -501,9 +662,12 @@ def parse_context_response(
             "context_receipt_id": receipt["receipt_id"],
         }
         executable_events.append(executable)
-    return {"schema_version": "0.2", "events": executable_events,
+    return {"schema_version": CONTEXT_COMPILER_CONTRACT_VERSION,
+            "events": executable_events,
             "rejected": rejected, "hypotheses": hypotheses,
             "rejected_hypotheses": rejected_hypotheses,
+            "covariates": covariates,
+            "covariate_rejections": covariate_rejections,
             "context_receipt": receipt, "receipt_id": receipt["receipt_id"]}
 
 

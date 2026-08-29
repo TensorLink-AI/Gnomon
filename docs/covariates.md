@@ -110,6 +110,30 @@ preserve its source URL separately; Gnomon will not dereference arbitrary
 URLs. Feature admission always runs inside the forecast on identical
 selection folds.
 
+### Governed extraction from documents
+
+An agent host may ask an LLM to extract numeric rows from tickets, schedules,
+weather responses, planning documents, or other already-retrieved sources via
+the `context_investigation` workflow. This is extraction, not generation:
+
+- every row names its source document and carries one verbatim quote containing
+  both the numeric value and its source-time token;
+- the model normalises that token to an explicit-offset timestamp, but Gnomon
+  verifies the normalisation and rejects uncited values;
+- `known_at` is supplied per source document by the host when it acquired that
+  source (with the run cutoff as an explicit fallback) and cannot be authored
+  or backdated by the model;
+- validated rows pass through the same inline-covariate loader and bitemporal
+  snapshot as caller-authored data;
+- the resulting feature still has no authority until identical-fold,
+  point-in-time ablation admits it against the primary model.
+
+The receipt labels rows `llm_extracted_host_verified`, retains their quotes,
+and seals the complete table. Multiple independently extracted tables are
+retained but not silently merged; the host must resolve their schemas and
+provenance explicitly. Qualitative statements remain context claims or
+prior-assisted candidates rather than being converted into invented numbers.
+
 ## TSFM capability matrix
 
 `gnomon capabilities` reports `models.tsfm_capabilities`. These are adapter-level
@@ -125,7 +149,8 @@ their capability flag can become true.
 ## Current limits
 
 - Future-known numeric covariates only
-- CSV covariate files
+- CSV or inline covariate rows; governed document extraction currently binds
+  one validated table per forecast call
 - Admission currently compares against a built-in selected model; if a TSFM
   wins the univariate evaluation, Gnomon reports that admission is unavailable
 - No automatic web retrieval or arbitrary URL loading

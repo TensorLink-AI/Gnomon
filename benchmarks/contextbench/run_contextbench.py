@@ -7,6 +7,7 @@ import csv
 import hashlib
 import json
 import math
+import os
 import tempfile
 import time
 from collections import defaultdict
@@ -44,6 +45,13 @@ def smape(actual: tuple[float, ...] | list[float],
         terms.append(0.0 if denominator <= 1e-12
                      else 200.0 * abs(truth - guess) / denominator)
     return mean(terms) if terms else float("nan")
+
+
+def selected_projection_changed(row: dict[str, Any]) -> bool:
+    """Read the explicit field while accepting pre-migration observations."""
+    return bool(row.get(
+        "selected_projection_differs_from_primary",
+        row.get("primary_changed", False)))
 
 
 def wilson(successes: int, trials: int, z: float = 1.96) -> tuple[float, float]:
@@ -118,6 +126,25 @@ def _points(result: Any) -> list[float]:
     return [float(row.get("q50", row["point"])) for row in result.forecast]
 
 
+def _raw_points(result: Any) -> list[float]:
+    """Uncalibrated executable path used for effect timing attribution."""
+    return [float(row["point"]) for row in result.forecast]
+
+
+def _structural_scenario(result: Any) -> tuple[dict[str, Any] | None,
+                                                list[float] | None]:
+    """Return the labelled structural what-if without promoting it."""
+    scenarios = [
+        scenario for scenario in result.sensitivity_scenarios
+        if scenario.get("support") == "prior_assisted_structural"
+        and isinstance(scenario.get("forecast"), list)
+    ]
+    scenario = scenarios[0] if scenarios else None
+    points = ([float(row.get("q50", row["point"]))
+               for row in scenario["forecast"]] if scenario else None)
+    return scenario, points
+
+
 def _leaked(artifact: Any, frequency: str) -> bool:
     # A run may read future-valid covariates only when they were published by
     # the forecast origin. Leakage is about known_time, never valid_time.
@@ -150,7 +177,15 @@ def valid_disposition(family: str, applied: bool, disposition: str) -> bool:
         return disposition in {"applied", "rejected", "scenario_only"}
     if applied:
         return disposition == "applied"
-    if family in {"future_covariate", "numeric_claim", "structural_change"}:
+    if family == "structural_change":
+        # A namespaced structural transformation can be represented as a
+        # prior-assisted scenario while the independent historical-ablation
+        # lane rejects the same event.  The aggregate public state is then
+        # intentionally ``partially_represented`` rather than scenario_only.
+        return disposition in {
+            "rejected", "scenario_only", "partially_represented",
+        }
+    if family in {"future_covariate", "numeric_claim"}:
         return disposition == "rejected"
     if family == "entity_scope":
         return disposition == "not_considered"
@@ -169,6 +204,7 @@ def run_case(case: Case, oracle: Oracle, work_root: Path, *,
         use_covariates=use_covariates)
     baseline_result = baseline_artifact.results[0]
     baseline = _points(baseline_result)
+    baseline_raw = _raw_points(baseline_result)
     default_policy_changed: bool | None = None
     default_policy_smape: float | None = None
     if oracle.dimensions.get("admission_warrant") == "asserted":
@@ -183,6 +219,7 @@ def run_case(case: Case, oracle: Oracle, work_root: Path, *,
         )
         default_policy_smape = smape(oracle.actual, default_points)
     context_result = context_artifact.results[0]
+    contextual_raw = _raw_points(context_result)
     scenario_contracts = [
         item.get("effect") for item in (
             [*context_result.conditional_forecasts,
@@ -199,17 +236,32 @@ def run_case(case: Case, oracle: Oracle, work_root: Path, *,
         and bool(contract["provenance"].get("known_at"))
         for contract in scenario_contracts
     )
+    # ContextBench historically scored only the canonical primary.  That is
+    # the right safety measurement, but it made a useful, explicitly
+    # non-automatable structural what-if look identical to ignored context.
+    # Preserve both measurements: primary uplift remains admission evidence;
+    # conditional uplift measures the bounded scenario offered to a human or
+    # reasoning agent.  Never substitute the scenario into the primary arm.
+    structural_scenario, structural_points = _structural_scenario(context_result)
     contextual = _points(context_result)
     if len(baseline) != case.horizon or len(contextual) != case.horizon:
         raise RuntimeError(f"{case.case_id}: an arm did not publish the full horizon")
     changed_steps = [index for index, (left, right) in enumerate(
         zip(baseline, contextual)) if abs(left - right) > 1e-9]
+    point_changed_steps = [index for index, (left, right) in enumerate(
+        zip(baseline_raw, contextual_raw)) if abs(left - right) > 1e-9]
+    calibration_only_changed_steps = sorted(
+        set(changed_steps) - set(point_changed_steps))
     disposition = (context_result.context_outcome or {}).get("status", "not_considered")
     applied = disposition == "applied" or bool(
         (context_result.covariates or {}).get("admitted"))
     if case.family == "future_covariate":
         disposition = "applied" if applied else "rejected"
-    deltas = [right - left for left, right in zip(baseline, contextual)]
+    # Effect direction, onset, duration, and magnitude belong to the fitted
+    # executable's raw path. q50 additionally includes model-specific
+    # residual calibration and can legitimately move on inactive steps.
+    deltas = [right - left for left, right in
+              zip(baseline_raw, contextual_raw)]
     nonzero = [value for value in deltas if abs(value) > 1e-9]
     inferred_direction = (("increase" if mean(nonzero) > 0 else "decrease")
                           if nonzero else "none")
@@ -228,11 +280,28 @@ def run_case(case: Case, oracle: Oracle, work_root: Path, *,
         "oracle_dimensions": dict(oracle.dimensions),
         "history_smape": smape(oracle.actual, baseline),
         "context_smape": smape(oracle.actual, contextual),
+        "history_point_smape": smape(oracle.actual, baseline_raw),
+        "context_point_smape": smape(oracle.actual, contextual_raw),
+        "point_incremental_smape": (
+            smape(oracle.actual, baseline_raw)
+            - smape(oracle.actual, contextual_raw)),
         "counterfactual_smape": smape(oracle.counterfactual, contextual),
         "default_policy_primary_changed": default_policy_changed,
+        "default_policy_selected_projection_differs_from_primary": (
+            default_policy_changed),
         "default_policy_smape": default_policy_smape,
         "incremental_smape": smape(oracle.actual, baseline) - smape(oracle.actual, contextual),
-        "primary_changed": bool(changed_steps), "changed_steps": changed_steps,
+        # Compatibility alias retained for older result readers.  This never
+        # meant that the immutable artifact primary was mutated; it compares
+        # the selected context projection with the history-only projection.
+        "primary_changed": bool(changed_steps),
+        "selected_projection_differs_from_primary": bool(changed_steps),
+        "canonical_primary_preserved": bool(
+            (not context_effect_admitted) or primary == baseline_result.forecast),
+        "changed_steps": changed_steps,
+        "point_projection_differs_from_primary": bool(point_changed_steps),
+        "point_changed_steps": point_changed_steps,
+        "calibration_only_changed_steps": calibration_only_changed_steps,
         "should_influence": oracle.should_influence, "disposition": disposition,
         "expected_disposition": oracle.expected_disposition, "applied": applied,
         "disposition_valid": valid_disposition(
@@ -252,9 +321,11 @@ def run_case(case: Case, oracle: Oracle, work_root: Path, *,
             (mean(nonzero) if nonzero else 0.0)
         ),
         "onset_step_expected": oracle.onset_step,
-        "onset_step_inferred": min(changed_steps) if changed_steps else None,
+        "onset_step_inferred": (min(point_changed_steps)
+                                if point_changed_steps else None),
         "duration_steps_expected": oracle.duration_steps,
-        "duration_steps_inferred": len(changed_steps) if changed_steps else None,
+        "duration_steps_inferred": (len(point_changed_steps)
+                                    if point_changed_steps else None),
         "interval_coverage": mean(covered) if covered else None,
         "temporal_leakage": _leaked(context_artifact, case.frequency),
         "publication_parity": (persisted_baseline == baseline_result.forecast
@@ -267,12 +338,27 @@ def run_case(case: Case, oracle: Oracle, work_root: Path, *,
                 and persisted_context_result.get("primary_forecast") == primary)
         ),
         "history_forecast": baseline, "context_forecast": contextual,
+        "history_point_forecast": baseline_raw,
+        "context_point_forecast": contextual_raw,
         "actual": list(oracle.actual), "counterfactual": list(oracle.counterfactual),
         "context_gate": context_result.context,
         "covariate_gate": context_result.covariates,
         "context_outcome": context_result.context_outcome,
         "scenario_contract_count": len(scenario_contracts),
         "typed_scenario_contracts": typed_scenario_contracts,
+        "conditional_scenario_available": structural_scenario is not None,
+        "conditional_scenario_smape": (
+            smape(oracle.actual, structural_points)
+            if structural_points is not None else None),
+        "conditional_scenario_incremental_smape": (
+            smape(oracle.actual, baseline) - smape(oracle.actual, structural_points)
+            if structural_points is not None else None),
+        "conditional_scenario_automation_eligible": (
+            bool(structural_scenario.get("automation_eligible", False))
+            if structural_scenario else None),
+        "conditional_scenario_primary_unchanged": (
+            not bool(structural_scenario.get("primary_forecast_changed", False))
+            if structural_scenario else None),
         "latency_seconds": round(time.perf_counter() - started, 6),
     }
 
@@ -298,7 +384,7 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
     false_asserted = [row for row in asserted if not row["should_influence"]]
     default_asserted = [row for row in asserted
                         if row.get("default_policy_primary_changed") is not None]
-    false_changes = sum(row["primary_changed"] for row in false_rows)
+    false_changes = sum(selected_projection_changed(row) for row in false_rows)
     false_trials = len(false_rows)
     precision = (len(true_applied) / len(empirical_applied)
                  if empirical_applied else 1.0)
@@ -327,12 +413,35 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
             "history_smape": mean(row["history_smape"] for row in members),
             "context_smape": mean(row["context_smape"] for row in members),
             "incremental_smape": mean(row["incremental_smape"] for row in members),
+            "history_point_smape": mean(
+                row.get("history_point_smape", row["history_smape"])
+                for row in members),
+            "context_point_smape": mean(
+                row.get("context_point_smape", row["context_smape"])
+                for row in members),
+            "point_incremental_smape": mean(
+                row.get("point_incremental_smape", row["incremental_smape"])
+                for row in members),
             "applied": sum(row["applied"] for row in members),
-            "primary_changed": sum(row["primary_changed"] for row in members),
+            "selected_projection_differs_from_primary": sum(
+                selected_projection_changed(row) for row in members),
             "leakage": sum(row["temporal_leakage"] for row in members),
             "counterfactual_context_opportunity_smape": (
                 mean(opportunity) if opportunity else None
             ),
+            "conditional_scenarios": sum(
+                bool(row.get("conditional_scenario_available")) for row in members),
+            "conditional_scenario_smape": (mean(
+                float(row["conditional_scenario_smape"]) for row in members
+                if row.get("conditional_scenario_smape") is not None
+            ) if any(row.get("conditional_scenario_smape") is not None
+                     for row in members) else None),
+            "conditional_scenario_incremental_smape": (mean(
+                float(row["conditional_scenario_incremental_smape"])
+                for row in members
+                if row.get("conditional_scenario_incremental_smape") is not None
+            ) if any(row.get("conditional_scenario_incremental_smape") is not None
+                     for row in members) else None),
         }
     base_gates = {
         "complete": len(rows) == int(manifest["cases"]),
@@ -387,9 +496,11 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
             # the complete curve remains in the report for product choices.
             "high_snr_admission_recall_at_least_80pct": high_snr_recall >= 0.80,
             "asserted_claim_outcomes_are_scored": bool(asserted),
-            "asserted_claims_never_change_primary_by_default": (
+            "asserted_claims_do_not_select_a_different_projection_by_default": (
                 bool(default_asserted) and not any(
-                    row["default_policy_primary_changed"]
+                    row.get(
+                        "default_policy_selected_projection_differs_from_primary",
+                        row["default_policy_primary_changed"])
                     for row in default_asserted)
             ),
             "true_numeric_claims_do_not_harm_on_average": bool(true_numeric) and mean(
@@ -408,7 +519,7 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
                 mean(row["incremental_smape"] for row in repeated) > 0
                 if repeated else False),
             "prior_only_never_changes_primary": not any(
-                row["primary_changed"] for row in prior),
+                selected_projection_changed(row) for row in prior),
             "minimum_20_cases_per_family": per_family >= 20,
         }
     gates = {**base_gates, **stress_gates}
@@ -433,7 +544,8 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
                                     if empirical_admitted else None),
             "admission_recall": (sum(row["applied"] for row in useful)
                                  / len(useful) if useful else None),
-            "false_influence_rate": (sum(row["primary_changed"] for row in false)
+            "false_influence_rate": (sum(
+                selected_projection_changed(row) for row in false)
                                      / len(false) if false else None),
             "incremental_smape": mean(row["incremental_smape"] for row in members),
             "harmful_admissions": sum(
@@ -441,8 +553,8 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
             "realized_truth_rate_when_applied": (sum(
                 row["should_influence"] for row in admitted) / len(admitted)
                 if admitted else None),
-            "false_asserted_claim_primary_change_rate": (sum(
-                row["primary_changed"] for row in asserted_false)
+            "false_asserted_claim_selected_projection_rate": (sum(
+                selected_projection_changed(row) for row in asserted_false)
                 / len(asserted_false) if asserted_false else None),
             "magnitude_mae_when_applied": (mean(abs(
                 row["effect_magnitude_inferred"] - row["effect_magnitude_expected"])
@@ -495,8 +607,9 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
             "false_influence_95ci": wilson(false_changes, false_trials),
             "asserted_claim_cases": len(asserted),
             "false_asserted_claim_cases": len(false_asserted),
-            "false_asserted_claim_primary_change_rate": (
-                sum(row["primary_changed"] for row in false_asserted)
+            "false_asserted_claim_selected_projection_rate": (
+                sum(selected_projection_changed(row)
+                    for row in false_asserted)
                 / len(false_asserted) if false_asserted else None),
             "false_asserted_claim_mean_incremental_smape": (
                 mean(row["incremental_smape"] for row in false_asserted)
@@ -507,8 +620,10 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
             "true_asserted_claim_mean_incremental_smape": (mean(
                 row["incremental_smape"] for row in true_asserted)
                 if true_asserted else None),
-            "default_policy_asserted_primary_change_rate": (sum(
-                bool(row["default_policy_primary_changed"])
+            "default_policy_asserted_selected_projection_rate": (sum(
+                bool(row.get(
+                    "default_policy_selected_projection_differs_from_primary",
+                    row["default_policy_primary_changed"]))
                 for row in default_asserted) / len(default_asserted)
                 if default_asserted else None),
             "effect_direction_accuracy": direction_accuracy,
@@ -517,6 +632,8 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
             "leakage_count": sum(row["temporal_leakage"] for row in rows),
             "scenario_contracts": sum(
                 row.get("scenario_contract_count", 0) for row in rows),
+            "calibration_only_changed_steps": sum(len(
+                row.get("calibration_only_changed_steps") or []) for row in rows),
             "typed_scenario_contract_rate": (sum(
                 row.get("scenario_contract_count", 0)
                 for row in rows if row.get("typed_scenario_contracts", True)) /
@@ -525,7 +642,47 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
                 else None),
         },
         "gates": gates, "decision_ready": all(gates.values()),
+        "deprecated_fields": {
+            "observations.primary_changed": (
+                "use selected_projection_differs_from_primary"),
+            "observations.default_policy_primary_changed": (
+                "use default_policy_selected_projection_differs_from_primary"),
+        },
     }
+
+
+def _load_checkpoint(path: Path, expected_ids: set[str]) -> list[dict[str, Any]]:
+    """Load only complete, unique observations from a durable checkpoint."""
+    if not path.exists():
+        return []
+    rows: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for line_number, line in enumerate(
+            path.read_text(encoding="utf-8").splitlines(), start=1):
+        if not line.strip():
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise SystemExit(
+                f"checkpoint has invalid JSON on line {line_number}: {exc}")
+        case_id = str(row.get("case_id") or "")
+        if case_id not in expected_ids:
+            raise SystemExit(
+                f"checkpoint case {case_id!r} is not in this corpus selection")
+        if case_id in seen:
+            raise SystemExit(f"checkpoint repeats case {case_id!r}")
+        seen.add(case_id)
+        rows.append(row)
+    return rows
+
+
+def _append_checkpoint(path: Path, row: dict[str, Any]) -> None:
+    """Persist one completed case before beginning the next one."""
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(row, sort_keys=True) + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
 
 
 def main() -> int:
@@ -533,6 +690,8 @@ def main() -> int:
     parser.add_argument("--corpus-dir", required=True)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--limit", type=int)
+    parser.add_argument("--resume", action="store_true",
+                        help="continue a matching interrupted run")
     parser.add_argument("--allow-gate-failure", action="store_true")
     args = parser.parse_args()
     corpus = Path(args.corpus_dir)
@@ -562,11 +721,40 @@ def main() -> int:
     if missing:
         raise SystemExit(f"oracle is missing case IDs: {missing}")
     output = Path(args.output_dir); output.mkdir(parents=True, exist_ok=True)
+    corpus_identity = {
+        "benchmark": "contextbench",
+        "cases_sha256": manifest.get("cases_sha256"),
+        "oracle_sha256": manifest.get("oracle_sha256"),
+        "selected_case_ids": [case.case_id for case in cases],
+    }
+    identity_path = output / "run_identity.json"
+    checkpoint_path = output / "observations.jsonl"
+    if identity_path.exists():
+        existing_identity = json.loads(identity_path.read_text(encoding="utf-8"))
+        if existing_identity != corpus_identity:
+            raise SystemExit(
+                "output directory belongs to a different corpus or case selection")
+        if not args.resume and checkpoint_path.exists():
+            raise SystemExit(
+                "output already contains observations; pass --resume or use a new directory")
+    else:
+        if checkpoint_path.exists():
+            raise SystemExit(
+                "observations exist without run_identity.json; refusing unsafe resume")
+        identity_path.write_text(
+            json.dumps(corpus_identity, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8")
+    observations = _load_checkpoint(
+        checkpoint_path, {case.case_id for case in cases}) if args.resume else []
+    completed = {str(row["case_id"]) for row in observations}
     work = Path(tempfile.mkdtemp(prefix="contextbench-", dir=str(output)))
-    observations = [run_case(case, oracles[case.case_id], work) for case in cases]
-    with (output / "observations.jsonl").open("w", encoding="utf-8") as handle:
-        for row in observations:
-            handle.write(json.dumps(row, sort_keys=True) + "\n")
+    for case in cases:
+        if case.case_id in completed:
+            continue
+        row = run_case(case, oracles[case.case_id], work)
+        _append_checkpoint(checkpoint_path, row)
+        observations.append(row)
+        completed.add(case.case_id)
     summary = summarize(observations, manifest)
     summary["corpus_manifest_sha256"] = hashlib.sha256(
         (corpus / "manifest.json").read_bytes()).hexdigest()

@@ -9,6 +9,7 @@ byte-for-byte.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -738,10 +739,79 @@ def conditional_stage(
     # the same event. Keep the weaker lane only where measurement was absent.
     measured_ids = {event_id for item in state.conditional_forecasts
                     for event_id in item.get("events", [])}
+    # The context gate can establish a useful point path while independently
+    # rejecting its interval calibration.  Preserve that fitted path as a
+    # labelled, non-automatable scenario instead of replacing it with the
+    # generic one-innovation sensitivity.  The primary remains untouched.
+    point_candidate = list(getattr(state.context_assessment,
+                                   "point_candidate", []) or [])
+    point_candidate_ids = list(getattr(state.context_assessment,
+                                       "events_used", []) or [])
+    point_scenario: dict[str, Any] | None = None
+    if point_candidate and len(point_candidate) == len(state.future_timestamps):
+        from statistics import mean, stdev
+
+        from .effects import (
+            EffectDistribution, EffectProvenance, effect_contract,
+            latest_knowledge_time,
+        )
+
+        measured_ids.update(point_candidate_ids)
+        deltas = [candidate - primary for candidate, primary
+                  in zip(point_candidate, state.points)]
+        used = set(point_candidate_ids)
+        used_events = [event for event in context_events
+                       if event.event_id in used]
+        sources = sorted({event.source.reference for event in used_events
+                          if event.source is not None})
+        location = mean(deltas)
+        scale = stdev(deltas) if len(deltas) > 1 else 0.0
+        typed_effect = effect_contract(
+            EffectDistribution(
+                "empirical", location, scale, min(deltas), max(deltas),
+                None, len(deltas),
+            ),
+            EffectProvenance(
+                "same_event_same_series", True,
+                latest_knowledge_time(
+                    state.timestamps[-1],
+                    [event.known_at for event in used_events],
+                ),
+                ", ".join(sources) or None, 1.0,
+                max(0.0, min(1.0, float(
+                    getattr(state.context_assessment,
+                            "mean_improvement", 0.0) or 0.0))),
+                "historically point-useful fitted event path; interval gate failed",
+            ),
+            shape=str(getattr(state.context_assessment,
+                              "effect_shape", "unknown")),
+        )
+        point_scenario = {
+            "events": point_candidate_ids,
+            "support": "point_supported_interval_weak",
+            "primary_forecast_changed": False,
+            "forecast": [
+                {"timestamp": timestamp.isoformat(), "point": point,
+                 "q50": point, "tier": "best_effort"}
+                for timestamp, point in
+                zip(state.future_timestamps, point_candidate)
+            ],
+            "assumptions": [
+                "the event effect improved point forecasts on historical folds",
+                "the independent interval-coverage gate failed",
+                "this path is for human comparison only and is not automation eligible",
+            ],
+            "intervals_available": False,
+            "automation_eligible": False,
+            "selection_eligible": True,
+            "effect": typed_effect,
+        }
     state.sensitivity_scenarios = [
         item for item in scenarios
         if not measured_ids.intersection(item.get("events", []))
     ]
+    if point_scenario is not None:
+        state.sensitivity_scenarios.insert(0, point_scenario)
     excluded.extend(scenario_excluded)
     if forecasts or state.sensitivity_scenarios or excluded:
         state.evidence.append(Evidence(
@@ -1142,8 +1212,105 @@ def threshold_analysis_stage(
             # best-effort tier's decision basis when replay paths are
             # scarce.
             step_marginals=probabilities,
+            # Residual cells across leads from one rolling origin are not
+            # independent observations.  Use the number of origin clusters,
+            # not the pooled cell count (which grows with the horizon), for
+            # finite-sample event regularisation.
+            step_marginal_trials=max([
+                # Older/external executables may expose only the pooled
+                # cloud.  One origin contributes at most ``horizon`` cells,
+                # so this quotient is the conservative cluster count rather
+                # than treating every lead cell as independent.
+                max(1, len(residuals) // max(1, len(rows))),
+                *(len(values) for values in
+                  (fallback_residuals_by_lead or residuals_by_lead).values()),
+            ]),
         )
     return result
+
+
+def bounded_threshold_assessment(
+    threshold: float,
+    rows: list[dict[str, object]],
+    *,
+    alternate_paths: list[dict[str, object]] | None = None,
+) -> dict[str, object]:
+    """Describe threshold behavior when probabilities are not supportable.
+
+    This is deliberately not a probability estimator. It projects the
+    immutable published point path and its labelled range into explicit facts
+    so callers do not turn ``no calibrated probability`` into either silence
+    or false certainty. Alternate paths remain named scenarios and can reveal
+    disagreement; they never replace the primary or authorize action.
+    """
+    if not rows:
+        raise ValueError("bounded threshold assessment requires forecast rows")
+
+    def path_summary(name: str, points: list[float], *, support: str,
+                     q10: list[float] | None = None,
+                     q90: list[float] | None = None) -> dict[str, object]:
+        point_crosses = any(value > threshold for value in points)
+        relation = "range_unavailable"
+        if q10 is not None and q90 is not None:
+            if any(value > threshold for value in q10):
+                relation = "range_above_at_least_one_step"
+            elif all(value <= threshold for value in q90):
+                relation = "range_below_all_steps"
+            else:
+                relation = "range_overlaps_threshold"
+        return {
+            "path": name,
+            "support": support,
+            "best_estimate": "yes" if point_crosses else "no",
+            "point_path_crosses": point_crosses,
+            "published_range_relation": relation,
+            "maximum_point": max(points),
+        }
+
+    points = [float(row.get("q50", row["point"])) for row in rows]
+    lower = [float(row["q10"]) for row in rows]
+    upper = [float(row["q90"]) for row in rows]
+    primary = path_summary(
+        "primary", points, support="best_effort", q10=lower, q90=upper)
+    alternatives: list[dict[str, object]] = []
+    for item in alternate_paths or []:
+        raw_points = item.get("points")
+        if not isinstance(raw_points, list) or not raw_points:
+            continue
+        finite = [float(value) for value in raw_points
+                  if isinstance(value, (int, float))
+                  and not isinstance(value, bool) and math.isfinite(value)]
+        if len(finite) != len(raw_points):
+            continue
+        alternatives.append(path_summary(
+            str(item.get("path") or "alternate"), finite,
+            support=str(item.get("support") or "prior_assisted")))
+    conflict = any(item["best_estimate"] != primary["best_estimate"]
+                   for item in alternatives)
+    range_relation = str(primary["published_range_relation"])
+    decision = ("indeterminate" if conflict or range_relation in {
+                    "range_overlaps_threshold", "range_unavailable"}
+                else str(primary["best_estimate"]))
+    return {
+        "value": float(threshold),
+        "probability_status": "unavailable_uncalibrated",
+        "probability_above": [],
+        "bounded_assessment": {
+            "decision": decision,
+            "best_estimate": primary["best_estimate"],
+            "primary": primary,
+            "alternatives": alternatives,
+            "model_conflict": conflict,
+            "automation_eligible": False,
+            "primary_forecast_unchanged": True,
+            "interpretation": (
+                "A point-path answer and published-range relation, not a "
+                "breach probability. Indeterminate means the displayed "
+                "range overlaps the threshold or a labelled candidate "
+                "disagrees with the immutable primary."
+            ),
+        },
+    }
 
 
 def _constraint_stage(
@@ -1228,6 +1395,65 @@ def _reassert_claims_stage(
     return projected
 
 
+def _scenario_consequence(
+    primary_rows: list[dict[str, Any]],
+    scenario_rows: list[dict[str, Any]],
+) -> tuple[dict[str, Any], str]:
+    """Decision-relevant delta between immutable primary and one scenario."""
+    pairs = list(zip(primary_rows, scenario_rows))
+    deltas = [
+        float(candidate.get("q50", candidate["point"])) -
+        float(primary.get("q50", primary["point"]))
+        for primary, candidate in pairs
+    ]
+    affected = [index for index, delta in enumerate(deltas)
+                if abs(delta) > 1e-12]
+    if not pairs or not affected:
+        consequence = {
+            "status": "no_numeric_difference",
+            "affected_steps": 0,
+            "max_abs_delta_q50": 0.0,
+        }
+        return consequence, (
+            "The conditional scenario produces no numeric q50 difference "
+            "over this horizon; the canonical primary remains unchanged.")
+
+    first_index = affected[0]
+    first_primary, first_scenario = pairs[first_index]
+    end_primary, end_scenario = pairs[-1]
+    first_primary_q50 = float(first_primary.get(
+        "q50", first_primary["point"]))
+    first_scenario_q50 = float(first_scenario.get(
+        "q50", first_scenario["point"]))
+    end_primary_q50 = float(end_primary.get("q50", end_primary["point"]))
+    end_scenario_q50 = float(end_scenario.get(
+        "q50", end_scenario["point"]))
+    consequence = {
+        "status": "numeric_difference",
+        "affected_steps": len(affected),
+        "first_affected_timestamp": first_scenario.get("timestamp"),
+        "first_affected_primary_q50": first_primary_q50,
+        "first_affected_scenario_q50": first_scenario_q50,
+        "first_affected_delta_q50": deltas[first_index],
+        "horizon_end_timestamp": end_scenario.get("timestamp"),
+        "horizon_end_primary_q50": end_primary_q50,
+        "horizon_end_scenario_q50": end_scenario_q50,
+        "horizon_end_delta_q50": deltas[-1],
+        "max_abs_delta_q50": max(abs(delta) for delta in deltas),
+    }
+    summary = (
+        f"At the first affected step {first_scenario.get('timestamp')}, "
+        f"conditional q50 is {first_scenario_q50:.6g} versus primary "
+        f"{first_primary_q50:.6g} (delta {deltas[first_index]:.6g}); at "
+        f"horizon end {end_scenario.get('timestamp')}, conditional q50 is "
+        f"{end_scenario_q50:.6g} versus primary {end_primary_q50:.6g} "
+        f"(delta {deltas[-1]:.6g}); maximum absolute q50 delta is "
+        f"{max(abs(delta) for delta in deltas):.6g}. The canonical primary "
+        "remains unchanged."
+    )
+    return consequence, summary
+
+
 def _future_context_stage(
     state: SeriesState,
     context_events: list[ContextEvent],
@@ -1252,6 +1478,11 @@ def _future_context_stage(
         state.future_timestamps, state.season,
         base_points=[float(row["point"]) for row in rows],
         allow_future=allow_future, allow_structural=allow_structural,
+        # Forecast-model selection folds do not validate a proposed
+        # structural transformation. Until this particular effect has
+        # transformation-specific historical/analogue evidence, keep the
+        # resolved path as a human what-if scenario only.
+        structural_evidence_folds=0,
     )
     if not assessment.considered:
         return rows, False
@@ -1259,6 +1490,61 @@ def _future_context_stage(
     counterfactual = [dict(row) for row in rows] if assessment.admitted else None
     if assessment.admitted:
         rows, applications = apply_future_events(rows, assessment.admitted)
+    if assessment.scenarios:
+        from statistics import mean, stdev
+        from .effects import (
+            EffectDistribution, EffectProvenance, effect_contract,
+            latest_knowledge_time,
+        )
+
+        scenario_rows, _ = apply_future_events(
+            [dict(row) for row in rows], assessment.scenarios)
+        deltas = [float(candidate["point"]) - float(primary["point"])
+                  for primary, candidate in zip(rows, scenario_rows)]
+        event_ids = [item.event_id for item in assessment.scenarios]
+        inputs = [event for event in context_events
+                  if event.event_id in set(event_ids)]
+        sources = sorted({event.source.reference for event in inputs
+                          if event.source is not None})
+        # Summarise the complete horizon, including continuity/no-op steps;
+        # dropping zero deltas would overstate the assumed effect magnitude.
+        location = mean(deltas) if deltas else 0.0
+        scale = stdev(deltas) if len(deltas) > 1 else 0.0
+        consequence, consequence_summary = _scenario_consequence(
+            rows, scenario_rows)
+        state.sensitivity_scenarios.append({
+            "events": event_ids,
+            "support": "prior_assisted_structural",
+            "primary_forecast_changed": False,
+            "forecast": scenario_rows,
+            "automation_eligible": False,
+            "selection_eligible": True,
+            "consequence": consequence,
+            "consequence_summary": consequence_summary,
+            "assumptions": [
+                "the quoted structural condition occurs as stated",
+                "the transformation is resolved entirely from Gnomon's data",
+                "fewer than four transformation-specific separated evaluations were available",
+                "this is a human what-if path, not the canonical primary forecast",
+            ],
+            "effect": effect_contract(
+                EffectDistribution(
+                    "assumption", location, scale,
+                    min(deltas) if deltas else 0.0,
+                    max(deltas) if deltas else 0.0,
+                    None, len(deltas),
+                ),
+                EffectProvenance(
+                    "human_assumption", False,
+                    latest_knowledge_time(
+                        state.timestamps[-1],
+                        [event.known_at for event in inputs]),
+                    ", ".join(sources) or None, None, None,
+                    "closed structural class; publication withheld by fold gate",
+                ),
+                shape="trend_change",
+            ),
+        })
     state.future_context_public = assessment.to_public_dict()
     state.evidence.append(Evidence(
         f"future_context_gate:{state.name}", "future_context_gate", state.name,

@@ -56,7 +56,7 @@ def _quantile(values: Sequence[float], probability: float) -> float | None:
     return ordered[index]
 
 
-def _wilson(successes: int, trials: int) -> tuple[float | None, float | None]:
+def _wilson(successes: float, trials: int) -> tuple[float | None, float | None]:
     if trials <= 0:
         return None, None
     p = successes / trials
@@ -67,6 +67,32 @@ def _wilson(successes: int, trials: int) -> tuple[float | None, float | None]:
         p * (1.0 - p) / trials + z2 / (4.0 * trials * trials)
     )
     return max(0.0, centre - radius), min(1.0, centre + radius)
+
+
+def _regularize_empirical_probability(
+    probability: float, trials: int,
+) -> tuple[float, float | None, float | None]:
+    """Keep a small empirical sample from communicating certainty.
+
+    A Jeffreys half-success/half-failure regularisation is applied once to
+    the *horizon event*, not independently at every lead.  Applying a prior
+    at every lead and then composing over a long horizon would make the
+    prior itself accumulate into an almost-certain breach.  ``trials`` is
+    the number of real rolling-origin clusters behind the marginals;
+    synthetic bootstrap paths and additional horizon leads never increase it.
+
+    The Wilson interval is centred on the unregularised empirical estimate
+    with that same effective sample size.  This is deliberately an
+    uncertainty signal rather than a claim that dependent lead events are
+    binomial trials; the surrounding support tier continues to disclose the
+    independence approximation.
+    """
+    bounded = min(1.0, max(0.0, float(probability)))
+    if trials <= 0:
+        return bounded, None, None
+    regularized = (bounded * trials + 0.5) / (trials + 1.0)
+    lower, upper = _wilson(bounded * trials, trials)
+    return regularized, lower, upper
 
 
 def aligned_residual_paths(
@@ -201,6 +227,7 @@ def estimate_horizon_breach(
     calibration_is_verifiable: bool,
     fallback_residuals_by_lead: Mapping[int, Sequence[float]] | None = None,
     step_marginals: Sequence[float] | None = None,
+    step_marginal_trials: int | None = None,
 ) -> dict[str, Any]:
     """Estimate any-breach and first-breach distributions from joint paths.
 
@@ -290,6 +317,7 @@ def estimate_horizon_breach(
             survive *= 1.0 - min(1.0, max(0.0, float(marginal)))
         composed = 1.0 - survive
     bootstrap_diagnostic_probability = None
+    composed_regularized = None
     if len(replay_paths) < MIN_JOINT_PATHS and composed is not None:
         # At best-effort tier the published marginals are the better
         # decision basis: they carry the same conformal recentring and
@@ -300,8 +328,16 @@ def estimate_horizon_breach(
         # The bootstrap's estimate stays visible as a diagnostic; its
         # timing and maximum distributions ride along unchanged.
         bootstrap_diagnostic_probability = probability
-        probability = composed
-        lower = upper = None
+        # The independence-composed estimate is already an approximation;
+        # publishing exact 0/1 from a handful of residual observations adds
+        # a second, avoidable fiction.  Regularise the horizon event once
+        # using the real marginal sample size and retain the raw composition
+        # below as a diagnostic for reproducibility.
+        marginal_trials = int(step_marginal_trials or effective_origins)
+        probability, lower, upper = _regularize_empirical_probability(
+            composed, marginal_trials)
+        composed_regularized = probability
+        effective_origins = marginal_trials
         basis = "independence_composed_marginals_v1"
     reasons: list[dict[str, str]] = []
     if len(replay_paths) < MIN_JOINT_PATHS:
@@ -339,6 +375,15 @@ def estimate_horizon_breach(
                 "though forecast leads were independent; the leads are "
                 "dependent, so this is a best-effort estimate, not a "
                 "governed joint-event measurement."
+            ),
+        })
+        reasons.append({
+            "code": "finite_sample_regularization_used",
+            "message": (
+                "The communicated horizon-event probability uses one "
+                "Jeffreys half-success/half-failure regularisation based on "
+                f"{effective_origins} real rolling-origin clusters; the raw "
+                "independence composition remains a diagnostic."
             ),
         })
     if not stability.get("passed") and len(replay_paths) >= MIN_JOINT_PATHS:
@@ -403,6 +448,9 @@ def estimate_horizon_breach(
             if bootstrap_diagnostic_probability is not None else None),
         "independence_composed_reference": (
             round(float(composed), 6) if composed is not None else None),
+        "finite_sample_regularized_probability": (
+            round(float(composed_regularized), 6)
+            if composed_regularized is not None else None),
         "effective_origins": effective_origins,
         "calibration_partition": "post_selection_disjoint_origins",
         "dependence_preserved": (
@@ -467,6 +515,21 @@ def apply_breach_policy(
     """
     policy.validate()
     probability = event_risk.get("probability_any_breach")
+    decision_probability = probability
+    decision_probability_basis = "communicated_event_probability"
+    # Finite-sample regularisation prevents a tiny sample from communicating
+    # exact certainty. Its pseudo-counts are uncertainty, not observed breach
+    # evidence, and therefore must not be allowed to manufacture a policy
+    # crossing. The disclosed raw empirical composition remains the
+    # best-effort action basis; neither value can authorize automation.
+    if (event_risk.get("method") == "independence_composed_marginals_v1"
+            and event_risk.get("finite_sample_regularized_probability")
+            is not None
+            and event_risk.get("independence_composed_reference") is not None):
+        decision_probability = event_risk.get(
+            "independence_composed_reference")
+        decision_probability_basis = \
+            "raw_independence_composition_no_prior_driven_action"
     interval = event_risk.get("probability_any_breach_interval_90") or {}
     lower, upper = interval.get("lower"), interval.get("upper")
     break_even = policy.action_cost / (
@@ -476,12 +539,12 @@ def apply_breach_policy(
     recommendation: str | None = None
     decision_support = "insufficient"
     reason_code: str
-    if probability is None:
+    if decision_probability is None:
         reason_code = "event_probability_unavailable"
     else:
-        probability = float(probability)
-        expected_monitor = probability * policy.miss_cost
-        expected_act = policy.action_cost + probability * policy.miss_cost * (
+        decision_probability = float(decision_probability)
+        expected_monitor = decision_probability * policy.miss_cost
+        expected_act = policy.action_cost + decision_probability * policy.miss_cost * (
             1.0 - policy.mitigation_effectiveness)
         recommendation = ("act" if expected_monitor > expected_act
                           else "monitor")
@@ -509,14 +572,27 @@ def apply_breach_policy(
             round(expected_act, 6) if expected_act is not None else None),
         "expected_loss_if_monitor": (
             round(expected_monitor, 6) if expected_monitor is not None else None),
-        "recommended_action": recommendation,
+        "recommended_action": (
+            recommendation if decision_support == "supported" else None),
+        "advisory_action": (
+            recommendation if decision_support == "best_effort" else None),
         "decision_support": decision_support,
+        "human_action_authority": (
+            "binding" if decision_support == "supported" else
+            "advisory" if recommendation is not None else "unavailable"),
+        "automation_eligible": decision_support == "supported",
         "reason_code": reason_code,
         "event_support": event_risk.get("support"),
         "event_reasons": list(event_risk.get("reasons") or []),
         "breach_more_likely_than_not": event_risk.get(
             "breach_more_likely_than_not"),
         "probability_any_breach": probability,
+        "decision_probability": decision_probability,
+        "decision_probability_basis": decision_probability_basis,
+        "probability_roles": {
+            "quote_as_event_probability": "probability_any_breach",
+            "policy_calculation_only": "decision_probability",
+        },
         "policy_assumption": (
             "One irreversible decision is made now; the option value of "
             "waiting for future observations and acting later is not modelled."

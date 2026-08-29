@@ -38,9 +38,11 @@ class _Transport:
     def __init__(self, replies):
         self.replies = list(replies)
         self.budgets = []
+        self.calls = []
 
     def __call__(self, client, messages, **kwargs):
         self.budgets.append(kwargs["max_tokens"])
+        self.calls.append(dict(kwargs))
         payload = self.replies.pop(0) if self.replies else _response("late")
         client._account(payload)
         from benchmarks.common.openrouter import _to_namespace
@@ -67,6 +69,17 @@ def test_complete_response_is_returned_without_escalation(monkeypatch):
     assert client.completions(MESSAGES) == ['{"answer": 1}']
     assert transport.budgets == [8000]
     assert client.truncation_escalations == 0
+
+
+def test_per_call_transport_policy_is_forwarded(monkeypatch):
+    client, transport = _client(monkeypatch, [_response("ok")])
+    assert client.completions(
+        MESSAGES, request_timeout=12.5, transport_retries=0) == ["ok"]
+    # The transport double receives the exact caller policy.  The lower-level
+    # tests exercise the real retry loop; this pins the public API seam.
+    assert transport.budgets == [client.max_tokens]
+    assert transport.calls[0]["request_timeout"] == 12.5
+    assert transport.calls[0]["transport_retries"] == 0
 
 
 def test_empty_truncated_reply_escalates_the_budget(monkeypatch):
@@ -194,6 +207,38 @@ def test_zero_retries_still_performs_the_initial_request(monkeypatch):
     assert client.usage_summary["transport_attempts"] == 1
 
 
+def test_retryable_error_inside_success_body_is_retried(monkeypatch):
+    replies = [
+        {"error": {"message": "miner timeout or disconnect", "code": 504}},
+        _response("recovered"),
+    ]
+
+    class Response:
+        def __init__(self, payload):
+            self.payload = payload
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def read(self):
+            return json.dumps(self.payload).encode()
+
+    monkeypatch.setattr(
+        "urllib.request.urlopen",
+        lambda *args, **kwargs: Response(replies.pop(0)))
+    monkeypatch.setattr("time.sleep", lambda _seconds: None)
+    client = OpenRouterClient(
+        "test/model", api_key="k", max_retries=1, timeout=1)
+
+    response = client._request(
+        MESSAGES, n=1, temperature=None, max_tokens=10,
+        tools=None, tool_choice=None)
+
+    assert response.choices[0].message.content == "recovered"
+    assert client.usage_summary["transport_attempts"] == 2
+    assert client.usage_summary["requests"] == 1
+
+
 def test_reasoning_effort_is_sent_only_when_explicit(monkeypatch):
     payloads = []
 
@@ -217,8 +262,10 @@ def test_reasoning_effort_is_sent_only_when_explicit(monkeypatch):
     default = OpenRouterClient("test/model", api_key="k", max_retries=0)
     default._request(MESSAGES, n=1, temperature=None, max_tokens=10,
                      tools=None, tool_choice=None)
+    explicit.completions(MESSAGES, reasoning_effort="none")
     assert payloads[0]["reasoning_effort"] == "low"
     assert "reasoning_effort" not in payloads[1]
+    assert payloads[2]["reasoning_effort"] == "none"
 
 
 def test_absolute_deadline_bounds_trickling_transport(monkeypatch):

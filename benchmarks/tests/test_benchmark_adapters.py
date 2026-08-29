@@ -26,6 +26,8 @@ from benchmarks.cik.gnomon_forecaster import (
 )
 from benchmarks.cik.run_cik import (
     RCRPS_CAP,
+    _load_checkpoint,
+    _write_checkpoint,
     build_parser,
     capped_imputed_mean,
     load_run_extra_info,
@@ -216,6 +218,44 @@ def test_source_spans_must_quote_the_context_verbatim():
     assert any("not a verbatim quote" in note for note in notes)
 
 
+def test_trend_cessation_cannot_substitute_for_a_recurring_outage():
+    span = "Assume that the ATM will not be in maintenance in the future."
+    events, notes = events_from_proposals(
+        [{
+            "event_type": "structural:maintenance_ends",
+            "effective_start": "2024-02-01T00:00:00+00:00",
+            "effective_end": "2024-02-05T00:00:00+00:00",
+            "source_span": span,
+            "effect": "trend_ceases",
+        }],
+        task_name="DemoTask", known_at="2024-01-31T00:00:00+00:00",
+        window_start="2024-01-01T00:00:00+00:00",
+        window_end="2024-03-01T00:00:00+00:00",
+        context_text=span,
+    )
+    assert not events
+    assert any("trend_ceases requires" in note for note in notes)
+
+
+def test_trend_cessation_accepts_an_explicit_trend_claim():
+    span = "The sensor was repaired and this additive trend will disappear."
+    events, notes = events_from_proposals(
+        [{
+            "event_type": "structural:repair",
+            "effective_start": "2024-02-01T00:00:00+00:00",
+            "effective_end": "2024-02-05T00:00:00+00:00",
+            "source_span": span,
+            "effect": "trend_ceases",
+        }],
+        task_name="DemoTask", known_at="2024-01-31T00:00:00+00:00",
+        window_start="2024-01-01T00:00:00+00:00",
+        window_end="2024-03-01T00:00:00+00:00",
+        context_text=span,
+    )
+    assert len(events) == 1
+    assert not notes
+
+
 def test_overlong_spans_are_rejected_not_truncated():
     """Truncating after the verbatim check can cut a number mid-digits,
     handing the parser a figure the context states only as a substring."""
@@ -280,6 +320,18 @@ def test_future_context_changes_the_cache_name():
     assert hot.cache_name != off.cache_name
     assert "temperature" not in GnomonForecaster(
         mode="pure").cache_name
+    assert "support=best_effort" in GnomonForecaster(mode="pure").cache_name
+    assert GnomonForecaster(mode="pure").cache_name != GnomonForecaster(
+        mode="pure", minimum_support="conditionally_supported").cache_name
+
+
+def test_cik_adapter_rejects_unknown_support_floor():
+    import pytest
+
+    from benchmarks.cik.gnomon_forecaster import GnomonForecaster
+
+    with pytest.raises(ValueError, match="support tier"):
+        GnomonForecaster(mode="pure", minimum_support="anything")
 
 
 def test_abstention_carries_reasons():
@@ -308,6 +360,23 @@ def test_capped_imputed_mean_never_rewards_abstention():
     assert abstained_on_worst >= all_scored
     # Contrast: the scored-only mean is flattered by dropping the run.
     assert (0.2 + 4.9) / 2 > 0.2
+
+
+def test_cik_case_checkpoint_is_atomic_and_resumable(tmp_path):
+    completed = {
+        "ExampleTask::seed=1": {
+            "name": "ExampleTask",
+            "row": {"seed": 1, "score": 0.25, "error": ""},
+        }
+    }
+    _write_checkpoint(tmp_path, completed)
+    assert _load_checkpoint(tmp_path) == completed
+    assert not (tmp_path / "case-checkpoint.tmp").exists()
+
+
+def test_cik_corrupt_checkpoint_fails_closed_to_empty(tmp_path):
+    (tmp_path / "case-checkpoint.json").write_text("{broken")
+    assert _load_checkpoint(tmp_path) == {}
 
 
 def test_load_run_extra_info_reads_pprint_dumps(tmp_path):

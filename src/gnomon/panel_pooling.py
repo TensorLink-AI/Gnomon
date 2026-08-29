@@ -46,6 +46,9 @@ class PoolEvidence:
     target_scaled_gain: float
     target_origin: int
     normalised_pool_strength: float
+    target_pairs: int
+    target_win_rate: float
+    target_median_gain: float
 
 
 class PanelTrendCandidate:
@@ -121,7 +124,12 @@ class PanelTrendCandidate:
         gains = [(base - candidate) / base for base, candidate in donor_pairs]
         donor_win_rate = sum(candidate < base for base, candidate in donor_pairs) \
             / len(donor_pairs)
-        if donor_win_rate <= .5 or median(gains) <= 0:
+        # Merely clearing chance is too weak when a short target has only a
+        # handful of usable origins. Require the shared trend to transfer on
+        # at least three quarters of the donor-origin comparisons; the target
+        # gate below then asks whether that broad relationship also held for
+        # the series being published.
+        if donor_win_rate < .75 or median(gains) <= 0:
             return None
 
         # This executable represents a shared *trend*, so random agreement
@@ -137,28 +145,67 @@ class PanelTrendCandidate:
         if pool_strength < .5:
             return None
 
-        actual = target_values[target_origin:]
-        candidate = self(target_origin, holdout)
-        baseline = last_value(target_values[:target_origin], holdout, season)
-        base_loss = error_score(actual, baseline)
-        candidate_loss = error_score(actual, candidate)
-        base_scaled = scaled_error_score(
-            target_values[:target_origin], actual, baseline, season)
-        candidate_scaled = scaled_error_score(
-            target_values[:target_origin], actual, candidate, season)
-        if (base_loss is None or candidate_loss is None or base_loss <= 0
-                or base_scaled is None or candidate_scaled is None
-                or base_scaled <= 0):
+        # A single target holdout is a high-variance admission test on the
+        # short histories this candidate exists to help.  Evaluate repeated,
+        # disjoint origins instead.  Every candidate at origin ``t`` still
+        # fits target and donor normalisation from prefixes ending at ``t``;
+        # no later donor observation enters an earlier comparison.
+        target_pairs: list[tuple[float, float, float, float, int]] = []
+        first_origin = max(4, horizon)
+        final_origin = len(target_values) - holdout
+        target_origins = sorted({
+            *range(first_origin, final_origin + 1, holdout), final_origin,
+        })
+        for origin in target_origins:
+            actual = target_values[origin:origin + holdout]
+            if len(actual) != holdout:
+                continue
+            try:
+                candidate_points = self(origin, holdout)
+            except ValueError:
+                continue
+            baseline = last_value(target_values[:origin], holdout, season)
+            base_loss = error_score(actual, baseline)
+            candidate_loss = error_score(actual, candidate_points)
+            base_scaled = scaled_error_score(
+                target_values[:origin], actual, baseline, season)
+            candidate_scaled = scaled_error_score(
+                target_values[:origin], actual, candidate_points, season)
+            if (base_loss is None or candidate_loss is None or base_loss <= 0
+                    or base_scaled is None or candidate_scaled is None
+                    or base_scaled <= 0):
+                continue
+            target_pairs.append((base_loss, candidate_loss, base_scaled,
+                                 candidate_scaled, origin))
+        if len(target_pairs) < 2:
             return None
-        point_gain = (base_loss - candidate_loss) / base_loss
-        scaled_gain = (base_scaled - candidate_scaled) / base_scaled
-        if (point_gain < minimum_improvement
-                or scaled_gain < minimum_improvement
-                or candidate_loss >= base_loss):
+        target_gains = [(base - candidate) / base
+                        for base, candidate, _, _, _ in target_pairs]
+        target_scaled_gains = [(base - candidate) / base
+                               for _, _, base, candidate, _ in target_pairs]
+        target_win_rate = sum(candidate < base
+                              for base, candidate, _, _, _ in target_pairs) \
+            / len(target_pairs)
+        point_gain = median(target_gains)
+        scaled_gain = median(target_scaled_gains)
+        # Every available disjoint target origin must transfer, with positive
+        # median gains under both the point and scale-aware metrics. In this
+        # deliberately fold-starved lane there are commonly only two origins;
+        # a simple majority would therefore still admit one lucky comparison.
+        # Requiring consistency prevents that one-window winner's curse while
+        # donor LOCO evidence supplies the broader comparability check.
+        # The ordinary minimum-improvement gate remains the effect-size
+        # requirement.
+        if (target_win_rate < 1.0 or point_gain < minimum_improvement
+                or scaled_gain < minimum_improvement):
             return None
+        base_loss = mean(pair[0] for pair in target_pairs)
+        candidate_loss = mean(pair[1] for pair in target_pairs)
+        target_origin = target_pairs[-1][4]
         return PoolEvidence(
             len(donor_pairs), donor_win_rate, median(gains), candidate_loss,
             base_loss, scaled_gain, target_origin, pool_strength,
+            len(target_pairs), target_win_rate, point_gain,
         )
 
 

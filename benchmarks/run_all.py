@@ -130,6 +130,12 @@ REGISTRY: dict[str, dict[str, Any]] = {
         "accepts": {"output_dir"},
         "limit_flag": None,
     },
+    "outcomelearningbench": {
+        "module": (
+            "benchmarks.outcomelearningbench.run_outcomelearningbench"),
+        "accepts": {"output_dir"},
+        "limit_flag": None,
+    },
     "reasoningbench": {
         "module": "benchmarks.reasoningbench.run_reasoningbench",
         "accepts": {"model", "output_dir"},

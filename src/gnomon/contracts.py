@@ -320,6 +320,9 @@ class ForecastArtifact:
 # next without human help. This layer is what lets hosts self-correct — it
 # appreciates as models improve, because better models act on it better.
 REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
+    "CONTEXT_DISPOSITION_CONFLICT": [
+        {"action": "choose_context_disposition", "description": "For each context id named in details, keep either its executable event or its typed rejection, never both."},
+    ],
     "ARTIFACT_INTEGRITY_ERROR": [
         {"action": "restore_artifact", "description": "Restore the artifact from its original sealed copy or rerun the source computation; do not trust files whose integrity manifest disagrees."},
     ],
@@ -332,6 +335,9 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
     ],
     "MISSING_COLUMNS": [
         {"action": "inspect_dataset", "description": "Call gnomon_inspect to see the available columns, then correct the mapping."},
+    ],
+    "UNKNOWN_HISTORY_SERIES": [
+        {"action": "fix_history_series_name", "description": "Rename the documented historical series to an actual driver in the cited recurrence, or remove the unrelated range; Gnomon will not guess a mapping."},
     ],
     "INVALID_TIMESTAMP": [
         {"action": "fix_timestamps", "description": "Convert the timestamp column to ISO-8601; the offending row is in details."},
@@ -471,6 +477,10 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
     "AMBIGUOUS_SCHEMA": [
         {"action": "supply_arguments", "description": "Name the column explicitly; the qualifying candidates are in details.candidates."},
         {"action": "inspect_dataset", "description": "Call gnomon_inspect to see every column and its inferred type."},
+    ],
+    "AMBIGUOUS_RECURSIVE_HISTORY": [
+        {"action": "split_input", "description": "Run the recurrence for one target series/entity at a time so its initial state is unambiguous."},
+        {"action": "set_series_column", "description": "Name the entity column and filter the input to one entity before requesting a recursive scenario."},
     ],
     "EMPTY_DATASET": [
         {"action": "check_input", "description": "The file parsed but contained no observations. Confirm it has a header row and at least one data row."},
@@ -733,7 +743,11 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "context_store": "intent", "context_namespace": "intent",
     "candidate": "intent", "revision": "intent", "outcome_id": "intent",
     "question_id": "intent", "synthesis_id": "intent",
-    "resolved": "intent",
+    "resolved": "intent", "minimum_resolved": "intent",
+    "automation_policy": "intent",
+    # Selects a representation mechanism; it does not relax validation,
+    # replay, support, or publication thresholds.
+    "context_compile": "intent",
     "month": "intent", "state": "intent", "webhook": "intent",
     "auto_score": "intent",
     "webhook_secret_env": "intent", "prometheus_rule_output": "intent",
@@ -755,7 +769,9 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "actuals_time": "data",
     "actuals_target": "data", "actuals_series": "data",
     "context_file": "data", "events_file": "data",
-    "context_events": "data", "context_events_file": "data",
+    "context_events": "data", "qualitative_context_events": "data",
+    "context_rejections": "data",
+    "context_events_file": "data",
     "context_ref": "data",
     "external_registry": "data", "external_priors": "data",
     "model_evidence_registry": "data",
@@ -763,6 +779,13 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "domain": "data", "population": "data", "unit": "data", "target": "data",
     "candidate_error": "data", "baseline_error": "data",
     "canonical": "data", "synthesis": "data", "evidence_refs": "data",
+    "dossier": "data", "temporal_dossiers": "data",
+    "scenario_selection": "data", "context_submission": "data",
+    "publication_path": "data",
+    "context_text": "data", "context_source_text": "data",
+    "context_known_at": "data",
+    "context_proposal": "data", "context_compiler_model": "data",
+    "context_transformation": "data", "transformations": "data",
     "outcome": "data", "resolved_at": "data",
     # -- epistemic ---------------------------------------------------------
     "minimum_baseline_improvement": "epistemic",
@@ -780,6 +803,7 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "min_outcomes": "epistemic", "min_improvement": "epistemic",
     "min_win_rate": "epistemic",
     "model_admission": "epistemic",
+    "publication_mode": "epistemic",
 }
 
 #: The trace each epistemic parameter leaves when moved off its default.
@@ -840,4 +864,8 @@ EPISTEMIC_TRACES: dict[str, str] = {
         "the selected admission state, evidence sources, candidate weight, "
         "and policy version are persisted in the immutable candidate identity "
         "and result admission block"),
+    "publication_mode": (
+        "the mode, immutable primary, selected sealed scenario, unchanged "
+        "support, context dispositions, and separate automation verdict are "
+        "persisted in a content-addressed publication sidecar"),
 }

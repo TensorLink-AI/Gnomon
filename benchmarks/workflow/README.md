@@ -185,6 +185,34 @@ preserved by the agent.
 Choice oracles may declare canonical aliases (for example `period-7` and
 `weekly` on a daily grid) so presentation wording
 does not masquerade as a numerical failure.
+
+### Context-interface diagnostic
+
+`cases/context-interface.jsonl` is a small frozen behavioral diagnostic for
+the ordinary MCP host path. It separately scores whether an agent chooses the
+literal or qualitative context channel, whether Gnomon records the expected
+context disposition, whether the immutable primary stays visible, whether a
+bounded scenario is produced, and whether automation remains disabled. Run it
+with the same `run_workflow` command and an agent adapter arm.
+
+The corpus intentionally has no future-value oracle. Its `correctness` field
+therefore only means that the answer envelope resolved; it is **not forecast
+accuracy or product uplift**. Read `context_contract.pass_rate`, calls, typed
+tool errors, and the trust components. Use multiple model replicates when
+making an affordance decision because argument construction is stochastic.
+When a publication exists, the adapter binds the submitted headline number to
+the sealed `recommended_scenario_id` summary rather than the artifact's active
+context lane. This prevents a scenario-mode answer from calling a conditional
+path “the recommendation” while the publication contract recommends primary.
+
+`cases/context-adversarial.jsonl` complements it with irrelevant, ambiguous-
+timing, late-known, and third-party forecast claims. Safe equivalences are
+intentional: either structured rejection channel and either strict or
+best-effort publication may pass when the primary remains recommended. A
+qualitative event cannot pass by inventing a date absent from its quoted
+source. This corpus measures epistemic routing and receipts, not whether a
+numeric forecast is accurate.
+
 The comparison distinguishes surface eligibility from decision readiness.
 `decision_ready_arms` remains empty unless all four evidence legs are present:
 

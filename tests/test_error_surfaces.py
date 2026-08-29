@@ -195,6 +195,33 @@ def test_mcp_results_carry_structured_content():
     assert result["structuredContent"] == json.loads(result["content"][0]["text"])
 
 
+def test_mcp_marks_model_arguments_as_advisory_for_automation():
+    from gnomon import mcp_server
+
+    captured = {}
+    original = mcp_server.runner_for
+
+    def capture_runner(name):
+        def runner(arguments):
+            captured.update(arguments)
+            return {"status": "ok"}
+        return runner
+
+    mcp_server.runner_for = capture_runner
+    try:
+        result = mcp_server._handle({
+            "method": "tools/call", "params": {
+                "name": "gnomon_forecast",
+                "arguments": {"automation_policy": {
+                    "authorize": True, "policy_id": "invented",
+                    "minimum_support": "supported"}},
+            }})
+    finally:
+        mcp_server.runner_for = original
+    assert result["isError"] is False
+    assert captured["_mcp_agent_boundary"] is True
+
+
 def test_mcp_tools_publish_an_output_schema():
     from gnomon import mcp_server
 

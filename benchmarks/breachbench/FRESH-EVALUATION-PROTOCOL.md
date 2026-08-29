@@ -34,6 +34,11 @@ band, history-length band, and decision support. Report uplift, safety
 preservation, regression, and withholding separately; matching a baseline is
 not uplift.
 
+Development preflight history bands are frozen as short (24/48 observations),
+medium (96), and long (168). The untouched graduation corpus may use different
+absolute windows where cadence requires it, but its band thresholds and case
+allocation must be frozen in the run manifest before outcomes are exposed.
+
 ## Power and analysis
 
 Choose case count from a simulation over the frozen cost matrix before model

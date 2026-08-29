@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import math
 from dataclasses import dataclass, field, replace
@@ -620,6 +621,7 @@ def select_model_lightweight(
     # ranked on it, and the strongest baseline is published with every
     # score reported as evidence (see the guardrail in `evaluate`).
     non_baselines = [name for name in valid if name not in BASELINES]
+    degraded_baseline_evidence = None
     if "last_value" in baselines:
         # One holdout cannot establish that a structured baseline generalises
         # any more reliably than it can rank an incremental model.  Publish
@@ -627,6 +629,71 @@ def select_model_lightweight(
         # still enter through repeatable folds or separately labelled transfer
         # evidence.  This rule is history-length based, never channel based.
         selected = "last_value"
+        # A long requested horizon can prevent separated full-horizon folds
+        # even when the history contains repeatable seasonal evidence. Admit
+        # only the single structured baseline against last-value on fixed,
+        # non-overlapping seasonal blocks. This is not a candidate tournament:
+        # two predeclared baselines, a 10% margin, and wins in two of three
+        # chronological blocks are required.
+        if (season > 1 and "seasonal_naive" in baselines
+                and len(values) >= 3 * season):
+            probe_horizon = min(season, horizon)
+            first = max(season, len(values) - 8 * probe_horizon)
+            probe_origins = list(range(
+                first, len(values) - probe_horizon + 1, probe_horizon))
+            seasonal_probe: list[float] = []
+            last_probe: list[float] = []
+            for probe_origin in probe_origins:
+                probe_train = train_at(probe_origin)
+                probe_actual = values[
+                    probe_origin:probe_origin + probe_horizon]
+                try:
+                    seasonal_path = _predict_statistical(
+                        "seasonal_naive", probe_train, probe_horizon, season)
+                    last_path = _predict_statistical(
+                        "last_value", probe_train, probe_horizon, season)
+                except ValueError:
+                    continue
+                seasonal_error = error_score(probe_actual, seasonal_path)
+                last_error = error_score(probe_actual, last_path)
+                if seasonal_error is None or last_error is None:
+                    continue
+                seasonal_probe.append(seasonal_error)
+                last_probe.append(last_error)
+            block_wins = 0
+            # Six independent seasonal blocks are the minimum evidence for
+            # the three chronological stability checks below. Short snippets
+            # must not turn an accidental phase match into publication.
+            if len(seasonal_probe) >= 6:
+                boundaries = [0, len(seasonal_probe) // 3,
+                              2 * len(seasonal_probe) // 3,
+                              len(seasonal_probe)]
+                for left, right in zip(boundaries, boundaries[1:]):
+                    if right > left and mean(
+                            seasonal_probe[left:right]) < mean(
+                                last_probe[left:right]):
+                        block_wins += 1
+                seasonal_loss = mean(seasonal_probe)
+                last_loss = mean(last_probe)
+                admitted = (last_loss > 0
+                            and seasonal_loss <= .9 * last_loss
+                            and block_wins >= 2)
+                degraded_baseline_evidence = {
+                    "scheme": "non_overlapping_seasonal_blocks",
+                    "probe_horizon": probe_horizon,
+                    "origins": len(seasonal_probe),
+                    "seasonal_naive_loss": seasonal_loss,
+                    "last_value_loss": last_loss,
+                    "relative_improvement": (
+                        (last_loss - seasonal_loss) / last_loss
+                        if last_loss > 0 else None),
+                    "required_margin": .1,
+                    "chronological_block_wins": block_wins,
+                    "required_block_wins": 2,
+                    "admitted": admitted,
+                }
+                if admitted:
+                    selected = "seasonal_naive"
     elif baselines:
         selected = min(baselines, key=baselines.get)  # type: ignore[arg-type]
     else:
@@ -639,14 +706,21 @@ def select_model_lightweight(
     if guardrail_applied:
         warnings.append(
             f"Selection under-powered: a single trailing holdout cannot rank "
-            f"candidates or structured baselines. The robust level baseline "
+            f"incremental candidates. The admitted robust baseline "
             f"({strongest}) is published; "
             f"candidate scores are reported as evidence, not a ranking."
         )
+    if degraded_baseline_evidence is not None:
+        warnings.append(
+            "Degraded baseline admission: "
+            + json.dumps(degraded_baseline_evidence, sort_keys=True))
     residuals = [a - p for a, p in zip(actual, forecasts[selected])]
     return Evaluation(selected, strongest, scores, {name: None for name in MODELS}, None,
                       residuals, None, warnings, True, True,
-                      selection_fold_count=1,
+                      selection_fold_count=(
+                          int(degraded_baseline_evidence["origins"])
+                          if degraded_baseline_evidence and
+                          degraded_baseline_evidence["admitted"] else 1),
                       selection_guardrail_applied=guardrail_applied)
 
 
@@ -808,8 +882,8 @@ def _admit_pooled_lightweight(
     """Admit a within-panel executable without calling donor evidence local folds.
 
     The candidate itself owns a leave-one-channel-out comparability check.
-    Gnomon additionally requires a held-out target win under both WAPE and
-    fold-local scaled error.  This lane is distinct from external transfer:
+    Gnomon additionally requires repeated disjoint target-origin wins under
+    both WAPE and fold-local scaled error.  This lane is distinct from external transfer:
     every borrowed observation belongs to the caller's current snapshot.
     """
     if not assessment.supported or assessment.strongest_baseline != "last_value":
@@ -830,15 +904,14 @@ def _admit_pooled_lightweight(
     from .admission import AdmissionDecision, AdmissionEvidence, OutputDiagnostics
     admission_evidence = AdmissionEvidence(
         model_class="locally_fitted",
-        independent_folds=1,
-        paired_folds=1,
+        independent_folds=pooled.target_pairs,
+        paired_folds=pooled.target_pairs,
         candidate_loss=pooled.target_loss,
         baseline_loss=pooled.baseline_loss,
         relative_improvement=(
             (pooled.baseline_loss - pooled.target_loss) / pooled.baseline_loss),
-        candidate_win_rate=1.0,
-        median_relative_gain=(
-            (pooled.baseline_loss - pooled.target_loss) / pooled.baseline_loss),
+        candidate_win_rate=pooled.target_win_rate,
+        median_relative_gain=pooled.target_median_gain,
         local_gain_standard_error=None,
         diagnostics=OutputDiagnostics(),
     )
@@ -848,9 +921,11 @@ def _admit_pooled_lightweight(
         (f"borrowed strength from {len(candidate.donors)} sibling channels",
          f"leave-one-channel-out donor comparisons: {pooled.donor_pairs}",
          f"donor win rate: {pooled.donor_win_rate:.3f}",
+         f"disjoint target-origin comparisons: {pooled.target_pairs}",
+         f"target win rate: {pooled.target_win_rate:.3f}",
          f"normalised pooled-trend strength: {pooled.normalised_pool_strength:.3f}",
          "target held-out WAPE and scaled-error gates both passed"),
-        policy_version="within-panel-pooling-v1",
+        policy_version="within-panel-pooling-v2",
     )
     from .candidate import CandidateIdentity, CandidateSpec, FittedCandidate
     from .ids import content_id
@@ -861,6 +936,7 @@ def _admit_pooled_lightweight(
         config={
             "admission_state": "pooled_validated",
             "donor_pairs": pooled.donor_pairs,
+            "target_pairs": pooled.target_pairs,
             "comparability": "leave_one_channel_out_fold_transfer",
         },
         revisions={"runtime": RUNTIME_VERSION},
@@ -888,8 +964,8 @@ def _admit_pooled_lightweight(
         improvement=admission_evidence.relative_improvement,
         residuals=residuals,
         warnings=[*assessment.warnings,
-                  "Short-history pooled forecast: the target has one held-out "
-                  "window; sibling-channel transfer was validated with "
+                  "Short-history pooled forecast: the target passed repeated "
+                  "disjoint historical origins; sibling-channel transfer was validated with "
                   "leave-one-channel-out historical forecasts. The result "
                   "borrows strength and remains degraded."],
         notes=[*assessment.notes,
@@ -899,9 +975,9 @@ def _admit_pooled_lightweight(
         final_candidate=final, admission_decision=decision,
         selection_guardrail_applied=False,
         selection_stability={
-            "paired_folds": 1,
-            "candidate_win_rate": 1.0,
-            "median_relative_gain": admission_evidence.relative_improvement,
+            "paired_folds": pooled.target_pairs,
+            "candidate_win_rate": pooled.target_win_rate,
+            "median_relative_gain": pooled.target_median_gain,
             "scaled_error_improvement": pooled.target_scaled_gain,
             "scaled_error_passed": True,
             "passed": True,
@@ -1906,6 +1982,24 @@ def evaluate(
             raise ValueError(f"no adapter available for {name}")
         return _predict_adapter(adapter, train, steps, season)
 
+    # A built-in can be valid on every earlier selection/calibration prefix
+    # yet become outside its mathematical domain when later visible data
+    # arrives (Croston-SBA is the canonical example: it requires non-negative
+    # demand). Domain eligibility is not a score and may therefore be checked
+    # on the complete visible history without using the report-only future to
+    # choose a winner. Fall back before calibration so points, residuals,
+    # intervals, identity, and publication all belong to the same executable.
+    if selected in MODELS:
+        try:
+            _predict_selected(selected, values, len(values))
+        except (ValueError, ArithmeticError, OverflowError) as exc:
+            warnings.append(
+                f"{selected} won earlier folds but cannot fit the complete "
+                f"visible history ({exc}); publishing the strongest baseline "
+                f"{strongest_baseline} instead."
+            )
+            selected = strongest_baseline
+
     # Get calibration prediction from the selected model; fall back to the
     # strongest baseline if a TSFM/ensemble selection cannot predict here.
     try:
@@ -2194,9 +2288,9 @@ def evaluate(
             CandidateIdentity(
                 kind="builtin", name=selected,
                 revisions=_revisions(()),
-                # A built-in is stdlib arithmetic over the visible
-                # history: there is no failure mode that would swap it
-                # for something else at final prediction.
+                # Built-in domain eligibility was checked on the complete
+                # visible history before calibration, so publication does not
+                # need a second candidate-selection path.
                 fallback_policy="none",
             ),
             selected,

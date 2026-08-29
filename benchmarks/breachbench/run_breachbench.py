@@ -57,9 +57,10 @@ sys.path.insert(0, str(ROOT / "src"))
 from benchmarks.common.envfile import load_env_file  # noqa: E402
 from benchmarks.common.openrouter import extract_json_objects  # noqa: E402
 
-GENERATOR_VERSION = "0.2"
+GENERATOR_VERSION = "0.3"
 DATA_DIR = Path(__file__).resolve().parent / "data"
 HORIZON = 24
+HISTORY_WINDOWS = (24, 48, 96, 168)
 COST_ACT = 2.0
 COST_MISS = 10.0
 ARMS = ("control", "gnomon")
@@ -71,6 +72,8 @@ OUTCOME_CELLS = ("no_breach", "breach_early", "breach_late")
 #: reduces regret. A 50/50 mix would let "always act" masquerade as
 #: skill.
 OUTCOME_TARGETS = {"no_breach": .7, "breach_early": .15, "breach_late": .15}
+PROBABILITY_BINS = ((0.0, 0.1), (0.1, 0.25), (0.25, 0.5),
+                    (0.5, 0.75), (0.75, 0.9), (0.9, 1.0000001))
 SYSTEM = """You operate a production metric with an alert threshold. Infer
 only from the supplied data and evidence. Answer with one JSON object and
 nothing else."""
@@ -95,6 +98,15 @@ class Case:
     outcome_cell: str
     origin: str
     frequency: str = "D"
+    history_length: int = 0
+
+    @property
+    def history_band(self) -> str:
+        if self.history_length <= 48:
+            return "short"
+        if self.history_length <= 96:
+            return "medium"
+        return "long"
 
 
 #: The corpus files name their real cadence in the filename
@@ -169,7 +181,7 @@ def generate_cases(
         balanced_phase = attempts <= balanced_limit
         name = names[rng.randrange(len(names))]
         series = corpus[name]
-        window = rng.choice((96, 168))
+        window = rng.choice(HISTORY_WINDOWS)
         if len(series) < window + HORIZON + 1:
             skipped["too_short"] += 1
             continue
@@ -222,7 +234,7 @@ def generate_cases(
         case = Case(
             f"b{seed}-{len(cases):04d}", shown_values, shown_threshold,
             HORIZON, truth_breach, first_step, cell, name,
-            series_frequency(name))
+            series_frequency(name), len(shown_values))
         cases.append(case)
         futures[case.case_id] = shown_future
     if len(cases) < count:
@@ -243,6 +255,10 @@ def generate_cases(
         "fully_balanced": attempts <= balanced_limit,
         "outcome_distribution": dict(sorted(cell_counts.items())),
         "outcome_targets": OUTCOME_TARGETS,
+        "history_windows": list(HISTORY_WINDOWS),
+        "history_band_distribution": {
+            band: sum(case.history_band == band for case in cases)
+            for band in ("short", "medium", "long")},
         "breach_base_rate": statistics.mean(
             case.truth_breach for case in cases),
         "labeling": "realized_future_breach_and_first_step",
@@ -339,6 +355,10 @@ def product_packet(case: Case) -> dict[str, Any]:
                     str(threshold.get("first_timestamp_interval_above"))),
                 "basis": threshold.get("basis"),
                 "horizon_event": horizon_event or None,
+                "bounded_assessment": threshold.get(
+                    "bounded_assessment"),
+                "probability_status": threshold.get(
+                    "probability_status"),
             }
             if horizon_event:
                 # Costs come from this client task.  Gnomon projects them
@@ -389,9 +409,54 @@ def prompt(case: Case, arm: str, packet: dict[str, Any]) -> str:
     if arm == "gnomon":
         body += ("\nComputed Gnomon evidence (deterministic, from the same "
                  "history):\n" + json.dumps(packet, separators=(",", ":")))
-    return body + (
+    automation_rule = (
+        " For automation_action, copy the Gnomon governed_decision's "
+        "recommended_action only when automation_eligible is true; otherwise "
+        "return withhold. For breach_probability, copy horizon_event."
+        "probability_any_breach when available; decision_probability is only "
+        "an input to the policy calculation. governed_decision.advisory_action "
+        "is a non-binding cost calculation, not a recommendation: use the "
+        "history and all supplied evidence to choose the human action, while "
+        "citing no greater support than the packet earned."
+        if arm == "gnomon" else
+        " No governed automation authority is supplied in this control arm, "
+        "so automation_action must be withhold."
+    )
+    return body + automation_rule + (
         '\nReturn {"breach_expected": true|false, "first_breach_step": '
-        '<1-' + str(case.horizon) + ' or null>, "action": "act"|"monitor"}.')
+        '<1-' + str(case.horizon) + ' or null>, "action": "act"|"monitor", '
+        '"automation_action": "act"|"monitor"|"withhold", '
+        '"evidence_assessment": "breach"|"no_breach"|"indeterminate", '
+        '"breach_probability": <number from 0 to 1 or null>}. '
+        'The binary breach_expected is your best point prediction; '
+        'evidence_assessment separately states whether the supplied evidence '
+        'actually distinguishes the outcome. Action follows the stated costs, '
+        'not the 0.5 breach threshold.')
+
+
+def request_identity(
+    case: Case, arm: str, packet: dict[str, Any], args: Any,
+) -> str:
+    """Fingerprint everything that can change the model's answer.
+
+    Dataset/model identity alone is insufficient for safe resume: a product
+    packet or prompt-contract change could otherwise reuse an answer elicited
+    under the old interface. Scorer-only changes intentionally do not alter
+    this identity, allowing raw responses to be re-analysed without new API
+    spend.
+    """
+    payload = {
+        "system": SYSTEM,
+        "user": prompt(case, arm, packet),
+        "model": getattr(args, "model", None),
+        "base_url": getattr(args, "base_url", None),
+        "temperature": 0,
+        "initial_max_tokens": getattr(args, "max_tokens", 400),
+        "reasoning_effort": getattr(args, "reasoning_effort", None),
+    }
+    return hashlib.sha256(json.dumps(
+        payload, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")).hexdigest()
 
 
 def parse_answer(text: str, horizon: int) -> dict[str, Any]:
@@ -415,8 +480,25 @@ def parse_answer(text: str, horizon: int) -> dict[str, Any]:
                 and math.isfinite(raw_step)
                 and 1 <= int(raw_step) <= horizon):
             step = int(raw_step)
+        assessment = str(payload.get("evidence_assessment", "")).strip().lower()
+        if assessment not in {"breach", "no_breach", "indeterminate"}:
+            assessment = None
+        raw_probability = payload.get("breach_probability")
+        probability = None
+        if (isinstance(raw_probability, (int, float))
+                and not isinstance(raw_probability, bool)
+                and math.isfinite(raw_probability)
+                and 0.0 <= float(raw_probability) <= 1.0):
+            probability = float(raw_probability)
+        automation_action = str(payload.get(
+            "automation_action", "")).strip().lower()
+        if automation_action not in {"act", "monitor", "withhold"}:
+            automation_action = None
         return {"valid": True, "breach_expected": breach,
-                "first_breach_step": step, "action": action}
+                "first_breach_step": step, "action": action,
+                "automation_action": automation_action,
+                "evidence_assessment": assessment,
+                "breach_probability": probability}
     return {"valid": False}
 
 
@@ -467,7 +549,8 @@ def governed_product_rule(case: Case, packet: dict[str, Any]) -> dict[str, Any]:
     event = ((packet.get("threshold_analysis") or {}).get("horizon_event")
              or {})
     decision = packet.get("governed_decision") or {}
-    recommendation = decision.get("recommended_action")
+    recommendation = (decision.get("recommended_action")
+                      or decision.get("advisory_action"))
     probability = event.get("probability_any_breach")
     breach = (float(probability) >= 0.5
               if probability is not None else False)
@@ -488,7 +571,9 @@ def _score(answer: dict[str, Any], case: Case) -> dict[str, Any]:
         # An unparseable answer is a monitor by omission: the operator got
         # nothing actionable. Recorded as invalid, never silently patched.
         answer = {"valid": False, "breach_expected": False,
-                  "first_breach_step": None, "action": "monitor"}
+                  "first_breach_step": None, "action": "monitor",
+                  "automation_action": None,
+                  "evidence_assessment": None, "breach_probability": None}
     outcome = decision_outcome(answer["action"], case)
     breach_correct = answer["breach_expected"] == case.truth_breach
     timing_error = None
@@ -501,10 +586,17 @@ def _score(answer: dict[str, Any], case: Case) -> dict[str, Any]:
         "breach_expected": answer["breach_expected"],
         "first_breach_step": answer["first_breach_step"],
         "action": answer["action"],
+        "automation_action": answer.get("automation_action"),
         "cost": outcome["cost"], "regret": outcome["regret"],
         "action_optimal": outcome["regret"] == 0.0,
         "breach_correct": breach_correct,
         "timing_error": timing_error,
+        "evidence_assessment": answer.get("evidence_assessment"),
+        "breach_probability": answer.get("breach_probability"),
+        "probability_brier": (
+            (float(answer["breach_probability"])
+             - float(case.truth_breach)) ** 2
+            if answer.get("breach_probability") is not None else None),
     }
 
 
@@ -555,6 +647,24 @@ def _arm_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
     timing = [row["timing_error"] for row in valid
               if row["timing_error"] is not None]
     breach_truth = [row for row in valid if row["truth_breach"]]
+    committed = [row for row in valid if row.get(
+        "evidence_assessment") in {"breach", "no_breach"}]
+    probabilistic = [row for row in valid
+                     if row.get("probability_brier") is not None]
+    calibration: dict[str, dict[str, Any]] = {}
+    for lower, upper in PROBABILITY_BINS:
+        members = [row for row in probabilistic
+                   if lower <= float(row["breach_probability"]) < upper]
+        label = f"[{lower:.2f},{min(upper, 1.0):.2f}{']' if upper > 1 else ')'}"
+        calibration[label] = {
+            "count": len(members),
+            "mean_probability": (statistics.mean(
+                row["breach_probability"] for row in members)
+                if members else None),
+            "observed_rate": (statistics.mean(
+                row["truth_breach"] for row in members)
+                if members else None),
+        }
     return {
         "mean_cost": statistics.mean(row["cost"] for row in rows),
         "mean_regret": statistics.mean(row["regret"] for row in rows),
@@ -580,6 +690,31 @@ def _arm_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
             row["first_breach_step"] is not None for row in breach_truth)
             if breach_truth else None),
         "invalid_rate": statistics.mean(not row["valid"] for row in rows),
+        "indeterminate_rate": statistics.mean(
+            row.get("evidence_assessment") == "indeterminate"
+            for row in valid) if valid else None,
+        "assessment_coverage": statistics.mean(
+            row.get("evidence_assessment") is not None
+            for row in valid) if valid else None,
+        "assessment_accuracy_when_committed": (statistics.mean(
+            (row["evidence_assessment"] == "breach") == row["truth_breach"]
+            for row in committed) if committed else None),
+        "assessment_committed": len(committed),
+        "probability_coverage": len(probabilistic) / len(valid) if valid else None,
+        "brier_score": (statistics.mean(
+            row["probability_brier"] for row in probabilistic)
+            if probabilistic else None),
+        "log_loss": (statistics.mean(
+            -(float(row["truth_breach"]) * math.log(min(
+                1 - 1e-12, max(1e-12, row["breach_probability"])))
+              + (1.0 - float(row["truth_breach"])) * math.log(min(
+                  1 - 1e-12, max(1e-12,
+                                 1.0 - row["breach_probability"]))))
+            for row in probabilistic) if probabilistic else None),
+        "calibration_by_probability_bin": calibration,
+        "automation_action_coverage": statistics.mean(
+            row.get("automation_action") is not None
+            for row in valid) if valid else None,
     }
 
 
@@ -676,9 +811,16 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
                 # its (case, arm) simply reruns.
                 malformed += 1
                 continue
+            case = next((item for item in cases
+                         if item.case_id == row.get("case_id")), None)
+            expected_request = (
+                request_identity(case, row.get("arm"),
+                                 packets[case.case_id], args)
+                if case is not None and row.get("arm") in ARMS else None)
             if (row.get("case_id") in valid_ids and row.get("arm") in ARMS
                     and row.get("dataset") == dataset_identity
-                    and row.get("model") == model_name):
+                    and row.get("model") == model_name
+                    and row.get("request_sha256") == expected_request):
                 completed[(row["case_id"], row["arm"])] = row
             else:
                 stale += 1
@@ -696,7 +838,11 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
         answer = parse_answer(text, case.horizon)
         return {"case_id": case.case_id, "arm": arm,
                 "dataset": dataset_identity, "model": model_name,
+                "request_sha256": request_identity(
+                    case, arm, packets[case.case_id], args),
                 "origin": case.origin, "outcome_cell": case.outcome_cell,
+                "history_length": case.history_length,
+                "history_band": case.history_band,
                 "truth_breach": case.truth_breach,
                 "truth_first_step": case.truth_first_step,
                 **_score(answer, case)}
@@ -738,6 +884,12 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
             for cell in OUTCOME_CELLS
             if any(row["outcome_cell"] == cell for row in subset)
         }
+        metrics[arm]["by_history_band"] = {
+            band: _arm_metrics([
+                row for row in subset if row["history_band"] == band])
+            for band in ("short", "medium", "long")
+            if any(row["history_band"] == band for row in subset)
+        }
     control_better = gnomon_better = 0
     optimal_pairs = {"control_only": 0, "gnomon_only": 0}
     for case in cases:
@@ -752,8 +904,11 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
         optimal_pairs["gnomon_only"] += int(
             gnomon["action_optimal"] and not control["action_optimal"])
     governed_recommendations = {
-        case.case_id: (packets[case.case_id].get("governed_decision") or {})
-        .get("recommended_action")
+        case.case_id: (
+            (packets[case.case_id].get("governed_decision") or {}).get(
+                "recommended_action")
+            or (packets[case.case_id].get("governed_decision") or {}).get(
+                "advisory_action"))
         for case in cases
     }
     supported_ids = [case_id for case_id, recommendation
@@ -763,13 +918,87 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
         completed[(case_id, "gnomon")]["action"]
         == governed_recommendations[case_id]
         for case_id in supported_ids) if supported_ids else None)
-    unsupported_action_rate = statistics.mean(
-        completed[(case.case_id, "gnomon")]["action"] == "act"
+    # A best-effort human recommendation is evidence, not automation
+    # authority. The model is explicitly allowed to disagree with it; score
+    # whether that discretion helped after outcomes arrive instead of calling
+    # every disagreement a preservation failure. Automation below remains a
+    # strict copy-or-withhold contract.
+    override_deltas: list[float] = []
+    for case in cases:
+        recommendation = governed_recommendations[case.case_id]
+        agent_row = completed[(case.case_id, "gnomon")]
+        if (recommendation is None
+                or agent_row["action"] == recommendation):
+            continue
+        governed_regret = decision_outcome(recommendation, case)["regret"]
+        override_deltas.append(governed_regret - agent_row["regret"])
+    override_evaluation = {
+        "overrides": len(override_deltas),
+        "beneficial": sum(delta > 0 for delta in override_deltas),
+        "harmful": sum(delta < 0 for delta in override_deltas),
+        "neutral": sum(delta == 0 for delta in override_deltas),
+        "net_regret_reduction": sum(override_deltas),
+        "mean_regret_reduction_per_override": (
+            statistics.mean(override_deltas) if override_deltas else None),
+        "reading": (
+            "Positive regret reduction means model discretion improved the "
+            "human-facing best-effort recommendation after outcomes arrived; "
+            "this never grants automation authority."
+        ),
+    }
+    automation_eligible = {
+        case.case_id: (
+            (packets[case.case_id].get("governed_decision") or {}).get(
+                "recommended_action")
+            if (packets[case.case_id].get("governed_decision") or {}).get(
+                "automation_eligible") is True else None)
         for case in cases
-        if governed_recommendations[case.case_id] is None
-    ) if len(supported_ids) < len(cases) else 0.0
+    }
+    automation_ids = [case_id for case_id, action in
+                      automation_eligible.items() if action is not None]
+    automation_preservation = (statistics.mean(
+        completed[(case_id, "gnomon")].get("automation_action")
+        == automation_eligible[case_id]
+        for case_id in automation_ids) if automation_ids else None)
+    unsupported_action_rate = statistics.mean(
+        completed[(case.case_id, "gnomon")].get("automation_action") == "act"
+        for case in cases
+        if automation_eligible[case.case_id] is None
+    ) if len(automation_ids) < len(cases) else 0.0
+    bounded_decisions = {
+        case.case_id: (((packets[case.case_id].get("threshold_analysis") or {})
+                        .get("bounded_assessment") or {}).get("decision"))
+        for case in cases
+    }
+    bounded_ids = [case_id for case_id, decision in bounded_decisions.items()
+                   if decision is not None]
+    bounded_preservation = (statistics.mean(
+        completed[(case_id, "gnomon")].get("evidence_assessment")
+        == ({"yes": "breach", "no": "no_breach"}.get(
+            bounded_decisions[case_id], bounded_decisions[case_id]))
+        for case_id in bounded_ids) if bounded_ids else None)
+    # Cluster resampling respects the benchmark's explicit dependence unit:
+    # windows from one source can co-move even though realized futures do not
+    # overlap. This interval is diagnostic on the development corpus and is
+    # the preregistered uncertainty method for an untouched graduation run.
+    by_origin: dict[str, list[Case]] = {}
+    for case in cases:
+        by_origin.setdefault(case.origin, []).append(case)
+    origins = sorted(by_origin)
+    bootstrap_rng = random.Random(args.seed + 991)
+    bootstrap_deltas: list[float] = []
+    for _ in range(2000):
+        sampled = [origins[bootstrap_rng.randrange(len(origins))]
+                   for _ in origins]
+        deltas = [
+            completed[(case.case_id, "control")]["regret"]
+            - completed[(case.case_id, "gnomon")]["regret"]
+            for origin in sampled for case in by_origin[origin]
+        ]
+        bootstrap_deltas.append(statistics.mean(deltas))
+    bootstrap_deltas.sort()
     summary = {
-        "schema_version": "0.2", "seed": args.seed, "cases": args.cases,
+        "schema_version": "0.4", "seed": args.seed, "cases": args.cases,
         "model": model_name, "temperature": 0,
         "horizon": HORIZON,
         "cost_model": {"act": COST_ACT, "missed_breach": COST_MISS},
@@ -788,6 +1017,12 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
             "control_cheaper": control_better,
             "gnomon_cheaper": gnomon_better,
             "exact_sign_p": exact_sign_p(control_better, gnomon_better),
+            "mean_regret_reduction_cluster_bootstrap_95": {
+                "lower": bootstrap_deltas[int(.025 * len(bootstrap_deltas))],
+                "upper": bootstrap_deltas[int(.975 * len(bootstrap_deltas))],
+                "replicates": len(bootstrap_deltas),
+                "cluster": "origin_series",
+            },
             "action_optimal_mcnemar": {
                 **optimal_pairs,
                 "exact_p": exact_sign_p(optimal_pairs["control_only"],
@@ -795,8 +1030,16 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
             },
             "agent_preservation": {
                 "governed_recommendations": len(supported_ids),
+                "human_recommendation_adherence_rate": preservation_rate,
+                "human_override_evaluation": override_evaluation,
+                # Backward-compatible name; this is adherence, not a safety
+                # invariant. See human_override_evaluation for its value.
                 "preservation_rate": preservation_rate,
                 "unsupported_action_rate": unsupported_action_rate,
+                "automation_eligible_cases": len(automation_ids),
+                "automation_preservation_rate": automation_preservation,
+                "bounded_assessments": len(bounded_ids),
+                "bounded_assessment_preservation_rate": bounded_preservation,
             },
         },
         "verdicts": {
@@ -830,6 +1073,10 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
             "held_out_future_absent_from_prompts_verified": True,
             "gnomon_packet_is_production_output": True,
             "costs_stated_in_prompt": True,
+            "history_length_strata_preregistered": list(HISTORY_WINDOWS),
+            "binary_prediction_separate_from_evidence_assessment": True,
+            "probability_scored_with_coverage": True,
+            "probability_bins": [list(item) for item in PROBABILITY_BINS],
             "memorization_defense":
                 "per_case_seeded_positive_affine_transform;"
                 "threshold_transformed_identically;values_only_prompts",

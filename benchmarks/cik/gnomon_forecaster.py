@@ -31,10 +31,11 @@ Adapter decisions, disclosed:
   the start of the history window. Gnomon's gate still decides admission.
 - CiK task indexes are timezone-naive; they are written as UTC because
   Gnomon's context path requires timezone-aware timestamps.
-- When Gnomon abstains, the adapter raises :class:`GnomonAbstained` rather
-  than fabricating samples; the run is recorded as an abstention, and
-  scores simply do not exist for it. The most dangerous forecast is the
-  confident one that shouldn't exist.
+- The adapter uses the product's current ``best_effort`` support floor by
+  default, matching CLI and MCP. A stricter support floor is an explicit
+  treatment condition and receives a distinct cache identity. When that
+  condition abstains, the adapter raises :class:`GnomonAbstained` rather than
+  fabricating samples.
 """
 
 from __future__ import annotations
@@ -124,7 +125,10 @@ fields): set "event_type" to "structural:<label>", add "source_span":
 
 - "trend_ceases" — the observed drift stops continuing (e.g. a
   repaired sensor's spurious trend). The engine removes its own
-  forecast's fitted drift.
+  forecast's fitted drift. Use this only when the quoted sentence itself
+  names a trend, drift, slope, or continuing increase/decrease. A recurring
+  outage, maintenance window, spike, or glitch that will not recur is NOT a
+  trend cessation; if no effect in this closed menu matches, propose nothing.
 - "level_matches_seasonal_high" — the context states the series enters
   its high regime for a dated window (e.g. "the weather will become
   clear" for solar output, full production resumes). The engine moves
@@ -171,7 +175,11 @@ def samples_from_quantile_rows(
         raise ValueError("n_samples must be at least 1")
     quantiles: list[tuple[float, float, float]] = []
     for row in rows:
-        q50 = float(row.get("q50", row["point"]))
+        # ``dict.get`` evaluates its default eagerly: ``row.get("q50",
+        # row["point"])`` crashes on a perfectly valid quantile-only row.
+        # Model-authored shadow candidates intentionally carry no redundant
+        # point field, so resolve the fallback explicitly.
+        q50 = float(row["q50"] if "q50" in row else row["point"])
         q10 = float(row.get("q10", q50))
         q90 = float(row.get("q90", q50))
         low, mid, high = sorted((q10, q50, q90))
@@ -288,6 +296,19 @@ def events_from_proposals(
             # Passed through for the structural class; the engine's closed
             # menu is the validator, not this adapter.
             attributes["effect"] = effect.strip()
+            if effect.strip() == "trend_ceases":
+                semantic_span = _normalise(span or "")
+                trend_terms = (
+                    "trend", "drift", "slope", "increasing", "decreasing",
+                    "increase", "decrease", "growth", "decline",
+                )
+                if not any(term in semantic_span for term in trend_terms):
+                    notes.append(
+                        f"proposal {number} rejected: trend_ceases requires "
+                        "a source_span that explicitly names a trend, drift, "
+                        "slope, increase, decrease, growth, or decline"
+                    )
+                    continue
         event = ContextEvent(
             event_id=f"cik-{task_name}-evt{number}",
             event_type=str(raw.get("event_type", "")).strip() or "context_event",
@@ -337,6 +358,7 @@ class GnomonForecaster:
         work_dir: str | None = None,
         future_context: bool = False,
         structural_context: bool = False,
+        minimum_support: str = "best_effort",
     ) -> None:
         if mode not in ("pure", "agent"):
             raise ValueError("mode must be 'pure' or 'agent'")
@@ -352,11 +374,15 @@ class GnomonForecaster:
                 "structural_context rides on the future-context lane; enable "
                 "future_context with it"
             )
+        if minimum_support not in {
+                "best_effort", "conditionally_supported", "supported"}:
+            raise ValueError("minimum_support is not a public support tier")
         self.mode = mode
         self.openrouter_model = openrouter_model
         self.temperature = temperature
         self.future_context = future_context
         self.structural_context = structural_context
+        self.minimum_support = minimum_support
         self.client = (
             OpenRouterClient(openrouter_model, temperature=temperature)
             if mode == "agent"
@@ -368,7 +394,8 @@ class GnomonForecaster:
     @property
     def cache_name(self) -> str:
         model = (self.openrouter_model or "none").replace("/", "-")
-        suffix = "_future=on" if self.future_context else ""
+        suffix = f"_support={self.minimum_support}"
+        suffix += "_future=on" if self.future_context else ""
         if self.structural_context:
             suffix += "_structural=on"
         if self.mode == "agent":
@@ -424,10 +451,7 @@ class GnomonForecaster:
                 output=str(run_dir / "gnomon-output"),
                 context_events=events or None,
                 config=config,
-                # Pin the pre-graduated condition: the benchmark's
-                # abstention accounting must not drift with the engine's
-                # new best_effort default floor.
-                minimum_support="conditionally_supported",
+                minimum_support=self.minimum_support,
             )
         except GnomonError as error:
             raise GnomonAbstained([f"{error.code}: {error.message}"]) from error
@@ -483,7 +507,8 @@ class GnomonForecaster:
         return timestamps
 
     def _propose_events(
-        self, task_instance: Any, timestamps: list[str], horizon: int
+        self, task_instance: Any, timestamps: list[str], horizon: int,
+        *, known_at: str | None = None,
     ) -> tuple[list[Any], list[str]]:
         import pandas as pd
 
@@ -491,7 +516,8 @@ class GnomonForecaster:
         if not context.strip():
             return [], ["task has no textual context"]
 
-        future_index = task_instance.future_time.index
+        future = task_instance.future_time
+        future_index = future.index if hasattr(future, "columns") else future
         if isinstance(future_index, pd.PeriodIndex):
             future_index = future_index.to_timestamp()
         future_index = pd.DatetimeIndex(future_index)
@@ -529,7 +555,7 @@ class GnomonForecaster:
         return events_from_proposals(
             proposals,
             task_name=task_instance.name,
-            known_at=window_start,
+            known_at=known_at or window_start,
             window_start=window_start,
             window_end=window_end,
             context_text=context if self.future_context else None,

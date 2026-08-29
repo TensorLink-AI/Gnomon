@@ -7,6 +7,7 @@ import copy
 import hashlib
 import json
 import os
+import re
 import tempfile
 import time
 from collections import defaultdict
@@ -26,12 +27,13 @@ from benchmarks.common.openrouter import (  # noqa: E402
 )
 from benchmarks.temporalbench.mcp_agent import coerce_json_containers  # noqa: E402
 from gnomon.workflows import (  # noqa: E402
-    DocumentRef, build_context_investigation_prompt,
+    CONTEXT_COMPILER_CONTRACT_VERSION, DocumentRef,
+    build_context_investigation_prompt,
     extract_explicit_schedule_context,
     normalise_context_response_containers, parse_context_response,
 )
 
-from .run_contextbench import run_case, smape  # noqa: E402
+from .run_contextbench import EPOCH, frequency_step, run_case, smape  # noqa: E402
 from .schema import Case, Oracle, load_cases, load_oracles  # noqa: E402
 
 
@@ -52,7 +54,12 @@ FORECAST_TOOL = {
     },
 }
 
-_CONTEXT_CHUNK_EVENTS = 4
+# The bounded schema retains only seven source-grounded fields per event.
+# Eight rows stay comfortably below the 5k completion ceiling across tested
+# providers while halving round trips for long operational schedules. The
+# value is part of run identity so resume can never mix chunking treatments.
+_CONTEXT_CHUNK_EVENTS = 8
+_ISO_IN_LINE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})")
 
 
 def _bounded_context_tool(request: dict[str, Any], max_events: int
@@ -196,6 +203,11 @@ def raw_case(case: Case, oracle: Oracle, client: OpenRouterClient) -> dict[str, 
                 history_scores[0] - history_scores[1]),
             "primary_changed": any(abs(left - right) > 1e-9 for left, right in
                                    zip(history_forecast, forecast)),
+            # A raw LLM arm has no immutable Gnomon primary. Name this
+            # comparison literally rather than borrowing the engine alias.
+            "context_forecast_differs_from_history_only": any(
+                abs(left - right) > 1e-9 for left, right in
+                zip(history_forecast, forecast)),
             "history_forecast": history_forecast,
             "history_replicate_forecast": history_replicate,
             "context_forecast": forecast,
@@ -221,19 +233,32 @@ def raw_case(case: Case, oracle: Oracle, client: OpenRouterClient) -> dict[str, 
 
 def compile_events(case: Case, client: OpenRouterClient) -> dict[str, Any]:
     if not case.context_events:
-        return {"events": [], "rejected": [], "hypotheses": [],
+        return {"schema_version": CONTEXT_COMPILER_CONTRACT_VERSION,
+                "events": [], "rejected": [], "hypotheses": [],
                 "compiler_called": False}
     source_type = ("calendar" if case.family != "prior_only"
                    else "narrative_assertion")
     lines = case.narrative.splitlines()
     header = lines[0] if lines else ""
-    event_lines = [line for line in lines if " affects the value series from " in line]
+    # Chunk any residual line carrying a bounded start/end pair, not merely
+    # the one literal grammar handled by the deterministic fast path. This is
+    # transport shaping only: the semantic compiler must still quote, type,
+    # and validate every proposed event.
+    event_lines = [line for line in lines
+                   if len(_ISO_IN_LINE.findall(line)) >= 2]
     footer = lines[-1] if lines else ""
     source_reference = ("contextbench:" + hashlib.sha256(
         case.case_id.encode()).hexdigest()[:16])
+    known_times = {str(event.get("known_at"))
+                   for event in case.context_events if event.get("known_at")}
+    document_known_at = known_times.pop() if len(known_times) == 1 else None
+    forecast_window_end = (
+        EPOCH + (len(case.history) + case.horizon - 1) *
+        frequency_step(case.frequency)
+    ).isoformat()
     full_document = DocumentRef(
         "context.txt", case.narrative, source_type=source_type,
-        reference=source_reference)
+        reference=source_reference, known_at=document_known_at)
     explicit_raw = extract_explicit_schedule_context([full_document])
     explicit = parse_context_response(
         {"events": explicit_raw["events"]}, [full_document],
@@ -245,22 +270,35 @@ def compile_events(case: Case, client: OpenRouterClient) -> dict[str, Any]:
         str((event.get("attributes") or {}).get("evidence_quote", ""))
         for event in explicit["events"]
     }
-    # Only residual schedule-like lines go to the semantic compiler. Literal
-    # ISO schedule rows are already losslessly parsed and quote-grounded.
+    # Literal ISO schedule rows are losslessly parsed and quote-grounded. Any
+    # remaining schedule rows, or an otherwise unparsed narrative, must reach
+    # the semantic compiler rather than disappearing merely because it uses a
+    # different temporal vocabulary (for example a structural regime claim).
     event_lines = [line for line in event_lines if line not in consumed_quotes]
-    chunks = [event_lines[index:index + _CONTEXT_CHUNK_EVENTS]
-              for index in range(0, len(event_lines),
-                                 _CONTEXT_CHUNK_EVENTS)]
+    schedule_shaped = bool(event_lines or consumed_quotes)
+    chunks = ([event_lines[index:index + _CONTEXT_CHUNK_EVENTS]
+               for index in range(0, len(event_lines),
+                                  _CONTEXT_CHUNK_EVENTS)]
+              if schedule_shaped else
+              [lines] if case.narrative.strip() else [])
 
     def compile_chunk(item: tuple[int, list[str]]) -> dict[str, Any]:
         chunk_index, chunk_lines = item
-        content = "\n".join([header, *chunk_lines, footer])
+        content = ("\n".join([header, *chunk_lines, footer])
+                   if schedule_shaped else "\n".join(chunk_lines))
         document = DocumentRef(
             f"context-chunk-{chunk_index}.txt", content,
             source_type=source_type,
-            reference=(source_reference + f":chunk:{chunk_index}"))
+            reference=(source_reference + f":chunk:{chunk_index}"),
+            known_at=document_known_at)
+        # Bind the public schema name, exactly as a production host must. A
+        # wildcard here invites the model to invent a semantic alias such as
+        # ``value_series`` which the engine must correctly reject as a
+        # different scope. The runtime alias to ``__default__`` happens only
+        # after quote and target validation below.
         request = build_context_investigation_prompt(
-            [document], ["*"], future_events=False)
+            [document], ["value"], future_events=True,
+            forecast_window_end=forecast_window_end)
         tool = _bounded_context_tool(request, len(chunk_lines))
         response = client.chat(
             [{"role": "system", "content": request["instructions"]}],
@@ -273,7 +311,9 @@ def compile_events(case: Case, client: OpenRouterClient) -> dict[str, Any]:
         coerced.extend(context_repairs)
         parsed = parse_context_response(
             raw, [document], proposer={"proposer_id": f"llm:{client.model}",
-                                      "kind": "llm"})
+                                      "kind": "llm"},
+            default_effective_end=forecast_window_end,
+            active_target="value")
         for event_index, event in enumerate(parsed["events"]):
             event["event_id"] = (
                 f"event_llm_chunk_{chunk_index:03d}_{event_index:03d}")
@@ -303,6 +343,7 @@ def compile_events(case: Case, client: OpenRouterClient) -> dict[str, Any]:
     else:
         compiled_chunks = []
     return {
+        "schema_version": CONTEXT_COMPILER_CONTRACT_VERSION,
         "events": [*explicit["events"], *[
             event for chunk in compiled_chunks
             for event in chunk.get("events") or []]],
@@ -397,7 +438,8 @@ def summarize(rows: list[dict[str, Any]], condition: str,
         "families": {},
         **({"seed": manifest.get("seed"),
             "fresh_seed": manifest.get("fresh_seed"),
-            "generator": manifest.get("generator")}
+            "generator": manifest.get("generator"),
+            "narrative_style": manifest.get("narrative_style", "explicit")}
            if manifest else {}),
     }
     terminal_observations = answered + product_failures
@@ -481,6 +523,24 @@ def summarize(rows: list[dict[str, Any]], condition: str,
     return summary
 
 
+def _prepare_run_identity(output: Path, identity: dict[str, Any],
+                          *, resume: bool) -> None:
+    """Fail closed when resume would mix a different treatment or corpus."""
+    identity_path = output / "run_identity.json"
+    observation_path = output / "observations.jsonl"
+    if resume and observation_path.exists():
+        if not identity_path.exists():
+            raise ValueError(
+                "cannot resume observations without run_identity.json")
+        existing = json.loads(identity_path.read_text(encoding="utf-8"))
+        if existing != identity:
+            raise ValueError(
+                "resume identity mismatch; use a new output directory")
+    identity_path.write_text(
+        json.dumps(identity, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--corpus-dir", required=True)
@@ -531,7 +591,27 @@ def main() -> int:
             for family in sorted(grouped):
                 if grouped[family] and len(cases) < args.limit:
                     cases.append(grouped[family].pop(0))
+    corpus_manifest_sha256 = hashlib.sha256(
+        (corpus / "manifest.json").read_bytes()).hexdigest()
+    selected_case_ids_sha256 = hashlib.sha256(
+        json.dumps([case.case_id for case in cases], separators=(",", ":"))
+        .encode()).hexdigest()
     output = Path(args.output_dir); output.mkdir(parents=True, exist_ok=True)
+    run_identity = {
+        "schema_version": 1,
+        "condition": args.condition,
+        "model": args.model,
+        "base_url": args.base_url,
+        "temperature": args.temperature,
+        "reasoning_effort": args.reasoning_effort,
+        "corpus_manifest_sha256": corpus_manifest_sha256,
+        "selected_case_ids_sha256": selected_case_ids_sha256,
+        "selected_cases": len(cases),
+        "compiler_chunk_events": (
+            _CONTEXT_CHUNK_EVENTS
+            if args.condition == "compiled-context" else None),
+    }
+    _prepare_run_identity(output, run_identity, resume=args.resume)
     work = Path(tempfile.mkdtemp(prefix="contextbench-llm-", dir=str(output)))
     retained: dict[str, dict[str, Any]] = {}
     observation_path = output / "observations.jsonl"
@@ -574,8 +654,8 @@ def main() -> int:
         row.get("status") == "answered" for row in retained.values())
     summary["resumed_terminal_rows"] = len(retained)
     summary["rows_executed_this_invocation"] = len(pending)
-    summary["corpus_manifest_sha256"] = hashlib.sha256(
-        (corpus / "manifest.json").read_bytes()).hexdigest()
+    summary["corpus_manifest_sha256"] = corpus_manifest_sha256
+    summary["run_identity"] = run_identity
     (output / "summary.json").write_text(
         json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(summary, indent=2, sort_keys=True))
