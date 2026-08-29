@@ -559,6 +559,7 @@ def write_outputs(results: dict, method, args, output_dir: Path) -> None:
     errors = 0
     degenerate_same_constant_runs = 0
     perfect_scores_on_degenerate_runs = 0
+    selection_diagnostics: list[dict] = []
     with scores_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
         writer.writerow(["task", "seed", "rcrps", "error"])
@@ -579,6 +580,37 @@ def write_outputs(results: dict, method, args, output_dir: Path) -> None:
                     [task_name, seed, score if finite else "", error]
                 )
                 extra_info = load_run_extra_info(runs_dir, task_name, seed)
+                candidate_scores = extra_info.get(
+                    "benchmark_counterfactual_candidate_scores") or []
+                finite_candidates = [
+                    item for item in candidate_scores
+                    if isinstance(item.get("score"), (int, float))
+                    and math.isfinite(item["score"])
+                ]
+                selected_candidate = next(
+                    (item for item in finite_candidates
+                     if item.get("selected") is True), None)
+                primary_candidate = next(
+                    (item for item in finite_candidates
+                     if item.get("role") == "immutable_primary"), None)
+                if selected_candidate is not None and primary_candidate is not None:
+                    best_candidate = min(
+                        finite_candidates, key=lambda item: item["score"])
+                    selection_diagnostics.append({
+                        "selected_score": float(selected_candidate["score"]),
+                        "primary_score": float(primary_candidate["score"]),
+                        "best_candidate_score": float(best_candidate["score"]),
+                        "selected_primary": (
+                            selected_candidate.get("scenario_id") ==
+                            primary_candidate.get("scenario_id")),
+                        "selected_hindsight_best": (
+                            selected_candidate.get("scenario_id") ==
+                            best_candidate.get("scenario_id")),
+                        "primary_forecast_unchanged": extra_info.get(
+                            "primary_forecast_unchanged"),
+                        "automation_eligible": extra_info.get(
+                            "automation_eligible"),
+                    })
                 input_profile = extra_info.get("benchmark_input_profile") or {}
                 degenerate = bool(
                     input_profile.get("degenerate_same_constant_case"))
@@ -638,6 +670,8 @@ def write_outputs(results: dict, method, args, output_dir: Path) -> None:
         "mean_rcrps_scored_only": (
             sum(scored) / len(scored) if scored else None
         ),
+        "selection_diagnostics": _summarize_selection_diagnostics(
+            selection_diagnostics),
         "note": (
             "mean_rcrps_capped_imputed follows the official aggregation "
             "rule (cap per-run RCRPS at 5.0, impute every abstained or "
@@ -658,6 +692,42 @@ def write_outputs(results: dict, method, args, output_dir: Path) -> None:
     print(json.dumps(summary, indent=2))
     print(f"Official per-run scores: {scores_path}")
     print(f"GnomonBench rows: {jsonl.path} ({jsonl.count} rows)")
+
+
+def _summarize_selection_diagnostics(rows: list[dict]) -> dict:
+    """Summarize post-outcome diagnostics without creating forecast evidence.
+
+    These values measure the publication policy after the run. They must never
+    be passed to the forecaster or used to select a candidate in the same run.
+    """
+    if not rows:
+        return {"cases": 0, "available": False}
+
+    def mean(key: str) -> float:
+        return sum(float(row[key]) for row in rows) / len(rows)
+
+    selected = mean("selected_score")
+    primary = mean("primary_score")
+    best = mean("best_candidate_score")
+    return {
+        "cases": len(rows),
+        "available": True,
+        "computed_after_forecast": True,
+        "passed_to_forecaster": False,
+        "mean_selected_rcrps": selected,
+        "mean_primary_rcrps": primary,
+        "mean_hindsight_best_candidate_rcrps": best,
+        "mean_uplift_vs_primary_rcrps": primary - selected,
+        "mean_selector_regret_rcrps": selected - best,
+        "selected_primary_cases": sum(
+            bool(row["selected_primary"]) for row in rows),
+        "selected_hindsight_best_cases": sum(
+            bool(row["selected_hindsight_best"]) for row in rows),
+        "primary_immutability_failures": sum(
+            row["primary_forecast_unchanged"] is not True for row in rows),
+        "automation_eligible_cases": sum(
+            row["automation_eligible"] is True for row in rows),
+    }
 
 
 def build_parser() -> argparse.ArgumentParser:
