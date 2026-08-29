@@ -36,8 +36,13 @@ Run (~2 model calls per case; Gnomon references are local and free):
 
 ```
 uv run python benchmarks/recallbench/run_recallbench.py \
-  --model <model> --cases 120 --output-dir results/recallbench/<run>
+  --model <model> --reasoning-effort none --cases 120 \
+  --output-dir results/recallbench/<run>
 ```
+
+Reasoning mode is explicit and part of resume identity. The default is
+`none`, matching the low-latency agent lane; a reasoning-enabled run is a
+separate treatment and cannot reuse non-reasoning rows.
 
 Operational guarantees match the sibling harnesses: held-out futures
 verified absent from every prompt (history-excised sentinel), durable

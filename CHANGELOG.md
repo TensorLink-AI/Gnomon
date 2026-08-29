@@ -52,6 +52,9 @@
   streams. The summary reports promotion and false-promotion rates while raw
   chronological records live in a separate JSONL artifact, keeping the
   decision report compact without discarding audit evidence.
+- Pin RecallBench's hosted-model reasoning mode (default `none`) and include it
+  in every row, summary, and resume identity. Reasoning and non-reasoning runs
+  can no longer silently reuse each other's real-series forecast records.
 - Use the existing bounded four/five-path cap on the first model-prior
   elicitation rather than estimating a human-facing median from three draws.
   Requests remain concurrent; sampled spread remains a coherence diagnostic,

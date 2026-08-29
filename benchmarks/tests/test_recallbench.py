@@ -26,7 +26,7 @@ def _args(tmp_path: Path, cases: int = 6,
     return argparse.Namespace(
         seed=20260827, cases=cases,
         output_dir=str(tmp_path / "out"), resume=resume, concurrency=2,
-        model="scripted-test-model")
+        model="scripted-test-model", reasoning_effort="none")
 
 
 class ScriptedClient:
@@ -112,6 +112,7 @@ def test_a_matched_offline_run_separates_recall_from_skill(
     assert len(rows) == 6 * len(ARMS)
     for row in rows:
         assert row["dataset"] == summary["provenance"]["dataset_identity"]
+        assert row["reasoning_effort"] == "none"
 
 
 def test_futures_transform_with_the_arm() -> None:

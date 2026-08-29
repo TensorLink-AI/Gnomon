@@ -341,7 +341,8 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
         client = OpenRouterClient(
             args.model, api_key=os.environ.get(args.api_key_env),
             base_url=args.base_url, temperature=0, max_tokens=600,
-            max_retries=4)
+            max_retries=4,
+            reasoning_effort=getattr(args, "reasoning_effort", "none"))
     cases, corpus_provenance, futures = generate_cases(
         args.seed, args.cases)
     verify_no_future_leakage(cases, futures)
@@ -399,7 +400,9 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
                 continue
             if (row.get("case_id") in valid_ids and row.get("arm") in ARMS
                     and row.get("dataset") == dataset_identity
-                    and row.get("model") == model_name):
+                    and row.get("model") == model_name
+                    and row.get("reasoning_effort") == getattr(
+                        args, "reasoning_effort", "none")):
                 completed[(row["case_id"], row["arm"])] = row
             else:
                 stale += 1
@@ -417,6 +420,7 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
         row: dict[str, Any] = {
             "case_id": case.case_id, "arm": arm,
             "dataset": dataset_identity, "model": model_name,
+            "reasoning_effort": getattr(args, "reasoning_effort", "none"),
             "origin": case.origin, "frequency": case.frequency,
             "valid": forecast is not None,
         }
@@ -489,6 +493,7 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
     summary = {
         "schema_version": "0.1", "seed": args.seed, "cases": args.cases,
         "model": model_name, "temperature": 0, "horizon": HORIZON,
+        "reasoning_effort": getattr(args, "reasoning_effort", "none"),
         "provenance": {
             "evaluated_commit": _git_sha(),
             "harness_sha256": hashlib.sha256(
@@ -539,6 +544,10 @@ def main() -> int:
     parser.add_argument("--cases", type=int, default=120)
     parser.add_argument("--seed", type=int, default=20260827)
     parser.add_argument("--concurrency", type=int, default=8)
+    parser.add_argument(
+        "--reasoning-effort", default="none",
+        choices=["none", "low", "medium", "high"],
+        help="Hosted-model reasoning mode; part of resume identity.")
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--resume", action="store_true")
     run(parser.parse_args())
