@@ -2021,11 +2021,40 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
         # sealed prior against the primary.  This removes deterministic choice
         # dominance, not the primary, its support, or automation restrictions.
         dominant = None
+    primary_scenario = next((item for item in scenarios
+                             if item.get("role") == "immutable_primary"), {})
+    primary_support = str(primary_scenario.get("support") or "unknown")
+    descriptor_claim_ids = {
+        str(claim.get("claim_id")) for claim in claims
+        if claim.get("claim_id") and str(claim.get("mechanism") or "") in {
+            "source-stated target descriptor",
+            "source-stated target or context descriptor",
+        }}
+    eligible_prior_ids = [
+        str(item["scenario_id"]) for item in scenarios
+        if item.get("role") != "immutable_primary"
+        and item.get("human_selection_eligible",
+                     item.get("selection_eligible", True)) is True]
+    source_grounded_prior_ids = [
+        str(item["scenario_id"]) for item in scenarios
+        if str(item.get("scenario_id")) in eligible_prior_ids
+        and descriptor_claim_ids.intersection(
+            str(claim_id) for claim_id in item.get("claim_ids") or [])]
     return {
         "selection_required": dominant is None,
         "deterministic_scenario_id": dominant,
         "selection_basis": ("governed_evidence_dominance" if dominant
                             else "ambiguous_evidence_requires_bounded_ranking"),
+        "selection_facts": {
+            "primary_scenario_id": primary_scenario.get("scenario_id"),
+            "primary_support": primary_support,
+            "primary_is_fully_supported": primary_support == "supported",
+            "fully_supported_primary_presumption_applies": (
+                primary_support == "supported"),
+            "eligible_prior_scenario_ids": eligible_prior_ids,
+            "source_grounded_prior_scenario_ids": source_grounded_prior_ids,
+            "facts_are_host_computed": True,
+        },
         "instruction": (
             "Rank only the supplied scenario_ids. Explain the ranking using "
             "claim_ids (including compiled hypothesis ids), name all material "
@@ -2037,7 +2066,17 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
             "from the observed series, not as missing evidence. Treat sampled "
             "path agreement and valid_path_fraction only as elicitation "
             "coherence, never as forecast skill or accuracy. Coherence alone "
-            "cannot outweigh a supported primary. Select a prior-assisted path "
+            "cannot outweigh a fully supported primary. Read support labels "
+            "exactly: conditionally_supported, degraded, best_effort, and "
+            "prior_assisted are not fully supported. An eligible bounded prior "
+            "may outrank a conditional or degraded primary when its own cited "
+            "source facts establish a materially applicable mechanism or "
+            "future condition omitted by the primary; that remains a "
+            "human-review recommendation and never automation authority. "
+            "The selection_facts object is authoritative: never describe the "
+            "primary as fully supported when primary_is_fully_supported is "
+            "false, and explicitly weigh any source_grounded_prior_scenario_ids. "
+            "Select a prior-assisted path "
             "only when cited context is materially applicable to the target and "
             "supplies a bounded temporal reason the primary omits. Treat "
             "a comparable range marked 'without stated matching attributes' "
@@ -2048,7 +2087,9 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
             "not automatic dominance over another bounded human-only path. "
             "A supporting claim_id may be cited only when it appears in the "
             "selected scenario's claim_ids; context attached to another or no "
-            "scenario belongs in counterevidence_claim_ids. Only a scenario "
+            "scenario belongs in counterevidence_claim_ids for coverage, but "
+            "do not describe it as a factual contradiction unless its content "
+            "actually conflicts with the selected interpretation. Only a scenario "
             "whose human_selection_eligible field is true may "
             "be selected; every ineligible scenario must rank below every "
             "eligible scenario, while remaining visible as counterevidence. Give "

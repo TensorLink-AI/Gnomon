@@ -364,12 +364,13 @@ def sample_path_stability(
         direction_agreement.append(max(signs.count(-1), signs.count(0),
                                        signs.count(1)) / len(signs))
     return {
-        "version": "0.1",
+        "version": "0.2",
         "interpretation": "stability_not_historical_skill",
         "scale_basis": scale_basis,
         "path_count": len(paths),
         "horizon": len(paths[0]),
         "median_pointwise_q80_width_scaled": statistics.median(widths),
+        "mean_pointwise_q80_width_scaled": statistics.mean(widths),
         "p90_pointwise_q80_width_scaled": empirical_quantile(widths, .9),
         "median_pairwise_mae_scaled": (
             statistics.median(pairwise) if pairwise else 0.0),
@@ -442,8 +443,8 @@ def sampled_prior_sufficiency(
         try:
             direction_agreement = float(stability["mean_direction_agreement"])
             median_pairwise = float(stability["median_pairwise_mae_scaled"])
-            median_width = float(
-                stability["median_pointwise_q80_width_scaled"])
+            mean_width = float(
+                stability["mean_pointwise_q80_width_scaled"])
             # A zero median marginal width is not permission for materially
             # different paths to headline as one distribution. That pattern
             # occurs when draws agree at many timestamps but disagree across
@@ -453,8 +454,8 @@ def sampled_prior_sufficiency(
             # visibly demoted, independent of units.
             pairwise_limit = (
                 SAMPLED_PRIOR_MAX_PAIRWISE_TO_POINTWISE_RATIO
-                * max(median_width, 1e-6))
-            pairwise_ratio = median_pairwise / max(median_width, 1e-12)
+                * max(mean_width, 1e-6))
+            pairwise_ratio = median_pairwise / max(mean_width, 1e-12)
         except (KeyError, TypeError, ValueError, ZeroDivisionError):
             reasons.append({
                 "code": "invalid_stability_diagnostics",
@@ -468,7 +469,7 @@ def sampled_prior_sufficiency(
                 "stability_not_historical_skill"
                 and stability.get("path_count") == accepted
                 and all(math.isfinite(value) and value >= 0 for value in (
-                    direction_agreement, median_pairwise, median_width))
+                    direction_agreement, median_pairwise, mean_width))
                 and direction_agreement <= 1)
             if not valid_stability:
                 reasons.append({

@@ -2583,13 +2583,14 @@ def attach_host_candidate_elicitation(
         required = {
             "version", "interpretation", "scale_basis", "path_count",
             "horizon", "median_pointwise_q80_width_scaled",
+            "mean_pointwise_q80_width_scaled",
             "p90_pointwise_q80_width_scaled", "median_pairwise_mae_scaled",
             "max_pairwise_mae_scaled", "mean_direction_agreement",
             "unanimous_direction_fraction",
         }
         if set(stability) != required:
             raise ValueError("candidate elicitation stability schema is invalid")
-        if (stability.get("version") != "0.1"
+        if (stability.get("version") != "0.2"
                 or stability.get("interpretation") !=
                 "stability_not_historical_skill"
                 or isinstance(stability.get("path_count"), bool)

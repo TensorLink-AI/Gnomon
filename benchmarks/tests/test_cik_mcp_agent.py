@@ -239,6 +239,7 @@ def test_sample_stability_is_affine_scale_invariant_and_shape_sensitive():
         [100 + 20 * value for value in history])
     for key in (
         "median_pointwise_q80_width_scaled",
+        "mean_pointwise_q80_width_scaled",
         "p90_pointwise_q80_width_scaled",
         "median_pairwise_mae_scaled", "max_pairwise_mae_scaled",
         "mean_direction_agreement", "unanimous_direction_fraction",
@@ -337,6 +338,7 @@ def test_categorical_state_schedule_is_exact_labelled_and_fail_closed():
     history = [f"2024-01-01T{hour:02d}:00:00" for hour in range(4)]
     future = [f"2024-01-01T{hour:02d}:00:00" for hour in range(4, 6)]
     text = "\n".join([
+        "Cloud cover reduces the target during active daytime phases.",
         "At the beginning of the series, the service was open.",
         "At 2024-01-01 02:00:00, the service became closed.",
         "At 2024-01-01 04:00:00, we expect that the service will become open.",
@@ -348,6 +350,12 @@ def test_categorical_state_schedule_is_exact_labelled_and_fail_closed():
     assert parsed["future_states"] == ["open", "open"]
     assert parsed["raw"]["forecast_candidate"] is None
     assert parsed["raw"]["hypotheses"][0]["kind"] == "unsupported"
+    descriptor = parsed["raw"]["claims"][-1]
+    assert descriptor["source_span"] == (
+        "Cloud cover reduces the target during active daytime phases.")
+    assert descriptor["mechanism"] == (
+        "source-stated target or context descriptor")
+    assert descriptor["timing_status"] == "atemporal_context"
 
     assert _extract_categorical_state_schedule(
         text.replace("the service became", "the market became"),

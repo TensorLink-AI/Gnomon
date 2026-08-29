@@ -495,7 +495,7 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: comparable rows remain visible scenarios/counterevidence.
 #: Version 218: unresolved and atemporal dispositions expose claim_id as a
 #: first-class join key instead of requiring agents to parse context_id.
-MCP_CONTRACT_VERSION = 229
+MCP_CONTRACT_VERSION = 233
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -1033,12 +1033,13 @@ def _sample_path_stability(
         direction_agreement.append(max(signs.count(-1), signs.count(0),
                                        signs.count(1)) / len(signs))
     return {
-        "version": "0.1",
+        "version": "0.2",
         "interpretation": "stability_not_historical_skill",
         "scale_basis": scale_basis,
         "path_count": len(paths),
         "horizon": len(paths[0]),
         "median_pointwise_q80_width_scaled": statistics.median(widths),
+        "mean_pointwise_q80_width_scaled": statistics.mean(widths),
         "p90_pointwise_q80_width_scaled": _empirical_quantile(widths, .9),
         "median_pairwise_mae_scaled": (
             statistics.median(pairwise) if pairwise else 0.0),
@@ -1343,6 +1344,7 @@ def _extract_categorical_state_schedule(
         r"(?P<state>[A-Za-z][A-Za-z_-]*)\.$", re.IGNORECASE)
     initial = None
     transitions: list[dict[str, Any]] = []
+    schedule_lines: set[str] = set()
     for line in lines:
         match = beginning_pattern.fullmatch(line)
         if match and initial is None:
@@ -1350,6 +1352,7 @@ def _extract_categorical_state_schedule(
                 "subject": "_".join(match.group("subject").casefold().split()),
                 "state": match.group("state").casefold(), "quote": line,
             }
+            schedule_lines.add(line)
             continue
         match = transition_pattern.fullmatch(line)
         if not match:
@@ -1364,6 +1367,7 @@ def _extract_categorical_state_schedule(
             "state": match.group("state").casefold(), "quote": line,
             "time": stamp, "source_time": match.group("time").strip(),
         })
+        schedule_lines.add(line)
     if initial is None or not transitions:
         return None
     if any(item["subject"] != initial["subject"] for item in transitions):
@@ -1414,11 +1418,25 @@ def _extract_categorical_state_schedule(
             "mechanism": "source-stated categorical state transition",
             "confidence": 1.0,
         })
+    schedule_claim_ids = [
+        f"claim-{index}" for index in range(1, len(claims) + 1)]
+    # The timestamp parser owns only the schedule. Preserve accompanying
+    # source statements verbatim so the bounded selector can reason about why
+    # a state may matter without deterministic code inventing a relationship.
+    # These claims carry no numeric or historical-admission authority.
+    for line in [item for item in lines if item not in schedule_lines][:8]:
+        claims.append({
+            "source_span": line, "relation": "unknown",
+            "effective_start": None, "effective_end": None,
+            "timing_status": "atemporal_context",
+            "mechanism": "source-stated target or context descriptor",
+            "confidence": 1.0,
+        })
     claim_ids = [f"claim-{index}" for index in range(1, len(claims) + 1)]
     raw = {
         "events": [], "claims": claims,
         "hypotheses": [{
-            "kind": "unsupported", "claim_ids": claim_ids,
+            "kind": "unsupported", "claim_ids": schedule_claim_ids,
             "target_series": ["*"], "predictor_series": None,
             "known_at": history_timestamps[-1], "lag_steps": 0,
             "direction": "unknown",

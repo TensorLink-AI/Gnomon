@@ -353,11 +353,12 @@ def test_sampled_prior_sufficiency_accepts_valid_coherent_elicitation():
 
 def test_sampled_prior_sufficiency_demotes_malformed_dispersed_paths():
     stability = {
-        "version": "0.1",
+        "version": "0.2",
         "interpretation": "stability_not_historical_skill",
         "scale_basis": "median_nonzero_history_increment",
         "path_count": 3, "horizon": 95,
         "median_pointwise_q80_width_scaled": 1.17,
+        "mean_pointwise_q80_width_scaled": 1.5,
         "p90_pointwise_q80_width_scaled": 13.38,
         "median_pairwise_mae_scaled": 3.92,
         "max_pairwise_mae_scaled": 4.53,
@@ -385,6 +386,7 @@ def test_zero_marginal_width_does_not_waive_path_coherence():
             "path_count": 3,
             "horizon": 6,
             "median_pointwise_q80_width_scaled": 0.0,
+            "mean_pointwise_q80_width_scaled": 0.8,
             "p90_pointwise_q80_width_scaled": 4.0,
             "median_pairwise_mae_scaled": 1.8,
             "max_pairwise_mae_scaled": 3.0,
@@ -419,6 +421,21 @@ def test_sampled_prior_sufficiency_is_invariant_to_units_and_level():
         base["observed_pairwise_to_pointwise_ratio"])
 
 
+def test_sampled_prior_sufficiency_handles_sparse_active_phases():
+    paths = [
+        [0, 0, 0, 0, 10, 20],
+        [0, 0, 0, 0, 11, 21],
+        [0, 0, 0, 0, 9, 19],
+    ]
+    result = sampled_prior_sufficiency({
+        "requested": 3, "accepted": 3,
+        "stability": sample_path_stability(paths, [0, 0, 5, 0, 0, 5]),
+    })
+
+    assert result["eligible_for_human_recommendation"] is True
+    assert result["reason_codes"] == []
+
+
 def test_sampled_prior_sufficiency_fails_closed_on_invalid_diagnostics():
     result = sampled_prior_sufficiency({
         "requested": 3, "accepted": 3,
@@ -428,6 +445,7 @@ def test_sampled_prior_sufficiency_fails_closed_on_invalid_diagnostics():
             "mean_direction_agreement": 1,
             "median_pairwise_mae_scaled": -1,
             "median_pointwise_q80_width_scaled": 0,
+            "mean_pointwise_q80_width_scaled": 0,
         },
     })
 

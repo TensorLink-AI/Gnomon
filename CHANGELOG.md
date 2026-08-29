@@ -42,6 +42,17 @@
   optional-prior and scenario-selection budget. Strict publication remains on
   the deterministic fast path; slow or malformed model calls remain typed
   transport failures and can never alter the primary or authorize automation.
+- Preserve verbatim background and target descriptors alongside deterministic
+  categorical schedules, so the bounded selector sees why a state may matter
+  without granting prose numeric authority. Sampled-prior coherence now uses
+  mean pointwise width against horizon-averaged path disagreement; inactive
+  phases can no longer create a false dispersion rejection. CiK run artifacts
+  also retain post-outcome counterfactual candidate scores, never exposed to
+  the forecaster, to separate candidate quality from selector quality.
+- Supply the bounded selector with host-computed support facts instead of
+  expecting it to infer that `conditionally_supported` is not fully supported.
+  Eligible source-grounded priors may headline a human-review answer while the
+  immutable primary remains visible and automation remains prohibited.
 - Preserve structured comparable-entity range tables and explicit target
   descriptors through a deterministic, verbatim context front door. Analogue
   selection remains a sealed prior-assisted model judgment. Each sampled path

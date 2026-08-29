@@ -201,9 +201,10 @@ def test_host_sampling_stability_is_sealed_but_cannot_upgrade_support():
         future_timestamps=["2026-01-02T00:00:00+00:00"],
         history=[9.0, 10.0], compiler_model="test")
     stability = {
-        "version": "0.1", "interpretation": "stability_not_historical_skill",
+        "version": "0.2", "interpretation": "stability_not_historical_skill",
         "scale_basis": "median_nonzero_history_increment", "path_count": 5,
         "horizon": 1, "median_pointwise_q80_width_scaled": .2,
+        "mean_pointwise_q80_width_scaled": .2,
         "p90_pointwise_q80_width_scaled": .2,
         "median_pairwise_mae_scaled": .1, "max_pairwise_mae_scaled": .3,
         "mean_direction_agreement": 1.0,

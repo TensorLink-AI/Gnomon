@@ -158,6 +158,59 @@ def _task_information_profile(task) -> dict:
     }
 
 
+def _counterfactual_candidate_scores(task, extra_info: dict,
+                                     n_samples: int) -> list[dict]:
+    """Score sealed publication candidates after forecasting, for diagnosis.
+
+    These outcomes are benchmark-only telemetry. They are computed after the
+    model and Gnomon have returned and are never passed back into selection.
+    Quantile rows are reconstructed with the same deterministic sampler used
+    by the MCP adapter, so the report can separate candidate quality from
+    selector quality without another stochastic model call.
+    """
+    publication = extra_info.get("publication") or {}
+    portfolio = publication.get("candidate_portfolio") or []
+    if not isinstance(portfolio, list) or not portfolio:
+        return []
+    from benchmarks.cik.mcp_agent import samples_from_quantile_rows
+    import numpy as np
+
+    output = []
+    selected = str(publication.get("recommended_scenario_id") or "")
+    for item in portfolio:
+        if not isinstance(item, dict) or not isinstance(item.get("forecast"), list):
+            continue
+        scenario_id = str(item.get("scenario_id") or "")
+        try:
+            paths = samples_from_quantile_rows(item["forecast"], n_samples)
+            evaluation = task.evaluate(np.asarray(paths, dtype=float)[:, :, None])
+            score = evaluation.get("metric") if isinstance(evaluation, dict) \
+                else evaluation
+            score = float(score)
+            if not math.isfinite(score):
+                raise ValueError("non-finite counterfactual score")
+            output.append({
+                "scenario_id": scenario_id,
+                "role": str(item.get("role") or "unknown"),
+                "selected": scenario_id == selected,
+                "score": score,
+                "scoring_representation": "deterministic_quantile_reconstruction",
+                "computed_after_forecast": True,
+                "passed_to_forecaster": False,
+            })
+        except Exception as error:
+            output.append({
+                "scenario_id": scenario_id,
+                "role": str(item.get("role") or "unknown"),
+                "selected": scenario_id == selected,
+                "score": None,
+                "error": f"{type(error).__name__}: {error}"[:300],
+                "computed_after_forecast": True,
+                "passed_to_forecaster": False,
+            })
+    return output
+
+
 def _isolated_case_worker(conn, task_name: str, seed: int, args_dict: dict,
                           n_samples: int, runs_dir: str) -> None:
     """Evaluate exactly one task/seed and return serializable state."""
@@ -181,6 +234,9 @@ def _isolated_case_worker(conn, task_name: str, seed: int, args_dict: dict,
                 samples, extra_info = result, {}
             extra_info["benchmark_input_profile"] = (
                 _task_information_profile(task_instance))
+            extra_info["benchmark_counterfactual_candidate_scores"] = (
+                _counterfactual_candidate_scores(
+                    task_instance, extra_info, n_samples))
             return samples, extra_info
 
         name, row = evaluate_task(

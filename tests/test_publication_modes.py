@@ -24,12 +24,13 @@ TIMES = ["2026-01-03T00:00:00+00:00", "2026-01-04T00:00:00+00:00"]
 
 def _stable_sampling(path_count: int) -> dict:
     return {
-        "version": "0.1",
+        "version": "0.2",
         "interpretation": "stability_not_historical_skill",
         "scale_basis": "median_nonzero_history_increment",
         "path_count": path_count,
         "horizon": len(TIMES),
         "median_pointwise_q80_width_scaled": .5,
+        "mean_pointwise_q80_width_scaled": .5,
         "p90_pointwise_q80_width_scaled": .7,
         "median_pairwise_mae_scaled": .4,
         "max_pairwise_mae_scaled": .8,
@@ -1334,6 +1335,21 @@ def test_selector_contract_exposes_interior_scenario_shape_compactly():
     assert summary["turning_points"] == 1
     assert summary["largest_primary_deviation"] < 0
     assert "forecast" not in contract["scenarios"][1]
+    assert "conditionally_supported, degraded, best_effort" in contract[
+        "instruction"]
+    assert "human-review recommendation and never automation" in contract[
+        "instruction"]
+    assert contract["selection_facts"]["primary_support"] == "supported"
+    assert contract["selection_facts"]["primary_is_fully_supported"] is True
+    conditional = deepcopy(scenarios)
+    conditional[0]["support"] = "conditionally_supported"
+    conditional_contract = scenario_selection_contract(scenarios=conditional)
+    assert conditional_contract["selection_facts"]["primary_is_fully_supported"] \
+        is False
+    assert conditional_contract["selection_facts"][
+        "fully_supported_primary_presumption_applies"] is False
+    assert conditional_contract["selection_facts"][
+        "eligible_prior_scenario_ids"] == ["closure"]
 
 
 def test_relationship_history_rejection_teaches_collection_not_recompilation():

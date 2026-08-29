@@ -1,10 +1,12 @@
 import json
+import sys
 from types import SimpleNamespace
 
 import pytest
 
 from benchmarks.cik.run_cik import (
-    _load_checkpoint, _task_information_profile, build_parser,
+    _counterfactual_candidate_scores, _load_checkpoint,
+    _task_information_profile, build_parser,
 )
 
 
@@ -36,6 +38,47 @@ def test_information_profile_flags_only_identical_constant_past_and_future():
     assert profile["passed_to_forecaster"] is False
     assert _task_information_profile(shifted)[
         "degenerate_same_constant_case"] is False
+
+
+def test_candidate_scores_are_post_forecast_diagnostics_only(monkeypatch):
+    class Array:
+        def __init__(self, values):
+            self.values = values
+            self.shape = (len(values), len(values[0]), 1)
+
+        def __getitem__(self, key):
+            assert isinstance(key, tuple)
+            return self
+
+    monkeypatch.setitem(sys.modules, "numpy", SimpleNamespace(
+        asarray=lambda values, dtype: Array(values)))
+
+    class Task:
+        def evaluate(self, samples):
+            assert samples.shape == (5, 2, 1)
+            return {"metric": float(samples.values[0][0])}
+
+    def rows(value):
+        return [
+            {"timestamp": "t1", "q10": value - 1, "q50": value,
+             "q90": value + 1},
+            {"timestamp": "t2", "q10": value, "q50": value + 1,
+             "q90": value + 2},
+        ]
+    scores = _counterfactual_candidate_scores(Task(), {"publication": {
+        "recommended_scenario_id": "primary",
+        "candidate_portfolio": [
+            {"scenario_id": "primary", "role": "immutable_primary",
+             "forecast": rows(10)},
+            {"scenario_id": "prior-1", "role": "model_authored",
+             "forecast": rows(20)},
+        ],
+    }}, 5)
+
+    assert [item["selected"] for item in scores] == [True, False]
+    assert scores[1]["score"] > scores[0]["score"]
+    assert all(item["computed_after_forecast"] is True for item in scores)
+    assert all(item["passed_to_forecaster"] is False for item in scores)
 
 
 def test_resume_retries_provider_and_process_failures_but_keeps_model_results(tmp_path):
