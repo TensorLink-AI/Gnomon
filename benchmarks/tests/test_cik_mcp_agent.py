@@ -1445,7 +1445,7 @@ def test_structured_context_keeps_governed_and_model_candidates_separate(
         "rationale": "The model alternative is useful for human review.",
         "what_would_change_selection": "More resolved target outcomes.",
     }
-    outputs = [*sampled, json.dumps(selector)]
+    outputs = [*sampled, "not json", json.dumps(selector)]
     client = ScriptedClient([], outputs)
     forecaster = McpAgentForecaster(
         "x/y", client=client,
@@ -1468,6 +1468,9 @@ def test_structured_context_keeps_governed_and_model_candidates_separate(
     assert extra["scenario_selector"]["accepted"] is True
     assert client.completion_request_timeouts[-1] <= \
         mcp_agent_module.MAX_SCENARIO_SELECTOR_SECONDS
+    assert client.completion_request_timeouts[-2] <= 10
+    assert client.completion_request_timeouts[-1] >= \
+        mcp_agent_module.MIN_SCENARIO_SELECTOR_REPAIR_SECONDS
     assert extra["publication"]["primary_forecast_unchanged"] is True
     assert extra["publication"]["automation"]["eligible"] is False
     trace = json.loads(next((tmp_path / "traces").glob("*.json")).read_text())

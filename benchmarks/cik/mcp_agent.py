@@ -62,6 +62,7 @@ MAX_OPTIONAL_PRIOR_SECONDS = max(1.0, min(
     60.0, float(os.environ.get("GNOMON_OPTIONAL_PRIOR_SECONDS", "15"))))
 MAX_SCENARIO_SELECTOR_SECONDS = max(1.0, min(
     60.0, float(os.environ.get("GNOMON_SCENARIO_SELECTOR_SECONDS", "15"))))
+MIN_SCENARIO_SELECTOR_REPAIR_SECONDS = 5.0
 MODEL_PRIOR_PATH_SAMPLES = 5
 #: Bump when the system prompt, the caps, or the submit contract change:
 #: the official cache reuses results by cache_name, and a cached run made
@@ -3567,12 +3568,19 @@ class McpAgentForecaster:
                             if selector_remaining <= 0:
                                 raise TimeoutError(
                                     "scenario selector deadline exhausted")
+                            request_budget = selector_remaining
+                            if attempt == 0 and selector_remaining > 2:
+                                reserve = min(
+                                    MIN_SCENARIO_SELECTOR_REPAIR_SECONDS,
+                                    selector_remaining * .34)
+                                request_budget = max(
+                                    1.0, selector_remaining - reserve)
                             selection_attempted = True
                             response = self.client.completions(
                                 [{"role": "user", "content": prompt}], n=1,
                                 temperature=0, reasoning_effort="none",
                                 request_timeout=max(
-                                    1, math.floor(selector_remaining)),
+                                    1, math.floor(request_budget)),
                                 transport_retries=0)[0]
                             objects = extract_json_objects(response)
                             if not objects:

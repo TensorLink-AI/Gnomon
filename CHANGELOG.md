@@ -15,6 +15,10 @@
   scenario selector instead of auto-promoting them merely because sampled
   paths agree. Best-effort mode permits the choice but does not itself prove
   peer comparability; selector failure retains the immutable primary.
+- Reserve five seconds of the fixed scenario-selector deadline for its one
+  bounded repair, so an invalid first response cannot leave a nominal but
+  unusable one-second retry. Total selector latency remains capped at the same
+  budget.
 - Preserve structured comparable-entity range tables and explicit target
   descriptors through a deterministic, verbatim context front door. Analogue
   selection remains a sealed prior-assisted model judgment. Each sampled path
