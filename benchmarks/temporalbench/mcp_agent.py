@@ -1899,6 +1899,12 @@ class _Run(_RunBase):
                     "items": {"type": "string"},
                     "maxItems": 8,
                 }
+                parameters["properties"]["reasoning"]["description"] = (
+                    "Human-facing explanation of Gnomon's typed context "
+                    "outcome. Scenario representation is not numeric "
+                    "admission: say represented or retained as a scenario, "
+                    "never admitted as a scenario, when admitted/applied "
+                    "counts are zero.")
                 parameters["required"].append("reasoning")
                 parameters["required"].append("cited_context_gate_codes")
                 parameters["required"].append(
@@ -1977,6 +1983,11 @@ class _Run(_RunBase):
                 "its first-affected and horizon-end primary-versus-scenario "
                 "q50 deltas in the human-facing reasoning. "
                 "Do not present those conditional values as the primary.\n")
+            text += (
+                "Scenario representation is not numeric admission. When "
+                "Gnomon reports a scenario but no admitted or applied "
+                "context, say represented or retained as a scenario; never "
+                "say admitted as a scenario.\n")
             text += (
                 "If failed_gate_codes is non-empty, name every cited code in "
                 "the human-facing reasoning and explain its practical meaning. "
@@ -2396,6 +2407,26 @@ class _Run(_RunBase):
             }
             reasoning_text = str(arguments.get("reasoning") or "").lower()
             authority_problems: list[str] = []
+            scenario_count = sum(
+                int(outcome.get("scenario_only") or 0)
+                for outcome in self.context_execution.values())
+            admitted_count = sum(
+                int(outcome.get("admitted") or 0)
+                for outcome in self.context_execution.values())
+            applied_count = sum(
+                int(outcome.get("applied") or 0)
+                for outcome in self.context_execution.values())
+            scenario_admission_conflated = bool(re.search(
+                r"(?:\badmitted\s+(?:only\s+)?as\s+(?:an?\s+)?scenario\b|"
+                r"\bscenario\s+(?:was|is|has been)\s+admitted\b)",
+                reasoning_text,
+            ))
+            if (scenario_count and not admitted_count and not applied_count
+                    and scenario_admission_conflated):
+                authority_problems.append(
+                    "scenario_admission_conflated: scenario representation "
+                    "is not numeric admission; say represented or retained "
+                    "as a scenario, with the canonical primary unchanged")
             context_authority_stated = (
                 "context_evidence_automation_eligible=false" in reasoning_text
                 or "context_automation_eligible=false" in reasoning_text

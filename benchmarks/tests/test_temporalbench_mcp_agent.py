@@ -1121,6 +1121,62 @@ def test_context_scenario_consequence_requires_exact_artifact_reuse_repair():
         summary]
 
 
+def test_context_scenario_cannot_be_described_as_admitted():
+    run = object.__new__(mcp_agent._Run)
+    run.row = {"_require_gnomon_execution": True,
+               "_require_context_explanation": True}
+    run.target_keys = ["value"]
+    run.horizon = 1
+    run.submission = None
+    run.mcp_calls = 1
+    run.trace = []
+    run.artifact_paths = set()
+    run.context_execution = {}
+    run._project_receipt_choices = lambda: {}
+
+    def artifact_rows(path, channel):
+        run._pending_support[channel] = "supported"
+        run.context_execution[channel] = {
+            "admitted": 0,
+            "applied": 0,
+            "scenario_only": 1,
+            "automation_eligible": False,
+            "canonical_primary_preserved": True,
+            "rejection_codes": [],
+            "scenario_consequence_summaries": [],
+        }
+        return [10.0]
+
+    run._artifact_channel_rows = artifact_rows
+    base = {
+        "forecast": {"value": {"artifact_path": "/sealed/artifact.json"}},
+        "cited_context_gate_codes": [],
+        "context_automation_eligible": False,
+        "canonical_primary_preserved": True,
+        "cited_scenario_consequences": [],
+    }
+
+    rejected = run._handle_submit({
+        **base,
+        "reasoning": ("The context event was admitted as a scenario. The "
+                      "canonical primary remains preserved and context "
+                      "evidence cannot authorize automation."),
+    })
+    assert rejected["accepted"] is False
+    assert any("scenario_admission_conflated" in problem
+               for problem in rejected["problems"])
+    assert run.submission is None
+
+    accepted = run._handle_submit({
+        **base,
+        "reasoning": ("The context event was represented as a scenario, not "
+                      "admitted to the numeric forecast. The canonical "
+                      "primary remains preserved and context evidence cannot "
+                      "authorize automation."),
+    })
+    assert accepted["accepted"] is True
+
+
 def test_context_gate_citation_must_be_visible_in_reasoning():
     run = object.__new__(mcp_agent._Run)
     run.row = {"_require_gnomon_execution": True,
