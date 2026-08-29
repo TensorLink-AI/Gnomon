@@ -2004,6 +2004,67 @@ def test_mcp_forecast_persists_verified_sidecar_without_mutating_artifact(tmp_pa
     assert verify_artifact_integrity(payload["artifact_path"])
 
 
+def test_mcp_best_effort_uses_only_prior_same_series_candidate_outcomes(
+        tmp_path, monkeypatch):
+    from datetime import date, timedelta
+    registry = tmp_path / "registry.db"
+    monkeypatch.setenv("GNOMON_REGISTRY_PATH", str(registry))
+    store = TrackingStore(registry)
+    historical = select_publication(
+        publish_result(_result(), mode="best_effort", dossiers=[_dossier()]),
+        {
+            "selected_scenario_id": "prior-assisted-1",
+            "ranking": ["prior-assisted-1", "primary"],
+            "cited_claim_ids": ["claim-1"],
+            "counterevidence_claim_ids": [], "confidence": .6,
+            "rationale": "The cited promotion supports this path.",
+            "what_would_change_selection": "Resolved outcomes contradict it.",
+        })
+    for index in range(8):
+        forecast_id = f"historical-{index}"
+        synthesis_id = record_publication(
+            store, project="p", forecast_id=forecast_id,
+            series="__default__", payload=historical)
+        store.resolve_temporal_synthesis(
+            project="p", forecast_id=forecast_id, series="__default__",
+            question_id="publication", synthesis_id=synthesis_id,
+            outcome={"points": [11.0, 12.0]},
+            resolved_at="2026-01-01T00:00:00Z")
+
+    source = tmp_path / "series.csv"
+    start = date(2026, 1, 1)
+    source.write_text("timestamp,value\n" + "\n".join(
+        f"{start + timedelta(days=i)},{100 + i}" for i in range(40)) + "\n")
+    future = [f"2026-02-{day:02d}T00:00:00+00:00" for day in (10, 11)]
+    dossier = validate_temporal_dossier({
+        "claims": [{"source_span": "promotion begins tomorrow",
+                    "relation": "supports_increase",
+                    "effective_start": future[0], "effective_end": future[-1],
+                    "confidence": .7}],
+        "forecast_candidate": {"quantiles": [
+            {"timestamp": future[0], "q10": 139, "q50": 140, "q90": 141},
+            {"timestamp": future[1], "q10": 140, "q50": 141, "q90": 142},
+        ]}}, context_text="promotion begins tomorrow",
+        cutoff="2026-02-09T00:00:00+00:00", future_timestamps=future,
+        history=list(range(100, 140)), compiler_model="test")[0]
+
+    payload = runner_for("gnomon_forecast")({
+        "input": str(source), "horizon": 2, "format": "full",
+        "output_dir": str(tmp_path / "out"), "project": "p",
+        "publication_mode": "best_effort", "temporal_dossiers": [dossier],
+    })
+
+    publication = payload["publication"]
+    assert publication["recommended_scenario_id"] == "prior-assisted-1"
+    assert publication["recommendation_authority"]["selection_method"] == \
+        "resolved_outcome_human_prior_policy"
+    assert publication["candidate_outcome_evidence"][0]["scope"]["series"] == \
+        "__default__"
+    assert publication["automation"]["eligible"] is False
+    assert publication["primary_forecast_unchanged"] is True
+    assert verify_publication(publication)
+
+
 def test_full_format_explicitly_returns_complete_signed_publication(tmp_path):
     from datetime import date, timedelta
     source = tmp_path / "series.csv"
