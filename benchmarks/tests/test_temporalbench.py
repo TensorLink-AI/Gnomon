@@ -6,6 +6,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from benchmarks.temporalbench.gnomon_runner import (
@@ -512,6 +514,49 @@ def test_forecast_channels_matches_per_channel_runs(tmp_path):
             assert batched[key]["values"] == single["values"], key
             assert batched[key]["selected_model"] == single["selected_model"], key
             assert batched[key]["support"] == single["support"], key
+
+
+def test_forecast_channels_passes_governed_registry_and_worker_cap(
+        tmp_path, monkeypatch):
+    """The engine-only benchmark must measure governed admission directly,
+    without paying an agent or silently adding local concurrency."""
+    from types import SimpleNamespace
+
+    import gnomon.runtime
+    from benchmarks.temporalbench.gnomon_runner import forecast_channels
+
+    seen = {}
+
+    def fake_forecast_multi(_path, **kwargs):
+        seen.update(kwargs)
+        results = [SimpleNamespace(
+            series=name, support="degraded", selected_model="admission_blend",
+            forecast=[{"point": 2.0}], warnings=["transfer prior"],
+            admission={"state": "prior_assisted", "candidate": "toto2_4m"},
+            model_assisted=None,
+        ) for name in kwargs["target_columns"]]
+        return SimpleNamespace(results=results), tmp_path
+
+    monkeypatch.setattr(gnomon.runtime, "forecast_multi", fake_forecast_multi)
+    outcomes = forecast_channels(
+        {"a": [1.0, 2.0], "b": [2.0, 3.0]}, 1,
+        work_dir=str(tmp_path), best_effort=True,
+        model_evidence_registry="registry.json", max_workers=1)
+
+    assert seen["max_workers"] == 1
+    assert seen["config"].models.admission_policy == "evidence_weighted"
+    assert seen["config"].models.evidence_registry_path == "registry.json"
+    assert outcomes["a"]["admission"]["candidate"] == "toto2_4m"
+    assert outcomes["a"]["warnings"] == ["transfer prior"]
+
+
+def test_forecast_channels_keeps_supply_and_admission_arms_separate():
+    from benchmarks.temporalbench.gnomon_runner import forecast_channels
+
+    with pytest.raises(ValueError, match="separate experimental arms"):
+        forecast_channels(
+            {"a": [1.0], "b": [2.0]}, 1,
+            named_tsfm="toto2_4m", model_evidence_registry="registry.json")
 
 
 def test_forecast_payload_carries_support_labels():

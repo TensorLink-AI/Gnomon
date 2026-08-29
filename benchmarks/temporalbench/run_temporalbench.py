@@ -230,7 +230,8 @@ def answer_row(row: dict[str, Any], condition: str,
                question_receipts_dir: str | None = None,
                mcp_call_timeout: float | None = None,
                named_tsfm: str | None = None,
-               model_evidence_registry: str | None = None) -> dict[str, Any]:
+               model_evidence_registry: str | None = None,
+               forecast_jobs: int | None = None) -> dict[str, Any]:
     """Produce the row's answer object under the given condition.
 
     ``channel_support`` in the result maps each forecast channel to its
@@ -290,7 +291,9 @@ def answer_row(row: dict[str, Any], condition: str,
         return run_row(row, client, **forecast_args)
 
     analysis = gnomon_runner.analyse_row(
-        row, best_effort=best_effort, named_tsfm=named_tsfm)
+        row, best_effort=best_effort, named_tsfm=named_tsfm,
+        model_evidence_registry=model_evidence_registry,
+        max_workers=forecast_jobs)
     tier = row.get("tier")
     if condition == "gnomon-pure":
         if tier not in ("T2", "T4"):
@@ -495,9 +498,14 @@ def main() -> int:
              "experimental_named_model. This bypasses local candidate "
              "selection and is not Gnomon's governed default.")
     parser.add_argument(
+        "--forecast-jobs", type=int, default=None,
+        help="gnomon-agent/gnomon-pure only: cap local per-channel forecast "
+             "workers. Use 1 for crash-safe sequential probes.")
+    parser.add_argument(
         "--model-evidence-registry",
-        help="gnomon-mcp: copy this versioned registry into each jailed row "
-             "and explicitly request evidence-weighted model admission.")
+        help="Gnomon conditions: explicitly request evidence-weighted model "
+             "admission from this versioned registry. The MCP arm copies it "
+             "into each jailed row; pure/agent arms pass it to the engine.")
     args = parser.parse_args()
 
     data_dir = Path(args.data_dir).expanduser().resolve()
@@ -526,6 +534,15 @@ def main() -> int:
         parser.error("--question-receipts-dir requires --compile-questions")
     if args.named_tsfm and args.condition not in {"gnomon-agent", "gnomon-pure"}:
         parser.error("--named-tsfm applies only to gnomon-agent or gnomon-pure")
+    if args.forecast_jobs is not None:
+        if args.condition not in {"gnomon-agent", "gnomon-pure"}:
+            parser.error("--forecast-jobs applies only to gnomon-agent or gnomon-pure")
+        if args.forecast_jobs < 1:
+            parser.error("--forecast-jobs must be at least 1")
+    if args.model_evidence_registry and args.condition == "control":
+        parser.error("--model-evidence-registry applies to Gnomon conditions only")
+    if args.named_tsfm and args.model_evidence_registry:
+        parser.error("--named-tsfm and --model-evidence-registry are separate arms")
 
     tiers = tuple(t.strip() for t in args.tiers.split(",") if t.strip() in TIERS)
     # gnomon-pure produces forecasts and nothing else, so it is a T2/T4
@@ -570,6 +587,7 @@ def main() -> int:
         "retry_voided": args.retry_voided or None,
         "best_effort": args.best_effort or None,
         "named_tsfm": args.named_tsfm,
+        "forecast_jobs": args.forecast_jobs,
         "mcp_profile": (args.mcp_profile
                         if args.condition == "gnomon-mcp" else None),
         "compile_context": (args.compile_context
@@ -580,8 +598,7 @@ def main() -> int:
                               if args.condition == "gnomon-mcp" else None),
         "question_receipts_dir": (args.question_receipts_dir
                                   if args.condition == "gnomon-mcp" else None),
-        "model_evidence_registry": (args.model_evidence_registry
-                                    if args.condition == "gnomon-mcp" else None),
+        "model_evidence_registry": args.model_evidence_registry,
     }
     # Publish provenance before the first paid request. An operator interrupt
     # must leave resumable rows attached to the exact arm and code that made
@@ -710,6 +727,7 @@ def main() -> int:
                             mcp_call_timeout=args.request_timeout,
                             named_tsfm=args.named_tsfm,
                             model_evidence_registry=args.model_evidence_registry,
+                            forecast_jobs=args.forecast_jobs,
                         )
                         break
                     except Exception as error:
@@ -1111,6 +1129,8 @@ def main() -> int:
             ),
         },
         "best_effort": args.best_effort,
+        "named_tsfm": args.named_tsfm,
+        "forecast_jobs": args.forecast_jobs,
         "mcp_profile": args.mcp_profile if args.condition == "gnomon-mcp" else None,
         "compile_context": args.compile_context if args.condition == "gnomon-mcp" else None,
         "context_receipts_dir": (args.context_receipts_dir
@@ -1119,8 +1139,7 @@ def main() -> int:
                               if args.condition == "gnomon-mcp" else None),
         "question_receipts_dir": (args.question_receipts_dir
                                   if args.condition == "gnomon-mcp" else None),
-        "model_evidence_registry": (args.model_evidence_registry
-                                    if args.condition == "gnomon-mcp" else None),
+        "model_evidence_registry": args.model_evidence_registry,
         **({"mcp_economics": {
             "cumulative_tokens": mcp_run_tokens,
             "mean_tokens_per_attempted_row": round(

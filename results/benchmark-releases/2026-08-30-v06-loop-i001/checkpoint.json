@@ -26,7 +26,7 @@
   "active_iteration": {
     "id": "I002",
     "priority": "P2",
-    "phase": "baseline",
+    "phase": "protocol_frozen",
     "user_hypothesis": "An independently admitted short-history candidate can give agents useful signal beyond last-value forecasting and improve early human planning without hiding sparse-data uncertainty or introducing family-specific regressions.",
     "must_not_regress": [
       "temporal leakage remains structurally impossible",
@@ -40,8 +40,9 @@
       "results/benchmark-releases/2026-08-30-v06-loop-i001/short-history-output-smoke.json",
       "docs/evaluation-protocol.md"
     ],
-    "next_action": "Audit current short-history selection, available transfer candidates, and retained cross-seed evidence; freeze P2 candidate families, matched arms, error and regression gates, kill criteria, and the smallest representative baseline shard before changing runtime code.",
-    "last_completed_action": "Promoted the P1 three-layer scorecard contract after 62 focused tests and three fresh smoke shards; carried the observed intermittent-series regression into P2 rather than hiding it."
+    "protocol": "docs/v0.6-p2-short-history-protocol.md",
+    "next_action": "Add benchmark-only sequential and engine-only evidence-registry plumbing with focused contract tests, install the pinned Toto sandbox, then run the frozen four-row B/S/G smoke sequentially with resumable artifacts and 20-minute arm bounds.",
+    "last_completed_action": "Preregistered P2 before implementation: separated candidate supply from governed admission; froze candidate, evidence, corpus, denominators, metrics, smoke and expansion gates, kill criteria, crash-safety policy, and manual-inspection requirements."
   },
   "priorities": [
     {"id": "P1", "name": "three-layer release scorecard", "status": "complete"},

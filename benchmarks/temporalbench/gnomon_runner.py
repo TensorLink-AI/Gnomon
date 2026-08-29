@@ -107,7 +107,8 @@ def forecast_target_map(row: dict[str, Any], arrays: dict[str, list[Any]]) -> di
 
 def forecast_channel(values: list[float | None], horizon: int,
                      work_dir: str | None = None,
-                     best_effort: bool = False) -> dict[str, Any]:
+                     best_effort: bool = False,
+                     model_evidence_registry: str | None = None) -> dict[str, Any]:
     """Gnomon forecast for one channel on the synthetic hourly axis.
 
     With ``best_effort`` the engine's disclosed fallback lane is enabled:
@@ -117,6 +118,14 @@ def forecast_channel(values: list[float | None], horizon: int,
     """
     from gnomon import forecast as gnomon_forecast
     from gnomon.contracts import GnomonError
+
+    config = None
+    if model_evidence_registry:
+        from gnomon.config import GnomonConfig
+
+        config = GnomonConfig()
+        config.models.admission_policy = "evidence_weighted"
+        config.models.evidence_registry_path = str(model_evidence_registry)
 
     run_dir = Path(tempfile.mkdtemp(prefix="tb-gnomon-", dir=work_dir))
     csv_path = run_dir / "history.csv"
@@ -138,6 +147,7 @@ def forecast_channel(values: list[float | None], horizon: int,
             # arm pins the old behaviour explicitly.
             minimum_support=("best_effort" if best_effort
                              else "conditionally_supported"),
+            config=config,
         )
     except GnomonError as error:
         return {"abstained": True, "reason": f"{error.code}: {error.message}"}
@@ -145,18 +155,26 @@ def forecast_channel(values: list[float | None], horizon: int,
     if result.support == "unsupported" or not result.forecast:
         return {"abstained": True,
                 "reason": "; ".join(str(w) for w in result.warnings) or "unsupported"}
-    return {
+    outcome = {
         "abstained": False,
         "support": result.support,
         "selected_model": result.selected_model,
         "values": [float(r.get("q50", r["point"])) for r in result.forecast],
+        "warnings": list(result.warnings),
     }
+    if result.admission is not None:
+        outcome["admission"] = result.admission
+    if result.model_assisted is not None:
+        outcome["model_assisted"] = result.model_assisted
+    return outcome
 
 
 def forecast_channels(
     channels: dict[str, list[float | None]], horizon: int,
     work_dir: str | None = None, best_effort: bool = False,
     named_tsfm: str | None = None,
+    model_evidence_registry: str | None = None,
+    max_workers: int | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Batched Gnomon forecasts for several channels in ONE invocation.
 
@@ -173,6 +191,12 @@ def forecast_channels(
     from gnomon.contracts import GnomonError
     from gnomon.runtime import forecast_multi
 
+    if named_tsfm and model_evidence_registry:
+        raise ValueError(
+            "named_tsfm and model_evidence_registry are separate experimental "
+            "arms and cannot be combined")
+    if max_workers is not None and max_workers < 1:
+        raise ValueError("max_workers must be at least 1")
     observed = {key: _observed(values) for key, values in channels.items()}
     if named_tsfm:
         # Model-supply experiment: bypass local model selection explicitly,
@@ -204,14 +228,17 @@ def forecast_channels(
                 return key, {"abstained": True,
                              "reason": f"{type(error).__name__}: {error}"}
 
-        workers = min(3, max(1, len(observed)))
+        workers = (min(3, max(1, len(observed))) if max_workers is None
+                   else min(max_workers, max(1, len(observed))))
         with ThreadPoolExecutor(max_workers=workers) as executor:
             return dict(executor.map(predict, observed.items()))
     keys = list(observed)
     length = max((len(values) for values in observed.values()), default=0)
     if len(keys) < 2 or length == 0 or "timestamp" in keys:
         return {key: forecast_channel(channels[key], horizon, work_dir,
-                                      best_effort=best_effort)
+                                      best_effort=best_effort,
+                                      model_evidence_registry=(
+                                          model_evidence_registry))
                 for key in channels}
     run_dir = Path(tempfile.mkdtemp(prefix="tb-gnomon-", dir=work_dir))
     csv_path = run_dir / "history.csv"
@@ -224,6 +251,13 @@ def forecast_channels(
                 + [repr(observed[key][position]) if position < len(observed[key])
                    else "" for key in keys]
             )
+    config = None
+    if model_evidence_registry:
+        from gnomon.config import GnomonConfig
+
+        config = GnomonConfig()
+        config.models.admission_policy = "evidence_weighted"
+        config.models.evidence_registry_path = str(model_evidence_registry)
     try:
         artifact, _ = forecast_multi(
             str(csv_path), time_column="timestamp", target_columns=keys,
@@ -231,6 +265,8 @@ def forecast_channels(
             output=str(run_dir / "gnomon-output"),
             minimum_support=("best_effort" if best_effort
                              else "conditionally_supported"),
+            config=config,
+            max_workers=max_workers,
         )
     except GnomonError as error:
         reason = f"{error.code}: {error.message}"
@@ -243,18 +279,26 @@ def forecast_channels(
                 "reason": "; ".join(str(w) for w in result.warnings) or "unsupported",
             }
         else:
-            outcomes[result.series] = {
+            outcome = {
                 "abstained": False,
                 "support": result.support,
                 "selected_model": result.selected_model,
                 "values": [float(r.get("q50", r["point"])) for r in result.forecast],
+                "warnings": list(result.warnings),
             }
+            if result.admission is not None:
+                outcome["admission"] = result.admission
+            if result.model_assisted is not None:
+                outcome["model_assisted"] = result.model_assisted
+            outcomes[result.series] = outcome
     return outcomes
 
 
 def analyse_row(row: dict[str, Any], work_dir: str | None = None,
                 best_effort: bool = False,
-                named_tsfm: str | None = None) -> dict[str, Any]:
+                named_tsfm: str | None = None,
+                model_evidence_registry: str | None = None,
+                max_workers: int | None = None) -> dict[str, Any]:
     """Deterministic Gnomon evidence for one row: per-channel forecasts
     (T2/T4), plus season/anomaly/stats findings on the main channel."""
     from gnomon.anomaly import detect_anomalies
@@ -298,7 +342,10 @@ def analyse_row(row: dict[str, Any], work_dir: str | None = None,
             analysis["channels"].update(
                 forecast_channels(wanted, horizon, work_dir,
                                   best_effort=best_effort,
-                                  named_tsfm=named_tsfm)
+                                  named_tsfm=named_tsfm,
+                                  model_evidence_registry=(
+                                      model_evidence_registry),
+                                  max_workers=max_workers)
             )
     return analysis
 
