@@ -95,9 +95,7 @@ def _context_summary(
             "representations were rejected; it did not earn governed use.")
     elif counts["scenario"]:
         status = "scenario_only"
-        message = (
-            "Context was retained only in labelled scenarios and did not "
-            "earn governed use.")
+        message = "Context remains in scenarios."
     else:
         status = "rejected"
         message = "No supplied context representation passed its governed lane."
@@ -117,6 +115,19 @@ def _context_summary(
         evidence_authority = "historically_admitted"
     else:
         evidence_authority = "none"
+    strengthening_actions = [
+        item.get("recovery_action") for item in dispositions
+        if item.get("disposition") in {"used", "scenario"}
+        and isinstance(item.get("recovery_action"), dict)
+        and item["recovery_action"].get("code") in {
+            "provide_applicability_evidence", "provide_comparable_attributes"}
+    ]
+    # A prior can be usable now while still being materially improvable.  Do
+    # not tell an agent that another call adds nothing merely because the
+    # context was selected; that affordance is reserved for historically
+    # admitted evidence or a selected lane with no identified evidence gap.
+    additional_evidence_could_change = bool(
+        evidence_authority != "historically_admitted" and strengthening_actions)
     return {
         "status": status,
         # ``summary_is_canonical`` describes this disposition record.  It must
@@ -131,8 +142,10 @@ def _context_summary(
         "message": message,
         "follow_up_required_for_current_recommendation": status in {
             "rejected", "received_not_evaluable"},
+        "additional_evidence_could_change_recommendation": (
+            additional_evidence_could_change),
         "further_calls_add_nothing_for_current_recommendation": bool(
-            counts["used"]),
+            counts["used"] and not additional_evidence_could_change),
     }
 
 
@@ -1816,6 +1829,19 @@ def best_effort_prior_selection(
     if len(sampled) != 1:
         return None
     selected = sampled[0]
+    selected_claims = {str(item) for item in selected.get("claim_ids") or []}
+    externally_matched = any(
+        str(claim.get("claim_id")) in selected_claims
+        and str(claim.get("mechanism") or "").endswith(
+            "without stated matching attributes")
+        for dossier in dossiers or [] if verify_temporal_dossier_seal(dossier)
+        for claim in dossier.get("claims") or [])
+    if externally_matched:
+        # Best-effort permits consideration of a prior; it does not prove that
+        # a peer chosen using outside model knowledge matches the target. Route
+        # that genuinely ambiguous pair through the bounded selector. If the
+        # selector is unavailable, publication retains the immutable primary.
+        return None
     eligible = [item for item in scenarios
                 if item.get("human_selection_eligible") is True
                 and item is not selected]
@@ -2009,6 +2035,10 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
             "cannot outweigh a supported primary. Select a prior-assisted path "
             "only when cited context is materially applicable to the target and "
             "supplies a bounded temporal reason the primary omits. Treat "
+            "a comparable range marked 'without stated matching attributes' "
+            "as an external model prior, not evidence of comparability; weigh "
+            "its explicit matching assumption and prefer the primary when that "
+            "assumption is not defensible from supplied facts. Treat "
             "preliminary_short_replay as useful but insufficient evidence, "
             "not automatic dominance over another bounded human-only path. "
             "A supporting claim_id may be cited only when it appears in the "

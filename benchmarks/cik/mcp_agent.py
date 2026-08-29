@@ -494,7 +494,7 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: comparable rows remain visible scenarios/counterevidence.
 #: Version 218: unresolved and atemporal dispositions expose claim_id as a
 #: first-class join key instead of requiring agents to parse context_id.
-MCP_CONTRACT_VERSION = 219
+MCP_CONTRACT_VERSION = 221
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it

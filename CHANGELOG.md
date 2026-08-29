@@ -7,6 +7,14 @@
   now require an explicit external matching assumption, remain
   automation-ineligible, and return a typed request for comparable attributes
   and a matching rule when no stable choice can be made.
+- Do not declare that further calls add nothing when a selected prior-assisted
+  recommendation still has a typed applicability or analogue-matching evidence
+  gap. The compact context summary now distinguishes a usable answer from an
+  answer that additional evidence could materially change.
+- Route externally matched analogue priors through the existing bounded
+  scenario selector instead of auto-promoting them merely because sampled
+  paths agree. Best-effort mode permits the choice but does not itself prove
+  peer comparability; selector failure retains the immutable primary.
 - Preserve structured comparable-entity range tables and explicit target
   descriptors through a deterministic, verbatim context front door. Analogue
   selection remains a sealed prior-assisted model judgment. Each sampled path

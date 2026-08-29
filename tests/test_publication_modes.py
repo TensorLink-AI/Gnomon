@@ -145,7 +145,6 @@ def test_claims_only_context_is_retained_without_claiming_numeric_use():
     }, context_text=span, cutoff="2026-01-02T00:00:00+00:00",
        future_timestamps=TIMES, history=[8, 9, 10], compiler_model="test")
     assert not reasons
-
     payload = publish_result(_result(), mode="best_effort", dossiers=[dossier])
 
     assert payload["recommended_scenario_id"] == "primary"
@@ -296,6 +295,60 @@ def test_unmatched_comparable_returns_specific_attribute_recovery():
     assert "matching rule" in recovery["message"]
     assert recovery["automation_eligible"] is False
     assert payload["recommended_scenario_id"] == "primary"
+    assert payload["context_summary"][
+        "additional_evidence_could_change_recommendation"] is True
+
+
+def test_selected_external_analogue_admits_that_more_evidence_can_help():
+    dossier = _dossier()
+    dossier = attach_host_candidate_elicitation(
+        dossier, requested_paths=3, accepted_paths=3,
+        aggregation="linear_empirical_marginal_q10_q50_q90",
+        stability=_stable_sampling(3),
+        temperature=1.0, sample_paths=[
+            [10.8, 11.8], [11.0, 12.0], [11.2, 12.2]])
+    dossier["claims"][0].update({
+        "effective_start": None, "effective_end": None,
+        "timing_status": "atemporal_context",
+        "mechanism": (
+            "source-stated comparable-entity numeric range without "
+            "stated matching attributes"),
+    })
+    import hashlib, json
+    body = {key: value for key, value in dossier.items()
+            if key != "seal_sha256"}
+    dossier["seal_sha256"] = hashlib.sha256(json.dumps(
+        body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+    payload = publish_result(_result(), mode="best_effort", dossiers=[dossier])
+
+    assert payload["recommended_scenario_id"] == "primary"
+    scenarios = payload["candidate_portfolio"]
+    contract = scenario_selection_contract(
+        scenarios=scenarios, dossiers=[dossier],
+        allow_prior_assisted_choice=True)
+    assert contract["selection_required"] is True
+    selection = validate_scenario_selection({
+        "selected_scenario_id": "prior-assisted-1",
+        "ranking": ["prior-assisted-1", "primary"],
+        "cited_claim_ids": ["claim-1"],
+        "counterevidence_claim_ids": [],
+        "counterevidence_hypothesis_ids": [],
+        "confidence": .4,
+        "rationale": "The external coastal assumption is useful but weak.",
+        "what_would_change_selection": "Source-stated peer attributes.",
+    }, scenarios=scenarios, dossiers=[dossier])
+    assert selection is not None
+    payload = publish_result(
+        _result(), mode="best_effort", dossiers=[dossier],
+        scenario_selection=selection)
+    assert payload["recommended_scenario_id"] == "prior-assisted-1"
+    summary = payload["context_summary"]
+    assert summary["follow_up_required_for_current_recommendation"] is False
+    assert summary["additional_evidence_could_change_recommendation"] is True
+    assert summary[
+        "further_calls_add_nothing_for_current_recommendation"] is False
+    assert verify_publication(payload)
 
 
 def test_atemporal_peer_bound_preserves_fact_and_requests_a_reference_path():
@@ -1408,6 +1461,7 @@ def test_publication_summarizes_mixed_context_lanes_without_contradiction():
         "context_can_authorize_automation": False,
         "counts": {"used": 1, "scenario": 0, "rejected": 1},
         "follow_up_required_for_current_recommendation": False,
+        "additional_evidence_could_change_recommendation": False,
         "further_calls_add_nothing_for_current_recommendation": True,
         "message": (
             "At least one governed context lane affected the human-facing "
