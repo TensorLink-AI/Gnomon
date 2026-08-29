@@ -88,8 +88,8 @@ shipped `gnomon.agent_context` module provides the integration primitives:
 
 - `build_sampled_context_prior_prompt(...)` encodes host-owned regular grids
   compactly and asks for indexed values without re-echoing timestamps;
-- `recommended_initial_sample_count(horizon)` starts with three independent
-  paths, while `recommended_sample_count(horizon)` provides the expansion cap;
+- `recommended_initial_sample_count(horizon)` requests the bounded four- or
+  five-path set used to stabilize the empirical centre;
 - `candidate_from_sampled_paths(...)` rejects malformed, non-finite, partial,
   or wrong-grid paths independently, aggregates valid paths into q10/q50/q90,
   and reports draw stability separately from historical skill; and

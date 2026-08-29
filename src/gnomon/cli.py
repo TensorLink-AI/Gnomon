@@ -163,6 +163,20 @@ def _attach_publication(payload, artifact, path, args) -> None:
     from .publication import (compile_dossier_for_result, publish_result,
                               write_publication)
     result = artifact.to_dict()["results"][0]
+    from .pipeline import load_stage
+    publication_input = load_stage(
+        args.input, time_column=args.time_column,
+        target_column=args.target_column,
+        series_column=getattr(args, "series_column", None),
+        frequency=getattr(args, "frequency", None),
+        as_of=getattr(args, "as_of", None),
+        store_path=getattr(args, "store_path", None),
+        repair=getattr(args, "repair", "safe"),
+        regrid=getattr(args, "regrid", None))
+    observations = publication_input.groups.get(artifact.results[0].series)
+    if observations is None and len(publication_input.groups) == 1:
+        observations = next(iter(publication_input.groups.values()))
+    governed_history = [float(item.value) for item in (observations or [])]
     inline_transformations = []
     if compile_mode:
         if proposal_path or transformation_paths:
@@ -195,6 +209,7 @@ def _attach_publication(payload, artifact, path, args) -> None:
             dossier, _ = compile_dossier_for_result(
                 raw, context_text=context_text, known_at=known_at,
                 result=result,
+                history=governed_history,
                 compiler_model="gnomon:deterministic_linear:" + compilation_kind)
             dossiers.append(dossier)
             inline_transformations = list(raw.get("transformations") or [])
@@ -208,6 +223,7 @@ def _attach_publication(payload, artifact, path, args) -> None:
         raw = read(proposal_path, "--context-proposal")
         dossier, _ = compile_dossier_for_result(
             raw, context_text=context_text, known_at=known_at, result=result,
+            history=governed_history,
             compiler_model=getattr(args, "context_compiler_model", None) or "agent")
         dossiers.append(dossier)
     if transformation_paths or inline_transformations:

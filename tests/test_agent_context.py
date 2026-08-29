@@ -322,8 +322,8 @@ def test_provider_neutral_prior_rejects_nonfinite_and_wrong_grid_paths():
 
 
 def test_sample_count_policy_is_bounded_and_requires_a_distribution():
-    assert recommended_initial_sample_count(4) == 3
-    assert recommended_initial_sample_count(96) == 3
+    assert recommended_initial_sample_count(4) == 5
+    assert recommended_initial_sample_count(96) == 4
     assert recommended_sample_count(4) == 5
     assert recommended_sample_count(95) == 5
     assert recommended_sample_count(96) == 4

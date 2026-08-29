@@ -71,6 +71,26 @@ class OpenRouterError(RuntimeError):
     """A request to OpenRouter failed after all retries."""
 
 
+class _TransientProviderError(OpenRouterError):
+    """A retryable error returned inside an otherwise successful HTTP body."""
+
+
+def _provider_error_is_retryable(value: Any) -> bool:
+    """Recognize OpenAI-wire transient errors without retrying semantics.
+
+    Some compatible gateways return HTTP 200 with an ``error`` object whose
+    nested code is the real upstream status. Treat only standard transport
+    statuses as retryable; invalid requests and content errors remain loud.
+    """
+    if not isinstance(value, dict):
+        return False
+    try:
+        code = int(value.get("code"))
+    except (TypeError, ValueError):
+        return False
+    return code in RETRYABLE_STATUS
+
+
 def _truncated_empty(response: SimpleNamespace) -> bool:
     """True when every choice ran out of budget before writing anything."""
     choices = getattr(response, "choices", None) or []
@@ -320,7 +340,10 @@ class OpenRouterClient:
                     raise json.JSONDecodeError(
                         "response must be a JSON object", repr(parsed), 0)
                 if "error" in parsed and "choices" not in parsed:
-                    raise OpenRouterError(str(parsed["error"]))
+                    error = parsed["error"]
+                    if _provider_error_is_retryable(error):
+                        raise _TransientProviderError(str(error))
+                    raise OpenRouterError(str(error))
                 self._account(parsed)
                 response = _to_namespace(parsed)
                 if not getattr(response, "provider", None):
@@ -333,6 +356,8 @@ class OpenRouterClient:
                     raise OpenRouterError(
                         f"OpenRouter returned HTTP {error.code}: {detail}"
                     ) from error
+            except _TransientProviderError as error:
+                last_error = error
             except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as error:
                 last_error = error
             if attempt + 1 < attempts:

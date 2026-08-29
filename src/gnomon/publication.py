@@ -373,6 +373,7 @@ def dominant_scenario_id(scenarios: list[dict[str, Any]]) -> str | None:
 
 def compile_dossier_for_result(raw: Any, *, context_text: str, known_at: str,
                                result: dict[str, Any], compiler_model: str,
+                               history: list[float],
                                prefer_explicit_forecast_candidate: bool = False,
                                ) -> tuple[dict[str, Any], list[str]]:
     """Seal an agent proposal against the exact path it will accompany.
@@ -383,11 +384,13 @@ def compile_dossier_for_result(raw: Any, *, context_text: str, known_at: str,
     """
     primary = _rows(result.get("primary_forecast")) or _rows(result.get("forecast"))
     timestamps = [str(row.get("timestamp")) for row in primary]
-    history_proxy = [float(row.get("q50", row.get("point"))) for row in primary
-                     if row.get("q50", row.get("point")) is not None]
+    if not history:
+        raise ValueError(
+            "Governed dossier validation requires the observed, as-of-bounded "
+            "history; a future forecast must never substitute for history.")
     return validate_temporal_dossier(
         raw, context_text=context_text, cutoff=known_at,
-        future_timestamps=timestamps, history=history_proxy,
+        future_timestamps=timestamps, history=[float(value) for value in history],
         compiler_model=compiler_model,
         prefer_explicit_forecast_candidate=
             prefer_explicit_forecast_candidate)
@@ -1811,9 +1814,13 @@ def best_effort_prior_selection(
     # counterevidence.  If selection is unavailable or rejected, publication
     # remains on the immutable primary.  Existing single-prior best-effort
     # behavior remains deterministic for simpler context lanes.
-    if any(str((((item.get("effect") or {}).get("elicitation") or {}).get(
+    if (any(str((((item.get("effect") or {}).get("elicitation") or {}).get(
             "governed_fallback") or "")).endswith("_mapping_not_admitted")
-           for item in scenarios):
+            for item in scenarios)
+            or any(item.get("role") in {
+                "governed_companion_mapping", "governed_categorical_mapping"}
+                and item.get("human_selection_eligible") is not True
+                for item in scenarios)):
         return None
     sampled = []
     for item in scenarios:
@@ -1832,6 +1839,16 @@ def best_effort_prior_selection(
     if len(sampled) != 1:
         return None
     selected = sampled[0]
+    # Agreement among sampled model paths is a coherence check, not evidence
+    # that this prior dominates another viable interpretation. Auto-selection
+    # is therefore reserved for the simple primary-versus-one-prior case. If
+    # another non-primary candidate is eligible, preserve the alternatives and
+    # route the genuine ambiguity through the bounded evidence selector.
+    if any(item is not selected
+           and item.get("scenario_id") != "primary"
+           and item.get("human_selection_eligible") is True
+           for item in scenarios):
+        return None
     selected_claims = {str(item) for item in selected.get("claim_ids") or []}
     externally_matched = any(
         str(claim.get("claim_id")) in selected_claims

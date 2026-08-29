@@ -1086,6 +1086,26 @@ def test_bounded_context_composes_with_visible_calendar_prior():
     assert sampled["automation_eligible"] is False
 
 
+def test_sampled_prior_does_not_auto_override_competing_sensitivity():
+    dossier = attach_host_candidate_elicitation(
+        _dossier(), requested_paths=3, accepted_paths=3,
+        aggregation="linear_empirical_marginal_q10_q50_q90",
+        temperature=1.0, sample_paths=[[11.0, 12.0]] * 3)
+    result = _result()
+    result["sensitivity_scenarios"] = [{
+        "forecast": [{**row, "q50": 15.0, "point": 15.0}
+                     for row in result["forecast"]],
+        "support": "hypothetical_sensitivity",
+        "assumptions": ["bounded alternative interpretation"],
+    }]
+    scenarios, _ = build_scenario_catalog(result, dossiers=[dossier])
+
+    assert best_effort_prior_selection(
+        scenarios=scenarios, dossiers=[dossier]) is None
+    publication = publish_result(result, mode="best_effort", dossiers=[dossier])
+    assert publication["recommended_scenario_id"] == "primary"
+
+
 def test_under_sampled_prior_remains_visible_but_not_human_selectable():
     dossier = _dossier()
     dossier["forecast_candidate"]["elicitation"] = {
@@ -1231,6 +1251,24 @@ def test_failed_categorical_mapping_fallback_requires_bounded_selection():
         scenarios=scenarios, dossiers=[dossier],
         allow_prior_assisted_choice=True)
     assert contract["selection_required"] is True
+
+
+def test_sampled_prior_does_not_auto_override_competing_eligible_candidate():
+    dossier = attach_host_candidate_elicitation(
+        _dossier(), requested_paths=3, accepted_paths=3,
+        aggregation="linear_empirical_marginal_q10_q50_q90",
+        temperature=1.0, stability=_stable_sampling(3),
+        sample_paths=[[10.8, 11.8], [11.0, 12.0], [11.2, 12.2]])
+    scenarios, _ = build_scenario_catalog(_result(), dossiers=[dossier])
+    scenarios.append({
+        "scenario_id": "context-executable", "role": "model_assisted",
+        "human_selection_eligible": True, "automation_eligible": False,
+        "support": "prior_assisted", "claim_ids": [], "forecast": [],
+        "assumptions": [], "limitations": [], "effect": {},
+    })
+
+    assert best_effort_prior_selection(
+        scenarios=scenarios, dossiers=[dossier]) is None
 
 
 def test_selected_prior_marks_only_its_cited_claims_used():
@@ -1960,6 +1998,74 @@ def test_mcp_model_candidate_is_grid_bound_sealed_and_human_only(tmp_path):
     assert candidate["automation_eligible"] is False
     assert candidate["effect"]["distribution"]["sample_count"] == 3
     assert publication["primary_forecast_unchanged"] is True
+    assert publication["automation"]["eligible"] is False
+    assert verify_publication(publication)
+
+
+def test_dossier_candidate_plausibility_uses_observed_not_future_boundary():
+    from gnomon.publication import compile_dossier_for_result
+
+    context = "The signed plan expects a temporary uplift."
+    result = {
+        "forecast": [
+            {"timestamp": TIMES[0], "q10": 990, "q50": 1000, "q90": 1010},
+            {"timestamp": TIMES[1], "q10": 991, "q50": 1001, "q90": 1011},
+        ]
+    }
+    raw = {
+        "events": [],
+        "claims": [{"source_span": context, "relation": "unknown",
+                    "effective_start": None, "effective_end": None,
+                    "timing_status": "atemporal_context",
+                    "mechanism": "model-authored forecast prior",
+                    "confidence": 0.5}],
+        "hypotheses": [], "effect_proposal": None,
+        "forecast_candidate": {
+            "quantiles": [
+                {"timestamp": TIMES[0], "q10": 100, "q50": 101, "q90": 102},
+                {"timestamp": TIMES[1], "q10": 101, "q50": 102, "q90": 103},
+            ], "claim_ids": ["claim-1"], "rationale": "Plan trajectory."},
+        "covariate_tables": [], "transformations": [],
+        "observation_interpretations": [],
+    }
+
+    dossier, rejections = compile_dossier_for_result(
+        raw, context_text=context, known_at="2026-01-01T00:00:00Z",
+        result=result, compiler_model="test", history=[98, 99, 100])
+
+    assert dossier.get("forecast_candidate") is not None
+    assert "forecast_candidate failed boundary-jump plausibility" not in rejections
+
+
+def test_implausible_optional_model_candidate_preserves_primary(tmp_path):
+    from datetime import date, timedelta
+    source = tmp_path / "series.csv"
+    start = date(2026, 1, 1)
+    source.write_text("timestamp,value\n" + "\n".join(
+        f"{start + timedelta(days=i)},{100 + i}" for i in range(40)) + "\n")
+    context = "A qualitative note expects a change."
+    payload = runner_for("gnomon_forecast")({
+        "input": str(source), "horizon": 2,
+        "output_dir": str(tmp_path / "out-rejected-candidate"),
+        "format": "full", "publication_mode": "best_effort",
+        "context_submission": {
+            "text": context, "known_at": "2026-02-09T00:00:00+00:00",
+            "compiler": "host-agent",
+            "model_candidate": {
+                "source_spans": [context],
+                "sample_paths": [[10000, 10001], [10001, 10002], [9999, 10000]],
+                "rationale": "Unbounded trajectory.",
+            },
+        },
+    })
+
+    publication = payload["publication"]
+    assert publication["recommended_scenario_id"] == "primary"
+    assert publication["recommended_forecast"] == publication["primary_forecast"]
+    rejection = next(item for item in publication["context_dispositions"]
+                     if item.get("reason_code") ==
+                     "model_candidate_validation_failed")
+    assert rejection["disposition"] == "rejected"
     assert publication["automation"]["eligible"] is False
     assert verify_publication(publication)
 

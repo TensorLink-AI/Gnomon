@@ -904,6 +904,33 @@ def test_scenario_selector_binds_stale_alias_to_selected_sealed_provenance():
     assert repaired["counterevidence_hypothesis_ids"] == ["hyp-real"]
 
 
+def test_scenario_selector_repairs_host_known_disclosure_without_changing_choice():
+    scenarios = [
+        {"scenario_id": "primary", "role": "immutable_primary",
+         "claim_ids": []},
+        {"scenario_id": "prior", "role": "model_authored",
+         "claim_ids": ["claim-prior"]},
+    ]
+    raw = {
+        "selected_scenario_id": "prior",
+        "ranking": ["prior", "primary"],
+        "cited_claim_ids": ["claim-unattached"],
+        "counterevidence_claim_ids": [],
+        "counterevidence_hypothesis_ids": ["invented"],
+    }
+
+    repaired = _canonicalize_scenario_selection_evidence(
+        raw, scenarios,
+        known_claim_ids={"claim-prior", "claim-unattached"},
+        known_hypothesis_ids={"hyp-required"})
+
+    assert repaired["selected_scenario_id"] == "prior"
+    assert repaired["ranking"] == ["prior", "primary"]
+    assert repaired["cited_claim_ids"] == ["claim-prior"]
+    assert repaired["counterevidence_claim_ids"] == ["claim-unattached"]
+    assert repaired["counterevidence_hypothesis_ids"] == ["hyp-required"]
+
+
 def test_pre_call_ranking_is_completed_for_extra_live_scenarios(monkeypatch):
     publication = {"candidate_portfolio": [
         {"scenario_id": "primary"}, {"scenario_id": "candidate"},
@@ -924,6 +951,38 @@ def test_pre_call_ranking_is_completed_for_extra_live_scenarios(monkeypatch):
     assert observed["ranking"] == [
         "candidate", "primary", "product-sensitivity"]
     assert observed["host_completed_live_portfolio"] is True
+
+
+def test_live_publication_selection_repairs_against_live_evidence(monkeypatch):
+    publication = {
+        "candidate_portfolio": [
+            {"scenario_id": "primary", "role": "immutable_primary",
+             "claim_ids": []},
+            {"scenario_id": "prior", "role": "model_authored",
+             "claim_ids": ["claim-prior"]},
+        ],
+        "selection_contract": {"claims": [
+            {"claim_id": "claim-prior", "relation": "supports"},
+            {"claim_id": "hyp-live", "relation": "counterevidence"},
+        ]},
+    }
+    observed = {}
+
+    def accept(payload, selection, **_kwargs):
+        observed.update(selection)
+        return payload
+
+    monkeypatch.setattr("gnomon.publication.select_publication", accept)
+    _, error = _select_publication_fail_closed(publication, {
+        "selected_scenario_id": "prior", "ranking": ["prior", "primary"],
+        "cited_claim_ids": ["stale"],
+        "counterevidence_claim_ids": [],
+        "counterevidence_hypothesis_ids": ["hyp-dossier"],
+    })
+
+    assert error is None
+    assert observed["cited_claim_ids"] == ["claim-prior"]
+    assert observed["counterevidence_hypothesis_ids"] == ["hyp-live"]
 
 
 def test_timestamped_future_series_normalizes_only_on_exact_host_grid():
@@ -1457,7 +1516,7 @@ def test_structured_context_keeps_governed_and_model_candidates_separate(
         f"({stamp.replace('T', ' ').replace('+00:00', '')}, "
         f"{130 + 0.25 * draw + 0.4 * index})"
         for index, stamp in enumerate(task.future_time)) + "\n</forecast>"
-        for draw in range(3)]
+        for draw in range(5)]
     selector = {
         "selected_scenario_id": "prior-assisted-2",
         "ranking": ["prior-assisted-2", "primary", "prior-assisted-1"],
@@ -1500,6 +1559,9 @@ def test_structured_context_keeps_governed_and_model_candidates_separate(
     assert trace["context_compilation"]["dossier_count"] == 2
     assert trace["context_compilation"]["candidate_origins"] == [
         "governed_companion_mapping", "model_authored"]
+    binding = trace["trace"][0]["host_context_binding"]
+    assert binding["public_model_candidate_bound"] is True
+    assert binding["internal_model_candidate_dossier_bound"] is False
     timing = trace["context_compilation"]["compiler_timing"]
     assert timing["kind"] == "deterministic_parse_plus_sealed_model_candidate"
     assert timing["prompt_bytes"] > 0
@@ -1507,7 +1569,7 @@ def test_structured_context_keeps_governed_and_model_candidates_separate(
     assert "model_context_candidate_samples_initial" in stages
     assert "model_companion_candidate" not in stages
     sampling = timing["model_candidate_sampling"]
-    assert sampling["accepted"] == 3
+    assert sampling["accepted"] == 5
     assert sampling["sufficiency"][
         "eligible_for_human_recommendation"] is True
     assert sampling["request_mode"] == "concurrent_single_sample_requests"
@@ -2716,14 +2778,14 @@ def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
         receipt["dossiers"][1]["seal_sha256"])
     assert receipt["compiler"]["model_candidate_status"] == (
         "accepted")
-    assert receipt["compiler"]["model_candidate_sampling"]["accepted"] == 3
+    assert receipt["compiler"]["model_candidate_sampling"]["accepted"] == 5
     assert receipt["compiler"]["model_candidate_sampling"][
         "adaptive_sampling"]["stopped_early"] is True
     model_candidate = receipt["dossiers"][1]["forecast_candidate"]
     assert model_candidate["sample_paths"] == [
-        [16.0, 17.0, 18.0, 19.0]] * 3
+        [16.0, 17.0, 18.0, 19.0]] * 5
     assert extra["governed_distribution"] == {
-        "kind": "sealed_empirical_model_paths", "sample_count": 3,
+        "kind": "sealed_empirical_model_paths", "sample_count": 5,
         "horizon": 4,
         "source_seal_sha256": receipt["dossiers"][1]["seal_sha256"],
         "compact_summary": "recommended_forecast",
@@ -2736,10 +2798,10 @@ def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
     else:
         resolved_samples = [[row[0] for row in path] for path in samples]
     assert resolved_samples == [[16.0, 17.0, 18.0, 19.0]] * 3
-    assert client.completion_ns == [1] * 3
-    assert client.completion_temperatures == [1] * 3
-    assert client.completion_reasoning_efforts == ["none"] * 3
-    assert len(client.completion_prompts) == 3
+    assert client.completion_ns == [1] * 5
+    assert client.completion_temperatures == [1] * 5
+    assert client.completion_reasoning_efforts == ["none"] * 5
+    assert len(client.completion_prompts) == 5
     compact_prompt = " ".join(client.completion_prompts[0].split())
     assert "Factor in relevant background" in compact_prompt
     assert "mapping failed" not in compact_prompt
@@ -2747,9 +2809,9 @@ def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
 
 @pytest.mark.parametrize(
     ("hypothesis_kind", "horizon", "expected_paths"), [
-        ("historical_analogue", 4, 3),
-        ("bound", 4, 3),
-        ("historical_analogue", 97, 3),
+        ("historical_analogue", 4, 5),
+        ("bound", 4, 5),
+        ("historical_analogue", 97, 4),
     ])
 def test_typed_interpretation_without_executable_gets_sealed_sampled_prior(
         tmp_path, hypothesis_kind, horizon, expected_paths):
@@ -2875,16 +2937,15 @@ def test_dated_qualitative_event_gets_sealed_best_effort_prior(tmp_path):
         "receipt_path"]).read_text())
     assert receipt["compiler"]["model_candidate_status"] == "accepted"
     sampling = receipt["compiler"]["model_candidate_sampling"]
-    assert sampling["accepted"] == 3
+    assert sampling["accepted"] == 5
     assert sampling["adaptive_sampling"]["stopped_early"] is True
     assert sampling["sufficiency"][
         "eligible_for_human_recommendation"] is True
-    assert extra["publication"]["recommended_scenario_id"].startswith(
-        "prior-assisted-")
-    assert extra["publication"]["recommended_distribution"]["kind"] == \
-        "calibrated_quantile_offsets_around_model_median"
-    assert extra["publication"]["recommended_distribution"][
-        "probabilistic_consumers_should_use"] == "quantiles"
+    # The event also creates a bounded sensitivity path. Sample coherence is
+    # not historical skill, so a scripted client that supplies no independent
+    # selector response must retain the primary rather than auto-promote one
+    # of two context interpretations.
+    assert extra["publication"]["recommended_scenario_id"] == "primary"
     assert extra["publication"]["primary_forecast_unchanged"] is True
     assert extra["publication"]["automation"]["eligible"] is False
 
@@ -2923,7 +2984,7 @@ def test_dated_direction_front_door_skips_dossier_and_samples_bounded_prior(
     assert receipt["dossier"]["effect_proposal"] is None
     assert receipt["compiler"]["model_candidate_status"] == "accepted"
     publication = extra["publication"]
-    assert publication["recommended_scenario_id"].startswith("prior-assisted-")
+    assert publication["recommended_scenario_id"] == "primary"
     assert publication["primary_forecast_unchanged"] is True
     assert publication["automation"]["eligible"] is False
 
@@ -3079,7 +3140,7 @@ def test_optional_prior_transport_outage_does_not_reject_valid_context(
     assert compiler["model_candidate_status"] == (
         "transport_unavailable_for_typed_interpretation")
     assert compiler["model_candidate_sampling"]["transport"] == {
-        "requested": 3, "failed": 3, "returned": 0,
+        "requested": 5, "failed": 5, "returned": 0,
         "interpretation": (
             "transport availability is reported separately; semantic "
             "validity is measured over returned paths"),
@@ -3087,7 +3148,7 @@ def test_optional_prior_transport_outage_does_not_reject_valid_context(
     assert compiler["model_candidate_sampling"]["sufficiency"][
         "reason_codes"] == ["transport_unavailable"]
     assert compiler["model_candidate_sampling"]["adaptive_sampling"] == {
-        "initial_requested": 3,
+        "initial_requested": 5,
         "maximum_requested": 5,
         "expanded": False,
         "expansion_skipped_reason": "transport_unavailable",
@@ -3256,9 +3317,8 @@ def test_one_sample_transport_failure_preserves_other_governed_paths(tmp_path):
             "transport availability is reported separately; semantic "
             "validity is measured over returned paths"),
     }
-    assert sampling["adaptive_sampling"]["expanded"] is True
-    assert "too_few_valid_paths" in sampling["adaptive_sampling"][
-        "expansion_reason_codes"]
+    assert sampling["adaptive_sampling"]["expanded"] is False
+    assert sampling["adaptive_sampling"]["expansion_reason_codes"] == []
     assert sampling["sufficiency"][
         "eligible_for_human_recommendation"] is True
     assert receipt["compiler"]["model_candidate_status"] == "accepted"

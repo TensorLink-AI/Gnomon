@@ -1055,5 +1055,12 @@ def recommended_sample_count(horizon: int) -> int:
 
 
 def recommended_initial_sample_count(horizon: int) -> int:
-    """Start with the minimum distribution; expand only if it is insufficient."""
-    return min(SAMPLED_PRIOR_MIN_PATHS, recommended_sample_count(horizon))
+    """Use the bounded cap so the published median is not a three-draw fluke.
+
+    Path agreement is only a coherence diagnostic and raw spread never becomes
+    calibrated uncertainty. Even so, the human-facing centre is an empirical
+    median: starting with only three stochastic draws made that centre needlessly
+    brittle while saving latency only on concurrent requests. The existing
+    horizon-aware cap (four or five) remains the hard cost boundary.
+    """
+    return recommended_sample_count(horizon)

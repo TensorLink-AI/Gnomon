@@ -2562,6 +2562,30 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
     # Preserve the semantic target supplied by the caller for claim-ownership
     # checks at the publication boundary; this metadata never changes points.
     result["target_identity"] = str(arguments.get("target_column") or "")
+    # Candidate plausibility is defined at the last *observed* boundary.  Load
+    # that boundary through the exact same repair/as-of/store seam as the
+    # immutable forecast.  Using the primary's future q50 path here makes a
+    # candidate's validity depend on a competing forecast and can reject a
+    # perfectly plausible conditional path.
+    from .pipeline import load_stage
+    publication_input = load_stage(
+        arguments["input"], time_column=arguments["time_column"],
+        target_column=arguments["target_column"],
+        series_column=arguments.get("series_column"),
+        frequency=arguments.get("frequency"),
+        as_of=_parse_as_of(arguments.get("as_of")),
+        store_path=arguments.get("store_path"),
+        repair=arguments.get("repair", "safe"),
+        regrid=arguments.get("regrid"))
+    result_series = artifact.results[result_index].series
+    observations = publication_input.groups.get(result_series)
+    if observations is None and len(publication_input.groups) == 1:
+        observations = next(iter(publication_input.groups.values()))
+    if not observations:
+        raise GnomonError(
+            "EMPTY_SNAPSHOT",
+            "Publication validation could not resolve the forecast's observed history.")
+    governed_history = [float(item.value) for item in observations]
     model_candidate_paths: list[list[float]] | None = None
     model_candidate_diagnostics: dict[str, Any] | None = None
     if raw_model_candidate is not None:
@@ -2596,8 +2620,6 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                 "model_candidate requires exactly one of quantiles or sample_paths")
         forecast_rows = result.get("primary_forecast") or result.get("forecast") or []
         future_timestamps = [str(row.get("timestamp")) for row in forecast_rows]
-        history_proxy = [float(row.get("q50", row.get("point")))
-                         for row in forecast_rows]
         claim_ids = [f"claim-{index}" for index in range(1, len(spans) + 1)]
         if sample_paths is not None:
             if (not isinstance(sample_paths, list)
@@ -2613,7 +2635,7 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
             candidate, model_candidate_diagnostics = (
                 candidate_from_sampled_paths(
                     serialized, future_timestamps,
-                    history_values=history_proxy))
+                    history_values=governed_history))
             if candidate is None:
                 raise GnomonError(
                     "INVALID_ARGUMENTS",
@@ -2783,32 +2805,47 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
         if not context_text or not known_at:
             raise GnomonError("INVALID_ARGUMENTS",
                               "context_proposal requires context_text and context_known_at")
-        dossier, _ = compile_dossier_for_result(
+        dossier, dossier_rejections = compile_dossier_for_result(
             raw_proposal, context_text=context_text, known_at=known_at,
             result=result,
             compiler_model=str(submission.get("compiler") or "agent"),
+            history=governed_history,
             prefer_explicit_forecast_candidate=(
                 raw_model_candidate is not None))
         if model_candidate_paths is not None:
-            from .agent_context import sample_path_stability
-            from .llm_dossier import attach_host_candidate_elicitation
-            temperature = raw_model_candidate.get("temperature", 1.0)
-            try:
-                temperature = float(temperature)
-                stability = sample_path_stability(
-                    model_candidate_paths,
-                    [float(row.get("q50", row.get("point"))) for row in
-                     (result.get("primary_forecast") or
-                      result.get("forecast") or [])])
-                dossier = attach_host_candidate_elicitation(
-                    dossier, requested_paths=len(sample_paths),
-                    accepted_paths=len(model_candidate_paths),
-                    aggregation="linear_empirical_marginal_q10_q50_q90",
-                    temperature=temperature, stability=stability,
-                    request_mode="batch_request",
-                    sample_paths=model_candidate_paths)
-            except (TypeError, ValueError) as exc:
-                raise GnomonError("INVALID_ARGUMENTS", str(exc)) from exc
+            if not isinstance(dossier.get("forecast_candidate"), dict):
+                # An optional interpretation candidate must not erase a
+                # successfully computed immutable primary. Preserve the
+                # validator's reasons as a typed disposition so an agent can
+                # repair the candidate or simply use the primary.
+                result["context_rejections"].append({
+                    "context_id": "model-authored-forecast-candidate",
+                    "reason_code": "model_candidate_validation_failed",
+                    "reason": "The supplied model-authored candidate did not "
+                              "pass the governed forecast-candidate contract.",
+                    "violations": dossier_rejections[:8],
+                    "sampling_diagnostics": model_candidate_diagnostics,
+                })
+            else:
+                from .agent_context import sample_path_stability
+                from .llm_dossier import attach_host_candidate_elicitation
+                temperature = raw_model_candidate.get("temperature", 1.0)
+                try:
+                    temperature = float(temperature)
+                    stability = sample_path_stability(
+                        model_candidate_paths,
+                        [float(row.get("q50", row.get("point"))) for row in
+                         (result.get("primary_forecast") or
+                          result.get("forecast") or [])])
+                    dossier = attach_host_candidate_elicitation(
+                        dossier, requested_paths=len(sample_paths),
+                        accepted_paths=len(model_candidate_paths),
+                        aggregation="linear_empirical_marginal_q10_q50_q90",
+                        temperature=temperature, stability=stability,
+                        request_mode="batch_request",
+                        sample_paths=model_candidate_paths)
+                except (TypeError, ValueError) as exc:
+                    raise GnomonError("INVALID_ARGUMENTS", str(exc)) from exc
         dossiers = [*dossiers, dossier]
     transformations = submission.get("transformations") or []
     if transformations:
@@ -2984,7 +3021,9 @@ def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str
         for index, result in enumerate(artifact.results):
             child: dict[str, Any] = {}
             _attach_publication(
-                child, artifact, path, arguments, result_index=index)
+                child, artifact, path,
+                {**arguments, "target_column": result.series},
+                result_index=index)
             publication = child.get("publication")
             if not publication:
                 continue

@@ -2551,7 +2551,9 @@ def attach_host_candidate_elicitation(
     if (critique.get("candidate_origin") != "model_authored"
             or not isinstance(dossier.get("forecast_candidate"), dict)):
         raise ValueError(
-            "candidate elicitation applies only to model-authored candidates")
+            "candidate elicitation applies only to model-authored candidates "
+            f"(observed origin={critique.get('candidate_origin')!r}, "
+            f"candidate_present={isinstance(dossier.get('forecast_candidate'), dict)})")
     if (isinstance(requested_paths, bool) or isinstance(accepted_paths, bool)
             or not isinstance(requested_paths, int)
             or not isinstance(accepted_paths, int)

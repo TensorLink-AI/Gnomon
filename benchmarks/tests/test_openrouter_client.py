@@ -207,6 +207,38 @@ def test_zero_retries_still_performs_the_initial_request(monkeypatch):
     assert client.usage_summary["transport_attempts"] == 1
 
 
+def test_retryable_error_inside_success_body_is_retried(monkeypatch):
+    replies = [
+        {"error": {"message": "miner timeout or disconnect", "code": 504}},
+        _response("recovered"),
+    ]
+
+    class Response:
+        def __init__(self, payload):
+            self.payload = payload
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def read(self):
+            return json.dumps(self.payload).encode()
+
+    monkeypatch.setattr(
+        "urllib.request.urlopen",
+        lambda *args, **kwargs: Response(replies.pop(0)))
+    monkeypatch.setattr("time.sleep", lambda _seconds: None)
+    client = OpenRouterClient(
+        "test/model", api_key="k", max_retries=1, timeout=1)
+
+    response = client._request(
+        MESSAGES, n=1, temperature=None, max_tokens=10,
+        tools=None, tool_choice=None)
+
+    assert response.choices[0].message.content == "recovered"
+    assert client.usage_summary["transport_attempts"] == 2
+    assert client.usage_summary["requests"] == 1
+
+
 def test_reasoning_effort_is_sent_only_when_explicit(monkeypatch):
     payloads = []
 

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Use the existing bounded four/five-path cap on the first model-prior
+  elicitation rather than estimating a human-facing median from three draws.
+  Requests remain concurrent; sampled spread remains a coherence diagnostic,
+  never calibration or historical skill.
 - Add a first-class `context_submission.model_candidate` forecast input for
   cited q10/q50/q90 rows or 3–16 full-grid sample paths. Gnomon validates the
   host grid, seals the candidate through the existing dossier and publication

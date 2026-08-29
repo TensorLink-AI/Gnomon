@@ -3026,6 +3026,22 @@ def _select_publication_fail_closed(
         completed = {**selection, "selected_scenario_id": selected,
                      "ranking": ranking,
                      "host_completed_live_portfolio": ranking != proposed}
+        live_evidence = (publication.get("selection_contract") or {}).get(
+            "claims") or []
+        completed = _canonicalize_scenario_selection_evidence(
+            completed, list(publication.get("candidate_portfolio") or []),
+            known_claim_ids={
+                str(item.get("claim_id")) for item in live_evidence
+                if isinstance(item, dict) and item.get("claim_id")
+                and item.get("relation") != "counterevidence"
+                and not str(item.get("relation") or "").startswith(
+                    "hypothesis:")},
+            known_hypothesis_ids={
+                str(item.get("claim_id")) for item in live_evidence
+                if isinstance(item, dict) and item.get("claim_id")
+                and (item.get("relation") == "counterevidence"
+                     or str(item.get("relation") or "").startswith(
+                         "hypothesis:"))})
         selection_channel = str(selection.get("channel") or
                                 "governed_scenario_selection")
         return select_publication(
@@ -3085,9 +3101,9 @@ def _canonicalize_scenario_selection_evidence(
                output.get("counterevidence_claim_ids") or []]
     overlap = set(cited).intersection(counter)
     selected_id = str(output.get("selected_scenario_id") or "")
-    selected_claims = set(next((item.get("claim_ids") or []
-                                for item in scenarios
-                                if str(item.get("scenario_id")) == selected_id), []))
+    selected_scenario = next((item for item in scenarios
+                              if str(item.get("scenario_id")) == selected_id), {})
+    selected_claims = set(selected_scenario.get("claim_ids") or [])
     output["cited_claim_ids"] = list(dict.fromkeys(
         item for item in cited
         if item not in overlap or item in selected_claims))
@@ -3108,11 +3124,29 @@ def _canonicalize_scenario_selection_evidence(
                 output["cited_claim_ids"]):
             output["cited_claim_ids"].extend(sorted(
                 selected_claims.intersection(known_claim_ids)))
+        # Citation ownership is already sealed by the host. Reclassify a
+        # model's unattached support citation as context coverage rather than
+        # rejecting an otherwise valid scenario choice. This cannot create a
+        # claim or lend it to the selected path.
+        unattached = [item for item in output["cited_claim_ids"]
+                      if item not in selected_claims]
+        output["cited_claim_ids"] = [
+            item for item in output["cited_claim_ids"]
+            if item in selected_claims]
+        output["counterevidence_claim_ids"] = list(dict.fromkeys([
+            *output["counterevidence_claim_ids"], *unattached]))
     if known_hypothesis_ids is not None:
         output["counterevidence_hypothesis_ids"] = [
             str(item) for item in
             output.get("counterevidence_hypothesis_ids") or []
             if str(item) in known_hypothesis_ids]
+        # Selecting an unvalidated model prior requires every compiled
+        # unsupported hypothesis to remain visible. The host already knows
+        # this mandatory disclosure set; copying it is not a reasoning task.
+        if (selected_scenario.get("role") == "model_authored"
+                and known_hypothesis_ids):
+            output["counterevidence_hypothesis_ids"] = sorted(
+                known_hypothesis_ids)
     return output
 
 
@@ -3625,19 +3659,14 @@ class McpAgentForecaster:
                                     objects[0], scenarios,
                                     known_claim_ids={
                                         str(item.get("claim_id"))
-                                        for item in contract.get("claims") or []
-                                        if item.get("claim_id")
-                                        and item.get("relation") !=
-                                        "counterevidence"},
+                                        for dossier in dossiers
+                                        for item in dossier.get("claims") or []
+                                        if item.get("claim_id")},
                                     known_hypothesis_ids={
-                                        str(item.get("claim_id"))
-                                        for item in contract.get("claims") or []
-                                        if item.get("claim_id")
-                                        and (item.get("relation") ==
-                                             "counterevidence"
-                                             or str(item.get("relation") or
-                                                    "").startswith(
-                                                        "hypothesis:"))}))
+                                        str(item.get("hypothesis_id"))
+                                        for dossier in dossiers
+                                        for item in dossier.get("hypotheses") or []
+                                        if item.get("hypothesis_id")}))
                             selection = validate_scenario_selection(
                                 normalized_selection, scenarios=scenarios,
                                 dossiers=dossiers)
@@ -4086,6 +4115,7 @@ class _Run:
         model_candidate_status = "not_requested"
         model_candidate_sampling: dict[str, Any] | None = None
         model_candidate_sample_paths: list[list[float]] | None = None
+        public_model_candidate: dict[str, Any] | None = None
         deterministic_companion_tables = (
             _extract_structured_companion_tables(
                 context, self.timestamps, future_timestamps)
@@ -5916,6 +5946,8 @@ class _Run:
                         "semantic validity is measured over returned paths"),
                 }
                 if transport_failed == transport_requested:
+                    if expansion_skipped_reason is None:
+                        expansion_skipped_reason = "transport_unavailable"
                     final_sufficiency = {
                         "version": "0.1",
                         "eligible_for_human_recommendation": False,
@@ -6057,6 +6089,34 @@ class _Run:
                             if qualitative_future_event_prior_needed else None))
                 dossiers.append(model_dossier)
                 model_candidate_status = "accepted"
+                forecast_candidate = model_dossier["forecast_candidate"]
+                claims_by_id = {
+                    str(item.get("claim_id")): item
+                    for item in model_dossier.get("claims") or []
+                    if item.get("claim_id")
+                }
+                cited_ids = forecast_candidate.get("claim_ids") or []
+                cited_spans = list(dict.fromkeys(
+                    str(claims_by_id[claim_id].get("source_span") or "")
+                    for claim_id in cited_ids
+                    if claim_id in claims_by_id
+                    and claims_by_id[claim_id].get("source_span") in context
+                ))[:8]
+                if not cited_spans:
+                    cited_spans = list(dict.fromkeys(
+                        str(item.get("source_span") or "")
+                        for item in model_dossier.get("claims") or []
+                        if item.get("source_span") in context
+                    ))[:8]
+                if cited_spans:
+                    public_model_candidate = {
+                        "source_spans": cited_spans,
+                        "rationale": str(forecast_candidate.get("rationale")
+                                         or "Governed model-authored prior."),
+                        **({"sample_paths": model_candidate_sample_paths}
+                           if model_candidate_sample_paths is not None else
+                           {"quantiles": forecast_candidate.get("quantiles")}),
+                    }
             else:
                 model_candidate_status = "rejected"
             dossier_rejections = [
@@ -6163,6 +6223,7 @@ class _Run:
             "hypotheses": compilation["hypotheses"],
             "dossier": dossier,
             "dossiers": dossiers,
+            "public_model_candidate": public_model_candidate,
             "covariates": covariate_receipt,
             "transformations": list(raw.get("transformations") or [])[:6],
             "rejections": list(rejections),
@@ -6456,15 +6517,24 @@ class _Run:
                 "format": "brief",
             }
             if self.forecaster.output_role == "publication_best_effort":
+                public_model_candidate = receipt.get("public_model_candidate")
+                source_text = "\n\n".join(part for part in (
+                    build_context_text(self.task), self.companion_evidence)
+                    if part)
                 arguments.update({
                     "publication_mode": "best_effort",
-                    "temporal_dossiers": (
-                        receipt.get("dossiers") or
-                        [receipt.get("dossier") or {}]),
+                    # The benchmark now exercises the same public candidate
+                    # contract available to an ordinary MCP host. Keep the
+                    # deterministic dossier separate; do not also inject the
+                    # internally sealed copy of the model candidate.
+                    "temporal_dossiers": [receipt.get("dossier") or {}],
                     "context_submission": {
+                        "text": source_text,
                         "known_at": self.timestamps[-1],
                         "transformations": receipt.get("transformations") or [],
                         "rejections": wire_rejections,
+                        **({"model_candidate": public_model_candidate}
+                           if public_model_candidate is not None else {}),
                     },
                 })
             entry["host_context_binding"] = {
@@ -6476,6 +6546,9 @@ class _Run:
                 "rejections": len(receipt.get("rejections") or []),
                 "wire_rejections": len(wire_rejections),
                 "wire_rejections_omitted": omitted_rejections,
+                "public_model_candidate_bound": bool(
+                    receipt.get("public_model_candidate")),
+                "internal_model_candidate_dossier_bound": False,
             }
 
         violations = jail_violations(arguments, self.jail)
