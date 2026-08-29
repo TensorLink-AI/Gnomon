@@ -26,6 +26,17 @@
   The diagnostics separately report whether that arm actually applied; a run
   without an eligible model prior retains its governed product selection and
   cannot be counted as compromise coverage.
+- Make candidate-outcome evidence safe to consume prospectively: tracking
+  summaries and `gnomon_track` now accept both a series scope and an `as_of`
+  resolution cutoff. This prevents project-wide negative transfer and stops a
+  historical replay from seeing candidate outcomes resolved after its cutoff;
+  the returned evidence names its exact scope.
+- Close the outcome-learning loop for `best_effort` publication. When a
+  project and series have enough pre-cutoff resolved candidate outcomes to
+  clear the existing positive-uplift and Wilson-lower-bound gate, that exact
+  candidate class may guide the human-facing prior. Cold starts retain the
+  existing policy; strict mode, support, the immutable primary, and automation
+  authority are unchanged.
 - Use the existing bounded four/five-path cap on the first model-prior
   elicitation rather than estimating a human-facing median from three draws.
   Requests remain concurrent; sampled spread remains a coherence diagnostic,

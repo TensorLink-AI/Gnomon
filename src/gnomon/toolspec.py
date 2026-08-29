@@ -2914,6 +2914,16 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                 })
                 continue
             result["transformation_candidates"].append(candidate)
+    candidate_outcome_evidence = None
+    if mode == "best_effort" and arguments.get("project"):
+        from .tracking import TrackingStore
+        cutoff = (arguments.get("as_of") or artifact.task.as_of
+                  or artifact.created_at)
+        if cutoff is not None:
+            series_name = artifact.results[result_index].series
+            candidate_outcome_evidence = TrackingStore().candidate_outcome_summary(
+                str(arguments["project"]), series=str(series_name),
+                resolved_before=str(cutoff))
     try:
             publication = publish_result(
                 result, mode=mode,
@@ -2921,6 +2931,7 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                 automation_policy=policy,
                 automation_authority=not bool(arguments.get(
                     "_mcp_agent_boundary")),
+                candidate_outcome_evidence=candidate_outcome_evidence,
                 artifact_id=artifact.forecast_id)
     except ValueError as exc:
         raise GnomonError("INVALID_ARGUMENTS", str(exc)) from exc
@@ -3967,16 +3978,22 @@ def _run_track(arguments: dict[str, Any]) -> dict[str, Any]:
     if action == "synthesis_status":
         from .tracking import TrackingStore
         rows = TrackingStore().temporal_synthesis_receipts(
-            str(arguments["project"]), resolved=arguments.get("resolved"))
+            str(arguments["project"]), resolved=arguments.get("resolved"),
+            series=arguments.get("series"),
+            resolved_before=arguments.get("as_of"))
         return {"status": "ok", "project": arguments["project"],
                 "syntheses": rows}
     if action == "candidate_outcomes":
         from .tracking import TrackingStore
         rows = TrackingStore().candidate_outcome_summary(
             str(arguments["project"]),
-            minimum_resolved=int(arguments.get("min_outcomes", 8)))
+            minimum_resolved=int(arguments.get("min_outcomes", 8)),
+            series=arguments.get("series"),
+            resolved_before=arguments.get("as_of"))
         return {
             "status": "ok", "project": arguments["project"],
+            "series": arguments.get("series"),
+            "as_of": arguments.get("as_of"),
             "candidate_outcomes": rows,
             "authority": {
                 "human_prior_only": True,

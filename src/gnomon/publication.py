@@ -1902,6 +1902,78 @@ def best_effort_prior_selection(
     return selection
 
 
+def outcome_informed_prior_selection(
+    *, scenarios: list[dict[str, Any]],
+    candidate_outcomes: list[dict[str, Any]],
+    dossiers: list[dict[str, Any]] | None = None,
+) -> dict[str, Any] | None:
+    """Select one prior only after repeated, scoped realised-outcome wins.
+
+    The caller is responsible for querying outcomes with both a series scope
+    and an as-of cutoff. This function accepts only the registry's graduated
+    human-prior state, never upgrades support, and never grants automation.
+    Multiple graduated candidates remain ambiguous rather than creating a
+    winner's-curse contest over a small outcome history.
+    """
+    graduated = [item for item in candidate_outcomes
+                 if isinstance(item, dict)
+                 and item.get("graduated_for_human_prior") is True
+                 and item.get("support_upgrade_allowed") is False
+                 and item.get("automation_upgrade_allowed") is False
+                 and isinstance(item.get("scope"), dict)
+                 and item["scope"].get("series")
+                 and item["scope"].get("resolved_before")]
+    matches: list[tuple[dict[str, Any], dict[str, Any]]] = []
+    for scenario in scenarios:
+        if scenario.get("human_selection_eligible") is not True:
+            continue
+        role = str(scenario.get("role") or "unknown")
+        origin = str((scenario.get("effect") or {}).get(
+            "candidate_origin") or role)
+        for evidence in graduated:
+            if (evidence.get("scenario_role") == role
+                    and evidence.get("candidate_origin") == origin):
+                matches.append((scenario, evidence))
+    if len(matches) != 1:
+        return None
+    selected, skill = matches[0]
+    eligible = [item for item in scenarios
+                if item.get("human_selection_eligible") is True
+                and item is not selected]
+    ineligible = [item for item in scenarios
+                  if item.get("human_selection_eligible") is not True]
+    counter = list(dict.fromkeys(
+        str(hypothesis.get("hypothesis_id"))
+        for dossier in dossiers or []
+        for hypothesis in dossier.get("hypotheses") or []
+        if hypothesis.get("kind") == "unsupported"
+        and hypothesis.get("hypothesis_id")))
+    raw = {
+        "selected_scenario_id": selected["scenario_id"],
+        "ranking": [selected["scenario_id"], *[
+            item["scenario_id"] for item in eligible], *[
+            item["scenario_id"] for item in ineligible]],
+        "cited_claim_ids": list(dict.fromkeys(
+            str(item) for item in selected.get("claim_ids") or [])),
+        "counterevidence_claim_ids": [],
+        "counterevidence_hypothesis_ids": counter,
+        "confidence": min(.95, max(.5, float(skill["win_rate"]))),
+        "rationale": (
+            "This same-series candidate class cleared the preregistered "
+            "resolved-outcome human-prior gate before this forecast cutoff. "
+            "Its support remains prior_assisted and automation is forbidden."),
+        "what_would_change_selection": (
+            "New same-series resolved outcomes that remove the positive "
+            "Wilson lower bound or mean uplift would change this selection."),
+    }
+    selection = validate_scenario_selection(
+        raw, scenarios=scenarios, dossiers=dossiers)
+    if selection is not None:
+        selection["channel"] = "resolved_outcome_human_prior_policy"
+        selection["outcome_skill"] = skill
+    return selection
+
+
 def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
                                 dossiers: list[dict[str, Any]] | None = None,
                                 temporal_state: dict[str, Any] | None = None,
@@ -2215,6 +2287,7 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
                    scenario_selection: dict[str, Any] | None = None,
                    automation_policy: dict[str, Any] | None = None,
                    automation_authority: bool = True,
+                   candidate_outcome_evidence: list[dict[str, Any]] | None = None,
                    artifact_id: str | None = None) -> dict[str, Any]:
     """Return a compact, sealed human-facing projection over frozen paths."""
     if mode not in MODES:
@@ -2222,6 +2295,11 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
     scenarios, dispositions = build_scenario_catalog(result, dossiers=dossiers)
     selection = validate_scenario_selection(
         scenario_selection, scenarios=scenarios, dossiers=dossiers)
+    if selection is None and mode == "best_effort":
+        selection = outcome_informed_prior_selection(
+            scenarios=scenarios,
+            candidate_outcomes=candidate_outcome_evidence or [],
+            dossiers=dossiers)
     if selection is None and mode == "best_effort":
         selection = best_effort_prior_selection(
             scenarios=scenarios, dossiers=dossiers)
@@ -2332,8 +2410,12 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
     selected_role = str(selected.get("role") or "unknown")
     policy_selected = bool(
         selection is not None
-        and selection.get("channel") == "best_effort_sampled_prior_policy")
-    if policy_selected:
+        and selection.get("channel") in {
+            "best_effort_sampled_prior_policy",
+            "resolved_outcome_human_prior_policy"})
+    if (selection or {}).get("channel") == "resolved_outcome_human_prior_policy":
+        selection_method = "resolved_outcome_human_prior_policy"
+    elif policy_selected:
         selection_method = "best_effort_sampled_prior_policy"
     elif selection is not None:
         selection_method = "governed_scenario_selection"
@@ -2390,6 +2472,11 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
         "human_review_required": bool(
             prior_assisted_default or not selected.get("automation_eligible")),
         "reason": (
+            "The same-series candidate class cleared the preregistered "
+            "resolved-outcome human-prior gate using only outcomes resolved "
+            "before this forecast cutoff. Support is unchanged and automation "
+            "remains forbidden."
+            if selection_method == "resolved_outcome_human_prior_policy" else
             "The caller explicitly requested best_effort publication. One "
             "host-aggregated prior distribution became the human-facing estimate "
             "under that policy; sampling stability is not historical skill, "
@@ -2450,6 +2537,8 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
         "scenarios": scenarios if mode == "scenario" else [by_id["primary"], selected]
                      if selected_id != "primary" else [by_id["primary"]],
         "context_dispositions": dispositions,
+        **({"candidate_outcome_evidence": candidate_outcome_evidence}
+           if candidate_outcome_evidence else {}),
         **({"context_input_evaluation": input_evaluation}
            if input_evaluation else {}),
         "context_summary": _context_summary(

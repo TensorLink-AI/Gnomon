@@ -279,6 +279,15 @@ Every sealed alternative is recorded as a shadow synthesis too, so realized
 outcomes measure selection regret and candidate uplift rather than recording
 only the displayed winner.
 
+On a later `best_effort` run for the same project and series, Gnomon may use
+only candidate outcomes resolved before that run's `as_of` cutoff. A candidate
+class becomes a human-facing prior only after the existing minimum-count,
+positive-mean-uplift, and Wilson-lower-bound gate clears. Project-wide outcomes
+from other series are never pooled into this choice. This remains a
+`prior_assisted` recommendation: the immutable primary stays beside it,
+support is not upgraded, and automation remains forbidden. With no qualified
+same-series history, publication follows the ordinary cold-start policy.
+
 The default MCP response carries a compact, seal-linked decision projection:
 the selection contract, recommendation and automation authority, context
 dispositions, temporal state, and the path and seal of the complete receipt.

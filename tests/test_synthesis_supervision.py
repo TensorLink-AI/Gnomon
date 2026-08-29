@@ -150,9 +150,13 @@ def test_tracking_tool_records_and_resolves_synthesis(monkeypatch, tmp_path: Pat
     status = _run_track({"action": "synthesis_status", "project": "p",
                          "resolved": True})
     assert len(status["syntheses"]) == 1
-    candidates = _run_track({"action": "candidate_outcomes", "project": "p",
-                             "min_outcomes": 8})
+    candidates = _run_track({
+        "action": "candidate_outcomes", "project": "p",
+        "series": "x", "as_of": "2026-12-31T00:00:00Z",
+        "min_outcomes": 8})
     assert candidates["candidate_outcomes"] == []
+    assert candidates["series"] == "x"
+    assert candidates["as_of"] == "2026-12-31T00:00:00Z"
     assert candidates["authority"] == {
         "human_prior_only": True,
         "support_upgrade_allowed": False,

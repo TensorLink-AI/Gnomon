@@ -1841,6 +1841,105 @@ def test_candidate_outcomes_require_repeated_lower_bound_uplift(tmp_path):
     assert summary["automation_upgrade_allowed"] is False
 
 
+def test_candidate_outcome_skill_is_series_local_and_as_of_safe(tmp_path):
+    store = TrackingStore(tmp_path / "tracking.db")
+    payload = select_publication(
+        publish_result(_result(), mode="best_effort", dossiers=[_dossier()]),
+        {
+            "selected_scenario_id": "prior-assisted-1",
+            "ranking": ["prior-assisted-1", "primary"],
+            "cited_claim_ids": ["claim-1"],
+            "counterevidence_claim_ids": [], "confidence": .6,
+            "rationale": "The cited promotion supports this path.",
+            "what_would_change_selection": "Resolved outcomes contradict it.",
+        })
+
+    def resolved(index, *, series, resolved_at):
+        forecast_id = f"{series}-{index}"
+        synthesis_id = record_publication(
+            store, project="p", forecast_id=forecast_id,
+            series=series, payload=payload)
+        store.resolve_temporal_synthesis(
+            project="p", forecast_id=forecast_id, series=series,
+            question_id="publication", synthesis_id=synthesis_id,
+            outcome={"points": [11.0, 12.0]}, resolved_at=resolved_at)
+
+    for index in range(8):
+        resolved(index, series="target", resolved_at="2026-01-01T00:00:00Z")
+    for index in range(8, 10):
+        resolved(index, series="target", resolved_at="2026-03-01T00:00:00Z")
+    for index in range(3):
+        resolved(index, series="unrelated", resolved_at="2026-01-01T00:00:00Z")
+
+    local, = store.candidate_outcome_summary(
+        "p", series="target", resolved_before="2026-02-01T00:00:00Z")
+    pooled, = store.candidate_outcome_summary(
+        "p", resolved_before="2026-02-01T00:00:00Z")
+    all_local, = store.candidate_outcome_summary("p", series="target")
+
+    assert local["resolved"] == 8
+    assert local["scope"] == {
+        "project": "p", "series": "target",
+        "resolved_before": "2026-02-01T00:00:00Z"}
+    assert pooled["resolved"] == 11
+    assert all_local["resolved"] == 10
+    with pytest.raises(ValueError, match="timezone-aware"):
+        store.candidate_outcome_summary(
+            "p", series="target", resolved_before="2026-02-01")
+
+
+def test_resolved_same_series_candidate_skill_can_guide_only_human_prior():
+    evidence = [{
+        "scenario_role": "model_authored",
+        "candidate_origin": "model_authored",
+        "resolved": 12, "wins": 10, "win_rate": 10 / 12,
+        "win_rate_wilson_95_lower": .55,
+        "mean_uplift_vs_primary": .2,
+        "graduated_for_human_prior": True,
+        "support_upgrade_allowed": False,
+        "automation_upgrade_allowed": False,
+        "scope": {
+            "project": "p", "series": "target",
+            "resolved_before": "2026-02-01T00:00:00Z"},
+    }]
+
+    best_effort = publish_result(
+        _result(), mode="best_effort", dossiers=[_dossier()],
+        candidate_outcome_evidence=evidence)
+    strict = publish_result(
+        _result(), mode="strict", dossiers=[_dossier()],
+        candidate_outcome_evidence=evidence)
+
+    assert best_effort["recommended_scenario_id"] == "prior-assisted-1"
+    assert best_effort["recommended_support"] == "prior_assisted"
+    assert best_effort["recommendation_authority"]["selection_method"] == \
+        "resolved_outcome_human_prior_policy"
+    assert best_effort["automation"]["eligible"] is False
+    assert best_effort["primary_forecast"] == _result()["forecast"]
+    assert best_effort["scenario_selection"]["outcome_skill"] == evidence[0]
+    assert verify_publication(best_effort)
+    assert strict["recommended_scenario_id"] == "primary"
+    assert strict["scenario_selection"] is None
+
+
+def test_unscoped_candidate_skill_cannot_change_recommendation():
+    evidence = [{
+        "scenario_role": "model_authored",
+        "candidate_origin": "model_authored",
+        "resolved": 100, "wins": 100, "win_rate": 1.0,
+        "graduated_for_human_prior": True,
+        "support_upgrade_allowed": False,
+        "automation_upgrade_allowed": False,
+        "scope": {"project": "p", "series": None,
+                  "resolved_before": None},
+    }]
+    payload = publish_result(
+        _result(), mode="best_effort", dossiers=[_dossier()],
+        candidate_outcome_evidence=evidence)
+
+    assert payload["recommended_scenario_id"] == "primary"
+
+
 def test_mode_invariants_hold_across_varied_bounded_paths():
     for offset in (-2.0, -0.25, 0.0, 0.25, 2.0):
         # Rebuild rather than tamper with the seal.

@@ -956,9 +956,13 @@ class TrackingStore:
 
     def temporal_synthesis_receipts(
         self, project: str, *, resolved: bool | None = None,
+        series: str | None = None, resolved_before: str | None = None,
     ) -> list[dict[str, Any]]:
         query = "SELECT * FROM temporal_synthesis_receipts WHERE project = ?"
         params: list[Any] = [project]
+        if series is not None:
+            query += " AND series = ?"
+            params.append(series)
         if resolved is not None:
             query += " AND resolved_at IS " + ("NOT NULL" if resolved else "NULL")
         query += " ORDER BY created_at, synthesis_id"
@@ -971,10 +975,34 @@ class TrackingStore:
                         "outcome_payload", "score_payload"):
                 item[key] = json.loads(item[key]) if item[key] else None
             decoded.append(item)
+        if resolved_before is not None:
+            try:
+                cutoff = datetime.fromisoformat(
+                    str(resolved_before).replace("Z", "+00:00"))
+            except ValueError as exc:
+                raise ValueError("resolved_before must be an ISO timestamp") from exc
+            if cutoff.tzinfo is None:
+                raise ValueError("resolved_before must be timezone-aware")
+            cutoff = cutoff.astimezone(timezone.utc)
+            filtered = []
+            for item in decoded:
+                raw = item.get("resolved_at")
+                if not raw:
+                    continue
+                try:
+                    resolved_at = datetime.fromisoformat(
+                        str(raw).replace("Z", "+00:00"))
+                except ValueError:
+                    continue
+                if (resolved_at.tzinfo is not None
+                        and resolved_at.astimezone(timezone.utc) <= cutoff):
+                    filtered.append(item)
+            decoded = filtered
         return decoded
 
     def candidate_outcome_summary(
         self, project: str, *, minimum_resolved: int = 8,
+        series: str | None = None, resolved_before: str | None = None,
     ) -> list[dict[str, Any]]:
         """Aggregate resolved candidate uplift without granting authority.
 
@@ -987,7 +1015,9 @@ class TrackingStore:
         if minimum_resolved < 1:
             raise ValueError("minimum_resolved must be positive")
         groups: dict[tuple[str, str], list[tuple[bool, float]]] = {}
-        for receipt in self.temporal_synthesis_receipts(project, resolved=True):
+        for receipt in self.temporal_synthesis_receipts(
+                project, resolved=True, series=series,
+                resolved_before=resolved_before):
             score = receipt.get("score_payload") or {}
             synthesis = receipt.get("synthesis_payload") or {}
             won = score.get("synthesis_won")
@@ -1021,6 +1051,11 @@ class TrackingStore:
                 "graduated_for_human_prior": graduated,
                 "support_upgrade_allowed": False,
                 "automation_upgrade_allowed": False,
+                "scope": {
+                    "project": project,
+                    "series": series,
+                    "resolved_before": resolved_before,
+                },
                 "rule": "resolved_numeric_paths_wilson95_and_positive_mean",
             })
         return summaries
