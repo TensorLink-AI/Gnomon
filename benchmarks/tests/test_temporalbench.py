@@ -69,6 +69,8 @@ def test_per_channel_summary_reports_paired_direction_and_significance():
     assert result["treatment_wins"] == 8
     assert result["treatment_losses"] == 0
     assert result["paired_sign_p_value"] < .01
+    assert result["paired_relative_improvement_median"] == .5
+    assert result["paired_relative_improvement_90pct_ci"] == [.5, .5]
 
 
 def test_forecast_target_map_preserves_panel_channel_identities():

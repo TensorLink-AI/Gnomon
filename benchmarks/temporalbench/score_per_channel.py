@@ -39,6 +39,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import random
 from collections import OrderedDict
 from pathlib import Path
 from statistics import median
@@ -172,6 +173,21 @@ def summarise_pairs(pairs: list[tuple[float, float]]) -> dict[str, object]:
     paired_baseline = {str(index): pair[0] for index, pair in enumerate(pairs)}
     paired_treatment = {str(index): pair[1] for index, pair in enumerate(pairs)}
     test = sign_test(paired_baseline, paired_treatment, lower_is_better=True)
+    relative = [
+        (baseline_value - treatment_value)
+        / max(abs(baseline_value), 1e-12)
+        for baseline_value, treatment_value in pairs
+    ]
+    # Fixed-seed paired bootstrap: resample the already-paired effects, never
+    # the two arms independently. The interval is descriptive on smoke shards
+    # and becomes a preregistered gate only at the larger denominator.
+    generator = random.Random(0x474E4F4D4F4E)
+    bootstrap = sorted(
+        median(generator.choices(relative, k=len(relative)))
+        for _ in range(2000)
+    ) if relative else []
+    lower_index = int(0.05 * (len(bootstrap) - 1)) if bootstrap else 0
+    upper_index = int(0.95 * (len(bootstrap) - 1)) if bootstrap else 0
     return {
         "n": len(pairs),
         "baseline_median": round(median(baseline), 4),
@@ -180,6 +196,11 @@ def summarise_pairs(pairs: list[tuple[float, float]]) -> dict[str, object]:
         "treatment_losses": test["treatment_losses"],
         "ties": test["ties"],
         "paired_sign_p_value": test["p_value"],
+        "paired_relative_improvement_median": (
+            round(median(relative), 6) if relative else None),
+        "paired_relative_improvement_90pct_ci": (
+            [round(bootstrap[lower_index], 6),
+             round(bootstrap[upper_index], 6)] if bootstrap else None),
         "near_constant_denominators_excluded": 0,
     }
 
