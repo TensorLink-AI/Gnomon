@@ -495,7 +495,7 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: comparable rows remain visible scenarios/counterevidence.
 #: Version 218: unresolved and atemporal dispositions expose claim_id as a
 #: first-class join key instead of requiring agents to parse context_id.
-MCP_CONTRACT_VERSION = 224
+MCP_CONTRACT_VERSION = 227
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -5453,6 +5453,15 @@ class _Run:
         if categorical_schedule is not None:
             from gnomon.context_intelligence import (
                 fit_categorical_state_candidate)
+            from gnomon.temporal import detect_season, infer_frequency
+            parsed_history_times = [datetime.fromisoformat(
+                str(value).replace("Z", "+00:00")) for value in self.timestamps]
+            categorical_frequency = infer_frequency(parsed_history_times)
+            detected_period, _, _ = detect_season(
+                self.values, categorical_frequency)
+            categorical_period = (
+                detected_period if detected_period >= 2
+                and len(self.values) >= 2 * detected_period else None)
             governed_categorical = fit_categorical_state_candidate(
                 self.values, categorical_schedule["history_states"],
                 categorical_schedule["future_states"],
@@ -5462,7 +5471,8 @@ class _Run:
                            preliminary_dossier.get("claims") or []],
                 hypothesis_id=(
                     "host-verified-categorical-state:"
-                    + str(categorical_schedule["name"])))
+                    + str(categorical_schedule["name"])),
+                seasonal_period=categorical_period)
         governed_reference_power = None
         reference_future_driver = None
         if reference_power_spec is not None:

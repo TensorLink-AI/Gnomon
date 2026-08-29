@@ -1998,7 +1998,12 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
                     "chronological_block_wins", "required_block_wins")
                 if historical.get(key) is not None
             }
+        retrospective_only = bool(
+            validation.get("retrospective_skill_not_admission") is True
+            or validation.get("relationship_known_at_each_origin") is False)
         summary["evidence_sufficiency"] = (
+            "retrospective_replay" if beats and points >= 8
+            and retrospective_only else
             "supported_replay" if beats and points >= 8 else
             "preliminary_short_replay" if beats else "not_admitted")
         if isinstance(skill, (int, float)) and isinstance(
@@ -2281,6 +2286,8 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
         selection_method = "out_of_sample_evidence_dominance"
     elif selected_role == "calibration_counterfactual":
         selection_method = "source_determined_calibration_best_effort"
+    elif selected_role == "governed_categorical_state_mapping":
+        selection_method = "retrospective_categorical_state_evidence"
     elif selected_role == "observation_counterfactual":
         replay = ((selected.get("effect") or {}).get(
             "conditional_replay") or {})
@@ -2347,6 +2354,11 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
             "copy of history before a fold-tested forecast was fit. This is "
             "a prior-assisted human recommendation and cannot authorize automation."
             if selection_method == "source_determined_calibration_best_effort" else
+            "A seasonal-phase-aware categorical mapping beat last value in "
+            "expanding-origin retrospective replay. The state schedule was "
+            "not known at those historical origins, so this remains a "
+            "human-review prior rather than historical admission."
+            if selection_method == "retrospective_categorical_state_evidence" else
             "A fixed source-supplied specification beat the baseline on "
             "per-origin historical observations. The specification itself "
             "was not known at those origins, so this is retrospective "

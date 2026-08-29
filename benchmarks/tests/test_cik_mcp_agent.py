@@ -2435,6 +2435,10 @@ def test_categorical_state_front_door_skips_llm_and_fits_governed_candidate(
         "human_selection_eligible"] is True
     assert extra["publication"]["recommended_scenario_id"].startswith(
         "prior-assisted-")
+    assert extra["publication"]["recommendation_authority"][
+        "selection_method"] == "retrospective_categorical_state_evidence"
+    assert "not known at those historical origins" in extra[
+        "publication"]["recommendation_authority"]["reason"]
     assert extra["publication"]["primary_forecast_unchanged"] is True
     assert extra["publication"]["automation"]["eligible"] is False
 

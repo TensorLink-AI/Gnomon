@@ -28,6 +28,14 @@
   cache identity, matching Gnomon's bounded compiler/selector calls. This
   prevents hidden provider reasoning from turning ten-path controls into
   unexplained case timeouts or contaminating comparisons across modes.
+- Fit categorical schedules relative to a fold-safe seasonal phase baseline
+  when two cycles are available, then learn shrunk state residuals. This keeps
+  cloud, staffing, open/closed, promotion, and maintenance effects from
+  flattening genuine periodic structure. Admission compares the contextual
+  candidate with the same phase-only estimator, so it cannot claim ordinary
+  seasonality as context uplift. Retrospective skill is now reported separately
+  from vintage admission, and selected categorical paths carry truthful
+  recommendation provenance.
 - Preserve structured comparable-entity range tables and explicit target
   descriptors through a deterministic, verbatim context front door. Analogue
   selection remains a sealed prior-assisted model judgment. Each sampled path

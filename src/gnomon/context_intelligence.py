@@ -2448,6 +2448,7 @@ def fit_categorical_state_candidate(
     claim_ids: list[str], hypothesis_id: str,
     minimum_overlap: int = 8, shrinkage: float = 2.0,
     replay_origin_eligible: list[bool] | None = None,
+    seasonal_period: int | None = None,
 ) -> dict[str, Any]:
     """Fit a fold-safe state-conditional level forecast.
 
@@ -2470,6 +2471,13 @@ def fit_categorical_state_candidate(
         raise ValueError("future states must match the forecast horizon")
     if shrinkage <= 0 or not math.isfinite(shrinkage):
         raise ValueError("categorical-state shrinkage must be positive")
+    if (seasonal_period is not None
+            and (isinstance(seasonal_period, bool)
+                 or not isinstance(seasonal_period, int)
+                 or seasonal_period < 2
+                 or len(target_history) < 2 * seasonal_period)):
+        raise ValueError(
+            "categorical-state seasonal period requires two complete cycles")
     target = [float(value) for value in target_history]
     states = [str(value).strip().casefold() for value in state_history]
     future = [str(value).strip().casefold() for value in future_states]
@@ -2477,7 +2485,8 @@ def fit_categorical_state_candidate(
             or any(not value for value in [*states, *future])):
         raise ValueError("categorical-state inputs must be finite and non-empty")
 
-    def estimate(values: list[float], labels: list[str], state: str) -> tuple[float, int]:
+    def estimate_level(values: list[float], labels: list[str],
+                       state: str) -> tuple[float, int]:
         global_level = statistics.median(values)
         matched = [value for value, label in zip(values, labels)
                    if label == state]
@@ -2487,16 +2496,63 @@ def fit_categorical_state_candidate(
         return (global_level + weight *
                 (statistics.median(matched) - global_level), len(matched))
 
+    def estimate(values: list[float], labels: list[str], state: str,
+                 phase: int) -> tuple[float, int]:
+        if seasonal_period is None:
+            return estimate_level(values, labels, state)
+        global_level = statistics.median(values)
+        by_phase: dict[int, list[float]] = {}
+        for index, value in enumerate(values):
+            by_phase.setdefault(index % seasonal_period, []).append(value)
+        phase_values = by_phase.get(phase, [])
+        phase_weight = len(phase_values) / (len(phase_values) + shrinkage)
+        phase_level = global_level + phase_weight * (
+            statistics.median(phase_values) - global_level
+            if phase_values else 0.0)
+        # State effects are learned as deviations from their contemporaneous
+        # seasonal phase, not as absolute levels. All terms are fit only from
+        # the prefix available at the replay origin.
+        residuals = []
+        for index, (value, label) in enumerate(zip(values, labels)):
+            same_phase = by_phase[index % seasonal_period]
+            local_weight = len(same_phase) / (len(same_phase) + shrinkage)
+            local_level = global_level + local_weight * (
+                statistics.median(same_phase) - global_level)
+            if label == state:
+                residuals.append(value - local_level)
+        if not residuals:
+            return phase_level, 0
+        state_weight = len(residuals) / (len(residuals) + shrinkage)
+        return phase_level + state_weight * statistics.median(residuals), len(
+            residuals)
+
+    def estimate_phase_only(values: list[float], phase: int) -> float:
+        """Fit the context-free comparator on the identical prefix."""
+        if seasonal_period is None:
+            return values[-1]
+        global_level = statistics.median(values)
+        phase_values = [value for index, value in enumerate(values)
+                        if index % seasonal_period == phase]
+        if not phase_values:
+            return global_level
+        weight = len(phase_values) / (len(phase_values) + shrinkage)
+        return global_level + weight * (
+            statistics.median(phase_values) - global_level)
+
     predictions, actuals, baselines = [], [], []
-    replay_start = max(4, minimum_overlap // 2)
+    replay_start = max(4, minimum_overlap // 2,
+                       seasonal_period or 0)
     for origin in range(replay_start, len(target)):
         if (replay_origin_eligible is not None
                 and not replay_origin_eligible[origin]):
             continue
-        prediction, _ = estimate(target[:origin], states[:origin], states[origin])
+        prediction, _ = estimate(
+            target[:origin], states[:origin], states[origin],
+            origin % seasonal_period if seasonal_period else 0)
         predictions.append(prediction)
         actuals.append(target[origin])
-        baselines.append(target[origin - 1])
+        baselines.append(estimate_phase_only(
+            target[:origin], origin % seasonal_period if seasonal_period else 0))
     candidate_mae = (statistics.mean(abs(a - b) for a, b in
                                      zip(actuals, predictions))
                      if actuals else math.inf)
@@ -2506,7 +2562,9 @@ def fit_categorical_state_candidate(
     skill = (1 - candidate_mae / max(baseline_mae, 1e-12)
              if math.isfinite(candidate_mae) and math.isfinite(baseline_mae)
              else -math.inf)
-    fitted = [estimate(target, states, state)[0] for state in states]
+    fitted = [estimate(target, states, state,
+                       index % seasonal_period if seasonal_period else 0)[0]
+              for index, state in enumerate(states)]
     residuals = [actual - prediction for actual, prediction in zip(target, fitted)]
     center = statistics.median(residuals)
     mad = statistics.median(abs(value - center) for value in residuals)
@@ -2518,8 +2576,11 @@ def fit_categorical_state_candidate(
     evidence_weight = min(1.0, replay_points / 8.0)
     baseline_point = target[-1]
     rows = []
-    for source, state in zip(primary, future):
-        raw_point, count = estimate(target, states, state)
+    for offset, (source, state) in enumerate(zip(primary, future)):
+        raw_point, count = estimate(
+            target, states, state,
+            (len(target) + offset) % seasonal_period
+            if seasonal_period else 0)
         point = baseline_point + evidence_weight * (raw_point - baseline_point)
         sparse_penalty = scale if count == 0 else base_width * (1 + 2 / count)
         half_width = max(base_width, sparse_penalty, abs(raw_point - point))
@@ -2532,9 +2593,10 @@ def fit_categorical_state_candidate(
                            for state in sorted(set(future))}
     states_supported = all(count >= 2 for count in future_state_counts.values())
     availability_proven = replay_origin_eligible is not None
-    retrospective_human_eligible = bool(
+    retrospective_beats_baseline = bool(
         replay_points >= 3 and states_supported and skill >= .02)
-    eligible = bool(availability_proven and retrospective_human_eligible)
+    retrospective_human_eligible = retrospective_beats_baseline
+    eligible = bool(availability_proven and retrospective_beats_baseline)
     return {
         "hypothesis_id": hypothesis_id,
         "kind": "fitted_categorical_state_mapping",
@@ -2548,15 +2610,21 @@ def fit_categorical_state_candidate(
             "shrinkage."),
         "provenance_class": "governed_categorical_state_mapping",
         "validation": {
-            "scheme": "expanding_origin_state_conditional_level",
-            "mapping": "shrunk_state_median",
+            "scheme": ("expanding_origin_phase_residual_state_mapping"
+                       if seasonal_period else
+                       "expanding_origin_state_conditional_level"),
+            "mapping": ("seasonal_phase_plus_shrunk_state_residual"
+                        if seasonal_period else "shrunk_state_median"),
+            "seasonal_period": seasonal_period,
             "overlap_points": len(target),
             "validation_points": replay_points,
             "candidate_mae": candidate_mae,
             "baseline_mae": baseline_mae,
             "skill": skill,
-            "beats_baseline": eligible,
-            "baseline": "last_value",
+            "beats_baseline": retrospective_beats_baseline,
+            "historically_admitted": eligible,
+            "baseline": ("seasonal_phase_without_state"
+                         if seasonal_period else "last_value"),
             "future_state_counts": future_state_counts,
             "all_future_states_observed_twice": states_supported,
             "relationship_known_at_each_origin": False,
@@ -2581,6 +2649,7 @@ def fit_categorical_state_candidate(
             "baseline_point": baseline_point,
             "publication_evidence_weight": evidence_weight,
             "shrinkage": shrinkage,
+            "seasonal_period": seasonal_period,
         },
     }
 

@@ -467,6 +467,55 @@ def test_categorical_state_mapping_replays_levels_and_stays_manual():
     assert candidate["primary_forecast_unchanged"] is True
 
 
+def test_categorical_state_mapping_preserves_phase_while_learning_state_effect():
+    period = 8
+    states = ["open" if index % 3 else "closed" for index in range(64)]
+    phase = [40.0 + 20.0 * math.sin(2 * math.pi * index / period)
+             for index in range(64)]
+    target = [value + (12.0 if state == "open" else -12.0)
+              for value, state in zip(phase, states)]
+    primary = [{"timestamp": _stamp(64 + index)} for index in range(period)]
+
+    candidate = fit_categorical_state_candidate(
+        target, states,
+        ["closed", "open", "open", "closed", "open", "open", "closed", "open"],
+        primary=primary, claim_ids=["schedule"], hypothesis_id="phase-state",
+        replay_origin_eligible=[True] * len(target), seasonal_period=period)
+
+    assert candidate["validation"]["mapping"] == (
+        "seasonal_phase_plus_shrunk_state_residual")
+    assert candidate["validation"]["seasonal_period"] == period
+    assert candidate["validation"]["beats_baseline"] is True
+    assert candidate["validation"]["historically_admitted"] is True
+    points = [row["q50"] for row in candidate["forecast"]]
+    assert max(points) - min(points) > 20
+    assert candidate["automation_eligible"] is False
+
+
+def test_categorical_phase_mapping_requires_two_complete_cycles():
+    with pytest.raises(ValueError, match="two complete cycles"):
+        fit_categorical_state_candidate(
+            [float(index) for index in range(12)], ["a", "b"] * 6,
+            ["a"], primary=[{"timestamp": "future"}], claim_ids=[],
+            hypothesis_id="short", seasonal_period=8)
+
+
+def test_categorical_retrospective_skill_is_not_vintage_admission():
+    states = ["open", "closed"] * 16
+    target = [20.0 if state == "open" else 5.0 for state in states]
+    candidate = fit_categorical_state_candidate(
+        target, states, ["open", "closed"],
+        primary=[{"timestamp": "f1"}, {"timestamp": "f2"}],
+        claim_ids=["schedule"], hypothesis_id="retrospective")
+
+    assert candidate["validation"]["beats_baseline"] is True
+    assert candidate["validation"]["historically_admitted"] is False
+    assert candidate["validation"][
+        "retrospective_skill_not_admission"] is True
+    assert candidate["human_selection_eligible"] is True
+    assert candidate["selection_eligible"] is False
+
+
 def test_categorical_state_mapping_rejects_unseen_and_most_null_schedules():
     primary = [{"timestamp": _stamp(20 + index)} for index in range(2)]
     unseen = fit_categorical_state_candidate(
@@ -492,6 +541,51 @@ def test_categorical_state_mapping_rejects_unseen_and_most_null_schedules():
     assert admitted <= 10
 
 
+def test_phase_aware_categorical_mapping_rejects_irrelevant_states():
+    """Seasonality must not make random state labels look predictive."""
+    period = 8
+    primary = [{"timestamp": _stamp(80 + index)} for index in range(period)]
+    admitted = 0
+    for seed in range(100):
+        generator = random.Random(seed + 10_000)
+        states = [generator.choice(["a", "b"]) for _ in range(80)]
+        target = [
+            40.0 + 15.0 * math.sin(2 * math.pi * index / period)
+            + generator.gauss(0, 2.0)
+            for index in range(80)
+        ]
+        candidate = fit_categorical_state_candidate(
+            target, states, ["a", "b"] * (period // 2), primary=primary,
+            claim_ids=[], hypothesis_id=f"phase-null-{seed}",
+            replay_origin_eligible=[True] * len(target),
+            seasonal_period=period)
+        admitted += int(candidate["selection_eligible"])
+    assert admitted <= 10
+
+
+def test_phase_aware_categorical_mapping_recovers_effect_across_seeds():
+    period = 8
+    primary = [{"timestamp": _stamp(80 + index)} for index in range(period)]
+    admitted = 0
+    for seed in range(30):
+        generator = random.Random(seed + 20_000)
+        states = [generator.choice(["open", "closed"]) for _ in range(80)]
+        target = [
+            40.0 + 15.0 * math.sin(2 * math.pi * index / period)
+            + (8.0 if state == "open" else -8.0)
+            + generator.gauss(0, 2.0)
+            for index, state in enumerate(states)
+        ]
+        candidate = fit_categorical_state_candidate(
+            target, states, ["open", "closed"] * (period // 2),
+            primary=primary, claim_ids=["schedule"],
+            hypothesis_id=f"phase-effect-{seed}",
+            replay_origin_eligible=[True] * len(target),
+            seasonal_period=period)
+        admitted += int(candidate["selection_eligible"])
+    assert admitted >= 27
+
+
 def test_late_known_state_schedule_cannot_turn_fit_into_admission():
     states = ["open", "closed"] * 12
     target = [20.0 if state == "open" else 5.0 for state in states]
@@ -501,7 +595,8 @@ def test_late_known_state_schedule_cannot_turn_fit_into_admission():
         claim_ids=["late-schedule"], hypothesis_id="late")
     validation = candidate["validation"]
     assert validation["skill"] > .5
-    assert validation["beats_baseline"] is False
+    assert validation["beats_baseline"] is True
+    assert validation["historically_admitted"] is False
     assert validation["validation_interpretation"] == (
         "retrospective_unvintaged_state_fit")
     assert candidate["selection_eligible"] is False
