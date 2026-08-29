@@ -20,6 +20,14 @@
   bounded repair, so an invalid first response cannot leave a nominal but
   unusable retry. Ordinary and evidence-dominant forecasts skip this lane; its
   total latency remains bounded and configurable.
+- Apply the same bounded-selection rule to model-authored fallbacks after a
+  categorical-state mapping fails admission as after a structured companion
+  mapping fails. Equivalent context wording can no longer change whether an
+  unvalidated fallback auto-promotes merely by taking a different parser lane.
+- Make CiK direct-control reasoning mode explicit (`none`) and part of its
+  cache identity, matching Gnomon's bounded compiler/selector calls. This
+  prevents hidden provider reasoning from turning ten-path controls into
+  unexplained case timeouts or contaminating comparisons across modes.
 - Preserve structured comparable-entity range tables and explicit target
   descriptors through a deterministic, verbatim context front door. Analogue
   selection remains a sealed prior-assisted model judgment. Each sampled path

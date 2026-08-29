@@ -495,7 +495,7 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: comparable rows remain visible scenarios/counterevidence.
 #: Version 218: unresolved and atemporal dispositions expose claim_id as a
 #: first-class join key instead of requiring agents to parse context_id.
-MCP_CONTRACT_VERSION = 223
+MCP_CONTRACT_VERSION = 224
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -6009,7 +6009,9 @@ class _Run:
                         sample_paths=model_candidate_sample_paths,
                         governed_fallback=(
                             "structured_companion_mapping_not_admitted"
-                            if companion_prior_needed else None),
+                            if companion_prior_needed else
+                            "categorical_state_mapping_not_admitted"
+                            if categorical_prior_needed else None),
                         conditional_windows=([{
                             "start": str(event.effective_start),
                             "end": str(event.effective_end),

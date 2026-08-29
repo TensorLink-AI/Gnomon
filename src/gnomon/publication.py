@@ -1463,8 +1463,9 @@ def build_scenario_catalog(result: dict[str, Any], *,
                      # automation authority.  Arbitrary one-shot candidates do
                      # not qualify for this lane.
                      or (sampled_prior
-                         and elicitation.get("governed_fallback") ==
-                         "structured_companion_mapping_not_admitted"
+                         and str(elicitation.get(
+                             "governed_fallback") or "").endswith(
+                                 "_mapping_not_admitted")
                          and candidate_critique.get("status") == "accepted"
                          and not governed_by_transformation)
                      or (candidate_origin == "model_authored"
@@ -1807,9 +1808,8 @@ def best_effort_prior_selection(
     # counterevidence.  If selection is unavailable or rejected, publication
     # remains on the immutable primary.  Existing single-prior best-effort
     # behavior remains deterministic for simpler context lanes.
-    if any((((item.get("effect") or {}).get("elicitation") or {}).get(
-            "governed_fallback") ==
-            "structured_companion_mapping_not_admitted")
+    if any(str((((item.get("effect") or {}).get("elicitation") or {}).get(
+            "governed_fallback") or "")).endswith("_mapping_not_admitted")
            for item in scenarios):
         return None
     sampled = []

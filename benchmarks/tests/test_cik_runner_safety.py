@@ -1,6 +1,8 @@
 import json
 from types import SimpleNamespace
 
+import pytest
+
 from benchmarks.cik.run_cik import (
     _load_checkpoint, _task_information_profile, build_parser,
 )
@@ -57,3 +59,15 @@ def test_held_out_seed_range_is_explicit_in_cli():
         "--output-dir", "/tmp/out",
     ])
     assert list(range(args.seed_start, args.seed_start + args.seeds)) == [6, 7]
+
+
+def test_direct_control_has_explicit_cache_identified_reasoning_mode():
+    pytest.importorskip("cik_benchmark")
+    from benchmarks.cik.openrouter_direct_prompt import OpenRouterDirectPrompt
+
+    control = OpenRouterDirectPrompt(
+        "provider/model", api_key="test", base_url="https://example.test/v1")
+
+    assert control.reasoning_effort == "none"
+    assert control._client.reasoning_effort == "none"
+    assert "reasoning=none" in control.cache_name

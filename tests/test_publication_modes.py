@@ -1212,6 +1212,26 @@ def test_sampled_outliers_remain_diagnostics_not_published_tail_width():
     assert strict["recommended_scenario_id"] == "primary"
 
 
+def test_failed_categorical_mapping_fallback_requires_bounded_selection():
+    dossier = attach_host_candidate_elicitation(
+        _dossier(), requested_paths=3, accepted_paths=3,
+        aggregation="linear_empirical_marginal_q10_q50_q90",
+        temperature=1.0, stability=_stable_sampling(3),
+        sample_paths=[[10.8, 11.8], [11.0, 12.0], [11.2, 12.2]],
+        governed_fallback="categorical_state_mapping_not_admitted")
+    scenarios, _ = build_scenario_catalog(_result(), dossiers=[dossier])
+
+    assert best_effort_prior_selection(
+        scenarios=scenarios, dossiers=[dossier]) is None
+    publication = publish_result(
+        _result(), mode="best_effort", dossiers=[dossier])
+    assert publication["recommended_scenario_id"] == "primary"
+    contract = scenario_selection_contract(
+        scenarios=scenarios, dossiers=[dossier],
+        allow_prior_assisted_choice=True)
+    assert contract["selection_required"] is True
+
+
 def test_selected_prior_marks_only_its_cited_claims_used():
     dossier = _dossier()
     dossier["claims"].append({

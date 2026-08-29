@@ -2558,7 +2558,8 @@ def attach_host_candidate_elicitation(
                             "concurrent_single_sample_requests"}:
         raise ValueError("candidate elicitation request mode is unsupported")
     if governed_fallback not in {
-            None, "structured_companion_mapping_not_admitted"}:
+            None, "structured_companion_mapping_not_admitted",
+            "categorical_state_mapping_not_admitted"}:
         raise ValueError("candidate elicitation governed fallback is unsupported")
     clean_windows = []
     candidate_timestamps = [str(row.get("timestamp")) for row in
