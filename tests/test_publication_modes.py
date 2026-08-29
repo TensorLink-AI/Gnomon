@@ -1106,6 +1106,25 @@ def test_sampled_prior_does_not_auto_override_competing_sensitivity():
     assert publication["recommended_scenario_id"] == "primary"
 
 
+def test_numeric_history_only_sampled_prior_cannot_auto_override_primary():
+    scenarios = [
+        {"scenario_id": "primary", "role": "immutable_primary",
+         "human_selection_eligible": True, "claim_ids": []},
+        {"scenario_id": "numeric-only", "role": "model_authored",
+         "human_selection_eligible": True, "claim_ids": [],
+         "effect": {
+             "elicitation": {
+                 "host_observed": True, "historical_skill_evidence": False,
+                 "automation_eligible": False, "accepted_paths": 5},
+             "elicitation_sufficiency": {
+                 "eligible_for_human_recommendation": True},
+         }},
+    ]
+
+    assert best_effort_prior_selection(
+        scenarios=scenarios, dossiers=[]) is None
+
+
 def test_under_sampled_prior_remains_visible_but_not_human_selectable():
     dossier = _dossier()
     dossier["forecast_candidate"]["elicitation"] = {

@@ -1,0 +1,37 @@
+{
+  "release": "2026-08-29-recallbench-coldstart",
+  "benchmark": "recallbench",
+  "status": "complete",
+  "claim_scope": "cold-start numeric-history-only model forecast admission",
+  "evaluated_commit": "5cdb2c9eacde396ac65deac7184d31063784f7ae",
+  "harness_sha256": "aab64057b338ff1b222bfbd61da763d2659f8fd12d8b2e626a87c0e04a15a9a9",
+  "dataset_identity": "recallbench-generator-0.1:seed=20260827:cases=120:corpus=63d5cc69c541",
+  "configuration_identity": "DeepSeek V4 Flash 0731 via Engy; reasoning_effort=none; temperature=0; 120 matched raw/anonymized cases",
+  "artifacts": {
+    "summary": {
+      "path": "results/recallbench-coldstart-deepseek-120-20260829/summary.json",
+      "sha256": "8e9807a58b78ec5aa7fc0439fdcb36105d88a4733ccf94ab20ea68d68eb02203"
+    },
+    "paired_rows": {
+      "path": "results/recallbench-coldstart-deepseek-120-20260829/rows.jsonl",
+      "sha256": "ce7f73fd557b62d330ff9a46d1739dd1cb86afcc6b8937359b60aed9053b0ef7",
+      "rows": 240
+    }
+  },
+  "result": {
+    "raw_model_mean_mase": 2.396851,
+    "raw_gnomon_mean_mase": 2.598859,
+    "anonymized_model_mean_mase": 2.97759,
+    "anonymized_gnomon_mean_mase": 2.5984,
+    "memorization_delta": 0.580738,
+    "memorization_exact_sign_p": 0.000005732969902850976,
+    "anonymized_model_minus_gnomon_delta": -0.379189,
+    "anonymized_skill_exact_sign_p": 0.0007995844433963207
+  },
+  "product_decision": "A cold-start model forecast derived only from numeric history or sampled-path agreement remains visible and outcome-scored, but cannot replace the primary recommendation. Verified future context and later same-series graduated outcome evidence remain separate eligible lanes.",
+  "limitations": [
+    "This result tests numeric-history-only cold-start forecasts, not context-conditioned candidates.",
+    "Histories may overlap within a source series, while realized futures are non-overlapping; the exact per-series counts are retained in the summary.",
+    "The result supports an admission boundary, not a universal claim that Gnomon forecasts outperform every language model or series."
+  ]
+}

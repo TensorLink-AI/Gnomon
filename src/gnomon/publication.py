@@ -1898,6 +1898,14 @@ def best_effort_prior_selection(
            for item in scenarios):
         return None
     selected_claims = {str(item) for item in selected.get("claim_ids") or []}
+    if not selected_claims:
+        # RecallBench shows that a hosted model's apparent edge on named public
+        # numeric histories can disappear under affine anonymization. Sampled
+        # path agreement is therefore insufficient cold-start authority by
+        # itself. A model forecast with no verified, future-relevant context
+        # remains visible for outcome scoring but cannot become the default
+        # human recommendation until same-series outcomes graduate it.
+        return None
     externally_matched = any(
         str(claim.get("claim_id")) in selected_claims
         and str(claim.get("mechanism") or "").endswith(

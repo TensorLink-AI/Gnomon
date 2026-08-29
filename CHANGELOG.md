@@ -59,6 +59,12 @@
   replacement-safe. A zero-call resume no longer erases the original request,
   token, or cost totals, and rerunning without `--resume` cannot append a
   duplicate scored sample to an existing `rows.jsonl`.
+- Require a cold-start sampled model prior to cite verified context before it
+  can become the default `best_effort` recommendation. Numeric-history-only
+  forecasts and path coherence remain visible for outcome scoring but cannot
+  outrank the primary without later same-series outcome skill. This applies
+  RecallBench's leakage-controlled finding without disabling genuinely
+  context-conditioned candidates.
 - Use the existing bounded four/five-path cap on the first model-prior
   elicitation rather than estimating a human-facing median from three draws.
   Requests remain concurrent; sampled spread remains a coherence diagnostic,

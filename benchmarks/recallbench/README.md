@@ -53,3 +53,9 @@ resumable rows stamped with the full dataset identity and answering
 model, one failed API call fails loudly after saving completed rows,
 malformed forecasts are recorded rather than crashing, and API usage
 and cost land in `summary.json`.
+
+The product boundary is deliberately narrow: failure on the anonymized arm
+blocks automatic promotion of a model forecast derived only from numeric
+history or sampled-path agreement. It does not reject a separately sealed
+candidate conditioned on verified future context, or a candidate class that
+later earns same-series resolved-outcome evidence.

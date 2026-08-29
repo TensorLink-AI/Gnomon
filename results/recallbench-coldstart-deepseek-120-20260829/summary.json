@@ -1,0 +1,112 @@
+{
+  "cases": 120,
+  "design": {
+    "gnomon_reference_is_production_forecast": true,
+    "held_out_future_absent_from_prompts_verified": true,
+    "identical_window_in_both_arms": true,
+    "matched": true,
+    "metric_affine_invariant": "mase; cross-arm naive drift checked pre-flight",
+    "truth_is_realized_held_out_future": true
+  },
+  "horizon": 12,
+  "metrics": {
+    "anon": {
+      "gnomon_mean_mase": 2.5984,
+      "invalid_rate": 0,
+      "last_value_mean_mase": 2.853886,
+      "model_mean_mase": 2.97759,
+      "model_scored": 120,
+      "seasonal_naive_mean_mase": 2.551002
+    },
+    "raw": {
+      "gnomon_mean_mase": 2.598859,
+      "invalid_rate": 0,
+      "last_value_mean_mase": 2.853889,
+      "model_mean_mase": 2.396851,
+      "model_scored": 120,
+      "seasonal_naive_mean_mase": 2.551011
+    }
+  },
+  "model": "deepseek-v4-flash-0731",
+  "provenance": {
+    "cases": {
+      "anonymization": "per_case_seeded_positive_affine_transform;identical_window_in_both_arms;mase_is_affine_invariant",
+      "attempts": 160,
+      "cases_per_series": {
+        "co2_weekly_mauna_loa": 18,
+        "elnino_sst_monthly": 17,
+        "pedestrian_counts_daily": 20,
+        "retail_sales_monthly": 9,
+        "sensor_temps_5min": 22,
+        "wiki_traffic_daily_log": 34
+      },
+      "corpus_series": [
+        "co2_weekly_mauna_loa",
+        "elnino_sst_monthly",
+        "pedestrian_counts_daily",
+        "retail_sales_monthly",
+        "sensor_temps_5min",
+        "wiki_traffic_daily_log"
+      ],
+      "corpus_sha256": "63d5cc69c541f23d1fea43186526c47348468770f3935e767ba26276f41c0071",
+      "excluded_unsupported_cadence": [
+        "nile_annual_flow",
+        "sunspots_yearly",
+        "us_cpi_quarterly",
+        "us_m1_quarterly",
+        "us_realgdp_quarterly",
+        "us_unemployment_quarterly"
+      ],
+      "independence": "realized_futures_non_overlapping_within_series;histories_may_overlap;labels_can_still_comove_through_shared_regimes_see_cases_per_series",
+      "skipped": {
+        "degenerate": 0,
+        "duplicate": 1,
+        "future_overlap": 39,
+        "too_short": 0
+      }
+    },
+    "dataset_identity": "recallbench-generator-0.1:seed=20260827:cases=120:corpus=63d5cc69c541",
+    "evaluated_commit": "5cdb2c9eacde396ac65deac7184d31063784f7ae",
+    "gnomon_abstentions": 0,
+    "harness_sha256": "aab64057b338ff1b222bfbd61da763d2659f8fd12d8b2e626a87c0e04a15a9a9",
+    "naive_mase_max_cross_arm_drift": 0.000639
+  },
+  "reasoning_effort": "none",
+  "schema_version": "0.1",
+  "seed": 20260827,
+  "temperature": 0,
+  "usage": {
+    "base_url": "https://api.engy.ai/v1",
+    "completion_tokens": 13563,
+    "cost_usd": 0.0,
+    "model": "deepseek-v4-flash-0731",
+    "prompt_tokens": 94680,
+    "requests": 240,
+    "transport_attempts": 240,
+    "truncation_escalations": 0
+  },
+  "verdicts": {
+    "memorization_delta": {
+      "exact_sign_p": 5.732969902850976e-06,
+      "mean_delta": 0.580738,
+      "negative": 35,
+      "pairs": 120,
+      "positive": 85
+    },
+    "model_vs_gnomon_raw_reference": {
+      "exact_sign_p": 0.09852362740225742,
+      "mean_delta": 0.202007,
+      "negative": 69,
+      "pairs": 120,
+      "positive": 50
+    },
+    "reading": "memorization_delta near zero means the model's raw-arm edge is transferable forecasting skill; large and positive means it was recall of these public series and will not transfer to private client data. skill_vs_gnomon_anonymized positive (engine MASE above model MASE with recall defeated) is the only reading that justifies a governed LLM-forecast candidate lane.",
+    "skill_vs_gnomon_anonymized": {
+      "exact_sign_p": 0.0007995844433963207,
+      "mean_delta": -0.379189,
+      "negative": 77,
+      "pairs": 120,
+      "positive": 40
+    }
+  }
+}
