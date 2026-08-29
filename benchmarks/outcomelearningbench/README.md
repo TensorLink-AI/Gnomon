@@ -23,3 +23,8 @@ every primary/automation invariant holds. Multiple same-class candidates from
 one forecast origin are conservatively collapsed and cannot inflate the
 evidence count. Skill earned by one compiler/model identity cannot transfer to
 a replacement proposer without that proposer earning its own outcomes.
+
+A 20-seed moderate-noise sweep checks that useful priors graduate across at
+least 80% of independent streams while a matched no-skill placebo falsely
+graduates in at most 10%. The raw per-seed streams are retained in the summary;
+the aggregate is never substituted for the chronological records.

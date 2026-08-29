@@ -48,6 +48,10 @@
   OutcomeLearningBench retains stable-series uplift while reducing reversal
   regret versus the full-prior counterfactual; the compromise remains
   `prior_assisted`, human-reviewed, and categorically non-automatable.
+- Extend OutcomeLearningBench with 20 seeded moderate-noise and no-skill
+  streams. The summary reports promotion and false-promotion rates while raw
+  chronological records live in a separate JSONL artifact, keeping the
+  decision report compact without discarding audit evidence.
 - Use the existing bounded four/five-path cap on the first model-prior
   elicitation rather than estimating a human-facing median from three draws.
   Requests remain concurrent; sampled spread remains a coherence diagnostic,

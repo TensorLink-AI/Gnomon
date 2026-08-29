@@ -23,3 +23,6 @@ def test_prequential_outcome_learning_is_scoped_and_safe(tmp_path: Path):
     assert result["gates"]["different_proposer_history_not_used"] is True
     assert result["gates"][
         "shrinkage_reduces_reversal_regret_vs_full_prior"] is True
+    assert result["gates"][
+        "moderate_signal_promoted_in_at_least_80pct_streams"] is True
+    assert result["gates"]["no_skill_false_promotion_at_most_10pct"] is True

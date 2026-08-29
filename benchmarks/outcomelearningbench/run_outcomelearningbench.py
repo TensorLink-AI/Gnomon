@@ -13,6 +13,7 @@ import argparse
 from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
+import random
 import tempfile
 from typing import Any
 
@@ -200,6 +201,48 @@ def run_suite(database: Path) -> dict[str, Any]:
         candidate_truth=[(110.0, 90.0)] * 4,
         start=start + timedelta(days=40), compiler_model="model-b")
 
+    stress_runs = []
+    for seed in range(20):
+        rng = random.Random(seed)
+        beneficial_pairs = [
+            (105.0 + rng.gauss(0, 1.0), 105.0 + rng.gauss(0, 1.5))
+            for _ in range(16)]
+        placebo_pairs = [
+            (100.0 + rng.gauss(0, 2.0), 100.0 + rng.gauss(0, 2.0))
+            for _ in range(16)]
+        beneficial = run_stream(
+            TrackingStore(database.with_name(f"stress-beneficial-{seed}.db")),
+            project=f"stress-beneficial-{seed}", series="demand",
+            candidate_truth=beneficial_pairs, start=start)
+        placebo = run_stream(
+            TrackingStore(database.with_name(f"stress-placebo-{seed}.db")),
+            project=f"stress-placebo-{seed}", series="demand",
+            candidate_truth=placebo_pairs, start=start)
+        stress_runs.append({"seed": seed, "beneficial": beneficial,
+                            "placebo": placebo})
+    stress = {
+        "seeds": len(stress_runs),
+        "beneficial_promoted": sum(
+            item["beneficial"]["outcome_informed_selections"] > 0
+            for item in stress_runs),
+        "placebo_promoted": sum(
+            item["placebo"]["outcome_informed_selections"] > 0
+            for item in stress_runs),
+        "beneficial_mean_primary_wape": sum(
+            item["beneficial"]["mean_primary_wape"]
+            for item in stress_runs) / len(stress_runs),
+        "beneficial_mean_selected_wape": sum(
+            item["beneficial"]["mean_selected_wape"]
+            for item in stress_runs) / len(stress_runs),
+        "placebo_mean_primary_wape": sum(
+            item["placebo"]["mean_primary_wape"]
+            for item in stress_runs) / len(stress_runs),
+        "placebo_mean_selected_wape": sum(
+            item["placebo"]["mean_selected_wape"]
+            for item in stress_runs) / len(stress_runs),
+        "raw": stress_runs,
+    }
+
     result = {
         "benchmark": "outcome-learning-prequential",
         "schema_version": "0.1",
@@ -210,6 +253,7 @@ def run_suite(database: Path) -> dict[str, Any]:
             "delayed_outcomes": delayed,
             "unrelated_series_contamination": contamination,
             "proposer_identity_change": proposer_change,
+            "moderate_noise_stress": stress,
         },
     }
     result["gates"] = {
@@ -222,6 +266,13 @@ def run_suite(database: Path) -> dict[str, Any]:
             "outcome_informed_selections"] == 0,
         "different_proposer_history_not_used": proposer_change[
             "outcome_informed_selections"] == 0,
+        "moderate_signal_promoted_in_at_least_80pct_streams": (
+            stress["beneficial_promoted"] >= .8 * stress["seeds"]),
+        "moderate_signal_policy_improves_primary": (
+            stress["beneficial_mean_selected_wape"] <
+            stress["beneficial_mean_primary_wape"]),
+        "no_skill_false_promotion_at_most_10pct": (
+            stress["placebo_promoted"] <= .1 * stress["seeds"]),
         "reversal_demoted_within_two_resolved_losses": (
             reversal["first_demoted_after_regime_change"] is not None
             and reversal["first_demoted_after_regime_change"] <= 11
@@ -249,10 +300,23 @@ def main() -> int:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="gnomon-outcome-learning-") as temp:
         result = run_suite(Path(temp) / "registry.db")
+    # Keep the decision artifact compact while retaining every chronological
+    # stress stream in a line-addressable raw file.
+    persisted = json.loads(json.dumps(result))
+    stress = persisted["families"]["moderate_noise_stress"]
+    raw = stress.pop("raw")
+    raw_path = args.output_dir / "moderate-noise-streams.jsonl"
+    raw_path.write_text("".join(
+        json.dumps(item, sort_keys=True) + "\n" for item in raw),
+        encoding="utf-8")
+    persisted["artifacts"] = {
+        "moderate_noise_streams": raw_path.name,
+        "raw_streams": len(raw),
+    }
     path = args.output_dir / "summary.json"
-    path.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n",
+    path.write_text(json.dumps(persisted, indent=2, sort_keys=True) + "\n",
                     encoding="utf-8")
-    print(json.dumps(result, indent=2, sort_keys=True))
+    print(json.dumps(persisted, indent=2, sort_keys=True))
     return 0 if result["passed"] else 2
 
 
