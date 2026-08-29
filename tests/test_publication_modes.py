@@ -75,7 +75,7 @@ def test_replayed_reference_law_answers_best_effort_conditional_question():
     assert dominant_scenario_id(scenarios) == "law"
 
 
-def _dossier():
+def _dossier(compiler_model="test-model"):
     raw = {
         "claims": [{"source_span": "promotion begins tomorrow",
                     "relation": "supports_increase",
@@ -89,7 +89,7 @@ def _dossier():
     return validate_temporal_dossier(
         raw, context_text="promotion begins tomorrow",
         cutoff="2026-01-02T00:00:00+00:00", future_timestamps=TIMES,
-        history=[8, 9, 10], compiler_model="test-model")[0]
+        history=[8, 9, 10], compiler_model=compiler_model)[0]
 
 
 def test_strict_never_promotes_prior_assisted_candidate():
@@ -1892,6 +1892,7 @@ def test_resolved_same_series_candidate_skill_can_guide_only_human_prior():
     evidence = [{
         "scenario_role": "model_authored",
         "candidate_origin": "model_authored",
+        "candidate_proposer": "test-model",
         "resolved": 12, "wins": 10, "win_rate": 10 / 12,
         "win_rate_wilson_95_lower": .55,
         "mean_uplift_vs_primary": .2,
@@ -1926,6 +1927,7 @@ def test_unscoped_candidate_skill_cannot_change_recommendation():
     evidence = [{
         "scenario_role": "model_authored",
         "candidate_origin": "model_authored",
+        "candidate_proposer": "test-model",
         "resolved": 100, "wins": 100, "win_rate": 1.0,
         "graduated_for_human_prior": True,
         "support_upgrade_allowed": False,
@@ -1938,6 +1940,39 @@ def test_unscoped_candidate_skill_cannot_change_recommendation():
         candidate_outcome_evidence=evidence)
 
     assert payload["recommended_scenario_id"] == "primary"
+
+
+def test_candidate_skill_counts_forecast_origins_not_correlated_variants(
+        tmp_path):
+    store = TrackingStore(tmp_path / "tracking.db")
+    canonical = {"value": "primary", "forecast": [
+        {"q50": 10.0}, {"q50": 10.0}]}
+    for synthesis_id, points in (("good", [11.0, 11.0]),
+                                 ("bad", [20.0, 20.0])):
+        store.record_temporal_synthesis(
+            project="p", forecast_id="same-origin", series="x",
+            question_id="publication_candidate", synthesis_id=synthesis_id,
+            canonical=canonical,
+            synthesis={
+                "label": "conditional_answer", "value": synthesis_id,
+                "forecast": [{"q50": value} for value in points],
+                "scenario_role": "model_authored",
+                "candidate_origin": "model_authored",
+                "candidate_proposer": "same-model",
+                "primary_forecast_unchanged": True,
+            }, evidence_refs=[synthesis_id])
+        store.resolve_temporal_synthesis(
+            project="p", forecast_id="same-origin", series="x",
+            question_id="publication_candidate", synthesis_id=synthesis_id,
+            outcome={"points": [11.0, 11.0]},
+            resolved_at="2026-01-01T00:00:00Z")
+
+    summary, = store.candidate_outcome_summary("p", series="x")
+    assert summary["raw_candidates_resolved"] == 2
+    assert summary["independent_forecast_origins"] == 1
+    assert summary["resolved"] == 1
+    assert summary["wins"] == 0
+    assert summary["mean_uplift_vs_primary"] < 0
 
 
 def test_mode_invariants_hold_across_varied_bounded_paths():
@@ -2011,7 +2046,7 @@ def test_mcp_best_effort_uses_only_prior_same_series_candidate_outcomes(
     monkeypatch.setenv("GNOMON_REGISTRY_PATH", str(registry))
     store = TrackingStore(registry)
     historical = select_publication(
-        publish_result(_result(), mode="best_effort", dossiers=[_dossier()]),
+        publish_result(_result(), mode="best_effort", dossiers=[_dossier("test")]),
         {
             "selected_scenario_id": "prior-assisted-1",
             "ranking": ["prior-assisted-1", "primary"],
@@ -2055,7 +2090,15 @@ def test_mcp_best_effort_uses_only_prior_same_series_candidate_outcomes(
     })
 
     publication = payload["publication"]
-    assert publication["recommended_scenario_id"] == "prior-assisted-1"
+    candidate = next(item for item in publication["candidate_portfolio"]
+                     if item["role"] == "model_authored")
+    assert candidate["effect"]["candidate_proposer"] == "test"
+    assert publication["candidate_outcome_evidence"][0][
+        "graduated_for_human_prior"] is True
+    assert publication["recommended_scenario_id"] == "prior-assisted-1", (
+        publication.get("candidate_outcome_evidence"),
+        [(item.get("role"), item.get("effect")) for item in
+         publication.get("candidate_portfolio") or []])
     assert publication["recommendation_authority"]["selection_method"] == \
         "resolved_outcome_human_prior_policy"
     assert publication["candidate_outcome_evidence"][0]["scope"]["series"] == \

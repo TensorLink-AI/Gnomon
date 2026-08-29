@@ -1542,6 +1542,8 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 source_seal=str(dossier["seal_sha256"]),
                 effect={
                     "candidate_origin": candidate_origin,
+                    "candidate_proposer": str(
+                        dossier.get("compiler_model") or "unknown"),
                     "elicitation": candidate.get("elicitation") or {},
                     **({"conditional_scope": conditional_scope}
                        if conditional_scope is not None else {}),
@@ -1928,11 +1930,14 @@ def outcome_informed_prior_selection(
         if scenario.get("human_selection_eligible") is not True:
             continue
         role = str(scenario.get("role") or "unknown")
-        origin = str((scenario.get("effect") or {}).get(
-            "candidate_origin") or role)
+        effect = scenario.get("effect") or {}
+        origin = str(effect.get("candidate_origin") or role)
+        proposer = str(effect.get("candidate_proposer") or "unknown")
         for evidence in graduated:
             if (evidence.get("scenario_role") == role
-                    and evidence.get("candidate_origin") == origin):
+                    and evidence.get("candidate_origin") == origin
+                    and str(evidence.get("candidate_proposer") or "unknown")
+                    == proposer):
                 matches.append((scenario, evidence))
     if len(matches) != 1:
         return None
@@ -2801,6 +2806,8 @@ def record_publication(store: Any, *, project: str, forecast_id: str,
             "scenario_role": selected.get("role"),
             "candidate_origin": ((selected.get("effect") or {}).get(
                 "candidate_origin")),
+            "candidate_proposer": ((selected.get("effect") or {}).get(
+                "candidate_proposer")),
             "scenario_seal_sha256": selected.get("scenario_seal_sha256"),
             "primary_forecast_unchanged": True,
             "automation_eligible": payload["automation"]["eligible"],
@@ -2827,6 +2834,8 @@ def record_publication(store: Any, *, project: str, forecast_id: str,
                 "scenario_role": candidate.get("role"),
                 "candidate_origin": ((candidate.get("effect") or {}).get(
                     "candidate_origin")),
+                "candidate_proposer": ((candidate.get("effect") or {}).get(
+                    "candidate_proposer")),
                 "scenario_seal_sha256": candidate.get(
                     "scenario_seal_sha256"),
                 "primary_forecast_unchanged": True, "automation_eligible": False,

@@ -1014,7 +1014,9 @@ class TrackingStore:
         """
         if minimum_resolved < 1:
             raise ValueError("minimum_resolved must be positive")
-        groups: dict[tuple[str, str], list[tuple[bool, float]]] = {}
+        groups: dict[
+            tuple[str, str, str], dict[str, list[tuple[bool, float]]]
+        ] = {}
         for receipt in self.temporal_synthesis_receipts(
                 project, resolved=True, series=series,
                 resolved_before=resolved_before):
@@ -1027,10 +1029,23 @@ class TrackingStore:
                 continue
             role = str(synthesis.get("scenario_role") or "unknown")
             origin = str(synthesis.get("candidate_origin") or role)
-            groups.setdefault((role, origin), []).append((won, float(delta)))
+            proposer = str(synthesis.get("candidate_proposer") or "unknown")
+            groups.setdefault((role, origin, proposer), {}).setdefault(
+                str(receipt.get("forecast_id") or "unknown"), []).append(
+                    (won, float(delta)))
         summaries = []
         z = 1.959963984540054
-        for (role, origin), outcomes in sorted(groups.items()):
+        for (role, origin, proposer), per_forecast in sorted(groups.items()):
+            raw_count = sum(len(items) for items in per_forecast.values())
+            # Several same-class candidates from one forecast are correlated
+            # alternatives, not independent evidence. Collapse each origin
+            # conservatively: the class wins only if every variant won and its
+            # uplift is the least favorable variant's uplift.
+            outcomes = [
+                (all(won for won, _ in items),
+                 min(delta for _, delta in items))
+                for items in per_forecast.values()
+            ]
             n = len(outcomes)
             wins = sum(int(won) for won, _ in outcomes)
             rate = wins / n
@@ -1044,7 +1059,10 @@ class TrackingStore:
                 n >= minimum_resolved and mean_delta > 0 and lower > .5)
             summaries.append({
                 "scenario_role": role, "candidate_origin": origin,
+                "candidate_proposer": proposer,
                 "resolved": n, "wins": wins, "win_rate": rate,
+                "raw_candidates_resolved": raw_count,
+                "independent_forecast_origins": n,
                 "win_rate_wilson_95_lower": lower,
                 "mean_uplift_vs_primary": mean_delta,
                 "minimum_resolved": minimum_resolved,

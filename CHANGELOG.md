@@ -37,6 +37,12 @@
   candidate class may guide the human-facing prior. Cold starts retain the
   existing policy; strict mode, support, the immutable primary, and automation
   authority are unchanged.
+- Add OutcomeLearningBench, a chronological same-series benchmark for the
+  realised-candidate loop. It covers useful and harmful priors, delayed
+  outcomes, cross-series contamination, and abrupt reversal. Candidate skill
+  is now keyed by proposer and collapses correlated same-class variants to one
+  conservative observation per forecast origin, preventing multiplicity from
+  manufacturing confidence.
 - Use the existing bounded four/five-path cap on the first model-prior
   elicitation rather than estimating a human-facing median from three draws.
   Requests remain concurrent; sampled spread remains a coherence diagnostic,
