@@ -1729,6 +1729,12 @@ class _RunBase:
                             str(item.get("reason")) for item in dispositions
                             if isinstance(item, dict) and item.get("reason")
                         ][:8],
+                        "source_evidence": [
+                            dict(item["source_evidence"])
+                            for item in dispositions
+                            if isinstance(item, dict)
+                            and isinstance(item.get("source_evidence"), dict)
+                        ][:8],
                         "scenario_consequence_summaries": [],
                     }
             sufficiency = ((structured.get("reasoning") or {}).get(
@@ -1899,6 +1905,16 @@ class _Run(_RunBase):
                     "items": {"type": "string"},
                     "maxItems": 8,
                 }
+                parameters["properties"]["cited_context_sources"] = {
+                    "type": "array",
+                    "description": (
+                        "Copy every source.reference exposed in Gnomon's "
+                        "context source_evidence for considered context. Use "
+                        "an empty array when no validated source reference is "
+                        "present; never infer or paraphrase a source."),
+                    "items": {"type": "string"},
+                    "maxItems": 8,
+                }
                 parameters["properties"]["reasoning"]["description"] = (
                     "Human-facing explanation of Gnomon's typed context "
                     "outcome. Scenario representation is not numeric "
@@ -1913,6 +1929,7 @@ class _Run(_RunBase):
                     "canonical_primary_preserved")
                 parameters["required"].append(
                     "cited_scenario_consequences")
+                parameters["required"].append("cited_context_sources")
             else:
                 parameters["properties"].pop("reasoning", None)
             if getattr(self, "temporal_compilation", {}).get("questions"):
@@ -2001,6 +2018,11 @@ class _Run(_RunBase):
                 "context_summary.context_evidence_automation_eligible for "
                 "context authority; the separate global automation reason "
                 "'not requested' does not grant context authority.\n")
+            text += (
+                "Copy each validated context source.reference exactly into "
+                "cited_context_sources and name it in the human-facing "
+                "reasoning. Do not invent a source when source_evidence is "
+                "absent.\n")
         if self.row.get("_require_gnomon_execution"):
             text += ("\nThis product run delegates every published numeric "
                      "trajectory to Gnomon. Submit the forecast artifact "
@@ -2152,6 +2174,11 @@ class _Run(_RunBase):
                      (disposition.get("failed_gate_codes") or [])])),
                 "gate_reasons": [str(reason) for reason in
                                  (disposition.get("gate_reasons") or [])][:8],
+                "source_evidence": [
+                    dict(item) for item in
+                    (disposition.get("context_evidence") or [])
+                    if isinstance(item, dict)
+                ][:8],
                 "scenario_consequence_summaries": [
                     str(scenario.get("consequence_summary"))
                     for scenario in (result.get("sensitivity_scenarios") or [])
@@ -2405,6 +2432,25 @@ class _Run(_RunBase):
                 "invalid": [value for value in supplied_consequences
                             if value not in expected_consequences],
             }
+            expected_sources = sorted({
+                str((evidence.get("source") or {}).get("reference"))
+                for outcome in self.context_execution.values()
+                for evidence in outcome.get("source_evidence", [])
+                if isinstance(evidence, dict)
+                and isinstance(evidence.get("source"), dict)
+                and (evidence.get("source") or {}).get("reference")
+            })
+            supplied_sources = [str(value) for value in
+                                (arguments.get(
+                                    "cited_context_sources") or [])[:8]]
+            self.submission["context_source_projection"] = {
+                "expected": expected_sources,
+                "supplied": supplied_sources,
+                "matched": [value for value in supplied_sources
+                            if value in expected_sources],
+                "invalid": [value for value in supplied_sources
+                            if value not in expected_sources],
+            }
             reasoning_text = str(arguments.get("reasoning") or "").lower()
             authority_problems: list[str] = []
             scenario_count = sum(
@@ -2478,6 +2524,23 @@ class _Run(_RunBase):
                     "scenario_consequence_omitted: copy every Gnomon "
                     "consequence_summary exactly and communicate its "
                     "conditional q50 endpoints without calling them primary")
+            sources = self.submission["context_source_projection"]
+            if sources["invalid"] or (
+                    sources["expected"] and
+                    set(sources["matched"]) != set(sources["expected"])):
+                authority_problems.append(
+                    "context_source_omitted: copy every validated context "
+                    "source.reference exactly and do not invent sources: "
+                    + (", ".join(sources["expected"]) or "(none)"))
+            prose_missing_sources = [
+                source for source in sources["expected"]
+                if source.casefold() not in reasoning_text
+            ]
+            if prose_missing_sources:
+                authority_problems.append(
+                    "context_source_not_human_visible: name these validated "
+                    "context sources in the reasoning: "
+                    + ", ".join(prose_missing_sources))
             if authority_problems:
                 self.submission = None
                 return {"accepted": False, "authored_by": "harness",
@@ -2585,6 +2648,10 @@ class _Run(_RunBase):
                 self.submission["context_consequence_projection"]}
                if self.submission.get(
                    "context_consequence_projection") is not None else {}),
+            **({"context_source_projection":
+                self.submission["context_source_projection"]}
+               if self.submission.get(
+                   "context_source_projection") is not None else {}),
             "canonical_mcq": self.submission.get("canonical_mcq", {}),
             "synthesized_mcq": self.submission.get("synthesized_mcq", {}),
             "choice_authority": self.submission.get("choice_authority", {}),

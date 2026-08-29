@@ -512,6 +512,13 @@ def test_artifact_binding_preserves_typed_primary_relationship(monkeypatch):
                 "relationship_to_primary": "no_distinct_numeric_path",
                 "selected_output_role":
                     "primary_forecast_already_noncontinuing",
+                "context_evidence": [{
+                    "context_id": "structural-1",
+                    "known_at": "2026-01-01T00:00:00+00:00",
+                    "source": {"type": "calendar",
+                               "reference": "operations.ics#event-1"},
+                    "evidence_quote": "The prior trend will cease.",
+                }],
             },
         }],
     }
@@ -526,6 +533,8 @@ def test_artifact_binding_preserves_typed_primary_relationship(monkeypatch):
         "no_distinct_numeric_path"
     assert execution["selected_output_role"] == \
         "primary_forecast_already_noncontinuing"
+    assert execution["source_evidence"][0]["source"]["reference"] == \
+        "operations.ics#event-1"
 
     artifact["results"][0]["context_outcome"] = {
         "status": "partially_represented",
@@ -981,7 +990,7 @@ def test_context_contract_requires_bounded_typed_gate_citations():
     assert parameters["required"] == [
         "forecast", "reasoning", "cited_context_gate_codes",
         "context_automation_eligible", "canonical_primary_preserved",
-        "cited_scenario_consequences"]
+        "cited_scenario_consequences", "cited_context_sources"]
     citations = parameters["properties"]["cited_context_gate_codes"]
     assert citations["maxItems"] == 8
     assert citations["items"] == {"type": "string"}
@@ -997,6 +1006,9 @@ def test_context_contract_requires_bounded_typed_gate_citations():
     }
     assert parameters["properties"]["canonical_primary_preserved"][
         "type"] == "boolean"
+    sources = parameters["properties"]["cited_context_sources"]
+    assert sources["maxItems"] == 8
+    assert "source.reference" in sources["description"]
 
 
 def test_context_authority_omission_gets_one_artifact_reuse_repair():
@@ -1119,6 +1131,71 @@ def test_context_scenario_consequence_requires_exact_artifact_reuse_repair():
     assert accepted["accepted"] is True
     assert run.submission["context_consequence_projection"]["matched"] == [
         summary]
+
+
+def test_context_source_requires_exact_human_visible_projection():
+    run = object.__new__(mcp_agent._Run)
+    run.row = {"_require_gnomon_execution": True,
+               "_require_context_explanation": True}
+    run.target_keys = ["value"]
+    run.horizon = 1
+    run.submission = None
+    run.mcp_calls = 1
+    run.trace = []
+    run.artifact_paths = set()
+    run.context_execution = {}
+    run._project_receipt_choices = lambda: {}
+    source_reference = "plans/launches.md#enterprise-a"
+
+    def artifact_rows(path, channel):
+        run._pending_support[channel] = "supported"
+        run.context_execution[channel] = {
+            "automation_eligible": False,
+            "canonical_primary_preserved": True,
+            "rejection_codes": [],
+            "scenario_consequence_summaries": [],
+            "source_evidence": [{
+                "context_id": "launch-1",
+                "known_at": "2026-01-01T00:00:00+00:00",
+                "source": {"type": "planning_file",
+                           "reference": source_reference},
+                "evidence_quote": "Enterprise A launches on 2026-01-03.",
+            }],
+        }
+        return [10.0]
+
+    run._artifact_channel_rows = artifact_rows
+    base = {
+        "forecast": {"value": {"artifact_path": "/sealed/artifact.json"}},
+        "reasoning": ("The canonical primary remains preserved and context "
+                      "evidence cannot authorize automation."),
+        "cited_context_gate_codes": [],
+        "context_automation_eligible": False,
+        "canonical_primary_preserved": True,
+        "cited_scenario_consequences": [],
+    }
+
+    omitted = run._handle_submit({**base, "cited_context_sources": []})
+    assert omitted["accepted"] is False
+    assert any("context_source_omitted" in problem
+               for problem in omitted["problems"])
+    assert run.submission is None
+
+    hidden = run._handle_submit({
+        **base, "cited_context_sources": [source_reference]})
+    assert hidden["accepted"] is False
+    assert any("context_source_not_human_visible" in problem
+               for problem in hidden["problems"])
+    assert run.submission is None
+
+    accepted = run._handle_submit({
+        **base,
+        "cited_context_sources": [source_reference],
+        "reasoning": (base["reasoning"] + f" Source: {source_reference}."),
+    })
+    assert accepted["accepted"] is True
+    assert run.submission["context_source_projection"]["matched"] == [
+        source_reference]
 
 
 def test_context_scenario_cannot_be_described_as_admitted():

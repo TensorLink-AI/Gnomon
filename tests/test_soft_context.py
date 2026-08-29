@@ -24,10 +24,14 @@ def _event(event_type: str = "medication_adjustment") -> ContextEvent:
         effective_end=(START + timedelta(hours=1)).isoformat(),
         known_at=START.isoformat(),
         source=ContextSource("planning_file", "plan.md"),
-        attributes={"soft_context": {
-            "effect_family": "level_shift", "direction": "decrease",
-            "duration": "temporary",
-        }},
+        attributes={
+            "soft_context": {
+                "effect_family": "level_shift", "direction": "decrease",
+                "duration": "temporary",
+            },
+            "context_receipt_id": "context_receipt:abc123",
+            "evidence_quote": "Plan: reduce dosage at 2026-01-01T00:00:00Z.",
+        },
     )
 
 
@@ -38,6 +42,13 @@ def test_grounded_unestimated_event_is_scenario_only() -> None:
     assert outcome["automation_eligible"] is False
     assert outcome["hypotheses"][0]["magnitude"] is None
     assert outcome["recovery_actions"]
+    assert outcome["context_evidence"] == [{
+        "context_id": "event-1",
+        "known_at": START.isoformat(),
+        "source": {"type": "planning_file", "reference": "plan.md"},
+        "context_receipt_id": "context_receipt:abc123",
+        "evidence_quote": "Plan: reduce dosage at 2026-01-01T00:00:00Z.",
+    }]
 
 
 def test_out_of_scope_context_cannot_imply_automation_authority() -> None:
@@ -49,6 +60,22 @@ def test_out_of_scope_context_cannot_imply_automation_authority() -> None:
         "automation_eligible": False,
         "events": [],
     }
+
+
+def test_missing_source_fields_are_not_invented_in_public_evidence() -> None:
+    event = ContextEvent(**{
+        **_event().__dict__,
+        "source": None,
+        "attributes": {"soft_context": {
+            "effect_family": "unknown", "direction": "unknown",
+            "duration": "unknown",
+        }},
+    })
+
+    outcome = context_outcome([event], "heart_rate")
+
+    assert outcome["context_evidence"] == [{
+        "context_id": "event-1", "known_at": START.isoformat()}]
 
 
 def test_point_supported_interval_weak_context_is_explicitly_non_automatable() -> None:
@@ -87,6 +114,7 @@ def test_failed_deterministic_claim_is_rejected_not_scenario() -> None:
     assert outcome["primary_forecast_changed"] is False
     assert outcome["canonical_primary_preserved"] is True
     assert outcome["automation_eligible"] is False
+    assert outcome["context_evidence"][0]["evidence_quote"].startswith("Plan:")
 
 
 def test_admitted_history_without_horizon_effect_does_not_claim_change() -> None:
@@ -103,6 +131,7 @@ def test_admitted_history_without_horizon_effect_does_not_claim_change() -> None
     assert outcome["selected_output_role"] == \
         "primary_forecast_no_numeric_context_change"
     assert "no admitted effect changed this horizon" in outcome["basis"]
+    assert outcome["context_evidence"][0]["source"]["reference"] == "plan.md"
 
 
 def test_structural_scenario_reports_its_decisive_future_gate() -> None:

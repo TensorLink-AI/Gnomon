@@ -428,6 +428,8 @@ def test_surface_summary_reports_agent_context_explanation_contract():
                 "primary_relationship_expected":
                     "no_distinct_numeric_path",
                 "primary_relationship_preserved": True,
+                "source_evidence_expected": True,
+                "source_evidence_preserved": True,
         },
     }
 
@@ -442,6 +444,8 @@ def test_surface_summary_reports_agent_context_explanation_contract():
             "automation_limit_preserved": 1.0,
             "rejection_evidence_cited": 1.0,
             "scenario_consequence_preserved": 1.0,
+            "source_evidence_preserved": 1.0,
+            "source_evidence_contracts_exposed": 1,
             "primary_relationship_contracts_exposed": 1,
             "primary_relationship_preserved": 1.0,
         }

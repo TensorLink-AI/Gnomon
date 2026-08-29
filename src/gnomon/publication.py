@@ -1226,6 +1226,11 @@ def build_scenario_catalog(result: dict[str, Any], *,
     context_outcome = result.get("context_outcome")
     if isinstance(context_outcome, dict):
         status = str(context_outcome.get("status") or "rejected")
+        source_evidence_by_id = {
+            str(item.get("context_id")): dict(item)
+            for item in context_outcome.get("context_evidence") or []
+            if isinstance(item, dict) and item.get("context_id")
+        }
         projected = context_outcome.get("dispositions") or []
         if projected:
             dispositions.extend({
@@ -1234,6 +1239,10 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 "reason_code": str(item.get("reason_code") or status),
                 "reason": str(item.get("reason") or
                               "See the immutable context outcome receipt."),
+                **({"source_evidence": source_evidence_by_id[
+                    str(item.get("context_id"))]}
+                   if str(item.get("context_id")) in source_evidence_by_id
+                   else {}),
             } for item in projected if isinstance(item, dict))
         elif status != "not_considered":
             # A context claim scoped to another series is absence, not a
@@ -1247,6 +1256,8 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 "reason_code": status,
                 "reason": str(context_outcome.get("reason") or
                               "See the immutable context outcome receipt."),
+                **({"source_evidence": source_evidence_by_id[str(event_id)]}
+                   if str(event_id) in source_evidence_by_id else {}),
             } for event_id in event_ids)
     # A model-authored interpretation may coexist with an independently
     # replayed companion executable. Match them by authenticated source spans,
