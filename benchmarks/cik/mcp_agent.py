@@ -61,8 +61,8 @@ MIN_CONTEXT_REPAIR_SECONDS = 10.0
 MAX_OPTIONAL_PRIOR_SECONDS = max(1.0, min(
     60.0, float(os.environ.get("GNOMON_OPTIONAL_PRIOR_SECONDS", "15"))))
 MAX_SCENARIO_SELECTOR_SECONDS = max(1.0, min(
-    60.0, float(os.environ.get("GNOMON_SCENARIO_SELECTOR_SECONDS", "15"))))
-MIN_SCENARIO_SELECTOR_REPAIR_SECONDS = 5.0
+    60.0, float(os.environ.get("GNOMON_SCENARIO_SELECTOR_SECONDS", "30"))))
+MIN_SCENARIO_SELECTOR_REPAIR_SECONDS = 10.0
 MODEL_PRIOR_PATH_SAMPLES = 5
 #: Bump when the system prompt, the caps, or the submit contract change:
 #: the official cache reuses results by cache_name, and a cached run made
@@ -495,7 +495,7 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: comparable rows remain visible scenarios/counterevidence.
 #: Version 218: unresolved and atemporal dispositions expose claim_id as a
 #: first-class join key instead of requiring agents to parse context_id.
-MCP_CONTRACT_VERSION = 221
+MCP_CONTRACT_VERSION = 223
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it

@@ -1468,7 +1468,7 @@ def test_structured_context_keeps_governed_and_model_candidates_separate(
     assert extra["scenario_selector"]["accepted"] is True
     assert client.completion_request_timeouts[-1] <= \
         mcp_agent_module.MAX_SCENARIO_SELECTOR_SECONDS
-    assert client.completion_request_timeouts[-2] <= 10
+    assert client.completion_request_timeouts[-2] <= 20
     assert client.completion_request_timeouts[-1] >= \
         mcp_agent_module.MIN_SCENARIO_SELECTOR_REPAIR_SECONDS
     assert extra["publication"]["primary_forecast_unchanged"] is True
