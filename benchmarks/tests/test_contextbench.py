@@ -23,6 +23,7 @@ from benchmarks.contextbench.run_llm import (
     safe_payload,
 )
 from benchmarks.contextbench.run_surfaces import surface_row
+from benchmarks.contextbench.run_surfaces import preserves_primary_relationship
 from benchmarks.contextbench.report_surfaces import aggregate
 from benchmarks.contextbench.report_contextbench import (
     aggregate as aggregate_contextbench,
@@ -421,6 +422,7 @@ def test_surface_summary_reports_agent_context_explanation_contract():
                 "automation_limit_preserved": True,
                 "rejection_evidence_cited": True,
                 "scenario_consequence_preserved": True,
+                "primary_relationship_preserved": True,
         },
     }
 
@@ -434,6 +436,7 @@ def test_surface_summary_reports_agent_context_explanation_contract():
             "automation_limit_preserved": 1.0,
             "rejection_evidence_cited": 1.0,
             "scenario_consequence_preserved": 1.0,
+            "primary_relationship_preserved": 1.0,
         }
     assert summary["metrics"]["context_effect_accounting"] == {
         "answered_cases": 1,
@@ -446,6 +449,18 @@ def test_surface_summary_reports_agent_context_explanation_contract():
         "numeric_change_rate": 0.0,
         "mean_uplift_when_changed": None,
     }
+
+
+def test_agent_relationship_measure_is_semantic_and_fail_closed():
+    relationship = "no_distinct_numeric_path"
+    assert preserves_primary_relationship(
+        "The primary already has no defensibly distinct continuation path.",
+        relationship)
+    assert not preserves_primary_relationship(
+        "The context was rejected.", relationship)
+    assert not preserves_primary_relationship(
+        "Some explanation.", "future_unknown_relationship")
+    assert preserves_primary_relationship("anything", "")
 
 
 def test_surface_summary_separates_admission_change_and_uplift() -> None:

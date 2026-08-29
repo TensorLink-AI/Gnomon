@@ -269,6 +269,24 @@ def preserves_automation_limit(
         ))
 
 
+def preserves_primary_relationship(reasoning: str, relationship: str) -> bool:
+    """Whether an agent retained the engine's typed primary relationship."""
+    if not relationship:
+        return True
+    explanation = reasoning.casefold()
+    if relationship == "no_distinct_numeric_path":
+        return any(phrase in explanation for phrase in (
+            "no distinct numeric path",
+            "no defensibly distinct",
+            "already noncontinuing",
+            "already non-continuing",
+            "does not contain a stable continuation",
+        ))
+    # Unknown future relationship classes fail closed until a deliberate
+    # semantic projection is added for them.
+    return False
+
+
 def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
              work_root: Path, receipt_dir: Path,
              routing_policy: str = "compiled",
@@ -428,6 +446,10 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
                 set(consequence_projection.get("matched") or []) ==
                 expected_consequences and
                 not consequence_projection.get("invalid")))
+        primary_relationship = str(
+            context_gate.get("relationship_to_primary") or "")
+        primary_relationship_preserved = preserves_primary_relationship(
+            agent_reasoning, primary_relationship)
         return {
             "case_id": case.case_id, "public_id": _public_id(case.case_id),
             "family": case.family, "status": "answered",
@@ -462,11 +484,15 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
                 "rejection_evidence_cited": rejection_evidence_cited,
                 "scenario_consequence_preserved":
                     scenario_consequence_preserved,
+                "primary_relationship_expected": primary_relationship or None,
+                "primary_relationship_preserved":
+                    primary_relationship_preserved,
                 "complete": all((
                     preserved_primary, represented_scenario,
                     preserved_interval_limit, preserved_automation_limit,
                     rejection_evidence_cited,
                     scenario_consequence_preserved,
+                    primary_relationship_preserved,
                 )),
             },
             "context_gate_citations": citations,
@@ -673,6 +699,7 @@ def summarize(rows: list[dict[str, Any]], profile: str,
                     "interval_limit_preserved", "automation_limit_preserved",
                     "rejection_evidence_cited",
                     "scenario_consequence_preserved",
+                    "primary_relationship_preserved",
                 )
             },
             "observed_agent_calls_mean": mean(calls) if calls else None,
