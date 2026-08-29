@@ -98,6 +98,10 @@ def aggregate(run_dirs: list[Path]) -> dict[str, Any]:
         if len(baseline_modes) != 1:
             raise ValueError(f"surface arm mixes baseline modes: {arm}")
         answered = [row for row in rows if row.get("status") == "answered"]
+        def projection_changed(row: dict[str, Any]) -> bool:
+            return bool(row.get(
+                "selected_projection_differs_from_primary",
+                row.get("primary_changed", False)))
         failures = defaultdict(int)
         failure_stages = defaultdict(int)
         for row in rows:
@@ -226,11 +230,11 @@ def aggregate(run_dirs: list[Path]) -> dict[str, Any]:
                                      if answered and all(
                                          "disposition_valid" in row
                                          for row in answered) else None),
-            "false_influence_rate": (mean(bool(row.get("primary_changed"))
+            "false_influence_rate": (mean(projection_changed(row)
                                           for row in false_trials)
                                      if false_trials else None),
-            "false_asserted_claim_primary_change_rate": (mean(
-                bool(row.get("primary_changed")) for row in false_asserted)
+            "false_asserted_claim_selected_projection_rate": (mean(
+                projection_changed(row) for row in false_asserted)
                 if false_asserted else None),
             "false_asserted_claim_mean_incremental_smape": (mean(
                 float(row["incremental_smape"]) for row in false_asserted)

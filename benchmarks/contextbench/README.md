@@ -57,6 +57,12 @@ PYTHONPATH=src:. python -m benchmarks.contextbench.run_contextbench \
   --output-dir results/contextbench/stress-run
 ```
 
+The engine runner writes and `fsync`s one observation after every completed
+case. If the host, shell, or process stops, rerun the identical command with
+`--resume`; corpus hashes and selected case IDs must match, and only unfinished
+cases execute. Reusing an output directory without `--resume`, or attempting
+to resume a different corpus, fails closed.
+
 Stress reports include admission precision/recall by stratum, a full SNR
 curve, onset and magnitude error, harmful admissions, and realized accuracy.
 Pulse duration and recurrence are normalized by elapsed time for each grid;
@@ -68,15 +74,21 @@ the decision boundary.
 Empirically testable context and asserted future claims have different
 warrants and therefore different denominators. Admission precision applies to
 effects Gnomon can backtest. For a numeric or structural claim whose truth is
-only revealed later, the report instead shows whether it changed the primary
-forecast and its realized sMAPE benefit or harm; requiring rejection based on
-the sealed future would reward oracle leakage.
+only revealed later, the report instead shows whether the explicitly enabled
+conditional projection differs from the immutable primary and its realized
+sMAPE benefit or harm; requiring rejection based on the sealed future would
+reward oracle leakage. The legacy observation field `primary_changed` is
+retained only for result-file compatibility and means
+`selected_projection_differs_from_primary`. It never means the artifact's
+canonical primary was mutated.
 
 Asserted claims also receive a matched default-policy run. Gnomon's default
-configuration keeps future numeric and structural assertions out of the
-primary forecast; only explicit opt-in enables those lanes. The report scores
-both the opt-in outcome and the invariant that asserted claims never change
-the primary under defaults. Historical evidence cannot identify a confident
+configuration keeps future numeric and structural assertions from becoming
+the selected projection; only explicit opt-in enables those lanes. The report
+scores both the opt-in outcome and the invariant that asserted claims never
+select a different projection under defaults. The immutable primary is retained
+in either mode, and context evidence alone never authorizes automation.
+Historical evidence cannot identify a confident
 future statement as a lie when its observed history is identical, so this
 policy boundary is part of the product's safety contract rather than an
 oracle-trained classifier.

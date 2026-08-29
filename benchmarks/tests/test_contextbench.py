@@ -219,7 +219,10 @@ def test_stress_summary_separates_empirical_admission_from_asserted_truth():
                                "seed": 1, "fresh_seed": True, "cases": 2})
     assert summary["metrics"]["admission_precision"] == 1.0
     assert summary["metrics"]["false_influence_rate"] == 0.0
-    assert summary["metrics"]["false_asserted_claim_primary_change_rate"] == 1.0
+    assert summary["metrics"][
+        "false_asserted_claim_selected_projection_rate"] == 1.0
+    assert summary["deprecated_fields"]["observations.primary_changed"] == \
+        "use selected_projection_differs_from_primary"
     assert "frequency" in summary["dimensions"]
 
 
@@ -241,6 +244,8 @@ def test_asserted_context_cannot_change_primary_under_default_policy(tmp_path):
     oracle = load_oracles_from_rows(raw_oracles)[case.case_id]
     row = run_case(case, oracle, tmp_path)
     assert row["default_policy_primary_changed"] is False
+    assert row[
+        "default_policy_selected_projection_differs_from_primary"] is False
 
 
 def test_structural_scenario_is_scored_without_becoming_primary(tmp_path):
@@ -254,6 +259,8 @@ def test_structural_scenario_is_scored_without_becoming_primary(tmp_path):
     row = run_case(case, oracle, tmp_path)
 
     assert row["primary_changed"] is False
+    assert row["selected_projection_differs_from_primary"] is False
+    assert row["canonical_primary_preserved"] is True
     # This generated path already has no stable emitted trend to remove, so
     # the engine correctly refuses to manufacture a distinct scenario.
     assert row["conditional_scenario_available"] is False

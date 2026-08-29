@@ -47,6 +47,13 @@ def smape(actual: tuple[float, ...] | list[float],
     return mean(terms) if terms else float("nan")
 
 
+def selected_projection_changed(row: dict[str, Any]) -> bool:
+    """Read the explicit field while accepting pre-migration observations."""
+    return bool(row.get(
+        "selected_projection_differs_from_primary",
+        row.get("primary_changed", False)))
+
+
 def wilson(successes: int, trials: int, z: float = 1.96) -> tuple[float, float]:
     if trials <= 0:
         return 0.0, 1.0
@@ -260,9 +267,18 @@ def run_case(case: Case, oracle: Oracle, work_root: Path, *,
         "context_smape": smape(oracle.actual, contextual),
         "counterfactual_smape": smape(oracle.counterfactual, contextual),
         "default_policy_primary_changed": default_policy_changed,
+        "default_policy_selected_projection_differs_from_primary": (
+            default_policy_changed),
         "default_policy_smape": default_policy_smape,
         "incremental_smape": smape(oracle.actual, baseline) - smape(oracle.actual, contextual),
-        "primary_changed": bool(changed_steps), "changed_steps": changed_steps,
+        # Compatibility alias retained for older result readers.  This never
+        # meant that the immutable artifact primary was mutated; it compares
+        # the selected context projection with the history-only projection.
+        "primary_changed": bool(changed_steps),
+        "selected_projection_differs_from_primary": bool(changed_steps),
+        "canonical_primary_preserved": bool(
+            (not context_effect_admitted) or primary == baseline_result.forecast),
+        "changed_steps": changed_steps,
         "should_influence": oracle.should_influence, "disposition": disposition,
         "expected_disposition": oracle.expected_disposition, "applied": applied,
         "disposition_valid": valid_disposition(
@@ -341,7 +357,7 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
     false_asserted = [row for row in asserted if not row["should_influence"]]
     default_asserted = [row for row in asserted
                         if row.get("default_policy_primary_changed") is not None]
-    false_changes = sum(row["primary_changed"] for row in false_rows)
+    false_changes = sum(selected_projection_changed(row) for row in false_rows)
     false_trials = len(false_rows)
     precision = (len(true_applied) / len(empirical_applied)
                  if empirical_applied else 1.0)
@@ -371,7 +387,8 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
             "context_smape": mean(row["context_smape"] for row in members),
             "incremental_smape": mean(row["incremental_smape"] for row in members),
             "applied": sum(row["applied"] for row in members),
-            "primary_changed": sum(row["primary_changed"] for row in members),
+            "selected_projection_differs_from_primary": sum(
+                selected_projection_changed(row) for row in members),
             "leakage": sum(row["temporal_leakage"] for row in members),
             "counterfactual_context_opportunity_smape": (
                 mean(opportunity) if opportunity else None
@@ -443,9 +460,11 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
             # the complete curve remains in the report for product choices.
             "high_snr_admission_recall_at_least_80pct": high_snr_recall >= 0.80,
             "asserted_claim_outcomes_are_scored": bool(asserted),
-            "asserted_claims_never_change_primary_by_default": (
+            "asserted_claims_do_not_select_a_different_projection_by_default": (
                 bool(default_asserted) and not any(
-                    row["default_policy_primary_changed"]
+                    row.get(
+                        "default_policy_selected_projection_differs_from_primary",
+                        row["default_policy_primary_changed"])
                     for row in default_asserted)
             ),
             "true_numeric_claims_do_not_harm_on_average": bool(true_numeric) and mean(
@@ -464,7 +483,7 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
                 mean(row["incremental_smape"] for row in repeated) > 0
                 if repeated else False),
             "prior_only_never_changes_primary": not any(
-                row["primary_changed"] for row in prior),
+                selected_projection_changed(row) for row in prior),
             "minimum_20_cases_per_family": per_family >= 20,
         }
     gates = {**base_gates, **stress_gates}
@@ -489,7 +508,8 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
                                     if empirical_admitted else None),
             "admission_recall": (sum(row["applied"] for row in useful)
                                  / len(useful) if useful else None),
-            "false_influence_rate": (sum(row["primary_changed"] for row in false)
+            "false_influence_rate": (sum(
+                selected_projection_changed(row) for row in false)
                                      / len(false) if false else None),
             "incremental_smape": mean(row["incremental_smape"] for row in members),
             "harmful_admissions": sum(
@@ -497,8 +517,8 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
             "realized_truth_rate_when_applied": (sum(
                 row["should_influence"] for row in admitted) / len(admitted)
                 if admitted else None),
-            "false_asserted_claim_primary_change_rate": (sum(
-                row["primary_changed"] for row in asserted_false)
+            "false_asserted_claim_selected_projection_rate": (sum(
+                selected_projection_changed(row) for row in asserted_false)
                 / len(asserted_false) if asserted_false else None),
             "magnitude_mae_when_applied": (mean(abs(
                 row["effect_magnitude_inferred"] - row["effect_magnitude_expected"])
@@ -551,8 +571,9 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
             "false_influence_95ci": wilson(false_changes, false_trials),
             "asserted_claim_cases": len(asserted),
             "false_asserted_claim_cases": len(false_asserted),
-            "false_asserted_claim_primary_change_rate": (
-                sum(row["primary_changed"] for row in false_asserted)
+            "false_asserted_claim_selected_projection_rate": (
+                sum(selected_projection_changed(row)
+                    for row in false_asserted)
                 / len(false_asserted) if false_asserted else None),
             "false_asserted_claim_mean_incremental_smape": (
                 mean(row["incremental_smape"] for row in false_asserted)
@@ -563,8 +584,10 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
             "true_asserted_claim_mean_incremental_smape": (mean(
                 row["incremental_smape"] for row in true_asserted)
                 if true_asserted else None),
-            "default_policy_asserted_primary_change_rate": (sum(
-                bool(row["default_policy_primary_changed"])
+            "default_policy_asserted_selected_projection_rate": (sum(
+                bool(row.get(
+                    "default_policy_selected_projection_differs_from_primary",
+                    row["default_policy_primary_changed"]))
                 for row in default_asserted) / len(default_asserted)
                 if default_asserted else None),
             "effect_direction_accuracy": direction_accuracy,
@@ -581,6 +604,12 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
                 else None),
         },
         "gates": gates, "decision_ready": all(gates.values()),
+        "deprecated_fields": {
+            "observations.primary_changed": (
+                "use selected_projection_differs_from_primary"),
+            "observations.default_policy_primary_changed": (
+                "use default_policy_selected_projection_differs_from_primary"),
+        },
     }
 
 

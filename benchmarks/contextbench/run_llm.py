@@ -203,6 +203,11 @@ def raw_case(case: Case, oracle: Oracle, client: OpenRouterClient) -> dict[str, 
                 history_scores[0] - history_scores[1]),
             "primary_changed": any(abs(left - right) > 1e-9 for left, right in
                                    zip(history_forecast, forecast)),
+            # A raw LLM arm has no immutable Gnomon primary. Name this
+            # comparison literally rather than borrowing the engine alias.
+            "context_forecast_differs_from_history_only": any(
+                abs(left - right) > 1e-9 for left, right in
+                zip(history_forecast, forecast)),
             "history_forecast": history_forecast,
             "history_replicate_forecast": history_replicate,
             "context_forecast": forecast,

@@ -438,7 +438,9 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
             "history_forecast": baseline, "context_forecast": enriched,
             "should_influence": oracle.should_influence,
             "oracle_dimensions": dict(oracle.dimensions),
-            "primary_changed": bool(changed), "changed_steps": changed,
+            "primary_changed": bool(changed),
+            "selected_projection_differs_from_primary": bool(changed),
+            "changed_steps": changed,
             "applied": applied, "disposition": disposition,
             "admission_rejection_reasons": (
                 list(context_gate.get("rejection_codes") or []) + [
@@ -541,17 +543,21 @@ def summarize(rows: list[dict[str, Any]], profile: str,
                       if (row.get("oracle_dimensions") or {}).get(
                           "admission_warrant") == "asserted"
                       and not row["should_influence"]]
-    false_changes = sum(row["primary_changed"] for row in false_trials)
+    def projection_changed(row: dict[str, Any]) -> bool:
+        return bool(row.get(
+            "selected_projection_differs_from_primary",
+            row.get("primary_changed", False)))
+
+    false_changes = sum(projection_changed(row) for row in false_trials)
     precision = (sum(row["should_influence"] for row in applied) / len(applied)
                  if applied else 1.0)
     recall = (sum(row["applied"] for row in influence) / len(influence)
               if influence else 0.0)
     missed = [row for row in influence if not row["applied"]]
-    numerically_changed = [row for row in answered
-                           if bool(row.get("primary_changed"))]
+    numerically_changed = [row for row in answered if projection_changed(row)]
     admitted_unchanged = [row for row in answered
                           if bool(row.get("applied"))
-                          and not bool(row.get("primary_changed"))]
+                          and not projection_changed(row)]
     beneficial = [row for row in numerically_changed
                   if float(row.get("incremental_smape", 0.0)) > 1e-12]
     harmful = [row for row in numerically_changed
@@ -595,7 +601,8 @@ def summarize(rows: list[dict[str, Any]], profile: str,
             "context_smape": mean(row["context_smape"] for row in members),
             "incremental_smape": mean(row["incremental_smape"] for row in members),
             "applied": sum(row["applied"] for row in members),
-            "primary_changed": sum(row["primary_changed"] for row in members),
+            "selected_projection_differs_from_primary": sum(
+                projection_changed(row) for row in members),
         } for family, members in sorted(families.items())},
         "dimensions": {dimension: {value: {
             "cases": len(members),
@@ -636,8 +643,8 @@ def summarize(rows: list[dict[str, Any]], profile: str,
             "false_influence_rate": (false_changes / len(false_trials)
                                      if false_trials else 0.0),
             "false_influence_95ci": wilson(false_changes, len(false_trials)),
-            "false_asserted_claim_primary_change_rate": (
-                mean(bool(row["primary_changed"]) for row in false_asserted)
+            "false_asserted_claim_selected_projection_rate": (
+                mean(projection_changed(row) for row in false_asserted)
                 if false_asserted else None),
             "false_asserted_claim_mean_incremental_smape": (
                 mean(float(row["incremental_smape"]) for row in false_asserted)
