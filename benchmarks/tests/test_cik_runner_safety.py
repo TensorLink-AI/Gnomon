@@ -69,9 +69,9 @@ def test_candidate_scores_are_post_forecast_diagnostics_only(monkeypatch):
         "recommended_scenario_id": "primary",
         "candidate_portfolio": [
             {"scenario_id": "primary", "role": "immutable_primary",
-             "forecast": rows(10)},
+             "forecast": rows(10), "human_selection_eligible": True},
             {"scenario_id": "prior-1", "role": "model_authored",
-             "forecast": rows(20)},
+             "forecast": rows(20), "human_selection_eligible": False},
         ],
     }}, 5)
 
@@ -79,25 +79,33 @@ def test_candidate_scores_are_post_forecast_diagnostics_only(monkeypatch):
     assert scores[1]["score"] > scores[0]["score"]
     assert all(item["computed_after_forecast"] is True for item in scores)
     assert all(item["passed_to_forecaster"] is False for item in scores)
+    assert scores[0]["human_selection_eligible"] is True
+    assert scores[1]["human_selection_eligible"] is False
 
 
 def test_selection_summary_separates_uplift_from_hindsight_regret():
     summary = _summarize_selection_diagnostics([
         {"selected_score": .4, "primary_score": .7,
-         "best_candidate_score": .2, "selected_primary": False,
+         "best_candidate_score": .2, "best_eligible_candidate_score": .4,
+         "selected_primary": False,
          "selected_hindsight_best": False,
+         "selected_best_eligible": True,
          "primary_forecast_unchanged": True,
          "automation_eligible": False},
         {"selected_score": .3, "primary_score": .3,
-         "best_candidate_score": .3, "selected_primary": True,
+         "best_candidate_score": .3, "best_eligible_candidate_score": .3,
+         "selected_primary": True,
          "selected_hindsight_best": True,
+         "selected_best_eligible": True,
          "primary_forecast_unchanged": True,
          "automation_eligible": False},
     ])
 
     assert summary["mean_uplift_vs_primary_rcrps"] == pytest.approx(.15)
-    assert summary["mean_selector_regret_rcrps"] == pytest.approx(.1)
+    assert summary["mean_oracle_headroom_rcrps"] == pytest.approx(.1)
+    assert summary["mean_selector_regret_among_eligible_rcrps"] == 0
     assert summary["selected_hindsight_best_cases"] == 1
+    assert summary["selected_best_eligible_cases"] == 2
     assert summary["primary_immutability_failures"] == 0
     assert summary["automation_eligible_cases"] == 0
     assert summary["passed_to_forecaster"] is False

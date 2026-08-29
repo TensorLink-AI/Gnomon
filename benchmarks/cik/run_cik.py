@@ -181,6 +181,9 @@ def _counterfactual_candidate_scores(task, extra_info: dict,
         if not isinstance(item, dict) or not isinstance(item.get("forecast"), list):
             continue
         scenario_id = str(item.get("scenario_id") or "")
+        human_selection_eligible = bool(item.get(
+            "human_selection_eligible",
+            item.get("selection_eligible", scenario_id == "primary")))
         try:
             paths = samples_from_quantile_rows(item["forecast"], n_samples)
             evaluation = task.evaluate(np.asarray(paths, dtype=float)[:, :, None])
@@ -193,6 +196,7 @@ def _counterfactual_candidate_scores(task, extra_info: dict,
                 "scenario_id": scenario_id,
                 "role": str(item.get("role") or "unknown"),
                 "selected": scenario_id == selected,
+                "human_selection_eligible": human_selection_eligible,
                 "score": score,
                 "scoring_representation": "deterministic_quantile_reconstruction",
                 "computed_after_forecast": True,
@@ -203,6 +207,7 @@ def _counterfactual_candidate_scores(task, extra_info: dict,
                 "scenario_id": scenario_id,
                 "role": str(item.get("role") or "unknown"),
                 "selected": scenario_id == selected,
+                "human_selection_eligible": human_selection_eligible,
                 "score": None,
                 "error": f"{type(error).__name__}: {error}"[:300],
                 "computed_after_forecast": True,
@@ -596,16 +601,29 @@ def write_outputs(results: dict, method, args, output_dir: Path) -> None:
                 if selected_candidate is not None and primary_candidate is not None:
                     best_candidate = min(
                         finite_candidates, key=lambda item: item["score"])
+                    eligible_candidates = [
+                        item for item in finite_candidates
+                        if item.get("human_selection_eligible") is True
+                    ]
+                    best_eligible = (
+                        min(eligible_candidates,
+                            key=lambda item: item["score"])
+                        if eligible_candidates else selected_candidate)
                     selection_diagnostics.append({
                         "selected_score": float(selected_candidate["score"]),
                         "primary_score": float(primary_candidate["score"]),
                         "best_candidate_score": float(best_candidate["score"]),
+                        "best_eligible_candidate_score": float(
+                            best_eligible["score"]),
                         "selected_primary": (
                             selected_candidate.get("scenario_id") ==
                             primary_candidate.get("scenario_id")),
                         "selected_hindsight_best": (
                             selected_candidate.get("scenario_id") ==
                             best_candidate.get("scenario_id")),
+                        "selected_best_eligible": (
+                            selected_candidate.get("scenario_id") ==
+                            best_eligible.get("scenario_id")),
                         "primary_forecast_unchanged": extra_info.get(
                             "primary_forecast_unchanged"),
                         "automation_eligible": extra_info.get(
@@ -709,6 +727,7 @@ def _summarize_selection_diagnostics(rows: list[dict]) -> dict:
     selected = mean("selected_score")
     primary = mean("primary_score")
     best = mean("best_candidate_score")
+    best_eligible = mean("best_eligible_candidate_score")
     return {
         "cases": len(rows),
         "available": True,
@@ -717,12 +736,16 @@ def _summarize_selection_diagnostics(rows: list[dict]) -> dict:
         "mean_selected_rcrps": selected,
         "mean_primary_rcrps": primary,
         "mean_hindsight_best_candidate_rcrps": best,
+        "mean_hindsight_best_eligible_candidate_rcrps": best_eligible,
         "mean_uplift_vs_primary_rcrps": primary - selected,
-        "mean_selector_regret_rcrps": selected - best,
+        "mean_oracle_headroom_rcrps": selected - best,
+        "mean_selector_regret_among_eligible_rcrps": selected - best_eligible,
         "selected_primary_cases": sum(
             bool(row["selected_primary"]) for row in rows),
         "selected_hindsight_best_cases": sum(
             bool(row["selected_hindsight_best"]) for row in rows),
+        "selected_best_eligible_cases": sum(
+            bool(row["selected_best_eligible"]) for row in rows),
         "primary_immutability_failures": sum(
             row["primary_forecast_unchanged"] is not True for row in rows),
         "automation_eligible_cases": sum(
