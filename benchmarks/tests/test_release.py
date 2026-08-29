@@ -13,6 +13,7 @@ def test_release_builder_removes_case_data_and_records_digest(
     source.write_text(json.dumps({
         "score": .8, "rows": [{"prompt": "private"}],
         "results": [{"response": "also private"}],
+        "raw_records": [{"ground_truth": "private future"}],
         "breakdown": {"easy": .9},
         "shards": ["/root/Gnomon/results/run/shard-0"],
         "external_dataset": "/runner/external/data.parquet",
@@ -35,6 +36,7 @@ def test_release_builder_removes_case_data_and_records_digest(
     payload = json.loads((output / "example.json").read_text())
     assert "rows" not in payload["summary"]
     assert "results" not in payload["summary"]
+    assert "raw_records" not in payload["summary"]
     assert payload["summary"]["breakdown"] == {"easy": .9}
     assert payload["summary"]["shards"] == ["results/run/shard-0"]
     assert payload["summary"]["external_dataset"] == "<absolute-path-redacted>"

@@ -1,0 +1,38 @@
+{
+  "release_metadata": {
+    "arm": "reasoning-contract-smoke",
+    "benchmark": "boundarybench",
+    "configuration_identity": "real verbs plus generated adversarial contract cases and mutation checks",
+    "dataset_identity": "BoundaryBench synthetic contract corpus seed=60901 cases=20",
+    "evaluated_commit": "4391ed6+scorecard-working-tree",
+    "harness_commit": "4391ed6+scorecard-working-tree",
+    "notes": [],
+    "scope": "smoke",
+    "source": "results/v0.6-product-loop/i001-boundary-smoke/summary.json",
+    "source_sha256": "c0c4c24fdedec6c4b10c1bc1d1c2a4d5e6b3f3f83c70ebb2881bc42f61fb85a9",
+    "status": "complete"
+  },
+  "summary": {
+    "cases": 20,
+    "gates": {
+      "actionable_rejection": true,
+      "argument_completeness": true,
+      "canonical_immutability": true,
+      "fact_traceability": true,
+      "mutation_falsifiability": true,
+      "real_verb_response": true,
+      "redundancy_attribution": true
+    },
+    "graduated": true,
+    "mutation_detection": {
+      "actionable_rejection": true,
+      "argument_completeness": true,
+      "canonical_immutability": true,
+      "fact_traceability": true,
+      "real_verb_response": true,
+      "redundancy_attribution": true
+    },
+    "schema_version": "0.1",
+    "seed": 60901
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "benchmarks": [
+    {
+      "arm": "classical-output-smoke",
+      "benchmark": "short-history-modelbench",
+      "bytes": 5070,
+      "file": "short-history-output-smoke.json",
+      "scope": "smoke",
+      "sha256": "616b39e586fc00108407b57c7e252af904a153a8aa8a02460a885167bb8a27c6",
+      "status": "complete"
+    },
+    {
+      "arm": "reasoning-contract-smoke",
+      "benchmark": "boundarybench",
+      "bytes": 1274,
+      "file": "boundary-reasoning-smoke.json",
+      "scope": "smoke",
+      "sha256": "31f33b666d4502bd57b98ddafabfdf31acb36a97e4141f77bd4a6a997bc2c93a",
+      "status": "complete"
+    },
+    {
+      "arm": "engine-topology-smoke",
+      "benchmark": "contextbench",
+      "bytes": 22095,
+      "file": "context-topology-smoke.json",
+      "scope": "smoke",
+      "sha256": "2e9233ec129c25bbaeed0c60b06460909bae0832a9f02ce69321d97c898d7561",
+      "status": "complete"
+    }
+  ],
+  "curated_by_commit": "4391ed6d9faa2824b8e4be8e5af5d60498fce83f",
+  "not_included": [
+    {
+      "benchmark": "agent-boundary API probe",
+      "reason": "P1 validates the scorecard contract without a paid model call; the registered jobs=1 matched agent probe remains a P8 gate."
+    }
+  ],
+  "policy": {
+    "aggregate_only": true,
+    "raw_runs_are_ci_artifacts": true,
+    "smoke_results_are_not_full_results": true
+  },
+  "release": "2026-08-30-v06-loop-i001",
+  "schema_version": "1.1"
+}
