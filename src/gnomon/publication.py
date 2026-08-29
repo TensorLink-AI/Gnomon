@@ -1205,9 +1205,15 @@ def build_scenario_catalog(result: dict[str, Any], *,
         proposal = dossier.get("effect_proposal")
         candidate = dossier.get("forecast_candidate")
         claims = dossier.get("claims") or []
+        forecast_rows = [row for row in result.get("forecast") or []
+                         if isinstance(row, dict) and row.get("timestamp")]
+        forecast_window = ((str(forecast_rows[0]["timestamp"]),
+                            str(forecast_rows[-1]["timestamp"]))
+                           if forecast_rows else None)
         deterministic_events = deterministic_events_from_claims(
             dossier, target_name=str(result.get("target_identity")
-                                     or result.get("series") or ""))
+                                     or result.get("series") or ""),
+            forecast_window=forecast_window)
         deterministic_claim_ids = {
             str(event.get("derived_from_claim_id"))
             for event in deterministic_events

@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Route explicit historical zero-recording claims and ended recurring
+  disruptions through deterministic, replay-validated front doors before any
+  optional model call. Historical claims can no longer be re-promoted as
+  future absolute-value events, so a successful counterfactual is not paired
+  with a false event rejection. Optional sampled priors now have their own
+  bounded provider timeout; a slow speculative path cannot delay the already
+  available primary and governed context answer for the full workflow budget.
+  The optional scenario selector and its single repair likewise share one
+  bounded deadline rather than two independent two-minute requests.
+  A target-outcome-inferred contamination mask must clear the full replay
+  margin on both point and probabilistic metrics before it may lead even a
+  human-only best-effort answer; directional wins alone remain sufficient only
+  for source-defined masks. A total sampled-prior transport outage no longer
+  triggers a second futile request wave.
 - Execute explicitly cited reference-normalized laws without asking an LLM to
   invent their arithmetic. Gnomon replays the fixed law against pre-cutoff
   target/driver pairs at robustly identified material driver transitions,

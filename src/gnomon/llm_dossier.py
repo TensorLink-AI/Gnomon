@@ -1440,6 +1440,13 @@ def validate_temporal_dossier(
         if replay.get("human_recommendation_eligible") is True \
                 and replay.get("selection_eligible") is not True:
             candidate_selection_reason = (
+                "An outcome-inferred contamination sensitivity cleared the "
+                "full replay margin on both governed metrics and the "
+                "chronological block gate; it may lead best_effort for human "
+                "review but can never become historical evidence or authorize "
+                "automation."
+                if replay.get("status") ==
+                "scenario_only_outcome_inferred_mask" else
                 "Conditional replay improved both governed metrics across two "
                 "chronological blocks but missed strict admission; it may lead "
                 "best_effort for human review and can never authorize automation.")
@@ -2224,10 +2231,31 @@ def _validate_observation_interpretations(
     normalization = accepted[0].get("predicate_normalization") or {}
     if normalization.get("kind") == \
             "semantic_zero_to_separated_near_zero_cluster":
+        required_margin = float(replay.get("required_margin") or .10)
+        point_skill = replay.get("relative_improvement")
+        probabilistic_skill = replay.get(
+            "probabilistic_relative_improvement")
+        conservative_human_gate = bool(
+            isinstance(point_skill, (int, float))
+            and isinstance(probabilistic_skill, (int, float))
+            and math.isfinite(float(point_skill))
+            and math.isfinite(float(probabilistic_skill))
+            and float(point_skill) >= required_margin
+            and float(probabilistic_skill) >= required_margin
+            and int(replay.get("chronological_block_wins") or 0) >= int(
+                replay.get("required_block_wins") or 2))
         replay = {
             **replay,
             "status": "scenario_only_outcome_inferred_mask",
             "selection_eligible": False,
+            "human_recommendation_eligible": conservative_human_gate,
+            "human_gate_basis": (
+                "outcome_inferred_mask_requires_full_replay_margin"),
+            "authority_note": (
+                "Because cluster membership was inferred from target outcomes, "
+                "even the human-facing sensitivity must clear the full replay "
+                "margin on both metrics and the chronological block gate. It "
+                "never upgrades support or automation."),
             "admission_withheld_reason": (
                 "Cluster membership was inferred from observed target values; "
                 "it cannot validate itself under historical replay."),
@@ -2542,6 +2570,7 @@ def deterministic_events_from_claims(
         dossier: dict[str, Any], *,
         target_name: str | None = None,
         target_verified_spans: set[str] | None = None,
+        forecast_window: tuple[str, str] | None = None,
         ) -> list[dict[str, Any]]:
     """Promote only literally stated absolute states into event proposals.
 
@@ -2554,7 +2583,21 @@ def deterministic_events_from_claims(
 
     events = []
     claims = list(dossier.get("claims") or [])
+    forecast_start = (_timestamp(forecast_window[0])
+                      if forecast_window else None)
+    forecast_end = (_timestamp(forecast_window[1])
+                    if forecast_window else None)
     for index, claim in enumerate(claims, 1):
+        if forecast_start is not None and forecast_end is not None:
+            claim_start = _timestamp(claim.get("effective_start"))
+            claim_end = _timestamp(claim.get("effective_end"))
+            if (claim_start is None or claim_end is None
+                    or claim_end < forecast_start
+                    or claim_start > forecast_end):
+                # Historical observations remain interpretation evidence.
+                # They must not be re-promoted as future absolute events just
+                # because the cited sentence contains a numeric zero or bound.
+                continue
         window_binding = claim.get("effective_window_binding") or {}
         if (window_binding.get("numeric_authority") is False
                 and window_binding.get("kind") !=
@@ -2635,6 +2678,10 @@ def deterministic_events_from_claims(
             # effective-window binding. Both boundaries must therefore be
             # recoverable verbatim from the same quote before it can own a
             # numeric override.
+            continue
+        if (forecast_start is not None and forecast_end is not None
+                and (end_time < forecast_start
+                     or start_time > forecast_end)):
             continue
         parse_span = (" ".join(span.split())
                       if span in (target_verified_spans or set())

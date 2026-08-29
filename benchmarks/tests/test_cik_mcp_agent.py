@@ -1372,6 +1372,8 @@ def test_structured_context_keeps_governed_and_model_candidates_separate(
     assert extra["publication"]["recommended_scenario_id"] == \
         "prior-assisted-2"
     assert extra["scenario_selector"]["accepted"] is True
+    assert client.completion_request_timeouts[-1] <= \
+        mcp_agent_module.MAX_SCENARIO_SELECTOR_SECONDS
     assert extra["publication"]["primary_forecast_unchanged"] is True
     assert extra["publication"]["automation"]["eligible"] is False
     trace = json.loads(next((tmp_path / "traces").glob("*.json")).read_text())
@@ -1585,7 +1587,7 @@ def test_accepted_historical_observation_count_does_not_crash_receipt(
     assert decision["triggered"] is False
 
 
-def test_literal_historical_observation_skips_redundant_llm_repair(tmp_path):
+def test_literal_historical_observation_skips_redundant_llm_compile(tmp_path):
     task = _task()
     task.past_time[9] = (task.past_time[9][0], 0.0)
     task.past_time[10] = (task.past_time[10][0], 0.0)
@@ -1607,10 +1609,35 @@ def test_literal_historical_observation_skips_redundant_llm_repair(tmp_path):
     receipt = json.loads(Path(extra["context_compilation"][
         "receipt_path"]).read_text())
     assert [call["stage"] for call in receipt["compiler"]["calls"]] == [
-        "initial_compile"]
+        "deterministic_historical_observation_parse"]
+    assert forecaster.client.completion_prompts == []
+    assert receipt["compiler"]["deterministic_front_door"] is True
+    assert receipt["rejections"] == []
     assert receipt["dossier"]["observation_interpretation_critique"][
         "status"] == "accepted"
     assert receipt["compiler"]["repair_decisions"][0]["triggered"] is False
+
+
+def test_ended_recurring_disruption_uses_schedule_front_door(tmp_path):
+    task = _task()
+    start = task.past_time[0][0]
+    task.scenario = (
+        "The service was under maintenance for 2 days, periodically every "
+        f"7 days, starting from {start}, resulting in no requests recorded. "
+        "Assume that the service will not be in maintenance in the future.")
+    forecaster = _forecaster([], tmp_path, profile="evidence")
+
+    _, extra = forecaster(task, 1)
+
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    assert [call["stage"] for call in receipt["compiler"]["calls"]] == [
+        "deterministic_ended_recurring_disruption_parse"]
+    assert forecaster.client.completion_prompts == []
+    assert receipt["compiler"]["deterministic_front_door"] is True
+    assert receipt["rejections"] == []
+    interpretation = receipt["dossier"]["observation_interpretations"][0]
+    assert interpretation["predicate"]["op"] == "recurring_window"
 
 
 def test_evidence_binds_only_cited_host_timestamped_covariates(tmp_path):
@@ -2848,13 +2875,24 @@ def test_optional_prior_transport_outage_does_not_reject_valid_context(
     assert compiler["model_candidate_status"] == (
         "transport_unavailable_for_typed_interpretation")
     assert compiler["model_candidate_sampling"]["transport"] == {
-        "requested": 5, "failed": 5, "returned": 0,
+        "requested": 3, "failed": 3, "returned": 0,
         "interpretation": (
             "transport availability is reported separately; semantic "
             "validity is measured over returned paths"),
     }
     assert compiler["model_candidate_sampling"]["sufficiency"][
         "reason_codes"] == ["transport_unavailable"]
+    assert compiler["model_candidate_sampling"]["adaptive_sampling"] == {
+        "initial_requested": 3,
+        "maximum_requested": 5,
+        "expanded": False,
+        "expansion_skipped_reason": "transport_unavailable",
+        "expansion_reason_codes": [],
+        "stopped_early": True,
+        "interpretation": (
+            "additional paths are requested only when the initial "
+            "elicitation is malformed or materially incoherent"),
+    }
     assert receipt["rejections"] == []
     assert extra["context_compilation"]["rejection_count"] == 0
     publication = extra["publication"]
@@ -2912,8 +2950,9 @@ def test_one_sample_transport_failure_preserves_other_governed_paths(tmp_path):
                     raise TimeoutError("isolated provider timeout")
             return super().completions(*args, **kwargs)
 
+    client = OneFailedSampleClient()
     forecaster = McpAgentForecaster(
-        "x/y", client=OneFailedSampleClient(),
+        "x/y", client=client,
         session_factory=lambda cwd: InProcessMcpSession(cwd),
         work_dir=str(tmp_path), profile="evidence",
         output_role="publication_best_effort")
@@ -2945,6 +2984,11 @@ def test_one_sample_transport_failure_preserves_other_governed_paths(tmp_path):
         "prior-assisted-")
     assert extra["publication"]["primary_forecast_unchanged"] is True
     assert extra["publication"]["automation"]["eligible"] is False
+    prior_timeouts = [timeout for temperature, timeout in zip(
+        client.completion_temperatures, client.completion_request_timeouts)
+        if temperature == 1]
+    assert prior_timeouts
+    assert max(prior_timeouts) <= mcp_agent_module.MAX_OPTIONAL_PRIOR_SECONDS
 
 
 def test_literal_zero_claim_uses_deterministic_override_lane(tmp_path):

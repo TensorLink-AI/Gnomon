@@ -58,6 +58,10 @@ MAX_RUN_TOKENS = 250_000
 MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
     300.0, float(os.environ.get("GNOMON_CONTEXT_COMPILATION_SECONDS", "60"))))
 MIN_CONTEXT_REPAIR_SECONDS = 10.0
+MAX_OPTIONAL_PRIOR_SECONDS = max(1.0, min(
+    60.0, float(os.environ.get("GNOMON_OPTIONAL_PRIOR_SECONDS", "15"))))
+MAX_SCENARIO_SELECTOR_SECONDS = max(1.0, min(
+    60.0, float(os.environ.get("GNOMON_SCENARIO_SELECTOR_SECONDS", "15"))))
 MODEL_PRIOR_PATH_SAMPLES = 5
 #: Bump when the system prompt, the caps, or the submit contract change:
 #: the official cache reuses results by cache_name, and a cached run made
@@ -451,7 +455,13 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: Version 206: reference-law execution retains the complete ordered future
 #: driver schedule instead of silently extending only its first transition
 #: across the horizon. Smooth between-state dynamics remain uncertainty.
-MCP_CONTRACT_VERSION = 206
+#: Version 207: ended historical disruptions and explicit historical zero
+#: semantics take deterministic front doors; historical claims cannot be
+#: re-promoted as future absolute events, and optional sampled priors have an
+#: independent latency cap so provider tails cannot delay the primary answer.
+#: Optional scenario selection shares the same bounded-latency principle; its
+#: one repair must fit inside one total selector deadline.
+MCP_CONTRACT_VERSION = 207
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -3288,17 +3298,25 @@ class McpAgentForecaster:
                         "support label. Return only the JSON response object.\n"
                         + json.dumps(contract))
                     last_error = None
+                    selector_deadline = (
+                        time.monotonic() + MAX_SCENARIO_SELECTOR_SECONDS)
                     for attempt in range(2):
                         prompt = base_prompt if attempt == 0 else (
                             base_prompt + "\nYour previous response was rejected: "
                             + str(last_error) + "\nRepair only that violation."
                         )
                         try:
+                            selector_remaining = (
+                                selector_deadline - time.monotonic())
+                            if selector_remaining <= 0:
+                                raise TimeoutError(
+                                    "scenario selector deadline exhausted")
                             selection_attempted = True
                             response = self.client.completions(
                                 [{"role": "user", "content": prompt}], n=1,
                                 temperature=0, reasoning_effort="none",
-                                request_timeout=120,
+                                request_timeout=max(
+                                    1, math.floor(selector_remaining)),
                                 transport_retries=0)[0]
                             objects = extract_json_objects(response)
                             if not objects:
@@ -3625,6 +3643,11 @@ class _Run:
         observation_contract = (
             not relationship_contract
             and _expects_historical_zero_interpretation(context))
+        deterministic_observation_claim = (
+            deterministic_historical_observation_claim(
+                context, history_start=self.timestamps[0],
+                cutoff=self.timestamps[-1])
+            if observation_contract else None)
         companion_contract = bool(
             not relationship_contract and not observation_contract
             and deterministic_reference_power is None
@@ -3635,7 +3658,7 @@ class _Run:
             deterministic_ended_recurring_disruption_dossier(
                 context, cutoff=self.timestamps[-1])
             if (categorical_schedule is None and not relationship_contract
-                and not observation_contract and not companion_contract)
+                and not companion_contract)
             else None)
         if (categorical_schedule is not None or relationship_contract
                 or observation_contract or deterministic_ended_disruption is not None):
@@ -3808,7 +3831,13 @@ class _Run:
                      "You are a useful forecasting assistant."},
                     {"role": "user", "content": content},
                 ]
-                timeout = max(1, min(120, math.floor(remaining)))
+                # Sampled priors are optional human-review scenarios after
+                # the primary and deterministic context lanes already exist.
+                # A single provider tail must not consume the whole workflow
+                # budget; adaptive expansion may use another bounded wave.
+                timeout = max(1, min(
+                    120, math.floor(remaining),
+                    math.floor(MAX_OPTIONAL_PRIOR_SECONDS)))
 
                 def one_sample(_: int) -> tuple[str, str | None]:
                     try:
@@ -3958,6 +3987,17 @@ class _Run:
                 "stage": "deterministic_external_reference_point_parse",
                 "elapsed_seconds": 0.0,
             })
+        elif deterministic_observation_claim is not None:
+            raw = bind_active_target({
+                "events": [], "claims": [deterministic_observation_claim],
+                "hypotheses": [], "covariate_tables": [],
+                "transformations": [], "observation_interpretations": [],
+                "effect_proposal": None, "forecast_candidate": None,
+            })
+            compiler_calls.append({
+                "stage": "deterministic_historical_observation_parse",
+                "elapsed_seconds": 0.0,
+            })
         else:
             try:
                 completion = complete(prompt, "initial_compile")
@@ -3997,12 +4037,8 @@ class _Run:
         # and replay its contamination interpretation immediately.  A repair
         # remains available when the literal extractor cannot establish the
         # required source evidence.
-        literal_observation_claim = None
-        if _expects_historical_zero_interpretation(context):
-            literal_observation_claim = (
-                deterministic_historical_observation_claim(
-                    context, history_start=self.timestamps[0],
-                    cutoff=self.timestamps[-1]))
+        literal_observation_claim = deterministic_observation_claim
+        if observation_contract:
             if literal_observation_claim is not None:
                 remaining_claims = [
                     item for item in raw.get("claims") or []
@@ -4514,7 +4550,8 @@ class _Run:
             derived_events = deterministic_events_from_claims(
                 {**probe, "events": existing_events},
                 target_name=self.target_name,
-                target_verified_spans=single_target_event_spans)
+                target_verified_spans=single_target_event_spans,
+                forecast_window=(future_timestamps[0], future_timestamps[-1]))
             existing_keys = {(str(item.get("event_type") or ""),
                               str(item.get("evidence_quote") or
                                   item.get("source_span") or ""))
@@ -5305,6 +5342,7 @@ class _Run:
         deterministic_context_executable_available = bool(
             deterministic_companion_tables or categorical_schedule
             or deterministic_ended_disruption is not None
+            or deterministic_observation_claim is not None
             or deterministic_reference_power is not None
             or deterministic_named_relationship is not None
             or deterministic_calibration_claim is not None
@@ -5408,9 +5446,11 @@ class _Run:
                     path_transform=transform_sampled_path)
                 initial_sufficiency = sampled_prior_sufficiency(
                     model_candidate_sampling)
+                initial_returned = initial_paths - transport_failed
                 expanded = False
                 expansion_skipped_reason = None
                 if (requested_paths > initial_paths
+                        and initial_returned > 0
                         and not initial_sufficiency[
                             "eligible_for_human_recommendation"]
                         and compilation_deadline - time.monotonic() >= 5.0):
@@ -5432,7 +5472,10 @@ class _Run:
                 elif (requested_paths > initial_paths
                       and not initial_sufficiency[
                           "eligible_for_human_recommendation"]):
-                    expansion_skipped_reason = "workflow_deadline_exhausted"
+                    expansion_skipped_reason = (
+                        "transport_unavailable"
+                        if initial_returned == 0 else
+                        "workflow_deadline_exhausted")
                 final_sufficiency = sampled_prior_sufficiency(
                     model_candidate_sampling)
                 model_candidate_sampling["transport"] = {

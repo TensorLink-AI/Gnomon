@@ -678,6 +678,23 @@ def test_only_literal_absolute_claim_becomes_deterministic_override():
         dossier("output will probably decline during the promotion")) == []
 
 
+def test_historical_absolute_claim_is_not_repromoted_as_future_event():
+    span = "Maintenance resulted in no withdrawals recorded."
+    dossier = {
+        "claims": [{
+            "claim_id": "claim-1", "source_span": span,
+            "relation": "supports_decrease",
+            "effective_start": "2025-12-01T00:00:00+00:00",
+            "effective_end": "2025-12-31T00:00:00+00:00",
+            "confidence": 1.0,
+        }],
+    }
+
+    assert deterministic_events_from_claims(
+        dossier, target_name="withdrawals",
+        forecast_window=(TIMES[0], TIMES[-1])) == []
+
+
 def test_literal_absolute_event_does_not_require_duplicate_claim():
     span = (
         "the meter will be offline for maintenance between 2026-01-03 "
