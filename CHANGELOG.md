@@ -43,6 +43,11 @@
   is now keyed by proposer and collapses correlated same-class variants to one
   conservative observation per forecast origin, preventing multiplicity from
   manufacturing confidence.
+- Publish a graduated outcome prior through a fixed equal-weight compromise
+  with the immutable primary instead of jumping directly to the candidate.
+  OutcomeLearningBench retains stable-series uplift while reducing reversal
+  regret versus the full-prior counterfactual; the compromise remains
+  `prior_assisted`, human-reviewed, and categorically non-automatable.
 - Use the existing bounded four/five-path cap on the first model-prior
   elicitation rather than estimating a human-facing median from three draws.
   Requests remain concurrent; sampled spread remains a coherence diagnostic,

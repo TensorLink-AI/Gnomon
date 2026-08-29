@@ -121,12 +121,17 @@ def run_stream(
                 "primary_forecast_unchanged"],
             "automation_eligible": publication["automation"]["eligible"],
         })
+    mean_full_prior = sum(
+        item["candidate_wape"]
+        if item["selection_method"] == "resolved_outcome_human_prior_policy"
+        else item["primary_wape"] for item in cases) / len(cases)
     return {
         "series": series, "candidate_proposer": compiler_model,
         "cases": cases,
         "mean_primary_wape": sum(item["primary_wape"] for item in cases) / len(cases),
         "mean_candidate_wape": sum(item["candidate_wape"] for item in cases) / len(cases),
         "mean_selected_wape": sum(item["selected_wape"] for item in cases) / len(cases),
+        "mean_counterfactual_full_prior_wape": mean_full_prior,
         "outcome_informed_selections": sum(
             item["selection_method"] == "resolved_outcome_human_prior_policy"
             for item in cases),
@@ -209,6 +214,8 @@ def run_suite(database: Path) -> dict[str, Any]:
     }
     result["gates"] = {
         "stable_prior_eventually_used": stable["outcome_informed_selections"] > 0,
+        "stable_policy_improves_primary": (
+            stable["mean_selected_wape"] < stable["mean_primary_wape"]),
         "harmful_prior_never_used": harmful["outcome_informed_selections"] == 0,
         "delayed_future_outcomes_not_used": delayed["outcome_informed_selections"] == 0,
         "unrelated_series_not_used": contamination[
@@ -219,6 +226,9 @@ def run_suite(database: Path) -> dict[str, Any]:
             reversal["first_demoted_after_regime_change"] is not None
             and reversal["first_demoted_after_regime_change"] <= 11
             and reversal["bad_recommendations_before_demotion"] <= 2),
+        "shrinkage_reduces_reversal_regret_vs_full_prior": (
+            reversal["mean_selected_wape"] <
+            reversal["mean_counterfactual_full_prior_wape"]),
         "no_immutability_failures": all(
             family["immutability_failures"] == 0
             for family in (stable, harmful, reversal, delayed, contamination,

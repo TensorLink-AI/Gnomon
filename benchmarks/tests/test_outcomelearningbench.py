@@ -12,6 +12,8 @@ def test_prequential_outcome_learning_is_scoped_and_safe(tmp_path: Path):
     reversal = result["families"]["regime_reversal"]
     assert stable["outcome_informed_selections"] > 0
     assert stable["mean_selected_wape"] < stable["mean_primary_wape"]
+    assert reversal["mean_selected_wape"] < reversal[
+        "mean_counterfactual_full_prior_wape"]
     assert harmful["outcome_informed_selections"] == 0
     assert reversal["outcome_informed_selections"] > 0
     assert reversal["bad_recommendations_before_demotion"] == 2
@@ -19,3 +21,5 @@ def test_prequential_outcome_learning_is_scoped_and_safe(tmp_path: Path):
     assert result["gates"]["reversal_demoted_within_two_resolved_losses"] is True
     assert result["gates"]["unrelated_series_not_used"] is True
     assert result["gates"]["different_proposer_history_not_used"] is True
+    assert result["gates"][
+        "shrinkage_reduces_reversal_regret_vs_full_prior"] is True

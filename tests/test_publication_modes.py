@@ -1911,8 +1911,10 @@ def test_resolved_same_series_candidate_skill_can_guide_only_human_prior():
         _result(), mode="strict", dossiers=[_dossier()],
         candidate_outcome_evidence=evidence)
 
-    assert best_effort["recommended_scenario_id"] == "prior-assisted-1"
+    assert best_effort["recommended_scenario_id"] == "outcome-shrunk-prior"
     assert best_effort["recommended_support"] == "prior_assisted"
+    assert [row["q50"] for row in best_effort["recommended_forecast"]] == [
+        10.5, 11.0]
     assert best_effort["recommendation_authority"]["selection_method"] == \
         "resolved_outcome_human_prior_policy"
     assert best_effort["automation"]["eligible"] is False
@@ -2095,9 +2097,11 @@ def test_mcp_best_effort_uses_only_prior_same_series_candidate_outcomes(
     assert candidate["effect"]["candidate_proposer"] == "test"
     assert publication["candidate_outcome_evidence"][0][
         "graduated_for_human_prior"] is True
-    assert publication["recommended_scenario_id"] == "prior-assisted-1", (
+    assert publication["recommended_scenario_id"] == "outcome-shrunk-prior", (
         publication.get("candidate_outcome_evidence"),
-        [(item.get("role"), item.get("effect")) for item in
+        publication.get("scenario_selection"),
+        [(item.get("scenario_id"), item.get("role"),
+          (item.get("effect") or {}).get("source_scenario_id")) for item in
          publication.get("candidate_portfolio") or []])
     assert publication["recommendation_authority"]["selection_method"] == \
         "resolved_outcome_human_prior_policy"

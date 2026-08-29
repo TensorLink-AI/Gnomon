@@ -3090,38 +3090,9 @@ def _selection_inputs(
 def minimax_prior_compromise(
         primary_rows: list[dict[str, Any]],
         prior_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Return the fixed midpoint of two unresolved forecast hypotheses.
-
-    This is an evaluation instrument, not an admitted forecast model.  Equal
-    weight is the minimax point between two otherwise unordered numeric
-    hypotheses under absolute disagreement; it is deliberately not estimated
-    from benchmark outcomes.  Exact grid matching and finite ordered
-    quantiles are required so the instrument cannot conceal malformed input.
-    """
-    if not primary_rows or len(primary_rows) != len(prior_rows):
-        raise ValueError("compromise requires two non-empty equal grids")
-    output: list[dict[str, Any]] = []
-    for primary, prior in zip(primary_rows, prior_rows, strict=True):
-        if primary.get("timestamp") != prior.get("timestamp"):
-            raise ValueError("compromise forecast grids differ")
-        averaged: dict[str, float] = {}
-        for key in ("q10", "q50", "q90"):
-            left, right = primary.get(key), prior.get(key)
-            if (not isinstance(left, (int, float)) or isinstance(left, bool)
-                    or not isinstance(right, (int, float))
-                    or isinstance(right, bool)
-                    or not math.isfinite(float(left))
-                    or not math.isfinite(float(right))):
-                raise ValueError(f"compromise requires finite {key}")
-            averaged[key] = (float(left) + float(right)) / 2.0
-        if not averaged["q10"] <= averaged["q50"] <= averaged["q90"]:
-            raise ValueError("compromise produced unordered quantiles")
-        output.append({
-            **primary,
-            **averaged,
-            "point": averaged["q50"],
-        })
-    return output
+    """Compatibility wrapper over the production compromise primitive."""
+    from gnomon.publication import conservative_prior_compromise
+    return conservative_prior_compromise(primary_rows, prior_rows)
 
 
 def _eligible_prior_claims(

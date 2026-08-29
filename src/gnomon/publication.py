@@ -12,7 +12,7 @@ import hashlib
 import json
 import math
 import statistics
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 
@@ -29,6 +29,52 @@ PUBLICATION_VERSION = "0.1"
 MODES = frozenset({"strict", "best_effort", "scenario"})
 MAX_SCENARIOS = 8
 SELECTION_LABEL = "hypothesis_ranking"
+
+
+def conservative_prior_compromise(
+        primary_rows: list[dict[str, Any]],
+        prior_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return a fixed equal-weight path between two unresolved hypotheses.
+
+    The weight is not learned from outcomes or benchmark labels. Exact grids,
+    finite values and ordered quantiles are mandatory. The result is suitable
+    only for a labelled human prior; callers must not infer support or
+    automation authority from this numeric operation.
+    """
+    if not primary_rows or len(primary_rows) != len(prior_rows):
+        raise ValueError("compromise requires two non-empty equal grids")
+    output: list[dict[str, Any]] = []
+    for primary, prior in zip(primary_rows, prior_rows, strict=True):
+        left_stamp, right_stamp = primary.get("timestamp"), prior.get("timestamp")
+        if left_stamp != right_stamp:
+            try:
+                left_time = datetime.fromisoformat(
+                    str(left_stamp).replace("Z", "+00:00"))
+                right_time = datetime.fromisoformat(
+                    str(right_stamp).replace("Z", "+00:00"))
+                if left_time.tzinfo is None:
+                    left_time = left_time.replace(tzinfo=timezone.utc)
+                if right_time.tzinfo is None:
+                    right_time = right_time.replace(tzinfo=timezone.utc)
+                same_time = left_time.timestamp() == right_time.timestamp()
+            except (TypeError, ValueError):
+                same_time = False
+            if not same_time:
+                raise ValueError("compromise forecast grids differ")
+        averaged: dict[str, float] = {}
+        for key in ("q10", "q50", "q90"):
+            left, right = primary.get(key), prior.get(key)
+            if (not isinstance(left, (int, float)) or isinstance(left, bool)
+                    or not isinstance(right, (int, float))
+                    or isinstance(right, bool)
+                    or not math.isfinite(float(left))
+                    or not math.isfinite(float(right))):
+                raise ValueError(f"compromise requires finite {key}")
+            averaged[key] = (float(left) + float(right)) / 2.0
+        if not averaged["q10"] <= averaged["q50"] <= averaged["q90"]:
+            raise ValueError("compromise produced unordered quantiles")
+        output.append({**primary, **averaged, "point": averaged["q50"]})
+    return output
 
 
 def _covariate_input_evaluation(result: dict[str, Any]) -> dict[str, Any] | None:
@@ -1941,7 +1987,12 @@ def outcome_informed_prior_selection(
                 matches.append((scenario, evidence))
     if len(matches) != 1:
         return None
-    selected, skill = matches[0]
+    source_candidate, skill = matches[0]
+    selected = next((
+        item for item in scenarios
+        if item.get("role") == "outcome_shrunk_prior"
+        and ((item.get("effect") or {}).get("source_scenario_id") ==
+             source_candidate.get("scenario_id"))), source_candidate)
     eligible = [item for item in scenarios
                 if item.get("human_selection_eligible") is True
                 and item is not selected]
@@ -1977,6 +2028,73 @@ def outcome_informed_prior_selection(
         selection["channel"] = "resolved_outcome_human_prior_policy"
         selection["outcome_skill"] = skill
     return selection
+
+
+def _append_outcome_shrunk_prior(
+        scenarios: list[dict[str, Any]],
+        candidate_outcomes: list[dict[str, Any]]) -> None:
+    """Add one sealed compromise for one uniquely graduated candidate class."""
+    if len(scenarios) >= MAX_SCENARIOS:
+        return
+    eligible_evidence = [item for item in candidate_outcomes
+                         if isinstance(item, dict)
+                         and item.get("graduated_for_human_prior") is True
+                         and item.get("support_upgrade_allowed") is False
+                         and item.get("automation_upgrade_allowed") is False
+                         and isinstance(item.get("scope"), dict)
+                         and item["scope"].get("series")
+                         and item["scope"].get("resolved_before")]
+    matches = []
+    for scenario in scenarios:
+        if (scenario.get("role") != "model_authored"
+                or scenario.get("human_selection_eligible") is not True):
+            continue
+        effect = scenario.get("effect") or {}
+        for evidence in eligible_evidence:
+            if (evidence.get("scenario_role") == scenario.get("role")
+                    and evidence.get("candidate_origin") ==
+                    str(effect.get("candidate_origin") or scenario.get("role"))
+                    and str(evidence.get("candidate_proposer") or "unknown") ==
+                    str(effect.get("candidate_proposer") or "unknown")):
+                matches.append((scenario, evidence))
+    if len(matches) != 1:
+        return
+    source, skill = matches[0]
+    primary = next((item for item in scenarios
+                    if item.get("role") == "immutable_primary"), None)
+    if primary is None:
+        return
+    try:
+        forecast = conservative_prior_compromise(
+            primary.get("forecast") or [], source.get("forecast") or [])
+    except ValueError:
+        return
+    scenarios.append(_scenario(
+        "outcome-shrunk-prior", "outcome_shrunk_prior", forecast,
+        support="prior_assisted", automation_eligible=False,
+        selection_eligible=True, human_selection_eligible=True,
+        claim_ids=list(source.get("claim_ids") or []),
+        assumptions=[
+            "Equal-weight compromise between the immutable primary and a "
+            "same-series candidate class with graduated outcome evidence.",
+            "The fixed weight is not fitted to outcomes or benchmark labels.",
+        ],
+        source_seal=str(source.get("scenario_seal_sha256") or
+                        source.get("source_seal_sha256") or ""),
+        effect={
+            "candidate_origin": "outcome_shrunk_prior",
+            "candidate_proposer": ((source.get("effect") or {}).get(
+                "candidate_proposer")),
+            "source_candidate_origin": ((source.get("effect") or {}).get(
+                "candidate_origin")),
+            "source_scenario_id": source.get("scenario_id"),
+            "outcome_skill": skill,
+            "shrinkage": {
+                "method": "fixed_equal_weight_compromise",
+                "prior_weight": .5,
+                "fit_to_outcomes": False,
+            },
+        }))
 
 
 def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
@@ -2298,6 +2416,9 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
     if mode not in MODES:
         raise ValueError(f"unknown publication mode {mode!r}")
     scenarios, dispositions = build_scenario_catalog(result, dossiers=dossiers)
+    if mode == "best_effort" and candidate_outcome_evidence:
+        _append_outcome_shrunk_prior(
+            scenarios, candidate_outcome_evidence)
     selection = validate_scenario_selection(
         scenario_selection, scenarios=scenarios, dossiers=dossiers)
     if selection is None and mode == "best_effort":
@@ -2445,7 +2566,7 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
             else "conditional_replay_best_effort")
     elif selected_role in {
             "model_authored", "model_authored_transformation",
-            "effect_composed"}:
+            "effect_composed", "outcome_shrunk_prior"}:
         selection_method = (
             "default_prior_assisted_lane"
             if selected.get("support") == "prior_assisted"
