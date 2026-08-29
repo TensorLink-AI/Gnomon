@@ -21,24 +21,19 @@ from .runtime import capabilities, forecast, inspect_dataset
 _CONTEXT_EVENTS_PROPERTY: dict[str, Any] = {
     "context_source_text": {
         "type": "string",
-        "description": (
-            "Original context document containing every source_span; used "
-            "for quote and semantic validation, never as numeric data."),
+        "description": "Source containing each verbatim source_span.",
     },
     "context_events": {
         "type": "array",
-        "description": (
-            "Dated literal min/max/exact claim bound to its verbatim quote."
-        ),
+        "description": "Dated quoted min/max/exact claims.",
         "items": {
             "type": "object",
             "properties": {
                 "event_id": {"type": "string"},
                 "claim_kind": {"type": "string",
-                               "enum": ["min", "max", "exact"],
-                               "description": "min=floor; max=cap; exact=fixed state."},
+                               "enum": ["min", "max", "exact"]},
                 "entity_scope": {"type": "array", "items": {"type": "string"},
-                                 "description": "Omit when one target or quote names exactly one requested target."},
+                                 "description": "Optional target names."},
                 "effective_start": {"type": "string"},
                 "effective_end": {"type": "string"},
                 "known_at": {"type": "string"},
@@ -50,17 +45,11 @@ _CONTEXT_EVENTS_PROPERTY: dict[str, Any] = {
     },
     "context_ref": {
         "type": "string",
-        "description": (
-            "Prior context receipt; replaces both event inputs. Timing and "
-            "admission are rechecked."
-        ),
+        "description": "Prior context receipt; timing is rechecked.",
     },
     "qualitative_context_events": {
         "type": "array",
-        "description": (
-            "Dated unknown-magnitude event; its quote must contain the start "
-            "date. Produces a non-automatable sensitivity only."
-        ),
+        "description": "Quoted unknown-magnitude event; scenario-only.",
         "items": {
             "type": "object", "additionalProperties": False,
             "properties": {
@@ -69,7 +58,7 @@ _CONTEXT_EVENTS_PROPERTY: dict[str, Any] = {
                 "effective_end": {"type": "string"},
                 "known_at": {"type": "string"},
                 "source_span": {"type": "string",
-                                "description": "Must quote effective_start date."},
+                                "description": "Quote the start date."},
                 "direction": {"type": "string",
                               "enum": ["increase", "decrease", "unknown"]},
                 "effect_family": {"type": "string", "enum": [
@@ -87,10 +76,7 @@ _CONTEXT_EVENTS_PROPERTY: dict[str, Any] = {
     },
     "context_rejections": {
         "type": "array", "items": {"type": "object"},
-        "description": (
-            "Ungroundable facts: context_id (event_id alias accepted), "
-            "reason_code, reason, source_span. Receipted; no numeric effect."
-        ),
+        "description": "Rejected context with id, reason_code, reason, quote.",
     },
 }
 
@@ -2539,12 +2525,18 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
         submission["rejections"] = [
             *(submission.get("rejections") or []), *normalized_rejections]
     raw_proposal = submission.get("proposal")
+    raw_model_candidate = submission.get("model_candidate")
     deterministic_compile = submission.get("compile")
     if deterministic_compile not in (None, "deterministic_linear"):
         raise GnomonError(
             "INVALID_ARGUMENTS",
             "context_submission.compile supports only deterministic_linear")
+    if raw_model_candidate is not None and raw_proposal is not None:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "context_submission accepts proposal or model_candidate, not both")
     if deterministic_compile and (raw_proposal is not None
+                                  or raw_model_candidate is not None
                                   or submission.get("transformations")):
         raise GnomonError(
             "INVALID_ARGUMENTS",
@@ -2570,6 +2562,91 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
     # Preserve the semantic target supplied by the caller for claim-ownership
     # checks at the publication boundary; this metadata never changes points.
     result["target_identity"] = str(arguments.get("target_column") or "")
+    model_candidate_paths: list[list[float]] | None = None
+    model_candidate_diagnostics: dict[str, Any] | None = None
+    if raw_model_candidate is not None:
+        if not isinstance(raw_model_candidate, dict):
+            raise GnomonError(
+                "INVALID_ARGUMENTS", "model_candidate must be an object")
+        allowed = {
+            "source_spans", "quantiles", "sample_paths", "rationale",
+            "temperature",
+        }
+        unknown = sorted(set(raw_model_candidate) - allowed)
+        if unknown:
+            raise GnomonError(
+                "INVALID_ARGUMENTS", "model_candidate has unknown fields",
+                {"unknown_fields": unknown})
+        context_text = str(submission.get("text") or "")
+        known_at = str(submission.get("known_at") or "")
+        spans = raw_model_candidate.get("source_spans")
+        if (not context_text or not known_at or not isinstance(spans, list)
+                or not 1 <= len(spans) <= 8
+                or any(not isinstance(span, str) or not span.strip()
+                       or span not in context_text for span in spans)):
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "model_candidate requires text, known_at, and 1-8 exact "
+                "source_spans copied from text")
+        quantiles = raw_model_candidate.get("quantiles")
+        sample_paths = raw_model_candidate.get("sample_paths")
+        if (quantiles is None) == (sample_paths is None):
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "model_candidate requires exactly one of quantiles or sample_paths")
+        forecast_rows = result.get("primary_forecast") or result.get("forecast") or []
+        future_timestamps = [str(row.get("timestamp")) for row in forecast_rows]
+        history_proxy = [float(row.get("q50", row.get("point")))
+                         for row in forecast_rows]
+        claim_ids = [f"claim-{index}" for index in range(1, len(spans) + 1)]
+        if sample_paths is not None:
+            if (not isinstance(sample_paths, list)
+                    or not 3 <= len(sample_paths) <= 16):
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "model_candidate.sample_paths requires 3-16 paths")
+            from .agent_context import candidate_from_sampled_paths
+            serialized = [json.dumps({"forecast_path": {
+                "values": path,
+                "rationale": str(raw_model_candidate.get("rationale") or ""),
+            }}) for path in sample_paths]
+            candidate, model_candidate_diagnostics = (
+                candidate_from_sampled_paths(
+                    serialized, future_timestamps,
+                    history_values=history_proxy))
+            if candidate is None:
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "model_candidate.sample_paths did not contain a valid "
+                    "host-grid-bound path",
+                    {"diagnostics": model_candidate_diagnostics})
+            model_candidate_paths = candidate.pop("_validated_sample_paths")
+            candidate.pop("_selected_claim_ids", None)
+        else:
+            candidate = {
+                "quantiles": quantiles,
+                "rationale": str(raw_model_candidate.get("rationale") or
+                                 "Caller-supplied model forecast candidate."),
+            }
+        candidate["claim_ids"] = claim_ids
+        raw_proposal = {
+            "events": [],
+            "claims": [{
+                "source_span": span,
+                "relation": "unknown",
+                "effective_start": None,
+                "effective_end": None,
+                "timing_status": "atemporal_context",
+                "mechanism": "model-authored forecast prior",
+                "confidence": 0.5,
+            } for span in spans],
+            "hypotheses": [],
+            "effect_proposal": None,
+            "forecast_candidate": candidate,
+            "covariate_tables": [],
+            "transformations": [],
+            "observation_interpretations": [],
+        }
     raw_context_rejections = submission.get("rejections") or []
     if not isinstance(raw_context_rejections, list):
         raise GnomonError(
@@ -2709,7 +2786,29 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
         dossier, _ = compile_dossier_for_result(
             raw_proposal, context_text=context_text, known_at=known_at,
             result=result,
-            compiler_model=str(submission.get("compiler") or "agent"))
+            compiler_model=str(submission.get("compiler") or "agent"),
+            prefer_explicit_forecast_candidate=(
+                raw_model_candidate is not None))
+        if model_candidate_paths is not None:
+            from .agent_context import sample_path_stability
+            from .llm_dossier import attach_host_candidate_elicitation
+            temperature = raw_model_candidate.get("temperature", 1.0)
+            try:
+                temperature = float(temperature)
+                stability = sample_path_stability(
+                    model_candidate_paths,
+                    [float(row.get("q50", row.get("point"))) for row in
+                     (result.get("primary_forecast") or
+                      result.get("forecast") or [])])
+                dossier = attach_host_candidate_elicitation(
+                    dossier, requested_paths=len(sample_paths),
+                    accepted_paths=len(model_candidate_paths),
+                    aggregation="linear_empirical_marginal_q10_q50_q90",
+                    temperature=temperature, stability=stability,
+                    request_mode="batch_request",
+                    sample_paths=model_candidate_paths)
+            except (TypeError, ValueError) as exc:
+                raise GnomonError("INVALID_ARGUMENTS", str(exc)) from exc
         dossiers = [*dossiers, dossier]
     transformations = submission.get("transformations") or []
     if transformations:
@@ -3188,10 +3287,8 @@ TOOLS: list[dict[str, Any]] = [
                     "assumption."
                 )},
                 "format": {"type": "string", "enum": ["full", "brief"], "description": (
-                    "brief (default): q50 with one q10-q90 interval per "
-                    "step plus every disclosure verbatim; full adds all "
-                    "quantile levels. The on-disk artifact is identical "
-                    "either way."
+                    "brief (default): q50, q10-q90 and disclosures; full "
+                    "adds quantiles. The artifact is identical."
                 )},
                 "candidates": {"type": "array", "items": {"type": "string"}, "description": "Restrict candidates; mandatory baselines still compete."},
                 "model_admission": {"type": "string", "enum": ["strict", "evidence_weighted"], "description": "Default: strict."},
@@ -3199,16 +3296,14 @@ TOOLS: list[dict[str, Any]] = [
                 "output_dir": {"type": "string", "description": (
                     "Artifact directory; default from gnomon_capabilities."
                 )},
-                "minimum_baseline_improvement": {"type": "number", "minimum": 0, "description": "Minimum relative improvement over the strongest baseline to select a candidate (default 0.02; must be >= 0)."},
-                "context_events_file": {"type": "string", "description": "Optional validated context-events JSON file (the output of `gnomon context validate`)."},
+                "minimum_baseline_improvement": {"type": "number", "minimum": 0, "description": "Required relative gain over baseline (default 0.02)."},
+                "context_events_file": {"type": "string", "description": "Validated context-events JSON."},
                 **_CONTEXT_EVENTS_PROPERTY,
                 "threshold": {"type": "number", "description": "Optional decision threshold: the result reports when and how likely the forecast crosses this value."},
                 "project": {"type": "string", "description": "Optional tracking project. When set, register the forecast for realised scoring."},
                 "covariates_file": {"type": "string", "description": (
-                    "Local CSV of point-in-time covariate vintages: one "
-                    "row per (timestamp, known_at); a backtest fold only "
-                    "uses rows known at or before its cutoff. Validate "
-                    "first with gnomon_validate_covariates."
+                    "Point-in-time CSV keyed by timestamp and known_at; "
+                    "folds cannot see later vintages."
                 )},
                 **_COVARIATES_PROPERTY,
                 **_COVARIATE_MAPPING_PROPERTY,
@@ -3225,17 +3320,52 @@ TOOLS: list[dict[str, Any]] = [
                                              "conditionally_supported",
                                              "best_effort"],
                                     "description": (
-                    "Publication floor (default best_effort); supported "
-                    "refuses weaker results. Tiers never get easier to earn."
+                    "Floor (default best_effort); supported refuses weaker results."
                 )},
                 "publication_mode": {"type": "string",
                     "enum": ["strict", "best_effort", "scenario"],
                     "description": (
-                        "strict=evidence-only; best_effort=context recommendation; "
-                        "scenario=primary plus alternatives. Primary immutable.")},
+                        "strict=evidence-only; best_effort may recommend context; "
+                        "scenario returns alternatives. Primary stays fixed.")},
                 "temporal_dossiers": {"type": "array", "items": {"type": "object"},
                     "description": "Sealed temporal dossiers."},
-                "context_submission": {"type": "object", "description": "Raw {text, known_at, compiler, proposal, transformations, rejections}, or {text, known_at, compile:'deterministic_linear'} for complete cited linear lag specifications. Deterministic compilation is all-or-nothing; bounded transformations and typed rejection dispositions."},
+                "context_submission": {
+                    "type": "object", "additionalProperties": False,
+                    "description": (
+                        "Context or a cited human-only forecast prior; never "
+                        "changes the primary or permits automation."),
+                    "properties": {
+                        "text": {"type": "string"},
+                        "known_at": {"type": "string"},
+                        "compiler": {"type": "string"},
+                        "compile": {"type": "string",
+                                    "enum": ["deterministic_linear"]},
+                        "proposal": {"type": "object"},
+                        "transformations": {"type": "array",
+                                            "items": {"type": "object"}},
+                        "rejections": {"type": "array"},
+                        "model_candidate": {
+                            "type": "object", "additionalProperties": False,
+                            "description": (
+                                "Cited prior: source_spans plus quantiles xor "
+                                "3-16 full-grid sample_paths."),
+                            "properties": {
+                                "source_spans": {"type": "array", "minItems": 1,
+                                    "maxItems": 8,
+                                    "items": {"type": "string"}},
+                                "quantiles": {"type": "array",
+                                    "items": {"type": "object"}},
+                                "sample_paths": {"type": "array", "minItems": 3,
+                                    "maxItems": 16,
+                                    "items": {"type": "array",
+                                              "items": {"type": "number"}}},
+                                "rationale": {"type": "string"},
+                                "temperature": {"type": "number", "minimum": 0},
+                            },
+                            "required": ["source_spans"],
+                        },
+                    },
+                },
                 "scenario_selection": {"type": "object",
                     "description": "Number-free governed ranking of scenario ids."},
                 "automation_policy": {

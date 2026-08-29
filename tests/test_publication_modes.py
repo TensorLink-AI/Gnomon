@@ -1928,6 +1928,71 @@ def test_mcp_context_transformation_rejection_is_typed_and_primary_is_intact(tmp
     assert verify_publication(publication)
 
 
+def test_mcp_model_candidate_is_grid_bound_sealed_and_human_only(tmp_path):
+    from datetime import date, timedelta
+    source = tmp_path / "series.csv"
+    start = date(2026, 1, 1)
+    source.write_text("timestamp,value\n" + "\n".join(
+        f"{start + timedelta(days=i)},{100 + i}" for i in range(40)) + "\n")
+    context = "The signed sales plan expects a temporary campaign uplift."
+    payload = runner_for("gnomon_forecast")({
+        "input": str(source), "horizon": 2,
+        "output_dir": str(tmp_path / "out-model-candidate"),
+        "format": "full", "publication_mode": "best_effort",
+        "context_submission": {
+            "text": context, "known_at": "2026-02-09T00:00:00+00:00",
+            "compiler": "host-agent",
+            "model_candidate": {
+                "source_spans": [context],
+                "sample_paths": [[141, 142], [142, 143], [143, 144]],
+                "rationale": "Conditional campaign trajectory.",
+                "temperature": 0.7,
+            },
+        },
+    })
+
+    publication = payload["publication"]
+    candidate = next(item for item in publication["candidate_portfolio"]
+                     if item["role"] == "model_authored")
+    assert publication["recommended_scenario_id"] == candidate["scenario_id"]
+    assert candidate["support"] == "prior_assisted"
+    assert candidate["human_selection_eligible"] is True
+    assert candidate["automation_eligible"] is False
+    assert candidate["effect"]["distribution"]["sample_count"] == 3
+    assert publication["primary_forecast_unchanged"] is True
+    assert publication["automation"]["eligible"] is False
+    assert verify_publication(publication)
+
+
+def test_mcp_model_candidate_rejects_uncited_or_wrong_grid_paths(tmp_path):
+    from datetime import date, timedelta
+    source = tmp_path / "series.csv"
+    start = date(2026, 1, 1)
+    source.write_text("timestamp,value\n" + "\n".join(
+        f"{start + timedelta(days=i)},{100 + i}" for i in range(40)) + "\n")
+    base = {
+        "input": str(source), "horizon": 2,
+        "output_dir": str(tmp_path / "out-invalid-candidate"),
+        "publication_mode": "best_effort",
+        "context_submission": {
+            "text": "The plan expects an uplift.",
+            "known_at": "2026-02-09T00:00:00+00:00",
+            "model_candidate": {
+                "source_spans": ["invented quote"],
+                "sample_paths": [[141, 142], [142, 143], [143, 144]],
+            },
+        },
+    }
+    with pytest.raises(Exception, match="exact source_spans"):
+        runner_for("gnomon_forecast")(base)
+    base["context_submission"]["model_candidate"]["source_spans"] = [
+        "The plan expects an uplift."]
+    base["context_submission"]["model_candidate"]["sample_paths"] = [
+        [141], [142], [143]]
+    with pytest.raises(Exception, match="host-grid-bound"):
+        runner_for("gnomon_forecast")(base)
+
+
 def test_mcp_compiler_rejection_is_visible_in_publication(tmp_path):
     from datetime import date, timedelta
     source = tmp_path / "series.csv"

@@ -97,8 +97,13 @@ shipped `gnomon.agent_context` module provides the integration primitives:
   enough to become a human-facing recommendation. It checks path survival and
   scale-free agreement only; it does not claim historical forecast skill.
 
-The host then attaches the validated paths with
-`gnomon.llm_dossier.attach_host_candidate_elicitation` and submits the sealed
+An MCP host can submit these directly in the forecast call as
+`context_submission: {text, known_at, model_candidate: {source_spans,
+sample_paths}}`; timestamped q10/q50/q90 rows may replace `sample_paths`.
+Every span must be an exact quote from `text`. Gnomon performs the grid
+validation and sealing, so the caller does not need to construct an internal
+dossier. Python hosts may instead attach validated paths with
+`gnomon.llm_dossier.attach_host_candidate_elicitation` and submit the sealed
 dossier through `gnomon_forecast.temporal_dossiers`. A host should request the
 initial sample, assess it, and expand to the cap only when paths are malformed
 or materially incoherent. Too few valid paths, a low valid-path fraction, or

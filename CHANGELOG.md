@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Add a first-class `context_submission.model_candidate` forecast input for
+  cited q10/q50/q90 rows or 3–16 full-grid sample paths. Gnomon validates the
+  host grid, seals the candidate through the existing dossier and publication
+  machinery, preserves the history-only primary, labels the result
+  `prior_assisted`, and prohibits automation. Naive timestamps from ordinary
+  CSV inputs are normalized to the runtime's UTC convention at this boundary.
 - Distinguish comparable-range rows whose matching attributes are source-stated
   from rows whose selection necessarily uses model prior knowledge. The latter
   now require an explicit external matching assumption, remain

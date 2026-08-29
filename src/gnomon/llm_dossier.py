@@ -14,7 +14,7 @@ import json
 import math
 import re
 import statistics
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from .effect_proposals import validate_effect_proposal
@@ -988,7 +988,13 @@ def _timestamp(value: Any) -> datetime | None:
         parsed = datetime.fromisoformat(str(value))
     except (TypeError, ValueError):
         return None
-    return parsed if parsed.tzinfo is not None else None
+    # Forecast artifacts produced from ordinary CSV timestamps are naive, but
+    # the runtime treats that grid as UTC for ordering and cutoff purposes.
+    # Rejecting the same timestamps only at the dossier boundary made valid
+    # cited context unusable on the default input format. Normalize them to
+    # explicit UTC here so every subsequent comparison remains aware/aware.
+    return parsed if parsed.tzinfo is not None else parsed.replace(
+        tzinfo=timezone.utc)
 
 
 def _cited_span_resolves_start(

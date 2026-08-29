@@ -307,6 +307,14 @@ remains false, unless a future protocol supplies and verifies a genuinely
 distinct selector identity. A second call to the same model is separation of
 duties in the workflow, not independent review.
 
+`context_submission.model_candidate` is the public one-call path for a host's
+cited conditional forecast. It accepts exact `source_spans` plus either
+timestamped quantiles or 3–16 full-grid numeric sample paths. The host grid is
+validated before the existing dossier and publication seals are applied. Such
+a candidate may be selected for human review in `best_effort` mode, but remains
+`prior_assisted`: it cannot replace the immutable primary, upgrade support, or
+become automation eligible.
+
 `automation_policy` is a caller-owned authorization contract with exactly
 three fields: `authorize` (boolean), a non-empty `policy_id`, and
 `minimum_support` (`supported` or `context_trusted`). A complete policy is

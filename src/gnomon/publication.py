@@ -372,7 +372,8 @@ def dominant_scenario_id(scenarios: list[dict[str, Any]]) -> str | None:
 
 
 def compile_dossier_for_result(raw: Any, *, context_text: str, known_at: str,
-                               result: dict[str, Any], compiler_model: str
+                               result: dict[str, Any], compiler_model: str,
+                               prefer_explicit_forecast_candidate: bool = False,
                                ) -> tuple[dict[str, Any], list[str]]:
     """Seal an agent proposal against the exact path it will accompany.
 
@@ -387,7 +388,9 @@ def compile_dossier_for_result(raw: Any, *, context_text: str, known_at: str,
     return validate_temporal_dossier(
         raw, context_text=context_text, cutoff=known_at,
         future_timestamps=timestamps, history=history_proxy,
-        compiler_model=compiler_model)
+        compiler_model=compiler_model,
+        prefer_explicit_forecast_candidate=
+            prefer_explicit_forecast_candidate)
 
 
 def _seal(payload: dict[str, Any]) -> str:
