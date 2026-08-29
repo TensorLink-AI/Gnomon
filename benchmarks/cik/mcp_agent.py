@@ -461,7 +461,10 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: independent latency cap so provider tails cannot delay the primary answer.
 #: Optional scenario selection shares the same bounded-latency principle; its
 #: one repair must fit inside one total selector deadline.
-MCP_CONTRACT_VERSION = 207
+#: Version 208: explicit confounding/non-causality uses a deterministic,
+#: non-numeric front door. Compiler transport failures are telemetry rather
+#: than context rejection when another validated lane retained the source.
+MCP_CONTRACT_VERSION = 208
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -1440,6 +1443,24 @@ def _bounded_context_rejections(
         ),
     })
     return retained, omitted
+
+
+def _is_compiler_transport_failure(reason: Any) -> bool:
+    """Distinguish provider availability from semantic context rejection."""
+    text = str(reason).lower()
+    compiler_stage = any(prefix in text for prefix in (
+        "dossier compilation failed:",
+        "dossier repair failed:",
+        "relationship sufficiency repair failed:",
+        "model candidate compilation failed:",
+    ))
+    transport_marker = any(marker in text for marker in (
+        "request deadline", "deadline exceeded", "timed out", "timeout",
+        "provider unavailable", "transport unavailable", "connection error",
+        "connection reset", "service unavailable", "http 429", "http 502",
+        "http 503", "http 504",
+    ))
+    return compiler_stage and transport_marker
 
 
 def _canonicalize_unreferenced_covariate_names(
@@ -3604,6 +3625,7 @@ class _Run:
             deterministic_external_reference_point_dossier,
             deterministic_ended_recurring_disruption_dossier,
             deterministic_historical_observation_claim,
+            deterministic_explicit_confounding_claims,
             deterministic_quantitative_background_claims,
             deterministic_named_driver_relationship_dossier,
             deterministic_reference_power_dossier,
@@ -3770,6 +3792,8 @@ class _Run:
             _extract_structured_companion_tables(
                 context, self.timestamps, future_timestamps)
             if companion_contract else [])
+        deterministic_confounding_claims = (
+            deterministic_explicit_confounding_claims(context))
 
         def bind_active_target(candidate: dict[str, Any]) -> dict[str, Any]:
             """Attach host-owned target and observed companion identities.
@@ -3996,6 +4020,17 @@ class _Run:
             })
             compiler_calls.append({
                 "stage": "deterministic_historical_observation_parse",
+                "elapsed_seconds": 0.0,
+            })
+        elif deterministic_confounding_claims:
+            raw = bind_active_target({
+                "events": [], "claims": deterministic_confounding_claims,
+                "hypotheses": [], "covariate_tables": [],
+                "transformations": [], "observation_interpretations": [],
+                "effect_proposal": None, "forecast_candidate": None,
+            })
+            compiler_calls.append({
+                "stage": "deterministic_explicit_confounding_parse",
                 "elapsed_seconds": 0.0,
             })
         else:
@@ -5349,7 +5384,8 @@ class _Run:
             or deterministic_zero_window is not None
             or deterministic_multiplier is not None
             or deterministic_directional_event is not None
-            or deterministic_reference_point is not None)
+            or deterministic_reference_point is not None
+            or deterministic_confounding_claims)
         qualitative_future_event_prior_needed = bool(
             categorical_schedule is None
             and model_candidate_proposal is None
@@ -5626,7 +5662,19 @@ class _Run:
                 *(f"model_candidate:{item}"
                   for item in model_dossier_rejections),
             ]
-        rejections = [*compile_rejections, *event_rejections,
+        represented_context = bool(
+            events or dossier.get("claims") or dossier.get("forecast_candidate")
+            or dossier.get("effect_proposal") or compilation.get("hypotheses")
+            or (covariate_receipt or {}).get("tables")
+            or raw.get("transformations"))
+        compiler_transport_failures = (
+            [item for item in compile_rejections
+             if _is_compiler_transport_failure(item)]
+            if represented_context else [])
+        semantic_compile_rejections = [
+            item for item in compile_rejections
+            if item not in compiler_transport_failures]
+        rejections = [*semantic_compile_rejections, *event_rejections,
                       *dossier_rejections, *covariate_rejections]
         if (context.strip() and not events and not dossier.get("claims")
                 and not dossier.get("forecast_candidate")
@@ -5674,6 +5722,8 @@ class _Run:
                              if deterministic_directional_event is not None else
                              "external_reference_point"
                              if deterministic_reference_point is not None else
+                             "explicit_association_without_causal_authority"
+                             if deterministic_confounding_claims else
                              "universal_dossier"),
                 "prompt_bytes": (model_candidate_prompt_bytes
                                  if deterministic_front_door
@@ -5682,6 +5732,11 @@ class _Run:
                 "elapsed_seconds": round(
                     time.monotonic() - compilation_started, 6),
                 "calls": compiler_calls,
+                "transport_failures": compiler_transport_failures,
+                "transport_interpretation": (
+                    "provider availability is telemetry, not a rejection of "
+                    "context retained by another validated lane"
+                    if compiler_transport_failures else None),
                 "repair_decisions": repair_decisions,
                 "representation_normalizations": ({
                     "covariate_duplicate_events_demoted":

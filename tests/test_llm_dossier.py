@@ -7,6 +7,7 @@ import pytest
 
 from gnomon.llm_dossier import (
     attach_host_candidate_elicitation,
+    deterministic_explicit_confounding_claims,
     deterministic_historical_observation_claim,
     deterministic_quantitative_background_claims,
     validate_temporal_dossier,
@@ -27,6 +28,24 @@ def test_deterministic_quantitative_background_claims_copy_only_statistics():
         "The busiest month historically recorded 19 incidents."]
     assert all(claim["timing_status"] == "atemporal_context"
                for claim in claims)
+
+
+def test_deterministic_explicit_confounding_is_negative_authority_only():
+    text = (
+        "Trash fires and field fires tend to co-occur. "
+        "This association does not imply causation and is likely due to a "
+        "common cause. The city will spray trash piles next month.")
+
+    claims = deterministic_explicit_confounding_claims(text)
+
+    assert [item["source_span"] for item in claims] == [
+        "Trash fires and field fires tend to co-occur.",
+        "This association does not imply causation and is likely due to a common cause.",
+    ]
+    assert all(item["relation"] == "unknown" for item in claims)
+    assert all(item["timing_status"] == "atemporal_context" for item in claims)
+    assert deterministic_explicit_confounding_claims(
+        "The campaign caused demand to rise.") == []
 
 
 def test_only_host_can_attach_bounded_sampling_provenance():

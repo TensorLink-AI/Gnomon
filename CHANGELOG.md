@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Preserve explicit association-without-causation and common-cause statements
+  through a deterministic, non-numeric context lane. These claims can prevent
+  an unsafe intervention inference but cannot create a forecast candidate or
+  automation authority. When another validated lane retains supplied context,
+  compiler timeouts and provider failures are now availability telemetry rather
+  than false user-facing context rejections; malformed or unresolved semantics
+  still fail loudly.
+
 - Route explicit historical zero-recording claims and ended recurring
   disruptions through deterministic, replay-validated front doors before any
   optional model call. Historical claims can no longer be re-promoted as

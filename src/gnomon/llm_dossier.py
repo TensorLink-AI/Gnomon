@@ -847,6 +847,48 @@ def deterministic_quantitative_background_claims(
     return claims
 
 
+def deterministic_explicit_confounding_claims(
+        context_text: str, *, maximum_claims: int = 4,
+) -> list[dict[str, Any]]:
+    """Retain explicit association-without-causation statements.
+
+    These statements are safe to recognize deterministically because their
+    only authority is negative: they prevent an observed association from
+    being promoted into an intervention effect. They never create a numeric
+    candidate or automation authority.
+    """
+    if (isinstance(maximum_claims, bool) or not isinstance(maximum_claims, int)
+            or not 1 <= maximum_claims <= 16):
+        raise ValueError("maximum_claims must be an integer from 1 to 16")
+    text = str(context_text or "")
+    if not re.search(
+            r"\b(?:does\s+not\s+imply\s+caus(?:e|ation)|"
+            r"common\s+cause|confound(?:ed|er|ing)?|correlation\s+is\s+not\s+"
+            r"causation)\b", text, re.I):
+        return []
+    sentences = [item.strip() for item in re.split(
+        r"(?<=[.!?])\s+|[\r\n]+", text) if item.strip()]
+    relevant = re.compile(
+        r"\b(?:associat(?:e|ed|ion)|correlat\w*|co[- ]?occur\w*|"
+        r"common\s+cause|confound\w*|caus(?:e|ation))\b", re.I)
+    claims = []
+    for sentence in sentences:
+        if relevant.search(sentence) is None:
+            continue
+        claims.append({
+            "source_span": sentence,
+            "relation": "unknown",
+            "effective_start": None,
+            "effective_end": None,
+            "timing_status": "atemporal_context",
+            "mechanism": "explicit associational evidence without causal authority",
+            "confidence": 1.0,
+        })
+        if len(claims) >= maximum_claims:
+            break
+    return claims
+
+
 def _timestamp(value: Any) -> datetime | None:
     try:
         parsed = datetime.fromisoformat(str(value))
@@ -924,7 +966,7 @@ def _association_only_claim(span: str) -> bool:
     """Identify explicitly associational language without causal authority."""
     text = _normalise(span)
     association = bool(re.search(
-        r"\b(?:correlat\w*|co[- ]?occur\w*|associated with|move together|"
+        r"\b(?:associat\w*|correlat\w*|co[- ]?occur\w*|move together|"
         r"tend(?:s|ed)? to (?:rise|fall|increase|decrease) together)\b", text))
     explicit_cause = bool(re.search(
         r"\b(?:causes?|caused by|leads? to|results? in|drives?|because of|"

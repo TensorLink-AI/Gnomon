@@ -44,6 +44,7 @@ from benchmarks.cik.mcp_agent import (
     _future_numeric_path_needs_executable,
     _validated_item_count,
     _bounded_context_rejections,
+    _is_compiler_transport_failure,
     _canonicalize_unreferenced_covariate_names,
     _demote_covariate_duplicate_events,
     _bind_covariate_row_claims,
@@ -67,6 +68,17 @@ def test_material_numeric_context_ignores_calendar_not_business_quantities():
     assert _has_material_numeric_context(
         "The comparable site's maximum was 25.83 at 21:10:00.")
     assert _has_material_numeric_context("Demand is bounded below by -2.5.")
+
+
+def test_only_compiler_transport_errors_are_availability_telemetry():
+    assert _is_compiler_transport_failure(
+        "dossier compilation failed: request deadline exceeded")
+    assert _is_compiler_transport_failure(
+        "dossier repair failed: provider unavailable")
+    assert not _is_compiler_transport_failure(
+        "dossier repair returned no JSON object")
+    assert not _is_compiler_transport_failure(
+        "context_unresolved: no grounded claim")
 
 
 def test_sampled_paths_are_host_bound_and_aggregated_without_dependencies():
@@ -2902,6 +2914,41 @@ def test_optional_prior_transport_outage_does_not_reject_valid_context(
         "used": 0, "scenario": 1, "rejected": 0}
     assert publication["primary_forecast_unchanged"] is True
     assert publication["automation"]["eligible"] is False
+
+
+def test_compiler_transport_outage_is_not_a_context_rejection_when_fallback_retains_it(
+        tmp_path):
+    task = _task()
+    task.background = (
+        "In other years, the yearly average number of incidents was 75 "
+        "with the busiest month being May.")
+    task.scenario = None
+
+    class UnavailableCompilerClient(ScriptedClient):
+        def completions(self, *args, **kwargs):
+            raise TimeoutError("request deadline exceeded")
+
+    client = UnavailableCompilerClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}])
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 1)
+
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    assert task.background in receipt["dossier"]["claims"][0]["source_span"]
+    assert receipt["rejections"] == []
+    assert len(receipt["compiler"]["transport_failures"]) == 2
+    assert extra["context_compilation"]["rejection_count"] == 0
+    assert extra["publication"]["context_summary"]["status"] == "scenario_only"
+    assert extra["publication"]["context_summary"]["counts"] == {
+        "used": 0, "scenario": 1, "rejected": 0}
+    assert extra["publication"]["primary_forecast_unchanged"] is True
+    assert extra["publication"]["automation"]["eligible"] is False
 
 
 def test_one_sample_transport_failure_preserves_other_governed_paths(tmp_path):
