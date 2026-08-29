@@ -78,6 +78,11 @@
   mode, temperature, or compiler-chunk changes. Increase the source-grounded
   schedule chunk from four to eight events after matched validation preserved
   forecast output and extraction recall while reducing compiler requests.
+- Keep events with non-degenerate delay or duration ranges in the existing
+  typed scenario lane instead of silently running them through an exact-window
+  primary executable. Three fresh production-stress replicates found every
+  admitted timing-uncertain path harmful; fixed timing remains fold-admissible,
+  while uncertain timing stays visible without false precision or automation.
 - Use the existing bounded four/five-path cap on the first model-prior
   elicitation rather than estimating a human-facing median from three draws.
   Requests remain concurrent; sampled spread remains a coherence diagnostic,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -108,6 +109,30 @@ def test_context_admitted_when_it_demonstrates_stable_lift(tmp_path) -> None:
     promo_row = result.forecast[5]
     plain_row = result.forecast[4]
     assert promo_row["point"] - plain_row["point"] > PROMO_EFFECT / 2
+
+
+def test_unresolved_timing_range_stays_a_scenario_not_exact_primary(tmp_path) -> None:
+    csv_path = tmp_path / "promo.csv"
+    _write_csv(csv_path, 130)
+    uncertain = [replace(event, attributes={"soft_context": {
+        "effect_family": "temporary_pulse", "direction": "increase",
+        "duration": "temporary", "delay_steps": [0, 2],
+        "duration_steps": [2, 2],
+    }}) for event in _events(140)]
+
+    artifact, _ = forecast(
+        str(csv_path), time_column="timestamp", target_column="requests",
+        horizon=7, frequency="D", output=str(tmp_path / "uncertain"),
+        context_events=uncertain,
+    )
+    result = artifact.results[0]
+
+    assert result.context["admitted"] is False
+    assert result.context_outcome["status"] == "scenario_only"
+    assert result.context_outcome["primary_forecast_changed"] is False
+    assert result.context["events_excluded"]
+    assert all("bounded timing scenario" in item["reason"]
+               for item in result.context["events_excluded"])
 
 
 def test_context_selection_skips_pre_event_folds_without_rejecting_candidate(

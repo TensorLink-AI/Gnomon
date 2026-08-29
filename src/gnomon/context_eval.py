@@ -234,6 +234,13 @@ def eligible_events(
     eligible: list[ContextEvent] = []
     excluded: list[dict[str, str]] = []
     for event in events:
+        soft = event.attributes.get("soft_context", {})
+        unresolved_ranges = [
+            name for name in ("delay_steps", "duration_steps")
+            if isinstance(soft.get(name), list)
+            and len(soft[name]) == 2
+            and soft[name][0] != soft[name][1]
+        ]
         if not event_applies(event, series_name):
             excluded.append({"event_id": event.event_id, "reason": "scope does not include this series"})
         elif problems := validate_context_event(event):
@@ -250,6 +257,20 @@ def eligible_events(
             excluded.append({
                 "event_id": event.event_id,
                 "reason": "cancelled event cannot affect the primary forecast",
+            })
+        elif unresolved_ranges:
+            # The binary event executable has one exact active window. Treating
+            # a caller's range as that window silently converts timing
+            # uncertainty into false precision. Preserve the event in the
+            # typed scenario/effect receipt, but do not let it alter the strict
+            # primary until a timing-robust executable has been validated.
+            excluded.append({
+                "event_id": event.event_id,
+                "reason": (
+                    "non-degenerate " + ", ".join(unresolved_ranges) +
+                    " requires a bounded timing scenario; the exact-window "
+                    "executable is not admissible for the primary forecast"
+                ),
             })
         elif not backtest_admissible(event):
             excluded.append({
