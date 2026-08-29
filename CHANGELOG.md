@@ -65,6 +65,19 @@
   outrank the primary without later same-series outcome skill. This applies
   RecallBench's leakage-controlled finding without disabling genuinely
   context-conditioned candidates.
+- Add a separately identified naturalistic-prose ContextBench stratum. It
+  preserves the sealed numeric construction while forcing real semantic
+  compilation, so a zero-call literal-parser run can no longer masquerade as
+  evidence about the LLM interface. A matched report retains case-level rows,
+  harm rates, bootstrap intervals, exact sign tests, and usage.
+- Bind the actual public target name into semantic context compilation before
+  converting it to the engine's singleton identity. This prevents correctly
+  extracted events from being discarded when a host exposed only a wildcard
+  and the model invented an unresolvable scope alias.
+- Fail ContextBench LLM resume closed across corpus, case-set, model, endpoint,
+  mode, temperature, or compiler-chunk changes. Increase the source-grounded
+  schedule chunk from four to eight events after matched validation preserved
+  forecast output and extraction recall while reducing compiler requests.
 - Use the existing bounded four/five-path cap on the first model-prior
   elicitation rather than estimating a human-facing median from three draws.
   Requests remain concurrent; sampled spread remains a coherence diagnostic,

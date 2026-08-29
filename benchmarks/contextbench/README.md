@@ -137,6 +137,36 @@ resolved from a single 80-case corpus.
 
 ## LLM arms
 
+The ordinary corpus uses a literal schedule grammar so the deterministic fast
+path can prove timestamp and execution parity without model variance. It is
+not evidence about semantic compilation. For that question, generate a
+separate naturalistic-prose corpus. It preserves the same sealed numeric
+construction but paraphrases every schedule row outside the literal grammar;
+the compiled arm must therefore report non-zero compiler calls:
+
+```bash
+PYTHONPATH=src:. python -m benchmarks.contextbench.generate \
+  --output-dir results/contextbench/naturalistic-corpus --fresh \
+  --per-family 20 --narrative-style naturalistic
+```
+
+Never pool explicit and naturalistic results. Report compiler calls, event
+precision/recall, product failures, forecast lift, tokens, and latency for the
+naturalistic stratum. A zero-call compiled run is a fast-path engine test, not
+an LLM-interface result. Semantic schedule rows are capped at eight per
+compiler request; that cap is recorded in run identity and cannot change
+across resume.
+
+After both matched arms finish, produce the case-paired report (including raw
+rows, exact sign tests, bootstrap intervals, harm rates, and usage):
+
+```bash
+PYTHONPATH=src:. python -m benchmarks.contextbench.report_llm \
+  --raw-dir results/contextbench/raw \
+  --compiled-dir results/contextbench/compiled \
+  --output results/contextbench/llm-comparison.json
+```
+
 After validating the deterministic corpus, run the identical cases through a
 raw model or Gnomon's compiler. For Engy DeepSeek V4:
 
@@ -157,7 +187,9 @@ PYTHONPATH=src:. python -m benchmarks.contextbench.run_llm \
 If an endpoint transport fails, rerun the same command with `--resume
 --retry-errors`. Answered rows are retained and only errored or missing case
 IDs execute again; ordinary `--resume` retains all terminal rows. The summary
-discloses retained versus newly executed counts.
+discloses retained versus newly executed counts. Resume fails closed unless
+the corpus hash, selected case set, condition, model, endpoint, temperature,
+and reasoning mode match the original `run_identity.json`.
 
 The raw arm sees history, narrative, and future-known covariates but never the
 oracle. It makes two history-only calls around the contextual call. Their

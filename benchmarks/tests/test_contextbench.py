@@ -18,16 +18,19 @@ from benchmarks.contextbench.run_contextbench import (
 )
 from benchmarks.contextbench.run_contextbench import main as run_main
 from benchmarks.contextbench.run_llm import (
-    _bounded_context_tool, compile_events, raw_case, safe_payload,
+    _bounded_context_tool, _prepare_run_identity, compile_events, raw_case,
+    safe_payload,
 )
 from benchmarks.contextbench.run_surfaces import surface_row
 from benchmarks.contextbench.report_surfaces import aggregate
 from benchmarks.contextbench.report_contextbench import (
     aggregate as aggregate_contextbench,
 )
+from benchmarks.contextbench.report_llm import compare as compare_llm
 from benchmarks.contextbench.schema import Case, load_cases, load_oracles
 from gnomon.context_model import rolling_residuals
 from gnomon.workflows import normalise_context_response_containers
+from gnomon.workflows import extract_explicit_schedule_context, DocumentRef
 
 
 def test_generator_is_reproducible_seed_sensitive_and_balanced():
@@ -41,6 +44,24 @@ def test_generator_is_reproducible_seed_sensitive_and_balanced():
         "irrelevant", "future_covariate", "repeated_event", "prior_only"}
     assert all("actual" not in row and "counterfactual" not in row
                and "effect_magnitude" not in row for row in first_cases)
+
+
+def test_naturalistic_corpus_requires_semantic_compilation_without_truth_leak():
+    cases, oracles = generate(43, per_family=1,
+                              narrative_style="naturalistic")
+    event_case = next(row for row in cases if row["family"] == "prior_only")
+    parsed = extract_explicit_schedule_context([
+        DocumentRef("context.txt", event_case["narrative"],
+                    source_type="narrative_assertion",
+                    known_at=event_case["context_events"][0]["known_at"])
+    ])
+
+    assert parsed["events"] == []
+    assert len(parsed["residual_lines"]) >= 1
+    assert "narrative:naturalistic" in event_case["tags"]
+    assert "effect_magnitude" not in json.dumps(event_case)
+    assert "actual" not in json.dumps(event_case)
+    assert len(oracles) == 4
 
 
 def test_family_truth_and_cutoff_contracts_are_explicit():
@@ -71,10 +92,21 @@ def test_generated_files_are_strict_and_hash_addressed(tmp_path, monkeypatch):
     assert len(load_cases(output / "cases.jsonl")) == 4
     assert len(load_oracles(output / "oracle.jsonl")) == 4
     manifest = json.loads((output / "manifest.json").read_text())
-    assert manifest["generator"] == "contextbench-synthetic-v1"
+    assert manifest["generator"] == "contextbench-synthetic-v2"
     assert manifest["fresh_seed"] is False
     assert len(manifest["cases_sha256"]) == 64
     assert len(manifest["oracle_sha256"]) == 64
+
+
+def test_generated_manifest_records_narrative_treatment(tmp_path, monkeypatch):
+    output = tmp_path / "naturalistic"
+    monkeypatch.setattr("sys.argv", [
+        "generate", "--output-dir", str(output), "--seed", "6",
+        "--per-family", "1", "--narrative-style", "naturalistic",
+    ])
+    assert generate_main() == 0
+    manifest = json.loads((output / "manifest.json").read_text())
+    assert manifest["narrative_style"] == "naturalistic"
 
 
 def test_documented_engine_runner_executes_from_clean_checkout(tmp_path):
@@ -492,6 +524,88 @@ def test_scripted_compiler_is_quote_grounded_and_magnitude_free():
     assert compiled["events"][0]["known_at"] == source["known_at"]
     assert "magnitude" not in attributes
     assert attributes["evidence_quote"] == quote
+
+
+def test_semantic_compiler_binds_public_target_before_runtime_alias():
+    raw_cases, _ = generate(44, per_family=1,
+                            narrative_style="naturalistic")
+    case = Case.from_dict(next(
+        row for row in raw_cases if row["family"] == "prior_only"))
+    source = case.context_events[0]
+    quote = next(line for line in case.narrative.splitlines()
+                 if source["effective_start"] in line)
+    client = _ScriptedClient({"events": [{
+        "document_index": 0, "event_type": source["event_type"],
+        "entity_scope": ["value"],
+        "effective_start": source["effective_start"],
+        "effective_end": source["effective_end"],
+        "known_at": source["known_at"], "evidence_quote": quote,
+    }]})
+
+    compiled = compile_events(case, client)
+
+    assert compiled["compiler_called"] is True
+    assert compiled["events"][0]["entity_scope"] == ["*"]
+    assert "from: value" in client.messages[0][0]["content"]
+
+
+def test_context_llm_resume_identity_fails_closed(tmp_path):
+    output = tmp_path / "run"
+    output.mkdir()
+    identity = {"schema_version": 1, "condition": "compiled-context"}
+    _prepare_run_identity(output, identity, resume=False)
+    (output / "observations.jsonl").write_text("{}\n")
+
+    _prepare_run_identity(output, identity, resume=True)
+    with pytest.raises(ValueError, match="resume identity mismatch"):
+        _prepare_run_identity(
+            output, {**identity, "condition": "raw-llm"}, resume=True)
+
+
+def test_llm_report_requires_matched_corpus_and_preserves_pairs(tmp_path):
+    raw, compiled = tmp_path / "raw", tmp_path / "compiled"
+    raw.mkdir(); compiled.mkdir()
+    raw_summary = {
+        "condition": "raw-llm", "corpus_manifest_sha256": "same",
+        "reasoning_effort": "none", "narrative_style": "naturalistic",
+        "llm_usage": {"model": "test"},
+        "llm_usage_observations": {"requests": 6},
+    }
+    compiled_summary = {
+        "condition": "compiled-context", "corpus_manifest_sha256": "same",
+        "compiler_calls": 2, "compiler_event_precision": 1.0,
+        "compiler_event_recall": 1.0, "compiler_false_events": 0,
+        "llm_usage_observations": {"requests": 2},
+    }
+    (raw / "summary.json").write_text(json.dumps(raw_summary))
+    (compiled / "summary.json").write_text(json.dumps(compiled_summary))
+    raw_rows = [
+        {"case_id": "a", "family": "repeated_event", "status": "answered",
+         "context_smape": 3.0, "history_smape": 2.0},
+        {"case_id": "b", "family": "irrelevant", "status": "answered",
+         "context_smape": 2.0, "history_smape": 1.0},
+    ]
+    compiled_rows = [
+        {"case_id": "a", "family": "repeated_event", "status": "answered",
+         "context_smape": 1.0, "history_smape": 2.0},
+        {"case_id": "b", "family": "irrelevant", "status": "answered",
+         "context_smape": 1.0, "history_smape": 1.0},
+    ]
+    for directory, rows in ((raw, raw_rows), (compiled, compiled_rows)):
+        (directory / "observations.jsonl").write_text(
+            "".join(json.dumps(row) + "\n" for row in rows))
+
+    report = compare_llm(raw, compiled)
+
+    assert report["overall"]["mean_raw_minus_compiled_smape"] == 1.5
+    assert report["overall"]["compiled_wins"] == 2
+    assert report["families"]["irrelevant"][
+        "compiled_context_harm_rate"] == 0.0
+    assert len(report["paired_rows"]) == 2
+    compiled_summary["corpus_manifest_sha256"] = "different"
+    (compiled / "summary.json").write_text(json.dumps(compiled_summary))
+    with pytest.raises(ValueError, match="same corpus"):
+        compare_llm(raw, compiled)
 
 
 def test_non_schedule_structural_narrative_reaches_semantic_compiler():
