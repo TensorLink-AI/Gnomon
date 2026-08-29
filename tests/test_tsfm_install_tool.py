@@ -131,6 +131,33 @@ def test_ready_sandbox_short_circuits_the_install(sandbox_root, monkeypatch) -> 
     assert payload["sandbox_path"] == str(directory)
 
 
+def test_ensure_sandbox_materializes_worker_before_ready_marker(
+        sandbox_root, monkeypatch) -> None:
+    """A ready sandbox must remain executable in a read-only deployment;
+    first inference may not be responsible for creating its worker."""
+    import gnomon.tsfm_sandbox as sandbox
+
+    class Result:
+        returncode = 0
+        stderr = ""
+
+    monkeypatch.setattr(sandbox, "_uv_available", lambda: True)
+    monkeypatch.setattr(sandbox.subprocess, "run", lambda *a, **k: Result())
+
+    name = _any_tsfm()
+    directory = sandbox.ensure_sandbox(name)
+    worker = directory / "worker.py"
+    marker = directory / ".gnomon-sandbox-ready"
+    assert worker.read_text(encoding="utf-8") == sandbox.WORKER_SCRIPT
+    assert marker.is_file()
+
+    # A legacy ready marker is repaired by an explicit install/check rather
+    # than deferring the write to the model's first forecast.
+    worker.unlink()
+    assert sandbox.ensure_sandbox(name) == directory
+    assert worker.read_text(encoding="utf-8") == sandbox.WORKER_SCRIPT
+
+
 def test_missing_uv_refuses_with_repair_options(sandbox_root, monkeypatch) -> None:
     import gnomon.tsfm_sandbox as sandbox
     from gnomon.toolspec import _run_install_tsfm
