@@ -472,7 +472,10 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: all-or-nothing deterministic recurrence front door. Complete parent/lag
 #: topology compiles separately to fold-fitted coefficients; neither lane
 #: depends on model transcription or permits partial equations.
-MCP_CONTRACT_VERSION = 210
+#: Version 211: complete per-lag prose coefficient specifications compile to
+#: the same exact recurrence only when each stated parent set exactly matches
+#: its parsed arithmetic; disagreement or residual prose refuses execution.
+MCP_CONTRACT_VERSION = 211
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -1888,21 +1891,57 @@ def _deterministic_explicit_recursive_relationship(
     equation = next(
         (candidate for candidate in equations
          if candidate.group(1) == target_name), None)
-    if equation is None:
-        return None
-    rhs = equation.group(2)
-    term_pattern = re.compile(
+    lagged_term_pattern = re.compile(
         r"([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*\*\s*"
         r"([A-Za-z_]\w*)\s*\^\s*\{\s*t\s*-\s*(\d+)\s*\}")
-    matches = list(term_pattern.finditer(rhs))
-    if not matches:
-        return None
+    parsed_terms: list[tuple[float, str, int]] = []
+    if equation is not None:
+        rhs = equation.group(2)
+        matches = list(lagged_term_pattern.finditer(rhs))
+        if not matches:
+            return None
+        parsed_terms = [(float(match.group(1)), match.group(2),
+                         int(match.group(3))) for match in matches]
+        # Refuse partial parses: after removing every recognized lag term and
+        # one additive noise symbol, only plus signs and whitespace may remain.
+        remainder = lagged_term_pattern.sub("", rhs)
+        remainder = re.sub(
+            r"\\?epsilon(?:_\{?\w+\}?|_\w+)?\s*\^\s*\{\s*t\s*\}",
+            "", remainder)
+        if re.sub(r"[+\s]", "", remainder):
+            return None
+    else:
+        # Some specifications state the same complete recurrence one lag per
+        # sentence rather than as one equation. The lag belongs to the line;
+        # coefficients and series remain explicit and are still parsed
+        # all-or-nothing.
+        prose_pattern = re.compile(
+            r"(?mi)^\s*Parents\s+for\s+(?:variable\s+)?"
+            + re.escape(target_name)
+            + r"\s+at\s+lag\s+(\d+)\s*:\s*\[([^\]]+)\]\s*"
+              r"affect\s+the\s+forecast\s+variable\s+as\s+(.+?)\.?\s*$")
+        coefficient_pattern = re.compile(
+            r"([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*\*\s*"
+            r"([A-Za-z_]\w*)")
+        rows = list(prose_pattern.finditer(str(text or "")))
+        if not rows:
+            return None
+        for row in rows:
+            lag, stated_parents, rhs = int(row.group(1)), row.group(2), row.group(3)
+            parents = {item.strip().strip("'\"")
+                       for item in stated_parents.split(",") if item.strip()}
+            matches = list(coefficient_pattern.finditer(rhs))
+            parsed = {match.group(2) for match in matches}
+            if not matches or parsed != parents:
+                return None
+            if re.sub(r"[+\s]", "", coefficient_pattern.sub("", rhs)):
+                return None
+            parsed_terms.extend((float(match.group(1)), match.group(2), lag)
+                                for match in matches)
     ar_terms: list[dict[str, Any]] = []
     driver_terms: list[dict[str, Any]] = []
     referenced_drivers: set[str] = set()
-    for match in matches:
-        coefficient = float(match.group(1))
-        series, lag = match.group(2), int(match.group(3))
+    for coefficient, series, lag in parsed_terms:
         if not math.isfinite(coefficient) or lag < 1:
             return None
         row = {"lag": lag, "coefficient": coefficient}
@@ -1913,14 +1952,6 @@ def _deterministic_explicit_recursive_relationship(
             referenced_drivers.add(series)
         else:
             return None
-    # Refuse partial parses: after removing every recognized lag term and one
-    # additive noise symbol, only plus signs and whitespace may remain.
-    remainder = term_pattern.sub("", rhs)
-    remainder = re.sub(
-        r"\\?epsilon(?:_\{?\w+\}?|_\w+)?\s*\^\s*\{\s*t\s*\}",
-        "", remainder)
-    if re.sub(r"[+\s]", "", remainder):
-        return None
     if not ar_terms or not referenced_drivers:
         return None
     historical_segments: dict[str, list[dict[str, Any]]] = {}

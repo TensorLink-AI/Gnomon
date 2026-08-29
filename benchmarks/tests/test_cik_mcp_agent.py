@@ -110,6 +110,34 @@ def test_complete_explicit_lag_equation_compiles_without_model_code():
                            "2026-01-04T00:00:00+00:00"]) is None
 
 
+def test_complete_prose_lag_coefficients_compile_without_model_transcription():
+    text = (
+        "X_0 takes 2 from 2026-01-01 to 2026-01-04.\n"
+        "Parents for X_1 at lag 1: ['X_0', 'X_1'] affect the forecast "
+        "variable as -1.5 * X_0 + 0.75 * X_1.\n"
+        "Parents for X_1 at lag 2: ['X_1'] affect the forecast variable "
+        "as 0.25 * X_1.")
+    dossier = _deterministic_explicit_recursive_relationship(
+        text, target_name="X_1", driver_names={"X_0"},
+        cutoff="2026-01-02T00:00:00+00:00",
+        future_timestamps=["2026-01-03T00:00:00+00:00",
+                           "2026-01-04T00:00:00+00:00"])
+    assert dossier is not None
+    expression = dossier["transformations"][0]["transformation"]["expression"]
+    assert expression["autoregressive_terms"] == [
+        {"lag": 1, "coefficient": .75},
+        {"lag": 2, "coefficient": .25}]
+    assert expression["driver_terms"] == [
+        {"series": "X_0", "lag": 1, "coefficient": -1.5}]
+    # Parent list and arithmetic must agree exactly; extra/missing terms refuse.
+    assert _deterministic_explicit_recursive_relationship(
+        text.replace("['X_0', 'X_1']", "['X_0', 'X_1', 'X_2']"),
+        target_name="X_1", driver_names={"X_0", "X_2"},
+        cutoff="2026-01-02T00:00:00+00:00",
+        future_timestamps=["2026-01-03T00:00:00+00:00",
+                           "2026-01-04T00:00:00+00:00"]) is None
+
+
 def test_complete_parent_lag_topology_compiles_to_fold_fitted_executable():
     text = (
         "X_0 takes 2 from 2026-01-01 to 2026-01-04.\n"

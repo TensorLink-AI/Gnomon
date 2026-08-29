@@ -23,6 +23,11 @@
   future coverage fall back to typed compilation instead of executing guessed
   arithmetic. Publication still requires replay evidence, remains human-review
   only, and preserves the immutable primary.
+- Accept the equivalent complete recurrence when coefficients are written one
+  lag per sentence rather than in equation notation. Each stated parent set
+  must exactly equal the parsed coefficient terms, every residual token must
+  be accounted for, and the ordinary host-series/schedule checks still apply;
+  discrepancies refuse execution rather than relying on model transcription.
 
 - Route explicit historical zero-recording claims and ended recurring
   disruptions through deterministic, replay-validated front doors before any
