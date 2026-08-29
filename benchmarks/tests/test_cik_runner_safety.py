@@ -7,6 +7,7 @@ import pytest
 from benchmarks.cik.run_cik import (
     _counterfactual_candidate_scores, _load_checkpoint,
     _summarize_selection_diagnostics, _task_information_profile, build_parser,
+    write_outputs,
 )
 
 
@@ -86,6 +87,7 @@ def test_candidate_scores_are_post_forecast_diagnostics_only(monkeypatch):
 def test_selection_summary_separates_uplift_from_hindsight_regret():
     summary = _summarize_selection_diagnostics([
         {"selected_score": .4, "primary_score": .7,
+         "selected_role": "model_authored",
          "best_candidate_score": .2, "best_eligible_candidate_score": .4,
          "selected_primary": False,
          "selected_hindsight_best": False,
@@ -93,6 +95,7 @@ def test_selection_summary_separates_uplift_from_hindsight_regret():
          "primary_forecast_unchanged": True,
          "automation_eligible": False},
         {"selected_score": .3, "primary_score": .3,
+         "selected_role": "immutable_primary",
          "best_candidate_score": .3, "best_eligible_candidate_score": .3,
          "selected_primary": True,
          "selected_hindsight_best": True,
@@ -106,9 +109,51 @@ def test_selection_summary_separates_uplift_from_hindsight_regret():
     assert summary["mean_selector_regret_among_eligible_rcrps"] == 0
     assert summary["selected_hindsight_best_cases"] == 1
     assert summary["selected_best_eligible_cases"] == 2
+    assert summary["selected_role_counts"] == {
+        "immutable_primary": 1, "model_authored": 1}
     assert summary["primary_immutability_failures"] == 0
     assert summary["automation_eligible_cases"] == 0
     assert summary["passed_to_forecaster"] is False
+
+
+def test_write_outputs_retains_versioned_raw_selection_diagnostics(
+        tmp_path, monkeypatch):
+    run_dir = tmp_path / "runs" / "Task" / "seed-7"
+    run_dir.mkdir(parents=True)
+    (run_dir / "extra_info.json").write_text("{}", encoding="utf-8")
+    extra = {
+        "benchmark_counterfactual_candidate_scores": [
+            {"scenario_id": "primary", "role": "immutable_primary",
+             "score": .4, "selected": True,
+             "human_selection_eligible": True},
+            {"scenario_id": "prior", "role": "model_authored",
+             "score": .3, "selected": False,
+             "human_selection_eligible": True},
+        ],
+        "primary_forecast_unchanged": True,
+        "automation_eligible": False,
+    }
+    monkeypatch.setattr(
+        "benchmarks.cik.run_cik.load_run_extra_info",
+        lambda *_args: extra)
+    args = SimpleNamespace(
+        method="gnomon-mcp", model="provider/model", seeds=1,
+        seed_start=7)
+    method = SimpleNamespace(cache_name="method-contract-238")
+
+    write_outputs(
+        {"Task": [{"seed": 7, "score": .4}]}, method, args, tmp_path)
+
+    rows = [json.loads(line) for line in (
+        tmp_path / "selection-diagnostics.jsonl").read_text(
+            encoding="utf-8").splitlines()]
+    assert len(rows) == 1
+    assert rows[0]["benchmark_method"] == "method-contract-238"
+    assert rows[0]["diagnostic_schema_version"] == "1"
+    assert rows[0]["selected_role"] == "immutable_primary"
+    assert rows[0]["computed_after_forecast"] is True
+    assert rows[0]["passed_to_forecaster"] is False
+    assert rows[0]["candidates"][1]["scenario_id"] == "prior"
 
 
 def test_resume_retries_provider_and_process_failures_but_keeps_model_results(tmp_path):

@@ -4127,6 +4127,52 @@ def test_unstated_domain_constant_can_remain_a_best_effort_model_prior(tmp_path)
     assert candidate["automation_eligible"] is False
 
 
+def test_prior_compromise_shadow_is_fixed_midpoint_and_never_authoritative(
+        tmp_path):
+    task = _task()
+    span = "A stated external condition may lift future demand."
+    task.scenario = span
+    rows = [{"timestamp": stamp, "q10": 124 + index,
+             "q50": 127 + index, "q90": 130 + index}
+            for index, stamp in enumerate(task.future_time)]
+    compiler_output = json.dumps({
+        "claims": [{
+            "source_span": span, "relation": "supports_increase",
+            "effective_start": task.future_time[0],
+            "effective_end": task.future_time[-1], "confidence": .7,
+        }],
+        "forecast_candidate": {
+            "quantiles": rows, "rationale": "External conditional prior."},
+        "transformations": [],
+    })
+    forecaster = McpAgentForecaster(
+        "x/y", client=ScriptedClient(
+            [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+            compiler_output),
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="prior_compromise_shadow")
+
+    samples, extra = forecaster(task, 1)
+
+    publication = extra["publication"]
+    primary = next(item for item in publication["candidate_portfolio"]
+                   if item["role"] == "immutable_primary")
+    prior = next(item for item in publication["candidate_portfolio"]
+                 if item["role"] == "model_authored")
+    compromise = next(item for item in publication["candidate_portfolio"]
+                      if item["role"] == "prior_compromise_shadow")
+    assert publication["recommended_scenario_id"] == compromise["scenario_id"]
+    assert compromise["forecast"][0]["q50"] == pytest.approx(
+        (primary["forecast"][0]["q50"] + prior["forecast"][0]["q50"]) / 2)
+    assert samples[0][0][0] == pytest.approx(
+        compromise["forecast"][0]["q50"])
+    assert extra["primary_forecast_unchanged"] is True
+    assert extra["automation_eligible"] is False
+    assert extra["prior_compromise_diagnostic"]["product_authority"] is False
+    assert extra["prior_compromise_diagnostic"]["applied"] is True
+
+
 def test_single_repair_exposes_effect_and_candidate_failures(tmp_path):
     task = _task()
     span = "Demand doubles during the forecast window."

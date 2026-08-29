@@ -12,6 +12,20 @@
   The facts are past-only descriptive evidence, never historical skill. CiK's
   adapter exposes bounded on/off and row-budget ablations and records the exact
   policy in each receipt.
+- Retain CiK's per-case post-forecast candidate scores in
+  `selection-diagnostics.jsonl` instead of discarding them after aggregate
+  reporting. Each row names the task/seed, complete candidate set, selected
+  role, immutability and automation flags, and explicitly states that the
+  diagnostics were never passed to the forecaster.
+- Add a preregisterable `prior_compromise_shadow` CiK arm that scores the
+  fixed equal-weight midpoint between the immutable primary and one eligible
+  sealed model prior. It is explicitly non-authoritative and non-automatable,
+  rejects mismatched grids or malformed quantiles, and never fits its weight
+  to benchmark outcomes. This tests conservative shrinkage before any product
+  publication policy is changed.
+  The diagnostics separately report whether that arm actually applied; a run
+  without an eligible model prior retains its governed product selection and
+  cannot be counted as compromise coverage.
 - Use the existing bounded four/five-path cap on the first model-prior
   elicitation rather than estimating a human-facing median from three draws.
   Requests remain concurrent; sampled spread remains a coherence diagnostic,

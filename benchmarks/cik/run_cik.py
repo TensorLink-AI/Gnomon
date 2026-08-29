@@ -555,9 +555,11 @@ def run(args) -> int:
 def write_outputs(results: dict, method, args, output_dir: Path) -> None:
     scores_path = output_dir / "scores.csv"
     records_path = output_dir / "gnomonbench.jsonl"
+    selection_records_path = output_dir / "selection-diagnostics.jsonl"
     # RecordWriter appends; a rerun into the same output dir must replace
     # the previous run's rows (as scores.csv does), not accumulate them.
     records_path.unlink(missing_ok=True)
+    selection_records_path.unlink(missing_ok=True)
     jsonl = RecordWriter(records_path)
     runs_dir = output_dir / "runs"
     is_gnomon = args.method != "control"
@@ -612,8 +614,14 @@ def write_outputs(results: dict, method, args, output_dir: Path) -> None:
                         min(eligible_candidates,
                             key=lambda item: item["score"])
                         if eligible_candidates else selected_candidate)
-                    selection_diagnostics.append({
+                    selection_record = {
+                        "benchmark_method": method.cache_name,
+                        "diagnostic_schema_version": "1",
+                        "task": task_name,
+                        "seed": seed,
                         "selected_score": float(selected_candidate["score"]),
+                        "selected_role": str(selected_candidate.get(
+                            "role") or "unknown"),
                         "primary_score": float(primary_candidate["score"]),
                         "best_candidate_score": float(best_candidate["score"]),
                         "best_eligible_candidate_score": float(
@@ -631,7 +639,15 @@ def write_outputs(results: dict, method, args, output_dir: Path) -> None:
                             "primary_forecast_unchanged"),
                         "automation_eligible": extra_info.get(
                             "automation_eligible"),
-                    })
+                        "computed_after_forecast": True,
+                        "passed_to_forecaster": False,
+                        "candidates": candidate_scores,
+                    }
+                    selection_diagnostics.append(selection_record)
+                    with selection_records_path.open(
+                            "a", encoding="utf-8") as selection_handle:
+                        selection_handle.write(json.dumps(
+                            selection_record, sort_keys=True) + "\n")
                 input_profile = extra_info.get("benchmark_input_profile") or {}
                 degenerate = bool(
                     input_profile.get("degenerate_same_constant_case"))
@@ -749,6 +765,12 @@ def _summarize_selection_diagnostics(rows: list[dict]) -> dict:
             bool(row["selected_hindsight_best"]) for row in rows),
         "selected_best_eligible_cases": sum(
             bool(row["selected_best_eligible"]) for row in rows),
+        "selected_role_counts": {
+            role: sum(str(row.get("selected_role") or "unknown") == role
+                      for row in rows)
+            for role in sorted({str(row.get("selected_role") or "unknown")
+                                for row in rows})
+        },
         "primary_immutability_failures": sum(
             row["primary_forecast_unchanged"] is not True for row in rows),
         "automation_eligible_cases": sum(
@@ -842,7 +864,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--mcp-output-role", default="canonical",
         choices=["canonical", "immutable_primary", "llm_candidate_shadow",
-                 "publication_best_effort"],
+                 "publication_best_effort", "prior_compromise_shadow"],
         help="gnomon-mcp Evidence only. canonical scores Gnomon's public "
              "artifact trajectory, which may be context-conditioned. "
              "immutable_primary is a diagnostic that ignores the public "
@@ -850,7 +872,10 @@ def build_parser() -> argparse.ArgumentParser:
              "publication_best_effort uses the product "
              "publication contract; llm_candidate_shadow scores the separately "
              "sealed, prior_assisted LLM candidate for evaluation; it is "
-             "never an automation-eligible product publication.",
+             "never an automation-eligible product publication. "
+             "prior_compromise_shadow scores a fixed, equal-weight midpoint "
+             "between the immutable primary and one eligible sealed prior; "
+             "it is a preregisterable diagnostic, never product authority.",
     )
     parser.add_argument(
         "--mcp-candidate-paths", type=int, default=None,

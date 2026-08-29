@@ -496,7 +496,7 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: comparable rows remain visible scenarios/counterevidence.
 #: Version 218: unresolved and atemporal dispositions expose claim_id as a
 #: first-class join key instead of requiring agents to parse context_id.
-MCP_CONTRACT_VERSION = 238
+MCP_CONTRACT_VERSION = 240
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -3087,6 +3087,43 @@ def _selection_inputs(
     return scenarios, None
 
 
+def minimax_prior_compromise(
+        primary_rows: list[dict[str, Any]],
+        prior_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return the fixed midpoint of two unresolved forecast hypotheses.
+
+    This is an evaluation instrument, not an admitted forecast model.  Equal
+    weight is the minimax point between two otherwise unordered numeric
+    hypotheses under absolute disagreement; it is deliberately not estimated
+    from benchmark outcomes.  Exact grid matching and finite ordered
+    quantiles are required so the instrument cannot conceal malformed input.
+    """
+    if not primary_rows or len(primary_rows) != len(prior_rows):
+        raise ValueError("compromise requires two non-empty equal grids")
+    output: list[dict[str, Any]] = []
+    for primary, prior in zip(primary_rows, prior_rows, strict=True):
+        if primary.get("timestamp") != prior.get("timestamp"):
+            raise ValueError("compromise forecast grids differ")
+        averaged: dict[str, float] = {}
+        for key in ("q10", "q50", "q90"):
+            left, right = primary.get(key), prior.get(key)
+            if (not isinstance(left, (int, float)) or isinstance(left, bool)
+                    or not isinstance(right, (int, float))
+                    or isinstance(right, bool)
+                    or not math.isfinite(float(left))
+                    or not math.isfinite(float(right))):
+                raise ValueError(f"compromise requires finite {key}")
+            averaged[key] = (float(left) + float(right)) / 2.0
+        if not averaged["q10"] <= averaged["q50"] <= averaged["q90"]:
+            raise ValueError("compromise produced unordered quantiles")
+        output.append({
+            **primary,
+            **averaged,
+            "point": averaged["q50"],
+        })
+    return output
+
+
 def _eligible_prior_claims(
         claims: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Keep only claims allowed to condition an unsupported numeric prior."""
@@ -3521,7 +3558,8 @@ class McpAgentForecaster:
             "GNOMON_MCP_PROFILE", "full")).strip().lower()
         if output_role not in {"canonical", "immutable_primary",
                                "llm_candidate_shadow",
-                               "publication_best_effort"}:
+                               "publication_best_effort",
+                               "prior_compromise_shadow"}:
             raise ValueError("unknown output_role")
         if output_role != "canonical" and self.profile != "evidence":
             raise ValueError("output role requires the evidence profile")
@@ -3570,6 +3608,7 @@ class McpAgentForecaster:
         run = _Run(self, task_instance)
         governed_distribution_paths: list[list[float]] | None = None
         governed_distribution_contract: dict[str, Any] | None = None
+        prior_compromise_applied = False
         try:
             submission, extra_info = run.drive()
         finally:
@@ -3607,7 +3646,8 @@ class McpAgentForecaster:
             }
             run._write_trace()
         if self.output_role in {"llm_candidate_shadow",
-                               "publication_best_effort"}:
+                               "publication_best_effort",
+                               "prior_compromise_shadow"}:
             compilation = run.context_compilation or {}
             dossier = compilation.get("dossier") or {}
             dossiers = [item for item in compilation.get("dossiers") or
@@ -3769,6 +3809,39 @@ class McpAgentForecaster:
             if not verify_publication(publication):
                 raise RuntimeError("best-effort publication failed verification")
             submission = publication["recommended_forecast"]
+            if self.output_role == "prior_compromise_shadow":
+                primary_item = next((
+                    item for item in publication.get("candidate_portfolio") or []
+                    if item.get("role") == "immutable_primary"), None)
+                prior_item = next((
+                    item for item in publication.get("candidate_portfolio") or []
+                    if item.get("role") == "model_authored"
+                    and item.get("human_selection_eligible") is True), None)
+                if primary_item is not None and prior_item is not None:
+                    submission = minimax_prior_compromise(
+                        primary_item.get("forecast") or [],
+                        prior_item.get("forecast") or [])
+                    # Counterfactual scoring consumes this explicit diagnostic
+                    # copy. The verified product publication above remains
+                    # untouched and available in the trace.
+                    publication = json.loads(json.dumps(publication))
+                    compromise_id = "diagnostic_prior_compromise"
+                    publication["candidate_portfolio"].append({
+                        "scenario_id": compromise_id,
+                        "role": "prior_compromise_shadow",
+                        "support": "prior_assisted",
+                        "human_selection_eligible": True,
+                        "automation_eligible": False,
+                        "forecast": submission,
+                        "diagnostic_contract": {
+                            "method": "fixed_equal_weight_minimax_midpoint",
+                            "prior_weight": .5,
+                            "fit_to_benchmark_outcomes": False,
+                        },
+                    })
+                    publication["recommended_scenario_id"] = compromise_id
+                    publication["recommended_forecast"] = submission
+                    prior_compromise_applied = True
             selected_item = next((
                 item for item in publication.get("candidate_portfolio") or []
                 if item.get("scenario_id") == publication.get(
@@ -3847,11 +3920,23 @@ class McpAgentForecaster:
                 **extra_info,
                 "route": ("publication_best_effort"
                           if self.output_role == "publication_best_effort"
+                          else "prior_compromise_shadow"
+                          if self.output_role == "prior_compromise_shadow"
                           else "llm_candidate_shadow"),
                 "candidate_support": dossier.get("candidate_support"),
                 "candidate_seal_sha256": dossier.get("seal_sha256"),
+                "publication": publication,
                 "automation_eligible": False,
                 "primary_forecast_unchanged": True,
+                **({"prior_compromise_diagnostic": {
+                    "method": "fixed_equal_weight_minimax_midpoint",
+                    "prior_weight": .5,
+                    "fit_to_benchmark_outcomes": False,
+                    "product_authority": False,
+                    "applied": prior_compromise_applied,
+                    "not_applied_reason": (None if prior_compromise_applied else
+                        "no_human_selection_eligible_model_authored_prior"),
+                }} if self.output_role == "prior_compromise_shadow" else {}),
                 **({"governed_distribution": {
                     "kind": "sealed_empirical_model_paths",
                     "sample_count": len(governed_distribution_paths),
@@ -5688,7 +5773,8 @@ class _Run:
             and not (governed_named_relationship or {}).get(
                 "human_selection_eligible")
             and self.forecaster.output_role in {
-                "publication_best_effort", "llm_candidate_shadow"})
+                "publication_best_effort", "llm_candidate_shadow",
+                "prior_compromise_shadow"})
         if relationship_prior_needed and named_future_driver is not None:
             relationship_prompt = build_relationship_prior_prompt(
                 context=context, target_name=self.target_name,
@@ -5859,7 +5945,8 @@ class _Run:
              or interpretation_prior_needed
              or qualitative_future_event_prior_needed)
                 and self.forecaster.output_role in {
-                    "publication_best_effort", "llm_candidate_shadow"}):
+                    "publication_best_effort", "llm_candidate_shadow",
+                    "prior_compromise_shadow"}):
             model_candidate_status = (
                 "requested_after_governed_rejection"
                 if categorical_prior_needed or companion_prior_needed
