@@ -28,6 +28,13 @@
   must exactly equal the parsed coefficient terms, every residual token must
   be accounted for, and the ordinary host-series/schedule checks still apply;
   discrepancies refuse execution rather than relying on model transcription.
+- Expose that strict relationship compiler on the production MCP forecast
+  boundary through `context_submission.compile="deterministic_linear"`.
+  Complete text enters the existing replay-tested transformation machinery;
+  unresolved text receives a typed disposition. CiK now calls this same
+  product module rather than maintaining a benchmark-only execution path.
+  The CLI exposes the same module through
+  `--context-compile deterministic_linear` with cited text and knowledge time.
 
 - Route explicit historical zero-recording claims and ended recurring
   disruptions through deterministic, replay-validated front doors before any

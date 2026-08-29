@@ -136,10 +136,11 @@ def _attach_publication(payload, artifact, path, args) -> None:
     selection_path = getattr(args, "scenario_selection", None)
     policy_path = getattr(args, "automation_policy", None)
     proposal_path = getattr(args, "context_proposal", None)
+    compile_mode = getattr(args, "context_compile", None)
     transformation_paths = getattr(args, "context_transformation", None) or []
     # Strict with no publication inputs is the compatibility path: no new
     # stdout keys or sidecar for callers that did not request this feature.
-    if mode == "strict" and not (dossier_paths or proposal_path
+    if mode == "strict" and not (dossier_paths or proposal_path or compile_mode
                                   or transformation_paths
                                   or selection_path or policy_path):
         return
@@ -162,6 +163,41 @@ def _attach_publication(payload, artifact, path, args) -> None:
     from .publication import (compile_dossier_for_result, publish_result,
                               write_publication)
     result = artifact.to_dict()["results"][0]
+    inline_transformations = []
+    if compile_mode:
+        if proposal_path or transformation_paths:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "--context-compile cannot be combined with --context-proposal "
+                "or --context-transformation")
+        context_text = getattr(args, "context_text", None)
+        known_at = getattr(args, "context_known_at", None)
+        if not context_text or not known_at:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "--context-compile requires --context-text and --context-known-at")
+        from .relationship_text import compile_linear_relationship_text
+        future_timestamps = [str(row["timestamp"])
+                             for row in result.get("forecast") or []
+                             if isinstance(row, dict) and row.get("timestamp")]
+        compiled_relationship = compile_linear_relationship_text(
+            context_text, target_name=str(args.target_column), cutoff=known_at,
+            future_timestamps=future_timestamps)
+        if compiled_relationship is None:
+            result.setdefault("context_rejections", []).append({
+                "context_id": "deterministic-linear-compiler",
+                "reason_code": "DETERMINISTIC_RELATIONSHIP_UNRESOLVED",
+                "reason": "No complete linear relationship was compiled; no partial arithmetic was executed.",
+                "source_span": context_text,
+            })
+        else:
+            raw, compilation_kind = compiled_relationship
+            dossier, _ = compile_dossier_for_result(
+                raw, context_text=context_text, known_at=known_at,
+                result=result,
+                compiler_model="gnomon:deterministic_linear:" + compilation_kind)
+            dossiers.append(dossier)
+            inline_transformations = list(raw.get("transformations") or [])
     if proposal_path:
         context_text = getattr(args, "context_text", None)
         known_at = getattr(args, "context_known_at", None)
@@ -174,7 +210,7 @@ def _attach_publication(payload, artifact, path, args) -> None:
             raw, context_text=context_text, known_at=known_at, result=result,
             compiler_model=getattr(args, "context_compiler_model", None) or "agent")
         dossiers.append(dossier)
-    if transformation_paths:
+    if transformation_paths or inline_transformations:
         known_at = getattr(args, "context_known_at", None)
         if not known_at:
             raise GnomonError(
@@ -254,8 +290,12 @@ def _attach_publication(payload, artifact, path, args) -> None:
                 histories.update(documented)
             return ([target_map[timestamp] for timestamp in common], histories)
 
-        for index, transform_path in enumerate(transformation_paths[:6], 1):
-            wrapper = read(transform_path, "--context-transformation")
+        transformation_inputs = [
+            *(read(path, "--context-transformation")
+              for path in transformation_paths[:6]),
+            *inline_transformations,
+        ]
+        for index, wrapper in enumerate(transformation_inputs[:6], 1):
             compiled, critique = compile_transformation(
                 wrapper.get("transformation", wrapper),
                 series=list((wrapper.get("series_values") or {}).keys()),
@@ -494,6 +534,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     forecast_parser.add_argument(
         "--context-text", help="Source text quoted by --context-proposal.")
+    forecast_parser.add_argument(
+        "--context-compile", choices=("deterministic_linear",),
+        help="Compile a complete cited linear lag specification directly; "
+             "requires --context-text and --context-known-at and refuses "
+             "partial arithmetic.")
     forecast_parser.add_argument(
         "--context-known-at", help="Timezone-aware knowledge time for context.")
     forecast_parser.add_argument(

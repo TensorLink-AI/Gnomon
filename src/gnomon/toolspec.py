@@ -2539,9 +2539,21 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
         submission["rejections"] = [
             *(submission.get("rejections") or []), *normalized_rejections]
     raw_proposal = submission.get("proposal")
+    deterministic_compile = submission.get("compile")
+    if deterministic_compile not in (None, "deterministic_linear"):
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "context_submission.compile supports only deterministic_linear")
+    if deterministic_compile and (raw_proposal is not None
+                                  or submission.get("transformations")):
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "deterministic context compilation cannot be combined with an "
+            "agent proposal or caller-authored transformations")
     selection = arguments.get("scenario_selection")
     policy = arguments.get("automation_policy")
     if mode == "strict" and not (dossiers or raw_proposal
+                                  or deterministic_compile
                                   or submission.get("transformations")
                                   or submission.get("rejections")
                                   or arguments.get("_context_was_supplied")
@@ -2657,6 +2669,37 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                 allowed_claim_ids=verified_claim_ids or [])
             histories.update(documented)
         return ([target_map[timestamp] for timestamp in common], histories)
+    if deterministic_compile:
+        context_text = str(submission.get("text") or "")
+        known_at = str(submission.get("known_at") or "")
+        if not context_text or not known_at:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "deterministic context compilation requires text and known_at")
+        forecast_timestamps = [str(row["timestamp"])
+                               for row in result.get("forecast") or []
+                               if isinstance(row, dict) and row.get("timestamp")]
+        from .relationship_text import compile_linear_relationship_text
+        compiled_relationship = compile_linear_relationship_text(
+            context_text,
+            target_name=str(arguments.get("target_column") or ""),
+            cutoff=known_at, future_timestamps=forecast_timestamps)
+        if compiled_relationship is None:
+            result["context_rejections"].append({
+                "context_id": "deterministic-linear-compiler",
+                "reason_code": "DETERMINISTIC_RELATIONSHIP_UNRESOLVED",
+                "reason": (
+                    "The cited text was not a complete, mechanically "
+                    "checkable linear lag specification with a full future "
+                    "driver schedule. No partial arithmetic was executed."),
+                "source_span": context_text,
+            })
+        else:
+            raw_proposal, compilation_kind = compiled_relationship
+            submission["transformations"] = list(
+                raw_proposal.get("transformations") or [])
+            submission["compiler"] = (
+                "gnomon:deterministic_linear:" + compilation_kind)
     if raw_proposal is not None:
         context_text = str(submission.get("text") or "")
         known_at = str(submission.get("known_at") or "")
@@ -3192,7 +3235,7 @@ TOOLS: list[dict[str, Any]] = [
                         "scenario=primary plus alternatives. Primary immutable.")},
                 "temporal_dossiers": {"type": "array", "items": {"type": "object"},
                     "description": "Sealed temporal dossiers."},
-                "context_submission": {"type": "object", "description": "Raw {text, known_at, compiler, proposal, transformations, rejections}; bounded transformations and typed rejection dispositions."},
+                "context_submission": {"type": "object", "description": "Raw {text, known_at, compiler, proposal, transformations, rejections}, or {text, known_at, compile:'deterministic_linear'} for complete cited linear lag specifications. Deterministic compilation is all-or-nothing; bounded transformations and typed rejection dispositions."},
                 "scenario_selection": {"type": "object",
                     "description": "Number-free governed ranking of scenario ids."},
                 "automation_policy": {

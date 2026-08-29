@@ -2016,6 +2016,70 @@ def test_mcp_fits_source_stated_lag_structure_without_model_coefficients(tmp_pat
     assert verify_publication(publication)
 
 
+def test_mcp_deterministically_compiles_complete_relationship_text(tmp_path):
+    from datetime import date, timedelta
+    source = tmp_path / "deterministic-relationship.csv"
+    start = date(2026, 1, 1)
+    driver = [1.0] * 30 + [4.0] * 30 + [2.0] * 30
+    target = [3.0]
+    for index in range(1, 90):
+        target.append(.5 * target[index - 1] + 2 * driver[index - 1])
+    source.write_text("timestamp,driver,value\n" + "\n".join(
+        f"{start + timedelta(days=i)},{driver[i]},{target[i]}"
+        for i in range(90)) + "\n")
+    context = (
+        "driver is 1 from 2026-01-01 to 2026-01-30, 4 from 2026-01-31 "
+        "to 2026-03-01, 2 from 2026-03-02 to 2026-03-31, and 5 from "
+        "2026-04-01 to 2026-04-02.\n"
+        "value^{t} = 0.5 * value^{t-1} + 2 * driver^{t-1}")
+    payload = runner_for("gnomon_forecast")({
+        "input": str(source), "target_column": "value", "horizon": 2,
+        "output_dir": str(tmp_path / "out"), "format": "full",
+        "publication_mode": "best_effort",
+        "context_submission": {
+            "text": context, "known_at": "2026-03-31T00:00:00+00:00",
+            "compile": "deterministic_linear",
+        },
+    })
+    publication = payload["publication"]
+    assert publication["recommended_scenario_id"] == "transformation-1"
+    assert publication["primary_forecast_unchanged"] is True
+    assert publication["recommendation_authority"]["selected_role"] == \
+        "retrospectively_validated"
+    assert publication["automation"]["eligible"] is False
+    assert not any(item["disposition"] == "rejected"
+                   for item in publication["context_dispositions"])
+    assert verify_publication(publication)
+
+
+def test_mcp_deterministic_relationship_refuses_partial_text(tmp_path):
+    from datetime import date, timedelta
+    source = tmp_path / "partial-relationship.csv"
+    start = date(2026, 1, 1)
+    source.write_text("timestamp,driver,value\n" + "\n".join(
+        f"{start + timedelta(days=i)},1,{100 + i}" for i in range(40)) + "\n")
+    context = (
+        "driver is 1 from 2026-02-10 to 2026-02-11.\n"
+        "value^{t} = 0.5 * value^{t-1} + an unspecified driver effect")
+    payload = runner_for("gnomon_forecast")({
+        "input": str(source), "target_column": "value", "horizon": 2,
+        "output_dir": str(tmp_path / "out"), "format": "full",
+        "publication_mode": "best_effort",
+        "context_submission": {
+            "text": context, "known_at": "2026-02-09T00:00:00+00:00",
+            "compile": "deterministic_linear",
+        },
+    })
+    publication = payload["publication"]
+    assert publication["recommended_scenario_id"] == "primary"
+    rejection = next(item for item in publication["context_dispositions"]
+                     if item["reason_code"] ==
+                     "DETERMINISTIC_RELATIONSHIP_UNRESOLVED")
+    assert "No partial arithmetic" in rejection["reason"]
+    assert publication["primary_forecast_unchanged"] is True
+    assert publication["automation"]["eligible"] is False
+
+
 def test_missing_recursive_driver_rejects_scenario_not_primary(tmp_path):
     from datetime import date, timedelta
     source = tmp_path / "series.csv"

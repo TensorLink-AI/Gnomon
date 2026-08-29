@@ -154,9 +154,17 @@ candidate lanes carry different authority:
 - `scenario_only` is a bounded conditional path, not a probability claim.
 
 CLI callers pass repeatable `--context-transformation` JSON files with
-`--context-known-at`. MCP callers use
+`--context-known-at`, or use `--context-compile deterministic_linear` with
+`--context-text` for the same strict text compiler. MCP callers use
 `context_submission.transformations`. Invalid inputs remain in
 `context_dispositions` with typed violations; they are never silently ignored.
+MCP callers with a complete cited linear relationship may instead send
+`context_submission: {text, known_at, compile: "deterministic_linear"}`.
+Gnomon performs all-or-nothing parsing, binds source series through the normal
+snapshot loader, and applies the same recurrence replay gate; this path does
+not ask the host model to copy coefficients into JSON. Ambiguous or incomplete
+text produces `DETERMINISTIC_RELATIONSHIP_UNRESOLVED` and leaves the primary
+unchanged.
 A model-authored path offered as the fallback for a transformation whose
 derivation fails remains visible and outcome-trackable in the scenario
 portfolio, but is marked selection-ineligible. A seal proves identity, not the

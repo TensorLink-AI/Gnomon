@@ -745,6 +745,9 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "question_id": "intent", "synthesis_id": "intent",
     "resolved": "intent", "minimum_resolved": "intent",
     "automation_policy": "intent",
+    # Selects a representation mechanism; it does not relax validation,
+    # replay, support, or publication thresholds.
+    "context_compile": "intent",
     "month": "intent", "state": "intent", "webhook": "intent",
     "auto_score": "intent",
     "webhook_secret_env": "intent", "prometheus_rule_output": "intent",

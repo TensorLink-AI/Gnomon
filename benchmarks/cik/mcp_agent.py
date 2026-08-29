@@ -475,7 +475,10 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: Version 211: complete per-lag prose coefficient specifications compile to
 #: the same exact recurrence only when each stated parent set exactly matches
 #: its parsed arithmetic; disagreement or residual prose refuses execution.
-MCP_CONTRACT_VERSION = 211
+#: Version 212: CiK relationship compilation uses the same reusable
+#: ``gnomon.relationship_text`` module exposed by the production MCP
+#: deterministic_linear context-submission lane.
+MCP_CONTRACT_VERSION = 212
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -3848,6 +3851,7 @@ class _Run:
             validate_temporal_dossier,
         )
         from gnomon.workflows import DocumentRef, parse_context_response
+        from gnomon.relationship_text import compile_linear_relationship_text
 
         narrative_context = build_context_text(self.task)
         context = "\n\n".join(part for part in (
@@ -3878,21 +3882,24 @@ class _Run:
         relationship_contract = bool(
             categorical_schedule is None
             and _has_explicit_lag_relationship(context))
-        deterministic_explicit_equation = (
-            _deterministic_explicit_recursive_relationship(
+        deterministic_relationship = (
+            compile_linear_relationship_text(
                 narrative_context, target_name=self.target_name,
-                driver_names=set(self.companion_histories),
-                cutoff=self.timestamps[-1],
-                future_timestamps=future_timestamps)
+                allowed_driver_names=set(self.companion_histories),
+                cutoff=self.timestamps[-1], future_timestamps=future_timestamps)
             if relationship_contract else None)
+        deterministic_relationship_raw = (
+            deterministic_relationship[0]
+            if deterministic_relationship is not None else None)
+        deterministic_relationship_kind = (
+            deterministic_relationship[1]
+            if deterministic_relationship is not None else None)
+        deterministic_explicit_equation = (
+            deterministic_relationship_raw
+            if deterministic_relationship_kind == "exact_coefficients" else None)
         deterministic_parent_relationship = (
-            _deterministic_explicit_parent_relationship(
-                narrative_context, target_name=self.target_name,
-                driver_names=set(self.companion_histories),
-                cutoff=self.timestamps[-1],
-                future_timestamps=future_timestamps)
-            if relationship_contract
-            and deterministic_explicit_equation is None else None)
+            deterministic_relationship_raw
+            if deterministic_relationship_kind == "fitted_topology" else None)
         observation_contract = (
             not relationship_contract
             and _expects_historical_zero_interpretation(context))

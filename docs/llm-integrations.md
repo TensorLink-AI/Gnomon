@@ -63,6 +63,15 @@ history-only primary immutable and exposes the claim only as a labelled,
 non-automatable sensitivity scenario. Use `context_submission` for non-event
 claims and dossiers. Malformed context is rejected with typed repair
 information rather than silently ignored or coerced into a numeric claim.
+For a complete linear lag specification, the host can avoid model transcription
+entirely: send `context_submission` with `text`, timezone-aware `known_at`, and
+`compile: "deterministic_linear"`. Gnomon accepts exact coefficient equations,
+equivalent per-lag coefficient prose, or a complete parent/lag topology. The
+topology form fits coefficients inside replay folds. Every form requires a
+complete cited future driver schedule and refuses partial arithmetic; a
+successful candidate still has to beat the baseline and remains advisory.
+The equivalent CLI is `--context-compile deterministic_linear --context-text
+"..." --context-known-at <ISO-8601>`.
 When timing is ambiguous, a fact was first known after the cutoff, no temporal
 mechanism is stated, or a third party is merely forecasting a value, send the
 compact `context_rejections` array. Each item requires `context_id`,
