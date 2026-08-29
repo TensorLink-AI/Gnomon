@@ -2443,19 +2443,25 @@ class _Run(_RunBase):
             agent_supplied_sources = [str(value) for value in
                                       (arguments.get(
                                           "cited_context_sources") or [])[:8]]
-            supplied_sources = (agent_supplied_sources
-                                if agent_supplied_sources
-                                else expected_sources)
+            # The artifact is authoritative. A model-provided duplicate is
+            # useful preservation evidence, but it must never replace the
+            # exact host-bound references or void an otherwise valid answer.
+            # Human-facing prose is checked independently below.
+            supplied_sources = expected_sources
             self.submission["context_source_projection"] = {
                 "expected": expected_sources,
                 "agent_supplied": agent_supplied_sources,
+                "agent_matched": [value for value in agent_supplied_sources
+                                  if value in expected_sources],
+                "agent_invalid": [value for value in agent_supplied_sources
+                                  if value not in expected_sources],
                 "supplied": supplied_sources,
                 "matched": [value for value in supplied_sources
                             if value in expected_sources],
                 "invalid": [value for value in supplied_sources
                             if value not in expected_sources],
-                "host_projected": bool(expected_sources
-                                       and not agent_supplied_sources),
+                "host_projected": bool(
+                    expected_sources != agent_supplied_sources),
             }
             reasoning_text = str(arguments.get("reasoning") or "").lower()
             authority_problems: list[str] = []
