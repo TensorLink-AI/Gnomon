@@ -467,8 +467,9 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
             "primary" in explanation and any(
                 token in explanation for token in (
                     "unchanged", "preserved", "remain", "did not change")))
+        scenario_required = bool(context_gate.get("scenario_only"))
         represented_scenario = (
-            disposition != "scenario_only" or
+            not scenario_required or
             any(token in explanation for token in (
                 "scenario", "conditional", "what-if", "what if")))
         preserved_interval_limit = (
@@ -533,6 +534,7 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
                 "required": True,
                 "primary_preserved": preserved_primary,
                 "scenario_represented": represented_scenario,
+                "scenario_contract_expected": scenario_required,
                 "interval_limit_preserved": preserved_interval_limit,
                 "automation_limit_preserved": preserved_automation_limit,
                 "rejection_evidence_cited": rejection_evidence_cited,
@@ -663,6 +665,11 @@ def summarize(rows: list[dict[str, Any]], profile: str,
         if (row.get("context_explanation_contract") or {}).get(
             "primary_relationship_expected")
     ]
+    scenario_contract_rows = [
+        row for row in answered
+        if (row.get("context_explanation_contract") or {}).get(
+            "scenario_contract_expected")
+    ]
     return {
         "benchmark": "contextbench-surfaces", "profile": profile,
         "routing_policy": routing_policy,
@@ -754,11 +761,17 @@ def summarize(rows: list[dict[str, Any]], profile: str,
                     "context_explanation_contract") or {}).get(key))
                            for row in answered) if answered else None)
                 for key in (
-                    "complete", "primary_preserved", "scenario_represented",
+                    "complete", "primary_preserved",
                     "interval_limit_preserved", "automation_limit_preserved",
                     "rejection_evidence_cited",
                     "scenario_consequence_preserved",
                 )},
+                "scenario_contracts_exposed": len(scenario_contract_rows),
+                "scenario_represented": (mean(bool((row.get(
+                    "context_explanation_contract") or {}).get(
+                        "scenario_represented"))
+                    for row in scenario_contract_rows)
+                    if scenario_contract_rows else None),
                 "primary_relationship_contracts_exposed": len(
                     primary_relationship_rows),
                 "primary_relationship_preserved": (mean(bool((row.get(

@@ -2094,6 +2094,11 @@ class _Run(_RunBase):
             rejected = gate.get("rejected") or []
             status = disposition.get("status")
             outcome_events = disposition.get("events") or []
+            scenario_dispositions = sum(
+                1 for item in (disposition.get("dispositions") or [])
+                if isinstance(item, dict)
+                and item.get("disposition") == "scenario"
+            )
             self.context_execution[channel] = {
                 "status": status,
                 "considered": int(bool(gate.get("considered")
@@ -2102,8 +2107,9 @@ class _Run(_RunBase):
                              len(outcome_events) if status == "applied" else 0),
                 "rejected": (len(rejected) if rejected else
                              len(outcome_events) if status == "rejected" else 0),
-                "scenario_only": (len(outcome_events)
-                                  if status == "scenario_only" else 0),
+                "scenario_only": (
+                    len(outcome_events) if status == "scenario_only"
+                    else scenario_dispositions),
                 # The runtime makes influence explicit by lowering support to
                 # context_trusted only when at least one admitted event was
                 # actually applied to the emitted trajectory.

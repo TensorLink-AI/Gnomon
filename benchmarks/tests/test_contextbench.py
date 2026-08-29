@@ -418,6 +418,7 @@ def test_surface_summary_reports_agent_context_explanation_contract():
         "context_explanation_contract": {
             "complete": True, "primary_preserved": True,
             "scenario_represented": True,
+            "scenario_contract_expected": True,
             "interval_limit_preserved": True,
                 "automation_limit_preserved": True,
                 "rejection_evidence_cited": True,
@@ -433,6 +434,7 @@ def test_surface_summary_reports_agent_context_explanation_contract():
 
     assert summary["metrics"]["context_explanation_contract"] == {
         "complete": 1.0, "primary_preserved": 1.0,
+        "scenario_contracts_exposed": 1,
         "scenario_represented": 1.0,
         "interval_limit_preserved": 1.0,
             "automation_limit_preserved": 1.0,

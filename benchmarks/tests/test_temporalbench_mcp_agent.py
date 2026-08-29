@@ -527,6 +527,22 @@ def test_artifact_binding_preserves_typed_primary_relationship(monkeypatch):
     assert execution["selected_output_role"] == \
         "primary_forecast_already_noncontinuing"
 
+    artifact["results"][0]["context_outcome"] = {
+        "status": "partially_represented",
+        "events": ["structural-1"],
+        "dispositions": [{
+            "context_id": "structural-1", "disposition": "scenario"}],
+        "canonical_primary_preserved": True,
+        "primary_forecast_changed": False,
+        "automation_eligible": False,
+    }
+    run.context_execution = {}
+    assert run._artifact_channel_rows(
+        "/sealed/artifact", "value") == [10.0]
+    assert run.context_execution["value"]["status"] == \
+        "partially_represented"
+    assert run.context_execution["value"]["scenario_only"] == 1
+
 
 def test_values_only_with_no_tool_use_routes_direct(tmp_path):
     outcome = _run(_row(sparse_temp=False), [
