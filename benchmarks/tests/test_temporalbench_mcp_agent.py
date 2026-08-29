@@ -577,6 +577,12 @@ def test_artifact_binding_preserves_applied_covariate_authority(monkeypatch):
                 "admitted": True,
                 "retained": ["published_driver"],
                 "rejected": [],
+                "canonical_primary_preserved": True,
+                "selected_projection_differs_from_primary": False,
+                "selected_output_role": "primary_forecast",
+                "relationship_to_primary":
+                    "validated_covariates_used_by_primary",
+                "automation_eligible": True,
             },
         }],
     }
@@ -591,6 +597,8 @@ def test_artifact_binding_preserves_applied_covariate_authority(monkeypatch):
     assert execution["applied"] == 1
     assert execution["canonical_primary_preserved"] is True
     assert execution["automation_eligible"] is True
+    assert execution["relationship_to_primary"] == \
+        "validated_covariates_used_by_primary"
 
 
 def test_applied_covariate_cannot_be_described_as_absent():

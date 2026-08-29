@@ -479,6 +479,12 @@ def test_agent_relationship_measure_is_semantic_and_fail_closed():
         relationship)
     assert not preserves_primary_relationship(
         "The context was rejected.", relationship)
+    assert preserves_primary_relationship(
+        "The admitted covariate was applied by the primary forecast.",
+        "validated_covariates_used_by_primary")
+    assert not preserves_primary_relationship(
+        "The covariate was available.",
+        "validated_covariates_used_by_primary")
     assert not preserves_primary_relationship(
         "Some explanation.", "future_unknown_relationship")
     assert preserves_primary_relationship("anything", "")

@@ -114,12 +114,29 @@ class CovariateAssessment:
     warnings: list[str] = field(default_factory=list)
 
     def to_public_dict(self) -> dict[str, Any]:
+        status = ("applied" if self.admitted else
+                  "rejected" if self.considered else "not_considered")
         return {
             "considered": self.considered, "admitted": self.admitted,
+            "status": status,
             "model": "covariate_linear" if self.admitted else None,
             "retained": self.retained, "rejected": self.rejected,
             "fold_improvements": self.fold_improvements,
             "measured_test_coverage": self.coverage,
+            # An admitted covariate is part of the evaluated primary model,
+            # not a post-hoc conditional projection. Publish that relationship
+            # explicitly so an agent does not mistake an absent soft-context
+            # outcome for absent covariate influence.
+            "canonical_primary_preserved": True,
+            "selected_projection_differs_from_primary": False,
+            "selected_output_role": "primary_forecast",
+            "relationship_to_primary": (
+                "validated_covariates_used_by_primary" if self.admitted else
+                "validated_covariates_not_used_by_primary"),
+            # This is the covariate evidence lane's authority, not a request
+            # to run an automation. Admission already requires point-in-time,
+            # fold-safe material lift against an executable supported base.
+            "automation_eligible": self.admitted,
         }
 
 

@@ -336,6 +336,13 @@ def preserves_primary_relationship(reasoning: str, relationship: str) -> bool:
             "already non-continuing",
             "does not contain a stable continuation",
         ))
+    if relationship == "validated_covariates_used_by_primary":
+        return (
+            "covariate" in explanation
+            and "primary" in explanation
+            and any(token in explanation for token in (
+                "admitted", "applied", "used"))
+        )
     # Unknown future relationship classes fail closed until a deliberate
     # semantic projection is added for them.
     return False

@@ -2156,6 +2156,16 @@ class _Run(_RunBase):
                     covariate_gate.get("rejected") or [])
                 admitted = bool(covariate_gate.get("admitted"))
                 considered = bool(covariate_gate.get("considered"))
+                automation_eligible = publication.get(
+                    "automation_eligible")
+                if automation_eligible is None:
+                    automation_eligible = covariate_gate.get(
+                        "automation_eligible")
+                primary_preserved = publication.get(
+                    "canonical_primary_preserved")
+                if primary_preserved is None:
+                    primary_preserved = covariate_gate.get(
+                        "canonical_primary_preserved")
                 self.context_execution[channel] = {
                     "status": ("applied" if admitted else
                                "rejected" if considered else
@@ -2166,13 +2176,15 @@ class _Run(_RunBase):
                     "scenario_only": 0,
                     "applied": len(admitted_covariates) if admitted else 0,
                     "support": str(publication.get("support") or support),
-                    "automation_eligible": publication.get(
-                        "automation_eligible"),
-                    "canonical_primary_preserved": publication.get(
-                        "canonical_primary_preserved"),
-                    "selected_projection_differs_from_primary": False,
-                    "relationship_to_primary": None,
-                    "selected_output_role": "primary_forecast",
+                    "automation_eligible": automation_eligible,
+                    "canonical_primary_preserved": primary_preserved,
+                    "selected_projection_differs_from_primary": (
+                        covariate_gate.get(
+                            "selected_projection_differs_from_primary")),
+                    "relationship_to_primary": covariate_gate.get(
+                        "relationship_to_primary"),
+                    "selected_output_role": covariate_gate.get(
+                        "selected_output_role"),
                     "authority_summary": None,
                     "admitted_event_ids": admitted_covariates,
                     "rejection_codes": [

@@ -119,6 +119,14 @@ def test_covariate_ablation_admits_stable_signal(tmp_path) -> None:
     assert result.admitted is True
     assert result.retained == ["campaign"]
     assert len(result.points) == 7
+    public = result.to_public_dict()
+    assert public["status"] == "applied"
+    assert public["canonical_primary_preserved"] is True
+    assert public["selected_projection_differs_from_primary"] is False
+    assert public["selected_output_role"] == "primary_forecast"
+    assert public["relationship_to_primary"] == \
+        "validated_covariates_used_by_primary"
+    assert public["automation_eligible"] is True
 
 
 def test_forecast_records_covariate_evidence(tmp_path) -> None:
