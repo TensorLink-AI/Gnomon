@@ -1,0 +1,56 @@
+{
+  "release": "2026-08-29-context-timing-safety",
+  "benchmark": "contextbench-stress",
+  "status": "complete",
+  "claim_scope": "strict-primary handling of non-degenerate event timing ranges",
+  "evaluated_commit": "4ee800d",
+  "dataset_identity": "three fresh contextbench-stress-v1 corpora; seeds 6826960745610980136, 3597900615792209050, 7489455467698517086; 112 cases each",
+  "artifacts": {
+    "before_replicate_1": {
+      "path": "results/contextbench-stress-loop-20260829-engine/summary.json",
+      "sha256": "ffddece2bb89e4364c8d4258de8fcc120c0f8fa4aa32660111f03d1f8ad6e577"
+    },
+    "before_replicate_2": {
+      "path": "results/contextbench-stress-loop-20260829-r2-engine/summary.json",
+      "sha256": "3b526425c45b4e1dd9c32bf4ab3c8fb262b092b0247bdfdffd2895179e2e7906"
+    },
+    "before_replicate_3": {
+      "path": "results/contextbench-stress-loop-20260829-r3-engine/summary.json",
+      "sha256": "bf99d444469824021ba45d92c8501f935df1833a833cadee0b37dcc4012bd903"
+    },
+    "after_replicate_1": {
+      "path": "results/contextbench-stress-loop-20260829-engine-timing-safe/summary.json",
+      "sha256": "fe467c52b463812f955d3a70e7c150cc54fe1bb5953126ef5e36bfa639d79b60"
+    },
+    "after_replicate_2": {
+      "path": "results/contextbench-stress-loop-20260829-r2-engine-timing-safe/summary.json",
+      "sha256": "9b85a81069118a8a247e3e101f6b80abdf6aab43b52ada4ba395b6d92f32d0c1"
+    },
+    "after_replicate_3": {
+      "path": "results/contextbench-stress-loop-20260829-r3-engine-timing-safe/summary.json",
+      "sha256": "bf99d444469824021ba45d92c8501f935df1833a833cadee0b37dcc4012bd903"
+    },
+    "after_replicated_report": {
+      "path": "results/contextbench-stress-loop-20260829-timing-safe-replicated.json",
+      "sha256": "11d3773bf07d904ef6f5eccab29bc402980a6a14fa196e8e3ed8aae3dd289a33"
+    }
+  },
+  "result": {
+    "timing_uncertain_cases": 24,
+    "before_admitted": 3,
+    "before_harmful_admissions": 3,
+    "after_admitted_to_exact_primary": 0,
+    "after_harmful_admissions": 0,
+    "after_typed_scenario_contract_rate": 1.0,
+    "after_admission_precision": 1.0,
+    "after_high_snr_recall": 0.875,
+    "after_leakage_count": 0,
+    "after_pooled_product_gates_pass": true
+  },
+  "interpretation": "A non-degenerate delay or duration range cannot truthfully be executed as one exact active window. Gnomon now retains such context as a bounded typed scenario while keeping the strict primary unchanged. Fixed-timing events continue through ordinary fold-safe admission.",
+  "limitations": [
+    "This is a safety and representation result, not evidence that Gnomon has learned the best probabilistic timing distribution.",
+    "A future timing-robust executable may earn primary admission after independent validation across the full stated range.",
+    "Synthetic stress results do not replace monitoring of resolved timing scenarios in production."
+  ]
+}
