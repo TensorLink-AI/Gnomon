@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
 from benchmarks.common.envfile import load_env_file  # noqa: E402
+from benchmarks.common.manifest import code_revision  # noqa: E402
 from benchmarks.common.openrouter import OpenRouterClient  # noqa: E402
 from benchmarks.common.openrouter import OpenRouterError  # noqa: E402
 from benchmarks.temporalbench.mcp_agent import run_row  # noqa: E402
@@ -50,14 +51,32 @@ def _usage_sum(rows: list[dict[str, Any]], scope: str) -> dict[str, Any]:
                      for row in rows) for key in keys}
 
 
+def _fsync_directory(path: Path) -> None:
+    """Persist directory-entry changes after an atomic replace or create."""
+    descriptor = os.open(str(path), os.O_RDONLY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _atomic_write(path: Path, text: str) -> None:
+    """Write, fsync, replace, then fsync the containing directory."""
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    with temporary.open("w", encoding="utf-8") as handle:
+        handle.write(text)
+        handle.flush()
+        os.fsync(handle.fileno())
+    temporary.replace(path)
+    _fsync_directory(path.parent)
+
+
 def _checkpoint(path: Path, cases: list[Case],
                 rows_by_id: dict[str, dict[str, Any]]) -> None:
     """Atomically persist every completed case in corpus order."""
-    temporary = path.with_suffix(".jsonl.tmp")
-    temporary.write_text("".join(
+    _atomic_write(path, "".join(
         json.dumps(rows_by_id[case.case_id], sort_keys=True) + "\n"
         for case in cases if case.case_id in rows_by_id))
-    temporary.replace(path)
 
 
 def _append_attempt(path: Path, row: dict[str, Any], attempt: int) -> None:
@@ -66,6 +85,40 @@ def _append_attempt(path: Path, row: dict[str, Any], attempt: int) -> None:
                "recorded_at": datetime.now().astimezone().isoformat()}
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(payload, sort_keys=True) + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+    _fsync_directory(path.parent)
+
+
+def _prepare_run_identity(output: Path, identity: dict[str, Any],
+                          *, resume: bool) -> None:
+    """Fail closed before old rows can be mixed with a different treatment."""
+    identity_path = output / "run_identity.json"
+    state_paths = (
+        output / "observations.jsonl",
+        output / "attempts.jsonl",
+        output / "summary.json",
+    )
+    if identity_path.exists():
+        existing = json.loads(identity_path.read_text(encoding="utf-8"))
+        if existing != identity:
+            raise SystemExit(
+                "resume identity mismatch; use a new output directory")
+        if not resume:
+            raise SystemExit(
+                "output directory is already initialized; pass --resume or "
+                "use a new output directory")
+        return
+    if any(path.exists() for path in state_paths):
+        if resume:
+            raise SystemExit(
+                "cannot resume surface observations without run_identity.json")
+        raise SystemExit(
+            "output directory already contains surface run state; pass "
+            "--resume only if its run_identity.json is present")
+    _atomic_write(
+        identity_path,
+        json.dumps(identity, indent=2, sort_keys=True) + "\n")
 
 
 def _public_id(case_id: str) -> str:
@@ -823,7 +876,37 @@ def main() -> int:
         "max_tokens": 8000,
         "reasoning_effort": args.reasoning_effort,
     }
+    corpus_manifest_sha256 = hashlib.sha256(
+        (corpus / "manifest.json").read_bytes()).hexdigest()
+    selected_case_ids_sha256 = hashlib.sha256(json.dumps(
+        [case.case_id for case in cases], separators=(",", ":"))
+        .encode()).hexdigest()
+    resolved_base_url = OpenRouterClient(
+        args.model, **client_kwargs).base_url
     output = Path(args.output_dir); output.mkdir(parents=True, exist_ok=True)
+    run_identity = {
+        "schema_version": 1,
+        "condition": "contextbench-surface",
+        "model": args.model,
+        "base_url": resolved_base_url,
+        "temperature": args.temperature,
+        "reasoning_effort": args.reasoning_effort,
+        "corpus_manifest_sha256": corpus_manifest_sha256,
+        "selected_case_ids_sha256": selected_case_ids_sha256,
+        "selected_cases": len(cases),
+        "code_revision": code_revision(),
+        "request_timeout_seconds": args.request_timeout,
+        "tool_timeout_seconds": args.tool_timeout,
+        "max_retries": args.max_retries,
+        "infrastructure_retries": args.infrastructure_retries,
+        "jobs": args.jobs,
+        "context_receipts_dir": str(Path(args.context_receipts_dir).resolve()),
+        "profile": args.profile,
+        "routing_policy": args.routing_policy,
+        "baseline_mode": args.baseline_mode,
+        "replicate_id": str(args.replicate_id),
+    }
+    _prepare_run_identity(output, run_identity, resume=args.resume)
     observation_path = output / "observations.jsonl"
     attempt_path = output / "attempts.jsonl"
     retained: dict[str, dict[str, Any]] = {}
@@ -889,11 +972,11 @@ def main() -> int:
     summary["llm_usage_this_invocation"] = _usage_sum(
         invocation_attempts, "total")
     summary["executions_this_invocation"] = len(invocation_attempts)
-    summary["corpus_manifest_sha256"] = hashlib.sha256(
-        (corpus / "manifest.json").read_bytes()).hexdigest()
+    summary["corpus_manifest_sha256"] = corpus_manifest_sha256
+    summary["run_identity"] = run_identity
     summary["run_provenance"] = {
         "model": args.model,
-        "base_url": OpenRouterClient(args.model, **client_kwargs).base_url,
+        "base_url": resolved_base_url,
         "temperature": args.temperature,
         "reasoning_effort": args.reasoning_effort,
         "request_timeout_seconds": args.request_timeout,
@@ -906,8 +989,8 @@ def main() -> int:
         "baseline_mode": args.baseline_mode,
         "replicate_id": str(args.replicate_id),
     }
-    (output / "summary.json").write_text(
-        json.dumps(summary, indent=2, sort_keys=True) + "\n")
+    _atomic_write(output / "summary.json",
+                  json.dumps(summary, indent=2, sort_keys=True) + "\n")
     print(json.dumps(summary, indent=2, sort_keys=True))
     return 0 if summary["errors"] == 0 else 2
 

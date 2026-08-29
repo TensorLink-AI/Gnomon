@@ -469,6 +469,48 @@ def test_agent_relationship_measure_is_semantic_and_fail_closed():
     assert preserves_primary_relationship("anything", "")
 
 
+def test_surface_checkpoints_are_durable_and_resume_identity_is_strict(
+        tmp_path):
+    output = tmp_path / "surface"
+    output.mkdir()
+    cases = [SimpleNamespace(case_id="a"), SimpleNamespace(case_id="b")]
+    surface_runner._checkpoint(
+        output / "observations.jsonl", cases,
+        {"b": {"case_id": "b"}, "a": {"case_id": "a"}})
+    assert (output / "observations.jsonl").read_text().splitlines() == [
+        '{"case_id": "a"}', '{"case_id": "b"}']
+    surface_runner._append_attempt(
+        output / "attempts.jsonl", {"case_id": "a", "status": "error"}, 1)
+    attempt = json.loads((output / "attempts.jsonl").read_text())
+    assert attempt["case_id"] == "a"
+    assert attempt["attempt"] == 1
+    assert attempt["recorded_at"]
+
+    identity = {
+        "schema_version": 1,
+        "model": "provider/model",
+        "profile": "evidence",
+        "selected_case_ids_sha256": "abc",
+    }
+    legacy = tmp_path / "legacy"
+    legacy.mkdir()
+    (legacy / "observations.jsonl").write_text('{"case_id":"a"}\n')
+    with pytest.raises(SystemExit, match="without run_identity"):
+        surface_runner._prepare_run_identity(
+            legacy, identity, resume=True)
+
+    fresh = tmp_path / "fresh"
+    fresh.mkdir()
+    surface_runner._prepare_run_identity(fresh, identity, resume=False)
+    assert json.loads((fresh / "run_identity.json").read_text()) == identity
+    surface_runner._prepare_run_identity(fresh, identity, resume=True)
+    with pytest.raises(SystemExit, match="already initialized"):
+        surface_runner._prepare_run_identity(fresh, identity, resume=False)
+    with pytest.raises(SystemExit, match="identity mismatch"):
+        surface_runner._prepare_run_identity(
+            fresh, {**identity, "profile": "core"}, resume=True)
+
+
 def test_surface_summary_separates_admission_change_and_uplift() -> None:
     base = {
         "family": "repeated_event", "status": "answered",
