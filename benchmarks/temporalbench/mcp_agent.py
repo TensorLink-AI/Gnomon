@@ -1024,6 +1024,10 @@ class _RunBase:
         # because a quote survived compilation.
         self.context_execution: dict[str, dict[str, Any]] = {}
         self.covariate_execution: dict[str, dict[str, Any]] = {}
+        # The forecast response publishes per-series authority separately
+        # from the persisted artifact. Keep those engine-owned facts so an
+        # artifact-bound submission cannot lose them at the host boundary.
+        self.publication_execution: dict[str, dict[str, Any]] = {}
         self.complete_artifact_ready = False
         self.complete_description_ready = False
         self.submission: dict[str, Any] | None = None
@@ -1686,6 +1690,16 @@ class _RunBase:
             self.complete_description_ready = True
         structured = result.get("structuredContent") or {}
         if isinstance(structured, dict):
+            for item in structured.get("publications") or []:
+                if not isinstance(item, dict) or not item.get("series"):
+                    continue
+                self.publication_execution[str(item["series"])] = {
+                    "automation_eligible": (
+                        item.get("automation") or {}).get("eligible"),
+                    "canonical_primary_preserved": item.get(
+                        "primary_forecast_unchanged"),
+                    "support": item.get("recommended_support"),
+                }
             publication = structured.get("publication") or {}
             dispositions = publication.get("context_dispositions") or []
             context_summary = publication.get("context_summary") or {}
@@ -1885,16 +1899,18 @@ class _Run(_RunBase):
                 parameters["properties"]["context_automation_eligible"] = {
                     "type": "boolean",
                     "description": (
-                        "Copy context_outcome.automation_eligible exactly. "
-                        "False means context evidence alone cannot authorize "
-                        "automation; do not weaken it to 'not requested'."),
+                        "Copy the engine's context/covariate publication "
+                        "automation_eligible fact exactly. False means "
+                        "context evidence alone cannot authorize automation; "
+                        "do not weaken it to 'not requested'."),
                 }
                 parameters["properties"]["canonical_primary_preserved"] = {
                     "type": "boolean",
                     "description": (
-                        "Copy context_outcome.canonical_primary_preserved "
-                        "exactly; conditional projection changes do not mutate "
-                        "the canonical primary."),
+                        "Copy the engine's context/covariate publication "
+                        "canonical_primary_preserved fact exactly; "
+                        "conditional projection changes do not mutate the "
+                        "canonical primary."),
                 }
                 parameters["properties"]["cited_scenario_consequences"] = {
                     "type": "array",
@@ -1988,7 +2004,8 @@ class _Run(_RunBase):
         if self.row.get("_require_context_explanation"):
             text += (
                 "\nThe final human-facing reasoning must preserve both "
-                "authority facts from context_outcome. If "
+                "authority facts from the context outcome or covariate "
+                "publication. If "
                 "canonical_primary_preserved is true, say the canonical "
                 "primary remains preserved. If automation_eligible is false, "
                 "say context evidence alone cannot authorize automation; "
@@ -2005,6 +2022,12 @@ class _Run(_RunBase):
                 "Gnomon reports a scenario but no admitted or applied "
                 "context, say represented or retained as a scenario; never "
                 "say admitted as a scenario.\n")
+            text += (
+                "When Gnomon reports admitted/applied context or covariates, "
+                "say explicitly that they were admitted or applied. Never "
+                "describe an applied covariate as absent merely because "
+                "context_outcome is absent; covariates is its own typed "
+                "engine gate.\n")
             text += (
                 "If failed_gate_codes is non-empty, name every cited code in "
                 "the human-facing reasoning and explain its practical meaning. "
@@ -2122,6 +2145,50 @@ class _Run(_RunBase):
                 "retained": list(covariate_gate.get("retained") or []),
                 "rejected": list(covariate_gate.get("rejected") or []),
             }
+            if not (gate or disposition or historical_gate):
+                publication = getattr(
+                    self, "publication_execution", {}).get(channel) or \
+                    getattr(self, "publication_execution", {}).get(
+                        str(result.get("series") or "")) or {}
+                admitted_covariates = list(
+                    covariate_gate.get("retained") or [])
+                rejected_covariates = list(
+                    covariate_gate.get("rejected") or [])
+                admitted = bool(covariate_gate.get("admitted"))
+                considered = bool(covariate_gate.get("considered"))
+                self.context_execution[channel] = {
+                    "status": ("applied" if admitted else
+                               "rejected" if considered else
+                               "not_considered"),
+                    "considered": int(considered),
+                    "admitted": len(admitted_covariates) if admitted else 0,
+                    "rejected": len(rejected_covariates),
+                    "scenario_only": 0,
+                    "applied": len(admitted_covariates) if admitted else 0,
+                    "support": str(publication.get("support") or support),
+                    "automation_eligible": publication.get(
+                        "automation_eligible"),
+                    "canonical_primary_preserved": publication.get(
+                        "canonical_primary_preserved"),
+                    "selected_projection_differs_from_primary": False,
+                    "relationship_to_primary": None,
+                    "selected_output_role": "primary_forecast",
+                    "authority_summary": None,
+                    "admitted_event_ids": admitted_covariates,
+                    "rejection_codes": [
+                        str(item.get("code") or item.get("reason_code"))
+                        for item in rejected_covariates
+                        if isinstance(item, dict)
+                        and (item.get("code") or item.get("reason_code"))
+                    ],
+                    "gate_reasons": [
+                        str(item.get("reason"))
+                        for item in rejected_covariates
+                        if isinstance(item, dict) and item.get("reason")
+                    ][:8],
+                    "source_evidence": [],
+                    "scenario_consequence_summaries": [],
+                }
         if gate or disposition or historical_gate:
             admitted = gate.get("admitted") or []
             rejected = gate.get("rejected") or []
@@ -2474,6 +2541,20 @@ class _Run(_RunBase):
             applied_count = sum(
                 int(outcome.get("applied") or 0)
                 for outcome in self.context_execution.values())
+            if applied_count:
+                denied_application = bool(re.search(
+                    r"\b(?:no|not|wasn['’]?t|weren['’]?t)\b[^.]{0,60}"
+                    r"\b(?:applied|admitted)\b",
+                    reasoning_text,
+                ))
+                application_named = any(
+                    token in reasoning_text
+                    for token in ("applied", "admitted"))
+                if denied_application or not application_named:
+                    authority_problems.append(
+                        "applied_context_not_human_visible: state that "
+                        "Gnomon's typed covariate/context gate admitted or "
+                        "applied the input; do not describe it as absent")
             scenario_admission_conflated = bool(re.search(
                 r"(?:\badmitted\s+(?:only\s+)?as\s+(?:an?\s+)?scenario\b|"
                 r"\bscenario\s+(?:was|is|has been)\s+admitted\b)",

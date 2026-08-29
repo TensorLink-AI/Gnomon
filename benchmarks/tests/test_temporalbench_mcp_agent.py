@@ -553,6 +553,99 @@ def test_artifact_binding_preserves_typed_primary_relationship(monkeypatch):
     assert run.context_execution["value"]["scenario_only"] == 1
 
 
+def test_artifact_binding_preserves_applied_covariate_authority(monkeypatch):
+    run = object.__new__(mcp_agent._Run)
+    run.artifact_paths = {"/sealed/artifact"}
+    run.horizon = 1
+    run._available_sensitivity = {}
+    run._pending_support = {}
+    run.covariate_execution = {}
+    run.context_execution = {}
+    run.publication_execution = {"value": {
+        "automation_eligible": True,
+        "canonical_primary_preserved": True,
+        "support": "supported",
+    }}
+    artifact = {
+        "task": {"schema": {"target_column": "value"}},
+        "results": [{
+            "series": "__default__",
+            "forecast": [{"point": 10.0, "q50": 10.0}],
+            "support": "supported",
+            "covariates": {
+                "considered": True,
+                "admitted": True,
+                "retained": ["published_driver"],
+                "rejected": [],
+            },
+        }],
+    }
+    import gnomon.artifacts
+    monkeypatch.setattr(gnomon.artifacts, "read_artifact",
+                        lambda _path: artifact)
+
+    assert run._artifact_channel_rows(
+        "/sealed/artifact", "value") == [10.0]
+    execution = run.context_execution["value"]
+    assert execution["status"] == "applied"
+    assert execution["applied"] == 1
+    assert execution["canonical_primary_preserved"] is True
+    assert execution["automation_eligible"] is True
+
+
+def test_applied_covariate_cannot_be_described_as_absent():
+    run = object.__new__(mcp_agent._Run)
+    run.row = {"_require_gnomon_execution": True,
+               "_require_context_explanation": True}
+    run.target_keys = ["value"]
+    run.horizon = 1
+    run.submission = None
+    run.mcp_calls = 1
+    run.trace = []
+    run.artifact_paths = set()
+    run.context_execution = {}
+    run._project_receipt_choices = lambda: {}
+
+    def artifact_rows(path, channel):
+        run._pending_support[channel] = "supported"
+        run.context_execution[channel] = {
+            "status": "applied",
+            "applied": 1,
+            "admitted": 1,
+            "scenario_only": 0,
+            "automation_eligible": True,
+            "canonical_primary_preserved": True,
+            "rejection_codes": [],
+            "scenario_consequence_summaries": [],
+            "source_evidence": [],
+        }
+        return [10.0]
+
+    run._artifact_channel_rows = artifact_rows
+    base = {
+        "forecast": {"value": {"artifact_path": "/sealed/artifact.json"}},
+        "cited_context_gate_codes": [],
+        "context_automation_eligible": True,
+        "canonical_primary_preserved": True,
+        "cited_scenario_consequences": [],
+    }
+    rejected = run._handle_submit({
+        **base,
+        "reasoning": ("No context was admitted or applied. The canonical "
+                      "primary remains preserved."),
+    })
+    assert rejected["accepted"] is False
+    assert any("applied_context_not_human_visible" in problem
+               for problem in rejected["problems"])
+
+    accepted = run._handle_submit({
+        **base,
+        "reasoning": ("The published covariate was admitted and applied; "
+                      "the canonical primary remains preserved."),
+    })
+    assert accepted["accepted"] is True
+
+
 def test_values_only_with_no_tool_use_routes_direct(tmp_path):
     outcome = _run(_row(sparse_temp=False), [
         {"tool_calls": [("submit_answer", {
@@ -1000,12 +1093,15 @@ def test_context_contract_requires_bounded_typed_gate_citations():
     assert parameters["properties"]["context_automation_eligible"] == {
         "type": "boolean",
         "description": (
-            "Copy context_outcome.automation_eligible exactly. False means "
-            "context evidence alone cannot authorize automation; do not "
-            "weaken it to 'not requested'."),
+            "Copy the engine's context/covariate publication "
+            "automation_eligible fact exactly. False means context evidence "
+            "alone cannot authorize automation; do not weaken it to 'not "
+            "requested'."),
     }
     assert parameters["properties"]["canonical_primary_preserved"][
         "type"] == "boolean"
+    assert "context/covariate publication" in parameters["properties"][
+        "canonical_primary_preserved"]["description"]
     sources = parameters["properties"]["cited_context_sources"]
     assert sources["maxItems"] == 8
     assert "source.reference" in sources["description"]
