@@ -795,12 +795,27 @@ def assess_context(
     spreads = conformal_spreads(
         assessment.residuals_by_lead, horizon, assessment.residuals,
     )
+    # Residual-based event executables are exactly the base point path when
+    # the event is inactive. Their calibration must preserve that same
+    # identity. Applying an event model's pooled residual correction to quiet
+    # steps moved published q50 before the event even though raw points were
+    # byte-identical. Detrended-level is a complete alternative model and
+    # therefore retains its own calibration on every step.
+    inherits_base_when_inactive = selected_estimator in {"residual", "episode"}
+    base_spreads = conformal_spreads(
+        base.residuals_by_lead, horizon, base.residuals,
+    ) if inherits_base_when_inactive else {}
 
     test_prediction = context_prediction(test_origin)
     test_actual = values[test_origin : test_origin + horizon]
+    test_active = event_flags(
+        eligible, timestamps[test_origin : test_origin + horizon],
+        timestamps[test_origin - 1])
     covered = []
-    for step, (actual, prediction) in enumerate(zip(test_actual, test_prediction), 1):
-        spread = spreads.get(step)
+    for step, (actual, prediction, active) in enumerate(
+            zip(test_actual, test_prediction, test_active), 1):
+        spread = (base_spreads.get(step) if inherits_base_when_inactive
+                  and not active else spreads.get(step))
         if spread is None:
             continue
         low, _, high = interval_from_spread(prediction, spread)
@@ -832,11 +847,12 @@ def assess_context(
         if not check.get("passed")
     }
     final_cutoff = timestamps[-1]
+    final_active = event_flags(eligible, future_timestamps, final_cutoff)
     if selected_estimator == "episode":
         candidate_points = episode_residual_adjusted(
             values, horizon, season,
             event_flags(eligible, timestamps, final_cutoff),
-            event_flags(eligible, future_timestamps, final_cutoff),
+            final_active,
             base_predict(values),
             base.selected_model, selected_shape,
         )
@@ -844,7 +860,7 @@ def assess_context(
         candidate_points = residual_event_adjusted(
             base_residuals, horizon,
             event_flags(eligible, timestamps, final_cutoff),
-            event_flags(eligible, future_timestamps, final_cutoff),
+            final_active,
             base_predict(values),
             selected_shape,
         )
@@ -852,7 +868,7 @@ def assess_context(
         candidate_points = event_adjusted(
             values, horizon, season,
             event_flags(eligible, timestamps, final_cutoff),
-            event_flags(eligible, future_timestamps, final_cutoff),
+            final_active,
             selected_shape,
         )
     if shrink and not assessment.reasons:
@@ -888,6 +904,16 @@ def assess_context(
         assessment.point_support = "point_supported_interval_weak"
     if assessment.reasons:
         return assessment
+
+    if inherits_base_when_inactive:
+        for step, active in enumerate(final_active, 1):
+            if not active and base.residuals_by_lead.get(step):
+                assessment.residuals_by_lead[step] = list(
+                    base.residuals_by_lead[step])
+        assessment.residuals = [
+            residual for step in range(1, horizon + 1)
+            for residual in assessment.residuals_by_lead.get(step, [])
+        ]
 
     assessment.admitted = True
     assessment.points = candidate_points

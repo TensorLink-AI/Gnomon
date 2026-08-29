@@ -103,6 +103,14 @@ def test_context_admitted_when_it_demonstrates_stable_lift(tmp_path) -> None:
     assert result.context_outcome["canonical_primary_location"] == (
         "artifact.results[].primary_forecast")
     assert result.context["mean_improvement"] > 0.02
+    if str(result.context.get("effect_estimator", "")).startswith("base_model_"):
+        for primary_row, conditioned_row in zip(
+                result.primary_forecast, result.forecast):
+            if conditioned_row["point"] == pytest.approx(primary_row["point"]):
+                # An inactive event step is the same fitted point executable;
+                # its median calibration must remain the base calibration too.
+                assert conditioned_row["q50"] == pytest.approx(
+                    primary_row["q50"])
     assert any(evidence.kind == "context_ablation" for evidence in artifact.evidence)
     # Day 135 (a promo day, %10 == 5) falls inside the 7-day horizon:
     # the forecast must carry the promo bump on that day.
