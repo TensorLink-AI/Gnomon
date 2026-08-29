@@ -2145,11 +2145,11 @@ class _Run(_RunBase):
                     str(item.get("event_id")) for item in admitted
                     if isinstance(item, dict) and item.get("event_id")
                 ],
-                "rejection_codes": [
+                "rejection_codes": list(dict.fromkeys([
                     str(item.get("code")) for item in rejected
                     if isinstance(item, dict) and item.get("code")
                 ] + [str(code) for code in
-                     (disposition.get("failed_gate_codes") or [])],
+                     (disposition.get("failed_gate_codes") or [])])),
                 "gate_reasons": [str(reason) for reason in
                                  (disposition.get("gate_reasons") or [])][:8],
                 "scenario_consequence_summaries": [

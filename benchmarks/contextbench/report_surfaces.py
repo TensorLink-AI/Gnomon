@@ -49,6 +49,14 @@ def _cluster_ci(rows: list[dict[str, Any]], metric: Callable[[dict[str, Any]], f
     return [estimates[int(draws * 0.025)], estimates[int(draws * 0.975)]]
 
 
+def _rejection_reason_case_counts(
+        rows: list[dict[str, Any]]) -> dict[str, int]:
+    return dict(sorted(Counter(
+        reason for row in rows for reason in set(map(
+            str, row.get("admission_rejection_reasons", [])))
+    ).items()))
+
+
 def aggregate(run_dirs: list[Path]) -> dict[str, Any]:
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     replicates: dict[str, int] = defaultdict(int)
@@ -131,6 +139,7 @@ def aggregate(run_dirs: list[Path]) -> dict[str, Any]:
                          "admission_warrant", "empirical") == "empirical"]
         false_trials = [row for row in empirical if not row["should_influence"]]
         influence = [row for row in empirical if row["should_influence"]]
+        missed = [row for row in influence if not row.get("applied")]
         false_asserted = [row for row in answered
                           if (row.get("oracle_dimensions") or {}).get(
                               "admission_warrant") == "asserted"
@@ -219,12 +228,14 @@ def aggregate(run_dirs: list[Path]) -> dict[str, Any]:
             "admission_recall": (mean(bool(row.get("applied"))
                                       for row in influence)
                                  if influence else None),
-            "missed_influence_cases": sum(not bool(row.get("applied"))
-                                          for row in influence),
-            "admission_rejection_reasons": dict(sorted(Counter(
-                reason for row in influence if not row.get("applied")
-                for reason in row.get("admission_rejection_reasons", [])
-            ).items())),
+            "missed_influence_cases": len(missed),
+            "rejection_reason_cases": _rejection_reason_case_counts(
+                [row for row in answered if not row.get("applied")]),
+            "missed_influence_rejection_reason_cases": (
+                _rejection_reason_case_counts(missed)),
+            # Compatibility alias for the historical missed-influence scope.
+            "admission_rejection_reasons": (
+                _rejection_reason_case_counts(missed)),
             "disposition_accuracy": (mean(bool(row.get("disposition_valid"))
                                           for row in answered)
                                      if answered and all(

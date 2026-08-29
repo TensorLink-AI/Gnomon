@@ -519,12 +519,12 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
             "selected_projection_differs_from_primary": bool(changed),
             "changed_steps": changed,
             "applied": applied, "disposition": disposition,
-            "admission_rejection_reasons": (
+            "admission_rejection_reasons": (list(dict.fromkeys(
                 list(context_gate.get("rejection_codes") or []) + [
                     str(item.get("reason")) for item in
                     (covariate_gate.get("rejected") or [])
                     if isinstance(item, dict) and item.get("reason")
-                ] if not applied else []),
+                ])) if not applied else []),
             "expected_disposition": oracle.expected_disposition,
             "disposition_valid": valid_disposition(
                 case.family, applied, disposition),
@@ -600,6 +600,14 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
                 "stage_seconds": stage_seconds,
                 "llm_usage": usage(), "usage_accounting_version": 2,
                 "latency_seconds": round(time.perf_counter() - started, 6)}
+
+
+def _rejection_reason_case_counts(
+        rows: list[dict[str, Any]]) -> dict[str, int]:
+    return dict(sorted(Counter(
+        reason for row in rows for reason in set(map(
+            str, row.get("admission_rejection_reasons", [])))
+    ).items()))
 
 
 def summarize(rows: list[dict[str, Any]], profile: str,
@@ -725,10 +733,14 @@ def summarize(rows: list[dict[str, Any]], profile: str,
             "missed_influence_cases": len(missed),
             "missed_influence_by_family": dict(sorted(Counter(
                 str(row["family"]) for row in missed).items())),
-            "admission_rejection_reasons": dict(sorted(Counter(
-                reason for row in missed
-                for reason in row.get("admission_rejection_reasons", [])
-            ).items())),
+            "rejection_reason_cases": _rejection_reason_case_counts(
+                [row for row in answered if not row.get("applied")]),
+            "missed_influence_rejection_reason_cases": (
+                _rejection_reason_case_counts(missed)),
+            # Compatibility alias: this covers only empirical should-influence
+            # cases that were not applied.
+            "admission_rejection_reasons": (
+                _rejection_reason_case_counts(missed)),
             "disposition_accuracy": (mean(bool(row.get("disposition_valid"))
                                           for row in answered)
                                      if answered else None),

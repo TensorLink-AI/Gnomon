@@ -415,6 +415,8 @@ def test_surface_summary_reports_agent_context_explanation_contract():
         "disposition_valid": True, "temporal_leakage": False,
         "publication_parity": True, "history_calls": 0,
         "context_calls": 1, "surface_required_calls": 1,
+        "admission_rejection_reasons": ["insufficient_history",
+                                        "insufficient_history"],
         "context_explanation_contract": {
             "complete": True, "primary_preserved": True,
             "scenario_represented": True,
@@ -454,6 +456,13 @@ def test_surface_summary_reports_agent_context_explanation_contract():
         "numeric_change_rate": 0.0,
         "mean_uplift_when_changed": None,
     }
+    assert summary["metrics"]["rejection_reason_cases"] == {
+        "insufficient_history": 1}
+    assert summary["metrics"][
+        "missed_influence_rejection_reason_cases"] == {
+            "insufficient_history": 1}
+    assert summary["metrics"]["admission_rejection_reasons"] == {
+        "insufficient_history": 1}
 
 
 def test_agent_relationship_measure_is_semantic_and_fail_closed():
