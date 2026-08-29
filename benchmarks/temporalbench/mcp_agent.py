@@ -2542,15 +2542,34 @@ class _Run(_RunBase):
                 int(outcome.get("applied") or 0)
                 for outcome in self.context_execution.values())
             if applied_count:
-                denied_application = bool(re.search(
-                    r"\b(?:no|not|wasn['’]?t|weren['’]?t)\b[^.]{0,60}"
-                    r"\b(?:applied|admitted)\b",
-                    reasoning_text,
+                # Require an affirmative grammatical relation, not the bare
+                # token: "was not admitted as applied context" contains both
+                # words but states the opposite. Conversely, a later "did
+                # not mutate the primary" must not negate a correct applied
+                # statement merely because it is nearby.
+                affirmative_surface = re.sub(
+                    r"\bno\s+(?:context|covariate|input)\s+"
+                    r"(?:was|were|is|are)?\s*"
+                    r"(?:admitted|applied)(?:\s+or\s+"
+                    r"(?:admitted|applied))?\b",
+                    "", reasoning_text,
+                )
+                affirmative_surface = re.sub(
+                    r"\b(?:context|covariate|input)\b[^.;]{0,30}"
+                    r"\b(?:was|were|is|are|has\s+been|have\s+been)\s+"
+                    r"(?:not|never)\s+(?:admitted|applied)\b",
+                    "", affirmative_surface,
+                )
+                application_named = bool(re.search(
+                    r"(?:\b(?:was|were|is|are|has\s+been|have\s+been)\s+"
+                    r"(?:explicitly\s+)?(?:admitted|applied)\b|"
+                    r"\b(?:gnomon|engine|gate)\s+"
+                    r"(?:admitted|applied)\b|"
+                    r"\b(?:admitted|applied)\s+(?:the|this)\s+"
+                    r"(?:context|covariate|input)\b)",
+                    affirmative_surface,
                 ))
-                application_named = any(
-                    token in reasoning_text
-                    for token in ("applied", "admitted"))
-                if denied_application or not application_named:
+                if not application_named:
                     authority_problems.append(
                         "applied_context_not_human_visible: state that "
                         "Gnomon's typed covariate/context gate admitted or "

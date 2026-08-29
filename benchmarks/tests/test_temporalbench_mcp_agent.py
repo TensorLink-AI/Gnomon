@@ -641,7 +641,8 @@ def test_applied_covariate_cannot_be_described_as_absent():
     accepted = run._handle_submit({
         **base,
         "reasoning": ("The published covariate was admitted and applied; "
-                      "the canonical primary remains preserved."),
+                      "it did not mutate the canonical primary, which "
+                      "remains preserved."),
     })
     assert accepted["accepted"] is True
 
