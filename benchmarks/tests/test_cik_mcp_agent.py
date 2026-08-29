@@ -3065,6 +3065,52 @@ def test_compiler_transport_outage_is_not_a_context_rejection_when_fallback_reta
     assert extra["publication"]["automation"]["eligible"] is False
 
 
+def test_implicit_association_uses_noncausal_front_door_without_model_compile(
+        tmp_path):
+    task = _task()
+    task.background = (
+        "Field fires and trash fires tend to co-occur. "
+        "On average, responders attend 63 incidents per year.")
+    task.scenario = (
+        "The city will collect all trash daily starting next month.")
+
+    class NoCompilerClient(ScriptedClient):
+        def completions(self, *args, **kwargs):
+            # A sampled prior may be attempted for the descriptive quantity;
+            # the deterministic dossier itself must not need this transport.
+            if kwargs.get("temperature") == 1:
+                raise TimeoutError("optional prior unavailable")
+            return super().completions(*args, **kwargs)
+
+    client = NoCompilerClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        ["unused compiler response"])
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 1)
+
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    assert receipt["compiler"]["calls"][0]["stage"] == (
+        "deterministic_associational_parse")
+    spans = [claim["source_span"] for claim in receipt["dossier"]["claims"]]
+    assert any("Field fires and trash fires tend to co-occur." in span
+               for span in spans)
+    assert "On average, responders attend 63 incidents per year." in spans
+    association = next(claim for claim in receipt["dossier"]["claims"]
+                       if "co-occur" in claim["source_span"])
+    assert association["relationship_authority"] == "associational_only"
+    assert association["causal_authority"] is False
+    assert receipt["rejections"] == []
+    assert extra["publication"]["context_summary"]["status"] == "scenario_only"
+    assert extra["publication"]["primary_forecast_unchanged"] is True
+    assert extra["publication"]["automation"]["eligible"] is False
+
+
 def test_one_sample_transport_failure_preserves_other_governed_paths(tmp_path):
     import threading
 
@@ -3627,14 +3673,15 @@ def test_atemporal_claim_fallback_avoids_hypothesis_repair_call(tmp_path):
 
     _, extra = forecaster(task, 1)
 
-    assert len(client.completion_prompts) == 1
+    assert len(client.completion_prompts) == 0
     receipt = json.loads(Path(extra["context_compilation"][
         "receipt_path"]).read_text())
     assert receipt["dossier"]["hypotheses"][0]["kind"] == "unsupported"
     decision = receipt["compiler"]["repair_decisions"][0]
     assert decision["triggered"] is False
     assert decision["retained_atemporal_interpretation"] is True
-    assert decision["skip_reason"] == "typed_background_already_preserved"
+    assert receipt["compiler"]["calls"][0]["stage"] == (
+        "deterministic_associational_parse")
 
 
 def test_transformation_preflight_repairs_malformed_future_series(tmp_path):

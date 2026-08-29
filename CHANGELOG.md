@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Preserve explicit correlation, co-occurrence, and move-together statements
+  as non-causal context even when the source omits a formal non-causality
+  disclaimer. The deterministic lane avoids a needless model-compiler call,
+  retains adjacent descriptive statistics, and still cannot alter the primary
+  forecast, create numeric authority, or authorize automation.
 - Preserve explicit association-without-causation and common-cause statements
   through a deterministic, non-numeric context lane. These claims can prevent
   an unsafe intervention inference but cannot create a forecast candidate or

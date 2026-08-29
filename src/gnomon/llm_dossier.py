@@ -868,30 +868,30 @@ def deterministic_quantitative_background_claims(
     return claims
 
 
-def deterministic_explicit_confounding_claims(
+def deterministic_associational_claims(
         context_text: str, *, maximum_claims: int = 4,
 ) -> list[dict[str, Any]]:
-    """Retain explicit association-without-causation statements.
+    """Retain explicit associations without granting causal authority.
 
-    These statements are safe to recognize deterministically because their
-    only authority is negative: they prevent an observed association from
-    being promoted into an intervention effect. They never create a numeric
-    candidate or automation authority.
+    Association is useful context even when its author does not add a formal
+    ``correlation is not causation`` disclaimer.  Recognizing the source text
+    is safe because this lane grants only negative authority: it may prevent
+    an intervention inference, but can never create a numeric candidate or
+    automation authority.
     """
     if (isinstance(maximum_claims, bool) or not isinstance(maximum_claims, int)
             or not 1 <= maximum_claims <= 16):
         raise ValueError("maximum_claims must be an integer from 1 to 16")
     text = str(context_text or "")
-    if not re.search(
-            r"\b(?:does\s+not\s+imply\s+caus(?:e|ation)|"
-            r"common\s+cause|confound(?:ed|er|ing)?|correlation\s+is\s+not\s+"
-            r"causation)\b", text, re.I):
-        return []
     sentences = [item.strip() for item in re.split(
         r"(?<=[.!?])\s+|[\r\n]+", text) if item.strip()]
     relevant = re.compile(
-        r"\b(?:associat(?:e|ed|ion)|correlat\w*|co[- ]?occur\w*|"
-        r"common\s+cause|confound\w*|caus(?:e|ation))\b", re.I)
+        r"\b(?:associat\w*|correlat\w*|co[- ]?occur\w*|move\s+together|"
+        r"tend(?:s|ed)?\s+to\s+(?:rise|fall|increase|decrease)\s+together|"
+        r"when\b[^.!?]{1,160}\b(?:rise|fall|increase|decrease)s?\b"
+        r"[^.!?]{1,160}\b(?:rise|fall|increase|decrease)s?\b|"
+        r"common\s+cause|confound\w*|does\s+not\s+imply\s+caus(?:e|ation)|"
+        r"correlation\s+is\s+not\s+causation)\b", re.I)
     claims = []
     for sentence in sentences:
         if relevant.search(sentence) is None:
@@ -908,6 +908,14 @@ def deterministic_explicit_confounding_claims(
         if len(claims) >= maximum_claims:
             break
     return claims
+
+
+def deterministic_explicit_confounding_claims(
+        context_text: str, *, maximum_claims: int = 4,
+) -> list[dict[str, Any]]:
+    """Backward-compatible name for deterministic associational evidence."""
+    return deterministic_associational_claims(
+        context_text, maximum_claims=maximum_claims)
 
 
 def _timestamp(value: Any) -> datetime | None:
@@ -986,13 +994,19 @@ def _cited_span_is_observed_background(span: str) -> bool:
 def _association_only_claim(span: str) -> bool:
     """Identify explicitly associational language without causal authority."""
     text = _normalise(span)
+    explicit_negative = bool(re.search(
+        r"\b(?:common cause|confound\w*|does not imply caus(?:e|ation)|"
+        r"correlation is not causation)\b", text))
     association = bool(re.search(
         r"\b(?:associat\w*|correlat\w*|co[- ]?occur\w*|move together|"
-        r"tend(?:s|ed)? to (?:rise|fall|increase|decrease) together)\b", text))
+        r"tend(?:s|ed)? to (?:rise|fall|increase|decrease) together|"
+        r"when\b[^.!?]{1,160}\b(?:rise|fall|increase|decrease)s?\b"
+        r"[^.!?]{1,160}\b(?:rise|fall|increase|decrease)s?\b)\b", text))
     explicit_cause = bool(re.search(
         r"\b(?:causes?|caused by|leads? to|results? in|drives?|because of|"
         r"as a result of)\b", text))
-    return association and not explicit_cause
+    return (association or explicit_negative) and (
+        not explicit_cause or explicit_negative)
 
 
 def _atemporal_hypothesis_rows(

@@ -7,6 +7,7 @@ import pytest
 
 from gnomon.llm_dossier import (
     attach_host_candidate_elicitation,
+    deterministic_associational_claims,
     deterministic_explicit_confounding_claims,
     deterministic_historical_observation_claim,
     deterministic_quantitative_background_claims,
@@ -46,6 +47,34 @@ def test_deterministic_explicit_confounding_is_negative_authority_only():
     assert all(item["timing_status"] == "atemporal_context" for item in claims)
     assert deterministic_explicit_confounding_claims(
         "The campaign caused demand to rise.") == []
+
+
+def test_deterministic_association_needs_no_disclaimer_and_never_infers_cause():
+    claims = deterministic_associational_claims(
+        "Trash fires and field fires tend to co-occur. "
+        "When field fires increase, trash fires tend to increase. "
+        "The collection campaign caused complaints to fall.")
+
+    assert [item["source_span"] for item in claims] == [
+        "Trash fires and field fires tend to co-occur.",
+        "When field fires increase, trash fires tend to increase."]
+    assert all(item["relation"] == "unknown" for item in claims)
+    assert deterministic_associational_claims(
+        "The campaign caused demand to rise.") == []
+
+    dossier, reasons = validate_temporal_dossier(
+        {"claims": claims}, context_text=(
+            "Trash fires and field fires tend to co-occur. "
+            "When field fires increase, trash fires tend to increase. "
+            "The collection campaign caused complaints to fall."),
+        cutoff="2026-01-01T00:00:00+00:00",
+        future_timestamps=["2026-01-02T00:00:00+00:00"],
+        history=[1.0, 2.0], compiler_model="deterministic")
+    assert reasons == []
+    assert all(item["relationship_authority"] == "associational_only"
+               for item in dossier["claims"])
+    assert all(item["causal_authority"] is False
+               for item in dossier["claims"])
 
 
 def test_only_host_can_attach_bounded_sampling_provenance():

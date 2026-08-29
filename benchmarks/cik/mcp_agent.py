@@ -478,7 +478,11 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: Version 212: CiK relationship compilation uses the same reusable
 #: ``gnomon.relationship_text`` module exposed by the production MCP
 #: deterministic_linear context-submission lane.
-MCP_CONTRACT_VERSION = 212
+#: Version 213: explicit association and co-occurrence statements use a
+#: deterministic non-causal front door even when the source omits a formal
+#: non-causality disclaimer. Other descriptive context is retained alongside
+#: them, while the primary and automation policy remain unchanged.
+MCP_CONTRACT_VERSION = 213
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -3844,7 +3848,7 @@ class _Run:
             deterministic_external_reference_point_dossier,
             deterministic_ended_recurring_disruption_dossier,
             deterministic_historical_observation_claim,
-            deterministic_explicit_confounding_claims,
+            deterministic_associational_claims,
             deterministic_quantitative_background_claims,
             deterministic_named_driver_relationship_dossier,
             deterministic_reference_power_dossier,
@@ -4030,8 +4034,8 @@ class _Run:
             _extract_structured_companion_tables(
                 context, self.timestamps, future_timestamps)
             if companion_contract else [])
-        deterministic_confounding_claims = (
-            deterministic_explicit_confounding_claims(context))
+        deterministic_association_claims = (
+            deterministic_associational_claims(context))
 
         def bind_active_target(candidate: dict[str, Any]) -> dict[str, Any]:
             """Attach host-owned target and observed companion identities.
@@ -4272,15 +4276,22 @@ class _Run:
                 "stage": "deterministic_historical_observation_parse",
                 "elapsed_seconds": 0.0,
             })
-        elif deterministic_confounding_claims:
+        elif deterministic_association_claims:
+            background_claims = deterministic_quantitative_background_claims(
+                context)
+            retained_claims = deterministic_association_claims + [
+                claim for claim in background_claims
+                if claim["source_span"] not in {
+                    item["source_span"]
+                    for item in deterministic_association_claims}]
             raw = bind_active_target({
-                "events": [], "claims": deterministic_confounding_claims,
+                "events": [], "claims": retained_claims,
                 "hypotheses": [], "covariate_tables": [],
                 "transformations": [], "observation_interpretations": [],
                 "effect_proposal": None, "forecast_candidate": None,
             })
             compiler_calls.append({
-                "stage": "deterministic_explicit_confounding_parse",
+                "stage": "deterministic_associational_parse",
                 "elapsed_seconds": 0.0,
             })
         else:
@@ -5643,7 +5654,7 @@ class _Run:
             or deterministic_multiplier is not None
             or deterministic_directional_event is not None
             or deterministic_reference_point is not None
-            or deterministic_confounding_claims)
+            or deterministic_association_claims)
         qualitative_future_event_prior_needed = bool(
             categorical_schedule is None
             and model_candidate_proposal is None
@@ -5985,7 +5996,7 @@ class _Run:
                              "external_reference_point"
                              if deterministic_reference_point is not None else
                              "explicit_association_without_causal_authority"
-                             if deterministic_confounding_claims else
+                             if deterministic_association_claims else
                              "universal_dossier"),
                 "prompt_bytes": (model_candidate_prompt_bytes
                                  if deterministic_front_door
