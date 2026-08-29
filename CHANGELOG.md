@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- Preserve structured comparable-entity range tables and explicit target
+  descriptors through a deterministic, verbatim context front door. Analogue
+  selection remains a sealed prior-assisted model judgment. Each sampled path
+  must cite the target descriptors and exactly one grounded comparable; only a
+  majority-consistent choice is aggregated, while alternatives remain visible
+  as counterevidence. These claims do not mutate the immutable primary, gain
+  historical support, or authorize automation.
+- Fail closed when sampled prior paths have zero median marginal dispersion
+  but material trajectory-level disagreement. The former absolute tolerance
+  could label a visibly contradictory path ensemble sufficient; the corrected
+  scale-free gate demotes it to a labelled scenario instead of letting it
+  replace the immutable primary.
+- Mark only claims explicitly cited by the selected numeric scenario as used.
+  Competing analogue rows and other dossier context remain visible as scenarios
+  or counterevidence instead of falsely appearing to ground the recommendation.
+- Expose `claim_id` directly on unresolved and atemporal context dispositions,
+  matching resolved claims and removing a fragile `context_id` parsing step
+  from agent citation workflows.
 - Preserve explicit correlation, co-occurrence, and move-together statements
   as non-causal context even when the source omits a formal non-causality
   disclaimer. The deterministic lane avoids a needless model-compiler call,

@@ -723,6 +723,7 @@ def _claim_disposition(
     if claim.get("timing_status") == "unresolved_trigger":
         return {
             "context_id": f"dossier-{dossier_index}:{claim.get('claim_id')}",
+            "claim_id": claim.get("claim_id"),
             "disposition": "scenario",
             "reason_code": "trigger_timing_unresolved",
             "reason": (
@@ -750,6 +751,7 @@ def _claim_disposition(
         range_constraint = claim.get("relation") == "constrains_range"
         return {
             "context_id": f"dossier-{dossier_index}:{claim.get('claim_id')}",
+            "claim_id": claim.get("claim_id"),
             "disposition": "scenario",
             "reason_code": "background_context_not_conditioned",
             "reason": (
@@ -1574,11 +1576,21 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 },
             ))
             emitted.append(identifier)
+        # A dossier may contain competing references or counterevidence. Only
+        # claims explicitly cited by the emitted numeric candidate/proposal
+        # own that scenario; attaching every dossier claim makes an unselected
+        # alternative appear to have grounded the recommendation.
+        emitted_claim_ids = {
+            str(claim_id) for claim_id in (
+                list((candidate or {}).get("claim_ids") or [])
+                + list((proposal or {}).get("claim_ids") or []))}
         dispositions.extend(_claim_disposition(
             item, dossier_index=index, disposition="scenario",
             reason_code=("conditional_replay_admitted" if replay_admitted
                          else "prior_assisted_not_historically_admitted"),
-            scenario_ids=emitted,
+            scenario_ids=(
+                emitted if str(item.get("claim_id")) in emitted_claim_ids
+                else []),
         ) for item in claims)
     if len(scenarios) > MAX_SCENARIOS:
         role_priority = {

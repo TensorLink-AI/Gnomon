@@ -1133,6 +1133,55 @@ def test_sampled_outliers_remain_diagnostics_not_published_tail_width():
     assert strict["recommended_scenario_id"] == "primary"
 
 
+def test_selected_prior_marks_only_its_cited_claims_used():
+    dossier = _dossier()
+    dossier["claims"].append({
+        **dossier["claims"][0],
+        "claim_id": "claim-2",
+        "source_span": "A competing peer reports [0, 1] units.",
+    })
+    dossier["forecast_candidate"]["claim_ids"] = ["claim-1"]
+    dossier["forecast_candidate"]["elicitation"] = {
+        "kind": "sampled_point_paths", "requested_paths": 3,
+        "accepted_paths": 3,
+        "aggregation": "linear_empirical_marginal_q10_q50_q90",
+        "temperature": 1.0, "host_observed": True,
+        "historical_skill_evidence": False, "automation_eligible": False,
+        "stability": _stable_sampling(3),
+    }
+    dossier["forecast_candidate"]["sample_paths"] = [
+        [10.0 + draw, 11.0 + draw] for draw in range(3)]
+    import hashlib, json
+    body = {key: value for key, value in dossier.items()
+            if key != "seal_sha256"}
+    dossier["seal_sha256"] = hashlib.sha256(json.dumps(
+        body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+    payload = publish_result(_result(), mode="best_effort", dossiers=[dossier])
+
+    by_claim = {item.get("claim_id"): item
+                for item in payload["context_dispositions"]}
+    assert by_claim["claim-1"]["disposition"] == "used"
+    assert by_claim["claim-1"]["selection_reason_code"] == (
+        "selected_human_facing_scenario")
+    assert by_claim["claim-2"]["disposition"] == "scenario"
+    assert by_claim["claim-2"].get("selection_reason_code") is None
+
+
+def test_atemporal_disposition_exposes_claim_id_without_parsing_context_id():
+    dossier = _dossier()
+    dossier["claims"][0]["timing_status"] = "atemporal_context"
+    import hashlib, json
+    body = {key: value for key, value in dossier.items()
+            if key != "seal_sha256"}
+    dossier["seal_sha256"] = hashlib.sha256(json.dumps(
+        body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+    payload = publish_result(_result(), mode="strict", dossiers=[dossier])
+
+    assert payload["context_dispositions"][0]["claim_id"] == "claim-1"
+
+
 def test_unapplied_numeric_bound_does_not_own_the_full_recommendation():
     dossier = _dossier()
     dossier["claims"][0].update({

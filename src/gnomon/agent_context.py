@@ -444,10 +444,16 @@ def sampled_prior_sufficiency(
             median_pairwise = float(stability["median_pairwise_mae_scaled"])
             median_width = float(
                 stability["median_pointwise_q80_width_scaled"])
-            pairwise_limit = max(
-                2.0,
-                SAMPLED_PRIOR_MAX_PAIRWISE_TO_POINTWISE_RATIO * median_width,
-            )
+            # A zero median marginal width is not permission for materially
+            # different paths to headline as one distribution. That pattern
+            # occurs when draws agree at many timestamps but disagree across
+            # whole trajectories; the old absolute floor silently waived the
+            # relative-coherence gate. Keep only a numerical epsilon in the
+            # denominator so identical paths pass and contradictory paths are
+            # visibly demoted, independent of units.
+            pairwise_limit = (
+                SAMPLED_PRIOR_MAX_PAIRWISE_TO_POINTWISE_RATIO
+                * max(median_width, 1e-6))
             pairwise_ratio = median_pairwise / max(median_width, 1e-12)
         except (KeyError, TypeError, ValueError, ZeroDivisionError):
             reasons.append({
@@ -510,12 +516,17 @@ def candidate_from_sampled_paths(
     outputs: list[str], future_timestamps: list[str],
     *, history_values: list[float] | None = None,
     path_transform: Any = None,
+    allowed_claim_ids: set[str] | None = None,
+    required_claim_groups: list[set[str]] | None = None,
+    single_choice_claim_ids: set[str] | None = None,
 ) -> tuple[dict[str, Any] | None, dict[str, Any]]:
     """Validate independent model paths on a host-owned grid and aggregate."""
     accepted: list[list[float]] = []
     rejection_reasons: list[str] = []
     response_shapes: list[dict[str, Any]] = []
     rationales: list[str] = []
+    accepted_claim_ids: list[list[str]] = []
+    accepted_single_choices: list[str | None] = []
     expected = len(future_timestamps)
     anchor_indices = sampled_path_anchor_indices(expected)
     display_timestamps = []
@@ -531,6 +542,8 @@ def candidate_from_sampled_paths(
         first = objects[0] if objects else {}
         raw = first.get("forecast_path") if isinstance(first, dict) else None
         values = raw.get("values") if isinstance(raw, dict) else None
+        supplied_claim_ids = (raw.get("claim_ids")
+                              if isinstance(raw, dict) else None)
         shape = {
             "sha256": hashlib.sha256(output.encode("utf-8")).hexdigest(),
             "characters": len(output),
@@ -571,6 +584,41 @@ def candidate_from_sampled_paths(
                 f"forecast response requires {expected} full-grid values or "
                 f"{len(anchor_indices)} host-selected anchor values")
             continue
+        claim_ids: list[str] = []
+        selected_choice: str | None = None
+        if allowed_claim_ids is not None:
+            if not isinstance(supplied_claim_ids, list):
+                shape["status"] = "rejected_missing_claim_ids"
+                response_shapes.append(shape)
+                rejection_reasons.append(
+                    "forecast_path requires grounded claim_ids")
+                continue
+            claim_ids = list(dict.fromkeys(
+                str(item) for item in supplied_claim_ids))
+            if (not claim_ids
+                    or any(item not in allowed_claim_ids for item in claim_ids)):
+                shape["status"] = "rejected_unknown_claim_ids"
+                response_shapes.append(shape)
+                rejection_reasons.append(
+                    "forecast_path cites an unknown claim_id")
+                continue
+            missing_group = next((group for group in required_claim_groups or []
+                                  if not group.intersection(claim_ids)), None)
+            if missing_group is not None:
+                shape["status"] = "rejected_missing_claim_group"
+                response_shapes.append(shape)
+                rejection_reasons.append(
+                    "forecast_path omits a required evidence class")
+                continue
+            choices = ((single_choice_claim_ids or set()).intersection(
+                claim_ids))
+            if single_choice_claim_ids is not None and len(choices) != 1:
+                shape["status"] = "rejected_ambiguous_reference_choice"
+                response_shapes.append(shape)
+                rejection_reasons.append(
+                    "forecast_path must cite exactly one comparable range")
+                continue
+            selected_choice = next(iter(choices), None)
         try:
             path = [float(value) for value in values]
         except (TypeError, ValueError):
@@ -607,13 +655,16 @@ def candidate_from_sampled_paths(
                     "governed transformation returned an invalid path")
                 continue
         shape["status"] = "accepted"
+        if claim_ids:
+            shape["claim_ids"] = claim_ids
         response_shapes.append(shape)
         accepted.append(path)
+        accepted_claim_ids.append(claim_ids)
+        accepted_single_choices.append(selected_choice)
         rationale = " ".join(str(
             raw.get("rationale") or "" if isinstance(raw, dict) else ""
         ).split())
-        if rationale:
-            rationales.append(rationale[:300])
+        rationales.append(rationale[:300])
     diagnostics = {
         "requested": len(outputs), "accepted": len(accepted),
         "rejected": len(outputs) - len(accepted),
@@ -625,6 +676,39 @@ def candidate_from_sampled_paths(
         "timestamp_binding": "host_grid_order",
         "request_mode": "concurrent_single_sample_requests",
     }
+    if single_choice_claim_ids is not None and accepted:
+        counts = {choice: accepted_single_choices.count(choice)
+                  for choice in set(accepted_single_choices) if choice}
+        ordered = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+        majority_choice = ordered[0][0] if ordered else None
+        majority_count = ordered[0][1] if ordered else 0
+        required_majority = len(accepted) // 2 + 1
+        diagnostics["reference_selection"] = {
+            "counts": counts,
+            "required_majority": required_majority,
+            "selected_claim_id": (
+                majority_choice if majority_count >= required_majority else None),
+            "interpretation": "majority_consistent_comparable_not_skill",
+        }
+        if majority_count < required_majority:
+            diagnostics["rejection_reasons"].append(
+                "sampled paths did not agree on one comparable")
+            diagnostics["accepted"] = 0
+            diagnostics["rejected"] = len(outputs)
+            diagnostics["accepted_after_reference_consensus"] = 0
+            return None, diagnostics
+        accepted_before_consensus = len(accepted)
+        retained = [index for index, choice in enumerate(
+            accepted_single_choices) if choice == majority_choice]
+        accepted = [accepted[index] for index in retained]
+        accepted_claim_ids = [accepted_claim_ids[index] for index in retained]
+        rationales = [rationales[index] for index in retained]
+        diagnostics["accepted"] = len(accepted)
+        diagnostics["rejected"] = len(outputs) - len(accepted)
+        diagnostics["accepted_after_reference_consensus"] = len(accepted)
+        if len(accepted) < accepted_before_consensus:
+            diagnostics["rejection_reasons"].append(
+                "paths citing minority comparables were excluded")
     if not accepted:
         return None, diagnostics
     diagnostics["stability"] = sample_path_stability(accepted, history_values)
@@ -643,9 +727,13 @@ def candidate_from_sampled_paths(
         "rationale": (
             f"Host-aggregated {len(accepted)} sampled model-authored point "
             "paths into empirical marginal quantiles. "
-            + ("Sample rationales: " + " | ".join(rationales[:2])
-               if rationales else "")),
+            + ("Sample rationales: " + " | ".join(
+                item for item in rationales if item)[:600]
+               if any(rationales) else "")),
     }
+    if allowed_claim_ids is not None:
+        candidate["_selected_claim_ids"] = sorted(set().union(
+            *(set(items) for items in accepted_claim_ids)))
     return candidate, diagnostics
 
 
@@ -697,6 +785,8 @@ def _interpolate_sampled_anchors(
 def build_sampled_context_prior_prompt(
     *, timestamps: list[str], values: list[float],
     future_timestamps: list[str], context: str,
+    claim_catalog: dict[str, str] | None = None,
+    single_choice_claim_ids: set[str] | None = None,
 ) -> str:
     """Build a compact numeric prompt for a host's own model provider."""
     history_values = ",".join(f"{float(value):.12g}" for value in values)
@@ -723,6 +813,20 @@ def build_sampled_context_prior_prompt(
         "Return exactly one finite value per future grid point, in order.")
     representation = ("host-selected sparse anchors" if sparse
                       else "the complete host grid")
+    citation_instruction = ""
+    json_example = '{"forecast_path":{"values":[1.0,2.0],"rationale":"brief basis"}}'
+    if claim_catalog is not None:
+        allowed = sorted(claim_catalog)
+        choices = sorted(single_choice_claim_ids or set())
+        citation_instruction = (
+            "Every path must cite the source facts it uses. Include relevant "
+            "target-descriptor claim IDs and exactly one comparable-range "
+            f"claim ID from {choices}. Allowed claim IDs: {allowed}. "
+            "Do not cite an alternative comparable as support.\n")
+        json_example = (
+            '{"forecast_path":{"values":[1.0,2.0],'
+            '"claim_ids":["claim-1","claim-3"],'
+            '"rationale":"brief analogue basis"}}')
     return f"""\
 I have a time series forecasting task for you.
 
@@ -741,9 +845,10 @@ are in exact grid order:
 Predict the future grid ({grid_summary(future_timestamps)}).
 
 {output_instruction}
+{citation_instruction}
 Return only compact JSON for {representation}. Do not echo timestamps:
 
-{{"forecast_path":{{"values":[1.0,2.0],"rationale":"brief basis"}}}}
+{json_example}
 
 Use no observations after the cutoff.
 """

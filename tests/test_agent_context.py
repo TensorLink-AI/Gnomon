@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import json
 
 import pytest
 
@@ -214,6 +215,63 @@ def test_provider_neutral_prior_parser_retains_valid_paths_independently():
     assert "output" not in diagnostics["response_shapes"][0]
 
 
+def test_analogue_paths_require_grounded_majority_consistent_reference():
+    future = ["2026-01-02T00:00:00+00:00",
+              "2026-01-03T00:00:00+00:00"]
+    outputs = [json.dumps({"forecast_path": {
+        "values": values, "claim_ids": claim_ids}})
+        for values, claim_ids in [
+            ([10, 12], ["target", "coastal"]),
+            ([11, 13], ["target", "coastal"]),
+            ([1, 1], ["target", "inland"]),
+            ([9, 9], ["target", "coastal", "inland"]),
+            ([8, 8], ["invented", "coastal"]),
+        ]]
+
+    candidate, diagnostics = candidate_from_sampled_paths(
+        outputs, future, history_values=[0, 1, 2],
+        allowed_claim_ids={"target", "coastal", "inland"},
+        required_claim_groups=[{"target"}, {"coastal", "inland"}],
+        single_choice_claim_ids={"coastal", "inland"})
+
+    assert candidate is not None
+    assert candidate["_validated_sample_paths"] == [
+        [10.0, 12.0], [11.0, 13.0]]
+    assert candidate["_selected_claim_ids"] == ["coastal", "target"]
+    assert diagnostics["reference_selection"] == {
+        "counts": {"coastal": 2, "inland": 1},
+        "required_majority": 2,
+        "selected_claim_id": "coastal",
+        "interpretation": "majority_consistent_comparable_not_skill",
+    }
+    assert diagnostics["accepted_after_reference_consensus"] == 2
+    assert diagnostics["accepted"] == 2
+    assert diagnostics["rejected"] == 3
+    assert "paths citing minority comparables were excluded" in (
+        diagnostics["rejection_reasons"])
+    assert [item["status"] for item in diagnostics["response_shapes"]][-2:] == [
+        "rejected_ambiguous_reference_choice", "rejected_unknown_claim_ids"]
+
+
+def test_analogue_paths_with_tied_reference_choice_are_withheld():
+    future = ["2026-01-02T00:00:00+00:00"]
+    outputs = [json.dumps({"forecast_path": {
+        "values": [value], "claim_ids": ["target", choice]}})
+        for value, choice in [(10, "a"), (1, "b")]]
+
+    candidate, diagnostics = candidate_from_sampled_paths(
+        outputs, future, allowed_claim_ids={"target", "a", "b"},
+        required_claim_groups=[{"target"}, {"a", "b"}],
+        single_choice_claim_ids={"a", "b"})
+
+    assert candidate is None
+    assert diagnostics["reference_selection"]["selected_claim_id"] is None
+    assert diagnostics["accepted"] == 0
+    assert diagnostics["rejected"] == 2
+    assert "sampled paths did not agree on one comparable" in (
+        diagnostics["rejection_reasons"])
+
+
 def test_sampled_driver_paths_are_transformed_by_governed_math():
     future = ["2026-01-02T00:00:00+00:00",
               "2026-01-03T00:00:00+00:00"]
@@ -292,6 +350,29 @@ def test_sampled_prior_sufficiency_demotes_malformed_dispersed_paths():
     assert "low_valid_path_fraction" in result["reason_codes"]
     assert set(result["reason_codes"]) & {
         "directionally_unstable_paths", "dispersed_sampled_paths"}
+
+
+def test_zero_marginal_width_does_not_waive_path_coherence():
+    result = sampled_prior_sufficiency({
+        "requested": 3,
+        "accepted": 3,
+        "stability": {
+            "version": "0.1",
+            "interpretation": "stability_not_historical_skill",
+            "scale_basis": "level_floor",
+            "path_count": 3,
+            "horizon": 6,
+            "median_pointwise_q80_width_scaled": 0.0,
+            "p90_pointwise_q80_width_scaled": 4.0,
+            "median_pairwise_mae_scaled": 1.8,
+            "max_pairwise_mae_scaled": 3.0,
+            "mean_direction_agreement": 1.0,
+            "unanimous_direction_fraction": 1.0,
+        },
+    })
+
+    assert result["eligible_for_human_recommendation"] is False
+    assert "dispersed_sampled_paths" in result["reason_codes"]
 
 
 def test_sampled_prior_sufficiency_is_invariant_to_units_and_level():

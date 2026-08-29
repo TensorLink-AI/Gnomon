@@ -868,6 +868,58 @@ def deterministic_quantitative_background_claims(
     return claims
 
 
+def deterministic_reference_range_claims(
+        context_text: str, *, maximum_claims: int = 12,
+) -> list[dict[str, Any]]:
+    """Preserve a source-stated comparable-entity range table verbatim.
+
+    New entities often lack replay history while their request embeds a small
+    reference table. This parser performs no analogue selection or arithmetic:
+    it recognizes a reference cue, copies complete numeric-range rows, and
+    retains explicit target descriptors from the preamble. The claims remain
+    atemporal prior evidence and can never authorize automation.
+    """
+    if (isinstance(maximum_claims, bool) or not isinstance(maximum_claims, int)
+            or not 2 <= maximum_claims <= 32):
+        raise ValueError("maximum_claims must be an integer from 2 to 32")
+    text = str(context_text or "")
+    reference = re.search(
+        r"\b(?:for\s+reference|comparable|comparison|analog(?:ue|ous)|"
+        r"peer(?:s|\s+group)?)\b", text, re.I)
+    if reference is None:
+        return []
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    range_row = re.compile(
+        r"^(?:[*•-]\s*)?[^\n]{1,500}:\s*\[\s*"
+        r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)\s*,\s*"
+        r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)\s*\]"
+        r"(?:\s+[A-Za-z%][^\n]{0,120})?$", re.I)
+    rows = [line for line in lines if range_row.fullmatch(line)]
+    if len(rows) < 2:
+        return []
+    preamble = text[:reference.start()]
+    sentences = [item.strip() for item in re.split(
+        r"(?<=[.!?])\s+|[\r\n]+", preamble) if item.strip()]
+    descriptor = re.compile(
+        r"^(?:[^.!?]{0,160}\b(?:new|newly|inaugurat\w*|launch\w*|"
+        r"open\w*)\b|this\s+[^.!?]{1,100}\b(?:is|are|has|have|lies|"
+        r"sits|adjoins?|borders?|contains?)\b)", re.I)
+    descriptors = [sentence for sentence in sentences
+                   if descriptor.search(sentence)]
+    retained = (descriptors[-2:] + rows)[:maximum_claims]
+    return [{
+        "source_span": span,
+        "relation": "supports_stability" if span in rows else "unknown",
+        "effective_start": None,
+        "effective_end": None,
+        "timing_status": "atemporal_context",
+        "mechanism": (
+            "source-stated comparable-entity numeric range"
+            if span in rows else "source-stated target descriptor"),
+        "confidence": 1.0,
+    } for span in retained]
+
+
 def deterministic_associational_claims(
         context_text: str, *, maximum_claims: int = 4,
 ) -> list[dict[str, Any]]:

@@ -2970,6 +2970,54 @@ def test_external_reference_front_door_routes_only_bounded_prior_paths(
     assert publication["automation"]["eligible"] is False
 
 
+def test_reference_range_dossier_preserves_analogue_inputs_for_sealed_prior(
+        tmp_path):
+    task = _task()
+    task.background = (
+        "Three months ago, the company launched a new West region. "
+        "This region is coastal.\n"
+        "For reference, comparable regions report annual demand ranges:\n"
+        "* North, coastal (pop. 90): [11, 28] orders\n"
+        "* Inland, landlocked (pop. 110): [0, 1] orders")
+    task.scenario = None
+    sampled = [json.dumps({"forecast_path": {
+        "values": [12 + draw + index
+                   for index, _ in enumerate(task.future_time)],
+        "claim_ids": ["claim-1", "claim-2", "claim-3"],
+        "rationale": "West is coastal like North",
+    }}) for draw in range(3)]
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        sampled)
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 3)
+
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    assert receipt["compiler"]["calls"][0]["stage"] == (
+        "deterministic_reference_range_parse")
+    assert "initial_compile" not in {
+        item["stage"] for item in receipt["compiler"]["calls"]}
+    spans = [claim["source_span"] for claim in receipt["dossier"]["claims"]]
+    assert "This region is coastal." in spans
+    assert "* North, coastal (pop. 90): [11, 28] orders" in spans
+    assert "* Inland, landlocked (pop. 110): [0, 1] orders" in spans
+    assert "Reference dossier for analogue selection:" in (
+        client.completion_prompts[0])
+    assert "[claim-2] This region is coastal." in (
+        client.completion_prompts[0])
+    publication = extra["publication"]
+    assert publication["recommended_scenario_id"].startswith(
+        "prior-assisted-")
+    assert publication["primary_forecast_unchanged"] is True
+    assert publication["automation"]["eligible"] is False
+
+
 def test_optional_prior_transport_outage_does_not_reject_valid_context(
         tmp_path):
     task = _task()

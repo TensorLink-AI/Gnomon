@@ -11,6 +11,7 @@ from gnomon.llm_dossier import (
     deterministic_explicit_confounding_claims,
     deterministic_historical_observation_claim,
     deterministic_quantitative_background_claims,
+    deterministic_reference_range_claims,
     validate_temporal_dossier,
     verify_temporal_dossier_seal,
 )
@@ -29,6 +30,28 @@ def test_deterministic_quantitative_background_claims_copy_only_statistics():
         "The busiest month historically recorded 19 incidents."]
     assert all(claim["timing_status"] == "atemporal_context"
                for claim in claims)
+
+
+def test_deterministic_reference_ranges_preserve_rows_and_target_descriptors():
+    text = (
+        "Three months ago, the company launched a new West region. "
+        "This region is coastal.\n"
+        "For reference, comparable regions report annual demand ranges:\n"
+        "* North, coastal (pop. 90): [11, 28] orders\n"
+        "* Inland, landlocked (pop. 110): [0, 1] orders")
+
+    claims = deterministic_reference_range_claims(text)
+
+    assert [item["source_span"] for item in claims] == [
+        "Three months ago, the company launched a new West region.",
+        "This region is coastal.",
+        "* North, coastal (pop. 90): [11, 28] orders",
+        "* Inland, landlocked (pop. 110): [0, 1] orders",
+    ]
+    assert claims[-1]["mechanism"] == (
+        "source-stated comparable-entity numeric range")
+    assert deterministic_reference_range_claims(
+        "Demand might be [1, 3] next week.") == []
 
 
 def test_deterministic_explicit_confounding_is_negative_authority_only():

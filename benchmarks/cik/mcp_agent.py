@@ -482,7 +482,19 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: deterministic non-causal front door even when the source omits a formal
 #: non-causality disclaimer. Other descriptive context is retained alongside
 #: them, while the primary and automation policy remain unchanged.
-MCP_CONTRACT_VERSION = 213
+#: Version 214: structured comparable-entity range tables and explicit target
+#: descriptors use a deterministic preservation front door. Analogue choice
+#: remains a sealed prior-assisted model judgment and never automation proof.
+#: Version 215: every sampled analogue path cites grounded target descriptors
+#: and exactly one reference range; only a majority-consistent reference is
+#: aggregated, while alternatives remain visible as counterevidence.
+#: Version 216: zero median marginal dispersion no longer waives the sampled
+#: path coherence gate when whole trajectories materially disagree.
+#: Version 217: publication marks only candidate-cited claims as used; other
+#: comparable rows remain visible scenarios/counterevidence.
+#: Version 218: unresolved and atemporal dispositions expose claim_id as a
+#: first-class join key instead of requiring agents to parse context_id.
+MCP_CONTRACT_VERSION = 218
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -3850,6 +3862,7 @@ class _Run:
             deterministic_historical_observation_claim,
             deterministic_associational_claims,
             deterministic_quantitative_background_claims,
+            deterministic_reference_range_claims,
             deterministic_named_driver_relationship_dossier,
             deterministic_reference_power_dossier,
             validate_temporal_dossier,
@@ -4036,6 +4049,8 @@ class _Run:
             if companion_contract else [])
         deterministic_association_claims = (
             deterministic_associational_claims(context))
+        deterministic_reference_claims = (
+            deterministic_reference_range_claims(context))
 
         def bind_active_target(candidate: dict[str, Any]) -> dict[str, Any]:
             """Attach host-owned target and observed companion identities.
@@ -4274,6 +4289,17 @@ class _Run:
             })
             compiler_calls.append({
                 "stage": "deterministic_historical_observation_parse",
+                "elapsed_seconds": 0.0,
+            })
+        elif deterministic_reference_claims:
+            raw = bind_active_target({
+                "events": [], "claims": deterministic_reference_claims,
+                "hypotheses": [], "covariate_tables": [],
+                "transformations": [], "observation_interpretations": [],
+                "effect_proposal": None, "forecast_candidate": None,
+            })
+            compiler_calls.append({
+                "stage": "deterministic_reference_range_parse",
                 "elapsed_seconds": 0.0,
             })
         elif deterministic_association_claims:
@@ -5620,8 +5646,27 @@ class _Run:
             str(claim["claim_id"]) for claim in prior_eligible_claims}
         quantitative_prior_claims = _numeric_prior_claims(
             preliminary_dossier.get("claims") or [])
-        quantitative_prior_claim_ids = {
-            str(claim["claim_id"]) for claim in quantitative_prior_claims}
+        prior_prompt_claims = (
+            prior_eligible_claims if deterministic_reference_claims
+            else quantitative_prior_claims)
+        prior_candidate_claim_ids = {
+            str(claim["claim_id"]) for claim in prior_prompt_claims}
+        reference_claim_catalog = ({
+            str(claim["claim_id"]): str(claim.get("source_span") or "")
+            for claim in prior_prompt_claims
+        } if deterministic_reference_claims else None)
+        reference_descriptor_claim_ids = {
+            str(claim["claim_id"]) for claim in prior_prompt_claims
+            if claim.get("mechanism") == "source-stated target descriptor"}
+        reference_range_claim_ids = {
+            str(claim["claim_id"]) for claim in prior_prompt_claims
+            if claim.get("mechanism") == (
+                "source-stated comparable-entity numeric range")}
+        prior_prompt_lines = [
+            ((f"[{claim['claim_id']}] "
+              if deterministic_reference_claims else "")
+             + str(claim.get("source_span") or ""))
+            for claim in prior_prompt_claims]
         numeric_interpretation_hypotheses = [
             item for item in numeric_interpretation_hypotheses
             if prior_eligible_claim_ids.intersection(
@@ -5654,6 +5699,7 @@ class _Run:
             or deterministic_multiplier is not None
             or deterministic_directional_event is not None
             or deterministic_reference_point is not None
+            or deterministic_reference_claims
             or deterministic_association_claims)
         qualitative_future_event_prior_needed = bool(
             categorical_schedule is None
@@ -5709,14 +5755,18 @@ class _Run:
                     + ", not the target. Gnomon will apply the cited "
                       "reference power law to every returned driver value."
                     if reference_power_spec is not None else
-                    "Eligible background facts for this numeric prior:\n" +
-                    "\n".join(
-                        str(claim.get("source_span") or "")
-                        for claim in quantitative_prior_claims) +
+                    ("Reference dossier for analogue selection:\n"
+                     if deterministic_reference_claims else
+                    "Eligible background facts for this numeric prior:\n") +
+                    "\n".join(prior_prompt_lines) +
                     "\n\nOther supplied claims were unresolved, rejected, "
                     "or associational-only. They remain visible as "
                     "counterevidence but must not alter this numeric path."
-                    if interpretation_prior_needed else context))
+                    if interpretation_prior_needed else context),
+                claim_catalog=reference_claim_catalog,
+                single_choice_claim_ids=(
+                    reference_range_claim_ids
+                    if deterministic_reference_claims else None))
             model_candidate_prompt_bytes = len(context_prompt.encode("utf-8"))
             def transform_sampled_path(path: list[float]) -> list[float]:
                 if reference_power_spec is None:
@@ -5748,7 +5798,16 @@ class _Run:
                 proposed, model_candidate_sampling = candidate_from_sampled_paths(
                     [response for response in responses if response.strip()],
                     future_timestamps, history_values=self.values,
-                    path_transform=transform_sampled_path)
+                    path_transform=transform_sampled_path,
+                    allowed_claim_ids=(set(reference_claim_catalog)
+                                       if reference_claim_catalog else None),
+                    required_claim_groups=(
+                        [reference_descriptor_claim_ids,
+                         reference_range_claim_ids]
+                        if deterministic_reference_claims else None),
+                    single_choice_claim_ids=(
+                        reference_range_claim_ids
+                        if deterministic_reference_claims else None))
                 initial_sufficiency = sampled_prior_sufficiency(
                     model_candidate_sampling)
                 initial_returned = initial_paths - transport_failed
@@ -5772,7 +5831,17 @@ class _Run:
                             [response for response in responses
                              if response.strip()], future_timestamps,
                             history_values=self.values,
-                            path_transform=transform_sampled_path))
+                            path_transform=transform_sampled_path,
+                            allowed_claim_ids=(set(reference_claim_catalog)
+                                               if reference_claim_catalog
+                                               else None),
+                            required_claim_groups=(
+                                [reference_descriptor_claim_ids,
+                                 reference_range_claim_ids]
+                                if deterministic_reference_claims else None),
+                            single_choice_claim_ids=(
+                                reference_range_claim_ids
+                                if deterministic_reference_claims else None)))
                     expanded = True
                 elif (requested_paths > initial_paths
                       and not initial_sufficiency[
@@ -5833,8 +5902,10 @@ class _Run:
                 }
                 if isinstance(proposed, dict):
                     if interpretation_prior_needed:
+                        selected_claim_ids = proposed.pop(
+                            "_selected_claim_ids", None)
                         proposed["claim_ids"] = sorted(
-                            quantitative_prior_claim_ids)
+                            selected_claim_ids or prior_candidate_claim_ids)
                     model_candidate_sample_paths = proposed.pop(
                         "_validated_sample_paths", None)
                     model_candidate_proposal = proposed
@@ -5995,6 +6066,8 @@ class _Run:
                              if deterministic_directional_event is not None else
                              "external_reference_point"
                              if deterministic_reference_point is not None else
+                             "structured_reference_range_dossier"
+                             if deterministic_reference_claims else
                              "explicit_association_without_causal_authority"
                              if deterministic_association_claims else
                              "universal_dossier"),
