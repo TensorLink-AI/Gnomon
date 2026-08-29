@@ -1,0 +1,103 @@
+{
+  "benchmark": "contextbench",
+  "cases": 80,
+  "corpus_manifest_sha256": "6a1b872eb51e19908f3eac267471c61b98be3a870f078f216e3613305ae25d72",
+  "decision_ready": true,
+  "dimensions": {},
+  "families": {
+    "future_covariate": {
+      "applied": 20,
+      "cases": 20,
+      "context_smape": 2.812381651134016,
+      "counterfactual_context_opportunity_smape": 4.772641183169219,
+      "history_smape": 6.282934179827817,
+      "incremental_smape": 3.470552528693801,
+      "leakage": 0,
+      "primary_changed": 20
+    },
+    "irrelevant": {
+      "applied": 0,
+      "cases": 20,
+      "context_smape": 0.4550352273831236,
+      "counterfactual_context_opportunity_smape": 0.0,
+      "history_smape": 0.4550352273831236,
+      "incremental_smape": 0.0,
+      "leakage": 0,
+      "primary_changed": 0
+    },
+    "prior_only": {
+      "applied": 0,
+      "cases": 20,
+      "context_smape": 0.5365542254863276,
+      "counterfactual_context_opportunity_smape": 0.0,
+      "history_smape": 0.5365542254863276,
+      "incremental_smape": 0.0,
+      "leakage": 0,
+      "primary_changed": 0
+    },
+    "repeated_event": {
+      "applied": 16,
+      "cases": 20,
+      "context_smape": 3.044813672020267,
+      "counterfactual_context_opportunity_smape": 2.562241209475437,
+      "history_smape": 3.699868838287675,
+      "incremental_smape": 0.6550551662674081,
+      "leakage": 0,
+      "primary_changed": 16
+    }
+  },
+  "fresh_seed": true,
+  "gates": {
+    "admission_precision_at_least_90pct": true,
+    "admission_recall_at_least_80pct": true,
+    "complete": true,
+    "disposition_contract_exact": true,
+    "false_influence_below_1pct": true,
+    "fresh_heldout_seed": true,
+    "future_covariate_smape_improves": true,
+    "interval_coverage_at_least_70pct": true,
+    "minimum_20_cases_per_family": true,
+    "primary_forecast_parity": true,
+    "prior_only_never_changes_primary": true,
+    "publication_parity": true,
+    "repeated_event_smape_improves": true,
+    "scenario_effect_contracts_typed": true,
+    "zero_leakage": true
+  },
+  "generator": "contextbench-synthetic-v2",
+  "metrics": {
+    "admission_precision": 1.0,
+    "admission_precision_95ci": [
+      0.9035781695514236,
+      1.0
+    ],
+    "admission_recall": 0.9,
+    "admission_recall_95ci": [
+      0.7694792561952611,
+      0.9604211124044252
+    ],
+    "asserted_claim_cases": 0,
+    "default_policy_asserted_primary_change_rate": null,
+    "disposition_accuracy": 1.0,
+    "effect_direction_accuracy": 0.7777777777777778,
+    "false_asserted_claim_cases": 0,
+    "false_asserted_claim_mean_incremental_smape": null,
+    "false_asserted_claim_primary_change_rate": null,
+    "false_influence_95ci": [
+      0.0,
+      0.08762453925039232
+    ],
+    "false_influence_rate": 0.0,
+    "incremental_smape_influence_cases": 2.0628038474806045,
+    "leakage_count": 0,
+    "mean_interval_coverage": 0.725,
+    "scenario_contracts": 76,
+    "true_asserted_claim_harm_rate": null,
+    "true_asserted_claim_mean_incremental_smape": null,
+    "typed_scenario_contract_rate": 1.0
+  },
+  "schema_version": 1,
+  "seed": 8100279222526145038,
+  "snr_curve": {},
+  "strata": {}
+}

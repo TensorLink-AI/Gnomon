@@ -1,0 +1,757 @@
+{
+  "benchmark": "contextbench-llm-comparison",
+  "compiler": {
+    "calls": 201,
+    "event_precision": 1.0,
+    "event_recall": 0.9984871406959153,
+    "false_events": 0
+  },
+  "corpus_manifest_sha256": "6a1b872eb51e19908f3eac267471c61b98be3a870f078f216e3613305ae25d72",
+  "families": {
+    "future_covariate": {
+      "cases": 20,
+      "compiled_context_harm_rate": 0.1,
+      "compiled_losses": 6,
+      "compiled_mean_context_smape": 2.812381651134016,
+      "compiled_wins": 14,
+      "exact_sign_p": 0.11531829833984375,
+      "mean_delta_95ci": [
+        0.7833756615092053,
+        3.1139523988308175
+      ],
+      "mean_raw_minus_compiled_smape": 1.8883409973519105,
+      "median_raw_minus_compiled_smape": 1.7310252075673964,
+      "raw_context_harm_rate": 0.25,
+      "raw_mean_context_smape": 4.700722648485926,
+      "ties": 0
+    },
+    "irrelevant": {
+      "cases": 20,
+      "compiled_context_harm_rate": 0,
+      "compiled_losses": 1,
+      "compiled_mean_context_smape": 0.4550352273831236,
+      "compiled_wins": 19,
+      "exact_sign_p": 4.00543212890625e-05,
+      "mean_delta_95ci": [
+        2.31362378687779,
+        4.907160628681843
+      ],
+      "mean_raw_minus_compiled_smape": 3.526786549353198,
+      "median_raw_minus_compiled_smape": 3.120020445604807,
+      "raw_context_harm_rate": 0.65,
+      "raw_mean_context_smape": 3.9818217767363215,
+      "ties": 0
+    },
+    "prior_only": {
+      "cases": 20,
+      "compiled_context_harm_rate": 0,
+      "compiled_losses": 0,
+      "compiled_mean_context_smape": 0.5365542254863276,
+      "compiled_wins": 20,
+      "exact_sign_p": 1.9073486328125e-06,
+      "mean_delta_95ci": [
+        1.7275900935024213,
+        3.782576682944263
+      ],
+      "mean_raw_minus_compiled_smape": 2.691036804169131,
+      "median_raw_minus_compiled_smape": 1.5398668073687967,
+      "raw_context_harm_rate": 0.65,
+      "raw_mean_context_smape": 3.2275910296554584,
+      "ties": 0
+    },
+    "repeated_event": {
+      "cases": 20,
+      "compiled_context_harm_rate": 0.2,
+      "compiled_losses": 6,
+      "compiled_mean_context_smape": 3.2406158325747207,
+      "compiled_wins": 14,
+      "exact_sign_p": 0.11531829833984375,
+      "mean_delta_95ci": [
+        0.21105492751929,
+        1.7898002230711536
+      ],
+      "mean_raw_minus_compiled_smape": 0.9977166667161828,
+      "median_raw_minus_compiled_smape": 1.4214777578885758,
+      "raw_context_harm_rate": 0.35,
+      "raw_mean_context_smape": 4.2383324992909035,
+      "ties": 0
+    }
+  },
+  "model": "deepseek-v4-flash-0731",
+  "narrative_style": "naturalistic",
+  "overall": {
+    "cases": 80,
+    "compiled_context_harm_rate": 0.075,
+    "compiled_losses": 13,
+    "compiled_mean_context_smape": 1.7611467341445468,
+    "compiled_wins": 67,
+    "exact_sign_p": 6.415141174951122e-10,
+    "mean_delta_95ci": [
+      1.709996476908377,
+      2.88187346808953
+    ],
+    "mean_raw_minus_compiled_smape": 2.2759702543976053,
+    "median_raw_minus_compiled_smape": 1.5630313569058703,
+    "raw_context_harm_rate": 0.475,
+    "raw_mean_context_smape": 4.037116988542152,
+    "ties": 0
+  },
+  "paired_rows": [
+    {
+      "case_id": "ctx-future_covariate-0000",
+      "compiled_context_smape": 1.8728927578272292,
+      "compiled_history_smape": 4.707662568155023,
+      "family": "future_covariate",
+      "raw_context_smape": 1.5793007086851818,
+      "raw_history_smape": 7.545920653893434
+    },
+    {
+      "case_id": "ctx-future_covariate-0001",
+      "compiled_context_smape": 3.027059829143739,
+      "compiled_history_smape": 6.673513644416851,
+      "family": "future_covariate",
+      "raw_context_smape": 1.7762859837228397,
+      "raw_history_smape": 5.61386816103756
+    },
+    {
+      "case_id": "ctx-future_covariate-0002",
+      "compiled_context_smape": 1.3275423890203,
+      "compiled_history_smape": 5.010980448994925,
+      "family": "future_covariate",
+      "raw_context_smape": 1.4383860249736167,
+      "raw_history_smape": 4.922423833585515
+    },
+    {
+      "case_id": "ctx-future_covariate-0003",
+      "compiled_context_smape": 5.720731971299846,
+      "compiled_history_smape": 11.47172807085692,
+      "family": "future_covariate",
+      "raw_context_smape": 15.141948529285937,
+      "raw_history_smape": 15.141948529285937
+    },
+    {
+      "case_id": "ctx-future_covariate-0004",
+      "compiled_context_smape": 1.8357117595915586,
+      "compiled_history_smape": 4.920294378058907,
+      "family": "future_covariate",
+      "raw_context_smape": 3.7440941367462655,
+      "raw_history_smape": 3.7312282821065317
+    },
+    {
+      "case_id": "ctx-future_covariate-0005",
+      "compiled_context_smape": 1.3948794639955484,
+      "compiled_history_smape": 3.0729695490491182,
+      "family": "future_covariate",
+      "raw_context_smape": 3.6537191159986375,
+      "raw_history_smape": 3.5019037977021936
+    },
+    {
+      "case_id": "ctx-future_covariate-0006",
+      "compiled_context_smape": 1.6186183326446792,
+      "compiled_history_smape": 1.1073646277148008,
+      "family": "future_covariate",
+      "raw_context_smape": 4.859224033840884,
+      "raw_history_smape": 7.517637946886009
+    },
+    {
+      "case_id": "ctx-future_covariate-0007",
+      "compiled_context_smape": 3.453475451589988,
+      "compiled_history_smape": 2.236422126966533,
+      "family": "future_covariate",
+      "raw_context_smape": 3.158307488642849,
+      "raw_history_smape": 5.9324481394603215
+    },
+    {
+      "case_id": "ctx-future_covariate-0008",
+      "compiled_context_smape": 2.049445042043701,
+      "compiled_history_smape": 3.086408273668546,
+      "family": "future_covariate",
+      "raw_context_smape": 4.121406654818363,
+      "raw_history_smape": 3.3359306410338507
+    },
+    {
+      "case_id": "ctx-future_covariate-0009",
+      "compiled_context_smape": 2.9296906343130753,
+      "compiled_history_smape": 10.100089266379236,
+      "family": "future_covariate",
+      "raw_context_smape": 6.627269516998551,
+      "raw_history_smape": 6.627269516998551
+    },
+    {
+      "case_id": "ctx-future_covariate-0010",
+      "compiled_context_smape": 1.1247364635393469,
+      "compiled_history_smape": 4.621130790086313,
+      "family": "future_covariate",
+      "raw_context_smape": 2.146681404705609,
+      "raw_history_smape": 4.872600692648202
+    },
+    {
+      "case_id": "ctx-future_covariate-0011",
+      "compiled_context_smape": 5.699332740205933,
+      "compiled_history_smape": 9.077254577084188,
+      "family": "future_covariate",
+      "raw_context_smape": 6.968024972554207,
+      "raw_history_smape": 7.045418133451264
+    },
+    {
+      "case_id": "ctx-future_covariate-0012",
+      "compiled_context_smape": 3.9313723302125902,
+      "compiled_history_smape": 6.080530981966112,
+      "family": "future_covariate",
+      "raw_context_smape": 7.054683013282069,
+      "raw_history_smape": 5.710649061170367
+    },
+    {
+      "case_id": "ctx-future_covariate-0013",
+      "compiled_context_smape": 1.9936770940921982,
+      "compiled_history_smape": 4.373191768580438,
+      "family": "future_covariate",
+      "raw_context_smape": 1.7286516679843575,
+      "raw_history_smape": 4.241057555239996
+    },
+    {
+      "case_id": "ctx-future_covariate-0014",
+      "compiled_context_smape": 2.2750306863549996,
+      "compiled_history_smape": 3.992633784288981,
+      "family": "future_covariate",
+      "raw_context_smape": 3.828698724335086,
+      "raw_history_smape": 7.605574171362716
+    },
+    {
+      "case_id": "ctx-future_covariate-0015",
+      "compiled_context_smape": 2.6777348404649888,
+      "compiled_history_smape": 9.803925311451323,
+      "family": "future_covariate",
+      "raw_context_smape": 4.880713501278738,
+      "raw_history_smape": 6.622891678315357
+    },
+    {
+      "case_id": "ctx-future_covariate-0016",
+      "compiled_context_smape": 4.206832048924015,
+      "compiled_history_smape": 11.626843501028373,
+      "family": "future_covariate",
+      "raw_context_smape": 1.5807174616114845,
+      "raw_history_smape": 12.827957573752254
+    },
+    {
+      "case_id": "ctx-future_covariate-0017",
+      "compiled_context_smape": 0.8971581580518803,
+      "compiled_history_smape": 4.641137349126468,
+      "family": "future_covariate",
+      "raw_context_smape": 0.8073007213874671,
+      "raw_history_smape": 5.128702287260271
+    },
+    {
+      "case_id": "ctx-future_covariate-0018",
+      "compiled_context_smape": 0.98716237948256,
+      "compiled_history_smape": 5.364172232658839,
+      "family": "future_covariate",
+      "raw_context_smape": 6.71066771087648,
+      "raw_history_smape": 8.834876764269376
+    },
+    {
+      "case_id": "ctx-future_covariate-0019",
+      "compiled_context_smape": 7.224548649882136,
+      "compiled_history_smape": 13.690430346024439,
+      "family": "future_covariate",
+      "raw_context_smape": 12.208371597989899,
+      "raw_history_smape": 6.816403965105964
+    },
+    {
+      "case_id": "ctx-irrelevant-0000",
+      "compiled_context_smape": 0.28614669228924833,
+      "compiled_history_smape": 0.28614669228924833,
+      "family": "irrelevant",
+      "raw_context_smape": 3.9098790394924707,
+      "raw_history_smape": 3.475038889225644
+    },
+    {
+      "case_id": "ctx-irrelevant-0001",
+      "compiled_context_smape": 0.22051178508130484,
+      "compiled_history_smape": 0.22051178508130484,
+      "family": "irrelevant",
+      "raw_context_smape": 1.7191036258547108,
+      "raw_history_smape": 1.7191036258547108
+    },
+    {
+      "case_id": "ctx-irrelevant-0002",
+      "compiled_context_smape": 0.306970875807178,
+      "compiled_history_smape": 0.306970875807178,
+      "family": "irrelevant",
+      "raw_context_smape": 1.4177307128336547,
+      "raw_history_smape": 0.7631919059364214
+    },
+    {
+      "case_id": "ctx-irrelevant-0003",
+      "compiled_context_smape": 0.5614736225151202,
+      "compiled_history_smape": 0.5614736225151202,
+      "family": "irrelevant",
+      "raw_context_smape": 0.7068718180079759,
+      "raw_history_smape": 1.2989473887752128
+    },
+    {
+      "case_id": "ctx-irrelevant-0004",
+      "compiled_context_smape": 0.5136300283768036,
+      "compiled_history_smape": 0.5136300283768036,
+      "family": "irrelevant",
+      "raw_context_smape": 2.154888098177203,
+      "raw_history_smape": 1.1808575820469618
+    },
+    {
+      "case_id": "ctx-irrelevant-0005",
+      "compiled_context_smape": 0.6360972877988973,
+      "compiled_history_smape": 0.6360972877988973,
+      "family": "irrelevant",
+      "raw_context_smape": 3.990098369140973,
+      "raw_history_smape": 3.063327978578763
+    },
+    {
+      "case_id": "ctx-irrelevant-0006",
+      "compiled_context_smape": 0.26734912259064514,
+      "compiled_history_smape": 0.26734912259064514,
+      "family": "irrelevant",
+      "raw_context_smape": 1.8397437984222995,
+      "raw_history_smape": 3.798972785295769
+    },
+    {
+      "case_id": "ctx-irrelevant-0007",
+      "compiled_context_smape": 0.7012113009362296,
+      "compiled_history_smape": 0.7012113009362296,
+      "family": "irrelevant",
+      "raw_context_smape": 0.6706748831794882,
+      "raw_history_smape": 0.6706748831794882
+    },
+    {
+      "case_id": "ctx-irrelevant-0008",
+      "compiled_context_smape": 0.27784938764861705,
+      "compiled_history_smape": 0.27784938764861705,
+      "family": "irrelevant",
+      "raw_context_smape": 5.781791830017414,
+      "raw_history_smape": 3.8544095830725196
+    },
+    {
+      "case_id": "ctx-irrelevant-0009",
+      "compiled_context_smape": 0.3865481551719362,
+      "compiled_history_smape": 0.3865481551719362,
+      "family": "irrelevant",
+      "raw_context_smape": 3.2725879650394747,
+      "raw_history_smape": 3.2725879650394747
+    },
+    {
+      "case_id": "ctx-irrelevant-0010",
+      "compiled_context_smape": 0.22219850639187344,
+      "compiled_history_smape": 0.22219850639187344,
+      "family": "irrelevant",
+      "raw_context_smape": 5.241061557781119,
+      "raw_history_smape": 3.544758524655123
+    },
+    {
+      "case_id": "ctx-irrelevant-0011",
+      "compiled_context_smape": 0.5881137411454881,
+      "compiled_history_smape": 0.5881137411454881,
+      "family": "irrelevant",
+      "raw_context_smape": 8.675054359848957,
+      "raw_history_smape": 7.586356691114355
+    },
+    {
+      "case_id": "ctx-irrelevant-0012",
+      "compiled_context_smape": 0.3888184916208764,
+      "compiled_history_smape": 0.3888184916208764,
+      "family": "irrelevant",
+      "raw_context_smape": 8.150700084665866,
+      "raw_history_smape": 5.896119395385202
+    },
+    {
+      "case_id": "ctx-irrelevant-0013",
+      "compiled_context_smape": 0.6282440364966027,
+      "compiled_history_smape": 0.6282440364966027,
+      "family": "irrelevant",
+      "raw_context_smape": 4.185543282111272,
+      "raw_history_smape": 3.3126121536316298
+    },
+    {
+      "case_id": "ctx-irrelevant-0014",
+      "compiled_context_smape": 0.8364209183850402,
+      "compiled_history_smape": 0.8364209183850402,
+      "family": "irrelevant",
+      "raw_context_smape": 1.9655188346373995,
+      "raw_history_smape": 2.2683259731321144
+    },
+    {
+      "case_id": "ctx-irrelevant-0015",
+      "compiled_context_smape": 0.3617135484643465,
+      "compiled_history_smape": 0.3617135484643465,
+      "family": "irrelevant",
+      "raw_context_smape": 1.8137493824379094,
+      "raw_history_smape": 2.160676717195788
+    },
+    {
+      "case_id": "ctx-irrelevant-0016",
+      "compiled_context_smape": 0.5214411751446348,
+      "compiled_history_smape": 0.5214411751446348,
+      "family": "irrelevant",
+      "raw_context_smape": 4.655210174482959,
+      "raw_history_smape": 4.519521080296195
+    },
+    {
+      "case_id": "ctx-irrelevant-0017",
+      "compiled_context_smape": 0.6537369852695466,
+      "compiled_history_smape": 0.6537369852695466,
+      "family": "irrelevant",
+      "raw_context_smape": 12.769790709177869,
+      "raw_history_smape": 4.7590658384976905
+    },
+    {
+      "case_id": "ctx-irrelevant-0018",
+      "compiled_context_smape": 0.40645322918746796,
+      "compiled_history_smape": 0.40645322918746796,
+      "family": "irrelevant",
+      "raw_context_smape": 5.210012133568518,
+      "raw_history_smape": 3.389869999576744
+    },
+    {
+      "case_id": "ctx-irrelevant-0019",
+      "compiled_context_smape": 0.3357756573406144,
+      "compiled_history_smape": 0.3357756573406144,
+      "family": "irrelevant",
+      "raw_context_smape": 1.5064248758488974,
+      "raw_history_smape": 1.0687553863073949
+    },
+    {
+      "case_id": "ctx-prior_only-0000",
+      "compiled_context_smape": 0.36390054852078807,
+      "compiled_history_smape": 0.36390054852078807,
+      "family": "prior_only",
+      "raw_context_smape": 0.9344497751885447,
+      "raw_history_smape": 0.9344497751885447
+    },
+    {
+      "case_id": "ctx-prior_only-0001",
+      "compiled_context_smape": 0.40828064189181856,
+      "compiled_history_smape": 0.40828064189181856,
+      "family": "prior_only",
+      "raw_context_smape": 1.6590865897541491,
+      "raw_history_smape": 0.7616777532903151
+    },
+    {
+      "case_id": "ctx-prior_only-0002",
+      "compiled_context_smape": 0.9171012921801143,
+      "compiled_history_smape": 0.9171012921801143,
+      "family": "prior_only",
+      "raw_context_smape": 6.111690983275466,
+      "raw_history_smape": 8.345306112546234
+    },
+    {
+      "case_id": "ctx-prior_only-0003",
+      "compiled_context_smape": 0.3940554724061367,
+      "compiled_history_smape": 0.3940554724061367,
+      "family": "prior_only",
+      "raw_context_smape": 6.014887609957649,
+      "raw_history_smape": 4.93141750909526
+    },
+    {
+      "case_id": "ctx-prior_only-0004",
+      "compiled_context_smape": 0.5831705170732014,
+      "compiled_history_smape": 0.5831705170732014,
+      "family": "prior_only",
+      "raw_context_smape": 1.3348282893883336,
+      "raw_history_smape": 1.109478622124632
+    },
+    {
+      "case_id": "ctx-prior_only-0005",
+      "compiled_context_smape": 0.3738508581649852,
+      "compiled_history_smape": 0.3738508581649852,
+      "family": "prior_only",
+      "raw_context_smape": 1.7672136093655098,
+      "raw_history_smape": 1.4272474395614692
+    },
+    {
+      "case_id": "ctx-prior_only-0006",
+      "compiled_context_smape": 0.618484377732662,
+      "compiled_history_smape": 0.618484377732662,
+      "family": "prior_only",
+      "raw_context_smape": 9.776439420918615,
+      "raw_history_smape": 3.5642178883484426
+    },
+    {
+      "case_id": "ctx-prior_only-0007",
+      "compiled_context_smape": 0.482642233382186,
+      "compiled_history_smape": 0.482642233382186,
+      "family": "prior_only",
+      "raw_context_smape": 1.7174125988453972,
+      "raw_history_smape": 1.9502415295211715
+    },
+    {
+      "case_id": "ctx-prior_only-0008",
+      "compiled_context_smape": 0.49735838673959676,
+      "compiled_history_smape": 0.49735838673959676,
+      "family": "prior_only",
+      "raw_context_smape": 5.773426908329949,
+      "raw_history_smape": 3.4087049873545747
+    },
+    {
+      "case_id": "ctx-prior_only-0009",
+      "compiled_context_smape": 0.7110136051655047,
+      "compiled_history_smape": 0.7110136051655047,
+      "family": "prior_only",
+      "raw_context_smape": 1.5143505059125002,
+      "raw_history_smape": 2.3006500752635826
+    },
+    {
+      "case_id": "ctx-prior_only-0010",
+      "compiled_context_smape": 0.6533934228476008,
+      "compiled_history_smape": 0.6533934228476008,
+      "family": "prior_only",
+      "raw_context_smape": 5.571853165729556,
+      "raw_history_smape": 1.9011565983484677
+    },
+    {
+      "case_id": "ctx-prior_only-0011",
+      "compiled_context_smape": 0.8656625593968716,
+      "compiled_history_smape": 0.8656625593968716,
+      "family": "prior_only",
+      "raw_context_smape": 3.6409537551328626,
+      "raw_history_smape": 6.359884611079011
+    },
+    {
+      "case_id": "ctx-prior_only-0012",
+      "compiled_context_smape": 0.2542111072130885,
+      "compiled_history_smape": 0.2542111072130885,
+      "family": "prior_only",
+      "raw_context_smape": 0.6064944226726584,
+      "raw_history_smape": 1.2646023810663627
+    },
+    {
+      "case_id": "ctx-prior_only-0013",
+      "compiled_context_smape": 0.6560231168316153,
+      "compiled_history_smape": 0.6560231168316153,
+      "family": "prior_only",
+      "raw_context_smape": 2.2796834009389118,
+      "raw_history_smape": 0.5942514632570526
+    },
+    {
+      "case_id": "ctx-prior_only-0014",
+      "compiled_context_smape": 0.5812194348137774,
+      "compiled_history_smape": 0.5812194348137774,
+      "family": "prior_only",
+      "raw_context_smape": 4.704753297294867,
+      "raw_history_smape": 2.50547804240958
+    },
+    {
+      "case_id": "ctx-prior_only-0015",
+      "compiled_context_smape": 0.29370620942531556,
+      "compiled_history_smape": 0.29370620942531556,
+      "family": "prior_only",
+      "raw_context_smape": 1.8210367371435758,
+      "raw_history_smape": 1.570690804771281
+    },
+    {
+      "case_id": "ctx-prior_only-0016",
+      "compiled_context_smape": 0.7340339734822405,
+      "compiled_history_smape": 0.7340339734822405,
+      "family": "prior_only",
+      "raw_context_smape": 5.197544900272099,
+      "raw_history_smape": 4.673660001677204
+    },
+    {
+      "case_id": "ctx-prior_only-0017",
+      "compiled_context_smape": 0.31156122956103777,
+      "compiled_history_smape": 0.31156122956103777,
+      "family": "prior_only",
+      "raw_context_smape": 1.8639643165803708,
+      "raw_history_smape": 0.9359094586125702
+    },
+    {
+      "case_id": "ctx-prior_only-0018",
+      "compiled_context_smape": 0.6813784001356181,
+      "compiled_history_smape": 0.6813784001356181,
+      "family": "prior_only",
+      "raw_context_smape": 0.701027528112273,
+      "raw_history_smape": 1.0118095647472436
+    },
+    {
+      "case_id": "ctx-prior_only-0019",
+      "compiled_context_smape": 0.35003712276239324,
+      "compiled_history_smape": 0.35003712276239324,
+      "family": "prior_only",
+      "raw_context_smape": 1.560722778295878,
+      "raw_history_smape": 1.266781754767131
+    },
+    {
+      "case_id": "ctx-repeated_event-0000",
+      "compiled_context_smape": 0.949122594816765,
+      "compiled_history_smape": 0.949122594816765,
+      "family": "repeated_event",
+      "raw_context_smape": 5.265840900857622,
+      "raw_history_smape": 5.40628322931641
+    },
+    {
+      "case_id": "ctx-repeated_event-0001",
+      "compiled_context_smape": 2.3109753434816067,
+      "compiled_history_smape": 3.3768724665600818,
+      "family": "repeated_event",
+      "raw_context_smape": 3.9021385576120764,
+      "raw_history_smape": 5.180438506293432
+    },
+    {
+      "case_id": "ctx-repeated_event-0002",
+      "compiled_context_smape": 1.6715251036526035,
+      "compiled_history_smape": 2.6708884155287214,
+      "family": "repeated_event",
+      "raw_context_smape": 3.0061942327682303,
+      "raw_history_smape": 4.399477992725196
+    },
+    {
+      "case_id": "ctx-repeated_event-0003",
+      "compiled_context_smape": 2.194446920013247,
+      "compiled_history_smape": 2.6715340105152765,
+      "family": "repeated_event",
+      "raw_context_smape": 4.106655622724244,
+      "raw_history_smape": 2.8851254444228736
+    },
+    {
+      "case_id": "ctx-repeated_event-0004",
+      "compiled_context_smape": 5.986196582737356,
+      "compiled_history_smape": 2.922943783407467,
+      "family": "repeated_event",
+      "raw_context_smape": 8.249815241346871,
+      "raw_history_smape": 3.802919357869115
+    },
+    {
+      "case_id": "ctx-repeated_event-0005",
+      "compiled_context_smape": 6.545000582814209,
+      "compiled_history_smape": 8.305777494326653,
+      "family": "repeated_event",
+      "raw_context_smape": 5.387078369509537,
+      "raw_history_smape": 8.722438340247638
+    },
+    {
+      "case_id": "ctx-repeated_event-0006",
+      "compiled_context_smape": 6.4879584428333485,
+      "compiled_history_smape": 6.2482171365970345,
+      "family": "repeated_event",
+      "raw_context_smape": 10.384277340900383,
+      "raw_history_smape": 8.062615512981093
+    },
+    {
+      "case_id": "ctx-repeated_event-0007",
+      "compiled_context_smape": 5.0429333557514155,
+      "compiled_history_smape": 4.592860784073229,
+      "family": "repeated_event",
+      "raw_context_smape": 3.779064026696146,
+      "raw_history_smape": 8.40040764577228
+    },
+    {
+      "case_id": "ctx-repeated_event-0008",
+      "compiled_context_smape": 4.683261594231377,
+      "compiled_history_smape": 4.715495187546628,
+      "family": "repeated_event",
+      "raw_context_smape": 3.4291647884191425,
+      "raw_history_smape": 3.6054312088565017
+    },
+    {
+      "case_id": "ctx-repeated_event-0009",
+      "compiled_context_smape": 2.6263191241694828,
+      "compiled_history_smape": 2.6263191241694828,
+      "family": "repeated_event",
+      "raw_context_smape": 3.1183815754494417,
+      "raw_history_smape": 1.8174277203170863
+    },
+    {
+      "case_id": "ctx-repeated_event-0010",
+      "compiled_context_smape": 1.081294527568581,
+      "compiled_history_smape": 2.370956485774654,
+      "family": "repeated_event",
+      "raw_context_smape": 3.9544192572147767,
+      "raw_history_smape": 2.969604700598819
+    },
+    {
+      "case_id": "ctx-repeated_event-0011",
+      "compiled_context_smape": 4.500198887960093,
+      "compiled_history_smape": 6.214186149411807,
+      "family": "repeated_event",
+      "raw_context_smape": 5.930614967116659,
+      "raw_history_smape": 8.211825167307143
+    },
+    {
+      "case_id": "ctx-repeated_event-0012",
+      "compiled_context_smape": 2.805224051376822,
+      "compiled_history_smape": 4.663149967753431,
+      "family": "repeated_event",
+      "raw_context_smape": 5.542058694397362,
+      "raw_history_smape": 7.358500362646507
+    },
+    {
+      "case_id": "ctx-repeated_event-0013",
+      "compiled_context_smape": 4.841047542102943,
+      "compiled_history_smape": 4.841047542102943,
+      "family": "repeated_event",
+      "raw_context_smape": 2.6145416975925526,
+      "raw_history_smape": 2.7606455145329933
+    },
+    {
+      "case_id": "ctx-repeated_event-0014",
+      "compiled_context_smape": 1.0196751417481615,
+      "compiled_history_smape": 2.8566773510500547,
+      "family": "repeated_event",
+      "raw_context_smape": 2.459283821925681,
+      "raw_history_smape": 2.459283821925681
+    },
+    {
+      "case_id": "ctx-repeated_event-0015",
+      "compiled_context_smape": 5.42834093158293,
+      "compiled_history_smape": 5.42834093158293,
+      "family": "repeated_event",
+      "raw_context_smape": 3.7043016705864034,
+      "raw_history_smape": 2.945236813121895
+    },
+    {
+      "case_id": "ctx-repeated_event-0016",
+      "compiled_context_smape": 2.2506241299592884,
+      "compiled_history_smape": 2.7139407893700995,
+      "family": "repeated_event",
+      "raw_context_smape": 2.7528198780090074,
+      "raw_history_smape": 5.626628969530014
+    },
+    {
+      "case_id": "ctx-repeated_event-0017",
+      "compiled_context_smape": 2.2609855321271346,
+      "compiled_history_smape": 1.7272879227658096,
+      "family": "repeated_event",
+      "raw_context_smape": 1.972443739337219,
+      "raw_history_smape": 2.6730368814386836
+    },
+    {
+      "case_id": "ctx-repeated_event-0018",
+      "compiled_context_smape": 0.9445017931251175,
+      "compiled_history_smape": 2.060321976210276,
+      "family": "repeated_event",
+      "raw_context_smape": 2.6123316972921966,
+      "raw_history_smape": 3.5269297794693864
+    },
+    {
+      "case_id": "ctx-repeated_event-0019",
+      "compiled_context_smape": 1.1826844694419312,
+      "compiled_history_smape": 2.0414366521901592,
+      "family": "repeated_event",
+      "raw_context_smape": 2.595223906062517,
+      "raw_history_smape": 2.2039860498790516
+    }
+  ],
+  "reasoning_effort": "none",
+  "schema_version": 1,
+  "usage": {
+    "compiled": {
+      "accounting_complete": true,
+      "completion_tokens": 197182,
+      "prompt_tokens": 333126,
+      "requests": 201
+    },
+    "raw": {
+      "accounting_complete": true,
+      "completion_tokens": 54609,
+      "prompt_tokens": 887062,
+      "requests": 240
+    }
+  }
+}
