@@ -494,7 +494,7 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: comparable rows remain visible scenarios/counterevidence.
 #: Version 218: unresolved and atemporal dispositions expose claim_id as a
 #: first-class join key instead of requiring agents to parse context_id.
-MCP_CONTRACT_VERSION = 218
+MCP_CONTRACT_VERSION = 219
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -5660,8 +5660,13 @@ class _Run:
             if claim.get("mechanism") == "source-stated target descriptor"}
         reference_range_claim_ids = {
             str(claim["claim_id"]) for claim in prior_prompt_claims
-            if claim.get("mechanism") == (
+            if str(claim.get("mechanism") or "").startswith(
                 "source-stated comparable-entity numeric range")}
+        reference_attributes_missing = bool(reference_range_claim_ids) and all(
+            str(claim.get("mechanism") or "").endswith(
+                "without stated matching attributes")
+            for claim in prior_prompt_claims
+            if str(claim.get("claim_id")) in reference_range_claim_ids)
         prior_prompt_lines = [
             ((f"[{claim['claim_id']}] "
               if deterministic_reference_claims else "")
@@ -5766,7 +5771,9 @@ class _Run:
                 claim_catalog=reference_claim_catalog,
                 single_choice_claim_ids=(
                     reference_range_claim_ids
-                    if deterministic_reference_claims else None))
+                    if deterministic_reference_claims else None),
+                external_matching_assumption_required=(
+                    reference_attributes_missing))
             model_candidate_prompt_bytes = len(context_prompt.encode("utf-8"))
             def transform_sampled_path(path: list[float]) -> list[float]:
                 if reference_power_spec is None:
@@ -5807,7 +5814,8 @@ class _Run:
                         if deterministic_reference_claims else None),
                     single_choice_claim_ids=(
                         reference_range_claim_ids
-                        if deterministic_reference_claims else None))
+                        if deterministic_reference_claims else None),
+                    require_rationale=reference_attributes_missing)
                 initial_sufficiency = sampled_prior_sufficiency(
                     model_candidate_sampling)
                 initial_returned = initial_paths - transport_failed
@@ -5841,7 +5849,8 @@ class _Run:
                                 if deterministic_reference_claims else None),
                             single_choice_claim_ids=(
                                 reference_range_claim_ids
-                                if deterministic_reference_claims else None)))
+                                if deterministic_reference_claims else None),
+                            require_rationale=reference_attributes_missing))
                     expanded = True
                 elif (requested_paths > initial_paths
                       and not initial_sufficiency[
@@ -5888,6 +5897,11 @@ class _Run:
                         "engine_authored_quantity": "target_forecast_path",
                     }
                 model_candidate_sampling["sufficiency"] = final_sufficiency
+                if deterministic_reference_claims:
+                    model_candidate_sampling["analogue_authority"] = (
+                        "model_prior_external_matching"
+                        if reference_attributes_missing else
+                        "source_descriptor_matching")
                 model_candidate_sampling["adaptive_sampling"] = {
                     "initial_requested": initial_paths,
                     "maximum_requested": requested_paths,

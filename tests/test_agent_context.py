@@ -272,6 +272,28 @@ def test_analogue_paths_with_tied_reference_choice_are_withheld():
         diagnostics["rejection_reasons"])
 
 
+def test_external_analogue_selection_requires_a_disclosed_assumption():
+    future = ["2026-01-02T00:00:00+00:00"]
+    candidate, diagnostics = candidate_from_sampled_paths([
+        '{"forecast_path":{"values":[3],"claim_ids":["target","peer"]}}',
+    ], future, allowed_claim_ids={"target", "peer"},
+        required_claim_groups=[{"target"}, {"peer"}],
+        single_choice_claim_ids={"peer"}, require_rationale=True)
+
+    assert candidate is None
+    assert diagnostics["response_shapes"][0]["status"] == \
+        "rejected_missing_external_assumption"
+
+    prompt = build_sampled_context_prior_prompt(
+        timestamps=["2026-01-01T00:00:00+00:00"], values=[1],
+        future_timestamps=future, context="Reference rows omit attributes.",
+        claim_catalog={"target": "coastal", "peer": "North [1, 4]"},
+        single_choice_claim_ids={"peer"},
+        external_matching_assumption_required=True)
+    assert "external matching assumption" in prompt
+    assert "not source-grounded or automation-safe" in prompt
+
+
 def test_sampled_driver_paths_are_transformed_by_governed_math():
     future = ["2026-01-02T00:00:00+00:00",
               "2026-01-03T00:00:00+00:00"]

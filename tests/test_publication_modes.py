@@ -272,6 +272,32 @@ def test_atemporal_claim_requests_applicability_not_a_trigger_date():
     assert payload["automation"]["eligible"] is False
 
 
+def test_unmatched_comparable_returns_specific_attribute_recovery():
+    span = "North (pop. 90): [11, 28] orders"
+    dossier, reasons = validate_temporal_dossier({
+        "claims": [{
+            "source_span": span, "relation": "supports_stability",
+            "effective_start": None, "effective_end": None,
+            "timing_status": "atemporal_context",
+            "mechanism": (
+                "source-stated comparable-entity numeric range without "
+                "stated matching attributes"),
+            "confidence": 1.0,
+        }],
+    }, context_text=span, cutoff="2026-01-02T00:00:00+00:00",
+       future_timestamps=TIMES, history=[8, 9, 10], compiler_model="test")
+    assert not reasons
+
+    payload = publish_result(_result(), mode="best_effort", dossiers=[dossier])
+
+    disposition = payload["context_dispositions"][0]
+    recovery = disposition["recovery_action"]
+    assert recovery["code"] == "provide_comparable_attributes"
+    assert "matching rule" in recovery["message"]
+    assert recovery["automation_eligible"] is False
+    assert payload["recommended_scenario_id"] == "primary"
+
+
 def test_atemporal_peer_bound_preserves_fact_and_requests_a_reference_path():
     span = "A comparable site's maximum was 25.83 at 21:10:00."
     dossier, reasons = validate_temporal_dossier({

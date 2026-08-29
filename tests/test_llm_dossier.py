@@ -49,9 +49,21 @@ def test_deterministic_reference_ranges_preserve_rows_and_target_descriptors():
         "* Inland, landlocked (pop. 110): [0, 1] orders",
     ]
     assert claims[-1]["mechanism"] == (
-        "source-stated comparable-entity numeric range")
+        "source-stated comparable-entity numeric range with stated attributes")
     assert deterministic_reference_range_claims(
         "Demand might be [1, 3] next week.") == []
+
+
+def test_reference_ranges_disclose_missing_matching_attributes():
+    claims = deterministic_reference_range_claims(
+        "A new coastal district opened.\nFor reference:\n"
+        "* North (pop. 90): [11, 28] orders\n"
+        "* Inland (pop. 110): [0, 1] orders")
+
+    rows = [item for item in claims if "numeric range" in item["mechanism"]]
+    assert len(rows) == 2
+    assert all(item["mechanism"].endswith(
+        "without stated matching attributes") for item in rows)
 
 
 def test_deterministic_explicit_confounding_is_negative_authority_only():

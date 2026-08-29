@@ -749,6 +749,9 @@ def _claim_disposition(
         }
     if claim.get("timing_status") == "atemporal_context":
         range_constraint = claim.get("relation") == "constrains_range"
+        missing_comparable_attributes = str(
+            claim.get("mechanism") or "").endswith(
+                "without stated matching attributes")
         return {
             "context_id": f"dossier-{dossier_index}:{claim.get('claim_id')}",
             "claim_id": claim.get("claim_id"),
@@ -763,8 +766,14 @@ def _claim_disposition(
             "scenario_ids": list(scenario_ids or []),
             "_claim_fingerprint": claim_fingerprint,
             "recovery_action": {
-                "code": "provide_applicability_evidence",
+                "code": ("provide_comparable_attributes"
+                         if missing_comparable_attributes else
+                         "provide_applicability_evidence"),
                 "message": (
+                    "Provide the attributes of each reference entity and a "
+                    "matching rule, or explicitly approve a labelled external "
+                    "prior for analogue selection."
+                    if missing_comparable_attributes else
                     "Provide the aligned reference path and evidence for how "
                     "its level and timing transfer to this target; a single "
                     "peer bound cannot identify a forecast path."
@@ -773,6 +782,10 @@ def _claim_disposition(
                     "period, or an explicit bounded scenario assumption "
                     "needed to apply this background evidence."),
                 "required_evidence": ([
+                    "target matching attributes",
+                    "comparable-entity matching attributes",
+                    "matching rule or cited external source",
+                ] if missing_comparable_attributes else [
                     "reference observations over the forecast grid",
                     "target-to-reference scale or historical overlap",
                     "target and entity scope",

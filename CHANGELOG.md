@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Distinguish comparable-range rows whose matching attributes are source-stated
+  from rows whose selection necessarily uses model prior knowledge. The latter
+  now require an explicit external matching assumption, remain
+  automation-ineligible, and return a typed request for comparable attributes
+  and a matching rule when no stable choice can be made.
 - Preserve structured comparable-entity range tables and explicit target
   descriptors through a deterministic, verbatim context front door. Analogue
   selection remains a sealed prior-assisted model judgment. Each sampled path

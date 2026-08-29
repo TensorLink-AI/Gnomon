@@ -907,6 +907,19 @@ def deterministic_reference_range_claims(
     descriptors = [sentence for sentence in sentences
                    if descriptor.search(sentence)]
     retained = (descriptors[-2:] + rows)[:maximum_claims]
+    def range_mechanism(span: str) -> str:
+        # A numeric peer row is not, by itself, evidence that the peer matches
+        # the target.  Preserve whether the source supplied any matching
+        # attribute beside the entity name (for example ``coastal`` before a
+        # population parenthesis).  This is disclosure only: it never selects
+        # the peer or grants numeric/automation authority.
+        prefix = span.split(":", 1)[0]
+        stated_attributes = re.search(
+            r",\s*[^,(]{2,100}\s*\(\s*(?:pop(?:ulation)?\.?|n\s*=)",
+            prefix, re.I) is not None
+        suffix = ("with stated attributes" if stated_attributes else
+                  "without stated matching attributes")
+        return f"source-stated comparable-entity numeric range {suffix}"
     return [{
         "source_span": span,
         "relation": "supports_stability" if span in rows else "unknown",
@@ -914,7 +927,7 @@ def deterministic_reference_range_claims(
         "effective_end": None,
         "timing_status": "atemporal_context",
         "mechanism": (
-            "source-stated comparable-entity numeric range"
+            range_mechanism(span)
             if span in rows else "source-stated target descriptor"),
         "confidence": 1.0,
     } for span in retained]

@@ -519,6 +519,7 @@ def candidate_from_sampled_paths(
     allowed_claim_ids: set[str] | None = None,
     required_claim_groups: list[set[str]] | None = None,
     single_choice_claim_ids: set[str] | None = None,
+    require_rationale: bool = False,
 ) -> tuple[dict[str, Any] | None, dict[str, Any]]:
     """Validate independent model paths on a host-owned grid and aggregate."""
     accepted: list[list[float]] = []
@@ -664,6 +665,14 @@ def candidate_from_sampled_paths(
         rationale = " ".join(str(
             raw.get("rationale") or "" if isinstance(raw, dict) else ""
         ).split())
+        if require_rationale and not rationale:
+            accepted.pop()
+            accepted_claim_ids.pop()
+            accepted_single_choices.pop()
+            shape["status"] = "rejected_missing_external_assumption"
+            rejection_reasons.append(
+                "forecast_path must state its external matching assumption")
+            continue
         rationales.append(rationale[:300])
     diagnostics = {
         "requested": len(outputs), "accepted": len(accepted),
@@ -787,6 +796,7 @@ def build_sampled_context_prior_prompt(
     future_timestamps: list[str], context: str,
     claim_catalog: dict[str, str] | None = None,
     single_choice_claim_ids: set[str] | None = None,
+    external_matching_assumption_required: bool = False,
 ) -> str:
     """Build a compact numeric prompt for a host's own model provider."""
     history_values = ",".join(f"{float(value):.12g}" for value in values)
@@ -823,6 +833,12 @@ def build_sampled_context_prior_prompt(
             "target-descriptor claim IDs and exactly one comparable-range "
             f"claim ID from {choices}. Allowed claim IDs: {allowed}. "
             "Do not cite an alternative comparable as support.\n")
+        if external_matching_assumption_required:
+            citation_instruction += (
+                "The source does not state matching attributes for the "
+                "comparables. The rationale must name the external matching "
+                "assumption used to choose one. Treat it as prior knowledge, "
+                "not source-grounded or automation-safe evidence.\n")
         json_example = (
             '{"forecast_path":{"values":[1.0,2.0],'
             '"claim_ids":["claim-1","claim-3"],'
