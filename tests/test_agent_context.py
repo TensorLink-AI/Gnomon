@@ -10,6 +10,7 @@ from gnomon.agent_context import (
     build_relationship_prior_prompt,
     build_temporal_decision_reconciliation,
     build_sampled_context_prior_prompt,
+    candidate_temporal_facts,
     candidate_from_sampled_paths,
     candidate_from_relationship_prior_specs,
     decision_selection_synthesis_payload,
@@ -135,6 +136,29 @@ def test_provider_neutral_prior_prompt_keeps_host_owned_regular_grid_compact():
     assert "[1,2,3]" in prompt
     assert '"forecast_path"' in prompt
     assert "Do not echo timestamps" in prompt
+
+
+def test_candidate_temporal_facts_pre_shape_full_past_without_future_data():
+    timestamps = [
+        (datetime(2026, 1, 1, tzinfo=timezone.utc) + timedelta(hours=index)
+         ).isoformat()
+        for index in range(96)]
+    values = [float(index % 24) for index in range(96)]
+
+    facts = candidate_temporal_facts(timestamps, values, horizon=12)
+    prompt = build_sampled_context_prior_prompt(
+        timestamps=timestamps[-64:], values=values[-64:],
+        future_timestamps=[
+            (datetime(2026, 1, 5, tzinfo=timezone.utc) + timedelta(hours=index)
+             ).isoformat() for index in range(12)],
+        context="A planned event may change demand.", temporal_facts=facts)
+
+    assert facts["observations"] == 96
+    assert facts["frequency"] == "h"
+    assert facts["seasonal_period"] == 24
+    assert facts["seasonal_reference_next"] == list(map(float, range(12)))
+    assert "past-only same-phase median baseline" in prompt
+    assert "<temporal_facts>" in prompt
 
 
 def test_long_prior_prompt_uses_host_owned_sparse_anchor_contract():

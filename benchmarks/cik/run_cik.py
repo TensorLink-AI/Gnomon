@@ -479,6 +479,9 @@ def build_method(args):
             trace_dir=Path(args.output_dir) / "mcp-traces",
             profile=args.mcp_profile,
             output_role=args.mcp_output_role,
+            candidate_sample_budget=args.mcp_candidate_paths,
+            candidate_history_budget=args.mcp_candidate_history_rows,
+            candidate_temporal_facts_enabled=args.mcp_candidate_temporal_facts,
             base_url=base_url, api_key=api_key,
         )
     conditional_arm = args.method == "gnomon-conditional"
@@ -848,6 +851,23 @@ def build_parser() -> argparse.ArgumentParser:
              "publication contract; llm_candidate_shadow scores the separately "
              "sealed, prior_assisted LLM candidate for evaluation; it is "
              "never an automation-eligible product publication.",
+    )
+    parser.add_argument(
+        "--mcp-candidate-paths", type=int, default=None,
+        help="Evidence host candidate inference budget (3-16 paths). The "
+             "default remains horizon-aware (4-5). This changes compute and "
+             "candidate stability, never support or automation authority.",
+    )
+    parser.add_argument(
+        "--mcp-candidate-history-rows", type=int, default=None,
+        help="Evidence host history budget (8-256 rows) for controlled "
+             "ablations. Default is horizon-aware and capped at 256.",
+    )
+    parser.add_argument(
+        "--mcp-candidate-temporal-facts",
+        action=argparse.BooleanOptionalAction, default=True,
+        help="Include compact deterministic full-history temporal facts in "
+             "the Evidence candidate prompt (default: enabled).",
     )
     parser.add_argument("--no-cache", action="store_true",
                         help="Disable the official result cache")

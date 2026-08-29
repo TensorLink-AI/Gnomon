@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Give host integrations an explicit, receipted 3–16 path inference budget
+  for model-authored conditional candidates. The budget is part of benchmark
+  cache identity and cannot alter support or automation authority; the default
+  remains the bounded horizon-aware four/five-path policy.
+- Keep numeric candidate prompts to 64 aligned raw observations by default and
+  add deterministic full-history temporal facts: frequency, robust trend,
+  detected/calendar season, and a future-aligned same-phase median baseline.
+  The facts are past-only descriptive evidence, never historical skill. CiK's
+  adapter exposes bounded on/off and row-budget ablations and records the exact
+  policy in each receipt.
 - Use the existing bounded four/five-path cap on the first model-prior
   elicitation rather than estimating a human-facing median from three draws.
   Requests remain concurrent; sampled spread remains a coherence diagnostic,

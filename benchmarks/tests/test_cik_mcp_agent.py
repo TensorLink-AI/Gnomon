@@ -1128,6 +1128,8 @@ from benchmarks.cik.mcp_agent import (
     _has_explicit_lag_relationship,
     _extract_explicit_driver_schedule,
     _compiler_target_evidence,
+    _candidate_history_limit,
+    _bounded_candidate_history,
     _task_companion_evidence,
     _task_companion_histories,
     _task_target_name,
@@ -1312,6 +1314,22 @@ def test_compiler_target_evidence_summarizes_all_and_bounds_raw_tail():
     assert '"minimum": 0.0' in evidence and '"maximum": 19.0' in evidence
     rows = evidence.split("timestamp,value\n", 1)[1].splitlines()
     assert [float(row.rsplit(",", 1)[-1]) for row in rows] == [16, 17, 18, 19]
+
+
+def test_candidate_history_limit_preserves_cycles_under_a_hard_budget():
+    assert _candidate_history_limit(72, 168) == 64
+    assert _candidate_history_limit(6, 500) == 64
+    assert _candidate_history_limit(200, 1000) == 64
+    assert _candidate_history_limit(200, 100) == 64
+
+
+def test_candidate_history_budget_slices_the_actual_aligned_prompt_rows():
+    timestamps = [f"t-{index}" for index in range(10)]
+    values = [float(index) for index in range(10)]
+    bounded_timestamps, bounded_values = _bounded_candidate_history(
+        timestamps, values, 4)
+    assert bounded_timestamps == ["t-6", "t-7", "t-8", "t-9"]
+    assert bounded_values == [6.0, 7.0, 8.0, 9.0]
 
 
 def test_compiler_contract_allows_companion_overlap_but_never_target_outcomes():
@@ -2987,6 +3005,66 @@ def test_dated_direction_front_door_skips_dossier_and_samples_bounded_prior(
     assert publication["recommended_scenario_id"] == "primary"
     assert publication["primary_forecast_unchanged"] is True
     assert publication["automation"]["eligible"] is False
+
+
+def test_explicit_candidate_sample_budget_is_bounded_and_receipted(tmp_path):
+    task = _task()
+    day = task.future_time[1][:10]
+    task.background = (
+        f"{day} is a public holiday. Traffic typically reduces on holidays.")
+    task.scenario = None
+    sampled = ["<forecast>\n" + "\n".join(
+        f"({stamp.replace('T', ' ').replace('+00:00', '')}, "
+        f"{124 + draw + index})"
+        for index, stamp in enumerate(task.future_time)) + "\n</forecast>"
+        for draw in range(10)]
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        sampled)
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort",
+        candidate_sample_budget=10, candidate_history_budget=32)
+
+    _, extra = forecaster(task, 3)
+
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    sampling = receipt["compiler"]["model_candidate_sampling"]
+    assert sampling["accepted"] == 10
+    budget = sampling["inference_budget"]
+    assert {key: budget[key] for key in (
+        "requested_paths", "policy", "minimum", "maximum",
+        "changes_support", "changes_automation_eligibility")} == {
+        "requested_paths": 10, "policy": "host_explicit",
+        "minimum": 3, "maximum": 16,
+        "changes_support": False,
+        "changes_automation_eligibility": False,
+    }
+    assert budget["history_rows_exposed"] <= budget["history_rows_available"]
+    assert budget["history_rows_exposed"] == 32
+    assert budget["history_budget_policy"] == "host_explicit"
+    assert budget["history_policy"] == (
+        "compact_64_plus_full_history_facts")
+    assert "_candidate_paths=10_" in forecaster.cache_name
+    assert extra["publication"]["primary_forecast_unchanged"] is True
+    assert extra["publication"]["automation"]["eligible"] is False
+
+
+@pytest.mark.parametrize("budget", [0, 2, 17, True])
+def test_candidate_sample_budget_rejects_unsafe_values(budget):
+    with pytest.raises(ValueError, match="3-16"):
+        McpAgentForecaster("x/y", client=ScriptedClient([], []),
+                           candidate_sample_budget=budget)
+
+
+@pytest.mark.parametrize("budget", [0, 7, 257, True])
+def test_candidate_history_budget_rejects_unsafe_values(budget):
+    with pytest.raises(ValueError, match="8-256"):
+        McpAgentForecaster("x/y", client=ScriptedClient([], []),
+                           candidate_history_budget=budget)
 
 
 def test_dated_direction_front_door_ignores_non_event_grid_dates(tmp_path):

@@ -148,6 +148,17 @@ python -m benchmarks.cik.run_cik --method gnomon-mcp \
     --model deepseek-v4-flash-0731 \
     --output-dir results/cik-deepseek-best-effort
 
+# Controlled candidate-compute/evidence ablations. These change only the
+# host's prior-assisted, non-automatable candidate lane; the immutable primary
+# and support contract are unchanged. Defaults are 4-5 paths, 64 raw rows,
+# and compact full-history temporal facts enabled.
+python -m benchmarks.cik.run_cik --method gnomon-mcp \
+    --mcp-profile evidence --mcp-output-role publication_best_effort \
+    --mcp-candidate-paths 10 --mcp-candidate-history-rows 64 \
+    --no-mcp-candidate-temporal-facts \
+    --model deepseek-v4-flash-0731 \
+    --output-dir results/cik-candidate-ablation
+
 # Quick pass on a task family while iterating
 python -m benchmarks.cik.run_cik --method gnomon-pure \
     --task-filter sensor --seeds 1 --output-dir /tmp/cik-smoke

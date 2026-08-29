@@ -45,6 +45,7 @@ from benchmarks.common.openrouter import (  # noqa: E402
 from gnomon.agent_context import (  # noqa: E402
     build_relationship_prior_prompt,
     build_sampled_context_prior_prompt,
+    candidate_temporal_facts,
     candidate_from_relationship_prior_specs,
     candidate_from_sampled_paths,
     recommended_initial_sample_count,
@@ -495,7 +496,7 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: comparable rows remain visible scenarios/counterevidence.
 #: Version 218: unresolved and atemporal dispositions expose claim_id as a
 #: first-class join key instead of requiring agents to parse context_id.
-MCP_CONTRACT_VERSION = 233
+MCP_CONTRACT_VERSION = 238
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -2419,6 +2420,22 @@ def _compiler_target_evidence(timestamps: list[str], values: list[float],
     return "\n".join(rows)
 
 
+def _candidate_history_limit(horizon: int, observations: int) -> int:
+    """Keep raw candidate history compact; full history becomes typed facts."""
+    if horizon < 1 or observations < 0:
+        raise ValueError("horizon must be positive and observations non-negative")
+    return min(observations, 64)
+
+
+def _bounded_candidate_history(
+    timestamps: list[str], values: list[float], limit: int,
+) -> tuple[list[str], list[float]]:
+    """Apply one auditable row budget to the actual numeric prior prompt."""
+    if limit < 1 or len(timestamps) != len(values):
+        raise ValueError("candidate history requires aligned rows and a positive limit")
+    return timestamps[-limit:], values[-limit:]
+
+
 def _transformation_repair_hints(
         failures: list[dict[str, Any]], context: str) -> list[str]:
     """Return verbatim context lines that may entail rejected constants."""
@@ -3487,6 +3504,9 @@ class McpAgentForecaster:
         session_factory: Any = None,
         profile: str | None = None,
         output_role: str = "canonical",
+        candidate_sample_budget: int | None = None,
+        candidate_history_budget: int | None = None,
+        candidate_temporal_facts_enabled: bool = True,
         base_url: str | None = None,
         api_key: str | None = None,
     ) -> None:
@@ -3506,6 +3526,21 @@ class McpAgentForecaster:
         if output_role != "canonical" and self.profile != "evidence":
             raise ValueError("output role requires the evidence profile")
         self.output_role = output_role
+        if candidate_sample_budget is not None and not (
+                isinstance(candidate_sample_budget, int)
+                and not isinstance(candidate_sample_budget, bool)
+                and 3 <= candidate_sample_budget <= 16):
+            raise ValueError("candidate_sample_budget must be 3-16")
+        self.candidate_sample_budget = candidate_sample_budget
+        if candidate_history_budget is not None and not (
+                isinstance(candidate_history_budget, int)
+                and not isinstance(candidate_history_budget, bool)
+                and 8 <= candidate_history_budget <= 256):
+            raise ValueError("candidate_history_budget must be 8-256")
+        self.candidate_history_budget = candidate_history_budget
+        if not isinstance(candidate_temporal_facts_enabled, bool):
+            raise ValueError("candidate_temporal_facts_enabled must be boolean")
+        self.candidate_temporal_facts_enabled = candidate_temporal_facts_enabled
         # functools.partial remains pickleable when the official CiK runner
         # fans task-seeds out to worker processes; a closure does not.
         self.session_factory = session_factory or partial(
@@ -3522,6 +3557,9 @@ class McpAgentForecaster:
                 f"_temperature={self.temperature:g}"
                 f"_profile={self.profile}"
                 f"_output={self.output_role}"
+                f"_candidate_paths={self.candidate_sample_budget or 'auto'}"
+                f"_candidate_history={self.candidate_history_budget or 'auto'}"
+                f"_candidate_facts={int(self.candidate_temporal_facts_enabled)}"
                 f"_endpoint={hashlib.sha256(str(getattr(self.client, 'base_url', 'injected-client')).encode()).hexdigest()[:10]}"
                 f"_contract={MCP_CONTRACT_VERSION}")
 
@@ -4068,10 +4106,14 @@ class _Run:
                 and not observation_contract and not companion_contract)
             else None)
         compiler_context = (narrative_context if relationship_contract else context)
+        candidate_history_rows = min(
+            len(self.values), self.forecaster.candidate_history_budget
+            or _candidate_history_limit(
+                len(future_timestamps), len(self.values)))
         history = _compiler_target_evidence(
             self.timestamps, self.values,
             limit=8 if relationship_contract else
-            128 if observation_contract else 64)
+            128 if observation_contract else candidate_history_rows)
         material_numeric_context = _has_material_numeric_context(
             compiler_context)
         instructions = (RELATIONSHIP_INSTRUCTIONS if relationship_contract
@@ -5824,12 +5866,22 @@ class _Run:
                 else "requested_for_typed_future_event"
                 if qualitative_future_event_prior_needed
                 else "requested_for_typed_interpretation")
+            candidate_values = (
+                self.companion_histories[str(reference_power_spec["driver"])]
+                if reference_power_spec is not None else self.values)
+            candidate_timestamps, candidate_values = _bounded_candidate_history(
+                self.timestamps, candidate_values, candidate_history_rows)
             context_prompt = build_sampled_context_prior_prompt(
-                timestamps=self.timestamps,
-                values=(self.companion_histories[
-                    str(reference_power_spec["driver"])]
-                    if reference_power_spec is not None else self.values),
+                timestamps=candidate_timestamps,
+                values=candidate_values,
                 future_timestamps=future_timestamps,
+                temporal_facts=(candidate_temporal_facts(
+                    self.timestamps,
+                    (self.companion_histories[
+                        str(reference_power_spec["driver"])]
+                     if reference_power_spec is not None else self.values),
+                    horizon=len(future_timestamps))
+                    if self.forecaster.candidate_temporal_facts_enabled else None),
                 context=(
                     context + "\n\nForecast the future DRIVER series "
                     + str(reference_power_spec["driver"])
@@ -5864,10 +5916,13 @@ class _Run:
                 return [output_reference * (value / input_reference) ** exponent
                         for value in path]
             try:
-                requested_paths = recommended_sample_count(
-                    len(future_timestamps))
+                requested_paths = (
+                    self.forecaster.candidate_sample_budget
+                    or recommended_sample_count(len(future_timestamps)))
                 initial_paths = (
                     requested_paths if (
+                        self.forecaster.candidate_sample_budget is not None
+                        or
                         deterministic_reference_power is not None
                         or deterministic_named_relationship is not None)
                     else recommended_initial_sample_count(
@@ -5991,6 +6046,25 @@ class _Run:
                     "interpretation": (
                         "additional paths are requested only when the initial "
                         "elicitation is malformed or materially incoherent"),
+                }
+                model_candidate_sampling["inference_budget"] = {
+                    "requested_paths": requested_paths,
+                    "policy": ("host_explicit" if
+                               self.forecaster.candidate_sample_budget is not None
+                               else "horizon_aware_default"),
+                    "minimum": 3,
+                    "maximum": 16,
+                    "changes_support": False,
+                    "changes_automation_eligibility": False,
+                    "history_rows_exposed": candidate_history_rows,
+                    "history_rows_available": len(self.values),
+                    "history_policy": "compact_64_plus_full_history_facts",
+                    "history_budget_policy": (
+                        "host_explicit" if
+                        self.forecaster.candidate_history_budget is not None
+                        else "horizon_aware_default"),
+                    "temporal_facts_enabled": (
+                        self.forecaster.candidate_temporal_facts_enabled),
                 }
                 if isinstance(proposed, dict):
                     if interpretation_prior_needed:

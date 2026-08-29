@@ -795,6 +795,7 @@ def _interpolate_sampled_anchors(
 def build_sampled_context_prior_prompt(
     *, timestamps: list[str], values: list[float],
     future_timestamps: list[str], context: str,
+    temporal_facts: dict[str, Any] | None = None,
     claim_catalog: dict[str, str] | None = None,
     single_choice_claim_ids: set[str] | None = None,
     external_matching_assumption_required: bool = False,
@@ -859,6 +860,12 @@ are in exact grid order:
 [{history_values}]
 </history>
 
+Deterministic past-only temporal reference (descriptive evidence, not proof of
+future skill):
+<temporal_facts>
+{json.dumps(temporal_facts or {}, sort_keys=True, separators=(",", ":"))}
+</temporal_facts>
+
 Predict the future grid ({grid_summary(future_timestamps)}).
 
 {output_instruction}
@@ -869,6 +876,54 @@ Return only compact JSON for {representation}. Do not echo timestamps:
 
 Use no observations after the cutoff.
 """
+
+
+def candidate_temporal_facts(
+    timestamps: list[str], values: list[float], *, horizon: int,
+) -> dict[str, Any]:
+    """Pre-shape full past history into a compact forecast argument.
+
+    Raw prompts stay bounded, but the candidate still receives deterministic
+    level/trend/season evidence computed over every pre-cutoff observation.
+    The seasonal reference is a robust same-phase median, aligned to the
+    requested future steps; it is a baseline to reason from, not an admitted
+    model or an automation signal.
+    """
+    if horizon < 1 or not values or len(timestamps) != len(values):
+        raise ValueError("temporal facts require aligned non-empty history")
+    from .temporal import default_season, detect_season, infer_frequency
+
+    parsed = [datetime.fromisoformat(value.replace("Z", "+00:00"))
+              for value in timestamps]
+    frequency = infer_frequency(parsed)
+    detected, strength, source = detect_season(values, frequency)
+    calendar = default_season(frequency)
+    period = calendar if calendar >= 2 and len(values) >= 2 * calendar else detected
+    if period < 2 or len(values) < 2 * period:
+        period = 1
+    differences = [right - left for left, right in zip(values, values[1:])]
+    reference: list[float] = []
+    if period > 1:
+        first = max(0, len(values) - 4 * period)
+        for step in range(min(horizon, 64)):
+            phase = (len(values) + step) % period
+            phase_values = [float(values[index]) for index in
+                            range(first, len(values)) if index % period == phase]
+            reference.append(round(statistics.median(phase_values), 12))
+    return {
+        "observations": len(values),
+        "frequency": frequency,
+        "last_value": round(float(values[-1]), 12),
+        "median_first_difference": round(
+            statistics.median(differences), 12) if differences else 0.0,
+        "seasonal_period": period,
+        "seasonal_strength": round(float(strength), 6),
+        "seasonal_basis": source,
+        "seasonal_reference_next": reference,
+        "seasonal_reference_interpretation": (
+            "past-only same-phase median baseline; descriptive, not "
+            "historical skill evidence"),
+    }
 
 
 def build_relationship_prior_prompt(
