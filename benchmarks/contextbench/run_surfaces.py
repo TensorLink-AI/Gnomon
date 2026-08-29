@@ -278,6 +278,7 @@ def preserves_primary_relationship(reasoning: str, relationship: str) -> bool:
         return any(phrase in explanation for phrase in (
             "no distinct numeric path",
             "no defensibly distinct",
+            "not create a distinct numeric path",
             "already noncontinuing",
             "already non-continuing",
             "does not contain a stable continuation",
@@ -604,6 +605,11 @@ def summarize(rows: list[dict[str, Any]], profile: str,
                 groups[str(value)].append(row)
         if groups:
             dimension_groups[dimension] = groups
+    primary_relationship_rows = [
+        row for row in answered
+        if (row.get("context_explanation_contract") or {}).get(
+            "primary_relationship_expected")
+    ]
     return {
         "benchmark": "contextbench-surfaces", "profile": profile,
         "routing_policy": routing_policy,
@@ -691,7 +697,7 @@ def summarize(rows: list[dict[str, Any]], profile: str,
                 row["publication_parity"] is True for row in answered)
                 if answered else None),
             "context_explanation_contract": {
-                key: (mean(bool((row.get(
+                **{key: (mean(bool((row.get(
                     "context_explanation_contract") or {}).get(key))
                            for row in answered) if answered else None)
                 for key in (
@@ -699,8 +705,14 @@ def summarize(rows: list[dict[str, Any]], profile: str,
                     "interval_limit_preserved", "automation_limit_preserved",
                     "rejection_evidence_cited",
                     "scenario_consequence_preserved",
-                    "primary_relationship_preserved",
-                )
+                )},
+                "primary_relationship_contracts_exposed": len(
+                    primary_relationship_rows),
+                "primary_relationship_preserved": (mean(bool((row.get(
+                    "context_explanation_contract") or {}).get(
+                        "primary_relationship_preserved"))
+                    for row in primary_relationship_rows)
+                    if primary_relationship_rows else None),
             },
             "observed_agent_calls_mean": mean(calls) if calls else None,
             "observed_agent_calls_median": (

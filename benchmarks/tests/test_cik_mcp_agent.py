@@ -4497,9 +4497,11 @@ def test_token_cap_abstains(tmp_path):
 
 # -- run_cik wiring ---------------------------------------------------------
 
-def test_run_cik_accepts_the_method_and_rejects_lane_flags(tmp_path):
+def test_run_cik_accepts_the_method_and_rejects_lane_flags(
+        tmp_path, monkeypatch):
     from benchmarks.cik.run_cik import build_method, build_parser
 
+    monkeypatch.setenv("ENGY_API_KEY", "test-key")
     parser = build_parser()
     args = parser.parse_args([
         "--method", "gnomon-mcp", "--model", "x/y",

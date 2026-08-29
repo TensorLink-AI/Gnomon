@@ -1716,6 +1716,10 @@ class _RunBase:
                         "canonical_primary_preserved": publication.get(
                             "primary_forecast_unchanged"),
                         "selected_projection_differs_from_primary": False,
+                        "relationship_to_primary": context_summary.get(
+                            "relationship_to_primary"),
+                        "selected_output_role": context_summary.get(
+                            "selected_output_role"),
                         "authority_summary": (
                             publication.get("recommendation_authority") or {}
                         ).get("reason"),
@@ -2115,6 +2119,10 @@ class _Run(_RunBase):
                                     disposition.get(
                                         "primary_forecast_changed", False))
                     if status else None),
+                "relationship_to_primary": disposition.get(
+                    "relationship_to_primary"),
+                "selected_output_role": disposition.get(
+                    "selected_output_role"),
                 "authority_summary": disposition.get("authority_summary"),
                 "admitted_event_ids": [
                     str(item.get("event_id")) for item in admitted

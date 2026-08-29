@@ -489,6 +489,45 @@ def test_artifact_and_values_exits_with_routes_and_labels(tmp_path):
         == [float(row["q50"]) for row in rows]  # verbatim, not an edit
 
 
+def test_artifact_binding_preserves_typed_primary_relationship(monkeypatch):
+    run = object.__new__(mcp_agent._Run)
+    run.artifact_paths = {"/sealed/artifact"}
+    run.horizon = 1
+    run._available_sensitivity = {}
+    run._pending_support = {}
+    run.covariate_execution = {}
+    run.context_execution = {}
+    artifact = {
+        "task": {"schema": {"target_column": "value"}},
+        "results": [{
+            "series": "__default__",
+            "forecast": [{"point": 10.0, "q50": 10.0}],
+            "support": "supported",
+            "context_outcome": {
+                "status": "rejected",
+                "events": ["structural-1"],
+                "canonical_primary_preserved": True,
+                "primary_forecast_changed": False,
+                "automation_eligible": False,
+                "relationship_to_primary": "no_distinct_numeric_path",
+                "selected_output_role":
+                    "primary_forecast_already_noncontinuing",
+            },
+        }],
+    }
+    import gnomon.artifacts
+    monkeypatch.setattr(gnomon.artifacts, "read_artifact",
+                        lambda _path: artifact)
+
+    assert run._artifact_channel_rows(
+        "/sealed/artifact", "value") == [10.0]
+    execution = run.context_execution["value"]
+    assert execution["relationship_to_primary"] == \
+        "no_distinct_numeric_path"
+    assert execution["selected_output_role"] == \
+        "primary_forecast_already_noncontinuing"
+
+
 def test_values_only_with_no_tool_use_routes_direct(tmp_path):
     outcome = _run(_row(sparse_temp=False), [
         {"tool_calls": [("submit_answer", {
