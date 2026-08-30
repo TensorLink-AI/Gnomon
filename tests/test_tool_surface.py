@@ -1534,6 +1534,47 @@ def test_typed_question_returns_compact_answer_without_changing_primary(
     assert receipt["primary_forecast_unchanged"] is True
 
 
+def test_typed_trend_uses_primary_forecast_seasonal_period(tmp_path) -> None:
+    """The attached executable inherits the primary's admitted season."""
+    import json
+    import math
+    from datetime import datetime, timedelta, timezone
+    from pathlib import Path
+
+    from gnomon.toolspec import runner_for
+
+    source = tmp_path / "short-hourly.csv"
+    start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    rows = ["timestamp,value"]
+    for index in range(30):
+        rows.append(
+            f"{(start + timedelta(hours=index)).isoformat()},"
+            f"{100 + .08 * index + 4 * math.sin(2 * math.pi * index / 24)}")
+    source.write_text("\n".join(rows) + "\n")
+
+    result = runner_for("gnomon_forecast")({
+        "input": str(source), "time_column": "timestamp",
+        "target_column": "value", "frequency": "h", "horizon": 12,
+        "output_dir": str(tmp_path / "short-hourly-out"),
+        "questions": [{
+            "id": "trend", "verb": "predict", "target": "value",
+            "property": "trend", "measure": "slope", "horizon": 12,
+        }],
+    })
+
+    assert result["results"][0]["temporal_facts"][
+        "seasonal_period_steps"] == 24
+    receipt = json.loads(Path(result["answer_receipt"]).read_text())
+    answer = receipt["answers"][0]
+    assert answer["best_estimate"] == {
+        "value": "uncertain", "display_value": "uncertain",
+        "support": "abstained", "automation_eligible": False,
+    }
+    assert answer["calibration"]["reason"] == \
+        "insufficient_cycles_for_seasonally_adjusted_trend"
+    assert answer["calibration"]["admitted_period"] == 24
+
+
 def test_typed_aggregate_binds_panel_series_not_value_column(tmp_path) -> None:
     import json
     from datetime import date, timedelta

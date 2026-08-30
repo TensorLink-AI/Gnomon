@@ -161,7 +161,7 @@ def _score(case: dict[str, Any], outcome: dict[str, Any]) -> dict[str, Any]:
         "host_contract_complete": bool(
             isinstance(contract, dict)
             and contract.get("canonical_value") == best.get("value")
-            and contract.get("display_value") == best.get("display_value")
+            and contract.get("display_value") == expected
             and contract.get("support") == support
             and contract.get("automation_eligible") == automation
             and contract.get("primary_forecast_unchanged") == primary),

@@ -56,3 +56,36 @@ def test_agent_score_separates_choice_from_missing_host_contract(
     assert scored["agent_choice_preserved"] is True
     assert scored["authority_not_inflated"] is True
     assert scored["host_contract_complete"] is False
+
+
+def test_agent_score_accepts_task_vocabulary_in_complete_host_contract(
+        tmp_path) -> None:
+    artifact = tmp_path / "artifact"
+    artifact.mkdir()
+    (artifact / "temporal_answers.json").write_text(json.dumps({
+        "answers": [{
+            "question": {"id": "trend"},
+            "best_estimate": {
+                "value": "upward", "display_value": "upward",
+                "support": "weak", "automation_eligible": False,
+            },
+            "answer": {
+                "estimate": .2, "interval": {"lower": -.1, "upper": .5},
+                "reasoning": {"primary_forecast_unchanged": True},
+            },
+        }],
+    }))
+    outcome = {
+        "answer": {"mcq": {"trend": "Upward"}},
+        "choice_authority": {"trend": "advisory_canonical_default"},
+        "channel_route": {"value": "gnomon"},
+        "mcp": {"artifact_paths": [str(artifact)]},
+        "temporal_choice_contracts": {"trend": {
+            "canonical_value": "upward", "display_value": "Upward",
+            "support": "weak", "automation_eligible": False,
+            "primary_forecast_unchanged": True, "authority": "advisory",
+        }},
+    }
+    scored = _score(_selected_cases()[0], outcome)
+    assert scored["agent_choice_preserved"] is True
+    assert scored["host_contract_complete"] is True

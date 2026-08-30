@@ -1617,6 +1617,12 @@ def _run_describe(arguments: dict[str, Any]) -> dict[str, Any]:
     ) if "," in target_spec or target_spec.lower() == "auto" else [target_spec])
     reports: dict[str, Any] = {}
     execution_inputs: dict[str, tuple[list[float], int]] = {}
+    # A typed question attached to a forecast must execute against the same
+    # seasonal contract as that immutable primary.  Descriptive inspection
+    # still detects seasonality independently, but recomputing the period here
+    # can disagree with the period already used by the forecast runtime (most
+    # visibly when a frequency default is admitted before two cycles exist).
+    execution_seasons = arguments.get("_execution_seasons") or {}
     for target in targets:
         loaded = load_stage(
             arguments["input"], time_column=arguments["time_column"],
@@ -1652,11 +1658,15 @@ def _run_describe(arguments: dict[str, Any]) -> dict[str, Any]:
                     and group_name != "__default__"
                     else target if group_name == "__default__"
                     else f"{target}:{group_name}")
+            execution_season = int(
+                execution_seasons.get(name)
+                or seasonality.get("period")
+                or 1)
             profile = temporal_profile(
                 values, season=int(seasonality.get("period") or 1))
             execution_inputs[name] = (
                 [float(value) for value in values],
-                int(seasonality.get("period") or 1),
+                execution_season,
             )
             reports[name] = {
                 "observations": len(values), "series_start": timestamps[0].isoformat(),
@@ -2367,9 +2377,16 @@ def _attach_temporal_answers(payload: dict[str, Any], artifact: ForecastArtifact
         public_name(result.series): [float(row["point"]) for row in result.forecast]
         for result in artifact.results
     }
+    execution_seasons = {
+        public_name(result.series): int(
+            ((result.temporal_facts or {}).get("seasonal_period_steps") or 1))
+        for result in artifact.results
+    }
     if len(artifact.results) == 1:
         forecast_values[str(arguments["target_column"])] = next(iter(
             forecast_values.values()))
+        execution_seasons[str(arguments["target_column"])] = next(iter(
+            execution_seasons.values()))
     conditional_effects: dict[str, dict[str, Any]] = {}
     for result in artifact.results:
         public = public_name(result.series)
@@ -2404,6 +2421,7 @@ def _attach_temporal_answers(payload: dict[str, Any], artifact: ForecastArtifact
                 "questions")
         }
         describe_arguments["_forecast_values"] = forecast_values
+        describe_arguments["_execution_seasons"] = execution_seasons
         describe_arguments["_conditional_effects"] = conditional_effects
         described = _run_describe(describe_arguments)
         full_answers = [

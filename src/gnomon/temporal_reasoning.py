@@ -18,7 +18,7 @@ from .temporal_evidence import (
 )
 
 
-TEMPORAL_ANSWER_CONTRACT_VERSION = "0.8"
+TEMPORAL_ANSWER_CONTRACT_VERSION = "0.9"
 
 
 def _observed_trend(values: list[float], report: dict[str, Any]) -> dict[str, Any]:
