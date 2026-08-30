@@ -352,7 +352,8 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
              work_root: Path, receipt_dir: Path,
              routing_policy: str = "compiled",
              baseline_mode: str = "engine",
-             tool_timeout: float = 120.0) -> dict[str, Any]:
+             tool_timeout: float = 120.0,
+             preexecute_bound_tool: bool = False) -> dict[str, Any]:
     if baseline_mode not in BASELINE_MODES:
         raise ValueError(f"unknown baseline mode: {baseline_mode}")
     started = time.perf_counter()
@@ -420,7 +421,8 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
                              work_dir=str(work_root), profile=profile,
                              compile_context=True,
                              context_receipts_dir=str(receipt_dir),
-                             mcp_call_timeout=tool_timeout)
+                             mcp_call_timeout=tool_timeout,
+                             preexecute_bound_tool=preexecute_bound_tool)
         stage_seconds[stage] = round(time.perf_counter() - stage_started, 6)
         enriched = _forecast(contextual)
         if baseline is None or enriched is None:
@@ -593,6 +595,7 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
                 "calls", 0)) - 1),
             "routing_policy": routing_policy,
             "baseline_mode": baseline_mode,
+            "preexecute_bound_tool": preexecute_bound_tool,
             "stage_seconds": stage_seconds,
             "compiler_called": int(bool(context_row["_validated_context"].get(
                 "compiler_called"))),
@@ -888,6 +891,10 @@ def main() -> int:
                         help="with --resume, rerun prior error rows; otherwise retain them")
     parser.add_argument("--infrastructure-retries", type=int, default=2,
                         help="bounded in-run retries for provider/harness failures")
+    parser.add_argument(
+        "--preexecute-bound-tool", action="store_true",
+        help=("for a typed compiled route, let the trusted host execute the "
+              "single bound product call before one final-agent synthesis"))
     args = parser.parse_args()
     load_env_file()
     corpus = Path(args.corpus_dir)
@@ -952,6 +959,7 @@ def main() -> int:
         "profile": args.profile,
         "routing_policy": args.routing_policy,
         "baseline_mode": args.baseline_mode,
+        "preexecute_bound_tool": bool(args.preexecute_bound_tool),
         "replicate_id": str(args.replicate_id),
     }
     _prepare_run_identity(output, run_identity, resume=args.resume)
@@ -984,6 +992,8 @@ def main() -> int:
         attempt_counts[str(row["case_id"])] += 1
     invocation_attempts: list[dict[str, Any]] = []
     retry_cases = list(pending)
+    execution_options = ({"preexecute_bound_tool": True}
+                         if args.preexecute_bound_tool else {})
     for retry_round in range(max(0, args.infrastructure_retries) + 1):
         if not retry_cases:
             break
@@ -992,7 +1002,8 @@ def main() -> int:
                 run_case, case, oracles[case.case_id],
                 OpenRouterClient(args.model, **client_kwargs), args.profile, work,
                 Path(args.context_receipts_dir), args.routing_policy,
-                args.baseline_mode, args.tool_timeout): case
+                args.baseline_mode, args.tool_timeout,
+                **execution_options): case
                 for case in retry_cases}
             retry_cases = []
             for future in as_completed(futures):
@@ -1017,6 +1028,7 @@ def main() -> int:
     summary["rows_executed_this_invocation"] = len(pending)
     summary["replicate_id"] = str(args.replicate_id)
     summary["baseline_mode"] = args.baseline_mode
+    summary["preexecute_bound_tool"] = bool(args.preexecute_bound_tool)
     summary["llm_usage_this_invocation"] = _usage_sum(
         invocation_attempts, "total")
     summary["executions_this_invocation"] = len(invocation_attempts)
@@ -1035,6 +1047,7 @@ def main() -> int:
         "profile": args.profile,
         "routing_policy": args.routing_policy,
         "baseline_mode": args.baseline_mode,
+        "preexecute_bound_tool": bool(args.preexecute_bound_tool),
         "replicate_id": str(args.replicate_id),
     }
     _atomic_write(output / "summary.json",

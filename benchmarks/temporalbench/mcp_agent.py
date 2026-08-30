@@ -894,7 +894,8 @@ class _RunBase:
                  profile: str = "full", compile_context: bool = False,
                  context_receipts_dir: str | None = None,
                  compile_questions: bool = False,
-                 question_receipts_dir: str | None = None):
+                 question_receipts_dir: str | None = None,
+                 preexecute_bound_tool: bool = False):
         import time
 
         # Evidence is the governed product arm: the model may explain and
@@ -910,6 +911,10 @@ class _RunBase:
         if profile == "evidence":
             self.row["_require_gnomon_execution"] = True
         self.profile = profile
+        self.preexecute_bound_tool = bool(
+            preexecute_bound_tool
+            and self.row.get("_host_compiled_forecast")
+            and self.row.get("_require_gnomon_execution"))
         self.client = client
         self.channels = self._row_channels(self.row)
         # The jail is also the trust boundary for host-compiled context, so it
@@ -1260,7 +1265,8 @@ class _RunBase:
                             "truncated", "last_call", "abstained",
                             "superseded", "coerced", "submit_rejected",
                             "last_call_repair", "submission_fallback",
-                            "host_submission", "typed_questions",
+                            "host_submission", "host_preexecution",
+                            "typed_questions",
                             "compiled_questions", "engine_answers",
                             "host_data_binding")}
                 for entry in self.trace
@@ -1296,6 +1302,8 @@ class _RunBase:
         self.harness_schema_bytes = len(json.dumps(
             harness_tools, separators=(",", ":")))
         self.schema_bytes = len(json.dumps(tools, separators=(",", ":")))
+        if self.preexecute_bound_tool:
+            return self._drive_preexecuted(submit_tool)
         # The official prompt is the user message, verbatim: the
         # benchmark stays authoritative about the task and its output
         # format; the system message adds only the harness contract.
@@ -1392,6 +1400,40 @@ class _RunBase:
                 messages, submit_tool,
                 f"cap:rounds {MAX_ROUNDS} rounds without a submission")
         return self._resolve_submission()
+
+    def _drive_preexecuted(self, submit_tool: dict[str, Any]) -> dict[str, Any]:
+        """Execute one fully bound product call before final synthesis.
+
+        This path is available only when the trusted host has already typed
+        the forecast intent, bound validated data, and required Gnomon
+        execution. Ambiguous agent-routed tasks retain :meth:`drive`.
+        Product failure is passed to the synthesis/abstention turn and is
+        never followed by an automatic duplicate execution.
+        """
+        preferred = preferred_execution_tool(
+            self.profile, bool(getattr(self, "target_keys", None)),
+            host_compiled=True)
+        if preferred != "gnomon_forecast":
+            raise ValueError("bound preexecution requires gnomon_forecast")
+        result = self._dispatch(preferred, {})
+        if isinstance(result, dict):
+            return result
+        self.trace.append({"host_preexecution": preferred})
+        messages: list[dict[str, Any]] = [
+            {"role": "system", "content": self._system() + (
+                "\nThe trusted host already executed the one typed, fully "
+                "bound gnomon_forecast call. Do not request or repeat any "
+                "product action. Use the engine-authored "
+                "agent_response_contract as an exact synthesis checklist, "
+                "then call submit_answer once.\n")},
+            {"role": "user", "content": self.row["prompt"]},
+            {"role": "user", "content": (
+                "Host-executed Gnomon result (authoritative tool output):\n"
+                + result)},
+        ]
+        return self._last_call(
+            messages, submit_tool,
+            "host-executed bound artifact ready; synthesis only")
 
     def _last_call(self, messages: list[dict[str, Any]],
                    submit_tool: dict[str, Any], cap: str) -> dict[str, Any]:
@@ -1846,7 +1888,8 @@ class _Run(_RunBase):
                  context_receipts_dir: str | None = None,
                  compile_questions: bool = False,
                  question_receipts_dir: str | None = None,
-                 model_evidence_registry: str | None = None):
+                 model_evidence_registry: str | None = None,
+                 preexecute_bound_tool: bool = False):
         meta = row.get("meta") or {}
         self.horizon = int(meta.get("n_horizon") or 0)
         if self.horizon < 1:
@@ -1859,7 +1902,8 @@ class _Run(_RunBase):
                          compile_context=compile_context,
                          context_receipts_dir=context_receipts_dir,
                          compile_questions=compile_questions,
-                         question_receipts_dir=question_receipts_dir)
+                         question_receipts_dir=question_receipts_dir,
+                         preexecute_bound_tool=preexecute_bound_tool)
         self.model_evidence_registry = None
         if model_evidence_registry:
             import shutil
@@ -2966,7 +3010,8 @@ def run_row(row: dict[str, Any], client: Any, *,
             compile_questions: bool = False,
             question_receipts_dir: str | None = None,
             mcp_call_timeout: float | None = None,
-            model_evidence_registry: str | None = None) -> dict[str, Any]:
+            model_evidence_registry: str | None = None,
+            preexecute_bound_tool: bool = False) -> dict[str, Any]:
     """Drive one T2/T4 row through the real MCP surface; return the same
     outcome shape ``answer_row`` produces for the other conditions."""
     if session_factory is None:
@@ -2981,7 +3026,8 @@ def run_row(row: dict[str, Any], client: Any, *,
                        context_receipts_dir=context_receipts_dir,
                        compile_questions=compile_questions,
                        question_receipts_dir=question_receipts_dir,
-                       model_evidence_registry=model_evidence_registry))
+                       model_evidence_registry=model_evidence_registry,
+                       preexecute_bound_tool=preexecute_bound_tool))
 
 
 def mcq_row(row: dict[str, Any], client: Any, *,

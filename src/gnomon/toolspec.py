@@ -2552,6 +2552,10 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
                else brief_summary(artifact, path))
     _attach_publication(payload, artifact, path, arguments)
     _attach_temporal_answers(payload, artifact, path, arguments)
+    from .agent_response import build_agent_response_contract
+    response_contract = build_agent_response_contract(payload)
+    if response_contract is not None:
+        payload["agent_response_contract"] = response_contract
     if arguments.get("project"):
         from .tracking import register_artifact
         payload["tracking_ids"] = register_artifact(
@@ -3173,6 +3177,10 @@ def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str
                                   for item in publications),
         }
     _attach_temporal_answers(payload, artifact, path, arguments)
+    from .agent_response import build_agent_response_contract
+    response_contract = build_agent_response_contract(payload)
+    if response_contract is not None:
+        payload["agent_response_contract"] = response_contract
     return payload
 
 
