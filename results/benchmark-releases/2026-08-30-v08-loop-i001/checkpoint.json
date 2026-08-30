@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "loop": "v0.8-agent-forecasting",
+  "iteration": "I001",
+  "issue": "E1_economical_resilient_orchestration",
+  "status": "active_baseline_pending",
+  "base_commit": "a442151",
+  "protocol": "docs/v0.8-e1-orchestration-protocol.md",
+  "development_corpus": {
+    "path": "results/v08-e1-i001-development-corpus",
+    "seed": 2026083201,
+    "cases_sha256": "15c86b03340a62cf1a3fd5d343ae68c8b516d2b862c33a290332e155ddc62039",
+    "oracle_sha256": "8e9cb916885233c52c3dec908c8615caad116162d2b5f85e673854b31720308e"
+  },
+  "confirmation_corpus": {
+    "path": "results/v08-e1-i001-confirmation-corpus",
+    "seed": 2026083202,
+    "cases_sha256": "74c847397057c355e114db43ed6365aa4631f42a54c7fb62cae8ee4f838ceae7",
+    "oracle_sha256": "2ef4f2024ab9858432a07249209096ea38ad9940f9c253ec769043ac4c20e88c",
+    "consumed": false
+  },
+  "case_ids": [
+    "stress-snr-4-0000",
+    "stress-constraint-true-0000",
+    "stress-structural-false-0000",
+    "stress-structural-true-0000"
+  ],
+  "next_action": "Run fresh cold and warm baseline lanes, inspect actual responses and per-stage usage, then implement only the frozen response-contract and fail-closed host-preexecution mechanism.",
+  "preservation": {
+    "external_evaluation_intake_unchanged": true,
+    "excluded_from_commits": ["docs/astrid-btc-agent-plan.md"]
+  }
+}

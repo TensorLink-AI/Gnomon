@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 745,
+      "sha256": "c2486ef3b97020b4e1773ea505e307cea88c44662ba74ab09ce6d1be79eea26a"
+    },
+    {
+      "path": "checkpoint.json",
+      "bytes": 1344,
+      "sha256": "c8325d5f33f6a19e82ce5eabd7488ff9ac5eed3375bc2d37e9db1122f197962d"
+    }
+  ]
+}
