@@ -184,6 +184,17 @@ context supports a different scenario, `conditional_answer` preserves its
 provenance and keeps `primary_forecast_unchanged: true`; it is never a silent
 replacement for the governed forecast.
 
+Forecast calls with typed questions also return a sealed
+`agent_response_contract.decisions` projection. Each decision names the
+canonical conclusion or abstention, support and authority, compatible
+interpretations, the typed evidence for and against them, conditions,
+calibration/interval status, decision and automation eligibility, immutable-
+primary status, and receipt provenance. Supported conclusions are binding;
+weak alternatives require evidence accepted by
+`verify_agent_decision_selection`; conditional-only interpretations and
+abstentions cannot be upgraded by presentation. This contract organizes the
+existing receipt and does not improve or replace its underlying estimate.
+
 Every non-error verb response also carries a compact routing projection where
 the underlying result makes it applicable: `artifact_id`, `tier_floor`, typed
 `limitation_groups`, and aggregated `recovery_actions`. Repeated warning text

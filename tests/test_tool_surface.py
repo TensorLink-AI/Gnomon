@@ -1529,7 +1529,13 @@ def test_typed_question_returns_compact_answer_without_changing_primary(
     assert asked["answers"][0]["artifact_id"] == asked["artifact_id"]
     assert set(asked["answers"][0]) == {
         "question", "best_estimate", "synthesis_policy", "decision_rule",
-        "answer", "headline", "limitations", "artifact_id", "support"}
+        "answer", "headline", "limitations", "artifact_id", "support",
+        "calibration_status"}
+    decision = asked["agent_response_contract"]["decisions"][0]
+    assert decision["question_id"] == "v1"
+    assert decision["property"] == "volatility"
+    assert decision["primary_forecast_unchanged"] is True
+    assert decision["required"] == "all_emitted_fields"
     policy = asked["answers"][0]["synthesis_policy"]
     assert policy["canonical_immutable"] is True
     assert policy["synthesis_must_be_separately_labelled"] is True

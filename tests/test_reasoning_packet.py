@@ -115,7 +115,9 @@ def test_compact_projection_carries_the_dossier_within_bounds() -> None:
     packet = compact["packet"]
     assert len(packet["interpretations"]) <= 4
     assert set(packet["interpretations"][0]) == {
-        "value", "support", "compatible"}
+        "value", "support", "compatible", "decision_eligible",
+        "supporting", "conflicting"}
+    assert packet["selection_must_cite_evidence"] is True
     assert packet["sufficiency"] == "mixed"
     assert packet["selector"] == "model"
     assert packet["discriminator"] is not None

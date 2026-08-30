@@ -2486,6 +2486,24 @@ def _attach_temporal_answers(payload: dict[str, Any], artifact: ForecastArtifact
     for answer in full_answers:
         compact = {key: value for key, value in answer.items()
                    if key not in {"per_series", "calibration"}}
+        calibration = answer.get("calibration")
+        if isinstance(calibration, dict):
+            folds = int(calibration.get("folds") or
+                        calibration.get("calibration_ratios") or 0)
+            compact["calibration_status"] = {
+                "available": folds > 0,
+                "applicable": folds > 0,
+                "folds": folds,
+                **({"requested_horizon": calibration["requested_horizon"]}
+                   if calibration.get("requested_horizon") is not None else {}),
+                **({"reason": "no_applicable_calibration"}
+                   if folds == 0 else {}),
+            }
+        else:
+            compact["calibration_status"] = {
+                "available": False, "applicable": False,
+                "reason": "not_reported",
+            }
         reasoning = ((answer.get("answer") or {}).get("reasoning"))
         if isinstance(reasoning, dict):
             from .temporal_planner import compact_evidence_plan

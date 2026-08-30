@@ -85,6 +85,9 @@ def _interpretations(
             "supporting": sources,
             "conflicting": against,
             "compatible": bool(compatible),
+            "conditional_only": bool(row.get("conditional_only")),
+            "decision_eligible": bool(
+                compatible and not row.get("conditional_only")),
         })
     return rows
 
@@ -265,6 +268,14 @@ def verify_packet_selection(
                 f"The packet's evidence excludes {value!r}: supported "
                 f"evidence names a different interpretation and nothing "
                 f"non-abstained names this one."),
+        })
+    if value.lower() != canonical_value and not row.get("decision_eligible"):
+        violations.append({
+            "code": "SELECTION_NOT_DECISION_ELIGIBLE",
+            "message": (
+                f"The evidence packet presents {value!r} for comparison but "
+                "does not authorize it as a decision; conditional or "
+                "under-supported alternatives remain advisory evidence."),
         })
     if contract.get("selection_must_cite_evidence"):
         cited = [str(item) for item in

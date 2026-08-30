@@ -9,6 +9,7 @@ from typing import Any
 
 from gnomon.agent_response import (
     build_agent_response_contract,
+    verify_agent_decision_selection,
     verify_agent_response_contract,
 )
 
@@ -29,6 +30,7 @@ def _answer(index: int, *, support: str, sufficiency: str,
         interpretations.append({
             "value": canonical, "support": support,
             "compatible": True, "supporting": ["fitted_executable"],
+            "decision_eligible": True,
             "conflicting": (["observed_transition"]
                             if opposition != "none" else []),
         })
@@ -37,6 +39,7 @@ def _answer(index: int, *, support: str, sufficiency: str,
             "value": "downward",
             "support": "supported" if opposition == "supported" else "weak",
             "compatible": opposition != "contradicted",
+            "decision_eligible": opposition == "supported",
             "supporting": (["observed_transition"]
                            if opposition != "contradicted" else []),
             "conflicting": ["fitted_executable"],
@@ -153,11 +156,24 @@ def run() -> dict[str, Any]:
                  or decision.get("relationship_to_primary")
                  == context["relationship_to_primary"])
         )
+        canonical_selection = {
+            "value": (best.get("value") if best.get("support") != "abstained"
+                      else "Uncertain")}
+        canonical_valid = bool(decision) and not verify_agent_decision_selection(
+            contract, expected["question"]["id"], canonical_selection)
+        unsupported_override_blocked = bool(decision) and bool(
+            verify_agent_decision_selection(
+                contract, expected["question"]["id"],
+                {"value": "not_in_contract", "cited_evidence": ["invented"]},
+            )
+        )
         rows.append({
             "case": expected["question"]["id"],
             "contract_present": bool(decision),
             "complete": required <= set(decision),
             "exact": exact,
+            "canonical_valid": canonical_valid,
+            "unsupported_override_blocked": unsupported_override_blocked,
         })
     summary = {
         "benchmark": "decisioncontractbench",
@@ -167,6 +183,9 @@ def run() -> dict[str, Any]:
         "decision_contracts": len(decisions),
         "complete": sum(row["complete"] for row in rows),
         "exact": sum(row["exact"] for row in rows),
+        "canonical_valid": sum(row["canonical_valid"] for row in rows),
+        "unsupported_overrides_blocked": sum(
+            row["unsupported_override_blocked"] for row in rows),
         "seal_recomputes": bool(
             contract and verify_agent_response_contract(payload, contract)),
         "rows": rows,
@@ -176,6 +195,10 @@ def run() -> dict[str, Any]:
         "all_required_fields": all(row["complete"] for row in rows),
         "all_exact": all(row["exact"] for row in rows),
         "seal_recomputes": summary["seal_recomputes"],
+        "canonical_selection_valid": all(
+            row["canonical_valid"] for row in rows),
+        "unsupported_overrides_blocked": all(
+            row["unsupported_override_blocked"] for row in rows),
     }
     return summary
 

@@ -290,7 +290,12 @@ def compact_evidence_plan(plan: dict[str, Any]) -> dict[str, Any]:
         projected["packet"] = {
             "interpretations": [
                 {"value": row.get("value"), "support": row.get("support"),
-                 "compatible": bool(row.get("compatible"))}
+                 "compatible": bool(row.get("compatible")),
+                 "decision_eligible": bool(row.get("decision_eligible")),
+                 "supporting": list(row.get("supporting") or [])[:4],
+                 "conflicting": list(row.get("conflicting") or [])[:4],
+                 **({"conditional_only": True}
+                    if row.get("conditional_only") else {})}
                 for row in (packet.get("interpretations") or [])[:4]
             ],
             "sufficiency": (packet.get("evidence_sufficiency") or {}).get(
@@ -303,6 +308,9 @@ def compact_evidence_plan(plan: dict[str, Any]) -> dict[str, Any]:
                 iter(packet.get("discriminators") or []), None),
             "selector": (packet.get("selection_contract") or {}).get(
                 "selector"),
+            "selection_must_cite_evidence": (
+                packet.get("selection_contract") or {}).get(
+                    "selection_must_cite_evidence"),
         }
     adjudication = plan.get("adjudication") or {}
     eligibility = adjudication.get("synthesis_eligibility") or {}
