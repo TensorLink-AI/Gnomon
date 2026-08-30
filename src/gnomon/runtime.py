@@ -467,8 +467,47 @@ def _series_result(
     )
     split = None
     split_prefix_tier: str | None = None
-    if (support == "unsupported" and not rows and state.values
-            and minimum_support == "best_effort"
+    reachable = (state.assessment.max_supportable_horizon
+                 if state.assessment is not None else None)
+    flat_degraded_primary = (
+        support == "degraded" and state.selected_model == "last_value")
+    if flat_degraded_primary and reachable is None:
+        # Lightweight evaluation is still a valid degraded full-horizon
+        # result, so its assessment does not carry an abstention retry hint.
+        # Compute the shorter separated horizon only for this specific
+        # boundary decision instead of changing that established contract.
+        from .evaluation import supportable_horizon
+        reachable = supportable_horizon(len(state.values), state.season)
+    can_split = bool(
+        reachable and 0 < reachable < horizon and state.values
+        and minimum_support == "best_effort" and not strict_abstention)
+    needs_fallback = support == "unsupported" and not rows
+    # Preserve the existing unsupported-horizon split for every shape. The
+    # newly supported degraded-primary split is intentionally limited to a
+    # material, context-free, single-series threshold boundary: fragmenting a
+    # routine wide response exceeds the agent budget, while dropping context
+    # on a re-evaluated prefix would change the caller's question.
+    meaningful_degraded_tail = bool(
+        flat_degraded_primary
+        and len(loaded.groups) == 1
+        and not context_events and not covariates
+        and threshold is not None
+        and reachable is not None and reachable < 0.75 * horizon)
+    should_split = needs_fallback or meaningful_degraded_tail
+    if can_split and should_split:
+        # A long horizon can force the full run into a flat lightweight
+        # baseline even though a shorter horizon supports separated
+        # evaluation. Publish that evaluated prefix first; only the genuinely
+        # unsupported tail is a last-value continuation.
+        split = _split_prefix(
+            series_name, items, loaded, reachable,
+            minimum_baseline_improvement=minimum_baseline_improvement,
+            config=config, selection_strategy=selection_strategy,
+            seasonal_period=seasonal_period,
+            target_coverage=target_coverage,
+        )
+    if ((needs_fallback or split is not None)
+            and state.values and minimum_support == "best_effort"
             and not strict_abstention):
         # Graduated support: the default floor publishes the most defensible
         # answer that exists — here the disclosed naive fallback — instead
@@ -478,9 +517,7 @@ def _series_result(
         # usable history at all still abstains (the guard above). The
         # legacy `best_effort` flag maps to this same floor.
         from .pipeline import best_effort_stage
-        reachable = (state.assessment.max_supportable_horizon
-                     if state.assessment is not None else None)
-        if reachable and 0 < reachable < horizon:
+        if split is None and reachable and 0 < reachable < horizon:
             # Automatic horizon split: the supportable prefix is evaluated
             # at whatever tier it earns — same stages, same guardrails —
             # and only the unsupportable remainder falls back.
@@ -491,11 +528,24 @@ def _series_result(
                 seasonal_period=seasonal_period,
                 target_coverage=target_coverage,
             )
-        else:
-            split = None
         if split is not None:
             split_state, split_rows, split_support = split
             fallback_rows, _ = best_effort_stage(state)
+            # Continue from the evaluated prefix's final level. Returning to
+            # the last observed value at the first unsupported row creates a
+            # fake discontinuity and makes the supposedly safer fallback
+            # actively misleading.
+            if len(fallback_rows) > len(split_rows):
+                tail_anchor = fallback_rows[len(split_rows)]
+                shift = (float(split_rows[-1].get("q50",
+                                                  split_rows[-1]["point"]))
+                         - float(tail_anchor.get("q50",
+                                                 tail_anchor["point"])))
+                for row in fallback_rows[len(split_rows):]:
+                    for key in tuple(row):
+                        if (key == "point" or key.startswith("q")) \
+                                and isinstance(row[key], (int, float)):
+                            row[key] = float(row[key]) + shift
             rows = split_rows + fallback_rows[len(split_rows):]
             support = "best_effort"
         else:

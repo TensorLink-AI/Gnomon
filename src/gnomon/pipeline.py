@@ -1345,7 +1345,12 @@ def bounded_threshold_assessment(
         "probability_above": [],
         "bounded_assessment": {
             "decision": decision,
-            "best_estimate": primary["best_estimate"],
+            # The top-level scalar is what an agent is most likely to quote.
+            # When the range overlaps or a labelled path disagrees, repeating
+            # the primary's yes/no here contradicts the governed decision.
+            # Preserve that path answer below, but make the canonical scalar
+            # carry the actual bounded conclusion.
+            "best_estimate": decision,
             "primary": primary,
             "alternatives": alternatives,
             "model_conflict": conflict,

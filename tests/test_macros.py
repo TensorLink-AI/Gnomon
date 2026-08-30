@@ -40,6 +40,8 @@ def test_investigate_finds_planted_shift(tmp_path):
         output=str(tmp_path / "out"), clock=CLOCK,
     )
     result = payload["results"][0]
+    assert payload["headline"] == (
+        "Detected regime_shift in __default__ at 2026-03-21T00:00:00.")
     assert result["onset"] == "2026-03-21T00:00:00"
     assert result["classification"] == "regime_shift"
     assert result["support_assessment"]["status"] == "supported"

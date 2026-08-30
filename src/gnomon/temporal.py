@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import calendar
 import re
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
@@ -40,6 +41,30 @@ FREQUENCY_DESCRIPTIONS = {
 _GENERAL_CODE = re.compile(r"^([1-9]\d*)(s|min|h|T)$")
 _UNIT_SECONDS = {"s": 1, "min": 60, "T": 60, "h": 3600}
 _DAY_SECONDS = 86400
+
+
+def _supported_frequency_values() -> list[str]:
+    return [*sorted(SEASONS), "<N>s", "<N>min", "<N>h"]
+
+
+def _frequency_repairs(*, month_end: bool = False) -> list[dict[str, str]]:
+    repairs = [
+        {"action": "set_frequency", "description": (
+            "Pass a named frequency or a regular sub-daily <N>s, <N>min, "
+            "or <N>h step explicitly.")},
+        {"action": "inspect_dataset", "description": (
+            "Inspect the observed timestamp spacings, then resample or "
+            "declare the intended regular grid.")},
+    ]
+    if month_end:
+        repairs.append({
+            "action": "restamp_to_month_start",
+            "description": (
+                "This series is month-end data. Pass regrid=month_start to "
+                "restamp each observation to the first of its month "
+                "(disclosed), or restamp upstream and pass frequency=MS."),
+        })
+    return repairs
 
 
 def canonical_code(step: timedelta) -> str | None:
@@ -144,10 +169,24 @@ def detect_season(values: list[float], frequency: str) -> tuple[int, float, str]
     for lag in range(1, maximum + 1):
         acf.append(sum(centred[i] * centred[i - lag] for i in range(lag, len(values))) / denominator)
     threshold = max(0.3, 2.0 / len(values) ** 0.5)
-    peaks = [lag for lag in range(2, maximum) if acf[lag] >= threshold and acf[lag] > acf[lag - 1] and acf[lag] >= acf[lag + 1]]
+    peaks = [lag for lag in range(2, maximum)
+             if acf[lag] >= threshold and acf[lag] > acf[lag - 1]
+             and acf[lag] >= acf[lag + 1]]
+    # With exactly two observed cycles the true period is the upper search
+    # boundary.  It has no right neighbour, so the old strict-local-maximum
+    # loop could never select it: a clean hourly cycle returned the default
+    # with zero strength, or lag 23 when phase truncation made that adjacent
+    # correlation fractionally larger.  Admit the bounded endpoint as a
+    # candidate. When that endpoint is also the frequency prior, prefer it
+    # over a one-step neighbour: with only two cycles the finite-window ACF
+    # cannot reliably distinguish 23 from the known hourly period 24.
+    if maximum == fallback and maximum >= 2 and acf[maximum] >= threshold:
+        peaks.append(maximum)
     if not peaks:
         return fallback, 0.0, "frequency_default"
-    lag = peaks[0]
+    peaks = sorted(set(peaks))
+    lag = (fallback if maximum == fallback and fallback in peaks
+           else peaks[0])
     return lag, acf[lag], "autocorrelation"
 
 
@@ -176,7 +215,8 @@ def normalise_frequency(value: str) -> str:
         + ", ".join(f"{code} ({FREQUENCY_DESCRIPTIONS[code]})" for code in SEASONS)
         + "; or any regular sub-daily step as <N>s, <N>min, or <N>h "
           "(e.g. 90s, 7min, 2h).",
-        {"supported": sorted(SEASONS), "general_pattern": _GENERAL_CODE.pattern},
+        {"supported": _supported_frequency_values(),
+         "general_pattern": _GENERAL_CODE.pattern},
     )
 
 
@@ -215,7 +255,12 @@ def _month_start_with_gaps(unique: list[datetime]) -> bool:
 def infer_frequency(timestamps: list[datetime]) -> str:
     unique = sorted(set(timestamps))
     if len(unique) < 3:
-        raise GnomonError("AMBIGUOUS_FREQUENCY", "At least three timestamps are required.")
+        raise GnomonError(
+            "AMBIGUOUS_FREQUENCY", "At least three timestamps are required.",
+            {"observations": len(unique),
+             "supported": _supported_frequency_values()},
+            repair_options=_frequency_repairs(),
+        )
     if all(_month_step(left, right) for left, right in zip(unique, unique[1:])):
         return "MS"
     if _month_start_with_gaps(unique):
@@ -241,9 +286,14 @@ def infer_frequency(timestamps: list[datetime]) -> str:
             "supported grid: steps must be a whole number of seconds shorter "
             "than one day, or exactly the calendar codes D, W, or MS. "
             "Resample the data to a representable step.",
-            {"supported": sorted(SEASONS), "observed_step": str(step),
+            {"supported": _supported_frequency_values(),
+             "observed_step": str(step),
              "observed_step_seconds": step.total_seconds(), "regular": True},
+            repair_options=_frequency_repairs(),
         )
+    month_end = all(
+        item.day == calendar.monthrange(item.year, item.month)[1]
+        for item in unique)
     raise GnomonError(
         "AMBIGUOUS_FREQUENCY",
         "Could not infer a regular frequency: the spacing between "
@@ -251,8 +301,10 @@ def infer_frequency(timestamps: list[datetime]) -> str:
         f"{len(counts)} distinct spacings). Pass an explicit frequency — a "
         "named code or any whole-second sub-daily step as <N>s/<N>min/<N>h — "
         "or repair the grid upstream.",
-        {"supported": sorted(SEASONS), "observed_step": str(step),
+        {"supported": _supported_frequency_values(),
+         "observed_step": str(step),
          "distinct_spacings": len(counts), "regular": False},
+        repair_options=_frequency_repairs(month_end=month_end),
     )
 
 

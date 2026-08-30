@@ -25,8 +25,9 @@ def test_bounded_threshold_assessment_separates_point_answer_from_uncertainty():
     bounded = result["bounded_assessment"]
     assert result["probability_status"] == "unavailable_uncalibrated"
     assert result["probability_above"] == []
-    assert bounded["best_estimate"] == "no"
+    assert bounded["best_estimate"] == "indeterminate"
     assert bounded["decision"] == "indeterminate"
+    assert bounded["primary"]["best_estimate"] == "no"
     assert bounded["primary"]["published_range_relation"] == \
         "range_overlaps_threshold"
     assert bounded["automation_eligible"] is False
@@ -50,9 +51,10 @@ def test_bounded_threshold_assessment_surfaces_candidate_conflict():
             "path": "model_assisted", "points": [11, 12],
             "support": "prior_assisted"}])
     bounded = result["bounded_assessment"]
-    assert bounded["best_estimate"] == "no"
+    assert bounded["best_estimate"] == "indeterminate"
     assert bounded["model_conflict"] is True
     assert bounded["decision"] == "indeterminate"
+    assert bounded["primary"]["best_estimate"] == "no"
     assert bounded["alternatives"][0]["best_estimate"] == "yes"
     assert bounded["primary_forecast_unchanged"] is True
 from gnomon.evaluation import evaluate

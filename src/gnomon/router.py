@@ -40,7 +40,16 @@ def _forecast_candidates(
     eligible_names, excluded = eligible_tsfms(
         history_length=len(values), horizon=horizon, frequency=frequency,
     )
-    return list(MODELS) + eligible_names, excluded
+    statistical = list(MODELS)
+    zero_share = (sum(value == 0.0 for value in values) / len(values)
+                  if values else 0.0)
+    if "croston_sba" in statistical and zero_share < .1:
+        statistical.remove("croston_sba")
+        excluded["croston_sba"] = [
+            "Croston SBA is reserved for intermittent demand; fewer than "
+            f"10% of observations are zero ({zero_share:.1%})."
+        ]
+    return statistical + eligible_names, excluded
 
 
 def _anomaly_candidates(values: list[float]) -> tuple[list[str], dict[str, list[str]]]:
@@ -51,6 +60,39 @@ def _anomaly_candidates(values: list[float]) -> tuple[list[str], dict[str, list[
             f"needs at least {MIN_DETECTION_HISTORY} observations (have {len(values)})"
         ] for name in names}
     return names, {}
+
+
+def _structural_starting_point(
+    task: str, candidates: list[str], fingerprint: dict[str, Any],
+) -> str | None:
+    """Return one disclosed candidate to start the required evaluation.
+
+    This is deliberately not a model winner: it uses only structural facts
+    visible in the input, and the caller must still backtest the full eligible
+    set.  A cold-start router that always returns null is honest but cannot
+    help an agent take its next step.
+    """
+    if not candidates:
+        return None
+    if task == "detect_anomalies":
+        return ("robust_zscore" if "robust_zscore" in candidates
+                else candidates[0])
+    intermittency = float(fingerprint.get("intermittency") or 0.0)
+    strength = float(fingerprint.get("season_strength") or 0.0)
+    trend = abs(float(fingerprint.get("trend") or 0.0))
+    direction_changes = float(fingerprint.get("direction_change_rate") or 0.0)
+    preferences = (
+        ["croston_sba", "historical_mean"] if intermittency >= .1 else
+        ["ets", "seasonal_naive"]
+        if fingerprint.get("season_source") == "autocorrelation"
+        and strength >= .5 else
+        ["linear_trend", "theta", "drift"] if trend >= .01 else
+        ["historical_mean", "window_average", "theta"]
+        if direction_changes >= .65 else
+        ["theta", "ets", "historical_mean"]
+    )
+    return next((name for name in preferences if name in candidates),
+                candidates[0])
 
 
 def _tracking_prior(
@@ -131,8 +173,9 @@ def route(
         recommendation = prior["ranking"][0]["model"]
         basis = "tracking_prior"
     elif candidates:
-        recommendation = None
-        basis = "backtest_required"
+        recommendation = _structural_starting_point(
+            task, candidates, fingerprint)
+        basis = "structural_starting_point_backtest_required"
     else:
         recommendation = None
         basis = "no_eligible_candidates"
@@ -145,6 +188,11 @@ def route(
         "excluded": excluded,
         "prior": prior,
         "recommendation": recommendation,
+        "recommendation_role": (
+            "realised_performance_prior" if basis == "tracking_prior" else
+            "starting_candidate_only; evaluate all eligible candidates"
+            if recommendation is not None else "none"
+        ),
         "basis": basis,
         "override": (
             "Pass an explicit model/detector to bypass the router; "

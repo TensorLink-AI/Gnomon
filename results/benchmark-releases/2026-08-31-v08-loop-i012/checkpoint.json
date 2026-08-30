@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "iteration": "I012",
+  "branch": "agent/v0.8-external-feedback-v2",
+  "production_candidate": "44ec74a",
+  "active_issue": "external_evaluation_v2",
+  "status": "draft_review_candidate_external_evaluation_pending",
+  "issue_status": {
+    "seasonal_descriptive_trend": "complete",
+    "two_cycle_period_detection": "complete",
+    "mcp_operational_surface": "complete",
+    "cold_start_route": "complete",
+    "degraded_threshold_boundary": "complete",
+    "generic_degraded_prefix": "retained_no_build_context_invariance",
+    "interface_ergonomics": "complete",
+    "hosted_agent_validation": "pending_provider_credential"
+  },
+  "local_validation": {
+    "full_suite": "2701 passed, 12 skipped",
+    "focused_changed_area_suite": "322 passed",
+    "mcp_route_suite": "90 passed",
+    "package_build": "wheel_and_sdist_passed",
+    "clean_wheel_smoke": "passed_python_3_12",
+    "seasonal_trend_repro": "upward_slope_2.3873302602_period_7",
+    "two_cycle_phase_probe": "24_of_24_detected_period_24",
+    "jitterbench": "22_cases_all_gates_passed_zero_internal_errors",
+    "seasonalbench": "128_cases_metric_identical_to_retained_baseline_known_quality_gates_still_failed",
+    "trendanswerbench": "152_cases_metric_identical_to_retained_baseline_known_quality_gates_still_failed"
+  },
+  "external": {
+    "engy_credential_available": false,
+    "openrouter_credential_available": false,
+    "hosted_agent_cases_run": 0,
+    "status": "pending_external_provider_credential"
+  },
+  "decision": "safe_for_draft_review_withhold_release_recommendation",
+  "next_action": "Push the branch, open a draft pull request, and require exact-head CI; run the frozen hosted agent lanes later when a provider credential is available.",
+  "preservation": {
+    "v07_external_intake_unchanged": true,
+    "astrid_plan_excluded": true,
+    "preexisting_untracked_files_untouched": true,
+    "benchmark_artifacts_preserved": true
+  }
+}
