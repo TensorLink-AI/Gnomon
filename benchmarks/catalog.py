@@ -52,6 +52,13 @@ CATALOG: dict[str, BenchmarkContract] = {
         "preservation, not general reasoning uplift.",
         ("evidence",),
     ),
+    "anomalyeventbench": BenchmarkContract(
+        "mixed",
+        "production investigation and graded anomaly-detection macros",
+        "Event-level anomaly precision, recall, regime attribution, rebound "
+        "deduplication, and detector-selection disclosure; not causal "
+        "diagnosis or general agent reasoning.",
+    ),
     "transitionbench": BenchmarkContract("engine", "production TemporalEvidence computation", "Observed-transition evidence quality only."),
     "outcomelearningbench": BenchmarkContract(
         "policy", "production publication and tracking outcome loop",
