@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "protocol": "docs/v0.6-p6-joint-horizon-protocol.md",
+  "runner": "benchmarks/jointhorizonbench/run.py",
+  "baseline_runtime_commit": "340fd326c6b6897258ca21b148ffc9a88505cacf",
+  "reproducible_candidate_commit": "54dab4d7898e9bb691be58df7cdbbd7300856f90",
+  "final_runtime_commit": "e61b2930a136e3dd8372abb3af370f0a51a31066",
+  "corpus": {
+    "generator": "breachbench-generator-0.3",
+    "seed": 20260906,
+    "cases": 60,
+    "horizon": 24,
+    "history_windows": [24, 48, 96, 168]
+  },
+  "topology": {
+    "jobs": 1,
+    "retries": 1,
+    "case_timeout_seconds": 60,
+    "atomic_case_checkpoints": true,
+    "resumable": true
+  },
+  "accounting": {
+    "baseline_completed": 60,
+    "candidate_completed": 60,
+    "final_completed": 60,
+    "probability_bearing": 45,
+    "event_probability_unavailable": 15,
+    "dependence_preserved_supported": 0,
+    "candidate_total_available": 24,
+    "candidate_total_unavailable_with_event": 21
+  },
+  "existing_engine": {
+    "any_step_coherence_passed": true,
+    "governed_policy_cost": 60.0,
+    "always_act_cost": 90.0,
+    "always_monitor_cost": 140.0,
+    "probability_skill_gate_applicable": false,
+    "probability_skill_reason": "No dependence-preserved rows occurred in the frozen current-head corpus; deterministic supported-lane contract tests pass but are not real-series skill evidence."
+  },
+  "candidate": {
+    "existing_surface_exact_parity": true,
+    "cumulative_identity_passed": true,
+    "cumulative_coherence_passed": true,
+    "fallback_truth_passed": true,
+    "mean_total_interval_width": 72102.34883066667,
+    "mean_summed_marginal_width": 283156.5660625,
+    "width_ratio": 0.25463774276296247,
+    "realised_total_coverage": 0.25,
+    "required_coverage_lower": 0.65,
+    "required_coverage_upper": 0.95,
+    "coverage_gate_passed": false
+  },
+  "manual_inspection": {
+    "available_best_effort": "b20260906-0052 used blocked_residual_bootstrap_v1, disclosed dependence_preserved=false and best_effort support; realised total 8718.1587 lay inside 8716.553013–8747.110945.",
+    "undercovered_best_effort": "b20260906-0055 projected 1973203.686732–2143537.548541 while the realised total was 1318451.2681.",
+    "near_miss": "b20260906-0043 projected 10541.53525–10548.00655 while the realised total was 10548.4003.",
+    "unavailable": "b20260906-0024 had a best-effort independence-composed event probability but no complete empirical forecast paths; the candidate said the total distribution was unavailable and did not sum marginal endpoints.",
+    "supported_real_series": "none in the frozen corpus; no supported-path empirical claim is made"
+  },
+  "raw_evidence": [
+    "results/v06-p6-joint-horizon-baseline/",
+    "results/v06-p6-joint-horizon-treatment/",
+    "results/v06-p6-joint-horizon-final/"
+  ],
+  "decision": "complete_no_build",
+  "decision_reason": "Reject the cumulative-horizon projection because realised-total coverage was 25%, far below the frozen 65% lower gate. Preserve the already-useful any-step breach executable unchanged."
+}

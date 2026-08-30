@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "loop": "v0.6-product-improvement",
+  "status": "active",
+  "branch": "agent/v0.6-reasoning-loop",
+  "head_commit": "e61b2930a136e3dd8372abb3af370f0a51a31066",
+  "protocol": "docs/v0.6-improvement-loop.md",
+  "preservation": {
+    "preserve_preexisting_committed_work": true,
+    "preserve_preexisting_benchmark_artifacts": true,
+    "preserve_all_preexisting_untracked_files": true,
+    "excluded_from_commits": ["docs/astrid-btc-agent-plan.md"]
+  },
+  "completed_iteration": {
+    "id": "I006",
+    "priority": "P6",
+    "decision": "complete_no_build",
+    "user_outcome": "Keep the cost-useful any-step breach engine, but withhold cumulative-total intervals whose realised coverage is unsafe for agents or humans.",
+    "decision_evidence": "results/benchmark-releases/2026-08-30-v06-loop-i006/decision.json",
+    "tests": "2560 passed, 11 skipped in the final full local suite; 24 focused final tests passed; 180/180 matched engine cases completed.",
+    "remaining_risk": "No supported aligned-path case occurred in the frozen real-series corpus, and calibrated cumulative totals remain an open research problem.",
+    "production_default_changed": false
+  },
+  "active_iteration": {
+    "id": "I007",
+    "priority": "P7",
+    "phase": "choose_and_freeze_gate",
+    "user_hypothesis": "When related forecasts must add up across service, region, product, or other hierarchies, agents should receive coherent totals and components while humans retain the original evidence, adjustment size, and authority boundary.",
+    "must_not_regress": [
+      "leaf and aggregate forecast accuracy against mandatory baselines",
+      "quantile ordering and support truth",
+      "immutable original forecasts and explicit reconciliation deltas",
+      "no future hierarchy observations at runtime",
+      "missing or inconsistent hierarchy definitions fail safely",
+      "compact agent output preserves coherence and adjustment provenance"
+    ],
+    "next_action": "Audit existing multi-series grouping, aggregation, constraint, and publication contracts; determine whether a real user-facing incoherence exists before freezing a prospective hierarchy corpus and accuracy/coherence gate."
+  },
+  "priorities": [
+    {"id": "P1", "name": "three-layer release scorecard", "status": "complete"},
+    {"id": "P2", "name": "short-history forecast skill", "status": "complete_no_build"},
+    {"id": "P3", "name": "sourced contextual evidence", "status": "complete"},
+    {"id": "P4", "name": "covariate-aware and multivariate candidates", "status": "complete_no_build_with_boundary_fix"},
+    {"id": "P5", "name": "outcome-adaptive champion/challenger routing", "status": "complete"},
+    {"id": "P6", "name": "joint multi-horizon uncertainty", "status": "complete_no_build"},
+    {"id": "P7", "name": "hierarchical reconciliation", "status": "in_progress"},
+    {"id": "P8", "name": "agent decision brief and preservation contract", "status": "pending"},
+    {"id": "P9", "name": "value-of-information recovery", "status": "pending"},
+    {"id": "P10", "name": "production inference reliability", "status": "pending"}
+  ]
+}

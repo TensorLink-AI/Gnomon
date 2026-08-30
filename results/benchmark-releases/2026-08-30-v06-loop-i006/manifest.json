@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.1",
+  "release": "2026-08-30-v06-loop-i006",
+  "curated_by_commit": "e61b2930a136e3dd8372abb3af370f0a51a31066",
+  "benchmarks": [
+    {"file": "joint-horizon-result.json", "benchmark": "jointhorizonbench", "arm": "baseline-vs-rejected-cumulative-total-candidate-vs-final", "scope": "full", "status": "complete", "bytes": 3070, "sha256": "f1ff5b712786f430470164a6b6c08e7f14dedd882360b62f23be583a68d5f766"},
+    {"file": "scorecard.json", "benchmark": "three-layer-product-scorecard", "arm": "i006-final-decision", "scope": "full", "status": "complete", "bytes": 2890, "sha256": "81ec80e00d328e0fb75b35b0883c7ab215cc51b8f2975c19d9be4f70670aed2e"}
+  ],
+  "decision_files": [
+    {"file": "decision.json", "bytes": 2032, "sha256": "99e1d3f01de40bbcc1fdac7c0d3bafa2f3f8cf48aadf0fcd6daea3f4b1726174"},
+    {"file": "checkpoint.json", "bytes": 3142, "sha256": "d2877cf6070355a165d5e6cb3e44d4c3e4cd24aff540f90c0afea4b3881346c1"},
+    {"file": "README.md", "bytes": 1542, "sha256": "af8fa207aaa1ab57ef70f49f0e4107e754aa688d83803abff8e6596031ba54ee"}
+  ],
+  "not_included": [
+    {"benchmark": "raw resumable case rows", "reason": "Preserved under results/v06-p6-joint-horizon-* and excluded from the aggregate git release."},
+    {"benchmark": "supported-path real-series skill", "reason": "No dependence-preserved supported row occurred in the frozen current-head corpus; deterministic contract tests are not substituted for empirical skill."},
+    {"benchmark": "cumulative total product surface", "reason": "Rejected after 25% realised-total coverage failed the frozen 65% lower bound; reproducible at commit 54dab4d."},
+    {"benchmark": "competition-specific plan", "reason": "docs/astrid-btc-agent-plan.md is explicitly outside this loop and release."}
+  ],
+  "policy": {
+    "aggregate_only": true,
+    "raw_runs_are_local_artifacts": true,
+    "failed_candidates_remain_reproducible": true,
+    "no_post_outcome_tuning": true,
+    "production_candidate_removed": true
+  }
+}
