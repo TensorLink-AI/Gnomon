@@ -1714,11 +1714,13 @@ class _RunBase:
                         "considered": 1,
                         "admitted": int(status == "used"),
                         "rejected": sum(
-                            1 for item in dispositions
+                            int(item.get("count") or 1)
+                            for item in dispositions
                             if isinstance(item, dict)
                             and item.get("disposition") == "rejected"),
                         "scenario_only": sum(
-                            1 for item in dispositions
+                            int(item.get("count") or 1)
+                            for item in dispositions
                             if isinstance(item, dict)
                             and item.get("disposition") == "scenario"),
                         "applied": int(status == "used"),

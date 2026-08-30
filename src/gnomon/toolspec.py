@@ -506,13 +506,51 @@ def compact_publication_for_wire(payload: dict[str, Any]) -> dict[str, Any]:
         for disposition in dispositions:
             label = str(disposition.get("disposition") or "unknown")
             counts[label] = counts.get(label, 0) + 1
-        projection["context_dispositions"] = dispositions[:4]
+        grouped: dict[str, dict[str, Any]] = {}
+        for disposition in dispositions:
+            evidence = disposition.get("source_evidence") or {}
+            source = evidence.get("source") or {}
+            signature = json.dumps({
+                "disposition": disposition.get("disposition"),
+                "reason_code": disposition.get("reason_code"),
+                "reason": disposition.get("reason"),
+                "source_type": source.get("type"),
+                "source_reference": source.get("reference"),
+                "known_at": evidence.get("known_at"),
+                "receipt_id": evidence.get("receipt_id"),
+            }, sort_keys=True, separators=(",", ":"))
+            if signature not in grouped:
+                grouped[signature] = {
+                    **disposition,
+                    "representative_context_id": disposition.get(
+                        "context_id"),
+                    "count": 0,
+                }
+            grouped[signature]["count"] += 1
+        visible_dispositions = list(grouped.values())[:4]
+        projection["context_dispositions"] = visible_dispositions
         projection["context_disposition_counts"] = counts
-        projection["context_dispositions_omitted"] = len(dispositions) - 4
+        projection["context_dispositions_omitted"] = (
+            len(dispositions) - len(visible_dispositions))
         projection["context_dispositions_location"] = (
             "receipt.context_dispositions")
     contract = projection.get("selection_contract")
     if isinstance(contract, dict):
+        claims = [item for item in contract.get("claims") or []
+                  if isinstance(item, dict)]
+        claim_groups: dict[str, dict[str, Any]] = {}
+        for claim in claims:
+            shared = {key: value for key, value in claim.items()
+                      if key != "claim_id"}
+            signature = json.dumps(
+                shared, sort_keys=True, separators=(",", ":"))
+            if signature not in claim_groups:
+                claim_groups[signature] = {
+                    **claim,
+                    "representative_claim_id": claim.get("claim_id"),
+                    "count": 0,
+                }
+            claim_groups[signature]["count"] += 1
         compact_contract = {key: contract.get(key) for key in (
             "selection_required", "deterministic_scenario_id",
             "selection_basis")}
@@ -544,12 +582,13 @@ def compact_publication_for_wire(payload: dict[str, Any]) -> dict[str, Any]:
                      else {})
                     for scenario in contract.get("scenarios") or []
                     if isinstance(scenario, dict)],
-                "claims": list(contract.get("claims") or [])[:4],
+                "claims": list(claim_groups.values())[:4],
                 **({
-                    "claim_count": len(contract.get("claims") or []),
-                    "claims_omitted": len(contract.get("claims") or []) - 4,
+                    "claim_count": len(claims),
+                    "claims_omitted": len(claims) - min(
+                        4, len(claim_groups)),
                     "claims_location": "receipt.selection_contract.claims",
-                } if len(contract.get("claims") or []) > 4 else {}),
+                } if len(claims) > min(4, len(claim_groups)) else {}),
                 "observation_evidence": contract.get(
                     "observation_evidence") or [],
             })
@@ -1122,6 +1161,39 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
             projected["events_omitted"] = len(events) - 4
             projected["events_location"] = (
                 "artifact.results[].context_outcome.events")
+        context_evidence = list(projected.get("context_evidence") or [])
+        if len(context_evidence) > 4:
+            evidence_groups: dict[str, dict[str, Any]] = {}
+            for evidence in context_evidence:
+                source = evidence.get("source") or {}
+                # Missing provenance remains distinct; only exact validated
+                # source identities are safe to collapse for the wire.
+                signature_values = {
+                    "source_type": source.get("type"),
+                    "source_reference": source.get("reference"),
+                    "known_at": evidence.get("known_at"),
+                    "receipt_id": evidence.get("receipt_id"),
+                }
+                if not source.get("reference"):
+                    signature_values["context_id"] = evidence.get(
+                        "context_id")
+                signature = json.dumps(
+                    signature_values, sort_keys=True, separators=(",", ":"))
+                if signature not in evidence_groups:
+                    evidence_groups[signature] = {
+                        **evidence,
+                        "representative_context_id": evidence.get(
+                            "context_id"),
+                        "count": 0,
+                    }
+                evidence_groups[signature]["count"] += 1
+            evidence_preview = list(evidence_groups.values())[:4]
+            projected["context_evidence_count"] = len(context_evidence)
+            projected["context_evidence"] = evidence_preview
+            projected["context_evidence_omitted"] = \
+                len(context_evidence) - len(evidence_preview)
+            projected["context_evidence_location"] = (
+                "artifact.results[].context_outcome.context_evidence")
         dispositions = list(projected.get("dispositions") or [])
         if len(dispositions) > 4:
             counts: dict[str, int] = {}
@@ -1163,10 +1235,12 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
         excluded = list(projected.get("excluded") or [])
         if len(excluded) > 4:
             reason_counts: dict[str, int] = {}
+            reason_examples: dict[str, dict[str, Any]] = {}
             for exclusion in excluded:
                 reason = str(exclusion.get("reason") or "unspecified")
                 reason_counts[reason] = reason_counts.get(reason, 0) + 1
-            projected["excluded"] = excluded[:4]
+                reason_examples.setdefault(reason, exclusion)
+            projected["excluded"] = list(reason_examples.values())[:4]
             projected["excluded_count"] = len(excluded)
             projected["excluded_reason_counts"] = reason_counts
             projected["excluded_omitted"] = len(excluded) - 4
