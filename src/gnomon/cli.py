@@ -1193,6 +1193,8 @@ def _default_horizon(args) -> int:
         frequency=getattr(args, "frequency", None),
         as_of=_parse_as_of(getattr(args, "as_of", None)),
         store_path=getattr(args, "store_path", None),
+        repair=getattr(args, "repair", "safe"),
+        regrid=getattr(args, "regrid", None),
     )
     longest = max(loaded.groups.values(), key=len, default=[])
     season, _, _ = detect_season([item.value for item in longest], loaded.frequency)

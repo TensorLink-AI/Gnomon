@@ -438,3 +438,18 @@ def test_filthy_example_end_to_end(tmp_path: Path) -> None:
     assert any("repaired_data" in warning for warning in result.warnings)
     written = json.loads((artifact_dir / "artifact.json").read_text(encoding="utf-8"))
     assert any(item["kind"] == "data_repair" for item in written["evidence"])
+
+
+def test_cli_default_horizon_uses_the_requested_repair_policy(
+        tmp_path: Path, capsys) -> None:
+    """Horizon inference must inspect the same repaired data as publication."""
+    from gnomon.cli import main
+
+    source = REPO / "examples" / "filthy_requests.csv"
+    assert main([
+        "forecast", str(source), "--time", "timestamp", "--target", "requests",
+        "--repair", "aggressive", "--output", str(tmp_path / "out"),
+    ]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "complete"
+    assert payload["results"][0]["forecast_rows"] >= 1
