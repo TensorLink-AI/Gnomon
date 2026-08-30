@@ -188,6 +188,37 @@ def test_readme_installs_the_checkout_it_says_it_installs():
             )
 
 
+def test_public_install_docs_treat_pypi_as_available():
+    """The package has shipped; first-run docs must not still call PyPI future."""
+    current_install_docs = {
+        "README.md": README,
+        "docs/getting-started.md": _doc("getting-started.md"),
+        "docs/installation.md": _doc("installation.md"),
+    }
+    stale = ("future PyPI", "Until that release exists", "After the first tagged release")
+    for name, content in current_install_docs.items():
+        for phrase in stale:
+            assert phrase not in content, f"{name} still says {phrase!r}"
+        assert "gnomon-forecast" in content, f"{name} omits the PyPI distribution"
+
+
+def test_current_docs_name_the_default_core_surface_and_active_loop(monkeypatch):
+    from gnomon.toolspec import visible_tools
+
+    monkeypatch.delenv("GNOMON_MCP_PROFILE", raising=False)
+    skill_doc = _doc("agent-skill-and-feedback.md")
+    index = _doc("README.md")
+    assert f"{len(visible_tools())}-tool default `core` surface" in skill_doc
+    assert "[v0.8 improvement loop](v0.8-agent-forecasting-loop.md)" in index
+    assert "[v0.6 improvement loop](v0.6-improvement-loop.md)" not in index
+
+
+def test_documentation_index_names_general_subdaily_patterns():
+    index = _doc("README.md")
+    for pattern in ("<N>s", "<N>min", "<N>h"):
+        assert pattern in index
+
+
 # -- the artifact layout ---------------------------------------------------
 
 def test_readme_lists_every_file_a_run_writes(tmp_path):

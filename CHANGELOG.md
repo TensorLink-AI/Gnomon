@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+### Changed
+
+- Make the 10-tool `core` MCP profile the default so agents can reach all five
+  governed outcome views plus inspection, description, routing, capabilities,
+  and run explanation without opting into administrative tools.
+- Correct seasonal trend descriptions and the exact two-cycle seasonal-period
+  boundary without changing mature-series selection.
+- Return a disclosed structural starting point from cold-start routing and a
+  continuous evaluated-prefix/best-effort-tail answer for materially long
+  threshold requests when the governed paths disagree.
+- Add an explicit opt-in StatsForecast candidate family, calibration lineage,
+  decision contracts, action tiers, and crash-safe evaluation checkpoints;
+  StatsForecast remains disabled by default because naturalistic quality gates
+  did not pass.
+- Improve agent and operator ergonomics for candidate lists, investigation
+  headlines, frequency diagnostics, repair guidance, and Prometheus YAML.
+
+### Validation status
+
+- Local suites, package builds, clean-wheel smoke tests, deterministic
+  benchmarks, and exact-head pull-request CI are green.
+- Broad forecast-superiority, hosted-agent utility, request/token economy,
+  TemporalBench, and CiK claims remain withheld pending the frozen external
+  evaluation lanes. PR #86 is merged, but no v0.8 release has been tagged or
+  recommended from that incomplete external evidence.
+
 ## 0.7.0 — forecast-quality and agent-boundary hardening (2026-08-30)
 
 Gnomon 0.7.0 improves governed forecast selection, temporal answers, context

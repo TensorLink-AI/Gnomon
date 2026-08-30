@@ -8,6 +8,17 @@
 
 No account, network service, LLM, or API key is required to forecast.
 
+## Install the published package
+
+```bash
+uv tool install gnomon-forecast
+gnomon --version
+gnomon capabilities
+```
+
+The distribution is named `gnomon-forecast`; the installed command is
+`gnomon`. No account or API key is required.
+
 ## Install from this checkout
 
 ```bash
@@ -22,8 +33,8 @@ gnomon capabilities
 right for a first install from a URL, and wrong when you are testing local
 changes.
 
-See [Installation options](installation.md) for uv, direct GitHub, pinned
-release, and future PyPI installation methods.
+See [Installation options](installation.md) for PyPI, uv, direct GitHub,
+pinned-release, and optional-extra installation methods.
 
 To reinstall after changing the source:
 

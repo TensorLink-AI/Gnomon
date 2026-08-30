@@ -32,7 +32,8 @@ certification.
 
 ## The promise
 
-Gnomon owns every number it returns:
+Gnomon owns the publication authority and provenance for every number it
+returns:
 
 - point-in-time reads make future leakage structurally unavailable;
 - the exact executable candidate that earns publication produces the final
@@ -43,16 +44,22 @@ Gnomon owns every number it returns:
   to recompute or reinterpret the artifact;
 - forecasts and decisions can be scored against realised outcomes.
 
+The governed primary is always computed by the runtime. A host may submit a
+conditional scenario, but Gnomon keeps it attributed, labelled, non-primary,
+and non-automatable unless independent historical evidence later admits it.
+
 The agent continues to own intent, authorized data discovery, orchestration,
 and explanation. It may quote Gnomon; it may not invent, edit, or silently
 upgrade Gnomon's numerical claims.
 
 ## The deployed boundary
 
-This repository ships a zero-dependency classical runtime with optional local
-TSFM sandboxes, bitemporal data, CLI and Python APIs, a stdio MCP server,
-integrity-sealed artifacts, and outcome tracking. MCP is the sole agent-facing
-contract.
+This repository ships a zero-dependency classical runtime with optional
+governed StatsForecast candidates and local TSFM sandboxes, bitemporal data,
+CLI and Python APIs, a stdio MCP server, integrity-sealed artifacts, and
+outcome tracking. MCP is the sole supported structured agent-facing contract;
+the packaged agent skill is usage guidance over that contract, not a second
+execution surface.
 
 It does not ship a hosted inference service, a live benchmark service, an
 enterprise artifact store, or a model-training network. Those can be adjacent

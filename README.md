@@ -10,9 +10,9 @@ it weak. If it cannot compute an honest answer, it abstains and says what is
 needed next.
 
 You do not need to choose a forecasting model or write a backtest. Gnomon can
-run locally with its built-in models, optionally evaluate sandboxed time-series
-foundation models, and expose the same deterministic runtime through the CLI,
-Python, or MCP.
+run locally with its built-in models, optionally evaluate governed
+StatsForecast candidates or sandboxed time-series foundation models, and
+expose the same deterministic runtime through the CLI, Python, or MCP.
 
 ## What Gnomon does
 
@@ -25,6 +25,11 @@ Gnomon answers five kinds of question about a time series:
 | `gnomon detect` | What is abnormal? | Competing detectors graded on injected anomalies (or your labels); the winner flags, with every candidate's F1 disclosed |
 | `gnomon decide` | What should we do? | Exceedance scenarios, feasibility and constraint checks, expected utility — degraded honestly when utilities are missing |
 | `gnomon monitor` | When should we intervene? | Sequential exceedance risk and a cost-optimal alert rule |
+
+These are the five governed outcome views. The default 10-tool agent surface
+also includes supporting tools for capabilities, inspection, description,
+routing, and run explanation; those tools prepare or explain an outcome rather
+than creating additional product promises.
 
 Its first product job is operational threshold risk:
 
@@ -48,8 +53,11 @@ For a human, Gnomon replaces the fragile chain of cleaning a file, choosing a
 model, inventing a backtest, and explaining the result by hand. For an agent,
 it creates a hard boundary: the model may frame the question and explain the
 answer, but Gnomon owns timestamps, evaluation, model selection, intervals,
-support status, and every published value. The LLM cannot silently edit or
-invent those numbers.
+support status, and publication authority. Primary forecast values are
+computed by the governed runtime. Externally proposed conditional paths remain
+attributed, labelled, non-primary, and non-automatable unless independent
+historical evidence later admits them. The LLM cannot silently edit or invent
+Gnomon's primary numbers.
 
 Depending on the question, a governed result includes:
 
@@ -104,14 +112,15 @@ validate against and structured errors carrying machine-readable repair
 options.
 
 ```bash
-git clone https://github.com/TensorLink-AI/Gnomon && cd Gnomon
-
 # Claude Code
-claude mcp add gnomon -- uvx --from "$(pwd)" gnomon mcp serve
+claude mcp add gnomon -- uvx --from gnomon-forecast gnomon mcp serve
 
 # any other MCP client: run this as a stdio server
-uvx --from . gnomon mcp serve
+uvx --from gnomon-forecast gnomon mcp serve
 ```
+
+For repository development, run `uvx --from . gnomon mcp serve` from a
+checkout instead.
 
 Then ask your agent one complete operational question:
 
@@ -133,8 +142,8 @@ observations. Context-aware calls return a persistent, project-scoped
 rechecks knowledge timing and numerical admission. See the
 [MCP quickstart](docs/quickstart-mcp.md) for
 client configs, the vintage workflow, and the full tool surface.
-(A `pip install gnomon-forecast` / `uvx gnomon-forecast` path arrives with the
-PyPI release.)
+The PyPI distribution is named `gnomon-forecast`; the installed command and
+MCP server remain `gnomon`.
 
 Conversation cost is an engineering constraint, not a completed claim. Wide
 data is handled in one batched call; brief responses keep disclosures while
@@ -493,7 +502,7 @@ docker run --rm gnomon capabilities
 ```
 
 The direct GitHub installer, private-repository behaviour, pinned releases,
-the Parquet extra, and the future PyPI command are covered in the
+PyPI installation, and optional extras are covered in the
 [installation guide](docs/installation.md).
 
 ## Configuration

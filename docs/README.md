@@ -3,9 +3,11 @@
 Gnomon is the trusted temporal execution boundary for agents. It turns a
 temporal question into one evidence-linked answer the caller can quote,
 inspect, and later score. An agent frames the question; Gnomon validates the
-data, evaluates the candidates, computes every number, and preserves the
-evidence tier and receipts. The executable that wins evaluation is the
-executable that publishes. Its first product job is operational threshold risk—what may
+data, evaluates the candidates, computes the governed primary numbers, and
+preserves the evidence tier and receipts. Externally proposed conditional
+paths remain attributed and cannot silently replace the primary. The
+executable that wins evaluation is the executable that publishes. Its first
+product job is operational threshold risk—what may
 breach, when, and whether intervention is justified—but the runtime exposes
 five governed views: *what happens next?*
 (`forecast`), *what changed?* (`investigate`), *what is abnormal?*
@@ -46,7 +48,7 @@ build can do.** Prefer it to any prose here, including this file.
 | [LLM integrations](llm-integrations.md) | You need the boundary between Gnomon, an MCP host, and optional model APIs. |
 | [Agent evaluation](agent-evaluation.md) | You want to measure whether Gnomon improves an agent. |
 | [Product position](product-position.md) | You need the promise, buyer, boundaries, and claims Gnomon can make. |
-| [v0.6 improvement loop](v0.6-improvement-loop.md) | You want the active priority gates, validation loop, and resumable checkpoint protocol. |
+| [v0.8 improvement loop](v0.8-agent-forecasting-loop.md) | You want the active priority gates, validation loop, and resumable checkpoint protocol. |
 | [Development](development.md) | You want to test or contribute to Gnomon. |
 | [Containers](containers.md) | You want to build or run the Docker image. |
 | [CI/CD](ci-cd.md) | You maintain validation, publishing, or releases. |
@@ -55,8 +57,9 @@ build can do.** Prefer it to any prose here, including this file.
 
 **Verbs and surfaces**
 
-- Five verbs — `forecast`, `investigate`, `detect`, `decide`, `monitor` —
-  plus `route`, `inspect`, `capabilities`, and `status`.
+- Five governed outcome views — `forecast`, `investigate`, `detect`, `decide`,
+  `monitor` — plus supporting and administrative commands such as `describe`,
+  `route`, `inspect`, `capabilities`, and `status`.
 - Three front doors: CLI, Python API, and a local stdio MCP server
   (`gnomon mcp serve`, 10 tools in the default `core` profile). Docker
   packages the CLI rather than adding another contract surface.
@@ -74,6 +77,8 @@ build can do.** Prefer it to any prose here, including this file.
 - Mandatory last-value, seasonal-naive, and historical-mean baselines that a
   candidate must beat by a configured margin.
 - Drift, linear-trend, window-average, Theta, and ETS candidates, plus an
+  explicit opt-in StatsForecast extra whose candidates still compete inside
+  Gnomon's outer evaluation, and an
   opt-in sandboxed TSFM tier of seven pinned adapters — Chronos-Bolt (mini
   and small), Toto, Moment, Moirai, Granite TTM, FlowState
   (`gnomon tsfm install`).
@@ -96,9 +101,9 @@ build can do.** Prefer it to any prose here, including this file.
 - Structured errors with machine-readable repair options on every failure.
 
 **Inputs:** CSV, TSV, JSON, JSONL (each optionally gzipped), Parquet
-(`parquet` extra), Excel (`excel` extra). Minute (1/5/15/30), hourly,
-daily, weekly, and month-start frequencies. Independent series in one
-panel file.
+(`parquet` extra), Excel (`excel` extra). Regular subdaily frequencies written
+as `<N>s`, `<N>min`, or `<N>h`, plus daily, weekly, and month-start
+frequencies. Independent series in one panel file.
 
 **Not built:** hosted services, sharing, and automatic model switching.
 Realised leaderboards are observational telemetry and never switch a model
