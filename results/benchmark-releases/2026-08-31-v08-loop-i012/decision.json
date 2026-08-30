@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "iteration": "I012",
+  "issue": "external_evaluation_v2",
+  "production_candidate": "44ec74a",
+  "decision": "promote_general_boundary_fixes_to_draft_review",
+  "safe_for_draft_review": true,
+  "release_recommended": false,
+  "promoted": [
+    "seasonally adjusted descriptive trend regression",
+    "narrow exactly-two-cycle seasonal endpoint detection",
+    "complete default MCP access to operational verbs",
+    "structural cold-start routing with disclosed backtest requirement",
+    "evaluated-prefix bounded threshold publication with continuous labelled tail",
+    "canonical indeterminate bounded answer when paths conflict",
+    "frequency, candidate-list, investigation-headline, and Prometheus ergonomics"
+  ],
+  "rejected_or_retained": [
+    "Generic degraded-prefix publication was not promoted because dropping context on the split path changed the unconditional answer and wide splits exceeded response budgets.",
+    "StatsForecast remains explicit opt-in and disabled by default because the retained naturalistic quality gates remain failed.",
+    "No forecast-superiority, hosted-agent, TemporalBench, CiK, or orchestration-economy claim is made."
+  ],
+  "claims_allowed": [
+    "The reported seasonal descriptive trend defect is fixed on an independently regenerated shape.",
+    "Exactly two complete hourly cycles now identify period 24 across every phase offset.",
+    "The default MCP profile exposes every primary operational verb and route.",
+    "Local safety and contract validation passes at the production candidate."
+  ],
+  "claims_withheld": [
+    "Broad real-world forecast superiority",
+    "Final-agent preservation or decision-utility improvement",
+    "Hosted request or prompt-token economy",
+    "TemporalBench or CiK improvement",
+    "Release readiness before exact-head CI and external review"
+  ],
+  "pull_request_state": "draft_until_exact_head_ci_is_green"
+}
