@@ -145,29 +145,26 @@ def test_intervals_widen_with_the_horizon(tmp_path: Path) -> None:
 
 
 def test_threshold_probabilities_agree_with_published_quantiles(tmp_path: Path) -> None:
-    """On a fold-starved trending series the intervals are centred on the
-    point path (recentring suppressed) while the raw backtest residuals all
-    share the trend's sign. The crossing probabilities must describe the
-    published quantiles, not the uncentred residual cloud: the README
-    example used to publish P(above 340) = 0.61 in the same artifact as
-    q80 = point + 6.1."""
+    """A supported probability must describe the published quantiles, not an
+    uncentred residual cloud belonging to a different path."""
     source = tmp_path / "trending.csv"
-    write_noisy(source, 40, slope=2.0)
+    write_noisy(source, 100, slope=2.0)
     baseline, _ = forecast(
-        str(source), time_column="timestamp", target_column="value", horizon=8,
+        str(source), time_column="timestamp", target_column="value", horizon=5,
         output=str(tmp_path / "baseline"),
     )
     row = baseline.results[0].forecast[0]
 
     at_median, _ = forecast(
-        str(source), time_column="timestamp", target_column="value", horizon=8,
+        str(source), time_column="timestamp", target_column="value", horizon=5,
         output=str(tmp_path / "at-median"), threshold=row["q50"],
     )
+    assert at_median.results[0].support_assessment["status"] == "supported"
     p_median = at_median.results[0].threshold["probability_above"][0]
     assert 0.25 <= p_median <= 0.75
 
     above_q90, _ = forecast(
-        str(source), time_column="timestamp", target_column="value", horizon=8,
+        str(source), time_column="timestamp", target_column="value", horizon=5,
         output=str(tmp_path / "above-q90"), threshold=row["q90"] + 1e-6,
     )
     p_tail = above_q90.results[0].threshold["probability_above"][0]
