@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.1",
+  "release": "2026-08-30-v06-loop-i004",
+  "curated_by_commit": "ae8e77d70875cc6ca6deda1b8c59e8f466746267",
+  "benchmarks": [
+    {
+      "file": "engine-compare.json",
+      "benchmark": "multivariatebench",
+      "arm": "frozen-twelve-case-baseline-vs-adapter-boundary",
+      "scope": "full",
+      "status": "complete_gate_failed",
+      "bytes": 2512,
+      "sha256": "c3359054b29ae8ed14b39ad3f5b9566fed5dec2aae7f3b0513a4f75149a0a648"
+    },
+    {
+      "file": "scorecard.json",
+      "benchmark": "three-layer-product-scorecard",
+      "arm": "i004-no-build-decision",
+      "scope": "full",
+      "status": "complete",
+      "bytes": 6278,
+      "sha256": "ae4339d13a62db4ea45877711855ac5646b0f335b3d42def9be579fda92fa1b2"
+    }
+  ],
+  "decision_files": [
+    {"file": "decision.json", "bytes": 3134, "sha256": "d5c78f38f1bb6f7ded971ad364eb6553d6c7264827c9afb3a5cc1c09e0e5fd7f"},
+    {"file": "checkpoint.json", "bytes": 3418, "sha256": "0c508c402c275632f91910785a4009c81c9ee278259745b1a3a4d960b5b2a483"},
+    {"file": "README.md", "bytes": 1566, "sha256": "79c4e0e2c7110940100491b89d840c4f03058dac8ddebf28f18f8020cff3f5a9"}
+  ],
+  "not_included": [
+    {
+      "benchmark": "raw resumable rows and forecast artifacts",
+      "reason": "Preserved under results/v06-p4-i004-* and excluded from the aggregate git release."
+    },
+    {
+      "benchmark": "native multivariate TSFM",
+      "reason": "No invoked Gnomon TSFM adapter method accepts related series; unsupported public claims were removed rather than treating upstream support as implemented behavior."
+    },
+    {
+      "benchmark": "agent-boundary probe",
+      "reason": "Primary, admission, automation, and numeric behavior were unchanged; P8 retains the independent cross-model preservation evaluation."
+    },
+    {
+      "benchmark": "competition-specific plan",
+      "reason": "docs/astrid-btc-agent-plan.md is explicitly outside this loop and release."
+    }
+  ],
+  "policy": {
+    "aggregate_only": true,
+    "raw_runs_are_local_artifacts": true,
+    "synthetic_results_are_not_public_accuracy_claims": true,
+    "failed_skill_gate_must_remain_visible": true,
+    "no_threshold_tuning_after_holdout": true
+  }
+}

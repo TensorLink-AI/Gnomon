@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "evaluated_commit": "ae8e77d70875cc6ca6deda1b8c59e8f466746267",
+  "protocol": "docs/v0.6-p4-multivariate-protocol.md",
+  "baseline_run": "results/v06-p4-i004-baseline/",
+  "final_run": "results/v06-p4-i004-final/",
+  "corpus": {
+    "generator_version": "p4-multivariate-1",
+    "seeds": [4100, 4101, 4102, 4103, 4104, 4105, 4106, 4107, 4108, 4109, 4110, 4111],
+    "training_points": 192,
+    "horizon": 12,
+    "families": {"lagged_driver": 6, "shared_pattern_control": 3, "independent_control": 3}
+  },
+  "accounting": {
+    "expected": 12,
+    "baseline_completed": 12,
+    "final_completed": 12,
+    "failed": 0,
+    "jobs": 1,
+    "retries": 1,
+    "case_timeout_seconds": 60
+  },
+  "prospective_skill": {
+    "driver_var_admissions": 0,
+    "required_driver_var_admissions": 4,
+    "driver_median_relative_smape_improvement": 0.0,
+    "required_driver_median_relative_smape_improvement": 0.1,
+    "admitted_driver_aggregate_smape_improvement": 0.0,
+    "passed": false,
+    "interpretation": "VAR cleared the mandated-baseline margin on all six driver cases but ETS was better on the identical selection folds, so the governed selector correctly retained ETS. The threshold and corpus were not changed after observing this result."
+  },
+  "control_safety": {
+    "var_admissions": 0,
+    "independent_var_admissions": 0,
+    "median_smape_improvement": 0.0,
+    "maximum_admitted_harm": 0.0,
+    "passed": true
+  },
+  "boundary_parity": {
+    "published_models_equal": true,
+    "maximum_control_point_absolute_difference": 0.0,
+    "maximum_treatment_point_absolute_difference": 0.0,
+    "maximum_var_selection_score_absolute_difference": 1.2351231148954867e-15,
+    "threshold": 1e-9,
+    "passed": true
+  },
+  "reasoning_contract": {
+    "eligible_provenance_complete": 9,
+    "eligible_provenance_expected": 9,
+    "all_records_name_target_and_supplied_series": true,
+    "all_eligible_records_name_retained_series": true,
+    "adapter_protocol_conformance": true,
+    "unsupported_tsfm_multivariate_claims_removed": 3,
+    "engine_contract_complete": true
+  },
+  "deciding_checks": {
+    "var_is_the_best_candidate": 6,
+    "var_beats_strongest_baseline_by_margin": 3,
+    "series_eligible_for_var": 3
+  },
+  "agent_preservation": {
+    "status": "not_run",
+    "reason": "The primary/admission relationship and forecast values did not change. New fields add engine-side series and adapter provenance; P3's existing primary-preservation invariant remains unchanged."
+  }
+}

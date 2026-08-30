@@ -1,0 +1,144 @@
+{
+  "schema_version": "0.1",
+  "scorecard_id": "v0.6-i004-multivariate-boundary",
+  "scorecard_commit": "ae8e77d70875cc6ca6deda1b8c59e8f466746267",
+  "dirty_tree": false,
+  "scope": "full",
+  "layers": {
+    "output": {
+      "status": "fail",
+      "evaluated_commit": "ae8e77d70875cc6ca6deda1b8c59e8f466746267",
+      "dataset_identity": "Frozen p4-multivariate-1 synthetic corpus; seeds 4100-4111; six lagged drivers and six controls; 192-point prefixes plus untouched 12-step holdouts",
+      "configuration_identity": "built-in candidates; multivariate false control versus true treatment; serial local execution; common rolling folds; unchanged 0.3 correlation eligibility and configured admission margin",
+      "accounting": {"expected": 12, "completed": 12, "answered": 12, "abstained": 0, "failed": 0},
+      "metrics": [
+        {
+          "name": "driver_var_admissions",
+          "value": 0,
+          "unit": "cases",
+          "denominator": 6,
+          "gate": {"operator": "gte", "threshold": 4, "passed": false}
+        },
+        {
+          "name": "driver_median_relative_smape_improvement",
+          "value": 0.0,
+          "unit": "fraction",
+          "denominator": 6,
+          "gate": {"operator": "gte", "threshold": 0.1, "passed": false}
+        },
+        {
+          "name": "independent_control_var_admissions",
+          "value": 0,
+          "unit": "cases",
+          "denominator": 3,
+          "gate": {"operator": "eq", "threshold": 0, "passed": true}
+        },
+        {
+          "name": "maximum_published_point_absolute_difference",
+          "value": 0.0,
+          "unit": "target_units",
+          "denominator": 12,
+          "gate": {"operator": "lte", "threshold": 1e-9, "passed": true}
+        }
+      ],
+      "evidence": [
+        {"path": "results/benchmark-releases/2026-08-30-v06-loop-i004/engine-compare.json", "sha256": "c3359054b29ae8ed14b39ad3f5b9566fed5dec2aae7f3b0513a4f75149a0a648"}
+      ]
+    },
+    "reasoning": {
+      "status": "pass",
+      "evaluated_commit": "ae8e77d70875cc6ca6deda1b8c59e8f466746267",
+      "dataset_identity": "All 12 final engine gate records, including nine eligible and three correlation-ineligible cases",
+      "configuration_identity": "ForecastAdapter protocol 0.1; explicit related_series request; engine evidence inspected independently of forecast skill",
+      "accounting": {"expected": 12, "completed": 12, "answered": 12, "abstained": 0, "failed": 0},
+      "metrics": [
+        {
+          "name": "eligible_adapter_provenance_rate",
+          "value": 1.0,
+          "unit": "fraction",
+          "denominator": 9,
+          "gate": {"operator": "eq", "threshold": 1.0, "passed": true}
+        },
+        {
+          "name": "records_naming_supplied_series_rate",
+          "value": 1.0,
+          "unit": "fraction",
+          "denominator": 12,
+          "gate": {"operator": "eq", "threshold": 1.0, "passed": true}
+        },
+        {
+          "name": "unsupported_tsfm_multivariate_claims_remaining",
+          "value": 0,
+          "unit": "capability_claims",
+          "denominator": 3,
+          "gate": {"operator": "eq", "threshold": 0, "passed": true}
+        },
+        {
+          "name": "adapter_contract_failures",
+          "value": 0,
+          "unit": "checks",
+          "denominator": 7,
+          "gate": {"operator": "eq", "threshold": 0, "passed": true}
+        }
+      ],
+      "evidence": [
+        {"path": "results/benchmark-releases/2026-08-30-v06-loop-i004/engine-compare.json", "sha256": "c3359054b29ae8ed14b39ad3f5b9566fed5dec2aae7f3b0513a4f75149a0a648"}
+      ]
+    },
+    "topology": {
+      "status": "pass",
+      "evaluated_commit": "ae8e77d70875cc6ca6deda1b8c59e8f466746267",
+      "dataset_identity": "Twelve serial final cases with one atomic checkpoint per case and failures retained in denominators",
+      "configuration_identity": "jobs=1; one bounded retry; 60-second per-case alarm; resumable case files; local inference only",
+      "accounting": {"expected": 12, "completed": 12, "answered": 12, "abstained": 0, "failed": 0},
+      "metrics": [
+        {
+          "name": "completion_rate",
+          "value": 1.0,
+          "unit": "fraction",
+          "denominator": 12,
+          "gate": {"operator": "eq", "threshold": 1.0, "passed": true}
+        },
+        {
+          "name": "maximum_jobs",
+          "value": 1,
+          "unit": "workers",
+          "denominator": 12,
+          "gate": {"operator": "eq", "threshold": 1, "passed": true}
+        },
+        {
+          "name": "failed_cases",
+          "value": 0,
+          "unit": "cases",
+          "denominator": 12,
+          "gate": {"operator": "eq", "threshold": 0, "passed": true}
+        }
+      ],
+      "evidence": [
+        {"path": "results/benchmark-releases/2026-08-30-v06-loop-i004/engine-compare.json", "sha256": "c3359054b29ae8ed14b39ad3f5b9566fed5dec2aae7f3b0513a4f75149a0a648"}
+      ]
+    }
+  },
+  "invariants": {
+    "failed_skill_gate_remains_visible": {
+      "status": "pass",
+      "evidence": [{"path": "results/benchmark-releases/2026-08-30-v06-loop-i004/decision.json", "sha256": "d5c78f38f1bb6f7ded971ad364eb6553d6c7264827c9afb3a5cc1c09e0e5fd7f"}]
+    },
+    "runtime_did_not_use_case_ids_labels_or_holdouts": {
+      "status": "pass",
+      "evidence": [{"path": "results/benchmark-releases/2026-08-30-v06-loop-i004/decision.json", "sha256": "d5c78f38f1bb6f7ded971ad364eb6553d6c7264827c9afb3a5cc1c09e0e5fd7f"}]
+    },
+    "univariate_primary_preserved_when_var_lost": {
+      "status": "pass",
+      "evidence": [{"path": "results/benchmark-releases/2026-08-30-v06-loop-i004/engine-compare.json", "sha256": "c3359054b29ae8ed14b39ad3f5b9566fed5dec2aae7f3b0513a4f75149a0a648"}]
+    },
+    "capability_claims_match_invoked_protocol": {
+      "status": "pass",
+      "evidence": [{"path": "results/benchmark-releases/2026-08-30-v06-loop-i004/engine-compare.json", "sha256": "c3359054b29ae8ed14b39ad3f5b9566fed5dec2aae7f3b0513a4f75149a0a648"}]
+    }
+  },
+  "decision": {
+    "status": "reject",
+    "reason": "The multivariate candidate does not clear the frozen prospective skill gate and is not expanded. The independently passing adapter-contract and capability-truth corrections are retained as general boundary fixes."
+  }
+}

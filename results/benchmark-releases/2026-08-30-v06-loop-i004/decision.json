@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "iteration": "I004",
+  "priority": "P4",
+  "decision": "complete_no_build_with_boundary_fix",
+  "evaluated_commit": "ae8e77d70875cc6ca6deda1b8c59e8f466746267",
+  "protocol": "docs/v0.6-p4-multivariate-protocol.md",
+  "user_outcome": "Agents and humans now receive truthful multivariate capability claims and can inspect exactly which related series entered the guarded candidate, without weakening the evidence required to replace a univariate primary.",
+  "candidate_decision": {
+    "status": "no_build",
+    "reason": "The frozen prospective skill gate failed: zero of six lagged-driver cases admitted VAR because ETS remained the best identical-fold candidate. Gnomon correctly retained its univariate primary, and neither thresholds nor case generation were revised after holdout inspection.",
+    "default_behavior_expanded": false
+  },
+  "promoted_boundary_fixes": [
+    "the built-in VAR executable now consumes immutable, validated related_series through ForecastAdapter",
+    "multivariate evidence names target, supplied series, retained series, adapter kind/name, and protocol version",
+    "Toto 2.0 and TTM no longer advertise multivariate-target support that Gnomon's invoked univariate adapter methods cannot honor",
+    "the VAR estimator and admission policy are numerically unchanged within the frozen 1e-9 parity bound"
+  ],
+  "validation": {
+    "full_local_suite": {"passed": 2549, "skipped": 11, "failed": 0},
+    "focused_final_suite": {"passed": 37, "failed": 0},
+    "prospective_cases": {"expected": 12, "completed": 12, "failed": 0},
+    "engine_compare": "results/benchmark-releases/2026-08-30-v06-loop-i004/engine-compare.json"
+  },
+  "manual_inspection": [
+    "lagged_driver-4100: VAR completed every fold and beat the mandated baseline margin, but ETS scored better; primary correctly remained ETS",
+    "shared_pattern_control-4106: high correlation alone did not admit VAR; the margin check rejected it",
+    "independent_control-4109: low correlation made VAR ineligible; supplied related series remained disclosed and retained series was empty"
+  ],
+  "unchanged_policies": [
+    "minimum correlation and admission margin",
+    "univariate model ladder and fallback",
+    "fold partitioning and point-in-time slicing",
+    "selected primary and automation relationship",
+    "covariate known_at validation"
+  ],
+  "remaining_risks": [
+    "The retained corpus is synthetic and establishes a conservative no-build decision, not real-world multivariate superiority.",
+    "The correlation eligibility calculation is dataset-level while fold forecasts themselves are prefix-only; future work should make eligibility fold-local before using VAR in an automatic default.",
+    "Native Toto and TTM multivariate inference remains unimplemented in Gnomon's adapter surface.",
+    "No agent-boundary API probe was run because the typed primary/admission relationship did not change; P8 will independently test compact decision briefs."
+  ],
+  "raw_evidence": [
+    "results/v06-p4-i004-baseline/",
+    "results/v06-p4-i004-treatment-v2/",
+    "results/v06-p4-i004-final/"
+  ]
+}
