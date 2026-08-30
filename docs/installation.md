@@ -72,7 +72,8 @@ uv tool install 'git+https://github.com/TensorLink-AI/Gnomon.git@main'
 
 ## Install from PyPI
 
-After the first tagged release has been published:
+The published distribution is `gnomon-forecast`; it installs the `gnomon`
+command:
 
 ```bash
 pipx install gnomon-forecast
@@ -80,7 +81,8 @@ pipx install gnomon-forecast
 uv tool install gnomon-forecast
 ```
 
-Until that release exists, use the checkout, GitHub, or Bash installer methods.
+Pin `gnomon-forecast==<version>` in controlled environments. Use the checkout
+or GitHub methods above when testing unreleased changes.
 
 ## Install Parquet support
 
