@@ -158,10 +158,21 @@ def _summarise(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def run() -> dict[str, Any]:
+def run(dataset_ids: set[str] | None = None) -> dict[str, Any]:
+    selected_specs = [
+        spec for spec in DATASETS
+        if dataset_ids is None or spec["id"] in dataset_ids
+    ]
+    unknown = sorted((dataset_ids or set())
+                     - {str(spec["id"]) for spec in DATASETS})
+    if unknown:
+        raise ValueError(f"unknown frozen dataset ids: {', '.join(unknown)}")
+    if not selected_specs:
+        raise ValueError("at least one frozen dataset is required")
+    full_scope = len(selected_specs) == len(DATASETS)
     rows: list[dict[str, Any]] = []
     identities: list[dict[str, Any]] = []
-    for spec in DATASETS:
+    for spec in selected_specs:
         values = _read_values(spec)
         identities.append({
             "dataset_id": spec["id"], "group": spec["group"],
@@ -248,6 +259,7 @@ def run() -> dict[str, Any]:
     result = {
         "schema_version": "0.1",
         "benchmark": "naturalistic-production-selector-confirmation",
+        "scope": "full" if full_scope else "smoke",
         "protocol": "docs/v0.7-q1-naturalistic-confirmation-protocol.md",
         "minimum_baseline_improvement": DEFAULT_MINIMUM_IMPROVEMENT,
         "cutoff_fractions": list(CUTOFF_FRACTIONS),
@@ -259,8 +271,9 @@ def run() -> dict[str, Any]:
         "by_dataset": by_dataset,
         "raw_records": rows,
     }
-    result["gates"] = {
-        "all_48_product_cases_complete": overall["completed"] == 48,
+    common_gates = {
+        "all_product_cases_complete": (
+            overall["completed"] == len(selected_specs) * len(CUTOFF_FRACTIONS)),
         "no_silent_fallback": all(
             row["engine_supported"] or row["fallback_disclosed"]
             for row in rows if row["completed"]),
@@ -272,6 +285,15 @@ def run() -> dict[str, Any]:
             and all(math.isfinite(float(value))
                     for value in row["reference_losses"].values())
             for row in rows),
+        "selection_provenance_complete": all(
+            row["published_model"] != "none"
+            and row["published_support"] in {
+                "supported", "weakly_supported", "degraded", "best_effort"}
+            and isinstance(row["selection_scores"], dict)
+            and isinstance(row["warnings"], list)
+            for row in rows if row["completed"]),
+    }
+    promotion_gates = {
         "at_least_10_departures": overall["departures"] >= 10,
         "departure_precision_at_least_70pct": (
             overall["admission_precision"] is not None
@@ -286,24 +308,25 @@ def run() -> dict[str, Any]:
         "group_median_regression_within_2pct": (
             len(group_medians) == 4
             and min(float(value) for value in group_medians) >= -0.02),
-        "selection_provenance_complete": all(
-            row["published_model"] != "none"
-            and row["published_support"] in {
-                "supported", "weakly_supported", "degraded", "best_effort"}
-            and isinstance(row["selection_scores"], dict)
-            and isinstance(row["warnings"], list)
-            for row in rows if row["completed"]),
         "no_departure_invalidated_by_historical_mean": (
             overall["mean_invalidated_departures"] == 0),
     }
+    result["gates"] = (
+        {**common_gates, **promotion_gates} if full_scope else common_gates)
     return result
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-dir", type=Path)
+    parser.add_argument(
+        "--datasets",
+        help="Comma-separated frozen dataset ids for a smoke shard; omit for all 12.",
+    )
     args = parser.parse_args()
-    result = run()
+    dataset_ids = ({item.strip() for item in args.datasets.split(",") if item.strip()}
+                   if args.datasets else None)
+    result = run(dataset_ids)
     result["evaluated_commit"] = code_revision()
     if args.output_dir:
         args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -313,8 +336,9 @@ def main() -> int:
         )
         write_manifest(
             args.output_dir, benchmark="naturalistic-selector",
-            condition="current-production-policy",
-            target="12-real-series-48-frozen-origins",
+            condition=f"current-production-policy-{result['scope']}",
+            target=("12-real-series-48-frozen-origins" if dataset_ids is None
+                    else "datasets:" + ",".join(sorted(dataset_ids))),
         )
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if all(result["gates"].values()) else 2
