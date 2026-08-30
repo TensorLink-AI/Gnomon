@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "iteration": "I009",
+  "issue": "Q3",
+  "decision": "retain_numeric_recall_no_build_and_agent_boundary_no_build",
+  "evaluated_commit": "ed732a6",
+  "protocols": [
+    "docs/v0.7-q3-context-recall-protocol.md",
+    "docs/v0.7-q3-agent-boundary-protocol.md"
+  ],
+  "finding": "Compiler supply is complete. The remaining engine nonadmissions lack sufficient prefix-visible repeatability, placebo separation, timing knowledge, or transformation-specific folds; lowering gates would optimize to sealed labels and weaken empirical precision.",
+  "decision_basis": {
+    "development_stress_cases": 56,
+    "development_naturalistic_cases": 16,
+    "agent_boundary_cases": 4,
+    "compiler_precision": 1.0,
+    "compiler_recall": 1.0,
+    "empirical_admission_precision": 1.0,
+    "empirical_admission_recall": 0.3888888888888889,
+    "false_influence_rate": 0.0,
+    "leakage_count": 0,
+    "typed_scenario_contract_rate": 1.0,
+    "agent_relationship_preservation_rate": 1.0,
+    "focused_tests": "362 passed"
+  },
+  "candidate": {
+    "production_change_attempted": false,
+    "reason": "No general evidence-valid mechanism was found. Scenario disclosure was already complete and is not numeric admission recall.",
+    "confirmation_corpora_consumed": false
+  },
+  "preserved_confirmation_corpora": [
+    "results/v07-q3-i009-stress-confirmation-corpus/",
+    "results/v07-q3-i009-naturalistic-confirmation-corpus/"
+  ],
+  "next_issue": "Q4"
+}
