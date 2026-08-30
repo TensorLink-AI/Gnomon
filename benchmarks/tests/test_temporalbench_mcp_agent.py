@@ -2308,6 +2308,8 @@ def test_host_projects_all_unambiguous_canonical_receipt_answers(tmp_path):
     assert projected["weak_volatility"]["authority"] == "advisory"
     assert projected["weak_volatility"]["has_computed_opposition"] is True
     assert projected["weak_volatility"]["computed_alternative"] == "decreased"
+    assert projected["level"]["canonical_value"] == "higher"
+    assert projected["level"]["primary_forecast_unchanged"] is False
 
 
 def test_submission_binds_supported_but_preserves_weak_synthesis() -> None:
@@ -2341,6 +2343,14 @@ def test_submission_binds_supported_but_preserves_weak_synthesis() -> None:
     assert run.submission["synthesized_mcq"] == {
         "strong": "Lower", "weak": "decreased"}
     assert run.submission["choice_authority"]["weak"] == "advisory_override"
+    assert run.submission["temporal_choice_contracts"]["weak"] == {
+        "canonical_value": None,
+        "display_value": "increased",
+        "support": None,
+        "automation_eligible": None,
+        "primary_forecast_unchanged": None,
+        "authority": "advisory",
+    }
 
 
 def test_unsubstantiated_weak_override_keeps_canonical_default() -> None:

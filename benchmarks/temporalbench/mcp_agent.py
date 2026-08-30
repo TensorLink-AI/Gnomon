@@ -2450,6 +2450,19 @@ class _Run(_RunBase):
                       if value["authority"] == "advisory" else "binding")
                 for key, value in projected.items()},
             "choice_basis": accepted_overrides,
+            "temporal_choice_contracts": {
+                key: {
+                    "canonical_value": value.get("canonical_value"),
+                    "display_value": value.get("display_value"),
+                    "support": value.get("support"),
+                    "automation_eligible": value.get(
+                        "automation_eligible"),
+                    "primary_forecast_unchanged": value.get(
+                        "primary_forecast_unchanged"),
+                    "authority": value.get("authority"),
+                }
+                for key, value in projected.items()
+            },
         }
         if self.row.get("_require_context_explanation"):
             supplied_codes = arguments.get("cited_context_gate_codes") or []
@@ -2724,9 +2737,12 @@ class _Run(_RunBase):
                     if alternative_choice else None)
                 projected[key] = {
                     **choice,
+                    "canonical_value": best.get("value"),
                     "support": str(best.get("support") or "unknown"),
                     "automation_eligible": bool(
                         best.get("automation_eligible") is True),
+                    "primary_forecast_unchanged": bool(
+                        reasoning.get("primary_forecast_unchanged") is True),
                     "authority": ("binding" if
                                   best.get("support") == "supported"
                                   and best.get("automation_eligible") is True
@@ -2782,6 +2798,8 @@ class _Run(_RunBase):
             "synthesized_mcq": self.submission.get("synthesized_mcq", {}),
             "choice_authority": self.submission.get("choice_authority", {}),
             "choice_basis": self.submission.get("choice_basis", {}),
+            "temporal_choice_contracts": self.submission.get(
+                "temporal_choice_contracts", {}),
             **({"last_call": self.submission["last_call"]}
                if self.submission.get("last_call") else {}),
             "mcp": self._mcp_info(),

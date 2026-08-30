@@ -413,7 +413,7 @@ def answer_descriptive_question(
         return result
     if prop in {"level", "trend", "seasonality", "regime", "extreme"} \
             and question.verb in {"predict", "compare"} \
-            and not forecast_values:
+            and (not forecast_values or prop == "trend"):
         answer = fit_temporal_executable(
             values, property=prop, horizon=question.horizon or 1,
             season=season).execute()
