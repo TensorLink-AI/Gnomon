@@ -33,6 +33,7 @@
       "selection_scores": {
         "last_value": 0.07947019867549669,
         "seasonal_naive": 0.1390728476821192,
+        "historical_mean": 0.20860927152317882,
         "drift": 0.0,
         "linear_trend": 0.0,
         "window_average": 0.1390728476821192,
@@ -43,6 +44,7 @@
       "test_scores": {
         "last_value": 0.06217616580310881,
         "seasonal_naive": null,
+        "historical_mean": null,
         "drift": 0.0,
         "linear_trend": null,
         "window_average": null,
@@ -253,6 +255,7 @@
         "selection_scores": {
           "last_value": 0.07947019867549669,
           "seasonal_naive": 0.1390728476821192,
+          "historical_mean": 0.20860927152317882,
           "drift": 0.0,
           "linear_trend": 0.0,
           "window_average": 0.1390728476821192,
@@ -263,6 +266,7 @@
         "test_scores": {
           "last_value": 0.06217616580310881,
           "seasonal_naive": null,
+          "historical_mean": null,
           "drift": 0.0,
           "linear_trend": null,
           "window_average": null,

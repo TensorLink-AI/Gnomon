@@ -5,7 +5,15 @@ import random
 
 import pytest
 
-from gnomon.models import MODELS, ets, linear_trend, theta, window_average
+from gnomon.models import (
+    BASELINES,
+    MODELS,
+    ets,
+    historical_mean,
+    linear_trend,
+    theta,
+    window_average,
+)
 
 
 def trend_series(count: int, slope: float = 2.0, noise: float = 0.0) -> list[float]:
@@ -31,6 +39,26 @@ def test_window_average_is_flat_mean_of_recent_window() -> None:
     history = [1.0] * 50 + [3.0] * 7
     forecast = window_average(history, 4, 7)
     assert forecast == [pytest.approx(3.0)] * 4
+
+
+def test_historical_mean_is_a_mandatory_expanding_level_baseline() -> None:
+    assert historical_mean([1.0, 3.0, 8.0], 4, 7) == [4.0] * 4
+    assert "historical_mean" in BASELINES
+
+
+def test_historical_mean_can_protect_an_iid_level_series() -> None:
+    from gnomon.evaluation import evaluate
+
+    rng = random.Random(0)
+    values = [50.0 + rng.gauss(0, 4.0) for _ in range(120)]
+    result = evaluate(
+        values, horizon=7, season=1, minimum_improvement=0.02,
+        frequency="D", tsfm_names=[],
+    )
+    assert result.selected_model == "historical_mean"
+    assert result.strongest_baseline == "historical_mean"
+    assert result.selection_scores["historical_mean"] \
+        < result.selection_scores["last_value"]
 
 
 def test_theta_extrapolates_half_the_trend() -> None:

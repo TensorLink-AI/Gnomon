@@ -33,6 +33,7 @@
       "selection_scores": {
         "last_value": null,
         "seasonal_naive": null,
+        "historical_mean": null,
         "drift": null,
         "linear_trend": null,
         "window_average": null,
@@ -43,6 +44,7 @@
       "test_scores": {
         "last_value": null,
         "seasonal_naive": null,
+        "historical_mean": null,
         "drift": null,
         "linear_trend": null,
         "window_average": null,
@@ -97,6 +99,7 @@
         "selection_scores": {
           "last_value": null,
           "seasonal_naive": null,
+          "historical_mean": null,
           "drift": null,
           "linear_trend": null,
           "window_average": null,
@@ -107,6 +110,7 @@
         "test_scores": {
           "last_value": null,
           "seasonal_naive": null,
+          "historical_mean": null,
           "drift": null,
           "linear_trend": null,
           "window_average": null,

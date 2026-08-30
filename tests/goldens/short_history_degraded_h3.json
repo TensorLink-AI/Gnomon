@@ -33,6 +33,7 @@
       "selection_scores": {
         "last_value": 0.01818181818181818,
         "seasonal_naive": null,
+        "historical_mean": 0.05454545454545454,
         "drift": 0.0,
         "linear_trend": 0.0,
         "window_average": 0.05454545454545454,
@@ -43,6 +44,7 @@
       "test_scores": {
         "last_value": null,
         "seasonal_naive": null,
+        "historical_mean": null,
         "drift": null,
         "linear_trend": null,
         "window_average": null,
@@ -171,6 +173,7 @@
         "selection_scores": {
           "last_value": 0.01818181818181818,
           "seasonal_naive": null,
+          "historical_mean": 0.05454545454545454,
           "drift": 0.0,
           "linear_trend": 0.0,
           "window_average": 0.05454545454545454,
@@ -181,6 +184,7 @@
         "test_scores": {
           "last_value": null,
           "seasonal_naive": null,
+          "historical_mean": null,
           "drift": null,
           "linear_trend": null,
           "window_average": null,

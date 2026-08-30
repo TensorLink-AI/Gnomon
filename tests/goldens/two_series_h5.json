@@ -33,6 +33,7 @@
       "selection_scores": {
         "last_value": 0.03419859446673828,
         "seasonal_naive": 0.042636740429272825,
+        "historical_mean": 0.1005542944873243,
         "drift": 0.03429897665682723,
         "linear_trend": 0.02407187647818961,
         "window_average": 0.037710494990708415,
@@ -43,6 +44,7 @@
       "test_scores": {
         "last_value": 0.03267744202389318,
         "seasonal_naive": null,
+        "historical_mean": null,
         "drift": null,
         "linear_trend": null,
         "window_average": null,
@@ -194,6 +196,7 @@
       "selection_scores": {
         "last_value": 0.0375465579437471,
         "seasonal_naive": 0.028537251007060515,
+        "historical_mean": 0.08736666341719886,
         "drift": 0.03543252195828532,
         "linear_trend": 0.022575494842780673,
         "window_average": 0.031436126262427824,
@@ -204,6 +207,7 @@
       "test_scores": {
         "last_value": null,
         "seasonal_naive": 0.010089020771513243,
+        "historical_mean": null,
         "drift": null,
         "linear_trend": 0.02686466187949863,
         "window_average": null,
@@ -370,6 +374,7 @@
         "selection_scores": {
           "last_value": 0.03419859446673828,
           "seasonal_naive": 0.042636740429272825,
+          "historical_mean": 0.1005542944873243,
           "drift": 0.03429897665682723,
           "linear_trend": 0.02407187647818961,
           "window_average": 0.037710494990708415,
@@ -380,6 +385,7 @@
         "test_scores": {
           "last_value": 0.03267744202389318,
           "seasonal_naive": null,
+          "historical_mean": null,
           "drift": null,
           "linear_trend": null,
           "window_average": null,
@@ -425,6 +431,7 @@
         "selection_scores": {
           "last_value": 0.0375465579437471,
           "seasonal_naive": 0.028537251007060515,
+          "historical_mean": 0.08736666341719886,
           "drift": 0.03543252195828532,
           "linear_trend": 0.022575494842780673,
           "window_average": 0.031436126262427824,
@@ -435,6 +442,7 @@
         "test_scores": {
           "last_value": null,
           "seasonal_naive": 0.010089020771513243,
+          "historical_mean": null,
           "drift": null,
           "linear_trend": 0.02686466187949863,
           "window_average": null,

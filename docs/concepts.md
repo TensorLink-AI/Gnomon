@@ -144,8 +144,9 @@ from two unrelated single-series answers.
 ## Why Gnomon runs baselines
 
 A forecast is useful only relative to a credible simple alternative. Gnomon
-always tries last-value and seasonal-naive forecasts before considering the
-candidate models (drift, linear trend, window average, Theta, ETS). A
+always tries last-value, seasonal-naive, and historical-mean forecasts before
+considering the candidate models (drift, linear trend, window average, Theta,
+ETS). A
 candidate must beat the strongest successful baseline by a configured margin.
 
 ## Temporal evaluation

@@ -192,7 +192,8 @@ def test_forecast_accepts_the_routers_candidates(tmp_path):
         name for name, value in artifact.results[0].selection_scores.items()
         if value is not None
     }
-    assert scored <= {"drift", "theta", "last_value", "seasonal_naive"}
+    assert scored <= {
+        "drift", "theta", "last_value", "seasonal_naive", "historical_mean"}
     assert "ets" not in scored, "a model outside the pool competed"
 
 
@@ -204,7 +205,8 @@ def test_baselines_survive_a_candidate_restriction(tmp_path):
         horizon=7, output=str(tmp_path / "out"), clock=CLOCK,
         candidates=["drift"],
     )
-    assert artifact.results[0].strongest_baseline in {"last_value", "seasonal_naive"}
+    assert artifact.results[0].strongest_baseline in {
+        "last_value", "seasonal_naive", "historical_mean"}
 
 
 def test_explicit_classical_pool_excludes_installed_tsfms(tmp_path, monkeypatch):
@@ -231,7 +233,8 @@ def test_explicit_classical_pool_excludes_installed_tsfms(tmp_path, monkeypatch)
         name for name, score in artifact.results[0].selection_scores.items()
         if score is not None
     }
-    assert scored <= {"last_value", "seasonal_naive", "drift", "theta"}
+    assert scored <= {
+        "last_value", "seasonal_naive", "historical_mean", "drift", "theta"}
 
 
 def test_explicit_baseline_only_pool_is_not_the_open_default(tmp_path):
@@ -246,8 +249,8 @@ def test_explicit_baseline_only_pool_is_not_the_open_default(tmp_path):
         name for name, score in artifact.results[0].selection_scores.items()
         if score is not None
     }
-    # Both mandatory baselines remain, but no non-baseline candidate leaks in.
-    assert scored <= {"last_value", "seasonal_naive"}
+    # Every mandatory baseline remains, but no non-baseline candidate leaks in.
+    assert scored <= {"last_value", "seasonal_naive", "historical_mean"}
 
 
 def test_unknown_candidate_is_refused(tmp_path):

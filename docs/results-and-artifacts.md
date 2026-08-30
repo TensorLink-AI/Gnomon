@@ -40,8 +40,10 @@ baseline by at least `minimum_baseline_improvement`.
 
 The current baselines are:
 
-- `last_value`: repeats the latest observation; and
-- `seasonal_naive`: repeats values from the default seasonal period.
+- `last_value`: repeats the latest observation;
+- `seasonal_naive`: repeats values from the default seasonal period; and
+- `historical_mean`: repeats the mean of every observation visible in the
+  training prefix.
 
 The current candidate models are:
 
