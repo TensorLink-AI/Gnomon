@@ -223,6 +223,31 @@ def write_artifact(
                         f"{reason['message']}"
                         for reason in event.get("reasons") or []
                     )
+                    cumulative = event.get("cumulative_horizon") or {}
+                    if cumulative:
+                        total_interval = cumulative.get(
+                            "total_interval_80") or {}
+                        if cumulative.get("status") == "available":
+                            lines.extend([
+                                f"- Horizon point total: "
+                                f"{cumulative.get('point_total')}",
+                                f"- Empirical horizon median total: "
+                                f"{cumulative.get('median_total')}",
+                                f"- Empirical 80% horizon-total interval: "
+                                f"{total_interval.get('lower')}–"
+                                f"{total_interval.get('upper')}",
+                                f"- Horizon-total support: "
+                                f"{cumulative.get('support')}",
+                                f"- Horizon-total basis: "
+                                f"{cumulative.get('basis')}",
+                                f"- Horizon-total dependence preserved: "
+                                f"{bool(cumulative.get('dependence_preserved'))}",
+                            ])
+                        else:
+                            lines.append(
+                                "- Empirical horizon-total distribution: "
+                                "unavailable (marginal bands were not summed)"
+                            )
             if result.covariates:
                 lines.extend([
                     "", "### Covariates", "",

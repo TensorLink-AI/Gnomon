@@ -184,7 +184,10 @@ def test_threshold_analysis_reports_crossings(tmp_path: Path) -> None:
     assert len(result.threshold["probability_above"]) == 24
     assert result.threshold["first_timestamp_point_above"] is not None
     assert all(0.0 <= p <= 1.0 for p in result.threshold["probability_above"])
-    assert "Threshold" in (directory / "summary.md").read_text()
+    summary = (directory / "summary.md").read_text()
+    assert "Threshold" in summary
+    assert "Horizon point total" in summary
+    assert "Horizon-total basis" in summary
 
 
 def test_minute_frequency_is_inferred_and_forecastable(tmp_path: Path) -> None:

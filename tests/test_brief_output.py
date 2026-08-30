@@ -185,3 +185,17 @@ def test_mcp_forecast_accepts_brief_format(tmp_path):
     result = payload["results"][0]
     assert set(result["forecast"][0]) == {"timestamp", "q10", "q50", "q90", "tier"}
     assert result["support_assessment"] is not None
+
+
+def test_brief_retains_joint_horizon_total_contract(tmp_path):
+    artifact, path = forecast(
+        DAILY, time_column="timestamp", target_column="requests",
+        horizon=7, threshold=340.0, output=str(tmp_path), clock=CLOCK,
+    )
+    complete = artifact.results[0].threshold["horizon_event"][
+        "cumulative_horizon"]
+    projected = brief_summary(artifact, path)["results"][0]["threshold"][
+        "horizon_event"]["cumulative_horizon"]
+    assert projected == complete
+    assert {"point_total", "median_total", "total_interval_80", "support",
+            "basis", "dependence_preserved"} <= projected.keys()
