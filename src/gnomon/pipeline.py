@@ -853,6 +853,18 @@ def multivariate_stage(
     score = assessment.selection_scores.get(MULTIVARIATE_MODEL_NAME)
     baseline = assessment.strongest_baseline
     baseline_score = assessment.selection_scores.get(baseline) if baseline else None
+    confirmation = assessment.selection_stability.get("confirmation")
+    var_confirmation = (
+        confirmation
+        if isinstance(confirmation, dict)
+        and confirmation.get("candidate") == MULTIVARIATE_MODEL_NAME
+        and confirmation.get("required") is True
+        else None
+    )
+    var_won_selection = (
+        state.selected_model == MULTIVARIATE_MODEL_NAME
+        or var_confirmation is not None
+    )
     checks: list[dict[str, Any]] = [{
         "code": "series_eligible_for_var",
         "passed": eligible,
@@ -879,9 +891,25 @@ def multivariate_stage(
             # from "cross-series signal, but a univariate model did better".
             checks.append({
                 "code": "var_is_the_best_candidate",
-                "passed": state.selected_model == MULTIVARIATE_MODEL_NAME,
-                "measured": state.selected_model,
+                "passed": var_won_selection,
+                "measured": (
+                    MULTIVARIATE_MODEL_NAME
+                    if var_won_selection else state.selected_model
+                ),
             })
+            if var_confirmation is not None:
+                checks.append({
+                    "code": "var_passed_independent_confirmation",
+                    "passed": var_confirmation.get("passed") is True,
+                    "measured": {
+                        "origin_index": var_confirmation.get("origin_index"),
+                        "candidate_score": var_confirmation.get(
+                            "candidate_score"),
+                        "baseline": var_confirmation.get("baseline"),
+                        "baseline_score": var_confirmation.get(
+                            "baseline_score"),
+                    },
+                })
     state.evidence.append(Evidence(
         f"multivariate_gate:{state.name}", "multivariate_gate", state.name,
         {

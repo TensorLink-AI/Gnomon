@@ -165,7 +165,7 @@ class TestMultivariateAdmission:
     def test_var_is_decided_per_series_not_imposed_on_all(self, tmp_path):
         """A VAR that helps one series must not be forced onto the other."""
         path = tmp_path / "series.csv"
-        _write_csv(path, _groups())
+        _write_csv(path, _groups(count=160))
         artifact, _ = forecast(
             str(path), time_column="timestamp", target_column="value",
             series_column="series", horizon=12, multivariate=True,
@@ -181,7 +181,7 @@ class TestMultivariateAdmission:
 
     def test_admitted_var_carries_its_own_intervals(self, tmp_path):
         path = tmp_path / "series.csv"
-        _write_csv(path, _groups())
+        _write_csv(path, _groups(count=160))
         artifact, _ = forecast(
             str(path), time_column="timestamp", target_column="value",
             series_column="series", horizon=12, multivariate=True,
@@ -189,8 +189,36 @@ class TestMultivariateAdmission:
         )
         result = next(r for r in artifact.results if r.selected_model == "var")
         assert result.forecast
-        assert all(row["q10"] <= row["point"] <= row["q90"]
+        assert all(row["q10"] <= row["q50"] <= row["q90"]
                    for row in result.forecast)
+        confirmation = result.support_assessment[
+            "sensitivity"]["selection_stability"]["confirmation"]
+        assert confirmation["candidate"] == "var"
+        assert confirmation["passed"] is True
+        assert result.test_scores["var"] is not None
+
+    def test_var_confirmation_veto_is_named_in_gate_evidence(self, tmp_path):
+        path = tmp_path / "series.csv"
+        _write_csv(path, _groups())
+        artifact, _ = forecast(
+            str(path), time_column="timestamp", target_column="value",
+            series_column="series", horizon=12, multivariate=True,
+            output=str(tmp_path / "out"),
+        )
+        result = next(r for r in artifact.results if r.series == "a")
+        confirmation = result.support_assessment[
+            "sensitivity"]["selection_stability"]["confirmation"]
+        record = _gate_records(artifact)["a"]
+        checks = {check["code"]: check for check in record["checks"]}
+
+        assert confirmation["candidate"] == "var"
+        assert confirmation["passed"] is False
+        assert confirmation["fallback_applied"] is True
+        assert result.selected_model == confirmation["baseline"]
+        assert checks["var_is_the_best_candidate"]["passed"] is True
+        assert checks["var_passed_independent_confirmation"]["passed"] is False
+        assert record["admitted"] is False
+        assert record["decided_by"] == "var_passed_independent_confirmation"
 
     def test_ineligible_frame_is_disclosed_rather_than_silent(self, tmp_path):
         path = tmp_path / "series.csv"
