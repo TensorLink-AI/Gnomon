@@ -34,6 +34,36 @@ def _slope(xs: list[float]) -> float:
             if denom else 0.0)
 
 
+def _phase_fixed_slope(xs: list[float], season: int) -> float | None:
+    """Slope after removing one intercept per seasonal phase.
+
+    A raw OLS slope over one or two cycles depends on where the seasonal arc
+    begins. Phase fixed effects make the requested quantity the underlying
+    drift while leaving the caller's admitted period authoritative.
+    """
+    if len(xs) < 2:
+        return None
+    if season <= 1:
+        return _slope(xs)
+    if len(xs) < 2 * season:
+        return None
+    phase_means = {
+        phase: statistics.mean(xs[phase::season])
+        for phase in range(season)
+    }
+    phase_times = {
+        phase: statistics.mean(range(phase, len(xs), season))
+        for phase in range(season)
+    }
+    numerator = denominator = 0.0
+    for index, value in enumerate(xs):
+        phase = index % season
+        centred_time = index - phase_times[phase]
+        numerator += centred_time * (value - phase_means[phase])
+        denominator += centred_time * centred_time
+    return numerator / denominator if denominator else None
+
+
 def _correlation(left: list[float], right: list[float]) -> float | None:
     if len(left) != len(right) or len(left) < 4:
         return None
@@ -102,10 +132,53 @@ def _candidate_names(prop: str, season: int, length: int) -> tuple[str, ...]:
     return _candidates(season, length)
 
 
+def _historical_trend_prediction(kind: str, history: list[float],
+                                 horizon: int, season: int) -> float:
+    """Predict normalized underlying drift without scoring a seasonal arc."""
+    if kind in {"last", "median", "seasonal"}:
+        return 0.0
+    width = min(len(history), max(8, 4 * season, 2 * horizon))
+    slope = _phase_fixed_slope(history[-width:], season)
+    if slope is None:
+        return 0.0
+    if kind == "damped_drift":
+        # Mean one-step damping across the requested horizon. This preserves
+        # the existing damped candidate's semantics without constructing a
+        # point path whose seasonal phase can masquerade as trend.
+        slope *= statistics.mean(.85 ** step for step in range(horizon))
+    return slope / _innovation_scale(history, season)
+
+
+def _future_trend_value(history: list[float], future: list[float],
+                        season: int) -> float:
+    """Realized normalized drift, using only an admitted seasonal period."""
+    if season <= 1:
+        slope = _slope(future)
+    else:
+        slope = _phase_fixed_slope(future, season)
+        if slope is None:
+            # A short future cannot fit phase effects internally. Compare it
+            # with the same phases in the visible history. A full seasonal
+            # cycle averages phase-specific amplitude effects; a shorter arc
+            # remains calibration evidence only and cannot become supported.
+            combined = [*history, *future]
+            changes = [
+                (combined[len(history) + index]
+                 - combined[len(history) + index - season]) / season
+                for index in range(len(future))
+                if len(history) + index >= season
+            ]
+            slope = statistics.mean(changes) if changes else 0.0
+    return slope / _innovation_scale(history, season)
+
+
 def _predict_property(prop: str, kind: str, history: list[float],
                       horizon: int, season: int) -> float:
     if prop == "extreme":
         return _extreme_prediction(kind, history, horizon, season)
+    if prop == "trend":
+        return _historical_trend_prediction(
+            kind, history, horizon, season)
     return _property_value(prop, history, _path(kind, history, horizon, season), season)
 
 
@@ -120,7 +193,7 @@ def _property_value(prop: str, history: list[float], future: list[float],
     if prop == "level":
         return (_median(future) - _median(recent)) / scale
     if prop == "trend":
-        return _slope(future) / scale
+        return _future_trend_value(history, future, season)
     if prop == "seasonality":
         if season <= 1 or len(history) < season:
             return 0.0
@@ -160,9 +233,9 @@ class FittedTemporalExecutable:
     property: str
     candidate: str
     horizon: int
-    estimate: float
-    lower: float
-    upper: float
+    estimate: float | None
+    lower: float | None
+    upper: float | None
     direction: str
     support: str
     probabilities: dict[str, float]
@@ -172,7 +245,9 @@ class FittedTemporalExecutable:
         return {
             "direction": self.direction,
             "estimate": self.estimate,
-            "interval": {"lower": self.lower, "upper": self.upper},
+            "interval": ({"lower": self.lower, "upper": self.upper}
+                         if self.lower is not None and self.upper is not None
+                         else None),
             "support": self.support,
             "automation_eligible": self.support == "supported",
             "direction_probabilities": self.probabilities,
@@ -208,6 +283,46 @@ def fit_temporal_executable(values: list[float], *, property: str,
                 "primary_forecast_unchanged": True,
             },
         )
+    if property == "trend" and season > 1 and len(numeric) < 2 * season:
+        labels = tuple(dict.fromkeys(_LABELS[property]))
+        return FittedTemporalExecutable(
+            property=property, candidate="none", horizon=horizon,
+            estimate=None, lower=None, upper=None, direction="uncertain",
+            support="abstained",
+            probabilities={label: 1 / len(labels) for label in labels},
+            diagnostics={
+                "folds": 0,
+                "reason": "insufficient_cycles_for_seasonally_adjusted_trend",
+                "visible_cycles": len(numeric) / season,
+                "required_cycles": 2,
+                "admitted_period": season,
+                "primary_forecast_unchanged": True,
+            },
+        )
+    unmodelled_seasonality: dict[str, Any] | None = None
+    if property == "trend" and season == 1 and len(numeric) >= 8:
+        # Detection is evidence, not authority to replace the caller's
+        # admitted period. Only strong measured autocorrelation enters this
+        # diagnostic; the executable continues to run with season=1.
+        from .temporal import detect_season
+        detected_period, detected_strength, detected_basis = detect_season(
+            numeric, "unknown")
+        if (detected_basis == "autocorrelation"
+                and detected_period > 1
+                and detected_strength >= .8
+                and len(numeric) >= 2 * detected_period):
+            adjusted_estimate = _historical_trend_prediction(
+                "drift", numeric, horizon, detected_period)
+            unmodelled_seasonality = {
+                "detected_period": detected_period,
+                "strength": detected_strength,
+                "basis": detected_basis,
+                "declared_period": season,
+                "adjusted_direction_diagnostic": _label(
+                    "trend", adjusted_estimate),
+                "adjusted_estimate_diagnostic": adjusted_estimate,
+                "period_was_not_silently_admitted": True,
+            }
     minimum_history = max(32, 3 * horizon, 2 * season)
     origins = list(range(minimum_history, len(numeric) - horizon + 1,
                          max(1, horizon)))
@@ -237,7 +352,7 @@ def fit_temporal_executable(values: list[float], *, property: str,
                 if numeric else 0.0)
     calibration = errors.get(chosen, [])
     implied = [estimate - error for error in calibration]
-    if len(implied) >= minimum_folds:
+    if len(implied) >= minimum_folds or (property == "trend" and implied):
         # Rolling folds are overlapping and temporal regimes are not iid.
         # A modest finite-sample expansion is safer than presenting their
         # raw extrema as a nominal interval, especially for ratio-scaled
@@ -267,6 +382,10 @@ def fit_temporal_executable(values: list[float], *, property: str,
     )
     claim = (len(implied) >= minimum_folds and fold_accuracy >= .8
              and probabilities[strongest] >= .85)
+    calibration_direction_disagreement = (
+        property == "trend" and strongest != point_label)
+    if calibration_direction_disagreement:
+        claim = False
     interval_direction_consistent = (
         _label(property, lower) == strongest == _label(property, upper))
     # A categorical directional claim is stronger than publishing a point
@@ -280,14 +399,32 @@ def fit_temporal_executable(values: list[float], *, property: str,
     # and abstain unless the fitted executable positively predicts the event.
     if property in {"regime", "extreme"} and strongest in {"no_shift", "unlikely"}:
         claim = False
+    unmodelled_disagreement = bool(
+        unmodelled_seasonality
+        and unmodelled_seasonality["adjusted_direction_diagnostic"]
+        != point_label)
+    if unmodelled_seasonality:
+        # Even agreement cannot make an unadmitted adjustment automatic.
+        claim = False
+        unmodelled_seasonality["direction_disagreement"] = (
+            unmodelled_disagreement)
+    public_estimate: float | None = estimate
+    public_lower: float | None = lower
+    public_upper: float | None = upper
+    public_direction = point_label if property == "trend" else strongest
+    public_support = "supported" if claim else "weak"
+    if unmodelled_disagreement:
+        public_estimate = public_lower = public_upper = None
+        public_direction = "uncertain"
+        public_support = "abstained"
     return FittedTemporalExecutable(
         property=property, candidate=chosen, horizon=horizon,
-        estimate=estimate, lower=lower, upper=upper,
+        estimate=public_estimate, lower=public_lower, upper=public_upper,
         # A failed publication gate withholds automation, not the best
         # computable estimate.  The distribution and weak support make the
         # uncertainty explicit without forcing an exploratory user to guess.
-        direction=strongest,
-        support="supported" if claim else "weak",
+        direction=public_direction,
+        support=public_support,
         probabilities=probabilities,
         diagnostics={
             "folds": len(origins), "selection_metric": "property_absolute_error",
@@ -295,6 +432,14 @@ def fit_temporal_executable(values: list[float], *, property: str,
             "skill_vs_baseline": skill, "fold_direction_accuracy": fold_accuracy,
             "minimum_folds": minimum_folds, "primary_forecast_unchanged": True,
             "interval_direction_consistent": interval_direction_consistent,
+            "calibration_modal_direction": strongest,
+            "point_estimate_direction": point_label,
+            "calibration_direction_disagreement": (
+                calibration_direction_disagreement),
+            **({"unmodelled_seasonality": unmodelled_seasonality}
+               if unmodelled_seasonality else {}),
+            **({"reason": "unmodelled_seasonality_changes_trend_direction"}
+               if unmodelled_disagreement else {}),
         },
     )
 
