@@ -342,12 +342,14 @@ def fit_observation_counterfactual(
     strongest_probabilistic_loss = statistics.mean(
         strongest_probabilistic_losses)
     block_wins = 0
+    blocks_evaluated = 0
     distribution_origins = len(probabilistic_losses[family])
     boundaries = [0, distribution_origins // 3,
                   2 * distribution_origins // 3, distribution_origins]
     for left, right in zip(boundaries, boundaries[1:]):
         if right <= left:
             continue
+        blocks_evaluated += 1
         candidate_block = statistics.mean(
             probabilistic_losses[family][left:right])
         comparator_block = statistics.mean(
@@ -426,6 +428,7 @@ def fit_observation_counterfactual(
             if strongest_mae > 0 else None),
         "required_margin": ADMISSION_MARGIN,
         "chronological_block_wins": block_wins,
+        "chronological_blocks_evaluated": blocks_evaluated,
         "required_block_wins": 2,
         "selection_eligible": admitted,
         "human_recommendation_eligible": human_recommendation_eligible,

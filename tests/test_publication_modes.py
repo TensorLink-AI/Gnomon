@@ -92,6 +92,27 @@ def _dossier(compiler_model="test-model"):
         history=[8, 9, 10], compiler_model=compiler_model)[0]
 
 
+def _observation_replay_dossier(block_wins: int):
+    import hashlib
+    import json
+
+    dossier = _dossier()
+    dossier["candidate_critique"]["candidate_origin"] = \
+        "observation_interpretation_counterfactual"
+    dossier["forecast_candidate"]["conditional_replay"] = {
+        "status": "admitted", "selection_eligible": True,
+        "human_recommendation_eligible": True,
+        "chronological_block_wins": block_wins,
+        "chronological_blocks_evaluated": 3,
+        "required_block_wins": 2,
+    }
+    body = {key: value for key, value in dossier.items()
+            if key != "seal_sha256"}
+    dossier["seal_sha256"] = hashlib.sha256(json.dumps(
+        body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    return dossier
+
+
 def test_strict_never_promotes_prior_assisted_candidate():
     payload = publish_result(_result(), mode="strict", dossiers=[_dossier()])
     assert payload["recommended_scenario_id"] == "primary"
@@ -759,6 +780,53 @@ def test_admitted_observation_counterfactual_is_not_shadowed_by_its_claim():
     assert payload["recommended_scenario_id"] == scenario["scenario_id"]
     assert payload["recommendation_authority"][
         "conditional_replay_admitted"] is True
+
+
+def test_partial_block_replay_cannot_displace_fully_supported_primary():
+    payload = publish_result(
+        _result(), mode="best_effort",
+        dossiers=[_observation_replay_dossier(2)])
+    candidate = next(item for item in payload["candidate_portfolio"]
+                     if item["role"] == "observation_counterfactual")
+
+    assert payload["recommended_scenario_id"] == "primary"
+    assert candidate["support"] == "conditionally_supported"
+    assert candidate["selection_eligible"] is False
+    assert candidate["human_selection_eligible"] is False
+    assert candidate["effect"]["conditional_replay"]["status"] == "admitted"
+    assert candidate["effect"]["recommendation_stability"] == {
+        "status": "withheld_for_supported_primary",
+        "reason_code": "replay_not_uniform_across_chronological_blocks",
+        "chronological_block_wins": 2,
+        "chronological_blocks_evaluated": 3,
+        "primary_support": "supported",
+        "candidate_preserved": True,
+    }
+    assert payload["selection_contract"]["deterministic_scenario_id"] == \
+        "primary"
+    assert payload["primary_forecast"] == _result()["forecast"]
+    assert payload["automation"]["eligible"] is False
+
+
+def test_uniform_block_replay_still_displaces_fully_supported_primary():
+    payload = publish_result(
+        _result(), mode="best_effort",
+        dossiers=[_observation_replay_dossier(3)])
+
+    assert payload["recommended_scenario_id"] == "prior-assisted-1"
+    assert payload["recommendation_authority"]["selection_method"] == \
+        "conditional_replay_evidence"
+
+
+def test_partial_block_replay_remains_eligible_against_degraded_primary():
+    result = _result()
+    result["support"] = "degraded"
+
+    payload = publish_result(
+        result, mode="best_effort",
+        dossiers=[_observation_replay_dossier(2)])
+
+    assert payload["recommended_scenario_id"] == "prior-assisted-1"
 
 
 def test_best_effort_may_use_positive_replay_below_strict_margin():
