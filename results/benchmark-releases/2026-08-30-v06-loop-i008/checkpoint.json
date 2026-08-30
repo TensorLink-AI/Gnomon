@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "loop": "v0.6-product-improvement",
+  "status": "active",
+  "branch": "agent/v0.6-reasoning-loop",
+  "head_commit": "c26c654",
+  "protocol": "docs/v0.6-improvement-loop.md",
+  "preservation": {
+    "preserve_preexisting_committed_work": true,
+    "preserve_preexisting_benchmark_artifacts": true,
+    "preserve_all_preexisting_untracked_files": true,
+    "excluded_from_commits": ["docs/astrid-btc-agent-plan.md"]
+  },
+  "completed_iteration": {
+    "id": "I008",
+    "priority": "P8",
+    "decision": "complete_validated_no_build",
+    "user_outcome": "Current compact responses preserve typed structural relationships, immutable-primary status, sources, limitations, and automation authority through the final agent turn.",
+    "decision_evidence": "results/benchmark-releases/2026-08-30-v06-loop-i008/decision.json",
+    "tests": "2564 passed, 11 skipped in the latest full local suite; 59 focused tests passed; 4/4 current-head Engy agent cases answered.",
+    "remaining_risk": "The probe is a four-case, one-model regression shard rather than a cross-model matrix.",
+    "production_default_changed": false
+  },
+  "active_iteration": {
+    "id": "I009",
+    "priority": "P9",
+    "phase": "choose_and_freeze_gate",
+    "user_hypothesis": "When evidence is insufficient, agents should receive the smallest permitted next action that can actually change support; humans should see why it matters instead of an opaque refusal or a retry loop.",
+    "must_not_regress": [
+      "recovery action is causally tied to an active support blocker",
+      "actions are executable through a real Gnomon surface or explicit human request",
+      "ranking does not imply forecast or automation authority",
+      "irrecoverable blockers are not presented as recoverable",
+      "compact output retains reason, expected benefit, cost, and artifact provenance",
+      "admission precision and immutable-primary policy remain exact"
+    ],
+    "next_action": "Audit support reasons, repair options, recovery_actions, planner missing_evidence, abstentions, and repeated agent call traces; identify whether ranking or executability has a measured general defect before freezing a matched recovery benchmark."
+  },
+  "priorities": [
+    {"id": "P1", "name": "three-layer release scorecard", "status": "complete"},
+    {"id": "P2", "name": "short-history forecast skill", "status": "complete_no_build"},
+    {"id": "P3", "name": "sourced contextual evidence", "status": "complete"},
+    {"id": "P4", "name": "covariate-aware and multivariate candidates", "status": "complete_no_build_with_boundary_fix"},
+    {"id": "P5", "name": "outcome-adaptive champion/challenger routing", "status": "complete"},
+    {"id": "P6", "name": "joint multi-horizon uncertainty", "status": "complete_no_build"},
+    {"id": "P7", "name": "hierarchical reconciliation", "status": "complete_no_build"},
+    {"id": "P8", "name": "agent decision brief and preservation contract", "status": "complete_validated_no_build"},
+    {"id": "P9", "name": "value-of-information recovery", "status": "in_progress"},
+    {"id": "P10", "name": "production inference reliability", "status": "pending"}
+  ]
+}

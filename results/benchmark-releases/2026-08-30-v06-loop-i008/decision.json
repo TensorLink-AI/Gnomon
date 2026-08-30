@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "iteration": "I008",
+  "priority": "P8",
+  "decision": "complete_validated_no_build",
+  "evaluated_commit": "c26c654",
+  "protocol": "docs/v0.6-p8-agent-brief-protocol.md",
+  "user_outcome": "Agents preserve the engine's exact primary/context relationship and authority in concise final responses; humans are not told that a structural claim changed numbers when the immutable primary already reflects it.",
+  "validation": {
+    "full_local_suite": {"passed": 2564, "skipped": 11, "failed": 0},
+    "focused_suite": {"passed": 59, "failed": 0},
+    "agent_probe": {"expected": 4, "answered": 4, "failed": 0},
+    "result": "results/benchmark-releases/2026-08-30-v06-loop-i008/agent-boundary.json"
+  },
+  "engine_vs_agent": {
+    "engine_complete": true,
+    "engine_relationship_opportunities": 3,
+    "agent_relationship_preservation_rate": 1.0,
+    "distinction": "Engine fields were checked before language scoring; final-response success was not used to infer engine completeness."
+  },
+  "retained_behavior": [
+    "typed relationship_to_primary in the compact context outcome",
+    "deterministic primary, automation, source, consequence, and citation projections",
+    "final-response scoring that fails closed on unknown relationship types",
+    "complete artifact path as immutable source of truth"
+  ],
+  "not_built": [
+    "a second decision-brief wrapper",
+    "model-specific DeepSeek prompt clauses",
+    "case- or label-specific relationship language"
+  ],
+  "remaining_risks": [
+    "Four structural cases and one model/provider validate a regression shard, not universal model-language preservation.",
+    "P8 does not establish new forecast accuracy; it validates transmission of an existing engine contract.",
+    "Future relationship types require deliberate deterministic projections and preservation scorers before they can pass."
+  ]
+}

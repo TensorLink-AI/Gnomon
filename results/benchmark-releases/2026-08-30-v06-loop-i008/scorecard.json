@@ -1,0 +1,42 @@
+{
+  "schema_version": "0.1",
+  "scorecard_id": "v0.6-i008-agent-decision-preservation",
+  "scorecard_commit": "c26c654",
+  "dirty_tree": false,
+  "scope": "smoke",
+  "layers": {
+    "output": {
+      "status": "pass",
+      "dataset_identity": "Four prespecified structural ContextBench cases from manifest sha256 9730fdab3709804b22c46774dc7a3e2731d806820b22bc93b2e05c10e3136b8c",
+      "configuration_identity": "Evidence / DeepSeek v4 Flash / Engy / engine baseline / temperature 0",
+      "accounting": {"expected": 4, "completed": 4, "answered": 4, "failed": 0},
+      "metrics": [
+        {"name": "typed_relationship_preservation", "value": 1.0, "unit": "fraction", "denominator": 3, "gate": {"operator": "eq", "threshold": 1.0, "passed": true}},
+        {"name": "complete_explanation_contract", "value": 1.0, "unit": "fraction", "denominator": 4, "gate": {"operator": "eq", "threshold": 1.0, "passed": true}}
+      ]
+    },
+    "reasoning": {
+      "status": "pass",
+      "dataset_identity": "Actual engine contracts and final submitted reasoning for all four rows",
+      "configuration_identity": "Independent engine projection checks followed by model-language preservation checks",
+      "accounting": {"expected": 4, "completed": 4, "answered": 4, "failed": 0},
+      "metrics": [
+        {"name": "publication_parity", "value": 1.0, "unit": "fraction", "denominator": 4, "gate": {"operator": "eq", "threshold": 1.0, "passed": true}},
+        {"name": "primary_and_authority_preservation", "value": 1.0, "unit": "fraction", "denominator": 4, "gate": {"operator": "eq", "threshold": 1.0, "passed": true}},
+        {"name": "source_preservation", "value": 1.0, "unit": "fraction", "denominator": 4, "gate": {"operator": "eq", "threshold": 1.0, "passed": true}}
+      ]
+    },
+    "topology": {
+      "status": "pass",
+      "dataset_identity": "One crash-safe serial API shard",
+      "configuration_identity": "jobs=1; 180s request timeout; 120s tool timeout; two bounded retries; atomic resume",
+      "accounting": {"expected": 4, "completed": 4, "answered": 4, "failed": 0},
+      "metrics": [
+        {"name": "completion_rate", "value": 1.0, "unit": "fraction", "denominator": 4, "gate": {"operator": "eq", "threshold": 1.0, "passed": true}},
+        {"name": "temporal_leakage_count", "value": 0, "unit": "cases", "denominator": 4, "gate": {"operator": "eq", "threshold": 0, "passed": true}},
+        {"name": "maximum_jobs", "value": 1, "unit": "workers", "denominator": 4, "gate": {"operator": "eq", "threshold": 1, "passed": true}}
+      ]
+    }
+  },
+  "decision": {"status": "complete_validated_no_build", "reason": "All current compact-boundary gates pass; avoid duplicative surface changes."}
+}

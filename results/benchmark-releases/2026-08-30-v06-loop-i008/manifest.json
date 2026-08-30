@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.1",
+  "release": "2026-08-30-v06-loop-i008",
+  "curated_by_commit": "c26c654",
+  "benchmarks": [
+    {"file": "agent-boundary.json", "benchmark": "contextbench-surfaces", "arm": "evidence-deepseek-engy-engine-baseline-structural-shard", "scope": "smoke", "status": "complete", "bytes": 2729, "sha256": "5bbb9780485d78be10fd54d153e560e9a2f75c976999488bfc8dc911d807765b"},
+    {"file": "scorecard.json", "benchmark": "three-layer-product-scorecard", "arm": "i008-final-decision", "scope": "smoke", "status": "complete", "bytes": 2720, "sha256": "09bd4a396fb66d8135c1e5cf985d2bf659949191f4b6827100f96c2209eb34df"}
+  ],
+  "decision_files": [
+    {"file": "decision.json", "bytes": 1887, "sha256": "a6223ea932d5ed3f29b25df918e92fcb8d814a861fc2af2200c1d92424ebe5d8"},
+    {"file": "checkpoint.json", "bytes": 3182, "sha256": "17363ddbe47401d922b2122603d0cabcf3a384972987a65e7ebd50fe62f3d908"},
+    {"file": "README.md", "bytes": 1188, "sha256": "43cd1b801d9638a6fdd226ada0b6ba82d71ef94b9065f426f39035980df56fc9"}
+  ],
+  "not_included": [
+    {"benchmark": "raw agent transcripts and receipts", "reason": "Preserved under results/v06-p8-i008-* and excluded from aggregate git evidence."},
+    {"benchmark": "full cross-model matrix", "reason": "The frozen task explicitly required a small crash-safe current-head probe, not a costly matrix."},
+    {"benchmark": "forecast accuracy claim", "reason": "This iteration measures engine-contract completeness and final-agent preservation, not numeric forecast superiority."},
+    {"benchmark": "competition-specific plan", "reason": "docs/astrid-btc-agent-plan.md remains explicitly outside this loop."}
+  ],
+  "policy": {"aggregate_only": true, "raw_runs_are_local_artifacts": true, "engine_and_agent_scored_separately": true, "jobs": 1, "production_default_unchanged": true}
+}
