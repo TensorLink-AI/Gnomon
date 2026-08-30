@@ -80,13 +80,15 @@ def _published_points(
     if not assessment.supported or selected is None:
         return (last_value(history, horizon, season), "last_value",
                 "best_effort", True)
+    support = ("degraded" if assessment.degraded else
+               "weakly_supported" if assessment.warnings else "supported")
     final = assessment.final_candidate
     if final is not None and final.identity.name == selected:
-        return (final.fit(history, season).predict(horizon), selected,
-                "degraded" if assessment.degraded else "supported", False)
+        return (final.fit(history, season).predict(horizon), selected, support,
+                False)
     if selected in MODELS:
-        return (predict(selected, history, horizon, season), selected,
-                "degraded" if assessment.degraded else "supported", False)
+        return (predict(selected, history, horizon, season), selected, support,
+                False)
     raise ValueError(f"production selector returned unbound candidate {selected}")
 
 
@@ -272,7 +274,7 @@ def run(seed: int = 92741, cases_per_family: int = 40) -> dict[str, object]:
         "selection_provenance_complete": all(
             row["published_model"] != "none"
             and row["published_support"] in {
-                "supported", "degraded", "best_effort"}
+                "supported", "weakly_supported", "degraded", "best_effort"}
             and isinstance(row["selection_scores"], dict)
             and isinstance(row["warnings"], list)
             for row in rows if row["completed"]),

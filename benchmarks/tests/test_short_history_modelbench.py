@@ -61,6 +61,10 @@ def test_production_selector_screen_is_deterministic_and_prefix_only():
     assert all(row["fallback_disclosed"] for row in fallbacks)
     assert all(row["published_support"] == "best_effort"
                for row in fallbacks)
+    assert all(row["published_support"] == "weakly_supported"
+               for row in first["raw_records"]
+               if row["engine_supported"] and not row["degraded"]
+               and row["warnings"])
 
 
 def test_production_selector_runner_retains_failed_gate_output(tmp_path):
