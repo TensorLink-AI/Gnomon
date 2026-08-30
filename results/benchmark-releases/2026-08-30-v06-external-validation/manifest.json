@@ -1,0 +1,102 @@
+{
+  "benchmarks": [
+    {
+      "arm": "deepseek-control",
+      "benchmark": "temporalbench",
+      "bytes": 5718,
+      "file": "temporalbench-control.json",
+      "scope": "subset",
+      "sha256": "5fc4c453708fd5eb9909ac37e033a353eace604ba4c54ef97c340f39651f75d6",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-evidence",
+      "benchmark": "temporalbench",
+      "bytes": 8039,
+      "file": "temporalbench-evidence.json",
+      "scope": "subset",
+      "sha256": "749b505c304cad0c1137b8a3c72ca3120800f94e7dd9773e3812566141c783f1",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-evidence-vs-deepseek",
+      "benchmark": "temporalbench-choice",
+      "bytes": 2156,
+      "file": "temporalbench-choice-comparison.json",
+      "scope": "subset",
+      "sha256": "4869ca0c8c5d3fbbcbbcea67826b101f654bfd06d66fe78303f20da624bca176",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-evidence-vs-deepseek",
+      "benchmark": "temporalbench-forecast",
+      "bytes": 2007,
+      "file": "temporalbench-row-smape.json",
+      "scope": "subset",
+      "sha256": "f8de86894264673208ec04322835507d01b684a7688633ec7b41d43da5154c11",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-evidence-vs-deepseek",
+      "benchmark": "temporalbench-channel-forecast",
+      "bytes": 64621,
+      "file": "temporalbench-channel-comparison.json",
+      "scope": "subset",
+      "sha256": "3c2e73c50914f968f988feb3ed3016cac3454f73b73b0619cec6d89f8654f837",
+      "status": "complete"
+    },
+    {
+      "arm": "deepseek-control-sensor",
+      "benchmark": "context-is-key",
+      "bytes": 1996,
+      "file": "cik-control-sensor.json",
+      "scope": "subset",
+      "sha256": "71d5720af0b56e530ece672a5663fe681424b6a3f52cb1622b6b4a63f4c3861c",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-evidence-sensor",
+      "benchmark": "context-is-key",
+      "bytes": 2921,
+      "file": "cik-evidence-sensor.json",
+      "scope": "subset",
+      "sha256": "490a29a33bdca1f4f6025e444e0435fc33c3f9c19ebf2b9b08f9fbda5ff6980d",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-evidence-vs-deepseek-sensor",
+      "benchmark": "context-is-key-forecast",
+      "bytes": 2022,
+      "file": "cik-sensor-matched-report.json",
+      "scope": "subset",
+      "sha256": "440f2ca16b821a8a0641e64de488486e84b9feb22179b62208ec9cffe1233049",
+      "status": "complete"
+    }
+  ],
+  "curated_by_commit": "466d5776428a143a57f374c25531b988292b0f04",
+  "not_included": [
+    {
+      "benchmark": "temporalbench-superiority",
+      "reason": "Choice accuracy was lower and neither choice, row sMAPE, nor overall per-channel differences established general superiority."
+    },
+    {
+      "benchmark": "context-is-key-superiority",
+      "reason": "The four-task sensor slice had one win and three losses; its lower mean was driven by one large win and the paired result was not significant."
+    },
+    {
+      "benchmark": "full Context-is-Key matrix",
+      "reason": "This crash-safe release probe intentionally reran the existing four-task sensor slice only; 71 tasks and additional seeds remain future external validation."
+    },
+    {
+      "benchmark": "competition-specific plan",
+      "reason": "docs/astrid-btc-agent-plan.md remains explicitly outside PR #83."
+    }
+  ],
+  "policy": {
+    "aggregate_only": true,
+    "raw_runs_are_ci_artifacts": true,
+    "smoke_results_are_not_full_results": true
+  },
+  "release": "2026-08-30-v06-external-validation",
+  "schema_version": "1.1"
+}

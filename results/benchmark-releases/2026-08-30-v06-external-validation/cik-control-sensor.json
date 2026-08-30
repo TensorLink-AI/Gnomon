@@ -1,0 +1,36 @@
+{
+  "release_metadata": {
+    "arm": "deepseek-control-sensor",
+    "benchmark": "context-is-key",
+    "configuration_identity": "fresh no-cache DeepSeek V4 Flash 0731 official DirectPrompt via Engy; temperature=1; sequential disposable cases",
+    "dataset_identity": "official sensor task filter; 4 tasks; seed=1; 50 samples per task",
+    "evaluated_commit": "466d577",
+    "harness_commit": "466d577",
+    "notes": [],
+    "scope": "subset",
+    "source": "results/v06-release-validation-466d577/cik-control-sensor/summary.json",
+    "source_sha256": "c630c83d49cfbc9a44f6c2d12773cdd51f271beaaca8f54e7113df4fae43fc04",
+    "status": "complete"
+  },
+  "summary": {
+    "benchmark": "context-is-key",
+    "condition": "control",
+    "degenerate_same_constant_runs": 0,
+    "mean_rcrps_capped_imputed": 0.13380080215326468,
+    "mean_rcrps_scored_only": 0.13380080215326468,
+    "method": "OpenRouterDirectPrompt_model=openrouter-deepseek-v4-flash-0731_use_context=True_fail_on_invalid=True_n_retries=50_temperature=1.0_reasoning=none_endpoint=6e0ef6aba4",
+    "model": "deepseek-v4-flash-0731",
+    "note": "mean_rcrps_capped_imputed follows the official aggregation rule (cap per-run RCRPS at 5.0, impute every abstained or errored run at 5.0), so abstention can never improve it; it is the number to put next to published means. mean_rcrps_scored_only averages scored runs only and is flattered by abstention \u2014 never quote it without the abstention and error counts beside it. Both are unweighted over runs; the official per-task weighting is not reproduced here. Degenerate same-constant past/future cases remain in the official aggregate but are counted separately; a perfect score on such a case is not forecasting uplift.",
+    "perfect_scores_on_degenerate_runs": 0,
+    "rcrps_cap": 5.0,
+    "runs_abstained": 0,
+    "runs_errored": 0,
+    "runs_scored": 4,
+    "seed_start": 1,
+    "seeds": 1,
+    "selection_diagnostics": {
+      "available": false,
+      "cases": 0
+    }
+  }
+}

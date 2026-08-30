@@ -149,24 +149,28 @@ underlying complete run and its provenance are retained as citable evidence.
 ## Measured evidence
 
 On the latest complete matched 80-case TemporalBench sample, the same DeepSeek
-model answered **33.3%** of 240 temporal-choice fields correctly with Gnomon's
-Evidence surface, versus **30.8%** directly. Gnomon fixed 66 fields and broke
-60; the difference was not significant (two-sided exact McNemar *p* = 0.656).
-The earlier 35.8%-versus-28.5% result did not replicate and is retired as a
-product claim.
+model answered **28.3%** of 240 temporal-choice fields correctly with Gnomon's
+Evidence surface, versus **30.4%** directly. Gnomon fixed 52 fields and broke
+57; the difference was not significant (two-sided exact McNemar *p* = 0.702).
+The earlier positive choice results did not replicate and are retired as
+product claims.
 
-Forecast superiority was also not established. Mean sMAPE was 10.62 with
-Gnomon and 11.34 directly (43 row wins, 36 losses, one tie, *p* = 0.500).
-Per-channel MASE no longer shows the prior significant regression: 183 wins,
-190 losses, and 107 ties (*p* = 0.756). This is a safety result, not an
-estimator improvement: all 480 fold-starved channels published the robust
-last-value fallback exactly, while the direct LLM's median channel MASE was
-0.797 versus Gnomon's 1.089. Gnomon no longer ranks a structured baseline using
-the same single holdout it declares insufficient for candidate selection, but
-recovering useful short-history signal requires independently validated
-transfer priors, pooling, or TSFM admission. The protocol, complete
-latest-code evidence, and limitations are in the
-[product-hardening release](results/benchmark-releases/2026-08-23-product-hardening/README.md).
+Forecast superiority was also not established. Mean sMAPE was 10.64 with
+Gnomon and 11.83 directly (47 row wins, 32 losses, one tie, *p* = 0.115).
+Across 478 mutually scoreable channels, Gnomon won 195, lost 179, and tied 104
+on MASE (*p* = 0.438); heart-rate MASE improved significantly in isolation,
+but the overall channel result did not. The median channel MASE was 1.089 for
+Gnomon versus 1.106 directly. This remains primarily a safety result rather
+than an estimator improvement: 476/480 published channels matched the robust
+last-value path, four were worse, and none improved on it. All 80 tasks
+completed; Evidence preserved 240/240 typed answers and 80/80 immutable
+primary forecasts. The exact-head protocol, paired reports, and limitations
+are in the [v0.6 external-validation release](results/benchmark-releases/2026-08-30-v06-external-validation/README.md).
+
+On a fresh four-task, one-seed Context-is-Key sensor slice, Gnomon's mean RCRPS
+was 0.1013 versus 0.1338 directly, but it won only one task and lost three;
+the lower mean was driven by one large win and was not significant (*p* =
+0.625). This narrow result is not a CiK superiority claim.
 
 ## Why this needs an execution layer
 

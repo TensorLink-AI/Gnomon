@@ -1,0 +1,67 @@
+{
+  "release_metadata": {
+    "arm": "gnomon-evidence-vs-deepseek",
+    "benchmark": "temporalbench-choice",
+    "configuration_identity": "case-insensitive exact choice scoring with exact paired McNemar tests",
+    "dataset_identity": "240 matched choice fields across the frozen 80-case T2/T4 sample",
+    "evaluated_commit": "466d577",
+    "harness_commit": "466d577",
+    "notes": [],
+    "scope": "subset",
+    "source": "results/v06-release-validation-466d577/temporalbench-choice-comparison.json",
+    "source_sha256": "275f92ac9c9e2f89ea6133395928b8654769e7c5ff57d58c2717279f927e871a",
+    "status": "complete"
+  },
+  "summary": {
+    "baseline": "results/v06-release-validation-466d577/temporalbench-control",
+    "baseline_code_revision": "466d577",
+    "by_tier": {
+      "T2": {
+        "baseline_accuracy": 0.31666666666666665,
+        "baseline_correct": 38,
+        "paired_test": {
+          "n": 120,
+          "p_value": 0.6834892282353375,
+          "test": "mcnemar_exact",
+          "treatment_broke": 29,
+          "treatment_fixed": 25
+        },
+        "questions": 120,
+        "treatment_accuracy": 0.2833333333333333,
+        "treatment_correct": 34
+      },
+      "T4": {
+        "baseline_accuracy": 0.2916666666666667,
+        "baseline_correct": 35,
+        "paired_test": {
+          "n": 120,
+          "p_value": 1.0,
+          "test": "mcnemar_exact",
+          "treatment_broke": 28,
+          "treatment_fixed": 27
+        },
+        "questions": 120,
+        "treatment_accuracy": 0.2833333333333333,
+        "treatment_correct": 34
+      }
+    },
+    "matched_tasks": 80,
+    "overall": {
+      "baseline_accuracy": 0.30416666666666664,
+      "baseline_correct": 73,
+      "paired_test": {
+        "n": 240,
+        "p_value": 0.701811182064683,
+        "test": "mcnemar_exact",
+        "treatment_broke": 57,
+        "treatment_fixed": 52
+      },
+      "questions": 240,
+      "treatment_accuracy": 0.2833333333333333,
+      "treatment_correct": 68
+    },
+    "schema_version": "0.1",
+    "treatment": "results/v06-release-validation-466d577/temporalbench-evidence",
+    "treatment_code_revision": "466d577"
+  }
+}

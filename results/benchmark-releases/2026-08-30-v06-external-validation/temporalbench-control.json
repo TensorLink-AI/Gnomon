@@ -1,0 +1,120 @@
+{
+  "release_metadata": {
+    "arm": "deepseek-control",
+    "benchmark": "temporalbench",
+    "configuration_identity": "DeepSeek V4 Flash 0731 via Engy; temperature=0; direct official prompt; jobs=1 small resumable shards; bounded retries",
+    "dataset_identity": "official labeled split; frozen matched 80-case T2/T4 sample; 240 choices and 480 channels",
+    "evaluated_commit": "466d577",
+    "harness_commit": "466d577",
+    "notes": [],
+    "scope": "subset",
+    "source": "results/v06-release-validation-466d577/temporalbench-control/summary.json",
+    "source_sha256": "acb7b1abe055bec41f4b4f20744a8c9b5757c051433406660ef3fe03c095d627",
+    "status": "complete"
+  },
+  "summary": {
+    "benchmark": "temporalbench",
+    "best_effort": false,
+    "choice_accuracy_by_tier_scored_only": {
+      "T2": 0.31666666666666665,
+      "T4": 0.2916666666666667
+    },
+    "choice_contract": {
+      "advisory_overrides": 0,
+      "advisory_overrides_helped": 0,
+      "advisory_overrides_hurt": 0,
+      "canonical_accuracy": null,
+      "canonical_correct": 0,
+      "canonical_total": 0,
+      "hybrid_accuracy": 0.30416666666666664,
+      "hybrid_correct": 73,
+      "hybrid_total": 240,
+      "primary_forecast_unchanged": null,
+      "synthesized_accuracy": null,
+      "synthesized_correct": 0,
+      "synthesized_total": 0
+    },
+    "choice_rows_scored_by_tier": {
+      "T2": 40,
+      "T4": 40
+    },
+    "compile_context": null,
+    "compile_questions": null,
+    "condition": "control",
+    "context_receipts_dir": null,
+    "datasets": "all",
+    "forecast_candidates": null,
+    "forecast_channel_support_mix": {},
+    "forecast_channels_abstained": 0,
+    "forecast_jobs": null,
+    "forecast_metrics_mean_scored_only": {
+      "OW_MASE": 170776.15751225443,
+      "OW_RMSSE": 180945.3221254845,
+      "OW_sMAPE": 11.834074780085707
+    },
+    "forecast_rows_scored": 80,
+    "forecast_rows_total": 80,
+    "forecast_scored_fraction": 1.0,
+    "infrastructure_failures_retried": {},
+    "infrastructure_retries": 0,
+    "llm_usage": {
+      "base_url": "https://api.engy.ai/v1",
+      "completion_tokens": 75771,
+      "cost_usd": 0.0,
+      "model": "deepseek-v4-flash-0731",
+      "prompt_tokens": 174755,
+      "requests": 80,
+      "transport_attempts": 80,
+      "truncation_escalations": 0
+    },
+    "llm_usage_this_invocation": {
+      "base_url": "https://api.engy.ai/v1",
+      "completion_tokens": 0,
+      "cost_usd": 0.0,
+      "model": "deepseek-v4-flash-0731",
+      "prompt_tokens": 0,
+      "requests": 0,
+      "transport_attempts": 0,
+      "truncation_escalations": 0
+    },
+    "mcp_profile": null,
+    "merged_usage_sources": [
+      "results/v06-release-validation-466d577/temporalbench-control-000",
+      "results/v06-release-validation-466d577/temporalbench-control-005",
+      "results/v06-release-validation-466d577/temporalbench-control-015",
+      "results/v06-release-validation-466d577/temporalbench-control-025",
+      "results/v06-release-validation-466d577/temporalbench-control-035",
+      "results/v06-release-validation-466d577/temporalbench-control-045",
+      "results/v06-release-validation-466d577/temporalbench-control-055",
+      "results/v06-release-validation-466d577/temporalbench-control-065",
+      "results/v06-release-validation-466d577/temporalbench-control-075"
+    ],
+    "model": "deepseek-v4-flash-0731",
+    "model_evidence_registry": null,
+    "named_tsfm": null,
+    "note": "forecast metrics computed by the dataset's official forecast_metrics_utils.py; choice accuracy is this adapter's LOCAL case-insensitive exact match against the official labels. The *_scored_only means average scored rows only \u2014 fully-abstained and errored rows are not in them (rows with PARTIAL channel abstentions are, scored on the channels present, and Uncertain/sentinel choice answers count as wrong). Rows the harness voided (rows_voided_by_harness \u2014 a breached cap, no submission) are out of the choice denominators too: an answer the harness never collected is not a wrong answer. So they are unmatched-subset numbers; compare arms through the per-channel path (benchmarks/temporalbench/score_per_channel.py) or benchmarks/report.py's matched join, not by subtracting summaries. success on T2/T4 records completion (the official module returned metrics), not accuracy \u2014 per-row SMAPE lives in each record's extra, and every record names what its success measured in success_basis (completion vs all_choices_correct); voided rows carry row_abstained, which report.py excludes from its success test. forecast_channel_support_mix and forecast_channels_abstained are the coverage every forecast figure rests on; quote them beside it. Any best_effort count in the mix is disclosed fallback rows (NO RELIABLE FORECAST), not supported forecasts; a 'model' count is gnomon-mcp channels the model wrote itself (see forecast_channel_routes).",
+    "question_receipts_dir": null,
+    "resumed_rows": 80,
+    "row_offset": 0,
+    "rows_errored": 0,
+    "rows_voided_by_harness": 0,
+    "rows_with_abstentions": 0,
+    "run_status": "complete",
+    "sensitivity_diagnostic": {
+      "channels_with_scenario": 0,
+      "losses_vs_primary": 0,
+      "mean_smape_delta_overlay_minus_primary": null,
+      "overlay_metrics_mean": {},
+      "policy": "retrospective_overlay_never_submitted",
+      "rows_with_scenario": 0,
+      "ties_vs_primary": 0,
+      "warning": "Retrospective diagnostic only. The governed primary path is the submitted forecast and the only headline score; overlay wins do not define a deployment selection policy.",
+      "wins_vs_primary": 0
+    },
+    "terminal_error_breakdown": {},
+    "tiers": [
+      "T2",
+      "T4"
+    ]
+  }
+}
