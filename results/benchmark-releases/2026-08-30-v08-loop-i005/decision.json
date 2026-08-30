@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "iteration": "I005",
+  "issue": "C1",
+  "decision": "retain_current_admission_boundary_no_build",
+  "protocol": "docs/v0.8-c1-context-recall-protocol.md",
+  "decision_document": "docs/v0.8-c1-context-recall-decision.md",
+  "development": {
+    "seed": 2026083401,
+    "cases": 56,
+    "completed": 56,
+    "empirical_admission_precision": 1.0,
+    "empirical_admission_recall": 0.4444444444444444,
+    "false_influence_rate": 0.0,
+    "leakage_count": 0,
+    "disposition_accuracy": 1.0,
+    "scenario_contracts": 54,
+    "typed_scenario_contract_rate": 1.0,
+    "canonical_primary_preserved": true,
+    "publication_parity": true
+  },
+  "diagnosis": {
+    "empirical_should_influence_nonadmissions": 20,
+    "unstable_or_unseparated_event_effects": 10,
+    "uncertain_timing_ranges": 4,
+    "bitemporal_prospective_validation_unavailable": 4,
+    "misleading_direction_without_stable_support": 2,
+    "compiler_or_engine_proposal_loss_found": false,
+    "safe_numeric_admission_mechanism_found": false,
+    "threshold_reduction_attempted": false,
+    "scenario_counted_as_admission": false
+  },
+  "structural_contract": {
+    "true_claims": 4,
+    "no_distinct_numeric_path": 3,
+    "typed_conditional_scenario": 1,
+    "primary_changes": 0
+  },
+  "confirmation_corpora_consumed": false,
+  "external": {
+    "engy_credential_available": false,
+    "new_naturalistic_compiler_run": false,
+    "new_agent_boundary_run": false
+  },
+  "validation": "202 passed"
+}

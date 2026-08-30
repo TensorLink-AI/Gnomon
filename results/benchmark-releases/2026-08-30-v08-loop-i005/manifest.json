@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "release": "2026-08-30-v08-loop-i005",
+  "kind": "resumable_loop_checkpoint",
+  "protocols": [
+    "docs/v0.8-agent-forecasting-loop.md",
+    "docs/v0.8-c1-context-recall-protocol.md",
+    "docs/v0.8-c1-context-recall-decision.md"
+  ],
+  "evidence": [
+    "results/benchmark-releases/2026-08-30-v08-loop-i005/decision.json",
+    "results/benchmark-releases/2026-08-30-v08-loop-i005/checkpoint.json"
+  ],
+  "raw_artifacts": [
+    "results/v08-c1-i004-stress-development-corpus/",
+    "results/v08-c1-i004-stress-development-baseline/",
+    "results/v08-c1-i004-stress-confirmation-corpus/",
+    "results/v08-c1-i004-naturalistic-development-corpus/",
+    "results/v08-c1-i004-naturalistic-confirmation-corpus/"
+  ],
+  "excluded": ["docs/astrid-btc-agent-plan.md"]
+}
