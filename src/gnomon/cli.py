@@ -365,7 +365,7 @@ def _attach_publication(payload, artifact, path, args) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = _StructuredArgumentParser(prog="gnomon", description="Evidence-backed local forecasting")
-    parser.add_argument("--version", action="version", version="gnomon 0.5.0")
+    parser.add_argument("--version", action="version", version="gnomon 0.7.0")
     subcommands = parser.add_subparsers(dest="command", required=True)
 
     capability_parser = subcommands.add_parser("capabilities", help="Report implemented capabilities")

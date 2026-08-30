@@ -2,6 +2,38 @@
 
 ## Unreleased
 
+## 0.7.0 — forecast-quality and agent-boundary hardening (2026-08-30)
+
+Gnomon 0.7.0 improves governed forecast selection, temporal answers, context
+recall, anomaly attribution, and crash-safe agent orchestration while retaining
+the immutable history-only primary and human-review automation boundary.
+
+### Highlights
+
+- Admit repeatable seasonal departures only when chronological evidence is
+  sufficient, and keep unsupported numeric mechanisms as explicit no-builds.
+- Keep trend direction, slope, uncertainty, support, and automation authority
+  coherent through engine and final-agent responses.
+- Expand safe structural-context discovery without inventing timing or
+  magnitude, and preserve typed `no_distinct_numeric_path` relationships.
+- Require stable replay evidence before context displaces a supported primary;
+  sampled priors with no historical skill remain visible but non-authoritative.
+- Attribute post-shift anomaly episodes once and prevent an isolated spike from
+  producing a duplicate rebound alert.
+- Add exact resume identities, append-only retry accounting, bounded
+  single-worker benchmark execution, and independently verified cache parity.
+- Preserve structured decision inputs, bounded timestamp-jitter repair,
+  executable recovery guidance, inline observations, and discoverable MCP
+  contracts across the CLI, Python, and agent surfaces.
+
+### Validation
+
+- Every v0.7 safety and forecast-quality issue reached a promoted fix or a
+  preregistered evidence-backed no-build decision.
+- The full TSFM-isolated suite passed 2,648 tests with 11 skips at the Q4
+  production checkpoint; the exact 0.7.0 release-candidate gate is recorded in
+  the v0.7 benchmark-release artifacts.
+
 ## 0.5.0 — governed context intelligence (2026-08-30)
 
 Gnomon 0.5.0 adds a governed context-intelligence layer without surrendering

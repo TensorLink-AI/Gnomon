@@ -21,7 +21,7 @@ from .toolspec import runner_for, visible_tools
 logger = logging.getLogger(__name__)
 
 PROTOCOL_VERSION = "2025-06-18"
-SERVER_INFO = {"name": "gnomon", "version": "0.5.0"}
+SERVER_INFO = {"name": "gnomon", "version": "0.7.0"}
 
 #: The shape every tool result shares. Tools may publish something tighter
 #: via an `outputSchema` key in their spec; this is the floor, and it is
