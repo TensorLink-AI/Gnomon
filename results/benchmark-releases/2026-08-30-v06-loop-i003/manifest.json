@@ -1,0 +1,59 @@
+{
+  "schema_version": "1.1",
+  "release": "2026-08-30-v06-loop-i003",
+  "curated_by_commit": "b41c29ad3df40193a265debf31b266f0df7c07d5",
+  "benchmarks": [
+    {
+      "file": "engine-compare.json",
+      "benchmark": "contextbench-compiled-engine",
+      "arm": "frozen-eight-case-final-vs-baseline",
+      "scope": "smoke",
+      "status": "complete",
+      "bytes": 2088,
+      "sha256": "19211db1c4f9406930c0ea3846a19158b0af7c7b1c269f4c7a2e4909bc420d9a"
+    },
+    {
+      "file": "agent-boundary.json",
+      "benchmark": "contextbench-surfaces",
+      "arm": "evidence-deepseek-four-role-boundary",
+      "scope": "smoke",
+      "status": "complete",
+      "bytes": 2852,
+      "sha256": "97c11a48726c5a8cf79df161b3a10c8f9158c9987e3d2afd957fa800edcbbfaa"
+    },
+    {
+      "file": "scorecard.json",
+      "benchmark": "three-layer-product-scorecard",
+      "arm": "i003-final-decision",
+      "scope": "full",
+      "status": "complete",
+      "bytes": 6905,
+      "sha256": "21ef3d323785e72d8eb4de19f31af2a8c15f9133665ffbfcc440095bbc1f8d9b"
+    }
+  ],
+  "decision_files": [
+    {"file": "decision.json", "bytes": 3306, "sha256": "298005ca9dfab101af62b7316fa8607018995482c455eb37463420db164576c0"},
+    {"file": "checkpoint.json", "bytes": 3184, "sha256": "60b98bb009de39c7099ca1b53b755fe111a8daa963c240d5f9c8a171f1ff17eb"},
+    {"file": "README.md", "bytes": 1887, "sha256": "291c89521d40dd6fcf45b0e09de9e3c12716d4d5fb1c8dd5e17fddfca8059820"}
+  ],
+  "not_included": [
+    {
+      "benchmark": "raw resumable rows and receipts",
+      "reason": "Preserved under results/v06-p3-i003-* and excluded from the aggregate git release."
+    },
+    {
+      "benchmark": "naturalistic external-validity claim",
+      "reason": "The corpus is synthetic prose; this smoke supports boundary behavior, not real-world context supply or public accuracy superiority."
+    },
+    {
+      "benchmark": "competition-specific plan",
+      "reason": "docs/astrid-btc-agent-plan.md is explicitly outside this loop and release."
+    }
+  ],
+  "policy": {
+    "aggregate_only": true,
+    "raw_runs_are_local_artifacts": true,
+    "smoke_results_are_not_public_accuracy_claims": true,
+    "original_gate_failure_must_remain_visible": true
+  }
+}

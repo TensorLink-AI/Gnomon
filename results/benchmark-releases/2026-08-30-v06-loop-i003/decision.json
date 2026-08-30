@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "iteration": "I003",
+  "priority": "P3",
+  "decision": "promote_after_visible_revision",
+  "evaluated_commit": "b41c29ad3df40193a265debf31b266f0df7c07d5",
+  "protocol": "docs/v0.6-p3-sourced-context-protocol.md",
+  "user_outcome": "Agents can identify the validated context source and preserve whether Gnomon applied, rejected, scenario-retained, or found no distinct numeric path; humans see the same evidence and authority limits without opening an internal artifact.",
+  "original_preregistered_result": {
+    "status": "revise",
+    "passed": false,
+    "failed_gate": "exact admission disposition parity",
+    "detail": "Three of eight final-code rows changed from rejected to nonnumeric scenario_only after the compiler type repair. This is not reported as a preregistered pass."
+  },
+  "revised_subiteration_result": {
+    "status": "promote",
+    "preregistration_status": "post_observation_not_preregistered",
+    "reason": "The only engine changes are the expected safe demotions of unsupported numeric authority; forecasts, sMAPE, application, primary, automation, parity, and leakage remain exact, and final agent preservation passes."
+  },
+  "validation": {
+    "full_local_suite": {"passed": 2543, "skipped": 11, "failed": 0},
+    "focused_contract_suite": {"passed": 446, "failed": 0},
+    "engine_smoke": "results/benchmark-releases/2026-08-30-v06-loop-i003/engine-compare.json",
+    "agent_boundary": "results/benchmark-releases/2026-08-30-v06-loop-i003/agent-boundary.json"
+  },
+  "promoted_changes": [
+    "validated event provenance reaches context outcomes, sealed publication dispositions, compact execution state, and final source projections",
+    "unsupported numeric event namespaces are demoted only when no non-temporal number remains; unparsed numeric claims still fail closed",
+    "admitted future covariates publish their typed relationship to the primary and evidence automation authority",
+    "agent answers must affirmatively preserve applied/admitted context and covariate state",
+    "repeated identical provenance is grouped in compact briefs with exact counts, one exact representative, and the sealed receipt location",
+    "sandbox-root reload tests restore their original environment before reloading, eliminating suite-order contamination"
+  ],
+  "unchanged_policies": [
+    "numeric admission thresholds",
+    "immutable-primary policy",
+    "context automation policy",
+    "forecast model selection",
+    "temporal leakage checks"
+  ],
+  "remaining_risks": [
+    "The naturalistic corpus is synthetic prose and does not prove real organizations provide useful, timely source documents at the same rate.",
+    "Structured inline covariates carry known_at but no source.reference; source provenance cannot be projected when the caller did not supply one.",
+    "The eight-case current-code smoke is a regression shard, not a new public accuracy claim.",
+    "Repeated-event admission remains conservative and can stay scenario-only when fold stability is insufficient."
+  ],
+  "raw_evidence": [
+    "results/v06-p3-i003-engine-baseline/",
+    "results/v06-p3-i003-engine-final/",
+    "results/v06-p3-i003-agent-ordinary-v4/",
+    "results/v06-p3-i003-agent-applied-covariate-v7/",
+    "results/v06-p3-i003-agent-structural-v4/"
+  ]
+}

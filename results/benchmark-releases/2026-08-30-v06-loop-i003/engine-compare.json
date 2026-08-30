@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "evaluated_commit": "b41c29ad3df40193a265debf31b266f0df7c07d5",
+  "baseline_run": "results/v06-p3-i003-engine-baseline/",
+  "final_run": "results/v06-p3-i003-engine-final/",
+  "corpus_manifest_sha256": "6a1b872eb51e19908f3eac267471c61b98be3a870f078f216e3613305ae25d72",
+  "selected_case_ids_sha256": "3694d07f19c359c47f711bb0e67bee4f2d77cd3fcb7b440f13f8c91a37831a59",
+  "accounting": {
+    "expected": 8,
+    "completed": 8,
+    "failed": 0,
+    "families": 4,
+    "cases_per_family": 2,
+    "compiler_calls": 19
+  },
+  "compiler": {
+    "event_precision": 1.0,
+    "event_recall": 1.0,
+    "event_recall_macro": 1.0,
+    "false_events": 0,
+    "container_coercions": 0
+  },
+  "exact_parity": {
+    "case_ids": true,
+    "history_forecasts": true,
+    "context_forecasts": true,
+    "history_smape": true,
+    "context_smape": true,
+    "applied_state": true,
+    "publication_parity": true,
+    "temporal_leakage": true
+  },
+  "final_behavior": {
+    "applied_cases": 1,
+    "applied_family": "future_covariate",
+    "applied_family_mean_incremental_smape": 1.4415796165926384,
+    "publication_parity_rate": 1.0,
+    "temporal_leakage_count": 0,
+    "newly_applied_cases_vs_baseline": 0
+  },
+  "original_disposition_parity_gate": {
+    "passed": false,
+    "changed_cases": 3,
+    "changes": [
+      {"case_id": "ctx-irrelevant-0000", "baseline": "rejected", "final": "scenario_only"},
+      {"case_id": "ctx-repeated_event-0000", "baseline": "rejected", "final": "scenario_only"},
+      {"case_id": "ctx-repeated_event-0001", "baseline": "rejected", "final": "scenario_only"}
+    ],
+    "numeric_effect": "none",
+    "reason": "Unsupported numeric namespaces were removed from grounded schedule events; the fold-safe qualitative lane retained them without applying a numeric effect."
+  },
+  "revised_post_probe_gate": {
+    "exact_numeric_and_safety_parity": true,
+    "no_new_application": true,
+    "only_expected_rejection_to_nonnumeric_scenario_changes": true,
+    "passed": true,
+    "preregistration_status": "post_observation_not_preregistered"
+  }
+}
