@@ -57,6 +57,32 @@ def test_unknown_subcommand_is_structured(capsys):
     assert error["repair_options"]
 
 
+def test_keyboard_interrupt_is_typed_retryable_and_exit_130(
+        tmp_path, capsys, monkeypatch):
+    import gnomon.runtime as runtime
+
+    partial = tmp_path / ".forecast_interrupted.tmp-test"
+
+    def interrupt(*_args, **_kwargs):
+        exc = KeyboardInterrupt()
+        exc.gnomon_partial_artifact = str(partial)
+        raise exc
+
+    monkeypatch.setattr(runtime, "forecast", interrupt)
+    code = main([
+        "forecast", str(_csv(tmp_path)), "--horizon", "3",
+        "--output", str(tmp_path / "out"),
+    ])
+    assert code == 130
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    error = json.loads(captured.err)["error"]
+    assert error["code"] == "INTERRUPTED"
+    assert error["retryable"] is True
+    assert error["details"]["partial_artifact"] == str(partial)
+    assert error["repair_options"][0]["action"] == "retry"
+
+
 def test_cost_ratio_guess_is_mapped_to_the_cost_pair(tmp_path, capsys):
     """The README frames monitor costs as a ratio ("costs us 20x a false
     alarm"), so `--cost-ratio` is the natural first guess; it must map to

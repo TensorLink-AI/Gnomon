@@ -2404,6 +2404,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         error = GnomonError("INVALID_ARGUMENTS", str(exc))
         print(json.dumps(error.to_dict(), indent=2), file=sys.stderr)
         return 2
+    except KeyboardInterrupt as exc:
+        details = {"command": getattr(args, "command", None)}
+        partial = getattr(exc, "gnomon_partial_artifact", None)
+        if partial:
+            details["partial_artifact"] = partial
+        error = GnomonError(
+            "INTERRUPTED",
+            "The command was interrupted before it completed.",
+            details,
+            retryable=True,
+        )
+        print(json.dumps(error.to_dict(), indent=2), file=sys.stderr)
+        return 130
     except Exception as exc:
         # No `gnomon` invocation prints a Python traceback. An unexpected
         # failure is still a failure of the product, and it reaches the
