@@ -1,0 +1,741 @@
+<title>The Honest Instrument</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Spectral:ital,wght@0,200;0,300;0,400;1,300&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --night: #0A0D15;
+    --night-deep: #060810;
+    --panel: #121826;
+    --panel-edge: #232D42;
+    --bone: #EDE6D3;
+    --bone-dim: #B9B3A4;
+    --gold: #E2A93F;
+    --gold-soft: rgba(226, 169, 63, 0.14);
+    --slate: #6E7A8F;
+    --ember: #C4574A;
+    --ok: #7FA96B;
+  }
+
+  body {
+    background: var(--night-deep);
+    color: var(--bone);
+    font-family: "Spectral", Georgia, serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px 40px;
+    box-sizing: border-box;
+  }
+
+  .plate {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--slate);
+    margin-bottom: 14px;
+  }
+  .plate b { color: var(--gold); font-weight: 500; }
+
+  .stagewrap {
+    width: min(1080px, 96vw);
+  }
+
+  .stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: var(--night);
+    border: 1px solid var(--panel-edge);
+    border-radius: 6px;
+    overflow: hidden;
+    container-type: inline-size;
+    cursor: pointer;
+  }
+  .stage.paused * { animation-play-state: paused !important; }
+  /* while paused, show each scene fully composed instead of a black pre-animation frame */
+  .stage.paused .scene.active :is(.kicker, .display, .narr, .tri, .wordmark, .sub, .cmds, .url) {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  /* ---------- scenes ---------- */
+  .scene {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.45s ease;
+  }
+  .scene.active { opacity: 1; visibility: visible; }
+
+  .kicker {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 1.35cqi;
+    letter-spacing: 0.42em;
+    text-transform: uppercase;
+    color: var(--slate);
+  }
+  .display {
+    font-family: "Cinzel", "Times New Roman", serif;
+    font-weight: 600;
+    color: var(--bone);
+    text-wrap: balance;
+    line-height: 1.22;
+  }
+  .narr {
+    font-family: "Spectral", Georgia, serif;
+    font-weight: 300;
+    color: var(--bone-dim);
+    line-height: 1.5;
+  }
+
+  @keyframes rise    { from { opacity: 0; transform: translateY(2.2cqi); } to { opacity: 1; transform: none; } }
+  @keyframes appear  { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes fadeout { from { opacity: 1; } to { opacity: 0; } }
+
+  /* --- scene 1: presents --- */
+  .s1 {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3cqi; text-align: center;
+    background:
+      radial-gradient(120cqi 60cqi at 50% 120%, #131a2b 0%, var(--night) 60%);
+  }
+  .s1 .kicker  { opacity: 0; }
+  .s1 .display { font-size: 5.2cqi; max-width: 74cqi; opacity: 0; }
+  .s1 .tri {
+    width: 0; height: 0; opacity: 0;
+    border-left: 2.6cqi solid transparent;
+    border-right: 2.6cqi solid transparent;
+    border-bottom: 4.4cqi solid var(--gold);
+  }
+  .s1.active .kicker  { animation: appear 1.2s ease 0.4s forwards; }
+  .s1.active .display { animation: rise 1.4s ease 1.4s forwards; }
+  .s1.active .tri     { animation: rise 1.6s ease 3.2s forwards; }
+
+  /* --- scenes 2 & 3: the dial --- */
+  .dialworld {
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+    padding-bottom: 6cqi;
+    background:
+      radial-gradient(90cqi 55cqi at 30% 105%, rgba(226,169,63,0.10) 0%, transparent 60%),
+      radial-gradient(120cqi 70cqi at 50% 115%, #141b2c 0%, var(--night) 65%);
+  }
+  .dial {
+    position: absolute;
+    left: 50%; top: 6%;
+    width: 64cqi; height: 32cqi;
+    transform: translateX(-50%);
+  }
+  .dial svg { width: 100%; height: 100%; overflow: visible; display: block; }
+  .blade {
+    position: absolute;
+    left: 50%; top: 100%;
+    width: 2.8cqi; height: 8cqi;
+    transform: translate(-50%, -100%);
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+    background: linear-gradient(180deg, var(--gold) 0%, #96702A 100%);
+  }
+  .shadowhand {
+    position: absolute;
+    left: 50%; top: 100%;
+    width: 28cqi; height: 2cqi;
+    transform-origin: 0 50%;
+    transform: rotate(-165deg);
+    clip-path: polygon(0 0, 100% 46%, 100% 54%, 0 100%);
+    background: linear-gradient(90deg, rgba(4,6,10,0.92), rgba(4,6,10,0.35));
+  }
+  .sunglow {
+    position: absolute;
+    left: -14cqi; top: -16cqi;
+    width: 22cqi; height: 22cqi;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(226,169,63,0.55) 0%, rgba(226,169,63,0.12) 45%, transparent 70%);
+    opacity: 0;
+  }
+  /* sun passes left to right; the shadow points away from it, right to left */
+  @keyframes sweep {
+    from { transform: rotate(-15deg); }
+    to   { transform: rotate(-165deg); }
+  }
+  @keyframes sunpass {
+    0%   { transform: translateX(0);      opacity: 0; }
+    12%  { opacity: 1; }
+    88%  { opacity: 1; }
+    100% { transform: translateX(82cqi);  opacity: 0; }
+  }
+  .s2.active .shadowhand { animation: sweep 7s cubic-bezier(0.4, 0, 0.6, 1) 0.3s both; }
+  .s2.active .sunglow    { animation: sunpass 7s cubic-bezier(0.4, 0, 0.6, 1) 0.3s both; }
+
+  .dialworld .caption {
+    position: relative;
+    text-align: center;
+    display: flex; flex-direction: column; gap: 1.4cqi; align-items: center;
+  }
+  .dialworld .display { font-size: 4.2cqi; opacity: 0; }
+  .dialworld .narr    { font-size: 2.1cqi; font-style: italic; opacity: 0; }
+  .s2.active .display { animation: rise 1.2s ease 1.2s forwards; }
+  .s2.active .narr    { animation: appear 1.2s ease 3.4s forwards; }
+
+  .s3 { background: radial-gradient(120cqi 70cqi at 50% 115%, #0d1220 0%, var(--night-deep) 65%); }
+  .s3 .blade { opacity: 0.35; }
+  .s3 .shadowhand { transform: rotate(-165deg); opacity: 0.85; }
+  .s3.active .shadowhand { animation: fadeout 2.4s ease 1.2s forwards; }
+  .s3 .dial svg { opacity: 0.5; }
+  .s3.active .display { animation: rise 1.2s ease 1.6s forwards; }
+
+  /* --- scene 4: the accusation --- */
+  .s4 {
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    background: var(--night-deep);
+  }
+  .s4 .narr { font-size: 3.4cqi; font-style: italic; max-width: 64cqi; opacity: 0; color: var(--bone); }
+  .s4.active .narr { animation: rise 1.1s ease 0.5s forwards; }
+
+  /* --- scenes 5 & 6: terminal + chart --- */
+  .demo {
+    display: flex; flex-direction: column;
+    padding: 2.6cqi 6cqi;
+    gap: 1.8cqi;
+    background: linear-gradient(180deg, var(--night) 0%, #0c111d 100%);
+  }
+  .term {
+    flex-shrink: 0;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 1.6cqi;
+    line-height: 1.65;
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    border-radius: 6px;
+    padding: 1.6cqi 2.2cqi;
+    white-space: pre-wrap;
+    min-height: 11cqi;
+    color: var(--bone-dim);
+  }
+  .term .cmd  { color: var(--bone); }
+  .term .ok   { color: var(--ok); }
+  .term .em   { color: var(--gold); }
+  .term .bad  { color: var(--ember); }
+  .term .cursor { display: inline-block; width: 0.9cqi; height: 2cqi; background: var(--gold); vertical-align: text-bottom; }
+
+  .s5 canvas { width: 100%; height: 30cqi; display: block; min-height: 0; }
+  .s5 .caption {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 1.35cqi; letter-spacing: 0.14em; text-transform: uppercase; white-space: nowrap;
+    color: var(--slate); text-align: center; opacity: 0;
+    transition: opacity 0.8s ease;
+  }
+  .s5 .caption.on { opacity: 1; }
+  .s5 .caption b { color: var(--gold); font-weight: 500; }
+
+  .s6 { justify-content: center; }
+  .s6 .quote {
+    font-family: "Cinzel", "Times New Roman", serif;
+    font-weight: 600;
+    font-size: 4.4cqi;
+    text-align: center;
+    margin-top: 3cqi;
+    opacity: 0;
+    transition: opacity 1s ease, transform 1s ease;
+    transform: translateY(1.5cqi);
+    text-wrap: balance;
+  }
+  .s6 .quote.on { opacity: 1; transform: none; }
+  .s6 .quote em { font-style: normal; color: var(--gold); }
+
+  /* --- scene 7: lockup --- */
+  .s7 {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2.6cqi; text-align: center;
+    background: radial-gradient(100cqi 60cqi at 50% 40%, #131a2b 0%, var(--night) 70%);
+  }
+  .s7 .tri {
+    width: 0; height: 0; opacity: 0;
+    border-left: 2.2cqi solid transparent;
+    border-right: 2.2cqi solid transparent;
+    border-bottom: 3.7cqi solid var(--gold);
+    filter: drop-shadow(0 2.2cqi 1.2cqi rgba(4,6,10,0.8));
+  }
+  .s7 .wordmark {
+    font-family: "Cinzel", "Times New Roman", serif;
+    font-weight: 700;
+    font-size: 7.4cqi;
+    letter-spacing: 0.34em;
+    margin-right: -0.34em; /* optically recenter tracked caps */
+    opacity: 0;
+  }
+  .s7 .sub { font-size: 2.2cqi; font-weight: 300; color: var(--bone-dim); opacity: 0; }
+  .s7 .cmds {
+    display: flex; flex-direction: column; gap: 0.9cqi; align-items: center; opacity: 0;
+  }
+  .s7 .cmds code {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 1.65cqi;
+    color: var(--bone-dim);
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    border-radius: 4px;
+    padding: 0.7cqi 1.6cqi;
+  }
+  .s7 .cmds code b { color: var(--gold); font-weight: 500; }
+  .s7 .url {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 1.5cqi; letter-spacing: 0.14em; color: var(--slate); opacity: 0;
+  }
+  .s7.active .tri      { animation: rise 1.2s ease 0.3s forwards; }
+  .s7.active .wordmark { animation: rise 1.2s ease 0.9s forwards; }
+  .s7.active .sub      { animation: appear 1.2s ease 2.0s forwards; }
+  .s7.active .cmds     { animation: rise 1.2s ease 3.0s forwards; }
+  .s7.active .url      { animation: appear 1.2s ease 4.0s forwards; }
+
+  /* ---------- replay ---------- */
+  .replay {
+    position: absolute; inset: 0;
+    display: none;
+    align-items: center; justify-content: center;
+    background: rgba(6, 8, 16, 0.55);
+    z-index: 5;
+  }
+  .replay.on { display: flex; }
+  .replay button {
+    font-family: "Cinzel", serif;
+    font-weight: 600;
+    font-size: 2.4cqi;
+    letter-spacing: 0.2em;
+    color: var(--night-deep);
+    background: var(--gold);
+    border: none; border-radius: 4px;
+    padding: 1.4cqi 3.4cqi;
+    cursor: pointer;
+  }
+
+  /* ---------- controls ---------- */
+  .controls {
+    width: min(1080px, 96vw);
+    display: flex; align-items: center; gap: 14px;
+    margin-top: 12px;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px;
+    color: var(--slate);
+  }
+  .controls button {
+    font: inherit;
+    color: var(--bone);
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    border-radius: 4px;
+    padding: 6px 14px;
+    cursor: pointer;
+    min-width: 74px;
+  }
+  .controls button:hover { border-color: var(--gold); }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .controls .time { min-width: 88px; font-variant-numeric: tabular-nums; }
+  .controls input[type="range"] {
+    flex: 1;
+    accent-color: var(--gold);
+  }
+  .controls .scenename {
+    min-width: 170px; text-align: right;
+    letter-spacing: 0.12em; text-transform: uppercase; font-size: 10px;
+  }
+
+  .foot {
+    width: min(1080px, 96vw);
+    margin-top: 18px;
+    font-size: 13px;
+    font-weight: 300;
+    color: var(--slate);
+    line-height: 1.6;
+  }
+  .foot a { color: var(--bone-dim); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .stage * { animation-duration: 0.01s !important; animation-delay: 0s !important; transition-duration: 0.01s !important; }
+  }
+</style>
+
+<div class="plate"><b>Gnomon</b> · a sixty-second film</div>
+
+<div class="stagewrap">
+  <div class="stage" id="stage" aria-label="Gnomon marketing film">
+
+    <div class="scene s1" data-name="Presents">
+      <div class="kicker">TensorLink AI presents</div>
+      <div class="display">For five thousand years,<br>one instrument has told the time.</div>
+      <div class="tri"></div>
+    </div>
+
+    <div class="scene s2 dialworld" data-name="The Gnomon">
+      <div class="dial">
+        <svg viewBox="0 0 760 380" aria-hidden="true"><g class="ticks"></g></svg>
+        <div class="sunglow"></div>
+        <div class="shadowhand"></div>
+        <div class="blade"></div>
+      </div>
+      <div class="caption">
+        <div class="display">It never guessed. It never lied.</div>
+        <div class="narr">The gnomon — the part of the sundial that casts the shadow.</div>
+      </div>
+    </div>
+
+    <div class="scene s3 dialworld" data-name="The Dark">
+      <div class="dial">
+        <svg viewBox="0 0 760 380" aria-hidden="true"><g class="ticks"></g></svg>
+        <div class="shadowhand"></div>
+        <div class="blade"></div>
+      </div>
+      <div class="caption">
+        <div class="display">And when the light was gone,<br>it said nothing at all.</div>
+      </div>
+    </div>
+
+    <div class="scene s4" data-name="The Problem">
+      <div class="narr">Most forecasting tools keep talking in the dark.</div>
+    </div>
+
+    <div class="scene s5 demo" data-name="The Answer">
+      <pre class="term" id="term5"></pre>
+      <canvas id="chart" width="1900" height="600"></canvas>
+      <div class="caption" id="cap5">Backtested selection · Conformal intervals · Support <b>the evidence earned</b></div>
+    </div>
+
+    <div class="scene s6 demo" data-name="The Abstention">
+      <pre class="term" id="term6"></pre>
+      <div class="quote" id="quote6">“No answer” is an answer.<br><em>Guessing is not.</em></div>
+    </div>
+
+    <div class="scene s7" data-name="Gnomon">
+      <div class="tri"></div>
+      <div class="wordmark">GNOMON</div>
+      <div class="sub">Trusted time-series answers — for people and AI agents.</div>
+      <div class="cmds">
+        <code>bash install.sh <b>--local</b></code>
+        <code>claude mcp add gnomon -- uvx <b>gnomon mcp serve</b></code>
+      </div>
+      <div class="url">github.com/TensorLink-AI/Gnomon</div>
+    </div>
+
+    <div class="replay" id="replay"><button id="replayBtn">Replay</button></div>
+  </div>
+</div>
+
+<div class="controls">
+  <button id="playBtn" aria-label="Play or pause">Pause</button>
+  <span class="time" id="timecode">00:00 / 01:00</span>
+  <input type="range" id="scrub" min="0" max="60000" value="0" step="50" aria-label="Timeline">
+  <span class="scenename" id="scenename"></span>
+</div>
+
+<div class="foot">
+  Click the stage or press space to pause · ←/→ to jump scenes · R to restart.
+  Record the stage at 1080p for a shareable MP4, or just share this page — it plays itself.
+  Built from the real product: <a href="https://github.com/TensorLink-AI/Gnomon">TensorLink-AI/Gnomon</a>.
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var DUR = 60; // seconds
+  var stage = document.getElementById("stage");
+  var scenes = Array.prototype.slice.call(document.querySelectorAll(".scene"));
+  var bounds = [
+    [0, 7],      // s1 presents
+    [7, 15],     // s2 gnomon
+    [15, 21],    // s3 dark
+    [21, 25.5],  // s4 problem
+    [25.5, 40],  // s5 answer
+    [40, 49],    // s6 abstention
+    [49, 60]     // s7 lockup
+  ];
+
+  /* ---- dial tick marks ---- */
+  document.querySelectorAll(".dial .ticks").forEach(function (g) {
+    var cx = 380, cy = 380, r0 = 330, r1 = 356;
+    var html = '<path d="M ' + (cx - 356) + ' ' + cy + ' A 356 356 0 0 1 ' + (cx + 356) + ' ' + cy +
+               '" fill="none" stroke="#3A4459" stroke-width="2"/>';
+    for (var i = 0; i <= 12; i++) {
+      var a = Math.PI - (Math.PI * i / 12);
+      var major = (i % 3 === 0);
+      var rIn = major ? r0 - 14 : r0;
+      var x1 = cx + rIn * Math.cos(a), y1 = cy - rIn * Math.sin(a);
+      var x2 = cx + r1 * Math.cos(a), y2 = cy - r1 * Math.sin(a);
+      html += '<line x1="' + x1.toFixed(1) + '" y1="' + y1.toFixed(1) +
+              '" x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) +
+              '" stroke="' + (major ? "#8A93A6" : "#3A4459") + '" stroke-width="' + (major ? 3 : 2) + '"/>';
+    }
+    g.innerHTML = html;
+  });
+
+  /* ---- terminal scripts ---- */
+  function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
+
+  var SCRIPT5 = {
+    cmd: "$ gnomon forecast requests.csv --horizon 14",
+    typeStart: 0.2, typeDur: 1.6,
+    lines: [
+      { at: 2.1, cls: "ok",  text: "✔ validated 180 observations · 2 repairs disclosed" },
+      { at: 3.0, cls: "ok",  text: "✔ backtested 6 candidates against honest baselines" },
+      { at: 3.9, cls: "ok",  text: "✔ selected: seasonal + damped trend · 90% conformal intervals" },
+      { at: 4.9, cls: "em",  text: "→ requests likely crosses 340 near day 9 · support: STANDARD" }
+    ]
+  };
+
+  var SCRIPT6 = {
+    cmd: "$ gnomon forecast new_service.csv --horizon 30",
+    typeStart: 0.2, typeDur: 1.6,
+    lines: [
+      { at: 2.1, cls: "bad", text: "✘ ABSTAIN — 9 observations cannot support a 30-day answer" },
+      { at: 3.1, cls: "em",  text: "→ needed: ≥ 60 observations, or --horizon 7" }
+    ]
+  };
+
+  function renderTerm(el, script, t) {
+    var n = Math.max(0, Math.min(1, (t - script.typeStart) / script.typeDur));
+    var shown = script.cmd.slice(0, Math.round(script.cmd.length * n));
+    var html = '<span class="cmd">' + esc(shown) + '</span>';
+    if (n < 1 && t >= script.typeStart) html += '<span class="cursor"></span>';
+    script.lines.forEach(function (ln) {
+      if (t >= ln.at) html += '\n<span class="' + ln.cls + '">' + esc(ln.text) + "</span>";
+    });
+    el.innerHTML = html;
+  }
+
+  /* ---- chart ---- */
+  var canvas = document.getElementById("chart");
+  var ctx = canvas.getContext("2d");
+  var N = 90, H = 14, CP = 60, THRESH = 340;
+
+  function val(i) {
+    var base = i < CP ? 150 + i * 1.0 : 150 + CP + (i - CP) * 2.4;
+    var season = 13 * Math.sin(i * 2 * Math.PI / 7 + 1.2);
+    var noise = 6 * Math.sin(i * 12.9898) * Math.cos(i * 4.1414);
+    return base + season + noise;
+  }
+  function fval(h)  { return val(N - 1) * 0.25 + (150 + CP + (N - 1 - CP) * 2.4) * 0.75 + h * 6.8; }
+  function cone(h)  { return 12 + h * 3.1; }
+
+  function drawChart(t) {
+    var W = canvas.width, Hc = canvas.height;
+    ctx.clearRect(0, 0, W, Hc);
+    var padL = 90, padR = 40, padT = 40, padB = 50;
+    var x0 = padL, x1 = W - padR, y0 = Hc - padB, y1 = padT;
+    var yMin = 80, yMax = 460;
+    function X(i) { return x0 + (x1 - x0) * (i / (N - 1 + H)); }
+    function Y(v) { return y0 - (y0 - y1) * ((v - yMin) / (yMax - yMin)); }
+
+    // grid
+    ctx.strokeStyle = "rgba(110,122,143,0.18)";
+    ctx.lineWidth = 1;
+    [150, 250].forEach(function (v) {
+      ctx.beginPath(); ctx.moveTo(x0, Y(v)); ctx.lineTo(x1, Y(v)); ctx.stroke();
+      ctx.fillStyle = "rgba(110,122,143,0.7)";
+      ctx.font = "24px 'IBM Plex Mono', monospace";
+      ctx.textAlign = "right";
+      ctx.fillText(String(v), x0 - 14, Y(v) + 8);
+    });
+
+    var p1 = Math.max(0, Math.min(1, (t - 5.0) / 3.0));   // history draw
+    var p2 = Math.max(0, Math.min(1, (t - 8.2) / 2.8));   // forecast + cone
+    var p3 = Math.max(0, Math.min(1, (t - 9.2) / 1.0));   // threshold
+
+    // history
+    if (p1 > 0) {
+      var upto = Math.max(1, Math.floor((N - 1) * p1));
+      ctx.strokeStyle = "#EDE6D3";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (var i = 0; i <= upto; i++) {
+        var x = X(i), y = Y(val(i));
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      if (upto >= CP) { // changepoint marker
+        ctx.strokeStyle = "rgba(226,169,63,0.5)";
+        ctx.setLineDash([6, 8]);
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(X(CP), y0); ctx.lineTo(X(CP), y1); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = "rgba(226,169,63,0.85)";
+        ctx.font = "22px 'IBM Plex Mono', monospace";
+        ctx.textAlign = "left";
+        ctx.fillText("changepoint", X(CP) + 10, y1 + 24);
+      }
+    }
+
+    // threshold
+    if (p3 > 0) {
+      ctx.globalAlpha = p3;
+      ctx.strokeStyle = "#C4574A";
+      ctx.setLineDash([12, 10]);
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x0, Y(THRESH)); ctx.lineTo(x1, Y(THRESH)); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = "#C4574A";
+      ctx.font = "24px 'IBM Plex Mono', monospace";
+      ctx.textAlign = "left";
+      ctx.fillText("limit 340", x0 + 10, Y(THRESH) - 12);
+      ctx.globalAlpha = 1;
+    }
+
+    // forecast cone — the shadow of what comes next
+    if (p2 > 0) {
+      var hh = Math.max(1, H * p2);
+      ctx.beginPath();
+      ctx.moveTo(X(N - 1), Y(val(N - 1)));
+      for (var h = 1; h <= hh; h++) ctx.lineTo(X(N - 1 + h), Y(fval(h) + cone(h)));
+      for (var h2 = Math.floor(hh); h2 >= 1; h2--) ctx.lineTo(X(N - 1 + h2), Y(fval(h2) - cone(h2)));
+      ctx.closePath();
+      ctx.fillStyle = "rgba(226,169,63,0.13)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(226,169,63,0.45)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.strokeStyle = "#E2A93F";
+      ctx.lineWidth = 3;
+      ctx.setLineDash([2, 10]);
+      ctx.beginPath();
+      ctx.moveTo(X(N - 1), Y(val(N - 1)));
+      for (var h3 = 1; h3 <= hh; h3++) ctx.lineTo(X(N - 1 + h3), Y(fval(h3)));
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // crossing marker at day 9
+      if (p2 >= 9 / H) {
+        var pulse = 6 + 3 * Math.sin(t * 4);
+        ctx.beginPath();
+        ctx.arc(X(N - 1 + 9), Y(fval(9)), pulse + 6, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(226,169,63,0.6)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(X(N - 1 + 9), Y(fval(9)), 6, 0, Math.PI * 2);
+        ctx.fillStyle = "#E2A93F";
+        ctx.fill();
+      }
+    }
+  }
+
+  /* ---- master clock ---- */
+  var playBtn = document.getElementById("playBtn");
+  var scrub = document.getElementById("scrub");
+  var timecode = document.getElementById("timecode");
+  var scenename = document.getElementById("scenename");
+  var replay = document.getElementById("replay");
+  var term5 = document.getElementById("term5");
+  var term6 = document.getElementById("term6");
+  var cap5 = document.getElementById("cap5");
+  var quote6 = document.getElementById("quote6");
+
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var t = 0;
+  var playing = !reduced;
+  var last = null;
+  var current = -1;
+
+  function fmt(s) {
+    var m = Math.floor(s / 60), ss = Math.floor(s % 60);
+    return (m < 10 ? "0" : "") + m + ":" + (ss < 10 ? "0" : "") + ss;
+  }
+
+  function setScene(idx) {
+    if (idx === current) return;
+    current = idx;
+    scenes.forEach(function (sc, i) { sc.classList.toggle("active", i === idx); });
+    scenename.textContent = idx >= 0 ? scenes[idx].dataset.name : "";
+  }
+
+  function update() {
+    var idx = bounds.length - 1;
+    for (var i = 0; i < bounds.length; i++) {
+      if (t < bounds[i][1]) { idx = i; break; }
+    }
+    setScene(idx);
+
+    if (idx === 4) {
+      var lt = t - bounds[4][0];
+      renderTerm(term5, SCRIPT5, lt);
+      drawChart(lt);
+      cap5.classList.toggle("on", lt > 11.5);
+    } else if (idx === 5) {
+      var lt6 = t - bounds[5][0];
+      renderTerm(term6, SCRIPT6, lt6);
+      quote6.classList.toggle("on", lt6 > 4.2);
+    }
+
+    scrub.value = Math.round(t * 1000);
+    timecode.textContent = fmt(t) + " / " + fmt(DUR);
+  }
+
+  function frame(now) {
+    if (last === null) last = now;
+    var dt = (now - last) / 1000;
+    last = now;
+    if (playing) {
+      t += dt;
+      if (t >= DUR) {
+        t = DUR;
+        playing = false;
+        playBtn.textContent = "Play";
+        replay.classList.add("on");
+      }
+      update();
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function setPlaying(p) {
+    playing = p;
+    playBtn.textContent = p ? "Pause" : "Play";
+    stage.classList.toggle("paused", !p);
+    if (p && t >= DUR) restart();
+    if (p) replay.classList.remove("on");
+  }
+
+  function restart() {
+    t = 0;
+    current = -1;
+    replay.classList.remove("on");
+    update();
+  }
+
+  function seek(sec) {
+    t = Math.max(0, Math.min(DUR, sec));
+    current = -1; // force scene class refresh so CSS animations restart
+    replay.classList.remove("on");
+    update();
+  }
+
+  playBtn.addEventListener("click", function () { setPlaying(!playing); });
+  stage.addEventListener("click", function (e) {
+    if (e.target.closest(".replay")) return;
+    setPlaying(!playing);
+  });
+  document.getElementById("replayBtn").addEventListener("click", function () {
+    restart();
+    setPlaying(true);
+  });
+  scrub.addEventListener("input", function () { seek(scrub.value / 1000); });
+  document.addEventListener("keydown", function (e) {
+    if (e.target.tagName === "INPUT" && e.key !== " ") return;
+    if (e.key === " ") { e.preventDefault(); setPlaying(!playing); }
+    else if (e.key === "ArrowRight") { seek(bounds[Math.min(bounds.length - 1, current + 1)][0] + 0.01); }
+    else if (e.key === "ArrowLeft")  { seek(bounds[Math.max(0, current - 1)][0] + 0.01); }
+    else if (e.key === "r" || e.key === "R") { restart(); setPlaying(true); }
+  });
+
+  if (reduced) {
+    playBtn.textContent = "Play";
+    stage.classList.add("paused");
+    seek(0.02);
+  } else {
+    update();
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
