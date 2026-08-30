@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "loop": "v0.7-forecast-quality",
+  "status": "active",
+  "base_commit": "7717cd940a9fc1fb7f85569dc20a0a8e1a63b3f7",
+  "latest_evaluated_commit": "4217f6fa68a27b8d31b0ccd0ac545f6d045946fd",
+  "branch": "agent/v0.7-forecast-quality-loop",
+  "protocol": "docs/v0.7-forecast-quality-loop.md",
+  "external_evaluation_intake": "docs/v0.7-external-evaluation-intake.md",
+  "preservation": {
+    "preserve_preexisting_committed_work": true,
+    "preserve_preexisting_benchmark_artifacts": true,
+    "preserve_all_preexisting_untracked_files": true,
+    "excluded_from_commits": ["docs/astrid-btc-agent-plan.md"]
+  },
+  "execution_defaults": {
+    "one_active_issue": true,
+    "api_jobs": 1,
+    "bounded_retries_required": true,
+    "per_call_timeout_required": true,
+    "wall_clock_timeout_required": true,
+    "incremental_rows_required": true,
+    "resume_required": true,
+    "smoke_shard_before_expansion": true,
+    "engine_and_agent_scored_separately": true
+  },
+  "active_iteration": {
+    "id": "I007",
+    "issue": "Q2",
+    "phase": "freeze_property_stratified_typed_answer_reproduction",
+    "user_hypothesis": "Agents should gain decision-useful temporal direction and slope answers when the evidence supports them, while humans should see an explicit advisory or abstention when seasonality, noise, a plateau, or a changepoint makes the requested trend unidentifiable.",
+    "must_not_regress": [
+      "canonical and relationship-valued typed answers remain exactly preserved through the agent boundary",
+      "the immutable primary forecast remains unchanged",
+      "support and automation eligibility cannot be inflated by presentation",
+      "direction, slope, uncertainty, support, and automation eligibility remain mutually consistent",
+      "no generator family, expected answer, or future label reaches production reasoning"
+    ],
+    "protocol": "docs/v0.7-external-evaluation-intake.md#q2--seasonal-trend-descriptions",
+    "next_action": "Freeze a property-stratified held-out corpus covering additive and multiplicative seasonal upward, downward, and zero trends; noisy non-seasonal trends; plateaus; and changepoints. Score engine completeness, exact agent preservation, support calibration, selective utility, coverage, direction, slope, uncertainty, and automation eligibility before implementation.",
+    "last_completed_action": "Promoted seasonal override-conflict disclosure at exact commit 4217f6f while retaining all 128 numerical outputs and honestly retaining three failed parent skill gates; full isolated suite passed 2612 tests with 11 skipped."
+  },
+  "issues": [
+    {"id": "S1", "status": "complete"},
+    {"id": "S2", "status": "complete"},
+    {"id": "Q1", "status": "complete_with_promoted_safeguards_and_retained_numeric_no_build"},
+    {"id": "Q2", "status": "in_progress_property_stratified_reproduction"},
+    {"id": "Q3", "status": "pending"},
+    {"id": "Q4", "status": "pending"},
+    {"id": "Q5", "status": "pending"},
+    {"id": "Q6", "status": "pending_current_head_reproduction"}
+  ],
+  "completed_iterations": [
+    {"id": "I001", "issue": "Q1", "decision": "retain_current_policy_pending_naturalistic_confirmation"},
+    {"id": "I002", "issue": "S1", "decision": "promote"},
+    {"id": "I003", "issue": "S2", "decision": "promote"},
+    {"id": "I004", "issue": "Q1", "decision": "promote_safety_subfixes_retain_q1_unconfirmed"},
+    {"id": "I005", "issue": "Q1", "decision": "promote"},
+    {"id": "I006", "issue": "Q1", "decision": "promote_override_conflict_disclosure_retain_numeric_no_build"}
+  ]
+}

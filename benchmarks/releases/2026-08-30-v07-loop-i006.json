@@ -1,0 +1,52 @@
+{
+  "release": "2026-08-30-v07-loop-i006",
+  "output_dir": "results/benchmark-releases/2026-08-30-v07-loop-i006",
+  "benchmarks": [
+    {
+      "benchmark": "seasonalbench-period-admission",
+      "arm": "explicit-period-before-conflict-disclosure",
+      "file": "baseline.json",
+      "source": "results/v07-q1-i006-seasonalbench-baseline/summary.json",
+      "scope": "full",
+      "status": "complete",
+      "evaluated_commit": "289c12d42bc36f481aedc8edbbf41b7a6f5a45b5",
+      "harness_commit": "289c12d42bc36f481aedc8edbbf41b7a6f5a45b5",
+      "dataset_identity": "frozen deterministic 128-case matrix: stable-seasonal, phase-unstable, level, and trend families; seeds 6101-6104; 72-point sufficient and 24-point fold-starved histories; automatic, correct-6, neighbor-5, and neighbor-7 period conditions; six-step untouched futures",
+      "configuration_identity": "production selector and support policy; TSFM discovery disabled; honest last-value, historical-mean, and true-period seasonal-naive references; generator family, seed, true period, and future outcomes unavailable to production",
+      "notes": [
+        "Exact pre-fix baseline retained after the parent protocol was frozen.",
+        "All original numeric gates remain part of the result and are not redefined by the safety subfix."
+      ]
+    },
+    {
+      "benchmark": "seasonalbench-period-admission",
+      "arm": "explicit-period-conflict-disclosure",
+      "file": "candidate.json",
+      "source": "results/v07-q1-i006-seasonalbench-candidate-v2/summary.json",
+      "scope": "full",
+      "status": "complete",
+      "evaluated_commit": "4217f6fa68a27b8d31b0ccd0ac545f6d045946fd",
+      "harness_commit": "4217f6fa68a27b8d31b0ccd0ac545f6d045946fd",
+      "dataset_identity": "same frozen 128 cases, histories, explicit and automatic period conditions, and untouched future horizons as the baseline arm",
+      "configuration_identity": "caller override remains authoritative; a conflicting visible-history autocorrelation period adds typed conflict evidence, conditional support, and recovery guidance without changing scores, selected models, used periods, or forecasts",
+      "notes": [
+        "All 29 qualifying explicit conflicts honor the supplied override and become conditionally supported.",
+        "Supported harmful non-baseline departures fall to zero; the three original numeric superiority gates remain failed and are reported unchanged."
+      ]
+    }
+  ],
+  "not_included": [
+    {
+      "benchmark": "exploratory dirty-tree SeasonalBench candidate",
+      "reason": "Retained locally under results/v07-q1-i006-seasonalbench-candidate-v1 and excluded because its evaluated commit cannot identify uncommitted production changes."
+    },
+    {
+      "benchmark": "raw per-case SeasonalBench checkpoints",
+      "reason": "Retained in the source directories; this git release includes aggregate summaries only."
+    },
+    {
+      "benchmark": "competition-specific plan",
+      "reason": "docs/astrid-btc-agent-plan.md is explicitly outside this loop and release."
+    }
+  ]
+}

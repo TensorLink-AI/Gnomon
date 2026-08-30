@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "iteration": "I006",
+  "issue": "Q1",
+  "decision": "promote_override_conflict_disclosure_retain_numeric_no_build",
+  "baseline_commit": "289c12d42bc36f481aedc8edbbf41b7a6f5a45b5",
+  "evaluated_commit": "4217f6fa68a27b8d31b0ccd0ac545f6d045946fd",
+  "protocol": "docs/v0.7-q1-seasonal-override-conflict-protocol.md",
+  "user_outcome": "Agents and humans can distinguish an honored domain override from a conflicting automatically detected seasonal period, see conditional rather than inflated support, and receive an explicit recovery path without any silent numerical substitution.",
+  "matched_result": {
+    "cases": 128,
+    "baseline_gates_passed": 6,
+    "baseline_gates_total": 10,
+    "candidate_gates_passed": 7,
+    "candidate_gates_total": 10,
+    "qualifying_override_conflicts": 29,
+    "conditional_conflicts": 29,
+    "conflicts_honoring_override": 29,
+    "supported_harmful_departures_before": 8,
+    "supported_harmful_departures_after": 1,
+    "supported_harmful_nonbaseline_departures_after": 0,
+    "full_tests_isolated_from_machine_local_tsfm_supply": "2612 passed, 11 skipped"
+  },
+  "implementation": [
+    "Carry visible-history seasonal detection evidence and the caller's explicit override across the runtime boundary.",
+    "When strong autocorrelation detection disagrees with an explicit override, preserve the override and numerics but add typed conflict evidence, conditional support, and review guidance.",
+    "Expose used and detected period, basis, strength, and conflict state in temporal facts."
+  ],
+  "invariants": {
+    "all_product_cases_complete": true,
+    "future_observations_used_by_selector_zero": true,
+    "caller_period_authority_preserved": true,
+    "selected_models_unchanged_all_128": true,
+    "selection_scores_unchanged_all_128": true,
+    "used_periods_unchanged_all_128": true,
+    "forecast_losses_unchanged_all_128": true,
+    "relative_gains_unchanged_all_128": true,
+    "original_failed_numeric_gates_retained": true
+  },
+  "failed_parent_gates": [
+    "neighbor_period_cell_medians_within_2pct",
+    "stable_evidenced_departure_median_positive",
+    "stable_evidenced_departure_precision_at_least_70pct"
+  ],
+  "raw_evidence": [
+    "results/v07-q1-i006-seasonalbench-baseline/",
+    "results/v07-q1-i006-seasonalbench-candidate-v1/",
+    "results/v07-q1-i006-seasonalbench-candidate-v2/"
+  ]
+}
