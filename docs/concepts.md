@@ -434,6 +434,16 @@ unvalidated assumption remains conditional and cannot earn synthesis authority.
 Evidence weights rank receipts but are never presented as probabilities. A
 probability is exposed only when a fitted executable supplied its calibration.
 
+The forecast response seals a separate decision projection from that plan.
+This is the agent/human handoff: it puts conclusion, abstention, authority,
+compatible interpretations, support and conflict evidence, conditions,
+uncertainty status, eligibility, and provenance in one recomputable block.
+The verifier accepts the canonical advisory default or a compatible,
+non-conditional alternative with its own cited evidence. It rejects binding
+overrides, abstention upgrades, invented alternatives, and unsupported
+citations. A complete decision projection is evidence of boundary integrity,
+not evidence that the underlying temporal conclusion is accurate.
+
 The same compact argument shape applies to every public verb, not only a typed
 temporal question: canonical answer, evidence `because`, evidence `against`,
 what remains `unknown`, and `what_would_flip`. Quotable facts carry JSON-pointer

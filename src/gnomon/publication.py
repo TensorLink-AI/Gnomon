@@ -25,10 +25,158 @@ from .context_intelligence import candidate_evidence_score
 from .agent_context import sampled_prior_sufficiency
 
 PublicationMode = Literal["strict", "best_effort", "scenario"]
+ActionTier = Literal["advisory", "reversible_low_impact", "high_impact"]
 PUBLICATION_VERSION = "0.1"
 MODES = frozenset({"strict", "best_effort", "scenario"})
+ACTION_TIERS = frozenset({"advisory", "reversible_low_impact", "high_impact"})
 MAX_SCENARIOS = 8
 SELECTION_LABEL = "hypothesis_ranking"
+
+
+def _finite_number(value: Any) -> bool:
+    return (isinstance(value, (int, float)) and not isinstance(value, bool)
+            and math.isfinite(float(value)))
+
+
+def _calibration_lineage(
+        result: dict[str, Any], selected: dict[str, Any],
+        evidence: dict[str, Any] | None, *,
+        artifact_id: str | None, minimum_support: str | None) -> dict[str, Any]:
+    """Project exact calibration lineage for safe low-impact use.
+
+    This is an artifact-local eligibility check, not a calibration transform.
+    It never changes an interval and does not consume adaptive tracking state
+    or conversational claims.
+    """
+    allowed = {
+        "artifact_id", "series", "selected_model", "horizon",
+        "nominal_coverage", "measured_interval_coverage", "coverage_points",
+        "residual_fold_count", "residuals_pooled_across_selection",
+        "cutoff_status", "prospective_validation_status",
+    }
+    if evidence is not None and not isinstance(evidence, dict):
+        raise ValueError("calibration_evidence must be an object")
+    unknown = sorted(set(evidence or {}) - allowed)
+    if unknown:
+        raise ValueError(f"calibration_evidence has unknown fields: {unknown}")
+
+    evidence = dict(evidence or {})
+    for field in (
+            "artifact_id", "series", "selected_model", "cutoff_status",
+            "prospective_validation_status"):
+        if (evidence.get(field) is not None
+                and not isinstance(evidence[field], str)):
+            raise ValueError(f"calibration_evidence.{field} must be a string")
+    for field in ("nominal_coverage", "measured_interval_coverage"):
+        if evidence.get(field) is not None and not _finite_number(evidence[field]):
+            raise ValueError(
+                f"calibration_evidence.{field} must be a finite number")
+    for field in ("horizon", "coverage_points", "residual_fold_count"):
+        if (evidence.get(field) is not None
+                and (not isinstance(evidence[field], int)
+                     or isinstance(evidence[field], bool))):
+            raise ValueError(f"calibration_evidence.{field} must be an integer")
+    if (evidence.get("residuals_pooled_across_selection") is not None
+            and not isinstance(
+                evidence["residuals_pooled_across_selection"], bool)):
+        raise ValueError(
+            "calibration_evidence.residuals_pooled_across_selection must be "
+            "boolean")
+    rows = result.get("forecast") or []
+    result_series = str(result.get("series") or "")
+    selected_model = str(result.get("selected_model") or "")
+    horizon = len(rows)
+    emitted_interval = bool(rows) and all(
+        isinstance(row, dict)
+        and _finite_number(row.get("q10"))
+        and _finite_number(row.get("q90"))
+        and float(row["q10"]) <= float(row["q90"])
+        for row in rows
+    )
+
+    measured = evidence.get("measured_interval_coverage")
+    points = evidence.get("coverage_points")
+    folds = evidence.get("residual_fold_count")
+    nominal = evidence.get("nominal_coverage")
+    checks = {
+        "evidence_present": bool(evidence),
+        "artifact_matches": bool(
+            artifact_id and evidence.get("artifact_id") == artifact_id),
+        "series_matches": bool(
+            result_series and evidence.get("series") == result_series),
+        "model_matches": bool(
+            selected_model
+            and evidence.get("selected_model") == selected_model),
+        "horizon_matches": bool(
+            isinstance(evidence.get("horizon"), int)
+            and not isinstance(evidence.get("horizon"), bool)
+            and evidence.get("horizon") == horizon),
+        "nominal_interval_matches": bool(
+            _finite_number(nominal)
+            and abs(float(nominal) - 0.8) <= 1e-12
+            and emitted_interval),
+        "coverage_measured": bool(_finite_number(measured)),
+        "coverage_in_band": bool(
+            _finite_number(measured)
+            and 0.65 <= float(measured) <= 0.95),
+        "enough_held_out_points": bool(
+            isinstance(points, int) and not isinstance(points, bool)
+            and points >= 10),
+        "residual_fold_present": bool(
+            isinstance(folds, int) and not isinstance(folds, bool)
+            and folds >= 1),
+        "strict_split_calibration": (
+            evidence.get("residuals_pooled_across_selection") is False),
+        "cutoff_bound_to_artifact": evidence.get("cutoff_status") in {
+            "artifact_snapshot", "explicit_as_of"},
+        "prospective_validation_passed": (
+            evidence.get("prospective_validation_status") == "passed"),
+        "result_supported": result.get("support") in {
+            "supported", "supported_ensemble", "context_trusted"},
+        "policy_support_satisfied": bool(
+            selected.get("support") in {"supported", "supported_ensemble"}
+            if minimum_support == "supported" else
+            selected.get("support") in {
+                "supported", "supported_ensemble", "context_trusted"}
+            if minimum_support == "context_trusted" else False),
+        "selected_path_matches_result": bool(
+            selected.get("role") in {"immutable_primary", "historically_admitted"}
+            and _same_rows(selected.get("forecast") or [],
+                           _rows(result.get("forecast")))),
+    }
+    failed = [name for name, passed in checks.items() if not passed]
+    return {
+        "status": "eligible" if not failed else "ineligible",
+        "action_eligible": not failed,
+        "source": "artifact_rolling_evaluation",
+        "bindings": {
+            "artifact_id": evidence.get("artifact_id"),
+            "series": evidence.get("series"),
+            "selected_model": evidence.get("selected_model"),
+            "horizon": evidence.get("horizon"),
+            "forecast_row_count": horizon,
+            "nominal_coverage": evidence.get("nominal_coverage"),
+            "measured_interval_coverage": measured,
+            "coverage_points": points,
+            "residual_fold_count": folds,
+            "residuals_pooled_across_selection": evidence.get(
+                "residuals_pooled_across_selection"),
+            "cutoff_status": evidence.get("cutoff_status"),
+            "prospective_validation_status": evidence.get(
+                "prospective_validation_status"),
+            "emitted_quantiles": ["q10", "q90"] if emitted_interval else [],
+        },
+        "checks": checks,
+        "failed_checks": failed,
+        "reason": (
+            "Exact artifact-local calibration supports reversible low-impact "
+            "eligibility."
+            if not failed else
+            "Reversible low-impact use requires every typed calibration "
+            "lineage check to pass."
+        ),
+        "adaptive_state_can_authorize": False,
+    }
 
 
 def conservative_prior_compromise(
@@ -2487,6 +2635,7 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
                    scenario_selection: dict[str, Any] | None = None,
                    automation_policy: dict[str, Any] | None = None,
                    automation_authority: bool = True,
+                   calibration_evidence: dict[str, Any] | None = None,
                    candidate_outcome_evidence: list[dict[str, Any]] | None = None,
                    artifact_id: str | None = None) -> dict[str, Any]:
     """Return a compact, sealed human-facing projection over frozen paths."""
@@ -2564,7 +2713,8 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
         raise ValueError("automation_policy must be an object")
     unknown_policy_fields = sorted(
         set(automation_policy or {}) - {
-            "authorize", "policy_id", "minimum_support", "allow"})
+            "authorize", "policy_id", "minimum_support", "allow",
+            "action_tier"})
     if unknown_policy_fields:
         raise ValueError(
             f"automation_policy has unknown fields: {unknown_policy_fields}")
@@ -2576,6 +2726,16 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
             and "allow" in automation_policy
             and not isinstance(automation_policy["allow"], bool)):
         raise ValueError("automation_policy.allow must be boolean")
+    action_tier = (automation_policy or {}).get("action_tier")
+    if action_tier is not None and action_tier not in ACTION_TIERS:
+        raise ValueError(
+            "automation_policy.action_tier must be advisory, "
+            "reversible_low_impact, or high_impact")
+    calibration_lineage = (
+        _calibration_lineage(
+            result, selected, calibration_evidence, artifact_id=artifact_id,
+            minimum_support=(automation_policy or {}).get("minimum_support"))
+        if action_tier is not None or calibration_evidence is not None else None)
     explicit_automation = bool(
         (automation_policy or {}).get(
             "authorize", (automation_policy or {}).get("allow", False)))
@@ -2584,8 +2744,15 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
         and str(automation_policy.get("policy_id") or "").strip()
         and automation_policy.get("minimum_support") in {
             "supported", "context_trusted"})
-    automation = bool(automation_authority and explicit_automation and policy_complete
-                      and selected["automation_eligible"])
+    base_automation = bool(
+        automation_authority and explicit_automation and policy_complete
+        and selected["automation_eligible"])
+    automation = bool(
+        base_automation
+        and (action_tier is None
+             or (action_tier == "reversible_low_impact"
+                 and calibration_lineage
+                 and calibration_lineage["action_eligible"])))
     missing_policy_fields = [
         field for field in ("policy_id", "minimum_support")
         if not (automation_policy or {}).get(field)]
@@ -2607,6 +2774,25 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
         automation_reason = (
             "The human-facing recommendation is conditional, prior-assisted, "
             "or lacks historical admission; review it manually.")
+    elif action_tier == "advisory":
+        automation_reason_code = "advisory_tier"
+        automation_reason = (
+            "Advisory results may inform a decision but cannot actuate it.")
+    elif action_tier == "high_impact":
+        automation_reason_code = "high_impact_not_supported"
+        automation_reason = (
+            "High-impact automation is outside this publication contract.")
+    elif (action_tier == "reversible_low_impact"
+          and not (calibration_lineage or {}).get("action_eligible")):
+        automation_reason_code = "calibration_not_action_eligible"
+        automation_reason = (
+            "Reversible low-impact automation requires exact artifact-local "
+            "calibration lineage; inspect calibration_lineage.failed_checks.")
+    elif action_tier == "reversible_low_impact":
+        automation_reason_code = "authorized_reversible_low_impact"
+        automation_reason = (
+            "The host policy, selected scenario, action tier, and exact "
+            "artifact-local calibration permit reversible low-impact automation.")
     else:
         automation_reason_code = "authorized"
         automation_reason = (
@@ -2745,6 +2931,8 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
            if candidate_outcome_evidence else {}),
         **({"context_input_evaluation": input_evaluation}
            if input_evaluation else {}),
+        **({"calibration_lineage": calibration_lineage}
+           if calibration_lineage is not None else {}),
         "context_summary": _context_summary(
             dispositions, input_evaluation, recommendation_authority),
         "temporal_state": build_temporal_state(result, dossiers=dossiers),
@@ -2761,6 +2949,7 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
             "reason": automation_reason,
             "required_fields": ["authorize", "policy_id", "minimum_support"],
             "missing_fields": missing_policy_fields if explicit_automation else [],
+            **({"action_tier": action_tier} if action_tier is not None else {}),
             **({"normalization": "allow->authorize"}
                if automation_policy and "allow" in automation_policy
                and "authorize" not in automation_policy else {}),
@@ -2846,6 +3035,37 @@ def verify_publication(payload: dict[str, Any]) -> bool:
         return False
     automation = payload.get("automation") or {}
     if automation.get("eligible") and not selected.get("automation_eligible"):
+        return False
+    action_tier = automation.get("action_tier")
+    lineage = payload.get("calibration_lineage")
+    if action_tier is not None and action_tier not in ACTION_TIERS:
+        return False
+    if action_tier is not None and not isinstance(lineage, dict):
+        return False
+    if lineage is not None:
+        if not isinstance(lineage, dict):
+            return False
+        checks = lineage.get("checks")
+        failed_checks = lineage.get("failed_checks")
+        if (not isinstance(checks, dict)
+                or any(not isinstance(value, bool)
+                       for value in checks.values())
+                or not isinstance(failed_checks, list)
+                or len(failed_checks) != len(set(failed_checks))
+                or set(failed_checks) != {
+                    name for name, passed in checks.items() if not passed}
+                or lineage.get("action_eligible") is not (not failed_checks)
+                or lineage.get("status") != (
+                    "eligible" if not failed_checks else "ineligible")
+                or lineage.get("adaptive_state_can_authorize") is not False):
+            return False
+    if action_tier in {"advisory", "high_impact"} and automation.get("eligible"):
+        return False
+    if (action_tier == "reversible_low_impact"
+            and automation.get("eligible")
+            and (not isinstance(lineage, dict)
+                 or lineage.get("action_eligible") is not True
+                 or lineage.get("failed_checks") != [])):
         return False
     if payload.get("mode") == "strict" and selected.get("role") not in {
             "immutable_primary", "historically_admitted"}:

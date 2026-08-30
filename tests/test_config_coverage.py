@@ -42,6 +42,25 @@ def test_the_preferred_toml_example_loads(tmp_path):
         "drift", "linear_trend", "window_average", "theta", "ets",
         "croston_sba",
     ]
+    assert config.models.statsforecast_enabled is False
+    assert config.models.statsforecast_candidates == [
+        "statsforecast_autoets", "statsforecast_autoarima",
+        "statsforecast_autotheta", "statsforecast_croston_optimized",
+    ]
+
+
+def test_statsforecast_config_is_honoured(tmp_path):
+    path = tmp_path / "gnomon.toml"
+    path.write_text(
+        "[models.statsforecast]\n"
+        "enabled = true\n"
+        'candidates = ["statsforecast_autoets"]\n',
+        encoding="utf-8",
+    )
+    config = load_config(str(path))
+    assert config.models.statsforecast_enabled is True
+    assert config.models.statsforecast_candidates == [
+        "statsforecast_autoets"]
 
 
 def test_the_example_documents_no_inert_key():

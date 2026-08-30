@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "production_candidate": "b512365",
+  "propertybench": {
+    "evaluated_commit": "e11ee61",
+    "primary_cases": 312,
+    "all_frozen_gates_passed": true,
+    "dependence_claim_accuracy": 0.9642857142857143,
+    "seasonality_claim_accuracy": 1.0,
+    "trend_claim_accuracy": 1.0,
+    "regime_claim_accuracy": 1.0,
+    "dependence_stress_balanced_accuracy": 0.7903564682620368,
+    "seasonality_alignment_balanced_accuracy": 0.9629629629629629,
+    "seasonality_alignment_stress_balanced_accuracy": 0.9479166666666666
+  },
+  "synthetic_selector": {
+    "evaluated_commit": "e11ee61",
+    "cases": 200,
+    "completed": 200,
+    "all_frozen_gates_passed": true,
+    "departures": 91,
+    "wins": 71,
+    "losses": 20,
+    "departure_precision": 0.7802197802197802,
+    "median_departure_gain": 0.5459522236594014,
+    "departure_gain_90pct_interval": [0.4299740085762139, 0.6993838774845953]
+  },
+  "naturalistic_selector": {
+    "evaluated_commit": "e11ee61",
+    "datasets": 12,
+    "cases": 120,
+    "completed": 120,
+    "safety_gates_passed": true,
+    "quality_gates_passed": false,
+    "departures": 77,
+    "wins": 36,
+    "losses": 23,
+    "ties": 18,
+    "departure_precision": 0.4675324675324675,
+    "median_departure_gain": 0.0,
+    "historical_mean_invalidations": 6
+  },
+  "contextbench_engine_diagnostic": {
+    "evaluated_after_boundary_fix_commit": "b512365",
+    "seed": 2026083402,
+    "fresh_seed": false,
+    "cases": 112,
+    "completed": 112,
+    "decision_ready": false,
+    "zero_leakage": true,
+    "disposition_contract_exact": true,
+    "typed_scenario_contract_rate": 1.0,
+    "publication_parity": true,
+    "primary_forecast_parity": true,
+    "empirical_admission_precision": 1.0,
+    "empirical_admission_recall": 0.06944444444444445,
+    "scenario_contracts": 76,
+    "structural_cases": 16,
+    "structural_conditional_scenarios": 2,
+    "structural_no_distinct_numeric_path": 14,
+    "structural_primary_changes": 0,
+    "scope": "engine_contract_only_not_final_agent_preservation"
+  },
+  "repository": {
+    "evaluated_commit": "b512365",
+    "isolated_tsfm_root": "/tmp/gnomon-empty-tsfm-root",
+    "full_suite_passed": 2692,
+    "full_suite_skipped": 12,
+    "full_suite_failed": 0,
+    "focused_boundary_passed": 22
+  },
+  "candidate_delta": {
+    "from": "e11ee61",
+    "to": "b512365",
+    "scope": "compact agent projection, tool-schema description size, and DossierBench repair-option vocabulary",
+    "numeric_forecast_selection_changed": false,
+    "affected_boundary_suite_rerun": true,
+    "full_repository_suite_rerun": true
+  },
+  "package": {
+    "runtime_version": "0.7.0",
+    "wheel_built": true,
+    "sdist_built": true,
+    "clean_wheel_install": true,
+    "forecast_smoke": true,
+    "publication_roundtrip_verified": true,
+    "decision_seal_verified": true,
+    "calibration_lineage_preserved": true,
+    "ordinary_automation_eligible": false,
+    "mcp_tool_count": 3
+  },
+  "hosted_agent": {
+    "required": 24,
+    "completed": 0,
+    "status": "not_run_missing_provider_credential"
+  },
+  "cik": {
+    "required": 12,
+    "completed": 0,
+    "status": "not_run_missing_external_harness_and_provider"
+  },
+  "ci": {
+    "status": "pending_draft_pull_request"
+  }
+}

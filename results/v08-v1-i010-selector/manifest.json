@@ -1,0 +1,6 @@
+{
+  "benchmark": "modelbench",
+  "code_revision": "e11ee61",
+  "condition": "production-short-history-selector",
+  "target": "seed=2026083802;cases_per_family=40"
+}

@@ -290,7 +290,12 @@ def compact_evidence_plan(plan: dict[str, Any]) -> dict[str, Any]:
         projected["packet"] = {
             "interpretations": [
                 {"value": row.get("value"), "support": row.get("support"),
-                 "compatible": bool(row.get("compatible"))}
+                 "compatible": bool(row.get("compatible")),
+                 "decision_eligible": bool(row.get("decision_eligible")),
+                 "supporting": list(row.get("supporting") or [])[:4],
+                 "conflicting": list(row.get("conflicting") or [])[:4],
+                 **({"conditional_only": True}
+                    if row.get("conditional_only") else {})}
                 for row in (packet.get("interpretations") or [])[:4]
             ],
             "sufficiency": (packet.get("evidence_sufficiency") or {}).get(
@@ -303,6 +308,9 @@ def compact_evidence_plan(plan: dict[str, Any]) -> dict[str, Any]:
                 iter(packet.get("discriminators") or []), None),
             "selector": (packet.get("selection_contract") or {}).get(
                 "selector"),
+            "selection_must_cite_evidence": (
+                packet.get("selection_contract") or {}).get(
+                    "selection_must_cite_evidence"),
         }
     adjudication = plan.get("adjudication") or {}
     eligibility = adjudication.get("synthesis_eligibility") or {}
@@ -316,12 +324,17 @@ def compact_evidence_plan(plan: dict[str, Any]) -> dict[str, Any]:
         } if alternative else None),
         "synthesis_eligible": bool(eligibility.get("eligible")),
         "what_would_flip": list(adjudication.get("what_would_flip") or [])[:1],
-        "ranked_hypotheses": [{
-            "value": row.get("value"),
-            "support": row.get("support"),
-            "evidence_weight": row.get("evidence_weight"),
-            "conditional_only": bool(row.get("conditional_only")),
-        } for row in ranked],
-        "weight_meaning": "receipt evidence weight, not probability",
+        # The packet already projects these interpretations with their usable
+        # evidence. Preserve the legacy ranking only when no packet exists,
+        # avoiding two copies on every agent turn.
+        **({
+            "ranked_hypotheses": [{
+                "value": row.get("value"),
+                "support": row.get("support"),
+                "evidence_weight": row.get("evidence_weight"),
+                "conditional_only": bool(row.get("conditional_only")),
+            } for row in ranked],
+            "weight_meaning": "receipt evidence weight, not probability",
+        } if not packet else {}),
     }
     return projected

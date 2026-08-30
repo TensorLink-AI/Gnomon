@@ -184,6 +184,17 @@ context supports a different scenario, `conditional_answer` preserves its
 provenance and keeps `primary_forecast_unchanged: true`; it is never a silent
 replacement for the governed forecast.
 
+Forecast calls with typed questions also return a sealed
+`agent_response_contract.decisions` projection. Each decision names the
+canonical conclusion or abstention, support and authority, compatible
+interpretations, the typed evidence for and against them, conditions,
+calibration/interval status, decision and automation eligibility, immutable-
+primary status, and receipt provenance. Supported conclusions are binding;
+weak alternatives require evidence accepted by
+`verify_agent_decision_selection`; conditional-only interpretations and
+abstentions cannot be upgraded by presentation. This contract organizes the
+existing receipt and does not improve or replace its underlying estimate.
+
 Every non-error verb response also carries a compact routing projection where
 the underlying result makes it applicable: `artifact_id`, `tier_floor`, typed
 `limitation_groups`, and aggregated `recovery_actions`. Repeated warning text
@@ -205,6 +216,17 @@ decision projection by default. Use its `selection_contract` to reason and its
 `publication_path` with `gnomon_select_scenario`; the complete signed receipt
 stays at that path. Set `format: "full"` only to inline the full repeated
 forecast arrays.
+
+Host-controlled automation policies may add `action_tier`. `advisory` and
+`high_impact` always remain non-actuating. `reversible_low_impact` is eligible
+only when the selected path is already automation-eligible and the same
+artifact's rolling evaluation supplies exact series/model/horizon calibration,
+a strict non-pooled residual split, at least ten held-out points, acceptable
+measured coverage, and a bound cutoff. Inspect
+`publication.calibration_lineage.failed_checks`; missing or mismatched evidence
+fails closed. A current rolling evaluation does not by itself assert the
+required prospective-validation status. MCP-authored policies remain advisory
+regardless of these checks.
 
 For horizons longer than 12 steps, the default brief forecast returns the
 first six and last six rows and states the omitted-middle count. This keeps

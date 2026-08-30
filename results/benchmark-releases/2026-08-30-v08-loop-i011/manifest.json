@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "release": "2026-08-30-v08-loop-i011",
+  "kind": "resumable_loop_decision_checkpoint",
+  "production_candidate": "b512365",
+  "files": [
+    {"path": "README.md", "bytes": 579, "sha256": "2fdd7424b824f3a07040904e1d62b4e060a20e31841e435a71d4e6d8c71316c8"},
+    {"path": "checkpoint.json", "bytes": 1451, "sha256": "9436ac9e1a22b6f24d340c50e34c5880cdc93e830ede7c851c70506317c9299e"},
+    {"path": "decision.json", "bytes": 1455, "sha256": "95c2c7a77a942be018268b2bd8161e5d4b65f7bc0d2c1fa192690b83ab1524aa"},
+    {"path": "validation.json", "bytes": 3251, "sha256": "3ca5518e9bb7114e8f70728a2f3c8b9ae5289e11c5997042dfdeac54a4ae2074"}
+  ],
+  "protocols": [
+    "docs/v0.8-agent-forecasting-loop.md",
+    "docs/v0.8-v1-final-evaluation-protocol.md"
+  ],
+  "decision_document": "docs/v0.8-v1-final-evaluation-decision.md",
+  "evidence": [
+    {"path": "results/v08-v1-i010-property/manifest.json", "sha256": "141ee7bb983729ff59a3277863d9ab6121708edc71c0d8d9e71adfe9e5f43da0"},
+    {"path": "results/v08-v1-i010-property/summary.json", "sha256": "bc9298c5abf123b83118aed84fb3584f88eca8a52ce471b89de20c731b76e9e3"},
+    {"path": "results/v08-v1-i010-selector/manifest.json", "sha256": "157919223211496a8ead70afd4a8fee4829c4458adc8e5f2decd2599410c9ef8"},
+    {"path": "results/v08-v1-i010-selector/observations.jsonl", "sha256": "5f3271d600614b4870c506ec1ef0646522d964cf4a9456dde851828bda44d70e"},
+    {"path": "results/v08-v1-i010-selector/summary.json", "sha256": "e3e5f150c0d7847ffbc24aabab2a62697e07e12347dcf925ba319d545c249a96"},
+    {"path": "results/v08-v1-i010-naturalistic/manifest.json", "sha256": "e3e3e5aa47ec215a5bd37e967f9e1d4bbc1f1609c7bde5d5e5e51b43d1b86db2"},
+    {"path": "results/v08-v1-i010-naturalistic/summary.json", "sha256": "fd02f884868a6ec83239fed8232e3c0bf3bc2b227c699ca61f4851abac536c01"},
+    {"path": "results/v08-v1-i010-context-engine/observations.jsonl", "sha256": "4e1c60cfdb7951980a39e89e5fbae7c86ba705a4527b066d99a67b599b3a22e5"},
+    {"path": "results/v08-v1-i010-context-engine/run_identity.json", "sha256": "2a3e5ccef68d0e3e9c453c0cb5c1db3a2b55815cf3bcb8ea887297cf64dc0c59"},
+    {"path": "results/v08-v1-i010-context-engine/summary.json", "sha256": "61df3a62440316be40721a0d84f42a305189d07aeedf7c1482c3eba98383310f"}
+  ],
+  "excluded": ["docs/astrid-btc-agent-plan.md"]
+}

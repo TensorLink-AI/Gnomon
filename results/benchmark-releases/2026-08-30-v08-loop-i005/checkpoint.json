@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "iteration": "I005",
+  "branch": "agent/v0.8-agent-forecasting-loop",
+  "head_before_checkpoint": "5ab6c71",
+  "active_issue": "D1",
+  "issue_status": {
+    "E1": "candidate_committed_external_confirmation_pending",
+    "F1": "complete_explicit_opt_in_only",
+    "C1": "complete_no_build",
+    "D1": "in_progress",
+    "A1": "pending",
+    "V1": "pending"
+  },
+  "next_action": "Freeze a decision-utility protocol, inspect existing canonical and final-agent answer contracts, and baseline unsupported decisions separately from typed-fact preservation before implementation.",
+  "preservation": {
+    "external_intake_unchanged": true,
+    "astrid_plan_excluded": true,
+    "preexisting_untracked_files_untouched": true
+  }
+}

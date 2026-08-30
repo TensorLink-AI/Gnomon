@@ -489,6 +489,43 @@ def test_artifact_and_values_exits_with_routes_and_labels(tmp_path):
         == [float(row["q50"]) for row in rows]  # verbatim, not an edit
 
 
+def test_typed_bound_host_preexecutes_once_then_synthesizes_once(tmp_path):
+    row = _row(sparse_temp=False)
+    row["_host_compiled_forecast"] = True
+    row["_require_gnomon_execution"] = True
+
+    def submit(messages):
+        host_message = next(
+            message["content"] for message in messages
+            if message.get("role") == "user"
+            and str(message.get("content") or "").startswith(
+                "Host-executed Gnomon result"))
+        payload = json.loads(host_message.split("\n", 1)[1])
+        assert payload["agent_response_contract"]["projection_only"] is True
+        artifact_path = payload["artifact_path"]
+        return {"tool_calls": [("submit_answer", {
+            "forecast": {
+                channel: {"artifact_path": artifact_path}
+                for channel in ("hr", "spo2")},
+            "mcq": {"q1": "Higher"},
+        })]}
+
+    client = ScriptedClient([submit])
+    outcome = run_row(
+        row, client, session_factory=_factory(), work_dir=str(tmp_path),
+        profile="evidence", preexecute_bound_tool=True)
+
+    assert len(client.requests) == 1
+    assert outcome["mcp"]["calls"] == 1
+    assert any(item.get("host_preexecution") == "gnomon_forecast"
+               for item in outcome["mcp"]["tool_sequence"])
+    # The fixture's two unrelated channels may legitimately abstain under the
+    # governed panel evaluation. The topology test requires one product action
+    # and one synthesis turn, never model-authored fallback numbers.
+    assert set(outcome["channel_route"]) == {"hr", "spo2"}
+    assert set(outcome["channel_route"].values()) <= {"gnomon", "abstain"}
+
+
 def test_artifact_binding_preserves_typed_primary_relationship(monkeypatch):
     run = object.__new__(mcp_agent._Run)
     run.artifact_paths = {"/sealed/artifact"}

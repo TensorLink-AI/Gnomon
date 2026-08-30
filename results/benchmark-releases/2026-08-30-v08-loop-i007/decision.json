@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "iteration": "I007",
+  "issue": "D1",
+  "decision": "promote_additive_contract_hosted_utility_pending",
+  "protocol": "docs/v0.8-d1-decision-contract-protocol.md",
+  "decision_document": "docs/v0.8-d1-decision-contract-decision.md",
+  "local_matrix": {
+    "cases": 12,
+    "baseline_contracts": 0,
+    "candidate_contracts": 12,
+    "complete": 12,
+    "exact": 12,
+    "seal_recomputes": true,
+    "canonical_or_abstention_valid": 12,
+    "unsupported_overrides_blocked": 12
+  },
+  "actual_wire_probe": {
+    "questions": 1,
+    "wire_bytes": 10042,
+    "decision_contract_bytes": 1540,
+    "calibration_folds_preserved": 37,
+    "automation_eligible": false,
+    "primary_forecast_unchanged": true
+  },
+  "historical_t4_replay": {
+    "rows": 2,
+    "decisions": 6,
+    "contracts_recomputed": 2,
+    "canonical_or_abstention_preserved": 6,
+    "accuracy_uplift_claimed": false
+  },
+  "external": {
+    "engy_credential_available": false,
+    "matched_agent_utility_run": false,
+    "hosted_promotion_gate": "pending"
+  },
+  "validation": "217 passed"
+}

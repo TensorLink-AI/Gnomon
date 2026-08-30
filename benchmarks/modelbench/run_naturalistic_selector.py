@@ -13,6 +13,7 @@ import json
 import math
 import random
 import sys
+import time
 from collections import Counter
 from pathlib import Path
 from statistics import mean, median
@@ -29,6 +30,7 @@ from benchmarks.modelbench.run_production_selector import (
     _published_points,
 )
 from gnomon.evaluation import evaluate
+from gnomon.config import GnomonConfig
 from gnomon.models import last_value, seasonal_naive
 
 
@@ -158,7 +160,9 @@ def _summarise(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def run(dataset_ids: set[str] | None = None) -> dict[str, Any]:
+def run(dataset_ids: set[str] | None = None, *,
+        cutoff_fractions: tuple[float, ...] = CUTOFF_FRACTIONS,
+        statsforecast_enabled: bool = False) -> dict[str, Any]:
     selected_specs = [
         spec for spec in DATASETS
         if dataset_ids is None or spec["id"] in dataset_ids
@@ -171,6 +175,8 @@ def run(dataset_ids: set[str] | None = None) -> dict[str, Any]:
         raise ValueError("at least one frozen dataset is required")
     full_scope = len(selected_specs) == len(DATASETS)
     rows: list[dict[str, Any]] = []
+    config = GnomonConfig()
+    config.models.statsforecast_enabled = statsforecast_enabled
     identities: list[dict[str, Any]] = []
     for spec in selected_specs:
         values = _read_values(spec)
@@ -179,18 +185,20 @@ def run(dataset_ids: set[str] | None = None) -> dict[str, Any]:
             "path": spec["path"], "sha256": spec["sha256"],
             "observations": len(values),
         })
-        for origin, fraction in enumerate(CUTOFF_FRACTIONS):
+        for origin, fraction in enumerate(cutoff_fractions):
             horizon = int(spec["horizons"][origin % 2])
             cutoff = math.floor(len(values) * fraction)
             if cutoff <= int(spec["season"]) or cutoff + horizon > len(values):
                 raise ValueError(f"invalid frozen cutoff: {spec['id']} origin {origin}")
             history = values[:cutoff]
             actual = values[cutoff:cutoff + horizon]
+            started = time.perf_counter()
             assessment = evaluate(
                 history, horizon, int(spec["season"]),
                 DEFAULT_MINIMUM_IMPROVEMENT,
                 frequency=str(spec["frequency"]), tsfm_names=[],
                 strict_abstention=False,
+                config=config,
             )
             try:
                 points, published_model, support, fallback = _published_points(
@@ -216,7 +224,7 @@ def run(dataset_ids: set[str] | None = None) -> dict[str, Any]:
                 not math.isclose(left, right, rel_tol=0, abs_tol=1e-12)
                 for left, right in zip(points, references["last_value"]))
             gain = _bounded_gain(candidate_loss, reference_loss) if completed else None
-            rows.append({
+            row = {
                 "case_id": f"{spec['id']}-{origin}",
                 "dataset_id": spec["id"], "group": spec["group"],
                 "cutoff_fraction": fraction, "cutoff_index": cutoff,
@@ -239,6 +247,12 @@ def run(dataset_ids: set[str] | None = None) -> dict[str, Any]:
                 "selection_stability": assessment.selection_stability,
                 "warnings": assessment.warnings,
                 "notes": assessment.notes,
+                "statistical_plugin_scores":
+                    assessment.statistical_plugin_scores,
+                "adapter_receipts": assessment.adapter_receipts,
+                "final_candidate": (
+                    assessment.final_candidate.identity.to_payload()
+                    if assessment.final_candidate is not None else None),
                 "departed_from_last_value": departed,
                 "reference_losses": reference_losses,
                 "strongest_reference": strongest_reference,
@@ -248,7 +262,11 @@ def run(dataset_ids: set[str] | None = None) -> dict[str, Any]:
                 "mean_invalidated_departure": (
                     departed and reference_losses["historical_mean"]
                     + 1e-12 < candidate_loss),
-            })
+            }
+            if statsforecast_enabled:
+                row["evaluation_latency_seconds"] = \
+                    time.perf_counter() - started
+            rows.append(row)
 
     overall = _summarise(rows)
     by_group = {
@@ -267,9 +285,13 @@ def run(dataset_ids: set[str] | None = None) -> dict[str, Any]:
         "schema_version": "0.1",
         "benchmark": "naturalistic-production-selector-confirmation",
         "scope": "full" if full_scope else "smoke",
-        "protocol": "docs/v0.7-q1-naturalistic-confirmation-protocol.md",
+        "protocol": ("docs/v0.8-f1-statsforecast-protocol.md"
+                     if statsforecast_enabled or
+                     cutoff_fractions != CUTOFF_FRACTIONS else
+                     "docs/v0.7-q1-naturalistic-confirmation-protocol.md"),
         "minimum_baseline_improvement": DEFAULT_MINIMUM_IMPROVEMENT,
-        "cutoff_fractions": list(CUTOFF_FRACTIONS),
+        "cutoff_fractions": list(cutoff_fractions),
+        "statsforecast_enabled": statsforecast_enabled,
         "bootstrap": {"unit": "dataset", "seed": BOOTSTRAP_SEED,
                       "draws": BOOTSTRAP_DRAWS, "interval": interval},
         "dataset_identities": identities,
@@ -280,7 +302,7 @@ def run(dataset_ids: set[str] | None = None) -> dict[str, Any]:
     }
     common_gates = {
         "all_product_cases_complete": (
-            overall["completed"] == len(selected_specs) * len(CUTOFF_FRACTIONS)),
+            overall["completed"] == len(selected_specs) * len(cutoff_fractions)),
         "no_silent_fallback": all(
             row["engine_supported"] or row["fallback_disclosed"]
             for row in rows if row["completed"]),
@@ -330,10 +352,18 @@ def main() -> int:
         "--datasets",
         help="Comma-separated frozen dataset ids for a smoke shard; omit for all 12.",
     )
+    parser.add_argument(
+        "--cutoffs", default=",".join(str(value) for value in CUTOFF_FRACTIONS),
+        help="Comma-separated frozen cutoff fractions.")
+    parser.add_argument("--statsforecast", action="store_true")
     args = parser.parse_args()
     dataset_ids = ({item.strip() for item in args.datasets.split(",") if item.strip()}
                    if args.datasets else None)
-    result = run(dataset_ids)
+    cutoffs = tuple(float(value.strip()) for value in args.cutoffs.split(",")
+                    if value.strip())
+    result = run(
+        dataset_ids, cutoff_fractions=cutoffs,
+        statsforecast_enabled=args.statsforecast)
     result["evaluated_commit"] = code_revision()
     if args.output_dir:
         args.output_dir.mkdir(parents=True, exist_ok=True)

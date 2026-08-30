@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "release": "2026-08-30-v08-loop-i005",
+  "kind": "resumable_loop_checkpoint",
+  "files": [
+    {"path": "README.md", "bytes": 389, "sha256": "393aedfc4cc795fe3ae5b2589fb1a403e351d2ff5a108f411810d6ac3e8f3ae7"},
+    {"path": "checkpoint.json", "bytes": 752, "sha256": "03794fd5b019ef2440f41d58cd661111fb1bfa94826f4a8a51c7bc580d0900f4"},
+    {"path": "decision.json", "bytes": 1488, "sha256": "a1584373e655c77da0e4ab0f173b7e958c924ecbbbbf27e28e8b3ba2e141dc6d"}
+  ],
+  "protocols": [
+    "docs/v0.8-agent-forecasting-loop.md",
+    "docs/v0.8-c1-context-recall-protocol.md",
+    "docs/v0.8-c1-context-recall-decision.md"
+  ],
+  "evidence": [
+    "results/benchmark-releases/2026-08-30-v08-loop-i005/decision.json",
+    "results/benchmark-releases/2026-08-30-v08-loop-i005/checkpoint.json"
+  ],
+  "raw_artifacts": [
+    "results/v08-c1-i004-stress-development-corpus/",
+    "results/v08-c1-i004-stress-development-baseline/",
+    "results/v08-c1-i004-stress-confirmation-corpus/",
+    "results/v08-c1-i004-naturalistic-development-corpus/",
+    "results/v08-c1-i004-naturalistic-confirmation-corpus/"
+  ],
+  "excluded": ["docs/astrid-btc-agent-plan.md"]
+}

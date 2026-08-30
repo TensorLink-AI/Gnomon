@@ -569,6 +569,130 @@ def test_advisory_channel_cannot_authorize_supported_primary():
         "untrusted_authorization_channel"
 
 
+def _action_result():
+    return {
+        "series": "value", "support": "supported", "selected_model": "ets",
+        "forecast": [{
+            "timestamp": f"2026-02-{day:02d}T00:00:00+00:00",
+            "point": 10.0, "q10": 9.0, "q50": 10.0, "q90": 11.0,
+        } for day in range(1, 13)],
+    }
+
+
+def _action_calibration(**updates):
+    evidence = {
+        "artifact_id": "forecast:test-action", "series": "value",
+        "selected_model": "ets", "horizon": 12, "nominal_coverage": .8,
+        "measured_interval_coverage": .83, "coverage_points": 12,
+        "residual_fold_count": 1,
+        "residuals_pooled_across_selection": False,
+        "cutoff_status": "artifact_snapshot",
+        "prospective_validation_status": "passed",
+    }
+    evidence.update(updates)
+    return evidence
+
+
+def _action_policy(tier):
+    return {
+        "authorize": True, "policy_id": "ops-v08",
+        "minimum_support": "supported", "action_tier": tier,
+    }
+
+
+def test_action_tiers_separate_advice_reversible_and_high_impact_use():
+    advisory = publish_result(
+        _action_result(), artifact_id="forecast:test-action",
+        automation_policy=_action_policy("advisory"),
+        calibration_evidence=_action_calibration())
+    reversible = publish_result(
+        _action_result(), artifact_id="forecast:test-action",
+        automation_policy=_action_policy("reversible_low_impact"),
+        calibration_evidence=_action_calibration())
+    high = publish_result(
+        _action_result(), artifact_id="forecast:test-action",
+        automation_policy=_action_policy("high_impact"),
+        calibration_evidence=_action_calibration())
+
+    assert advisory["automation"]["eligible"] is False
+    assert advisory["automation"]["reason_code"] == "advisory_tier"
+    assert reversible["automation"]["eligible"] is True
+    assert reversible["automation"]["reason_code"] == \
+        "authorized_reversible_low_impact"
+    assert reversible["calibration_lineage"]["failed_checks"] == []
+    assert high["automation"]["eligible"] is False
+    assert high["automation"]["reason_code"] == "high_impact_not_supported"
+    assert all(verify_publication(item)
+               for item in (advisory, reversible, high))
+
+
+@pytest.mark.parametrize("updates,failed_check", [
+    ({"series": "other"}, "series_matches"),
+    ({"selected_model": "theta"}, "model_matches"),
+    ({"horizon": 3}, "horizon_matches"),
+    ({"residuals_pooled_across_selection": True},
+     "strict_split_calibration"),
+    ({"measured_interval_coverage": .5}, "coverage_in_band"),
+    ({"coverage_points": 4}, "enough_held_out_points"),
+    ({"cutoff_status": "unknown"}, "cutoff_bound_to_artifact"),
+])
+def test_reversible_action_fails_closed_on_calibration_mismatch(
+        updates, failed_check):
+    payload = publish_result(
+        _action_result(), artifact_id="forecast:test-action",
+        automation_policy=_action_policy("reversible_low_impact"),
+        calibration_evidence=_action_calibration(**updates))
+
+    assert payload["automation"]["eligible"] is False
+    assert payload["automation"]["reason_code"] == \
+        "calibration_not_action_eligible"
+    assert failed_check in payload["calibration_lineage"]["failed_checks"]
+    assert payload["primary_forecast"] == _action_result()["forecast"]
+    assert verify_publication(payload)
+
+
+def test_reversible_action_requires_supported_result_and_trusted_policy_channel():
+    weak = _action_result()
+    weak["support"] = "weakly_supported"
+    weak_payload = publish_result(
+        weak, artifact_id="forecast:test-action",
+        automation_policy=_action_policy("reversible_low_impact"),
+        calibration_evidence=_action_calibration())
+    untrusted = publish_result(
+        _action_result(), artifact_id="forecast:test-action",
+        automation_policy=_action_policy("reversible_low_impact"),
+        automation_authority=False,
+        calibration_evidence=_action_calibration())
+
+    assert weak_payload["automation"]["eligible"] is False
+    assert "result_supported" in weak_payload[
+        "calibration_lineage"]["failed_checks"]
+    assert untrusted["automation"]["eligible"] is False
+    assert untrusted["automation"]["reason_code"] == \
+        "untrusted_authorization_channel"
+
+    context_trusted = _action_result()
+    context_trusted["support"] = "context_trusted"
+    support_floor = publish_result(
+        context_trusted, artifact_id="forecast:test-action",
+        automation_policy=_action_policy("reversible_low_impact"),
+        calibration_evidence=_action_calibration())
+    assert support_floor["automation"]["eligible"] is False
+    assert "policy_support_satisfied" in support_floor[
+        "calibration_lineage"]["failed_checks"]
+
+
+def test_action_contract_rejects_unknown_evidence_and_action_tiers():
+    with pytest.raises(ValueError, match="action_tier"):
+        publish_result(
+            _action_result(), automation_policy=_action_policy("irreversible"))
+    with pytest.raises(ValueError, match="unknown fields"):
+        publish_result(
+            _action_result(), artifact_id="forecast:test-action",
+            automation_policy=_action_policy("reversible_low_impact"),
+            calibration_evidence={**_action_calibration(), "confidence": .99})
+
+
 def test_external_prediction_rejection_teaches_candidate_lane():
     result = {**_result(), "context_rejections": [{
         "context_id": "vendor", "disposition": "rejected",

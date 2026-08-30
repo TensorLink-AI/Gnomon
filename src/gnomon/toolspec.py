@@ -141,9 +141,8 @@ _INPUT_PROPERTIES: dict[str, Any] = {
     **_OBSERVATIONS_PROPERTY,
     **_DATA_REF_PROPERTY,
     "time_column": {"type": "string", "description": (
-        "Timestamp column. Omit to infer when exactly one column "
-        "qualifies (disclosed as an assumption); ambiguity fails loudly. "
-        "Required for store:<dataset> inputs."
+        "Timestamp column. Omit for unambiguous inference; required for "
+        "store:<dataset>."
     )},
     "target_column": {"type": "string", "description": (
         "Numeric column to operate on. Omit to infer when exactly one "
@@ -162,9 +161,8 @@ _INPUT_PROPERTIES: dict[str, Any] = {
     "regrid": {
         "type": "string", "enum": ["business_daily", "month_start"],
         "description": (
-            "Calendar declaration before validation: business_daily fills "
-            "non-business days (implies D); month_start restamps months "
-            "(implies MS). Every change is disclosed."
+            "Calendar: business_daily fills non-business days (D); "
+            "month_start restamps months (MS). Changes are disclosed."
         ),
     },
 }
@@ -177,9 +175,8 @@ _REPLAY_PROPERTIES: dict[str, Any] = {
     "as_of": {
         "type": "string",
         "description": (
-            "Replay instant (ISO-8601): only data known at or before "
-            "this is visible. Meaningful for `store:<dataset>` inputs; a "
-            "plain file carries one vintage."
+            "ISO-8601 replay instant; only earlier-known data is visible. "
+            "Useful for store:<dataset>; files carry one vintage."
         ),
     },
     "store_path": {
@@ -467,7 +464,22 @@ def apply_response_contract(payload: dict[str, Any]) -> dict[str, Any]:
     if recoveries and "recovery_actions" not in result:
         result["recovery_actions"] = recoveries
     from .reasoning_boundary import apply_reasoning_boundary
-    return apply_reasoning_boundary(result)
+    bounded = apply_reasoning_boundary(result)
+    if (bounded.get("format") == "brief"
+            and bounded.get("agent_response_contract")
+            and isinstance(bounded.get("reasoning"), dict)):
+        # The sealed response contract supersedes the generic reasoning
+        # frame's duplicate pointers. Keep the terminal/sufficiency fields
+        # hosts already consume, while full responses retain the complete
+        # reasoning receipt.
+        reasoning = bounded["reasoning"]
+        compact_reasoning: dict[str, Any] = {}
+        resolution = reasoning.get("resolution")
+        if isinstance(resolution, dict) and resolution.get("kind"):
+            compact_reasoning["resolution"] = {
+                "kind": resolution["kind"]}
+        bounded["reasoning"] = compact_reasoning
+    return bounded
 
 
 def compact_publication_for_wire(payload: dict[str, Any]) -> dict[str, Any]:
@@ -488,7 +500,8 @@ def compact_publication_for_wire(payload: dict[str, Any]) -> dict[str, Any]:
         "primary_forecast_unchanged", "scenario_count",
         "context_dispositions", "context_summary", "temporal_state",
         "scenario_selection",
-        "recommendation_authority", "automation", "selection_contract",
+        "recommendation_authority", "automation", "calibration_lineage",
+        "selection_contract",
         "candidate_admission", "publication_seal_sha256",
     )
     projection = {key: publication[key] for key in keys if key in publication}
@@ -1449,6 +1462,22 @@ def _brief_capabilities(full: dict[str, Any]) -> dict[str, Any]:
             if isinstance(matrix, dict):
                 models["tsfm_capabilities"] = {"models": sorted(matrix)}
                 elided.append("models.tsfm_capabilities.<details>")
+            statsforecast = models.get("statsforecast")
+            if isinstance(statsforecast, dict):
+                # Retain every machine-actionable availability and model
+                # name; move explanatory install/admission prose to the full
+                # or named-section view so one optional plugin cannot break
+                # the bounded default response.
+                # In brief form the model names are the capability. Install
+                # state, version range, activation, and admission policy stay
+                # verbatim in the full/named models view.
+                prefix = "statsforecast_"
+                names = sorted(statsforecast.get("models") or [])
+                models["statsforecast"] = {
+                    "prefix": prefix,
+                    "models": [name.removeprefix(prefix) for name in names],
+                }
+                elided.append("models.statsforecast.<details>")
             brief[key] = compact(models, "models")
         elif key == "workspace" and isinstance(value, dict):
             # Absolute checkout paths are environment detail, not a
@@ -1459,6 +1488,11 @@ def _brief_capabilities(full: dict[str, Any]) -> dict[str, Any]:
             # workspace section.
             brief[key] = {"default_output_dir": "./gnomon-output"}
             elided.append("workspace.<absolute_paths>")
+        elif key == "general_frequencies" and isinstance(value, dict):
+            # The regex is the executable capability; its prose restatement
+            # is detail available in the named/full view.
+            brief[key] = {"pattern": value.get("pattern")}
+            elided.append("general_frequencies.<details>")
         else:
             brief[key] = compact(value, key)
     brief["view"] = {
@@ -1466,8 +1500,7 @@ def _brief_capabilities(full: dict[str, Any]) -> dict[str, Any]:
         "sections_available": sorted(full),
         "elided": sorted({path.split(".", 1)[0] for path in elided}),
         "note": (
-            "All names are present; `elided` omits detail. Request `full` "
-            "or named sections."
+            "Details: request `full` or named `sections`."
         ),
     }
     return brief
@@ -2451,6 +2484,24 @@ def _attach_temporal_answers(payload: dict[str, Any], artifact: ForecastArtifact
     for answer in full_answers:
         compact = {key: value for key, value in answer.items()
                    if key not in {"per_series", "calibration"}}
+        calibration = answer.get("calibration")
+        if isinstance(calibration, dict):
+            folds = int(calibration.get("folds") or
+                        calibration.get("calibration_ratios") or 0)
+            compact["calibration_status"] = {
+                "available": folds > 0,
+                "applicable": folds > 0,
+                "folds": folds,
+                **({"requested_horizon": calibration["requested_horizon"]}
+                   if calibration.get("requested_horizon") is not None else {}),
+                **({"reason": "no_applicable_calibration"}
+                   if folds == 0 else {}),
+            }
+        else:
+            compact["calibration_status"] = {
+                "available": False, "applicable": False,
+                "reason": "not_reported",
+            }
         reasoning = ((answer.get("answer") or {}).get("reasoning"))
         if isinstance(reasoning, dict):
             from .temporal_planner import compact_evidence_plan
@@ -2552,6 +2603,10 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
                else brief_summary(artifact, path))
     _attach_publication(payload, artifact, path, arguments)
     _attach_temporal_answers(payload, artifact, path, arguments)
+    from .agent_response import build_agent_response_contract
+    response_contract = build_agent_response_contract(payload)
+    if response_contract is not None:
+        payload["agent_response_contract"] = response_contract
     if arguments.get("project"):
         from .tracking import register_artifact
         payload["tracking_ids"] = register_artifact(
@@ -2661,7 +2716,8 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
             "Publication result index is outside the artifact.")
     from .publication import (compile_dossier_for_result, publish_result,
                               write_publication)
-    result = artifact.to_dict()["results"][result_index]
+    artifact_payload = artifact.to_dict()
+    result = artifact_payload["results"][result_index]
     # Ungrouped artifacts use ``__default__`` as their storage series key.
     # Preserve the semantic target supplied by the caller for claim-ownership
     # checks at the publication boundary; this metadata never changes points.
@@ -3028,6 +3084,39 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
             candidate_outcome_evidence = TrackingStore().candidate_outcome_summary(
                 str(arguments["project"]), series=str(series_name),
                 resolved_before=str(cutoff))
+    calibration_evidence = None
+    if isinstance(policy, dict) and policy.get("action_tier") is not None:
+        series_name = artifact.results[result_index].series
+        rolling = next((
+            item for item in artifact_payload.get("evidence") or []
+            if item.get("kind") == "rolling_evaluation"
+            and item.get("series") == series_name
+            and not str(item.get("evidence_id") or "").endswith(":prefix")
+        ), None)
+        if rolling is not None:
+            evidence_payload = rolling.get("payload") or {}
+            quantiles = tuple(artifact.task.quantiles)
+            calibration_evidence = {
+                "artifact_id": artifact.forecast_id,
+                "series": series_name,
+                "selected_model": result.get("selected_model"),
+                "horizon": artifact.task.horizon,
+                "nominal_coverage": (
+                    float(max(quantiles) - min(quantiles))
+                    if quantiles else None),
+                "measured_interval_coverage": evidence_payload.get(
+                    "measured_interval_coverage"),
+                "coverage_points": artifact.task.horizon,
+                "residual_fold_count": evidence_payload.get(
+                    "residual_fold_count"),
+                "residuals_pooled_across_selection": evidence_payload.get(
+                    "residuals_pooled_across_selection"),
+                "cutoff_status": (
+                    "explicit_as_of" if artifact.task.as_of
+                    else "artifact_snapshot"),
+                "prospective_validation_status": evidence_payload.get(
+                    "prospective_validation_status"),
+            }
     try:
             publication = publish_result(
                 result, mode=mode,
@@ -3035,6 +3124,7 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                 automation_policy=policy,
                 automation_authority=not bool(arguments.get(
                     "_mcp_agent_boundary")),
+                calibration_evidence=calibration_evidence,
                 candidate_outcome_evidence=candidate_outcome_evidence,
                 artifact_id=artifact.forecast_id)
     except ValueError as exc:
@@ -3173,6 +3263,10 @@ def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str
                                   for item in publications),
         }
     _attach_temporal_answers(payload, artifact, path, arguments)
+    from .agent_response import build_agent_response_contract
+    response_contract = build_agent_response_contract(payload)
+    if response_contract is not None:
+        payload["agent_response_contract"] = response_contract
     return payload
 
 
@@ -3533,6 +3627,12 @@ TOOLS: list[dict[str, Any]] = [
                         "minimum_support": {"type": "string",
                             "enum": ["supported", "context_trusted"],
                             "description": "Required evidence tier."},
+                        "action_tier": {"type": "string", "enum": [
+                            "advisory", "reversible_low_impact", "high_impact"],
+                            "description": (
+                                "Impact boundary. Advisory and high-impact "
+                                "never actuate; reversible low-impact also "
+                                "requires exact artifact-local calibration.")},
                     },
                     "required": ["authorize", "policy_id", "minimum_support"],
                     "description": (
@@ -3542,10 +3642,8 @@ TOOLS: list[dict[str, Any]] = [
                     "retains a history-only counterfactual."
                 )},
                 "structural_events": {"type": "boolean", "description": (
-                    "Recognize closed-menu structural events (experimental); "
-                    "validated typed structural context is recognized "
-                    "automatically. Quantities remain engine-derived and an "
-                    "unvalidated effect stays a non-automatable scenario."
+                    "Recognize typed closed-menu structural events. Quantities "
+                    "stay engine-derived; unvalidated effects remain scenarios."
                 )},
             },
             "required": [],

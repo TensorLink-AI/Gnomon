@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "iteration": "I011",
+  "issue": "V1",
+  "decision": "draft_review_only_release_recommendation_withheld",
+  "production_candidate": "b512365",
+  "safe_for_draft_review": true,
+  "release_recommended": false,
+  "reasons": [
+    "The full isolated suite, clean package smoke, local safety gates, immutable-primary checks, and typed contracts pass.",
+    "The frozen naturalistic forecast-quality gates fail, so StatsForecast remains explicit opt-in and disabled by default.",
+    "The hosted agent-boundary, decision-utility, orchestration-economy, and CiK lanes were not run because no provider credential or external harness is available.",
+    "The reused ContextBench engine seed is complete and safe but not decision-ready for a recall promotion."
+  ],
+  "claims_allowed": [
+    "General agent-facing contract and safety-boundary improvements",
+    "Exact local preservation of typed relationships and immutable primary forecasts",
+    "Crash-safe, resumable single-worker benchmark execution",
+    "Synthetic selector usefulness under the frozen local protocol"
+  ],
+  "claims_withheld": [
+    "Broad real-world forecast superiority",
+    "Final-agent accuracy or decision-utility improvement",
+    "At least 25 percent hosted request or prompt-token reduction",
+    "CiK improvement",
+    "Graduated reversible or high-impact automation"
+  ],
+  "pull_request_state": "draft_until_ci_and_required_external_lanes_are_green"
+}

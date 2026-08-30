@@ -1581,6 +1581,7 @@ def capabilities() -> dict[str, object]:
     except ImportError:
         parquet = False
     from .registry import registry_capabilities
+    from .statsforecast_adapter import installation_status
     from .tsfm import available_tsfms, capability_matrix, installed_tsfms
     from .tsfm_sandbox import list_sandboxes
     try:
@@ -1590,11 +1591,14 @@ def capabilities() -> dict[str, object]:
         structural_events_on = bool(
             getattr(_capabilities_config.context, "structural_events", False)
         )
+        statsforecast_on = bool(getattr(
+            _capabilities_config.models, "statsforecast_enabled", False))
     except Exception:
         # A malformed config file must not make capabilities unreportable;
         # the flags read as their defaults.
         future_events_on = False
         structural_events_on = False
+        statsforecast_on = False
     return {
         "schema_version": "0.1",
         "runtime_version": RUNTIME_VERSION,
@@ -1670,6 +1674,15 @@ def capabilities() -> dict[str, object]:
         "models": {
             "baselines": sorted(BASELINES),
             "statistical": sorted(name for name in MODELS if name not in BASELINES),
+            "statsforecast": {
+                **installation_status(),
+                "enabled_in_config": statsforecast_on,
+                "extra": "gnomon-forecast[statsforecast]",
+                "admission": (
+                    "prefix-only rolling selection against mandatory baselines; "
+                    "availability does not imply publication"
+                ),
+            },
             "context": ["event_adjusted"],
             # Adapters that can actually run right now: importable
             # in-process or with a ready sandbox. `installed_tsfms()` alone

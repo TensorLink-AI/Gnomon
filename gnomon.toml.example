@@ -5,6 +5,12 @@
 enabled = true
 candidates = ["drift", "linear_trend", "window_average", "theta", "ets", "croston_sba"]
 
+# Optional extra: pip install "gnomon-forecast[statsforecast]". Candidates
+# still have to beat the mandatory baselines on Gnomon's rolling folds.
+[models.statsforecast]
+enabled = false
+candidates = ["statsforecast_autoets", "statsforecast_autoarima", "statsforecast_autotheta", "statsforecast_croston_optimized"]
+
 [models.tsfm]
 candidates = []
 

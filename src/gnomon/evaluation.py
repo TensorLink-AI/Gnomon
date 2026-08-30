@@ -125,6 +125,12 @@ class Evaluation:
     admission_decision: AdmissionDecision | None = None
     #: Aligned evidence for the WAPE + fold-local-MASE publication gate.
     selection_stability: dict[str, object] = field(default_factory=dict)
+    # Optional statistical-library candidates are appended at the end to
+    # preserve Evaluation's established positional-construction contract.
+    # They are distinct from TSFMs because only the latter may consume an
+    # external pretrained-model prior.
+    statistical_plugin_scores: dict[str, float | None] = field(default_factory=dict)
+    adapter_receipts: dict[str, Any] = field(default_factory=dict)
 
 
 #: The metric every selection decision is made on. Named so that hindsight
@@ -1244,6 +1250,41 @@ def evaluate(
                 except Exception:
                     logger.debug("API adapter %s failed to initialize", name, exc_info=True)
 
+    # --- Optional statistical-library adapters ---------------------------
+    # Availability adds candidates, never authority. The package is imported
+    # lazily and an explicit request with a missing/broken dependency becomes
+    # a note plus a discovery receipt; mandatory baselines continue normally.
+    statsforecast_adapters: list[Any] = []
+    statsforecast_receipt: dict[str, Any] = {"status": "disabled"}
+    statsforecast_enabled = bool(
+        config and getattr(config.models, "statsforecast_enabled", False))
+    if statsforecast_enabled:
+        from .statsforecast_adapter import (
+            DEFAULT_CANDIDATES, MAX_OUTER_FOLDS, statsforecast_candidates,
+        )
+        requested_stats = getattr(
+            config.models, "statsforecast_candidates", None)
+        try:
+            if len(selection_origins) > MAX_OUTER_FOLDS:
+                statsforecast_receipt = {
+                    "status": "soft_skip_compute_budget",
+                    "selection_folds": len(selection_origins),
+                    "maximum_selection_folds": MAX_OUTER_FOLDS,
+                    "requested": list(requested_stats or DEFAULT_CANDIDATES),
+                }
+            else:
+                statsforecast_adapters, statsforecast_receipt = \
+                    statsforecast_candidates(requested_stats)
+        except ValueError as exc:
+            raise GnomonError(
+                "UNKNOWN_MODEL", str(exc),
+                {"available": list(DEFAULT_CANDIDATES)},
+            ) from exc
+    all_adapters = [*tsfm_adapters, *statsforecast_adapters]
+    for adapter in statsforecast_adapters:
+        if adapter.name not in all_model_names:
+            all_model_names.append(adapter.name)
+
     if evidence_registry is not None and external_priors is None:
         from .model_evidence import describe_regime
         from .tsfm import pinned_revision
@@ -1284,6 +1325,14 @@ def evaluate(
             f"`gnomon tsfm install {requested_names[0]}` to add one; it enters "
             f"the same folds against the same baselines."
         )
+    if statsforecast_enabled and not statsforecast_adapters:
+        status = statsforecast_receipt.get("status", "soft_skip")
+        required = statsforecast_receipt.get("required", ">=2.1,<3")
+        notes.append(
+            f"StatsForecast candidates did not compete ({status}); optional "
+            f"dependency requirement is {required}. Mandatory baselines and "
+            f"built-in candidates remained active."
+        )
 
     # --- Run built-in models on selection folds ---
     # Both lists are indexed by fold, exactly like the TSFM lists below: a
@@ -1317,10 +1366,14 @@ def evaluate(
             fold_forecasts[name].append(forecast)
             fold_scores[name].append(score)
 
-    # --- Run TSFM candidates on selection folds ---
-    tsfm_fold_scores: dict[str, list[float]] = {a.name: [] for a in tsfm_adapters}
-    tsfm_fold_forecasts: dict[str, list[list[float]]] = {a.name: [] for a in tsfm_adapters}
-    for adapter in tsfm_adapters:
+    # --- Run optional adapter candidates on selection folds ---
+    adapter_fold_scores: dict[str, list[float | None]] = {
+        a.name: [] for a in all_adapters}
+    adapter_fold_forecasts: dict[str, list[list[float]]] = {
+        a.name: [] for a in all_adapters}
+    adapter_fold_failures: dict[str, list[dict[str, Any]]] = {
+        a.name: [] for a in all_adapters}
+    for adapter in all_adapters:
         batched: list[list[float]] | None = None
         if hasattr(adapter, "predict_many") and selection_origins:
             try:
@@ -1332,7 +1385,7 @@ def evaluate(
                 if len(batched) != len(selection_origins):
                     batched = None
             except Exception as exc:
-                logger.debug("TSFM %s batch prediction failed: %s",
+                logger.debug("adapter %s batch prediction failed: %s",
                              adapter.name, exc)
                 batched = None
         for fold_index, origin in enumerate(selection_origins):
@@ -1344,15 +1397,21 @@ def evaluate(
                 else:
                     forecast = batched[fold_index]
                 if len(forecast) != horizon:
-                    tsfm_fold_scores[adapter.name].append(None)  # type: ignore[arg-type]
-                    tsfm_fold_forecasts[adapter.name].append([])  # type: ignore[arg-type]
+                    adapter_fold_scores[adapter.name].append(None)
+                    adapter_fold_forecasts[adapter.name].append([])
                     continue
-                tsfm_fold_scores[adapter.name].append(error_score(actual, forecast))
-                tsfm_fold_forecasts[adapter.name].append(forecast)
+                adapter_fold_scores[adapter.name].append(
+                    error_score(actual, forecast))
+                adapter_fold_forecasts[adapter.name].append(forecast)
             except (TSFMError, TSFMUnavailable, Exception) as exc:
-                logger.debug("TSFM %s failed on fold at origin %d: %s", adapter.name, origin, exc)
-                tsfm_fold_scores[adapter.name].append(None)  # type: ignore[arg-type]
-                tsfm_fold_forecasts[adapter.name].append([])  # type: ignore[arg-type]
+                logger.debug("adapter %s failed on fold at origin %d: %s",
+                             adapter.name, origin, exc)
+                adapter_fold_scores[adapter.name].append(None)
+                adapter_fold_forecasts[adapter.name].append([])
+                adapter_fold_failures[adapter.name].append({
+                    "origin_index": origin,
+                    "error": f"{type(exc).__name__}: {exc}"[:300],
+                })
 
     # --- Aggregate scores ---
     # Same rule as the TSFM aggregation below: every fold must have a real
@@ -1365,19 +1424,19 @@ def evaluate(
         scores[name] = (
             mean(valid) if valid and len(valid) == len(selection_origins) else None
         )
-    tsfm_scores: dict[str, float | None] = {}
-    for name, items in tsfm_fold_scores.items():
+    adapter_scores: dict[str, float | None] = {}
+    for name, items in adapter_fold_scores.items():
         valid = [x for x in items if x is not None]
         if valid and len(valid) == len(selection_origins):
-            tsfm_scores[name] = mean(valid)
+            adapter_scores[name] = mean(valid)
         else:
-            tsfm_scores[name] = None
+            adapter_scores[name] = None
             # Lazy in-process adapters can be instantiated before their
             # optional package is importable. Do not call those "installed";
             # the earlier absent-tier note already explains that state.
             if name in installed_names:
                 minimum = getattr(
-                    next((adapter for adapter in tsfm_adapters
+                    next((adapter for adapter in all_adapters
                           if adapter.name == name), None), "min_history", None)
                 requirement = (f"; requires at least {minimum} history points"
                                if minimum else "")
@@ -1386,6 +1445,42 @@ def evaluate(
                     f"{len(valid)} of {len(selection_origins)} required folds"
                     f"{requirement}. Partial-fold scores are not admitted."
                 )
+            elif any(adapter.name == name
+                     for adapter in statsforecast_adapters):
+                minimum = next(adapter.min_history for adapter in
+                               statsforecast_adapters if adapter.name == name)
+                notes.append(
+                    f"StatsForecast candidate {name} did not enter selection: "
+                    f"completed {len(valid)} of {len(selection_origins)} "
+                    f"required folds; minimum history is {minimum}. "
+                    f"Partial-fold scores are not admitted."
+                )
+    tsfm_scores = {name: adapter_scores.get(name)
+                   for name in (adapter.name for adapter in tsfm_adapters)}
+    statistical_plugin_scores = {
+        name: adapter_scores.get(name)
+        for name in (adapter.name for adapter in statsforecast_adapters)
+    }
+    if statsforecast_enabled:
+        statsforecast_receipt["candidates"] = {
+            adapter.name: {
+                "model": adapter.model_class,
+                "package_version": adapter.revision,
+                "season": season,
+                "required_folds": len(selection_origins),
+                "completed_folds": sum(
+                    item is not None
+                    for item in adapter_fold_scores[adapter.name]),
+                "score": statistical_plugin_scores.get(adapter.name),
+                "failures": adapter_fold_failures[adapter.name],
+                **({
+                    "components": list(adapter.components),
+                    "internal_selection_trace": list(
+                        adapter.selection_trace),
+                } if hasattr(adapter, "components") else {}),
+            }
+            for adapter in statsforecast_adapters
+        }
 
     # --- Run cross-series candidates on the same selection folds ---
     extra_candidates = dict(extra_candidates or {})
@@ -1434,7 +1529,7 @@ def evaluate(
             Fold 0 has no prior evidence and so weights members equally.
             """
             prior: dict[str, float | None] = {}
-            for source in (fold_scores, tsfm_fold_scores):
+            for source in (fold_scores, adapter_fold_scores):
                 for name, items in source.items():
                     earlier = [
                         item for item in items[:fold_idx] if item is not None
@@ -1447,9 +1542,11 @@ def evaluate(
             for name in pool:
                 if fold_idx < len(fold_forecasts[name]) and fold_forecasts[name][fold_idx]:
                     fold_forecast_map[name] = fold_forecasts[name][fold_idx]
-            for adapter in tsfm_adapters:
-                if fold_idx < len(tsfm_fold_forecasts[adapter.name]) and tsfm_fold_forecasts[adapter.name][fold_idx]:
-                    fold_forecast_map[adapter.name] = tsfm_fold_forecasts[adapter.name][fold_idx]
+            for adapter in all_adapters:
+                if (fold_idx < len(adapter_fold_forecasts[adapter.name])
+                        and adapter_fold_forecasts[adapter.name][fold_idx]):
+                    fold_forecast_map[adapter.name] = \
+                        adapter_fold_forecasts[adapter.name][fold_idx]
 
             if len(fold_forecast_map) >= (ensemble_cfg.min_models if ensemble_cfg else 2):
                 try:
@@ -1496,10 +1593,12 @@ def evaluate(
             # lists (every fold failed) stay out of the training pool.
             if any(fold_forecasts[name]):
                 mm_fold_forecasts[name] = fold_forecasts[name]
-        for adapter in tsfm_adapters:
-            valid_forecasts = [f for f in tsfm_fold_forecasts[adapter.name] if f]
+        for adapter in all_adapters:
+            valid_forecasts = [
+                f for f in adapter_fold_forecasts[adapter.name] if f]
             if valid_forecasts:
-                mm_fold_forecasts[adapter.name] = tsfm_fold_forecasts[adapter.name]
+                mm_fold_forecasts[adapter.name] = \
+                    adapter_fold_forecasts[adapter.name]
 
         if len(mm_fold_forecasts) >= (meta_model_cfg.min_models if meta_model_cfg else 2):
             # The weights that will actually be used are fit on every fold,
@@ -1611,17 +1710,20 @@ def evaluate(
         for name in pool:
             if scores.get(name) is not None:
                 pinball_scores[name] = _pinball_score(fold_forecasts[name])
-        for adapter in tsfm_adapters:
-            if tsfm_scores.get(adapter.name) is not None:
+        for adapter in all_adapters:
+            if adapter_scores.get(adapter.name) is not None:
                 pinball_scores[adapter.name] = _pinball_score(
-                    [item for item in tsfm_fold_forecasts[adapter.name]])
+                    [item for item in adapter_fold_forecasts[adapter.name]])
 
     baseline_scores = {name: score for name, score in scores.items() if name in BASELINES and score is not None}
     if not baseline_scores:
         return Evaluation(
             None, None, scores, empty_scores.copy(), None, [], None,
             ["No baseline completed every selection fold."], False,
-            degraded, tsfm_scores=tsfm_scores, notes=notes,
+            degraded, tsfm_scores=tsfm_scores,
+            statistical_plugin_scores=statistical_plugin_scores,
+            adapter_receipts={"statsforecast": statsforecast_receipt},
+            notes=notes,
         )
     strongest_baseline = min(baseline_scores, key=baseline_scores.get)  # type: ignore[arg-type]
     selected = strongest_baseline
@@ -1632,7 +1734,7 @@ def evaluate(
     for name, score in scores.items():
         if name not in BASELINES and score is not None:
             candidate_scores[name] = score
-    for name, score in tsfm_scores.items():
+    for name, score in adapter_scores.items():
         if score is not None:
             candidate_scores[name] = score
     for name, score in extra_scores.items():
@@ -1692,8 +1794,8 @@ def evaluate(
         def _fold_vector(name: str) -> list[float | None] | None:
             if name in fold_scores:
                 return fold_scores[name]
-            if name in tsfm_fold_scores:
-                return tsfm_fold_scores[name]
+            if name in adapter_fold_scores:
+                return adapter_fold_scores[name]
             if name in extra_fold_scores:
                 return extra_fold_scores[name]
             if name == "ensemble":
@@ -1726,8 +1828,8 @@ def evaluate(
         def _forecast_vector(name: str) -> list[list[float]] | None:
             if name in fold_forecasts:
                 return fold_forecasts[name]
-            if name in tsfm_fold_forecasts:
-                return tsfm_fold_forecasts[name]
+            if name in adapter_fold_forecasts:
+                return adapter_fold_forecasts[name]
             if name in extra_fold_forecasts:
                 return extra_fold_forecasts[name]
             if name == "ensemble":
@@ -1853,7 +1955,8 @@ def evaluate(
                 conflicts = ("candidate output could not be diagnosed",)
             evidence = local_evidence(
                 model_class="pretrained",
-                candidate_losses=list(tsfm_fold_scores[admission_candidate]),
+                candidate_losses=list(
+                    adapter_fold_scores[admission_candidate]),
                 baseline_losses=list(fold_scores[strongest_baseline]),
                 external_prior=external_priors[admission_candidate],
                 diagnostics=diagnostics,
@@ -1871,7 +1974,7 @@ def evaluate(
                 selected = admission_candidate
             elif admission_decision.point_policy == "shrunk_blend":
                 selected = "admission_blend"
-                candidate_items = tsfm_fold_scores[admission_candidate]
+                candidate_items = adapter_fold_scores[admission_candidate]
                 baseline_items = fold_scores[strongest_baseline]
                 blended_items: list[float | None] = []
                 for candidate_item, baseline_item in zip(
@@ -1896,7 +1999,7 @@ def evaluate(
             )
 
     # --- Calibration ---
-    all_scores = {**scores, **tsfm_scores, **extra_scores}
+    all_scores = {**scores, **adapter_scores, **extra_scores}
     if ensemble_score is not None:
         all_scores["ensemble"] = ensemble_score
     if meta_model_score is not None:
@@ -1917,7 +2020,7 @@ def evaluate(
         """
         from .ensemble import compute_ensemble_forecast
         steps = horizon if fc_horizon is None else fc_horizon
-        member_scores: dict[str, float | None] = {**scores, **tsfm_scores}
+        member_scores: dict[str, float | None] = {**scores, **adapter_scores}
         forecasts: dict[str, list[float]] = {}
         for name in pool:
             if member_scores.get(name) is None:
@@ -1927,7 +2030,7 @@ def evaluate(
                     name, train, steps, season)
             except (ValueError, ArithmeticError):
                 continue
-        for adapter in tsfm_adapters:
+        for adapter in all_adapters:
             if member_scores.get(adapter.name) is None:
                 continue
             try:
@@ -1969,7 +2072,7 @@ def evaluate(
             ]
         if name in extra_candidates:
             return extra_candidates[name](origin, steps)
-        adapter = next((a for a in tsfm_adapters if a.name == name), None)
+        adapter = next((a for a in all_adapters if a.name == name), None)
         if adapter is None:
             raise ValueError(f"no adapter available for {name}")
         return _predict_adapter(adapter, train, steps, season)
@@ -2108,7 +2211,7 @@ def evaluate(
                 pooled.append(a - p)
                 by_lead.setdefault(step, []).append(a - p)
 
-        adapter = next((candidate for candidate in tsfm_adapters
+        adapter = next((candidate for candidate in all_adapters
                         if candidate.name == name), None)
         batch_predictions: list[list[float]] | None = None
         if adapter is not None and origins:
@@ -2117,7 +2220,7 @@ def evaluate(
                     adapter, [train_at(origin) for origin in origins],
                     horizon, season)
             except Exception:
-                logger.debug("TSFM %s residual batch failed", name,
+                logger.debug("adapter %s residual batch failed", name,
                              exc_info=True)
         for index, origin in enumerate(origins):
             try:
@@ -2229,7 +2332,7 @@ def evaluate(
         if ensemble_strategy != "weighted_mean":
             return None
         from .ensemble import weighted_mean_weights
-        member_scores: dict[str, float | None] = {**scores, **tsfm_scores}
+        member_scores: dict[str, float | None] = {**scores, **adapter_scores}
         forecasts: dict[str, list[float]] = {}
         for name in pool:
             if member_scores.get(name) is None:
@@ -2239,7 +2342,7 @@ def evaluate(
                     name, history, horizon, season)
             except (ValueError, ArithmeticError):
                 continue
-        for adapter in tsfm_adapters:
+        for adapter in all_adapters:
             if member_scores.get(adapter.name) is None:
                 continue
             try:
@@ -2290,7 +2393,7 @@ def evaluate(
     def _revisions(members: tuple[str, ...]) -> dict[str, str]:
         from .versioning import RUNTIME_VERSION
         revisions = {"runtime": RUNTIME_VERSION}
-        adapters = {a.name: a for a in tsfm_adapters}
+        adapters = {a.name: a for a in all_adapters}
         for member in members:
             adapter = adapters.get(member)
             model_id = getattr(adapter, "_MODEL_ID", None) if adapter else None
@@ -2305,18 +2408,23 @@ def evaluate(
                 revision = getattr(adapter, "revision", None)
                 remote_model = getattr(
                     getattr(adapter, "_provider", None), "model", "")
-                revisions[member] = (
-                    f"{remote_model or member}@{revision}"
-                    if revision else f"unversioned:{remote_model or member}"
-                )
+                if getattr(adapter, "kind", "") == "statistical_plugin":
+                    revisions[member] = (
+                        f"statsforecast@{revision}" if revision
+                        else "unversioned:statsforecast")
+                else:
+                    revisions[member] = (
+                        f"{remote_model or member}@{revision}"
+                        if revision else f"unversioned:{remote_model or member}"
+                    )
         return revisions
 
     ensemble_candidate = None
     if ensemble_enabled:
         member_names = tuple(sorted(
             [name for name in pool if scores.get(name) is not None]
-            + [a.name for a in tsfm_adapters
-               if tsfm_scores.get(a.name) is not None]
+            + [a.name for a in all_adapters
+               if adapter_scores.get(a.name) is not None]
         ))
         behaviour: dict[str, Any] = {
             "min_models": ensemble_cfg.min_models if ensemble_cfg else 2,
@@ -2370,9 +2478,9 @@ def evaluate(
             ),
             selected,
         )
-    elif any(adapter.name == selected for adapter in tsfm_adapters):
+    elif any(adapter.name == selected for adapter in all_adapters):
         selected_adapter = next(
-            adapter for adapter in tsfm_adapters if adapter.name == selected)
+            adapter for adapter in all_adapters if adapter.name == selected)
         selected_capabilities = LegacyModelAdapter(selected_adapter).capabilities
 
         def selected_batch_predictor(
@@ -2388,11 +2496,24 @@ def evaluate(
 
         final_candidate = _spec_for(
             CandidateIdentity(
-                kind="tsfm", name=selected,
+                kind=("statistical_plugin"
+                      if getattr(selected_adapter, "kind", "") ==
+                      "statistical_plugin" else "tsfm"),
+                name=selected,
                 config={
                     "adapter_protocol": "0.1",
                     "adapter_backend": str(getattr(
                         selected_adapter, "backend", "in_process")),
+                    **({
+                        "package": "statsforecast",
+                        "model_class": selected_adapter.model_class,
+                        "season_length": season,
+                        "fit_history_limit": getattr(
+                            selected_adapter, "fit_history_limit", None),
+                        **({"components": list(selected_adapter.components)}
+                           if hasattr(selected_adapter, "components") else {}),
+                    } if getattr(selected_adapter, "kind", "") ==
+                        "statistical_plugin" else {}),
                     "min_history": selected_capabilities.min_history,
                     "max_horizon": selected_capabilities.max_horizon,
                 },
@@ -2424,12 +2545,16 @@ def evaluate(
             "admission_blend",
         )
 
-    return Evaluation(selected, strongest_baseline, {**scores, **extra_scores},
+    return Evaluation(selected, strongest_baseline,
+                      {**scores, **statistical_plugin_scores, **extra_scores},
                       test_scores, improvement,
                       residuals, coverage, warnings, True, degraded,
                       final_candidate=final_candidate,
                       ensemble_candidate=ensemble_candidate,
-                      tsfm_scores=tsfm_scores, notes=notes,
+                      tsfm_scores=tsfm_scores,
+                      statistical_plugin_scores=statistical_plugin_scores,
+                      adapter_receipts={"statsforecast": statsforecast_receipt},
+                      notes=notes,
                       residuals_by_lead=residuals_by_lead,
                       event_residuals_by_lead=event_residuals_by_lead,
                       event_residual_fold_count=(

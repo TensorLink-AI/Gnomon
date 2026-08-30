@@ -256,6 +256,45 @@ def test_batch_syntax_leads_the_forecast_description(tmp_path) -> None:
     assert len(json.dumps(payload)) < RESPONSE_BUDGET_BYTES * 2
 
 
+def test_reversible_action_policy_uses_artifact_local_calibration(tmp_path) -> None:
+    from datetime import date, timedelta
+    import json
+    from pathlib import Path
+    from gnomon.publication import verify_publication
+    from gnomon.toolspec import runner_for
+
+    source = tmp_path / "action-series.csv"
+    start = date(2025, 1, 1)
+    source.write_text("timestamp,value\n" + "\n".join(
+        f"{start + timedelta(days=day)},{100 + day * .25}"
+        for day in range(120)) + "\n")
+    payload = runner_for("gnomon_forecast")({
+        "input": str(source), "target_column": "value", "horizon": 12,
+        "output_dir": str(tmp_path / "out"), "publication_mode": "strict",
+        "automation_policy": {
+            "authorize": True, "policy_id": "ops-test",
+            "minimum_support": "supported",
+            "action_tier": "reversible_low_impact",
+        },
+    })
+
+    publication = payload["publication"]
+    lineage = publication["calibration_lineage"]
+    bindings = lineage["bindings"]
+    assert bindings["artifact_id"] == payload["artifact_id"]
+    assert bindings["series"] == "__default__"
+    assert bindings["horizon"] == 12
+    assert bindings["forecast_row_count"] == 12
+    assert lineage["source"] == "artifact_rolling_evaluation"
+    assert lineage["adaptive_state_can_authorize"] is False
+    assert "prospective_validation_passed" in lineage["failed_checks"]
+    assert publication["automation"]["eligible"] is False
+    assert publication["primary_forecast_unchanged"] is True
+    receipt = json.loads(Path(payload["publication_path"]).read_text())
+    assert receipt["calibration_lineage"] == lineage
+    assert verify_publication(receipt)
+
+
 def test_batched_forecast_accepts_scoped_validated_context(tmp_path) -> None:
     """Host-compiled context must not force wide data back to N calls."""
     from datetime import date, timedelta
@@ -1529,7 +1568,13 @@ def test_typed_question_returns_compact_answer_without_changing_primary(
     assert asked["answers"][0]["artifact_id"] == asked["artifact_id"]
     assert set(asked["answers"][0]) == {
         "question", "best_estimate", "synthesis_policy", "decision_rule",
-        "answer", "headline", "limitations", "artifact_id", "support"}
+        "answer", "headline", "limitations", "artifact_id", "support",
+        "calibration_status"}
+    decision = asked["agent_response_contract"]["decisions"][0]
+    assert decision["question_id"] == "v1"
+    assert decision["property"] == "volatility"
+    assert decision["primary_forecast_unchanged"] is True
+    assert decision["required"] == "all_emitted_fields"
     policy = asked["answers"][0]["synthesis_policy"]
     assert policy["canonical_immutable"] is True
     assert policy["synthesis_must_be_separately_labelled"] is True

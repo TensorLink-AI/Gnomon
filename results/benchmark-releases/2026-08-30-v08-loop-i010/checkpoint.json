@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "iteration": "I010",
+  "branch": "agent/v0.8-agent-forecasting-loop",
+  "production_candidate": "1f31ece",
+  "active_issue": "V1",
+  "status": "protocol_frozen",
+  "local": {
+    "property_seed": 2026083801,
+    "property_replicates": 12,
+    "selector_seed": 2026083802,
+    "selector_cases_per_family": 40
+  },
+  "naturalistic_cutoffs": [0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.83, 0.86, 0.89],
+  "hosted": {
+    "required_agent_cases": 24,
+    "required_cik_cases": 12,
+    "engy_credential_available": false,
+    "status": "pending_external_credential"
+  },
+  "next_action": "Run the frozen local and naturalistic shards sequentially, inspect family-level failures, then run isolated repository and package gates.",
+  "preservation": {
+    "external_intake_unchanged": true,
+    "astrid_plan_excluded": true,
+    "preexisting_untracked_files_untouched": true
+  }
+}

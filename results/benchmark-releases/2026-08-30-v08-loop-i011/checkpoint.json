@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "iteration": "I011",
+  "branch": "agent/v0.8-agent-forecasting-loop",
+  "production_candidate": "b512365",
+  "active_issue": "V1",
+  "status": "draft_review_candidate_external_evaluation_pending",
+  "issue_status": {
+    "E1": "candidate_committed_hosted_economy_confirmation_pending",
+    "F1": "complete_explicit_opt_in_default_disabled",
+    "C1": "complete_no_build_current_boundary_retained",
+    "D1": "additive_contract_complete_hosted_utility_pending",
+    "A1": "disclosure_promoted_automation_graduation_rejected",
+    "V1": "local_complete_ci_and_hosted_lanes_pending"
+  },
+  "local_validation": {
+    "full_suite": "2692 passed, 12 skipped",
+    "focused_boundary_suite": "22 passed",
+    "package_build": "wheel_and_sdist_passed",
+    "clean_wheel_smoke": "passed"
+  },
+  "external": {
+    "agent_cases_required": 24,
+    "agent_cases_run": 0,
+    "cik_cases_required": 12,
+    "cik_cases_run": 0,
+    "credential_available": false,
+    "status": "pending_external_provider_credential"
+  },
+  "decision": "withhold_release_recommendation_keep_pull_request_draft",
+  "next_action": "Push the evidence checkpoint, open the draft pull request, and require exact-head CI; later run the frozen hosted shards when credentials and the external harness are available.",
+  "preservation": {
+    "external_intake_unchanged": true,
+    "astrid_plan_excluded": true,
+    "preexisting_untracked_files_untouched": true
+  }
+}
