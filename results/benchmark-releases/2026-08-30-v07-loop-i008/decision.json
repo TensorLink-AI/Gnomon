@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "iteration": "I008",
+  "issue": "Q6",
+  "decision": "promote_regime_attribution_and_causal_spike_cleaning",
+  "baseline_commit": "1b2e479",
+  "candidate_commit": "777ac5b",
+  "protocols": [
+    "docs/v0.7-q6-anomaly-event-protocol.md",
+    "docs/v0.7-q6-regime-attribution-subfix-protocol.md",
+    "docs/v0.7-q6-anomaly-scorer-correction.md"
+  ],
+  "matched_result": {
+    "cases": 24,
+    "surfaces": 3,
+    "shift_cases_preserved": 8,
+    "planted_events": 16,
+    "investigation_precision_before": 0.04,
+    "investigation_precision_after": 0.8421052631578947,
+    "unlabelled_precision_before": 0.2711864406779661,
+    "unlabelled_precision_after": 0.3018867924528302,
+    "label_supplied_precision_before": 0.9411764705882353,
+    "label_supplied_precision_after": 1.0,
+    "event_recall_all_surfaces_before_and_after": 1.0,
+    "shift_explained_duplicate_alerts_before": 384,
+    "shift_explained_duplicate_alerts_after": 0,
+    "rebound_duplicates_before": 5,
+    "rebound_duplicates_after": 0,
+    "full_tests": "2637 passed, 11 skipped"
+  },
+  "invariants": {
+    "changepoint_logic_unchanged": true,
+    "all_baseline_correct_changepoints_preserved": true,
+    "nearby_genuine_events_preserved": true,
+    "label_and_unlabelled_selection_basis_exact": true,
+    "future_or_benchmark_label_routing_zero": true,
+    "deterministic_replay": true
+  },
+  "raw_evidence": [
+    "results/v07-q6-i008-anomalyeventbench-baseline/",
+    "results/v07-q6-i008-anomalyeventbench-candidate/",
+    "results/v07-q6-i008-anomalyeventbench-candidate-v2/"
+  ]
+}

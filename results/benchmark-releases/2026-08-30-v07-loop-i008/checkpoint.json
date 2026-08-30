@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "loop": "v0.7-forecast-quality",
+  "status": "active",
+  "latest_evaluated_commit": "777ac5b",
+  "branch": "agent/v0.7-forecast-quality-loop",
+  "protocol": "docs/v0.7-forecast-quality-loop.md",
+  "external_evaluation_intake": "docs/v0.7-external-evaluation-intake.md",
+  "preservation": {
+    "preserve_preexisting_committed_work": true,
+    "preserve_preexisting_benchmark_artifacts": true,
+    "preserve_all_preexisting_untracked_files": true,
+    "excluded_from_commits": ["docs/astrid-btc-agent-plan.md"]
+  },
+  "active_iteration": {
+    "id": "I009",
+    "issue": "Q3",
+    "phase": "freeze_fresh_context_recall_reproduction",
+    "user_hypothesis": "Agents should discover more genuinely usable dated context without invented timing or magnitude, while humans retain exact source, admission, scenario, and automation boundaries.",
+    "next_action": "Freeze fresh generator seeds and naturalistic documents; score compiler proposal recall, engine contract completeness, scenario yield, and automation-eligible yield separately before implementation.",
+    "last_completed_action": "Promoted Q6 with 384 shift duplicates removed, rebound duplicates reduced 5 to 0, 100% recall on all surfaces, all changepoints preserved, and 2637 passing isolated tests."
+  },
+  "issues": [
+    {"id": "S1", "status": "complete"},
+    {"id": "S2", "status": "complete"},
+    {"id": "Q1", "status": "complete_with_promoted_safeguards_and_retained_numeric_no_build"},
+    {"id": "Q2", "status": "complete_with_promoted_coherent_trend_and_agent_boundary"},
+    {"id": "Q3", "status": "in_progress_fresh_reproduction"},
+    {"id": "Q4", "status": "pending"},
+    {"id": "Q5", "status": "pending"},
+    {"id": "Q6", "status": "complete_with_promoted_regime_attribution"}
+  ]
+}

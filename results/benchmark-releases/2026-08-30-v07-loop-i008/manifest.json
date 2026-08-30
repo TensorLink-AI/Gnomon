@@ -1,0 +1,40 @@
+{
+  "benchmarks": [
+    {
+      "arm": "current-head-baseline",
+      "benchmark": "anomalyeventbench",
+      "bytes": 8098,
+      "file": "baseline.json",
+      "scope": "full",
+      "sha256": "32ef1c2e2670f892fb5511436ce598e9f139977d322d45d3b786fd80bd144c4f",
+      "status": "complete"
+    },
+    {
+      "arm": "regime-attribution-and-causal-cleaning",
+      "benchmark": "anomalyeventbench",
+      "bytes": 8482,
+      "file": "candidate.json",
+      "scope": "full",
+      "sha256": "d26fa53f0ee66881e807c5554a8771b6ce2075f265c0f4b4f91457cd3d206f83",
+      "status": "complete"
+    }
+  ],
+  "curated_by_commit": "777ac5b5b32fbf28dd04bb1ba3f1818f8a00df61",
+  "not_included": [
+    {
+      "benchmark": "raw per-case artifacts",
+      "reason": "Retained locally; committed release is aggregate-only."
+    },
+    {
+      "benchmark": "competition-specific plan",
+      "reason": "docs/astrid-btc-agent-plan.md remains outside this loop."
+    }
+  ],
+  "policy": {
+    "aggregate_only": true,
+    "raw_runs_are_ci_artifacts": true,
+    "smoke_results_are_not_full_results": true
+  },
+  "release": "2026-08-30-v07-loop-i008",
+  "schema_version": "1.1"
+}

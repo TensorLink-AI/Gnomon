@@ -1,0 +1,32 @@
+{
+  "release": "2026-08-30-v07-loop-i008",
+  "output_dir": "results/benchmark-releases/2026-08-30-v07-loop-i008",
+  "benchmarks": [
+    {
+      "benchmark": "anomalyeventbench",
+      "arm": "current-head-baseline",
+      "scope": "full",
+      "source": "results/v07-q6-i008-anomalyeventbench-baseline/summary.json",
+      "file": "baseline.json",
+      "evaluated_commit": "1b2e479",
+      "harness_commit": "1b2e479",
+      "dataset_identity": "frozen 24-case matrix; seeds 9101-9104; shift, spike, nearby-event, and stationary families; three production surfaces",
+      "configuration_identity": "global investigation anomaly score and original graded detector formulas; TSFM supply disabled"
+    },
+    {
+      "benchmark": "anomalyeventbench",
+      "arm": "regime-attribution-and-causal-cleaning",
+      "scope": "full",
+      "source": "results/v07-q6-i008-anomalyeventbench-candidate-v2/summary.json",
+      "file": "candidate.json",
+      "evaluated_commit": "777ac5b",
+      "harness_commit": "777ac5b",
+      "dataset_identity": "same frozen 24 cases, observations, labels, event matcher, and production surfaces as baseline",
+      "configuration_identity": "within-regime investigation scoring with typed attribution plus prefix-only causal cleaning for extreme one-step innovations; TSFM supply disabled"
+    }
+  ],
+  "not_included": [
+    {"benchmark": "raw per-case artifacts", "reason": "Retained locally; committed release is aggregate-only."},
+    {"benchmark": "competition-specific plan", "reason": "docs/astrid-btc-agent-plan.md remains outside this loop."}
+  ]
+}
