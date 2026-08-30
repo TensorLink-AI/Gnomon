@@ -1,7 +1,9 @@
 # v0.7 loop I013: exact-candidate release gate
 
-Local decision: **the 0.7.0 candidate is green and ready for exact-head CI. Do
-not tag until that CI is green.**
+Decision: **release recommended.** The exact product and release-boundary head
+`fa59f2b` passed CI, benchmark validation, package smoke, and the container
+build. This metadata-only completion record must pass the same workflows on
+its exact head before the annotated `v0.7.0` tag is created.
 
 The forecast product candidate was `77ffb5a`; `7352f91` refreshed five
 byte-exact goldens whose only changes were the 0.7.0 runtime stamp and

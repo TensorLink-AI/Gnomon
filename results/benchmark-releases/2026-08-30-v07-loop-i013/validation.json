@@ -85,5 +85,16 @@
     "benchmarks_conclusion": "failure_revised",
     "benchmarks_failure": "workflow treated the pre-manifest I000 bootstrap checkpoint as a curated release",
     "forecast_or_selection_failure": false
+  },
+  "revised_exact_head_ci": {
+    "head": "fa59f2b29e83c030402f94bde05739007a1b8f47",
+    "ci_run": 33307896827,
+    "ci_conclusion": "success",
+    "python_versions": ["3.11", "3.12", "3.13"],
+    "package_smoke_conclusion": "success",
+    "benchmarks_run": 33307900933,
+    "benchmarks_conclusion": "success",
+    "container_run": 33307904216,
+    "container_conclusion": "success"
   }
 }

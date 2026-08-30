@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "loop": "v0.7-forecast-quality",
-  "status": "active_awaiting_exact_head_ci",
+  "status": "complete_release_recommended",
   "latest_evaluated_forecast_commit": "77ffb5a",
   "latest_product_boundary_commit": "58a395f",
   "latest_verification_commit": "58a395f",
@@ -17,9 +17,9 @@
   "active_iteration": {
     "id": "I013",
     "issue": "final_release_gate",
-    "phase": "exact_head_ci",
-    "next_action": "Push the aggregate release candidate, verify exact-head CI, then mark the loop complete and tag v0.7.0 only if CI is green.",
-    "last_completed_action": "Passed fresh small ContextBench, TemporalBench, and CiK shards, inspected actual responses, passed isolated clean-wheel smoke, fixed two general CI-exposed release-boundary defects, and passed the revised full TSFM-isolated suite."
+    "phase": "complete",
+    "next_action": "Commit and push this metadata-only completion record, verify CI, Benchmarks, and Container on that exact final head, then create annotated tag v0.7.0.",
+    "last_completed_action": "Passed fresh small ContextBench, TemporalBench, and CiK shards, inspected actual responses, passed isolated clean-wheel smoke and the revised full TSFM-isolated suite, then passed exact-head CI, benchmark validation, package smoke, and container build on fa59f2b."
   },
   "issues": [
     {"id": "S1", "status": "complete"},
@@ -30,6 +30,6 @@
     {"id": "Q4", "status": "complete_with_promoted_stable_supported_primary_authority"},
     {"id": "Q5", "status": "complete_with_retained_response_checklist_no_build_and_verified_resume"},
     {"id": "Q6", "status": "complete_with_promoted_regime_attribution"},
-    {"id": "final_release_gate", "status": "local_green_awaiting_exact_head_ci"}
+    {"id": "final_release_gate", "status": "complete_release_recommended"}
   ]
 }

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "iteration": "I013",
-  "decision": "release_candidate_local_green_awaiting_exact_head_ci",
+  "decision": "release_recommended",
   "version": "0.7.0",
   "protocol": "docs/v0.7-final-release-protocol.md",
   "forecast_candidate_commit": "77ffb5a",
@@ -26,5 +26,5 @@
     "Context usefulness remains conservative: high precision and authority safety take priority over recall and automatic application.",
     "Prior-assisted and hypothetical recommendations remain human-review-only."
   ],
-  "next_action": "Commit and push this aggregate checkpoint, require exact-head CI green, then record completion and create tag v0.7.0 on the exact release commit."
+  "next_action": "Commit and push this metadata-only completion record, require CI, Benchmarks, and Container green on that exact final head, then create annotated tag v0.7.0."
 }
