@@ -1,0 +1,125 @@
+{
+  "benchmarks": [
+    {
+      "arm": "pre-coherence-baseline",
+      "benchmark": "trendanswerbench-seasonal-trend",
+      "bytes": 10674,
+      "file": "trend-development-baseline.json",
+      "scope": "full",
+      "sha256": "9102a28193e7ee81e44a473a65d094a01e4e2a9cf5754e10e8ec55fb7b13590a",
+      "status": "complete"
+    },
+    {
+      "arm": "coherent-trend-candidate",
+      "benchmark": "trendanswerbench-seasonal-trend",
+      "bytes": 10732,
+      "file": "trend-development-candidate.json",
+      "scope": "full",
+      "sha256": "10562c01653111b3fa2825026fc4900d5934bb4f50b2356d02b3cb8c68dacf42",
+      "status": "complete"
+    },
+    {
+      "arm": "pre-coherence-baseline",
+      "benchmark": "trendanswerbench-independent-confirmation",
+      "bytes": 10452,
+      "file": "trend-confirmation-baseline.json",
+      "scope": "full",
+      "sha256": "e47bf5d29d0d454c4ef4c91babbbcf35fff2ceb7dd83b49a7cf795feaed05769",
+      "status": "complete"
+    },
+    {
+      "arm": "coherent-trend-candidate",
+      "benchmark": "trendanswerbench-independent-confirmation",
+      "bytes": 10521,
+      "file": "trend-confirmation-candidate.json",
+      "scope": "full",
+      "sha256": "400236079192cdc62903ed6f7cae614df2d4c31d28a6a5a1a6288abbcc2af0b0",
+      "status": "complete"
+    },
+    {
+      "arm": "baseline-seed-8301",
+      "benchmark": "propertybench-trend-confirmation",
+      "bytes": 7055,
+      "file": "property-confirmation-baseline-8301.json",
+      "scope": "full",
+      "sha256": "7a9e81e09608656e5e37a244ec08be28451692a2bc8d92165e813ddd3495b950",
+      "status": "complete"
+    },
+    {
+      "arm": "candidate-seed-8301",
+      "benchmark": "propertybench-trend-confirmation",
+      "bytes": 7028,
+      "file": "property-confirmation-candidate-8301.json",
+      "scope": "full",
+      "sha256": "912161a81923770299d9f0d0248aee015fe11b333d66e16d40171ebe9fd8db29",
+      "status": "complete"
+    },
+    {
+      "arm": "baseline-seed-8317",
+      "benchmark": "propertybench-trend-confirmation",
+      "bytes": 7041,
+      "file": "property-confirmation-baseline-8317.json",
+      "scope": "full",
+      "sha256": "4baef7b5403e30da333ed3944b878f3f725d2f8ac67e8c605ccb0b35a01e0bd0",
+      "status": "complete"
+    },
+    {
+      "arm": "candidate-seed-8317",
+      "benchmark": "propertybench-trend-confirmation",
+      "bytes": 6991,
+      "file": "property-confirmation-candidate-8317.json",
+      "scope": "full",
+      "sha256": "0fce67eaeebb38dfa153a7927b3f8ad98e826345286bac46b285509b9299631c",
+      "status": "complete"
+    },
+    {
+      "arm": "pre-boundary-baseline",
+      "benchmark": "trendanswerbench-agent-preservation",
+      "bytes": 1954,
+      "file": "trend-agent-baseline.json",
+      "scope": "subset",
+      "sha256": "373bad0e41ef62f63eeb7442ee8e2f6d21e9a1515f7cc0ec816adddfe0183efc",
+      "status": "complete"
+    },
+    {
+      "arm": "typed-boundary-candidate",
+      "benchmark": "trendanswerbench-agent-preservation",
+      "bytes": 1788,
+      "file": "trend-agent-candidate.json",
+      "scope": "subset",
+      "sha256": "754ef28164262b098559f6ee1e5ae01903862e7f78aa1f0f6c24637471d51d3f",
+      "status": "complete"
+    },
+    {
+      "arm": "typed-relationship-control",
+      "benchmark": "contextbench-structural-agent-preservation",
+      "bytes": 7940,
+      "file": "context-structural-control.json",
+      "scope": "subset",
+      "sha256": "1c01982213a50f4c0d56f73961da23fc679d60dcd39643b68af836f41d8f1b09",
+      "status": "complete"
+    }
+  ],
+  "curated_by_commit": "682b3fbda9167761b92dfa34675dadfe308a48ba",
+  "not_included": [
+    {
+      "benchmark": "raw per-case engine and agent records",
+      "reason": "Retained in the source result directories; the git release contains aggregate summaries only."
+    },
+    {
+      "benchmark": "contaminated first agent probe",
+      "reason": "Retained locally but excluded because it used the engine-only synthetic frequency label at the public tool boundary."
+    },
+    {
+      "benchmark": "competition-specific plan",
+      "reason": "docs/astrid-btc-agent-plan.md is explicitly outside this loop and release."
+    }
+  ],
+  "policy": {
+    "aggregate_only": true,
+    "raw_runs_are_ci_artifacts": true,
+    "smoke_results_are_not_full_results": true
+  },
+  "release": "2026-08-30-v07-loop-i007",
+  "schema_version": "1.1"
+}

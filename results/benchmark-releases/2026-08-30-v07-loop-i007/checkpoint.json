@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "loop": "v0.7-forecast-quality",
+  "status": "active",
+  "base_commit": "7717cd940a9fc1fb7f85569dc20a0a8e1a63b3f7",
+  "latest_evaluated_commit": "682b3fbda9167761b92dfa34675dadfe308a48ba",
+  "branch": "agent/v0.7-forecast-quality-loop",
+  "protocol": "docs/v0.7-forecast-quality-loop.md",
+  "external_evaluation_intake": "docs/v0.7-external-evaluation-intake.md",
+  "preservation": {
+    "preserve_preexisting_committed_work": true,
+    "preserve_preexisting_benchmark_artifacts": true,
+    "preserve_all_preexisting_untracked_files": true,
+    "excluded_from_commits": ["docs/astrid-btc-agent-plan.md"]
+  },
+  "execution_defaults": {
+    "one_active_issue": true,
+    "api_jobs": 1,
+    "bounded_retries_required": true,
+    "per_call_timeout_required": true,
+    "wall_clock_timeout_required": true,
+    "incremental_rows_required": true,
+    "resume_required": true,
+    "smoke_shard_before_expansion": true,
+    "engine_and_agent_scored_separately": true
+  },
+  "active_iteration": {
+    "id": "I008",
+    "issue": "Q6",
+    "phase": "freeze_current_head_regime_aware_anomaly_reproduction",
+    "user_hypothesis": "Agents should receive one actionable anomaly event rather than repeated post-shift or spike-rebound duplicates, while humans retain the exact changepoint and can tell whether detector selection was labelled or inferred.",
+    "must_not_regress": [
+      "exact changepoint preservation",
+      "event-level anomaly recall non-inferiority",
+      "no alert suppression based on benchmark identity or hidden future labels",
+      "labelled and unlabelled detector-selection behavior remains explicit",
+      "support and automation eligibility cannot be inflated by presentation"
+    ],
+    "protocol": "docs/v0.7-external-evaluation-intake.md#q6--regime-aware-anomaly-behavior",
+    "next_action": "Freeze a small current-head reproduction with persistent level shifts, isolated spikes and normal rebounds, nearby genuine events, labelled and unlabelled detector selection, and event-level matching. Reproduce repeated post-shift and rebound alerts before any production change.",
+    "last_completed_action": "Promoted the coherent seasonal-trend executable and complete typed agent boundary after matched development and independent confirmation, 6/6 trend preservation, 2/2 no_distinct_numeric_path preservation, and a 2629-pass isolated suite."
+  },
+  "issues": [
+    {"id": "S1", "status": "complete"},
+    {"id": "S2", "status": "complete"},
+    {"id": "Q1", "status": "complete_with_promoted_safeguards_and_retained_numeric_no_build"},
+    {"id": "Q2", "status": "complete_with_promoted_coherent_trend_and_agent_boundary"},
+    {"id": "Q3", "status": "pending"},
+    {"id": "Q4", "status": "pending"},
+    {"id": "Q5", "status": "pending"},
+    {"id": "Q6", "status": "in_progress_current_head_reproduction"}
+  ],
+  "completed_iterations": [
+    {"id": "I001", "issue": "Q1", "decision": "retain_current_policy_pending_naturalistic_confirmation"},
+    {"id": "I002", "issue": "S1", "decision": "promote"},
+    {"id": "I003", "issue": "S2", "decision": "promote"},
+    {"id": "I004", "issue": "Q1", "decision": "promote_safety_subfixes_retain_q1_unconfirmed"},
+    {"id": "I005", "issue": "Q1", "decision": "promote"},
+    {"id": "I006", "issue": "Q1", "decision": "promote_override_conflict_disclosure_retain_numeric_no_build"},
+    {"id": "I007", "issue": "Q2", "decision": "promote_coherent_trend_and_typed_agent_boundary"}
+  ]
+}
