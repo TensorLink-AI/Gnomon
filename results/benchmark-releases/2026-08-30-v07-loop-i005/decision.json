@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "iteration": "I005",
+  "issue": "Q1",
+  "decision": "promote",
+  "baseline_commit": "2c5bf52c8ffd3b80795b8ed4edb5597e348700f4",
+  "evaluated_commit": "198ca4cf9c0a6a41895f6562a745564d04208ebd",
+  "protocol": "docs/v0.7-q1-claim-support-coherence-protocol.md",
+  "user_outcome": "Agents and humans no longer receive an uplift claim when a baseline was retained, and sub-supported forecasts cannot expose a probability or likelihood label that their calibration does not authorize.",
+  "matched_result": {
+    "cases": 4,
+    "headline_surfaces_per_case": 3,
+    "baseline_gates_passed": 6,
+    "baseline_gates_total": 9,
+    "candidate_gates_passed": 9,
+    "candidate_gates_total": 9,
+    "focused_tests": "257 passed, then 32 corrected boundary tests passed",
+    "full_tests_isolated_from_machine_local_tsfm_supply": "2609 passed, 11 skipped"
+  },
+  "implementation": [
+    "Render supported zero-gain results as retained baselines with no measured uplift instead of high-confidence model wins.",
+    "Route degraded, weak, context-trusted, best-effort, and horizon-split threshold requests to the existing bounded non-probabilistic assessment.",
+    "Retain probability-bearing threshold analysis for supported publication and test it against published quantiles."
+  ],
+  "invariants": {
+    "all_headline_surfaces_agree": true,
+    "forecast_numbers_unchanged": true,
+    "model_identity_unchanged": true,
+    "support_status_unchanged": true,
+    "supported_threshold_probabilities_preserved": true,
+    "subsupported_automation_authority_false": true
+  },
+  "raw_evidence": [
+    "results/v07-q1-i005-claimbench-baseline-v2/",
+    "results/v07-q1-i005-claimbench-candidate-v1/",
+    "results/v07-q1-i005-claimbench-candidate-v2/",
+    "results/v07-q1-i005-claimbench-candidate-v3/"
+  ]
+}
+

@@ -1,0 +1,447 @@
+{
+  "release_metadata": {
+    "arm": "current-head-reproduction",
+    "benchmark": "forecast-claim-support-coherence",
+    "configuration_identity": "production forecast(), summary Markdown, full tool summary, and brief tool summary; empty TSFM sandbox root; fixed clock; no future accuracy scoring",
+    "dataset_identity": "four frozen deterministic production forecasts: stationary level seed 123, linear trend, short noisy seed 321, and degraded long-horizon threshold seed 456",
+    "evaluated_commit": "2c5bf52c8ffd3b80795b8ed4edb5597e348700f4",
+    "harness_commit": "2c5bf52c8ffd3b80795b8ed4edb5597e348700f4",
+    "notes": [
+      "Reproduces claim/support behavior before production changes.",
+      "Generator roles and seeds never reach the production runtime."
+    ],
+    "scope": "full",
+    "source": "results/v07-q1-i005-claimbench-baseline-v2/summary.json",
+    "source_sha256": "1160e2d7270efe35d60522e7852fc38d783d007973a2b56999a5d9e11e4d815e",
+    "status": "complete"
+  },
+  "summary": {
+    "benchmark": "forecast-claim-support-coherence",
+    "cases": 4,
+    "evaluated_commit": "2c5bf52c8ffd",
+    "gates": {
+      "all_cases_complete": true,
+      "all_headline_surfaces_agree": true,
+      "positive_uplift_control_is_measured": true,
+      "subsupported_never_high_confidence": true,
+      "subsupported_threshold_probability_typed_unavailable": false,
+      "threshold_payload_consistent": true,
+      "zero_gain_baseline_case_present": true,
+      "zero_gain_baseline_does_not_claim_beat": false,
+      "zero_gain_baseline_not_high_confidence": false
+    },
+    "passed": false,
+    "records": [
+      {
+        "baseline_improvement": 0.0,
+        "case_id": "stationary_level_seed_123",
+        "completed": true,
+        "headline_flags": {
+          "baseline_retained": true,
+          "caveats": false,
+          "claims_beat": true,
+          "high_confidence": true,
+          "naive_extrapolation": false,
+          "no_measured_uplift": false,
+          "probability": false
+        },
+        "headlines": {
+          "brief_tool": "High-confidence forecast through 2025-05-07T00:00:00: the selected model beat the strongest baseline by 0% on separated evaluation folds.",
+          "full_tool": "High-confidence forecast through 2025-05-07T00:00:00: the selected model beat the strongest baseline by 0% on separated evaluation folds.",
+          "summary_markdown": "High-confidence forecast through 2025-05-07T00:00:00: the selected model beat the strongest baseline by 0% on separated evaluation folds."
+        },
+        "interval_coverage": 1.0,
+        "reasons": [],
+        "recovery_actions": [],
+        "role": "baseline_retention",
+        "row_tiers": [
+          "supported"
+        ],
+        "selected_model": "historical_mean",
+        "strongest_baseline": "historical_mean",
+        "support": "supported",
+        "support_status": "supported",
+        "threshold_artifact": null,
+        "threshold_brief": null,
+        "threshold_full": null,
+        "warnings": []
+      },
+      {
+        "baseline_improvement": 0.9999999999999998,
+        "case_id": "linear_trend",
+        "completed": true,
+        "headline_flags": {
+          "baseline_retained": true,
+          "caveats": false,
+          "claims_beat": true,
+          "high_confidence": true,
+          "naive_extrapolation": false,
+          "no_measured_uplift": false,
+          "probability": false
+        },
+        "headlines": {
+          "brief_tool": "High-confidence forecast through 2025-05-07T00:00:00: the selected model beat the strongest baseline by 100% on separated evaluation folds.",
+          "full_tool": "High-confidence forecast through 2025-05-07T00:00:00: the selected model beat the strongest baseline by 100% on separated evaluation folds.",
+          "summary_markdown": "High-confidence forecast through 2025-05-07T00:00:00: the selected model beat the strongest baseline by 100% on separated evaluation folds."
+        },
+        "interval_coverage": 1.0,
+        "reasons": [],
+        "recovery_actions": [],
+        "role": "positive_uplift_control",
+        "row_tiers": [
+          "supported"
+        ],
+        "selected_model": "linear_trend",
+        "strongest_baseline": "last_value",
+        "support": "supported",
+        "support_status": "supported",
+        "threshold_artifact": null,
+        "threshold_brief": null,
+        "threshold_full": null,
+        "warnings": []
+      },
+      {
+        "baseline_improvement": null,
+        "case_id": "short_noisy",
+        "completed": true,
+        "headline_flags": {
+          "baseline_retained": false,
+          "caveats": true,
+          "claims_beat": false,
+          "high_confidence": false,
+          "naive_extrapolation": false,
+          "no_measured_uplift": false,
+          "probability": false
+        },
+        "headlines": {
+          "brief_tool": "Forecast through 2025-01-21T00:00:00 with caveats: Model selection ran without separated calibration and test folds.",
+          "full_tool": "Forecast through 2025-01-21T00:00:00 with caveats: Model selection ran without separated calibration and test folds.",
+          "summary_markdown": "Forecast through 2025-01-21T00:00:00 with caveats: Model selection ran without separated calibration and test folds."
+        },
+        "interval_coverage": null,
+        "reasons": [
+          {
+            "code": "degraded_evaluation",
+            "message": "Model selection ran without separated calibration and test folds."
+          },
+          {
+            "code": "selection_underpowered",
+            "message": "Candidates were scored on 1 selection fold \u2014 too few to rank them, so the strongest baseline (last_value) was published and the candidate scores are evidence, not a ranking."
+          },
+          {
+            "code": "warning",
+            "message": "Degraded forecast: model selection used a single trailing 3-observation holdout; rolling-origin calibration and final testing were unavailable. At least 20 observations (have 18) are needed for separated selection and calibration."
+          },
+          {
+            "code": "warning",
+            "message": "Selection under-powered: a single trailing holdout cannot rank incremental candidates. The admitted robust baseline (last_value) is published; candidate scores are reported as evidence, not a ranking."
+          }
+        ],
+        "recovery_actions": [
+          {
+            "code": "provide_more_history",
+            "message": "Supply enough observations for separated selection, calibration, and test windows."
+          }
+        ],
+        "role": "degraded_support_control",
+        "row_tiers": [
+          "conditionally_supported"
+        ],
+        "selected_model": "last_value",
+        "strongest_baseline": "last_value",
+        "support": "degraded",
+        "support_status": "conditionally_supported",
+        "threshold_artifact": null,
+        "threshold_brief": null,
+        "threshold_full": null,
+        "warnings": [
+          "Degraded forecast: model selection used a single trailing 3-observation holdout; rolling-origin calibration and final testing were unavailable. At least 20 observations (have 18) are needed for separated selection and calibration.",
+          "Selection under-powered: a single trailing holdout cannot rank incremental candidates. The admitted robust baseline (last_value) is published; candidate scores are reported as evidence, not a ranking."
+        ]
+      },
+      {
+        "baseline_improvement": null,
+        "case_id": "long_horizon_threshold",
+        "completed": true,
+        "headline_flags": {
+          "baseline_retained": false,
+          "caveats": true,
+          "claims_beat": false,
+          "high_confidence": false,
+          "naive_extrapolation": false,
+          "no_measured_uplift": false,
+          "probability": false
+        },
+        "headlines": {
+          "brief_tool": "Forecast through 2025-02-11T00:00:00 with caveats: Model selection ran without separated calibration and test folds.",
+          "full_tool": "Forecast through 2025-02-11T00:00:00 with caveats: Model selection ran without separated calibration and test folds.",
+          "summary_markdown": "Forecast through 2025-02-11T00:00:00 with caveats: Model selection ran without separated calibration and test folds."
+        },
+        "interval_coverage": null,
+        "reasons": [
+          {
+            "code": "degraded_evaluation",
+            "message": "Model selection ran without separated calibration and test folds."
+          },
+          {
+            "code": "selection_underpowered",
+            "message": "Candidates were scored on 1 selection fold \u2014 too few to rank them, so the strongest baseline (last_value) was published and the candidate scores are evidence, not a ranking."
+          },
+          {
+            "code": "warning",
+            "message": "Degraded forecast: model selection used a single trailing 7-observation holdout; rolling-origin calibration and final testing were unavailable. At least 48 observations (have 30) are needed for separated selection and calibration."
+          },
+          {
+            "code": "warning",
+            "message": "Selection under-powered: a single trailing holdout cannot rank incremental candidates. The admitted robust baseline (last_value) is published; candidate scores are reported as evidence, not a ranking."
+          }
+        ],
+        "recovery_actions": [
+          {
+            "code": "provide_more_history",
+            "message": "Supply enough observations for separated selection, calibration, and test windows."
+          }
+        ],
+        "role": "threshold_availability_control",
+        "row_tiers": [
+          "conditionally_supported"
+        ],
+        "selected_model": "last_value",
+        "strongest_baseline": "last_value",
+        "support": "degraded",
+        "support_status": "conditionally_supported",
+        "threshold_artifact": {
+          "basis": "empirical probabilities from backtest residuals scaled to the per-lead-time conformal spread",
+          "first_timestamp_interval_above": "2025-01-31T00:00:00",
+          "first_timestamp_interval_below": "2025-01-31T00:00:00",
+          "first_timestamp_point_above": null,
+          "first_timestamp_point_below": "2025-01-31T00:00:00",
+          "horizon_event": {
+            "assumptions": [
+              "The probability composes conformally scaled per-step marginals under an independence assumption the leads do not satisfy; path-based timing and maximum figures are bootstrap diagnostics."
+            ],
+            "bootstrap_diagnostic_probability": null,
+            "bootstrap_path_count": 0,
+            "breach_more_likely_than_not": true,
+            "calibration_partition": "post_selection_disjoint_origins",
+            "dependence_preserved": false,
+            "effective_origins": 1,
+            "expected_maximum": null,
+            "finite_sample_regularized_probability": 0.671414,
+            "first_breach_step_median_conditional": null,
+            "first_breach_step_probability": {},
+            "independence_composed_reference": 0.842827,
+            "joint_path_count": 0,
+            "maximum_interval_80": {
+              "lower": null,
+              "upper": null
+            },
+            "measured_interval_coverage": null,
+            "method": "independence_composed_marginals_v1",
+            "probability_any_breach": 0.671414,
+            "probability_any_breach_interval_90": {
+              "lower": 0.193299,
+              "upper": 0.991736
+            },
+            "reasons": [
+              {
+                "code": "insufficient_joint_paths",
+                "message": "Only 0 aligned rolling-origin residual paths are available; at least 8 are required for a governed horizon-event probability."
+              },
+              {
+                "code": "independence_composition_used",
+                "message": "The probability composes published per-step marginals as though forecast leads were independent; the leads are dependent, so this is a best-effort estimate, not a governed joint-event measurement."
+              },
+              {
+                "code": "finite_sample_regularization_used",
+                "message": "The communicated horizon-event probability uses one Jeffreys half-success/half-failure regularisation based on 1 real rolling-origin clusters; the raw independence composition remains a diagnostic."
+              },
+              {
+                "code": "event_calibration_unmeasured",
+                "message": "No untouched test-fold coverage measurement is available; risk is reported but cannot govern an action."
+              }
+            ],
+            "residual_regime": {
+              "passed": false,
+              "reason": "at least 8 aligned origins are required",
+              "status": "unknown"
+            },
+            "residual_source": "post_selection_disjoint_origins",
+            "support": "best_effort"
+          },
+          "probability_above": [
+            0.1429,
+            0.1429,
+            0.1429,
+            0.1429,
+            0.1429,
+            0.1429,
+            0.1429,
+            0.1429,
+            0.1429,
+            0.1429,
+            0.1429,
+            0.1429
+          ],
+          "value": 50.0
+        },
+        "threshold_brief": {
+          "basis": "empirical probabilities from backtest residuals scaled to the per-lead-time conformal spread",
+          "first_timestamp_interval_above": "2025-01-31T00:00:00",
+          "first_timestamp_interval_below": "2025-01-31T00:00:00",
+          "first_timestamp_point_above": null,
+          "first_timestamp_point_below": "2025-01-31T00:00:00",
+          "horizon_event": {
+            "assumptions": [
+              "The probability composes conformally scaled per-step marginals under an independence assumption the leads do not satisfy; path-based timing and maximum figures are bootstrap diagnostics."
+            ],
+            "bootstrap_diagnostic_probability": null,
+            "bootstrap_path_count": 0,
+            "breach_more_likely_than_not": true,
+            "calibration_partition": "post_selection_disjoint_origins",
+            "dependence_preserved": false,
+            "effective_origins": 1,
+            "expected_maximum": null,
+            "finite_sample_regularized_probability": 0.671414,
+            "first_breach_step_median_conditional": null,
+            "first_breach_step_probability": {},
+            "independence_composed_reference": 0.842827,
+            "joint_path_count": 0,
+            "maximum_interval_80": {
+              "lower": null,
+              "upper": null
+            },
+            "measured_interval_coverage": null,
+            "method": "independence_composed_marginals_v1",
+            "probability_any_breach": 0.671414,
+            "probability_any_breach_interval_90": {
+              "lower": 0.193299,
+              "upper": 0.991736
+            },
+            "reasons": [
+              {
+                "code": "insufficient_joint_paths",
+                "message": "Only 0 aligned rolling-origin residual paths are available; at least 8 are required for a governed horizon-event probability."
+              },
+              {
+                "code": "independence_composition_used",
+                "message": "The probability composes published per-step marginals as though forecast leads were independent; the leads are dependent, so this is a best-effort estimate, not a governed joint-event measurement."
+              },
+              {
+                "code": "finite_sample_regularization_used",
+                "message": "The communicated horizon-event probability uses one Jeffreys half-success/half-failure regularisation based on 1 real rolling-origin clusters; the raw independence composition remains a diagnostic."
+              },
+              {
+                "code": "event_calibration_unmeasured",
+                "message": "No untouched test-fold coverage measurement is available; risk is reported but cannot govern an action."
+              }
+            ],
+            "residual_regime": {
+              "passed": false,
+              "reason": "at least 8 aligned origins are required",
+              "status": "unknown"
+            },
+            "residual_source": "post_selection_disjoint_origins",
+            "support": "best_effort"
+          },
+          "probability_above": [
+            0.1429,
+            0.1429,
+            0.1429,
+            0.1429,
+            0.1429,
+            0.1429,
+            0.1429,
+            0.1429,
+            0.1429,
+            0.1429,
+            0.1429,
+            0.1429
+          ],
+          "value": 50.0
+        },
+        "threshold_full": {
+          "basis": "empirical probabilities from backtest residuals scaled to the per-lead-time conformal spread",
+          "first_timestamp_interval_above": "2025-01-31T00:00:00",
+          "first_timestamp_interval_below": "2025-01-31T00:00:00",
+          "first_timestamp_point_above": null,
+          "first_timestamp_point_below": "2025-01-31T00:00:00",
+          "horizon_event": {
+            "assumptions": [
+              "The probability composes conformally scaled per-step marginals under an independence assumption the leads do not satisfy; path-based timing and maximum figures are bootstrap diagnostics."
+            ],
+            "bootstrap_diagnostic_probability": null,
+            "bootstrap_path_count": 0,
+            "breach_more_likely_than_not": true,
+            "calibration_partition": "post_selection_disjoint_origins",
+            "dependence_preserved": false,
+            "effective_origins": 1,
+            "expected_maximum": null,
+            "finite_sample_regularized_probability": 0.671414,
+            "first_breach_step_median_conditional": null,
+            "first_breach_step_probability": {},
+            "independence_composed_reference": 0.842827,
+            "joint_path_count": 0,
+            "maximum_interval_80": {
+              "lower": null,
+              "upper": null
+            },
+            "measured_interval_coverage": null,
+            "method": "independence_composed_marginals_v1",
+            "probability_any_breach": 0.671414,
+            "probability_any_breach_interval_90": {
+              "lower": 0.193299,
+              "upper": 0.991736
+            },
+            "reasons": [
+              {
+                "code": "insufficient_joint_paths",
+                "message": "Only 0 aligned rolling-origin residual paths are available; at least 8 are required for a governed horizon-event probability."
+              },
+              {
+                "code": "independence_composition_used",
+                "message": "The probability composes published per-step marginals as though forecast leads were independent; the leads are dependent, so this is a best-effort estimate, not a governed joint-event measurement."
+              },
+              {
+                "code": "finite_sample_regularization_used",
+                "message": "The communicated horizon-event probability uses one Jeffreys half-success/half-failure regularisation based on 1 real rolling-origin clusters; the raw independence composition remains a diagnostic."
+              },
+              {
+                "code": "event_calibration_unmeasured",
+                "message": "No untouched test-fold coverage measurement is available; risk is reported but cannot govern an action."
+              }
+            ],
+            "residual_regime": {
+              "passed": false,
+              "reason": "at least 8 aligned origins are required",
+              "status": "unknown"
+            },
+            "residual_source": "post_selection_disjoint_origins",
+            "support": "best_effort"
+          },
+          "probability_above": [
+            0.1429,
+            0.1429,
+            0.1429,
+            0.1429,
+            0.1429,
+            0.1429,
+            0.1429,
+            0.1429,
+            0.1429,
+            0.1429,
+            0.1429,
+            0.1429
+          ],
+          "value": 50.0
+        },
+        "warnings": [
+          "Degraded forecast: model selection used a single trailing 7-observation holdout; rolling-origin calibration and final testing were unavailable. At least 48 observations (have 30) are needed for separated selection and calibration.",
+          "Selection under-powered: a single trailing holdout cannot rank incremental candidates. The admitted robust baseline (last_value) is published; candidate scores are reported as evidence, not a ranking."
+        ]
+      }
+    ],
+    "schema_version": "0.1",
+    "scope": "full"
+  }
+}
