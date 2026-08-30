@@ -70,7 +70,10 @@ def test_forecast_selects_drift_and_writes_complete_artifact(tmp_path: Path) -> 
     assert "https://" not in report and "http://" not in report
     persisted = json.loads((directory / "artifact.json").read_text())
     assert persisted["task"]["schema"]["time_column"] == "timestamp"
-    assert persisted["evidence"][0]["payload"]["partitioning"].startswith("selection")
+    assert persisted["evidence"][0]["payload"]["partitioning"] == (
+        "selection folds, then independent confirmation fold, then "
+        "calibration fold, then final test fold"
+    )
 
 
 def test_short_valid_series_uses_degraded_forecast(tmp_path: Path) -> None:

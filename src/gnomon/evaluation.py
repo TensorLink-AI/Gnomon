@@ -1099,10 +1099,10 @@ def evaluate(
             max_supportable_horizon=reachable,
         )
 
-    # Full mode holds out both a calibration fold and a final test fold after
-    # the selection folds. With only two or three folds we degrade gracefully
-    # instead of refusing: fewer selection folds, and with two folds no
-    # held-out test at all — each degradation is named in a warning.
+    # Full ordinary mode holds out independent confirmation, calibration, and
+    # final-test folds after selection. With fewer than five origins there is
+    # no honest confirmation fold to reserve, so degraded behavior is
+    # preserved rather than manufacturing independence through overlap.
     degraded = len(origins) < 4
     warnings: list[str] = []
     # Fit-history window: past MAX_FIT_HISTORY (stretched to four seasonal
@@ -1131,6 +1131,7 @@ def evaluate(
             f"candidate and baseline saw the identical window."
         )
     event_calibration_origins: list[int] = []
+    confirmation_origin: int | None = None
     if threshold_job and len(origins) >= 12:
         # A governed tail decision needs more than fold-safe timestamps: its
         # residual trajectories must not be the same folds that selected the
@@ -1141,9 +1142,15 @@ def evaluate(
         event_calibration_origins = origins[-9:-1]
         calibration_origin = event_calibration_origins[-1]
         test_origin = origins[-1]
+    elif len(origins) >= 5:
+        selection_origins = origins[:-3]
+        confirmation_origin = origins[-3]
+        calibration_origin = origins[-2]
+        test_origin = origins[-1]
+        event_calibration_origins = [calibration_origin]
     elif len(origins) >= 3:
         selection_origins, calibration_origin = origins[:-2], origins[-2]
-        test_origin: int | None = origins[-1]
+        test_origin = origins[-1]
         event_calibration_origins = [calibration_origin]
     else:
         selection_origins, calibration_origin, test_origin = origins[:-1], origins[-1], None
@@ -1894,21 +1901,6 @@ def evaluate(
         all_scores["ensemble"] = ensemble_score
     if meta_model_score is not None:
         all_scores["meta_model"] = meta_model_score
-    selected_score = all_scores.get(selected, baseline_score)
-    improvement = 0.0 if selected in BASELINES else (baseline_score - selected_score) / baseline_score if baseline_score > 0 else 0.0  # type: ignore[operator]
-    if improvement < 0:
-        # Belt and braces. A negative `minimum_improvement` is refused up
-        # front, but a criterion switch (pinball selection scores a
-        # different quantity from the reported WAPE improvement) can still
-        # land here. A model that lost the comparison it is reported
-        # against must never be published as plainly supported.
-        warnings.append(
-            f"{selected} was selected but scored {abs(improvement):.2%} worse "
-            f"than the strongest baseline {strongest_baseline} on the reported "
-            f"metric; the selection criterion and the reported improvement "
-            f"measure different quantities."
-        )
-
     def _ensemble_predict(train: list[float],
                           fc_horizon: int | None = None) -> list[float]:
         """Recombine the member models on *train* only.
@@ -1999,6 +1991,77 @@ def evaluate(
                 f"{strongest_baseline} instead."
             )
             selected = strongest_baseline
+
+    # Confirm one already-selected contender on one later, disjoint origin.
+    # This is a veto, not another tournament: no loser from selection can be
+    # promoted here, and calibration/final-test data remain untouched. A
+    # single fold can disprove non-inferiority but cannot estimate a reliable
+    # uplift margin, so equality passes and any loss falls back.
+    confirmation: dict[str, object] = {
+        "available": confirmation_origin is not None,
+        "required": selected != strongest_baseline,
+        "origin_index": confirmation_origin,
+        "candidate": selected,
+        "baseline": strongest_baseline,
+        "candidate_score": None,
+        "baseline_score": None,
+        "passed": None,
+        "fallback_applied": False,
+    }
+    if confirmation_origin is not None and selected != strongest_baseline:
+        contender = selected
+        try:
+            confirmation_actual = values[
+                confirmation_origin:confirmation_origin + horizon]
+            contender_score = error_score(
+                confirmation_actual,
+                _predict_selected(
+                    contender, train_at(confirmation_origin),
+                    confirmation_origin),
+            )
+            confirmation_baseline_score = error_score(
+                confirmation_actual,
+                _predict_selected(
+                    strongest_baseline, train_at(confirmation_origin),
+                    confirmation_origin),
+            )
+        except Exception:
+            contender_score = confirmation_baseline_score = None
+        passed = bool(
+            contender_score is not None
+            and confirmation_baseline_score is not None
+            and contender_score <= confirmation_baseline_score
+        )
+        confirmation.update({
+            "candidate_score": contender_score,
+            "baseline_score": confirmation_baseline_score,
+            "passed": passed,
+            "fallback_applied": not passed,
+        })
+        if not passed:
+            selected = strongest_baseline
+            notes.append(
+                f"Independent confirmation: {contender} did not remain "
+                f"non-inferior to {strongest_baseline} on the reserved "
+                f"confirmation fold, so the baseline is published."
+            )
+    if confirmation_origin is not None:
+        selection_stability["confirmation"] = confirmation
+
+    selected_score = all_scores.get(selected, baseline_score)
+    improvement = 0.0 if selected in BASELINES else (baseline_score - selected_score) / baseline_score if baseline_score > 0 else 0.0  # type: ignore[operator]
+    if improvement < 0:
+        # Belt and braces. A negative `minimum_improvement` is refused up
+        # front, but a criterion switch (pinball selection scores a
+        # different quantity from the reported WAPE improvement) can still
+        # land here. A model that lost the comparison it is reported
+        # against must never be published as plainly supported.
+        warnings.append(
+            f"{selected} was selected but scored {abs(improvement):.2%} worse "
+            f"than the strongest baseline {strongest_baseline} on the reported "
+            f"metric; the selection criterion and the reported improvement "
+            f"measure different quantities."
+        )
 
     # Get calibration prediction from the selected model; fall back to the
     # strongest baseline if a TSFM/ensemble selection cannot predict here.

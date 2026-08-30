@@ -15,6 +15,7 @@ byte-identical (test_golden_artifacts pins that).
 from __future__ import annotations
 
 import csv
+import random
 from pathlib import Path
 
 import pytest
@@ -80,6 +81,34 @@ class TestSelectionGuardrail:
         assert not result.selection_guardrail_applied
         assert result.selected_model not in BASELINES
         assert not any("Selection under-powered" in w for w in result.warnings)
+
+    def test_confirmation_reserves_a_fifth_origin_without_starving_selection(self):
+        # Five origins leave two for selection, then one each for independent
+        # confirmation, calibration, and final testing.
+        result = evaluate(trending(52), 7, 7, 0.02, frequency="D")
+        confirmation = result.selection_stability["confirmation"]
+        assert result.selection_fold_count == 2
+        assert confirmation["available"] is True
+        assert confirmation["required"] is True
+        assert confirmation["passed"] is True
+        assert confirmation["fallback_applied"] is False
+        assert result.test_scores[result.selected_model] is not None
+
+    def test_confirmation_veto_publishes_the_preselected_baseline(self):
+        rng = random.Random(123)
+        values = [50.0 + rng.gauss(0, 5.0) for _ in range(120)]
+        result = evaluate(
+            values, 7, 7, 0.02, frequency="D", tsfm_names=[])
+        confirmation = result.selection_stability["confirmation"]
+        assert confirmation["candidate"] == "theta"
+        assert confirmation["baseline"] == "historical_mean"
+        assert confirmation["passed"] is False
+        assert confirmation["fallback_applied"] is True
+        assert result.selected_model == "historical_mean"
+        assert result.improvement == 0.0
+        assert any("Independent confirmation" in note for note in result.notes)
+        # A separate final test still reports the published baseline.
+        assert result.test_scores["historical_mean"] is not None
 
     def test_dense_stride_does_not_lift_the_guardrail(self):
         # Overlapping selection origins widen the comparison sample, not

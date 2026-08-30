@@ -822,10 +822,21 @@ def _series_result(
                    if admission is not None else None),
         model_assisted=model_assisted_lane,
     )
+    confirmation = assessment.selection_stability.get("confirmation")
+    has_confirmation = (
+        isinstance(confirmation, dict)
+        and confirmation.get("available") is True
+    )
+    partitioning = (
+        "selection folds, then independent confirmation fold, then "
+        "calibration fold, then final test fold"
+        if has_confirmation else
+        "selection folds, then calibration fold, then final test fold"
+    )
     evidence = list(state.evidence)
     evidence.extend([
         Evidence(f"evaluation:{series_name}", "rolling_evaluation", series_name, {
-            "partitioning": "selection folds, then calibration fold, then final test fold",
+            "partitioning": partitioning,
             "selection_scores": assessment.selection_scores,
             "test_scores": assessment.test_scores,
             # The verifier gates probability-bearing claims on these,
@@ -858,8 +869,19 @@ def _series_result(
             series_name, {
                 "partitioning": (
                     "horizon-split prefix at the supportable horizon; "
-                    "selection folds, then calibration fold, then final "
-                    "test fold"),
+                    + (
+                        "selection folds, then independent confirmation "
+                        "fold, then calibration fold, then final test fold"
+                        if (
+                            isinstance(
+                                split_assessment.selection_stability.get(
+                                    "confirmation"), dict)
+                            and split_assessment.selection_stability[
+                                "confirmation"].get("available") is True
+                        ) else
+                        "selection folds, then calibration fold, then final "
+                        "test fold"
+                    )),
                 "horizon": len(split[1]),
                 "selection_scores": split_assessment.selection_scores,
                 "test_scores": split_assessment.test_scores,
