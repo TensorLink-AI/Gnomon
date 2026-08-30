@@ -136,16 +136,11 @@ def build_agent_response_contract(payload: dict[str, Any]) -> dict[str, Any] | N
                if relationship else {}),
             **({"selected_output_role": str(context["selected_output_role"])}
                if context.get("selected_output_role") else {}),
-            "required_facts": [
-                name for name, required in (
-                    ("primary_preservation", canonical_preserved),
-                    ("context_automation_limit", not bool(context_automation)),
-                    ("failed_gate_codes", bool(codes)),
-                    ("source_references", bool(sources)),
-                    ("scenario_consequences", consequence_count > 0),
-                    ("typed_primary_relationship", bool(relationship)),
-                    ("interval_limitations", interval_count > 0),
-                ) if required],
+            # Every emitted series field is an obligation. A second list of
+            # long aliases duplicated those same facts and pushed large
+            # context responses over the wire budget; one explicit rule is
+            # both smaller and harder for an agent to interpret selectively.
+            "required": "all_emitted_fields",
             **({"omitted": {
                 **({"failed_gate_codes": codes_omitted}
                    if codes_omitted else {}),
@@ -159,11 +154,6 @@ def build_agent_response_contract(payload: dict[str, Any]) -> dict[str, Any] | N
         "schema_version": SCHEMA_VERSION,
         "projection_only": True,
         "series": series_contracts,
-        "fact_locations": {
-            "scenario_consequences":
-                "results[].sensitivity_scenarios[].consequence_summary",
-            "interval_limitations": "results[].warnings",
-        },
     }
     return {**body, "contract_seal_sha256": _seal(body)}
 

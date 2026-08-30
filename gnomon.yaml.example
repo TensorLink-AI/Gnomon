@@ -31,6 +31,16 @@ models:
     #   - ets
     # (arima is not implemented; naming it is an error, not a silent skip.)
 
+  # Optional Nixtla StatsForecast models. Install the `statsforecast` extra;
+  # availability only adds candidates to the same governed rolling contest.
+  statsforecast:
+    enabled: false
+    candidates:
+      - statsforecast_autoets
+      - statsforecast_autoarima
+      - statsforecast_autotheta
+      - statsforecast_croston_optimized
+
   # Time Series Foundation Models — each runs in an isolated sandbox venv
   # or via API inference (see backends below).
   tsfm:

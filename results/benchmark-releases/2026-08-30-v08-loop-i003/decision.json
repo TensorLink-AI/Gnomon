@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "iteration": "I003",
+  "issue": "F1",
+  "decision": "promote_explicit_opt_in_only_default_disabled",
+  "protocol": "docs/v0.8-f1-statsforecast-protocol.md",
+  "decision_document": "docs/v0.8-f1-statsforecast-decision.md",
+  "development_v2": {
+    "cases": 200,
+    "completed": 200,
+    "departures": 92,
+    "wins": 69,
+    "losses": 23,
+    "precision": 0.75,
+    "median_departure_gain": 0.5162208243889448,
+    "bootstrap_90pct": [0.3195115308750237, 0.647065107650202],
+    "plugin_publications": 0,
+    "changed_paths_vs_control": 0,
+    "latency_seconds": {"median": 0.0011622599959082436, "p95": 0.06617356200149516, "max": 1.0971964889977244}
+  },
+  "synthetic_confirmation": {
+    "seed": 2026083302,
+    "cases": 100,
+    "completed": 100,
+    "departures": 45,
+    "wins": 36,
+    "losses": 9,
+    "precision": 0.8,
+    "median_departure_gain": 0.6241349123530829,
+    "bootstrap_90pct": [0.30937571587060514, 0.7960408910771873],
+    "plugin_publications": 0,
+    "changed_paths_vs_control": 0
+  },
+  "naturalistic_kill_shard": {
+    "cases": 8,
+    "completed": 8,
+    "plugin_publications": 2,
+    "plugin_wins": 1,
+    "plugin_losses": 1,
+    "plugin_gains": [-0.025115548499673162, 0.008260256882241966],
+    "latency_seconds": {"p95": 60.74135077200481, "max": 86.27163400800055},
+    "frozen_p95_limit_seconds": 30,
+    "remaining_shards_run": false,
+    "reason": "latency kill criterion already impossible to pass"
+  },
+  "product": {
+    "base_dependency_free": true,
+    "optional_extra": "gnomon-forecast[statsforecast]",
+    "default_enabled": false,
+    "outer_candidate": "statsforecast_auto",
+    "component_choice": "training_internal_visible_prefix_only",
+    "maximum_outer_folds": 16,
+    "maximum_fit_history": 256,
+    "backend_warnings_receipted": true,
+    "native_intervals_authoritative": false
+  },
+  "validation": "399 passed, 1 skipped",
+  "claim_limit": "No evidence of default forecast-quality improvement; no broad naturalistic superiority claim."
+}

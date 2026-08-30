@@ -152,6 +152,9 @@ def test_defaults_are_fresh_per_load(tmp_path, monkeypatch):
 KEY_EFFECTS: dict[str, tuple[str, object]] = {
     "models.statistical.enabled": ("models.statistical_enabled", False),
     "models.statistical.candidates": ("models.statistical_candidates", ["drift"]),
+    "models.statsforecast.enabled": ("models.statsforecast_enabled", True),
+    "models.statsforecast.candidates": (
+        "models.statsforecast_candidates", ["statsforecast_autoets"]),
     "models.tsfm.candidates": ("models.tsfm_candidates", ["chronos_bolt_mini"]),
     "backends.sandbox.enabled": ("backends.sandbox.enabled", False),
     "backends.api.enabled": ("backends.api.enabled", True),

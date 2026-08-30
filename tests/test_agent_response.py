@@ -49,10 +49,7 @@ def test_response_contract_collects_exact_agent_obligations():
     assert series["source_references"] == ["calendar:change-17"]
     assert series["relationship_to_primary"] == "no_distinct_numeric_path"
     assert series["scenario_consequence_count"] == 1
-    assert series["required_facts"] == [
-        "primary_preservation", "context_automation_limit",
-        "failed_gate_codes", "source_references", "scenario_consequences",
-        "typed_primary_relationship", "interval_limitations"]
+    assert series["required"] == "all_emitted_fields"
     assert verify_agent_response_contract(payload, contract)
 
 

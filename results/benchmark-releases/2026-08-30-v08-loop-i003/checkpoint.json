@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "iteration": "I003",
+  "branch": "agent/v0.8-agent-forecasting-loop",
+  "head_before_checkpoint": "5b93a447e1dbafdda52a0fe2717dc77452c7fb3e",
+  "active_issue": "C1",
+  "issue_status": {
+    "E1": "candidate_committed_external_confirmation_pending",
+    "F1": "complete_explicit_opt_in_only",
+    "C1": "in_progress",
+    "D1": "pending",
+    "A1": "pending",
+    "V1": "pending"
+  },
+  "next_action": "Freeze new ContextBench generator seeds and naturalistic documents; measure proposal supply, engine contract completeness, numeric admission precision/recall, scenario recall, primary immutability, and agent preservation before changing context extraction.",
+  "preservation": {
+    "external_intake_unchanged": true,
+    "astrid_plan_excluded": true,
+    "preexisting_untracked_files_untouched": true
+  }
+}

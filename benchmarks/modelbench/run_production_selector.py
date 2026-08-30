@@ -10,8 +10,10 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import random
 import sys
+import time
 from pathlib import Path
 from statistics import mean, median
 
@@ -21,6 +23,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from benchmarks.common.manifest import code_revision, write_manifest
 from gnomon.evaluation import Evaluation, evaluate
+from gnomon.config import GnomonConfig
 from gnomon.models import MODELS, last_value, predict
 
 
@@ -146,11 +149,17 @@ def _summary(rows: list[dict[str, object]], bootstrap_seed: int) -> dict[str, ob
     }
 
 
-def run(seed: int = 92741, cases_per_family: int = 40) -> dict[str, object]:
+def run(seed: int = 92741, cases_per_family: int = 40, *,
+        statsforecast_enabled: bool = False,
+        existing_rows: list[dict[str, object]] | None = None,
+        on_row=None) -> dict[str, object]:
     if cases_per_family < 2:
         raise ValueError("cases_per_family must be at least 2")
     rng = random.Random(seed)
-    rows: list[dict[str, object]] = []
+    rows: list[dict[str, object]] = list(existing_rows or [])
+    completed_ids = {str(row["case_id"]) for row in rows}
+    config = GnomonConfig()
+    config.models.statsforecast_enabled = statsforecast_enabled
     for family in FAMILIES:
         season = 6 if family in {"seasonal", "pseudo_seasonal"} else 1
         for case in range(cases_per_family):
@@ -164,11 +173,18 @@ def run(seed: int = 92741, cases_per_family: int = 40) -> dict[str, object]:
                 length_lane = "fold_starved_long_horizon"
             complete = _series(
                 rng, family, history_length + horizon, season)
+            case_id = f"{family}-{case:03d}"
+            # Generation still advances identically on resume; only completed
+            # product evaluation is skipped.
+            if case_id in completed_ids:
+                continue
             history = complete[:history_length]
             actual = complete[history_length:]
+            started = time.perf_counter()
             assessment = evaluate(
                 history, horizon, season, DEFAULT_MINIMUM_IMPROVEMENT,
                 frequency="synthetic", tsfm_names=[], strict_abstention=False,
+                config=config,
             )
             try:
                 points, published_model, published_support, fallback_disclosed = _published_points(
@@ -190,8 +206,8 @@ def run(seed: int = 92741, cases_per_family: int = 40) -> dict[str, object]:
                 if completed and math.isfinite(baseline_loss) else None)
             admission = (assessment.admission_decision.to_payload()
                          if assessment.admission_decision is not None else None)
-            rows.append({
-                "case_id": f"{family}-{case:03d}",
+            row: dict[str, object] = {
+                "case_id": case_id,
                 "family": family,
                 "length_lane": length_lane,
                 "history_length": history_length,
@@ -214,13 +230,25 @@ def run(seed: int = 92741, cases_per_family: int = 40) -> dict[str, object]:
                 "admission_decision": admission,
                 "warnings": assessment.warnings,
                 "notes": assessment.notes,
+                "statistical_plugin_scores":
+                    assessment.statistical_plugin_scores,
+                "adapter_receipts": assessment.adapter_receipts,
+                "final_candidate": (
+                    assessment.final_candidate.identity.to_payload()
+                    if assessment.final_candidate is not None else None),
                 "departed_from_last_value": departed,
                 "baseline_loss": baseline_loss,
                 "candidate_loss": candidate_loss,
                 "relative_gain": relative_gain,
                 "outcome": (_outcome(candidate_loss, baseline_loss)
                             if completed else "failure"),
-            })
+            }
+            if statsforecast_enabled:
+                row["evaluation_latency_seconds"] = \
+                    time.perf_counter() - started
+            rows.append(row)
+            if on_row is not None:
+                on_row(row)
 
     overall = _summary(rows, seed + 1)
     by_family = {
@@ -243,8 +271,13 @@ def run(seed: int = 92741, cases_per_family: int = 40) -> dict[str, object]:
         "cases_per_family": cases_per_family,
         "protocol": (
             "production evaluate() receives history prefixes only; final "
-            "horizon is untouched until scoring; TSFM discovery disabled"),
+            "horizon is untouched until scoring; TSFM discovery disabled; "
+            + ("optional StatsForecast candidates enabled under "
+               "docs/v0.8-f1-statsforecast-protocol.md"
+               if statsforecast_enabled else
+               "optional StatsForecast candidates disabled")),
         "minimum_baseline_improvement": DEFAULT_MINIMUM_IMPROVEMENT,
+        "statsforecast_enabled": statsforecast_enabled,
         "overall": overall,
         "by_family": by_family,
         "raw_records": rows,
@@ -287,8 +320,32 @@ def main() -> int:
     parser.add_argument("--seed", type=int, default=92741)
     parser.add_argument("--cases-per-family", type=int, default=40)
     parser.add_argument("--output-dir", type=Path)
+    parser.add_argument("--statsforecast", action="store_true")
+    parser.add_argument(
+        "--resume", action="store_true",
+        help="Resume from output-dir/observations.jsonl and append each new row.")
     args = parser.parse_args()
-    result = run(args.seed, args.cases_per_family)
+    existing: list[dict[str, object]] = []
+    observations = (args.output_dir / "observations.jsonl"
+                    if args.output_dir else None)
+    if args.resume and observations and observations.is_file():
+        existing = [json.loads(line) for line in observations.read_text(
+            encoding="utf-8").splitlines() if line.strip()]
+
+    def checkpoint(row: dict[str, object]) -> None:
+        if observations is None:
+            return
+        observations.parent.mkdir(parents=True, exist_ok=True)
+        with observations.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(row, sort_keys=True) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+
+    result = run(
+        args.seed, args.cases_per_family,
+        statsforecast_enabled=args.statsforecast,
+        existing_rows=existing, on_row=checkpoint,
+    )
     result["evaluated_commit"] = code_revision()
     if args.output_dir:
         args.output_dir.mkdir(parents=True, exist_ok=True)

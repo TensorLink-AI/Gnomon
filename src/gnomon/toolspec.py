@@ -467,7 +467,22 @@ def apply_response_contract(payload: dict[str, Any]) -> dict[str, Any]:
     if recoveries and "recovery_actions" not in result:
         result["recovery_actions"] = recoveries
     from .reasoning_boundary import apply_reasoning_boundary
-    return apply_reasoning_boundary(result)
+    bounded = apply_reasoning_boundary(result)
+    if (bounded.get("format") == "brief"
+            and bounded.get("agent_response_contract")
+            and isinstance(bounded.get("reasoning"), dict)):
+        # The sealed response contract supersedes the generic reasoning
+        # frame's duplicate pointers. Keep the terminal/sufficiency fields
+        # hosts already consume, while full responses retain the complete
+        # reasoning receipt.
+        reasoning = bounded["reasoning"]
+        compact_reasoning: dict[str, Any] = {}
+        resolution = reasoning.get("resolution")
+        if isinstance(resolution, dict) and resolution.get("kind"):
+            compact_reasoning["resolution"] = {
+                "kind": resolution["kind"]}
+        bounded["reasoning"] = compact_reasoning
+    return bounded
 
 
 def compact_publication_for_wire(payload: dict[str, Any]) -> dict[str, Any]:
@@ -1449,6 +1464,22 @@ def _brief_capabilities(full: dict[str, Any]) -> dict[str, Any]:
             if isinstance(matrix, dict):
                 models["tsfm_capabilities"] = {"models": sorted(matrix)}
                 elided.append("models.tsfm_capabilities.<details>")
+            statsforecast = models.get("statsforecast")
+            if isinstance(statsforecast, dict):
+                # Retain every machine-actionable availability and model
+                # name; move explanatory install/admission prose to the full
+                # or named-section view so one optional plugin cannot break
+                # the bounded default response.
+                # In brief form the model names are the capability. Install
+                # state, version range, activation, and admission policy stay
+                # verbatim in the full/named models view.
+                prefix = "statsforecast_"
+                names = sorted(statsforecast.get("models") or [])
+                models["statsforecast"] = {
+                    "prefix": prefix,
+                    "models": [name.removeprefix(prefix) for name in names],
+                }
+                elided.append("models.statsforecast.<details>")
             brief[key] = compact(models, "models")
         elif key == "workspace" and isinstance(value, dict):
             # Absolute checkout paths are environment detail, not a
@@ -1459,6 +1490,11 @@ def _brief_capabilities(full: dict[str, Any]) -> dict[str, Any]:
             # workspace section.
             brief[key] = {"default_output_dir": "./gnomon-output"}
             elided.append("workspace.<absolute_paths>")
+        elif key == "general_frequencies" and isinstance(value, dict):
+            # The regex is the executable capability; its prose restatement
+            # is detail available in the named/full view.
+            brief[key] = {"pattern": value.get("pattern")}
+            elided.append("general_frequencies.<details>")
         else:
             brief[key] = compact(value, key)
     brief["view"] = {
@@ -1466,8 +1502,7 @@ def _brief_capabilities(full: dict[str, Any]) -> dict[str, Any]:
         "sections_available": sorted(full),
         "elided": sorted({path.split(".", 1)[0] for path in elided}),
         "note": (
-            "All names are present; `elided` omits detail. Request `full` "
-            "or named sections."
+            "Details: request `full` or named `sections`."
         ),
     }
     return brief

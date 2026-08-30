@@ -46,6 +46,11 @@ class ModelsConfig:
     #: Which statistical models compete. `None` means all of them, which is
     #: the default; a list restricts the pool to those names.
     statistical_candidates: list[str] | None = None
+    #: Optional Nixtla StatsForecast models. Disabled until the v0.8
+    #: prospective promotion gate is complete; an explicit true still uses
+    #: the ordinary rolling contest and fails softly when the extra is absent.
+    statsforecast_enabled: bool = False
+    statsforecast_candidates: list[str] | None = None
     tsfm_candidates: list[str] = field(default_factory=list)
     tsfm_overrides: dict[str, dict[str, Any]] = field(default_factory=dict)
     admission_policy: str = "strict"
@@ -415,6 +420,8 @@ INERT_PREFIXES: dict[str, str] = {
 ALLOWED_KEYS: frozenset[str] = frozenset({
     "models.statistical.enabled",
     "models.statistical.candidates",
+    "models.statsforecast.enabled",
+    "models.statsforecast.candidates",
     "models.tsfm.candidates",
     "models.admission.policy",
     "models.admission.evidence_registry_path",
@@ -565,6 +572,10 @@ def _parse_config(raw: dict[str, Any]) -> GnomonConfig:
     cfg.models = ModelsConfig(
         statistical_enabled=_section(models_raw, "statistical").get("enabled", True),
         statistical_candidates=_section(models_raw, "statistical").get("candidates"),
+        statsforecast_enabled=_section(models_raw, "statsforecast").get(
+            "enabled", False),
+        statsforecast_candidates=_section(models_raw, "statsforecast").get(
+            "candidates"),
         tsfm_candidates=_section(models_raw, "tsfm").get("candidates", []),
         tsfm_overrides=_section(models_raw, "tsfm").get("overrides", {}),
         admission_policy=_section(models_raw, "admission").get("policy", "strict"),
