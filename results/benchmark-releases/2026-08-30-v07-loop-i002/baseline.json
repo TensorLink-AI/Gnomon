@@ -1,0 +1,40 @@
+{
+  "release_metadata": {
+    "arm": "current-head-reproduction",
+    "benchmark": "decisioninputbench",
+    "configuration_identity": "pure production evaluate_actions boundary; exceed/no_exceed probabilities 0.4/0.6",
+    "dataset_identity": "11 frozen S1 action-by-scenario utility cases",
+    "evaluated_commit": "32b568c15e14d03373e6a6fbb62c34f4b4dae0df",
+    "harness_commit": "32b568c15e14d03373e6a6fbb62c34f4b4dae0df",
+    "notes": [
+      "Reproduction arm retained before production implementation."
+    ],
+    "scope": "full",
+    "source": "results/v07-s1-i002-baseline/summary.json",
+    "source_sha256": "372261280e7deffe5a0d212eb8ec81e010df9e5d2c12baf101042b71f0ac727d",
+    "status": "complete"
+  },
+  "summary": {
+    "benchmark": "decision-input-integrity",
+    "cases": 11,
+    "evaluated_commit": "32b568c",
+    "gates": {
+      "all_cases_terminate_without_internal_error": false,
+      "exact_tie_is_inconclusive_abstention": false,
+      "infeasible_action_utilities_not_required": true,
+      "malformed_cases_are_typed_invalid_utilities": false,
+      "malformed_repairs_are_executable": false,
+      "no_feasible_action_still_abstains": true,
+      "no_unsafe_selection": false,
+      "numeric_outputs_finite": true,
+      "valid_non_tied_selection_preserved": true
+    },
+    "internal_errors": 2,
+    "scenario_probabilities": {
+      "exceed": 0.4,
+      "no_exceed": 0.6
+    },
+    "schema_version": "0.1",
+    "unsafe_selections": 4
+  }
+}

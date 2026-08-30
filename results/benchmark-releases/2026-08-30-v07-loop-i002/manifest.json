@@ -1,0 +1,40 @@
+{
+  "benchmarks": [
+    {
+      "arm": "current-head-reproduction",
+      "benchmark": "decisioninputbench",
+      "bytes": 1470,
+      "file": "baseline.json",
+      "scope": "full",
+      "sha256": "ac5d006bdf8e591cc6fd526146dfad1bb74386cde00288d512b044a80ebcfcc4",
+      "status": "complete"
+    },
+    {
+      "arm": "typed-integrity-boundary",
+      "benchmark": "decisioninputbench",
+      "bytes": 1482,
+      "file": "candidate.json",
+      "scope": "full",
+      "sha256": "38c6bcdf4cbeaaa1e011db0bc41a967c3d3c8b4beaa4e097ab7620099de9ba28",
+      "status": "complete"
+    }
+  ],
+  "curated_by_commit": "5f8ed78a2ee5fd849c49d76cf7567ec1429f8d58",
+  "not_included": [
+    {
+      "benchmark": "raw decision case records",
+      "reason": "Retained locally under results/v07-s1-i002-baseline and results/v07-s1-i002-candidate-v2; excluded from aggregate git release."
+    },
+    {
+      "benchmark": "competition-specific plan",
+      "reason": "docs/astrid-btc-agent-plan.md is explicitly outside this loop and release."
+    }
+  ],
+  "policy": {
+    "aggregate_only": true,
+    "raw_runs_are_ci_artifacts": true,
+    "smoke_results_are_not_full_results": true
+  },
+  "release": "2026-08-30-v07-loop-i002",
+  "schema_version": "1.1"
+}
