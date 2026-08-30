@@ -30,9 +30,9 @@ the immutable history-only primary and human-review automation boundary.
 
 - Every v0.7 safety and forecast-quality issue reached a promoted fix or a
   preregistered evidence-backed no-build decision.
-- The full TSFM-isolated suite passed 2,648 tests with 11 skips at the Q4
-  production checkpoint; the exact 0.7.0 release-candidate gate is recorded in
-  the v0.7 benchmark-release artifacts.
+- The exact 0.7.0 candidate passed 2,651 tests with 11 skips in the full
+  TSFM-isolated suite; its small matched external shards and clean-wheel smoke
+  are recorded in the v0.7 benchmark-release artifacts.
 
 ## 0.5.0 — governed context intelligence (2026-08-30)
 

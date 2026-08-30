@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "iteration": "I013",
+  "contextbench": {
+    "responses_inspected": 4,
+    "engine_contract_complete": "4/4",
+    "agent_contract_complete": "4/4",
+    "typed_no_distinct_numeric_path_exposed": 2,
+    "typed_no_distinct_numeric_path_preserved": 2,
+    "primary_preserved": "4/4",
+    "automation_false_preserved": "4/4",
+    "finding": "Both structural responses state that the emitted immutable primary already lacks a stable continuation of the historical trend, so trend_ceases has no defensibly distinct numeric path."
+  },
+  "temporalbench": {
+    "evidence_responses_inspected": 4,
+    "canonical_answers_preserved": "12/12",
+    "primary_forecasts_unchanged": "4/4",
+    "support_inflation": 0,
+    "finding": "T4 context remained scenario-only and non-automatable; the retrospective overlay was reported separately and was never submitted."
+  },
+  "cik": {
+    "final_submissions_inspected": 3,
+    "primary_forecasts_unchanged": "3/3",
+    "automation_false_preserved": "3/3",
+    "spike_selected_role": "immutable_primary",
+    "spike_withheld_prior_reason": "sampled_prior_has_no_historical_skill",
+    "spike_candidate_preserved": true,
+    "finding": "Supported-primary authority correctly overrode hindsight: both ineligible spike priors scored better later but could not become the recommendation."
+  },
+  "clean_wheel": {
+    "artifact_and_summary_inspected": true,
+    "evaluated_prefix_steps": 33,
+    "requested_steps": 69,
+    "uncalibrated_probability_withheld": true,
+    "automation_eligible": false,
+    "primary_forecast_unchanged": true
+  }
+}

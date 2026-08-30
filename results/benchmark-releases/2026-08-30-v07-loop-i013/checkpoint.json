@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "loop": "v0.7-forecast-quality",
+  "status": "active_awaiting_exact_head_ci",
+  "latest_evaluated_product_commit": "77ffb5a",
+  "latest_verification_commit": "7352f91",
+  "branch": "agent/v0.7-forecast-quality-loop",
+  "protocol": "docs/v0.7-final-release-protocol.md",
+  "external_evaluation_intake": "docs/v0.7-external-evaluation-intake.md",
+  "preservation": {
+    "preserve_preexisting_committed_work": true,
+    "preserve_preexisting_benchmark_artifacts": true,
+    "preserve_all_preexisting_untracked_files": true,
+    "excluded_from_commits": ["docs/astrid-btc-agent-plan.md"]
+  },
+  "active_iteration": {
+    "id": "I013",
+    "issue": "final_release_gate",
+    "phase": "exact_head_ci",
+    "next_action": "Push the aggregate release candidate, verify exact-head CI, then mark the loop complete and tag v0.7.0 only if CI is green.",
+    "last_completed_action": "Passed fresh small ContextBench, TemporalBench, and CiK shards, inspected actual responses, passed isolated clean-wheel smoke, and passed the full TSFM-isolated suite."
+  },
+  "issues": [
+    {"id": "S1", "status": "complete"},
+    {"id": "S2", "status": "complete"},
+    {"id": "Q1", "status": "complete_with_promoted_safeguards_and_retained_numeric_no_build"},
+    {"id": "Q2", "status": "complete_with_promoted_coherent_trend_and_agent_boundary"},
+    {"id": "Q3", "status": "complete_with_retained_numeric_recall_and_agent_boundary_no_builds"},
+    {"id": "Q4", "status": "complete_with_promoted_stable_supported_primary_authority"},
+    {"id": "Q5", "status": "complete_with_retained_response_checklist_no_build_and_verified_resume"},
+    {"id": "Q6", "status": "complete_with_promoted_regime_attribution"},
+    {"id": "final_release_gate", "status": "local_green_awaiting_exact_head_ci"}
+  ]
+}
