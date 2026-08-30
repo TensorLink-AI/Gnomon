@@ -1,0 +1,315 @@
+{
+  "release_metadata": {
+    "arm": "support-aligned-rendering-and-threshold-authority",
+    "benchmark": "forecast-claim-support-coherence",
+    "configuration_identity": "zero-gain baseline retention rendered without uplift claim; every sub-supported threshold surface routed to bounded non-probabilistic assessment; supported threshold estimator unchanged",
+    "dataset_identity": "same four frozen deterministic production forecasts as the baseline arm",
+    "evaluated_commit": "198ca4cf9c0a6a41895f6562a745564d04208ebd",
+    "harness_commit": "198ca4cf9c0a6a41895f6562a745564d04208ebd",
+    "notes": [
+      "All nine frozen gates pass on the exact final implementation commit.",
+      "Forecast numbers, model identity, support, and supported threshold probabilities are unchanged."
+    ],
+    "scope": "full",
+    "source": "results/v07-q1-i005-claimbench-candidate-v3/summary.json",
+    "source_sha256": "41afea171200c18fdaf290995011db19775cd51f9cff8198cd890c24ac1b8a77",
+    "status": "complete"
+  },
+  "summary": {
+    "benchmark": "forecast-claim-support-coherence",
+    "cases": 4,
+    "evaluated_commit": "198ca4cf9c0a",
+    "gates": {
+      "all_cases_complete": true,
+      "all_headline_surfaces_agree": true,
+      "positive_uplift_control_is_measured": true,
+      "subsupported_never_high_confidence": true,
+      "subsupported_threshold_probability_typed_unavailable": true,
+      "threshold_payload_consistent": true,
+      "zero_gain_baseline_case_present": true,
+      "zero_gain_baseline_does_not_claim_beat": true,
+      "zero_gain_baseline_not_high_confidence": true
+    },
+    "passed": true,
+    "records": [
+      {
+        "baseline_improvement": 0.0,
+        "case_id": "stationary_level_seed_123",
+        "completed": true,
+        "headline_flags": {
+          "baseline_retained": true,
+          "caveats": false,
+          "claims_beat": false,
+          "high_confidence": false,
+          "naive_extrapolation": false,
+          "no_measured_uplift": true,
+          "probability": false
+        },
+        "headlines": {
+          "brief_tool": "Evaluated baseline forecast through 2025-05-07T00:00:00: the strongest baseline was retained on separated evaluation folds; no measured uplift over the mandatory baselines was established.",
+          "full_tool": "Evaluated baseline forecast through 2025-05-07T00:00:00: the strongest baseline was retained on separated evaluation folds; no measured uplift over the mandatory baselines was established.",
+          "summary_markdown": "Evaluated baseline forecast through 2025-05-07T00:00:00: the strongest baseline was retained on separated evaluation folds; no measured uplift over the mandatory baselines was established."
+        },
+        "interval_coverage": 1.0,
+        "reasons": [],
+        "recovery_actions": [],
+        "role": "baseline_retention",
+        "row_tiers": [
+          "supported"
+        ],
+        "selected_model": "historical_mean",
+        "strongest_baseline": "historical_mean",
+        "support": "supported",
+        "support_status": "supported",
+        "threshold_artifact": null,
+        "threshold_brief": null,
+        "threshold_full": null,
+        "warnings": []
+      },
+      {
+        "baseline_improvement": 0.9999999999999998,
+        "case_id": "linear_trend",
+        "completed": true,
+        "headline_flags": {
+          "baseline_retained": true,
+          "caveats": false,
+          "claims_beat": true,
+          "high_confidence": true,
+          "naive_extrapolation": false,
+          "no_measured_uplift": false,
+          "probability": false
+        },
+        "headlines": {
+          "brief_tool": "High-confidence forecast through 2025-05-07T00:00:00: the selected model beat the strongest baseline by 100% on separated evaluation folds.",
+          "full_tool": "High-confidence forecast through 2025-05-07T00:00:00: the selected model beat the strongest baseline by 100% on separated evaluation folds.",
+          "summary_markdown": "High-confidence forecast through 2025-05-07T00:00:00: the selected model beat the strongest baseline by 100% on separated evaluation folds."
+        },
+        "interval_coverage": 1.0,
+        "reasons": [],
+        "recovery_actions": [],
+        "role": "positive_uplift_control",
+        "row_tiers": [
+          "supported"
+        ],
+        "selected_model": "linear_trend",
+        "strongest_baseline": "last_value",
+        "support": "supported",
+        "support_status": "supported",
+        "threshold_artifact": null,
+        "threshold_brief": null,
+        "threshold_full": null,
+        "warnings": []
+      },
+      {
+        "baseline_improvement": null,
+        "case_id": "short_noisy",
+        "completed": true,
+        "headline_flags": {
+          "baseline_retained": false,
+          "caveats": true,
+          "claims_beat": false,
+          "high_confidence": false,
+          "naive_extrapolation": false,
+          "no_measured_uplift": false,
+          "probability": false
+        },
+        "headlines": {
+          "brief_tool": "Forecast through 2025-01-21T00:00:00 with caveats: Model selection ran without separated calibration and test folds.",
+          "full_tool": "Forecast through 2025-01-21T00:00:00 with caveats: Model selection ran without separated calibration and test folds.",
+          "summary_markdown": "Forecast through 2025-01-21T00:00:00 with caveats: Model selection ran without separated calibration and test folds."
+        },
+        "interval_coverage": null,
+        "reasons": [
+          {
+            "code": "degraded_evaluation",
+            "message": "Model selection ran without separated calibration and test folds."
+          },
+          {
+            "code": "selection_underpowered",
+            "message": "Candidates were scored on 1 selection fold \u2014 too few to rank them, so the strongest baseline (last_value) was published and the candidate scores are evidence, not a ranking."
+          },
+          {
+            "code": "warning",
+            "message": "Degraded forecast: model selection used a single trailing 3-observation holdout; rolling-origin calibration and final testing were unavailable. At least 20 observations (have 18) are needed for separated selection and calibration."
+          },
+          {
+            "code": "warning",
+            "message": "Selection under-powered: a single trailing holdout cannot rank incremental candidates. The admitted robust baseline (last_value) is published; candidate scores are reported as evidence, not a ranking."
+          }
+        ],
+        "recovery_actions": [
+          {
+            "code": "provide_more_history",
+            "message": "Supply enough observations for separated selection, calibration, and test windows."
+          }
+        ],
+        "role": "degraded_support_control",
+        "row_tiers": [
+          "conditionally_supported"
+        ],
+        "selected_model": "last_value",
+        "strongest_baseline": "last_value",
+        "support": "degraded",
+        "support_status": "conditionally_supported",
+        "threshold_artifact": null,
+        "threshold_brief": null,
+        "threshold_full": null,
+        "warnings": [
+          "Degraded forecast: model selection used a single trailing 3-observation holdout; rolling-origin calibration and final testing were unavailable. At least 20 observations (have 18) are needed for separated selection and calibration.",
+          "Selection under-powered: a single trailing holdout cannot rank incremental candidates. The admitted robust baseline (last_value) is published; candidate scores are reported as evidence, not a ranking."
+        ]
+      },
+      {
+        "baseline_improvement": null,
+        "case_id": "long_horizon_threshold",
+        "completed": true,
+        "headline_flags": {
+          "baseline_retained": false,
+          "caveats": true,
+          "claims_beat": false,
+          "high_confidence": false,
+          "naive_extrapolation": false,
+          "no_measured_uplift": false,
+          "probability": false
+        },
+        "headlines": {
+          "brief_tool": "Forecast through 2025-02-11T00:00:00 with caveats: Model selection ran without separated calibration and test folds.",
+          "full_tool": "Forecast through 2025-02-11T00:00:00 with caveats: Model selection ran without separated calibration and test folds.",
+          "summary_markdown": "Forecast through 2025-02-11T00:00:00 with caveats: Model selection ran without separated calibration and test folds."
+        },
+        "interval_coverage": null,
+        "reasons": [
+          {
+            "code": "degraded_evaluation",
+            "message": "Model selection ran without separated calibration and test folds."
+          },
+          {
+            "code": "selection_underpowered",
+            "message": "Candidates were scored on 1 selection fold \u2014 too few to rank them, so the strongest baseline (last_value) was published and the candidate scores are evidence, not a ranking."
+          },
+          {
+            "code": "warning",
+            "message": "Degraded forecast: model selection used a single trailing 7-observation holdout; rolling-origin calibration and final testing were unavailable. At least 48 observations (have 30) are needed for separated selection and calibration."
+          },
+          {
+            "code": "warning",
+            "message": "Selection under-powered: a single trailing holdout cannot rank incremental candidates. The admitted robust baseline (last_value) is published; candidate scores are reported as evidence, not a ranking."
+          }
+        ],
+        "recovery_actions": [
+          {
+            "code": "provide_more_history",
+            "message": "Supply enough observations for separated selection, calibration, and test windows."
+          }
+        ],
+        "role": "threshold_availability_control",
+        "row_tiers": [
+          "conditionally_supported"
+        ],
+        "selected_model": "last_value",
+        "strongest_baseline": "last_value",
+        "support": "degraded",
+        "support_status": "conditionally_supported",
+        "threshold_artifact": {
+          "bounded_assessment": {
+            "alternatives": [
+              {
+                "best_estimate": "yes",
+                "maximum_point": 50.406677,
+                "path": "model_assisted",
+                "point_path_crosses": true,
+                "published_range_relation": "range_unavailable",
+                "support": "prior_assisted"
+              }
+            ],
+            "automation_eligible": false,
+            "best_estimate": "no",
+            "decision": "indeterminate",
+            "interpretation": "A point-path answer and published-range relation, not a breach probability. Indeterminate means the displayed range overlaps the threshold or a labelled candidate disagrees with the immutable primary.",
+            "model_conflict": true,
+            "primary": {
+              "best_estimate": "no",
+              "maximum_point": 48.01592705300887,
+              "path": "primary",
+              "point_path_crosses": false,
+              "published_range_relation": "range_overlaps_threshold",
+              "support": "best_effort"
+            },
+            "primary_forecast_unchanged": true
+          },
+          "probability_above": [],
+          "probability_status": "unavailable_uncalibrated",
+          "value": 50.0
+        },
+        "threshold_brief": {
+          "bounded_assessment": {
+            "alternatives": [
+              {
+                "best_estimate": "yes",
+                "maximum_point": 50.406677,
+                "path": "model_assisted",
+                "point_path_crosses": true,
+                "published_range_relation": "range_unavailable",
+                "support": "prior_assisted"
+              }
+            ],
+            "automation_eligible": false,
+            "best_estimate": "no",
+            "decision": "indeterminate",
+            "interpretation": "A point-path answer and published-range relation, not a breach probability. Indeterminate means the displayed range overlaps the threshold or a labelled candidate disagrees with the immutable primary.",
+            "model_conflict": true,
+            "primary": {
+              "best_estimate": "no",
+              "maximum_point": 48.01592705300887,
+              "path": "primary",
+              "point_path_crosses": false,
+              "published_range_relation": "range_overlaps_threshold",
+              "support": "best_effort"
+            },
+            "primary_forecast_unchanged": true
+          },
+          "probability_above": [],
+          "probability_status": "unavailable_uncalibrated",
+          "value": 50.0
+        },
+        "threshold_full": {
+          "bounded_assessment": {
+            "alternatives": [
+              {
+                "best_estimate": "yes",
+                "maximum_point": 50.406677,
+                "path": "model_assisted",
+                "point_path_crosses": true,
+                "published_range_relation": "range_unavailable",
+                "support": "prior_assisted"
+              }
+            ],
+            "automation_eligible": false,
+            "best_estimate": "no",
+            "decision": "indeterminate",
+            "interpretation": "A point-path answer and published-range relation, not a breach probability. Indeterminate means the displayed range overlaps the threshold or a labelled candidate disagrees with the immutable primary.",
+            "model_conflict": true,
+            "primary": {
+              "best_estimate": "no",
+              "maximum_point": 48.01592705300887,
+              "path": "primary",
+              "point_path_crosses": false,
+              "published_range_relation": "range_overlaps_threshold",
+              "support": "best_effort"
+            },
+            "primary_forecast_unchanged": true
+          },
+          "probability_above": [],
+          "probability_status": "unavailable_uncalibrated",
+          "value": 50.0
+        },
+        "warnings": [
+          "Degraded forecast: model selection used a single trailing 7-observation holdout; rolling-origin calibration and final testing were unavailable. At least 48 observations (have 30) are needed for separated selection and calibration.",
+          "Selection under-powered: a single trailing holdout cannot rank incremental candidates. The admitted robust baseline (last_value) is published; candidate scores are reported as evidence, not a ranking."
+        ]
+      }
+    ],
+    "schema_version": "0.1",
+    "scope": "full"
+  }
+}

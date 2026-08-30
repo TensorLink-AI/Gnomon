@@ -1,0 +1,6 @@
+{
+  "benchmark": "jitterbench",
+  "code_revision": "4cfe8fa",
+  "condition": "current-production-boundary",
+  "target": "frozen-s2-cases"
+}

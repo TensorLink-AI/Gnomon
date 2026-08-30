@@ -183,6 +183,46 @@ def _schema_payload(loaded, time_column: str, target_column: str,
 EVENT_PROXIMITY_WINDOW = 7
 
 
+def _regime_attributed_anomalies(
+    timestamps: list[str], values: list[float], detection: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    """Score points within admitted regimes and disclose re-attribution."""
+    raw = anomaly_score(timestamps, values)
+    boundaries = sorted({
+        int(regime["index"])
+        for regime in detection.get("regimes") or []
+        if regime.get("classification") == "regime_shift"
+        and (regime.get("support") or {}).get("status") in {
+            "supported", "conditionally_supported"}
+        and 0 < int(regime.get("index", 0)) < len(values)
+    })
+    if not boundaries:
+        return raw, None
+    attributed: list[dict[str, Any]] = []
+    segment_support: list[dict[str, Any]] = []
+    for start, end in zip([0, *boundaries], [*boundaries, len(values)]):
+        scored = anomaly_score(
+            timestamps[start:end], values[start:end])
+        attributed.extend(scored.get("anomalies") or [])
+        segment_support.append({
+            "start_index": start, "end_index_exclusive": end,
+            "status": (scored.get("support") or {}).get("status"),
+        })
+    raw_timestamps = {str(item["timestamp"])
+                      for item in raw.get("anomalies") or []}
+    final_timestamps = {str(item["timestamp"]) for item in attributed}
+    attribution = {
+        "relationship": "explained_by_regime_shift",
+        "regime_boundary_indices": boundaries,
+        "raw_anomaly_count": len(raw_timestamps),
+        "final_anomaly_count": len(attributed),
+        "suppressed_count": len(raw_timestamps - final_timestamps),
+        "segment_support": segment_support,
+        "changepoints_unchanged": True,
+    }
+    return {**raw, "anomalies": attributed}, attribution
+
+
 def investigate_change(
     input_path: str,
     *,
@@ -233,7 +273,8 @@ def investigate_change(
     for name, (timestamps, values) in payloads.items():
         detection = detections[name]
         iso_timestamps = [moment.isoformat() for moment in timestamps]
-        anomalies = anomaly_score(iso_timestamps, values)
+        anomalies, anomaly_attribution = _regime_attributed_anomalies(
+            iso_timestamps, values, detection)
         evidence_records.append(EvidenceRecord(
             f"regime_detection:{name}", "regime_detection", name,
             {key: detection[key] for key in ("changepoints", "regimes", "classification", "support")},
@@ -241,7 +282,9 @@ def investigate_change(
         ))
         evidence_records.append(EvidenceRecord(
             f"anomaly_score:{name}", "anomaly_score", name,
-            {"anomalies": anomalies["anomalies"], "support": anomalies["support"]},
+            {"anomalies": anomalies["anomalies"], "support": anomalies["support"],
+             **({"regime_attribution": anomaly_attribution}
+                if anomaly_attribution else {})},
         ))
         onset = onsets[name]
         explanations: list[dict[str, Any]] = []
@@ -339,6 +382,8 @@ def investigate_change(
             "classification": detection["classification"],
             "onset": timestamps[onset["index"]].isoformat() if onset else None,
             "anomalies": anomalies["anomalies"],
+            **({"anomaly_attribution": anomaly_attribution}
+               if anomaly_attribution else {}),
             "explanations": explanations,
             "residual_uncertainty": residual_uncertainty,
             "support_assessment": support,

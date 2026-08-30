@@ -1,0 +1,44 @@
+{
+  "benchmarks": [
+    {
+      "arm": "current-head-reproduction",
+      "benchmark": "forecast-claim-support-coherence",
+      "bytes": 20765,
+      "file": "baseline.json",
+      "scope": "full",
+      "sha256": "e29afcacb2874478fe5224c2915df0ceaeef1614fcdf9408d1530e8604b158d2",
+      "status": "complete"
+    },
+    {
+      "arm": "support-aligned-rendering-and-threshold-authority",
+      "benchmark": "forecast-claim-support-coherence",
+      "bytes": 14635,
+      "file": "candidate.json",
+      "scope": "full",
+      "sha256": "700fd10755292f3793fc04d7ae278f28f81424213a94c5d0ecfc84cf8d4a6572",
+      "status": "complete"
+    }
+  ],
+  "curated_by_commit": "198ca4cf9c0a6a41895f6562a745564d04208ebd",
+  "not_included": [
+    {
+      "benchmark": "exploratory dirty-tree ClaimBench candidate",
+      "reason": "Retained locally under results/v07-q1-i005-claimbench-candidate-v1 and excluded because its evaluated commit cannot identify uncommitted production changes."
+    },
+    {
+      "benchmark": "raw per-case ClaimBench checkpoints",
+      "reason": "Retained in the source directories; this git release includes aggregate summaries only."
+    },
+    {
+      "benchmark": "competition-specific plan",
+      "reason": "docs/astrid-btc-agent-plan.md is explicitly outside this loop and release."
+    }
+  ],
+  "policy": {
+    "aggregate_only": true,
+    "raw_runs_are_ci_artifacts": true,
+    "smoke_results_are_not_full_results": true
+  },
+  "release": "2026-08-30-v07-loop-i005",
+  "schema_version": "1.1"
+}

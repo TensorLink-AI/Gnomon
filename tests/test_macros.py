@@ -49,6 +49,21 @@ def test_investigate_finds_planted_shift(tmp_path):
     assert any(claim["claim_id"].startswith("claim:change") for claim in lineage["claims"])
 
 
+def test_investigate_attributes_post_shift_points_to_supported_regime(tmp_path):
+    source = _csv(tmp_path / "shift.csv", _shifted_series(n_pre=24, n_post=16))
+    payload, _ = investigate_change(
+        str(source), time_column="timestamp", target_column="value",
+        output=str(tmp_path / "out"), clock=CLOCK,
+    )
+    result = payload["results"][0]
+    assert result["classification"] == "regime_shift"
+    assert result["anomalies"] == []
+    attribution = result["anomaly_attribution"]
+    assert attribution["relationship"] == "explained_by_regime_shift"
+    assert attribution["suppressed_count"] == 16
+    assert attribution["changepoints_unchanged"] is True
+
+
 def test_investigate_no_change_is_a_conclusion(tmp_path):
     source = _csv(tmp_path / "flat.csv", [100 + NOISE[i % 10] for i in range(30)])
     payload, directory = investigate_change(

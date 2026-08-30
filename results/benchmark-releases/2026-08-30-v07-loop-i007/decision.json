@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "iteration": "I007",
+  "issue": "Q2",
+  "decision": "promote_coherent_trend_and_typed_agent_boundary",
+  "baseline_commit": "11b8b48e5b931e45430805aa763e69a64da25288",
+  "engine_candidate_commit": "a3dc09355e977ccbad3be726167dd9fe21f3d1f7",
+  "agent_candidate_commit": "cf8772aae83701c33b056a1270c0619d177762c1",
+  "suite_commit": "682b3fbda9167761b92dfa34675dadfe308a48ba",
+  "protocols": [
+    "docs/v0.7-q2-seasonal-trend-protocol.md",
+    "docs/v0.7-q2-trend-contract-subfix-protocol.md",
+    "docs/v0.7-q2-trend-independent-confirmation.md",
+    "docs/v0.7-q2-agent-preservation-protocol.md"
+  ],
+  "user_outcome": "Agents receive a directionally and numerically coherent seasonal-trend answer and preserve its support, abstention, automation, authority, and immutable-primary contract; humans receive an explicit identifiability reason instead of a confident partial-cycle slope.",
+  "development_result": {
+    "cases": 152,
+    "baseline_direction_accuracy": 0.640625,
+    "candidate_direction_accuracy": 0.8515625,
+    "baseline_all_interval_coverage": 0.0,
+    "candidate_all_interval_coverage": 0.7948717948717948,
+    "baseline_mean_selective_utility": 0.019736842105263157,
+    "candidate_mean_selective_utility": 0.16611842105263158,
+    "baseline_direction_estimate_inconsistencies": 33,
+    "candidate_direction_estimate_inconsistencies": 0,
+    "candidate_insufficient_cycle_abstentions": 24,
+    "candidate_supported_claims": 0,
+    "supported_absolute_gates_exercised": false
+  },
+  "independent_result": {
+    "trend_cases_per_arm": 152,
+    "baseline_direction_accuracy": 0.578125,
+    "candidate_direction_accuracy": 0.8515625,
+    "baseline_all_interval_coverage": 0.0,
+    "candidate_all_interval_coverage": 0.8245614035087719,
+    "baseline_mean_selective_utility": -0.006578947368421052,
+    "candidate_mean_selective_utility": 0.17105263157894737,
+    "propertybench_pooled_trend_cases_per_arm": 160,
+    "propertybench_baseline_best_estimate_accuracy": 0.8,
+    "propertybench_candidate_best_estimate_accuracy": 0.83125,
+    "propertybench_baseline_supported_claims": 40,
+    "propertybench_candidate_supported_claims": 32,
+    "propertybench_baseline_supported_accuracy": 1.0,
+    "propertybench_candidate_supported_accuracy": 1.0,
+    "propertybench_baseline_supported_interval_coverage": 0.975,
+    "propertybench_candidate_supported_interval_coverage": 0.96875,
+    "propertybench_baseline_mean_absolute_error": 0.04304651329547077,
+    "propertybench_candidate_mean_absolute_error": 0.0203346395843808,
+    "nontrend_property_summaries_exactly_unchanged": true
+  },
+  "agent_boundary_result": {
+    "trend_cases": 6,
+    "engine_receipts_complete": 6,
+    "agent_choices_preserved": 6,
+    "host_contracts_complete": 6,
+    "primary_forecasts_unchanged": 6,
+    "authority_inflations": 0,
+    "gnomon_artifact_routes": 6,
+    "structural_context_cases": 2,
+    "structural_engine_relationship_contracts_complete": 2,
+    "structural_agent_relationships_preserved": 2,
+    "structural_primary_forecasts_unchanged": 2,
+    "structural_automation_eligible": 0,
+    "context_leakage_count": 0
+  },
+  "implementation": [
+    "Estimate an admitted seasonal trend with phase fixed effects and retain the existing prefix-only fold and support thresholds.",
+    "Align the canonical trend direction with the canonical point estimate and disclose calibration disagreement diagnostically.",
+    "Publish a conservative observed-error envelope for weak calibrated trend rows instead of a zero-width interval.",
+    "Return a typed null abstention when fewer than two admitted cycles are visible, and never silently admit a detected seasonal period.",
+    "Route predictive trend questions through the fitted executable even when a primary forecast path exists.",
+    "Carry the immutable primary forecast's exact seasonal period into attached typed answers and project the complete typed choice contract at the deterministic host boundary."
+  ],
+  "invariants": {
+    "future_observations_used_by_product_zero": true,
+    "inputs_and_primary_forecasts_immutable": true,
+    "support_threshold_not_lowered": true,
+    "support_and_automation_fields_agree": true,
+    "unsafe_unadmitted_or_insufficient_automation_zero": true,
+    "benchmark_identity_or_expected_label_routing_zero": true,
+    "engine_and_agent_preservation_scored_separately": true,
+    "full_tests_isolated_from_machine_local_tsfm_supply": "2629 passed, 11 skipped"
+  },
+  "retained_limits": [
+    "The development corpus has no supported denominator, so its supported-accuracy and supported-coverage gates remain false rather than being inferred from weak answers.",
+    "One development unadmitted-season zero family trades raw categorical accuracy for a safe abstention; the fresh confirmation has no corresponding regression.",
+    "The six- and two-case API shards establish boundary preservation only, not broad agent-reasoning uplift."
+  ],
+  "raw_evidence": [
+    "results/v07-q2-i007-trendanswerbench-baseline-v2/",
+    "results/v07-q2-i007-trendanswerbench-candidate-v2/",
+    "results/v07-q2-i007-trend-confirm-baseline-8121/",
+    "results/v07-q2-i007-trend-confirm-candidate-8121/",
+    "results/v07-q2-i007-property-confirm-baseline-8301/",
+    "results/v07-q2-i007-property-confirm-candidate-8301/",
+    "results/v07-q2-i007-property-confirm-baseline-8317/",
+    "results/v07-q2-i007-property-confirm-candidate-8317/",
+    "results/v07-q2-i007-trend-agent-baseline-v2/",
+    "results/v07-q2-i007-trend-agent-candidate-v2/",
+    "results/v07-q2-i007-context-agent-structural/"
+  ]
+}

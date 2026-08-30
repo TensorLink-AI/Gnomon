@@ -1,0 +1,459 @@
+{
+  "release_metadata": {
+    "arm": "historical-mean-plus-independent-confirmation",
+    "benchmark": "modelbench-naturalistic-selector",
+    "configuration_identity": "historical mean is a mandatory baseline; ordinary forecasts with at least five disjoint origins reserve selection, independent confirmation, calibration, and final-test roles; one preselected contender receives only a non-inferiority veto",
+    "dataset_identity": "same 12 frozen licensed real observational series, four expanding origins per series, and 48 held-out cases as the baseline arm",
+    "evaluated_commit": "de6f6d7deb15e95c9a09c7d5fb09eeeadaf7ad9b",
+    "harness_commit": "de6f6d7deb15e95c9a09c7d5fb09eeeadaf7ad9b",
+    "notes": [
+      "Exact final-head rerun; future outcomes and benchmark identities remain unavailable to production selection.",
+      "The general safety subfix gates pass, while three original strict naturalistic gates remain failed and are not relabelled."
+    ],
+    "scope": "full",
+    "source": "results/v07-q1-i004-confirmation-candidate-v3/summary.json",
+    "source_sha256": "1100e596f3ff82748e27e6d8ecef1c82468ac519bdf7d4b62256805e9ccfb8bf",
+    "status": "complete"
+  },
+  "summary": {
+    "benchmark": "naturalistic-production-selector-confirmation",
+    "bootstrap": {
+      "draws": 4000,
+      "interval": [
+        0.0,
+        0.45113533615550894
+      ],
+      "seed": 92742,
+      "unit": "dataset"
+    },
+    "by_dataset": {
+      "co2": {
+        "admission_precision": 0.0,
+        "cases": 4,
+        "completed": 4,
+        "completion_rate": 1.0,
+        "departure_losses": 0,
+        "departure_ties": 2,
+        "departure_wins": 0,
+        "departures": 2,
+        "disclosed_fallbacks": 0,
+        "engine_supported": 4,
+        "mean_invalidated_departures": 0,
+        "median_relative_gain_all_cases": 0.0,
+        "median_relative_gain_departures": 0.0,
+        "strongest_reference_counts": {
+          "last_value": 1,
+          "seasonal_naive": 3
+        }
+      },
+      "elnino": {
+        "admission_precision": 0.0,
+        "cases": 4,
+        "completed": 4,
+        "completion_rate": 1.0,
+        "departure_losses": 2,
+        "departure_ties": 2,
+        "departure_wins": 0,
+        "departures": 4,
+        "disclosed_fallbacks": 0,
+        "engine_supported": 4,
+        "mean_invalidated_departures": 0,
+        "median_relative_gain_all_cases": -0.04465693925242179,
+        "median_relative_gain_departures": -0.04465693925242179,
+        "strongest_reference_counts": {
+          "last_value": 2,
+          "seasonal_naive": 2
+        }
+      },
+      "nile": {
+        "admission_precision": null,
+        "cases": 4,
+        "completed": 4,
+        "completion_rate": 1.0,
+        "departure_losses": 0,
+        "departure_ties": 0,
+        "departure_wins": 0,
+        "departures": 0,
+        "disclosed_fallbacks": 0,
+        "engine_supported": 4,
+        "mean_invalidated_departures": 0,
+        "median_relative_gain_all_cases": 0.0,
+        "median_relative_gain_departures": null,
+        "strongest_reference_counts": {
+          "historical_mean": 1,
+          "last_value": 3
+        }
+      },
+      "pedestrian": {
+        "admission_precision": 0.0,
+        "cases": 4,
+        "completed": 4,
+        "completion_rate": 1.0,
+        "departure_losses": 3,
+        "departure_ties": 1,
+        "departure_wins": 0,
+        "departures": 4,
+        "disclosed_fallbacks": 0,
+        "engine_supported": 4,
+        "mean_invalidated_departures": 1,
+        "median_relative_gain_all_cases": -0.07051293204443299,
+        "median_relative_gain_departures": -0.07051293204443299,
+        "strongest_reference_counts": {
+          "historical_mean": 1,
+          "last_value": 2,
+          "seasonal_naive": 1
+        }
+      },
+      "retail": {
+        "admission_precision": 1.0,
+        "cases": 4,
+        "completed": 4,
+        "completion_rate": 1.0,
+        "departure_losses": 0,
+        "departure_ties": 0,
+        "departure_wins": 4,
+        "departures": 4,
+        "disclosed_fallbacks": 0,
+        "engine_supported": 4,
+        "mean_invalidated_departures": 0,
+        "median_relative_gain_all_cases": 0.48791962368648495,
+        "median_relative_gain_departures": 0.48791962368648495,
+        "strongest_reference_counts": {
+          "last_value": 2,
+          "seasonal_naive": 2
+        }
+      },
+      "sensor_temperature": {
+        "admission_precision": 0.0,
+        "cases": 4,
+        "completed": 4,
+        "completion_rate": 1.0,
+        "departure_losses": 1,
+        "departure_ties": 0,
+        "departure_wins": 0,
+        "departures": 1,
+        "disclosed_fallbacks": 0,
+        "engine_supported": 4,
+        "mean_invalidated_departures": 0,
+        "median_relative_gain_all_cases": -0.7717519679102449,
+        "median_relative_gain_departures": -0.8859701172133881,
+        "strongest_reference_counts": {
+          "last_value": 1,
+          "seasonal_naive": 3
+        }
+      },
+      "sunspots": {
+        "admission_precision": 0.0,
+        "cases": 4,
+        "completed": 4,
+        "completion_rate": 1.0,
+        "departure_losses": 0,
+        "departure_ties": 3,
+        "departure_wins": 0,
+        "departures": 3,
+        "disclosed_fallbacks": 0,
+        "engine_supported": 4,
+        "mean_invalidated_departures": 0,
+        "median_relative_gain_all_cases": 0.0,
+        "median_relative_gain_departures": 0.0,
+        "strongest_reference_counts": {
+          "seasonal_naive": 4
+        }
+      },
+      "us_cpi": {
+        "admission_precision": 1.0,
+        "cases": 4,
+        "completed": 4,
+        "completion_rate": 1.0,
+        "departure_losses": 0,
+        "departure_ties": 0,
+        "departure_wins": 3,
+        "departures": 3,
+        "disclosed_fallbacks": 0,
+        "engine_supported": 4,
+        "mean_invalidated_departures": 0,
+        "median_relative_gain_all_cases": 0.6479543625513872,
+        "median_relative_gain_departures": 0.6841811441102473,
+        "strongest_reference_counts": {
+          "last_value": 4
+        }
+      },
+      "us_m1": {
+        "admission_precision": 1.0,
+        "cases": 4,
+        "completed": 4,
+        "completion_rate": 1.0,
+        "departure_losses": 0,
+        "departure_ties": 0,
+        "departure_wins": 1,
+        "departures": 1,
+        "disclosed_fallbacks": 0,
+        "engine_supported": 4,
+        "mean_invalidated_departures": 0,
+        "median_relative_gain_all_cases": 0.0,
+        "median_relative_gain_departures": 0.3130866186474165,
+        "strongest_reference_counts": {
+          "last_value": 3,
+          "seasonal_naive": 1
+        }
+      },
+      "us_realgdp": {
+        "admission_precision": 1.0,
+        "cases": 4,
+        "completed": 4,
+        "completion_rate": 1.0,
+        "departure_losses": 0,
+        "departure_ties": 0,
+        "departure_wins": 4,
+        "departures": 4,
+        "disclosed_fallbacks": 0,
+        "engine_supported": 4,
+        "mean_invalidated_departures": 0,
+        "median_relative_gain_all_cases": 0.6381337028132019,
+        "median_relative_gain_departures": 0.6381337028132019,
+        "strongest_reference_counts": {
+          "last_value": 4
+        }
+      },
+      "us_unemployment": {
+        "admission_precision": null,
+        "cases": 4,
+        "completed": 4,
+        "completion_rate": 1.0,
+        "departure_losses": 0,
+        "departure_ties": 0,
+        "departure_wins": 0,
+        "departures": 0,
+        "disclosed_fallbacks": 0,
+        "engine_supported": 4,
+        "mean_invalidated_departures": 0,
+        "median_relative_gain_all_cases": 0.0,
+        "median_relative_gain_departures": null,
+        "strongest_reference_counts": {
+          "historical_mean": 1,
+          "last_value": 3
+        }
+      },
+      "web_traffic": {
+        "admission_precision": 0.25,
+        "cases": 4,
+        "completed": 4,
+        "completion_rate": 1.0,
+        "departure_losses": 2,
+        "departure_ties": 1,
+        "departure_wins": 1,
+        "departures": 4,
+        "disclosed_fallbacks": 0,
+        "engine_supported": 4,
+        "mean_invalidated_departures": 1,
+        "median_relative_gain_all_cases": -0.105939272526164,
+        "median_relative_gain_departures": -0.105939272526164,
+        "strongest_reference_counts": {
+          "historical_mean": 1,
+          "last_value": 2,
+          "seasonal_naive": 1
+        }
+      }
+    },
+    "by_group": {
+      "environmental": {
+        "admission_precision": 0.0,
+        "cases": 8,
+        "completed": 8,
+        "completion_rate": 1.0,
+        "departure_losses": 2,
+        "departure_ties": 4,
+        "departure_wins": 0,
+        "departures": 6,
+        "disclosed_fallbacks": 0,
+        "engine_supported": 8,
+        "mean_invalidated_departures": 0,
+        "median_relative_gain_all_cases": 0.0,
+        "median_relative_gain_departures": 0.0,
+        "strongest_reference_counts": {
+          "last_value": 3,
+          "seasonal_naive": 5
+        }
+      },
+      "historical": {
+        "admission_precision": 0.0,
+        "cases": 8,
+        "completed": 8,
+        "completion_rate": 1.0,
+        "departure_losses": 0,
+        "departure_ties": 3,
+        "departure_wins": 0,
+        "departures": 3,
+        "disclosed_fallbacks": 0,
+        "engine_supported": 8,
+        "mean_invalidated_departures": 0,
+        "median_relative_gain_all_cases": 0.0,
+        "median_relative_gain_departures": 0.0,
+        "strongest_reference_counts": {
+          "historical_mean": 1,
+          "last_value": 3,
+          "seasonal_naive": 4
+        }
+      },
+      "macro": {
+        "admission_precision": 1.0,
+        "cases": 16,
+        "completed": 16,
+        "completion_rate": 1.0,
+        "departure_losses": 0,
+        "departure_ties": 0,
+        "departure_wins": 8,
+        "departures": 8,
+        "disclosed_fallbacks": 0,
+        "engine_supported": 16,
+        "mean_invalidated_departures": 0,
+        "median_relative_gain_all_cases": 0.15654330932370825,
+        "median_relative_gain_departures": 0.6479543625513872,
+        "strongest_reference_counts": {
+          "historical_mean": 1,
+          "last_value": 14,
+          "seasonal_naive": 1
+        }
+      },
+      "operational": {
+        "admission_precision": 0.38461538461538464,
+        "cases": 16,
+        "completed": 16,
+        "completion_rate": 1.0,
+        "departure_losses": 6,
+        "departure_ties": 2,
+        "departure_wins": 5,
+        "departures": 13,
+        "disclosed_fallbacks": 0,
+        "engine_supported": 16,
+        "mean_invalidated_departures": 2,
+        "median_relative_gain_all_cases": -0.0027243007628041725,
+        "median_relative_gain_departures": 0.0,
+        "strongest_reference_counts": {
+          "historical_mean": 2,
+          "last_value": 7,
+          "seasonal_naive": 7
+        }
+      }
+    },
+    "cutoff_fractions": [
+      0.6,
+      0.7,
+      0.8,
+      0.9
+    ],
+    "dataset_identities": [
+      {
+        "dataset_id": "pedestrian",
+        "group": "operational",
+        "path": "benchmarks/breachbench/data/pedestrian_counts_daily.csv",
+        "sha256": "a53d1d3e98c323be36ac52f35a7a06d91ba3a3a7ca61d99330ca0f670236f7f7"
+      },
+      {
+        "dataset_id": "retail",
+        "group": "operational",
+        "path": "benchmarks/breachbench/data/retail_sales_monthly.csv",
+        "sha256": "1d524c08bdf2c4bd6b75c9c629e9949ebc10fa2f268ed373b02709b8d41c4815"
+      },
+      {
+        "dataset_id": "sensor_temperature",
+        "group": "operational",
+        "path": "benchmarks/breachbench/data/sensor_temps_5min.csv",
+        "sha256": "cdeab8b7cdeade5ef6a04b2bbd2b2a4d1393a0dc90d7c4201b8a823a02f87387"
+      },
+      {
+        "dataset_id": "web_traffic",
+        "group": "operational",
+        "path": "benchmarks/breachbench/data/wiki_traffic_daily_log.csv",
+        "sha256": "7ee685b87a4685ed484563d2d09a430aa2d886b6f0a6eeb6a6e86aac474a3dbc"
+      },
+      {
+        "dataset_id": "co2",
+        "group": "environmental",
+        "path": "benchmarks/dossierbench/data/co2_weekly_mauna_loa.csv",
+        "sha256": "b7dba885a948f608014256d497dfc13d84f1fd7cee100ced2889e8d2de09e419"
+      },
+      {
+        "dataset_id": "elnino",
+        "group": "environmental",
+        "path": "benchmarks/dossierbench/data/elnino_sst_monthly.csv",
+        "sha256": "9fe30321f02a8e9b38b4ea7ded66c84e3e7dd935e09e79d9c12abbbee6cca6b1"
+      },
+      {
+        "dataset_id": "nile",
+        "group": "historical",
+        "path": "benchmarks/dossierbench/data/nile_annual_flow.csv",
+        "sha256": "68b52eb6a3315ea651f6c249597544b357bdf3acc1e609117b95e47022180b51"
+      },
+      {
+        "dataset_id": "sunspots",
+        "group": "historical",
+        "path": "benchmarks/dossierbench/data/sunspots_yearly.csv",
+        "sha256": "7bb454ed535fda29e7749a9c936c1f0bda5c14f61a7f36b03a42f13c5fb85b9b"
+      },
+      {
+        "dataset_id": "us_cpi",
+        "group": "macro",
+        "path": "benchmarks/dossierbench/data/us_cpi_quarterly.csv",
+        "sha256": "fc1e08aed907d5e7ae059b0590eac4446d88092c731886838c4efffb574bc603"
+      },
+      {
+        "dataset_id": "us_m1",
+        "group": "macro",
+        "path": "benchmarks/dossierbench/data/us_m1_quarterly.csv",
+        "sha256": "323a9b29fe3063d45e8e2ccd4666587c1081e0d194384fe68fb51b13a5890f70"
+      },
+      {
+        "dataset_id": "us_realgdp",
+        "group": "macro",
+        "path": "benchmarks/dossierbench/data/us_realgdp_quarterly.csv",
+        "sha256": "d2a471150da59c726ded6220713eeb5d29ca29b4a8c2a3f0628ca45b9f836d01"
+      },
+      {
+        "dataset_id": "us_unemployment",
+        "group": "macro",
+        "path": "benchmarks/dossierbench/data/us_unemployment_quarterly.csv",
+        "sha256": "fb84becea8da840c7513825b30298713184042a1375f65898994bd8c1c63fb61"
+      }
+    ],
+    "evaluated_commit": "de6f6d7",
+    "gates": {
+      "all_product_cases_complete": true,
+      "at_least_10_departures": true,
+      "cluster_bootstrap_lower_nonnegative": true,
+      "departure_median_gain_positive": false,
+      "departure_precision_at_least_70pct": false,
+      "future_observations_used_zero": true,
+      "group_median_regression_within_2pct": true,
+      "more_departure_wins_than_losses": true,
+      "no_departure_invalidated_by_historical_mean": false,
+      "no_silent_fallback": true,
+      "selection_provenance_complete": true,
+      "three_finite_references_measured": true
+    },
+    "minimum_baseline_improvement": 0.02,
+    "overall": {
+      "admission_precision": 0.43333333333333335,
+      "cases": 48,
+      "completed": 48,
+      "completion_rate": 1.0,
+      "departure_losses": 8,
+      "departure_ties": 9,
+      "departure_wins": 13,
+      "departures": 30,
+      "disclosed_fallbacks": 0,
+      "engine_supported": 48,
+      "mean_invalidated_departures": 2,
+      "median_relative_gain_all_cases": 0.0,
+      "median_relative_gain_departures": 0.0,
+      "strongest_reference_counts": {
+        "historical_mean": 4,
+        "last_value": 27,
+        "seasonal_naive": 17
+      }
+    },
+    "protocol": "docs/v0.7-q1-naturalistic-confirmation-protocol.md",
+    "schema_version": "0.1",
+    "scope": "full"
+  }
+}

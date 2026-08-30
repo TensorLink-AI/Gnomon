@@ -579,6 +579,14 @@ def _series_result(
             # beside the rest of the measured facts.
             support_assessment.sensitivity["observations"] = len(state.values)
     from .contracts import DEFAULT_MINIMUM_BASELINE_IMPROVEMENT, SupportReason
+    from .support import disclose_seasonal_period_override
+    seasonal_override_conflict = disclose_seasonal_period_override(
+        support_assessment,
+        override=state.seasonal_period_override,
+        detected_period=state.detected_season,
+        detected_strength=state.detected_season_strength,
+        detected_basis=state.detected_season_basis,
+    )
     if minimum_baseline_improvement != DEFAULT_MINIMUM_BASELINE_IMPROVEMENT:
         # A caller-chosen evidence rule is not the documented one. Below the
         # default the mandated-baseline gate is weaker, so the verdict is
@@ -654,17 +662,21 @@ def _series_result(
             f"the result the evidence already supports.",
         ))
         rows, support, threshold_analysis = [], "unsupported", None
-    if threshold is not None and rows and support == "best_effort":
+    if (threshold is not None and rows
+            and support_assessment.status != "supported"):
         # A requested analysis that cannot run must say so, not vanish:
-        # threshold-crossing probabilities need calibrated residuals, which
-        # best_effort and horizon-split rows do not have.
+        # threshold-crossing probabilities need fully supported, calibrated
+        # residuals. Degraded, weak, context-trusted, best-effort, and
+        # horizon-split rows can still answer the bounded point/range
+        # question, but must not carry an actionable probability.
         state.notes.append(
             f"threshold {threshold} was requested but no crossing probability "
             f"is reported: exceedance probabilities require calibrated "
-            f"residuals, which best_effort rows (and the fallback range of "
-            f"a horizon split) do not have. A bounded point/range assessment "
+            f"residuals and supported publication; this result achieved "
+            f"{support_assessment.status}. A bounded point/range assessment "
             f"is reported separately and is not automation-eligible."
         )
+        threshold_analysis = None
     # The unstrippable label: every published row names its tier, uniform
     # on a single-tier forecast, changing at the split point on a split
     # one — one shape, no special cases for consumers.
@@ -791,6 +803,16 @@ def _series_result(
                 state.season, loaded.frequency),
             "frequency": loaded.frequency,
             "source": "computed_from_observations",
+            **({
+                "seasonal_period_evidence": {
+                    "used_period": state.season,
+                    "used_source": "override",
+                    "detected_period": state.detected_season,
+                    "detected_strength": state.detected_season_strength,
+                    "detected_basis": state.detected_season_basis,
+                    "override_conflict": seasonal_override_conflict,
+                },
+            } if state.seasonal_period_override is not None else {}),
             "temporal_profile": profile,
             **({
                 "threshold_decision": threshold_analysis[
@@ -822,10 +844,21 @@ def _series_result(
                    if admission is not None else None),
         model_assisted=model_assisted_lane,
     )
+    confirmation = assessment.selection_stability.get("confirmation")
+    has_confirmation = (
+        isinstance(confirmation, dict)
+        and confirmation.get("available") is True
+    )
+    partitioning = (
+        "selection folds, then independent confirmation fold, then "
+        "calibration fold, then final test fold"
+        if has_confirmation else
+        "selection folds, then calibration fold, then final test fold"
+    )
     evidence = list(state.evidence)
     evidence.extend([
         Evidence(f"evaluation:{series_name}", "rolling_evaluation", series_name, {
-            "partitioning": "selection folds, then calibration fold, then final test fold",
+            "partitioning": partitioning,
             "selection_scores": assessment.selection_scores,
             "test_scores": assessment.test_scores,
             # The verifier gates probability-bearing claims on these,
@@ -858,8 +891,19 @@ def _series_result(
             series_name, {
                 "partitioning": (
                     "horizon-split prefix at the supportable horizon; "
-                    "selection folds, then calibration fold, then final "
-                    "test fold"),
+                    + (
+                        "selection folds, then independent confirmation "
+                        "fold, then calibration fold, then final test fold"
+                        if (
+                            isinstance(
+                                split_assessment.selection_stability.get(
+                                    "confirmation"), dict)
+                            and split_assessment.selection_stability[
+                                "confirmation"].get("available") is True
+                        ) else
+                        "selection folds, then calibration fold, then final "
+                        "test fold"
+                    )),
                 "horizon": len(split[1]),
                 "selection_scores": split_assessment.selection_scores,
                 "test_scores": split_assessment.test_scores,

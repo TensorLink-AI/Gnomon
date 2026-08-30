@@ -1,0 +1,48 @@
+{
+  "release_metadata": {
+    "arm": "current-head-reproduction",
+    "benchmark": "jitterbench",
+    "configuration_identity": "20-minute phase-shifted exact/jitter/boundary/collision/reorder/mixed-cadence/gap cases; public load boundary",
+    "dataset_identity": "22 frozen independently regenerated S2 repair-mode boundary runs",
+    "evaluated_commit": "4cfe8fa0a6224fc3a48df61d7581857abf34c544",
+    "harness_commit": "4cfe8fa0a6224fc3a48df61d7581857abf34c544",
+    "notes": [
+      "Reproduction arm retained before production implementation.",
+      "Original external fixture was unavailable; fixtures are independently regenerated and labelled as such."
+    ],
+    "scope": "full",
+    "source": "results/v07-s2-i003-baseline/summary.json",
+    "source_sha256": "bb391e48be1456afa4878129945fa79867cfcbbc8982439a2d4e8289865256a0",
+    "status": "complete"
+  },
+  "summary": {
+    "accepted": 3,
+    "benchmark": "bounded-timestamp-jitter",
+    "cases": 22,
+    "evaluated_commit": "4cfe8fa",
+    "fixture_provenance": "independently_regenerated",
+    "frozen_policy": {
+      "maximum_tolerance_seconds": 60.0,
+      "tolerance_fraction": 0.01,
+      "twenty_minute_tolerance_seconds": 12.0
+    },
+    "gates": {
+      "bounded_alignment_preserves_values_and_count": false,
+      "bounded_jitter_safe_and_aggressive": false,
+      "collisions_refused_without_merge": false,
+      "exact_grid_untouched_all_levels": true,
+      "long_outage_refused_typed": true,
+      "mixed_cadence_refused_typed": true,
+      "no_internal_errors": true,
+      "off_remains_strict": true,
+      "outside_boundary_refused": true,
+      "phase_and_tolerance_are_visible": false,
+      "reordering_disclosed_separately": false,
+      "small_gap_not_hidden": false,
+      "snaps_do_not_consume_invention_ceiling": false
+    },
+    "internal_errors": 0,
+    "schema_version": "0.1",
+    "typed_rejections": 19
+  }
+}

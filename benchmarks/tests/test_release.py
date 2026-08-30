@@ -92,3 +92,27 @@ def test_release_validator_rejects_sensitive_fields(tmp_path: Path) -> None:
     }), encoding="utf-8")
     with pytest.raises(ValueError, match="sensitive fields"):
         validate(tmp_path)
+
+
+def test_release_validator_accepts_and_checks_checkpoint_manifest(
+        tmp_path: Path) -> None:
+    checkpoint = tmp_path / "checkpoint.json"
+    checkpoint.write_text('{"status":"active"}\n', encoding="utf-8")
+    digest = hashlib.sha256(checkpoint.read_bytes()).hexdigest()
+    manifest = {
+        "schema_version": 1,
+        "files": [{
+            "path": "checkpoint.json",
+            "bytes": checkpoint.stat().st_size,
+            "sha256": digest,
+        }],
+    }
+    (tmp_path / "manifest.json").write_text(
+        json.dumps(manifest), encoding="utf-8")
+    validate(tmp_path)
+
+    manifest["files"][0]["bytes"] += 1
+    (tmp_path / "manifest.json").write_text(
+        json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(ValueError, match="byte count mismatch"):
+        validate(tmp_path)

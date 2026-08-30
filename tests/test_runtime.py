@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+import math
 import random
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -70,7 +71,58 @@ def test_forecast_selects_drift_and_writes_complete_artifact(tmp_path: Path) -> 
     assert "https://" not in report and "http://" not in report
     persisted = json.loads((directory / "artifact.json").read_text())
     assert persisted["task"]["schema"]["time_column"] == "timestamp"
-    assert persisted["evidence"][0]["payload"]["partitioning"].startswith("selection")
+    assert persisted["evidence"][0]["payload"]["partitioning"] == (
+        "selection folds, then independent confirmation fold, then "
+        "calibration fold, then final test fold"
+    )
+
+
+def test_explicit_seasonal_override_conflict_is_caveated(tmp_path: Path) -> None:
+    source = tmp_path / "periodic.csv"
+    start = datetime(2026, 1, 1)
+    with source.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["timestamp", "value"])
+        for index in range(72):
+            writer.writerow([
+                (start + timedelta(hours=index)).isoformat(),
+                50.0 + 8.0 * math.sin(2 * math.pi * index / 6),
+            ])
+
+    artifact, _ = forecast(
+        str(source), time_column="timestamp", target_column="value",
+        frequency="h", horizon=6, seasonal_period=5,
+        output=str(tmp_path / "conflict"),
+    )
+    result = artifact.results[0]
+    assessment = result.support_assessment
+    codes = {reason["code"] for reason in assessment["reasons"]}
+    recovery = {item["code"] for item in assessment["recovery_actions"]}
+    evidence = result.temporal_facts["seasonal_period_evidence"]
+    assert assessment["status"] == "conditionally_supported"
+    assert "seasonal_period_override_conflict" in codes
+    assert "review_seasonal_period_override" in recovery
+    assert result.temporal_facts["seasonal_period_steps"] == 5
+    assert evidence["used_period"] == 5
+    assert evidence["used_source"] == "override"
+    assert evidence["detected_period"] == 6
+    assert evidence["detected_basis"] == "autocorrelation"
+    assert evidence["override_conflict"] is True
+    assert evidence["detected_strength"] >= 0.3
+
+    matching, _ = forecast(
+        str(source), time_column="timestamp", target_column="value",
+        frequency="h", horizon=6, seasonal_period=6,
+        output=str(tmp_path / "matching"),
+    )
+    matching_result = matching.results[0]
+    matching_codes = {
+        reason["code"]
+        for reason in matching_result.support_assessment["reasons"]
+    }
+    assert "seasonal_period_override_conflict" not in matching_codes
+    assert matching_result.temporal_facts[
+        "seasonal_period_evidence"]["override_conflict"] is False
 
 
 def test_short_valid_series_uses_degraded_forecast(tmp_path: Path) -> None:
@@ -142,29 +194,26 @@ def test_intervals_widen_with_the_horizon(tmp_path: Path) -> None:
 
 
 def test_threshold_probabilities_agree_with_published_quantiles(tmp_path: Path) -> None:
-    """On a fold-starved trending series the intervals are centred on the
-    point path (recentring suppressed) while the raw backtest residuals all
-    share the trend's sign. The crossing probabilities must describe the
-    published quantiles, not the uncentred residual cloud: the README
-    example used to publish P(above 340) = 0.61 in the same artifact as
-    q80 = point + 6.1."""
+    """A supported probability must describe the published quantiles, not an
+    uncentred residual cloud belonging to a different path."""
     source = tmp_path / "trending.csv"
-    write_noisy(source, 40, slope=2.0)
+    write_noisy(source, 100, slope=2.0)
     baseline, _ = forecast(
-        str(source), time_column="timestamp", target_column="value", horizon=8,
+        str(source), time_column="timestamp", target_column="value", horizon=5,
         output=str(tmp_path / "baseline"),
     )
     row = baseline.results[0].forecast[0]
 
     at_median, _ = forecast(
-        str(source), time_column="timestamp", target_column="value", horizon=8,
+        str(source), time_column="timestamp", target_column="value", horizon=5,
         output=str(tmp_path / "at-median"), threshold=row["q50"],
     )
+    assert at_median.results[0].support_assessment["status"] == "supported"
     p_median = at_median.results[0].threshold["probability_above"][0]
     assert 0.25 <= p_median <= 0.75
 
     above_q90, _ = forecast(
-        str(source), time_column="timestamp", target_column="value", horizon=8,
+        str(source), time_column="timestamp", target_column="value", horizon=5,
         output=str(tmp_path / "above-q90"), threshold=row["q90"] + 1e-6,
     )
     p_tail = above_q90.results[0].threshold["probability_above"][0]

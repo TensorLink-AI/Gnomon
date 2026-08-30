@@ -110,6 +110,16 @@ REGISTRY: dict[str, dict[str, Any]] = {
         "accepts": {"output_dir"},
         "limit_flag": None,
     },
+    "trendanswerbench": {
+        "module": "benchmarks.trendanswerbench.run",
+        "accepts": {"output_dir"},
+        "limit_flag": None,
+    },
+    "anomalyeventbench": {
+        "module": "benchmarks.anomalyeventbench.run_anomalyeventbench",
+        "accepts": {"output_dir"},
+        "limit_flag": None,
+    },
     "compilerbench": {
         "module": "benchmarks.compilerbench.run_compilerbench",
         "accepts": {"model", "output_dir"},

@@ -1,0 +1,185 @@
+{
+  "release_metadata": {
+    "arm": "historical-mean-plus-independent-confirmation",
+    "benchmark": "modelbench-synthetic-selector",
+    "configuration_identity": "historical mean mandatory plus independent confirmation on ordinary forecasts with at least five disjoint origins; TSFM discovery disabled; unchanged frozen scoring gates",
+    "dataset_identity": "same frozen synthetic seed 92741, five families, 40 cases per family, and 200 untouched final horizons as the synthetic baseline arm",
+    "evaluated_commit": "de6f6d7deb15e95c9a09c7d5fb09eeeadaf7ad9b",
+    "harness_commit": "de6f6d7deb15e95c9a09c7d5fb09eeeadaf7ad9b",
+    "notes": [
+      "Exact final-head rerun; all ten frozen synthetic gates pass.",
+      "The intermittent family remains diagnostic rather than being used for a family-specific production rule."
+    ],
+    "scope": "full",
+    "source": "results/v07-q1-i004-confirmation-synthetic-v3/summary.json",
+    "source_sha256": "11b4c4d5a6ff4d215aefd89885cbf6c497d592dc4594caa3cdfb79b241ad3bda",
+    "status": "complete"
+  },
+  "summary": {
+    "benchmark": "production-short-history-selector",
+    "by_family": {
+      "intermittent": {
+        "admission_precision": 0.3333333333333333,
+        "admission_rate": 0.075,
+        "baseline_median_mae": 2.799091481973668,
+        "candidate_median_mae": 2.8651520180447507,
+        "cases": 40,
+        "completed": 40,
+        "completion_rate": 1.0,
+        "departure_losses": 2,
+        "departure_median_gain_90pct_ci": [
+          -1.0,
+          0.7563268926678091
+        ],
+        "departure_wins": 1,
+        "departures": 3,
+        "harmful_admission_rate": 0.6666666666666666,
+        "median_relative_gain_all_cases": 0.0,
+        "median_relative_gain_departures": -0.301841593838779,
+        "outcomes": {
+          "regression": 2,
+          "safety_preservation": 37,
+          "uplift": 1
+        }
+      },
+      "level": {
+        "admission_precision": 0.8125,
+        "admission_rate": 0.4,
+        "baseline_median_mae": 1.2900785042218863,
+        "candidate_median_mae": 1.070925320958413,
+        "cases": 40,
+        "completed": 40,
+        "completion_rate": 1.0,
+        "departure_losses": 3,
+        "departure_median_gain_90pct_ci": [
+          0.18552468127914973,
+          0.5522625018376768
+        ],
+        "departure_wins": 13,
+        "departures": 16,
+        "harmful_admission_rate": 0.1875,
+        "median_relative_gain_all_cases": 0.0,
+        "median_relative_gain_departures": 0.3515981154560297,
+        "outcomes": {
+          "regression": 3,
+          "safety_preservation": 24,
+          "uplift": 13
+        }
+      },
+      "pseudo_seasonal": {
+        "admission_precision": 0.8,
+        "admission_rate": 0.625,
+        "baseline_median_mae": 5.771871013440897,
+        "candidate_median_mae": 5.111009244556146,
+        "cases": 40,
+        "completed": 40,
+        "completion_rate": 1.0,
+        "departure_losses": 5,
+        "departure_median_gain_90pct_ci": [
+          0.22325378013943706,
+          0.3135637551940458
+        ],
+        "departure_wins": 20,
+        "departures": 25,
+        "harmful_admission_rate": 0.2,
+        "median_relative_gain_all_cases": 0.016095543573587365,
+        "median_relative_gain_departures": 0.2496898109726158,
+        "outcomes": {
+          "regression": 5,
+          "safety_preservation": 15,
+          "uplift": 20
+        }
+      },
+      "seasonal": {
+        "admission_precision": 1.0,
+        "admission_rate": 0.85,
+        "baseline_median_mae": 4.719333020686953,
+        "candidate_median_mae": 0.8790096506415548,
+        "cases": 40,
+        "completed": 40,
+        "completion_rate": 1.0,
+        "departure_losses": 0,
+        "departure_median_gain_90pct_ci": [
+          0.7819053779439332,
+          0.8758672967712524
+        ],
+        "departure_wins": 34,
+        "departures": 34,
+        "harmful_admission_rate": 0.0,
+        "median_relative_gain_all_cases": 0.7895260760156987,
+        "median_relative_gain_departures": 0.8327931697842385,
+        "outcomes": {
+          "regression": 0,
+          "safety_preservation": 6,
+          "uplift": 34
+        }
+      },
+      "trend": {
+        "admission_precision": 0.8571428571428571,
+        "admission_rate": 0.175,
+        "baseline_median_mae": 2.9510576218928977,
+        "candidate_median_mae": 2.7899799218612458,
+        "cases": 40,
+        "completed": 40,
+        "completion_rate": 1.0,
+        "departure_losses": 1,
+        "departure_median_gain_90pct_ci": [
+          0.1313034170458568,
+          0.7383927117556982
+        ],
+        "departure_wins": 6,
+        "departures": 7,
+        "harmful_admission_rate": 0.14285714285714285,
+        "median_relative_gain_all_cases": 0.0,
+        "median_relative_gain_departures": 0.5416054114880557,
+        "outcomes": {
+          "regression": 1,
+          "safety_preservation": 33,
+          "uplift": 6
+        }
+      }
+    },
+    "cases_per_family": 40,
+    "evaluated_commit": "de6f6d7",
+    "gates": {
+      "at_least_20_departures": true,
+      "completion_rate_at_least_99pct": true,
+      "departure_admission_precision_at_least_70pct": true,
+      "departure_bootstrap_lower_nonnegative": true,
+      "departure_median_gain_positive": true,
+      "family_median_regression_within_2pct": true,
+      "future_observations_used_zero": true,
+      "more_departure_wins_than_losses": true,
+      "no_silent_fallback": true,
+      "selection_provenance_complete": true
+    },
+    "minimum_baseline_improvement": 0.02,
+    "overall": {
+      "admission_precision": 0.8705882352941177,
+      "admission_rate": 0.425,
+      "baseline_median_mae": 3.5296458370564734,
+      "candidate_median_mae": 1.974971931309071,
+      "cases": 200,
+      "completed": 200,
+      "completion_rate": 1.0,
+      "departure_losses": 11,
+      "departure_median_gain_90pct_ci": [
+        0.3962574515781773,
+        0.7383927117556982
+      ],
+      "departure_wins": 74,
+      "departures": 85,
+      "harmful_admission_rate": 0.12941176470588237,
+      "median_relative_gain_all_cases": 0.0,
+      "median_relative_gain_departures": 0.5904466031522327,
+      "outcomes": {
+        "regression": 11,
+        "safety_preservation": 115,
+        "uplift": 74
+      }
+    },
+    "protocol": "production evaluate() receives history prefixes only; final horizon is untouched until scoring; TSFM discovery disabled",
+    "schema_version": "0.1",
+    "seed": 92741
+  }
+}

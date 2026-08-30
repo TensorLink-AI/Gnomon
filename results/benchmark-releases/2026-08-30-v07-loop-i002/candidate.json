@@ -1,0 +1,40 @@
+{
+  "release_metadata": {
+    "arm": "typed-integrity-boundary",
+    "benchmark": "decisioninputbench",
+    "configuration_identity": "typed exact-key finite utility validation; tie abstention; executable gnomon_decide repair",
+    "dataset_identity": "same 11 frozen S1 action-by-scenario utility cases",
+    "evaluated_commit": "5f8ed78a2ee5fd849c49d76cf7567ec1429f8d58",
+    "harness_commit": "5f8ed78a2ee5fd849c49d76cf7567ec1429f8d58",
+    "notes": [
+      "Candidate rerun on the exact committed implementation head."
+    ],
+    "scope": "full",
+    "source": "results/v07-s1-i002-candidate-v2/summary.json",
+    "source_sha256": "9e968c42420db0bea17a1c00ece2de21703c7ffef8658138cc840e465774132b",
+    "status": "complete"
+  },
+  "summary": {
+    "benchmark": "decision-input-integrity",
+    "cases": 11,
+    "evaluated_commit": "5f8ed78",
+    "gates": {
+      "all_cases_terminate_without_internal_error": true,
+      "exact_tie_is_inconclusive_abstention": true,
+      "infeasible_action_utilities_not_required": true,
+      "malformed_cases_are_typed_invalid_utilities": true,
+      "malformed_repairs_are_executable": true,
+      "no_feasible_action_still_abstains": true,
+      "no_unsafe_selection": true,
+      "numeric_outputs_finite": true,
+      "valid_non_tied_selection_preserved": true
+    },
+    "internal_errors": 0,
+    "scenario_probabilities": {
+      "exceed": 0.4,
+      "no_exceed": 0.6
+    },
+    "schema_version": "0.1",
+    "unsafe_selections": 0
+  }
+}

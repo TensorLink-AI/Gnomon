@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "loop": "v0.7-forecast-quality",
+  "status": "active",
+  "latest_evaluated_commit": "ed732a6",
+  "branch": "agent/v0.7-forecast-quality-loop",
+  "protocol": "docs/v0.7-forecast-quality-loop.md",
+  "external_evaluation_intake": "docs/v0.7-external-evaluation-intake.md",
+  "preservation": {
+    "preserve_preexisting_committed_work": true,
+    "preserve_preexisting_benchmark_artifacts": true,
+    "preserve_all_preexisting_untracked_files": true,
+    "excluded_from_commits": ["docs/astrid-btc-agent-plan.md"]
+  },
+  "active_iteration": {
+    "id": "I010",
+    "issue": "Q4",
+    "phase": "freeze_context_mechanism_stability_reproduction",
+    "user_hypothesis": "Agents should select a context mechanism from stable pre-cutoff evidence rather than a hindsight outlier, while humans retain the selected mechanism and its uncertainty.",
+    "next_action": "Freeze unseen seeds, multiple task families, perturbations, proper-score denominators, selection-stability metrics, and the small crash-safe topology before reproducing the Q4 gap.",
+    "last_completed_action": "Closed Q3 as a numeric-recall no-build after complete compiler supply, 100% empirical admission precision, zero leakage, exact typed contracts, and 2/2 preservation of exposed no_distinct_numeric_path relationships in a four-case real-agent probe."
+  },
+  "issues": [
+    {"id": "S1", "status": "complete"},
+    {"id": "S2", "status": "complete"},
+    {"id": "Q1", "status": "complete_with_promoted_safeguards_and_retained_numeric_no_build"},
+    {"id": "Q2", "status": "complete_with_promoted_coherent_trend_and_agent_boundary"},
+    {"id": "Q3", "status": "complete_with_retained_numeric_recall_and_agent_boundary_no_builds"},
+    {"id": "Q4", "status": "in_progress_freeze_reproduction"},
+    {"id": "Q5", "status": "pending"},
+    {"id": "Q6", "status": "complete_with_promoted_regime_attribution"}
+  ]
+}

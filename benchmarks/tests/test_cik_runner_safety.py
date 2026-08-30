@@ -7,7 +7,7 @@ import pytest
 from benchmarks.cik.run_cik import (
     _counterfactual_candidate_scores, _load_checkpoint,
     _summarize_selection_diagnostics, _task_information_profile, build_parser,
-    write_outputs,
+    select_tasks, write_outputs,
 )
 
 
@@ -177,6 +177,33 @@ def test_held_out_seed_range_is_explicit_in_cli():
         "--output-dir", "/tmp/out",
     ])
     assert list(range(args.seed_start, args.seed_start + args.seeds)) == [6, 7]
+
+
+def test_exact_task_shard_preserves_requested_order_and_requires_known_names():
+    class AlphaTask:
+        pass
+
+    class BetaTask:
+        pass
+
+    selected = select_tasks(
+        [AlphaTask, BetaTask], task_names=["BetaTask", "AlphaTask"])
+    assert selected == [BetaTask, AlphaTask]
+
+    with pytest.raises(SystemExit, match="Unknown CiK task name"):
+        select_tasks([AlphaTask], task_names=["MissingTask"])
+    with pytest.raises(SystemExit, match="may not repeat"):
+        select_tasks([AlphaTask], task_names=["AlphaTask", "AlphaTask"])
+    with pytest.raises(SystemExit, match="mutually exclusive"):
+        select_tasks([AlphaTask], task_names=["AlphaTask"], task_filter="A")
+
+
+def test_exact_task_name_cli_is_repeatable():
+    args = build_parser().parse_args([
+        "--method", "gnomon-pure", "--task-name", "AlphaTask",
+        "--task-name", "BetaTask", "--output-dir", "/tmp/out",
+    ])
+    assert args.task_name == ["AlphaTask", "BetaTask"]
 
 
 def test_direct_control_has_explicit_cache_identified_reasoning_mode():

@@ -224,21 +224,88 @@ def test_aggressive_resolves_conflicts_last_wins(tmp_path: Path) -> None:
                for a in repair_evidence(artifact)["actions"])
 
 
-def test_aggressive_snaps_jittered_timestamps(tmp_path: Path) -> None:
-    start = datetime(2026, 1, 1)
+def test_safe_aligns_bounded_jitter_without_charging_invention_ceiling(
+        tmp_path: Path) -> None:
+    start = datetime(2026, 1, 1, 0, 7)
     rows = []
-    for index in range(30):
-        stamp = start + timedelta(days=index)
-        if index in (4, 9, 17):
-            stamp += timedelta(seconds=7 + index)
+    for index in range(36):
+        stamp = start + timedelta(minutes=20 * index)
+        stamp += timedelta(seconds=(-1, 1, 0)[index % 3])
         rows.append((stamp.isoformat(), str(100 + index)))
     source = tmp_path / "jitter.csv"
     write_rows(source, rows)
-    with pytest.raises(GnomonError):
-        run(source, tmp_path)
-    artifact, _ = run(source, tmp_path, repair="aggressive")
-    snapped = [a for a in repair_evidence(artifact)["actions"] if a["code"] == "timestamp_snapped"]
-    assert snapped and snapped[0]["count"] == 3
+    with pytest.raises(GnomonError) as strict:
+        run(source, tmp_path, repair="off")
+    assert strict.value.code == "AMBIGUOUS_FREQUENCY"
+
+    artifact, _ = run(source, tmp_path)
+    actions = repair_evidence(artifact)["actions"]
+    aligned = [a for a in actions if a["code"] == "timestamp_jitter_aligned"]
+    assert aligned and aligned[0]["count"] == 24  # > the old 30% ceiling
+    assert aligned[0]["metrics"] == {
+        "cadence": "20min",
+        "grid_phase": "2026-01-01T00:07:00",
+        "maximum_displacement_seconds": 1.0,
+        "tolerance_seconds": 12.0,
+    }
+    loaded = _series_values(source, tmp_path)
+    assert [item.value for item in loaded] == [float(100 + index)
+                                               for index in range(36)]
+    assert [item.timestamp for item in loaded] == [
+        start + timedelta(minutes=20 * index) for index in range(36)]
+    assert any("timestamp_jitter_aligned" in warning
+               for warning in artifact.results[0].warnings)
+
+
+def test_bounded_alignment_refuses_collision_in_safe_and_aggressive(
+        tmp_path: Path) -> None:
+    start = datetime(2026, 1, 1, 0, 7)
+    rows = [
+        ((start + timedelta(minutes=20 * index)).isoformat(), str(index))
+        for index in range(30)
+    ]
+    rows.insert(11, ((start + timedelta(minutes=200, seconds=5)).isoformat(), "999"))
+    source = tmp_path / "collision.csv"
+    write_rows(source, rows)
+    for level in ("safe", "aggressive"):
+        with pytest.raises(GnomonError) as caught:
+            run(source, tmp_path, repair=level, frequency="20min")
+        assert caught.value.code == "TIMESTAMP_ALIGNMENT_CONFLICT"
+        assert caught.value.to_dict()["error"]["repair_options"]
+
+
+def test_jitter_outside_cadence_bound_remains_typed_refusal(
+        tmp_path: Path) -> None:
+    start = datetime(2026, 1, 1, 0, 7)
+    rows = []
+    for index in range(30):
+        stamp = start + timedelta(minutes=20 * index)
+        if index == 12:
+            stamp += timedelta(seconds=12, microseconds=1000)
+        rows.append((stamp.isoformat(), str(index)))
+    source = tmp_path / "outside.csv"
+    write_rows(source, rows)
+    for level in ("safe", "aggressive"):
+        with pytest.raises(GnomonError) as caught:
+            run(source, tmp_path, repair=level)
+        assert caught.value.code == "AMBIGUOUS_FREQUENCY"
+
+
+def test_reordered_jitter_is_disclosed_separately(tmp_path: Path) -> None:
+    start = datetime(2026, 1, 1, 0, 7)
+    rows = [
+        ((start + timedelta(minutes=20 * index,
+                            seconds=(-1, 1, 0)[index % 3])).isoformat(),
+         str(index))
+        for index in range(30)
+    ]
+    rows[8], rows[9] = rows[9], rows[8]
+    source = tmp_path / "reordered-jitter.csv"
+    write_rows(source, rows)
+    artifact, _ = run(source, tmp_path)
+    actions = repair_evidence(artifact)["actions"]
+    assert {action["code"] for action in actions} >= {
+        "timestamp_jitter_aligned", "timestamps_reordered"}
 
 
 def test_aggressive_coerces_mixed_timezones(tmp_path: Path) -> None:
@@ -271,6 +338,57 @@ def test_invalid_repair_level_is_typed(tmp_path: Path) -> None:
     with pytest.raises(GnomonError) as caught:
         run(source, tmp_path, repair="yolo")
     assert caught.value.code == "INVALID_REPAIR_LEVEL"
+
+
+def test_bounded_jitter_is_visible_through_inspect_mcp_forecast_and_cli(
+        tmp_path: Path, capsys) -> None:
+    from gnomon.cli import main
+    from gnomon.toolspec import runner_for
+
+    start = datetime(2026, 1, 1, 0, 7)
+    rows = [
+        ((start + timedelta(minutes=20 * index,
+                            seconds=(-1, 1, 0)[index % 3])).isoformat(),
+         str(100 + index))
+        for index in range(36)
+    ]
+    source = tmp_path / "surface-jitter.csv"
+    write_rows(source, rows)
+
+    inspected = inspect_dataset(
+        str(source), time_column="timestamp", target_column="value")
+    assert inspected["data_quality"]["status"] == "repaired_safe"
+    assert inspected["data_quality"]["repairs"][0]["metrics"][
+        "tolerance_seconds"] == 12.0
+
+    mcp_inspected = runner_for("gnomon_inspect")({
+        "input": str(source), "time_column": "timestamp",
+        "target_column": "value",
+    })
+    assert mcp_inspected["data_quality"]["status"] == "repaired_safe"
+
+    mcp_forecast = runner_for("gnomon_forecast")({
+        "input": str(source), "time_column": "timestamp",
+        "target_column": "value", "horizon": 3,
+        "output_dir": str(tmp_path / "mcp-output"),
+    })
+    assert mcp_forecast["status"] == "complete"
+    assert any("timestamp_jitter_aligned" in warning
+               for warning in mcp_forecast["results"][0]["warnings"])
+
+    assert main([
+        "inspect", str(source), "--time", "timestamp", "--target", "value",
+    ]) == 0
+    cli_inspected = json.loads(capsys.readouterr().out)
+    assert cli_inspected["data_quality"]["status"] == "repaired_safe"
+
+    assert main([
+        "forecast", str(source), "--time", "timestamp", "--target", "value",
+        "--horizon", "3", "--output", str(tmp_path / "cli-output"),
+    ]) == 0
+    cli_forecast = json.loads(capsys.readouterr().out)
+    assert any("timestamp_jitter_aligned" in warning
+               for warning in cli_forecast["results"][0]["warnings"])
 
 
 # --- inspect: the guided last mile ------------------------------------------

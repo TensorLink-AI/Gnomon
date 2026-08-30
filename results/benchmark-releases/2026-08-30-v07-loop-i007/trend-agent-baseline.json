@@ -1,0 +1,49 @@
+{
+  "release_metadata": {
+    "arm": "pre-boundary-baseline",
+    "benchmark": "trendanswerbench-agent-preservation",
+    "configuration_identity": "Evidence profile; DeepSeek deepseek-v4-flash-0731 through Engy; temperature 0; jobs 1; typed receipt; bounded retries and timeouts",
+    "dataset_identity": "six preregistered representative trend cases from fresh seeds 8121-8126; expected directions and family names hidden from the real agent surface",
+    "evaluated_commit": "99329c014567be7535e5ab81ed54ee471299c567",
+    "harness_commit": "99329c014567be7535e5ab81ed54ee471299c567",
+    "notes": [
+      "Engine receipts were complete, but predictive trend fell through to observed report labels and the host omitted the complete typed choice contract."
+    ],
+    "scope": "subset",
+    "source": "results/v07-q2-i007-trend-agent-baseline-v2/summary.json",
+    "source_sha256": "1daa2b1989fa478a173f50ec22cca80d3c824bdd43ade391182de835fb66cded",
+    "status": "complete"
+  },
+  "summary": {
+    "agent_choice_preserved": 0,
+    "answered": 6,
+    "authority_not_inflated": 6,
+    "benchmark": "trendanswerbench-agent-preservation",
+    "cases": 6,
+    "engine_complete": 6,
+    "evaluated_commit": "99329c0",
+    "gates": {
+      "all_agent_choices_preserved": false,
+      "all_engine_receipts_complete": true,
+      "all_forecasts_from_gnomon_artifacts": true,
+      "all_host_contracts_complete": false,
+      "all_primary_forecasts_unchanged": true,
+      "all_six_answered": true,
+      "no_authority_inflation": true
+    },
+    "gnomon_artifact_routes": 6,
+    "host_contract_complete": 0,
+    "llm_usage": {
+      "base_url": "https://api.engy.ai/v1",
+      "completion_tokens": 1253,
+      "cost_usd": 0.0,
+      "model": "deepseek-v4-flash-0731",
+      "prompt_tokens": 57223,
+      "requests": 13,
+      "transport_attempts": 13,
+      "truncation_escalations": 0
+    },
+    "primary_forecast_unchanged": 6,
+    "schema_version": 1
+  }
+}

@@ -44,6 +44,21 @@ CATALOG: dict[str, BenchmarkContract] = {
     ),
     "volatilitybench": BenchmarkContract("engine", "fitted volatility executable", "Volatility estimation and calibration only."),
     "propertybench": BenchmarkContract("engine", "fitted temporal-property executables", "Independent property classification and calibration only."),
+    "trendanswerbench": BenchmarkContract(
+        "mixed",
+        "production typed trend executable and bounded real-agent preservation probe",
+        "Seasonally adjusted trend direction, numeric coherence, calibration, "
+        "and abstention are engine claims; the agent shard tests exact contract "
+        "preservation, not general reasoning uplift.",
+        ("evidence",),
+    ),
+    "anomalyeventbench": BenchmarkContract(
+        "mixed",
+        "production investigation and graded anomaly-detection macros",
+        "Event-level anomaly precision, recall, regime attribution, rebound "
+        "deduplication, and detector-selection disclosure; not causal "
+        "diagnosis or general agent reasoning.",
+    ),
     "transitionbench": BenchmarkContract("engine", "production TemporalEvidence computation", "Observed-transition evidence quality only."),
     "outcomelearningbench": BenchmarkContract(
         "policy", "production publication and tracking outcome loop",

@@ -13,11 +13,13 @@ is deliberately absent: nothing here can support a causal claim.
 
 from __future__ import annotations
 
+import math
+from numbers import Real
 from dataclasses import dataclass, field
 from statistics import median
 from typing import Any
 
-from .contracts import SupportAssessment, SupportReason
+from .contracts import GnomonError, SupportAssessment, SupportReason
 
 
 # ---------------------------------------------------------------------------
@@ -566,6 +568,119 @@ class ActionEvaluation:
     downside: float | None = None
 
 
+def validate_action_utilities(
+    actions: list[dict[str, Any]],
+    scenario_names: list[str] | tuple[str, ...],
+    utilities: dict[str, dict[str, float]] | None,
+    *,
+    feasible_names: set[str] | None = None,
+) -> dict[str, dict[str, float]] | None:
+    """Validate and normalise an action-by-scenario payoff matrix.
+
+    Unknown keys are caller errors, not zero-probability scenarios. Missing
+    rows are required only for feasible actions. The returned floats are safe
+    for arithmetic; malformed input raises a typed, executable repair before
+    any action can be ranked.
+    """
+    if utilities is None:
+        return None
+    action_names = [str(action["name"]) for action in actions]
+    known_actions = set(action_names)
+    required_actions = (set(feasible_names) if feasible_names is not None else {
+        str(action["name"]) for action in actions
+        if bool(action.get("feasible", True))
+    })
+    expected = tuple(dict.fromkeys(str(name) for name in scenario_names))
+    expected_set = set(expected)
+    problems: list[dict[str, Any]] = []
+    normalised: dict[str, dict[str, float]] = {}
+
+    if not isinstance(utilities, dict):
+        problems.append({
+            "code": "utilities_not_object",
+            "message": "utilities must be an action-to-scenario object",
+        })
+        utilities = {}
+
+    unknown_actions = sorted(str(name) for name in utilities
+                             if str(name) not in known_actions)
+    if unknown_actions:
+        problems.append({
+            "code": "unknown_utility_actions", "actions": unknown_actions,
+            "message": "utility rows must name supplied actions",
+        })
+
+    for action_name, raw_payoffs in utilities.items():
+        name = str(action_name)
+        if name not in known_actions:
+            continue
+        if not isinstance(raw_payoffs, dict):
+            problems.append({
+                "code": "payoffs_not_object", "action": name,
+                "message": "each action utility must map scenarios to payoffs",
+            })
+            continue
+        supplied = {str(scenario) for scenario in raw_payoffs}
+        unknown = sorted(supplied - expected_set)
+        missing = sorted(expected_set - supplied)
+        if unknown:
+            problems.append({
+                "code": "unknown_utility_scenarios", "action": name,
+                "scenarios": unknown,
+                "message": "utility scenario keys must match governed scenarios",
+            })
+        if name in required_actions and missing:
+            problems.append({
+                "code": "missing_utility_scenarios", "action": name,
+                "scenarios": missing,
+                "message": "every feasible action needs every governed scenario",
+            })
+        row: dict[str, float] = {}
+        for scenario, raw_value in raw_payoffs.items():
+            scenario_name = str(scenario)
+            if scenario_name not in expected_set:
+                continue
+            if (not isinstance(raw_value, Real) or isinstance(raw_value, bool)
+                    or not math.isfinite(float(raw_value))):
+                problems.append({
+                    "code": "non_finite_or_non_numeric_payoff",
+                    "action": name, "scenario": scenario_name,
+                    "message": "payoffs must be finite real numbers",
+                })
+                continue
+            row[scenario_name] = float(raw_value)
+        normalised[name] = row
+
+    for name in sorted(required_actions):
+        if name not in utilities:
+            problems.append({
+                "code": "missing_utility_action", "action": name,
+                "message": "every feasible action needs a utility row",
+            })
+
+    if problems:
+        example = {
+            name: {scenario: 0.0 for scenario in expected}
+            for name in action_names if name in required_actions
+        }
+        raise GnomonError(
+            "INVALID_UTILITIES",
+            "utilities does not form a complete finite payoff matrix for "
+            "the feasible actions and governed scenarios.",
+            {
+                "problems": problems,
+                "expected_actions": sorted(required_actions),
+                "expected_scenarios": list(expected),
+                "example": example,
+            },
+            repair_options=[{
+                "tool": "gnomon_decide",
+                "arguments": {"utilities": example},
+            }],
+        )
+    return normalised
+
+
 def evaluate_actions(
     actions: list[dict[str, Any]],
     scenario_probabilities: dict[str, float],
@@ -604,15 +719,7 @@ def evaluate_actions(
                 "satisfied": ok,
             }
             feasible = feasible and ok
-        item = ActionEvaluation(name, feasible, constraint_results)
-        if utilities is not None and name in utilities:
-            payoffs = utilities[name]
-            item.expected_utility = sum(
-                scenario_probabilities.get(scenario, 0.0) * payoff
-                for scenario, payoff in payoffs.items()
-            )
-            item.downside = min(payoffs.values())
-        evaluations.append(item)
+        evaluations.append(ActionEvaluation(name, feasible, constraint_results))
     feasible_items = [item for item in evaluations if item.feasible]
     if not feasible_items:
         return {
@@ -624,7 +731,7 @@ def evaluate_actions(
                                "Every candidate action violates its constraints.")],
             ).to_dict(),
         }
-    if utilities is None or any(item.expected_utility is None for item in feasible_items):
+    if utilities is None:
         return {
             "evaluations": [item.__dict__ for item in evaluations],
             "selected": None,
@@ -642,9 +749,45 @@ def evaluate_actions(
                     "expected-utility choice.")],
             ).to_dict(),
         }
+    utilities = validate_action_utilities(
+        actions, tuple(scenario_probabilities), utilities,
+        feasible_names={item.name for item in feasible_items},
+    )
+    assert utilities is not None
+    for item in evaluations:
+        payoffs = utilities.get(item.name)
+        if payoffs is None:
+            continue
+        item.expected_utility = sum(
+            scenario_probabilities[scenario] * payoffs[scenario]
+            for scenario in scenario_probabilities
+        )
+        item.downside = min(payoffs.values())
     ranked = sorted(feasible_items, key=lambda item: (-item.expected_utility, item.name))
     selected = ranked[0]
     margin = (selected.expected_utility - ranked[1].expected_utility) if len(ranked) > 1 else None
+    if margin == 0.0:
+        return {
+            "evaluations": [item.__dict__ for item in evaluations],
+            "selected": None,
+            "decision_rule": "maximum expected utility over feasible actions",
+            "selection_margin": 0.0,
+            "scenario_probabilities": scenario_probabilities,
+            "support": SupportAssessment(
+                "inconclusive",
+                [SupportReason(
+                    "utility_tie",
+                    "The feasible actions tie exactly on expected utility; "
+                    "no action is selected.",
+                )],
+                recovery_actions=[SupportReason(
+                    "break_utility_tie",
+                    "Provide a tie-break policy or more discriminating "
+                    "scenario payoffs, then re-run the decision.",
+                )],
+                sensitivity={"selection_margin": 0.0},
+            ).to_dict(),
+        }
     return {
         "evaluations": [item.__dict__ for item in evaluations],
         "selected": selected.name,

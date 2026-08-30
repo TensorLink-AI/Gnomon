@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "iteration": "I011",
+  "issue": "Q4",
+  "evaluated_commit": "042d2d1",
+  "configuration": {
+    "benchmark": "Context is Key",
+    "profile": "evidence",
+    "model": "deepseek-v4-flash-0731",
+    "provider": "Engy",
+    "output_role": "publication_best_effort",
+    "temperature": 0,
+    "samples": 50,
+    "max_parallel": 1,
+    "case_timeout_seconds": 900,
+    "case_memory_mb": 4096,
+    "minimum_free_memory_mb": 2048,
+    "cache": false,
+    "task_count": 6
+  },
+  "revision_seed_7042": [
+    {
+      "replication": "a",
+      "completed": 6,
+      "mean_selected_rcrps": 0.20294189661493633,
+      "mean_primary_rcrps": 0.3137817044343549,
+      "mean_gain": 0.11083980781941852,
+      "median_gain": 0.017229853083930692,
+      "wins": 3,
+      "losses": 0,
+      "ties": 3,
+      "paired_bootstrap_90": [0.01148656872262046, 0.24687638901545803],
+      "maximum_task_regression": 0.0,
+      "selected_best_eligible": 6,
+      "stable_signature_pairs": 6
+    },
+    {
+      "replication": "b",
+      "completed": 6,
+      "mean_selected_rcrps": 0.2100860993860285,
+      "mean_primary_rcrps": 0.3137817044343549,
+      "mean_gain": 0.10369560504832631,
+      "median_gain": 0.017229853083930692,
+      "wins": 3,
+      "losses": 0,
+      "ties": 3,
+      "paired_bootstrap_90": [0.01148656872262046, 0.24687638901545803],
+      "maximum_task_regression": 0.0,
+      "selected_best_eligible": 6,
+      "stable_signature_pairs": 6
+    }
+  ],
+  "untouched_confirmation_seed_7043": [
+    {
+      "replication": "a",
+      "completed": 6,
+      "mean_selected_rcrps": 0.12478614285353222,
+      "mean_primary_rcrps": 0.3133994417802057,
+      "mean_gain": 0.1886132989266735,
+      "median_gain": 0.1423932599647858,
+      "wins": 5,
+      "losses": 0,
+      "ties": 1,
+      "paired_bootstrap_90": [0.07176022325671912, 0.3184326567339942],
+      "maximum_task_regression": 0.0,
+      "selected_best_eligible": 6,
+      "stable_signature_pairs": 6
+    },
+    {
+      "replication": "b",
+      "completed": 6,
+      "mean_selected_rcrps": 0.12471057453641135,
+      "mean_primary_rcrps": 0.3133994417802057,
+      "mean_gain": 0.18868886724379436,
+      "median_gain": 0.1426199649161484,
+      "wins": 5,
+      "losses": 0,
+      "ties": 1,
+      "paired_bootstrap_90": [0.07183579157383999, 0.3185837933682359],
+      "maximum_task_regression": 0.0,
+      "selected_best_eligible": 6,
+      "stable_signature_pairs": 6
+    }
+  ],
+  "contracts": {
+    "completion_rate": 1.0,
+    "temporal_leakage_count": 0,
+    "primary_immutability_failures": 0,
+    "automation_eligible_recommendations": 0,
+    "confirmation_same_input_role_method_id_support_stability": 1.0,
+    "confirmation_selected_best_eligible_rate": 1.0
+  },
+  "raw_evidence": [
+    "results/v07-q4-i010-cik-development-a/",
+    "results/v07-q4-i010-cik-development-b/",
+    "results/v07-q4-i010-cik-development-candidate-a/",
+    "results/v07-q4-i010-cik-development-candidate-b/",
+    "results/v07-q4-i010-cik-confirmation-a/",
+    "results/v07-q4-i010-cik-confirmation-b/",
+    "results/v07-q4-i011-cik-revision-a/",
+    "results/v07-q4-i011-cik-revision-b/",
+    "results/v07-q4-i011-cik-confirmation-a/",
+    "results/v07-q4-i011-cik-confirmation-b/"
+  ]
+}

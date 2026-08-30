@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "loop": "v0.7-forecast-quality",
+  "status": "active",
+  "latest_evaluated_commit": "62bfe52",
+  "branch": "agent/v0.7-forecast-quality-loop",
+  "protocol": "docs/v0.7-forecast-quality-loop.md",
+  "external_evaluation_intake": "docs/v0.7-external-evaluation-intake.md",
+  "preservation": {
+    "preserve_preexisting_committed_work": true,
+    "preserve_preexisting_benchmark_artifacts": true,
+    "preserve_all_preexisting_untracked_files": true,
+    "excluded_from_commits": ["docs/astrid-btc-agent-plan.md"]
+  },
+  "active_iteration": {
+    "id": "I013",
+    "issue": "final_release_gate",
+    "phase": "freeze_exact_clean_candidate_release_validation",
+    "user_hypothesis": "Agents and humans should receive the validated v0.7 behavior from a clean install with exact safety contracts and reproducible small-shard evidence.",
+    "next_action": "Freeze and run fresh small crash-safe ContextBench, TemporalBench, and CiK shards on the exact candidate; inspect outputs; then run clean-wheel smoke, the isolated full suite, and exact-head CI.",
+    "last_completed_action": "Closed Q5 with an evidence-backed no-build because the theoretical request and cold prompt-token reductions cannot reach the preregistered 25% gates; independently verified resume and cache correctness."
+  },
+  "issues": [
+    {"id": "S1", "status": "complete"},
+    {"id": "S2", "status": "complete"},
+    {"id": "Q1", "status": "complete_with_promoted_safeguards_and_retained_numeric_no_build"},
+    {"id": "Q2", "status": "complete_with_promoted_coherent_trend_and_agent_boundary"},
+    {"id": "Q3", "status": "complete_with_retained_numeric_recall_and_agent_boundary_no_builds"},
+    {"id": "Q4", "status": "complete_with_promoted_stable_supported_primary_authority"},
+    {"id": "Q5", "status": "complete_with_retained_response_checklist_no_build_and_verified_resume"},
+    {"id": "Q6", "status": "complete_with_promoted_regime_attribution"}
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "iteration": "I002",
+  "issue": "S1",
+  "decision": "promote",
+  "evaluated_commit": "5f8ed78a2ee5fd849c49d76cf7567ec1429f8d58",
+  "protocol": "docs/v0.7-s1-decision-integrity-protocol.md",
+  "user_outcome": "Agents can no longer choose an action from malformed, incomplete, unknown-key, or tied utilities; humans receive a typed specific repair or an explicit inconclusive tie without paying for forecast work first.",
+  "matched_result": {
+    "cases": 11,
+    "baseline_internal_errors": 2,
+    "candidate_internal_errors": 0,
+    "baseline_unsafe_selections": 4,
+    "candidate_unsafe_selections": 0,
+    "candidate_gates_passed": 9,
+    "candidate_gates_total": 9,
+    "focused_tests": "150 passed"
+  },
+  "implementation": [
+    "Added shared exact-key, finite-numeric utility-matrix validation.",
+    "Rejected unknown actions, unknown scenarios, missing feasible-action rows, missing governed scenarios, flat rows, booleans, strings, NaN, and infinity with INVALID_UTILITIES.",
+    "Added an instance-specific executable gnomon_decide utility repair.",
+    "Validated utilities at the public boundary before forecasting.",
+    "Changed exact top expected-utility ties from alphabetical selection to an inconclusive abstention.",
+    "Made the agent-facing schema describe the exact nested numeric matrix."
+  ],
+  "invariants": {
+    "valid_non_tied_arithmetic_preserved": true,
+    "explicitly_infeasible_rows_need_no_utility": true,
+    "no_feasible_action_behavior_preserved": true,
+    "evaluation_executes_actions": false,
+    "all_frozen_safety_gates_passed": true
+  },
+  "raw_evidence": [
+    "results/v07-s1-i002-baseline/",
+    "results/v07-s1-i002-candidate-v2/"
+  ]
+}
+

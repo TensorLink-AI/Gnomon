@@ -15,7 +15,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any, Protocol
 
-GNOMON_VERSION = "0.5.0"
+GNOMON_VERSION = "0.7.0"
 
 
 class Clock(Protocol):

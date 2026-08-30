@@ -1,0 +1,52 @@
+{
+  "release": "2026-08-30-v07-loop-i003",
+  "output_dir": "results/benchmark-releases/2026-08-30-v07-loop-i003",
+  "benchmarks": [
+    {
+      "benchmark": "jitterbench",
+      "arm": "current-head-reproduction",
+      "file": "baseline.json",
+      "source": "results/v07-s2-i003-baseline/summary.json",
+      "scope": "full",
+      "status": "complete",
+      "evaluated_commit": "4cfe8fa0a6224fc3a48df61d7581857abf34c544",
+      "harness_commit": "4cfe8fa0a6224fc3a48df61d7581857abf34c544",
+      "dataset_identity": "22 frozen independently regenerated S2 repair-mode boundary runs",
+      "configuration_identity": "20-minute phase-shifted exact/jitter/boundary/collision/reorder/mixed-cadence/gap cases; public load boundary",
+      "notes": [
+        "Reproduction arm retained before production implementation.",
+        "Original external fixture was unavailable; fixtures are independently regenerated and labelled as such."
+      ]
+    },
+    {
+      "benchmark": "jitterbench",
+      "arm": "bounded-phase-aware-alignment",
+      "file": "candidate.json",
+      "source": "results/v07-s2-i003-candidate-v3/summary.json",
+      "scope": "full",
+      "status": "complete",
+      "evaluated_commit": "ec99285944adb95e28a7bb3d7d595f45874fb9c4",
+      "harness_commit": "ec99285944adb95e28a7bb3d7d595f45874fb9c4",
+      "dataset_identity": "same 22 frozen independently regenerated S2 repair-mode boundary runs",
+      "configuration_identity": "safe/aggressive 1%-of-cadence alignment capped at 60 seconds; learned phase; collision refusal; separate value-invention accounting",
+      "notes": [
+        "Candidate rerun on the exact committed implementation head.",
+        "Actual repair actions, values, timestamps, typed failures, inspect responses, and forecast warnings were inspected."
+      ]
+    }
+  ],
+  "not_included": [
+    {
+      "benchmark": "exploratory dirty-tree S2 candidate runs",
+      "reason": "Retained locally under results/v07-s2-i003-candidate-v1 and candidate-v2; excluded from the aggregate release because their evaluated_commit cannot identify uncommitted production changes."
+    },
+    {
+      "benchmark": "raw S2 boundary records",
+      "reason": "Retained under results/v07-s2-i003-baseline and results/v07-s2-i003-candidate-v3; aggregate arms omit raw per-case payloads while retaining source digests."
+    },
+    {
+      "benchmark": "competition-specific plan",
+      "reason": "docs/astrid-btc-agent-plan.md is explicitly outside this loop and release."
+    }
+  ]
+}

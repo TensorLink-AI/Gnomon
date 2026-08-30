@@ -779,8 +779,8 @@ def test_flag_on_with_nothing_admitted_leaves_the_forecast_alone(tmp_path):
 
 
 def test_threshold_analysis_describes_the_published_rows(tmp_path):
-    """An overridden window must not report crossing probabilities for the
-    forecast the lane replaced: monitor and decide read these numbers."""
+    """A context-trusted override is sub-supported, so it may describe the
+    published path's bounded relation but cannot emit a probability."""
     csv_path = tmp_path / "series.csv"
     _write_csv(csv_path)
     h_start = START + timedelta(days=120)
@@ -794,11 +794,16 @@ def test_threshold_analysis_describes_the_published_rows(tmp_path):
     )
     result = artifact.results[0]
     assert result.forecast[3]["point"] == 0.0
-    probabilities = result.threshold["probability_above"]
-    # untouched steps forecast ~230-300, far above the threshold
-    assert probabilities[0] > 0.5
-    # the interior override step is the stated 0, far below it
-    assert probabilities[3] < 0.5
+    assert result.support_assessment["status"] == "conditionally_supported"
+    threshold = result.threshold
+    assert threshold["probability_status"] == "unavailable_uncalibrated"
+    assert threshold["probability_above"] == []
+    assert "horizon_event" not in threshold
+    bounded = threshold["bounded_assessment"]
+    assert bounded["primary"]["maximum_point"] == max(
+        row["q50"] for row in result.forecast)
+    assert bounded["primary"]["point_path_crosses"] is True
+    assert bounded["automation_eligible"] is False
 
 
 def test_general_purpose_path_from_document_to_trusted_forecast(tmp_path):

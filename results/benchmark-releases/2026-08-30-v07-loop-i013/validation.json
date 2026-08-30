@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "iteration": "I013",
+  "version": "0.7.0",
+  "product_candidate_commit": "77ffb5a",
+  "golden_verification_commit": "7352f91",
+  "release_boundary_revision_commit": "58a395f",
+  "contextbench": {
+    "output": "results/v07-i013-contextbench-surface",
+    "receipts": "results/v07-i013-contextbench-receipts",
+    "corpus": "results/v07-q5-i012-confirmation-corpus",
+    "seed": 2026083103,
+    "cases": 4,
+    "answered": 4,
+    "errors": 0,
+    "execution_attempts": 4,
+    "leakage_count": 0,
+    "publication_parity": "4/4",
+    "product_calls_per_case": 1,
+    "typed_relationships_exposed": 2,
+    "typed_relationships_preserved": 2,
+    "agent_requests": 9,
+    "compiler_requests": 3,
+    "prompt_tokens_total": 55541
+  },
+  "temporalbench": {
+    "outputs": [
+      "results/v07-i013-temporalbench-control-t2",
+      "results/v07-i013-temporalbench-evidence-t2",
+      "results/v07-i013-temporalbench-control-t4",
+      "results/v07-i013-temporalbench-evidence-t4"
+    ],
+    "rows_per_arm": 4,
+    "control_rows_completed": 4,
+    "evidence_rows_completed": 4,
+    "control_choices_correct": 2,
+    "control_choices_total": 12,
+    "evidence_choices_correct": 6,
+    "evidence_choices_total": 12,
+    "engine_answers_preserved": "12/12",
+    "primary_forecasts_unchanged": "4/4",
+    "product_calls_per_row": 1,
+    "evidence_support_mix": {"degraded": 20, "best_effort": 4},
+    "evidence_infrastructure_retries": 1,
+    "performance_claim_eligible": false
+  },
+  "cik": {
+    "output": "results/v07-i013-cik-final",
+    "seed": 7044,
+    "runs_scored": 3,
+    "runs_abstained": 0,
+    "runs_errored": 0,
+    "mean_selected_rcrps": 0.02144472389312935,
+    "mean_primary_rcrps": 0.052048572473297174,
+    "mean_uplift_vs_primary_rcrps": 0.030603848580167823,
+    "selected_best_eligible": "3/3",
+    "primary_immutability_failures": 0,
+    "automation_eligible_cases": 0,
+    "performance_claim_eligible": false
+  },
+  "clean_wheel": {
+    "distribution": "/tmp/gnomon-v07-final-dist-77ffb5a/gnomon_forecast-0.7.0-py3-none-any.whl",
+    "python": "3.12",
+    "editable": false,
+    "version_surfaces": "5/5 equal 0.7.0",
+    "behavioral_smoke": "12 passed",
+    "artifact": "/tmp/gnomon-v07-wheel-artifact-77ffb5a/forecast_fb13285c73d4fb6a",
+    "artifact_and_brief_inspected": true
+  },
+  "full_suite": {
+    "environment": "GNOMON_TSFM_SANDBOX_ROOT=/tmp/gnomon-empty-tsfm-root",
+    "passed": 2653,
+    "skipped": 11,
+    "failed": 0,
+    "seconds": 139.76
+  },
+  "first_exact_head_ci": {
+    "head": "9d0be67",
+    "ci_run": 33307275900,
+    "benchmarks_run": 33307278652,
+    "container_run": 33307281452,
+    "container_conclusion": "success",
+    "ci_conclusion": "failure_revised",
+    "ci_failure": "capabilities brief was 6015 bytes in the longer GitHub checkout path against a 6000-byte budget",
+    "benchmarks_conclusion": "failure_revised",
+    "benchmarks_failure": "workflow treated the pre-manifest I000 bootstrap checkpoint as a curated release",
+    "forecast_or_selection_failure": false
+  },
+  "revised_exact_head_ci": {
+    "head": "fa59f2b29e83c030402f94bde05739007a1b8f47",
+    "ci_run": 33307896827,
+    "ci_conclusion": "success",
+    "python_versions": ["3.11", "3.12", "3.13"],
+    "package_smoke_conclusion": "success",
+    "benchmarks_run": 33307900933,
+    "benchmarks_conclusion": "success",
+    "container_run": 33307904216,
+    "container_conclusion": "success"
+  }
+}

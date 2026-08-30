@@ -1,0 +1,42 @@
+{
+  "release": "2026-08-30-v07-loop-i002",
+  "output_dir": "results/benchmark-releases/2026-08-30-v07-loop-i002",
+  "benchmarks": [
+    {
+      "benchmark": "decisioninputbench",
+      "arm": "current-head-reproduction",
+      "file": "baseline.json",
+      "source": "results/v07-s1-i002-baseline/summary.json",
+      "scope": "full",
+      "status": "complete",
+      "evaluated_commit": "32b568c15e14d03373e6a6fbb62c34f4b4dae0df",
+      "harness_commit": "32b568c15e14d03373e6a6fbb62c34f4b4dae0df",
+      "dataset_identity": "11 frozen S1 action-by-scenario utility cases",
+      "configuration_identity": "pure production evaluate_actions boundary; exceed/no_exceed probabilities 0.4/0.6",
+      "notes": ["Reproduction arm retained before production implementation."]
+    },
+    {
+      "benchmark": "decisioninputbench",
+      "arm": "typed-integrity-boundary",
+      "file": "candidate.json",
+      "source": "results/v07-s1-i002-candidate-v2/summary.json",
+      "scope": "full",
+      "status": "complete",
+      "evaluated_commit": "5f8ed78a2ee5fd849c49d76cf7567ec1429f8d58",
+      "harness_commit": "5f8ed78a2ee5fd849c49d76cf7567ec1429f8d58",
+      "dataset_identity": "same 11 frozen S1 action-by-scenario utility cases",
+      "configuration_identity": "typed exact-key finite utility validation; tie abstention; executable gnomon_decide repair",
+      "notes": ["Candidate rerun on the exact committed implementation head."]
+    }
+  ],
+  "not_included": [
+    {
+      "benchmark": "raw decision case records",
+      "reason": "Retained locally under results/v07-s1-i002-baseline and results/v07-s1-i002-candidate-v2; excluded from aggregate git release."
+    },
+    {
+      "benchmark": "competition-specific plan",
+      "reason": "docs/astrid-btc-agent-plan.md is explicitly outside this loop and release."
+    }
+  ]
+}

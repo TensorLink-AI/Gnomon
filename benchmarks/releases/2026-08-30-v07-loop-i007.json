@@ -1,0 +1,145 @@
+{
+  "release": "2026-08-30-v07-loop-i007",
+  "output_dir": "results/benchmark-releases/2026-08-30-v07-loop-i007",
+  "benchmarks": [
+    {
+      "benchmark": "trendanswerbench-seasonal-trend",
+      "arm": "pre-coherence-baseline",
+      "scope": "full",
+      "source": "results/v07-q2-i007-trendanswerbench-baseline-v2/summary.json",
+      "file": "trend-development-baseline.json",
+      "evaluated_commit": "11b8b48e5b931e45430805aa763e69a64da25288",
+      "harness_commit": "11b8b48e5b931e45430805aa763e69a64da25288",
+      "dataset_identity": "frozen 152-case seasonal-trend matrix; seeds 7301-7308; 19 preregistered families; untouched future horizons",
+      "configuration_identity": "production fitted temporal executable before phase-fixed trend, coherent direction, weak-error envelope, and typed insufficient-cycle abstention",
+      "notes": ["No supported claims exist in this deliberately fold-limited development corpus; supported gates remain visibly false."]
+    },
+    {
+      "benchmark": "trendanswerbench-seasonal-trend",
+      "arm": "coherent-trend-candidate",
+      "scope": "full",
+      "source": "results/v07-q2-i007-trendanswerbench-candidate-v2/summary.json",
+      "file": "trend-development-candidate.json",
+      "evaluated_commit": "a3dc09355e977ccbad3be726167dd9fe21f3d1f7",
+      "harness_commit": "a3dc09355e977ccbad3be726167dd9fe21f3d1f7",
+      "dataset_identity": "same frozen 152 cases, histories, declared periods, scoring rules, and untouched futures as the development baseline",
+      "configuration_identity": "phase-fixed admitted-season trend; canonical direction follows point estimate; observed-error weak interval; typed insufficient-cycle and unmodelled-season abstention; support threshold unchanged",
+      "notes": ["All development answers remain weak or abstained; no unsupported graduation claim is made."]
+    },
+    {
+      "benchmark": "trendanswerbench-independent-confirmation",
+      "arm": "pre-coherence-baseline",
+      "scope": "full",
+      "source": "results/v07-q2-i007-trend-confirm-baseline-8121/summary.json",
+      "file": "trend-confirmation-baseline.json",
+      "evaluated_commit": "11b8b48e5b931e45430805aa763e69a64da25288",
+      "harness_commit": "11b8b48e5b931e45430805aa763e69a64da25288",
+      "dataset_identity": "fresh frozen 152-case confirmation matrix; seeds 8121-8128; formulas and scoring fixed before execution",
+      "configuration_identity": "detached baseline worktree; no candidate code present"
+    },
+    {
+      "benchmark": "trendanswerbench-independent-confirmation",
+      "arm": "coherent-trend-candidate",
+      "scope": "full",
+      "source": "results/v07-q2-i007-trend-confirm-candidate-8121/summary.json",
+      "file": "trend-confirmation-candidate.json",
+      "evaluated_commit": "a3dc09355e977ccbad3be726167dd9fe21f3d1f7",
+      "harness_commit": "a3dc09355e977ccbad3be726167dd9fe21f3d1f7",
+      "dataset_identity": "same fresh 152 confirmation cases, histories, declared periods, scoring rules, and untouched futures as the detached baseline",
+      "configuration_identity": "detached candidate worktree with the frozen coherent seasonal-trend implementation"
+    },
+    {
+      "benchmark": "propertybench-trend-confirmation",
+      "arm": "baseline-seed-8301",
+      "scope": "full",
+      "source": "results/v07-q2-i007-property-confirm-baseline-8301/summary.json",
+      "file": "property-confirmation-baseline-8301.json",
+      "evaluated_commit": "11b8b48e5b931e45430805aa763e69a64da25288",
+      "harness_commit": "11b8b48e5b931e45430805aa763e69a64da25288",
+      "dataset_identity": "PropertyBench seed 8301 with 20 replicates per frozen property family; 520 cases",
+      "configuration_identity": "detached pre-coherence baseline; trend is the confirmation target and every non-trend property is retained as a regression diagnostic"
+    },
+    {
+      "benchmark": "propertybench-trend-confirmation",
+      "arm": "candidate-seed-8301",
+      "scope": "full",
+      "source": "results/v07-q2-i007-property-confirm-candidate-8301/summary.json",
+      "file": "property-confirmation-candidate-8301.json",
+      "evaluated_commit": "a3dc09355e977ccbad3be726167dd9fe21f3d1f7",
+      "harness_commit": "a3dc09355e977ccbad3be726167dd9fe21f3d1f7",
+      "dataset_identity": "same PropertyBench seed 8301, replicate count, and all-property corpus as the detached baseline",
+      "configuration_identity": "detached coherent-trend candidate; non-trend production code unchanged"
+    },
+    {
+      "benchmark": "propertybench-trend-confirmation",
+      "arm": "baseline-seed-8317",
+      "scope": "full",
+      "source": "results/v07-q2-i007-property-confirm-baseline-8317/summary.json",
+      "file": "property-confirmation-baseline-8317.json",
+      "evaluated_commit": "11b8b48e5b931e45430805aa763e69a64da25288",
+      "harness_commit": "11b8b48e5b931e45430805aa763e69a64da25288",
+      "dataset_identity": "PropertyBench seed 8317 with 20 replicates per frozen property family; 520 cases",
+      "configuration_identity": "detached pre-coherence baseline; trend is the confirmation target and every non-trend property is retained as a regression diagnostic"
+    },
+    {
+      "benchmark": "propertybench-trend-confirmation",
+      "arm": "candidate-seed-8317",
+      "scope": "full",
+      "source": "results/v07-q2-i007-property-confirm-candidate-8317/summary.json",
+      "file": "property-confirmation-candidate-8317.json",
+      "evaluated_commit": "a3dc09355e977ccbad3be726167dd9fe21f3d1f7",
+      "harness_commit": "a3dc09355e977ccbad3be726167dd9fe21f3d1f7",
+      "dataset_identity": "same PropertyBench seed 8317, replicate count, and all-property corpus as the detached baseline",
+      "configuration_identity": "detached coherent-trend candidate; non-trend production code unchanged"
+    },
+    {
+      "benchmark": "trendanswerbench-agent-preservation",
+      "arm": "pre-boundary-baseline",
+      "scope": "subset",
+      "source": "results/v07-q2-i007-trend-agent-baseline-v2/summary.json",
+      "file": "trend-agent-baseline.json",
+      "evaluated_commit": "99329c014567be7535e5ab81ed54ee471299c567",
+      "harness_commit": "99329c014567be7535e5ab81ed54ee471299c567",
+      "dataset_identity": "six preregistered representative trend cases from fresh seeds 8121-8126; expected directions and family names hidden from the real agent surface",
+      "configuration_identity": "Evidence profile; DeepSeek deepseek-v4-flash-0731 through Engy; temperature 0; jobs 1; typed receipt; bounded retries and timeouts",
+      "notes": ["Engine receipts were complete, but predictive trend fell through to observed report labels and the host omitted the complete typed choice contract."]
+    },
+    {
+      "benchmark": "trendanswerbench-agent-preservation",
+      "arm": "typed-boundary-candidate",
+      "scope": "subset",
+      "source": "results/v07-q2-i007-trend-agent-candidate-v2/summary.json",
+      "file": "trend-agent-candidate.json",
+      "evaluated_commit": "cf8772aae83701c33b056a1270c0619d177762c1",
+      "harness_commit": "cf8772aae83701c33b056a1270c0619d177762c1",
+      "dataset_identity": "same six preregistered trend cases, public IDs, prompts, options, histories, and model as the baseline boundary probe",
+      "configuration_identity": "Evidence profile; fitted predictive trend route; immutable-primary seasonal contract; deterministic typed host projection; jobs 1 and identical bounds"
+    },
+    {
+      "benchmark": "contextbench-structural-agent-preservation",
+      "arm": "typed-relationship-control",
+      "scope": "subset",
+      "source": "results/v07-q2-i007-context-agent-structural/summary.json",
+      "file": "context-structural-control.json",
+      "evaluated_commit": "cf8772aae83701c33b056a1270c0619d177762c1",
+      "harness_commit": "cf8772aae83701c33b056a1270c0619d177762c1",
+      "dataset_identity": "two frozen structural true-claim cases stress-structural-true-0000 and -0001 from corpus manifest 9730fdab; engine baseline",
+      "configuration_identity": "Evidence profile; compiled routing; DeepSeek deepseek-v4-flash-0731 through Engy; temperature 0; jobs 1; bounded retries and timeouts",
+      "notes": ["Both immutable primaries already represented the structural change; engine relationship completeness and semantic final-agent preservation are reported separately."]
+    }
+  ],
+  "not_included": [
+    {
+      "benchmark": "raw per-case engine and agent records",
+      "reason": "Retained in the source result directories; the git release contains aggregate summaries only."
+    },
+    {
+      "benchmark": "contaminated first agent probe",
+      "reason": "Retained locally but excluded because it used the engine-only synthetic frequency label at the public tool boundary."
+    },
+    {
+      "benchmark": "competition-specific plan",
+      "reason": "docs/astrid-btc-agent-plan.md is explicitly outside this loop and release."
+    }
+  ]
+}

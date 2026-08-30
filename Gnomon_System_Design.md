@@ -7,7 +7,7 @@
 **Status:** Historical design document — superseded in parts by the shipped runtime
 
 > **Read this as intent, not as description.** It was written before
-> implementation, at v0.1; the runtime is now 0.5.0 and its architecture
+> implementation, at v0.1; the runtime is now 0.7.0 and its architecture
 > has moved on — most visibly, the harness now has five verbs, a bitemporal
 > store with `--as-of` replay, typed lineage with a deterministic claim
 > verifier, and a sandboxed TSFM tier, none of which are specified here as

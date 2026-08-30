@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "iteration": "I003",
+  "issue": "S2",
+  "decision": "promote",
+  "baseline_commit": "4cfe8fa0a6224fc3a48df61d7581857abf34c544",
+  "evaluated_commit": "ec99285944adb95e28a7bb3d7d595f45874fb9c4",
+  "protocol": "docs/v0.7-s2-bounded-jitter-protocol.md",
+  "fixture_provenance": "independently_regenerated",
+  "user_outcome": "Agents can submit bounded scheduler and scrape jitter through default safe repair; humans receive machine-readable cadence, phase, tolerance, count, and displacement without alignment being confused with invented values or hidden gaps.",
+  "matched_result": {
+    "cases": 22,
+    "baseline_accepted": 3,
+    "candidate_accepted": 12,
+    "baseline_typed_rejections": 19,
+    "candidate_typed_rejections": 10,
+    "baseline_internal_errors": 0,
+    "candidate_internal_errors": 0,
+    "candidate_gates_passed": 13,
+    "candidate_gates_total": 13,
+    "focused_tests": "182 passed",
+    "full_tests_isolated_from_machine_local_tsfm_supply": "2599 passed, 11 skipped"
+  },
+  "implementation": [
+    "Added deterministic phase-aware bounded timestamp alignment shared by safe and aggressive repair.",
+    "Set tolerance to 1% of fixed cadence capped at 60 seconds and exposed it with phase and maximum displacement in repair metrics.",
+    "Made alignment all-or-nothing and rejected slot collisions with TIMESTAMP_ALIGNMENT_CONFLICT.",
+    "Removed aligned timestamps from the ceiling reserved for filled or conflict-resolved values.",
+    "Preserved the inferred cadence when aligned data reveals a real gap, so safe refuses precisely and aggressive can disclose its existing interpolation separately.",
+    "Recorded input reordering before repair sorting erases the evidence.",
+    "Updated CLI, MCP schema, repair options, and human documentation to distinguish safe alignment from aggressive value-changing repair."
+  ],
+  "invariants": {
+    "exact_grid_unchanged": true,
+    "values_and_observation_count_preserved": true,
+    "alignment_never_merges": true,
+    "outside_bound_not_snapped": true,
+    "gaps_not_hidden": true,
+    "mixed_cadence_refused": true,
+    "off_remains_strict": true,
+    "safe_and_aggressive_authority_explicit": true,
+    "all_frozen_gates_passed": true
+  },
+  "environment_note": {
+    "unisolated_full_suite": "2584 passed, 12 skipped, 14 failed because the machine-local toto2_4m sandbox entered no-TSFM tests",
+    "failed_tests_rechecked_with_empty_sandbox_root": "14 passed",
+    "clean_full_suite": "2599 passed, 11 skipped",
+    "installed_sandbox_modified": false
+  },
+  "raw_evidence": [
+    "results/v07-s2-i003-baseline/",
+    "results/v07-s2-i003-candidate-v1/",
+    "results/v07-s2-i003-candidate-v2/",
+    "results/v07-s2-i003-candidate-v3/"
+  ]
+}
+

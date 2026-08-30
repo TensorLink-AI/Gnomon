@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 3330,
+      "sha256": "9f69d2a08ff11239fc5001666bff4a83c03ba671de4ec69884a8017f0d7f6031"
+    },
+    {
+      "path": "actual-response.json",
+      "bytes": 1596,
+      "sha256": "c2f2a3dfadae3e22dc397f5c83bc38c35b94c8f737b3ac5c008eedd3d0b98457"
+    },
+    {
+      "path": "checkpoint.json",
+      "bytes": 1959,
+      "sha256": "afc39a1ea2fe93858180dab2d4553b1d9384acc60d7a7740202ca7619648b6fe"
+    },
+    {
+      "path": "decision.json",
+      "bytes": 1335,
+      "sha256": "9bc68135bbdf7454b64af473f3bed6d7113e078cea601df51a98a7deaf5c19ca"
+    },
+    {
+      "path": "validation.json",
+      "bytes": 3438,
+      "sha256": "6609acde1425e037237cd31b9f79e509bfa52bd365a6ce9a1346e0258c4d7b43"
+    }
+  ]
+}

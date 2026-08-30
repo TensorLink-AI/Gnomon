@@ -103,6 +103,32 @@ def test_effect_prior_and_robust_decision_are_agent_callable(monkeypatch, tmp_pa
     assert TrackingStore().get_decision_artifact("decision-1") is not None
 
 
+def test_decide_rejects_malformed_utilities_before_forecasting(monkeypatch) -> None:
+    from gnomon.contracts import GnomonError
+    from gnomon.toolspec import runner_for
+
+    def forecast_must_not_run(*args, **kwargs):
+        raise AssertionError("forecast was spent before utility validation")
+
+    monkeypatch.setattr("gnomon.macros.decide", forecast_must_not_run)
+    with pytest.raises(GnomonError) as caught:
+        runner_for("gnomon_decide")({
+            "input": "unused.csv", "time_column": "timestamp",
+            "target_column": "value", "horizon": 3, "threshold": 10,
+            "actions": [{"name": "act"}, {"name": "wait"}],
+            "utilities": {"act": 1, "wait": 2},
+        })
+    assert caught.value.code == "INVALID_UTILITIES"
+    repair = caught.value.to_dict()["error"]["repair_options"][0]
+    assert repair == {
+        "tool": "gnomon_decide",
+        "arguments": {"utilities": {
+            "act": {"exceed": 0.0, "no_exceed": 0.0},
+            "wait": {"exceed": 0.0, "no_exceed": 0.0},
+        }},
+    }
+
+
 def test_surviving_covariate_contract_is_complete(monkeypatch) -> None:
     from gnomon.toolspec import TOOLS
 
@@ -1118,6 +1144,22 @@ def test_capabilities_brief_fits_the_budget_and_hides_nothing() -> None:
     assert "full" in view["note"] and "sections" in view["note"]
 
 
+def test_capabilities_brief_budget_is_independent_of_checkout_path(
+        monkeypatch, tmp_path) -> None:
+    import json
+
+    from gnomon.toolspec import CAPABILITIES_RESPONSE_BUDGET_BYTES, runner_for
+
+    deep = tmp_path.joinpath(*(["long-workspace-component"] * 12))
+    deep.mkdir(parents=True)
+    monkeypatch.chdir(deep)
+    brief = runner_for("gnomon_capabilities")({})
+    assert brief["workspace"] == {"default_output_dir": "./gnomon-output"}
+    assert "workspace" in brief["view"]["elided"]
+    assert len(json.dumps(brief, default=str)) <= \
+        CAPABILITIES_RESPONSE_BUDGET_BYTES
+
+
 def test_capabilities_full_and_sections_are_verbatim() -> None:
     from gnomon.runtime import capabilities
     from gnomon.toolspec import runner_for
@@ -1506,6 +1548,47 @@ def test_typed_question_returns_compact_answer_without_changing_primary(
     receipt = json.loads(Path(asked["answer_receipt"]).read_text())
     assert receipt["answers"][0]["calibration"]["direction_candidate"]
     assert receipt["primary_forecast_unchanged"] is True
+
+
+def test_typed_trend_uses_primary_forecast_seasonal_period(tmp_path) -> None:
+    """The attached executable inherits the primary's admitted season."""
+    import json
+    import math
+    from datetime import datetime, timedelta, timezone
+    from pathlib import Path
+
+    from gnomon.toolspec import runner_for
+
+    source = tmp_path / "short-hourly.csv"
+    start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    rows = ["timestamp,value"]
+    for index in range(30):
+        rows.append(
+            f"{(start + timedelta(hours=index)).isoformat()},"
+            f"{100 + .08 * index + 4 * math.sin(2 * math.pi * index / 24)}")
+    source.write_text("\n".join(rows) + "\n")
+
+    result = runner_for("gnomon_forecast")({
+        "input": str(source), "time_column": "timestamp",
+        "target_column": "value", "frequency": "h", "horizon": 12,
+        "output_dir": str(tmp_path / "short-hourly-out"),
+        "questions": [{
+            "id": "trend", "verb": "predict", "target": "value",
+            "property": "trend", "measure": "slope", "horizon": 12,
+        }],
+    })
+
+    assert result["results"][0]["temporal_facts"][
+        "seasonal_period_steps"] == 24
+    receipt = json.loads(Path(result["answer_receipt"]).read_text())
+    answer = receipt["answers"][0]
+    assert answer["best_estimate"] == {
+        "value": "uncertain", "display_value": "uncertain",
+        "support": "abstained", "automation_eligible": False,
+    }
+    assert answer["calibration"]["reason"] == \
+        "insufficient_cycles_for_seasonally_adjusted_trend"
+    assert answer["calibration"]["admitted_period"] == 24
 
 
 def test_typed_aggregate_binds_panel_series_not_value_column(tmp_path) -> None:

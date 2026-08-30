@@ -1,0 +1,52 @@
+{
+  "release": "2026-08-30-v07-loop-i005",
+  "output_dir": "results/benchmark-releases/2026-08-30-v07-loop-i005",
+  "benchmarks": [
+    {
+      "benchmark": "forecast-claim-support-coherence",
+      "arm": "current-head-reproduction",
+      "file": "baseline.json",
+      "source": "results/v07-q1-i005-claimbench-baseline-v2/summary.json",
+      "scope": "full",
+      "status": "complete",
+      "evaluated_commit": "2c5bf52c8ffd3b80795b8ed4edb5597e348700f4",
+      "harness_commit": "2c5bf52c8ffd3b80795b8ed4edb5597e348700f4",
+      "dataset_identity": "four frozen deterministic production forecasts: stationary level seed 123, linear trend, short noisy seed 321, and degraded long-horizon threshold seed 456",
+      "configuration_identity": "production forecast(), summary Markdown, full tool summary, and brief tool summary; empty TSFM sandbox root; fixed clock; no future accuracy scoring",
+      "notes": [
+        "Reproduces claim/support behavior before production changes.",
+        "Generator roles and seeds never reach the production runtime."
+      ]
+    },
+    {
+      "benchmark": "forecast-claim-support-coherence",
+      "arm": "support-aligned-rendering-and-threshold-authority",
+      "file": "candidate.json",
+      "source": "results/v07-q1-i005-claimbench-candidate-v3/summary.json",
+      "scope": "full",
+      "status": "complete",
+      "evaluated_commit": "198ca4cf9c0a6a41895f6562a745564d04208ebd",
+      "harness_commit": "198ca4cf9c0a6a41895f6562a745564d04208ebd",
+      "dataset_identity": "same four frozen deterministic production forecasts as the baseline arm",
+      "configuration_identity": "zero-gain baseline retention rendered without uplift claim; every sub-supported threshold surface routed to bounded non-probabilistic assessment; supported threshold estimator unchanged",
+      "notes": [
+        "All nine frozen gates pass on the exact final implementation commit.",
+        "Forecast numbers, model identity, support, and supported threshold probabilities are unchanged."
+      ]
+    }
+  ],
+  "not_included": [
+    {
+      "benchmark": "exploratory dirty-tree ClaimBench candidate",
+      "reason": "Retained locally under results/v07-q1-i005-claimbench-candidate-v1 and excluded because its evaluated commit cannot identify uncommitted production changes."
+    },
+    {
+      "benchmark": "raw per-case ClaimBench checkpoints",
+      "reason": "Retained in the source directories; this git release includes aggregate summaries only."
+    },
+    {
+      "benchmark": "competition-specific plan",
+      "reason": "docs/astrid-btc-agent-plan.md is explicitly outside this loop and release."
+    }
+  ]
+}

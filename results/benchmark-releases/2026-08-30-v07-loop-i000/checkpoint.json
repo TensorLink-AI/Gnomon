@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "loop": "v0.7-forecast-quality",
+  "status": "active",
+  "base_commit": "7717cd940a9fc1fb7f85569dc20a0a8e1a63b3f7",
+  "branch": "agent/v0.7-forecast-quality-loop",
+  "protocol": "docs/v0.7-forecast-quality-loop.md",
+  "preservation": {
+    "preserve_v06_release_and_pr83": true,
+    "preserve_preexisting_committed_work": true,
+    "preserve_preexisting_benchmark_artifacts": true,
+    "preserve_all_preexisting_untracked_files": true,
+    "excluded_from_commits": [
+      "docs/astrid-btc-agent-plan.md"
+    ]
+  },
+  "execution_defaults": {
+    "one_active_issue": true,
+    "api_jobs": 1,
+    "bounded_retries_required": true,
+    "per_call_timeout_required": true,
+    "wall_clock_timeout_required": true,
+    "incremental_rows_required": true,
+    "resume_required": true,
+    "smoke_shard_before_expansion": true,
+    "engine_and_agent_scored_separately": true
+  },
+  "active_iteration": {
+    "id": "I001",
+    "issue": "Q1",
+    "phase": "benchmark_lane_ready",
+    "user_hypothesis": "Prefix-only evidence can admit useful non-flat paths often enough to improve agent forecasts, while weak evidence preserves the safe last-value fallback and its visible support limitations.",
+    "must_not_regress": [
+      "future leakage remains zero",
+      "benchmark identity never enters runtime selection",
+      "unsupported candidates retain last-value deterministically",
+      "support, model identity, and admission evidence remain visible",
+      "context and answer synthesis do not mutate the immutable primary"
+    ],
+    "frozen_development_seed": 92741,
+    "baseline_evidence": [
+      "results/benchmark-releases/2026-08-30-v06-external-validation/temporalbench-channel-comparison.json",
+      "results/v06-release-validation-466d577/temporalbench-evidence-035/details/tsb_000021_T2.json",
+      "results/v06-release-validation-466d577/temporalbench-evidence-045/details/tsb_000026_T2.json",
+      "results/benchmark-releases/2026-08-30-v06-loop-i002/decision.json"
+    ],
+    "next_action": "Run the retained seed 92741 production-selector baseline and inspect admitted wins, losses, fallbacks, support, and admission evidence. Checkpoint that benchmark-only result, then reproduce S1 decision-input integrity and S2 bounded timestamp jitter on the exact head before any Q1 production change.",
+    "last_completed_action": "Added the benchmark-only production-selector lane at f14274f and integrated the external 0.5.0 agent evaluation as a current-head reproduction track. No external finding is treated as current until reproduced."
+  },
+  "external_evaluation_intake": {
+    "protocol": "docs/v0.7-external-evaluation-intake.md",
+    "source_version": "gnomon-forecast==0.5.0",
+    "current_head_reproduction_required": true,
+    "preemption_after_q1_baseline": ["S1", "S2"],
+    "production_change_blocked_until_preemption_dispositioned": true,
+    "absorbed_by_existing_issues": {
+      "Q1": ["stationary_mean_baseline", "confidence_language", "long_horizon_threshold_safety", "seasonal_admission_and_period"],
+      "Q2": ["seasonally_adjusted_trend"],
+      "Q5": ["mcp_surface_current_head_verification", "schema_and_repair_discoverability"]
+    }
+  },
+  "issues": [
+    {"id": "S1", "name": "decision input integrity", "status": "pending_current_head_reproduction"},
+    {"id": "S2", "name": "bounded timestamp jitter", "status": "pending_current_head_reproduction"},
+    {"id": "Q1", "name": "useful departures from last-value", "status": "in_progress"},
+    {"id": "Q2", "name": "decision-grade typed temporal answers", "status": "pending"},
+    {"id": "Q3", "name": "context recall at fixed precision", "status": "pending"},
+    {"id": "Q4", "name": "stable context-mechanism selection", "status": "pending"},
+    {"id": "Q5", "name": "crash-safe economical orchestration", "status": "pending"},
+    {"id": "Q6", "name": "regime-aware anomaly behavior", "status": "pending_current_head_reproduction"}
+  ],
+  "completed_iterations": []
+}

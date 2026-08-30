@@ -132,6 +132,19 @@ def test_predictive_properties_use_fitted_executable_without_forecast() -> None:
         assert answer["answer"]["executable"]["kind"] == "fitted_temporal_property"
 
 
+def test_predictive_trend_with_primary_forecast_still_uses_fitted_answer() -> None:
+    values = [20 + .1 * index + (index % 7) for index in range(300)]
+    answer = answer_descriptive_question(
+        TemporalQuestion("q", "predict", "x", "trend", horizon=14),
+        report=REPORT, values=values, season=7,
+        forecast_values=[values[-1]] * 14)
+    assert answer["answer"]["executable"]["kind"] == \
+        "fitted_temporal_property"
+    assert answer["best_estimate"]["value"] in {
+        "upward", "constant", "downward", "uncertain"}
+    assert answer["synthesis_policy"]["primary_forecast_unchanged"] is True
+
+
 def test_volatility_exposes_distribution_and_separate_decision_policy() -> None:
     values = [20 + .1 * index + (index % 7) for index in range(300)]
     answer = answer_descriptive_question(

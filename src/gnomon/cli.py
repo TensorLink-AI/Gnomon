@@ -365,7 +365,7 @@ def _attach_publication(payload, artifact, path, args) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = _StructuredArgumentParser(prog="gnomon", description="Evidence-backed local forecasting")
-    parser.add_argument("--version", action="version", version="gnomon 0.5.0")
+    parser.add_argument("--version", action="version", version="gnomon 0.7.0")
     subcommands = parser.add_subparsers(dest="command", required=True)
 
     capability_parser = subcommands.add_parser("capabilities", help="Report implemented capabilities")
@@ -509,8 +509,8 @@ def build_parser() -> argparse.ArgumentParser:
     forecast_parser.add_argument(
         "--repair", choices=("off", "safe", "aggressive"), default="safe",
         help="Messy-data handling: off rejects anything non-strict; safe "
-             "(default) normalises cell text with disclosure; aggressive "
-             "additionally fills gaps, snaps jittered timestamps, and "
+             "(default) normalises cell text and bounded timestamp jitter "
+             "with disclosure; aggressive additionally fills small gaps and "
              "resolves conflicts — capped and reported as warnings",
     )
     forecast_parser.add_argument(

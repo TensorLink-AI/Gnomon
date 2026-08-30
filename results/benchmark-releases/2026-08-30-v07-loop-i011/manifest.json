@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "files": [
+    {"path": "README.md", "bytes": 2310, "sha256": "629b4c58a61c23900645e75eb82c4775d07965526f3a26408c7895b8202525fd"},
+    {"path": "actual-response.json", "bytes": 1486, "sha256": "77b95a2793f99b1d5c9c8a9bbc5de09fee73d071fdb010aabb9beb2558ee9574"},
+    {"path": "checkpoint.json", "bytes": 1915, "sha256": "cdefecb175e27c46971cf6d9515fc92e8d1f916a20cc3a17cd066a2c5cd5f130"},
+    {"path": "cik-selection.json", "bytes": 3255, "sha256": "17077b3d7159d46f059e9f2af5082039ae5c425bd5bfb63960efd20424b396ba"},
+    {"path": "decision.json", "bytes": 1972, "sha256": "132472bb44fd0f244b4d686e2105afb426485066ef989d549773f309d8497949"}
+  ],
+  "release": "2026-08-30-v07-loop-i011",
+  "curated_by_commit": "042d2d1",
+  "benchmark_metadata": [
+    {
+      "file": "cik-selection.json",
+      "benchmark": "context-is-key",
+      "arm": "evidence-deepseek-engy-publication-best-effort-six-task-selection-stability",
+      "scope": "revision-and-untouched-confirmation",
+      "status": "complete"
+    },
+    {
+      "file": "actual-response.json",
+      "benchmark": "context-is-key-agent-surface",
+      "arm": "final-submission-authority-preservation-inspection",
+      "scope": "diagnostic-and-untouched-confirmation",
+      "status": "complete"
+    }
+  ],
+  "not_included": [
+    {"benchmark": "raw per-case rows, traces, receipts, and checkpoints", "reason": "Retained in local result directories; committed checkpoint is aggregate-only."},
+    {"benchmark": "competition-specific plan", "reason": "docs/astrid-btc-agent-plan.md remains outside this loop."}
+  ],
+  "policy": {
+    "aggregate_only": true,
+    "future_scores_computed_after_forecast_only": true,
+    "revision_seed_not_relabelled_as_confirmation": true,
+    "untouched_confirmation_seed": 7043,
+    "raw_runs_are_local_artifacts": true,
+    "jobs": 1,
+    "production_code_changed": true
+  }
+}

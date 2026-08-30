@@ -980,6 +980,91 @@ def test_surface_runner_retries_infrastructure_and_keeps_attempt_ledger(
     assert summary["run_provenance"]["baseline_mode"] == "engine"
 
 
+def test_surface_resume_reruns_only_failed_row_and_preserves_attempt_cost(
+        tmp_path, monkeypatch):
+    corpus = tmp_path / "corpus"
+    monkeypatch.setattr("sys.argv", [
+        "generate", "--output-dir", str(corpus), "--seed", "92",
+        "--per-family", "1",
+    ])
+    assert generate_main() == 0
+    calls = {"count": 0, "failed_once": False}
+
+    class Client:
+        base_url = "https://example.invalid/v1"
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+    def fake_run(case, oracle, client, profile, work, receipts,
+                 routing_policy, baseline_mode, tool_timeout):
+        calls["count"] += 1
+        common = {
+            "case_id": case.case_id, "family": case.family,
+            "should_influence": oracle.should_influence,
+            "routing_policy": routing_policy,
+            "baseline_mode": baseline_mode,
+            "tool_timeout": tool_timeout,
+            "llm_usage": {scope: {
+                "prompt_tokens": 1, "completion_tokens": 2,
+                "requests": 1, "transport_attempts": 1,
+                "cost_usd": 0.0, "truncation_escalations": 0,
+            } for scope in ("agent", "compiler", "total")},
+            "usage_accounting_version": 2,
+        }
+        if not calls["failed_once"]:
+            calls["failed_once"] = True
+            return {**common, "status": "error",
+                    "failure_class": "provider_failure"}
+        return {
+            **common, "status": "answered", "history_smape": 2.0,
+            "context_smape": 2.0, "incremental_smape": 0.0,
+            "applied": False, "primary_changed": False,
+            "selected_projection_differs_from_primary": False,
+            "temporal_leakage": False, "publication_parity": True,
+            "disposition_valid": True,
+            "history_calls": 0, "context_calls": 1,
+            "surface_required_calls": 1,
+        }
+
+    monkeypatch.setattr(surface_runner, "OpenRouterClient", Client)
+    monkeypatch.setattr(surface_runner, "run_case", fake_run)
+    output = tmp_path / "run"
+    base_argv = [
+        "run-surfaces", "--corpus-dir", str(corpus),
+        "--output-dir", str(output), "--profile", "evidence",
+        "--model", "test", "--context-receipts-dir", str(tmp_path / "r"),
+        "--limit", "2", "--infrastructure-retries", "0",
+    ]
+    monkeypatch.setattr("sys.argv", base_argv)
+    assert surface_runner.main() == 2
+    first_rows = [json.loads(line) for line in (
+        output / "observations.jsonl").read_text().splitlines()]
+    completed = next(row for row in first_rows
+                     if row["status"] == "answered")
+    assert calls["count"] == 2
+
+    monkeypatch.setattr(
+        "sys.argv", [*base_argv, "--resume", "--retry-errors"])
+    assert surface_runner.main() == 0
+    final_rows = [json.loads(line) for line in (
+        output / "observations.jsonl").read_text().splitlines()]
+    assert next(row for row in final_rows
+                if row["case_id"] == completed["case_id"]) == completed
+    assert calls["count"] == 3
+    attempts = [json.loads(line) for line in (
+        output / "attempts.jsonl").read_text().splitlines()]
+    assert len(attempts) == 3
+    assert sorted(row["attempt"] for row in attempts) == [1, 1, 2]
+    summary = json.loads((output / "summary.json").read_text())
+    assert summary["resumed_answered_rows"] == 1
+    assert summary["rows_executed_this_invocation"] == 1
+    assert summary["llm_usage_this_invocation"]["requests"] == 1
+    assert summary["llm_usage_observations"]["total"]["requests"] == 3
+    assert summary["execution_attempts"] == 3
+    assert summary["retried_cases"] == 1
+
+
 def test_replicated_report_requires_distinct_complete_corpora(
     tmp_path, monkeypatch,
 ):

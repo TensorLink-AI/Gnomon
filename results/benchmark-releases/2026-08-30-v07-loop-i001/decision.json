@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "iteration": "I001",
+  "issue": "Q1",
+  "decision": "retain_current_policy_pending_naturalistic_confirmation",
+  "evaluated_commit": "b49b0a38671b641445f0787048381c7fa3b182c4",
+  "protocol": "docs/v0.7-forecast-quality-loop.md",
+  "user_outcome": "Agents retain selective non-flat forecasts when prefix-only evidence clears the production gate and receive a disclosed best-effort fallback when the engine cannot score sparse intermittent folds; humans see support warnings rather than an inflated claim of completion or confidence.",
+  "corpus": {
+    "seed": 92741,
+    "cases": 200,
+    "families": ["level", "trend", "seasonal", "pseudo_seasonal", "intermittent"],
+    "cases_per_family": 40,
+    "final_horizon_used_by_selector": false,
+    "synthetic_only": true
+  },
+  "result": {
+    "product_completed": 200,
+    "engine_supported": 187,
+    "disclosed_best_effort_fallbacks": 13,
+    "departures": 77,
+    "departure_wins": 68,
+    "departure_losses": 9,
+    "admission_precision": 0.8831168831168831,
+    "median_bounded_relative_mae_gain_departures": 0.6571530316251103,
+    "paired_90pct_bootstrap_interval": [0.4311439608151804, 0.7402505174151573],
+    "all_frozen_gates_passed": true
+  },
+  "production_behavior_change": "none",
+  "promoted_general_fixes": [
+    "benchmark lane invokes the production selector on history prefixes",
+    "engine support is reported separately from product publication completion",
+    "best-effort fallback disclosure is retained and scored",
+    "benchmark support tiers mirror production weakly-supported and degraded behavior",
+    "bounded relative MAE prevents zero-error futures from creating unbounded effects"
+  ],
+  "remaining_risks": [
+    "Synthetic mechanism evidence does not establish naturalistic superiority.",
+    "One of one intermittent departures regressed; the family median was protected by fallback ties.",
+    "Fresh naturalistic Q1 confirmation remains required before completing the issue.",
+    "S1 and S2 current-head reproductions pre-empt any Q1 production change."
+  ],
+  "raw_evidence": [
+    "results/v07-q1-i001-baseline/",
+    "results/v07-q1-i001-baseline-v2/",
+    "results/v07-q1-i001-baseline-v3/",
+    "results/v07-q1-i001-baseline-v4/"
+  ]
+}
+

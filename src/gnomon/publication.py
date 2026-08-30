@@ -281,6 +281,7 @@ def dominant_scenario_id(scenarios: list[dict[str, Any]]) -> str | None:
         return str(trusted[0]["scenario_id"])
     observation = [item for item in scenarios
                    if item.get("role") == "observation_counterfactual"
+                   and item.get("human_selection_eligible") is True
                    and ((item.get("effect") or {}).get(
                        "conditional_replay") or {}).get(
                            "selection_eligible") is True]
@@ -940,6 +941,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
     published = _rows(result.get("forecast"))
     primary = _rows(result.get("primary_forecast")) or published
     support = str(result.get("support") or "unsupported")
+    primary_path_support = _path_support(primary, support)
     verified_context_claim_ids = [
         str(claim.get("claim_id")) for dossier in dossiers or []
         if verify_temporal_dossier_seal(dossier)
@@ -949,8 +951,8 @@ def build_scenario_catalog(result: dict[str, Any], *,
         ((result.get("context_outcome") or {}).get("events") or []))
     scenarios = [_scenario(
         "primary", "immutable_primary", primary,
-        support=_path_support(primary, support),
-        automation_eligible=_path_support(primary, support) in {
+        support=primary_path_support,
+        automation_eligible=primary_path_support in {
             "supported", "context_trusted"},
     )]
     model_assisted = result.get("model_assisted") or {}
@@ -1493,6 +1495,23 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 # executable path owns numeric authority; the model path stays
                 # visible for explanation, comparison, and outcome scoring.
                 selection_eligible = False
+            replay_block_wins = conditional_replay.get(
+                "chronological_block_wins")
+            replay_blocks_evaluated = conditional_replay.get(
+                "chronological_blocks_evaluated")
+            supported_primary_stability_withheld = bool(
+                candidate_origin == "observation_interpretation_counterfactual"
+                and conditional_replay.get("selection_eligible") is True
+                and primary_path_support == "supported"
+                and isinstance(replay_block_wins, int)
+                and isinstance(replay_blocks_evaluated, int)
+                and replay_blocks_evaluated >= 3
+                and replay_block_wins < replay_blocks_evaluated)
+            if supported_primary_stability_withheld:
+                # Partial chronological evidence is still useful and remains
+                # visible as a sealed conditional path. It is not uniform
+                # enough to displace an already supported recommendation.
+                selection_eligible = False
             # Compute human eligibility only after applying numeric-authority
             # exclusions. Previously an initially eligible model path kept a
             # stale ``True`` here even after the governed executable over the
@@ -1512,8 +1531,20 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 not sampled_prior
                 or sampled_prior_assessment.get(
                     "eligible_for_human_recommendation") is True)
+            supported_primary_sampled_prior_withheld = bool(
+                sampled_prior
+                and primary_path_support in {"supported", "context_trusted"}
+                and elicitation.get("host_observed") is True
+                and elicitation.get("historical_skill_evidence") is False)
+            if supported_primary_sampled_prior_withheld:
+                # Repeated model samples measure elicitation stability, not
+                # forecast skill. Keep the sealed prior available for human
+                # inspection and later outcome scoring, but do not let that
+                # coherence alone displace an already supported primary.
+                selection_eligible = False
             human_selection_eligible = bool(
                 sampled_prior_sufficient
+                and not supported_primary_sampled_prior_withheld
                 and (selection_eligible
                      or (candidate_origin.startswith("governed_")
                          and candidate_critique.get(
@@ -1595,7 +1626,15 @@ def build_scenario_catalog(result: dict[str, Any], *,
                     *(["A deterministic absolute/range context contract over "
                         "the same cited claims owns recommendation authority; "
                         "this model path is retained only for outcome scoring."]
-                      if governed_by_deterministic_claim else [])],
+                      if governed_by_deterministic_claim else []),
+                    *(["Replay evidence did not win every evaluated "
+                        "chronological block, so it cannot displace a fully "
+                        "supported primary recommendation."]
+                      if supported_primary_stability_withheld else []),
+                    *(["Sampled model-path agreement is elicitation stability, "
+                        "not historical skill, so this prior cannot displace "
+                        "a fully supported primary recommendation."]
+                      if supported_primary_sampled_prior_withheld else [])],
                 source_seal=str(dossier["seal_sha256"]),
                 effect={
                     "candidate_origin": candidate_origin,
@@ -1662,6 +1701,25 @@ def build_scenario_catalog(result: dict[str, Any], *,
                     "uncertainty_normalization": uncertainty_normalization,
                     "governed_companion_evidence": governed_companion_evidence,
                     "conditional_replay": conditional_replay,
+                    **({"recommendation_stability": {
+                        "status": "withheld_for_supported_primary",
+                        "reason_code": (
+                            "replay_not_uniform_across_chronological_blocks"),
+                        "chronological_block_wins": replay_block_wins,
+                        "chronological_blocks_evaluated": (
+                            replay_blocks_evaluated),
+                        "primary_support": primary_path_support,
+                        "candidate_preserved": True,
+                    }} if supported_primary_stability_withheld else {}),
+                    **({"recommendation_stability": {
+                        "status": "withheld_for_supported_primary",
+                        "reason_code": (
+                            "sampled_prior_has_no_historical_skill"),
+                        "primary_support": primary_path_support,
+                        "host_observed": True,
+                        "historical_skill_evidence": False,
+                        "candidate_preserved": True,
+                    }} if supported_primary_sampled_prior_withheld else {}),
                     "calibration_replay": calibration_replay,
                     "validation": candidate.get("validation") or {},
                     "executable": candidate.get("executable") or {},
@@ -2475,6 +2533,7 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
         selected_id = selected_id or next((
             item["scenario_id"] for item in scenarios
             if item["role"] == "observation_counterfactual"
+            and item.get("human_selection_eligible") is True
             and ((item.get("effect") or {}).get(
                 "conditional_replay") or {}).get(
                     "selection_eligible") is True), None)

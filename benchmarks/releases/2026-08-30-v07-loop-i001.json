@@ -1,0 +1,36 @@
+{
+  "release": "2026-08-30-v07-loop-i001",
+  "output_dir": "results/benchmark-releases/2026-08-30-v07-loop-i001",
+  "benchmarks": [
+    {
+      "benchmark": "modelbench-production-selector",
+      "arm": "current-production-policy",
+      "file": "production-selector-baseline.json",
+      "source": "results/v07-q1-i001-baseline-v4/summary.json",
+      "scope": "full",
+      "status": "complete",
+      "evaluated_commit": "b49b0a38671b641445f0787048381c7fa3b182c4",
+      "harness_commit": "b49b0a38671b641445f0787048381c7fa3b182c4",
+      "dataset_identity": "frozen synthetic seed 92741; 40 cases each from level, trend, seasonal, pseudo-seasonal, and intermittent families; mixed 3- and 12-step horizons; untouched final horizons",
+      "configuration_identity": "production evaluate() selector; default 2% baseline margin; TSFM discovery disabled; production support tiers and best_effort publication mirrored after engine evaluation; bounded relative MAE gain",
+      "notes": [
+        "Synthetic mechanism evidence does not establish naturalistic superiority.",
+        "Engine support and product publication completion are reported separately."
+      ]
+    }
+  ],
+  "not_included": [
+    {
+      "benchmark": "raw synthetic case records",
+      "reason": "Retained locally under results/v07-q1-i001-baseline-v4 and excluded from the aggregate git release."
+    },
+    {
+      "benchmark": "fresh naturalistic confirmation",
+      "reason": "Still required by the frozen Q1 gate after S1 and S2 current-head reproductions."
+    },
+    {
+      "benchmark": "competition-specific plan",
+      "reason": "docs/astrid-btc-agent-plan.md is explicitly outside this loop and release."
+    }
+  ]
+}

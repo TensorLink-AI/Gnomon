@@ -1450,6 +1450,15 @@ def _brief_capabilities(full: dict[str, Any]) -> dict[str, Any]:
                 models["tsfm_capabilities"] = {"models": sorted(matrix)}
                 elided.append("models.tsfm_capabilities.<details>")
             brief[key] = compact(models, "models")
+        elif key == "workspace" and isinstance(value, dict):
+            # Absolute checkout paths are environment detail, not a
+            # capability. Repeating cwd inside default_output_dir made the
+            # supposedly bounded brief depend on the host path length (and
+            # overflow in CI). The relative default is directly executable;
+            # exact absolute paths remain available from the full or named
+            # workspace section.
+            brief[key] = {"default_output_dir": "./gnomon-output"}
+            elided.append("workspace.<absolute_paths>")
         else:
             brief[key] = compact(value, key)
     brief["view"] = {
@@ -1617,6 +1626,12 @@ def _run_describe(arguments: dict[str, Any]) -> dict[str, Any]:
     ) if "," in target_spec or target_spec.lower() == "auto" else [target_spec])
     reports: dict[str, Any] = {}
     execution_inputs: dict[str, tuple[list[float], int]] = {}
+    # A typed question attached to a forecast must execute against the same
+    # seasonal contract as that immutable primary.  Descriptive inspection
+    # still detects seasonality independently, but recomputing the period here
+    # can disagree with the period already used by the forecast runtime (most
+    # visibly when a frequency default is admitted before two cycles exist).
+    execution_seasons = arguments.get("_execution_seasons") or {}
     for target in targets:
         loaded = load_stage(
             arguments["input"], time_column=arguments["time_column"],
@@ -1652,11 +1667,15 @@ def _run_describe(arguments: dict[str, Any]) -> dict[str, Any]:
                     and group_name != "__default__"
                     else target if group_name == "__default__"
                     else f"{target}:{group_name}")
+            execution_season = int(
+                execution_seasons.get(name)
+                or seasonality.get("period")
+                or 1)
             profile = temporal_profile(
                 values, season=int(seasonality.get("period") or 1))
             execution_inputs[name] = (
                 [float(value) for value in values],
-                int(seasonality.get("period") or 1),
+                execution_season,
             )
             reports[name] = {
                 "observations": len(values), "series_start": timestamps[0].isoformat(),
@@ -2367,9 +2386,16 @@ def _attach_temporal_answers(payload: dict[str, Any], artifact: ForecastArtifact
         public_name(result.series): [float(row["point"]) for row in result.forecast]
         for result in artifact.results
     }
+    execution_seasons = {
+        public_name(result.series): int(
+            ((result.temporal_facts or {}).get("seasonal_period_steps") or 1))
+        for result in artifact.results
+    }
     if len(artifact.results) == 1:
         forecast_values[str(arguments["target_column"])] = next(iter(
             forecast_values.values()))
+        execution_seasons[str(arguments["target_column"])] = next(iter(
+            execution_seasons.values()))
     conditional_effects: dict[str, dict[str, Any]] = {}
     for result in artifact.results:
         public = public_name(result.series)
@@ -2404,6 +2430,7 @@ def _attach_temporal_answers(payload: dict[str, Any], artifact: ForecastArtifact
                 "questions")
         }
         describe_arguments["_forecast_values"] = forecast_values
+        describe_arguments["_execution_seasons"] = execution_seasons
         describe_arguments["_conditional_effects"] = conditional_effects
         described = _run_describe(describe_arguments)
         full_answers = [
@@ -3438,7 +3465,7 @@ TOOLS: list[dict[str, Any]] = [
                 "covariate_known_at_column": {"type": "string", "description": "Availability timestamp column (default known_at)."},
                 **_TEMPORAL_QUESTIONS_PROPERTY,
                 "covariate_series_column": {"type": "string", "description": "Optional series column in the covariate CSV."},
-                "repair": {"type": "string", "enum": ["off", "safe", "aggressive"], "description": "Data repair (default safe); aggressive may fill gaps or snap times. Every change is disclosed."},
+                "repair": {"type": "string", "enum": ["off", "safe", "aggressive"], "description": "Repair: off strict; safe aligns bounded jitter; aggressive also fills gaps/conflicts. All disclosed."},
                 "best_effort": {"type": "boolean", "description": (
                     "Deprecated alias for minimum_support=best_effort."
                 )},
@@ -3722,6 +3749,7 @@ def _run_detect_anomalies(arguments: dict[str, Any]) -> dict[str, Any]:
 
 def _run_decide(arguments: dict[str, Any]) -> dict[str, Any]:
     from .macros import decide
+    from .operators import validate_action_utilities
     actions = arguments.get("actions")
     problems: list[str] = []
     if not isinstance(actions, list):
@@ -3753,6 +3781,19 @@ def _run_decide(arguments: dict[str, Any]) -> dict[str, Any]:
                 {"name": "do_nothing"},
             ], "problems": problems},
         )
+    feasible_names = set()
+    for action in actions:
+        feasible = bool(action.get("feasible", True))
+        if (feasible and arguments.get("max_acceptable_risk") is not None
+                and "residual_risk" in action):
+            feasible = (float(action["residual_risk"])
+                        <= float(arguments["max_acceptable_risk"]))
+        if feasible:
+            feasible_names.add(str(action["name"]))
+    utilities = validate_action_utilities(
+        list(actions), ("exceed", "no_exceed"), arguments.get("utilities"),
+        feasible_names=feasible_names,
+    )
     payload, path = decide(
         arguments["input"],
         time_column=arguments["time_column"],
@@ -3760,7 +3801,7 @@ def _run_decide(arguments: dict[str, Any]) -> dict[str, Any]:
         horizon=int(arguments["horizon"]),
         threshold=float(arguments["threshold"]),
         actions=list(actions),
-        utilities=arguments.get("utilities"),
+        utilities=utilities,
         max_acceptable_risk=(
             float(arguments["max_acceptable_risk"])
             if arguments.get("max_acceptable_risk") is not None else None
@@ -4364,7 +4405,14 @@ TOOLS.extend([
                     "constraint_results": {"type": "object"},
                 }, "required": ["name"]},
             ]}},
-            "utilities": {"type": "object"},
+            "utilities": {
+                "type": "object",
+                "description": "Exact action-to-scenario payoff matrix. Every feasible action needs finite numeric payoffs for exceed and no_exceed; unknown action or scenario keys are rejected.",
+                "additionalProperties": {
+                    "type": "object",
+                    "additionalProperties": {"type": "number"}
+                }
+            },
             "decision_id": {"type": "string"},
             "forecast_id": {"type": "string"},
             "scenario_ids": {"type": "array", "items": {"type": "string"}},
@@ -4858,8 +4906,9 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
                         error.repair_options = [{
                             "action": "retry_with_aggressive_repair",
                             "description": (
-                                "Retry once with capped interpolation and "
-                                "timestamp snapping; every repair is disclosed."),
+                                "Retry once with capped interpolation; bounded "
+                                "timestamp jitter is already handled by safe "
+                                "repair, and every repair is disclosed."),
                             "tool_call": {"name": _name,
                                           "arguments": retry_arguments},
                         }, *(error.repair_options

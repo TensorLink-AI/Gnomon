@@ -1,0 +1,44 @@
+{
+  "benchmarks": [
+    {
+      "arm": "explicit-period-before-conflict-disclosure",
+      "benchmark": "seasonalbench-period-admission",
+      "bytes": 16193,
+      "file": "baseline.json",
+      "scope": "full",
+      "sha256": "49edf63836d0610d9ee4708d092eed75404828a01300a66ad1e76a16dcfd437b",
+      "status": "complete"
+    },
+    {
+      "arm": "explicit-period-conflict-disclosure",
+      "benchmark": "seasonalbench-period-admission",
+      "bytes": 17945,
+      "file": "candidate.json",
+      "scope": "full",
+      "sha256": "3e0630447d53878a6a12529f53ed9d65a94b08adf37cab1b880294a292458b4f",
+      "status": "complete"
+    }
+  ],
+  "curated_by_commit": "4217f6fa68a27b8d31b0ccd0ac545f6d045946fd",
+  "not_included": [
+    {
+      "benchmark": "exploratory dirty-tree SeasonalBench candidate",
+      "reason": "Retained locally under results/v07-q1-i006-seasonalbench-candidate-v1 and excluded because its evaluated commit cannot identify uncommitted production changes."
+    },
+    {
+      "benchmark": "raw per-case SeasonalBench checkpoints",
+      "reason": "Retained in the source directories; this git release includes aggregate summaries only."
+    },
+    {
+      "benchmark": "competition-specific plan",
+      "reason": "docs/astrid-btc-agent-plan.md is explicitly outside this loop and release."
+    }
+  ],
+  "policy": {
+    "aggregate_only": true,
+    "raw_runs_are_ci_artifacts": true,
+    "smoke_results_are_not_full_results": true
+  },
+  "release": "2026-08-30-v07-loop-i006",
+  "schema_version": "1.1"
+}

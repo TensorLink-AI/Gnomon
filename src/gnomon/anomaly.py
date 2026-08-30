@@ -82,6 +82,8 @@ MAX_GRADING_HISTORY = 1024
 #: quadratically, so each fit sees a sliding window instead of the full
 #: prefix.
 MAX_FORECAST_TRAIN_HISTORY = 512
+FORECAST_STATE_CLEANING_Z = 6.0
+FORECAST_REGIME_ADAPT_RUN = 3
 
 
 def _covering_window(minimum: int, season: int) -> int:
@@ -149,11 +151,43 @@ def forecast_interval_scores(values: list[float], season: int) -> list[float]:
     best_error: float | None = None
     for name in ("seasonal_naive", "theta"):
         residuals = []
+        cleaned = [float(value) for value in values[:warmup]]
+        extreme_sign = 0
+        extreme_run = 0
         try:
             for index in range(warmup, len(values)):
-                history = values[max(0, index - train_window):index]
+                history = cleaned[max(0, len(cleaned) - train_window):]
                 prediction = predict(name, history, 1, season)[0]
-                residuals.append(values[index] - prediction)
+                residual = values[index] - prediction
+                prior = residuals[-min(48, len(residuals)):]
+                if len(prior) >= 8:
+                    centre = median(prior)
+                    scale = _robust_scale(
+                        [value - centre for value in prior])
+                    extreme = abs(residual - centre) >= \
+                        FORECAST_STATE_CLEANING_Z * scale
+                else:
+                    extreme = False
+                sign = 1 if residual > 0 else -1 if residual < 0 else 0
+                if extreme and sign == extreme_sign:
+                    extreme_run += 1
+                elif extreme:
+                    extreme_sign, extreme_run = sign, 1
+                else:
+                    extreme_sign, extreme_run = 0, 0
+                if extreme and extreme_run < FORECAST_REGIME_ADAPT_RUN:
+                    # Score the innovation, but do not let one extreme point
+                    # contaminate the next one-step state.
+                    cleaned.append(float(prediction))
+                else:
+                    if extreme_run == FORECAST_REGIME_ADAPT_RUN:
+                        # Repeated same-direction innovations are a level
+                        # transition, not three independent spikes. Adopt the
+                        # observed state causally once the run is visible.
+                        for offset in range(1, FORECAST_REGIME_ADAPT_RUN):
+                            cleaned[-offset] = float(values[index - offset])
+                    cleaned.append(float(values[index]))
+                residuals.append(residual)
         except (ValueError, ArithmeticError):
             continue
         error = sum(abs(value) for value in residuals) / len(residuals)

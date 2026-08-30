@@ -1,0 +1,283 @@
+{
+  "release_metadata": {
+    "arm": "current-head-baseline",
+    "benchmark": "anomalyeventbench",
+    "configuration_identity": "global investigation anomaly score and original graded detector formulas; TSFM supply disabled",
+    "dataset_identity": "frozen 24-case matrix; seeds 9101-9104; shift, spike, nearby-event, and stationary families; three production surfaces",
+    "evaluated_commit": "1b2e479",
+    "harness_commit": "1b2e479",
+    "notes": [],
+    "scope": "full",
+    "source": "results/v07-q6-i008-anomalyeventbench-baseline/summary.json",
+    "source_sha256": "c657ada2fdeb046e2233017034d5e074d20ea351958b5a65d8096774769b6200",
+    "status": "complete"
+  },
+  "summary": {
+    "benchmark": "regime-aware-anomaly-events",
+    "by_family": {
+      "isolated_spike_down": {
+        "investigation": {
+          "cases": 4,
+          "event_precision": 1.0,
+          "event_recall": 1.0,
+          "expected_events": 4,
+          "false_events": 0,
+          "matched_events": 4,
+          "missed_events": 0,
+          "raw_alerts": 4,
+          "rebound_duplicates": 0
+        },
+        "labelled": {
+          "cases": 4,
+          "event_precision": 0.8,
+          "event_recall": 1.0,
+          "expected_events": 4,
+          "false_events": 1,
+          "matched_events": 4,
+          "missed_events": 0,
+          "raw_alerts": 5,
+          "rebound_duplicates": 0
+        },
+        "unlabelled": {
+          "cases": 4,
+          "event_precision": 0.36363636363636365,
+          "event_recall": 1.0,
+          "expected_events": 4,
+          "false_events": 7,
+          "matched_events": 4,
+          "missed_events": 0,
+          "raw_alerts": 11,
+          "rebound_duplicates": 2
+        }
+      },
+      "isolated_spike_up": {
+        "investigation": {
+          "cases": 4,
+          "event_precision": 1.0,
+          "event_recall": 1.0,
+          "expected_events": 4,
+          "false_events": 0,
+          "matched_events": 4,
+          "missed_events": 0,
+          "raw_alerts": 4,
+          "rebound_duplicates": 0
+        },
+        "labelled": {
+          "cases": 4,
+          "event_precision": 1.0,
+          "event_recall": 1.0,
+          "expected_events": 4,
+          "false_events": 0,
+          "matched_events": 4,
+          "missed_events": 0,
+          "raw_alerts": 4,
+          "rebound_duplicates": 0
+        },
+        "unlabelled": {
+          "cases": 4,
+          "event_precision": 0.4,
+          "event_recall": 1.0,
+          "expected_events": 4,
+          "false_events": 6,
+          "matched_events": 4,
+          "missed_events": 0,
+          "raw_alerts": 10,
+          "rebound_duplicates": 1
+        }
+      },
+      "level_shift_down": {
+        "investigation": {
+          "cases": 4,
+          "event_precision": 0.0,
+          "event_recall": 1.0,
+          "expected_events": 0,
+          "false_events": 192,
+          "matched_events": 0,
+          "missed_events": 0,
+          "raw_alerts": 192,
+          "rebound_duplicates": 0
+        },
+        "labelled": {
+          "cases": 4,
+          "event_precision": 0.0,
+          "event_recall": 1.0,
+          "expected_events": 0,
+          "false_events": 10,
+          "matched_events": 0,
+          "missed_events": 0,
+          "raw_alerts": 10,
+          "rebound_duplicates": 0
+        },
+        "unlabelled": {
+          "cases": 4,
+          "event_precision": 0.0,
+          "event_recall": 1.0,
+          "expected_events": 0,
+          "false_events": 10,
+          "matched_events": 0,
+          "missed_events": 0,
+          "raw_alerts": 10,
+          "rebound_duplicates": 0
+        }
+      },
+      "level_shift_up": {
+        "investigation": {
+          "cases": 4,
+          "event_precision": 0.0,
+          "event_recall": 1.0,
+          "expected_events": 0,
+          "false_events": 192,
+          "matched_events": 0,
+          "missed_events": 0,
+          "raw_alerts": 192,
+          "rebound_duplicates": 0
+        },
+        "labelled": {
+          "cases": 4,
+          "event_precision": 0.0,
+          "event_recall": 1.0,
+          "expected_events": 0,
+          "false_events": 7,
+          "matched_events": 0,
+          "missed_events": 0,
+          "raw_alerts": 7,
+          "rebound_duplicates": 0
+        },
+        "unlabelled": {
+          "cases": 4,
+          "event_precision": 0.0,
+          "event_recall": 1.0,
+          "expected_events": 0,
+          "false_events": 7,
+          "matched_events": 0,
+          "missed_events": 0,
+          "raw_alerts": 7,
+          "rebound_duplicates": 0
+        }
+      },
+      "nearby_opposite_spikes": {
+        "investigation": {
+          "cases": 4,
+          "event_precision": 1.0,
+          "event_recall": 1.0,
+          "expected_events": 8,
+          "false_events": 0,
+          "matched_events": 8,
+          "missed_events": 0,
+          "raw_alerts": 8,
+          "rebound_duplicates": 0
+        },
+        "labelled": {
+          "cases": 4,
+          "event_precision": 1.0,
+          "event_recall": 1.0,
+          "expected_events": 8,
+          "false_events": 0,
+          "matched_events": 8,
+          "missed_events": 0,
+          "raw_alerts": 8,
+          "rebound_duplicates": 0
+        },
+        "unlabelled": {
+          "cases": 4,
+          "event_precision": 0.42105263157894735,
+          "event_recall": 1.0,
+          "expected_events": 8,
+          "false_events": 11,
+          "matched_events": 8,
+          "missed_events": 0,
+          "raw_alerts": 19,
+          "rebound_duplicates": 2
+        }
+      },
+      "stationary_noise": {
+        "investigation": {
+          "cases": 4,
+          "event_precision": 1.0,
+          "event_recall": 1.0,
+          "expected_events": 0,
+          "false_events": 0,
+          "matched_events": 0,
+          "missed_events": 0,
+          "raw_alerts": 0,
+          "rebound_duplicates": 0
+        },
+        "labelled": {
+          "cases": 4,
+          "event_precision": 0.0,
+          "event_recall": 1.0,
+          "expected_events": 0,
+          "false_events": 2,
+          "matched_events": 0,
+          "missed_events": 0,
+          "raw_alerts": 2,
+          "rebound_duplicates": 0
+        },
+        "unlabelled": {
+          "cases": 4,
+          "event_precision": 0.0,
+          "event_recall": 1.0,
+          "expected_events": 0,
+          "false_events": 2,
+          "matched_events": 0,
+          "missed_events": 0,
+          "raw_alerts": 2,
+          "rebound_duplicates": 0
+        }
+      }
+    },
+    "cases": 24,
+    "evaluated_commit": "1b2e479",
+    "gates": {
+      "all_24_cases_complete_on_three_surfaces": true,
+      "all_level_shifts_admitted": true,
+      "deterministic_replay_all_cases": true,
+      "labelled_selection_basis_explicit": true,
+      "nearby_events_preserved_when_detected": true,
+      "post_admitted_shift_alerts_zero": false,
+      "rebound_duplicates_zero_all_surfaces": false,
+      "unlabelled_selection_basis_explicit": true
+    },
+    "level_shift_cases": 8,
+    "level_shifts_admitted": 8,
+    "passed": false,
+    "post_admitted_shift_alerts": 384,
+    "schema_version": "0.1",
+    "scope": "full",
+    "surfaces": {
+      "investigation": {
+        "cases": 24,
+        "event_precision": 0.04,
+        "event_recall": 1.0,
+        "expected_events": 16,
+        "false_events": 384,
+        "matched_events": 16,
+        "missed_events": 0,
+        "raw_alerts": 400,
+        "rebound_duplicates": 0
+      },
+      "labelled": {
+        "cases": 24,
+        "event_precision": 0.4444444444444444,
+        "event_recall": 1.0,
+        "expected_events": 16,
+        "false_events": 20,
+        "matched_events": 16,
+        "missed_events": 0,
+        "raw_alerts": 36,
+        "rebound_duplicates": 0
+      },
+      "unlabelled": {
+        "cases": 24,
+        "event_precision": 0.2711864406779661,
+        "event_recall": 1.0,
+        "expected_events": 16,
+        "false_events": 43,
+        "matched_events": 16,
+        "missed_events": 0,
+        "raw_alerts": 59,
+        "rebound_duplicates": 5
+      }
+    }
+  }
+}

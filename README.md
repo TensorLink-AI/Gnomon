@@ -435,12 +435,15 @@ Add `--brief` for compact stdout: the q50 path with one q10–q90 interval,
 plus every warning, abstention reason, and disclosure verbatim — the full
 artifact on disk is unchanged.
 
-The default `--repair safe` normalises cell text only (formats, currency,
-sentinels); `--repair aggressive` opts into structural fixes (gap
-interpolation, timestamp snapping, conflict resolution) — capped, recorded
-as evidence, and reflected in the support status. `--repair off` restores
-strict rejection. See [preparing data](docs/data-format.md) for supported
-formats, timestamp forms, frequencies, panel rules, and history needs.
+The default `--repair safe` normalises cell text and bounded scheduler/scrape
+jitter (1% of cadence, capped at 60 seconds). Alignment is phase-aware, never
+merges observations, and reports its count and maximum displacement.
+`--repair aggressive` additionally opts into value-changing structural fixes
+(gap interpolation and conflict resolution) — capped, recorded as evidence,
+and reflected in the support status. Bounded alignment does not consume the
+invented-value ceiling. `--repair off` restores strict rejection. See
+[preparing data](docs/data-format.md) for supported formats, timestamp forms,
+frequencies, panel rules, and history needs.
 
 ## Output
 

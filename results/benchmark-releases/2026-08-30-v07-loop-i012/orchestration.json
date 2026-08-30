@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "iteration": "I012",
+  "runner": "ContextBench run_surfaces",
+  "provider": "Evidence",
+  "model": "deepseek-v4-flash-0731",
+  "transport": "Engy",
+  "jobs": 1,
+  "baseline": "engine",
+  "temperature": 0,
+  "reasoning_effort": "none",
+  "request_timeout_seconds": 180,
+  "tool_timeout_seconds": 120,
+  "provider_retries": 2,
+  "infrastructure_retries": 2,
+  "development_corpus": {
+    "path": "results/v07-q5-i012-development-corpus",
+    "seed": 2026083102,
+    "cases_sha256": "149dc978c9a5299ca49b4d0ba5266267de3fd37f90bdfe8843b137bb2a453b7e",
+    "oracle_sha256": "964f6b72621949f843c71d6e8f1c9d45822ebd4a23f756f428bda3d13ca61822"
+  },
+  "confirmation_corpus": {
+    "path": "results/v07-q5-i012-confirmation-corpus",
+    "seed": 2026083103,
+    "cases_sha256": "ac470922a429f1eac2cba2670fa964e6b1afbfd1d489514c137789782f344485",
+    "oracle_sha256": "d67454311e5283b63fd054c43325efd92051e47d08a00f319d12a6c1e7b4a0e7",
+    "consumed": false
+  },
+  "case_ids": [
+    "stress-snr-4-0000",
+    "stress-constraint-true-0000",
+    "stress-structural-false-0000",
+    "stress-structural-true-0000"
+  ],
+  "cold_output": "results/v07-q5-i012-surface-baseline-cold",
+  "warm_output": "results/v07-q5-i012-surface-baseline-warm",
+  "receipt_directory": "results/v07-q5-i012-development-receipts",
+  "context_cache_output": "results/v07-q5-i012-contextcachebench"
+}

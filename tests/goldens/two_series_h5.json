@@ -1,6 +1,6 @@
 {
   "schema_version": "0.1",
-  "forecast_id": "forecast_a56523b8e43269a3",
+  "forecast_id": "forecast_0bc924c308d19f12",
   "created_at": "2026-07-01T00:00:00+00:00",
   "status": "complete",
   "task": {
@@ -31,18 +31,20 @@
       "selected_model": "ets",
       "strongest_baseline": "last_value",
       "selection_scores": {
-        "last_value": 0.03419859446673828,
-        "seasonal_naive": 0.042636740429272825,
-        "drift": 0.03429897665682723,
-        "linear_trend": 0.02407187647818961,
-        "window_average": 0.037710494990708415,
-        "theta": 0.03274837422636675,
-        "ets": 0.013206236824607882,
-        "croston_sba": 0.11351046317693213
+        "last_value": 0.03734479768005365,
+        "seasonal_naive": 0.04320325247391247,
+        "historical_mean": 0.09579207709212158,
+        "drift": 0.03465342597657411,
+        "linear_trend": 0.02498392341387711,
+        "window_average": 0.039618041721489514,
+        "theta": 0.034680826736789454,
+        "ets": 0.01504936752676006,
+        "croston_sba": 0.11477050267139535
       },
       "test_scores": {
         "last_value": 0.03267744202389318,
         "seasonal_naive": null,
+        "historical_mean": null,
         "drift": null,
         "linear_trend": null,
         "window_average": null,
@@ -58,7 +60,7 @@
         "toto2_4m": null,
         "ttm": null
       },
-      "baseline_improvement": 0.6138368541007634,
+      "baseline_improvement": 0.5970156899578511,
       "interval_coverage": 1.0,
       "warnings": [],
       "forecast": [
@@ -66,75 +68,75 @@
           "timestamp": "2026-04-30T00:00:00",
           "point": 288.129904223632,
           "q10": 285.4860645662203,
-          "q50": 288.44206287242184,
-          "q90": 301.1778113569793,
-          "point_bias_correction": 0.31215864878981847,
-          "q05": 285.4860645662203,
-          "q20": 285.4860645662203,
-          "q30": 286.6441949063172,
-          "q70": 288.7488786181549,
-          "q80": 301.1778113569793,
-          "q95": 301.1778113569793,
+          "q50": 288.1597039430515,
+          "q90": 304.45158830649154,
+          "point_bias_correction": 0.029799719419486337,
+          "q05": 284.10512439960763,
+          "q20": 286.7185098709117,
+          "q30": 287.53137189836093,
+          "q70": 288.591992134496,
+          "q80": 289.0000122140152,
+          "q95": 306.0269959899874,
           "tier": "supported"
         },
         {
           "timestamp": "2026-05-01T00:00:00",
           "point": 285.92454647210474,
-          "q10": 283.281609546697,
-          "q50": 286.38663438296874,
-          "q90": 302.24110276835535,
-          "point_bias_correction": 0.4620879108639997,
-          "q05": 283.281609546697,
-          "q20": 283.281609546697,
-          "q30": 284.5887664168641,
-          "q70": 286.6934501287018,
-          "q80": 302.24110276835535,
-          "q95": 302.24110276835535,
+          "q10": 283.280706814693,
+          "q50": 285.9543461915242,
+          "q90": 302.2462305549642,
+          "point_bias_correction": 0.029799719419486337,
+          "q05": 281.89976664808034,
+          "q20": 284.5131521193845,
+          "q30": 285.3260141468337,
+          "q70": 286.38663438296874,
+          "q80": 286.794654462488,
+          "q95": 303.8216382384602,
           "tier": "supported"
         },
         {
           "timestamp": "2026-05-02T00:00:00",
           "point": 285.8269288511569,
-          "q10": 283.1503914748063,
-          "q50": 286.2554163110781,
-          "q90": 302.1098846964647,
-          "point_bias_correction": 0.4284874599212003,
-          "q05": 283.1503914748063,
-          "q20": 283.1503914748063,
-          "q30": 284.4575483449734,
-          "q70": 286.5622320568111,
-          "q80": 302.1098846964647,
-          "q95": 302.1098846964647,
+          "q10": 283.18308919374516,
+          "q50": 285.85672857057637,
+          "q90": 302.14861293401634,
+          "point_bias_correction": 0.029799719419486337,
+          "q05": 281.8021490271325,
+          "q20": 284.4155344984366,
+          "q30": 285.22839652588584,
+          "q70": 286.2890167620209,
+          "q80": 286.6970368415401,
+          "q95": 303.72402061751234,
           "tier": "supported"
         },
         {
           "timestamp": "2026-05-03T00:00:00",
           "point": 298.6181055553638,
-          "q10": 295.73737158905027,
-          "q50": 298.842396425322,
-          "q90": 314.69686481070863,
-          "point_bias_correction": 0.22429086995822445,
-          "q05": 295.73737158905027,
-          "q20": 295.73737158905027,
-          "q30": 297.04452845921736,
-          "q70": 299.14921217105507,
-          "q80": 314.69686481070863,
-          "q95": 314.69686481070863,
+          "q10": 295.9742658979521,
+          "q50": 298.6479052747833,
+          "q90": 314.93978963822326,
+          "point_bias_correction": 0.029799719419486337,
+          "q05": 294.5933257313394,
+          "q20": 297.20671120264353,
+          "q30": 298.01957323009276,
+          "q70": 299.0801934662278,
+          "q80": 299.48821354574704,
+          "q95": 316.51519732171926,
           "tier": "supported"
         },
         {
           "timestamp": "2026-05-04T00:00:00",
           "point": 303.0554308932828,
-          "q10": 299.8552179731509,
-          "q50": 302.96024280942265,
-          "q90": 318.81471119480926,
-          "point_bias_correction": -0.09518808386013689,
-          "q05": 299.8552179731509,
-          "q20": 299.8552179731509,
-          "q30": 301.162374843318,
-          "q70": 303.2670585551557,
-          "q80": 318.81471119480926,
-          "q95": 318.81471119480926,
+          "q10": 300.4115912358711,
+          "q50": 303.0852306127023,
+          "q90": 319.37711497614225,
+          "point_bias_correction": 0.029799719419486337,
+          "q05": 299.0306510692584,
+          "q20": 301.6440365405625,
+          "q30": 302.45689856801175,
+          "q70": 303.5175188041468,
+          "q80": 303.92553888366604,
+          "q95": 320.95252265963825,
           "tier": "supported"
         }
       ],
@@ -148,17 +150,28 @@
           "known_time_assumed: the source provides no known-time column, so each observation is treated as known the moment it applies (known_time = valid_time). Revisions and publication lags are invisible to this run."
         ],
         "sensitivity": {
-          "baseline_improvement": 0.6138368541007634,
+          "baseline_improvement": 0.5970156899578511,
           "final_test_interval_coverage": 1.0,
           "selection_stability": {
-            "paired_folds": 7,
+            "paired_folds": 6,
             "candidate_win_rate": 1.0,
-            "median_relative_gain": 0.8240949806340148,
-            "scaled_error_improvement": 0.6306863422147455,
+            "median_relative_gain": 0.7946824869364493,
+            "scaled_error_improvement": 0.6132876815104861,
             "scaled_error_passed": true,
             "passed": true,
-            "scaled_error_paired_folds": 7,
-            "scaled_error_win_rate": 1.0
+            "scaled_error_paired_folds": 6,
+            "scaled_error_win_rate": 1.0,
+            "confirmation": {
+              "available": true,
+              "required": true,
+              "origin_index": 44,
+              "candidate": "ets",
+              "baseline": "last_value",
+              "candidate_score": 0.0021474526116948165,
+              "baseline_score": 0.015321375186846039,
+              "passed": true,
+              "fallback_applied": false
+            }
           }
         },
         "recovery_actions": [],
@@ -166,19 +179,19 @@
         "disclosures": [
           {
             "code": "point_is_not_the_median",
-            "message": "`point` is the selected model's raw output; every quantile is recentred on the median backtest residual, so `q50` differs from `point` by up to 0.4621 (2% of the 80% interval width). Each row carries the gap as `point_bias_correction`."
+            "message": "`point` is the selected model's raw output; every quantile is recentred on the median backtest residual, so `q50` differs from `point` by up to 0.0298 (0% of the 80% interval width). Each row carries the gap as `point_bias_correction`."
+          },
+          {
+            "code": "constant_interval_width",
+            "message": "Interval width is constant across the horizon: no lead time has the 8 residuals needed to resolve its own spread, so every lead borrows the pooled set. Uncertainty is not modelled as growing with distance here. More folds \u2014 a longer history relative to the horizon \u2014 would let each lead measure its own."
           },
           {
             "code": "conformal_residuals_pooled_across_selection",
-            "message": "Interval calibration pools residuals from 8 folds, including the selection folds the model was chosen on. Those residuals are optimistically small, so the interval is narrower than strict split conformal would give. Set `evaluation.pool_residuals: false` to calibrate on the held-out fold alone."
+            "message": "Interval calibration pools residuals from 7 folds, including the selection folds the model was chosen on. Those residuals are optimistically small, so the interval is narrower than strict split conformal would give. Set `evaluation.pool_residuals: false` to calibrate on the held-out fold alone."
           },
           {
             "code": "coverage_sample_size",
             "message": "Measured interval coverage is 100.0% over 5 points from a single test fold. At this sample size the figure is indicative, not a calibration guarantee."
-          },
-          {
-            "code": "quantile_levels_collapsed",
-            "message": "Quantile levels are limited by the residual sample: at 5 of 5 lead times, adjacent levels share an order statistic and report identical values. q10/q50/q90 are unaffected in meaning."
           }
         ]
       },
@@ -188,22 +201,24 @@
     },
     {
       "series": "beta",
-      "support": "weakly_supported",
+      "support": "supported",
       "selected_model": "linear_trend",
       "strongest_baseline": "seasonal_naive",
       "selection_scores": {
-        "last_value": 0.0375465579437471,
-        "seasonal_naive": 0.028537251007060515,
-        "drift": 0.03543252195828532,
-        "linear_trend": 0.022575494842780673,
-        "window_average": 0.031436126262427824,
-        "theta": 0.027559028470668503,
-        "ets": 0.028433121507515847,
-        "croston_sba": 0.02280140517356214
+        "last_value": 0.03362867316250676,
+        "seasonal_naive": 0.02672215288619667,
+        "historical_mean": 0.07868359416992038,
+        "drift": 0.033496365252201336,
+        "linear_trend": 0.022548566298819475,
+        "window_average": 0.030277283928650377,
+        "theta": 0.026177899414660585,
+        "ets": 0.02779913629187394,
+        "croston_sba": 0.02286783920406146
       },
       "test_scores": {
         "last_value": null,
         "seasonal_naive": 0.010089020771513243,
+        "historical_mean": null,
         "drift": null,
         "linear_trend": 0.02686466187949863,
         "window_average": null,
@@ -219,123 +234,122 @@
         "toto2_4m": null,
         "ttm": null
       },
-      "baseline_improvement": 0.20891136861097168,
-      "interval_coverage": 0.6,
-      "warnings": [
-        "Final-test 80% interval coverage was 60.0%, below 70%."
-      ],
+      "baseline_improvement": 0.1561845187081862,
+      "interval_coverage": 0.8,
+      "warnings": [],
       "forecast": [
         {
           "timestamp": "2026-04-30T00:00:00",
           "point": 66.03785310734463,
           "q10": 63.14837942313412,
           "q50": 65.70451977401129,
-          "q90": 68.85462850403077,
+          "q90": 68.48223827837896,
           "point_bias_correction": -0.3333333333333428,
           "q05": 63.14837942313412,
-          "q20": 63.94785310734463,
-          "q30": 65.15213882163034,
-          "q70": 66.94176558571347,
-          "q80": 67.85070086852988,
-          "q95": 68.85462850403077,
-          "tier": "conditionally_supported"
+          "q20": 63.14837942313412,
+          "q30": 63.94785310734463,
+          "q70": 67.43129263672964,
+          "q80": 68.48223827837896,
+          "q95": 68.48223827837896,
+          "tier": "supported"
         },
         {
           "timestamp": "2026-05-01T00:00:00",
           "point": 65.63690840048162,
-          "q10": 62.89833186335736,
-          "q50": 65.98166183021836,
-          "q90": 69.13177056023784,
-          "point_bias_correction": 0.34475342973674117,
-          "q05": 62.89833186335736,
-          "q20": 63.63556262901486,
-          "q30": 64.38330700974937,
-          "q70": 67.21890764192054,
-          "q80": 68.12784292473695,
-          "q95": 69.13177056023784,
-          "tier": "conditionally_supported"
+          "q10": 62.880101467577106,
+          "q50": 66.55229301586621,
+          "q90": 69.33001152023388,
+          "point_bias_correction": 0.9153846153845961,
+          "q05": 62.880101467577106,
+          "q20": 62.880101467577106,
+          "q30": 63.980091673329206,
+          "q70": 68.27906587858456,
+          "q80": 69.33001152023388,
+          "q95": 69.33001152023388,
+          "tier": "supported"
         },
         {
           "timestamp": "2026-05-02T00:00:00",
           "point": 65.2359636936186,
-          "q10": 62.66215753628142,
+          "q10": 62.07329595485331,
           "q50": 65.74548750314241,
-          "q90": 68.8955962331619,
+          "q90": 68.52320600751008,
           "point_bias_correction": 0.509523809523813,
-          "q05": 62.66215753628142,
-          "q20": 63.39938830193892,
-          "q30": 64.14713268267343,
-          "q70": 66.9827333148446,
-          "q80": 67.89166859766101,
-          "q95": 68.8955962331619,
-          "tier": "conditionally_supported"
+          "q05": 62.07329595485331,
+          "q20": 62.07329595485331,
+          "q30": 63.17328616060541,
+          "q70": 67.47226036586076,
+          "q80": 68.52320600751008,
+          "q95": 68.52320600751008,
+          "tier": "supported"
         },
         {
           "timestamp": "2026-05-03T00:00:00",
           "point": 64.83501898675559,
-          "q10": 60.93095731257751,
-          "q50": 64.0142872794385,
-          "q90": 67.16439600945799,
-          "point_bias_correction": -0.8207317073170799,
-          "q05": 60.93095731257751,
-          "q20": 61.66818807823501,
-          "q30": 62.41593245896953,
-          "q70": 65.40827625733915,
-          "q80": 66.1604683739571,
-          "q95": 67.16439600945799,
-          "tier": "conditionally_supported"
+          "q10": 61.55933279722264,
+          "q50": 65.3056072220497,
+          "q90": 68.08332572641737,
+          "point_bias_correction": 0.470588235294116,
+          "q05": 61.55933279722264,
+          "q20": 61.55933279722264,
+          "q30": 62.733405879512695,
+          "q70": 67.03238008476805,
+          "q80": 68.08332572641737,
+          "q95": 68.08332572641737,
+          "tier": "supported"
         },
         {
           "timestamp": "2026-05-04T00:00:00",
           "point": 64.43407427989257,
-          "q10": 61.84757075746025,
+          "q10": 61.8262872500235,
           "q50": 65.57256167485056,
-          "q90": 68.72267040487004,
+          "q90": 68.35028017921823,
           "point_bias_correction": 1.1384873949579912,
-          "q05": 61.84757075746025,
-          "q20": 62.92707147877212,
-          "q30": 63.36561274143102,
-          "q70": 66.96655065275121,
-          "q80": 67.71874276936916,
-          "q95": 68.72267040487004,
-          "tier": "conditionally_supported"
+          "q05": 61.8262872500235,
+          "q20": 61.8262872500235,
+          "q30": 62.92707147877212,
+          "q70": 67.29933453756891,
+          "q80": 68.35028017921823,
+          "q95": 68.35028017921823,
+          "tier": "supported"
         }
       ],
       "context": null,
       "covariates": null,
       "threshold": null,
       "support_assessment": {
-        "status": "conditionally_supported",
-        "reasons": [
-          {
-            "code": "warning",
-            "message": "Final-test 80% interval coverage was 60.0%, below 70%."
-          }
-        ],
+        "status": "supported",
+        "reasons": [],
         "assumptions": [
           "known_time_assumed: the source provides no known-time column, so each observation is treated as known the moment it applies (known_time = valid_time). Revisions and publication lags are invisible to this run."
         ],
         "sensitivity": {
-          "baseline_improvement": 0.20891136861097168,
-          "final_test_interval_coverage": 0.6,
+          "baseline_improvement": 0.1561845187081862,
+          "final_test_interval_coverage": 0.8,
           "selection_stability": {
-            "paired_folds": 8,
-            "candidate_win_rate": 0.75,
-            "median_relative_gain": 0.2820079054174907,
-            "scaled_error_improvement": 0.22785100767008187,
+            "paired_folds": 7,
+            "candidate_win_rate": 0.7142857142857143,
+            "median_relative_gain": 0.23619047619047512,
+            "scaled_error_improvement": 0.18535136843271616,
             "scaled_error_passed": true,
             "passed": true,
-            "scaled_error_paired_folds": 8,
-            "scaled_error_win_rate": 0.75
+            "scaled_error_paired_folds": 7,
+            "scaled_error_win_rate": 0.7142857142857143,
+            "confirmation": {
+              "available": true,
+              "required": true,
+              "origin_index": 45,
+              "candidate": "linear_trend",
+              "baseline": "seasonal_naive",
+              "candidate_score": 0.022763994650509066,
+              "baseline_score": 0.041242937853107446,
+              "passed": true,
+              "fallback_applied": false
+            }
           }
         },
-        "recovery_actions": [
-          {
-            "code": "review_warnings",
-            "message": "Inspect the attached warnings; each names the condition under which this forecast holds."
-          }
-        ],
-        "legacy_support": "weakly_supported",
+        "recovery_actions": [],
+        "legacy_support": "supported",
         "disclosures": [
           {
             "code": "point_is_not_the_median",
@@ -343,11 +357,11 @@
           },
           {
             "code": "conformal_residuals_pooled_across_selection",
-            "message": "Interval calibration pools residuals from 9 folds, including the selection folds the model was chosen on. Those residuals are optimistically small, so the interval is narrower than strict split conformal would give. Set `evaluation.pool_residuals: false` to calibrate on the held-out fold alone."
+            "message": "Interval calibration pools residuals from 8 folds, including the selection folds the model was chosen on. Those residuals are optimistically small, so the interval is narrower than strict split conformal would give. Set `evaluation.pool_residuals: false` to calibrate on the held-out fold alone."
           },
           {
             "code": "coverage_sample_size",
-            "message": "Measured interval coverage is 60.0% over 5 points from a single test fold. At this sample size the figure is indicative, not a calibration guarantee."
+            "message": "Measured interval coverage is 80.0% over 5 points from a single test fold. At this sample size the figure is indicative, not a calibration guarantee."
           },
           {
             "code": "quantile_levels_collapsed",
@@ -366,20 +380,22 @@
       "kind": "rolling_evaluation",
       "series": "alpha",
       "payload": {
-        "partitioning": "selection folds, then calibration fold, then final test fold",
+        "partitioning": "selection folds, then independent confirmation fold, then calibration fold, then final test fold",
         "selection_scores": {
-          "last_value": 0.03419859446673828,
-          "seasonal_naive": 0.042636740429272825,
-          "drift": 0.03429897665682723,
-          "linear_trend": 0.02407187647818961,
-          "window_average": 0.037710494990708415,
-          "theta": 0.03274837422636675,
-          "ets": 0.013206236824607882,
-          "croston_sba": 0.11351046317693213
+          "last_value": 0.03734479768005365,
+          "seasonal_naive": 0.04320325247391247,
+          "historical_mean": 0.09579207709212158,
+          "drift": 0.03465342597657411,
+          "linear_trend": 0.02498392341387711,
+          "window_average": 0.039618041721489514,
+          "theta": 0.034680826736789454,
+          "ets": 0.01504936752676006,
+          "croston_sba": 0.11477050267139535
         },
         "test_scores": {
           "last_value": 0.03267744202389318,
           "seasonal_naive": null,
+          "historical_mean": null,
           "drift": null,
           "linear_trend": null,
           "window_average": null,
@@ -396,11 +412,11 @@
           "ttm": null
         },
         "measured_interval_coverage": 1.0,
-        "baseline_improvement": 0.6138368541007634,
+        "baseline_improvement": 0.5970156899578511,
         "strongest_baseline": "last_value",
         "selected_model": "ets",
         "residuals_pooled_across_selection": true,
-        "residual_fold_count": 8
+        "residual_fold_count": 7
       }
     },
     {
@@ -421,20 +437,22 @@
       "kind": "rolling_evaluation",
       "series": "beta",
       "payload": {
-        "partitioning": "selection folds, then calibration fold, then final test fold",
+        "partitioning": "selection folds, then independent confirmation fold, then calibration fold, then final test fold",
         "selection_scores": {
-          "last_value": 0.0375465579437471,
-          "seasonal_naive": 0.028537251007060515,
-          "drift": 0.03543252195828532,
-          "linear_trend": 0.022575494842780673,
-          "window_average": 0.031436126262427824,
-          "theta": 0.027559028470668503,
-          "ets": 0.028433121507515847,
-          "croston_sba": 0.02280140517356214
+          "last_value": 0.03362867316250676,
+          "seasonal_naive": 0.02672215288619667,
+          "historical_mean": 0.07868359416992038,
+          "drift": 0.033496365252201336,
+          "linear_trend": 0.022548566298819475,
+          "window_average": 0.030277283928650377,
+          "theta": 0.026177899414660585,
+          "ets": 0.02779913629187394,
+          "croston_sba": 0.02286783920406146
         },
         "test_scores": {
           "last_value": null,
           "seasonal_naive": 0.010089020771513243,
+          "historical_mean": null,
           "drift": null,
           "linear_trend": 0.02686466187949863,
           "window_average": null,
@@ -450,12 +468,12 @@
           "toto2_4m": null,
           "ttm": null
         },
-        "measured_interval_coverage": 0.6,
-        "baseline_improvement": 0.20891136861097168,
+        "measured_interval_coverage": 0.8,
+        "baseline_improvement": 0.1561845187081862,
         "strongest_baseline": "seasonal_naive",
         "selected_model": "linear_trend",
         "residuals_pooled_across_selection": true,
-        "residual_fold_count": 9
+        "residual_fold_count": 8
       }
     },
     {
@@ -463,12 +481,10 @@
       "kind": "support_assessment",
       "series": "beta",
       "payload": {
-        "support": "weakly_supported",
-        "warnings": [
-          "Final-test 80% interval coverage was 60.0%, below 70%."
-        ],
+        "support": "supported",
+        "warnings": [],
         "row_tiers": {
-          "conditionally_supported": 5
+          "supported": 5
         },
         "minimum_support": "best_effort"
       }
@@ -499,5 +515,5 @@
       }
     }
   ],
-  "runtime_version": "0.5.0"
+  "runtime_version": "0.7.0"
 }

@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "loop": "v0.7-forecast-quality",
+  "status": "active",
+  "latest_evaluated_commit": "042d2d1",
+  "branch": "agent/v0.7-forecast-quality-loop",
+  "protocol": "docs/v0.7-forecast-quality-loop.md",
+  "external_evaluation_intake": "docs/v0.7-external-evaluation-intake.md",
+  "preservation": {
+    "preserve_preexisting_committed_work": true,
+    "preserve_preexisting_benchmark_artifacts": true,
+    "preserve_all_preexisting_untracked_files": true,
+    "excluded_from_commits": ["docs/astrid-btc-agent-plan.md"]
+  },
+  "active_iteration": {
+    "id": "I012",
+    "issue": "Q5",
+    "phase": "freeze_crash_safe_economical_orchestration_reproduction",
+    "user_hypothesis": "Agents should receive the same governed answer with fewer round trips and predictable recovery, while humans retain visible cost, retry, and fallback accounting.",
+    "next_action": "Audit current cold/warm receipt topology and freeze the smallest representative semantic-parity, resume, fault-injection, request, prompt-token, and latency shard before changing orchestration.",
+    "last_completed_action": "Promoted two Q4 recommendation-authority safeguards after stable, no-regression, positive proper-score confirmation on two untouched seed-7043 replications and exact final-submission inspection."
+  },
+  "issues": [
+    {"id": "S1", "status": "complete"},
+    {"id": "S2", "status": "complete"},
+    {"id": "Q1", "status": "complete_with_promoted_safeguards_and_retained_numeric_no_build"},
+    {"id": "Q2", "status": "complete_with_promoted_coherent_trend_and_agent_boundary"},
+    {"id": "Q3", "status": "complete_with_retained_numeric_recall_and_agent_boundary_no_builds"},
+    {"id": "Q4", "status": "complete_with_promoted_stable_supported_primary_authority"},
+    {"id": "Q5", "status": "in_progress_freeze_reproduction"},
+    {"id": "Q6", "status": "complete_with_promoted_regime_attribution"}
+  ]
+}

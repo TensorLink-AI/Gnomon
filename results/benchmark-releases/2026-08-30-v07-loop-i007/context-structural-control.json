@@ -1,0 +1,256 @@
+{
+  "release_metadata": {
+    "arm": "typed-relationship-control",
+    "benchmark": "contextbench-structural-agent-preservation",
+    "configuration_identity": "Evidence profile; compiled routing; DeepSeek deepseek-v4-flash-0731 through Engy; temperature 0; jobs 1; bounded retries and timeouts",
+    "dataset_identity": "two frozen structural true-claim cases stress-structural-true-0000 and -0001 from corpus manifest 9730fdab; engine baseline",
+    "evaluated_commit": "cf8772aae83701c33b056a1270c0619d177762c1",
+    "harness_commit": "cf8772aae83701c33b056a1270c0619d177762c1",
+    "notes": [
+      "Both immutable primaries already represented the structural change; engine relationship completeness and semantic final-agent preservation are reported separately."
+    ],
+    "scope": "subset",
+    "source": "results/v07-q2-i007-context-agent-structural/summary.json",
+    "source_sha256": "aa2ffc513ced8b1ad23dabcbe4ea0527b6677cc291626887d420b7fe4bf9a0da",
+    "status": "complete"
+  },
+  "summary": {
+    "answered": 2,
+    "baseline_mode": "engine",
+    "benchmark": "contextbench-surfaces",
+    "cases": 2,
+    "completion_rate": 1.0,
+    "corpus_manifest_sha256": "9730fdab3709804b22c46774dc7a3e2731d806820b22bc93b2e05c10e3136b8c",
+    "dimensions": {
+      "claim_truth": {
+        "true": {
+          "applied": 0,
+          "cases": 2,
+          "incremental_smape": 0.0
+        }
+      },
+      "confounding": {
+        "none": {
+          "applied": 0,
+          "cases": 2,
+          "incremental_smape": 0.0
+        }
+      },
+      "effect_shape": {
+        "trend_ceases": {
+          "applied": 0,
+          "cases": 2,
+          "incremental_smape": 0.0
+        }
+      },
+      "frequency": {
+        "15min": {
+          "applied": 0,
+          "cases": 1,
+          "incremental_smape": 0.0
+        },
+        "h": {
+          "applied": 0,
+          "cases": 1,
+          "incremental_smape": 0.0
+        }
+      },
+      "known_at": {
+        "series_start": {
+          "applied": 0,
+          "cases": 2,
+          "incremental_smape": 0.0
+        }
+      },
+      "narrative_style": {
+        "changelog": {
+          "applied": 0,
+          "cases": 1,
+          "incremental_smape": 0.0
+        },
+        "schedule": {
+          "applied": 0,
+          "cases": 1,
+          "incremental_smape": 0.0
+        }
+      }
+    },
+    "errors": 0,
+    "execution_attempts": 2,
+    "executions_this_invocation": 2,
+    "failure_denominators": {
+      "agent_completion_failures": 0,
+      "attempted_cases": 2,
+      "by_stage": {},
+      "harness_failures": 0,
+      "provider_failures": 0,
+      "successful_pairs": 2
+    },
+    "families": {
+      "structural_change": {
+        "applied": 0,
+        "cases": 2,
+        "context_smape": 2.7867199991710447,
+        "history_smape": 2.7867199991710447,
+        "incremental_smape": 0.0,
+        "selected_projection_differs_from_primary": 0
+      }
+    },
+    "fresh_seed": true,
+    "llm_usage": {
+      "completion_tokens": 2266,
+      "cost_usd": 0.0,
+      "prompt_tokens": 41203,
+      "requests": 8,
+      "transport_attempts": 8,
+      "truncation_escalations": 0
+    },
+    "llm_usage_observations": {
+      "accounting_complete": true,
+      "agent": {
+        "completion_tokens": 1908,
+        "cost_usd": 0.0,
+        "prompt_tokens": 38509,
+        "requests": 6,
+        "transport_attempts": 6,
+        "truncation_escalations": 0
+      },
+      "compiler": {
+        "completion_tokens": 358,
+        "cost_usd": 0.0,
+        "prompt_tokens": 2694,
+        "requests": 2,
+        "transport_attempts": 2,
+        "truncation_escalations": 0
+      },
+      "scope": "all_execution_attempts",
+      "total": {
+        "completion_tokens": 2266,
+        "cost_usd": 0.0,
+        "prompt_tokens": 41203,
+        "requests": 8,
+        "transport_attempts": 8,
+        "truncation_escalations": 0
+      }
+    },
+    "llm_usage_this_invocation": {
+      "completion_tokens": 2266,
+      "cost_usd": 0.0,
+      "prompt_tokens": 41203,
+      "requests": 8,
+      "transport_attempts": 8,
+      "truncation_escalations": 0
+    },
+    "metrics": {
+      "admission_precision": 1.0,
+      "admission_recall": 0.0,
+      "admission_rejection_reasons": {},
+      "context_effect_accounting": {
+        "admitted_cases": 0,
+        "admitted_without_numeric_change": 0,
+        "answered_cases": 2,
+        "beneficial_changes": 0,
+        "harmful_changes": 0,
+        "mean_uplift_when_changed": null,
+        "neutral_changes": 0,
+        "numeric_change_rate": 0.0,
+        "numerically_changed_cases": 0
+      },
+      "context_explanation_contract": {
+        "automation_limit_preserved": 1,
+        "complete": 1,
+        "interval_limit_preserved": 1,
+        "primary_preserved": 1,
+        "primary_relationship_contracts_exposed": 2,
+        "primary_relationship_preserved": 1,
+        "rejection_evidence_cited": 1,
+        "scenario_consequence_preserved": 1,
+        "scenario_contracts_exposed": 0,
+        "scenario_represented": null,
+        "source_evidence_contracts_exposed": 2,
+        "source_evidence_preserved": 1
+      },
+      "disposition_accuracy": 1,
+      "false_asserted_claim_mean_incremental_smape": null,
+      "false_asserted_claim_selected_projection_rate": null,
+      "false_influence_95ci": [
+        0.0,
+        1.0
+      ],
+      "false_influence_rate": 0.0,
+      "leakage_count": 0,
+      "missed_influence_by_family": {},
+      "missed_influence_cases": 0,
+      "missed_influence_rejection_reason_cases": {},
+      "observed_agent_calls_mean": 1,
+      "observed_agent_calls_median": 1,
+      "paired_calls_mean": 1,
+      "paired_calls_median": 1,
+      "publication_parity": {
+        "eligible_answered": 2,
+        "identity_matched": 2,
+        "identity_produced": 2,
+        "match_rate_over_answered": 1
+      },
+      "publication_parity_rate": 1,
+      "rejection_reason_cases": {
+        "emitted_trend_is_directionally_stable": 2
+      },
+      "surface_required_calls": 1
+    },
+    "profile": "evidence",
+    "receipt_generation_model_calls": 2,
+    "receipt_generations_this_run": 2,
+    "receipt_logical_model_calls": 2,
+    "receipts_reused": 0,
+    "replicate_id": "v07-q2-i007-structural",
+    "resumed_answered_rows": 0,
+    "resumed_terminal_rows": 0,
+    "retried_cases": 0,
+    "routing_policy": "compiled",
+    "rows_executed_this_invocation": 2,
+    "run_identity": {
+      "base_url": "https://api.engy.ai/v1",
+      "baseline_mode": "engine",
+      "code_revision": "cf8772a",
+      "condition": "contextbench-surface",
+      "context_receipts_dir": "results/v07-q2-i007-context-receipts",
+      "corpus_manifest_sha256": "9730fdab3709804b22c46774dc7a3e2731d806820b22bc93b2e05c10e3136b8c",
+      "infrastructure_retries": 2,
+      "jobs": 1,
+      "max_retries": 2,
+      "model": "deepseek-v4-flash-0731",
+      "profile": "evidence",
+      "reasoning_effort": "none",
+      "replicate_id": "v07-q2-i007-structural",
+      "request_timeout_seconds": 180,
+      "routing_policy": "compiled",
+      "schema_version": 1,
+      "selected_case_ids_sha256": "31b6836740138f509339e0c845d47f5b09953ba91dbcf948e6fbdb2f9e5e2f3b",
+      "selected_cases": 2,
+      "temperature": 0.0,
+      "tool_timeout_seconds": 120.0
+    },
+    "run_provenance": {
+      "base_url": "https://api.engy.ai/v1",
+      "baseline_mode": "engine",
+      "infrastructure_retries": 2,
+      "jobs": 1,
+      "max_retries": 2,
+      "model": "deepseek-v4-flash-0731",
+      "profile": "evidence",
+      "reasoning_effort": "none",
+      "replicate_id": "v07-q2-i007-structural",
+      "request_timeout_seconds": 180,
+      "routing_policy": "compiled",
+      "temperature": 0.0,
+      "tool_timeout_seconds": 120.0
+    },
+    "seed": 6826960745610980136,
+    "stage_latency_seconds_mean": {
+      "context_agent": 20.779172,
+      "context_compiler": 4.5756844999999995,
+      "history_engine": 0.1893665
+    }
+  }
+}

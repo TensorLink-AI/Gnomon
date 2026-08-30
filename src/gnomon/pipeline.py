@@ -91,6 +91,10 @@ class SeriesState:
     timestamps: list[datetime]
     future_timestamps: list[datetime]
     season: int
+    detected_season: int | None = None
+    detected_season_strength: float = 0.0
+    detected_season_basis: str | None = None
+    seasonal_period_override: int | None = None
     assessment: Evaluation | None = None
     selected_model: str | None = None
     points: list[float] = field(default_factory=list)
@@ -195,6 +199,7 @@ def load_stage(
             repair=repair, repair_log=log,
         )
         raw_observations = _knowledge_bound_plain_rows(raw_observations, as_of)
+        _record_reordering(raw_observations, log)
         # Calendar first, messiness second: the declared regrid settles the
         # grid before repair_observations measures gaps against it —
         # otherwise aggressive repair tries to interpolate every weekend
@@ -205,7 +210,6 @@ def load_stage(
                 raw_observations, regrid, log)
             frequency = _regrid_frequency(frequency, implied, regrid)
         raw_observations = repair_observations(raw_observations, frequency, repair, log)
-        _record_reordering(raw_observations, log)
         store, _ = InMemoryTemporalStore.from_plain_observations(
             raw_observations, variable, source_fingerprint,
         )
@@ -276,6 +280,7 @@ def load_stage_multi(
             )
             raw_observations = _knowledge_bound_plain_rows(
                 raw_observations, as_of)
+            _record_reordering(raw_observations, log)
             target_frequency = frequency
             if regrid:
                 from .repair import regrid_observations
@@ -284,7 +289,6 @@ def load_stage_multi(
                 target_frequency = _regrid_frequency(frequency, implied, regrid)
             raw_observations = repair_observations(
                 raw_observations, target_frequency, repair, log)
-            _record_reordering(raw_observations, log)
             store, _ = InMemoryTemporalStore.from_plain_observations(
                 raw_observations, target, source_fingerprint,
             )
@@ -355,9 +359,16 @@ def horizon_stage(
     for _ in range(horizon):
         timestamp = next_timestamp(timestamp, frequency)
         future_timestamps.append(timestamp)
-    detected_season, _, _ = detect_season(values, frequency)
+    detected_season, detected_strength, detected_basis = detect_season(
+        values, frequency)
     season = seasonal_period or detected_season
-    return SeriesState(name, values, timestamps, future_timestamps, season)
+    return SeriesState(
+        name, values, timestamps, future_timestamps, season,
+        detected_season=detected_season,
+        detected_season_strength=detected_strength,
+        detected_season_basis=detected_basis,
+        seasonal_period_override=seasonal_period,
+    )
 
 
 def evaluate_stage(
@@ -853,6 +864,18 @@ def multivariate_stage(
     score = assessment.selection_scores.get(MULTIVARIATE_MODEL_NAME)
     baseline = assessment.strongest_baseline
     baseline_score = assessment.selection_scores.get(baseline) if baseline else None
+    confirmation = assessment.selection_stability.get("confirmation")
+    var_confirmation = (
+        confirmation
+        if isinstance(confirmation, dict)
+        and confirmation.get("candidate") == MULTIVARIATE_MODEL_NAME
+        and confirmation.get("required") is True
+        else None
+    )
+    var_won_selection = (
+        state.selected_model == MULTIVARIATE_MODEL_NAME
+        or var_confirmation is not None
+    )
     checks: list[dict[str, Any]] = [{
         "code": "series_eligible_for_var",
         "passed": eligible,
@@ -879,9 +902,25 @@ def multivariate_stage(
             # from "cross-series signal, but a univariate model did better".
             checks.append({
                 "code": "var_is_the_best_candidate",
-                "passed": state.selected_model == MULTIVARIATE_MODEL_NAME,
-                "measured": state.selected_model,
+                "passed": var_won_selection,
+                "measured": (
+                    MULTIVARIATE_MODEL_NAME
+                    if var_won_selection else state.selected_model
+                ),
             })
+            if var_confirmation is not None:
+                checks.append({
+                    "code": "var_passed_independent_confirmation",
+                    "passed": var_confirmation.get("passed") is True,
+                    "measured": {
+                        "origin_index": var_confirmation.get("origin_index"),
+                        "candidate_score": var_confirmation.get(
+                            "candidate_score"),
+                        "baseline": var_confirmation.get("baseline"),
+                        "baseline_score": var_confirmation.get(
+                            "baseline_score"),
+                    },
+                })
     state.evidence.append(Evidence(
         f"multivariate_gate:{state.name}", "multivariate_gate", state.name,
         {

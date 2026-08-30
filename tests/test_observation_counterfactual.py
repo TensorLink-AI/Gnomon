@@ -32,6 +32,7 @@ def test_replay_admits_filter_when_disruptions_poison_raw_last_value():
     assert evidence["strongest_raw_comparator"] in {
         "last_value", "window_average", "drift", "linear_trend", "theta", "ets"}
     assert evidence["chronological_block_wins"] >= 2
+    assert evidence["chronological_blocks_evaluated"] == 3
     assert candidate["conditional_replay"] == evidence
 
 

@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "iteration": "I013",
+  "decision": "release_recommended",
+  "version": "0.7.0",
+  "protocol": "docs/v0.7-final-release-protocol.md",
+  "forecast_candidate_commit": "77ffb5a",
+  "golden_verification_commit": "7352f91",
+  "release_boundary_revision_commit": "58a395f",
+  "local_gates": {
+    "all_rows_accounted_for": true,
+    "safety_invariants_exact": true,
+    "engine_and_agent_results_separated": true,
+    "actual_responses_inspected": true,
+    "clean_wheel_consistent": true,
+    "full_isolated_suite_green": true
+  },
+  "tag": {
+    "name": "v0.7.0",
+    "allowed_before_exact_head_ci_green": false,
+    "created": false
+  },
+  "residual_risks": [
+    "The release shards are intentionally small behavioral regressions and do not estimate universal ContextBench, TemporalBench, or CiK performance.",
+    "One TemporalBench T4 row required a visible bounded infrastructure retry after an HTTP 502.",
+    "Context usefulness remains conservative: high precision and authority safety take priority over recall and automatic application.",
+    "Prior-assisted and hypothetical recommendations remain human-review-only."
+  ],
+  "next_action": "Commit and push this metadata-only completion record, require CI, Benchmarks, and Container green on that exact final head, then create annotated tag v0.7.0."
+}

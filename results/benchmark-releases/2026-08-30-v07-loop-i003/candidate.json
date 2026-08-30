@@ -1,0 +1,48 @@
+{
+  "release_metadata": {
+    "arm": "bounded-phase-aware-alignment",
+    "benchmark": "jitterbench",
+    "configuration_identity": "safe/aggressive 1%-of-cadence alignment capped at 60 seconds; learned phase; collision refusal; separate value-invention accounting",
+    "dataset_identity": "same 22 frozen independently regenerated S2 repair-mode boundary runs",
+    "evaluated_commit": "ec99285944adb95e28a7bb3d7d595f45874fb9c4",
+    "harness_commit": "ec99285944adb95e28a7bb3d7d595f45874fb9c4",
+    "notes": [
+      "Candidate rerun on the exact committed implementation head.",
+      "Actual repair actions, values, timestamps, typed failures, inspect responses, and forecast warnings were inspected."
+    ],
+    "scope": "full",
+    "source": "results/v07-s2-i003-candidate-v3/summary.json",
+    "source_sha256": "73f0f8b4acc004c65e76f34e5cd950ee78ad4906fa1754510b80798efdac033a",
+    "status": "complete"
+  },
+  "summary": {
+    "accepted": 12,
+    "benchmark": "bounded-timestamp-jitter",
+    "cases": 22,
+    "evaluated_commit": "ec99285",
+    "fixture_provenance": "independently_regenerated",
+    "frozen_policy": {
+      "maximum_tolerance_seconds": 60.0,
+      "tolerance_fraction": 0.01,
+      "twenty_minute_tolerance_seconds": 12.0
+    },
+    "gates": {
+      "bounded_alignment_preserves_values_and_count": true,
+      "bounded_jitter_safe_and_aggressive": true,
+      "collisions_refused_without_merge": true,
+      "exact_grid_untouched_all_levels": true,
+      "long_outage_refused_typed": true,
+      "mixed_cadence_refused_typed": true,
+      "no_internal_errors": true,
+      "off_remains_strict": true,
+      "outside_boundary_refused": true,
+      "phase_and_tolerance_are_visible": true,
+      "reordering_disclosed_separately": true,
+      "small_gap_not_hidden": true,
+      "snaps_do_not_consume_invention_ceiling": true
+    },
+    "internal_errors": 0,
+    "schema_version": "0.1",
+    "typed_rejections": 10
+  }
+}

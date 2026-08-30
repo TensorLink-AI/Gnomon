@@ -15,6 +15,13 @@ def seasonal_naive(history: list[float], horizon: int, season: int) -> list[floa
     return [history[-season + (index % season)] for index in range(horizon)]
 
 
+def historical_mean(history: list[float], horizon: int, season: int) -> list[float]:
+    """Repeat the expanding-prefix level as an assumption-light baseline."""
+    if not history:
+        raise ValueError("insufficient history")
+    return [mean(history)] * horizon
+
+
 def drift(history: list[float], horizon: int, season: int) -> list[float]:
     if len(history) < 2:
         raise ValueError("insufficient history")
@@ -229,6 +236,7 @@ def croston_sba(history: list[float], horizon: int, season: int) -> list[float]:
 MODELS: dict[str, Callable[[list[float], int, int], list[float]]] = {
     "last_value": last_value,
     "seasonal_naive": seasonal_naive,
+    "historical_mean": historical_mean,
     "drift": drift,
     "linear_trend": linear_trend,
     "window_average": window_average,
@@ -236,7 +244,7 @@ MODELS: dict[str, Callable[[list[float], int, int], list[float]]] = {
     "ets": ets,
     "croston_sba": croston_sba,
 }
-BASELINES = {"last_value", "seasonal_naive"}
+BASELINES = {"last_value", "seasonal_naive", "historical_mean"}
 
 
 def predict(name: str, history: list[float], horizon: int, season: int) -> list[float]:

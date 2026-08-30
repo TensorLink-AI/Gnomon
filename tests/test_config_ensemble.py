@@ -334,9 +334,10 @@ class TestEnsembleCalibrationPartitions:
                      else result.ensemble_residuals)
         assert residuals, "the ensemble must be calibrated on the folds"
         origins = _origins(len(values), horizon, max(2 * season, 2 * horizon, 8))
-        # Selection folds plus the calibration fold. The final origin is the
-        # test fold and contributes nothing.
-        assert len(residuals) == (len(origins) - 1) * horizon
+        # Selection folds plus the calibration fold. Independent confirmation
+        # and final-test origins both contribute nothing to calibration.
+        assert result.selection_stability["confirmation"]["available"] is True
+        assert len(residuals) == (len(origins) - 2) * horizon
 
     def test_forcing_the_ensemble_still_calibrates_on_folds(self, tmp_path):
         """`--selection-strategy ensemble` overrides selection, not honesty."""

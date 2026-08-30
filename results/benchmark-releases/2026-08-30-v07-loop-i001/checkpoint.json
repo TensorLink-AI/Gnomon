@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "loop": "v0.7-forecast-quality",
+  "status": "active",
+  "base_commit": "7717cd940a9fc1fb7f85569dc20a0a8e1a63b3f7",
+  "latest_evaluated_commit": "b49b0a38671b641445f0787048381c7fa3b182c4",
+  "branch": "agent/v0.7-forecast-quality-loop",
+  "protocol": "docs/v0.7-forecast-quality-loop.md",
+  "external_evaluation_intake": "docs/v0.7-external-evaluation-intake.md",
+  "preservation": {
+    "preserve_v06_release_and_pr83": true,
+    "preserve_preexisting_committed_work": true,
+    "preserve_preexisting_benchmark_artifacts": true,
+    "preserve_all_preexisting_untracked_files": true,
+    "excluded_from_commits": ["docs/astrid-btc-agent-plan.md"]
+  },
+  "execution_defaults": {
+    "one_active_issue": true,
+    "api_jobs": 1,
+    "bounded_retries_required": true,
+    "per_call_timeout_required": true,
+    "wall_clock_timeout_required": true,
+    "incremental_rows_required": true,
+    "resume_required": true,
+    "smoke_shard_before_expansion": true,
+    "engine_and_agent_scored_separately": true
+  },
+  "active_iteration": {
+    "id": "I002",
+    "issue": "S1",
+    "phase": "freeze_current_head_reproduction",
+    "user_hypothesis": "Malformed, incomplete, or non-identifying utilities cannot produce an apparently supported action; agents receive a typed executable repair and humans see an inconclusive result instead of a false choice or internal exception.",
+    "must_not_regress": [
+      "valid non-tied decision arithmetic and selection remain unchanged",
+      "evaluation never executes an action",
+      "exact feasible-action ties select nothing",
+      "unknown or missing payoff keys cannot silently score zero",
+      "errors remain typed and repairable"
+    ],
+    "protocol": "docs/v0.7-external-evaluation-intake.md#s1--decision-input-integrity",
+    "next_action": "Locate the current decision input boundary and freeze valid, missing-action, unknown-scenario, mixed-scenario, flat-value, non-numeric, empty, infeasible, and exact-tie reproduction cases before running them at the exact head.",
+    "last_completed_action": "Ran and retained the exact-head 200-case Q1 production-selector baseline: 200/200 product completion, 187 engine-supported, 13 disclosed best-effort fallbacks, 77 departures with 68 wins and 9 losses, all frozen synthetic gates passed; no production selector change."
+  },
+  "issues": [
+    {"id": "S1", "name": "decision input integrity", "status": "in_progress"},
+    {"id": "S2", "name": "bounded timestamp jitter", "status": "pending_current_head_reproduction"},
+    {"id": "Q1", "name": "useful departures from last-value", "status": "baseline_passed_preempted_pending_naturalistic_confirmation"},
+    {"id": "Q2", "name": "decision-grade typed temporal answers", "status": "pending"},
+    {"id": "Q3", "name": "context recall at fixed precision", "status": "pending"},
+    {"id": "Q4", "name": "stable context-mechanism selection", "status": "pending"},
+    {"id": "Q5", "name": "crash-safe economical orchestration", "status": "pending"},
+    {"id": "Q6", "name": "regime-aware anomaly behavior", "status": "pending_current_head_reproduction"}
+  ],
+  "completed_iterations": [
+    {
+      "id": "I001",
+      "issue": "Q1",
+      "decision": "retain_current_policy_pending_naturalistic_confirmation",
+      "evidence": [
+        "results/benchmark-releases/2026-08-30-v07-loop-i001/production-selector-baseline.json",
+        "results/benchmark-releases/2026-08-30-v07-loop-i001/decision.json"
+      ],
+      "production_behavior_change": "none"
+    }
+  ]
+}

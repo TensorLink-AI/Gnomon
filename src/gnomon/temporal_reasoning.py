@@ -18,7 +18,7 @@ from .temporal_evidence import (
 )
 
 
-TEMPORAL_ANSWER_CONTRACT_VERSION = "0.8"
+TEMPORAL_ANSWER_CONTRACT_VERSION = "0.9"
 
 
 def _observed_trend(values: list[float], report: dict[str, Any]) -> dict[str, Any]:
@@ -413,20 +413,43 @@ def answer_descriptive_question(
         return result
     if prop in {"level", "trend", "seasonality", "regime", "extreme"} \
             and question.verb in {"predict", "compare"} \
-            and not forecast_values:
+            and (not forecast_values or prop == "trend"):
         answer = fit_temporal_executable(
             values, property=prop, horizon=question.horizon or 1,
             season=season).execute()
+        diagnostics = answer["diagnostics"]
+        reason = diagnostics.get("reason")
+        unmodelled = diagnostics.get("unmodelled_seasonality")
+        limitations = []
+        if reason == "insufficient_cycles_for_seasonally_adjusted_trend":
+            limitations.append(
+                "The admitted seasonal period has fewer than two visible "
+                "cycles, so the requested adjusted trend is not identifiable."
+            )
+        elif reason == "unmodelled_seasonality_changes_trend_direction":
+            limitations.append(
+                "Strong visible seasonality was not admitted to this trend "
+                "executable, and seasonal adjustment changes the direction; "
+                "provide or review the seasonal period."
+            )
+        elif answer["support"] != "supported":
+            limitations.append(
+                "The categorical best estimate is weak under rolling-origin "
+                "calibration and is not eligible for automatic action."
+            )
+        if unmodelled and reason != "unmodelled_seasonality_changes_trend_direction":
+            limitations.append(
+                "Strong visible seasonality was not admitted to this trend "
+                "executable; the period remains unchanged and the answer is "
+                "not eligible for automatic action."
+            )
         result = _envelope(
             question, direction=answer["direction"],
             estimate=answer["estimate"], interval=answer["interval"],
             support=answer["support"],
             headline=(f"Future {prop} for {question.target}: "
                       f"{answer['direction']}; support is {answer['support']}."),
-            limitations=([] if answer["support"] == "supported" else [
-                "The categorical best estimate is weak under rolling-origin "
-                "calibration and is not eligible for automatic action."
-            ]), executable=answer["executable"],
+            limitations=limitations, executable=answer["executable"],
         ) | {"calibration": answer["diagnostics"],
              "direction_probabilities": answer["direction_probabilities"]}
         return result

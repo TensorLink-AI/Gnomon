@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "iteration": "I009",
+  "evaluated_commit": "ed732a6",
+  "protocol": "docs/v0.7-q3-agent-boundary-protocol.md",
+  "configuration": {
+    "profile": "evidence",
+    "model": "deepseek-v4-flash-0731",
+    "provider": "Engy",
+    "baseline_mode": "engine",
+    "routing_policy": "compiled",
+    "temperature": 0.0,
+    "reasoning_effort": "none",
+    "jobs": 1,
+    "request_timeout_seconds": 180,
+    "tool_timeout_seconds": 120,
+    "max_retries": 2,
+    "infrastructure_retries": 2
+  },
+  "cases": [
+    "stress-structural-true-0000",
+    "stress-structural-true-0001",
+    "stress-structural-true-0002",
+    "stress-structural-false-0000"
+  ],
+  "engine_contract": {
+    "expected": 4,
+    "completed": 4,
+    "publication_identity_produced": 4,
+    "publication_identity_matched": 4,
+    "temporal_leakage_count": 0,
+    "no_distinct_numeric_path_exposed": 2,
+    "scenario_contracts_exposed": 2,
+    "selected_projection_differed_from_primary": 0
+  },
+  "agent_preservation": {
+    "answered": 4,
+    "provider_failures": 0,
+    "harness_failures": 0,
+    "agent_completion_failures": 0,
+    "typed_relationship_preserved": {"passed": 2, "expected": 2, "rate": 1.0},
+    "canonical_primary_preserved_rate": 1.0,
+    "automation_limit_preserved_rate": 1.0,
+    "source_reference_preserved_rate": 1.0,
+    "rejection_evidence_preserved_rate": 1.0,
+    "scenario_consequence_preserved_rate": 1.0,
+    "interval_limit_preserved_rate": 1.0,
+    "complete_explanation_contract_rate": 1.0
+  },
+  "usage": {
+    "requests": 15,
+    "transport_attempts": 15,
+    "prompt_tokens": 75663,
+    "completion_tokens": 4619,
+    "truncation_escalations": 0,
+    "accounting_complete": true,
+    "retried_cases": 0
+  },
+  "manual_inspection": {
+    "structural_false_0000": "Final response says the emitted primary already lacks the claimed stable continuation, explicitly preserves no defensibly distinct numeric path, cites the failed directional-stability gate and source, and keeps automation false.",
+    "structural_true_0000": "Final response preserves a prior-assisted scenario, both endpoint deltas, the separated-fold limitation, immutable primary, source, and automation false.",
+    "structural_true_0001": "Final response states that the engine primary already creates no defensibly distinct numeric scenario, names rejection rather than admission, and preserves source and authority.",
+    "structural_true_0002": "Final response preserves a distinct sensitivity path with both endpoint deltas while keeping it separate from the supported primary and automation authority."
+  },
+  "raw_evidence": [
+    "results/v07-q3-i009-agent-structural/",
+    "results/v07-q3-i009-agent-structural-receipts/"
+  ]
+}

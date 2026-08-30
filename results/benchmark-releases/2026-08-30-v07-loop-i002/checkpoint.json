@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "loop": "v0.7-forecast-quality",
+  "status": "active",
+  "base_commit": "7717cd940a9fc1fb7f85569dc20a0a8e1a63b3f7",
+  "latest_evaluated_commit": "5f8ed78a2ee5fd849c49d76cf7567ec1429f8d58",
+  "branch": "agent/v0.7-forecast-quality-loop",
+  "protocol": "docs/v0.7-forecast-quality-loop.md",
+  "external_evaluation_intake": "docs/v0.7-external-evaluation-intake.md",
+  "preservation": {
+    "preserve_v06_release_and_pr83": true,
+    "preserve_preexisting_committed_work": true,
+    "preserve_preexisting_benchmark_artifacts": true,
+    "preserve_all_preexisting_untracked_files": true,
+    "excluded_from_commits": ["docs/astrid-btc-agent-plan.md"]
+  },
+  "execution_defaults": {
+    "one_active_issue": true,
+    "api_jobs": 1,
+    "bounded_retries_required": true,
+    "per_call_timeout_required": true,
+    "wall_clock_timeout_required": true,
+    "incremental_rows_required": true,
+    "resume_required": true,
+    "smoke_shard_before_expansion": true,
+    "engine_and_agent_scored_separately": true
+  },
+  "active_iteration": {
+    "id": "I003",
+    "issue": "S2",
+    "phase": "freeze_current_head_reproduction",
+    "user_hypothesis": "Agents can submit bounded operational timestamp jitter without resampling it themselves, while humans can distinguish harmless grid alignment from imputation, collision resolution, or hidden gaps.",
+    "must_not_regress": [
+      "exact grids remain byte-identical",
+      "snapping never merges, reorders, or changes observations",
+      "genuine gaps and mixed cadence remain typed failures",
+      "snap counts do not consume invented-value repair limits",
+      "off, safe, and aggressive repair authority remains explicit"
+    ],
+    "protocol": "docs/v0.7-external-evaluation-intake.md#s2--bounded-timestamp-jitter",
+    "next_action": "Locate cadence inference and regrid accounting, then freeze exact-grid, bounded-jitter, boundary-offset, phase-shift, collision, reordered, mixed-cadence, and real-gap current-head reproduction cases before implementation.",
+    "last_completed_action": "Promoted S1 at exact commit 5f8ed78: the 11-case candidate had zero internal errors, zero unsafe selections, preserved valid arithmetic, returned executable typed repairs, abstained on ties, and passed 150 focused tests."
+  },
+  "issues": [
+    {"id": "S1", "name": "decision input integrity", "status": "complete"},
+    {"id": "S2", "name": "bounded timestamp jitter", "status": "in_progress"},
+    {"id": "Q1", "name": "useful departures from last-value", "status": "baseline_passed_preempted_pending_naturalistic_confirmation"},
+    {"id": "Q2", "name": "decision-grade typed temporal answers", "status": "pending"},
+    {"id": "Q3", "name": "context recall at fixed precision", "status": "pending"},
+    {"id": "Q4", "name": "stable context-mechanism selection", "status": "pending"},
+    {"id": "Q5", "name": "crash-safe economical orchestration", "status": "pending"},
+    {"id": "Q6", "name": "regime-aware anomaly behavior", "status": "pending_current_head_reproduction"}
+  ],
+  "completed_iterations": [
+    {
+      "id": "I001",
+      "issue": "Q1",
+      "decision": "retain_current_policy_pending_naturalistic_confirmation",
+      "evidence": ["results/benchmark-releases/2026-08-30-v07-loop-i001/decision.json"]
+    },
+    {
+      "id": "I002",
+      "issue": "S1",
+      "decision": "promote",
+      "evidence": [
+        "results/benchmark-releases/2026-08-30-v07-loop-i002/baseline.json",
+        "results/benchmark-releases/2026-08-30-v07-loop-i002/candidate.json",
+        "results/benchmark-releases/2026-08-30-v07-loop-i002/decision.json"
+      ]
+    }
+  ]
+}

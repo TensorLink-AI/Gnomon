@@ -506,6 +506,31 @@ def build_method(args):
     )
 
 
+def select_tasks(all_tasks, *, task_names: list[str] | None = None,
+                 task_filter: str | None = None):
+    """Select an exact crash-safe shard without changing task semantics."""
+    names = list(task_names or [])
+    if names and task_filter:
+        raise SystemExit("--task-name and --task-filter are mutually exclusive")
+    if len(names) != len(set(names)):
+        raise SystemExit("--task-name may not repeat a task")
+    if names:
+        by_name = {task.__name__: task for task in all_tasks}
+        missing = [name for name in names if name not in by_name]
+        if missing:
+            raise SystemExit("Unknown CiK task name(s): " + ", ".join(missing))
+        return [by_name[name] for name in names]
+    if task_filter:
+        selected = [
+            task for task in all_tasks
+            if task_filter.lower() in task.__name__.lower()
+        ]
+        if not selected:
+            raise SystemExit(f"No CiK task matches {task_filter!r}")
+        return selected
+    return list(all_tasks)
+
+
 def run(args) -> int:
     run_revision = code_revision()
     from cik_benchmark import ALL_TASKS
@@ -516,21 +541,21 @@ def run(args) -> int:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    if args.task_filter:
-        selected = [
-            task for task in ALL_TASKS
-            if args.task_filter.lower() in task.__name__.lower()
-        ]
-        if not selected:
-            raise SystemExit(f"No CiK task matches {args.task_filter!r}")
+    selected = select_tasks(
+        ALL_TASKS, task_names=args.task_name, task_filter=args.task_filter)
+    if args.task_name:
+        print(f"Running {len(selected)} exact task(s): " +
+              ", ".join(args.task_name), flush=True)
+        results = _run_isolated_cases(selected, args, n_samples, output_dir)
+    elif args.task_filter:
         print(f"Running {len(selected)} task(s) matching {args.task_filter!r}")
         results = _run_isolated_cases(selected, args, n_samples, output_dir)
     else:
         # The upstream all-task runner keeps a long-lived process pool and
         # cannot enforce per-case memory ceilings. Every case therefore uses
         # the same disposable-process safety contract.
-        print(f"Running all {len(ALL_TASKS)} CiK tasks safely", flush=True)
-        results = _run_isolated_cases(ALL_TASKS, args, n_samples, output_dir)
+        print(f"Running all {len(selected)} CiK tasks safely", flush=True)
+        results = _run_isolated_cases(selected, args, n_samples, output_dir)
 
     write_outputs(results, method, args, output_dir)
     write_manifest(
@@ -543,6 +568,7 @@ def run(args) -> int:
         seed_start=args.seed_start,
         n_samples=n_samples,
         task_filter=args.task_filter,
+        task_names=args.task_name or None,
         fail_on_invalid=args.fail_on_invalid if args.method == "control" else None,
         status="ok",
         code_revision=run_revision,
@@ -822,6 +848,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--task-filter", default=None,
                         help="Only run tasks whose class name contains this")
+    parser.add_argument(
+        "--task-name", action="append", default=[],
+        help="Run this exact task class; repeat for a small explicit shard. "
+             "Mutually exclusive with --task-filter.",
+    )
     parser.add_argument(
         "--future-context", action="store_true",
         help="Enable Gnomon's context.future_events lane (gnomon-agent only): "

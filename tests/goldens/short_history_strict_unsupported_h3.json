@@ -1,6 +1,6 @@
 {
   "schema_version": "0.1",
-  "forecast_id": "forecast_b5a78f2fd4243b66",
+  "forecast_id": "forecast_500ea66a18bceb54",
   "created_at": "2026-07-01T00:00:00+00:00",
   "status": "complete",
   "task": {
@@ -33,6 +33,7 @@
       "selection_scores": {
         "last_value": null,
         "seasonal_naive": null,
+        "historical_mean": null,
         "drift": null,
         "linear_trend": null,
         "window_average": null,
@@ -43,6 +44,7 @@
       "test_scores": {
         "last_value": null,
         "seasonal_naive": null,
+        "historical_mean": null,
         "drift": null,
         "linear_trend": null,
         "window_average": null,
@@ -97,6 +99,7 @@
         "selection_scores": {
           "last_value": null,
           "seasonal_naive": null,
+          "historical_mean": null,
           "drift": null,
           "linear_trend": null,
           "window_average": null,
@@ -107,6 +110,7 @@
         "test_scores": {
           "last_value": null,
           "seasonal_naive": null,
+          "historical_mean": null,
           "drift": null,
           "linear_trend": null,
           "window_average": null,
@@ -155,5 +159,5 @@
       }
     }
   ],
-  "runtime_version": "0.5.0"
+  "runtime_version": "0.7.0"
 }

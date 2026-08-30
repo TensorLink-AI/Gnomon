@@ -1,0 +1,295 @@
+{
+  "release_metadata": {
+    "arm": "regime-attribution-and-causal-cleaning",
+    "benchmark": "anomalyeventbench",
+    "configuration_identity": "within-regime investigation scoring with typed attribution plus prefix-only causal cleaning for extreme one-step innovations; TSFM supply disabled",
+    "dataset_identity": "same frozen 24 cases, observations, labels, event matcher, and production surfaces as baseline",
+    "evaluated_commit": "777ac5b",
+    "harness_commit": "777ac5b",
+    "notes": [],
+    "scope": "full",
+    "source": "results/v07-q6-i008-anomalyeventbench-candidate-v2/summary.json",
+    "source_sha256": "df7e2974ff3a5bae9a1a2e8b8dfb02b1a55b6220c0c4abad3846c8e002d67b70",
+    "status": "complete"
+  },
+  "summary": {
+    "benchmark": "regime-aware-anomaly-events",
+    "by_family": {
+      "isolated_spike_down": {
+        "investigation": {
+          "cases": 4,
+          "event_precision": 1.0,
+          "event_recall": 1.0,
+          "expected_events": 4,
+          "false_events": 0,
+          "matched_events": 4,
+          "missed_events": 0,
+          "raw_alerts": 4,
+          "rebound_duplicates": 0
+        },
+        "labelled": {
+          "cases": 4,
+          "event_precision": 1.0,
+          "event_recall": 1.0,
+          "expected_events": 4,
+          "false_events": 0,
+          "matched_events": 4,
+          "missed_events": 0,
+          "raw_alerts": 4,
+          "rebound_duplicates": 0
+        },
+        "unlabelled": {
+          "cases": 4,
+          "event_precision": 1.0,
+          "event_recall": 1.0,
+          "expected_events": 4,
+          "false_events": 0,
+          "matched_events": 4,
+          "missed_events": 0,
+          "raw_alerts": 4,
+          "rebound_duplicates": 0
+        }
+      },
+      "isolated_spike_up": {
+        "investigation": {
+          "cases": 4,
+          "event_precision": 1.0,
+          "event_recall": 1.0,
+          "expected_events": 4,
+          "false_events": 0,
+          "matched_events": 4,
+          "missed_events": 0,
+          "raw_alerts": 4,
+          "rebound_duplicates": 0
+        },
+        "labelled": {
+          "cases": 4,
+          "event_precision": 1.0,
+          "event_recall": 1.0,
+          "expected_events": 4,
+          "false_events": 0,
+          "matched_events": 4,
+          "missed_events": 0,
+          "raw_alerts": 4,
+          "rebound_duplicates": 0
+        },
+        "unlabelled": {
+          "cases": 4,
+          "event_precision": 0.6666666666666666,
+          "event_recall": 1.0,
+          "expected_events": 4,
+          "false_events": 2,
+          "matched_events": 4,
+          "missed_events": 0,
+          "raw_alerts": 6,
+          "rebound_duplicates": 0
+        }
+      },
+      "level_shift_down": {
+        "investigation": {
+          "cases": 4,
+          "event_precision": 0.0,
+          "event_recall": 1.0,
+          "expected_events": 0,
+          "false_events": 1,
+          "matched_events": 0,
+          "missed_events": 0,
+          "raw_alerts": 1,
+          "rebound_duplicates": 0
+        },
+        "labelled": {
+          "cases": 4,
+          "event_precision": 0.0,
+          "event_recall": 1.0,
+          "expected_events": 0,
+          "false_events": 14,
+          "matched_events": 0,
+          "missed_events": 0,
+          "raw_alerts": 14,
+          "rebound_duplicates": 0
+        },
+        "unlabelled": {
+          "cases": 4,
+          "event_precision": 0.0,
+          "event_recall": 1.0,
+          "expected_events": 0,
+          "false_events": 14,
+          "matched_events": 0,
+          "missed_events": 0,
+          "raw_alerts": 14,
+          "rebound_duplicates": 0
+        }
+      },
+      "level_shift_up": {
+        "investigation": {
+          "cases": 4,
+          "event_precision": 0.0,
+          "event_recall": 1.0,
+          "expected_events": 0,
+          "false_events": 2,
+          "matched_events": 0,
+          "missed_events": 0,
+          "raw_alerts": 2,
+          "rebound_duplicates": 0
+        },
+        "labelled": {
+          "cases": 4,
+          "event_precision": 0.0,
+          "event_recall": 1.0,
+          "expected_events": 0,
+          "false_events": 12,
+          "matched_events": 0,
+          "missed_events": 0,
+          "raw_alerts": 12,
+          "rebound_duplicates": 0
+        },
+        "unlabelled": {
+          "cases": 4,
+          "event_precision": 0.0,
+          "event_recall": 1.0,
+          "expected_events": 0,
+          "false_events": 12,
+          "matched_events": 0,
+          "missed_events": 0,
+          "raw_alerts": 12,
+          "rebound_duplicates": 0
+        }
+      },
+      "nearby_opposite_spikes": {
+        "investigation": {
+          "cases": 4,
+          "event_precision": 1.0,
+          "event_recall": 1.0,
+          "expected_events": 8,
+          "false_events": 0,
+          "matched_events": 8,
+          "missed_events": 0,
+          "raw_alerts": 8,
+          "rebound_duplicates": 0
+        },
+        "labelled": {
+          "cases": 4,
+          "event_precision": 1.0,
+          "event_recall": 1.0,
+          "expected_events": 8,
+          "false_events": 0,
+          "matched_events": 8,
+          "missed_events": 0,
+          "raw_alerts": 8,
+          "rebound_duplicates": 0
+        },
+        "unlabelled": {
+          "cases": 4,
+          "event_precision": 0.5333333333333333,
+          "event_recall": 1.0,
+          "expected_events": 8,
+          "false_events": 7,
+          "matched_events": 8,
+          "missed_events": 0,
+          "raw_alerts": 15,
+          "rebound_duplicates": 0
+        }
+      },
+      "stationary_noise": {
+        "investigation": {
+          "cases": 4,
+          "event_precision": 1.0,
+          "event_recall": 1.0,
+          "expected_events": 0,
+          "false_events": 0,
+          "matched_events": 0,
+          "missed_events": 0,
+          "raw_alerts": 0,
+          "rebound_duplicates": 0
+        },
+        "labelled": {
+          "cases": 4,
+          "event_precision": 0.0,
+          "event_recall": 1.0,
+          "expected_events": 0,
+          "false_events": 2,
+          "matched_events": 0,
+          "missed_events": 0,
+          "raw_alerts": 2,
+          "rebound_duplicates": 0
+        },
+        "unlabelled": {
+          "cases": 4,
+          "event_precision": 0.0,
+          "event_recall": 1.0,
+          "expected_events": 0,
+          "false_events": 2,
+          "matched_events": 0,
+          "missed_events": 0,
+          "raw_alerts": 2,
+          "rebound_duplicates": 0
+        }
+      }
+    },
+    "cases": 24,
+    "evaluated_commit": "777ac5b",
+    "gates": {
+      "all_24_cases_complete_on_three_surfaces": true,
+      "all_level_shifts_admitted": true,
+      "deterministic_replay_all_cases": true,
+      "labelled_selection_basis_explicit": true,
+      "nearby_events_preserved_when_detected": true,
+      "rebound_duplicates_zero_all_surfaces": true,
+      "regime_attribution_complete_all_shifts": true,
+      "regime_explained_duplicates_remaining_zero": true,
+      "unlabelled_selection_basis_explicit": true
+    },
+    "labelled_supplied": {
+      "cases": 12,
+      "event_precision": 1.0,
+      "event_recall": 1.0,
+      "expected_events": 16,
+      "false_events": 0,
+      "matched_events": 16,
+      "missed_events": 0,
+      "raw_alerts": 16,
+      "rebound_duplicates": 0
+    },
+    "level_shift_cases": 8,
+    "level_shifts_admitted": 8,
+    "passed": true,
+    "post_admitted_shift_alerts": 3,
+    "schema_version": "0.1",
+    "scope": "full",
+    "surfaces": {
+      "investigation": {
+        "cases": 24,
+        "event_precision": 0.8421052631578947,
+        "event_recall": 1.0,
+        "expected_events": 16,
+        "false_events": 3,
+        "matched_events": 16,
+        "missed_events": 0,
+        "raw_alerts": 19,
+        "rebound_duplicates": 0
+      },
+      "labelled": {
+        "cases": 24,
+        "event_precision": 0.36363636363636365,
+        "event_recall": 1.0,
+        "expected_events": 16,
+        "false_events": 28,
+        "matched_events": 16,
+        "missed_events": 0,
+        "raw_alerts": 44,
+        "rebound_duplicates": 0
+      },
+      "unlabelled": {
+        "cases": 24,
+        "event_precision": 0.3018867924528302,
+        "event_recall": 1.0,
+        "expected_events": 16,
+        "false_events": 37,
+        "matched_events": 16,
+        "missed_events": 0,
+        "raw_alerts": 53,
+        "rebound_duplicates": 0
+      }
+    }
+  }
+}

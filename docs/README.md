@@ -71,8 +71,8 @@ build can do.** Prefer it to any prose here, including this file.
 - Identity-carrying executable candidates: the exact evaluated strategy,
   member set, configuration, revisions, fallback policy, and final fit
   produce the published path rather than being reconstructed from a name.
-- Mandatory last-value and seasonal-naive baselines that a candidate must
-  beat by a configured margin.
+- Mandatory last-value, seasonal-naive, and historical-mean baselines that a
+  candidate must beat by a configured margin.
 - Drift, linear-trend, window-average, Theta, and ETS candidates, plus an
   opt-in sandboxed TSFM tier of seven pinned adapters — Chronos-Bolt (mini
   and small), Toto, Moment, Moirai, Granite TTM, FlowState

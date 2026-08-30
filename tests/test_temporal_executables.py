@@ -2,7 +2,7 @@ import math
 import random
 
 from gnomon.temporal_executables import (
-    fit_dependence_executable, fit_future_seasonality_executable,
+    _label, fit_dependence_executable, fit_future_seasonality_executable,
     fit_temporal_executable,
 )
 
@@ -53,6 +53,51 @@ def test_direction_is_not_supported_when_interval_crosses_its_boundary() -> None
     assert fitted.lower < .25 < fitted.upper
     assert fitted.support == "weak"
     assert fitted.diagnostics["interval_direction_consistent"] is False
+
+
+def test_seasonally_adjusted_trend_direction_matches_its_numeric_estimate() -> None:
+    rng = random.Random(7301)
+    values = [100 + .08 * index
+              + 8 * math.sin(2 * math.pi * index / 24 + .4)
+              + rng.gauss(0, .6) for index in range(240)]
+    fitted = fit_temporal_executable(
+        values, property="trend", horizon=48, season=24)
+    assert fitted.direction == _label("trend", fitted.estimate)
+    assert fitted.direction == "upward"
+    assert fitted.support == "weak"
+    assert fitted.diagnostics["folds"] == 2
+    assert fitted.lower < fitted.estimate < fitted.upper
+    assert fitted.diagnostics["calibration_direction_disagreement"] in {
+        True, False}
+
+
+def test_insufficient_seasonal_cycles_return_typed_trend_abstention() -> None:
+    values = [100 + .08 * index
+              + 8 * math.sin(2 * math.pi * index / 24)
+              for index in range(30)]
+    fitted = fit_temporal_executable(
+        values, property="trend", horizon=12, season=24)
+    answer = fitted.execute()
+    assert answer["direction"] == "uncertain"
+    assert answer["estimate"] is None
+    assert answer["interval"] is None
+    assert answer["support"] == "abstained"
+    assert answer["automation_eligible"] is False
+    assert fitted.diagnostics["reason"] == \
+        "insufficient_cycles_for_seasonally_adjusted_trend"
+
+
+def test_unadmitted_visible_seasonality_never_earns_trend_automation() -> None:
+    rng = random.Random(7302)
+    values = [100 + 8 * math.sin(2 * math.pi * index / 24 + .2)
+              + rng.gauss(0, .4) for index in range(240)]
+    fitted = fit_temporal_executable(
+        values, property="trend", horizon=48, season=1)
+    evidence = fitted.diagnostics["unmodelled_seasonality"]
+    assert evidence["detected_period"] == 24
+    assert evidence["period_was_not_silently_admitted"] is True
+    assert fitted.support != "supported"
+    assert fitted.execute()["automation_eligible"] is False
 
 
 def test_no_observations_still_abstains() -> None:

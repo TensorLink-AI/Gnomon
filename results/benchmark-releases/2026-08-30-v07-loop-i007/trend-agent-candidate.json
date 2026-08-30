@@ -1,0 +1,47 @@
+{
+  "release_metadata": {
+    "arm": "typed-boundary-candidate",
+    "benchmark": "trendanswerbench-agent-preservation",
+    "configuration_identity": "Evidence profile; fitted predictive trend route; immutable-primary seasonal contract; deterministic typed host projection; jobs 1 and identical bounds",
+    "dataset_identity": "same six preregistered trend cases, public IDs, prompts, options, histories, and model as the baseline boundary probe",
+    "evaluated_commit": "cf8772aae83701c33b056a1270c0619d177762c1",
+    "harness_commit": "cf8772aae83701c33b056a1270c0619d177762c1",
+    "notes": [],
+    "scope": "subset",
+    "source": "results/v07-q2-i007-trend-agent-candidate-v2/summary.json",
+    "source_sha256": "8446c16e2ac25feffdb89d31982547b73828efcecc79b64481ef056d8260870d",
+    "status": "complete"
+  },
+  "summary": {
+    "agent_choice_preserved": 6,
+    "answered": 6,
+    "authority_not_inflated": 6,
+    "benchmark": "trendanswerbench-agent-preservation",
+    "cases": 6,
+    "engine_complete": 6,
+    "evaluated_commit": "cf8772a",
+    "gates": {
+      "all_agent_choices_preserved": true,
+      "all_engine_receipts_complete": true,
+      "all_forecasts_from_gnomon_artifacts": true,
+      "all_host_contracts_complete": true,
+      "all_primary_forecasts_unchanged": true,
+      "all_six_answered": true,
+      "no_authority_inflation": true
+    },
+    "gnomon_artifact_routes": 6,
+    "host_contract_complete": 6,
+    "llm_usage": {
+      "base_url": "https://api.engy.ai/v1",
+      "completion_tokens": 1151,
+      "cost_usd": 0.0,
+      "model": "deepseek-v4-flash-0731",
+      "prompt_tokens": 51468,
+      "requests": 12,
+      "transport_attempts": 12,
+      "truncation_escalations": 0
+    },
+    "primary_forecast_unchanged": 6,
+    "schema_version": 1
+  }
+}

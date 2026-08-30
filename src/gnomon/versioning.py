@@ -19,7 +19,7 @@ CURRENT_SCHEMA_VERSION = "0.1"
 #: answering `decide` with the pre-fix 0.61 under the post-fix id. Bump on
 #: release; artifacts carry the stamp so a reader can tell which build
 #: produced what it is quoting.
-RUNTIME_VERSION = "0.5.0"
+RUNTIME_VERSION = "0.7.0"
 
 # The version immediately before the current one; None while the current
 # version is the first ever published.

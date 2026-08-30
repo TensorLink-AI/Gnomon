@@ -16,14 +16,16 @@ is honesty, not fragility: repairs are allowed, but only under three rules.
 
 Two levels above ``off``:
 
-- ``safe`` (the default): reinterprets cell *text* only — date formats,
-  currency/thousands separators, percent signs, sentinel missing values,
-  fully blank rows, byte-identical duplicate rows. It never invents a
-  value, never moves a timestamp, and never drops a data point.
+- ``safe`` (the default): reinterprets cell *text* and aligns bounded
+  scheduler/scrape jitter — date formats, currency/thousands separators,
+  percent signs, sentinel missing values, fully blank rows, byte-identical
+  duplicate rows, and timestamps within 1% of a deterministic grid (capped
+  at 60 seconds). It never invents a value, fills a gap, merges observations,
+  or drops a data point.
 - ``aggressive`` (opt-in): structural fixes — interior gap interpolation,
-  snapping jittered timestamps to the grid, conflicting-duplicate
-  resolution (last row wins), dropping unparseable rows, coercing naive
-  timestamps in a mixed-timezone file to UTC. All capped and disclosed.
+  conflicting-duplicate resolution (last row wins), dropping unparseable
+  rows, coercing naive timestamps in a mixed-timezone file to UTC, plus the
+  same bounded timestamp alignment as safe. All capped and disclosed.
 
 Everything here is a deterministic function of the input bytes.
 """
@@ -47,11 +49,19 @@ REPAIR_SAFE = "safe"
 REPAIR_AGGRESSIVE = "aggressive"
 REPAIR_LEVELS = (REPAIR_OFF, REPAIR_SAFE, REPAIR_AGGRESSIVE)
 
-# Fraction of a series that assumptive grid repairs (snaps, fills, conflict
-# resolutions) may touch before the honest answer is "fix the data".
+# Fraction of a series whose *values* assumptive repair may invent or choose
+# (fills and conflict resolutions) before the honest answer is "fix the
+# data". Bounded timestamp alignment is disclosed but does not invent a
+# measurement and therefore is not charged to this ceiling.
 MAX_ASSUMPTIVE_FRACTION = 0.30
 # Fraction of rows that may be dropped as unparseable under aggressive repair.
 MAX_DROPPED_FRACTION = 0.05
+
+# Scheduler and scrape jitter is bounded relative to the observed cadence.
+# The absolute cap prevents a long cadence from turning "alignment" into a
+# broad restamping authority (1% of a day would otherwise be 14.4 minutes).
+JITTER_TOLERANCE_FRACTION = 0.01
+MAX_JITTER_TOLERANCE_SECONDS = 60.0
 
 MISSING_SENTINELS = frozenset({
     "", "na", "n/a", "n.a.", "nan", "null", "none", "nil", "-", "--",
@@ -71,10 +81,13 @@ class RepairAction:
     assumptive: bool
     detail: str
     examples: tuple[str, ...]
+    metrics: dict[str, object] | None = None
 
     def to_dict(self) -> dict[str, object]:
         payload = asdict(self)
         payload["examples"] = list(self.examples)
+        if payload["metrics"] is None:
+            payload.pop("metrics")
         return payload
 
 
@@ -88,12 +101,16 @@ class RepairLog:
         self, code: str, detail: str, *,
         series: str | None = None, assumptive: bool = False,
         example: str | None = None, count: int = 1,
+        metrics: dict[str, object] | None = None,
     ) -> None:
         entry = self._entries.setdefault(
             (code, series),
-            {"assumptive": assumptive, "detail": detail, "count": 0, "examples": []},
+            {"assumptive": assumptive, "detail": detail, "count": 0,
+             "examples": [], "metrics": metrics},
         )
         entry["count"] = int(entry["count"]) + count
+        if metrics is not None:
+            entry["metrics"] = dict(metrics)
         examples = entry["examples"]
         if example is not None and isinstance(examples, list) and len(examples) < 3:
             examples.append(example)
@@ -104,7 +121,12 @@ class RepairLog:
         column's repairs are disclosed on that column alone."""
         copy = RepairLog()
         for key, entry in self._entries.items():
-            copy._entries[key] = {**entry, "examples": list(entry["examples"])}
+            metrics = entry.get("metrics")
+            copy._entries[key] = {
+                **entry,
+                "examples": list(entry["examples"]),
+                "metrics": dict(metrics) if isinstance(metrics, dict) else None,
+            }
         return copy
 
     def has_actions(self) -> bool:
@@ -113,7 +135,9 @@ class RepairLog:
     def actions(self) -> list[RepairAction]:
         return [
             RepairAction(code, series, int(entry["count"]), bool(entry["assumptive"]),
-                         str(entry["detail"]), tuple(entry["examples"]))  # type: ignore[arg-type]
+                         str(entry["detail"]), tuple(entry["examples"]),
+                         (dict(entry["metrics"])
+                          if isinstance(entry.get("metrics"), dict) else None))  # type: ignore[arg-type]
             for (code, series), entry in sorted(
                 self._entries.items(), key=lambda item: (item[0][0], item[0][1] or "")
             )
@@ -344,12 +368,9 @@ def _from_seconds(seconds: float, template: datetime) -> datetime:
     return _EPOCH_NAIVE + timedelta(seconds=seconds)
 
 
-def _round_to_unit(value: datetime, step: timedelta) -> datetime:
-    seconds = step.total_seconds()
-    epoch = _to_seconds(value)
-    # floor(x + 0.5): explicit half-up rounding, immune to banker's rounding.
-    slot = int(epoch / seconds + 0.5) if epoch >= 0 else -int(-epoch / seconds + 0.5)
-    return _from_seconds(slot * seconds, value)
+def _nearest_integer(value: float) -> int:
+    """Round halves away from zero, immune to banker's rounding."""
+    return math.floor(value + 0.5) if value >= 0 else math.ceil(value - 0.5)
 
 
 def _round_to_month_start(value: datetime) -> datetime:
@@ -362,8 +383,15 @@ def _round_to_month_start(value: datetime) -> datetime:
 
 
 def _snap_frequency(timestamps: list[datetime]) -> str | None:
-    """Infer the intended frequency of a jittered grid from the median step."""
-    from .temporal import FREQUENCIES
+    """Infer a representable intended cadence from a jittered fixed grid.
+
+    Exact grids never arrive here. For operational cadences of at least one
+    minute, try the nearest whole-minute schedule first, but only within the
+    same tolerance later used to align points. This recovers a 20-minute cron
+    whose observed deltas are 1199/1201 seconds without turning arbitrary
+    irregular spacing into a preferred round number.
+    """
+    from .temporal import canonical_code
     deltas = [
         (right - left).total_seconds()
         for left, right in zip(timestamps, timestamps[1:])
@@ -371,15 +399,84 @@ def _snap_frequency(timestamps: list[datetime]) -> str | None:
     if not deltas:
         return None
     typical = median(deltas)
-    for code, duration in FREQUENCIES.items():
-        if code == "W":
-            continue  # a week has no natural boundary to snap to
-        step = duration.total_seconds()
-        if abs(typical - step) <= 0.15 * step:
-            return code
     if 26 * 86400 <= typical <= 35 * 86400:
         return "MS"
+    candidates: list[float] = []
+    if typical >= 60:
+        candidates.append(float(_nearest_integer(typical / 60.0) * 60))
+    candidates.append(float(_nearest_integer(typical)))
+    for seconds in candidates:
+        if seconds <= 0:
+            continue
+        tolerance = min(
+            seconds * JITTER_TOLERANCE_FRACTION,
+            MAX_JITTER_TOLERANCE_SECONDS,
+        )
+        if abs(typical - seconds) <= tolerance:
+            code = canonical_code(timedelta(seconds=seconds))
+            if code is not None:
+                return code
     return None
+
+
+def _alignment_plan(
+    timestamps: list[datetime], frequency: str,
+) -> tuple[list[datetime], dict[str, object]] | None:
+    """Return one bounded, phase-aware alignment plan or ``None``.
+
+    The first timestamp defines only a provisional slot origin. Removing
+    integer slot offsets and taking the median residual learns the shared
+    phase from the full series, including a series with real missing slots.
+    No point is emitted until every displacement and slot is validated.
+    """
+    from .temporal import frequency_step
+
+    step = frequency_step(frequency)
+    if step is None:  # calendar months require an explicit regrid declaration
+        return None
+    step_seconds = step.total_seconds()
+    tolerance = min(
+        step_seconds * JITTER_TOLERANCE_FRACTION,
+        MAX_JITTER_TOLERANCE_SECONDS,
+    )
+    seconds = [_to_seconds(item) for item in timestamps]
+    origin = seconds[0]
+    provisional = [
+        _nearest_integer((value - origin) / step_seconds) for value in seconds
+    ]
+    phase = median(
+        value - slot * step_seconds
+        for value, slot in zip(seconds, provisional)
+    )
+    slots = [_nearest_integer((value - phase) / step_seconds) for value in seconds]
+    aligned_seconds = [phase + slot * step_seconds for slot in slots]
+    displacements = [abs(left - right)
+                     for left, right in zip(seconds, aligned_seconds)]
+    if any(value > tolerance + 1e-9 for value in displacements):
+        return None
+    if any(right <= left for left, right in zip(slots, slots[1:])):
+        collision_slots = [
+            right for left, right in zip(slots, slots[1:]) if right <= left
+        ]
+        raise GnomonError(
+            "TIMESTAMP_ALIGNMENT_CONFLICT",
+            "Bounded timestamp alignment would merge or reorder observations; "
+            "Gnomon will not choose which measurement to keep.",
+            {
+                "frequency": frequency,
+                "tolerance_seconds": tolerance,
+                "conflicting_slots": collision_slots[:3],
+            },
+        )
+    aligned = [_from_seconds(value, template)
+               for value, template in zip(aligned_seconds, timestamps)]
+    moved = [value for value in displacements if value > 1e-9]
+    return aligned, {
+        "cadence": frequency,
+        "grid_phase": _from_seconds(phase, timestamps[0]).isoformat(),
+        "tolerance_seconds": tolerance,
+        "maximum_displacement_seconds": max(moved, default=0.0),
+    }
 
 
 def _grid_is_regular(timestamps: list[datetime], frequency: str) -> bool:
@@ -408,10 +505,11 @@ def repair_observations(
 ) -> list["Observation"]:
     """Grid-level repairs, per series, gated on the strict path failing.
 
-    ``safe`` collapses byte-identical duplicate rows only. ``aggressive``
-    additionally resolves conflicting duplicates (last row in file order
-    wins), snaps jittered timestamps to the inferred grid, and linearly
-    interpolates interior gaps — all disclosed and capped."""
+    ``safe`` collapses byte-identical duplicate rows and aligns bounded
+    timestamp jitter. ``aggressive`` additionally resolves conflicting
+    duplicates (last row in file order wins) and linearly interpolates
+    interior gaps. Every action is disclosed; only invented or selected
+    values consume the assumptive-repair ceiling."""
     if level == REPAIR_OFF or not observations:
         return observations
     from collections import defaultdict
@@ -436,7 +534,7 @@ def _repair_series(
     log: RepairLog,
 ) -> list["Observation"]:
     from .data import Observation
-    from .temporal import frequency_step, infer_frequency, next_timestamp, normalise_frequency
+    from .temporal import infer_frequency, next_timestamp, normalise_frequency
 
     total = len(items)
     # Duplicates, walking file order so "last row wins" is well defined.
@@ -466,11 +564,9 @@ def _repair_series(
                    "in file order was kept.",
                    series=name, assumptive=True, count=conflicts)
     kept.sort(key=lambda item: item.timestamp)
-    if level != REPAIR_AGGRESSIVE:
-        return kept if exact or conflicts else items
-
-    # Frequency: strict inference first; snap only when it fails or the
-    # grid is irregular at the strict frequency.
+    # Frequency: strict inference first; align only when it fails or the
+    # grid is irregular at the strict frequency. Safe and aggressive share
+    # this bounded, no-merge alignment boundary.
     timestamps = [item.timestamp for item in kept]
     frequency: str | None = None
     if requested_frequency:
@@ -481,31 +577,50 @@ def _repair_series(
         except GnomonError:
             frequency = None
     snapped = 0
+    alignment_attempted = False
+    alignment_succeeded = False
     if len(timestamps) >= 3 and (
         frequency is None or not _grid_is_regular(timestamps, frequency)
     ):
         target = frequency or _snap_frequency(timestamps)
-        if target is not None and target != "W":
-            rounder = (
-                _round_to_month_start if target == "MS"
-                else lambda value: _round_to_unit(value, frequency_step(target))
-            )
-            resnapped: dict[datetime, Observation] = {}
-            for item in kept:
-                slot = rounder(item.timestamp)
-                if slot != item.timestamp:
-                    snapped += 1
-                resnapped[slot] = Observation(slot, item.value, name)
-            if snapped:
-                previous = len(kept)
-                kept = sorted(resnapped.values(), key=lambda item: item.timestamp)
-                conflicts += previous - len(kept)
-                log.record("timestamp_snapped",
-                           f"Jittered timestamps rounded to the {target} grid.",
-                           series=name, assumptive=True, count=snapped)
+        if target is not None and target != "MS":
+            alignment_attempted = True
+            plan = _alignment_plan(timestamps, target)
+            if plan is not None:
+                alignment_succeeded = True
+                aligned, metrics = plan
+                snapped = sum(left != right
+                              for left, right in zip(timestamps, aligned))
+                if snapped:
+                    kept = [
+                        Observation(slot, item.value, name)
+                        for item, slot in zip(kept, aligned)
+                    ]
+                    log.record(
+                        "timestamp_jitter_aligned",
+                        f"Bounded timestamp jitter aligned to the inferred "
+                        f"{target} grid without changing values.",
+                        series=name, assumptive=True, count=snapped,
+                        metrics=metrics,
+                    )
                 frequency = target
     if frequency is None:
         return kept  # let the strict validator name the real problem
+    aligned_grid_regular = _grid_is_regular(
+        [item.timestamp for item in kept], frequency)
+    if alignment_attempted and not alignment_succeeded and not aligned_grid_regular:
+        # Outside-boundary jitter is not a gap and must not be interpolated.
+        # Return it unchanged so the strict validator emits the typed grid
+        # error instead of manufacturing points from a misaligned origin.
+        return kept
+    if level != REPAIR_AGGRESSIVE:
+        if alignment_succeeded and not aligned_grid_regular:
+            # The alignment established a cadence, so preserve that evidence
+            # in the refusal instead of asking generic inference to rediscover
+            # a general sub-daily step in the presence of a real gap.
+            from .temporal import validate_and_group
+            validate_and_group(kept, frequency)  # raises IRREGULAR_TIME_GRID
+        return kept if exact or conflicts or snapped else items
 
     # Interior gaps: linear interpolation, capped.
     timestamps = [item.timestamp for item in kept]
@@ -529,11 +644,12 @@ def _repair_series(
                    "neighbouring observations.",
                    series=name, assumptive=True, count=len(filled),
                    example=filled[0].timestamp.isoformat())
-    assumptive_touched = conflicts + snapped + len(filled)
+    assumptive_touched = conflicts + len(filled)
     if assumptive_touched / max(1, total) > MAX_ASSUMPTIVE_FRACTION:
         raise _excessive(
             name,
-            {"conflicts": conflicts, "snapped": snapped, "filled": len(filled)},
+            {"conflicts": conflicts, "filled": len(filled),
+             "aligned_timestamps_not_charged": snapped},
             total,
         )
     if filled:

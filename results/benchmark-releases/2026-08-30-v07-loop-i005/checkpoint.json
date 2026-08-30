@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "loop": "v0.7-forecast-quality",
+  "status": "active",
+  "base_commit": "7717cd940a9fc1fb7f85569dc20a0a8e1a63b3f7",
+  "latest_evaluated_commit": "198ca4cf9c0a6a41895f6562a745564d04208ebd",
+  "branch": "agent/v0.7-forecast-quality-loop",
+  "protocol": "docs/v0.7-forecast-quality-loop.md",
+  "external_evaluation_intake": "docs/v0.7-external-evaluation-intake.md",
+  "preservation": {
+    "preserve_preexisting_committed_work": true,
+    "preserve_preexisting_benchmark_artifacts": true,
+    "preserve_all_preexisting_untracked_files": true,
+    "excluded_from_commits": ["docs/astrid-btc-agent-plan.md"]
+  },
+  "execution_defaults": {
+    "one_active_issue": true,
+    "api_jobs": 1,
+    "bounded_retries_required": true,
+    "per_call_timeout_required": true,
+    "wall_clock_timeout_required": true,
+    "incremental_rows_required": true,
+    "resume_required": true,
+    "smoke_shard_before_expansion": true,
+    "engine_and_agent_scored_separately": true
+  },
+  "active_iteration": {
+    "id": "I006",
+    "issue": "Q1",
+    "phase": "freeze_seasonal_period_and_fold_starvation_reproduction",
+    "user_hypothesis": "Agents should receive a seasonal path only when the declared or inferred period has enough independent cycles and prefix-visible folds to establish repeatable skill; humans should see a baseline or caveat when period evidence is ambiguous.",
+    "must_not_regress": [
+      "historical mean and independent confirmation remain active",
+      "zero-gain headlines remain non-uplift claims",
+      "sub-supported threshold probability remains typed unavailable",
+      "supported seasonal and trend families remain within frozen bounds",
+      "no generator family or future label reaches production selection"
+    ],
+    "protocol": "docs/v0.7-external-evaluation-intake.md#q1--forecast-admission-and-support",
+    "next_action": "Freeze paired true-season, neighboring-period, phase-unstable, and no-season controls across sufficient-cycle and fold-starved histories; reproduce current-head selection, support, and held-out behavior before any production change.",
+    "last_completed_action": "Promoted claim/support coherence at exact commit 198ca4c with 9/9 ClaimBench gates and 2609 passing full-suite tests."
+  },
+  "issues": [
+    {"id": "S1", "status": "complete"},
+    {"id": "S2", "status": "complete"},
+    {"id": "Q1", "status": "in_progress_seasonal_admission"},
+    {"id": "Q2", "status": "pending"},
+    {"id": "Q3", "status": "pending"},
+    {"id": "Q4", "status": "pending"},
+    {"id": "Q5", "status": "pending"},
+    {"id": "Q6", "status": "pending_current_head_reproduction"}
+  ],
+  "completed_iterations": [
+    {"id": "I001", "issue": "Q1", "decision": "retain_current_policy_pending_naturalistic_confirmation"},
+    {"id": "I002", "issue": "S1", "decision": "promote"},
+    {"id": "I003", "issue": "S2", "decision": "promote"},
+    {"id": "I004", "issue": "Q1", "decision": "promote_safety_subfixes_retain_q1_unconfirmed"},
+    {"id": "I005", "issue": "Q1", "decision": "promote"}
+  ]
+}
+
