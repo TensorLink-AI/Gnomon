@@ -132,6 +132,13 @@ def _surface_score(
 ) -> dict[str, Any]:
     alerts = _alert_indices(result.get("anomalies") or [], timestamps)
     event = _event_counts(alerts, list(case["expected_anomaly_indices"]))
+    attribution = result.get("anomaly_attribution") or {}
+    attribution_complete = bool(
+        attribution.get("relationship") == "explained_by_regime_shift"
+        and int(attribution.get("raw_anomaly_count", -1))
+        - int(attribution.get("final_anomaly_count", -1))
+        == int(attribution.get("suppressed_count", -2))
+        and int(attribution.get("final_anomaly_count", -1)) == len(alerts))
     event.update({
         "detector": result.get("detector"),
         "selection_basis": result.get("selection_basis"),
@@ -143,6 +150,8 @@ def _surface_score(
             EVENT_INDEX in alerts and NEARBY_INDEX in alerts
             if case["kind"] == "nearby" else None),
         "artifact_path": str(artifact_path),
+        "regime_attribution": attribution or None,
+        "regime_attribution_complete": attribution_complete,
     })
     return event
 
@@ -199,6 +208,11 @@ def _run_case(case: dict[str, Any], work_dir: Path) -> dict[str, Any]:
             sum(index >= int(strongest["index"])
                 for index in investigation_score["alert_indices"])
             if shift_admitted and strongest else 0),
+        "regime_explained_duplicates_remaining": (
+            0 if shift_admitted and investigation_score[
+                "regime_attribution_complete"] else
+            investigation_score["post_admitted_shift_alerts"]
+            if shift_admitted else 0),
     })
     unlabelled_score = _surface_score(
         unlabelled["results"][0], case=case, timestamps=timestamps,
@@ -257,14 +271,19 @@ def _summarise(rows: list[dict[str, Any]]) -> dict[str, Any]:
     nearby = [row for row in rows if row["kind"] == "nearby"]
     labelled_rows = [row for row in rows
                      if row["product_inputs"]["labels_supplied"]]
+    labelled_supplied = _aggregate(labelled_rows, "labelled")
     gates = {
         "all_24_cases_complete_on_three_surfaces": len(rows) == 24,
         "deterministic_replay_all_cases": all(
             row["deterministic_replay"] for row in rows),
         "all_level_shifts_admitted": all(
             row["investigation"]["shift_admitted"] for row in shifts),
-        "post_admitted_shift_alerts_zero": all(
-            row["investigation"]["post_admitted_shift_alerts"] == 0
+        "regime_explained_duplicates_remaining_zero": all(
+            row["investigation"][
+                "regime_explained_duplicates_remaining"] == 0
+            for row in shifts),
+        "regime_attribution_complete_all_shifts": all(
+            row["investigation"]["regime_attribution_complete"]
             for row in shifts),
         "rebound_duplicates_zero_all_surfaces": all(
             not row[surface]["rebound_duplicate"]
@@ -295,6 +314,7 @@ def _summarise(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "scope": "full",
         "cases": len(rows),
         "surfaces": surfaces,
+        "labelled_supplied": labelled_supplied,
         "level_shift_cases": len(shifts),
         "level_shifts_admitted": sum(
             row["investigation"]["shift_admitted"] for row in shifts),

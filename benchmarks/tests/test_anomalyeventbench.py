@@ -44,6 +44,8 @@ def test_summary_keeps_engine_surfaces_and_event_failures_separate() -> None:
             "selection_basis": "synthetic_injection_macro_f1",
             "shift_admitted": case["kind"] == "shift",
             "post_admitted_shift_alerts": 0,
+            "regime_explained_duplicates_remaining": 0,
+            "regime_attribution_complete": case["kind"] == "shift",
         }
         labelled = dict(surface)
         if case["expected_anomaly_indices"]:
@@ -59,5 +61,6 @@ def test_summary_keeps_engine_surfaces_and_event_failures_separate() -> None:
     summary = _summarise(rows)
     assert set(summary["surfaces"]) == {
         "investigation", "unlabelled", "labelled"}
+    assert summary["labelled_supplied"]["cases"] == 12
     assert summary["gates"]["nearby_events_preserved_when_detected"] is False
     assert summary["passed"] is False
