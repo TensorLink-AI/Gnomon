@@ -503,7 +503,8 @@ def compact_publication_for_wire(payload: dict[str, Any]) -> dict[str, Any]:
         "primary_forecast_unchanged", "scenario_count",
         "context_dispositions", "context_summary", "temporal_state",
         "scenario_selection",
-        "recommendation_authority", "automation", "selection_contract",
+        "recommendation_authority", "automation", "calibration_lineage",
+        "selection_contract",
         "candidate_admission", "publication_seal_sha256",
     )
     projection = {key: publication[key] for key in keys if key in publication}
@@ -2718,7 +2719,8 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
             "Publication result index is outside the artifact.")
     from .publication import (compile_dossier_for_result, publish_result,
                               write_publication)
-    result = artifact.to_dict()["results"][result_index]
+    artifact_payload = artifact.to_dict()
+    result = artifact_payload["results"][result_index]
     # Ungrouped artifacts use ``__default__`` as their storage series key.
     # Preserve the semantic target supplied by the caller for claim-ownership
     # checks at the publication boundary; this metadata never changes points.
@@ -3085,6 +3087,39 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
             candidate_outcome_evidence = TrackingStore().candidate_outcome_summary(
                 str(arguments["project"]), series=str(series_name),
                 resolved_before=str(cutoff))
+    calibration_evidence = None
+    if isinstance(policy, dict) and policy.get("action_tier") is not None:
+        series_name = artifact.results[result_index].series
+        rolling = next((
+            item for item in artifact_payload.get("evidence") or []
+            if item.get("kind") == "rolling_evaluation"
+            and item.get("series") == series_name
+            and not str(item.get("evidence_id") or "").endswith(":prefix")
+        ), None)
+        if rolling is not None:
+            evidence_payload = rolling.get("payload") or {}
+            quantiles = tuple(artifact.task.quantiles)
+            calibration_evidence = {
+                "artifact_id": artifact.forecast_id,
+                "series": series_name,
+                "selected_model": result.get("selected_model"),
+                "horizon": artifact.task.horizon,
+                "nominal_coverage": (
+                    float(max(quantiles) - min(quantiles))
+                    if quantiles else None),
+                "measured_interval_coverage": evidence_payload.get(
+                    "measured_interval_coverage"),
+                "coverage_points": artifact.task.horizon,
+                "residual_fold_count": evidence_payload.get(
+                    "residual_fold_count"),
+                "residuals_pooled_across_selection": evidence_payload.get(
+                    "residuals_pooled_across_selection"),
+                "cutoff_status": (
+                    "explicit_as_of" if artifact.task.as_of
+                    else "artifact_snapshot"),
+                "prospective_validation_status": evidence_payload.get(
+                    "prospective_validation_status"),
+            }
     try:
             publication = publish_result(
                 result, mode=mode,
@@ -3092,6 +3127,7 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                 automation_policy=policy,
                 automation_authority=not bool(arguments.get(
                     "_mcp_agent_boundary")),
+                calibration_evidence=calibration_evidence,
                 candidate_outcome_evidence=candidate_outcome_evidence,
                 artifact_id=artifact.forecast_id)
     except ValueError as exc:
@@ -3594,6 +3630,12 @@ TOOLS: list[dict[str, Any]] = [
                         "minimum_support": {"type": "string",
                             "enum": ["supported", "context_trusted"],
                             "description": "Required evidence tier."},
+                        "action_tier": {"type": "string", "enum": [
+                            "advisory", "reversible_low_impact", "high_impact"],
+                            "description": (
+                                "Impact boundary. Advisory and high-impact "
+                                "never actuate; reversible low-impact also "
+                                "requires exact artifact-local calibration.")},
                     },
                     "required": ["authorize", "policy_id", "minimum_support"],
                     "description": (

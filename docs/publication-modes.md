@@ -327,13 +327,27 @@ a candidate may be selected for human review in `best_effort` mode, but remains
 `prior_assisted`: it cannot replace the immutable primary, upgrade support, or
 become automation eligible.
 
-`automation_policy` is a caller-owned authorization contract with exactly
-three fields: `authorize` (boolean), a non-empty `policy_id`, and
-`minimum_support` (`supported` or `context_trusted`). A complete policy is
-necessary but not sufficient: the selected scenario must independently be
-automation-eligible. Conditional, prior-assisted, and model-authored paths
-therefore remain advisory even when the caller requests automation. Denials
-carry a stable `reason_code`, missing fields, and the required field list.
+`automation_policy` is a caller-owned authorization contract with
+`authorize` (boolean), a non-empty `policy_id`, `minimum_support` (`supported`
+or `context_trusted`), and an optional `action_tier`. Omitting the tier retains
+the legacy policy exactly. An explicit `advisory` tier never actuates, and
+`high_impact` is outside the automation contract. `reversible_low_impact` also
+requires exact artifact-local calibration lineage: matching artifact, series,
+selected model, and horizon; emitted nominal 80% intervals; at least ten
+held-out points; measured coverage in the disclosed safety band; a valid
+cutoff; residuals from a strict calibration split rather than folds pooled
+across model selection; and a passed prospective validation status from the
+host's governed evidence pipeline. Current artifact-local rolling evaluations
+do not assert that final status, so disclosure is available while reversible
+actuation remains fail-closed. The signed receipt exposes every check and failed
+check in `calibration_lineage`; the compact agent response preserves it too.
+
+A complete policy and passing calibration are still not sufficient unless the
+selected scenario is independently automation-eligible. Conditional,
+prior-assisted, and model-authored paths therefore remain advisory even when
+the caller requests automation. Adaptive tracking diagnostics cannot authorize
+an action or rewrite an interval. Denials carry a stable `reason_code`, missing
+fields, and executable evidence about the failed boundary.
 
 The public MCP forecast surface is advisory: an LLM-authored tool argument is
 not an authorization credential. It may evaluate and disclose a policy, but

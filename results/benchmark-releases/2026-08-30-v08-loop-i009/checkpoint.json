@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "iteration": "I009",
+  "branch": "agent/v0.8-agent-forecasting-loop",
+  "head_before_checkpoint": "b27bbb5",
+  "active_issue": "V1",
+  "issue_status": {
+    "E1": "candidate_committed_external_confirmation_pending",
+    "F1": "complete_explicit_opt_in_only",
+    "C1": "complete_no_build",
+    "D1": "implementation_complete_external_utility_pending",
+    "A1": "complete_disclosure_promoted_automation_withheld",
+    "V1": "pending"
+  },
+  "a1": {
+    "policy_matrix": "12_of_12_exact_sealed_primary_preserved",
+    "development_cases": 120,
+    "strict_coverage": 0.6736596736596736,
+    "pooled_coverage": 0.7389277389277389,
+    "strict_actions": 10,
+    "strict_false_actions": 0,
+    "promotion": false,
+    "confirmation_seed_consumed": false
+  },
+  "next_action": "Freeze and run the V1 crash-safe evaluation pyramid, reusing existing artifacts before any new hosted calls.",
+  "preservation": {
+    "external_intake_unchanged": true,
+    "astrid_plan_excluded": true,
+    "preexisting_untracked_files_untouched": true
+  }
+}

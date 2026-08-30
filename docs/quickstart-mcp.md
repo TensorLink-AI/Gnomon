@@ -217,6 +217,17 @@ decision projection by default. Use its `selection_contract` to reason and its
 stays at that path. Set `format: "full"` only to inline the full repeated
 forecast arrays.
 
+Host-controlled automation policies may add `action_tier`. `advisory` and
+`high_impact` always remain non-actuating. `reversible_low_impact` is eligible
+only when the selected path is already automation-eligible and the same
+artifact's rolling evaluation supplies exact series/model/horizon calibration,
+a strict non-pooled residual split, at least ten held-out points, acceptable
+measured coverage, and a bound cutoff. Inspect
+`publication.calibration_lineage.failed_checks`; missing or mismatched evidence
+fails closed. A current rolling evaluation does not by itself assert the
+required prospective-validation status. MCP-authored policies remain advisory
+regardless of these checks.
+
 For horizons longer than 12 steps, the default brief forecast returns the
 first six and last six rows and states the omitted-middle count. This keeps
 both the near-term decision and horizon-end behavior visible; the complete

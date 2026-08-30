@@ -28,6 +28,7 @@ def _calibration(**updates: Any) -> dict[str, Any]:
         "residual_fold_count": 1,
         "residuals_pooled_across_selection": False,
         "cutoff_status": "artifact_snapshot",
+        "prospective_validation_status": "passed",
     }
     row.update(updates)
     return row

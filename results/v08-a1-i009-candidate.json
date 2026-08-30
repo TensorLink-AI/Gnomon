@@ -1,0 +1,137 @@
+{
+  "benchmark": "calibrationactionbench",
+  "cases": 12,
+  "completed": 12,
+  "exact": 12,
+  "gates": {
+    "complete": true,
+    "exact": true,
+    "primary_unchanged": true,
+    "sealed": true
+  },
+  "primary_unchanged": 12,
+  "rows": [
+    {
+      "case": "legacy",
+      "eligible": true,
+      "exact": true,
+      "expected": true,
+      "primary_unchanged": true,
+      "reason_code": "authorized",
+      "seal_valid": true,
+      "status": "complete"
+    },
+    {
+      "case": "advisory",
+      "eligible": false,
+      "exact": true,
+      "expected": false,
+      "primary_unchanged": true,
+      "reason_code": "advisory_tier",
+      "seal_valid": true,
+      "status": "complete"
+    },
+    {
+      "case": "reversible_matched",
+      "eligible": true,
+      "exact": true,
+      "expected": true,
+      "primary_unchanged": true,
+      "reason_code": "authorized_reversible_low_impact",
+      "seal_valid": true,
+      "status": "complete"
+    },
+    {
+      "case": "reversible_absent",
+      "eligible": false,
+      "exact": true,
+      "expected": false,
+      "primary_unchanged": true,
+      "reason_code": "calibration_not_action_eligible",
+      "seal_valid": true,
+      "status": "complete"
+    },
+    {
+      "case": "wrong_series",
+      "eligible": false,
+      "exact": true,
+      "expected": false,
+      "primary_unchanged": true,
+      "reason_code": "calibration_not_action_eligible",
+      "seal_valid": true,
+      "status": "complete"
+    },
+    {
+      "case": "wrong_model",
+      "eligible": false,
+      "exact": true,
+      "expected": false,
+      "primary_unchanged": true,
+      "reason_code": "calibration_not_action_eligible",
+      "seal_valid": true,
+      "status": "complete"
+    },
+    {
+      "case": "wrong_horizon",
+      "eligible": false,
+      "exact": true,
+      "expected": false,
+      "primary_unchanged": true,
+      "reason_code": "calibration_not_action_eligible",
+      "seal_valid": true,
+      "status": "complete"
+    },
+    {
+      "case": "pooled_selection",
+      "eligible": false,
+      "exact": true,
+      "expected": false,
+      "primary_unchanged": true,
+      "reason_code": "calibration_not_action_eligible",
+      "seal_valid": true,
+      "status": "complete"
+    },
+    {
+      "case": "coverage_out_of_band",
+      "eligible": false,
+      "exact": true,
+      "expected": false,
+      "primary_unchanged": true,
+      "reason_code": "calibration_not_action_eligible",
+      "seal_valid": true,
+      "status": "complete"
+    },
+    {
+      "case": "too_few_points",
+      "eligible": false,
+      "exact": true,
+      "expected": false,
+      "primary_unchanged": true,
+      "reason_code": "calibration_not_action_eligible",
+      "seal_valid": true,
+      "status": "complete"
+    },
+    {
+      "case": "high_impact",
+      "eligible": false,
+      "exact": true,
+      "expected": false,
+      "primary_unchanged": true,
+      "reason_code": "high_impact_not_supported",
+      "seal_valid": true,
+      "status": "complete"
+    },
+    {
+      "case": "untrusted_reversible",
+      "eligible": false,
+      "exact": true,
+      "expected": false,
+      "primary_unchanged": true,
+      "reason_code": "untrusted_authorization_channel",
+      "seal_valid": true,
+      "status": "complete"
+    }
+  ],
+  "schema_version": 1,
+  "sealed": 12
+}

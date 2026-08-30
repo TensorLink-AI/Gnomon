@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "release": "2026-08-30-v08-loop-i009",
+  "kind": "resumable_loop_checkpoint",
+  "protocols": [
+    "docs/v0.8-agent-forecasting-loop.md",
+    "docs/v0.8-a1-calibration-action-protocol.md",
+    "docs/v0.8-a1-calibration-action-decision.md"
+  ],
+  "evidence": [
+    "results/v08-a1-i008-baseline.json",
+    "results/v08-a1-i009-candidate.json",
+    "results/v08-a1-i009-development/observations.jsonl",
+    "results/v08-a1-i009-development/summary.json",
+    "results/benchmark-releases/2026-08-30-v08-loop-i009/checkpoint.json"
+  ],
+  "excluded": ["docs/astrid-btc-agent-plan.md"]
+}
