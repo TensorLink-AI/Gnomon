@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "release": "2026-08-30-v08-loop-i006",
+  "kind": "resumable_loop_checkpoint",
+  "protocols": [
+    "docs/v0.8-agent-forecasting-loop.md",
+    "docs/v0.8-d1-decision-contract-protocol.md"
+  ],
+  "evidence": [
+    "results/benchmark-releases/2026-08-30-v08-loop-i006/checkpoint.json"
+  ],
+  "excluded": ["docs/astrid-btc-agent-plan.md"]
+}

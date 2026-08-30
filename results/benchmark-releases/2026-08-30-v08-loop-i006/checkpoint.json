@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "iteration": "I006",
+  "branch": "agent/v0.8-agent-forecasting-loop",
+  "head_before_checkpoint": "e935745",
+  "active_issue": "D1",
+  "issue_status": {
+    "E1": "candidate_committed_external_confirmation_pending",
+    "F1": "complete_explicit_opt_in_only",
+    "C1": "complete_no_build",
+    "D1": "protocol_frozen_implementation_pending",
+    "A1": "pending",
+    "V1": "pending"
+  },
+  "next_action": "Baseline the twelve-case label-free contract matrix, then add an exact sealed decision projection from existing temporal reasoning packets and validate verifier behavior before any hosted run.",
+  "preservation": {
+    "external_intake_unchanged": true,
+    "astrid_plan_excluded": true,
+    "preexisting_untracked_files_untouched": true
+  }
+}
