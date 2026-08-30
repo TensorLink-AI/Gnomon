@@ -1,0 +1,60 @@
+{
+  "schema_version": "0.1",
+  "scorecard_id": "v0.6-i005-outcome-adaptive-routing",
+  "scorecard_commit": "69d473ab63e7397f087087782fce758a52c8fad1",
+  "dirty_tree": false,
+  "scope": "full",
+  "layers": {
+    "output": {
+      "status": "pass",
+      "evaluated_commit": "69d473ab63e7397f087087782fce758a52c8fad1",
+      "dataset_identity": "Frozen p5-shadow-routing-1 deterministic paired-error streams: stable gain, gain then drift, mixed control, and exact-regime isolation",
+      "configuration_identity": "pinned challenger; eight-outcome floor; 5% mean gain; Wilson95 lower >0.5; four-outcome recent rollback; always-champion control",
+      "accounting": {"expected": 60, "completed": 60, "answered": 60, "abstained": 0, "failed": 0},
+      "metrics": [
+        {"name": "stable_relative_error_improvement", "value": 0.18000000000000044, "unit": "fraction", "denominator": 20, "gate": {"operator": "gte", "threshold": 0.15, "passed": true}},
+        {"name": "drift_regret_vs_always_champion", "value": -0.40000000000000213, "unit": "error_units", "denominator": 20, "gate": {"operator": "lte", "threshold": 0.0, "passed": true}},
+        {"name": "mixed_control_challenger_routes", "value": 0, "unit": "decisions", "denominator": 20, "gate": {"operator": "eq", "threshold": 0, "passed": true}}
+      ],
+      "evidence": [{"path": "results/benchmark-releases/2026-08-30-v06-loop-i005/routing-result.json", "sha256": "e6be743cc1dbc6b55788bc388ebe46dd81886a07b009c03fbd02c591e483ee03"}]
+    },
+    "reasoning": {
+      "status": "pass",
+      "evaluated_commit": "69d473ab63e7397f087087782fce758a52c8fad1",
+      "dataset_identity": "All prospective decisions plus point-in-time, regime, unpinned, authority, and deterministic replay probes",
+      "configuration_identity": "exact canonical regime JSON; UTC-normalized knowledge times; candidate-pool-only authority; content-addressed evidence receipt",
+      "accounting": {"expected": 60, "completed": 60, "answered": 60, "abstained": 0, "failed": 0},
+      "metrics": [
+        {"name": "authority_preservation_rate", "value": 1.0, "unit": "fraction", "denominator": 60, "gate": {"operator": "eq", "threshold": 1.0, "passed": true}},
+        {"name": "future_rows_changing_replay", "value": 0, "unit": "rows", "denominator": 1, "gate": {"operator": "eq", "threshold": 0, "passed": true}},
+        {"name": "regime_isolation_rate", "value": 1.0, "unit": "fraction", "denominator": 2, "gate": {"operator": "eq", "threshold": 1.0, "passed": true}},
+        {"name": "unpinned_candidate_routes", "value": 0, "unit": "routes", "denominator": 1, "gate": {"operator": "eq", "threshold": 0, "passed": true}},
+        {"name": "deterministic_receipt_replay_rate", "value": 1.0, "unit": "fraction", "denominator": 1, "gate": {"operator": "eq", "threshold": 1.0, "passed": true}}
+      ],
+      "evidence": [{"path": "results/benchmark-releases/2026-08-30-v06-loop-i005/routing-result.json", "sha256": "e6be743cc1dbc6b55788bc388ebe46dd81886a07b009c03fbd02c591e483ee03"}]
+    },
+    "topology": {
+      "status": "pass",
+      "evaluated_commit": "69d473ab63e7397f087087782fce758a52c8fad1",
+      "dataset_identity": "Four serial resumable streams with atomic stream checkpoints and failures retained in denominators",
+      "configuration_identity": "jobs=1; one retry; 30-second stream timeout; local SQLite WAL ledger",
+      "accounting": {"expected": 60, "completed": 60, "answered": 60, "abstained": 0, "failed": 0},
+      "metrics": [
+        {"name": "completion_rate", "value": 1.0, "unit": "fraction", "denominator": 60, "gate": {"operator": "eq", "threshold": 1.0, "passed": true}},
+        {"name": "maximum_jobs", "value": 1, "unit": "workers", "denominator": 60, "gate": {"operator": "eq", "threshold": 1, "passed": true}},
+        {"name": "rollback_delay_harmful_outcomes", "value": 2, "unit": "outcomes", "denominator": 8, "gate": {"operator": "lte", "threshold": 2, "passed": true}}
+      ],
+      "evidence": [{"path": "results/benchmark-releases/2026-08-30-v06-loop-i005/routing-result.json", "sha256": "e6be743cc1dbc6b55788bc388ebe46dd81886a07b009c03fbd02c591e483ee03"}]
+    }
+  },
+  "invariants": {
+    "job_local_admission_remains_required": {"status": "pass", "evidence": [{"path": "results/benchmark-releases/2026-08-30-v06-loop-i005/decision.json", "sha256": "4b68a3976db93e3b335ad28025d90468660c25392a73c6572fc6e5911fbb301e"}]},
+    "tracking_confers_no_automation_authority": {"status": "pass", "evidence": [{"path": "results/benchmark-releases/2026-08-30-v06-loop-i005/routing-result.json", "sha256": "e6be743cc1dbc6b55788bc388ebe46dd81886a07b009c03fbd02c591e483ee03"}]},
+    "runtime_did_not_use_stream_names_or_next_errors": {"status": "pass", "evidence": [{"path": "results/benchmark-releases/2026-08-30-v06-loop-i005/decision.json", "sha256": "4b68a3976db93e3b335ad28025d90468660c25392a73c6572fc6e5911fbb301e"}]},
+    "observational_leaderboard_not_treated_as_paired": {"status": "pass", "evidence": [{"path": "results/benchmark-releases/2026-08-30-v06-loop-i005/decision.json", "sha256": "4b68a3976db93e3b335ad28025d90468660c25392a73c6572fc6e5911fbb301e"}]}
+  },
+  "decision": {
+    "status": "promote",
+    "reason": "Promote the pinned exact-regime paired-outcome candidate-pool route: output, reasoning, topology, rollback, replay, and authority gates all pass while forecast selection remains job-local."
+  }
+}
