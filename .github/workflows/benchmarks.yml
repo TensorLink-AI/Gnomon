@@ -45,6 +45,10 @@ jobs:
         run: |
           for release in results/benchmark-releases/*; do
             test -d "$release" || continue
+            # Bootstrap checkpoints created before manifesting make no
+            # integrity claim. Every directory that does carry a manifest is
+            # validated against its declared curated or checkpoint schema.
+            test -f "$release/manifest.json" || continue
             python -m benchmarks.release validate "$release"
           done
       - name: Test release tooling

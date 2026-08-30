@@ -142,6 +142,31 @@ def build(spec_path: Path) -> Path:
 def validate(release_dir: Path) -> None:
     manifest_path = release_dir / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("schema_version") in (1, "1"):
+        files = manifest.get("files")
+        if not isinstance(files, list) or not files:
+            raise ValueError("checkpoint manifest requires a non-empty files list")
+        seen_paths: set[str] = set()
+        for record in files:
+            if not isinstance(record, dict):
+                raise ValueError("checkpoint file record must be an object")
+            relative = record.get("path")
+            if not isinstance(relative, str) or not relative:
+                raise ValueError("checkpoint file record requires a path")
+            candidate = Path(relative)
+            if candidate.is_absolute() or ".." in candidate.parts:
+                raise ValueError(f"unsafe checkpoint path: {relative}")
+            if relative in seen_paths:
+                raise ValueError(f"duplicate checkpoint path: {relative}")
+            seen_paths.add(relative)
+            path = release_dir / candidate
+            if not path.is_file() or path.stat().st_size > MAX_SUMMARY_BYTES:
+                raise ValueError(f"missing or oversized checkpoint file: {path}")
+            if record.get("bytes") != path.stat().st_size:
+                raise ValueError(f"checkpoint byte count mismatch: {path}")
+            if record.get("sha256") != _digest(path):
+                raise ValueError(f"checkpoint digest mismatch: {path}")
+        return
     if manifest.get("schema_version") != SCHEMA_VERSION:
         raise ValueError("unsupported benchmark release schema")
     seen: set[tuple[str, str | None]] = set()

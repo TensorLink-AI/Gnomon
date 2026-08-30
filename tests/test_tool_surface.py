@@ -1144,6 +1144,22 @@ def test_capabilities_brief_fits_the_budget_and_hides_nothing() -> None:
     assert "full" in view["note"] and "sections" in view["note"]
 
 
+def test_capabilities_brief_budget_is_independent_of_checkout_path(
+        monkeypatch, tmp_path) -> None:
+    import json
+
+    from gnomon.toolspec import CAPABILITIES_RESPONSE_BUDGET_BYTES, runner_for
+
+    deep = tmp_path.joinpath(*(["long-workspace-component"] * 12))
+    deep.mkdir(parents=True)
+    monkeypatch.chdir(deep)
+    brief = runner_for("gnomon_capabilities")({})
+    assert brief["workspace"] == {"default_output_dir": "./gnomon-output"}
+    assert "workspace" in brief["view"]["elided"]
+    assert len(json.dumps(brief, default=str)) <= \
+        CAPABILITIES_RESPONSE_BUDGET_BYTES
+
+
 def test_capabilities_full_and_sections_are_verbatim() -> None:
     from gnomon.runtime import capabilities
     from gnomon.toolspec import runner_for

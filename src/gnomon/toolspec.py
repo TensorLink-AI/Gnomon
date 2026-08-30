@@ -1450,6 +1450,15 @@ def _brief_capabilities(full: dict[str, Any]) -> dict[str, Any]:
                 models["tsfm_capabilities"] = {"models": sorted(matrix)}
                 elided.append("models.tsfm_capabilities.<details>")
             brief[key] = compact(models, "models")
+        elif key == "workspace" and isinstance(value, dict):
+            # Absolute checkout paths are environment detail, not a
+            # capability. Repeating cwd inside default_output_dir made the
+            # supposedly bounded brief depend on the host path length (and
+            # overflow in CI). The relative default is directly executable;
+            # exact absolute paths remain available from the full or named
+            # workspace section.
+            brief[key] = {"default_output_dir": "./gnomon-output"}
+            elided.append("workspace.<absolute_paths>")
         else:
             brief[key] = compact(value, key)
     brief["view"] = {

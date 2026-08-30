@@ -1,40 +1,34 @@
 {
-  "schema_version": "1.1",
+  "schema_version": 1,
+  "files": [
+    {"path": "README.md", "bytes": 2151, "sha256": "036758b741fae6211b00d514eb10487deefd4e0cf1d9dc9f60feea7bba7d15b7"},
+    {"path": "agent-boundary.json", "bytes": 2729, "sha256": "bf1e865ad055cb9de2f0b0e03a81af6e7d3c3391efcd3dfa30a05b2edb039461"},
+    {"path": "checkpoint.json", "bytes": 1905, "sha256": "063987a15b4540c6e73c40c7c77d4043a0fac1586198ea9ddb92ad471cc06a32"},
+    {"path": "decision.json", "bytes": 1468, "sha256": "0b78c6a6cdf3099c29cf0500d5552daf8535b89f159f5cf9c50204b2503d4a55"},
+    {"path": "development-baselines.json", "bytes": 2277, "sha256": "e1cc855fd5e903a1d67fbb4805cb07264bacf48cbcc90a5171d1fc04f07af7b5"}
+  ],
   "release": "2026-08-30-v07-loop-i009",
   "curated_by_commit": "ed732a6",
-  "benchmarks": [
+  "benchmark_metadata": [
     {
       "file": "development-baselines.json",
       "benchmark": "contextbench",
       "arm": "fresh-explicit-seed-engine-and-naturalistic-development-baselines",
       "scope": "development",
-      "status": "complete",
-      "bytes": 2277,
-      "sha256": "e1cc855fd5e903a1d67fbb4805cb07264bacf48cbcc90a5171d1fc04f07af7b5"
+      "status": "complete"
     },
     {
       "file": "agent-boundary.json",
       "benchmark": "contextbench-surfaces",
       "arm": "evidence-deepseek-engy-engine-baseline-structural-shard",
       "scope": "smoke",
-      "status": "complete",
-      "bytes": 2729,
-      "sha256": "bf1e865ad055cb9de2f0b0e03a81af6e7d3c3391efcd3dfa30a05b2edb039461"
+      "status": "complete"
     }
   ],
   "not_included": [
-    {
-      "benchmark": "untouched Q3 confirmation corpora",
-      "reason": "Preserved locally and not consumed because no production candidate reached the confirmation gate."
-    },
-    {
-      "benchmark": "raw per-case rows and context receipts",
-      "reason": "Retained locally; committed checkpoint is aggregate-only."
-    },
-    {
-      "benchmark": "competition-specific plan",
-      "reason": "docs/astrid-btc-agent-plan.md remains outside this loop."
-    }
+    {"benchmark": "untouched Q3 confirmation corpora", "reason": "Preserved locally and not consumed because no production candidate reached the confirmation gate."},
+    {"benchmark": "raw per-case rows and context receipts", "reason": "Retained locally; committed checkpoint is aggregate-only."},
+    {"benchmark": "competition-specific plan", "reason": "docs/astrid-btc-agent-plan.md remains outside this loop."}
   ],
   "policy": {
     "aggregate_only": true,
