@@ -71,15 +71,22 @@ def _loss(actual: list[float], points: list[float]) -> float:
 
 def _published_points(
     assessment: Evaluation, history: list[float], horizon: int, season: int,
-) -> list[float]:
+) -> tuple[list[float], str, str, bool]:
+    # The default product floor is best_effort: an engine abstention becomes
+    # a disclosed last-value path in pipeline.best_effort_stage. Keep engine
+    # support and product answer yield separate instead of calling that
+    # labelled fallback a missing forecast.
     selected = assessment.selected_model
-    if selected is None:
-        return []
+    if not assessment.supported or selected is None:
+        return (last_value(history, horizon, season), "last_value",
+                "best_effort", True)
     final = assessment.final_candidate
     if final is not None and final.identity.name == selected:
-        return final.fit(history, season).predict(horizon)
+        return (final.fit(history, season).predict(horizon), selected,
+                "degraded" if assessment.degraded else "supported", False)
     if selected in MODELS:
-        return predict(selected, history, horizon, season)
+        return (predict(selected, history, horizon, season), selected,
+                "degraded" if assessment.degraded else "supported", False)
     raise ValueError(f"production selector returned unbound candidate {selected}")
 
 
@@ -162,14 +169,14 @@ def run(seed: int = 92741, cases_per_family: int = 40) -> dict[str, object]:
                 frequency="synthetic", tsfm_names=[], strict_abstention=False,
             )
             try:
-                points = _published_points(
+                points, published_model, published_support, fallback_disclosed = _published_points(
                     assessment, history, horizon, season)
             except (ValueError, ArithmeticError, OverflowError):
-                points = []
+                points, published_model, published_support = [], "none", "unsupported"
+                fallback_disclosed = False
             baseline = last_value(history, horizon, season)
-            completed = (
-                assessment.supported and len(points) == horizon
-                and all(math.isfinite(value) for value in points))
+            completed = (len(points) == horizon
+                         and all(math.isfinite(value) for value in points))
             baseline_loss = _loss(actual, baseline)
             candidate_loss = _loss(actual, points) if completed else float("inf")
             departed = completed and any(
@@ -190,9 +197,12 @@ def run(seed: int = 92741, cases_per_family: int = 40) -> dict[str, object]:
                 "season": season,
                 "future_observations_used_by_selector": 0,
                 "completed": completed,
-                "selected_model": assessment.selected_model,
+                "engine_selected_model": assessment.selected_model,
+                "published_model": published_model,
+                "published_support": published_support,
+                "fallback_disclosed": fallback_disclosed,
                 "strongest_baseline": assessment.strongest_baseline,
-                "supported": assessment.supported,
+                "engine_supported": assessment.supported,
                 "degraded": assessment.degraded,
                 "selection_fold_count": assessment.selection_fold_count,
                 "selection_guardrail_applied": (
@@ -239,6 +249,9 @@ def run(seed: int = 92741, cases_per_family: int = 40) -> dict[str, object]:
     }
     result["gates"] = {
         "completion_rate_at_least_99pct": overall["completion_rate"] >= 0.99,
+        "no_silent_fallback": all(
+            row["engine_supported"] or row["fallback_disclosed"]
+            for row in rows if row["completed"]),
         "future_observations_used_zero": all(
             row["future_observations_used_by_selector"] == 0 for row in rows),
         "at_least_20_departures": overall["departures"] >= 20,
@@ -257,8 +270,9 @@ def run(seed: int = 92741, cases_per_family: int = 40) -> dict[str, object]:
             len(family_medians) == len(FAMILIES)
             and min(family_medians) >= -0.02),
         "selection_provenance_complete": all(
-            row["selected_model"] is not None
-            and row["strongest_baseline"] is not None
+            row["published_model"] != "none"
+            and row["published_support"] in {
+                "supported", "degraded", "best_effort"}
             and isinstance(row["selection_scores"], dict)
             and isinstance(row["warnings"], list)
             for row in rows if row["completed"]),

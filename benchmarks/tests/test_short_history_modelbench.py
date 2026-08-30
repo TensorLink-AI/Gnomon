@@ -51,10 +51,16 @@ def test_production_selector_screen_is_deterministic_and_prefix_only():
     assert len(first["raw_records"]) == 20
     assert 0 < first["overall"]["completion_rate"] <= 1
     assert first["gates"]["future_observations_used_zero"]
+    assert first["gates"]["no_silent_fallback"]
     assert first["gates"]["selection_provenance_complete"]
     assert {row["length_lane"] for row in first["raw_records"]} == {
         "short_horizon", "fold_starved_long_horizon",
     }
+    fallbacks = [row for row in first["raw_records"]
+                 if not row["engine_supported"]]
+    assert all(row["fallback_disclosed"] for row in fallbacks)
+    assert all(row["published_support"] == "best_effort"
+               for row in fallbacks)
 
 
 def test_production_selector_runner_retains_failed_gate_output(tmp_path):
