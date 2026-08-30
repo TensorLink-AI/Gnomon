@@ -428,6 +428,8 @@ def test_surface_summary_reports_agent_context_explanation_contract():
                 "primary_relationship_expected":
                     "no_distinct_numeric_path",
                 "primary_relationship_preserved": True,
+                "source_evidence_expected": True,
+                "source_evidence_preserved": True,
         },
     }
 
@@ -442,6 +444,8 @@ def test_surface_summary_reports_agent_context_explanation_contract():
             "automation_limit_preserved": 1.0,
             "rejection_evidence_cited": 1.0,
             "scenario_consequence_preserved": 1.0,
+            "source_evidence_preserved": 1.0,
+            "source_evidence_contracts_exposed": 1,
             "primary_relationship_contracts_exposed": 1,
             "primary_relationship_preserved": 1.0,
         }
@@ -475,6 +479,12 @@ def test_agent_relationship_measure_is_semantic_and_fail_closed():
         relationship)
     assert not preserves_primary_relationship(
         "The context was rejected.", relationship)
+    assert preserves_primary_relationship(
+        "The admitted covariate was applied by the primary forecast.",
+        "validated_covariates_used_by_primary")
+    assert not preserves_primary_relationship(
+        "The covariate was available.",
+        "validated_covariates_used_by_primary")
     assert not preserves_primary_relationship(
         "Some explanation.", "future_unknown_relationship")
     assert preserves_primary_relationship("anything", "")

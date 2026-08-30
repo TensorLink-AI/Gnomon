@@ -1,0 +1,592 @@
+{
+  "release_metadata": {
+    "arm": "engine-topology-smoke",
+    "benchmark": "contextbench",
+    "configuration_identity": "engine-only matched history/context smoke; one process; expected full-matrix gate failures allowed",
+    "dataset_identity": "contextbench-stress-v1 manifest=9730fdab limit=8",
+    "evaluated_commit": "4391ed6+scorecard-working-tree",
+    "harness_commit": "4391ed6+scorecard-working-tree",
+    "notes": [
+      "This eight-case smoke checks bounded completion and invariants; it is not decision-ready for ContextBench accuracy claims."
+    ],
+    "scope": "smoke",
+    "source": "results/v0.6-product-loop/i001-context-engine-smoke/summary.json",
+    "source_sha256": "f2eaab786b2bbc9df0c7d7a912dd471ffbe80819a81814b5d6b6f02bd32b221c",
+    "status": "complete"
+  },
+  "summary": {
+    "benchmark": "contextbench",
+    "cases": 8,
+    "corpus_manifest_sha256": "9730fdab3709804b22c46774dc7a3e2731d806820b22bc93b2e05c10e3136b8c",
+    "decision_ready": false,
+    "deprecated_fields": {
+      "observations.default_policy_primary_changed": "use default_policy_selected_projection_differs_from_primary",
+      "observations.primary_changed": "use selected_projection_differs_from_primary"
+    },
+    "dimensions": {
+      "claim_truth": {
+        "false": {
+          "admission_precision": null,
+          "admission_recall": null,
+          "cases": 2,
+          "false_asserted_claim_selected_projection_rate": 0.5,
+          "false_influence_rate": null,
+          "harmful_admissions": 1,
+          "incremental_smape": -2.1192518732348846,
+          "magnitude_mae_when_applied": 7.686369876119371,
+          "onset_mae_when_applied": null,
+          "realized_truth_rate_when_applied": 0.0
+        },
+        "false_direction": {
+          "admission_precision": null,
+          "admission_recall": 0.0,
+          "cases": 1,
+          "false_asserted_claim_selected_projection_rate": null,
+          "false_influence_rate": null,
+          "harmful_admissions": 0,
+          "incremental_smape": 0.0,
+          "magnitude_mae_when_applied": null,
+          "onset_mae_when_applied": null,
+          "realized_truth_rate_when_applied": null
+        },
+        "partially_true": {
+          "admission_precision": null,
+          "admission_recall": 0.0,
+          "cases": 1,
+          "false_asserted_claim_selected_projection_rate": null,
+          "false_influence_rate": null,
+          "harmful_admissions": 0,
+          "incremental_smape": 0.0,
+          "magnitude_mae_when_applied": null,
+          "onset_mae_when_applied": null,
+          "realized_truth_rate_when_applied": null
+        },
+        "true": {
+          "admission_precision": 1.0,
+          "admission_recall": 0.3333333333333333,
+          "cases": 3,
+          "false_asserted_claim_selected_projection_rate": null,
+          "false_influence_rate": null,
+          "harmful_admissions": 0,
+          "incremental_smape": 0.49410426579629646,
+          "magnitude_mae_when_applied": 1.4777231200126852,
+          "onset_mae_when_applied": 2,
+          "realized_truth_rate_when_applied": 1.0
+        },
+        "true_for_other_entity": {
+          "admission_precision": null,
+          "admission_recall": null,
+          "cases": 1,
+          "false_asserted_claim_selected_projection_rate": null,
+          "false_influence_rate": 0.0,
+          "harmful_admissions": 0,
+          "incremental_smape": 0.0,
+          "magnitude_mae_when_applied": null,
+          "onset_mae_when_applied": null,
+          "realized_truth_rate_when_applied": null
+        }
+      },
+      "confounding": {
+        "cross_entity": {
+          "admission_precision": null,
+          "admission_recall": null,
+          "cases": 1,
+          "false_asserted_claim_selected_projection_rate": null,
+          "false_influence_rate": 0.0,
+          "harmful_admissions": 0,
+          "incremental_smape": 0.0,
+          "magnitude_mae_when_applied": null,
+          "onset_mae_when_applied": null,
+          "realized_truth_rate_when_applied": null
+        },
+        "event_plus_covariate": {
+          "admission_precision": 1.0,
+          "admission_recall": 1.0,
+          "cases": 1,
+          "false_asserted_claim_selected_projection_rate": null,
+          "false_influence_rate": null,
+          "harmful_admissions": 0,
+          "incremental_smape": 1.4823127973888894,
+          "magnitude_mae_when_applied": 1.4777231200126852,
+          "onset_mae_when_applied": 2,
+          "realized_truth_rate_when_applied": 1.0
+        },
+        "none": {
+          "admission_precision": null,
+          "admission_recall": 0.0,
+          "cases": 6,
+          "false_asserted_claim_selected_projection_rate": 0.5,
+          "false_influence_rate": null,
+          "harmful_admissions": 1,
+          "incremental_smape": -0.7064172910782949,
+          "magnitude_mae_when_applied": 7.686369876119371,
+          "onset_mae_when_applied": null,
+          "realized_truth_rate_when_applied": 0.0
+        }
+      },
+      "effect_shape": {
+        "cap": {
+          "admission_precision": null,
+          "admission_recall": null,
+          "cases": 1,
+          "false_asserted_claim_selected_projection_rate": 1.0,
+          "false_influence_rate": null,
+          "harmful_admissions": 1,
+          "incremental_smape": -4.238503746469769,
+          "magnitude_mae_when_applied": 7.686369876119371,
+          "onset_mae_when_applied": null,
+          "realized_truth_rate_when_applied": 0.0
+        },
+        "decay": {
+          "admission_precision": null,
+          "admission_recall": 0.0,
+          "cases": 3,
+          "false_asserted_claim_selected_projection_rate": null,
+          "false_influence_rate": null,
+          "harmful_admissions": 0,
+          "incremental_smape": 0.0,
+          "magnitude_mae_when_applied": null,
+          "onset_mae_when_applied": null,
+          "realized_truth_rate_when_applied": null
+        },
+        "flat": {
+          "admission_precision": 1.0,
+          "admission_recall": 1.0,
+          "cases": 2,
+          "false_asserted_claim_selected_projection_rate": null,
+          "false_influence_rate": 0.0,
+          "harmful_admissions": 0,
+          "incremental_smape": 0.7411563986944447,
+          "magnitude_mae_when_applied": 1.4777231200126852,
+          "onset_mae_when_applied": 2,
+          "realized_truth_rate_when_applied": 1.0
+        },
+        "ramp": {
+          "admission_precision": null,
+          "admission_recall": 0.0,
+          "cases": 1,
+          "false_asserted_claim_selected_projection_rate": null,
+          "false_influence_rate": null,
+          "harmful_admissions": 0,
+          "incremental_smape": 0.0,
+          "magnitude_mae_when_applied": null,
+          "onset_mae_when_applied": null,
+          "realized_truth_rate_when_applied": null
+        },
+        "trend_ceases": {
+          "admission_precision": null,
+          "admission_recall": null,
+          "cases": 1,
+          "false_asserted_claim_selected_projection_rate": 0.0,
+          "false_influence_rate": null,
+          "harmful_admissions": 0,
+          "incremental_smape": 0.0,
+          "magnitude_mae_when_applied": null,
+          "onset_mae_when_applied": null,
+          "realized_truth_rate_when_applied": null
+        }
+      },
+      "frequency": {
+        "15min": {
+          "admission_precision": 1.0,
+          "admission_recall": 0.2,
+          "cases": 8,
+          "false_asserted_claim_selected_projection_rate": 0.5,
+          "false_influence_rate": 0.0,
+          "harmful_admissions": 1,
+          "incremental_smape": -0.34452386863511,
+          "magnitude_mae_when_applied": 4.582046498066028,
+          "onset_mae_when_applied": 2,
+          "realized_truth_rate_when_applied": 0.5
+        }
+      },
+      "known_at": {
+        "late_history_future_at_cutoff": {
+          "admission_precision": null,
+          "admission_recall": 0.0,
+          "cases": 1,
+          "false_asserted_claim_selected_projection_rate": null,
+          "false_influence_rate": null,
+          "harmful_admissions": 0,
+          "incremental_smape": 0.0,
+          "magnitude_mae_when_applied": null,
+          "onset_mae_when_applied": null,
+          "realized_truth_rate_when_applied": null
+        },
+        "series_start": {
+          "admission_precision": 1.0,
+          "admission_recall": 0.25,
+          "cases": 7,
+          "false_asserted_claim_selected_projection_rate": 0.5,
+          "false_influence_rate": 0.0,
+          "harmful_admissions": 1,
+          "incremental_smape": -0.3937415641544114,
+          "magnitude_mae_when_applied": 4.582046498066028,
+          "onset_mae_when_applied": 2,
+          "realized_truth_rate_when_applied": 0.5
+        }
+      },
+      "narrative_style": {
+        "changelog": {
+          "admission_precision": null,
+          "admission_recall": 0.0,
+          "cases": 3,
+          "false_asserted_claim_selected_projection_rate": 0.0,
+          "false_influence_rate": null,
+          "harmful_admissions": 0,
+          "incremental_smape": 0.0,
+          "magnitude_mae_when_applied": null,
+          "onset_mae_when_applied": null,
+          "realized_truth_rate_when_applied": null
+        },
+        "noisy": {
+          "admission_precision": null,
+          "admission_recall": 0.0,
+          "cases": 1,
+          "false_asserted_claim_selected_projection_rate": null,
+          "false_influence_rate": null,
+          "harmful_admissions": 0,
+          "incremental_smape": 0.0,
+          "magnitude_mae_when_applied": null,
+          "onset_mae_when_applied": null,
+          "realized_truth_rate_when_applied": null
+        },
+        "schedule": {
+          "admission_precision": 1.0,
+          "admission_recall": 1.0,
+          "cases": 2,
+          "false_asserted_claim_selected_projection_rate": 1.0,
+          "false_influence_rate": null,
+          "harmful_admissions": 1,
+          "incremental_smape": -1.37809547454044,
+          "magnitude_mae_when_applied": 4.582046498066028,
+          "onset_mae_when_applied": 2,
+          "realized_truth_rate_when_applied": 0.5
+        },
+        "ticket": {
+          "admission_precision": null,
+          "admission_recall": 0.0,
+          "cases": 2,
+          "false_asserted_claim_selected_projection_rate": null,
+          "false_influence_rate": 0.0,
+          "harmful_admissions": 0,
+          "incremental_smape": 0.0,
+          "magnitude_mae_when_applied": null,
+          "onset_mae_when_applied": null,
+          "realized_truth_rate_when_applied": null
+        }
+      },
+      "seasonality_period": {
+        "96": {
+          "admission_precision": 1.0,
+          "admission_recall": 0.2,
+          "cases": 8,
+          "false_asserted_claim_selected_projection_rate": 0.5,
+          "false_influence_rate": 0.0,
+          "harmful_admissions": 1,
+          "incremental_smape": -0.34452386863511,
+          "magnitude_mae_when_applied": 4.582046498066028,
+          "onset_mae_when_applied": 2,
+          "realized_truth_rate_when_applied": 0.5
+        }
+      }
+    },
+    "families": {
+      "bitemporal_context": {
+        "applied": 0,
+        "cases": 1,
+        "conditional_scenario_incremental_smape": null,
+        "conditional_scenario_smape": null,
+        "conditional_scenarios": 0,
+        "context_point_smape": 1.6854325491078122,
+        "context_smape": 1.8223905606630142,
+        "counterfactual_context_opportunity_smape": 1.183065156660504,
+        "history_point_smape": 1.6854325491078122,
+        "history_smape": 1.8223905606630142,
+        "incremental_smape": 0.0,
+        "leakage": 0,
+        "point_incremental_smape": 0.0,
+        "selected_projection_differs_from_primary": 0
+      },
+      "confounded": {
+        "applied": 1,
+        "cases": 1,
+        "conditional_scenario_incremental_smape": null,
+        "conditional_scenario_smape": null,
+        "conditional_scenarios": 0,
+        "context_point_smape": 1.0989122227435077,
+        "context_smape": 3.091314796362621,
+        "counterfactual_context_opportunity_smape": 3.136617354484848,
+        "history_point_smape": 4.691050878346212,
+        "history_smape": 4.57362759375151,
+        "incremental_smape": 1.4823127973888894,
+        "leakage": 0,
+        "point_incremental_smape": 3.592138655602705,
+        "selected_projection_differs_from_primary": 1
+      },
+      "entity_scope": {
+        "applied": 0,
+        "cases": 1,
+        "conditional_scenario_incremental_smape": null,
+        "conditional_scenario_smape": null,
+        "conditional_scenarios": 0,
+        "context_point_smape": 1.1653551913936369,
+        "context_smape": 1.1094515374571896,
+        "counterfactual_context_opportunity_smape": 0.0,
+        "history_point_smape": 1.1653551913936369,
+        "history_smape": 1.1094515374571896,
+        "incremental_smape": 0.0,
+        "leakage": 0,
+        "point_incremental_smape": 0.0,
+        "selected_projection_differs_from_primary": 0
+      },
+      "misleading_context": {
+        "applied": 0,
+        "cases": 1,
+        "conditional_scenario_incremental_smape": null,
+        "conditional_scenario_smape": null,
+        "conditional_scenarios": 0,
+        "context_point_smape": 3.1093017769039926,
+        "context_smape": 3.17999998942339,
+        "counterfactual_context_opportunity_smape": 1.184184591479645,
+        "history_point_smape": 3.1093017769039926,
+        "history_smape": 3.17999998942339,
+        "incremental_smape": 0.0,
+        "leakage": 0,
+        "point_incremental_smape": 0.0,
+        "selected_projection_differs_from_primary": 0
+      },
+      "numeric_claim": {
+        "applied": 1,
+        "cases": 1,
+        "conditional_scenario_incremental_smape": null,
+        "conditional_scenario_smape": null,
+        "conditional_scenarios": 0,
+        "context_point_smape": 5.707657303834643,
+        "context_smape": 5.691561370134149,
+        "counterfactual_context_opportunity_smape": 0.0,
+        "history_point_smape": 1.2015851737833205,
+        "history_smape": 1.4530576236643804,
+        "incremental_smape": -4.238503746469769,
+        "leakage": 0,
+        "point_incremental_smape": -4.506072130051322,
+        "selected_projection_differs_from_primary": 1
+      },
+      "repeated_event": {
+        "applied": 0,
+        "cases": 1,
+        "conditional_scenario_incremental_smape": null,
+        "conditional_scenario_smape": null,
+        "conditional_scenarios": 0,
+        "context_point_smape": 1.2735365457638295,
+        "context_smape": 1.3299692732956112,
+        "counterfactual_context_opportunity_smape": 0.10507940029653964,
+        "history_point_smape": 1.2735365457638295,
+        "history_smape": 1.3299692732956112,
+        "incremental_smape": 0.0,
+        "leakage": 0,
+        "point_incremental_smape": 0.0,
+        "selected_projection_differs_from_primary": 0
+      },
+      "structural_change": {
+        "applied": 0,
+        "cases": 1,
+        "conditional_scenario_incremental_smape": 0.0070778142488086004,
+        "conditional_scenario_smape": 0.5860069606394531,
+        "conditional_scenarios": 1,
+        "context_point_smape": 0.6292469048071805,
+        "context_smape": 0.5930847748882617,
+        "counterfactual_context_opportunity_smape": 0.0,
+        "history_point_smape": 0.6292469048071805,
+        "history_smape": 0.5930847748882617,
+        "incremental_smape": 0.0,
+        "leakage": 0,
+        "point_incremental_smape": 0.0,
+        "selected_projection_differs_from_primary": 0
+      },
+      "timing_uncertainty": {
+        "applied": 0,
+        "cases": 1,
+        "conditional_scenario_incremental_smape": null,
+        "conditional_scenario_smape": null,
+        "conditional_scenarios": 0,
+        "context_point_smape": 1.7259286782135232,
+        "context_smape": 1.8570178354433355,
+        "counterfactual_context_opportunity_smape": 1.8070565287348994,
+        "history_point_smape": 1.7259286782135232,
+        "history_smape": 1.8570178354433355,
+        "incremental_smape": 0.0,
+        "leakage": 0,
+        "point_incremental_smape": 0.0,
+        "selected_projection_differs_from_primary": 0
+      }
+    },
+    "fresh_seed": true,
+    "gates": {
+      "admission_precision_at_least_90pct": true,
+      "all_required_stress_strata_present": true,
+      "asserted_claim_outcomes_are_scored": true,
+      "asserted_claims_do_not_select_a_different_projection_by_default": true,
+      "complete": true,
+      "disposition_contract_exact": true,
+      "false_influence_below_1pct": true,
+      "fresh_heldout_seed": true,
+      "high_snr_admission_recall_at_least_80pct": false,
+      "interval_coverage_at_least_70pct": true,
+      "primary_forecast_parity": true,
+      "publication_parity": true,
+      "scenario_effect_contracts_typed": true,
+      "snr_curve_has_at_least_5_levels": false,
+      "true_numeric_claims_do_not_harm_on_average": false,
+      "true_structural_claims_do_not_harm_on_average": false,
+      "zero_leakage": true
+    },
+    "generator": "contextbench-stress-v1",
+    "metrics": {
+      "admission_precision": 1.0,
+      "admission_precision_95ci": [
+        0.20654329147389294,
+        1.0
+      ],
+      "admission_recall": 0.2,
+      "admission_recall_95ci": [
+        0.03622316096978745,
+        0.6244717358814613
+      ],
+      "asserted_claim_cases": 2,
+      "calibration_only_changed_steps": 0,
+      "default_policy_asserted_selected_projection_rate": 0.0,
+      "disposition_accuracy": 1.0,
+      "effect_direction_accuracy": 0.5,
+      "false_asserted_claim_cases": 2,
+      "false_asserted_claim_mean_incremental_smape": -2.1192518732348846,
+      "false_asserted_claim_selected_projection_rate": 0.5,
+      "false_influence_95ci": [
+        0.0,
+        0.7934567085261071
+      ],
+      "false_influence_rate": 0.0,
+      "incremental_smape_influence_cases": 0.2964625594777779,
+      "leakage_count": 0,
+      "mean_interval_coverage": 0.8,
+      "scenario_contracts": 6,
+      "true_asserted_claim_harm_rate": null,
+      "true_asserted_claim_mean_incremental_smape": null,
+      "typed_scenario_contract_rate": 1.0
+    },
+    "schema_version": 1,
+    "seed": 6826960745610980136,
+    "snr_curve": {
+      "0.5": {
+        "admission_precision": null,
+        "admission_recall": 0.0,
+        "cases": 1,
+        "false_asserted_claim_selected_projection_rate": null,
+        "false_influence_rate": null,
+        "harmful_admissions": 0,
+        "incremental_smape": 0.0,
+        "magnitude_mae_when_applied": null,
+        "onset_mae_when_applied": null,
+        "realized_truth_rate_when_applied": null
+      }
+    },
+    "strata": {
+      "bitemporal": {
+        "admission_precision": null,
+        "admission_recall": 0.0,
+        "cases": 1,
+        "false_asserted_claim_selected_projection_rate": null,
+        "false_influence_rate": null,
+        "harmful_admissions": 0,
+        "incremental_smape": 0.0,
+        "magnitude_mae_when_applied": null,
+        "onset_mae_when_applied": null,
+        "realized_truth_rate_when_applied": null
+      },
+      "confounded": {
+        "admission_precision": 1.0,
+        "admission_recall": 1.0,
+        "cases": 1,
+        "false_asserted_claim_selected_projection_rate": null,
+        "false_influence_rate": null,
+        "harmful_admissions": 0,
+        "incremental_smape": 1.4823127973888894,
+        "magnitude_mae_when_applied": 1.4777231200126852,
+        "onset_mae_when_applied": 2,
+        "realized_truth_rate_when_applied": 1.0
+      },
+      "entity_scope": {
+        "admission_precision": null,
+        "admission_recall": null,
+        "cases": 1,
+        "false_asserted_claim_selected_projection_rate": null,
+        "false_influence_rate": 0.0,
+        "harmful_admissions": 0,
+        "incremental_smape": 0.0,
+        "magnitude_mae_when_applied": null,
+        "onset_mae_when_applied": null,
+        "realized_truth_rate_when_applied": null
+      },
+      "misleading_direction": {
+        "admission_precision": null,
+        "admission_recall": 0.0,
+        "cases": 1,
+        "false_asserted_claim_selected_projection_rate": null,
+        "false_influence_rate": null,
+        "harmful_admissions": 0,
+        "incremental_smape": 0.0,
+        "magnitude_mae_when_applied": null,
+        "onset_mae_when_applied": null,
+        "realized_truth_rate_when_applied": null
+      },
+      "numeric_claim": {
+        "admission_precision": null,
+        "admission_recall": null,
+        "cases": 1,
+        "false_asserted_claim_selected_projection_rate": 1.0,
+        "false_influence_rate": null,
+        "harmful_admissions": 1,
+        "incremental_smape": -4.238503746469769,
+        "magnitude_mae_when_applied": 7.686369876119371,
+        "onset_mae_when_applied": null,
+        "realized_truth_rate_when_applied": 0.0
+      },
+      "snr_sweep": {
+        "admission_precision": null,
+        "admission_recall": 0.0,
+        "cases": 1,
+        "false_asserted_claim_selected_projection_rate": null,
+        "false_influence_rate": null,
+        "harmful_admissions": 0,
+        "incremental_smape": 0.0,
+        "magnitude_mae_when_applied": null,
+        "onset_mae_when_applied": null,
+        "realized_truth_rate_when_applied": null
+      },
+      "structural_claim": {
+        "admission_precision": null,
+        "admission_recall": null,
+        "cases": 1,
+        "false_asserted_claim_selected_projection_rate": 0.0,
+        "false_influence_rate": null,
+        "harmful_admissions": 0,
+        "incremental_smape": 0.0,
+        "magnitude_mae_when_applied": null,
+        "onset_mae_when_applied": null,
+        "realized_truth_rate_when_applied": null
+      },
+      "timing_uncertainty": {
+        "admission_precision": null,
+        "admission_recall": 0.0,
+        "cases": 1,
+        "false_asserted_claim_selected_projection_rate": null,
+        "false_influence_rate": null,
+        "harmful_admissions": 0,
+        "incremental_smape": 0.0,
+        "magnitude_mae_when_applied": null,
+        "onset_mae_when_applied": null,
+        "realized_truth_rate_when_applied": null
+      }
+    }
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "release_metadata": {"scope": "smoke", "evaluated_commit": "c26c654", "harness_commit": "c26c654", "dataset_identity": "four prespecified structural ContextBench cases", "configuration_identity": "Evidence profile, DeepSeek through Engy, engine baseline, jobs=1"},
+  "schema_version": 1,
+  "evaluated_commit": "c26c654",
+  "protocol": "docs/v0.6-p8-agent-brief-protocol.md",
+  "configuration": {
+    "profile": "evidence",
+    "model": "deepseek-v4-flash-0731",
+    "provider": "Engy",
+    "baseline_mode": "engine",
+    "routing_policy": "compiled",
+    "temperature": 0.0,
+    "reasoning_effort": "none",
+    "jobs": 1,
+    "request_timeout_seconds": 180,
+    "tool_timeout_seconds": 120,
+    "max_retries": 2,
+    "infrastructure_retries": 2
+  },
+  "cases": [
+    "stress-structural-true-0000",
+    "stress-structural-true-0001",
+    "stress-structural-true-0002",
+    "stress-structural-false-0000"
+  ],
+  "engine_contract": {
+    "expected": 4,
+    "completed": 4,
+    "publication_identity_produced": 4,
+    "publication_identity_matched": 4,
+    "temporal_leakage_count": 0,
+    "no_distinct_numeric_path_exposed": 3,
+    "selected_projection_differed_from_primary": 0
+  },
+  "agent_preservation": {
+    "answered": 4,
+    "provider_failures": 0,
+    "harness_failures": 0,
+    "agent_completion_failures": 0,
+    "typed_relationship_preserved": {"passed": 3, "expected": 3, "rate": 1.0},
+    "canonical_primary_preserved_rate": 1.0,
+    "automation_limit_preserved_rate": 1.0,
+    "source_reference_preserved_rate": 1.0,
+    "rejection_evidence_preserved_rate": 1.0,
+    "scenario_consequence_preserved_rate": 1.0,
+    "interval_limit_preserved_rate": 1.0,
+    "complete_explanation_contract_rate": 1.0
+  },
+  "usage": {
+    "requests": 14,
+    "transport_attempts": 14,
+    "prompt_tokens": 66610,
+    "completion_tokens": 3775,
+    "truncation_escalations": 0,
+    "accounting_complete": true,
+    "retried_cases": 0
+  },
+  "manual_inspection": {
+    "true_0000": "Final response says the primary already has no stable continuation, cites 72.7% versus the 75% gate, states no defensibly distinct numeric path, preserves the canonical primary, source, failed gate, and automation=false.",
+    "true_0001": "Final response says the same relationship with 54.5% versus 75%, names rejection rather than a scenario, and preserves source and authority.",
+    "true_0002": "Final response says applying trend cessation would not produce a defensibly distinct path because the engine primary already deviates from the historical direction; primary and automation remain unchanged.",
+    "false_0000": "Engine retains a non-authoritative conditional scenario, and the final response distinguishes it from the unchanged canonical primary while preserving both endpoint consequences, source, failed gate, interval coverage, and automation=false."
+  },
+  "raw_evidence": [
+    "results/v06-p8-i008-agent-structural/",
+    "results/v06-p8-i008-context-receipts/"
+  ],
+  "decision_ready": true
+}

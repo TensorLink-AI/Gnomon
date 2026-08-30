@@ -472,6 +472,12 @@ def test_brief_compacts_large_repeated_context_without_losing_counts(
     assert outcome["event_count"] == 10
     assert len(outcome["events"]) == 4
     assert outcome["events_omitted"] == 6
+    assert outcome["context_evidence_count"] == 10
+    assert len(outcome["context_evidence"]) == 1
+    assert outcome["context_evidence"][0]["count"] == 10
+    assert outcome["context_evidence_omitted"] == 9
+    assert outcome["context_evidence_location"] == (
+        "artifact.results[].context_outcome.context_evidence")
     assert outcome["disposition_counts"] == {"scenario": 10}
     assert outcome["hypothesis_count"] == 10
     assert len(outcome["hypotheses"]) == 1
@@ -482,6 +488,11 @@ def test_brief_compacts_large_repeated_context_without_losing_counts(
     assert hypothesis["numeric_status"] == (
         "standardized_sensitivity_not_event_effect")
     assert hypothesis["may_affect_primary_forecast"] is False
+    compact_claims = payload["publication"]["selection_contract"]["claims"]
+    assert len(compact_claims) == 1
+    assert compact_claims[0]["count"] == 10
+    assert payload["publication"]["context_dispositions"][0]["count"] == 10
+    assert payload["publication"]["context_dispositions_omitted"] == 9
     # The protected decision/support contract may exceed the ordinary 9 KiB
     # bulk budget, but repeated events must not grow the answer linearly.
     assert len(json.dumps(payload)) <= 16_000
@@ -1811,6 +1822,23 @@ def test_agent_response_contract_groups_limitations_and_names_tier_floor():
     assert group["affected_series_count"] == 2
     assert group["examples"] == ["worker", "billing"]
     assert payload["recovery_actions"][0]["code"] == "provide_more_history"
+
+
+def test_decide_runner_returns_typed_repair_for_malformed_actions(tmp_path):
+    import pytest
+
+    from gnomon.contracts import GnomonError
+    from gnomon.toolspec import runner_for
+
+    with pytest.raises(GnomonError) as caught:
+        runner_for("gnomon_decide")({
+            "input": "examples/daily_requests.csv", "horizon": 3,
+            "threshold": 100, "actions": ["wait", "act"],
+            "output_dir": str(tmp_path),
+        })
+    assert caught.value.code == "INVALID_ACTIONS"
+    assert caught.value.to_dict()["error"]["repair_options"][0]["action"] == \
+        "fix_actions"
 
 
 def test_response_contract_fields_cannot_be_trimmed():

@@ -1,0 +1,70 @@
+{
+  "release_metadata": {
+    "arm": "gnomon-evidence-vs-deepseek-sensor",
+    "benchmark": "context-is-key-forecast",
+    "configuration_identity": "official per-run RCRPS with exact paired sign test; cap-and-impute headline retained",
+    "dataset_identity": "4 matched official sensor tasks at seed=1",
+    "evaluated_commit": "466d577",
+    "harness_commit": "466d577",
+    "notes": [],
+    "scope": "subset",
+    "source": "results/v06-release-validation-466d577/cik-sensor-matched-report.json",
+    "source_sha256": "4c1271683a084e378b9a0970dfd201ad91d49e0582e7b2831b218b1a91e0ba52",
+    "status": "complete"
+  },
+  "summary": {
+    "comparisons": [
+      {
+        "baseline": "cik-control-sensor",
+        "baseline_only": 0,
+        "benchmark": "cik",
+        "comparable": true,
+        "matched_tasks": 4,
+        "metrics": {
+          "rcrps": {
+            "baseline_mean": 0.133801,
+            "baseline_median": 0.031431,
+            "direction_recognised": true,
+            "lower_is_better": true,
+            "scored_by_both": 4,
+            "test": {
+              "n": 4,
+              "p_value": 0.625,
+              "test": "sign_exact",
+              "ties": 0,
+              "treatment_losses": 3,
+              "treatment_wins": 1
+            },
+            "treatment_mean": 0.101261,
+            "treatment_median": 0.063751
+          }
+        },
+        "success_rate": {
+          "baseline": 1.0,
+          "treatment": 1.0
+        },
+        "success_test": {
+          "n": 4,
+          "p_value": 1.0,
+          "test": "mcnemar_exact",
+          "treatment_broke": 0,
+          "treatment_fixed": 0
+        },
+        "treatment": "cik-evidence-sensor",
+        "treatment_only": 0
+      }
+    ],
+    "cost": {
+      "cik-control-sensor": {
+        "cost_usd": null,
+        "requests": null,
+        "truncation_escalations": null
+      },
+      "cik-evidence-sensor": {
+        "cost_usd": null,
+        "requests": null,
+        "truncation_escalations": null
+      }
+    }
+  }
+}

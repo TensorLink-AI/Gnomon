@@ -192,6 +192,14 @@ warning remains attached to every series in the integrity-sealed artifact. These
 fields, the headline, support, assumptions, staleness, and artifact references
 are protected from trimming.
 
+When recovery is possible, `recovery_plan` ranks the same authored actions and
+points each item back to its canonical source. Deterministic forecast repairs
+include `execution.tool` plus an additive `argument_patch`; merge that patch
+into the original call. Repairs that need a path, frequency, schema choice, new
+data, or human policy instead set `requires_user_input: true` and do not guess
+arguments. Every item states that recovery cannot upgrade evidence, accuracy,
+support, or automation authority.
+
 Scenario and best-effort forecasts likewise return a compact `publication`
 decision projection by default. Use its `selection_contract` to reason and its
 `publication_path` with `gnomon_select_scenario`; the complete signed receipt
@@ -299,3 +307,10 @@ The experimental `gnomon_track` verb also accepts
 `assess_adapter_shadow` for an outcome-backed recommendation. Assessment is
 advisory only: it never changes the publishing candidate, and an unpinned
 adapter cannot graduate.
+
+`route_adapter_shadow` turns an exact-regime, pinned-revision cohort into a
+point-in-time candidate-pool recommendation after eight paired outcomes clear
+the mean-gain and Wilson win-rate gates. A four-outcome recent window rolls the
+recommendation back to the champion on degradation. The response always marks
+the route as `candidate_pool_only`, not automation authority, and the next
+forecast must still admit the challenger on its own local folds.

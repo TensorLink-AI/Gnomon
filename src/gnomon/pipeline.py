@@ -835,6 +835,8 @@ def multivariate_stage(
     ineligibility_reason: str | None = None,
     strongest_correlation: float | None = None,
     series_count: int = 0,
+    related_series: list[str] | None = None,
+    supplied_related_series: list[str] | None = None,
 ) -> None:
     """Record what the cross-series candidate was and how it was decided.
 
@@ -883,7 +885,14 @@ def multivariate_stage(
     state.evidence.append(Evidence(
         f"multivariate_gate:{state.name}", "multivariate_gate", state.name,
         {
+            "target_series": state.name,
+            "candidate_model": MULTIVARIATE_MODEL_NAME,
+            "adapter": MULTIVARIATE_MODEL_NAME,
+            "adapter_kind": "statistical",
+            "adapter_protocol_version": "0.1",
             "series_in_frame": series_count,
+            "supplied_related_series": list(supplied_related_series or []),
+            "retained_related_series": list(related_series or []),
             "strongest_correlation": strongest_correlation,
             "admitted": state.selected_model == MULTIVARIATE_MODEL_NAME,
             "checks": checks,

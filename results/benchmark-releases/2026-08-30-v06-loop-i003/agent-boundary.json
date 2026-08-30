@@ -1,0 +1,74 @@
+{
+  "release_metadata": {"scope": "smoke", "evaluated_commit": "b41c29ad3df40193a265debf31b266f0df7c07d5", "harness_commit": "b41c29ad3df40193a265debf31b266f0df7c07d5", "dataset_identity": "four prespecified ContextBench boundary roles", "configuration_identity": "Evidence profile, DeepSeek through Engy, engine baseline, jobs=1"},
+  "schema_version": 1,
+  "evaluated_commit": "b41c29ad3df40193a265debf31b266f0df7c07d5",
+  "configuration": {
+    "profile": "evidence",
+    "model": "deepseek-v4-flash-0731",
+    "provider": "Engy",
+    "baseline_mode": "engine",
+    "routing_policy": "compiled",
+    "temperature": 0.0,
+    "jobs": 1,
+    "request_timeout_seconds": 180,
+    "tool_timeout_seconds": 120,
+    "max_retries": 2,
+    "infrastructure_retries": 2
+  },
+  "decision_set": [
+    {
+      "case_id": "ctx-future_covariate-0000",
+      "role": "applied",
+      "run": "results/v06-p3-i003-agent-applied-covariate-v7/",
+      "status": "answered",
+      "typed_relationship": "validated_covariates_used_by_primary",
+      "source_reference_expected": false
+    },
+    {
+      "case_id": "ctx-irrelevant-0000",
+      "role": "scenario",
+      "run": "results/v06-p3-i003-agent-ordinary-v4/",
+      "status": "answered",
+      "source_reference_expected": true
+    },
+    {
+      "case_id": "ctx-prior_only-0002",
+      "role": "rejected",
+      "run": "results/v06-p3-i003-agent-ordinary-v4/",
+      "status": "answered",
+      "source_reference_expected": true
+    },
+    {
+      "case_id": "stress-structural-true-0000",
+      "role": "no_distinct_numeric_path",
+      "run": "results/v06-p3-i003-agent-structural-v4/",
+      "status": "answered",
+      "typed_relationship": "no_distinct_numeric_path",
+      "source_reference_expected": true
+    }
+  ],
+  "accounting": {
+    "expected": 4,
+    "answered": 4,
+    "failed": 0,
+    "provider_failures": 0,
+    "harness_failures": 0,
+    "agent_completion_failures": 0
+  },
+  "gates": {
+    "publication_parity_rate": 1.0,
+    "temporal_leakage_count": 0,
+    "canonical_primary_projection_rate": 1.0,
+    "automation_authority_projection_rate": 1.0,
+    "typed_relationship_preservation_rate": 1.0,
+    "source_reference_preservation_rate_when_expected": 1.0,
+    "context_explanation_complete_rate": 1.0
+  },
+  "manual_inspection": {
+    "applied": "The answer explicitly says the future-known covariates were admitted and applied by the primary, and copies canonical-primary and automation fields.",
+    "scenario": "The answer names the schedule source, failed fold-stability gates, and says the canonical primary was unchanged.",
+    "rejected": "The answer names the validated source and exact rejection code without inventing numeric consequences.",
+    "no_distinct_numeric_path": "The answer says the emitted primary already lacks a stable continuation, so trend cessation creates no defensibly distinct numeric path; it names the exact source and preserves primary and automation limits."
+  },
+  "missing_source_behavior": "The applied covariate was supplied as structured inline rows with known_at but no validated source.reference. The boundary exposed no source contract and invented no exact source reference."
+}

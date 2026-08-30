@@ -1,0 +1,151 @@
+{
+  "schema_version": "0.1",
+  "scorecard_id": "v0.6-i001-three-layer-smoke",
+  "scorecard_commit": "4391ed6+scorecard-working-tree",
+  "dirty_tree": true,
+  "scope": "smoke",
+  "layers": {
+    "output": {
+      "status": "fail",
+      "evaluated_commit": "4391ed6+scorecard-working-tree",
+      "dataset_identity": "short-history-modelbench:seed=60902:cases-per-family=2:classical-lane",
+      "configuration_identity": "built-in classical candidates; training-internal selection; untouched final horizon",
+      "accounting": {
+        "expected": 10,
+        "completed": 10,
+        "answered": 10,
+        "abstained": 0,
+        "failed": 0
+      },
+      "metrics": [
+        {
+          "name": "median_relative_gain_over_robust_baseline",
+          "value": 0.47220774956420153,
+          "unit": "fraction",
+          "denominator": 10,
+          "gate": {
+            "operator": "gte",
+            "threshold": 0.0,
+            "passed": true
+          }
+        },
+        {
+          "name": "regression_rate",
+          "value": 0.1,
+          "unit": "fraction",
+          "denominator": 10,
+          "gate": {
+            "operator": "eq",
+            "threshold": 0.0,
+            "passed": false
+          }
+        }
+      ],
+      "evidence": [
+        {
+          "path": "results/benchmark-releases/2026-08-30-v06-loop-i001/short-history-output-smoke.json",
+          "sha256": "616b39e586fc00108407b57c7e252af904a153a8aa8a02460a885167bb8a27c6"
+        }
+      ]
+    },
+    "reasoning": {
+      "status": "pass",
+      "evaluated_commit": "4391ed6+scorecard-working-tree",
+      "dataset_identity": "boundarybench:seed=60901:cases=20",
+      "configuration_identity": "real verbs plus generated adversarial contract cases and mutation checks",
+      "accounting": {
+        "expected": 20,
+        "completed": 20,
+        "answered": 20,
+        "abstained": 0,
+        "failed": 0
+      },
+      "metrics": [
+        {
+          "name": "contract_gate_pass_rate",
+          "value": 1.0,
+          "unit": "fraction",
+          "denominator": 20,
+          "gate": {
+            "operator": "eq",
+            "threshold": 1.0,
+            "passed": true
+          }
+        },
+        {
+          "name": "canonical_immutability_rate",
+          "value": 1.0,
+          "unit": "fraction",
+          "denominator": 20,
+          "gate": {
+            "operator": "eq",
+            "threshold": 1.0,
+            "passed": true
+          }
+        }
+      ],
+      "evidence": [
+        {
+          "path": "results/benchmark-releases/2026-08-30-v06-loop-i001/boundary-reasoning-smoke.json",
+          "sha256": "31f33b666d4502bd57b98ddafabfdf31acb36a97e4141f77bd4a6a997bc2c93a"
+        }
+      ]
+    },
+    "topology": {
+      "status": "pass",
+      "evaluated_commit": "4391ed6+scorecard-working-tree",
+      "dataset_identity": "contextbench-stress-v1:manifest=9730fdab:limit=8",
+      "configuration_identity": "engine-only matched history/context smoke; one process; allow expected full-matrix gate failures",
+      "accounting": {
+        "expected": 8,
+        "completed": 8,
+        "answered": 8,
+        "abstained": 0,
+        "failed": 0
+      },
+      "metrics": [
+        {
+          "name": "bounded_smoke_completion_rate",
+          "value": 1.0,
+          "unit": "fraction",
+          "denominator": 8,
+          "gate": {
+            "operator": "eq",
+            "threshold": 1.0,
+            "passed": true
+          }
+        }
+      ],
+      "evidence": [
+        {
+          "path": "results/benchmark-releases/2026-08-30-v06-loop-i001/context-topology-smoke.json",
+          "sha256": "2e9233ec129c25bbaeed0c60b06460909bae0832a9f02ce69321d97c898d7561"
+        }
+      ]
+    }
+  },
+  "invariants": {
+    "no_temporal_leakage": {
+      "status": "pass",
+      "evidence": [
+        {
+          "path": "results/benchmark-releases/2026-08-30-v06-loop-i001/context-topology-smoke.json",
+          "sha256": "2e9233ec129c25bbaeed0c60b06460909bae0832a9f02ce69321d97c898d7561"
+        }
+      ]
+    },
+    "canonical_output_immutable_under_explanation": {
+      "status": "pass",
+      "evidence": [
+        {
+          "path": "results/benchmark-releases/2026-08-30-v06-loop-i001/boundary-reasoning-smoke.json",
+          "sha256": "31f33b666d4502bd57b98ddafabfdf31acb36a97e4141f77bd4a6a997bc2c93a"
+        }
+      ]
+    }
+  },
+  "decision": {
+    "status": "revise",
+    "reason": "The scorecard machinery and reasoning/topology smoke gates pass, but the deliberately small short-history output shard contains one intermittent-series regression. This smoke cannot promote a forecast change and instead carries that failure into P2."
+  }
+}

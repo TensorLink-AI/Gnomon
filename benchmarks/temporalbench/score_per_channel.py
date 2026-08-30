@@ -39,13 +39,15 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import random
 from collections import OrderedDict
 from pathlib import Path
 from statistics import median
 
 from benchmarks.common.manifest import incompatibilities, read_manifest
 from benchmarks.report import sign_test
-from .tasks import load_official_metrics
+from .gnomon_runner import forecast_target_map
+from .tasks import load_official_metrics, prompt_input_arrays
 
 
 def parse_args() -> argparse.Namespace:
@@ -96,7 +98,17 @@ def load_truth(data_dir: Path) -> dict[str, dict]:
             truth = row.get("ground_truth")
             if not isinstance(truth, dict) or not truth:
                 continue
-            history = (row.get("input") or {}).get("history")
+            arrays = prompt_input_arrays(row)
+            target_map = forecast_target_map(row, arrays)
+            # Truth may call one output `future_main` while its historical
+            # input is named `pressure_downwind`. The benchmark forecaster
+            # already resolves this explicit alias; scoring must use the same
+            # mapping or silently lose the history-dependent denominator.
+            history = {
+                output_key: arrays[input_key]
+                for output_key, input_key in target_map.items()
+                if input_key in arrays
+            }
             out[row["id"]] = {"truth": truth, "history": history}
     return out
 
@@ -161,6 +173,21 @@ def summarise_pairs(pairs: list[tuple[float, float]]) -> dict[str, object]:
     paired_baseline = {str(index): pair[0] for index, pair in enumerate(pairs)}
     paired_treatment = {str(index): pair[1] for index, pair in enumerate(pairs)}
     test = sign_test(paired_baseline, paired_treatment, lower_is_better=True)
+    relative = [
+        (baseline_value - treatment_value)
+        / max(abs(baseline_value), 1e-12)
+        for baseline_value, treatment_value in pairs
+    ]
+    # Fixed-seed paired bootstrap: resample the already-paired effects, never
+    # the two arms independently. The interval is descriptive on smoke shards
+    # and becomes a preregistered gate only at the larger denominator.
+    generator = random.Random(0x474E4F4D4F4E)
+    bootstrap = sorted(
+        median(generator.choices(relative, k=len(relative)))
+        for _ in range(2000)
+    ) if relative else []
+    lower_index = int(0.05 * (len(bootstrap) - 1)) if bootstrap else 0
+    upper_index = int(0.95 * (len(bootstrap) - 1)) if bootstrap else 0
     return {
         "n": len(pairs),
         "baseline_median": round(median(baseline), 4),
@@ -169,6 +196,11 @@ def summarise_pairs(pairs: list[tuple[float, float]]) -> dict[str, object]:
         "treatment_losses": test["treatment_losses"],
         "ties": test["ties"],
         "paired_sign_p_value": test["p_value"],
+        "paired_relative_improvement_median": (
+            round(median(relative), 6) if relative else None),
+        "paired_relative_improvement_90pct_ci": (
+            [round(bootstrap[lower_index], 6),
+             round(bootstrap[upper_index], 6)] if bootstrap else None),
         "near_constant_denominators_excluded": 0,
     }
 
@@ -197,9 +229,12 @@ def main() -> int:
 
     shared_ids = sorted(set(base) & set(treat) & set(truth_by_id))
     per_channel: dict[str, list[tuple[float, float]]] = {}
+    per_channel_smape: dict[str, list[tuple[float, float]]] = {}
     per_channel_stable: dict[str, list[tuple[float, float]]] = {}
     versus_naive: dict[str, list[tuple[float, float]]] = {}
+    versus_naive_smape: dict[str, list[tuple[float, float]]] = {}
     abstention_priced: list[tuple[float, float]] = []
+    abstention_priced_smape: list[tuple[float, float]] = []
     record_rows = []
     paired_channel_records = []
     coverage = {"base_only": 0, "treat_only": 0, "both": 0, "neither": 0}
@@ -242,6 +277,7 @@ def main() -> int:
             if not naive_summary:
                 continue
             naive_mase = (naive_detail.get(channel) or {}).get("MASE")
+            naive_smape = (naive_detail.get(channel) or {}).get("sMAPE")
             if naive_mase is None:
                 continue
             base_scorable = False
@@ -251,7 +287,10 @@ def main() -> int:
                     metrics_module, truth, history,
                     {channel: b_fc[channel]}, [channel])
                 base_mase = ((base_detail or {}).get(channel) or {}).get("MASE")
+                base_smape = ((base_detail or {}).get(channel) or {}).get("sMAPE")
                 base_scorable = bool(base_summary and base_mase is not None)
+            else:
+                base_smape = None
             treatment_scorable = False
             treatment_mase = None
             if in_t:
@@ -259,16 +298,26 @@ def main() -> int:
                     metrics_module, truth, history,
                     {channel: t_fc[channel]}, [channel])
                 treatment_mase = ((treatment_detail or {}).get(channel) or {}).get("MASE")
+                treatment_smape = ((treatment_detail or {}).get(channel) or {}).get(
+                    "sMAPE")
                 if treatment_summary and treatment_mase is not None:
                     treatment_scorable = True
                     versus_naive.setdefault(channel, []).append(
                         (naive_mase, treatment_mase))
                     abstention_priced.append((naive_mase, treatment_mase))
+                    if naive_smape is not None and treatment_smape is not None:
+                        versus_naive_smape.setdefault(channel, []).append(
+                            (naive_smape, treatment_smape))
+                        abstention_priced_smape.append(
+                            (naive_smape, treatment_smape))
             else:
                 # Pricing an abstention at the registered robust fallback
                 # prevents a policy from improving its score by suppressing
                 # difficult channels.
                 abstention_priced.append((naive_mase, naive_mase))
+                if naive_smape is not None:
+                    abstention_priced_smape.append((naive_smape, naive_smape))
+                treatment_smape = None
             scoring_key = coverage_bucket(base_scorable, treatment_scorable)
             scoring_coverage[scoring_key] += 1
 
@@ -295,12 +344,18 @@ def main() -> int:
                     "baseline_mase": base_mase,
                     "treatment_mase": treatment_mase,
                     "last_value_mase": naive_mase,
+                    "baseline_smape": base_smape,
+                    "treatment_smape": treatment_smape,
+                    "last_value_smape": naive_smape,
                     "treatment_vs_last_value": outcome,
                     "baseline_support": b_label,
                     "treatment_support": t_label,
                 })
                 per_channel.setdefault(channel, []).append(
                     (base_mase, treatment_mase))
+                if base_smape is not None and treatment_smape is not None:
+                    per_channel_smape.setdefault(channel, []).append(
+                        (base_smape, treatment_smape))
                 if stable_scaled_error_denominator(channel_history):
                     per_channel_stable.setdefault(channel, []).append(
                         (base_mase, treatment_mase))
@@ -331,6 +386,7 @@ def main() -> int:
         return result
 
     all_pairs = [p for pairs in per_channel.values() for p in pairs]
+    all_smape_pairs = [p for pairs in per_channel_smape.values() for p in pairs]
     if len(all_pairs) != scoring_coverage["both"]:
         raise AssertionError(
             "paired score count diverged from independently scorable "
@@ -356,8 +412,16 @@ def main() -> int:
         "support_mix": {"baseline": base_mix, "treatment": treat_mix},
         "per_channel": {c: stable_summary(c, p)
                         for c, p in per_channel.items()},
+        "per_channel_smape": {
+            c: summarise_pairs(pairs)
+            for c, pairs in per_channel_smape.items()
+        },
         "treatment_vs_last_value": {
             c: summarise_pairs(pairs) for c, pairs in versus_naive.items()
+        },
+        "treatment_vs_last_value_smape": {
+            c: summarise_pairs(pairs)
+            for c, pairs in versus_naive_smape.items()
         },
         "publication": {
             "eligible_channel_slots_with_naive_scale": len(abstention_priced),
@@ -365,8 +429,13 @@ def main() -> int:
             "treatment_abstained_where_baseline_published": coverage["base_only"],
             "abstention_priced_as_last_value": (
                 summarise_pairs(abstention_priced) if abstention_priced else None),
+            "abstention_priced_as_last_value_smape": (
+                summarise_pairs(abstention_priced_smape)
+                if abstention_priced_smape else None),
         },
         "overall": summarise_pairs(all_pairs) if all_pairs else None,
+        "overall_smape": (summarise_pairs(all_smape_pairs)
+                           if all_smape_pairs else None),
         "overall_stable_history": (summarise_pairs(stable_all)
                                    if stable_all else None),
         "records": record_rows,

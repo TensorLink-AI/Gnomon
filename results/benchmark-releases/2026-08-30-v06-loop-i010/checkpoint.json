@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "loop": "v0.6-product-improvement",
+  "status": "complete",
+  "branch": "agent/v0.6-reasoning-loop",
+  "head_commit": "cf4bfd8",
+  "protocol": "docs/v0.6-improvement-loop.md",
+  "preservation": {
+    "preserve_preexisting_committed_work": true,
+    "preserve_preexisting_benchmark_artifacts": true,
+    "preserve_all_preexisting_untracked_files": true,
+    "excluded_from_commits": ["docs/astrid-btc-agent-plan.md"]
+  },
+  "completed_iteration": {
+    "id": "I010",
+    "priority": "P10",
+    "decision": "complete_promoted",
+    "user_outcome": "Same-ID concurrent inference publication is integrity-safe and repeatable; injected failures stay private and recover cleanly within bounded local execution.",
+    "decision_evidence": "results/benchmark-releases/2026-08-30-v06-loop-i010/decision.json",
+    "tests": "2579 passed, 11 skipped in the full local suite; 13 focused tests passed; two independent 6/6 ReliabilityBench runs passed every gate.",
+    "remaining_risk": "Local filesystem atomic rename is assumed; failed private trees are retained for deliberate diagnosis/cleanup.",
+    "production_default_changed": true
+  },
+  "active_iteration": null,
+  "priorities": [
+    {"id": "P1", "name": "three-layer release scorecard", "status": "complete"},
+    {"id": "P2", "name": "short-history forecast skill", "status": "complete_no_build"},
+    {"id": "P3", "name": "sourced contextual evidence", "status": "complete"},
+    {"id": "P4", "name": "covariate-aware and multivariate candidates", "status": "complete_no_build_with_boundary_fix"},
+    {"id": "P5", "name": "outcome-adaptive champion/challenger routing", "status": "complete"},
+    {"id": "P6", "name": "joint multi-horizon uncertainty", "status": "complete_no_build"},
+    {"id": "P7", "name": "hierarchical reconciliation", "status": "complete_no_build"},
+    {"id": "P8", "name": "agent decision brief and preservation contract", "status": "complete_validated_no_build"},
+    {"id": "P9", "name": "value-of-information recovery", "status": "complete"},
+    {"id": "P10", "name": "production inference reliability", "status": "complete"}
+  ],
+  "release_readiness": {
+    "all_priorities_resolved": true,
+    "full_suite_green": true,
+    "matched_benchmarks_green": true,
+    "competition_specific_document_excluded": true,
+    "next_action": "Review branch/PR CI and package metadata, then cut the v0.6 release only after remote CI is green."
+  }
+}

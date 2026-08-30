@@ -19,7 +19,9 @@ from typing import Any
 SCHEMA_VERSION = "1.1"
 DROP_KEYS = {
     "rows", "observations", "responses", "transcripts", "receipts",
-    "per_case", "case_results", "raw_results", "question_receipts",
+    "per_case", "case_results", "raw_results", "raw_records",
+    "raw_paired_channel_records",
+    "question_receipts",
     # Several adapters use the generic name ``results`` for one record per
     # task. Aggregate releases must not publish those rows merely because a
     # small benchmark happened to contain fewer than the list-size guard.

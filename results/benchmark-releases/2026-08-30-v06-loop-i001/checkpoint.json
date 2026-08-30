@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "loop": "v0.6-product-improvement",
+  "status": "active",
+  "base_commit": "4391ed6d9faa2824b8e4be8e5af5d60498fce83f",
+  "branch": "agent/v0.6-reasoning-loop",
+  "protocol": "docs/v0.6-improvement-loop.md",
+  "preservation": {
+    "preserve_preexisting_committed_work": true,
+    "preserve_preexisting_benchmark_artifacts": true,
+    "preserve_all_preexisting_untracked_files": true,
+    "excluded_from_commits": [
+      "docs/astrid-btc-agent-plan.md"
+    ]
+  },
+  "execution_defaults": {
+    "one_active_priority": true,
+    "api_jobs": 1,
+    "bounded_retries_required": true,
+    "per_call_timeout_required": true,
+    "wall_clock_timeout_required": true,
+    "incremental_rows_required": true,
+    "resume_required": true,
+    "smoke_shard_before_expansion": true
+  },
+  "active_iteration": {
+    "id": "I002",
+    "priority": "P2",
+    "phase": "protocol_frozen",
+    "user_hypothesis": "An independently admitted short-history candidate can give agents useful signal beyond last-value forecasting and improve early human planning without hiding sparse-data uncertainty or introducing family-specific regressions.",
+    "must_not_regress": [
+      "temporal leakage remains structurally impossible",
+      "unsupported candidates deterministically retain the robust fallback",
+      "support tiers and transfer provenance remain visible",
+      "long-history model choices remain unchanged where the new path is inapplicable",
+      "benchmark labels and case identities never enter runtime selection"
+    ],
+    "baseline_evidence": [
+      "results/benchmark-releases/2026-08-23-product-hardening/README.md",
+      "results/benchmark-releases/2026-08-30-v06-loop-i001/short-history-output-smoke.json",
+      "docs/evaluation-protocol.md"
+    ],
+    "protocol": "docs/v0.6-p2-short-history-protocol.md",
+    "next_action": "Add benchmark-only sequential and engine-only evidence-registry plumbing with focused contract tests, install the pinned Toto sandbox, then run the frozen four-row B/S/G smoke sequentially with resumable artifacts and 20-minute arm bounds.",
+    "last_completed_action": "Preregistered P2 before implementation: separated candidate supply from governed admission; froze candidate, evidence, corpus, denominators, metrics, smoke and expansion gates, kill criteria, crash-safety policy, and manual-inspection requirements."
+  },
+  "priorities": [
+    {"id": "P1", "name": "three-layer release scorecard", "status": "complete"},
+    {"id": "P2", "name": "short-history forecast skill", "status": "in_progress"},
+    {"id": "P3", "name": "sourced contextual evidence", "status": "pending"},
+    {"id": "P4", "name": "covariate-aware and multivariate candidates", "status": "pending"},
+    {"id": "P5", "name": "outcome-adaptive champion/challenger routing", "status": "pending"},
+    {"id": "P6", "name": "joint multi-horizon uncertainty", "status": "pending"},
+    {"id": "P7", "name": "hierarchical reconciliation", "status": "pending"},
+    {"id": "P8", "name": "agent decision brief and preservation contract", "status": "pending"},
+    {"id": "P9", "name": "value-of-information recovery", "status": "pending"},
+    {"id": "P10", "name": "production inference reliability", "status": "pending"}
+  ],
+  "completed_iterations": [
+    {
+      "id": "I001",
+      "priority": "P1",
+      "decision": "promote",
+      "user_outcome": "Release evidence now fails closed unless forecast/output quality, reasoning preservation, and topology/reliability are reported separately with visible denominators and retained provenance.",
+      "implementation": [
+        "Added a versioned three-layer scorecard validator and CLI.",
+        "Required exact layer membership, complete case accounting, visible bounded denominators, internally consistent metric gates, retained evidence digests, and root-contained evidence paths.",
+        "Prevented smoke, dirty-tree, incomplete, failing-layer, or failing-invariant scorecards from promoting a change.",
+        "Fixed the benchmark-release scrubber so per-case raw_records cannot enter curated aggregate releases."
+      ],
+      "validation": {
+        "focused_tests": "62 passed",
+        "boundary_smoke": "20/20 completed; all seven contract gates and mutation checks passed",
+        "short_history_smoke": "10/10 classical cases completed; seven uplift, two safety preservation, one regression",
+        "context_engine_smoke": "8/8 completed; zero leakage; smoke intentionally not decision-ready",
+        "release_validation": "passed after raw_records were removed from curated output",
+        "scorecard_validation": "passed as a valid revise decision; reasoning and topology passed, output failed"
+      },
+      "evidence": [
+        "results/benchmark-releases/2026-08-30-v06-loop-i001/manifest.json",
+        "results/benchmark-releases/2026-08-30-v06-loop-i001/scorecard.json",
+        "benchmarks/tests/test_scorecard.py",
+        "benchmarks/tests/test_release.py"
+      ],
+      "remaining_risk": "The scorecard contract is proven on smoke evidence only. The first full release promotion must exercise its clean-tree and full-scope path."
+    }
+  ]
+}

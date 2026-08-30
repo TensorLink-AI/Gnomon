@@ -1,0 +1,70 @@
+{
+  "release_metadata": {
+    "arm": "gnomon-evidence-vs-deepseek",
+    "benchmark": "temporalbench-forecast",
+    "configuration_identity": "official row sMAPE with exact paired sign test",
+    "dataset_identity": "80 matched official T2/T4 forecast tasks",
+    "evaluated_commit": "466d577",
+    "harness_commit": "466d577",
+    "notes": [],
+    "scope": "subset",
+    "source": "results/v06-release-validation-466d577/temporalbench-row-smape.json",
+    "source_sha256": "e1442f0e36361d8e9ca6dee2a974d283074ac1d1f9f1a2d06d4f8205e9f56835",
+    "status": "complete"
+  },
+  "summary": {
+    "comparisons": [
+      {
+        "baseline": "temporalbench-control",
+        "baseline_only": 0,
+        "benchmark": "temporalbench",
+        "comparable": true,
+        "matched_tasks": 80,
+        "metrics": {
+          "smape": {
+            "baseline_mean": 11.834075,
+            "baseline_median": 10.714892,
+            "direction_recognised": true,
+            "lower_is_better": true,
+            "scored_by_both": 80,
+            "test": {
+              "n": 80,
+              "p_value": 0.11466035574580126,
+              "test": "sign_exact",
+              "ties": 1,
+              "treatment_losses": 32,
+              "treatment_wins": 47
+            },
+            "treatment_mean": 10.640791,
+            "treatment_median": 9.986655
+          }
+        },
+        "success_rate": {
+          "baseline": 1.0,
+          "treatment": 1.0
+        },
+        "success_test": {
+          "n": 80,
+          "p_value": 1.0,
+          "test": "mcnemar_exact",
+          "treatment_broke": 0,
+          "treatment_fixed": 0
+        },
+        "treatment": "temporalbench-evidence",
+        "treatment_only": 0
+      }
+    ],
+    "cost": {
+      "temporalbench-control": {
+        "cost_usd": 0.0,
+        "requests": 80,
+        "truncation_escalations": 0
+      },
+      "temporalbench-evidence": {
+        "cost_usd": 0.0,
+        "requests": 317,
+        "truncation_escalations": 0
+      }
+    }
+  }
+}

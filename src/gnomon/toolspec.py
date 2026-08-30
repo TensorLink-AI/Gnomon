@@ -220,7 +220,10 @@ def _bounded_forecast_preview(rows: list[Any]) -> tuple[list[Any], int]:
 #: model-assisted lane summary and its disclosure to sub-supported
 #: responses; a horizon-split response with the lane must still carry
 #: every labelled row inline.
-RESPONSE_BUDGET_BYTES = 9216
+# Retuned 9216 -> 9728 for the source-addressed recovery plan. The added
+# half-kilobyte replaces agent-side prose parsing with one exact, bounded patch;
+# canonical support and artifact payloads remain unchanged.
+RESPONSE_BUDGET_BYTES = 9728
 DESCRIBE_RESPONSE_BUDGET_BYTES = 2400
 CAPABILITIES_RESPONSE_BUDGET_BYTES = 6000
 
@@ -506,13 +509,51 @@ def compact_publication_for_wire(payload: dict[str, Any]) -> dict[str, Any]:
         for disposition in dispositions:
             label = str(disposition.get("disposition") or "unknown")
             counts[label] = counts.get(label, 0) + 1
-        projection["context_dispositions"] = dispositions[:4]
+        grouped: dict[str, dict[str, Any]] = {}
+        for disposition in dispositions:
+            evidence = disposition.get("source_evidence") or {}
+            source = evidence.get("source") or {}
+            signature = json.dumps({
+                "disposition": disposition.get("disposition"),
+                "reason_code": disposition.get("reason_code"),
+                "reason": disposition.get("reason"),
+                "source_type": source.get("type"),
+                "source_reference": source.get("reference"),
+                "known_at": evidence.get("known_at"),
+                "receipt_id": evidence.get("receipt_id"),
+            }, sort_keys=True, separators=(",", ":"))
+            if signature not in grouped:
+                grouped[signature] = {
+                    **disposition,
+                    "representative_context_id": disposition.get(
+                        "context_id"),
+                    "count": 0,
+                }
+            grouped[signature]["count"] += 1
+        visible_dispositions = list(grouped.values())[:4]
+        projection["context_dispositions"] = visible_dispositions
         projection["context_disposition_counts"] = counts
-        projection["context_dispositions_omitted"] = len(dispositions) - 4
+        projection["context_dispositions_omitted"] = (
+            len(dispositions) - len(visible_dispositions))
         projection["context_dispositions_location"] = (
             "receipt.context_dispositions")
     contract = projection.get("selection_contract")
     if isinstance(contract, dict):
+        claims = [item for item in contract.get("claims") or []
+                  if isinstance(item, dict)]
+        claim_groups: dict[str, dict[str, Any]] = {}
+        for claim in claims:
+            shared = {key: value for key, value in claim.items()
+                      if key != "claim_id"}
+            signature = json.dumps(
+                shared, sort_keys=True, separators=(",", ":"))
+            if signature not in claim_groups:
+                claim_groups[signature] = {
+                    **claim,
+                    "representative_claim_id": claim.get("claim_id"),
+                    "count": 0,
+                }
+            claim_groups[signature]["count"] += 1
         compact_contract = {key: contract.get(key) for key in (
             "selection_required", "deterministic_scenario_id",
             "selection_basis")}
@@ -544,12 +585,13 @@ def compact_publication_for_wire(payload: dict[str, Any]) -> dict[str, Any]:
                      else {})
                     for scenario in contract.get("scenarios") or []
                     if isinstance(scenario, dict)],
-                "claims": list(contract.get("claims") or [])[:4],
+                "claims": list(claim_groups.values())[:4],
                 **({
-                    "claim_count": len(contract.get("claims") or []),
-                    "claims_omitted": len(contract.get("claims") or []) - 4,
+                    "claim_count": len(claims),
+                    "claims_omitted": len(claims) - min(
+                        4, len(claim_groups)),
                     "claims_location": "receipt.selection_contract.claims",
-                } if len(contract.get("claims") or []) > 4 else {}),
+                } if len(claims) > min(4, len(claim_groups)) else {}),
                 "observation_evidence": contract.get(
                     "observation_evidence") or [],
             })
@@ -1122,6 +1164,39 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
             projected["events_omitted"] = len(events) - 4
             projected["events_location"] = (
                 "artifact.results[].context_outcome.events")
+        context_evidence = list(projected.get("context_evidence") or [])
+        if len(context_evidence) > 4:
+            evidence_groups: dict[str, dict[str, Any]] = {}
+            for evidence in context_evidence:
+                source = evidence.get("source") or {}
+                # Missing provenance remains distinct; only exact validated
+                # source identities are safe to collapse for the wire.
+                signature_values = {
+                    "source_type": source.get("type"),
+                    "source_reference": source.get("reference"),
+                    "known_at": evidence.get("known_at"),
+                    "receipt_id": evidence.get("receipt_id"),
+                }
+                if not source.get("reference"):
+                    signature_values["context_id"] = evidence.get(
+                        "context_id")
+                signature = json.dumps(
+                    signature_values, sort_keys=True, separators=(",", ":"))
+                if signature not in evidence_groups:
+                    evidence_groups[signature] = {
+                        **evidence,
+                        "representative_context_id": evidence.get(
+                            "context_id"),
+                        "count": 0,
+                    }
+                evidence_groups[signature]["count"] += 1
+            evidence_preview = list(evidence_groups.values())[:4]
+            projected["context_evidence_count"] = len(context_evidence)
+            projected["context_evidence"] = evidence_preview
+            projected["context_evidence_omitted"] = \
+                len(context_evidence) - len(evidence_preview)
+            projected["context_evidence_location"] = (
+                "artifact.results[].context_outcome.context_evidence")
         dispositions = list(projected.get("dispositions") or [])
         if len(dispositions) > 4:
             counts: dict[str, int] = {}
@@ -1163,10 +1238,12 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
         excluded = list(projected.get("excluded") or [])
         if len(excluded) > 4:
             reason_counts: dict[str, int] = {}
+            reason_examples: dict[str, dict[str, Any]] = {}
             for exclusion in excluded:
                 reason = str(exclusion.get("reason") or "unspecified")
                 reason_counts[reason] = reason_counts.get(reason, 0) + 1
-            projected["excluded"] = excluded[:4]
+                reason_examples.setdefault(reason, exclusion)
+            projected["excluded"] = list(reason_examples.values())[:4]
             projected["excluded_count"] = len(excluded)
             projected["excluded_reason_counts"] = reason_counts
             projected["excluded_omitted"] = len(excluded) - 4
@@ -3645,13 +3722,44 @@ def _run_detect_anomalies(arguments: dict[str, Any]) -> dict[str, Any]:
 
 def _run_decide(arguments: dict[str, Any]) -> dict[str, Any]:
     from .macros import decide
+    actions = arguments.get("actions")
+    problems: list[str] = []
+    if not isinstance(actions, list):
+        problems.append(f"actions is {type(actions).__name__}, not a list")
+    else:
+        for index, action in enumerate(actions):
+            if not isinstance(action, dict):
+                problems.append(
+                    f"item {index} is {type(action).__name__}, not an object "
+                    "with a 'name'")
+            elif not isinstance(action.get("name"), str) or not action["name"].strip():
+                problems.append(f"item {index} has no non-empty 'name'")
+            elif "feasible" in action and not isinstance(action["feasible"], bool):
+                problems.append(f"item {index}: 'feasible' must be true or false")
+            elif "residual_risk" in action:
+                try:
+                    float(action["residual_risk"])
+                except (TypeError, ValueError):
+                    problems.append(
+                        f"item {index}: 'residual_risk' must be a number")
+    if problems:
+        raise GnomonError(
+            "INVALID_ACTIONS",
+            "actions does not match the expected shape: "
+            + "; ".join(problems) + ".",
+            {"example": [
+                {"name": "scale_up", "feasible": True,
+                 "residual_risk": 0.1},
+                {"name": "do_nothing"},
+            ], "problems": problems},
+        )
     payload, path = decide(
         arguments["input"],
         time_column=arguments["time_column"],
         target_column=arguments["target_column"],
         horizon=int(arguments["horizon"]),
         threshold=float(arguments["threshold"]),
-        actions=list(arguments["actions"]),
+        actions=list(actions),
         utilities=arguments.get("utilities"),
         max_acceptable_risk=(
             float(arguments["max_acceptable_risk"])
@@ -3935,6 +4043,8 @@ def _run_track(arguments: dict[str, Any]) -> dict[str, Any]:
             candidate_error=float(arguments["candidate_error"]),
             baseline_error=float(arguments["baseline_error"]),
             known_at=str(arguments["known_at"]),
+            regime={str(key): str(value) for key, value in
+                    dict(arguments.get("regime") or {}).items()} or None,
         )
     if action == "assess_adapter_shadow":
         from .tracking import TrackingStore
@@ -3947,6 +4057,17 @@ def _run_track(arguments: dict[str, Any]) -> dict[str, Any]:
             min_outcomes=int(arguments.get("min_outcomes", 30)),
             min_improvement=float(arguments.get("min_improvement", .05)),
             min_win_rate=float(arguments.get("min_win_rate", .60)),
+        )
+    if action == "route_adapter_shadow":
+        from .tracking import TrackingStore
+        return TrackingStore().route_adapter_shadow(
+            project=str(arguments["project"]),
+            candidate=str(arguments["candidate"]),
+            revision=arguments.get("revision"),
+            champion=str(arguments["baseline"]),
+            regime={str(key): str(value) for key, value in
+                    dict(arguments.get("regime") or {}).items()},
+            as_of=str(arguments["as_of"]),
         )
     if action == "record_synthesis":
         from .tracking import TrackingStore
@@ -4019,7 +4140,8 @@ def _run_track(arguments: dict[str, Any]) -> dict[str, Any]:
     raise GnomonError("INVALID_ARGUMENTS", "action is required.",
                       {"allowed": ["status", "submit_actuals", "resolve_outcome",
                                    "record_adapter_shadow",
-                                   "assess_adapter_shadow", "record_synthesis",
+                                   "assess_adapter_shadow",
+                                   "route_adapter_shadow", "record_synthesis",
                                    "resolve_synthesis", "synthesis_status",
                                    "candidate_outcomes", "decision_skill"]})
 
@@ -4272,6 +4394,7 @@ TOOLS.extend([
             "action": {"type": "string", "enum": [
                 "status", "submit_actuals", "resolve_outcome",
                 "record_adapter_shadow", "assess_adapter_shadow",
+                "route_adapter_shadow",
                 "record_synthesis", "resolve_synthesis", "synthesis_status",
                 "candidate_outcomes", "decision_skill"]},
             "project": {"type": "string"},
@@ -4295,6 +4418,10 @@ TOOLS.extend([
             "baseline_error": {"type": "number", "minimum": 0},
             "known_at": {"type": "string"},
             "as_of": {"type": "string"},
+            "regime": {"type": "object", "additionalProperties": {
+                "type": "string"}, "description": (
+                "Exact low-cardinality temporal cohort used for paired "
+                "shadow recording or routing; cohorts are never pooled.")},
             "min_outcomes": {"type": "integer", "minimum": 1},
             "min_improvement": {"type": "number"},
             "min_win_rate": {"type": "number", "minimum": 0, "maximum": 1},

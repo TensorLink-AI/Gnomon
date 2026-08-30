@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import shutil
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,30 @@ from .contracts import GnomonError, ForecastArtifact
 logger = logging.getLogger(__name__)
 
 INTEGRITY_FILE = "integrity.json"
+
+
+def _private_partial(parent: Path, artifact_id: str) -> Path:
+    """Create a writer-owned tree; same-ID writers must never share one."""
+    return Path(tempfile.mkdtemp(
+        prefix=f".{artifact_id}.tmp-", dir=str(parent)))
+
+
+def _publish_first_writer(temporary: Path, final: Path) -> Path:
+    """Atomically publish, or verify and reuse a concurrent winner.
+
+    ``os.rename`` is intentionally no-overwrite for these non-empty directory
+    trees. If another process publishes the content ID first, this writer owns
+    only ``temporary`` and can remove it without touching the winner or any
+    other active writer.
+    """
+    try:
+        os.rename(temporary, final)
+    except OSError:
+        if not final.is_dir():
+            raise
+        verify_artifact_integrity(final)
+        shutil.rmtree(temporary)
+    return final
 
 
 def _file_digest(path: Path) -> str:
@@ -92,10 +117,7 @@ def write_artifact(
         # Artifacts are content-addressed, so a verified first write wins.
         verify_artifact_integrity(final)
         return final
-    temporary = parent / f".{artifact.forecast_id}.tmp"
-    if temporary.is_dir():
-        shutil.rmtree(temporary)
-    temporary.mkdir()
+    temporary = _private_partial(parent, artifact.forecast_id)
     try:
         payload = artifact.to_dict()
         if len(artifact.results) > 3:
@@ -238,14 +260,14 @@ def write_artifact(
             encoding="utf-8",
         )
         _write_integrity(temporary)
-        os.replace(temporary, final)
+        _publish_first_writer(temporary, final)
     except Exception:
         # The partial directory is kept for diagnosis and never exposed as a
-        # complete run — but nothing else would ever mention it, and the
-        # next attempt at the same id silently rmtree's it. Say where it is.
+        # complete run. It is writer-private, so a retry or concurrent writer
+        # cannot erase it; say where it is for deliberate inspection/cleanup.
         logger.warning(
             "Artifact write failed; the partial directory is retained at %s "
-            "and will be removed by the next attempt at this id.", temporary,
+            "and is owned only by this failed writer.", temporary,
         )
         raise
     return final
@@ -267,26 +289,30 @@ def write_json_artifact(
     if final.is_dir():
         verify_artifact_integrity(final)
         return final
-    temporary = parent / f".{artifact_id}.tmp"
-    if temporary.is_dir():
-        shutil.rmtree(temporary)
-    temporary.mkdir()
-    with (temporary / "artifact.json").open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle, indent=2, allow_nan=False)
-        handle.write("\n")
-    if lineage is not None:
-        with (temporary / "lineage.json").open("w", encoding="utf-8") as handle:
-            json.dump(lineage, handle, indent=2, allow_nan=False)
+    temporary = _private_partial(parent, artifact_id)
+    try:
+        with (temporary / "artifact.json").open("w", encoding="utf-8") as handle:
+            json.dump(payload, handle, indent=2, allow_nan=False)
             handle.write("\n")
-    (temporary / "summary.md").write_text(
-        _macro_summary(artifact_id, payload), encoding="utf-8",
-    )
-    from .reporting import render_artifact_html
-    (temporary / "report.html").write_text(
-        render_artifact_html(artifact_id, payload), encoding="utf-8",
-    )
-    _write_integrity(temporary)
-    os.replace(temporary, final)
+        if lineage is not None:
+            with (temporary / "lineage.json").open("w", encoding="utf-8") as handle:
+                json.dump(lineage, handle, indent=2, allow_nan=False)
+                handle.write("\n")
+        (temporary / "summary.md").write_text(
+            _macro_summary(artifact_id, payload), encoding="utf-8",
+        )
+        from .reporting import render_artifact_html
+        (temporary / "report.html").write_text(
+            render_artifact_html(artifact_id, payload), encoding="utf-8",
+        )
+        _write_integrity(temporary)
+        _publish_first_writer(temporary, final)
+    except Exception:
+        logger.warning(
+            "Artifact write failed; the partial directory is retained at %s "
+            "and is owned only by this failed writer.", temporary,
+        )
+        raise
     return final
 
 

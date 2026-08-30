@@ -112,6 +112,33 @@ def event_hypothesis(event: ContextEvent) -> dict[str, Any]:
     }
 
 
+def event_source_evidence(event: ContextEvent) -> dict[str, Any]:
+    """Return bounded, validated provenance for a public context decision.
+
+    This is a projection of the accepted ``ContextEvent`` only. It must not
+    recover missing fields from model prose or turn an unverified assertion
+    into a verifiable source.
+    """
+    attributes = event.attributes or {}
+    quote = str(attributes.get("evidence_quote") or
+                attributes.get("source_span") or "").strip()
+    receipt_id = str(attributes.get("context_receipt_id") or "").strip()
+    evidence: dict[str, Any] = {
+        "context_id": event.event_id,
+        "known_at": event.known_at,
+    }
+    if event.source is not None:
+        evidence["source"] = {
+            "type": event.source.type,
+            "reference": event.source.reference,
+        }
+    if receipt_id:
+        evidence["context_receipt_id"] = receipt_id
+    if quote:
+        evidence["evidence_quote"] = quote
+    return evidence
+
+
 def context_outcome(
     events: list[ContextEvent], series_name: str, *,
     context_assessment: Any = None,
@@ -130,6 +157,7 @@ def context_outcome(
         return {"status": "not_considered", "primary_forecast_changed": False,
                 "canonical_primary_preserved": True,
                 "automation_eligible": False, "events": []}
+    source_evidence = [event_source_evidence(event) for event in applicable]
     admitted = list((future_context or {}).get("admitted") or [])
     if bool(getattr(context_assessment, "admitted", False)) or admitted:
         changed = (True if primary_forecast_changed is None
@@ -158,6 +186,7 @@ def context_outcome(
             "canonical_primary_location": "artifact.results[].primary_forecast",
             "events": used_ids,
             "dispositions": dispositions,
+            "context_evidence": source_evidence,
             "admission_basis": ("historical_fold_ablation"
                                 if historical_admission
                                 else "future_context_contract"),
@@ -244,6 +273,7 @@ def context_outcome(
             "automation_eligible": False,
             "events": [event.event_id for event in applicable],
             "dispositions": dispositions,
+            "context_evidence": source_evidence,
             **({"context_receipt_ids": receipt_ids} if receipt_ids else {}),
             "hypotheses": hypotheses,
             "conditional_forecasts_produced": len(conditional),
@@ -286,6 +316,7 @@ def context_outcome(
         "canonical_primary_preserved": True,
         "automation_eligible": False,
         "events": [event.event_id for event in applicable],
+        "context_evidence": source_evidence,
         **({
             "relationship_to_primary": "no_distinct_numeric_path",
             "selected_output_role": "primary_forecast_already_noncontinuing",

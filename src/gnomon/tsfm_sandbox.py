@@ -161,6 +161,12 @@ def ensure_sandbox(name: str, force: bool = False) -> Path:
     marker = venv_dir / ".gnomon-sandbox-ready"
 
     if marker.exists() and not force:
+        # The ready marker covers an executable sandbox, not only installed
+        # wheels. Older installers wrote worker.py lazily on first inference,
+        # which made a supposedly ready model fail in read-only production
+        # images. Repair legacy installs while the operator is explicitly
+        # checking/installing; current installs already have an exact worker.
+        _ensure_worker_script(venv_dir)
         logger.debug("Sandbox for %s already exists at %s", name, venv_dir)
         return venv_dir
 
@@ -203,7 +209,12 @@ def ensure_sandbox(name: str, force: bool = False) -> Path:
             f"Failed to install dependencies for {name}: {result.stderr.strip()[:500]}"
         )
 
-    # Step 3: write marker file
+    # Step 3: materialize the executable worker. The readiness marker is
+    # deliberately last: once it exists, inference must not need to create a
+    # file inside the installed environment.
+    _ensure_worker_script(venv_dir)
+
+    # Step 4: write marker file
     marker.write_text(f"tsfm={name}\ncreated_by=gnomon\n")
     logger.info("Sandbox for %s ready", name)
     return venv_dir

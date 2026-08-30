@@ -1,0 +1,56 @@
+{
+  "release_metadata": {
+    "arm": "gnomon-evidence-sensor",
+    "benchmark": "context-is-key",
+    "configuration_identity": "fresh no-cache DeepSeek V4 Flash 0731 via Engy; Evidence MCP publication_best_effort; temperature=1; sequential disposable cases",
+    "dataset_identity": "official sensor task filter; 4 tasks; seed=1; 50 samples per task",
+    "evaluated_commit": "466d577",
+    "harness_commit": "466d577",
+    "notes": [],
+    "scope": "subset",
+    "source": "results/v06-release-validation-466d577/cik-evidence-sensor/summary.json",
+    "source_sha256": "845145e989747930e2f3ed1daf733ac36876502528abd6f33b7f4ef0086c9c42",
+    "status": "complete"
+  },
+  "summary": {
+    "benchmark": "context-is-key",
+    "condition": "gnomon-mcp",
+    "degenerate_same_constant_runs": 0,
+    "mean_rcrps_capped_imputed": 0.10126118270808855,
+    "mean_rcrps_scored_only": 0.10126118270808855,
+    "method": "McpAgentForecaster_model=deepseek-v4-flash-0731_temperature=1_profile=evidence_output=publication_best_effort_candidate_paths=auto_candidate_history=auto_candidate_facts=1_endpoint=6e0ef6aba4_contract=240",
+    "model": "deepseek-v4-flash-0731",
+    "note": "mean_rcrps_capped_imputed follows the official aggregation rule (cap per-run RCRPS at 5.0, impute every abstained or errored run at 5.0), so abstention can never improve it; it is the number to put next to published means. mean_rcrps_scored_only averages scored runs only and is flattered by abstention \u2014 never quote it without the abstention and error counts beside it. Both are unweighted over runs; the official per-task weighting is not reproduced here. Degenerate same-constant past/future cases remain in the official aggregate but are counted separately; a perfect score on such a case is not forecasting uplift.",
+    "perfect_scores_on_degenerate_runs": 0,
+    "rcrps_cap": 5.0,
+    "runs_abstained": 0,
+    "runs_errored": 0,
+    "runs_scored": 4,
+    "seed_start": 1,
+    "seeds": 1,
+    "selection_diagnostics": {
+      "automation_eligible_cases": 0,
+      "available": true,
+      "cases": 4,
+      "computed_after_forecast": true,
+      "mean_hindsight_best_candidate_rcrps": 0.10031809992185564,
+      "mean_hindsight_best_eligible_candidate_rcrps": 0.10126118270808855,
+      "mean_oracle_headroom_rcrps": 0.00094308278623291,
+      "mean_primary_rcrps": 0.3665491743731779,
+      "mean_selected_rcrps": 0.10126118270808855,
+      "mean_selector_regret_among_eligible_rcrps": 0.0,
+      "mean_uplift_vs_primary_rcrps": 0.2652879916650894,
+      "passed_to_forecaster": false,
+      "primary_immutability_failures": 0,
+      "selected_best_eligible_cases": 4,
+      "selected_hindsight_best_cases": 3,
+      "selected_primary_cases": 1,
+      "selected_role_counts": {
+        "calibration_counterfactual": 1,
+        "immutable_primary": 1,
+        "model_authored": 1,
+        "observation_counterfactual": 1
+      }
+    }
+  }
+}

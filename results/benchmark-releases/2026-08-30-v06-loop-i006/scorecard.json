@@ -1,0 +1,46 @@
+{
+  "release_metadata": {"scope": "full", "evaluated_commit": "e61b2930a136e3dd8372abb3af370f0a51a31066", "harness_commit": "e61b2930a136e3dd8372abb3af370f0a51a31066", "dataset_identity": "I006 joint-horizon output, reasoning, and topology evidence", "configuration_identity": "three-layer no-build release scorecard"},
+  "schema_version": "0.1",
+  "scorecard_id": "v0.6-i006-joint-multi-horizon-uncertainty",
+  "scorecard_commit": "e61b2930a136e3dd8372abb3af370f0a51a31066",
+  "dirty_tree": false,
+  "scope": "full",
+  "layers": {
+    "output": {
+      "status": "fail",
+      "dataset_identity": "BreachBench generator 0.3 real-series windows; seed 20260906; 60 cases; horizon 24",
+      "configuration_identity": "candidate commit 54dab4d; empirical q10-q90 total interval from complete forecast paths",
+      "accounting": {"expected": 60, "completed": 60, "total_available": 24, "total_unavailable": 36, "failed": 0},
+      "metrics": [
+        {"name": "realised_total_coverage", "value": 0.25, "unit": "fraction", "denominator": 24, "gate": {"operator": "between", "lower": 0.65, "upper": 0.95, "passed": false}},
+        {"name": "width_ratio_vs_summed_marginals", "value": 0.25463774276296247, "unit": "ratio", "denominator": 24, "gate": {"operator": "lte", "threshold": 1.0, "passed": true}},
+        {"name": "existing_surface_exact_parity", "value": 1.0, "unit": "fraction", "denominator": 60, "gate": {"operator": "eq", "threshold": 1.0, "passed": true}}
+      ]
+    },
+    "reasoning": {
+      "status": "pass",
+      "dataset_identity": "All frozen path-bearing and unavailable rows plus deterministic supported-path property tests",
+      "configuration_identity": "path totals only; no summed marginal bands; fallback authority preserved",
+      "accounting": {"expected": 60, "completed": 60, "dependence_preserved_real_rows": 0, "failed": 0},
+      "metrics": [
+        {"name": "any_step_coherence", "value": 1.0, "unit": "fraction", "denominator": 45, "gate": {"operator": "eq", "threshold": 1.0, "passed": true}},
+        {"name": "fallback_truth", "value": 1.0, "unit": "fraction", "denominator": 24, "gate": {"operator": "eq", "threshold": 1.0, "passed": true}},
+        {"name": "governed_cost", "value": 60.0, "unit": "cost", "denominator": 45, "gate": {"operator": "lte", "threshold": 90.0, "passed": true}}
+      ]
+    },
+    "topology": {
+      "status": "pass",
+      "dataset_identity": "Matched baseline, candidate, and final current-head runs",
+      "configuration_identity": "jobs=1; one retry; 60-second case timeout; atomic JSON checkpoints",
+      "accounting": {"expected": 180, "completed": 180, "failed": 0},
+      "metrics": [
+        {"name": "completion_rate", "value": 1.0, "unit": "fraction", "denominator": 180, "gate": {"operator": "eq", "threshold": 1.0, "passed": true}},
+        {"name": "maximum_jobs", "value": 1, "unit": "workers", "denominator": 180, "gate": {"operator": "eq", "threshold": 1, "passed": true}}
+      ]
+    }
+  },
+  "decision": {
+    "status": "complete_no_build",
+    "reason": "Output calibration failed the frozen coverage gate. Retain the existing breach engine and evaluation harness; do not publish the cumulative interval."
+  }
+}

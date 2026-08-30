@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "iteration": "I006",
+  "priority": "P6",
+  "decision": "complete_no_build",
+  "protocol": "docs/v0.6-p6-joint-horizon-protocol.md",
+  "candidate_commit": "54dab4d7898e9bb691be58df7cdbbd7300856f90",
+  "final_commit": "e61b2930a136e3dd8372abb3af370f0a51a31066",
+  "user_outcome": "Agents and humans keep the existing calibrated, cost-useful any-step breach contract; Gnomon does not expose narrow cumulative-total intervals that missed 75% of realised totals.",
+  "validation": {
+    "full_local_suite": {"passed": 2560, "skipped": 11, "failed": 0},
+    "focused_final_suite": {"passed": 24, "failed": 0},
+    "matched_engine_cases": {"baseline": 60, "candidate": 60, "final": 60, "failed": 0},
+    "result": "results/benchmark-releases/2026-08-30-v06-loop-i006/joint-horizon-result.json"
+  },
+  "retained_changes": [
+    "serial resumable JointHorizonBench with atomic per-case checkpoints and exact immutable-surface hashes",
+    "corrected protocol provenance from generator 0.2 to the actual unchanged generator 0.3",
+    "reproducible rejected candidate in git history"
+  ],
+  "rejected_changes": [
+    "cumulative_horizon point, median, mean, and 80% total interval in the threshold event",
+    "human summary and compact agent exposure of the undercovered total interval"
+  ],
+  "unchanged_policies": [
+    "existing any-step and first-breach estimates",
+    "point forecasts and marginal intervals",
+    "support and automation authority",
+    "blocked-bootstrap and independence fallbacks",
+    "governed breach decision policy"
+  ],
+  "remaining_risks": [
+    "The frozen real-series corpus produced no supported aligned-path rows, so current-head supported-path skill was not empirically re-established here.",
+    "Cumulative totals remain unavailable as a distribution until a separately frozen method achieves useful realised-total calibration.",
+    "The retained any-step estimator is useful for threshold decisions but is not evidence for aggregate-demand or budget-total questions."
+  ]
+}

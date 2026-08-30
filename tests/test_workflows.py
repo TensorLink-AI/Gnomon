@@ -366,6 +366,103 @@ def test_verified_quote_becomes_the_source_span_for_namespaced_events() -> None:
         "Capacity policy: output will not exceed 340 units"
 
 
+def test_unverified_numeric_namespace_is_demoted_to_qualitative_event() -> None:
+    quote = (
+        "For the value series, deploy begins 2026-08-14T01:00:00+00:00; "
+        "it ends 2026-08-14T02:00:00+00:00."
+    )
+    document = DocumentRef(
+        name="schedule.md", content=quote, source_type="calendar",
+        reference="calendar:deploy",
+        known_at="2026-08-13T00:00:00+00:00",
+    )
+    proposal = {
+        "document_index": 0,
+        "event_type": "override:deploy",
+        "entity_scope": ["value"],
+        "effective_start": "2026-08-14T01:00:00+00:00",
+        "effective_end": "2026-08-14T02:00:00+00:00",
+        "known_at": "2026-08-13T00:00:00+00:00",
+        "evidence_quote": quote,
+    }
+
+    result = parse_context_response({"events": [proposal]}, [document])
+
+    assert result["rejected"] == []
+    event = result["events"][0]
+    assert event["event_type"] == "deploy"
+    assert "source_span" not in event["attributes"]
+    assert event["attributes"]["evidence_quote"] == quote
+    assert event["attributes"]["compiler_normalizations"] == [{
+        "field": "event_type",
+        "supplied": "override:deploy",
+        "normalized": "deploy",
+        "reason": (
+            "verified quote states no parseable numeric override claim; "
+            "numeric authority removed"
+        ),
+    }]
+
+
+def test_unverified_constraint_namespace_is_demoted_without_bound_authority() -> None:
+    quote = (
+        "The maintenance window begins 2026-08-14T01:00:00+00:00 and "
+        "ends 2026-08-14T02:00:00+00:00."
+    )
+    document = DocumentRef(
+        name="maintenance.md", content=quote, source_type="calendar",
+        reference="calendar:maintenance",
+        known_at="2026-08-13T00:00:00+00:00",
+    )
+    proposal = {
+        "document_index": 0,
+        "event_type": "constraint:maintenance",
+        "entity_scope": ["value"],
+        "effective_start": "2026-08-14T01:00:00+00:00",
+        "effective_end": "2026-08-14T02:00:00+00:00",
+        "known_at": "2026-08-13T00:00:00+00:00",
+        "evidence_quote": quote,
+    }
+
+    result = parse_context_response({"events": [proposal]}, [document])
+
+    assert result["rejected"] == []
+    event = result["events"][0]
+    assert event["event_type"] == "maintenance"
+    assert "source_span" not in event["attributes"]
+    assert event["attributes"]["compiler_normalizations"][0][
+        "reason"] == (
+            "verified quote states no parseable numeric constraint claim; "
+            "numeric authority removed"
+        )
+
+
+def test_verified_override_namespace_keeps_numeric_authority() -> None:
+    quote = "The binding schedule requires output to be fixed at 42 units."
+    document = DocumentRef(
+        name="schedule.md", content=quote, source_type="calendar",
+        reference="calendar:output",
+        known_at="2026-08-13T00:00:00+00:00",
+    )
+    proposal = {
+        "document_index": 0,
+        "event_type": "override:output",
+        "entity_scope": ["output"],
+        "effective_start": "2026-08-14T01:00:00+00:00",
+        "effective_end": "2026-08-14T02:00:00+00:00",
+        "known_at": "2026-08-13T00:00:00+00:00",
+        "evidence_quote": quote,
+    }
+
+    result = parse_context_response({"events": [proposal]}, [document])
+
+    assert result["rejected"] == []
+    event = result["events"][0]
+    assert event["event_type"] == "override:output"
+    assert event["attributes"]["source_span"] == quote
+    assert "compiler_normalizations" not in event["attributes"]
+
+
 def test_bare_future_prediction_cannot_gain_constraint_authority() -> None:
     document = DocumentRef(
         name="outlook.md",

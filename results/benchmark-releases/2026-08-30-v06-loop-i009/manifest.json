@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.1",
+  "release": "2026-08-30-v06-loop-i009",
+  "curated_by_commit": "e66c7a9",
+  "benchmarks": [
+    {"file": "recovery-boundary.json", "benchmark": "recoverybench", "arm": "baseline-versus-executable-plan", "scope": "smoke", "status": "complete", "bytes": 2473, "sha256": "6117c7d702d297171fc5b8b67637e710e460ede34f784b3ec157ec760e4e5b67"},
+    {"file": "scorecard.json", "benchmark": "three-layer-product-scorecard", "arm": "i009-final-decision", "scope": "smoke", "status": "complete", "bytes": 2664, "sha256": "03697e682cad4a5b36fbbcb81e271299183258fb6b8897e766588301e32c50a1"}
+  ],
+  "decision_files": [
+    {"file": "decision.json", "bytes": 1531, "sha256": "02cd6bdebc0b5ea542a9edf1ebddd84889d524354c21652c59509933d0114fe8"},
+    {"file": "checkpoint.json", "bytes": 3151, "sha256": "2d8e7e0f2e5a9a272e8698050eb4e7fbad683b17d7119fdca7520ce34e3ee00b"},
+    {"file": "README.md", "bytes": 1132, "sha256": "54fb6019500ee5aac7ee3adfe43f3b8667e36c366e426f53c98d42a6b4ef43d2"}
+  ],
+  "not_included": [
+    {"benchmark": "raw per-case responses and recovery executions", "reason": "Preserved under results/v06-p9-i009-recovery-* and excluded from aggregate git evidence."},
+    {"benchmark": "all repair codes", "reason": "The frozen probe uses six representative blockers; general contract tests cover projection behavior."},
+    {"benchmark": "accuracy improvement", "reason": "RecoveryBench validates safe task recovery and earned-tier honesty, not forecast superiority."},
+    {"benchmark": "competition-specific plan", "reason": "docs/astrid-btc-agent-plan.md remains explicitly outside this loop."}
+  ],
+  "policy": {"aggregate_only": true, "raw_runs_are_local_artifacts": true, "jobs": 1, "production_default_changed": true}
+}

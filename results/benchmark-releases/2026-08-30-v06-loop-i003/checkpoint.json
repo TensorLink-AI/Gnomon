@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "loop": "v0.6-product-improvement",
+  "status": "active",
+  "branch": "agent/v0.6-reasoning-loop",
+  "head_commit": "b41c29a",
+  "protocol": "docs/v0.6-improvement-loop.md",
+  "preservation": {
+    "preserve_preexisting_committed_work": true,
+    "preserve_preexisting_benchmark_artifacts": true,
+    "preserve_all_preexisting_untracked_files": true,
+    "excluded_from_commits": ["docs/astrid-btc-agent-plan.md"]
+  },
+  "completed_iteration": {
+    "id": "I003",
+    "priority": "P3",
+    "decision": "promote_after_visible_revision",
+    "user_outcome": "Validated sources and typed context relationships now survive through compact publications and agent answers, including applied covariates and no-distinct structural outcomes.",
+    "decision_evidence": "results/benchmark-releases/2026-08-30-v06-loop-i003/decision.json",
+    "tests": "2543 passed, 11 skipped in the final full local suite; 446 focused source/publication/compiler/covariate/agent tests passed.",
+    "remaining_risk": "Synthetic naturalistic prose does not establish real-world context supply; inline covariates without source.reference cannot expose source provenance.",
+    "production_default_changed": true
+  },
+  "active_iteration": {
+    "id": "I004",
+    "priority": "P4",
+    "phase": "choose_and_freeze_gate",
+    "user_hypothesis": "When agents provide related target series or genuinely future-known drivers, Gnomon should select a cross-series or covariate-aware candidate only when identical-fold evidence improves forecasts; humans should see which signals were retained and whether the multivariate path actually beat the univariate baseline.",
+    "must_not_regress": [
+      "univariate fallback and support remain available",
+      "future-known values obey point-in-time known_at checks",
+      "candidate identity and retained signals remain visible",
+      "no cross-series or target leakage",
+      "agent explanation preserves the engine's primary and automation relationship"
+    ],
+    "next_action": "Audit existing adapter protocols and retained multivariate/covariate evidence, select the smallest independently matched candidate family, and preregister identical-fold skill, completion, provenance, and non-inferiority gates before changing production behavior."
+  },
+  "priorities": [
+    {"id": "P1", "name": "three-layer release scorecard", "status": "complete"},
+    {"id": "P2", "name": "short-history forecast skill", "status": "complete_no_build"},
+    {"id": "P3", "name": "sourced contextual evidence", "status": "complete"},
+    {"id": "P4", "name": "covariate-aware and multivariate candidates", "status": "in_progress"},
+    {"id": "P5", "name": "outcome-adaptive champion/challenger routing", "status": "pending"},
+    {"id": "P6", "name": "joint multi-horizon uncertainty", "status": "pending"},
+    {"id": "P7", "name": "hierarchical reconciliation", "status": "pending"},
+    {"id": "P8", "name": "agent decision brief and preservation contract", "status": "pending"},
+    {"id": "P9", "name": "value-of-information recovery", "status": "pending"},
+    {"id": "P10", "name": "production inference reliability", "status": "pending"}
+  ]
+}

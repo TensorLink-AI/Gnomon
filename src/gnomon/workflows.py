@@ -42,7 +42,7 @@ from .llm_covariates import (
     validate_llm_covariate_tables,
 )
 
-CONTEXT_COMPILER_CONTRACT_VERSION = "0.4"
+CONTEXT_COMPILER_CONTRACT_VERSION = "0.5"
 
 
 @dataclass(frozen=True)
@@ -406,8 +406,14 @@ def parse_context_response(
             rejected.append({"proposal": proposal, "problems": ["evidence_quote is not verbatim from the cited document"]})
             continue
         event_type = str(proposal.get("event_type", ""))
+        numeric_type_normalizations: list[dict[str, Any]] = []
         if quote and event_type.startswith(("constraint:", "override:")):
-            from .future_context import literal_authority
+            from .future_context import (
+                literal_authority,
+                parse_bound_span,
+                parse_override_scale,
+                parse_override_span,
+            )
             predictive, binding = literal_authority(quote)
             if predictive and not binding:
                 rejected.append({
@@ -419,6 +425,40 @@ def parse_context_response(
                     ],
                 })
                 continue
+            namespace, qualitative_type = event_type.split(":", 1)
+            if namespace == "constraint":
+                parsed_claim, _ = parse_bound_span(quote)
+            else:
+                parsed_value, _ = parse_override_span(quote)
+                parsed_scale, _ = parse_override_scale(quote)
+                parsed_claim = (parsed_value if parsed_value is not None
+                                else parsed_scale)
+            # Numeric namespaces grant deterministic projection authority.
+            # The compiler may propose one, but only Gnomon's literal parser
+            # can confirm it.  A grounded non-numeric event remains useful to
+            # the fold-safe historical-ablation lane, so preserve the event
+            # while removing the unsupported numeric authority rather than
+            # discarding its timing and provenance.
+            # Do not reinterpret an unparsed number as qualitative context.
+            # Timestamp digits are scheduling metadata, but any other digit
+            # means the quote may contain a numeric claim our parser does not
+            # yet understand; retaining the namespace lets the numeric lane
+            # reject it explicitly instead of silently weakening its type.
+            non_temporal_surface = re.sub(_ISO_TIMESTAMP, "", quote)
+            has_unparsed_number = bool(re.search(r"\d", non_temporal_surface))
+            if (parsed_claim is None and qualitative_type.strip()
+                    and not has_unparsed_number):
+                normalized_type = qualitative_type.strip()
+                numeric_type_normalizations.append({
+                    "field": "event_type",
+                    "supplied": event_type,
+                    "normalized": normalized_type,
+                    "reason": (
+                        "verified quote states no parseable numeric "
+                        f"{namespace} claim; numeric authority removed"
+                    ),
+                })
+                event_type = normalized_type
         structural_normalizations: list[dict[str, Any]] = []
         # A narrow semantic alias repair keeps a correctly quoted, qualitative
         # trend-cessation claim inside the closed structural vocabulary. It
@@ -442,9 +482,10 @@ def parse_context_response(
                 "reason": "open-ended structural claim bounded to forecast window",
             })
             effective_end = default_effective_end
-        if structural_normalizations:
+        if numeric_type_normalizations or structural_normalizations:
             attributes["compiler_normalizations"] = [
                 *(attributes.get("compiler_normalizations") or []),
+                *numeric_type_normalizations,
                 *structural_normalizations,
             ]
         scope = proposal.get("entity_scope")

@@ -512,6 +512,13 @@ def test_artifact_binding_preserves_typed_primary_relationship(monkeypatch):
                 "relationship_to_primary": "no_distinct_numeric_path",
                 "selected_output_role":
                     "primary_forecast_already_noncontinuing",
+                "context_evidence": [{
+                    "context_id": "structural-1",
+                    "known_at": "2026-01-01T00:00:00+00:00",
+                    "source": {"type": "calendar",
+                               "reference": "operations.ics#event-1"},
+                    "evidence_quote": "The prior trend will cease.",
+                }],
             },
         }],
     }
@@ -526,6 +533,8 @@ def test_artifact_binding_preserves_typed_primary_relationship(monkeypatch):
         "no_distinct_numeric_path"
     assert execution["selected_output_role"] == \
         "primary_forecast_already_noncontinuing"
+    assert execution["source_evidence"][0]["source"]["reference"] == \
+        "operations.ics#event-1"
 
     artifact["results"][0]["context_outcome"] = {
         "status": "partially_represented",
@@ -542,6 +551,108 @@ def test_artifact_binding_preserves_typed_primary_relationship(monkeypatch):
     assert run.context_execution["value"]["status"] == \
         "partially_represented"
     assert run.context_execution["value"]["scenario_only"] == 1
+
+
+def test_artifact_binding_preserves_applied_covariate_authority(monkeypatch):
+    run = object.__new__(mcp_agent._Run)
+    run.artifact_paths = {"/sealed/artifact"}
+    run.horizon = 1
+    run._available_sensitivity = {}
+    run._pending_support = {}
+    run.covariate_execution = {}
+    run.context_execution = {}
+    run.publication_execution = {"value": {
+        "automation_eligible": True,
+        "canonical_primary_preserved": True,
+        "support": "supported",
+    }}
+    artifact = {
+        "task": {"schema": {"target_column": "value"}},
+        "results": [{
+            "series": "__default__",
+            "forecast": [{"point": 10.0, "q50": 10.0}],
+            "support": "supported",
+            "covariates": {
+                "considered": True,
+                "admitted": True,
+                "retained": ["published_driver"],
+                "rejected": [],
+                "canonical_primary_preserved": True,
+                "selected_projection_differs_from_primary": False,
+                "selected_output_role": "primary_forecast",
+                "relationship_to_primary":
+                    "validated_covariates_used_by_primary",
+                "automation_eligible": True,
+            },
+        }],
+    }
+    import gnomon.artifacts
+    monkeypatch.setattr(gnomon.artifacts, "read_artifact",
+                        lambda _path: artifact)
+
+    assert run._artifact_channel_rows(
+        "/sealed/artifact", "value") == [10.0]
+    execution = run.context_execution["value"]
+    assert execution["status"] == "applied"
+    assert execution["applied"] == 1
+    assert execution["canonical_primary_preserved"] is True
+    assert execution["automation_eligible"] is True
+    assert execution["relationship_to_primary"] == \
+        "validated_covariates_used_by_primary"
+
+
+def test_applied_covariate_cannot_be_described_as_absent():
+    run = object.__new__(mcp_agent._Run)
+    run.row = {"_require_gnomon_execution": True,
+               "_require_context_explanation": True}
+    run.target_keys = ["value"]
+    run.horizon = 1
+    run.submission = None
+    run.mcp_calls = 1
+    run.trace = []
+    run.artifact_paths = set()
+    run.context_execution = {}
+    run._project_receipt_choices = lambda: {}
+
+    def artifact_rows(path, channel):
+        run._pending_support[channel] = "supported"
+        run.context_execution[channel] = {
+            "status": "applied",
+            "applied": 1,
+            "admitted": 1,
+            "scenario_only": 0,
+            "automation_eligible": True,
+            "canonical_primary_preserved": True,
+            "rejection_codes": [],
+            "scenario_consequence_summaries": [],
+            "source_evidence": [],
+        }
+        return [10.0]
+
+    run._artifact_channel_rows = artifact_rows
+    base = {
+        "forecast": {"value": {"artifact_path": "/sealed/artifact.json"}},
+        "cited_context_gate_codes": [],
+        "context_automation_eligible": True,
+        "canonical_primary_preserved": True,
+        "cited_scenario_consequences": [],
+    }
+    rejected = run._handle_submit({
+        **base,
+        "reasoning": ("No context was admitted or applied. The canonical "
+                      "primary remains preserved."),
+    })
+    assert rejected["accepted"] is False
+    assert any("applied_context_not_human_visible" in problem
+               for problem in rejected["problems"])
+
+    accepted = run._handle_submit({
+        **base,
+        "reasoning": ("The published covariate was admitted and applied; "
+                      "it did not mutate the canonical primary, which "
+                      "remains preserved."),
+    })
+    assert accepted["accepted"] is True
 
 
 def test_values_only_with_no_tool_use_routes_direct(tmp_path):
@@ -991,12 +1102,19 @@ def test_context_contract_requires_bounded_typed_gate_citations():
     assert parameters["properties"]["context_automation_eligible"] == {
         "type": "boolean",
         "description": (
-            "Copy context_outcome.automation_eligible exactly. False means "
-            "context evidence alone cannot authorize automation; do not "
-            "weaken it to 'not requested'."),
+            "Copy the engine's context/covariate publication "
+            "automation_eligible fact exactly. False means context evidence "
+            "alone cannot authorize automation; do not weaken it to 'not "
+            "requested'."),
     }
     assert parameters["properties"]["canonical_primary_preserved"][
         "type"] == "boolean"
+    assert "context/covariate publication" in parameters["properties"][
+        "canonical_primary_preserved"]["description"]
+    sources = parameters["properties"]["cited_context_sources"]
+    assert sources["maxItems"] == 8
+    assert "source.reference" in sources["description"]
+    assert "host projects omitted values" in sources["description"]
 
 
 def test_context_authority_omission_gets_one_artifact_reuse_repair():
@@ -1119,6 +1237,87 @@ def test_context_scenario_consequence_requires_exact_artifact_reuse_repair():
     assert accepted["accepted"] is True
     assert run.submission["context_consequence_projection"]["matched"] == [
         summary]
+
+
+def test_context_source_requires_exact_human_visible_projection():
+    run = object.__new__(mcp_agent._Run)
+    run.row = {"_require_gnomon_execution": True,
+               "_require_context_explanation": True}
+    run.target_keys = ["value"]
+    run.horizon = 1
+    run.submission = None
+    run.mcp_calls = 1
+    run.trace = []
+    run.artifact_paths = set()
+    run.context_execution = {}
+    run._project_receipt_choices = lambda: {}
+    source_reference = "plans/launches.md#enterprise-a"
+
+    def artifact_rows(path, channel):
+        run._pending_support[channel] = "supported"
+        run.context_execution[channel] = {
+            "automation_eligible": False,
+            "canonical_primary_preserved": True,
+            "rejection_codes": [],
+            "scenario_consequence_summaries": [],
+            "source_evidence": [{
+                "context_id": "launch-1",
+                "known_at": "2026-01-01T00:00:00+00:00",
+                "source": {"type": "planning_file",
+                           "reference": source_reference},
+                "evidence_quote": "Enterprise A launches on 2026-01-03.",
+            }],
+        }
+        return [10.0]
+
+    run._artifact_channel_rows = artifact_rows
+    base = {
+        "forecast": {"value": {"artifact_path": "/sealed/artifact.json"}},
+        "reasoning": ("The canonical primary remains preserved and context "
+                      "evidence cannot authorize automation."),
+        "cited_context_gate_codes": [],
+        "context_automation_eligible": False,
+        "canonical_primary_preserved": True,
+        "cited_scenario_consequences": [],
+    }
+
+    omitted = run._handle_submit({**base, "cited_context_sources": []})
+    assert omitted["accepted"] is False
+    assert any("context_source_not_human_visible" in problem
+               for problem in omitted["problems"])
+    assert run.submission is None
+
+    invented = run._handle_submit({
+        **base,
+        "cited_context_sources": ["invented.md"],
+        "reasoning": (base["reasoning"] + " Source: invented.md."),
+    })
+    assert invented["accepted"] is False
+    assert any("context_source_not_human_visible" in problem
+               for problem in invented["problems"])
+    assert run.submission is None
+
+    ignored_duplicate = run._handle_submit({
+        **base,
+        "cited_context_sources": ["invented.md"],
+        "reasoning": (base["reasoning"] + f" Source: {source_reference}."),
+    })
+    assert ignored_duplicate["accepted"] is True
+    projection = run.submission["context_source_projection"]
+    assert projection["supplied"] == [source_reference]
+    assert projection["agent_invalid"] == ["invented.md"]
+    assert projection["host_projected"] is True
+    run.submission = None
+
+    accepted = run._handle_submit({
+        **base,
+        "reasoning": (base["reasoning"] + f" Source: {source_reference}."),
+    })
+    assert accepted["accepted"] is True
+    assert run.submission["context_source_projection"]["matched"] == [
+        source_reference]
+    assert run.submission["context_source_projection"]["agent_supplied"] == []
+    assert run.submission["context_source_projection"]["host_projected"] is True
 
 
 def test_context_scenario_cannot_be_described_as_admitted():
@@ -1870,6 +2069,9 @@ def test_voided_rows_stay_out_of_the_accuracy_denominators(tmp_path,
              "labels": {"trend": "upward"}}]
     outcomes = {
         "answered": {"answer": {"trend": "upward"}, "abstained": [],
+                     "analysis": {"channels": {
+                         "x": {"selected_model": "last_value",
+                               "warnings": ["disclosed fallback"]}}},
                      "mcp": {"calls": 2, "run_tokens": 120,
                              "schema_bytes": 2000}},
         "voided": {"answer": {}, "abstained": ["cap:tokens exceeded"],
@@ -1925,6 +2127,11 @@ def test_voided_rows_stay_out_of_the_accuracy_denominators(tmp_path,
     manifest = json.loads((output / "manifest.json").read_text())
     assert manifest["base_url"] == "http://x"
     assert manifest["mcp_profile"] == "evidence"
+    detail = json.loads((output / "details" / "answered.json").read_text())
+    assert detail["engine_analysis"]["channels"]["x"] == {
+        "selected_model": "last_value",
+        "warnings": ["disclosed fallback"],
+    }
 
 
 def test_row_offset_makes_long_sweeps_shardable(tmp_path, monkeypatch):

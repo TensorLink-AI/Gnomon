@@ -1,0 +1,42 @@
+{
+  "release_metadata": {"scope": "full", "evaluated_commit": "f45e724877e261e4a010285abc6fd2380c898ad1", "harness_commit": "f45e724877e261e4a010285abc6fd2380c898ad1", "dataset_identity": "I007 hierarchy output, reasoning, and topology evidence", "configuration_identity": "three-layer no-build release scorecard"},
+  "schema_version": "0.1",
+  "scorecard_id": "v0.6-i007-hierarchical-reconciliation",
+  "scorecard_commit": "f45e724877e261e4a010285abc6fd2380c898ad1",
+  "dirty_tree": false,
+  "scope": "full",
+  "layers": {
+    "output": {
+      "status": "fail",
+      "dataset_identity": "32 exact three-leaf partitions of four checked-in real series; seed 20260907",
+      "configuration_identity": "standalone root control vs bottom_up_sum_q50_v1; history 96; horizon 24",
+      "accounting": {"expected": 32, "completed": 32, "answered": 32, "failed": 0},
+      "metrics": [
+        {"name": "relative_root_error_improvement", "value": -0.05447013899753367, "unit": "fraction", "denominator": 32, "gate": {"operator": "gte", "threshold": 0.05, "passed": false}},
+        {"name": "noninferior_strata", "value": 5, "unit": "strata", "denominator": 8, "gate": {"operator": "eq", "threshold": 8, "passed": false}},
+        {"name": "coherent_cases", "value": 32, "unit": "cases", "denominator": 32, "gate": {"operator": "eq", "threshold": 32, "passed": true}}
+      ]
+    },
+    "reasoning": {
+      "status": "pass",
+      "dataset_identity": "All candidate rows and hierarchy generator property tests",
+      "configuration_identity": "point-only bottom-up derivation; aggregate uncertainty unavailable; automation false",
+      "accounting": {"expected": 32, "completed": 32, "answered": 32, "failed": 0},
+      "metrics": [
+        {"name": "uncertainty_truth_rate", "value": 1.0, "unit": "fraction", "denominator": 32, "gate": {"operator": "eq", "threshold": 1.0, "passed": true}},
+        {"name": "nonnegative_finite_rate", "value": 1.0, "unit": "fraction", "denominator": 32, "gate": {"operator": "eq", "threshold": 1.0, "passed": true}}
+      ]
+    },
+    "topology": {
+      "status": "pass",
+      "dataset_identity": "One serial resumable preimplementation screen",
+      "configuration_identity": "jobs=1; one retry; 60-second case timeout; atomic JSON rows",
+      "accounting": {"expected": 32, "completed": 32, "answered": 32, "failed": 0},
+      "metrics": [
+        {"name": "completion_rate", "value": 1.0, "unit": "fraction", "denominator": 32, "gate": {"operator": "eq", "threshold": 1.0, "passed": true}},
+        {"name": "maximum_jobs", "value": 1, "unit": "workers", "denominator": 32, "gate": {"operator": "eq", "threshold": 1, "passed": true}}
+      ]
+    }
+  },
+  "decision": {"status": "complete_no_build", "reason": "Arithmetic and disclosure passed, but forecast skill failed. Preserve independent panel behavior and retain only the screen."}
+}

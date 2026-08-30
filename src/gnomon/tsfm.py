@@ -146,13 +146,13 @@ _CAPABILITIES: dict[str, TSFMCapabilities] = {
         source="https://github.com/amazon-science/chronos-forecasting",
     ),
     "toto2_4m": TSFMCapabilities(
-        multivariate_targets=True, native_quantiles=True,
+        native_quantiles=True,
         min_context_length=32,
         source="https://github.com/DataDog/toto",
         verified_on="2026-08-19",
     ),
     "toto2_22m": TSFMCapabilities(
-        multivariate_targets=True, native_quantiles=True,
+        native_quantiles=True,
         min_context_length=32,
         source="https://github.com/DataDog/toto",
     ),
@@ -162,7 +162,7 @@ _CAPABILITIES: dict[str, TSFMCapabilities] = {
         source="https://github.com/ibm-granite/granite-tsfm",
     ),
     "ttm": TSFMCapabilities(
-        multivariate_targets=True, native_quantiles=False, max_context_length=512,
+        native_quantiles=False, max_context_length=512,
         source="https://github.com/ibm-granite/granite-tsfm",
     ),
     "moirai2_small": TSFMCapabilities(

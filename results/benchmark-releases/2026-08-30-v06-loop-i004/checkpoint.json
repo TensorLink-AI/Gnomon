@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "loop": "v0.6-product-improvement",
+  "status": "active",
+  "branch": "agent/v0.6-reasoning-loop",
+  "head_commit": "ae8e77d70875cc6ca6deda1b8c59e8f466746267",
+  "protocol": "docs/v0.6-improvement-loop.md",
+  "preservation": {
+    "preserve_preexisting_committed_work": true,
+    "preserve_preexisting_benchmark_artifacts": true,
+    "preserve_all_preexisting_untracked_files": true,
+    "excluded_from_commits": ["docs/astrid-btc-agent-plan.md"]
+  },
+  "completed_iteration": {
+    "id": "I004",
+    "priority": "P4",
+    "decision": "complete_no_build_with_boundary_fix",
+    "user_outcome": "Discoverable multivariate capabilities now match the inputs Gnomon really invokes, and engine evidence names supplied and retained related series without weakening the univariate-primary guard.",
+    "decision_evidence": "results/benchmark-releases/2026-08-30-v06-loop-i004/decision.json",
+    "tests": "2549 passed, 11 skipped in the final full local suite; 37 focused adapter, multivariate, capability, and benchmark tests passed.",
+    "remaining_risk": "The guarded VAR candidate did not beat ETS prospectively and remains opt-in; native multivariate TSFM inference is not implemented.",
+    "production_default_changed": false
+  },
+  "active_iteration": {
+    "id": "I005",
+    "priority": "P5",
+    "phase": "choose_and_freeze_gate",
+    "user_hypothesis": "When realised outcomes show that a challenger repeatedly helps a particular series or regime, Gnomon should reuse that evidence point-in-time without letting stale, sparse, or post-cutoff outcomes override the safe champion; agents and humans should see the routing evidence and rollback condition.",
+    "must_not_regress": [
+      "every routed candidate still clears job-local forecast admission",
+      "only outcomes knowable at the forecast cutoff influence routing",
+      "minimum evidence and drift resets prevent one-off wins from taking authority",
+      "scenario-only and non-automation candidates never become automatic primaries",
+      "the default champion remains available for immediate rollback",
+      "routing evidence names candidate, cohort, sample, cutoff, and reason"
+    ],
+    "next_action": "Audit the tracking ledger, candidate outcome summaries, model evidence registry, and admission-policy seams; identify whether point-in-time champion/challenger routing already exists or the smallest missing boundary; freeze a prospective shadow-routing corpus and rollback gate before code."
+  },
+  "priorities": [
+    {"id": "P1", "name": "three-layer release scorecard", "status": "complete"},
+    {"id": "P2", "name": "short-history forecast skill", "status": "complete_no_build"},
+    {"id": "P3", "name": "sourced contextual evidence", "status": "complete"},
+    {"id": "P4", "name": "covariate-aware and multivariate candidates", "status": "complete_no_build_with_boundary_fix"},
+    {"id": "P5", "name": "outcome-adaptive champion/challenger routing", "status": "in_progress"},
+    {"id": "P6", "name": "joint multi-horizon uncertainty", "status": "pending"},
+    {"id": "P7", "name": "hierarchical reconciliation", "status": "pending"},
+    {"id": "P8", "name": "agent decision brief and preservation contract", "status": "pending"},
+    {"id": "P9", "name": "value-of-information recovery", "status": "pending"},
+    {"id": "P10", "name": "production inference reliability", "status": "pending"}
+  ]
+}

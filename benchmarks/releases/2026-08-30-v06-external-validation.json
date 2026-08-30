@@ -1,0 +1,120 @@
+{
+  "release": "2026-08-30-v06-external-validation",
+  "output_dir": "results/benchmark-releases/2026-08-30-v06-external-validation",
+  "benchmarks": [
+    {
+      "benchmark": "temporalbench",
+      "arm": "deepseek-control",
+      "scope": "subset",
+      "source": "results/v06-release-validation-466d577/temporalbench-control/summary.json",
+      "file": "temporalbench-control.json",
+      "status": "complete",
+      "evaluated_commit": "466d577",
+      "harness_commit": "466d577",
+      "dataset_identity": "official labeled split; frozen matched 80-case T2/T4 sample; 240 choices and 480 channels",
+      "configuration_identity": "DeepSeek V4 Flash 0731 via Engy; temperature=0; direct official prompt; jobs=1 small resumable shards; bounded retries"
+    },
+    {
+      "benchmark": "temporalbench",
+      "arm": "gnomon-evidence",
+      "scope": "subset",
+      "source": "results/v06-release-validation-466d577/temporalbench-evidence/summary.json",
+      "file": "temporalbench-evidence.json",
+      "status": "complete",
+      "evaluated_commit": "466d577",
+      "harness_commit": "466d577",
+      "dataset_identity": "official labeled split; frozen matched 80-case T2/T4 sample; 240 choices and 480 channels",
+      "configuration_identity": "DeepSeek V4 Flash 0731 via Engy; temperature=0; Evidence MCP with compiled context and typed questions; jobs=1 small resumable shards; bounded retries"
+    },
+    {
+      "benchmark": "temporalbench-choice",
+      "arm": "gnomon-evidence-vs-deepseek",
+      "scope": "subset",
+      "source": "results/v06-release-validation-466d577/temporalbench-choice-comparison.json",
+      "file": "temporalbench-choice-comparison.json",
+      "status": "complete",
+      "evaluated_commit": "466d577",
+      "harness_commit": "466d577",
+      "dataset_identity": "240 matched choice fields across the frozen 80-case T2/T4 sample",
+      "configuration_identity": "case-insensitive exact choice scoring with exact paired McNemar tests"
+    },
+    {
+      "benchmark": "temporalbench-forecast",
+      "arm": "gnomon-evidence-vs-deepseek",
+      "scope": "subset",
+      "source": "results/v06-release-validation-466d577/temporalbench-row-smape.json",
+      "file": "temporalbench-row-smape.json",
+      "status": "complete",
+      "evaluated_commit": "466d577",
+      "harness_commit": "466d577",
+      "dataset_identity": "80 matched official T2/T4 forecast tasks",
+      "configuration_identity": "official row sMAPE with exact paired sign test"
+    },
+    {
+      "benchmark": "temporalbench-channel-forecast",
+      "arm": "gnomon-evidence-vs-deepseek",
+      "scope": "subset",
+      "source": "results/v06-release-validation-466d577/temporalbench-channel-comparison.json",
+      "file": "temporalbench-channel-comparison.json",
+      "status": "complete",
+      "evaluated_commit": "466d577",
+      "harness_commit": "466d577",
+      "dataset_identity": "480 paired channels from the frozen official T2/T4 sample; 478 mutually scoreable",
+      "configuration_identity": "official per-channel MASE and sMAPE; last-value decomposition; exact paired sign tests"
+    },
+    {
+      "benchmark": "context-is-key",
+      "arm": "deepseek-control-sensor",
+      "scope": "subset",
+      "source": "results/v06-release-validation-466d577/cik-control-sensor/summary.json",
+      "file": "cik-control-sensor.json",
+      "status": "complete",
+      "evaluated_commit": "466d577",
+      "harness_commit": "466d577",
+      "dataset_identity": "official sensor task filter; 4 tasks; seed=1; 50 samples per task",
+      "configuration_identity": "fresh no-cache DeepSeek V4 Flash 0731 official DirectPrompt via Engy; temperature=1; sequential disposable cases"
+    },
+    {
+      "benchmark": "context-is-key",
+      "arm": "gnomon-evidence-sensor",
+      "scope": "subset",
+      "source": "results/v06-release-validation-466d577/cik-evidence-sensor/summary.json",
+      "file": "cik-evidence-sensor.json",
+      "status": "complete",
+      "evaluated_commit": "466d577",
+      "harness_commit": "466d577",
+      "dataset_identity": "official sensor task filter; 4 tasks; seed=1; 50 samples per task",
+      "configuration_identity": "fresh no-cache DeepSeek V4 Flash 0731 via Engy; Evidence MCP publication_best_effort; temperature=1; sequential disposable cases"
+    },
+    {
+      "benchmark": "context-is-key-forecast",
+      "arm": "gnomon-evidence-vs-deepseek-sensor",
+      "scope": "subset",
+      "source": "results/v06-release-validation-466d577/cik-sensor-matched-report.json",
+      "file": "cik-sensor-matched-report.json",
+      "status": "complete",
+      "evaluated_commit": "466d577",
+      "harness_commit": "466d577",
+      "dataset_identity": "4 matched official sensor tasks at seed=1",
+      "configuration_identity": "official per-run RCRPS with exact paired sign test; cap-and-impute headline retained"
+    }
+  ],
+  "not_included": [
+    {
+      "benchmark": "temporalbench-superiority",
+      "reason": "Choice accuracy was lower and neither choice, row sMAPE, nor overall per-channel differences established general superiority."
+    },
+    {
+      "benchmark": "context-is-key-superiority",
+      "reason": "The four-task sensor slice had one win and three losses; its lower mean was driven by one large win and the paired result was not significant."
+    },
+    {
+      "benchmark": "full Context-is-Key matrix",
+      "reason": "This crash-safe release probe intentionally reran the existing four-task sensor slice only; 71 tasks and additional seeds remain future external validation."
+    },
+    {
+      "benchmark": "competition-specific plan",
+      "reason": "docs/astrid-btc-agent-plan.md remains explicitly outside PR #83."
+    }
+  ]
+}

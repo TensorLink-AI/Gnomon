@@ -46,6 +46,7 @@ build can do.** Prefer it to any prose here, including this file.
 | [LLM integrations](llm-integrations.md) | You need the boundary between Gnomon, an MCP host, and optional model APIs. |
 | [Agent evaluation](agent-evaluation.md) | You want to measure whether Gnomon improves an agent. |
 | [Product position](product-position.md) | You need the promise, buyer, boundaries, and claims Gnomon can make. |
+| [v0.6 improvement loop](v0.6-improvement-loop.md) | You want the active priority gates, validation loop, and resumable checkpoint protocol. |
 | [Development](development.md) | You want to test or contribute to Gnomon. |
 | [Containers](containers.md) | You want to build or run the Docker image. |
 | [CI/CD](ci-cd.md) | You maintain validation, publishing, or releases. |

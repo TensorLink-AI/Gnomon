@@ -1,0 +1,2426 @@
+{
+  "release_metadata": {
+    "arm": "gnomon-evidence-vs-deepseek",
+    "benchmark": "temporalbench-channel-forecast",
+    "configuration_identity": "official per-channel MASE and sMAPE; last-value decomposition; exact paired sign tests",
+    "dataset_identity": "480 paired channels from the frozen official T2/T4 sample; 478 mutually scoreable",
+    "evaluated_commit": "466d577",
+    "harness_commit": "466d577",
+    "notes": [],
+    "scope": "subset",
+    "source": "results/v06-release-validation-466d577/temporalbench-channel-comparison.json",
+    "source_sha256": "175698e12d6ca37b4096aebd1278c2ce2276aa67d74231b55f7d9abab0db1f3d",
+    "status": "complete"
+  },
+  "summary": {
+    "baseline_code_revision": "466d577",
+    "coverage": {
+      "base_only": 0,
+      "both": 480,
+      "neither": 0,
+      "treat_only": 0
+    },
+    "outcome_counts_vs_last_value": {
+      "regression": 4,
+      "safety_preservation": 474,
+      "unclassified": 0,
+      "uplift": 0
+    },
+    "overall": {
+      "baseline_median": 1.1064,
+      "n": 478,
+      "near_constant_denominators_excluded": 0,
+      "paired_relative_improvement_90pct_ci": [
+        0.0,
+        0.0
+      ],
+      "paired_relative_improvement_median": 0.0,
+      "paired_sign_p_value": 0.4380076332867293,
+      "ties": 104,
+      "treatment_losses": 179,
+      "treatment_median": 1.0894,
+      "treatment_wins": 195
+    },
+    "overall_smape": {
+      "baseline_median": 8.2257,
+      "n": 478,
+      "near_constant_denominators_excluded": 0,
+      "paired_relative_improvement_90pct_ci": [
+        0.0,
+        0.0
+      ],
+      "paired_relative_improvement_median": 0.0,
+      "paired_sign_p_value": 0.4111876195115813,
+      "ties": 99,
+      "treatment_losses": 181,
+      "treatment_median": 7.5254,
+      "treatment_wins": 198
+    },
+    "overall_stable_history": {
+      "baseline_median": 1.1103,
+      "n": 456,
+      "near_constant_denominators_excluded": 0,
+      "paired_relative_improvement_90pct_ci": [
+        0.0,
+        0.0
+      ],
+      "paired_relative_improvement_median": 0.0,
+      "paired_sign_p_value": 0.3206407528608965,
+      "ties": 90,
+      "treatment_losses": 173,
+      "treatment_median": 1.0879,
+      "treatment_wins": 193
+    },
+    "per_channel": {
+      "dbp": {
+        "baseline_median": 1.208,
+        "n": 80,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          0.0,
+          0.035867
+        ],
+        "paired_relative_improvement_median": 0.0,
+        "paired_sign_p_value": 0.3741517124047949,
+        "stable_history": {
+          "baseline_median": 1.208,
+          "n": 80,
+          "near_constant_denominators_excluded": 0,
+          "paired_relative_improvement_90pct_ci": [
+            0.0,
+            0.035867
+          ],
+          "paired_relative_improvement_median": 0.0,
+          "paired_sign_p_value": 0.3741517124047949,
+          "ties": 18,
+          "treatment_losses": 27,
+          "treatment_median": 1.094,
+          "treatment_wins": 35
+        },
+        "ties": 18,
+        "treatment_losses": 27,
+        "treatment_median": 1.094,
+        "treatment_wins": 35
+      },
+      "heart_rate": {
+        "baseline_median": 1.7297,
+        "n": 80,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          0.005698,
+          0.280546
+        ],
+        "paired_relative_improvement_median": 0.085106,
+        "paired_sign_p_value": 0.02862665550873788,
+        "stable_history": {
+          "baseline_median": 1.7297,
+          "n": 80,
+          "near_constant_denominators_excluded": 0,
+          "paired_relative_improvement_90pct_ci": [
+            0.005698,
+            0.280546
+          ],
+          "paired_relative_improvement_median": 0.085106,
+          "paired_sign_p_value": 0.02862665550873788,
+          "ties": 4,
+          "treatment_losses": 28,
+          "treatment_median": 1.2965,
+          "treatment_wins": 48
+        },
+        "ties": 4,
+        "treatment_losses": 28,
+        "treatment_median": 1.2965,
+        "treatment_wins": 48
+      },
+      "resp_rate": {
+        "baseline_median": 0.9036,
+        "n": 80,
+        "near_constant_denominators_excluded": 6,
+        "paired_relative_improvement_90pct_ci": [
+          -0.034286,
+          0.0
+        ],
+        "paired_relative_improvement_median": 0.0,
+        "paired_sign_p_value": 0.10342187831608089,
+        "stable_history": {
+          "baseline_median": 0.9926,
+          "n": 74,
+          "near_constant_denominators_excluded": 0,
+          "paired_relative_improvement_90pct_ci": [
+            -0.034286,
+            0.0
+          ],
+          "paired_relative_improvement_median": 0.0,
+          "paired_sign_p_value": 0.20003136851310316,
+          "ties": 13,
+          "treatment_losses": 36,
+          "treatment_median": 1.0306,
+          "treatment_wins": 25
+        },
+        "ties": 16,
+        "treatment_losses": 39,
+        "treatment_median": 1.0412,
+        "treatment_wins": 25
+      },
+      "sbp": {
+        "baseline_median": 1.1597,
+        "n": 80,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          -0.014828,
+          0.0
+        ],
+        "paired_relative_improvement_median": 0.0,
+        "paired_sign_p_value": 0.38173279479333766,
+        "stable_history": {
+          "baseline_median": 1.1597,
+          "n": 80,
+          "near_constant_denominators_excluded": 0,
+          "paired_relative_improvement_90pct_ci": [
+            -0.014828,
+            0.0
+          ],
+          "paired_relative_improvement_median": 0.0,
+          "paired_sign_p_value": 0.38173279479333766,
+          "ties": 16,
+          "treatment_losses": 36,
+          "treatment_median": 1.1949,
+          "treatment_wins": 28
+        },
+        "ties": 16,
+        "treatment_losses": 36,
+        "treatment_median": 1.1949,
+        "treatment_wins": 28
+      },
+      "spo2": {
+        "baseline_median": 1.1262,
+        "n": 80,
+        "near_constant_denominators_excluded": 16,
+        "paired_relative_improvement_90pct_ci": [
+          0.0,
+          0.0
+        ],
+        "paired_relative_improvement_median": 0.0,
+        "paired_sign_p_value": 0.6654658120766186,
+        "stable_history": {
+          "baseline_median": 1.0705,
+          "n": 64,
+          "near_constant_denominators_excluded": 0,
+          "paired_relative_improvement_90pct_ci": [
+            0.0,
+            0.0
+          ],
+          "paired_relative_improvement_median": 0.0,
+          "paired_sign_p_value": 0.542384011856484,
+          "ties": 21,
+          "treatment_losses": 19,
+          "treatment_median": 1.1071,
+          "treatment_wins": 24
+        },
+        "ties": 32,
+        "treatment_losses": 22,
+        "treatment_median": 1.1263,
+        "treatment_wins": 26
+      },
+      "temperature_c": {
+        "baseline_median": 0.6607,
+        "n": 78,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          0.0,
+          0.113208
+        ],
+        "paired_relative_improvement_median": 0.0,
+        "paired_sign_p_value": 0.5189580031896518,
+        "stable_history": {
+          "baseline_median": 0.6607,
+          "n": 78,
+          "near_constant_denominators_excluded": 0,
+          "paired_relative_improvement_90pct_ci": [
+            0.0,
+            0.113208
+          ],
+          "paired_relative_improvement_median": 0.0,
+          "paired_sign_p_value": 0.5189580031896518,
+          "ties": 18,
+          "treatment_losses": 27,
+          "treatment_median": 0.6833,
+          "treatment_wins": 33
+        },
+        "ties": 18,
+        "treatment_losses": 27,
+        "treatment_median": 0.6833,
+        "treatment_wins": 33
+      }
+    },
+    "per_channel_smape": {
+      "dbp": {
+        "baseline_median": 12.6672,
+        "n": 80,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          0.0,
+          0.038147
+        ],
+        "paired_relative_improvement_median": 0.0,
+        "paired_sign_p_value": 0.31350305329645284,
+        "ties": 17,
+        "treatment_losses": 27,
+        "treatment_median": 11.5734,
+        "treatment_wins": 36
+      },
+      "heart_rate": {
+        "baseline_median": 10.7845,
+        "n": 80,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          0.0,
+          0.279146
+        ],
+        "paired_relative_improvement_median": 0.141297,
+        "paired_sign_p_value": 0.08464609267083592,
+        "ties": 4,
+        "treatment_losses": 30,
+        "treatment_median": 8.1055,
+        "treatment_wins": 46
+      },
+      "resp_rate": {
+        "baseline_median": 16.0529,
+        "n": 80,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          -0.017911,
+          0.0
+        ],
+        "paired_relative_improvement_median": 0.0,
+        "paired_sign_p_value": 0.16864291143970336,
+        "ties": 16,
+        "treatment_losses": 38,
+        "treatment_median": 18.1631,
+        "treatment_wins": 26
+      },
+      "sbp": {
+        "baseline_median": 8.7902,
+        "n": 80,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          -0.015793,
+          0.0
+        ],
+        "paired_relative_improvement_median": 0.0,
+        "paired_sign_p_value": 0.38173279479333766,
+        "ties": 16,
+        "treatment_losses": 36,
+        "treatment_median": 8.4767,
+        "treatment_wins": 28
+      },
+      "spo2": {
+        "baseline_median": 1.6546,
+        "n": 80,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          0.0,
+          0.0
+        ],
+        "paired_relative_improvement_median": 0.0,
+        "paired_sign_p_value": 0.5681724128491652,
+        "ties": 31,
+        "treatment_losses": 22,
+        "treatment_median": 1.6527,
+        "treatment_wins": 27
+      },
+      "temperature_c": {
+        "baseline_median": 0.5115,
+        "n": 78,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          0.0,
+          0.11285
+        ],
+        "paired_relative_improvement_median": 0.0,
+        "paired_sign_p_value": 0.4499625362902225,
+        "ties": 15,
+        "treatment_losses": 28,
+        "treatment_median": 0.4592,
+        "treatment_wins": 35
+      }
+    },
+    "publication": {
+      "abstention_priced_as_last_value": {
+        "baseline_median": 1.0894,
+        "n": 480,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          0.0,
+          0.0
+        ],
+        "paired_relative_improvement_median": 0.0,
+        "paired_sign_p_value": 0.125,
+        "ties": 476,
+        "treatment_losses": 4,
+        "treatment_median": 1.0894,
+        "treatment_wins": 0
+      },
+      "abstention_priced_as_last_value_smape": {
+        "baseline_median": 7.4951,
+        "n": 480,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          0.0,
+          0.0
+        ],
+        "paired_relative_improvement_median": 0.0,
+        "paired_sign_p_value": 0.125,
+        "ties": 476,
+        "treatment_losses": 4,
+        "treatment_median": 7.4951,
+        "treatment_wins": 0
+      },
+      "eligible_channel_slots_with_naive_scale": 480,
+      "treatment_abstained_where_baseline_published": 0,
+      "treatment_published": 480
+    },
+    "records": [
+      {
+        "baseline": {
+          "OW_MASE": 1.3713794648761588,
+          "OW_RMSSE": 1.040482545222348,
+          "OW_sMAPE": 7.934577818269731,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000001_T2",
+        "treatment": {
+          "OW_MASE": 1.7959305566804245,
+          "OW_RMSSE": 1.1291096137925494,
+          "OW_sMAPE": 9.210630171456192,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 2.502949346757557,
+          "OW_RMSSE": 1.3109251446258645,
+          "OW_sMAPE": 9.065829189551412,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000001_T4",
+        "treatment": {
+          "OW_MASE": 1.7959305566804245,
+          "OW_RMSSE": 1.1291096137925494,
+          "OW_sMAPE": 9.210630171456192,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.2688347677380245,
+          "OW_RMSSE": 0.3093944882128236,
+          "OW_sMAPE": 13.113332317375956,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000002_T2",
+        "treatment": {
+          "OW_MASE": 1.3243122854668217,
+          "OW_RMSSE": 0.2639576350076217,
+          "OW_sMAPE": 13.02710164616004,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.2604610284332574,
+          "OW_RMSSE": 0.32456486022518016,
+          "OW_sMAPE": 19.121534328548577,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000002_T4",
+        "treatment": {
+          "OW_MASE": 1.3243122854668217,
+          "OW_RMSSE": 0.2639576350076217,
+          "OW_sMAPE": 13.02710164616004,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.086833786726022,
+          "OW_RMSSE": 0.12859738119852643,
+          "OW_sMAPE": 10.711952755616014,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000003_T2",
+        "treatment": {
+          "OW_MASE": 0.9468003596819001,
+          "OW_RMSSE": 0.11995127330999951,
+          "OW_sMAPE": 9.852613740352323,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.0947913462979608,
+          "OW_RMSSE": 0.13503709225061838,
+          "OW_sMAPE": 10.717831700358184,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000003_T4",
+        "treatment": {
+          "OW_MASE": 0.9468003596819001,
+          "OW_RMSSE": 0.11995127330999951,
+          "OW_sMAPE": 9.852613740352323,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.5003949153825853,
+          "OW_RMSSE": 0.301235809642648,
+          "OW_sMAPE": 13.353283073162995,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000004_T2",
+        "treatment": {
+          "OW_MASE": 1.3735860185634767,
+          "OW_RMSSE": 0.3067019890492132,
+          "OW_sMAPE": 12.09964843498316,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.412829137194624,
+          "OW_RMSSE": 0.2814948567863114,
+          "OW_sMAPE": 13.041950521399196,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000004_T4",
+        "treatment": {
+          "OW_MASE": 1.3735860185634767,
+          "OW_RMSSE": 0.3067019890492132,
+          "OW_sMAPE": 12.09964843498316,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.0509982308885466,
+          "OW_RMSSE": 0.18079507926402685,
+          "OW_sMAPE": 11.185218907724021,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000005_T2",
+        "treatment": {
+          "OW_MASE": 1.9967701805901468,
+          "OW_RMSSE": 0.24979663214612585,
+          "OW_sMAPE": 19.452188544418174,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.1536036499374418,
+          "OW_RMSSE": 0.19507008240184004,
+          "OW_sMAPE": 12.607975613785305,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000005_T4",
+        "treatment": {
+          "OW_MASE": 1.9967701805901468,
+          "OW_RMSSE": 0.24979663214612585,
+          "OW_sMAPE": 19.452188544418174,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 2.4635380980784984,
+          "OW_RMSSE": 0.9393908828263497,
+          "OW_sMAPE": 13.863909107542085,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000006_T2",
+        "treatment": {
+          "OW_MASE": 2.4635380980784984,
+          "OW_RMSSE": 0.9393908828263497,
+          "OW_sMAPE": 13.863909107542085,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 2.2832959362339937,
+          "OW_RMSSE": 0.9602097110549854,
+          "OW_sMAPE": 15.886973893808564,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000006_T4",
+        "treatment": {
+          "OW_MASE": 2.4635380980784984,
+          "OW_RMSSE": 0.9393908828263497,
+          "OW_sMAPE": 13.863909107542085,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 2.5370825976485047,
+          "OW_RMSSE": 0.5273231274123149,
+          "OW_sMAPE": 18.872624768798435,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000007_T2",
+        "treatment": {
+          "OW_MASE": 1.675081806448662,
+          "OW_RMSSE": 0.3552469724288468,
+          "OW_sMAPE": 12.572529875124113,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 2.287410476503064,
+          "OW_RMSSE": 0.3924708762648356,
+          "OW_sMAPE": 17.992443107571983,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000007_T4",
+        "treatment": {
+          "OW_MASE": 1.675081806448662,
+          "OW_RMSSE": 0.3552469724288468,
+          "OW_sMAPE": 12.572529875124113,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.080032266459051,
+          "OW_RMSSE": 0.2754996743677286,
+          "OW_sMAPE": 6.344731000391701,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000008_T2",
+        "treatment": {
+          "OW_MASE": 1.2385695787248125,
+          "OW_RMSSE": 0.33196099410233304,
+          "OW_sMAPE": 6.729532191116555,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.443896088642211,
+          "OW_RMSSE": 0.310258213347372,
+          "OW_sMAPE": 7.644929518758358,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000008_T4",
+        "treatment": {
+          "OW_MASE": 1.2385695787248125,
+          "OW_RMSSE": 0.33196099410233304,
+          "OW_sMAPE": 6.729532191116555,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.6132749143765417,
+          "OW_RMSSE": 0.5318746644559722,
+          "OW_sMAPE": 5.316315556532676,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000009_T2",
+        "treatment": {
+          "OW_MASE": 1.9684383787653803,
+          "OW_RMSSE": 0.6365153031900933,
+          "OW_sMAPE": 5.911106174922956,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 2.8092617606982215,
+          "OW_RMSSE": 0.9645317047509916,
+          "OW_sMAPE": 7.915495488820502,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000009_T4",
+        "treatment": {
+          "OW_MASE": 1.9684383787653803,
+          "OW_RMSSE": 0.6365153031900933,
+          "OW_sMAPE": 5.911106174922956,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.3553643028774238,
+          "OW_RMSSE": 0.28958400556495756,
+          "OW_sMAPE": 10.182169498433542,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000010_T2",
+        "treatment": {
+          "OW_MASE": 0.8925573779162225,
+          "OW_RMSSE": 0.26070192170645706,
+          "OW_sMAPE": 6.643307323354628,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.3917364547739857,
+          "OW_RMSSE": 0.3417557607284758,
+          "OW_sMAPE": 9.6815379730507,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000010_T4",
+        "treatment": {
+          "OW_MASE": 0.8925573779162225,
+          "OW_RMSSE": 0.26070192170645706,
+          "OW_sMAPE": 6.643307323354628,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.6277711330538256,
+          "OW_RMSSE": 0.41145617912315147,
+          "OW_sMAPE": 12.282359173384124,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000011_T2",
+        "treatment": {
+          "OW_MASE": 1.4290416226649123,
+          "OW_RMSSE": 0.386252562063605,
+          "OW_sMAPE": 9.920321758957497,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.377684558841701,
+          "OW_RMSSE": 0.3380617007871467,
+          "OW_sMAPE": 10.099573087080921,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000011_T4",
+        "treatment": {
+          "OW_MASE": 1.4290416226649123,
+          "OW_RMSSE": 0.386252562063605,
+          "OW_sMAPE": 9.920321758957497,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.2237199672459782,
+          "OW_RMSSE": 0.7002140208036786,
+          "OW_sMAPE": 13.077853503696064,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000012_T2",
+        "treatment": {
+          "OW_MASE": 0.9471649208170179,
+          "OW_RMSSE": 0.611815788639653,
+          "OW_sMAPE": 10.994768700059252,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.4321430821944208,
+          "OW_RMSSE": 0.6960519114995801,
+          "OW_sMAPE": 13.642443174663565,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000012_T4",
+        "treatment": {
+          "OW_MASE": 0.9471649208170179,
+          "OW_RMSSE": 0.611815788639653,
+          "OW_sMAPE": 10.994768700059252,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.6375941177398203,
+          "OW_RMSSE": 3.159106756056356,
+          "OW_sMAPE": 10.64818905226907,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000013_T2",
+        "treatment": {
+          "OW_MASE": 1.23239288552878,
+          "OW_RMSSE": 2.5629110470091128,
+          "OW_sMAPE": 8.522542054642107,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 3.1775757203257964,
+          "OW_RMSSE": 3.398069225767068,
+          "OW_sMAPE": 19.660542795208958,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000013_T4",
+        "treatment": {
+          "OW_MASE": 1.23239288552878,
+          "OW_RMSSE": 2.5629110470091128,
+          "OW_sMAPE": 8.522542054642107,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.3773170223440387,
+          "OW_RMSSE": 0.21081003773521614,
+          "OW_sMAPE": 13.986526856442099,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000014_T2",
+        "treatment": {
+          "OW_MASE": 0.7447739902233217,
+          "OW_RMSSE": 0.18370392717135556,
+          "OW_sMAPE": 6.524927092441253,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.6216114458155317,
+          "OW_RMSSE": 0.24467173028363845,
+          "OW_sMAPE": 15.481501667330583,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000014_T4",
+        "treatment": {
+          "OW_MASE": 0.7447739902233217,
+          "OW_RMSSE": 0.18370392717135556,
+          "OW_sMAPE": 6.524927092441253,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 0.9486685491479553,
+          "OW_RMSSE": 0.16554402720474928,
+          "OW_sMAPE": 8.94621237841694,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000015_T2",
+        "treatment": {
+          "OW_MASE": 0.8967962794924262,
+          "OW_RMSSE": 0.1460278872908632,
+          "OW_sMAPE": 9.218025677230065,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 0.9768333352570546,
+          "OW_RMSSE": 0.17017953700942423,
+          "OW_sMAPE": 9.011718958754663,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000015_T4",
+        "treatment": {
+          "OW_MASE": 0.8967962794924262,
+          "OW_RMSSE": 0.1460278872908632,
+          "OW_sMAPE": 9.218025677230065,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.4550706732452512,
+          "OW_RMSSE": 0.6283451639528086,
+          "OW_sMAPE": 10.458794998469324,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000016_T2",
+        "treatment": {
+          "OW_MASE": 1.524374268498033,
+          "OW_RMSSE": 0.8102147497682751,
+          "OW_sMAPE": 11.394971943748832,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 4.189696925239735,
+          "OW_RMSSE": 1.9738794737936962,
+          "OW_sMAPE": 44.91836531038099,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000016_T4",
+        "treatment": {
+          "OW_MASE": 1.524374268498033,
+          "OW_RMSSE": 0.8102147497682751,
+          "OW_sMAPE": 11.394971943748832,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.057949475439351,
+          "OW_RMSSE": 0.2623876433851295,
+          "OW_sMAPE": 11.379688137240972,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000017_T2",
+        "treatment": {
+          "OW_MASE": 1.8339831914485707,
+          "OW_RMSSE": 0.5201241019238617,
+          "OW_sMAPE": 17.805630902002328,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.075709990304067,
+          "OW_RMSSE": 0.2519809031760415,
+          "OW_sMAPE": 11.88577437199802,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000017_T4",
+        "treatment": {
+          "OW_MASE": 1.8339831914485707,
+          "OW_RMSSE": 0.5201241019238617,
+          "OW_sMAPE": 17.805630902002328,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 7816902.3518447615,
+          "OW_RMSSE": 8142258.446265838,
+          "OW_sMAPE": 6.922128753257301,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000018_T2",
+        "treatment": {
+          "OW_MASE": 11619719.318750791,
+          "OW_RMSSE": 12299573.669267084,
+          "OW_sMAPE": 7.098483205528332,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 5845071.456069326,
+          "OW_RMSSE": 6333331.778656155,
+          "OW_sMAPE": 7.448964589767614,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000018_T4",
+        "treatment": {
+          "OW_MASE": 11619719.318750791,
+          "OW_RMSSE": 12299573.669267084,
+          "OW_sMAPE": 7.098483205528332,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.179287850823599,
+          "OW_RMSSE": 0.21791518549712086,
+          "OW_sMAPE": 10.55769686211657,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000019_T2",
+        "treatment": {
+          "OW_MASE": 1.2344050228468326,
+          "OW_RMSSE": 0.2076067442212671,
+          "OW_sMAPE": 10.697304610108544,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.42425567302971,
+          "OW_RMSSE": 0.22262720854421833,
+          "OW_sMAPE": 11.629043966084001,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000019_T4",
+        "treatment": {
+          "OW_MASE": 1.2344050228468326,
+          "OW_RMSSE": 0.2076067442212671,
+          "OW_sMAPE": 10.697304610108544,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 0.8169645463647227,
+          "OW_RMSSE": 0.14319892753931981,
+          "OW_sMAPE": 9.946329072735791,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000020_T2",
+        "treatment": {
+          "OW_MASE": 0.808498249007008,
+          "OW_RMSSE": 0.12894532377373505,
+          "OW_sMAPE": 9.943566985150133,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 0.8923730155974834,
+          "OW_RMSSE": 0.13671513025893806,
+          "OW_sMAPE": 9.416171799267289,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000020_T4",
+        "treatment": {
+          "OW_MASE": 0.808498249007008,
+          "OW_RMSSE": 0.12894532377373505,
+          "OW_sMAPE": 9.943566985150133,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.6577043602660142,
+          "OW_RMSSE": 0.29503314120625274,
+          "OW_sMAPE": 11.217628861620446,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000021_T2",
+        "treatment": {
+          "OW_MASE": 4.256238253185053,
+          "OW_RMSSE": 0.5319116762587703,
+          "OW_sMAPE": 25.484634937305472,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 6.866902191192722,
+          "OW_RMSSE": 0.8561522055910298,
+          "OW_sMAPE": 33.41793643442946,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000021_T4",
+        "treatment": {
+          "OW_MASE": 4.256238253185053,
+          "OW_RMSSE": 0.5319116762587703,
+          "OW_sMAPE": 25.484634937305472,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 2.1062565383213094,
+          "OW_RMSSE": 0.8959222457074031,
+          "OW_sMAPE": 15.007575728628774,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000022_T2",
+        "treatment": {
+          "OW_MASE": 1.597547883658207,
+          "OW_RMSSE": 0.8034466851423504,
+          "OW_sMAPE": 9.921750803912518,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.903566302523994,
+          "OW_RMSSE": 0.8342304601915566,
+          "OW_sMAPE": 12.630862611980302,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000022_T4",
+        "treatment": {
+          "OW_MASE": 1.597547883658207,
+          "OW_RMSSE": 0.8034466851423504,
+          "OW_sMAPE": 9.921750803912518,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 0.9228661824012523,
+          "OW_RMSSE": 0.24997941595376233,
+          "OW_sMAPE": 7.938194037929995,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000023_T2",
+        "treatment": {
+          "OW_MASE": 0.8752813433657678,
+          "OW_RMSSE": 0.2360362995367799,
+          "OW_sMAPE": 7.435053379132421,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 0.9868225607472659,
+          "OW_RMSSE": 0.2641438032480397,
+          "OW_sMAPE": 8.640051990147779,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000023_T4",
+        "treatment": {
+          "OW_MASE": 0.8752813433657678,
+          "OW_RMSSE": 0.2360362995367799,
+          "OW_sMAPE": 7.435053379132421,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 0.6657211967628337,
+          "OW_RMSSE": 0.1807154297586931,
+          "OW_sMAPE": 8.14327381161994,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000024_T2",
+        "treatment": {
+          "OW_MASE": 0.759384682806377,
+          "OW_RMSSE": 0.1805156595498434,
+          "OW_sMAPE": 9.095554357727194,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 0.7831055279625738,
+          "OW_RMSSE": 0.21349693134314818,
+          "OW_sMAPE": 8.84609230305429,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000024_T4",
+        "treatment": {
+          "OW_MASE": 0.759384682806377,
+          "OW_RMSSE": 0.1805156595498434,
+          "OW_sMAPE": 9.095554357727194,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.0710577531519574,
+          "OW_RMSSE": 0.18779471283215815,
+          "OW_sMAPE": 9.831292154015703,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000025_T2",
+        "treatment": {
+          "OW_MASE": 1.3460110233956961,
+          "OW_RMSSE": 0.22113789571031003,
+          "OW_sMAPE": 11.508666095395856,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.6161000113722168,
+          "OW_RMSSE": 0.23404268421567942,
+          "OW_sMAPE": 14.007251856195943,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000025_T4",
+        "treatment": {
+          "OW_MASE": 1.3460110233956961,
+          "OW_RMSSE": 0.22113789571031003,
+          "OW_sMAPE": 11.508666095395856,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.5602138158932894,
+          "OW_RMSSE": 0.2835501681288899,
+          "OW_sMAPE": 11.151352037077872,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000026_T2",
+        "treatment": {
+          "OW_MASE": 1.4413820339298682,
+          "OW_RMSSE": 0.317189736593666,
+          "OW_sMAPE": 10.427731981215423,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.5479551162808927,
+          "OW_RMSSE": 0.3299217453904458,
+          "OW_sMAPE": 11.85933446522945,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000026_T4",
+        "treatment": {
+          "OW_MASE": 1.4413820339298682,
+          "OW_RMSSE": 0.317189736593666,
+          "OW_sMAPE": 10.427731981215423,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.2296777069771194,
+          "OW_RMSSE": 0.2304895756684618,
+          "OW_sMAPE": 10.122297429254626,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000027_T2",
+        "treatment": {
+          "OW_MASE": 1.079286235937053,
+          "OW_RMSSE": 0.19107374968711957,
+          "OW_sMAPE": 9.396168761878096,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.0710181924166482,
+          "OW_RMSSE": 0.21954282006930273,
+          "OW_sMAPE": 8.690052290616272,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000027_T4",
+        "treatment": {
+          "OW_MASE": 1.079286235937053,
+          "OW_RMSSE": 0.19107374968711957,
+          "OW_sMAPE": 9.396168761878096,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 0.884067936598313,
+          "OW_RMSSE": 0.25135911982581766,
+          "OW_sMAPE": 6.575738331911716,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000028_T2",
+        "treatment": {
+          "OW_MASE": 0.8705591728197561,
+          "OW_RMSSE": 0.23923016624922955,
+          "OW_sMAPE": 6.564374279246787,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.260747460593744,
+          "OW_RMSSE": 0.28691010992851196,
+          "OW_sMAPE": 9.003933638195113,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000028_T4",
+        "treatment": {
+          "OW_MASE": 0.8705591728197561,
+          "OW_RMSSE": 0.23923016624922955,
+          "OW_sMAPE": 6.564374279246787,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.3058374189236823,
+          "OW_RMSSE": 0.26396331498924913,
+          "OW_sMAPE": 11.107009871802594,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000029_T2",
+        "treatment": {
+          "OW_MASE": 1.2187934707698274,
+          "OW_RMSSE": 0.2513996856293017,
+          "OW_sMAPE": 10.5985833862033,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.0034951239090422,
+          "OW_RMSSE": 0.23720885843023434,
+          "OW_sMAPE": 8.597040339650597,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000029_T4",
+        "treatment": {
+          "OW_MASE": 1.2187934707698274,
+          "OW_RMSSE": 0.2513996856293017,
+          "OW_sMAPE": 10.5985833862033,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.1173044393614053,
+          "OW_RMSSE": 0.2601186652656119,
+          "OW_sMAPE": 8.317463342331319,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000030_T2",
+        "treatment": {
+          "OW_MASE": 1.1805929123301266,
+          "OW_RMSSE": 0.24051088960164105,
+          "OW_sMAPE": 10.029743986375589,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.0530764110890038,
+          "OW_RMSSE": 0.2484519454845318,
+          "OW_sMAPE": 7.945656388125602,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000030_T4",
+        "treatment": {
+          "OW_MASE": 1.1805929123301266,
+          "OW_RMSSE": 0.24051088960164105,
+          "OW_sMAPE": 10.029743986375589,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.0721374990894739,
+          "OW_RMSSE": 0.18163067214950085,
+          "OW_sMAPE": 10.91610233019293,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000031_T2",
+        "treatment": {
+          "OW_MASE": 1.2095938327917464,
+          "OW_RMSSE": 0.2149665477251025,
+          "OW_sMAPE": 11.691379800119861,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.0810513079013493,
+          "OW_RMSSE": 0.18534046990892628,
+          "OW_sMAPE": 10.990830689781347,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000031_T4",
+        "treatment": {
+          "OW_MASE": 1.2095938327917464,
+          "OW_RMSSE": 0.2149665477251025,
+          "OW_sMAPE": 11.691379800119861,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 2.368034729192701,
+          "OW_RMSSE": 0.47115502552101673,
+          "OW_sMAPE": 22.374886433971444,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000032_T2",
+        "treatment": {
+          "OW_MASE": 0.9678662809567096,
+          "OW_RMSSE": 0.38454444952507155,
+          "OW_sMAPE": 7.461930944820796,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 2.6744971810451936,
+          "OW_RMSSE": 0.4904272024755394,
+          "OW_sMAPE": 26.887270404089,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000032_T4",
+        "treatment": {
+          "OW_MASE": 0.9678662809567096,
+          "OW_RMSSE": 0.38454444952507155,
+          "OW_sMAPE": 7.461930944820796,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 0.7396117517063683,
+          "OW_RMSSE": 0.1426792737037045,
+          "OW_sMAPE": 7.356805178411081,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000033_T2",
+        "treatment": {
+          "OW_MASE": 0.6723794027725002,
+          "OW_RMSSE": 0.1351389687279804,
+          "OW_sMAPE": 6.700363165136544,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 0.7623807998316663,
+          "OW_RMSSE": 0.13932580765580163,
+          "OW_sMAPE": 5.978031210265918,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000033_T4",
+        "treatment": {
+          "OW_MASE": 0.6723794027725002,
+          "OW_RMSSE": 0.1351389687279804,
+          "OW_sMAPE": 6.700363165136544,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.359866957150493,
+          "OW_RMSSE": 0.23293148016929718,
+          "OW_sMAPE": 10.935015824923983,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000034_T2",
+        "treatment": {
+          "OW_MASE": 1.5020397363560936,
+          "OW_RMSSE": 0.24834526734013224,
+          "OW_sMAPE": 12.593184224410361,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.5647042017536181,
+          "OW_RMSSE": 0.24667434547453568,
+          "OW_sMAPE": 12.967852791401102,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000034_T4",
+        "treatment": {
+          "OW_MASE": 1.5020397363560936,
+          "OW_RMSSE": 0.24834526734013224,
+          "OW_sMAPE": 12.593184224410361,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.0865124503359822,
+          "OW_RMSSE": 0.2457208510312006,
+          "OW_sMAPE": 7.822975139198168,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000035_T2",
+        "treatment": {
+          "OW_MASE": 1.2434514287427967,
+          "OW_RMSSE": 0.27307818317365623,
+          "OW_sMAPE": 6.7769043213149525,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.06330925139285,
+          "OW_RMSSE": 0.24611039927814535,
+          "OW_sMAPE": 7.730869691361651,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000035_T4",
+        "treatment": {
+          "OW_MASE": 1.2434514287427967,
+          "OW_RMSSE": 0.27307818317365623,
+          "OW_sMAPE": 6.7769043213149525,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.6878228193082807,
+          "OW_RMSSE": 0.4121013852962405,
+          "OW_sMAPE": 8.2946302086898,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000036_T2",
+        "treatment": {
+          "OW_MASE": 1.5005813730975113,
+          "OW_RMSSE": 0.41595457852239165,
+          "OW_sMAPE": 6.789283635609979,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.6072714228980496,
+          "OW_RMSSE": 0.43766659808699154,
+          "OW_sMAPE": 6.927534925712171,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000036_T4",
+        "treatment": {
+          "OW_MASE": 1.5005813730975113,
+          "OW_RMSSE": 0.41595457852239165,
+          "OW_sMAPE": 6.789283635609979,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.5826356016180967,
+          "OW_RMSSE": 0.37967679707023555,
+          "OW_sMAPE": 13.243443598120372,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000037_T2",
+        "treatment": {
+          "OW_MASE": 1.0539103935671645,
+          "OW_RMSSE": 0.2899721333780631,
+          "OW_sMAPE": 10.105439770562969,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.333729679215883,
+          "OW_RMSSE": 0.3267609662329044,
+          "OW_sMAPE": 11.5265811587591,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000037_T4",
+        "treatment": {
+          "OW_MASE": 1.0539103935671645,
+          "OW_RMSSE": 0.2899721333780631,
+          "OW_sMAPE": 10.105439770562969,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 0.935935290442891,
+          "OW_RMSSE": 0.1945345716227513,
+          "OW_sMAPE": 8.550380587874303,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000038_T2",
+        "treatment": {
+          "OW_MASE": 1.4938755920390652,
+          "OW_RMSSE": 0.30172898797248215,
+          "OW_sMAPE": 14.103135708647239,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.3234119271713,
+          "OW_RMSSE": 0.2692847651203384,
+          "OW_sMAPE": 10.897178028762202,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000038_T4",
+        "treatment": {
+          "OW_MASE": 1.4938755920390652,
+          "OW_RMSSE": 0.30172898797248215,
+          "OW_sMAPE": 14.103135708647239,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.2924722207190669,
+          "OW_RMSSE": 0.21961759777394754,
+          "OW_sMAPE": 12.112519413871722,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000039_T2",
+        "treatment": {
+          "OW_MASE": 1.0258933429259605,
+          "OW_RMSSE": 0.19965615245217747,
+          "OW_sMAPE": 13.52875164341924,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.1648308227707267,
+          "OW_RMSSE": 0.19595606607471447,
+          "OW_sMAPE": 10.497868964424821,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000039_T4",
+        "treatment": {
+          "OW_MASE": 1.0258933429259605,
+          "OW_RMSSE": 0.19965615245217747,
+          "OW_sMAPE": 13.52875164341924,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.7863045260604737,
+          "OW_RMSSE": 0.3584716983987529,
+          "OW_sMAPE": 12.882862522851044,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000040_T2",
+        "treatment": {
+          "OW_MASE": 1.6762580463946193,
+          "OW_RMSSE": 0.3847613796511706,
+          "OW_sMAPE": 13.935904201190938,
+          "weight_mode": "length"
+        }
+      },
+      {
+        "baseline": {
+          "OW_MASE": 1.2328539272068035,
+          "OW_RMSSE": 0.27431271668543017,
+          "OW_sMAPE": 8.82781073231183,
+          "weight_mode": "length"
+        },
+        "channels": [
+          "heart_rate",
+          "temperature_c",
+          "resp_rate",
+          "spo2",
+          "sbp",
+          "dbp"
+        ],
+        "task_id": "tsb_000040_T4",
+        "treatment": {
+          "OW_MASE": 1.6762580463946193,
+          "OW_RMSSE": 0.3847613796511706,
+          "OW_sMAPE": 13.935904201190938,
+          "weight_mode": "length"
+        }
+      }
+    ],
+    "scoring_coverage": {
+      "base_only": 0,
+      "both": 478,
+      "neither": 0,
+      "treat_only": 2
+    },
+    "support_mix": {
+      "baseline": {
+        "unlabeled": 478
+      },
+      "treatment": {
+        "best_effort": 116,
+        "degraded": 362
+      }
+    },
+    "treatment_code_revision": "466d577",
+    "treatment_vs_last_value": {
+      "dbp": {
+        "baseline_median": 1.094,
+        "n": 80,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          0.0,
+          0.0
+        ],
+        "paired_relative_improvement_median": 0.0,
+        "paired_sign_p_value": 1.0,
+        "ties": 80,
+        "treatment_losses": 0,
+        "treatment_median": 1.094,
+        "treatment_wins": 0
+      },
+      "heart_rate": {
+        "baseline_median": 1.2965,
+        "n": 80,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          0.0,
+          0.0
+        ],
+        "paired_relative_improvement_median": 0.0,
+        "paired_sign_p_value": 0.5,
+        "ties": 78,
+        "treatment_losses": 2,
+        "treatment_median": 1.2965,
+        "treatment_wins": 0
+      },
+      "resp_rate": {
+        "baseline_median": 1.0412,
+        "n": 80,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          0.0,
+          0.0
+        ],
+        "paired_relative_improvement_median": 0.0,
+        "paired_sign_p_value": 0.5,
+        "ties": 78,
+        "treatment_losses": 2,
+        "treatment_median": 1.0412,
+        "treatment_wins": 0
+      },
+      "sbp": {
+        "baseline_median": 1.1949,
+        "n": 80,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          0.0,
+          0.0
+        ],
+        "paired_relative_improvement_median": 0.0,
+        "paired_sign_p_value": 1.0,
+        "ties": 80,
+        "treatment_losses": 0,
+        "treatment_median": 1.1949,
+        "treatment_wins": 0
+      },
+      "spo2": {
+        "baseline_median": 1.1263,
+        "n": 80,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          0.0,
+          0.0
+        ],
+        "paired_relative_improvement_median": 0.0,
+        "paired_sign_p_value": 1.0,
+        "ties": 80,
+        "treatment_losses": 0,
+        "treatment_median": 1.1263,
+        "treatment_wins": 0
+      },
+      "temperature_c": {
+        "baseline_median": 0.6833,
+        "n": 80,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          0.0,
+          0.0
+        ],
+        "paired_relative_improvement_median": 0.0,
+        "paired_sign_p_value": 1.0,
+        "ties": 80,
+        "treatment_losses": 0,
+        "treatment_median": 0.6833,
+        "treatment_wins": 0
+      }
+    },
+    "treatment_vs_last_value_smape": {
+      "dbp": {
+        "baseline_median": 11.5734,
+        "n": 80,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          0.0,
+          0.0
+        ],
+        "paired_relative_improvement_median": 0.0,
+        "paired_sign_p_value": 1.0,
+        "ties": 80,
+        "treatment_losses": 0,
+        "treatment_median": 11.5734,
+        "treatment_wins": 0
+      },
+      "heart_rate": {
+        "baseline_median": 8.1055,
+        "n": 80,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          0.0,
+          0.0
+        ],
+        "paired_relative_improvement_median": 0.0,
+        "paired_sign_p_value": 0.5,
+        "ties": 78,
+        "treatment_losses": 2,
+        "treatment_median": 8.1055,
+        "treatment_wins": 0
+      },
+      "resp_rate": {
+        "baseline_median": 18.1631,
+        "n": 80,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          0.0,
+          0.0
+        ],
+        "paired_relative_improvement_median": 0.0,
+        "paired_sign_p_value": 0.5,
+        "ties": 78,
+        "treatment_losses": 2,
+        "treatment_median": 18.1631,
+        "treatment_wins": 0
+      },
+      "sbp": {
+        "baseline_median": 8.4767,
+        "n": 80,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          0.0,
+          0.0
+        ],
+        "paired_relative_improvement_median": 0.0,
+        "paired_sign_p_value": 1.0,
+        "ties": 80,
+        "treatment_losses": 0,
+        "treatment_median": 8.4767,
+        "treatment_wins": 0
+      },
+      "spo2": {
+        "baseline_median": 1.6527,
+        "n": 80,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          0.0,
+          0.0
+        ],
+        "paired_relative_improvement_median": 0.0,
+        "paired_sign_p_value": 1.0,
+        "ties": 80,
+        "treatment_losses": 0,
+        "treatment_median": 1.6527,
+        "treatment_wins": 0
+      },
+      "temperature_c": {
+        "baseline_median": 0.4592,
+        "n": 80,
+        "near_constant_denominators_excluded": 0,
+        "paired_relative_improvement_90pct_ci": [
+          0.0,
+          0.0
+        ],
+        "paired_relative_improvement_median": 0.0,
+        "paired_sign_p_value": 1.0,
+        "ties": 80,
+        "treatment_losses": 0,
+        "treatment_median": 0.4592,
+        "treatment_wins": 0
+      }
+    }
+  }
+}

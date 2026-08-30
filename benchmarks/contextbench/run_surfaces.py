@@ -336,6 +336,13 @@ def preserves_primary_relationship(reasoning: str, relationship: str) -> bool:
             "already non-continuing",
             "does not contain a stable continuation",
         ))
+    if relationship == "validated_covariates_used_by_primary":
+        return (
+            "covariate" in explanation
+            and "primary" in explanation
+            and any(token in explanation for token in (
+                "admitted", "applied", "used"))
+        )
     # Unknown future relationship classes fail closed until a deliberate
     # semantic projection is added for them.
     return False
@@ -505,6 +512,14 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
             context_gate.get("relationship_to_primary") or "")
         primary_relationship_preserved = preserves_primary_relationship(
             agent_reasoning, primary_relationship)
+        source_projection = contextual.get("context_source_projection") or {}
+        expected_sources = set(source_projection.get("expected") or [])
+        source_evidence_preserved = (
+            set(source_projection.get("matched") or []) == expected_sources
+            and not source_projection.get("invalid")
+            and all(str(source).casefold() in explanation
+                    for source in expected_sources)
+        )
         return {
             "case_id": case.case_id, "public_id": _public_id(case.case_id),
             "family": case.family, "status": "answered",
@@ -543,17 +558,21 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
                 "primary_relationship_expected": primary_relationship or None,
                 "primary_relationship_preserved":
                     primary_relationship_preserved,
+                "source_evidence_expected": bool(expected_sources),
+                "source_evidence_preserved": source_evidence_preserved,
                 "complete": all((
                     preserved_primary, represented_scenario,
                     preserved_interval_limit, preserved_automation_limit,
                     rejection_evidence_cited,
                     scenario_consequence_preserved,
                     primary_relationship_preserved,
+                    source_evidence_preserved,
                 )),
             },
             "context_gate_citations": citations,
             "context_automation_projection": automation_projection,
             "context_primary_projection": primary_projection,
+            "context_source_projection": source_projection,
             "history_route": (history.get("channel_route") or {}).get("value"),
             "context_route": (contextual.get("channel_route") or {}).get("value"),
             "history_calls": int((history.get("mcp") or {}).get("calls", 0)),
@@ -777,7 +796,11 @@ def summarize(rows: list[dict[str, Any]], profile: str,
                     "interval_limit_preserved", "automation_limit_preserved",
                     "rejection_evidence_cited",
                     "scenario_consequence_preserved",
+                    "source_evidence_preserved",
                 )},
+                "source_evidence_contracts_exposed": sum(bool((row.get(
+                    "context_explanation_contract") or {}).get(
+                        "source_evidence_expected")) for row in answered),
                 "scenario_contracts_exposed": len(scenario_contract_rows),
                 "scenario_represented": (mean(bool((row.get(
                     "context_explanation_contract") or {}).get(

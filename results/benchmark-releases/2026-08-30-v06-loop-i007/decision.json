@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "iteration": "I007",
+  "priority": "P7",
+  "decision": "complete_no_build",
+  "evaluated_commit": "f45e724877e261e4a010285abc6fd2380c898ad1",
+  "protocol": "docs/v0.6-p7-hierarchy-protocol.md",
+  "user_outcome": "Gnomon continues to return honest independent panel forecasts instead of adding a coherent-looking total that was less accurate in the frozen screen.",
+  "validation": {
+    "full_local_suite": {"passed": 2564, "skipped": 11, "failed": 0},
+    "hierarchy_cases": {"expected": 32, "completed": 32, "failed": 0},
+    "result": "results/benchmark-releases/2026-08-30-v06-loop-i007/hierarchy-result.json"
+  },
+  "retained_changes": [
+    "serial resumable HierarchyBench and deterministic exact-partition tests",
+    "frozen hierarchy input, uncertainty, authority, coherence, and failure contracts"
+  ],
+  "not_built": [
+    "hierarchy input on forecast surfaces",
+    "derived bottom-up q50 totals",
+    "aggregate reconciliation receipts"
+  ],
+  "unchanged_policies": [
+    "panel channels are independently evaluated and supported",
+    "no output is labelled hierarchically coherent",
+    "no marginal intervals are summed into a joint aggregate interval",
+    "no hierarchy evidence grants automation authority"
+  ],
+  "remaining_risks": [
+    "Agents must still perform explicitly requested arithmetic outside Gnomon and should not imply statistical reconciliation.",
+    "A future preregistered reconciliation family may succeed, but it needs an independent corpus and covariance/uncertainty design rather than post-hoc expansion of this candidate.",
+    "Synthetic partitions of real roots validate this bounded screen, not real organizational hierarchy performance."
+  ]
+}

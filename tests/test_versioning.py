@@ -4,7 +4,7 @@ from pathlib import Path
 import json
 import pytest
 
-from gnomon.artifacts import read_artifact
+from gnomon.artifacts import read_artifact, verify_artifact_integrity
 from gnomon.contracts import GnomonError
 from gnomon.ids import FixedClock, content_id
 from gnomon.runtime import forecast
@@ -52,6 +52,65 @@ def test_read_artifact_rejects_future_schema(tmp_path):
     (directory / "artifact.json").write_text(json.dumps({"schema_version": "9.9"}))
     with pytest.raises(GnomonError):
         read_artifact(directory)
+
+
+def test_same_id_forecast_writers_publish_one_verified_artifact(
+        tmp_path, monkeypatch):
+    """Private construction trees make first-write-wins race-safe."""
+    from concurrent.futures import ThreadPoolExecutor
+    import threading
+
+    import gnomon.artifacts as artifacts_module
+
+    source = _series_csv(tmp_path)
+    artifact, _ = forecast(
+        str(source), time_column="timestamp", target_column="value",
+        horizon=3, output=str(tmp_path / "seed"), clock=CLOCK,
+    )
+    barrier = threading.Barrier(2)
+    original = artifacts_module._write_integrity
+
+    def synchronized(directory):
+        barrier.wait(timeout=5)
+        original(directory)
+
+    monkeypatch.setattr(artifacts_module, "_write_integrity", synchronized)
+    output = tmp_path / "race"
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        paths = list(pool.map(
+            lambda _index: artifacts_module.write_artifact(
+                artifact, str(output)), range(2)))
+    assert paths[0] == paths[1]
+    verify_artifact_integrity(paths[0])
+    assert not list(output.glob(f".{artifact.forecast_id}.tmp-*"))
+
+
+def test_same_id_json_writers_publish_one_verified_artifact(
+        tmp_path, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    import threading
+
+    import gnomon.artifacts as artifacts_module
+
+    artifact_id = "decision_same_id"
+    payload = {"schema_version": "0.1", "status": "complete",
+               "decision_id": artifact_id}
+    barrier = threading.Barrier(2)
+    original = artifacts_module._write_integrity
+
+    def synchronized(directory):
+        barrier.wait(timeout=5)
+        original(directory)
+
+    monkeypatch.setattr(artifacts_module, "_write_integrity", synchronized)
+    output = tmp_path / "race-json"
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        paths = list(pool.map(
+            lambda _index: artifacts_module.write_json_artifact(
+                artifact_id, payload, str(output)), range(2)))
+    assert paths[0] == paths[1]
+    verify_artifact_integrity(paths[0])
+    assert not list(output.glob(f".{artifact_id}.tmp-*"))
 
 
 def test_content_id_stability():

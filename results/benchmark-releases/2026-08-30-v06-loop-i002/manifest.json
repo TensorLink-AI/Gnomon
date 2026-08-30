@@ -1,0 +1,44 @@
+{
+  "benchmarks": [
+    {
+      "arm": "toto2_4m-vs-classical-mimic",
+      "benchmark": "temporalbench-per-channel",
+      "bytes": 23317,
+      "file": "supply-vs-baseline-mimic.json",
+      "scope": "subset",
+      "sha256": "b4f2d11125fabeb500e1be2e533a0c2a1d9e7a14b2bca99d833eea43931c6d66",
+      "status": "complete"
+    },
+    {
+      "arm": "toto2_4m-vs-classical-causal-chambers",
+      "benchmark": "temporalbench-per-channel",
+      "bytes": 11185,
+      "file": "supply-vs-baseline-causal.json",
+      "scope": "subset",
+      "sha256": "01c15570b5b9513faa3304a57886a012afbf890c7ba3ed2d50d5dce5c1cf644f",
+      "status": "complete"
+    }
+  ],
+  "curated_by_commit": "5a2ee555961de22240ece5ac27ad6b51acd01c0c",
+  "not_included": [
+    {
+      "benchmark": "governed expansion",
+      "reason": "Not run after candidate supply failed, as preregistered."
+    },
+    {
+      "benchmark": "raw resumable rows",
+      "reason": "Preserved locally under results/v06-p2-i002-expanded and excluded from the aggregate git release."
+    },
+    {
+      "benchmark": "competition-specific plan",
+      "reason": "docs/astrid-btc-agent-plan.md is explicitly outside this loop and release."
+    }
+  ],
+  "policy": {
+    "aggregate_only": true,
+    "raw_runs_are_ci_artifacts": true,
+    "smoke_results_are_not_full_results": true
+  },
+  "release": "2026-08-30-v06-loop-i002",
+  "schema_version": "1.1"
+}

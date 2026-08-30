@@ -1,0 +1,160 @@
+{
+  "release_metadata": {"scope": "full", "evaluated_commit": "b41c29ad3df40193a265debf31b266f0df7c07d5", "harness_commit": "b41c29ad3df40193a265debf31b266f0df7c07d5", "dataset_identity": "I003 sourced-context output, reasoning, and topology evidence", "configuration_identity": "three-layer final release scorecard"},
+  "schema_version": "0.1",
+  "scorecard_id": "v0.6-i003-sourced-context-boundary",
+  "scorecard_commit": "b41c29ad3df40193a265debf31b266f0df7c07d5",
+  "dirty_tree": false,
+  "scope": "full",
+  "layers": {
+    "output": {
+      "status": "pass",
+      "evaluated_commit": "b41c29ad3df40193a265debf31b266f0df7c07d5",
+      "dataset_identity": "Naturalistic ContextBench synthetic corpus manifest 6a1b872e; frozen balanced eight-case current-code regression shard",
+      "configuration_identity": "compiled-context, DeepSeek v4 Flash 0731 through Engy, temperature 0, jobs=1, 180-second timeout, bounded retries",
+      "accounting": {"expected": 8, "completed": 8, "answered": 8, "abstained": 0, "failed": 0},
+      "metrics": [
+        {
+          "name": "compiler_event_precision",
+          "value": 1.0,
+          "unit": "fraction",
+          "denominator": 8,
+          "gate": {"operator": "gte", "threshold": 0.99, "passed": true}
+        },
+        {
+          "name": "compiler_event_recall",
+          "value": 1.0,
+          "unit": "fraction",
+          "denominator": 8,
+          "gate": {"operator": "gte", "threshold": 0.95, "passed": true}
+        },
+        {
+          "name": "compiler_false_events",
+          "value": 0,
+          "unit": "events",
+          "denominator": 8,
+          "gate": {"operator": "eq", "threshold": 0, "passed": true}
+        },
+        {
+          "name": "exact_numeric_parity_rate",
+          "value": 1.0,
+          "unit": "fraction",
+          "denominator": 8,
+          "gate": {"operator": "eq", "threshold": 1.0, "passed": true}
+        },
+        {
+          "name": "applied_covariate_incremental_smape",
+          "value": 1.4415796165926384,
+          "unit": "smape_points",
+          "denominator": 2,
+          "gate": {"operator": "gte", "threshold": 0.0, "passed": true}
+        }
+      ],
+      "evidence": [
+        {"path": "results/benchmark-releases/2026-08-30-v06-loop-i003/engine-compare.json", "sha256": "19211db1c4f9406930c0ea3846a19158b0af7c7b1c269f4c7a2e4909bc420d9a"}
+      ]
+    },
+    "reasoning": {
+      "status": "pass",
+      "evaluated_commit": "b41c29ad3df40193a265debf31b266f0df7c07d5",
+      "dataset_identity": "Four crash-safe ContextBench agent-boundary roles: applied, scenario, rejected, and no_distinct_numeric_path",
+      "configuration_identity": "Evidence profile, DeepSeek through Engy, engine baseline, compiled route, temperature 0, jobs=1, tool timeout 120 seconds",
+      "accounting": {"expected": 4, "completed": 4, "answered": 4, "abstained": 0, "failed": 0},
+      "metrics": [
+        {
+          "name": "context_explanation_complete_rate",
+          "value": 1.0,
+          "unit": "fraction",
+          "denominator": 4,
+          "gate": {"operator": "eq", "threshold": 1.0, "passed": true}
+        },
+        {
+          "name": "typed_relationship_preservation_rate",
+          "value": 1.0,
+          "unit": "fraction",
+          "denominator": 4,
+          "gate": {"operator": "eq", "threshold": 1.0, "passed": true}
+        },
+        {
+          "name": "source_reference_preservation_when_expected",
+          "value": 1.0,
+          "unit": "fraction",
+          "denominator": 3,
+          "gate": {"operator": "eq", "threshold": 1.0, "passed": true}
+        },
+        {
+          "name": "primary_and_automation_projection_rate",
+          "value": 1.0,
+          "unit": "fraction",
+          "denominator": 4,
+          "gate": {"operator": "eq", "threshold": 1.0, "passed": true}
+        }
+      ],
+      "evidence": [
+        {"path": "results/benchmark-releases/2026-08-30-v06-loop-i003/agent-boundary.json", "sha256": "97c11a48726c5a8cf79df161b3a10c8f9158c9987e3d2afd957fa800edcbbfaa"}
+      ]
+    },
+    "topology": {
+      "status": "pass",
+      "evaluated_commit": "b41c29ad3df40193a265debf31b266f0df7c07d5",
+      "dataset_identity": "Same eight engine rows plus four agent decision rows; every terminal row retained in its denominator",
+      "configuration_identity": "Serialized API orchestration, resumable row checkpoints, two bounded infrastructure retries, 180-second request and 120-second tool timeouts",
+      "accounting": {"expected": 12, "completed": 12, "answered": 12, "abstained": 0, "failed": 0},
+      "metrics": [
+        {
+          "name": "combined_completion_rate",
+          "value": 1.0,
+          "unit": "fraction",
+          "denominator": 12,
+          "gate": {"operator": "eq", "threshold": 1.0, "passed": true}
+        },
+        {
+          "name": "publication_parity_rate",
+          "value": 1.0,
+          "unit": "fraction",
+          "denominator": 12,
+          "gate": {"operator": "eq", "threshold": 1.0, "passed": true}
+        },
+        {
+          "name": "temporal_leakage_count",
+          "value": 0,
+          "unit": "cases",
+          "denominator": 12,
+          "gate": {"operator": "eq", "threshold": 0, "passed": true}
+        },
+        {
+          "name": "maximum_api_jobs",
+          "value": 1,
+          "unit": "workers",
+          "denominator": 12,
+          "gate": {"operator": "eq", "threshold": 1, "passed": true}
+        }
+      ],
+      "evidence": [
+        {"path": "results/benchmark-releases/2026-08-30-v06-loop-i003/engine-compare.json", "sha256": "19211db1c4f9406930c0ea3846a19158b0af7c7b1c269f4c7a2e4909bc420d9a"},
+        {"path": "results/benchmark-releases/2026-08-30-v06-loop-i003/agent-boundary.json", "sha256": "97c11a48726c5a8cf79df161b3a10c8f9158c9987e3d2afd957fa800edcbbfaa"}
+      ]
+    }
+  },
+  "invariants": {
+    "original_gate_failure_is_visible": {
+      "status": "pass",
+      "evidence": [{"path": "results/benchmark-releases/2026-08-30-v06-loop-i003/decision.json", "sha256": "298005ca9dfab101af62b7316fa8607018995482c455eb37463420db164576c0"}]
+    },
+    "runtime_did_not_use_case_ids_labels_or_oracles": {
+      "status": "pass",
+      "evidence": [{"path": "results/benchmark-releases/2026-08-30-v06-loop-i003/decision.json", "sha256": "298005ca9dfab101af62b7316fa8607018995482c455eb37463420db164576c0"}]
+    },
+    "immutable_primary_and_automation_policy_preserved": {
+      "status": "pass",
+      "evidence": [{"path": "results/benchmark-releases/2026-08-30-v06-loop-i003/engine-compare.json", "sha256": "19211db1c4f9406930c0ea3846a19158b0af7c7b1c269f4c7a2e4909bc420d9a"}]
+    },
+    "missing_sources_are_not_invented": {
+      "status": "pass",
+      "evidence": [{"path": "results/benchmark-releases/2026-08-30-v06-loop-i003/agent-boundary.json", "sha256": "97c11a48726c5a8cf79df161b3a10c8f9158c9987e3d2afd957fa800edcbbfaa"}]
+    }
+  },
+  "decision": {
+    "status": "promote",
+    "reason": "Promote the sourced-context and typed agent-boundary changes after the explicitly recorded revise sub-iteration. Final output, reasoning, topology, and safety gates pass; the original exact-disposition gate failure remains visible in the retained decision."
+  }
+}

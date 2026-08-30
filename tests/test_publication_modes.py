@@ -100,6 +100,35 @@ def test_strict_never_promotes_prior_assisted_candidate():
     assert verify_publication(payload)
 
 
+def test_context_disposition_projects_and_seals_exact_source_evidence():
+    result = _result()
+    result["context_outcome"] = {
+        "status": "scenario_only",
+        "events": ["event-1"],
+        "dispositions": [{
+            "context_id": "event-1", "disposition": "scenario"}],
+        "context_evidence": [{
+            "context_id": "event-1",
+            "known_at": "2026-01-02T00:00:00+00:00",
+            "source": {
+                "type": "calendar", "reference": "launches.ics#event-7"},
+            "context_receipt_id": "context_receipt:abc123",
+            "evidence_quote": "Launch starts 2026-01-03 at 09:00 UTC.",
+        }],
+    }
+
+    payload = publish_result(result, mode="strict")
+
+    disposition = payload["context_dispositions"][0]
+    assert disposition["source_evidence"] == result[
+        "context_outcome"]["context_evidence"][0]
+    assert verify_publication(payload)
+    tampered = deepcopy(payload)
+    tampered["context_dispositions"][0]["source_evidence"]["source"][
+        "reference"] = "invented.ics"
+    assert not verify_publication(tampered)
+
+
 def test_candidate_distance_from_primary_is_sealed_and_non_authoritative():
     scenarios, _ = build_scenario_catalog(_result(), dossiers=[_dossier()])
     candidate = next(item for item in scenarios

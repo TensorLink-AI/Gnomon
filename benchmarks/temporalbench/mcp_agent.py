@@ -1024,6 +1024,10 @@ class _RunBase:
         # because a quote survived compilation.
         self.context_execution: dict[str, dict[str, Any]] = {}
         self.covariate_execution: dict[str, dict[str, Any]] = {}
+        # The forecast response publishes per-series authority separately
+        # from the persisted artifact. Keep those engine-owned facts so an
+        # artifact-bound submission cannot lose them at the host boundary.
+        self.publication_execution: dict[str, dict[str, Any]] = {}
         self.complete_artifact_ready = False
         self.complete_description_ready = False
         self.submission: dict[str, Any] | None = None
@@ -1686,6 +1690,16 @@ class _RunBase:
             self.complete_description_ready = True
         structured = result.get("structuredContent") or {}
         if isinstance(structured, dict):
+            for item in structured.get("publications") or []:
+                if not isinstance(item, dict) or not item.get("series"):
+                    continue
+                self.publication_execution[str(item["series"])] = {
+                    "automation_eligible": (
+                        item.get("automation") or {}).get("eligible"),
+                    "canonical_primary_preserved": item.get(
+                        "primary_forecast_unchanged"),
+                    "support": item.get("recommended_support"),
+                }
             publication = structured.get("publication") or {}
             dispositions = publication.get("context_dispositions") or []
             context_summary = publication.get("context_summary") or {}
@@ -1700,11 +1714,13 @@ class _RunBase:
                         "considered": 1,
                         "admitted": int(status == "used"),
                         "rejected": sum(
-                            1 for item in dispositions
+                            int(item.get("count") or 1)
+                            for item in dispositions
                             if isinstance(item, dict)
                             and item.get("disposition") == "rejected"),
                         "scenario_only": sum(
-                            1 for item in dispositions
+                            int(item.get("count") or 1)
+                            for item in dispositions
                             if isinstance(item, dict)
                             and item.get("disposition") == "scenario"),
                         "applied": int(status == "used"),
@@ -1728,6 +1744,12 @@ class _RunBase:
                         "gate_reasons": [
                             str(item.get("reason")) for item in dispositions
                             if isinstance(item, dict) and item.get("reason")
+                        ][:8],
+                        "source_evidence": [
+                            dict(item["source_evidence"])
+                            for item in dispositions
+                            if isinstance(item, dict)
+                            and isinstance(item.get("source_evidence"), dict)
                         ][:8],
                         "scenario_consequence_summaries": [],
                     }
@@ -1879,16 +1901,18 @@ class _Run(_RunBase):
                 parameters["properties"]["context_automation_eligible"] = {
                     "type": "boolean",
                     "description": (
-                        "Copy context_outcome.automation_eligible exactly. "
-                        "False means context evidence alone cannot authorize "
-                        "automation; do not weaken it to 'not requested'."),
+                        "Copy the engine's context/covariate publication "
+                        "automation_eligible fact exactly. False means "
+                        "context evidence alone cannot authorize automation; "
+                        "do not weaken it to 'not requested'."),
                 }
                 parameters["properties"]["canonical_primary_preserved"] = {
                     "type": "boolean",
                     "description": (
-                        "Copy context_outcome.canonical_primary_preserved "
-                        "exactly; conditional projection changes do not mutate "
-                        "the canonical primary."),
+                        "Copy the engine's context/covariate publication "
+                        "canonical_primary_preserved fact exactly; "
+                        "conditional projection changes do not mutate the "
+                        "canonical primary."),
                 }
                 parameters["properties"]["cited_scenario_consequences"] = {
                     "type": "array",
@@ -1896,6 +1920,17 @@ class _Run(_RunBase):
                         "Copy each consequence_summary exposed by Gnomon for "
                         "a represented numeric scenario; use an empty array "
                         "when no numeric scenario consequence is present."),
+                    "items": {"type": "string"},
+                    "maxItems": 8,
+                }
+                parameters["properties"]["cited_context_sources"] = {
+                    "type": "array",
+                    "description": (
+                        "Optional exact copies of source.reference values "
+                        "exposed in Gnomon's context source_evidence. The "
+                        "host projects omitted values from the immutable "
+                        "artifact; supplied values must be exact and must "
+                        "never be inferred or paraphrased."),
                     "items": {"type": "string"},
                     "maxItems": 8,
                 }
@@ -1971,7 +2006,8 @@ class _Run(_RunBase):
         if self.row.get("_require_context_explanation"):
             text += (
                 "\nThe final human-facing reasoning must preserve both "
-                "authority facts from context_outcome. If "
+                "authority facts from the context outcome or covariate "
+                "publication. If "
                 "canonical_primary_preserved is true, say the canonical "
                 "primary remains preserved. If automation_eligible is false, "
                 "say context evidence alone cannot authorize automation; "
@@ -1989,6 +2025,12 @@ class _Run(_RunBase):
                 "context, say represented or retained as a scenario; never "
                 "say admitted as a scenario.\n")
             text += (
+                "When Gnomon reports admitted/applied context or covariates, "
+                "say explicitly that they were admitted or applied. Never "
+                "describe an applied covariate as absent merely because "
+                "context_outcome is absent; covariates is its own typed "
+                "engine gate.\n")
+            text += (
                 "If failed_gate_codes is non-empty, name every cited code in "
                 "the human-facing reasoning and explain its practical meaning. "
                 "A code copied only into the structured submit field is not a "
@@ -2001,6 +2043,11 @@ class _Run(_RunBase):
                 "context_summary.context_evidence_automation_eligible for "
                 "context authority; the separate global automation reason "
                 "'not requested' does not grant context authority.\n")
+            text += (
+                "Copy each validated context source.reference exactly into "
+                "cited_context_sources and name it in the human-facing "
+                "reasoning. Do not invent a source when source_evidence is "
+                "absent.\n")
         if self.row.get("_require_gnomon_execution"):
             text += ("\nThis product run delegates every published numeric "
                      "trajectory to Gnomon. Submit the forecast artifact "
@@ -2100,6 +2147,62 @@ class _Run(_RunBase):
                 "retained": list(covariate_gate.get("retained") or []),
                 "rejected": list(covariate_gate.get("rejected") or []),
             }
+            if not (gate or disposition or historical_gate):
+                publication = getattr(
+                    self, "publication_execution", {}).get(channel) or \
+                    getattr(self, "publication_execution", {}).get(
+                        str(result.get("series") or "")) or {}
+                admitted_covariates = list(
+                    covariate_gate.get("retained") or [])
+                rejected_covariates = list(
+                    covariate_gate.get("rejected") or [])
+                admitted = bool(covariate_gate.get("admitted"))
+                considered = bool(covariate_gate.get("considered"))
+                automation_eligible = publication.get(
+                    "automation_eligible")
+                if automation_eligible is None:
+                    automation_eligible = covariate_gate.get(
+                        "automation_eligible")
+                primary_preserved = publication.get(
+                    "canonical_primary_preserved")
+                if primary_preserved is None:
+                    primary_preserved = covariate_gate.get(
+                        "canonical_primary_preserved")
+                self.context_execution[channel] = {
+                    "status": ("applied" if admitted else
+                               "rejected" if considered else
+                               "not_considered"),
+                    "considered": int(considered),
+                    "admitted": len(admitted_covariates) if admitted else 0,
+                    "rejected": len(rejected_covariates),
+                    "scenario_only": 0,
+                    "applied": len(admitted_covariates) if admitted else 0,
+                    "support": str(publication.get("support") or support),
+                    "automation_eligible": automation_eligible,
+                    "canonical_primary_preserved": primary_preserved,
+                    "selected_projection_differs_from_primary": (
+                        covariate_gate.get(
+                            "selected_projection_differs_from_primary")),
+                    "relationship_to_primary": covariate_gate.get(
+                        "relationship_to_primary"),
+                    "selected_output_role": covariate_gate.get(
+                        "selected_output_role"),
+                    "authority_summary": None,
+                    "admitted_event_ids": admitted_covariates,
+                    "rejection_codes": [
+                        str(item.get("code") or item.get("reason_code"))
+                        for item in rejected_covariates
+                        if isinstance(item, dict)
+                        and (item.get("code") or item.get("reason_code"))
+                    ],
+                    "gate_reasons": [
+                        str(item.get("reason"))
+                        for item in rejected_covariates
+                        if isinstance(item, dict) and item.get("reason")
+                    ][:8],
+                    "source_evidence": [],
+                    "scenario_consequence_summaries": [],
+                }
         if gate or disposition or historical_gate:
             admitted = gate.get("admitted") or []
             rejected = gate.get("rejected") or []
@@ -2152,6 +2255,11 @@ class _Run(_RunBase):
                      (disposition.get("failed_gate_codes") or [])])),
                 "gate_reasons": [str(reason) for reason in
                                  (disposition.get("gate_reasons") or [])][:8],
+                "source_evidence": [
+                    dict(item) for item in
+                    (disposition.get("context_evidence") or [])
+                    if isinstance(item, dict)
+                ][:8],
                 "scenario_consequence_summaries": [
                     str(scenario.get("consequence_summary"))
                     for scenario in (result.get("sensitivity_scenarios") or [])
@@ -2405,6 +2513,37 @@ class _Run(_RunBase):
                 "invalid": [value for value in supplied_consequences
                             if value not in expected_consequences],
             }
+            expected_sources = sorted({
+                str((evidence.get("source") or {}).get("reference"))
+                for outcome in self.context_execution.values()
+                for evidence in outcome.get("source_evidence", [])
+                if isinstance(evidence, dict)
+                and isinstance(evidence.get("source"), dict)
+                and (evidence.get("source") or {}).get("reference")
+            })
+            agent_supplied_sources = [str(value) for value in
+                                      (arguments.get(
+                                          "cited_context_sources") or [])[:8]]
+            # The artifact is authoritative. A model-provided duplicate is
+            # useful preservation evidence, but it must never replace the
+            # exact host-bound references or void an otherwise valid answer.
+            # Human-facing prose is checked independently below.
+            supplied_sources = expected_sources
+            self.submission["context_source_projection"] = {
+                "expected": expected_sources,
+                "agent_supplied": agent_supplied_sources,
+                "agent_matched": [value for value in agent_supplied_sources
+                                  if value in expected_sources],
+                "agent_invalid": [value for value in agent_supplied_sources
+                                  if value not in expected_sources],
+                "supplied": supplied_sources,
+                "matched": [value for value in supplied_sources
+                            if value in expected_sources],
+                "invalid": [value for value in supplied_sources
+                            if value not in expected_sources],
+                "host_projected": bool(
+                    expected_sources != agent_supplied_sources),
+            }
             reasoning_text = str(arguments.get("reasoning") or "").lower()
             authority_problems: list[str] = []
             scenario_count = sum(
@@ -2416,6 +2555,39 @@ class _Run(_RunBase):
             applied_count = sum(
                 int(outcome.get("applied") or 0)
                 for outcome in self.context_execution.values())
+            if applied_count:
+                # Require an affirmative grammatical relation, not the bare
+                # token: "was not admitted as applied context" contains both
+                # words but states the opposite. Conversely, a later "did
+                # not mutate the primary" must not negate a correct applied
+                # statement merely because it is nearby.
+                affirmative_surface = re.sub(
+                    r"\bno\s+(?:context|covariate|input)\s+"
+                    r"(?:was|were|is|are)?\s*"
+                    r"(?:admitted|applied)(?:\s+or\s+"
+                    r"(?:admitted|applied))?\b",
+                    "", reasoning_text,
+                )
+                affirmative_surface = re.sub(
+                    r"\b(?:context|covariate|input)\b[^.;]{0,30}"
+                    r"\b(?:was|were|is|are|has\s+been|have\s+been)\s+"
+                    r"(?:not|never)\s+(?:admitted|applied)\b",
+                    "", affirmative_surface,
+                )
+                application_named = bool(re.search(
+                    r"(?:\b(?:was|were|is|are|has\s+been|have\s+been)\s+"
+                    r"(?:explicitly\s+)?(?:admitted|applied)\b|"
+                    r"\b(?:gnomon|engine|gate)\s+"
+                    r"(?:admitted|applied)\b|"
+                    r"\b(?:admitted|applied)\s+(?:the|this)\s+"
+                    r"(?:context|covariate|input)\b)",
+                    affirmative_surface,
+                ))
+                if not application_named:
+                    authority_problems.append(
+                        "applied_context_not_human_visible: state that "
+                        "Gnomon's typed covariate/context gate admitted or "
+                        "applied the input; do not describe it as absent")
             scenario_admission_conflated = bool(re.search(
                 r"(?:\badmitted\s+(?:only\s+)?as\s+(?:an?\s+)?scenario\b|"
                 r"\bscenario\s+(?:was|is|has been)\s+admitted\b)",
@@ -2478,6 +2650,23 @@ class _Run(_RunBase):
                     "scenario_consequence_omitted: copy every Gnomon "
                     "consequence_summary exactly and communicate its "
                     "conditional q50 endpoints without calling them primary")
+            sources = self.submission["context_source_projection"]
+            if sources["invalid"] or (
+                    sources["expected"] and
+                    set(sources["matched"]) != set(sources["expected"])):
+                authority_problems.append(
+                    "context_source_omitted: copy every validated context "
+                    "source.reference exactly and do not invent sources: "
+                    + (", ".join(sources["expected"]) or "(none)"))
+            prose_missing_sources = [
+                source for source in sources["expected"]
+                if source.casefold() not in reasoning_text
+            ]
+            if prose_missing_sources:
+                authority_problems.append(
+                    "context_source_not_human_visible: name these validated "
+                    "context sources in the reasoning: "
+                    + ", ".join(prose_missing_sources))
             if authority_problems:
                 self.submission = None
                 return {"accepted": False, "authored_by": "harness",
@@ -2585,6 +2774,10 @@ class _Run(_RunBase):
                 self.submission["context_consequence_projection"]}
                if self.submission.get(
                    "context_consequence_projection") is not None else {}),
+            **({"context_source_projection":
+                self.submission["context_source_projection"]}
+               if self.submission.get(
+                   "context_source_projection") is not None else {}),
             "canonical_mcq": self.submission.get("canonical_mcq", {}),
             "synthesized_mcq": self.submission.get("synthesized_mcq", {}),
             "choice_authority": self.submission.get("choice_authority", {}),

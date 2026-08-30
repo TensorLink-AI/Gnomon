@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "loop": "v0.6-product-improvement",
+  "status": "active",
+  "branch": "agent/v0.6-reasoning-loop",
+  "head_commit": "69d473ab63e7397f087087782fce758a52c8fad1",
+  "protocol": "docs/v0.6-improvement-loop.md",
+  "preservation": {
+    "preserve_preexisting_committed_work": true,
+    "preserve_preexisting_benchmark_artifacts": true,
+    "preserve_all_preexisting_untracked_files": true,
+    "excluded_from_commits": ["docs/astrid-btc-agent-plan.md"]
+  },
+  "completed_iteration": {
+    "id": "I005",
+    "priority": "P5",
+    "decision": "promote",
+    "user_outcome": "Pinned challengers can earn a point-in-time exact-regime candidate-pool route from paired outcomes and roll back on recent degradation without gaining forecast or automation authority.",
+    "decision_evidence": "results/benchmark-releases/2026-08-30-v06-loop-i005/decision.json",
+    "tests": "2557 passed, 11 skipped in the final full local suite; 179 focused routing, tracking, authority, tool, CLI, documentation, and replay tests passed.",
+    "remaining_risk": "Synthetic paired-error streams validate policy mechanics, not the skill of any real deployed adapter.",
+    "production_default_changed": false
+  },
+  "active_iteration": {
+    "id": "I006",
+    "priority": "P6",
+    "phase": "choose_and_freeze_gate",
+    "user_hypothesis": "When agents ask about cumulative totals or whether any step breaches a threshold, Gnomon should answer from coherent joint horizon paths rather than multiplying marginal probabilities; humans should receive event probabilities that match the decision they actually face.",
+    "must_not_regress": [
+      "marginal intervals and point forecasts remain calibrated and traceable",
+      "joint probabilities obey probability and event-inclusion coherence",
+      "no independence assumption is hidden",
+      "native sample paths require pinned adapters and out-of-sample admission",
+      "fallback dependence assumptions are explicit and conservative",
+      "interval width stays within the preregistered usefulness bound"
+    ],
+    "next_action": "Audit breach, cumulative, sampling, residual-trajectory, and dependence contracts; identify which joint questions currently derive from marginals or refuse, then freeze a prospective calibration and decision-loss benchmark before changing production behavior."
+  },
+  "priorities": [
+    {"id": "P1", "name": "three-layer release scorecard", "status": "complete"},
+    {"id": "P2", "name": "short-history forecast skill", "status": "complete_no_build"},
+    {"id": "P3", "name": "sourced contextual evidence", "status": "complete"},
+    {"id": "P4", "name": "covariate-aware and multivariate candidates", "status": "complete_no_build_with_boundary_fix"},
+    {"id": "P5", "name": "outcome-adaptive champion/challenger routing", "status": "complete"},
+    {"id": "P6", "name": "joint multi-horizon uncertainty", "status": "in_progress"},
+    {"id": "P7", "name": "hierarchical reconciliation", "status": "pending"},
+    {"id": "P8", "name": "agent decision brief and preservation contract", "status": "pending"},
+    {"id": "P9", "name": "value-of-information recovery", "status": "pending"},
+    {"id": "P10", "name": "production inference reliability", "status": "pending"}
+  ]
+}

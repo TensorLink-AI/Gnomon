@@ -6,6 +6,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from benchmarks.temporalbench.gnomon_runner import (
@@ -67,6 +69,8 @@ def test_per_channel_summary_reports_paired_direction_and_significance():
     assert result["treatment_wins"] == 8
     assert result["treatment_losses"] == 0
     assert result["paired_sign_p_value"] < .01
+    assert result["paired_relative_improvement_median"] == .5
+    assert result["paired_relative_improvement_90pct_ci"] == [.5, .5]
 
 
 def test_forecast_target_map_preserves_panel_channel_identities():
@@ -514,6 +518,56 @@ def test_forecast_channels_matches_per_channel_runs(tmp_path):
             assert batched[key]["support"] == single["support"], key
 
 
+def test_forecast_channels_passes_governed_registry_and_worker_cap(
+        tmp_path, monkeypatch):
+    """The engine-only benchmark must measure governed admission directly,
+    without paying an agent or silently adding local concurrency."""
+    from types import SimpleNamespace
+
+    import gnomon.runtime
+    from benchmarks.temporalbench.gnomon_runner import forecast_channels
+
+    seen = {}
+
+    def fake_forecast_multi(_path, **kwargs):
+        seen.update(kwargs)
+        results = [SimpleNamespace(
+            series=name, support="degraded", selected_model="admission_blend",
+            forecast=[{"point": 2.0}], warnings=["transfer prior"],
+            admission={"state": "prior_assisted", "candidate": "toto2_4m"},
+            model_assisted=None,
+        ) for name in kwargs["target_columns"]]
+        return SimpleNamespace(results=results), tmp_path
+
+    monkeypatch.setattr(gnomon.runtime, "forecast_multi", fake_forecast_multi)
+    outcomes = forecast_channels(
+        {"a": [1.0, 2.0], "b": [2.0, 3.0]}, 1,
+        work_dir=str(tmp_path), best_effort=True,
+        model_evidence_registry="registry.json", max_workers=1,
+        candidates=["last_value", "drift"])
+
+    assert seen["max_workers"] == 1
+    assert seen["config"].models.admission_policy == "evidence_weighted"
+    assert seen["config"].models.evidence_registry_path == "registry.json"
+    assert seen["candidates"] == ["last_value", "drift"]
+    assert outcomes["a"]["admission"]["candidate"] == "toto2_4m"
+    assert outcomes["a"]["warnings"] == ["transfer prior"]
+
+
+def test_forecast_channels_keeps_supply_and_admission_arms_separate():
+    from benchmarks.temporalbench.gnomon_runner import forecast_channels
+
+    with pytest.raises(ValueError, match="separate experimental arms"):
+        forecast_channels(
+            {"a": [1.0], "b": [2.0]}, 1,
+            named_tsfm="toto2_4m", model_evidence_registry="registry.json")
+
+    with pytest.raises(ValueError, match="cannot use a candidate pool"):
+        forecast_channels(
+            {"a": [1.0], "b": [2.0]}, 1,
+            named_tsfm="toto2_4m", candidates=["last_value"])
+
+
 def test_forecast_payload_carries_support_labels():
     from benchmarks.temporalbench.gnomon_runner import forecast_payload
 
@@ -572,6 +626,23 @@ def test_score_per_channel_loader_reads_support_labels(tmp_path):
     assert support["row1"] == {"hr": "supported",
                                "temperature_c": "best_effort"}
     assert "row2" in forecasts and "row2" not in support
+
+
+def test_score_per_channel_truth_maps_output_alias_to_history(tmp_path):
+    import json as _json
+
+    from benchmarks.temporalbench.score_per_channel import load_truth
+    from benchmarks.temporalbench.tasks import LABELED_FILE
+
+    row = {
+        "id": "single", "tier": "T2",
+        "meta": {"main_key": "pressure", "n_horizon": 2},
+        "input": {"history": {"pressure": [1.0, 2.0, 3.0]}},
+        "ground_truth": {"future_main": [4.0, 5.0]},
+    }
+    (tmp_path / LABELED_FILE).write_text(_json.dumps(row) + "\n")
+    truth = load_truth(tmp_path)["single"]
+    assert truth["history"] == {"future_main": [1.0, 2.0, 3.0]}
 
 
 def test_limit_is_stratified_across_tiers(tmp_path):

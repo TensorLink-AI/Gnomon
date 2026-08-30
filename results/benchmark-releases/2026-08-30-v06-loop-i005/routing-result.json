@@ -1,0 +1,64 @@
+{
+  "release_metadata": {"scope": "full", "evaluated_commit": "69d473ab63e7397f087087782fce758a52c8fad1", "harness_commit": "69d473ab63e7397f087087782fce758a52c8fad1", "dataset_identity": "frozen prospective paired outcome stream", "configuration_identity": "outcome route versus always champion"},
+  "schema_version": 1,
+  "evaluated_commit": "69d473ab63e7397f087087782fce758a52c8fad1",
+  "protocol": "docs/v0.6-p5-adaptive-routing-protocol.md",
+  "final_run": "results/v06-p5-i005-final/",
+  "control": "always_champion counterfactual scored from each paired outcome; prior Gnomon exposed assessment only and had no adaptive paired-outcome route",
+  "corpus": {
+    "stream_version": "p5-shadow-routing-1",
+    "streams": 4,
+    "prospective_decisions": 60,
+    "candidate": "challenger@sha256:route-v1",
+    "champion": "last_value"
+  },
+  "accounting": {
+    "expected_streams": 4,
+    "completed_streams": 4,
+    "expected_prospective_decisions": 60,
+    "completed_prospective_decisions": 60,
+    "failed": 0,
+    "jobs": 1,
+    "retries": 1,
+    "stream_timeout_seconds": 30
+  },
+  "output": {
+    "stable_relative_error_improvement_vs_champion": 0.18000000000000044,
+    "stable_required": 0.15,
+    "drift_regret_vs_champion": -0.40000000000000213,
+    "rollback_delay_harmful_outcomes": 2,
+    "rollback_delay_maximum": 2,
+    "mixed_control_challenger_routes": 0,
+    "passed": true
+  },
+  "reasoning": {
+    "cold_start_decisions_safe": 24,
+    "cold_start_decisions_expected": 24,
+    "subdaily_outcomes_in_route": 8,
+    "daily_weekly_outcomes_in_route": 8,
+    "regime_isolation": true,
+    "future_row_changed_replay": false,
+    "equivalent_offsets_normalized_to_utc": true,
+    "unpinned_candidate_routed": false,
+    "deterministic_receipt_replay": true,
+    "engine_contract_complete": true
+  },
+  "authority": {
+    "automatic_promotion": false,
+    "automation_eligible": false,
+    "job_local_admission_required": true,
+    "routing_authority": "candidate_pool_only",
+    "rollback_condition_present": true,
+    "all_decisions_preserved_authority": true
+  },
+  "manual_inspection": {
+    "cold_start": "stable_gain index 0 recommends last_value and names insufficient_paired_outcomes",
+    "graduation": "stable_gain index 8 recommends [challenger,last_value] after eight all-win pairs and Wilson lower 0.6756",
+    "drift": "gain_then_drift indices 12 and 13 use the challenger; index 14 names recent_performance_degraded and rolls back to last_value",
+    "control": "mixed_control never recommends the challenger",
+    "regimes": "subdaily recommends challenger from exactly eight pairs; daily_weekly recommends last_value from its separate eight pairs"
+  },
+  "gates_passed": 11,
+  "gates_total": 11,
+  "decision_ready": true
+}

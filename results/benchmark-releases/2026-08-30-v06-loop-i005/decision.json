@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "iteration": "I005",
+  "priority": "P5",
+  "decision": "promote",
+  "evaluated_commit": "69d473ab63e7397f087087782fce758a52c8fad1",
+  "protocol": "docs/v0.6-p5-adaptive-routing-protocol.md",
+  "user_outcome": "Agents can reuse a pinned challenger after enough paired, point-in-time evidence and humans can see why it routed or rolled back, while the next forecast still owns admission and automation authority.",
+  "validation": {
+    "full_local_suite": {"passed": 2557, "skipped": 11, "failed": 0},
+    "focused_final_suite": {"passed": 179, "failed": 0},
+    "prospective_decisions": {"expected": 60, "completed": 60, "failed": 0},
+    "routing_result": "results/benchmark-releases/2026-08-30-v06-loop-i005/routing-result.json"
+  },
+  "promoted_changes": [
+    "a distinct paired-outcome route requires pinned revision, exact regime, timezone-aware as_of, eight outcomes, 5% mean gain, and a Wilson lower bound above chance",
+    "a four-outcome recent window rolls the pool back to the champion on non-positive gain or sub-0.5 win rate",
+    "every route publishes the sample, cutoff, cohort, metrics, reasons, receipt, recommended pool, authority limit, and rollback condition",
+    "shadow knowledge times are normalized to UTC before storage and replay comparison",
+    "CLI and agent tracking surfaces accept exact regime records and expose route_adapter_shadow",
+    "the caller-supplied regime is classified as epistemic and priced by an exact-cohort trace"
+  ],
+  "unchanged_policies": [
+    "no automatic adapter deployment promotion",
+    "no automation authority from tracking evidence",
+    "job-local candidate admission against mandatory baselines",
+    "observational leaderboard remains descriptive rather than paired evidence",
+    "forecast numeric paths and support tiers"
+  ],
+  "remaining_risks": [
+    "The prospective streams are deterministic synthetic paired errors, not evidence that a particular real adapter improves a production series.",
+    "Callers must record honest exact regimes; broad or fragmented cohort governance remains an operational responsibility.",
+    "The route recommends a candidate pool but does not automatically invoke forecast, preserving a human/agent review seam.",
+    "The observational gnomon_route leaderboard still lacks point-in-time routing authority and must not be treated as paired challenger evidence."
+  ],
+  "raw_evidence": [
+    "results/v06-p5-i005-treatment/",
+    "results/v06-p5-i005-final/"
+  ]
+}

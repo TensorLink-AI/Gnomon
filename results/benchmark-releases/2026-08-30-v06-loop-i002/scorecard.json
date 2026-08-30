@@ -1,0 +1,113 @@
+{
+  "schema_version": "0.1",
+  "scorecard_id": "v0.6-i002-short-history-expanded",
+  "scorecard_commit": "5a2ee55",
+  "dirty_tree": true,
+  "scope": "subset",
+  "layers": {
+    "output": {
+      "status": "fail",
+      "evaluated_commit": "5a2ee55",
+      "dataset_identity": "TemporalBench labeled split: T2; first 10 MIMIC plus first 10 causal_chambers cases",
+      "configuration_identity": "frozen classical candidate pool versus pinned toto2_4m direct supply; forecast_jobs=1",
+      "accounting": {"expected": 70, "completed": 70, "answered": 70, "abstained": 0, "failed": 0},
+      "metrics": [
+        {
+          "name": "paired_relative_smape_improvement_median",
+          "value": -0.016454,
+          "unit": "fraction",
+          "denominator": 70,
+          "gate": {"operator": "gte", "threshold": 0.05, "passed": false}
+        },
+        {
+          "name": "paired_relative_smape_bootstrap_lower_bound",
+          "value": -0.098024,
+          "unit": "fraction",
+          "denominator": 70,
+          "gate": {"operator": "gte", "threshold": 0.0, "passed": false}
+        },
+        {
+          "name": "candidate_channel_win_rate",
+          "value": 0.4714285714285714,
+          "unit": "fraction",
+          "denominator": 70,
+          "gate": {"operator": "gte", "threshold": 0.5, "passed": false}
+        },
+        {
+          "name": "worst_domain_paired_relative_smape_improvement",
+          "value": -0.304304,
+          "unit": "fraction",
+          "denominator": 10,
+          "gate": {"operator": "gte", "threshold": -0.02, "passed": false}
+        }
+      ],
+      "evidence": [{"path": "results/benchmark-releases/2026-08-30-v06-loop-i002/decision.json", "sha256": "e0169e6a84dcdcff86721dbdba6e537d363fdaaa540d1c9eb87e8ad47893692c"}]
+    },
+    "reasoning": {
+      "status": "pass",
+      "evaluated_commit": "5a2ee55",
+      "dataset_identity": "retained engine analyses for the same 70 candidate channels plus 14-channel governed smoke",
+      "configuration_identity": "caller-named supply separated from evidence-weighted admission; no agent in numeric arms",
+      "accounting": {"expected": 70, "completed": 70, "answered": 70, "abstained": 0, "failed": 0},
+      "metrics": [
+        {
+          "name": "candidate_identity_revision_and_policy_retention_rate",
+          "value": 1.0,
+          "unit": "fraction",
+          "denominator": 70,
+          "gate": {"operator": "eq", "threshold": 1.0, "passed": true}
+        },
+        {
+          "name": "governed_changed_channel_admission_provenance_rate",
+          "value": 1.0,
+          "unit": "fraction",
+          "denominator": 6,
+          "gate": {"operator": "eq", "threshold": 1.0, "passed": true}
+        }
+      ],
+      "evidence": [{"path": "results/benchmark-releases/2026-08-30-v06-loop-i002/decision.json", "sha256": "e0169e6a84dcdcff86721dbdba6e537d363fdaaa540d1c9eb87e8ad47893692c"}]
+    },
+    "topology": {
+      "status": "pass",
+      "evaluated_commit": "5a2ee55",
+      "dataset_identity": "same 20-case matched expansion with row-level resumable artifacts",
+      "configuration_identity": "local TSFM subprocess; forecast_jobs=1; infrastructure_retries=0; 20-minute wall-clock arm bound",
+      "accounting": {"expected": 70, "completed": 70, "answered": 70, "abstained": 0, "failed": 0},
+      "metrics": [
+        {
+          "name": "channel_completion_rate",
+          "value": 1.0,
+          "unit": "fraction",
+          "denominator": 70,
+          "gate": {"operator": "gte", "threshold": 0.99, "passed": true}
+        },
+        {
+          "name": "maximum_configured_local_forecast_workers",
+          "value": 1,
+          "unit": "workers",
+          "denominator": 70,
+          "gate": {"operator": "eq", "threshold": 1, "passed": true}
+        }
+      ],
+      "evidence": [{"path": "results/benchmark-releases/2026-08-30-v06-loop-i002/decision.json", "sha256": "e0169e6a84dcdcff86721dbdba6e537d363fdaaa540d1c9eb87e8ad47893692c"}]
+    }
+  },
+  "invariants": {
+    "held_out_futures_never_entered_forecast_execution": {
+      "status": "pass",
+      "evidence": [{"path": "results/benchmark-releases/2026-08-30-v06-loop-i002/decision.json", "sha256": "e0169e6a84dcdcff86721dbdba6e537d363fdaaa540d1c9eb87e8ad47893692c"}]
+    },
+    "runtime_selection_did_not_use_dataset_or_case_labels": {
+      "status": "pass",
+      "evidence": [{"path": "results/benchmark-releases/2026-08-30-v06-loop-i002/decision.json", "sha256": "e0169e6a84dcdcff86721dbdba6e537d363fdaaa540d1c9eb87e8ad47893692c"}]
+    },
+    "production_default_unchanged_after_failed_gate": {
+      "status": "pass",
+      "evidence": [{"path": "results/benchmark-releases/2026-08-30-v06-loop-i002/decision.json", "sha256": "e0169e6a84dcdcff86721dbdba6e537d363fdaaa540d1c9eb87e8ad47893692c"}]
+    }
+  },
+  "decision": {
+    "status": "reject",
+    "reason": "Pinned Toto2-4M completed reliably and retained full provenance, but failed the preregistered overall effect, interval, directional, and named-domain output gates. Keep the robust default and complete P2 as a documented no-build."
+  }
+}

@@ -119,6 +119,14 @@ def test_covariate_ablation_admits_stable_signal(tmp_path) -> None:
     assert result.admitted is True
     assert result.retained == ["campaign"]
     assert len(result.points) == 7
+    public = result.to_public_dict()
+    assert public["status"] == "applied"
+    assert public["canonical_primary_preserved"] is True
+    assert public["selected_projection_differs_from_primary"] is False
+    assert public["selected_output_role"] == "primary_forecast"
+    assert public["relationship_to_primary"] == \
+        "validated_covariates_used_by_primary"
+    assert public["automation_eligible"] is True
 
 
 def test_forecast_records_covariate_evidence(tmp_path) -> None:
@@ -137,10 +145,13 @@ def test_forecast_records_covariate_evidence(tmp_path) -> None:
 
 def test_capabilities_are_adapter_level_and_machine_actionable() -> None:
     matrix = capability_matrix()
-    assert matrix["toto2_4m"]["multivariate_targets"] is True
+    # Upstream model support is not an adapter capability.  Gnomon's invoked
+    # TSFM methods currently receive only one history vector.
+    assert matrix["toto2_4m"]["multivariate_targets"] is False
     assert matrix["toto2_4m"]["future_known_covariates"] is False
-    assert matrix["toto2_22m"]["multivariate_targets"] is True
+    assert matrix["toto2_22m"]["multivariate_targets"] is False
     assert matrix["toto2_22m"]["future_known_covariates"] is False
+    assert matrix["ttm"]["multivariate_targets"] is False
     eligible, excluded = eligible_tsfms(
         history_length=100, horizon=7, frequency="D", require_future_covariates=True,
     )

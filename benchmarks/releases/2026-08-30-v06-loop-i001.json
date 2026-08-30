@@ -1,0 +1,54 @@
+{
+  "release": "2026-08-30-v06-loop-i001",
+  "output_dir": "results/benchmark-releases/2026-08-30-v06-loop-i001",
+  "benchmarks": [
+    {
+      "benchmark": "short-history-modelbench",
+      "arm": "classical-output-smoke",
+      "scope": "smoke",
+      "status": "complete",
+      "source": "results/v0.6-product-loop/i001-short-history-smoke/summary.json",
+      "file": "short-history-output-smoke.json",
+      "evaluated_commit": "4391ed6+scorecard-working-tree",
+      "harness_commit": "4391ed6+scorecard-working-tree",
+      "dataset_identity": "short-history-modelbench:seed=60902:cases-per-family=2",
+      "configuration_identity": "built-in classical candidates; training-internal selection; untouched final horizon",
+      "notes": [
+        "Smoke only. One of ten classical cases regressed; this result cannot graduate an estimator."
+      ]
+    },
+    {
+      "benchmark": "boundarybench",
+      "arm": "reasoning-contract-smoke",
+      "scope": "smoke",
+      "status": "complete",
+      "source": "results/v0.6-product-loop/i001-boundary-smoke/summary.json",
+      "file": "boundary-reasoning-smoke.json",
+      "evaluated_commit": "4391ed6+scorecard-working-tree",
+      "harness_commit": "4391ed6+scorecard-working-tree",
+      "dataset_identity": "BoundaryBench synthetic contract corpus seed=60901 cases=20",
+      "configuration_identity": "real verbs plus generated adversarial contract cases and mutation checks"
+    },
+    {
+      "benchmark": "contextbench",
+      "arm": "engine-topology-smoke",
+      "scope": "smoke",
+      "status": "complete",
+      "source": "results/v0.6-product-loop/i001-context-engine-smoke/summary.json",
+      "file": "context-topology-smoke.json",
+      "evaluated_commit": "4391ed6+scorecard-working-tree",
+      "harness_commit": "4391ed6+scorecard-working-tree",
+      "dataset_identity": "contextbench-stress-v1 manifest=9730fdab limit=8",
+      "configuration_identity": "engine-only matched history/context smoke; one process; expected full-matrix gate failures allowed",
+      "notes": [
+        "This eight-case smoke checks bounded completion and invariants; it is not decision-ready for ContextBench accuracy claims."
+      ]
+    }
+  ],
+  "not_included": [
+    {
+      "benchmark": "agent-boundary API probe",
+      "reason": "P1 validates the scorecard contract without a paid model call; the registered jobs=1 matched agent probe remains a P8 gate."
+    }
+  ]
+}
