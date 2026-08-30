@@ -891,6 +891,8 @@ def build_parser() -> argparse.ArgumentParser:
     track_shadow_record.add_argument("--revision")
     track_shadow_record.add_argument("--candidate-error", required=True, type=float)
     track_shadow_record.add_argument("--baseline-error", required=True, type=float)
+    track_shadow_record.add_argument(
+        "--regime-json", help="Exact JSON object defining the temporal cohort")
 
     track_shadow_assess = track_commands.add_parser(
         "shadow-assess", help="Assess a shadow adapter without promoting it")
@@ -901,6 +903,13 @@ def build_parser() -> argparse.ArgumentParser:
     track_shadow_assess.add_argument("--min-outcomes", type=int, default=30)
     track_shadow_assess.add_argument("--min-improvement", type=float, default=.05)
     track_shadow_assess.add_argument("--min-win-rate", type=float, default=.60)
+
+    track_shadow_route = track_commands.add_parser(
+        "shadow-route",
+        help="Point-in-time paired-outcome candidate-pool recommendation")
+    for flag in ("project", "candidate", "baseline", "as-of", "regime-json"):
+        track_shadow_route.add_argument(f"--{flag}", required=True)
+    track_shadow_route.add_argument("--revision")
 
     track_coverage = track_commands.add_parser(
         "coverage",
@@ -1933,6 +1942,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                     candidate_error=args.candidate_error,
                     baseline_error=args.baseline_error,
                     known_at=args.known_at,
+                    regime=(json.loads(args.regime_json)
+                            if args.regime_json else None),
                 ), indent=2))
                 return 0
 
@@ -1943,6 +1954,20 @@ def main(argv: Sequence[str] | None = None) -> int:
                     as_of=args.as_of, min_outcomes=args.min_outcomes,
                     min_improvement=args.min_improvement,
                     min_win_rate=args.min_win_rate,
+                ), indent=2))
+                return 0
+
+            elif args.track_command == "shadow-route":
+                regime = json.loads(args.regime_json)
+                if not isinstance(regime, dict):
+                    raise GnomonError(
+                        "INVALID_ARGUMENTS", "--regime-json must be an object")
+                print(json.dumps(store.route_adapter_shadow(
+                    project=args.project, candidate=args.candidate,
+                    revision=args.revision, champion=args.baseline,
+                    regime={str(key): str(value)
+                            for key, value in regime.items()},
+                    as_of=args.as_of,
                 ), indent=2))
                 return 0
 

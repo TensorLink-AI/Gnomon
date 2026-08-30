@@ -400,6 +400,13 @@ fingerprint-weighted prior are built on.
 The default registry is `~/.local/share/gnomon/registry.db`. Override it with
 `GNOMON_REGISTRY_PATH` for isolated projects, tests, or containers.
 
+For pinned adapters with paired shadow outcomes, `gnomon track shadow-route`
+accepts `--project`, `--candidate`, `--revision`, `--baseline`, `--as-of`, and
+an exact `--regime-json` object. It recommends either the challenger/champion
+candidate pool or a rollback to the champion. The route is point-in-time and
+drift-aware, but remains candidate-pool advice: it never promotes a deployment
+or bypasses the next forecast's local admission.
+
 ## `gnomon eval compare`
 
 Compare programmatically graded agent runs with and without Gnomon:

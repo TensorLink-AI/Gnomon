@@ -299,3 +299,10 @@ The experimental `gnomon_track` verb also accepts
 `assess_adapter_shadow` for an outcome-backed recommendation. Assessment is
 advisory only: it never changes the publishing candidate, and an unpinned
 adapter cannot graduate.
+
+`route_adapter_shadow` turns an exact-regime, pinned-revision cohort into a
+point-in-time candidate-pool recommendation after eight paired outcomes clear
+the mean-gain and Wilson win-rate gates. A four-outcome recent window rolls the
+recommendation back to the champion on degradation. The response always marks
+the route as `candidate_pool_only`, not automation authority, and the next
+forecast must still admit the challenger on its own local folds.

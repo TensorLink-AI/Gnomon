@@ -802,6 +802,7 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "structural_events": "epistemic",
     "min_outcomes": "epistemic", "min_improvement": "epistemic",
     "min_win_rate": "epistemic",
+    "regime": "epistemic", "regime_json": "epistemic",
     "model_admission": "epistemic",
     "publication_mode": "epistemic",
 }
@@ -859,6 +860,13 @@ EPISTEMIC_TRACES: dict[str, str] = {
     "min_win_rate": (
         "returned through the shadow assessment result; failing it adds "
         "`win_rate_below_gate` and blocks promotion review"),
+    "regime": (
+        "the exact low-cardinality cohort is returned in every shadow route; "
+        "only paired outcomes carrying byte-equivalent canonical regime JSON "
+        "enter its sample, and cohorts are never implicitly pooled"),
+    "regime_json": (
+        "CLI alias of regime; the parsed exact cohort is returned in every "
+        "shadow route and defines the evidence query"),
     "model_admission": (
         "evidence_weighted requires a versioned model-evidence registry; "
         "the selected admission state, evidence sources, candidate weight, "

@@ -684,6 +684,17 @@ class TrackingStore:
             min_win_rate=min_win_rate,
         ).to_dict()
 
+    def route_adapter_shadow(
+        self, *, project: str, candidate: str, revision: str | None,
+        champion: str, regime: dict[str, str], as_of: str,
+    ) -> dict[str, Any]:
+        """Point-in-time paired-outcome route; never forecast authority."""
+        from .adapter_promotion import AdapterOutcomeLedger
+        return AdapterOutcomeLedger(self.path).route(
+            project=project, candidate=candidate, revision=revision,
+            champion=champion, regime=regime, as_of=as_of,
+        ).to_dict()
+
     def _migrate_composite_keys(self) -> None:
         """Rebuild registries that were keyed on ``forecast_id`` alone.
 

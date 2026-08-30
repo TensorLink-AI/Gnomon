@@ -4009,6 +4009,8 @@ def _run_track(arguments: dict[str, Any]) -> dict[str, Any]:
             candidate_error=float(arguments["candidate_error"]),
             baseline_error=float(arguments["baseline_error"]),
             known_at=str(arguments["known_at"]),
+            regime={str(key): str(value) for key, value in
+                    dict(arguments.get("regime") or {}).items()} or None,
         )
     if action == "assess_adapter_shadow":
         from .tracking import TrackingStore
@@ -4021,6 +4023,17 @@ def _run_track(arguments: dict[str, Any]) -> dict[str, Any]:
             min_outcomes=int(arguments.get("min_outcomes", 30)),
             min_improvement=float(arguments.get("min_improvement", .05)),
             min_win_rate=float(arguments.get("min_win_rate", .60)),
+        )
+    if action == "route_adapter_shadow":
+        from .tracking import TrackingStore
+        return TrackingStore().route_adapter_shadow(
+            project=str(arguments["project"]),
+            candidate=str(arguments["candidate"]),
+            revision=arguments.get("revision"),
+            champion=str(arguments["baseline"]),
+            regime={str(key): str(value) for key, value in
+                    dict(arguments.get("regime") or {}).items()},
+            as_of=str(arguments["as_of"]),
         )
     if action == "record_synthesis":
         from .tracking import TrackingStore
@@ -4093,7 +4106,8 @@ def _run_track(arguments: dict[str, Any]) -> dict[str, Any]:
     raise GnomonError("INVALID_ARGUMENTS", "action is required.",
                       {"allowed": ["status", "submit_actuals", "resolve_outcome",
                                    "record_adapter_shadow",
-                                   "assess_adapter_shadow", "record_synthesis",
+                                   "assess_adapter_shadow",
+                                   "route_adapter_shadow", "record_synthesis",
                                    "resolve_synthesis", "synthesis_status",
                                    "candidate_outcomes", "decision_skill"]})
 
@@ -4346,6 +4360,7 @@ TOOLS.extend([
             "action": {"type": "string", "enum": [
                 "status", "submit_actuals", "resolve_outcome",
                 "record_adapter_shadow", "assess_adapter_shadow",
+                "route_adapter_shadow",
                 "record_synthesis", "resolve_synthesis", "synthesis_status",
                 "candidate_outcomes", "decision_skill"]},
             "project": {"type": "string"},
@@ -4369,6 +4384,10 @@ TOOLS.extend([
             "baseline_error": {"type": "number", "minimum": 0},
             "known_at": {"type": "string"},
             "as_of": {"type": "string"},
+            "regime": {"type": "object", "additionalProperties": {
+                "type": "string"}, "description": (
+                "Exact low-cardinality temporal cohort used for paired "
+                "shadow recording or routing; cohorts are never pooled.")},
             "min_outcomes": {"type": "integer", "minimum": 1},
             "min_improvement": {"type": "number"},
             "min_win_rate": {"type": "number", "minimum": 0, "maximum": 1},
