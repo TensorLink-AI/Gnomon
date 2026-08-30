@@ -74,7 +74,7 @@ CONFIG: dict[str, Any] = {
     "beta": (0.3, 0.9), "noise_sigma": (0.08, 0.2),
     "publication_lag_months": 1, "mechanism_lag_months": 1,
     "released_months": 8,
-    "outcome_targets": {"no_breach": 0.55, "breach": 0.30, "trap": 0.15},
+    "outcome_targets": {"no_breach": 0.70, "breach": 0.15, "trap": 0.15},
 }
 
 
@@ -346,6 +346,7 @@ PACK = DomainPack(
     decision_scalar=lambda decision: 1.0
     if decision.get("action") == "act" else 0.0,
     config=CONFIG,
+    recommended_cases=240,
     season_length=12,
 )
 

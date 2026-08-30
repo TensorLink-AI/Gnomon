@@ -255,6 +255,11 @@ class DomainPack:
     #: Simulator parameters, hashed into the dataset identity.
     config: dict[str, Any] = field(default_factory=dict)
     season_length: int = 7
+    #: Case count the runner uses when --cases is not given. Binary
+    #: domains tie heavily on identical actions, so their sign tests
+    #: need more pairs than quantity domains (pilot power check in
+    #: EVALUATION-READINESS.md).
+    recommended_cases: int = 120
     #: Optional per-decision secondary metrics (e.g. hierarchical
     #: coherence error), averaged per arm under ``metrics.extras``.
     extra_metrics: Callable[[dict[str, Any], "Case"],
@@ -1799,17 +1804,25 @@ def _useful_verdict(verdicts: dict[str, Any]) -> dict[str, Any]:
                 "vs_best_constant_policy"):
         comparison = verdicts[key]
         delta = comparison.get("mean_cost_delta")
+        ci = comparison.get("mean_cost_delta_ci")
         components[key] = {
             "mean_cost_delta": delta,
             "treatment_cheaper_on_average": (delta is not None
                                              and delta < 0),
+            # Primary evidence: the bootstrap interval, because ties
+            # blunt the sign test in binary domains — a point-estimate
+            # win whose interval straddles zero is direction, not proof.
+            "ci_excludes_zero": bool(ci and (ci["high_95"] < 0
+                                             or ci["low_95"] > 0)),
             "exact_sign_p": comparison.get("exact_sign_p"),
-            "mean_cost_delta_ci": comparison.get("mean_cost_delta_ci"),
+            "mean_cost_delta_ci": ci,
         }
     return {
         "all_three_cheaper": all(
             entry["treatment_cheaper_on_average"]
             for entry in components.values()),
+        "all_three_ci_excluding_zero": all(
+            entry["ci_excludes_zero"] for entry in components.values()),
         "components": components,
         "note": ("a conjunction of paired point estimates in this "
                  "domain's own units; diagnostic until run on a frozen "

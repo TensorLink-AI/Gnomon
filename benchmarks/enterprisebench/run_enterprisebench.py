@@ -98,8 +98,12 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
     summaries: dict[str, dict[str, Any]] = {}
     failed: list[dict[str, str]] = []
     for name in wanted:
+        # Binary domains tie heavily on identical actions and need more
+        # pairs; when --cases is not given, each pack's recommended
+        # count applies (pilot power check in EVALUATION-READINESS.md).
+        cases = args.cases or packs[name].recommended_cases
         domain_args = SimpleNamespace(
-            seed=args.seed, cases=args.cases, model=args.model,
+            seed=args.seed, cases=cases, model=args.model,
             output_dir=str(output / name), resume=args.resume,
             concurrency=args.concurrency)
         before = _usage_snapshot(client)
@@ -144,7 +148,10 @@ def main() -> int:
     parser.add_argument("--model", default="deepseek-v4-flash-0731")
     parser.add_argument("--base-url", default="https://api.engy.ai/v1")
     parser.add_argument("--api-key-env", default="ENGY_API_KEY")
-    parser.add_argument("--cases", type=int, default=120)
+    parser.add_argument(
+        "--cases", type=int, default=None,
+        help="Cases per domain; omitted uses each pack's recommended "
+             "count (more for tie-heavy binary domains).")
     parser.add_argument("--seed", type=int, default=20260825)
     parser.add_argument("--concurrency", type=int, default=8)
     parser.add_argument("--max-tokens", type=int, default=1200,

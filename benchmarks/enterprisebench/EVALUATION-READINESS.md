@@ -30,20 +30,38 @@ evaluation until the blocking pending items are signed.
 | 7c | Seed stability of verdict-relevant orderings | **PASS with note** | the best-constant identity is sign-stable across seeds 11/21/31 in all domains; closely matched reference *pairs* (naive vs a constant) flip at N=24 — expected sampling noise, resolved by 4b's N guidance |
 | 8 | Governance: frozen seeds, spent-corpus owner | **PARTIAL** | `scope` stamping is mechanical (PASS); a named owner for "this seed is now spent" is **PENDING** |
 
-## Findings the probes surfaced (report, do not hide)
+## Findings the probes surfaced — and how each was addressed
 
-1. **cloudcost headroom is thin**: the engine's governed rule is already
-   near-optimal on the pilot mix. A treatment arm can look "no better
-   than engine" there while still being valuable (text-only deploy
-   facts, trap resolution, extraction) — read cloudcost verdicts with
-   the trap and extraction metrics, not the cost delta alone.
-2. **cashflow's engine mapping lost to always-act at pilot N** (engine
-   regret 2.88 vs best-constant 1.88 per case, seed 11, N=24). That is
-   a product finding the references exist to expose, but it means
-   `vs_engine_alone` is an easier bar in cashflow than elsewhere —
-   `vs_best_constant_policy` is the binding comparison there.
-3. **Binary-domain tie rates make the sign test blunt at N=120.** Use
-   the bootstrap CI as the primary evidence and raise N per 4b.
+1. **cloudcost headroom was thin** (best-free regret 0.375/case; the
+   engine nearly saturated the mix). *Addressed*: a `context_breach`
+   cell (~15%, disclosed) whose overage is *caused* by a deploy landing
+   on the horizon, verified against a counterfactual future simulated
+   without it on identical noise; half those notices are text-only.
+   Re-probe: best-free regret 1.6–2.0/case across seeds. Consequence,
+   now by design rather than accident: the engine trails always-act
+   slightly in cloudcost because history extrapolation cannot see
+   context-caused breaches — that gap **is** the priced value of
+   reading context, and `vs_best_constant_policy` binds there.
+2. **cashflow's engine mapping lost badly to always-act** (regret 2.88
+   vs 1.88). *Addressed twice*: the floor adjustment now uses only the
+   *anomalous* part of scheduled inflows (known minus trailing typical
+   — subtracting the full known inflows double-counted the cadence the
+   forecast already extrapolates), and the outcome mix was retuned.
+   Re-probe: engine 1.5–2.9 vs constants 2.2–2.4, flipping by seed —
+   genuinely competitive rather than dominated.
+3. **Event rates had drifted to 0.33–0.46, far above the 0.2
+   break-even** (surfaced by the same probe), which made always-act
+   near-unbeatable and violated the design's own base-rate rule.
+   *Addressed*: all four binary packs retuned; achieved rates now
+   0.16–0.34 with both constants weakened and mutually competitive —
+   the discriminative zone where only real skill separates arms.
+4. **Binary-domain tie rates make the sign test blunt at N=120.**
+   *Addressed structurally*: each pack declares `recommended_cases`
+   (240 binary, 120 quantity) which the runner uses when `--cases` is
+   omitted, and the `useful` verdict now computes
+   `ci_excludes_zero` per component plus `all_three_ci_excluding_zero`
+   — the bootstrap interval is the primary evidence, stated in the
+   statistics block.
 
 ## Pre-registration template (fill and commit before the paid run)
 

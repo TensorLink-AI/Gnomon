@@ -29,10 +29,12 @@ cutoff had.
 
 Engine mapping (documented approximation): Gnomon forecasts the shown
 balance series; a below-floor breach is a threshold breach on the
-negated series. Known invoice inflows due inside the horizon raise the
-future balance above a pure extrapolation, so the effective floor is
-adjusted by the resolved as-of sum of those inflows before the governed
-breach ladder prices the decision.
+negated series. The effective floor moves by the *anomalous* part of
+the scheduled inflows — known horizon invoices minus the trailing
+typical inflow the extrapolated history already carries — before the
+governed breach ladder prices the decision. Subtracting the full known
+inflows would double-count the regular cadence and was measured to
+under-alert against the always-act reference.
 
 Parameters and grounding: opening balances 50–400k with payroll at
 6–12% of balance every 14 days mirror a small-to-mid company's treasury;
@@ -78,7 +80,7 @@ CONFIG: dict[str, Any] = {
     "payroll_every": 14, "payroll_fraction": (0.06, 0.12),
     "opex_fraction": (0.003, 0.008), "noise_fraction": 0.003,
     "amount_drift": (0.995, 1.002),
-    "outcome_targets": {"no_shortfall": 0.55, "shortfall": 0.30,
+    "outcome_targets": {"no_shortfall": 0.70, "shortfall": 0.15,
                         "trap": 0.15},
     "post_cutoff_correction_share": 0.3,
 }
@@ -325,17 +327,30 @@ def simulate(seed: int, count: int) -> tuple[list[Case], dict[str, Any]]:
 
 
 def _engine_inputs(case: Case, facts: list[ContextItem]) -> dict[str, Any]:
+    """Effective floor = floor − (known horizon inflows − trailing
+    typical inflows). Subtracting the *full* known inflows double-counts:
+    the balance history the forecast extrapolates already carries the
+    regular invoice cadence, so only the anomalous part of the scheduled
+    inflows should move the floor — in either direction (a quieter-than-
+    usual invoice book raises the effective floor and correctly makes
+    the engine more alert). The trailing estimate uses positive daily
+    balance changes, which are offset-free under affine anonymization."""
     floor = next((item.value for item in facts
                   if item.kind == "cash_floor"), min(case.values))
     known_inflows = sum(
         item.value for item in facts
         if item.kind == "invoice_due"
         and case.cutoff < item.effective_from <= case.cutoff + case.horizon)
-    floor_adjusted = floor - known_inflows
+    gains = [max(0.0, later - earlier) for earlier, later
+             in zip(case.values, case.values[1:])]
+    typical_inflows = (sum(gains) / len(gains) * case.horizon
+                       if gains else 0.0)
+    floor_adjusted = floor - (known_inflows - typical_inflows)
     return {"series": [-float(v) for v in case.values],
             "threshold": -floor_adjusted,
             "floor_adjusted": floor_adjusted,
-            "basis": "negated_balance_below_floor_with_known_inflow_adjustment"}
+            "basis": ("negated_balance_below_floor_with_anomalous_"
+                      "inflow_adjustment")}
 
 
 def _question(case: Case) -> str:
@@ -351,7 +366,7 @@ def _question(case: Case) -> str:
 
 PACK = DomainPack(
     name="cashflow",
-    version="0.2",
+    version="0.3",
     decision_kind="binary",
     simulate=simulate,
     cost_model=binary_cost_model(COST_DRAW, COST_SHORTFALL,
@@ -379,6 +394,7 @@ PACK = DomainPack(
     decision_scalar=lambda decision: 1.0
     if decision.get("action") == "act" else 0.0,
     config=CONFIG,
+    recommended_cases=240,
     season_length=7,
 )
 

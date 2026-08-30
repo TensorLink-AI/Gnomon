@@ -18,6 +18,13 @@ cutoff and the revision moves the effective threshold across the
 realized future's peak — the stale version and the correct version imply
 opposite optimal decisions, by construction.
 
+Context-caused breaches (~20%, disclosed): the overage is driven by a
+deploy landing on the horizon, verified against a counterfactual future
+simulated without it on identical noise. Half the deploy notices are
+text-only, so history extrapolation alone — the engine included —
+cannot see these coming: the cell keeps decision headroom above the
+governed rule honest and priced.
+
 Simulator parameters and their real-world grounding: base spend spans
 small-team to mid-size accounts (800–6000 $/day); weekday load is 10–35%
 above weekends, matching business-hours compute; deploy uplifts of
@@ -60,8 +67,16 @@ CONFIG: dict[str, Any] = {
     "base_spend": (800.0, 6000.0), "weekday_uplift": (0.10, 0.35),
     "noise_sigma_fraction": 0.04, "trend_per_step_fraction": (-.0015, .002),
     "deploy_uplift_fraction": (0.05, 0.25), "deploy_duration": (7, 28),
+    #: context_breach cases: the overage is *caused* by a deploy the
+    #: threshold record knows nothing about — verified against a
+    #: counterfactual future simulated without the deploy on identical
+    #: noise. Half these deploy notices are text-only, so the case is
+    #: winnable only by arms that actually read the context. This keeps
+    #: headroom above the engine's governed rule honest.
+    "context_breach_uplift_fraction": (0.18, 0.40),
     "migration_depth_fraction": (0.15, 0.45), "migration_ramp": 21,
-    "outcome_targets": {"no_breach": 0.55, "breach": 0.30, "trap": 0.15},
+    "outcome_targets": {"no_breach": 0.625, "breach": 0.075,
+                        "context_breach": 0.15, "trap": 0.15},
 }
 
 
@@ -112,7 +127,8 @@ def simulate(seed: int, count: int) -> tuple[list[Case], dict[str, Any]]:
             for cell, fraction in targets.items()}
     cases: list[Case] = []
     cell_counts: dict[str, int] = {}
-    skipped = {"cell_full": 0, "rounding_flip": 0, "degenerate": 0}
+    skipped = {"cell_full": 0, "rounding_flip": 0, "degenerate": 0,
+               "context_shape": 0}
     attempts = 0
     balanced_limit = 200 * count
     while len(cases) < count and attempts < 2 * balanced_limit:
@@ -121,28 +137,44 @@ def simulate(seed: int, count: int) -> tuple[list[Case], dict[str, Any]]:
         rng = random.Random(f"enterprisebench:cloudcost:{seed}:{attempts}")
         length = HISTORY + HORIZON
 
+        trap = balanced_phase and cell_counts.get("trap", 0) < caps["trap"]
+        context_case = (not trap and balanced_phase
+                        and cell_counts.get("context_breach", 0)
+                        < caps["context_breach"])
         effects: list[dict[str, Any]] = []
         items: list[ContextItem] = []
-        probe = random.Random(rng.random())
-        if rng.random() < 0.7:
-            start = rng.randrange(HISTORY // 3, length - 3)
-            uplift_fraction = rng.uniform(*CONFIG["deploy_uplift_fraction"])
+        # Effect sizes resolve in currency against a probe draw of the
+        # base, then the series simulates for real.
+        probe_base = random.Random(rng.random()).uniform(
+            *CONFIG["base_spend"])
+        if context_case:
+            # A large deploy landing on the horizon; its notice (half
+            # the time text-only) is the only way to see it coming.
+            start = rng.randrange(HISTORY - 3, HISTORY + HORIZON // 2)
             effects.append({"kind": "deploy", "from": start,
                             "to": start + rng.randint(
                                 *CONFIG["deploy_duration"]),
-                            "uplift_fraction": uplift_fraction})
-        if rng.random() < 0.25:
-            start = rng.randrange(HISTORY // 2, length - 5)
-            effects.append({"kind": "migration", "from": start,
-                            "depth": rng.uniform(
-                                *CONFIG["migration_depth_fraction"])})
-        # Resolve fractional uplifts against a probe draw of the base so
-        # effect sizes are in currency, then simulate for real.
-        probe_base = probe.uniform(*CONFIG["base_spend"])
-        for effect in effects:
-            if effect["kind"] == "deploy":
-                effect["uplift"] = effect.pop("uplift_fraction") * probe_base
-        values = _spend_series(rng, length, effects)
+                            "uplift": rng.uniform(
+                                *CONFIG["context_breach_uplift_fraction"])
+                            * probe_base})
+        else:
+            if rng.random() < 0.7:
+                start = rng.randrange(HISTORY // 3, length - 3)
+                effects.append({"kind": "deploy", "from": start,
+                                "to": start + rng.randint(
+                                    *CONFIG["deploy_duration"]),
+                                "uplift": rng.uniform(
+                                    *CONFIG["deploy_uplift_fraction"])
+                                * probe_base})
+            if rng.random() < 0.25:
+                start = rng.randrange(HISTORY // 2, length - 5)
+                effects.append({"kind": "migration", "from": start,
+                                "depth": rng.uniform(
+                                    *CONFIG["migration_depth_fraction"])})
+        # A dedicated series seed so a counterfactual can replay the
+        # identical noise with an effect removed.
+        series_seed = f"enterprisebench:cloudcost:{seed}:{attempts}:series"
+        values = _spend_series(random.Random(series_seed), length, effects)
         history, future = values[:HISTORY], values[HISTORY:]
         if max(history) == min(history):
             skipped["degenerate"] += 1
@@ -150,7 +182,7 @@ def simulate(seed: int, count: int) -> tuple[list[Case], dict[str, Any]]:
         scale = _robust_scale(history)
         peak = max(future)
 
-        trap = balanced_phase and cell_counts.get("trap", 0) < caps["trap"]
+        quiet_future: list[float] | None = None
         if trap:
             # Construct the flip: the stale delta puts the threshold on
             # one side of the realized peak, the revision on the other.
@@ -176,11 +208,29 @@ def simulate(seed: int, count: int) -> tuple[list[Case], dict[str, Any]]:
                 min(HISTORY, known_v0 + 7), length - 1,
                 revises="commit-chg-a", trap=True))
             cell = "trap"
+        elif context_case:
+            # The counterfactual: identical noise, deploy removed. The
+            # breach must be *caused* by the deploy — the quiet future
+            # stays under the threshold, the real one crosses it.
+            quiet_values = _spend_series(
+                random.Random(series_seed), length, effects[1:])
+            quiet_future = quiet_values[HISTORY:]
+            quiet_peak = max(quiet_future)
+            if peak - quiet_peak < 1.5 * scale:
+                skipped["context_shape"] += 1
+                continue
+            threshold = quiet_peak + rng.uniform(0.3, 0.7) \
+                * (peak - quiet_peak)
+            breach_as_of = True
+            items.append(ContextItem(
+                "commit-base", "commit_base", threshold, 0, 0,
+                length - 1))
+            cell = "context_breach"
         else:
             breach = (cell_counts.get("breach", 0) < caps["breach"]
                       if balanced_phase else rng.random() < 0.3)
-            margin = (rng.uniform(0.2, 1.5) if breach
-                      else rng.uniform(0.3, 4.0)) * scale
+            margin = (rng.uniform(0.15, 1.2) if breach
+                      else rng.uniform(0.25, 3.0)) * scale
             threshold = peak - margin if breach else peak + margin
             breach_as_of = breach
             if rng.random() < 0.5:
@@ -275,6 +325,13 @@ def simulate(seed: int, count: int) -> tuple[list[Case], dict[str, Any]]:
         if bool(breach_steps) != breach_as_of:
             skipped["rounding_flip"] += 1
             continue
+        if cell == "context_breach":
+            # Causation must survive rounding: the counterfactual future
+            # without the deploy stays under the shown threshold.
+            if any(round(a * v + b, 4) > shown_threshold
+                   for v in quiet_future):
+                skipped["rounding_flip"] += 1
+                continue
         trap_optimal = stale_optimal = None
         if cell == "trap":
             stale_threshold = _threshold_from_items([
@@ -346,7 +403,7 @@ def _question(case: Case) -> str:
 
 PACK = DomainPack(
     name="cloudcost",
-    version="0.2",
+    version="0.3",
     decision_kind="binary",
     simulate=simulate,
     cost_model=binary_cost_model(COST_INTERVENE, COST_OVERAGE,
@@ -378,6 +435,7 @@ PACK = DomainPack(
     decision_scalar=lambda decision: 1.0
     if decision.get("action") == "act" else 0.0,
     config=CONFIG,
+    recommended_cases=240,
     season_length=7,
 )
 

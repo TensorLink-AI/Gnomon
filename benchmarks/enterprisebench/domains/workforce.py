@@ -68,7 +68,7 @@ CONFIG: dict[str, Any] = {
     "noise_fraction": 0.06,
     "campaign_surge_fraction": (0.6, 1.8), "campaign_decay_hours": (4, 10),
     "outage_surge_fraction": (0.8, 2.5), "outage_hours": (1, 4),
-    "outcome_targets": {"no_breach": 0.55, "breach": 0.30, "trap": 0.15},
+    "outcome_targets": {"no_breach": 0.70, "breach": 0.15, "trap": 0.15},
 }
 
 
@@ -354,6 +354,7 @@ PACK = DomainPack(
     decision_scalar=lambda decision: 1.0
     if decision.get("action") == "act" else 0.0,
     config=CONFIG,
+    recommended_cases=240,
     season_length=24,
 )
 
