@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "evaluated_commit": "f45e724877e261e4a010285abc6fd2380c898ad1",
+  "protocol": "docs/v0.6-p7-hierarchy-protocol.md",
+  "runner": "benchmarks/hierarchybench/run.py",
+  "corpus": {
+    "seed": 20260907,
+    "cases": 32,
+    "sources": 4,
+    "cases_per_source": 8,
+    "history": 96,
+    "horizon": 24,
+    "split_families": ["stable", "periodic"],
+    "future_windows_non_overlapping": true
+  },
+  "topology": {"jobs": 1, "retries": 1, "timeout_seconds": 60, "atomic_case_checkpoints": true, "resumable": true},
+  "accounting": {"expected": 32, "completed": 32, "failed": 0, "strata": 8},
+  "metrics": {
+    "standalone_root_absolute_error": 241856.30248519487,
+    "bottom_up_absolute_error": 255030.24889899298,
+    "bottom_up_relative_improvement": -0.05447013899753367,
+    "mean_paired_mae_delta": -411.68582543119123,
+    "paired_delta_bootstrap_95": {"lower": -1346.9393075112596, "upper": 164.78443621816746}
+  },
+  "gates": {
+    "completion": true,
+    "coherence": true,
+    "finite_nonnegative": true,
+    "uncertainty_truth": true,
+    "stratum_noninferiority": false,
+    "aggregate_skill": false
+  },
+  "failed_strata": {
+    "retail_sales_monthly:periodic": 1.1414133758254597,
+    "sensor_temps_5min:periodic": 1.1885362913885278,
+    "wiki_traffic_daily_log:periodic": 1.4717946179292405
+  },
+  "manual_inspection": {
+    "worst": "h20260907-0009 retail periodic: standalone seasonal-naive MAE 13409.75; bottom-up seasonal-naive leaf sum MAE 24888.52064701285.",
+    "best": "h20260907-0001 pedestrian periodic: standalone last-value MAE 5394.458333333333; mixed last-value/seasonal-naive leaf sum MAE 3851.832441683255.",
+    "stable_shares": "All four stable strata were numerically equal to standalone within floating representation, providing coherence but no positive skill.",
+    "unavailable": "none; all root and leaf forecasts completed"
+  },
+  "raw_evidence": "results/v06-p7-hierarchy-baseline/",
+  "decision": "complete_no_build",
+  "decision_reason": "The bounded bottom-up total failed both aggregate skill and per-stratum non-inferiority; building a more elaborate reconciler after seeing outcomes would violate the frozen scope."
+}

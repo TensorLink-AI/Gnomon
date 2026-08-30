@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.1",
+  "release": "2026-08-30-v06-loop-i007",
+  "curated_by_commit": "f45e724877e261e4a010285abc6fd2380c898ad1",
+  "benchmarks": [
+    {"file": "hierarchy-result.json", "benchmark": "hierarchybench", "arm": "standalone-root-vs-bottom-up-leaf-sum", "scope": "full", "status": "complete", "bytes": 2191, "sha256": "c6889fa750fe73683a53ef5fba595441b916d126900098dbc18d54e0a4d83f9e"},
+    {"file": "scorecard.json", "benchmark": "three-layer-product-scorecard", "arm": "i007-final-decision", "scope": "full", "status": "complete", "bytes": 2564, "sha256": "d44b8f205bbb3c21047cb9ebf61dc02420ab467b4a5febc4f39d4da1a04f7270"}
+  ],
+  "decision_files": [
+    {"file": "decision.json", "bytes": 1719, "sha256": "08a8b90456d42e7e9b2c40658088bd970a29e9e3979f2cde7fcde23871ac665d"},
+    {"file": "checkpoint.json", "bytes": 3095, "sha256": "f99ce300a562e09fe4a2ca35741c70db78ce98327f4f34b2c5a339614ed8ae6c"},
+    {"file": "README.md", "bytes": 1158, "sha256": "443c3bb6212b0d1e535717182ad5d0b0a41eefb8fa1979ef62347b796cfe226f"}
+  ],
+  "not_included": [
+    {"benchmark": "raw resumable rows", "reason": "Preserved under results/v06-p7-hierarchy-baseline and excluded from aggregate git evidence."},
+    {"benchmark": "production hierarchy surface", "reason": "Not built because the frozen point-skill gates failed."},
+    {"benchmark": "real organizational hierarchy superiority", "reason": "Exact deterministic partitions of real roots are a bounded candidate screen, not real deployment evidence."},
+    {"benchmark": "competition-specific plan", "reason": "docs/astrid-btc-agent-plan.md remains explicitly outside this loop."}
+  ],
+  "policy": {"aggregate_only": true, "raw_runs_are_local_artifacts": true, "no_post_outcome_candidate_expansion": true, "production_default_unchanged": true}
+}

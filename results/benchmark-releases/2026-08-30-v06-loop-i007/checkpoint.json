@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "loop": "v0.6-product-improvement",
+  "status": "active",
+  "branch": "agent/v0.6-reasoning-loop",
+  "head_commit": "f45e724877e261e4a010285abc6fd2380c898ad1",
+  "protocol": "docs/v0.6-improvement-loop.md",
+  "preservation": {
+    "preserve_preexisting_committed_work": true,
+    "preserve_preexisting_benchmark_artifacts": true,
+    "preserve_all_preexisting_untracked_files": true,
+    "excluded_from_commits": ["docs/astrid-btc-agent-plan.md"]
+  },
+  "completed_iteration": {
+    "id": "I007",
+    "priority": "P7",
+    "decision": "complete_no_build",
+    "user_outcome": "Do not expose an additive total whose coherence is exact but whose point accuracy is worse than forecasting the total directly.",
+    "decision_evidence": "results/benchmark-releases/2026-08-30-v06-loop-i007/decision.json",
+    "tests": "2564 passed, 11 skipped in the final full local suite; 32/32 hierarchy cases completed.",
+    "remaining_risk": "No production hierarchy surface exists; a future candidate needs a new frozen covariance and uncertainty design.",
+    "production_default_changed": false
+  },
+  "active_iteration": {
+    "id": "I008",
+    "priority": "P8",
+    "phase": "choose_and_freeze_gate",
+    "user_hypothesis": "Agents should receive one compact decision brief that preserves the engine's action, numeric risk, evidence basis, typed relationships, limits, alternatives, and authority; humans should not need to reconcile artifact fragments or catch model paraphrase errors.",
+    "must_not_regress": [
+      "immutable primary forecast and typed relationship fields",
+      "engine support and automation authority",
+      "numeric probability, interval, action, and alternative references",
+      "complete artifact remains the source of truth",
+      "brief output stays within the response budget",
+      "engine completeness and final-agent preservation are scored separately"
+    ],
+    "next_action": "Audit current brief, monitor, decide, threshold, context, and artifact-reference surfaces; use existing ContextBench boundary evidence to identify one general preservation defect before freezing a small agent probe."
+  },
+  "priorities": [
+    {"id": "P1", "name": "three-layer release scorecard", "status": "complete"},
+    {"id": "P2", "name": "short-history forecast skill", "status": "complete_no_build"},
+    {"id": "P3", "name": "sourced contextual evidence", "status": "complete"},
+    {"id": "P4", "name": "covariate-aware and multivariate candidates", "status": "complete_no_build_with_boundary_fix"},
+    {"id": "P5", "name": "outcome-adaptive champion/challenger routing", "status": "complete"},
+    {"id": "P6", "name": "joint multi-horizon uncertainty", "status": "complete_no_build"},
+    {"id": "P7", "name": "hierarchical reconciliation", "status": "complete_no_build"},
+    {"id": "P8", "name": "agent decision brief and preservation contract", "status": "in_progress"},
+    {"id": "P9", "name": "value-of-information recovery", "status": "pending"},
+    {"id": "P10", "name": "production inference reliability", "status": "pending"}
+  ]
+}
