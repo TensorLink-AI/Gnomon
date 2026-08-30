@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "release": "2026-08-30-v08-loop-i010",
+  "kind": "resumable_loop_checkpoint",
+  "protocols": [
+    "docs/v0.8-agent-forecasting-loop.md",
+    "docs/v0.8-v1-final-evaluation-protocol.md"
+  ],
+  "evidence": [
+    "results/benchmark-releases/2026-08-30-v08-loop-i010/checkpoint.json"
+  ],
+  "excluded": ["docs/astrid-btc-agent-plan.md"]
+}
