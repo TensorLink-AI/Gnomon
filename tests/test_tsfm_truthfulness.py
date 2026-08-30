@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import os
 from pathlib import Path
 
 from gnomon import tsfm_sandbox
@@ -21,21 +22,32 @@ from gnomon.tsfm import TSFM_REVISIONS, resolved_weights
 
 class TestSandboxRoot:
     def test_default_is_home_cache_not_cwd(self, monkeypatch):
+        original = os.environ.get("GNOMON_TSFM_SANDBOX_ROOT")
         monkeypatch.delenv("GNOMON_TSFM_SANDBOX_ROOT", raising=False)
         module = importlib.reload(tsfm_sandbox)
         try:
             assert module.SANDBOX_ROOT == Path.home() / ".cache" / "gnomon-tsfm-venvs"
             assert module.SANDBOX_ROOT != Path(".")
         finally:
+            if original is None:
+                monkeypatch.delenv(
+                    "GNOMON_TSFM_SANDBOX_ROOT", raising=False)
+            else:
+                monkeypatch.setenv("GNOMON_TSFM_SANDBOX_ROOT", original)
             importlib.reload(tsfm_sandbox)
 
     def test_env_override_is_honoured(self, monkeypatch, tmp_path):
+        original = os.environ.get("GNOMON_TSFM_SANDBOX_ROOT")
         monkeypatch.setenv("GNOMON_TSFM_SANDBOX_ROOT", str(tmp_path / "roots"))
         module = importlib.reload(tsfm_sandbox)
         try:
             assert module.SANDBOX_ROOT == tmp_path / "roots"
         finally:
-            monkeypatch.delenv("GNOMON_TSFM_SANDBOX_ROOT")
+            if original is None:
+                monkeypatch.delenv(
+                    "GNOMON_TSFM_SANDBOX_ROOT", raising=False)
+            else:
+                monkeypatch.setenv("GNOMON_TSFM_SANDBOX_ROOT", original)
             importlib.reload(tsfm_sandbox)
 
 
