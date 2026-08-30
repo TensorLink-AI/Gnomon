@@ -68,8 +68,11 @@ def _row(case: dict[str, Any]) -> dict[str, Any]:
                 "horizon after any admitted seasonal adjustment?"),
             "options": list(OPTIONS),
         }},
-        "_frequency": ("h" if int(case["declared_period"]) == 24
-                       else "synthetic"),
+        # The public forecast surface accepts regular frequency codes, not
+        # the engine-only benchmark label ``synthetic``. One valid hourly
+        # grid keeps this an integration probe; direct-engine period lanes
+        # remain scored separately by TrendAnswerBench.
+        "_frequency": "h",
         "_time_origin": "2025-01-01T00:00:00+00:00",
         "_time_step_seconds": 3600,
         "_host_compiled_forecast": True,
