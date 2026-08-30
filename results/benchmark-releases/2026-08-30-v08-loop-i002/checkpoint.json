@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "iteration": "I002",
+  "branch": "agent/v0.8-agent-forecasting-loop",
+  "head_before_checkpoint": "3666385807972d636038d5ea93acc8d151ef679e",
+  "active_issue": "F1",
+  "issue_status": {
+    "E1": "candidate_committed_external_confirmation_pending",
+    "F1": "protocol_frozen",
+    "C1": "pending",
+    "D1": "pending",
+    "A1": "pending",
+    "V1": "pending"
+  },
+  "e1_validation": {
+    "focused_suite": "479 passed, 3 skipped",
+    "matched_api_gate": "pending_missing_ENGY_API_KEY"
+  },
+  "f1_protocol": "docs/v0.8-f1-statsforecast-protocol.md",
+  "frozen_development": {
+    "generator": "benchmarks/modelbench/run_production_selector.py",
+    "seed": 2026083301,
+    "cases_per_family": 40,
+    "cases": 200
+  },
+  "frozen_confirmation": {
+    "synthetic_seed": 2026083302,
+    "synthetic_cases_per_family": 20,
+    "synthetic_cases": 100,
+    "naturalistic_cutoffs": [0.55, 0.65, 0.75, 0.85],
+    "naturalistic_cases": 48
+  },
+  "next_action": "Implement the lazy optional adapter and provenance contract, validate a tiny conformance shard, then run the frozen development corpus sequentially.",
+  "preservation": {
+    "external_intake_unchanged": true,
+    "astrid_plan_excluded": true,
+    "preexisting_untracked_files_untouched": true
+  }
+}
