@@ -1,0 +1,35 @@
+{
+  "benchmarks": [
+    {
+      "arm": "current-production-policy",
+      "benchmark": "modelbench-production-selector",
+      "bytes": 6440,
+      "file": "production-selector-baseline.json",
+      "scope": "full",
+      "sha256": "cf5d260ddec44d84c9d065c0551e21211fcd91d36026c873663903f7bfdf731f",
+      "status": "complete"
+    }
+  ],
+  "curated_by_commit": "b49b0a38671b641445f0787048381c7fa3b182c4",
+  "not_included": [
+    {
+      "benchmark": "raw synthetic case records",
+      "reason": "Retained locally under results/v07-q1-i001-baseline-v4 and excluded from the aggregate git release."
+    },
+    {
+      "benchmark": "fresh naturalistic confirmation",
+      "reason": "Still required by the frozen Q1 gate after S1 and S2 current-head reproductions."
+    },
+    {
+      "benchmark": "competition-specific plan",
+      "reason": "docs/astrid-btc-agent-plan.md is explicitly outside this loop and release."
+    }
+  ],
+  "policy": {
+    "aggregate_only": true,
+    "raw_runs_are_ci_artifacts": true,
+    "smoke_results_are_not_full_results": true
+  },
+  "release": "2026-08-30-v07-loop-i001",
+  "schema_version": "1.1"
+}

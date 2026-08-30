@@ -28,7 +28,7 @@
   "active_iteration": {
     "id": "I001",
     "issue": "Q1",
-    "phase": "protocol_frozen",
+    "phase": "benchmark_lane_ready",
     "user_hypothesis": "Prefix-only evidence can admit useful non-flat paths often enough to improve agent forecasts, while weak evidence preserves the safe last-value fallback and its visible support limitations.",
     "must_not_regress": [
       "future leakage remains zero",
@@ -44,15 +44,30 @@
       "results/v06-release-validation-466d577/temporalbench-evidence-045/details/tsb_000026_T2.json",
       "results/benchmark-releases/2026-08-30-v06-loop-i002/decision.json"
     ],
-    "next_action": "Add a benchmark-only production-selector lane to the independent short-history runner, with retained per-case admission evidence and untouched final horizons; run seed 92741 baseline and inspect admitted wins, losses, and fallbacks before modifying selection.",
-    "last_completed_action": "Traced all four non-last-value TemporalBench paths to two duplicated seasonal_naive selections, ruled out panel pooling as their source, and froze the v0.7 loop plus Q1 gate before implementation."
+    "next_action": "Run the retained seed 92741 production-selector baseline and inspect admitted wins, losses, fallbacks, support, and admission evidence. Checkpoint that benchmark-only result, then reproduce S1 decision-input integrity and S2 bounded timestamp jitter on the exact head before any Q1 production change.",
+    "last_completed_action": "Added the benchmark-only production-selector lane at f14274f and integrated the external 0.5.0 agent evaluation as a current-head reproduction track. No external finding is treated as current until reproduced."
+  },
+  "external_evaluation_intake": {
+    "protocol": "docs/v0.7-external-evaluation-intake.md",
+    "source_version": "gnomon-forecast==0.5.0",
+    "current_head_reproduction_required": true,
+    "preemption_after_q1_baseline": ["S1", "S2"],
+    "production_change_blocked_until_preemption_dispositioned": true,
+    "absorbed_by_existing_issues": {
+      "Q1": ["stationary_mean_baseline", "confidence_language", "long_horizon_threshold_safety", "seasonal_admission_and_period"],
+      "Q2": ["seasonally_adjusted_trend"],
+      "Q5": ["mcp_surface_current_head_verification", "schema_and_repair_discoverability"]
+    }
   },
   "issues": [
+    {"id": "S1", "name": "decision input integrity", "status": "pending_current_head_reproduction"},
+    {"id": "S2", "name": "bounded timestamp jitter", "status": "pending_current_head_reproduction"},
     {"id": "Q1", "name": "useful departures from last-value", "status": "in_progress"},
     {"id": "Q2", "name": "decision-grade typed temporal answers", "status": "pending"},
     {"id": "Q3", "name": "context recall at fixed precision", "status": "pending"},
     {"id": "Q4", "name": "stable context-mechanism selection", "status": "pending"},
-    {"id": "Q5", "name": "crash-safe economical orchestration", "status": "pending"}
+    {"id": "Q5", "name": "crash-safe economical orchestration", "status": "pending"},
+    {"id": "Q6", "name": "regime-aware anomaly behavior", "status": "pending_current_head_reproduction"}
   ],
   "completed_iterations": []
 }
