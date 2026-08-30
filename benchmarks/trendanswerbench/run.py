@@ -189,12 +189,21 @@ def _run_case(case: dict[str, Any]) -> dict[str, Any]:
     realized = (realized_slope / scale
                 if realized_slope is not None and scale > 0 else None)
     actual_direction = _direction(realized)
-    complete = (
-        direction in {"upward", "downward", "constant", "uncertain"}
-        and state in {"supported", "weak", "abstained"}
-        and isinstance(automation, bool)
+    numeric_complete = (
+        direction in {"upward", "downward", "constant"}
+        and state in {"supported", "weak"}
         and isinstance(estimate, (int, float))
         and math.isfinite(float(estimate))
+    )
+    abstention_complete = (
+        direction in {None, "uncertain"}
+        and state == "abstained"
+        and estimate is None
+        and interval in ({}, {"lower": None, "upper": None})
+    )
+    complete = (
+        isinstance(automation, bool)
+        and (numeric_complete or abstention_complete)
     )
     correct = (direction == actual_direction
                if actual_direction is not None and complete else None)
@@ -251,8 +260,10 @@ def _run_case(case: dict[str, Any]) -> dict[str, Any]:
         "direction_correct": correct,
         "interval_covered": covered,
         "direction_slope_consistent": (
+            direction in {None, "uncertain"} and estimate is None
+            if state == "abstained" else
             _direction_consistent(str(direction), float(estimate))
-            if complete else False),
+            if numeric_complete else False),
         "supported_interval_direction_consistent": interval_consistent,
         "authority_fields_agree": (
             automation == (state == "supported")
