@@ -145,7 +145,7 @@ def test_profiles_select_documented_subsets(monkeypatch) -> None:
     from gnomon.toolspec import PROFILES, visible_tools
 
     monkeypatch.delenv("GNOMON_MCP_PROFILE", raising=False)
-    assert {tool["name"] for tool in visible_tools()} == PROFILES["evidence"]
+    assert {tool["name"] for tool in visible_tools()} == PROFILES["core"]
     monkeypatch.setenv("GNOMON_MCP_PROFILE", "full")
     full = {tool["name"] for tool in visible_tools()}
 
@@ -160,7 +160,7 @@ def test_profiles_select_documented_subsets(monkeypatch) -> None:
     monkeypatch.setenv("GNOMON_MCP_PROFILE", "core")
     names = {tool["name"] for tool in visible_tools()}
     assert "gnomon_get_artifact" not in names
-    assert len(names) == 6
+    assert len(names) == 10
 
     monkeypatch.setenv("GNOMON_MCP_PROFILE", "full")
     assert {tool["name"] for tool in visible_tools()} == full
@@ -181,16 +181,21 @@ def test_capabilities_report_the_active_profile(monkeypatch) -> None:
 
     monkeypatch.delenv("GNOMON_MCP_PROFILE", raising=False)
     payload = capabilities()["mcp_profile"]
-    assert payload["active"] == "evidence"
-    assert payload["visible_tools"] == [
-        "gnomon_describe", "gnomon_forecast", "gnomon_select_scenario"]
+    assert payload["active"] == "core"
+    assert set(payload["visible_tools"]) == {
+        "gnomon_capabilities", "gnomon_inspect", "gnomon_describe",
+        "gnomon_forecast", "gnomon_monitor", "gnomon_investigate_change",
+        "gnomon_detect_anomalies", "gnomon_decide", "gnomon_route",
+        "gnomon_explain_run",
+    }
     assert payload["available"] == [
         "core", "data", "decision", "describe", "evidence", "mega", "full"]
 
     monkeypatch.setenv("GNOMON_MCP_PROFILE", "core")
     payload = capabilities()["mcp_profile"]
     assert payload["active"] == "core"
-    assert "gnomon_decide" not in payload["visible_tools"]
+    assert "gnomon_decide" in payload["visible_tools"]
+    assert "gnomon_route" in payload["visible_tools"]
     assert "gnomon_forecast" in payload["visible_tools"]
 
 
@@ -1088,11 +1093,12 @@ def test_brief_forecast_previews_both_ends_of_long_horizon(tmp_path) -> None:
     })
     result = payload["results"][0]
     assert result["forecast_rows"] == 24
-    assert len(result["forecast"]) == FORECAST_PREVIEW_ROWS
+    returned = len(result["forecast"])
+    assert 2 <= returned <= FORECAST_PREVIEW_ROWS
     assert result["forecast_preview"] == {
         "strategy": "first_and_last",
-        "returned_rows": FORECAST_PREVIEW_ROWS,
-        "omitted_middle_rows": 12,
+        "returned_rows": returned,
+        "omitted_middle_rows": 24 - returned,
         "full_path": "artifact.results[].forecast",
     }
     assert result["forecast"][0]["timestamp"] < result["forecast"][-1]["timestamp"]
@@ -1302,6 +1308,27 @@ def test_forecast_schema_makes_automation_contract_explicit() -> None:
         "supported", "conditionally_supported", "best_effort"]
     assert props["repair"]["enum"] == ["off", "safe", "aggressive"]
     assert '"auto"' in props["target_column"]["description"]
+
+
+def test_data_reading_schemas_name_the_required_input_alternatives() -> None:
+    from gnomon.toolspec import TOOLS
+
+    tools = {tool["name"]: tool for tool in TOOLS}
+    expected = {("input",), ("observations",), ("data_ref",)}
+    for name in ("gnomon_inspect", "gnomon_describe", "gnomon_forecast"):
+        alternatives = {
+            tuple(item["required"])
+            for item in tools[name]["inputSchema"]["anyOf"]
+        }
+        assert alternatives == expected
+
+
+def test_cli_candidate_lists_accept_commas_repeats_and_deduplicate() -> None:
+    from gnomon.cli import _candidate_arguments
+
+    assert _candidate_arguments([
+        "theta,ets", "linear_trend", "theta",
+    ]) == ["theta", "ets", "linear_trend"]
 
 
 def test_evidence_pack_schema_meets_the_12kb_experiment_budget(monkeypatch) -> None:

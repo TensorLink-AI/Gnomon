@@ -198,6 +198,28 @@ def test_unrepresentable_requested_codes_refuse(bad: str) -> None:
     assert raised.value.code == "UNSUPPORTED_FREQUENCY"
 
 
+def test_frequency_error_lists_general_subdaily_patterns() -> None:
+    with pytest.raises(GnomonError) as raised:
+        normalise_frequency("quarter-hour-ish")
+    supported = raised.value.details["supported"]
+    assert {"<N>s", "<N>min", "<N>h"} <= set(supported)
+
+
+def test_intraday_ambiguity_does_not_offer_month_end_restamping() -> None:
+    start = datetime(2026, 1, 1)
+    stamps = [
+        start,
+        start + timedelta(minutes=20),
+        start + timedelta(minutes=41),
+        start + timedelta(minutes=61),
+    ]
+    with pytest.raises(GnomonError) as raised:
+        infer_frequency(stamps)
+    actions = {item["action"] for item in raised.value.repair_options or []}
+    assert "restamp_to_month_start" not in actions
+    assert raised.value.details["observed_step"] == "0:20:00"
+
+
 def test_every_frequency_has_a_season_and_a_description() -> None:
     expected = set(FREQUENCIES) | {"MS"}
     assert set(SEASONS) == expected
@@ -313,3 +335,19 @@ def test_detect_season_finds_a_period_beyond_the_frequency_default() -> None:
     assert basis == "autocorrelation"
     assert season == 50
     assert strength > 0.5
+
+
+def test_detect_season_considers_period_at_two_cycle_boundary() -> None:
+    """Exactly two cycles still provide a measured, correctly typed period."""
+    import math
+
+    from gnomon.temporal import detect_season
+
+    for phase in (0.0, 0.2, 1.1):
+        values = [
+            100 + 5 * math.sin(2 * math.pi * index / 24 + phase)
+            for index in range(48)
+        ]
+        season, strength, basis = detect_season(values, "h")
+        assert (season, basis) == (24, "autocorrelation")
+        assert strength > .3

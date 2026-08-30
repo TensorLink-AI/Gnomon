@@ -99,21 +99,21 @@ dataset reports `known_time_provenance: partially_assumed`.
 
 | Profile | Tools | Intended session |
 | --- | ---: | --- |
-| `core` | 6 | capabilities, inspect, forecast, investigate, detect, explain |
-| `describe` | 7 | Experimental `core` plus fast descriptive temporal evidence |
-| `evidence` | 2 | **Default:** fast description plus evaluated forecast |
+| `core` | 10 | **Default:** capabilities, inspect, describe, forecast, investigate, detect, decide, monitor, route, explain |
+| `describe` | 10 | Compatibility alias for `core` |
+| `evidence` | 3 | Compact description, evaluated forecast, and scenario selection |
 | `mega` | 3 | Experimental inspect/run/track consolidation arm |
-| `decision` | 11 | `core` plus decide, monitor, route, status, and outcome resolution |
-| `data` | 9 | `core` plus ingest, dataset listing, and actuals scoring |
-| `full` | 18 | Every stable tool, including context/covariate validation and TSFM installation |
+| `decision` | 12 | `core` plus status and outcome resolution |
+| `data` | 13 | `core` plus ingest, dataset listing, and actuals scoring |
+| `full` | 22 | Every stable tool, including context/covariate validation and TSFM installation |
 
-`evidence` is the default. Select a broader surface explicitly with
+`core` is the default. Select another surface explicitly with
 `gnomon mcp serve --profile core|describe|evidence|mega|decision|data|full`; `gnomon_capabilities`
-reports the active profile under `mcp_profile`. A future default-profile
-The earlier [surface experiment](design/mcp-surface-experiment-results.md)
-retained `full`; it is superseded by the fresh workflow experiment after the
-response-contract and routing fixes. `full` remains available, but its measured
-53.6K tokens per case makes it unsuitable as the ambient agent surface.
+reports the active profile under `mcp_profile`. The earlier
+[surface experiment](design/mcp-surface-experiment-results.md) retained
+`full`; it is superseded by the workflow and external-usage findings after the
+response-contract and routing fixes. `full` remains available for deep audit,
+but is unsuitable as the ambient agent surface.
 
 ## Where artifacts land
 

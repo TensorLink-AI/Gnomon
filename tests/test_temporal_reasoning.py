@@ -41,6 +41,42 @@ def test_descriptive_trend_requires_slope_beyond_sampling_uncertainty() -> None:
     )["answer"]["direction"] == "upward"
 
 
+def test_descriptive_trend_removes_multiplicative_seasonality() -> None:
+    """A large weekly cycle must not make obvious underlying growth constant."""
+    import random
+
+    rng = random.Random(2)
+    raw_factors = [rng.uniform(.25, 1.75) for _ in range(7)]
+    factor_mean = sum(raw_factors) / len(raw_factors)
+    factors = [value / factor_mean for value in raw_factors]
+    values = [
+        (399 + 2.4 * index) * factors[index % 7] + rng.gauss(0, 8)
+        for index in range(200)
+    ]
+    report = {**REPORT,
+              "seasonality": {"period": 7, "source": "autocorrelation"},
+              "changepoints": {"regimes": [
+                  {"index": 53, "classification": "regime_shift"},
+                  {"index": 102, "classification": "transient_anomaly"},
+              ]}}
+
+    answer = answer_descriptive_question(
+        TemporalQuestion("q", "describe", "usd", "trend"),
+        report=report, values=values, season=7)
+
+    assert answer["best_estimate"] == {
+        "value": "upward", "display_value": "upward",
+        "support": "supported", "automation_eligible": True,
+    }
+    estimate = answer["answer"]["estimate"]
+    assert abs(estimate["slope_per_step"] - 2.4) < .1
+    assert estimate["seasonal_period_steps"] == 7
+    assert estimate["seasonal_fixed_effects"] == 6
+    assert estimate["regime_fixed_effects"] == 1
+    assert answer["answer"]["executable"]["kind"] == \
+        "seasonally_adjusted_observed_trend"
+
+
 def test_descriptive_trend_does_not_turn_level_shift_into_drift() -> None:
     values = [10.0] * 25 + [20.0] * 25
     report = {**REPORT, "changepoints": {

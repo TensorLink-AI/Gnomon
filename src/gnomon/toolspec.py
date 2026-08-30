@@ -321,6 +321,21 @@ def enforce_response_budget(payload: Any, budget_bytes: int = RESPONSE_BUDGET_BY
         return payload
     trimmed: list[dict[str, Any]] = []
     result = _trim_bulk(payload, "", trimmed)
+    # A forecast may already carry first/last preview metadata before the
+    # global response budget trims that preview again. Keep the metadata
+    # truthful; agents use these counts to decide whether to read the sealed
+    # artifact instead of assuming rows disappeared.
+    for entry in result.get("results", []):
+        if not isinstance(entry, dict) or not isinstance(
+                entry.get("forecast"), list):
+            continue
+        preview = entry.get("forecast_preview")
+        if not isinstance(preview, dict):
+            continue
+        returned = len(entry["forecast"])
+        total = int(entry.get("forecast_rows") or returned)
+        preview["returned_rows"] = returned
+        preview["omitted_middle_rows"] = max(0, total - returned)
     artifact_path = payload.get("artifact_path")
     where = (f"the artifact at {artifact_path}" if artifact_path
              else "the on-disk artifact or store")
@@ -410,8 +425,9 @@ def apply_response_contract(payload: dict[str, Any]) -> dict[str, Any]:
             and bounded_threshold_brief):
         # The grouped form above retains every distinct warning verbatim plus
         # affected-series counts/examples. Repeating those same strings under
-        # every result makes wide and fold-starved answers expensive without
-        # adding evidence. The sealed artifact remains the per-series source.
+        # every result makes wide and fold-starved threshold answers expensive
+        # without adding evidence. The sealed artifact remains the per-series
+        # source.
         for entry in entries:
             warnings = {str(value) for value in entry.get("warnings") or []}
             assessment = entry.get("support_assessment") or {}
@@ -1499,9 +1515,7 @@ def _brief_capabilities(full: dict[str, Any]) -> dict[str, Any]:
         "format": "brief",
         "sections_available": sorted(full),
         "elided": sorted({path.split(".", 1)[0] for path in elided}),
-        "note": (
-            "Details: request `full` or named `sections`."
-        ),
+        "note": "full or sections",
     }
     return brief
 
@@ -3484,6 +3498,11 @@ TOOLS: list[dict[str, Any]] = [
                 **_REPLAY_PROPERTIES,
             },
             "required": [],
+            "anyOf": [
+                {"required": ["input"]},
+                {"required": ["observations"]},
+                {"required": ["data_ref"]},
+            ],
         },
         "runner": _run_inspect,
     },
@@ -3510,15 +3529,19 @@ TOOLS: list[dict[str, Any]] = [
                                "returns complete reasoning receipts.")},
             },
             "required": [],
+            "anyOf": [
+                {"required": ["input"]},
+                {"required": ["observations"]},
+                {"required": ["data_ref"]},
+            ],
         },
         "runner": _run_describe,
     },
     {
         "name": "gnomon_forecast",
         "description": (
-            "Forecast columns (`\"cpu,mem,requests\"` or `\"auto\"`) directly. "
-            "Schema is inferred and "
-            "candidates are backtested; weak support is disclosed."
+            "Forecast columns (`\"cpu,mem,requests\"` or `\"auto\"`). "
+            "Infer schema; backtest candidates; disclose weak support."
         ),
         "inputSchema": {
             "type": "object",
@@ -3526,8 +3549,8 @@ TOOLS: list[dict[str, Any]] = [
                 **_INPUT_PROPERTIES,
                 **_REPLAY_PROPERTIES,
                 "target_column": {"type": "string", "description": (
-                    "Column, comma list (`\"cpu,mem,requests\"`), or `\"auto\"` "
-                    "for every numeric channel. Omit only when one qualifies."
+                    "Column, `\"cpu,mem,requests\"`, or `\"auto\"`; omit only "
+                    "when unambiguous."
                 )},
                 "horizon": {"type": "integer", "description": (
                     "Future periods, in units of the data frequency. "
@@ -3647,6 +3670,11 @@ TOOLS: list[dict[str, Any]] = [
                 )},
             },
             "required": [],
+            "anyOf": [
+                {"required": ["input"]},
+                {"required": ["observations"]},
+                {"required": ["data_ref"]},
+            ],
         },
         "runner": _run_forecast,
     },
@@ -4755,9 +4783,10 @@ TOOLS.extend([
 #: what kind of session they are running. Selected by `gnomon mcp serve
 #: --profile` or the GNOMON_MCP_PROFILE env var.
 _CORE_PROFILE = frozenset({
-    "gnomon_capabilities", "gnomon_inspect", "gnomon_forecast",
+    "gnomon_capabilities", "gnomon_inspect", "gnomon_describe",
+    "gnomon_forecast", "gnomon_monitor",
     "gnomon_investigate_change", "gnomon_detect_anomalies",
-    "gnomon_explain_run",
+    "gnomon_decide", "gnomon_route", "gnomon_explain_run",
 })
 PROFILES: dict[str, frozenset[str]] = {
     "core": _CORE_PROFILE,
@@ -4774,13 +4803,17 @@ PROFILES: dict[str, frozenset[str]] = {
     },
 }
 _SURFACE_EXPERIMENT_TOOLS = frozenset({
-    "gnomon_describe", "gnomon_run", "gnomon_track",
+    "gnomon_run", "gnomon_track",
 })
 
 
 def active_profile() -> str:
     import os
-    name = os.environ.get("GNOMON_MCP_PROFILE", "evidence")
+    # The general product surface is the safe operational core. The
+    # three-tool evidence profile remains available for tightly bounded
+    # evaluation sessions, but making it the product default hid Gnomon's
+    # strongest operational verbs from ordinary agents.
+    name = os.environ.get("GNOMON_MCP_PROFILE", "core")
     if name != "full" and name not in PROFILES:
         raise ValueError(
             f"Unknown GNOMON_MCP_PROFILE {name!r}; expected one of "

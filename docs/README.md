@@ -58,7 +58,7 @@ build can do.** Prefer it to any prose here, including this file.
 - Five verbs — `forecast`, `investigate`, `detect`, `decide`, `monitor` —
   plus `route`, `inspect`, `capabilities`, and `status`.
 - Three front doors: CLI, Python API, and a local stdio MCP server
-  (`gnomon mcp serve`, 2 tools in the default `evidence` profile). Docker
+  (`gnomon mcp serve`, 10 tools in the default `core` profile). Docker
   packages the CLI rather than adding another contract surface.
 
 **Temporal core**

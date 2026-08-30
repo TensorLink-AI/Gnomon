@@ -21,34 +21,87 @@ from .temporal_evidence import (
 TEMPORAL_ANSWER_CONTRACT_VERSION = "0.9"
 
 
-def _observed_trend(values: list[float], report: dict[str, Any]) -> dict[str, Any]:
-    """Estimate within-regime drift without relabelling level shifts as trend."""
+def _demean_fixed_effects(
+    values: list[float], factors: list[list[int]],
+) -> list[float]:
+    """Residualize a vector against small categorical fixed effects.
+
+    Alternating projections avoid a dense design matrix when a period can be
+    hundreds of steps.  The factors used here (contiguous regimes and
+    repeating seasonal phases) converge quickly; the bounded iteration keeps
+    the descriptive front door deterministic on adversarial inputs.
+    """
+    residual = [float(value) for value in values]
+    scale = max(1.0, max((abs(value) for value in residual), default=0.0))
+    for _ in range(100):
+        largest_change = 0.0
+        for labels in factors:
+            totals: dict[int, float] = {}
+            counts: dict[int, int] = {}
+            for label, value in zip(labels, residual):
+                totals[label] = totals.get(label, 0.0) + value
+                counts[label] = counts.get(label, 0) + 1
+            means = {label: total / counts[label]
+                     for label, total in totals.items()}
+            updated = [value - means[label]
+                       for label, value in zip(labels, residual)]
+            largest_change = max(
+                largest_change,
+                max((abs(left - right) for left, right
+                     in zip(updated, residual)), default=0.0),
+            )
+            residual = updated
+        if largest_change <= 1e-12 * scale:
+            break
+    return residual
+
+
+def _observed_trend(
+    values: list[float], report: dict[str, Any], season: int,
+) -> dict[str, Any]:
+    """Estimate drift after admitted seasonal and regime fixed effects.
+
+    A raw slope test treats a stable seasonal cycle as unexplained noise.  On
+    multiplicatively seasonal business series that can make a large, obvious
+    trend look constant.  Residualizing both time and value against phase
+    effects estimates the common underlying drift without changing the
+    admitted period.  Only persistent level shifts receive regime effects;
+    transient anomalies must not split the trend regression into regimes.
+    """
     n = len(values)
     changes = report.get("changepoints") or {}
     edges = sorted({int(item.get("index"))
                     for item in (changes.get("regimes", [])
                                  if isinstance(changes, dict) else [])
                     if isinstance(item, dict)
+                    and item.get("classification") == "regime_shift"
                     and 4 <= int(item.get("index", -1)) <= n - 4})
     bounds = [0, *edges, n]
     segments = [(lo, hi) for lo, hi in zip(bounds, bounds[1:])
                 if hi - lo >= 4]
-    numerator = denominator = 0.0
-    for lo, hi in segments:
-        centre = (hi - lo - 1) / 2
-        for offset, value in enumerate(values[lo:hi]):
-            shifted = offset - centre
-            numerator += shifted * value
-            denominator += shifted * shifted
-    slope = numerator / denominator if denominator else 0.0
-    residuals_: list[float] = []
-    for lo, hi in segments:
-        centre = (hi - lo - 1) / 2
-        segment = values[lo:hi]
-        intercept = statistics.mean(segment)
-        residuals_.extend(value - (intercept + slope * (offset - centre))
-                          for offset, value in enumerate(segment))
-    degrees = n - len(segments) - 1
+    segment_labels = [0] * n
+    for label, (lo, hi) in enumerate(segments):
+        segment_labels[lo:hi] = [label] * (hi - lo)
+    adjusted_season = season if season > 1 and n >= 2 * season else 1
+    phase_labels = [index % adjusted_season for index in range(n)]
+    factors = [segment_labels]
+    if adjusted_season > 1:
+        factors.append(phase_labels)
+    time_residual = _demean_fixed_effects(
+        [float(index) for index in range(n)], factors)
+    value_residual = _demean_fixed_effects(values, factors)
+    denominator = sum(value * value for value in time_residual)
+    slope = (sum(left * right for left, right
+                 in zip(time_residual, value_residual)) / denominator
+             if denominator else 0.0)
+    residuals_ = _demean_fixed_effects(
+        [value - slope * index for index, value in enumerate(values)],
+        factors,
+    )
+    # Intercept + (regimes - 1) + (phases - 1) + slope.  This is
+    # conservative if a sparse regime/phase layout makes any effects
+    # collinear, which is preferable to overstating trend significance.
+    degrees = n - len(segments) - adjusted_season
     variance = (sum(value * value for value in residuals_) / degrees
                 if degrees > 0 else math.inf)
     standard_error = (math.sqrt(variance / denominator)
@@ -59,6 +112,12 @@ def _observed_trend(values: list[float], report: dict[str, Any]) -> dict[str, An
                       "downward" if distinguishable else "constant"),
         "slope_per_step": slope, "slope_standard_error": standard_error,
         "regime_fixed_effects": max(0, len(segments) - 1),
+        "seasonal_fixed_effects": max(0, adjusted_season - 1),
+        "seasonal_period_steps": (
+            adjusted_season if adjusted_season > 1 else None),
+        "seasonality_basis": (
+            (report.get("seasonality") or {}).get("source")
+            if adjusted_season > 1 else None),
         "observations": n,
     }
 
@@ -229,7 +288,7 @@ def answer_descriptive_question(
 ) -> dict[str, Any]:
     prop = question.property
     if prop == "trend" and question.verb in {"describe", "detect"}:
-        observed_trend = _observed_trend(values, report)
+        observed_trend = _observed_trend(values, report, season)
         n = observed_trend["observations"]
         slope = observed_trend["slope_per_step"]
         standard_error = observed_trend["slope_standard_error"]
@@ -240,6 +299,11 @@ def answer_descriptive_question(
                 "slope_per_step": slope,
                 "slope_standard_error": standard_error,
                 "regime_fixed_effects": observed_trend["regime_fixed_effects"],
+                "seasonal_fixed_effects": observed_trend[
+                    "seasonal_fixed_effects"],
+                "seasonal_period_steps": observed_trend[
+                    "seasonal_period_steps"],
+                "seasonality_basis": observed_trend["seasonality_basis"],
                 "two_sided_threshold": 1.96,
             }, interval=({"lower": slope - 1.96 * standard_error,
                           "upper": slope + 1.96 * standard_error}
@@ -250,8 +314,8 @@ def answer_descriptive_question(
             limitations=([] if support == "supported" else [
                 "At least eight observations are required to distinguish a "
                 "linear trend from residual variation."
-            ]), executable={"kind": "observed_linear_trend",
-                            "property": "trend", "version": "0.1",
+            ]), executable={"kind": "seasonally_adjusted_observed_trend",
+                            "property": "trend", "version": "0.2",
                             "threshold": "two_sided_1.96_standard_errors"})
     if prop == "volatility" and question.verb in {"describe", "detect"}:
         observed = multi_resolution_evidence(

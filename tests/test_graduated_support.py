@@ -160,6 +160,45 @@ def test_horizon_split_publishes_prefix_and_labelled_remainder(tmp_path) -> None
     assert assessment["sensitivity"]["requested_horizon"] == 14
 
 
+def test_degraded_flat_primary_yields_evaluated_trend_prefix(tmp_path) -> None:
+    """Long horizons publish the useful supported prefix, not 90 flat rows."""
+    import json
+    from datetime import date, timedelta
+    from pathlib import Path
+
+    from gnomon.toolspec import runner_for
+
+    source = tmp_path / "disk.csv"
+    start = date(2026, 1, 1)
+    source.write_text("\n".join([
+        "timestamp,disk",
+        *(f"{start + timedelta(days=index)},{68.4 + .08 * index}"
+          for index in range(100)),
+    ]) + "\n")
+    payload = runner_for("gnomon_forecast")({
+        "input": str(source), "horizon": 90, "threshold": 80,
+        "output_dir": str(tmp_path / "out"),
+    })
+    artifact = json.loads(
+        (Path(payload["artifact_path"]) / "artifact.json").read_text())
+    result = artifact["results"][0]
+    rows = result["forecast"]
+
+    boundary = result["support_assessment"]["sensitivity"][
+        "supported_horizon"]
+    assert boundary == 25
+    assert result["selected_model"] in {"drift", "linear_trend"}
+    assert all(row["tier"] != "best_effort" for row in rows[:boundary])
+    assert all(row["tier"] == "best_effort" for row in rows[boundary:])
+    assert rows[0]["point"] > 76.32
+    assert rows[boundary]["point"] == rows[boundary - 1]["point"]
+    bounded = result["threshold"]["bounded_assessment"]
+    assert bounded["best_estimate"] == bounded["decision"] == \
+        "indeterminate"
+    assert bounded["primary"]["best_estimate"] == "no"
+    assert bounded["alternatives"][0]["best_estimate"] == "yes"
+
+
 def test_split_artifact_csv_carries_the_tier_column(tmp_path) -> None:
     import csv
 

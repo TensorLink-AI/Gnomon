@@ -442,12 +442,29 @@ def investigate_change(
         **({"suspected_cause": suspected_cause} if suspected_cause else {}),
     })
     created_at = clock.now().isoformat()
+    changed = [result for result in results if result.get("onset") is not None]
+    if not changed:
+        headline = (
+            f"No material change was detected across {len(results)} series."
+        )
+    elif len(changed) == 1:
+        finding = changed[0]
+        headline = (
+            f"Detected {finding.get('classification') or 'a change'} in "
+            f"{finding['series']} at {finding['onset']}."
+        )
+    else:
+        headline = (
+            f"Detected changes in {len(changed)} of {len(results)} series; "
+            f"the per-series results identify their onsets and classifications."
+        )
     payload = {
         "schema_version": "0.1",
         "runtime_version": RUNTIME_VERSION,
         "investigation_id": artifact_id,
         "created_at": created_at,
         "status": "complete",
+        "headline": headline,
         "task": _stamp_provenance(_task_dict(task), input_path, input_provenance),
         "source_fingerprint": loaded.source_fingerprint,
         "results": results,

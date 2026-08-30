@@ -34,12 +34,14 @@ def test_event_delivery_records_before_side_effect_and_is_idempotent(tmp_path, m
     assert persisted["events"][events[0]["event_id"]]["status"] == "delivered"
 
 
-def test_prometheus_rule_is_dependency_free_yaml_12_json(tmp_path):
+def test_prometheus_rule_is_dependency_free_block_yaml(tmp_path):
     path = prometheus_rule(monitor_id="monitor-1", expression="rate(http_requests_total[5m])",
                            threshold=12.5, output=tmp_path / "rule.yml")
-    payload = json.loads(path.read_text())
-    rule = payload["groups"][0]["rules"][0]
-    assert rule["expr"] == "(rate(http_requests_total[5m])) > 12.5"
+    rendered = path.read_text()
+    assert rendered.startswith("groups:\n")
+    assert '      - alert: "Gnomon_monitor_1"' in rendered
+    assert '        expr: "(rate(http_requests_total[5m])) > 12.5"' in rendered
+    assert 'monitor_id: "monitor-1"' in rendered
 
 
 def test_failed_delivery_retries_and_can_resume(tmp_path, monkeypatch):

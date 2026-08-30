@@ -93,13 +93,18 @@ class TestRouter:
         store = TrackingStore(tmp_path / "t.db")
         decision = route("forecast", _series(), "D", horizon=7,
                          project="proj", store=store)
-        assert decision["basis"] == "backtest_required"
-        assert decision["recommendation"] is None
+        assert decision["basis"] == \
+            "structural_starting_point_backtest_required"
+        assert decision["recommendation"] == "ets"
+        assert decision["recommendation_role"].startswith(
+            "starting_candidate_only")
         assert decision["prior"]["source"] is None
         assert "theta" in decision["candidates"]
+        assert "croston_sba" in decision["excluded"]
         assert decision["fingerprint"]["length"] == 60
         # The decision was recorded for replay.
-        assert store.list_routes("proj")[0]["basis"] == "backtest_required"
+        assert store.list_routes("proj")[0]["basis"] == \
+            "structural_starting_point_backtest_required"
 
     def test_prior_engages_with_history(self, tmp_path):
         store = TrackingStore(tmp_path / "t.db")
@@ -125,7 +130,9 @@ class TestRouter:
         assert set(decision["candidates"]) == {
             "robust_zscore", "rolling_median_residual", "local_slope",
             "forecast_interval"}
-        assert decision["basis"] == "backtest_required"
+        assert decision["basis"] == \
+            "structural_starting_point_backtest_required"
+        assert decision["recommendation"] == "robust_zscore"
 
     def test_too_short_series_has_no_candidates(self):
         decision = route("detect_anomalies", [1.0] * 8, "D")

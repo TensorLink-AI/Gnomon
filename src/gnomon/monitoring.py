@@ -145,19 +145,32 @@ def prometheus_rule(
     if not expression.strip() or "\n" in expression:
         raise GnomonError("INVALID_PROMETHEUS_EXPRESSION", "Expression must be one non-empty line.")
     safe_name = re.sub(r"[^A-Za-z0-9_]", "_", monitor_id)
-    rule = {
-        "groups": [{"name": "gnomon", "rules": [{
-            "alert": f"Gnomon_{safe_name}",
-            "expr": f"({expression}) > {threshold:.17g}",
-            "labels": {"source": "gnomon", "monitor_id": monitor_id},
-            "annotations": {
-                "summary": f"Observed value exceeds Gnomon threshold {threshold:.6g}",
-                "description": "Static observed-value rule exported from an immutable Gnomon monitor. Forecast probability remains in its artifact.",
-            },
-        }]}],
-    }
-    # JSON is valid YAML 1.2 and avoids a YAML runtime dependency.
+    # Emit ordinary block YAML rather than relying on JSON's technical
+    # status as a YAML 1.2 subset. Operators inspect and edit this file, and
+    # a `.yaml` path beginning with `{` looks like the wrong artifact even
+    # when Prometheus can parse it. JSON quoting remains a dependency-free,
+    # standards-compatible scalar encoder.
+    def scalar(value: str) -> str:
+        return json.dumps(value, ensure_ascii=False)
+
+    rendered = "\n".join([
+        "groups:",
+        "  - name: gnomon",
+        "    rules:",
+        f"      - alert: {scalar(f'Gnomon_{safe_name}')}",
+        f"        expr: {scalar(f'({expression}) > {threshold:.17g}')}",
+        "        labels:",
+        "          source: gnomon",
+        f"          monitor_id: {scalar(monitor_id)}",
+        "        annotations:",
+        "          summary: " + scalar(
+            f"Observed value exceeds Gnomon threshold {threshold:.6g}"),
+        "          description: " + scalar(
+            "Static observed-value rule exported from an immutable Gnomon "
+            "monitor. Forecast probability remains in its artifact."),
+        "",
+    ])
     path = Path(output).expanduser().resolve()
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(rule, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    path.write_text(rendered, encoding="utf-8")
     return path

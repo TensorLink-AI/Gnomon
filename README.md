@@ -119,13 +119,11 @@ Then ask your agent one complete operational question:
 > What changed in it, and when should we alert if crossing 340 costs us 20x
 > a false alarm?
 
-The agent gets 3 tools on the default `evidence` profile:
-`gnomon_describe` for fast temporal evidence, `gnomon_forecast` for evaluated
-publication, and `gnomon_select_scenario` for a bounded follow-up ranking of
-already sealed paths. Selection never reruns a forecast or changes numbers,
-support, the immutable primary, or automation authority. Broader operational,
-tracking, ingestion, and artifact
-tools remain available through explicit profiles, and every number it
+The agent gets 10 tools on the default `core` profile: capabilities and
+inspection, `describe`, evaluated `forecast`, anomaly detection, change
+investigation, monitoring, decision, routing, and run explanation. Tracking,
+ingestion, scenario-selection, and administrative tools remain available
+through explicit profiles, and every number it
 quotes comes from an evidence-linked, verified artifact. It cannot invent
 values for an unsupported series; it can only report Gnomon's abstention and
 its recovery options. Data-reading calls return a session-scoped `data_ref`,
@@ -141,9 +139,10 @@ PyPI release.)
 Conversation cost is an engineering constraint, not a completed claim. Wide
 data is handled in one batched call; brief responses keep disclosures while
 moving bulk rows to integrity-sealed artifacts; repeated calls can use a session
-`data_ref` instead of resending observations. The two-tool `evidence` profile
-is the current default; `full` remains explicit opt-in for administration and
-deep audit. We do not publish workflow accuracy or token claims until the
+`data_ref` instead of resending observations. The compact three-tool
+`evidence` profile remains available for bounded evidence sessions; `full`
+remains explicit opt-in for administration and deep audit. We do not publish
+workflow accuracy or token claims until the
 underlying complete run and its provenance are retained as citable evidence.
 
 ## Measured evidence

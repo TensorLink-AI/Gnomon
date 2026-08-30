@@ -515,7 +515,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     forecast_parser.add_argument(
         "--candidates", action="append", dest="candidates", default=None,
-        help="Restrict the model pool to this model (repeatable). Pass "
+        help="Restrict the model pool: comma-separated or repeatable. Pass "
              "`gnomon route`'s candidates to act on a routing decision; the "
              "mandatory baselines always compete regardless.",
     )
@@ -775,11 +775,12 @@ def build_parser() -> argparse.ArgumentParser:
     mcp_serve.add_argument(
         "--profile", choices=("core", "describe", "evidence", "mega", "decision", "data", "full"),
         default=None,
-        help="Tool subset to expose (default evidence, 2 tools): core = "
-             "forecast/investigate/detect plus capabilities, inspection, "
-             "and explanation (6 tools); evidence exposes describe+forecast; "
-             "describe and mega are experimental surface arms; "
-             "decision adds decide/monitor/route/status/resolve_outcome; "
+        help="Tool subset to expose (default core, 10 tools): core = "
+             "capabilities, inspect, describe, forecast, investigate, detect, "
+             "decide, monitor, route, and explain; evidence exposes the "
+             "compact describe/forecast/scenario surface; describe and mega "
+             "are retained compatibility/experimental surface arms; "
+             "decision adds status and outcome resolution; "
              "data adds ingest/list_datasets/submit_actuals. "
              "`gnomon capabilities` reports the active profile.",
     )
@@ -1090,6 +1091,16 @@ def _json_argument(raw: str | None, *, argument: str | None = None):
             {"argument": label, "supplied": raw[:200],
              "parse_error": str(exc)},
         ) from exc
+
+
+def _candidate_arguments(values: list[str] | None) -> list[str] | None:
+    """Accept repeatable flags, comma lists, or a mixture of both."""
+    if values is None:
+        return None
+    candidates = [candidate.strip()
+                  for value in values for candidate in value.split(",")
+                  if candidate.strip()]
+    return list(dict.fromkeys(candidates))
 
 
 #: The shape `--actions` takes, matching the MCP schema exactly. The CLI
@@ -2255,7 +2266,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 as_of=_parse_as_of(getattr(args, "as_of", None)),
                 repair=args.repair,
                 regrid=getattr(args, "regrid", None),
-                candidates=getattr(args, "candidates", None),
+                candidates=_candidate_arguments(
+                    getattr(args, "candidates", None)),
                 input_provenance=getattr(args, "input_provenance", None),
             )
             from .toolspec import brief_summary
@@ -2343,7 +2355,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 store_path=getattr(args, "store_path", None),
                 repair=args.repair,
                 regrid=getattr(args, "regrid", None),
-                candidates=getattr(args, "candidates", None),
+                candidates=_candidate_arguments(
+                    getattr(args, "candidates", None)),
                 input_provenance=getattr(args, "input_provenance", None),
             )
             if getattr(args, "brief", False):
