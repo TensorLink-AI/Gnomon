@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import random
 
-import pytest
-
 from gnomon.breach import estimate_horizon_breach
 
 
@@ -58,31 +56,3 @@ def test_regime_gate_rejects_large_unseen_level_shifts_across_seeds() -> None:
         # cost is governed authority.
         rejected += risk["support"] != "supported"
     assert rejected >= 27
-
-
-def test_cumulative_distribution_is_positive_affine_equivariant() -> None:
-    horizon = 8
-    scale, shift = 2.5, 17.0
-    paths = _ar_paths(41, shifted=False)
-    original = estimate_horizon_breach(
-        _rows(horizon), 2.5, _by_lead(paths),
-        measured_interval_coverage=0.8,
-        calibration_is_verifiable=True,
-    )["cumulative_horizon"]
-    rows = [{key: scale * value + shift for key, value in row.items()}
-            for row in _rows(horizon)]
-    transformed = estimate_horizon_breach(
-        rows, scale * 2.5 + shift,
-        _by_lead([[scale * value for value in path] for path in paths]),
-        measured_interval_coverage=0.8,
-        calibration_is_verifiable=True,
-    )["cumulative_horizon"]
-    assert transformed["point_total"] == \
-        scale * original["point_total"] + horizon * shift
-    assert transformed["median_total"] == pytest.approx(
-        scale * original["median_total"] + horizon * shift, abs=2e-6)
-    width = (original["total_interval_80"]["upper"]
-             - original["total_interval_80"]["lower"])
-    transformed_width = (transformed["total_interval_80"]["upper"]
-                         - transformed["total_interval_80"]["lower"])
-    assert transformed_width == pytest.approx(scale * width, abs=2e-6)

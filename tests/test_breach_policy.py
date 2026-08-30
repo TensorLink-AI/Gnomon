@@ -95,13 +95,6 @@ def test_any_breach_preserves_within_path_dependence() -> None:
     assert risk["joint_path_count"] == 20
     assert risk["first_breach_step_probability"] == {"1": 0.4}
     assert risk["support"] == "supported"
-    total = risk["cumulative_horizon"]
-    assert total["point_total"] == 30.0
-    assert total["median_total"] == 30.0
-    assert total["total_interval_80"] == {"lower": 30.0, "upper": 42.0}
-    assert total["basis"] == "aligned_fold_residual_trajectory_replay_v1"
-    assert total["dependence_preserved"] is True
-    assert total["automation_eligible"] is True
 
 
 def test_regime_change_demotes_probability_to_best_effort() -> None:
@@ -146,12 +139,6 @@ def test_starved_histories_climb_down_the_ladder_not_off_a_cliff() -> None:
     assert risk["bootstrap_path_count"] > 0
     assert risk["effective_origins"] == 4
     assert risk["dependence_preserved"] is False
-    total = risk["cumulative_horizon"]
-    assert total["status"] == "available"
-    assert total["path_count"] == 200
-    assert total["basis"] == "blocked_residual_bootstrap_v1"
-    assert total["dependence_preserved"] is False
-    assert total["automation_eligible"] is False
     codes = {reason["code"] for reason in risk["reasons"]}
     assert {"insufficient_joint_paths", "bootstrap_synthesized_paths",
             "selection_folds_reused"} <= codes
@@ -192,9 +179,6 @@ def test_best_effort_composition_does_not_communicate_endpoint_certainty(
     assert interval["lower"] <= expected <= interval["upper"]
     assert risk["support"] == "best_effort"
     assert risk["effective_origins"] == 9
-    assert risk["cumulative_horizon"]["basis"] == \
-        "blocked_residual_bootstrap_v1"
-    assert risk["cumulative_horizon"]["dependence_preserved"] is False
     assert "finite_sample_regularization_used" in {
         reason["code"] for reason in risk["reasons"]
     }
@@ -243,24 +227,6 @@ def test_no_residuals_at_all_still_withholds() -> None:
     )
     assert risk["support"] == "insufficient"
     assert risk["probability_any_breach"] is None
-    total = risk["cumulative_horizon"]
-    assert total["status"] == "unavailable"
-    assert total["total_interval_80"] == {"lower": None, "upper": None}
-    assert total["automation_eligible"] is False
-
-
-def test_cumulative_point_total_is_exact_sum_of_published_q50() -> None:
-    rows = [
-        {"point": 1.0, "q10": 0.0, "q50": 1.123456789, "q90": 2.0},
-        {"point": 2.0, "q10": 1.0, "q50": 2.987654321, "q90": 3.0},
-    ]
-    risk = estimate_horizon_breach(
-        rows, 20.0, _by_lead([[0.0, 0.0] for _ in range(8)]),
-        measured_interval_coverage=0.8,
-        calibration_is_verifiable=True,
-    )
-    assert risk["cumulative_horizon"]["point_total"] == sum(
-        row["q50"] for row in rows)
 
 
 def test_policy_separates_likelihood_from_action() -> None:

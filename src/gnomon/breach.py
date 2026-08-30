@@ -289,11 +289,6 @@ def estimate_horizon_breach(
          for step in range(horizon)]
         for path in residual_paths
     ]
-    # Keep the path generator's identity before the weak breach lane may
-    # switch to an independence composition of marginal probabilities.
-    # Totals always come from complete paths, never summed marginal bands.
-    cumulative_basis = basis
-    cumulative_totals = [sum(path) for path in forecast_paths]
     first_steps: list[int] = []
     maxima: list[float] = []
     for path in forecast_paths:
@@ -426,31 +421,6 @@ def estimate_horizon_breach(
         str(step): round(first_steps.count(step) / trials, 6)
         for step in sorted(set(first_steps))
     } if trials else {}
-    cumulative_available = bool(cumulative_totals)
-    cumulative_dependence_preserved = (
-        cumulative_available
-        and not synthesized
-        and cumulative_basis
-        == "aligned_fold_residual_trajectory_replay_v1"
-    )
-    cumulative_assumptions = (
-        [
-            "Each total is the sum of one complete aligned rolling-origin "
-            "forecast path.",
-            "Aligned residual trajectories are exchangeable with the "
-            "forecast horizon after the fixed regime gate.",
-        ] if cumulative_dependence_preserved else
-        [
-            "Each total is the sum of one complete blocked-bootstrap "
-            "forecast path.",
-            "Within-block residual dependence is preserved; dependence "
-            "across block boundaries is not.",
-        ] if cumulative_available else
-        [
-            "No complete empirical forecast paths are available; marginal "
-            "interval endpoints were not summed.",
-        ]
-    )
     return {
         "method": basis,
         "residual_source": residual_source,
@@ -486,34 +456,6 @@ def estimate_horizon_breach(
         "dependence_preserved": (
             not synthesized
             and basis != "independence_composed_marginals_v1"),
-        "cumulative_horizon": {
-            "status": "available" if cumulative_available else "unavailable",
-            # Unrounded: an identity over exact q50 values in the artifact.
-            "point_total": sum(centres),
-            "mean_total": (
-                round(statistics.mean(cumulative_totals), 6)
-                if cumulative_available else None),
-            "median_total": (
-                round(_median(cumulative_totals), 6)
-                if cumulative_available else None),
-            "total_interval_80": {
-                "lower": (
-                    round(float(_quantile(cumulative_totals, 0.1)), 6)
-                    if cumulative_available else None),
-                "upper": (
-                    round(float(_quantile(cumulative_totals, 0.9)), 6)
-                    if cumulative_available else None),
-            },
-            "path_count": len(forecast_paths),
-            "path_total_definition": "sum_of_all_horizon_values",
-            "basis": cumulative_basis,
-            "dependence_preserved": cumulative_dependence_preserved,
-            "support": support,
-            "automation_eligible": (
-                support == "supported"
-                and cumulative_dependence_preserved),
-            "assumptions": cumulative_assumptions,
-        },
         "residual_regime": stability,
         "measured_interval_coverage": measured_interval_coverage,
         "support": support,
