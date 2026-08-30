@@ -393,6 +393,7 @@ def answer_dossier_arm(case: Case, computed: dict[str, Any],
         {"role": "user", "content": (
             "Your selection was rejected by deterministic verification:\n"
             + json.dumps(verdict, separators=(",", ":"))
+            + "\nOptions: " + ", ".join(OPTIONS[case.property]) + "."
             + '\nFollow repair.instruction. Return {"value": "<option>", '
             '"cited_evidence": ["<kind>", ...]}.')},
     ])

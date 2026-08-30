@@ -141,9 +141,8 @@ _INPUT_PROPERTIES: dict[str, Any] = {
     **_OBSERVATIONS_PROPERTY,
     **_DATA_REF_PROPERTY,
     "time_column": {"type": "string", "description": (
-        "Timestamp column. Omit to infer when exactly one column "
-        "qualifies (disclosed as an assumption); ambiguity fails loudly. "
-        "Required for store:<dataset> inputs."
+        "Timestamp column. Omit for unambiguous inference; required for "
+        "store:<dataset>."
     )},
     "target_column": {"type": "string", "description": (
         "Numeric column to operate on. Omit to infer when exactly one "
@@ -162,9 +161,8 @@ _INPUT_PROPERTIES: dict[str, Any] = {
     "regrid": {
         "type": "string", "enum": ["business_daily", "month_start"],
         "description": (
-            "Calendar declaration before validation: business_daily fills "
-            "non-business days (implies D); month_start restamps months "
-            "(implies MS). Every change is disclosed."
+            "Calendar: business_daily fills non-business days (D); "
+            "month_start restamps months (MS). Changes are disclosed."
         ),
     },
 }
@@ -177,9 +175,8 @@ _REPLAY_PROPERTIES: dict[str, Any] = {
     "as_of": {
         "type": "string",
         "description": (
-            "Replay instant (ISO-8601): only data known at or before "
-            "this is visible. Meaningful for `store:<dataset>` inputs; a "
-            "plain file carries one vintage."
+            "ISO-8601 replay instant; only earlier-known data is visible. "
+            "Useful for store:<dataset>; files carry one vintage."
         ),
     },
     "store_path": {
@@ -3645,10 +3642,8 @@ TOOLS: list[dict[str, Any]] = [
                     "retains a history-only counterfactual."
                 )},
                 "structural_events": {"type": "boolean", "description": (
-                    "Recognize closed-menu structural events (experimental); "
-                    "validated typed structural context is recognized "
-                    "automatically. Quantities remain engine-derived and an "
-                    "unvalidated effect stays a non-automatable scenario."
+                    "Recognize typed closed-menu structural events. Quantities "
+                    "stay engine-derived; unvalidated effects remain scenarios."
                 )},
             },
             "required": [],

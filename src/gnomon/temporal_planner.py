@@ -324,12 +324,17 @@ def compact_evidence_plan(plan: dict[str, Any]) -> dict[str, Any]:
         } if alternative else None),
         "synthesis_eligible": bool(eligibility.get("eligible")),
         "what_would_flip": list(adjudication.get("what_would_flip") or [])[:1],
-        "ranked_hypotheses": [{
-            "value": row.get("value"),
-            "support": row.get("support"),
-            "evidence_weight": row.get("evidence_weight"),
-            "conditional_only": bool(row.get("conditional_only")),
-        } for row in ranked],
-        "weight_meaning": "receipt evidence weight, not probability",
+        # The packet already projects these interpretations with their usable
+        # evidence. Preserve the legacy ranking only when no packet exists,
+        # avoiding two copies on every agent turn.
+        **({
+            "ranked_hypotheses": [{
+                "value": row.get("value"),
+                "support": row.get("support"),
+                "evidence_weight": row.get("evidence_weight"),
+                "conditional_only": bool(row.get("conditional_only")),
+            } for row in ranked],
+            "weight_meaning": "receipt evidence weight, not probability",
+        } if not packet else {}),
     }
     return projected
