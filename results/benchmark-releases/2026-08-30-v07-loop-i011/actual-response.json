@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "iteration": "I011",
+  "inspection": "manual structured inspection of final_submission payloads",
+  "diagnostic_sensor_spike": {
+    "replications": 2,
+    "recommended_scenario_id": "primary",
+    "selected_role": "immutable_primary",
+    "primary_support": "supported",
+    "selection_method": "immutable_primary_default",
+    "selector_attempted": false,
+    "sampled_prior_preserved": true,
+    "sampled_prior_human_selection_eligible": false,
+    "typed_reason_code": "sampled_prior_has_no_historical_skill",
+    "typed_candidate_preserved": true,
+    "primary_forecast_unchanged": true,
+    "automation_eligible": false
+  },
+  "untouched_confirmation_examples": {
+    "sensor_spike": {
+      "stable_replications": 2,
+      "selected_role": "immutable_primary",
+      "selection_method": "immutable_primary_default"
+    },
+    "dated_electricity_effect": {
+      "stable_replications": 2,
+      "selected_role": "effect_composed",
+      "selection_method": "default_conditional_scenario_lane"
+    },
+    "county_unemployment_analogue": {
+      "stable_replications": 2,
+      "selected_role": "model_authored",
+      "selection_method": "governed_scenario_selection",
+      "selector_attempted": true,
+      "selector_accepted": true
+    }
+  },
+  "conclusion": "The engine recommendation-authority contract and the final agent-facing submission agree. Withheld paths remain visible; useful conditional and governed paths are not globally suppressed."
+}

@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "iteration": "I011",
+  "issue": "Q4",
+  "decision": "promote_supported_primary_replay_and_sampled_prior_authority_safeguards",
+  "evaluated_commit": "042d2d1",
+  "protocols": [
+    "docs/v0.7-q4-context-selection-stability-protocol.md",
+    "docs/v0.7-q4-supported-primary-subfix-protocol.md",
+    "docs/v0.7-q4-sampled-prior-authority-subfix-protocol.md"
+  ],
+  "production_changes": [
+    "Expose chronological replay block count and require uniform block wins before an admitted observation counterfactual displaces a supported primary.",
+    "Preserve but withhold a host-sampled model prior with no historical skill evidence from recommendation selection when the immutable primary is supported or context-trusted.",
+    "Make best-effort fallback and selector eligibility respect the same top-level human recommendation boundary."
+  ],
+  "decision_basis": {
+    "untouched_confirmation_seed": 7043,
+    "replications": 2,
+    "cases_per_replication": 6,
+    "completion_rate": 1.0,
+    "same_input_selection_stability": 1.0,
+    "wins_per_replication": 5,
+    "losses_per_replication": 0,
+    "ties_per_replication": 1,
+    "minimum_mean_gain": 0.1886132989266735,
+    "minimum_median_gain": 0.1423932599647858,
+    "minimum_paired_bootstrap_90_lower": 0.07176022325671912,
+    "maximum_task_regression": 0.0,
+    "primary_immutability_failures": 0,
+    "automation_eligible_recommendations": 0,
+    "focused_tests": "282 passed, 4 skipped",
+    "full_isolated_tests": "2648 passed, 11 skipped"
+  },
+  "residual_risks": [
+    "The proper-score confirmation is a small six-task shard and does not estimate universal CiK performance.",
+    "Some useful sampled priors remain outcome-scoring-only when a primary is fully supported; later same-series outcome graduation can supply stronger authority.",
+    "Prior-assisted and hypothetical recommendations remain human-review-only and cannot authorize automation."
+  ],
+  "next_issue": "Q5"
+}
