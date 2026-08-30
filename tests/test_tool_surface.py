@@ -1824,6 +1824,23 @@ def test_agent_response_contract_groups_limitations_and_names_tier_floor():
     assert payload["recovery_actions"][0]["code"] == "provide_more_history"
 
 
+def test_decide_runner_returns_typed_repair_for_malformed_actions(tmp_path):
+    import pytest
+
+    from gnomon.contracts import GnomonError
+    from gnomon.toolspec import runner_for
+
+    with pytest.raises(GnomonError) as caught:
+        runner_for("gnomon_decide")({
+            "input": "examples/daily_requests.csv", "horizon": 3,
+            "threshold": 100, "actions": ["wait", "act"],
+            "output_dir": str(tmp_path),
+        })
+    assert caught.value.code == "INVALID_ACTIONS"
+    assert caught.value.to_dict()["error"]["repair_options"][0]["action"] == \
+        "fix_actions"
+
+
 def test_response_contract_fields_cannot_be_trimmed():
     from gnomon.toolspec import enforce_response_budget
 

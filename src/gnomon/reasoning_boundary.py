@@ -7,10 +7,21 @@ to a field already present in the response or immutable receipt.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 
 BOUNDARY_VERSION = "0.1"
+RECOVERY_AUTHORITY_LIMIT = (
+    "No evidence/support/accuracy/automation upgrade."
+)
+
+_RECOVERY_SUMMARIES = {
+    "lower_minimum_support": "Use the achieved tier.",
+    "reduce_horizon": "Use the supportable horizon.",
+    "retry_best_effort": "Publish best-effort orientation rows.",
+    "provide_more_history": "Supply more observations.",
+}
 
 
 class BoundaryContractError(ValueError):
@@ -74,6 +85,104 @@ def verify_fact_sources(payload: dict[str, Any]) -> list[dict[str, str]]:
             violations.append({"code": "FACT_SOURCE_MISSING", "fact": name,
                                "source": pointer})
     return violations
+
+
+def _action_fields(action: dict[str, Any]) -> tuple[str, str]:
+    return (
+        str(action.get("code") or action.get("action") or "recovery"),
+        str(action.get("message") or action.get("description") or
+            "Review the active blocker and retry with corrected input."),
+    )
+
+
+def _support_patch(code: str, description: str) -> tuple[dict[str, Any], str] | None:
+    """Return only patches fully determined by an existing support action."""
+    if code == "lower_minimum_support":
+        match = re.search(r"minimum_support ['\"]([^'\"]+)['\"]", description)
+        if match:
+            tier = match.group(1)
+            return ({"minimum_support": tier},
+                    f"Publish unchanged result at earned tier {tier!r}.")
+    if code == "reduce_horizon":
+        match = re.search(r"(?:horizon|Request horizon) (\d+)", description)
+        if match:
+            horizon = int(match.group(1))
+            return ({"horizon": horizon, "minimum_support": "best_effort"},
+                    f"Re-run horizon {horizon}; publish only its earned tier.")
+    if code == "retry_best_effort":
+        return ({"minimum_support": "best_effort"},
+                "Publish best-effort rows without measured accuracy.")
+    return None
+
+
+def build_recovery_plan(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Project authored repairs into ranked, honest execution contracts.
+
+    Existing recovery fields remain canonical. This projection may expose an
+    exact patch already entailed by them, but never guesses a missing path,
+    frequency, schema choice, policy value, or external fact.
+    """
+    error = payload.get("error")
+    if isinstance(error, dict):
+        actions = _items(error.get("repair_options"), "error.repair_options")
+        source_root = "/error/repair_options"
+    else:
+        actions = _items(
+            payload.get("recovery_actions") or payload.get("next_actions"),
+            "recovery_actions",
+        )
+        source_root = ("/recovery_actions" if payload.get("recovery_actions")
+                       is not None else "/next_actions")
+
+    plan: list[dict[str, Any]] = []
+    for index, raw in enumerate(actions):
+        if not isinstance(raw, dict):
+            raise BoundaryContractError(
+                f"{source_root.strip('/')}[{index}] must be an object, got "
+                f"{type(raw).__name__}")
+        code, description = _action_fields(raw)
+        tool: str | None = None
+        patch: dict[str, Any] | None = None
+        expected_effect = "Retry after the required input or choice is supplied."
+
+        tool_call = raw.get("tool_call")
+        if isinstance(tool_call, dict) and isinstance(tool_call.get("name"), str) \
+                and isinstance(tool_call.get("arguments"), dict):
+            tool = tool_call["name"]
+            patch = dict(tool_call["arguments"])
+            expected_effect = "Run the authored retry; it must earn its own tier."
+        elif isinstance(raw.get("tool"), str) and isinstance(
+                raw.get("arguments"), dict):
+            # Compatibility with the original synthetic BoundaryBench shape.
+            tool = raw["tool"]
+            patch = dict(raw["arguments"])
+            expected_effect = "Run the authored retry; it must earn its own tier."
+        elif source_root == "/recovery_actions":
+            support = _support_patch(code, description)
+            if support is not None:
+                tool, (patch, expected_effect) = "gnomon_forecast", support
+
+        execution: dict[str, Any] = {
+            "mode": "tool" if tool is not None and patch is not None
+                    else "user_input",
+            "requires_user_input": not (tool is not None and patch is not None),
+        }
+        if tool is not None and patch is not None:
+            execution.update({"tool": tool, "argument_patch": patch})
+        plan.append({
+            "rank": index + 1,
+            "recommended": index == 0,
+            "code": code,
+            # The source pointer retains the complete authored prose. Keep
+            # this routing projection compact enough for brief responses.
+            "description": _RECOVERY_SUMMARIES.get(code, description),
+            "source": f"{source_root}/{index}",
+            "execution": execution,
+            "expected_effect": expected_effect,
+            "external_fact_required": execution["requires_user_input"],
+            "authority_limit": RECOVERY_AUTHORITY_LIMIT,
+        })
+    return plan
 
 
 def actionable_rejection(payload: dict[str, Any]) -> dict[str, Any]:
@@ -153,20 +262,21 @@ def build_argument_envelope(payload: dict[str, Any]) -> dict[str, Any]:
     assessment = payload.get("support_assessment") or {}
     assessment = assessment if isinstance(assessment, dict) else {}
     assessment_state = assessment.get("status")
+    tier_floor = payload.get("tier_floor")
     unusable = {"invalid", "unsupported", "inconclusive", "abstained"}
     has_answer = canonical is not None
     supported = bool(
         request_kind and has_answer and support_state not in unusable
-        and assessment_state not in unusable
+        and assessment_state not in unusable and tier_floor not in unusable
     )
     sufficient_for = ([f"{request_kind}:canonical_answer", "explain_support"]
                       if supported else [])
     further = list(sufficient_for)
     resolution = (
-        {"kind": "recovery", "action": flips[0]}
-        if flips else
         {"kind": "complete", "reason": "The requested canonical answer is sufficient."}
         if supported else
+        {"kind": "recovery", "action": flips[0]}
+        if flips else
         {"kind": "terminal", "reason": (
             "No admissible automated follow-up is available for this response; "
             "review its typed limitations or change the requested operation."
@@ -193,10 +303,17 @@ def build_argument_envelope(payload: dict[str, Any]) -> dict[str, Any]:
 def apply_reasoning_boundary(payload: dict[str, Any]) -> dict[str, Any]:
     result = dict(payload)
     try:
+        recovery_plan = build_recovery_plan(result)
+        if recovery_plan:
+            result["recovery_plan"] = recovery_plan
         if result.get("status") == "error" or "error" in result:
             result["rejection"] = actionable_rejection(result)
+            if recovery_plan:
+                result["rejection"]["recovery_plan_ref"] = "/recovery_plan/0"
             return result
         result["reasoning"] = build_argument_envelope(result)
+        if recovery_plan:
+            result["reasoning"]["recovery_plan_ref"] = "/recovery_plan/0"
     except BoundaryContractError as exc:
         result["status"] = "error"
         result["error"] = {

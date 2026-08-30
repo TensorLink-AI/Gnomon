@@ -192,6 +192,14 @@ warning remains attached to every series in the integrity-sealed artifact. These
 fields, the headline, support, assumptions, staleness, and artifact references
 are protected from trimming.
 
+When recovery is possible, `recovery_plan` ranks the same authored actions and
+points each item back to its canonical source. Deterministic forecast repairs
+include `execution.tool` plus an additive `argument_patch`; merge that patch
+into the original call. Repairs that need a path, frequency, schema choice, new
+data, or human policy instead set `requires_user_input: true` and do not guess
+arguments. Every item states that recovery cannot upgrade evidence, accuracy,
+support, or automation authority.
+
 Scenario and best-effort forecasts likewise return a compact `publication`
 decision projection by default. Use its `selection_contract` to reason and its
 `publication_path` with `gnomon_select_scenario`; the complete signed receipt

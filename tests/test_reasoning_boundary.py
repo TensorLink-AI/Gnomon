@@ -91,6 +91,82 @@ def test_abstention_with_recovery_ends_in_parameterized_action():
     assert result["reasoning"]["resolution"] == {
         "kind": "recovery", "action": action,
     }
+    assert result["reasoning"]["recovery_plan_ref"] == "/recovery_plan/0"
+    assert result["recovery_plan"][0]["execution"] == {
+        "mode": "tool", "requires_user_input": False,
+        "tool": "gnomon_forecast", "argument_patch": {"horizon": 3},
+    }
+
+
+def test_support_recovery_plan_is_exact_but_does_not_upgrade_authority():
+    result = apply_response_contract({
+        "headline": "No forecast published.",
+        "task": {"task_type": "forecast"},
+        "support": "unsupported",
+        "recovery_actions": [{
+            "code": "reduce_horizon",
+            "message": "Retry with horizon 4 or less: already supportable.",
+        }, {
+            "code": "provide_more_history",
+            "message": "Supply more observations.",
+        }],
+    })
+    exact, external = result["recovery_plan"]
+    assert exact["execution"] == {
+        "mode": "tool", "requires_user_input": False,
+        "tool": "gnomon_forecast",
+        "argument_patch": {"horizon": 4, "minimum_support": "best_effort"},
+    }
+    assert "evidence" in exact["authority_limit"]
+    assert external["execution"] == {
+        "mode": "user_input", "requires_user_input": True,
+    }
+    assert external["source"] == "/recovery_actions/1"
+
+
+def test_optional_improvement_does_not_override_complete_resolution():
+    result = apply_response_contract({
+        "headline": "Forecast published.", "verb": "forecast",
+        "tier_floor": "conditionally_supported",
+        "recovery_actions": [{
+            "code": "provide_more_history", "message": "Improve evaluation.",
+        }],
+    })
+    assert result["reasoning"]["sufficiency"]["requires_follow_up"] is False
+    assert result["reasoning"]["resolution"]["kind"] == "complete"
+    assert result["reasoning"]["recovery_plan_ref"] == "/recovery_plan/0"
+    assert result["recovery_plan"][0]["execution"]["requires_user_input"] is True
+
+
+def test_inconclusive_tier_floor_keeps_recovery_resolution():
+    result = apply_response_contract({
+        "headline": "No forecast published.", "verb": "forecast",
+        "tier_floor": "inconclusive",
+        "recovery_actions": [{
+            "code": "reduce_horizon", "message": "Retry with horizon 4.",
+        }],
+    })
+    assert result["reasoning"]["sufficiency"]["requires_follow_up"] is True
+    assert result["reasoning"]["resolution"]["kind"] == "recovery"
+    assert result["reasoning"]["recovery_plan_ref"] == "/recovery_plan/0"
+
+
+def test_error_repair_plan_never_guesses_missing_frequency():
+    result = apply_response_contract({
+        "status": "error", "error": {
+            "code": "AMBIGUOUS_FREQUENCY", "message": "Choose a grid.",
+            "details": {"supported": ["D", "W"]},
+            "repair_options": [{
+                "action": "set_frequency",
+                "description": "Pass frequency explicitly.",
+            }],
+        },
+    })
+    [repair] = result["recovery_plan"]
+    assert repair["execution"] == {
+        "mode": "user_input", "requires_user_input": True,
+    }
+    assert result["rejection"]["recovery_plan_ref"] == "/recovery_plan/0"
 
 
 def test_triage_fact_uses_public_triage_pointer():

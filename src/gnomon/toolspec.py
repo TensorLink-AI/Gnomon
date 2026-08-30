@@ -220,7 +220,10 @@ def _bounded_forecast_preview(rows: list[Any]) -> tuple[list[Any], int]:
 #: model-assisted lane summary and its disclosure to sub-supported
 #: responses; a horizon-split response with the lane must still carry
 #: every labelled row inline.
-RESPONSE_BUDGET_BYTES = 9216
+# Retuned 9216 -> 9728 for the source-addressed recovery plan. The added
+# half-kilobyte replaces agent-side prose parsing with one exact, bounded patch;
+# canonical support and artifact payloads remain unchanged.
+RESPONSE_BUDGET_BYTES = 9728
 DESCRIBE_RESPONSE_BUDGET_BYTES = 2400
 CAPABILITIES_RESPONSE_BUDGET_BYTES = 6000
 
@@ -3719,13 +3722,44 @@ def _run_detect_anomalies(arguments: dict[str, Any]) -> dict[str, Any]:
 
 def _run_decide(arguments: dict[str, Any]) -> dict[str, Any]:
     from .macros import decide
+    actions = arguments.get("actions")
+    problems: list[str] = []
+    if not isinstance(actions, list):
+        problems.append(f"actions is {type(actions).__name__}, not a list")
+    else:
+        for index, action in enumerate(actions):
+            if not isinstance(action, dict):
+                problems.append(
+                    f"item {index} is {type(action).__name__}, not an object "
+                    "with a 'name'")
+            elif not isinstance(action.get("name"), str) or not action["name"].strip():
+                problems.append(f"item {index} has no non-empty 'name'")
+            elif "feasible" in action and not isinstance(action["feasible"], bool):
+                problems.append(f"item {index}: 'feasible' must be true or false")
+            elif "residual_risk" in action:
+                try:
+                    float(action["residual_risk"])
+                except (TypeError, ValueError):
+                    problems.append(
+                        f"item {index}: 'residual_risk' must be a number")
+    if problems:
+        raise GnomonError(
+            "INVALID_ACTIONS",
+            "actions does not match the expected shape: "
+            + "; ".join(problems) + ".",
+            {"example": [
+                {"name": "scale_up", "feasible": True,
+                 "residual_risk": 0.1},
+                {"name": "do_nothing"},
+            ], "problems": problems},
+        )
     payload, path = decide(
         arguments["input"],
         time_column=arguments["time_column"],
         target_column=arguments["target_column"],
         horizon=int(arguments["horizon"]),
         threshold=float(arguments["threshold"]),
-        actions=list(arguments["actions"]),
+        actions=list(actions),
         utilities=arguments.get("utilities"),
         max_acceptable_risk=(
             float(arguments["max_acceptable_risk"])
