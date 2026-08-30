@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "loop": "v0.8-agent-forecasting",
+  "status": "active",
+  "base_commit": "9e04fcd17888b8cfcb3734c16c6eff8bf114550e",
+  "branch": "agent/v0.8-agent-forecasting-loop",
+  "protocol": "docs/v0.8-agent-forecasting-loop.md",
+  "historical_external_evaluation_intake": "docs/v0.7-external-evaluation-intake.md",
+  "preservation": {
+    "preserve_preexisting_committed_work": true,
+    "preserve_preexisting_benchmark_artifacts": true,
+    "preserve_all_preexisting_untracked_files": true,
+    "excluded_from_commits": ["docs/astrid-btc-agent-plan.md"]
+  },
+  "active_iteration": {
+    "id": "I001",
+    "issue": "E1_economical_resilient_orchestration",
+    "phase": "diagnosis_and_protocol",
+    "next_action": "Reproduce the retained v0.7 Q5 cold and warm topology, inventory semantically reusable requests, and freeze distinct development and confirmation shards before changing production code.",
+    "last_completed_action": "Created the v0.8 branch and froze the loop-level user outcomes, invariants, issue order, promotion gates, crash-safety policy, and final evaluation pyramid."
+  },
+  "issues": [
+    {"id": "E1", "status": "active"},
+    {"id": "F1", "status": "pending"},
+    {"id": "C1", "status": "pending"},
+    {"id": "D1", "status": "pending"},
+    {"id": "A1", "status": "pending"},
+    {"id": "V1", "status": "pending"}
+  ]
+}
