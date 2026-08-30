@@ -59,6 +59,14 @@ class TestDetectors:
         assert len(scores) == len(values)
         assert all(score == 0.0 for score in scores[:8])
 
+    def test_forecast_interval_does_not_turn_spike_rebound_into_second_event(self):
+        rng_values = [100 + .2 * ((index * 37) % 11 - 5)
+                      for index in range(120)]
+        rng_values[72] += 18
+        scores = forecast_interval_scores(rng_values, 1)
+        assert abs(scores[72]) >= DEFAULT_THRESHOLD
+        assert abs(scores[73]) < DEFAULT_THRESHOLD
+
     def test_detectors_are_deterministic(self):
         values = _seasonal_series()
         for score_function in DETECTORS.values():
