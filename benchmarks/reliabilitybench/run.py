@@ -161,15 +161,18 @@ def _concurrent(call: Callable[[], Path], artifacts: Any,
         except Exception as exc:
             errors.append(f"integrity: {type(exc).__name__}: {exc}")
     identity = _tree_identity(final) if verified else {}
+    expected_final = str(final.resolve())
+    one_final_path = (len(set(returned)) == 1
+                      and returned == [expected_final] * 2)
     return {
         "callers": 2, "successful_callers": len(returned),
         "returned_paths": returned, "errors": errors,
-        "one_final_path": len(set(returned)) == 1 and returned == [str(final)] * 2,
+        "one_final_path": one_final_path,
         "integrity_verified": verified,
         "matches_single_writer_control": verified and identity == _tree_identity(control),
         "tree_identity": identity,
         "passed": (len(returned) == 2 and not errors and verified
-                   and len(set(returned)) == 1
+                   and one_final_path
                    and identity == _tree_identity(control)),
     }
 
