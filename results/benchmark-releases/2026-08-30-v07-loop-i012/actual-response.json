@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "iteration": "I012",
+  "lanes_inspected": ["cold", "warm"],
+  "cases_inspected": 8,
+  "findings": {
+    "validated_source_reference_preserved_after_bounded_repair": "8/8",
+    "rejection_gate_codes_preserved": "all_applicable",
+    "conditional_consequences_preserved": "all_applicable",
+    "immutable_primary_relationship_exposed": "8/8",
+    "context_automation_false_preserved": "8/8",
+    "typed_no_distinct_numeric_path_meaning_preserved": "all_applicable",
+    "future_leakage": 0
+  },
+  "interpretation": "Engine publication completeness and final-agent preservation were inspected separately. The engine contracts were complete; bounded repair was needed only when final prose omitted an exact already-validated source reference."
+}
