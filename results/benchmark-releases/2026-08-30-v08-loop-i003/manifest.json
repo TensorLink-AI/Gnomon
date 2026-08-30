@@ -2,6 +2,11 @@
   "schema_version": 1,
   "release": "2026-08-30-v08-loop-i003",
   "kind": "resumable_loop_checkpoint",
+  "files": [
+    {"path": "README.md", "bytes": 404, "sha256": "272c9cacd33d030dffe7804045f81463191dcb55bdff4f61b6e27dfc4ab4f279"},
+    {"path": "checkpoint.json", "bytes": 837, "sha256": "7812c5afb2f2a723d4c8efbaf3e86406550985b627e254ca8317d751ebe4d39f"},
+    {"path": "decision.json", "bytes": 2022, "sha256": "c0978d738dd64b31985aad582be660d444e327f4071a485f616f9895893cf202"}
+  ],
   "protocols": [
     "docs/v0.8-agent-forecasting-loop.md",
     "docs/v0.8-f1-statsforecast-protocol.md",

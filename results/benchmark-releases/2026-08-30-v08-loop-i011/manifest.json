@@ -3,6 +3,12 @@
   "release": "2026-08-30-v08-loop-i011",
   "kind": "resumable_loop_decision_checkpoint",
   "production_candidate": "b512365",
+  "files": [
+    {"path": "README.md", "bytes": 579, "sha256": "2fdd7424b824f3a07040904e1d62b4e060a20e31841e435a71d4e6d8c71316c8"},
+    {"path": "checkpoint.json", "bytes": 1451, "sha256": "9436ac9e1a22b6f24d340c50e34c5880cdc93e830ede7c851c70506317c9299e"},
+    {"path": "decision.json", "bytes": 1455, "sha256": "95c2c7a77a942be018268b2bd8161e5d4b65f7bc0d2c1fa192690b83ab1524aa"},
+    {"path": "validation.json", "bytes": 3251, "sha256": "3ca5518e9bb7114e8f70728a2f3c8b9ae5289e11c5997042dfdeac54a4ae2074"}
+  ],
   "protocols": [
     "docs/v0.8-agent-forecasting-loop.md",
     "docs/v0.8-v1-final-evaluation-protocol.md"

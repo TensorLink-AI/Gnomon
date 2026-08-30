@@ -2,6 +2,10 @@
   "schema_version": 1,
   "release": "2026-08-30-v08-loop-i008",
   "kind": "resumable_loop_checkpoint",
+  "files": [
+    {"path": "README.md", "bytes": 217, "sha256": "7f365309e1386a9eb5f56cd6b166b37f19ab81d2cfd13355846b49af5424372b"},
+    {"path": "checkpoint.json", "bytes": 792, "sha256": "f394b3fdd66a91fde790251c133b920db0aa557b8be02a7d7078e5afe2af97ac"}
+  ],
   "protocols": [
     "docs/v0.8-agent-forecasting-loop.md",
     "docs/v0.8-a1-calibration-action-protocol.md"
