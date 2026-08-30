@@ -894,8 +894,7 @@ def _resolve_schema_arguments(
                 + f" Pass {parameter} explicitly; every other parameter is "
                   f"inferred from the file.",
                 {"parameter": parameter, "candidates": candidates,
-                 "columns_examined": list(inferred["time_candidates"])
-                 + list(inferred["target_candidates"])},
+                 "columns_examined": list(inferred["columns"])},
                 repair_options=repairs,
             )
         resolved[parameter] = chosen

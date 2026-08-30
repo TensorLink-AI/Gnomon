@@ -88,6 +88,17 @@ def test_ambiguous_target_names_candidates_in_tool_vocabulary(tmp_path) -> None:
     assert "forecast_all_candidates" in actions
 
 
+def test_no_qualifying_target_still_names_every_examined_column() -> None:
+    source = REPO / "examples" / "filthy_requests.csv"
+    with pytest.raises(GnomonError) as caught:
+        runner_for("gnomon_inspect")({"input": str(source)})
+    error = caught.value
+    assert error.code == "AMBIGUOUS_SCHEMA"
+    assert error.details["columns_examined"] == [
+        "timestamp", "requests", "notes",
+    ]
+
+
 def test_store_inputs_still_require_explicit_columns() -> None:
     with pytest.raises(GnomonError) as caught:
         runner_for("gnomon_inspect")({"input": "store:whatever"})

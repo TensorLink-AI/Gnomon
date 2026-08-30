@@ -399,8 +399,8 @@ def infer_schema_columns(path_raw: str) -> dict[str, object]:
     parse as numbers. Anything else returns candidates and no choice, so
     the caller can say what it could not decide rather than guessing.
 
-    Returns ``{"time": str|None, "target": str|None, "time_candidates":
-    [...], "target_candidates": [...]}``.
+    Returns ``{"time": str|None, "target": str|None, "columns": [...],
+    "time_candidates": [...], "target_candidates": [...]}``.
     """
     from .repair import RepairLog
 
@@ -437,6 +437,7 @@ def infer_schema_columns(path_raw: str) -> dict[str, object]:
     return {
         "time": time_candidates[0] if len(time_candidates) == 1 else None,
         "target": numeric_candidates[0] if len(numeric_candidates) == 1 else None,
+        "columns": list(columns),
         "time_candidates": time_candidates,
         "target_candidates": numeric_candidates,
     }
@@ -590,4 +591,3 @@ def timezone_name(values: list[datetime]) -> str | None:
     if offset == timezone.utc.utcoffset(None):
         return "UTC"
     return str(values[0].tzinfo)
-
