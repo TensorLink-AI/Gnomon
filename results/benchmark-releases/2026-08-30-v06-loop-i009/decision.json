@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "iteration": "I009",
+  "priority": "P9",
+  "decision": "complete_promoted",
+  "evaluated_commit": "e66c7a9",
+  "protocol": "docs/v0.6-p9-recovery-protocol.md",
+  "user_outcome": "Agents receive exact safe retries when Gnomon can determine them, stop after a usable answer, and ask humans for genuinely missing choices instead of guessing or looping.",
+  "validation": {
+    "full_local_suite": {"passed": 2574, "skipped": 11, "failed": 0},
+    "focused_suite": {"passed": 82, "failed": 0},
+    "recovery_benchmark": {"expected": 6, "completed": 6, "all_gates_pass": true},
+    "result": "results/benchmark-releases/2026-08-30-v06-loop-i009/recovery-boundary.json"
+  },
+  "retained_behavior": [
+    "all canonical recovery_actions and repair_options",
+    "support tiers, forecast numbers, artifacts, and automation authority",
+    "ranked product-authored recovery order",
+    "brief response budget with a bounded 512-byte allowance for typed recovery"
+  ],
+  "not_built": [
+    "guessed paths, frequencies, schemas, or policy choices",
+    "automatic evidence or automation upgrades",
+    "model- or benchmark-label-specific instructions"
+  ],
+  "remaining_risks": [
+    "RecoveryBench covers six representative blockers rather than every repair code.",
+    "An exact input patch guarantees only another governed run, not a supported forecast or accuracy gain.",
+    "Call merging is a host responsibility; the plan deliberately supplies an additive patch rather than echoing the original call."
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "baseline_commit": "bbeef03",
+  "candidate_commit": "e66c7a9",
+  "protocol": "docs/v0.6-p9-recovery-protocol.md",
+  "configuration": {
+    "cases": 6,
+    "automatic_cases": 3,
+    "external_choice_cases": 3,
+    "jobs": 1,
+    "case_timeout_seconds": 30,
+    "retries": 1,
+    "atomic_case_files": true
+  },
+  "baseline": {
+    "completed": 6,
+    "exact_patch_available": 0,
+    "successful_one_call_recoveries": 0,
+    "unhandled_exceptions": 1,
+    "malformed_action_behavior": "AttributeError"
+  },
+  "candidate": {
+    "completed": 6,
+    "exact_patch_available": 3,
+    "successful_one_call_recoveries": 3,
+    "unhandled_exceptions": 0,
+    "external_choice_patches_withheld": 3,
+    "all_gates_pass": true
+  },
+  "automatic_results": [
+    {
+      "case": "floor-h1",
+      "patch": {"minimum_support": "conditionally_supported"},
+      "forecast_rows": 1,
+      "published_tiers": ["conditionally_supported"]
+    },
+    {
+      "case": "floor-h7",
+      "patch": {"horizon": 4, "minimum_support": "best_effort"},
+      "forecast_rows": 4,
+      "published_tiers": ["conditionally_supported"]
+    },
+    {
+      "case": "default-h7",
+      "patch": {"horizon": 4, "minimum_support": "best_effort"},
+      "forecast_rows": 4,
+      "published_tiers": ["conditionally_supported"]
+    }
+  ],
+  "external_choice_results": [
+    {"case": "missing-file", "error": "INPUT_NOT_FOUND", "executable_patches": 0, "requires_user_input": true},
+    {"case": "ambiguous-frequency", "error": "AMBIGUOUS_FREQUENCY", "executable_patches": 0, "requires_user_input": true},
+    {"case": "malformed-actions", "error": "INVALID_ACTIONS", "executable_patches": 0, "requires_user_input": true}
+  ],
+  "boundary_corrections": [
+    "malformed direct-runner decision actions return the authored INVALID_ACTIONS repair instead of leaking AttributeError",
+    "tier_floor=inconclusive requires follow-up even when a refusal has a headline",
+    "a usable forecast with optional evidence-improvement actions resolves complete instead of requesting a redundant call"
+  ],
+  "raw_evidence": [
+    "results/v06-p9-i009-recovery-baseline-v2/",
+    "results/v06-p9-i009-recovery-candidate-v4/"
+  ],
+  "decision_ready": true
+}

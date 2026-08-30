@@ -1,0 +1,41 @@
+{
+  "schema_version": "0.1",
+  "scorecard_id": "v0.6-i009-executable-recovery",
+  "scorecard_commit": "e66c7a9",
+  "dirty_tree": false,
+  "scope": "smoke",
+  "layers": {
+    "output": {
+      "status": "pass",
+      "dataset_identity": "Six frozen real-runner recovery fixtures",
+      "configuration_identity": "local statistical candidates; public runners; baseline versus typed-plan candidate",
+      "accounting": {"expected": 6, "completed": 6, "failed": 0},
+      "metrics": [
+        {"name": "one_call_automatic_recovery", "value": 1.0, "unit": "fraction", "denominator": 3, "gate": {"operator": "eq", "threshold": 1.0, "passed": true}},
+        {"name": "external_choice_patch_withholding", "value": 1.0, "unit": "fraction", "denominator": 3, "gate": {"operator": "eq", "threshold": 1.0, "passed": true}}
+      ]
+    },
+    "reasoning": {
+      "status": "pass",
+      "dataset_identity": "Source-addressed recovery and repair actions plus executed candidate calls",
+      "configuration_identity": "Exact patches only when deterministically entailed; no prose parsing",
+      "accounting": {"expected": 6, "completed": 6, "failed": 0},
+      "metrics": [
+        {"name": "action_coverage_ranking_traceability", "value": 1.0, "unit": "fraction", "denominator": 6, "gate": {"operator": "eq", "threshold": 1.0, "passed": true}},
+        {"name": "honest_earned_tier_after_recovery", "value": 1.0, "unit": "fraction", "denominator": 3, "gate": {"operator": "eq", "threshold": 1.0, "passed": true}},
+        {"name": "unhandled_tool_exceptions", "value": 0, "unit": "cases", "denominator": 6, "gate": {"operator": "eq", "threshold": 0, "passed": true}}
+      ]
+    },
+    "topology": {
+      "status": "pass",
+      "dataset_identity": "One serial local RecoveryBench shard",
+      "configuration_identity": "jobs=1; 30s per-case timeout; one retry; atomic resume",
+      "accounting": {"expected": 6, "completed": 6, "failed": 0},
+      "metrics": [
+        {"name": "completion_rate", "value": 1.0, "unit": "fraction", "denominator": 6, "gate": {"operator": "eq", "threshold": 1.0, "passed": true}},
+        {"name": "maximum_jobs", "value": 1, "unit": "workers", "denominator": 6, "gate": {"operator": "eq", "threshold": 1, "passed": true}}
+      ]
+    }
+  },
+  "decision": {"status": "complete_promoted", "reason": "Every frozen recovery, authority, traceability, completion, and topology gate passed."}
+}
