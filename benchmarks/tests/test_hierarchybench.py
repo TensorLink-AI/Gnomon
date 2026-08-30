@@ -18,7 +18,10 @@ def test_periodic_shares_stay_positive_and_sum_to_one() -> None:
     for index in range(1000):
         shares = _shares(index, "periodic")
         assert all(value > 0 for value in shares)
-        assert sum(shares) == 1.0
+        # Trigonometric rounding differs by one ulp across supported Python
+        # builds. `_split` assigns the final value residual explicitly and its
+        # separate test enforces exact hierarchy arithmetic.
+        assert math.isclose(sum(shares), 1.0, rel_tol=0.0, abs_tol=1e-15)
 
 
 def test_frozen_cases_have_nonoverlapping_futures_and_exact_truth() -> None:
