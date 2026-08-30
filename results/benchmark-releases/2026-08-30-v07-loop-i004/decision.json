@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "iteration": "I004",
+  "issue": "Q1",
+  "decision": "promote_safety_subfixes_retain_q1_unconfirmed",
+  "baseline_commit": "7e7ca54218f19ff2871fdd9d026f795b8090d76b",
+  "evaluated_commit": "de6f6d7deb15e95c9a09c7d5fb09eeeadaf7ad9b",
+  "protocols": [
+    "docs/v0.7-q1-naturalistic-confirmation-protocol.md",
+    "docs/v0.7-q1-confirmation-fold-protocol.md"
+  ],
+  "user_outcome": "Agents are less likely to receive a fragile non-flat path: historical mean competes as an honest level baseline and a preselected contender must survive a later prefix-only confirmation origin. Humans and downstream agents can see the exact veto evidence and final published fallback without confusing confirmation with final-test performance.",
+  "matched_naturalistic_result": {
+    "cases": 48,
+    "baseline_departures": 36,
+    "candidate_departures": 30,
+    "baseline_wins_losses_ties": "15/15/6",
+    "candidate_wins_losses_ties": "13/8/9",
+    "baseline_mean_invalidated_departures": 4,
+    "candidate_mean_invalidated_departures": 2,
+    "baseline_cluster_90pct_interval": [-0.1409428198258884, 0.40251353671560197],
+    "candidate_cluster_90pct_interval": [0.0, 0.45113533615550894],
+    "candidate_positive_gain_precision": 0.43333333333333335,
+    "candidate_median_departure_gain": 0.0,
+    "subfix_promotion_gates_passed": true,
+    "original_strict_gates_still_failed": [
+      "departure_median_gain_positive",
+      "departure_precision_at_least_70pct",
+      "no_departure_invalidated_by_historical_mean"
+    ]
+  },
+  "matched_synthetic_result": {
+    "cases": 200,
+    "completed": 200,
+    "departures": 85,
+    "wins": 74,
+    "losses": 11,
+    "precision": 0.8705882352941177,
+    "median_departure_gain": 0.5904466031522327,
+    "departure_gain_90pct_interval": [0.3962574515781773, 0.7383927117556982],
+    "gates_passed": 10,
+    "gates_total": 10
+  },
+  "implementation": [
+    "Added historical mean to the mandatory baseline set and exposed its scores throughout selection evidence.",
+    "Reserved an independent confirmation origin for ordinary forecasts with at least five disjoint origins while preserving degraded and threshold partitions.",
+    "Made confirmation a one-contender non-inferiority veto with baseline fallback; calibration and final-test origins remain untouched.",
+    "Exposed confirmation role, scores, outcome, and fallback in selection-stability and rolling-evaluation evidence.",
+    "Corrected multivariate gate evidence so a VAR confirmation veto is not misreported as losing the earlier selection contest."
+  ],
+  "invariants": {
+    "future_outcomes_unavailable_to_selection": true,
+    "benchmark_identity_unavailable_to_selection": true,
+    "confirmation_is_not_a_second_tournament": true,
+    "calibration_and_final_test_remain_separate": true,
+    "short_history_degraded_behavior_preserved": true,
+    "threshold_partition_preserved": true,
+    "engine_and_product_completion_reported_separately": true,
+    "original_naturalistic_gates_unchanged": true
+  },
+  "validation": {
+    "full_tests_isolated_from_machine_local_tsfm_supply": "2606 passed, 11 skipped",
+    "focused_boundary_tests_before_final_audit_fix": "176 passed",
+    "focused_multivariate_ensemble_runtime_tests_after_final_audit_fix": "102 passed"
+  },
+  "raw_evidence": [
+    "results/v07-q1-i004-baseline/",
+    "results/v07-q1-i004-mean-candidate-v2/",
+    "results/v07-q1-i004-mean-synthetic-check-v2/",
+    "results/v07-q1-i004-confirmation-candidate-v1/",
+    "results/v07-q1-i004-confirmation-candidate-v2/",
+    "results/v07-q1-i004-confirmation-candidate-v3/",
+    "results/v07-q1-i004-confirmation-synthetic-v1/",
+    "results/v07-q1-i004-confirmation-synthetic-v2/",
+    "results/v07-q1-i004-confirmation-synthetic-v3/"
+  ]
+}
+

@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "loop": "v0.7-forecast-quality",
+  "status": "active",
+  "base_commit": "7717cd940a9fc1fb7f85569dc20a0a8e1a63b3f7",
+  "latest_evaluated_commit": "de6f6d7deb15e95c9a09c7d5fb09eeeadaf7ad9b",
+  "branch": "agent/v0.7-forecast-quality-loop",
+  "protocol": "docs/v0.7-forecast-quality-loop.md",
+  "external_evaluation_intake": "docs/v0.7-external-evaluation-intake.md",
+  "preservation": {
+    "preserve_v06_release_and_pr83": true,
+    "preserve_preexisting_committed_work": true,
+    "preserve_preexisting_benchmark_artifacts": true,
+    "preserve_all_preexisting_untracked_files": true,
+    "excluded_from_commits": ["docs/astrid-btc-agent-plan.md"]
+  },
+  "execution_defaults": {
+    "one_active_issue": true,
+    "api_jobs": 1,
+    "bounded_retries_required": true,
+    "per_call_timeout_required": true,
+    "wall_clock_timeout_required": true,
+    "incremental_rows_required": true,
+    "resume_required": true,
+    "smoke_shard_before_expansion": true,
+    "engine_and_agent_scored_separately": true
+  },
+  "active_iteration": {
+    "id": "I005",
+    "issue": "Q1",
+    "phase": "freeze_claim_and_support_coherence_reproduction",
+    "user_hypothesis": "Agents and humans should receive confidence and action language that agrees with the selected model, measured gain, calibration, and support; a protocol-complete but immaterial forecast must not sound decisively skilled.",
+    "must_not_regress": [
+      "historical mean remains a mandatory baseline",
+      "independent confirmation remains separate from selection, calibration, and final test",
+      "threshold probability remains unavailable on sub-supported or horizon-split rows",
+      "typed support agrees across artifact, brief, decision, monitor, CLI, and MCP surfaces",
+      "no future outcome or benchmark label reaches production",
+      "external-evaluation intake remains the controlling issue map"
+    ],
+    "protocol": "docs/v0.7-external-evaluation-intake.md#q1--forecast-admission-and-support",
+    "next_action": "Freeze a small current-head reproduction corpus for zero or immaterial gain, under-calibrated intervals, degraded long horizons, and unavailable threshold probabilities; inspect actual artifact, brief, decision, monitor, CLI, and MCP language before any production change.",
+    "last_completed_action": "Promoted historical mean and independent confirmation as general Q1 safety subfixes at exact commit de6f6d7; original naturalistic confirmation remains failed and explicitly unconfirmed."
+  },
+  "issues": [
+    {"id": "S1", "name": "decision input integrity", "status": "complete"},
+    {"id": "S2", "name": "bounded timestamp jitter", "status": "complete"},
+    {"id": "Q1", "name": "useful departures from last-value", "status": "in_progress_claim_and_support_coherence"},
+    {"id": "Q2", "name": "decision-grade typed temporal answers", "status": "pending"},
+    {"id": "Q3", "name": "context recall at fixed precision", "status": "pending"},
+    {"id": "Q4", "name": "stable context-mechanism selection", "status": "pending"},
+    {"id": "Q5", "name": "crash-safe economical orchestration", "status": "pending"},
+    {"id": "Q6", "name": "regime-aware anomaly behavior", "status": "pending_current_head_reproduction"}
+  ],
+  "completed_iterations": [
+    {"id": "I001", "issue": "Q1", "decision": "retain_current_policy_pending_naturalistic_confirmation", "evidence": ["results/benchmark-releases/2026-08-30-v07-loop-i001/decision.json"]},
+    {"id": "I002", "issue": "S1", "decision": "promote", "evidence": ["results/benchmark-releases/2026-08-30-v07-loop-i002/decision.json"]},
+    {"id": "I003", "issue": "S2", "decision": "promote", "evidence": ["results/benchmark-releases/2026-08-30-v07-loop-i003/decision.json"]},
+    {"id": "I004", "issue": "Q1", "decision": "promote_safety_subfixes_retain_q1_unconfirmed", "evidence": ["results/benchmark-releases/2026-08-30-v07-loop-i004/decision.json"]}
+  ]
+}
+

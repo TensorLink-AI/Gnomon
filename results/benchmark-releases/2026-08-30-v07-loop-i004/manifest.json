@@ -1,0 +1,62 @@
+{
+  "benchmarks": [
+    {
+      "arm": "pre-q1-safety-fixes",
+      "benchmark": "modelbench-naturalistic-selector",
+      "bytes": 15223,
+      "file": "naturalistic-baseline.json",
+      "scope": "full",
+      "sha256": "dd46f4c1ccf713fdc4982c05308257cfcbe4e9b8a6abd9a854f55b1aadfe62fb",
+      "status": "complete"
+    },
+    {
+      "arm": "historical-mean-plus-independent-confirmation",
+      "benchmark": "modelbench-naturalistic-selector",
+      "bytes": 15235,
+      "file": "naturalistic-candidate.json",
+      "scope": "full",
+      "sha256": "c89bf7070b7a87ae205a4d2bc7cf4a1af87b4e85a2a6b7e9e9469aa100ab6316",
+      "status": "complete"
+    },
+    {
+      "arm": "historical-mean-before-independent-confirmation",
+      "benchmark": "modelbench-synthetic-selector",
+      "bytes": 6442,
+      "file": "synthetic-baseline.json",
+      "scope": "full",
+      "sha256": "1ecc61bf76c83a3043ee920f970a4cdd9f677aa710bd2f5e8fd1eb2279722265",
+      "status": "complete"
+    },
+    {
+      "arm": "historical-mean-plus-independent-confirmation",
+      "benchmark": "modelbench-synthetic-selector",
+      "bytes": 6484,
+      "file": "synthetic-candidate.json",
+      "scope": "full",
+      "sha256": "a02548789ef0f114303d4e4944595a920def80b562345bfd314c5c51ecf91687",
+      "status": "complete"
+    }
+  ],
+  "curated_by_commit": "de6f6d7deb15e95c9a09c7d5fb09eeeadaf7ad9b",
+  "not_included": [
+    {
+      "benchmark": "exploratory dirty-tree Q1 candidate runs",
+      "reason": "Retained locally under the v07-q1-i004 candidate-v1/v2 directories and excluded because their evaluated commit does not identify every uncommitted production change."
+    },
+    {
+      "benchmark": "raw naturalistic and synthetic case records",
+      "reason": "Retained under the source result directories; the aggregate git release omits per-case rows while preserving summary provenance and source digests."
+    },
+    {
+      "benchmark": "competition-specific plan",
+      "reason": "docs/astrid-btc-agent-plan.md is explicitly outside this loop and release."
+    }
+  ],
+  "policy": {
+    "aggregate_only": true,
+    "raw_runs_are_ci_artifacts": true,
+    "smoke_results_are_not_full_results": true
+  },
+  "release": "2026-08-30-v07-loop-i004",
+  "schema_version": "1.1"
+}
