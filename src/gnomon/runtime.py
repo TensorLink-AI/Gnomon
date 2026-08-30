@@ -415,6 +415,12 @@ def _series_result(
                 round(var_frame.strongest_correlation, 4) if var_frame else None
             ),
             series_count=len(var_frame.names) if var_frame else len(loaded.groups),
+            related_series=(
+                var_frame.related_names(series_name) if var_frame else []
+            ),
+            supplied_related_series=[
+                name for name in sorted(loaded.groups) if name != series_name
+            ],
         )
     if context_events:
         state.primary_points = list(state.points)

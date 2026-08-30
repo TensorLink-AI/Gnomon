@@ -270,12 +270,20 @@ def predict_paths_checked(
 
 def conformance_report(adapter: ForecastAdapter, *,
                        history: list[float] | None = None,
-                       horizon: int = 4, season: int = 2) -> dict[str, Any]:
+                       horizon: int = 4, season: int = 2,
+                       related_series: list[list[float]] | None = None,
+                       ) -> dict[str, Any]:
     """Exercise behavior every adapter must satisfy before admission."""
     minimum = int(getattr(getattr(adapter, "capabilities", None),
                           "min_history", 0) or 0)
     values = list(history or ([1, 2] * max(6, (minimum + 1) // 2)))
-    request = ForecastRequest.from_values(values, horizon, season)
+    request = ForecastRequest(
+        tuple(float(value) for value in values), horizon, season,
+        related_series=tuple(
+            tuple(float(value) for value in series)
+            for series in (related_series or [])
+        ),
+    )
     checks: dict[str, bool] = {}
     failures: dict[str, str] = {}
     before = list(values)
@@ -291,7 +299,10 @@ def conformance_report(adapter: ForecastAdapter, *,
         checks.setdefault("input_immutable", values == before)
         checks.setdefault("deterministic_replay", False)
     try:
-        short = ForecastRequest.from_values(values, 1, season)
+        short = ForecastRequest(
+            tuple(float(value) for value in values), 1, season,
+            related_series=request.related_series,
+        )
         checks["variable_horizon"] = len(adapter.forecast(short).validate(short).point) == 1
     except Exception as error:
         failures["variable_horizon"] = \

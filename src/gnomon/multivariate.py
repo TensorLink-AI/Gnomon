@@ -3,6 +3,15 @@ from __future__ import annotations
 
 from typing import Any
 
+from .forecast_adapter import (
+    PROTOCOL_VERSION,
+    AdapterCapabilities,
+    ForecastAdapterError,
+    ForecastRequest,
+    ForecastResult,
+    validate_capabilities,
+)
+
 
 def _solve(matrix: list[list[float]], vector: list[float]) -> list[float]:
     n = len(vector)
@@ -70,6 +79,39 @@ MINIMUM_CORRELATION = 0.3
 MULTIVARIATE_MODEL_NAME = "var"
 
 
+class VarForecastAdapter:
+    """Model-neutral adapter for Gnomon's dependency-free VAR(1).
+
+    Related series are explicit immutable request inputs.  This prevents the
+    cross-series executable from becoming a privileged side channel which can
+    silently consume columns that an ordinary adapter request never declared.
+    """
+
+    name = MULTIVARIATE_MODEL_NAME
+    kind = "statistical"
+    revision = "builtin-var1"
+    capabilities = AdapterCapabilities(panel=True)
+
+    def forecast(self, request: ForecastRequest) -> ForecastResult:
+        validate_capabilities(self.capabilities, request)
+        if not request.related_series:
+            raise ForecastAdapterError(
+                "VAR requires at least one history-aligned related series")
+        columns = [list(request.history)] + [
+            list(series) for series in request.related_series
+        ]
+        point = _predict(columns, request.horizon)[0]
+        return ForecastResult(tuple(point), metadata={
+            "adapter_kind": self.kind,
+            "protocol_version": PROTOCOL_VERSION,
+            "revision": self.revision,
+            "features_used": {
+                "target_history": True,
+                "related_series": len(request.related_series),
+            },
+        }).validate(request)
+
+
 class VarFrame:
     """Aligned multi-series values with a VAR(1) predictor at any fold origin.
 
@@ -88,6 +130,7 @@ class VarFrame:
         self.columns = columns
         self.strongest_correlation = strongest_correlation
         self._cache: dict[tuple[int, int], list[list[float]]] = {}
+        self.adapter = VarForecastAdapter()
 
     @classmethod
     def build(cls, groups: dict[str, list[Any]]) -> tuple["VarFrame | None", str | None]:
@@ -112,11 +155,25 @@ class VarFrame:
     def _fit_predict(self, origin: int, horizon: int) -> list[list[float]]:
         key = (origin, horizon)
         if key not in self._cache:
-            training = [column[:origin] for column in self.columns]
-            if len(training[0]) < len(self.names) + 3:
+            histories = [column[:origin] for column in self.columns]
+            if len(histories[0]) < len(self.names) + 3:
                 raise ValueError("too little aligned history at this origin")
-            self._cache[key] = _predict(training, horizon)
+            predictions: list[list[float]] = []
+            for target_index, target in enumerate(histories):
+                related = tuple(
+                    tuple(series) for index, series in enumerate(histories)
+                    if index != target_index
+                )
+                request = ForecastRequest(
+                    tuple(target), horizon, related_series=related)
+                predictions.append(
+                    self.adapter.forecast(request).points())
+            self._cache[key] = predictions
         return self._cache[key]
+
+    def related_names(self, series_name: str) -> list[str]:
+        """Stable names of every related target supplied to the adapter."""
+        return [name for name in self.names if name != series_name]
 
     def predictor(self, series_name: str):
         """``predictor(origin, horizon)`` for one series, for ``evaluate``."""

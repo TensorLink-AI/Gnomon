@@ -145,10 +145,13 @@ def test_forecast_records_covariate_evidence(tmp_path) -> None:
 
 def test_capabilities_are_adapter_level_and_machine_actionable() -> None:
     matrix = capability_matrix()
-    assert matrix["toto2_4m"]["multivariate_targets"] is True
+    # Upstream model support is not an adapter capability.  Gnomon's invoked
+    # TSFM methods currently receive only one history vector.
+    assert matrix["toto2_4m"]["multivariate_targets"] is False
     assert matrix["toto2_4m"]["future_known_covariates"] is False
-    assert matrix["toto2_22m"]["multivariate_targets"] is True
+    assert matrix["toto2_22m"]["multivariate_targets"] is False
     assert matrix["toto2_22m"]["future_known_covariates"] is False
+    assert matrix["ttm"]["multivariate_targets"] is False
     eligible, excluded = eligible_tsfms(
         history_length=100, horizon=7, frequency="D", require_future_covariates=True,
     )
