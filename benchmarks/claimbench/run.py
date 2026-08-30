@@ -160,6 +160,18 @@ def _summarise(records: list[dict[str, Any]]) -> dict[str, Any]:
         threshold["threshold_artifact"] == threshold["threshold_full"]
         == threshold["threshold_brief"]
     )
+    threshold_payload = threshold["threshold_artifact"] or {}
+    threshold_event = threshold_payload.get("horizon_event") or {}
+    threshold_probability_unavailable = (
+        threshold["support_status"] != "supported"
+        and str(threshold_payload.get("probability_status", "")).startswith(
+            "unavailable")
+        and not threshold_payload.get("probability_above")
+        and not threshold_event
+        and isinstance(threshold_payload.get("bounded_assessment"), dict)
+        and threshold_payload["bounded_assessment"].get(
+            "automation_eligible") is False
+    )
     gates = {
         "all_cases_complete": len(records) == 4
             and all(row["completed"] for row in records),
@@ -173,6 +185,8 @@ def _summarise(records: list[dict[str, Any]]) -> dict[str, Any]:
         "subsupported_never_high_confidence": all(
             not row["headline_flags"]["high_confidence"] for row in weak),
         "threshold_payload_consistent": threshold_consistent,
+        "subsupported_threshold_probability_typed_unavailable":
+            threshold_probability_unavailable,
     }
     return {
         "schema_version": "0.1",
@@ -220,4 +234,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
