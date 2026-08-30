@@ -1,4 +1,5 @@
 {
+  "release_metadata": {"scope": "full", "evaluated_commit": "ae8e77d70875cc6ca6deda1b8c59e8f466746267", "harness_commit": "ae8e77d70875cc6ca6deda1b8c59e8f466746267", "dataset_identity": "frozen twelve-case multivariate benchmark", "configuration_identity": "baseline versus adapter-boundary candidate"},
   "schema_version": 1,
   "evaluated_commit": "ae8e77d70875cc6ca6deda1b8c59e8f466746267",
   "protocol": "docs/v0.6-p4-multivariate-protocol.md",

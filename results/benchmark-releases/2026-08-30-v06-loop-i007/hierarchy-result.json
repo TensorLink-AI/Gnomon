@@ -1,4 +1,5 @@
 {
+  "release_metadata": {"scope": "full", "evaluated_commit": "f45e724877e261e4a010285abc6fd2380c898ad1", "harness_commit": "f45e724877e261e4a010285abc6fd2380c898ad1", "dataset_identity": "frozen thirty-two-case exact hierarchy screen", "configuration_identity": "standalone root versus bottom-up leaf sum"},
   "schema_version": 1,
   "evaluated_commit": "f45e724877e261e4a010285abc6fd2380c898ad1",
   "protocol": "docs/v0.6-p7-hierarchy-protocol.md",

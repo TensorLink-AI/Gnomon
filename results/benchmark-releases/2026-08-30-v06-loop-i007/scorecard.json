@@ -1,4 +1,5 @@
 {
+  "release_metadata": {"scope": "full", "evaluated_commit": "f45e724877e261e4a010285abc6fd2380c898ad1", "harness_commit": "f45e724877e261e4a010285abc6fd2380c898ad1", "dataset_identity": "I007 hierarchy output, reasoning, and topology evidence", "configuration_identity": "three-layer no-build release scorecard"},
   "schema_version": "0.1",
   "scorecard_id": "v0.6-i007-hierarchical-reconciliation",
   "scorecard_commit": "f45e724877e261e4a010285abc6fd2380c898ad1",

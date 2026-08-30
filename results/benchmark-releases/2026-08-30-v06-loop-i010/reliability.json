@@ -1,4 +1,5 @@
 {
+  "release_metadata": {"scope": "smoke", "evaluated_commit": "cf4bfd8", "harness_commit": "2fc6d15", "dataset_identity": "six frozen artifact fault, race, MCP, and local-load fixtures", "configuration_identity": "baseline plus two independent candidate replications, jobs=1"},
   "schema_version": 1,
   "baseline_commit": "2fc6d15",
   "candidate_commit": "cf4bfd8",

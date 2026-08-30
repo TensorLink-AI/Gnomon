@@ -1,4 +1,5 @@
 {
+  "release_metadata": {"scope": "full", "evaluated_commit": "e61b2930a136e3dd8372abb3af370f0a51a31066", "harness_commit": "e61b2930a136e3dd8372abb3af370f0a51a31066", "dataset_identity": "frozen sixty-case joint-horizon screen", "configuration_identity": "baseline versus rejected cumulative-total candidate versus final"},
   "schema_version": 1,
   "protocol": "docs/v0.6-p6-joint-horizon-protocol.md",
   "runner": "benchmarks/jointhorizonbench/run.py",

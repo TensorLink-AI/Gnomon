@@ -3,8 +3,8 @@
   "release": "2026-08-30-v06-loop-i005",
   "curated_by_commit": "69d473ab63e7397f087087782fce758a52c8fad1",
   "benchmarks": [
-    {"file": "routing-result.json", "benchmark": "routingbench", "arm": "prospective-paired-outcome-route-vs-always-champion", "scope": "full", "status": "complete", "bytes": 2458, "sha256": "e6be743cc1dbc6b55788bc388ebe46dd81886a07b009c03fbd02c591e483ee03"},
-    {"file": "scorecard.json", "benchmark": "three-layer-product-scorecard", "arm": "i005-final-decision", "scope": "full", "status": "complete", "bytes": 5400, "sha256": "aa2eb5643c3384354533ca20775ae224cf7d4404c346bf00396804999c26a3fb"}
+    {"file": "routing-result.json", "benchmark": "routingbench", "arm": "prospective-paired-outcome-route-vs-always-champion", "scope": "full", "status": "complete", "bytes": 2755, "sha256": "196afdbdf94258a95ccd5c0035f90e7cab3768c253a2924a2f491e46903160fe"},
+    {"file": "scorecard.json", "benchmark": "three-layer-product-scorecard", "arm": "i005-final-decision", "scope": "full", "status": "complete", "bytes": 5709, "sha256": "61e58d48146f15730156c1eadacd51b1c78d72630e31d77c5d0e0b0e6ed51fc0"}
   ],
   "decision_files": [
     {"file": "decision.json", "bytes": 2501, "sha256": "4b68a3976db93e3b335ad28025d90468660c25392a73c6572fc6e5911fbb301e"},

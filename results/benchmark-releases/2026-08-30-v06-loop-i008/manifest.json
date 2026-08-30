@@ -3,8 +3,8 @@
   "release": "2026-08-30-v06-loop-i008",
   "curated_by_commit": "c26c654",
   "benchmarks": [
-    {"file": "agent-boundary.json", "benchmark": "contextbench-surfaces", "arm": "evidence-deepseek-engy-engine-baseline-structural-shard", "scope": "smoke", "status": "complete", "bytes": 2729, "sha256": "5bbb9780485d78be10fd54d153e560e9a2f75c976999488bfc8dc911d807765b"},
-    {"file": "scorecard.json", "benchmark": "three-layer-product-scorecard", "arm": "i008-final-decision", "scope": "smoke", "status": "complete", "bytes": 2720, "sha256": "09bd4a396fb66d8135c1e5cf985d2bf659949191f4b6827100f96c2209eb34df"}
+    {"file": "agent-boundary.json", "benchmark": "contextbench-surfaces", "arm": "evidence-deepseek-engy-engine-baseline-structural-shard", "scope": "smoke", "status": "complete", "bytes": 2996, "sha256": "e02b3414f5761e42591d2d7c983d4075bb6db979c385871b5a468fb6cd70cd78"},
+    {"file": "scorecard.json", "benchmark": "three-layer-product-scorecard", "arm": "i008-final-decision", "scope": "smoke", "status": "complete", "bytes": 2981, "sha256": "1094ade643465a183b9e9edc35e0024666a86bf9cf864925797ce0014ba42b46"}
   ],
   "decision_files": [
     {"file": "decision.json", "bytes": 1887, "sha256": "a6223ea932d5ed3f29b25df918e92fcb8d814a861fc2af2200c1d92424ebe5d8"},

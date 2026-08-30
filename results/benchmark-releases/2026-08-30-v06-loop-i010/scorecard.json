@@ -1,4 +1,5 @@
 {
+  "release_metadata": {"scope": "smoke", "evaluated_commit": "cf4bfd8", "harness_commit": "2fc6d15", "dataset_identity": "I010 reliability output, reasoning, and topology evidence", "configuration_identity": "three-layer promoted release scorecard"},
   "schema_version": "0.1",
   "scorecard_id": "v0.6-i010-production-reliability",
   "scorecard_commit": "cf4bfd8",

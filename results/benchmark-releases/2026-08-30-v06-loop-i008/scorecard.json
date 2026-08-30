@@ -1,4 +1,5 @@
 {
+  "release_metadata": {"scope": "smoke", "evaluated_commit": "c26c654", "harness_commit": "c26c654", "dataset_identity": "I008 agent-boundary output, reasoning, and topology evidence", "configuration_identity": "three-layer validation-only release scorecard"},
   "schema_version": "0.1",
   "scorecard_id": "v0.6-i008-agent-decision-preservation",
   "scorecard_commit": "c26c654",

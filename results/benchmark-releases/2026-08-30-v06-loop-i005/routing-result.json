@@ -1,4 +1,5 @@
 {
+  "release_metadata": {"scope": "full", "evaluated_commit": "69d473ab63e7397f087087782fce758a52c8fad1", "harness_commit": "69d473ab63e7397f087087782fce758a52c8fad1", "dataset_identity": "frozen prospective paired outcome stream", "configuration_identity": "outcome route versus always champion"},
   "schema_version": 1,
   "evaluated_commit": "69d473ab63e7397f087087782fce758a52c8fad1",
   "protocol": "docs/v0.6-p5-adaptive-routing-protocol.md",

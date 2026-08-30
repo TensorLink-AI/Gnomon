@@ -1,4 +1,5 @@
 {
+  "release_metadata": {"scope": "smoke", "evaluated_commit": "e66c7a9", "harness_commit": "bbeef03", "dataset_identity": "I009 recovery output, reasoning, and topology evidence", "configuration_identity": "three-layer promoted release scorecard"},
   "schema_version": "0.1",
   "scorecard_id": "v0.6-i009-executable-recovery",
   "scorecard_commit": "e66c7a9",

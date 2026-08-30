@@ -9,8 +9,8 @@
       "arm": "frozen-twelve-case-baseline-vs-adapter-boundary",
       "scope": "full",
       "status": "complete_gate_failed",
-      "bytes": 2512,
-      "sha256": "c3359054b29ae8ed14b39ad3f5b9566fed5dec2aae7f3b0513a4f75149a0a648"
+      "bytes": 2816,
+      "sha256": "f30aeaa5f731b0d1674a1b4459ce69d55d07231b1882a2834f70da29fe069e87"
     },
     {
       "file": "scorecard.json",
@@ -18,8 +18,8 @@
       "arm": "i004-no-build-decision",
       "scope": "full",
       "status": "complete",
-      "bytes": 6278,
-      "sha256": "ae4339d13a62db4ea45877711855ac5646b0f335b3d42def9be579fda92fa1b2"
+      "bytes": 6595,
+      "sha256": "b950ace067f2f5ba7bf6aa0699c5230e1f7c67ba4554c38ae30d3fdd599feed9"
     }
   ],
   "decision_files": [

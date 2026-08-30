@@ -1,4 +1,5 @@
 {
+  "release_metadata": {"scope": "smoke", "evaluated_commit": "e66c7a9", "harness_commit": "bbeef03", "dataset_identity": "six frozen real-runner recovery fixtures", "configuration_identity": "baseline versus executable recovery plan, jobs=1"},
   "schema_version": 1,
   "baseline_commit": "bbeef03",
   "candidate_commit": "e66c7a9",

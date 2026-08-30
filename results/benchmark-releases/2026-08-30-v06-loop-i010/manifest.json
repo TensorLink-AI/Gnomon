@@ -3,8 +3,8 @@
   "release": "2026-08-30-v06-loop-i010",
   "curated_by_commit": "cf4bfd8",
   "benchmarks": [
-    {"file": "reliability.json", "benchmark": "reliabilitybench", "arm": "baseline-and-two-candidate-replications", "scope": "smoke", "status": "complete", "bytes": 2181, "sha256": "0f70ec8e7cb92bc60a9a8f2d0fb98431f53596f2d1f64d1f6f2d6b607439b36d"},
-    {"file": "scorecard.json", "benchmark": "three-layer-product-scorecard", "arm": "i010-final-decision", "scope": "smoke", "status": "complete", "bytes": 2532, "sha256": "7b6ea4332680ac9550fb1da75719adac860301c2ca37e38daac9bda6c9ba4b33"}
+    {"file": "reliability.json", "benchmark": "reliabilitybench", "arm": "baseline-and-two-candidate-replications", "scope": "smoke", "status": "complete", "bytes": 2458, "sha256": "a254da6b66c91f811ae6ce530be372a2c18b766f4daa6d91d12d5b04050294d5"},
+    {"file": "scorecard.json", "benchmark": "three-layer-product-scorecard", "arm": "i010-final-decision", "scope": "smoke", "status": "complete", "bytes": 2783, "sha256": "8cc0775f39664bd373f74cfb9a2e4cdd920a541faf27f583b6365968f50ab843"}
   ],
   "decision_files": [
     {"file": "decision.json", "bytes": 1633, "sha256": "55ee12048266c50d9f648ea349b6f7b0e4e63c3a24b2471024a331bf759be80a"},

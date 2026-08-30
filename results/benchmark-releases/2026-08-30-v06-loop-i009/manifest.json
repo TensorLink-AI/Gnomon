@@ -3,8 +3,8 @@
   "release": "2026-08-30-v06-loop-i009",
   "curated_by_commit": "e66c7a9",
   "benchmarks": [
-    {"file": "recovery-boundary.json", "benchmark": "recoverybench", "arm": "baseline-versus-executable-plan", "scope": "smoke", "status": "complete", "bytes": 2229, "sha256": "a6b1cff602cdd870c1bbcb2defc07083b40e50878ffedf3cbb0c0279245b6f21"},
-    {"file": "scorecard.json", "benchmark": "three-layer-product-scorecard", "arm": "i009-final-decision", "scope": "smoke", "status": "complete", "bytes": 2416, "sha256": "1f917b16754f405067bcc523dbf982e803578889ecd6b412be443ba2233d7d69"}
+    {"file": "recovery-boundary.json", "benchmark": "recoverybench", "arm": "baseline-versus-executable-plan", "scope": "smoke", "status": "complete", "bytes": 2473, "sha256": "6117c7d702d297171fc5b8b67637e710e460ede34f784b3ec157ec760e4e5b67"},
+    {"file": "scorecard.json", "benchmark": "three-layer-product-scorecard", "arm": "i009-final-decision", "scope": "smoke", "status": "complete", "bytes": 2664, "sha256": "03697e682cad4a5b36fbbcb81e271299183258fb6b8897e766588301e32c50a1"}
   ],
   "decision_files": [
     {"file": "decision.json", "bytes": 1531, "sha256": "02cd6bdebc0b5ea542a9edf1ebddd84889d524354c21652c59509933d0114fe8"},

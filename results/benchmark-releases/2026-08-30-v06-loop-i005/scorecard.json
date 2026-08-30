@@ -1,4 +1,5 @@
 {
+  "release_metadata": {"scope": "full", "evaluated_commit": "69d473ab63e7397f087087782fce758a52c8fad1", "harness_commit": "69d473ab63e7397f087087782fce758a52c8fad1", "dataset_identity": "I005 routing output, reasoning, and topology evidence", "configuration_identity": "three-layer final release scorecard"},
   "schema_version": "0.1",
   "scorecard_id": "v0.6-i005-outcome-adaptive-routing",
   "scorecard_commit": "69d473ab63e7397f087087782fce758a52c8fad1",

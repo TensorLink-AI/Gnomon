@@ -1,4 +1,5 @@
 {
+  "release_metadata": {"scope": "smoke", "evaluated_commit": "b41c29ad3df40193a265debf31b266f0df7c07d5", "harness_commit": "b41c29ad3df40193a265debf31b266f0df7c07d5", "dataset_identity": "frozen eight-case naturalistic ContextBench shard", "configuration_identity": "compiled-context engine baseline versus final, jobs=1"},
   "schema_version": 1,
   "evaluated_commit": "b41c29ad3df40193a265debf31b266f0df7c07d5",
   "baseline_run": "results/v06-p3-i003-engine-baseline/",

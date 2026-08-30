@@ -9,8 +9,8 @@
       "arm": "frozen-eight-case-final-vs-baseline",
       "scope": "smoke",
       "status": "complete",
-      "bytes": 2088,
-      "sha256": "19211db1c4f9406930c0ea3846a19158b0af7c7b1c269f4c7a2e4909bc420d9a"
+      "bytes": 2412,
+      "sha256": "36834eb7a921243c949cc75c0469fc10b34d19481597431f717cf789a14cee43"
     },
     {
       "file": "agent-boundary.json",
@@ -18,8 +18,8 @@
       "arm": "evidence-deepseek-four-role-boundary",
       "scope": "smoke",
       "status": "complete",
-      "bytes": 2852,
-      "sha256": "97c11a48726c5a8cf79df161b3a10c8f9158c9987e3d2afd957fa800edcbbfaa"
+      "bytes": 3183,
+      "sha256": "409c6161fdb619a5a25a92814081f67b23fae6ecc7a1763287ddb28496e365cf"
     },
     {
       "file": "scorecard.json",
@@ -27,8 +27,8 @@
       "arm": "i003-final-decision",
       "scope": "full",
       "status": "complete",
-      "bytes": 6905,
-      "sha256": "21ef3d323785e72d8eb4de19f31af2a8c15f9133665ffbfcc440095bbc1f8d9b"
+      "bytes": 7222,
+      "sha256": "5f123bef0fc5ae28fae9ccaadee82fff2bf6d0c223bd8260392d0ea405c8454c"
     }
   ],
   "decision_files": [

@@ -1,4 +1,5 @@
 {
+  "release_metadata": {"scope": "smoke", "evaluated_commit": "c26c654", "harness_commit": "c26c654", "dataset_identity": "four prespecified structural ContextBench cases", "configuration_identity": "Evidence profile, DeepSeek through Engy, engine baseline, jobs=1"},
   "schema_version": 1,
   "evaluated_commit": "c26c654",
   "protocol": "docs/v0.6-p8-agent-brief-protocol.md",
