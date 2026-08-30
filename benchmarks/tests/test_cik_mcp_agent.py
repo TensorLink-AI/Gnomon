@@ -1562,15 +1562,18 @@ def test_structured_context_keeps_governed_and_model_candidates_separate(
         "candidate_portfolio"] if item["role"] ==
         "governed_companion_mapping")
     assert governed["human_selection_eligible"] is False
-    assert extra["publication"]["recommended_scenario_id"] == \
-        "prior-assisted-2"
-    assert extra["scenario_selector"]["accepted"] is True
+    model_prior = next(item for item in extra["publication"][
+        "candidate_portfolio"] if item["role"] == "model_authored")
+    assert model_prior["human_selection_eligible"] is False
+    assert extra["publication"]["recommended_scenario_id"] == "primary"
+    assert extra["scenario_selector"] == {
+        "attempted": False,
+        "accepted": False,
+        "disposition": "skipped_evidence_dominance",
+        "error": "selector skipped: governed evidence dominance",
+    }
     assert client.completion_request_timeouts[-1] <= \
-        mcp_agent_module.MAX_SCENARIO_SELECTOR_SECONDS
-    assert client.completion_request_timeouts[-2] <= \
         mcp_agent_module.MAX_OPTIONAL_PRIOR_SECONDS
-    assert client.completion_request_timeouts[-1] >= \
-        mcp_agent_module.MIN_SCENARIO_SELECTOR_REPAIR_SECONDS
     assert extra["publication"]["primary_forecast_unchanged"] is True
     assert extra["publication"]["automation"]["eligible"] is False
     trace = json.loads(next((tmp_path / "traces").glob("*.json")).read_text())
@@ -1591,9 +1594,10 @@ def test_structured_context_keeps_governed_and_model_candidates_separate(
     assert sampling["sufficiency"][
         "eligible_for_human_recommendation"] is True
     assert sampling["request_mode"] == "concurrent_single_sample_requests"
-    assert '"candidate_validation"' in client.completion_prompts[-1]
-    assert '"human_selection_eligible": true' in (
-        client.completion_prompts[-1])
+    assert not any('"candidate_validation"' in prompt
+                   for prompt in client.completion_prompts)
+    assert not any('"human_selection_eligible"' in prompt
+                   for prompt in client.completion_prompts)
 
 
 def test_evidence_executes_one_server_authored_grid_repair(tmp_path):
@@ -2881,11 +2885,21 @@ def test_typed_interpretation_without_executable_gets_sealed_sampled_prior(
     assert [(item.get("candidate_critique") or {}).get("candidate_origin")
             for item in receipt["dossiers"]] == [None, "model_authored"]
     publication = extra["publication"]
-    assert publication["recommended_scenario_id"] == "prior-assisted-2"
-    assert publication["recommended_support"] == "prior_assisted"
+    prior = next(item for item in publication["candidate_portfolio"]
+                 if item["role"] == "model_authored")
+    primary = next(item for item in publication["candidate_portfolio"]
+                   if item["role"] == "immutable_primary")
+    if primary["support"] in {"supported", "context_trusted"}:
+        assert publication["recommended_scenario_id"] == "primary"
+        assert prior["human_selection_eligible"] is False
+        assert prior["effect"]["recommendation_stability"][
+            "reason_code"] == "sampled_prior_has_no_historical_skill"
+    else:
+        assert publication["recommended_scenario_id"] == prior["scenario_id"]
+        assert prior["human_selection_eligible"] is True
     assert publication["primary_forecast_unchanged"] is True
     assert publication["automation"]["eligible"] is False
-    assert extra["governed_distribution"]["sample_count"] == expected_paths
+    assert prior["effect"]["distribution"]["sample_count"] == expected_paths
     # One semantic compiler call plus the independently sampled paths.
     assert client.completion_ns == [1] * (expected_paths + 1)
     if hasattr(samples, "shape"):
@@ -2894,10 +2908,6 @@ def test_typed_interpretation_without_executable_gets_sealed_sampled_prior(
         resolved = [[row[0] for row in path] for path in samples]
     assert len(resolved) == 3
     assert all(len(path) == horizon for path in resolved)
-    assert extra["governed_distribution"][
-        "probabilistic_consumers_should_use"] == "quantiles"
-    assert extra["governed_distribution"][
-        "scoring_representation"] == "recommended_forecast_quantiles"
     expected = mcp_agent_module.samples_from_quantile_rows(
         publication["recommended_forecast"], 3)
     assert resolved == expected
@@ -3132,7 +3142,10 @@ def test_external_reference_front_door_routes_only_bounded_prior_paths(
         "historical_analogue")
     assert receipt["compiler"]["model_candidate_status"] == "accepted"
     publication = extra["publication"]
-    assert publication["recommended_scenario_id"].startswith("prior-assisted-")
+    prior = next(item for item in publication["candidate_portfolio"]
+                 if item["role"] == "model_authored")
+    assert publication["recommended_scenario_id"] == "primary"
+    assert prior["human_selection_eligible"] is False
     assert publication["recommendation_authority"]["historically_admitted"] \
         is False
     assert publication["primary_forecast_unchanged"] is True
@@ -3181,8 +3194,10 @@ def test_reference_range_dossier_preserves_analogue_inputs_for_sealed_prior(
     assert "[claim-2] This region is coastal." in (
         client.completion_prompts[0])
     publication = extra["publication"]
-    assert publication["recommended_scenario_id"].startswith(
-        "prior-assisted-")
+    prior = next(item for item in publication["candidate_portfolio"]
+                 if item["role"] == "model_authored")
+    assert publication["recommended_scenario_id"] == "primary"
+    assert prior["human_selection_eligible"] is False
     assert publication["primary_forecast_unchanged"] is True
     assert publication["automation"]["eligible"] is False
 
@@ -3403,8 +3418,11 @@ def test_one_sample_transport_failure_preserves_other_governed_paths(tmp_path):
     failures = [item for item in receipt["compiler"]["calls"]
                 if item["stage"].endswith("_partial_failures")]
     assert failures[0]["failed_completions"] == 1
-    assert extra["publication"]["recommended_scenario_id"].startswith(
-        "prior-assisted-")
+    publication = extra["publication"]
+    prior = next(item for item in publication["candidate_portfolio"]
+                 if item["role"] == "model_authored")
+    assert publication["recommended_scenario_id"] == "primary"
+    assert prior["human_selection_eligible"] is False
     assert extra["publication"]["primary_forecast_unchanged"] is True
     assert extra["publication"]["automation"]["eligible"] is False
     prior_timeouts = [timeout for temperature, timeout in zip(

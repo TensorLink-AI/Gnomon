@@ -350,7 +350,7 @@ def test_unmatched_comparable_returns_specific_attribute_recovery():
         "additional_evidence_could_change_recommendation"] is True
 
 
-def test_selected_external_analogue_admits_that_more_evidence_can_help():
+def test_withheld_external_analogue_admits_that_more_evidence_can_help():
     dossier = _dossier()
     dossier = attach_host_candidate_elicitation(
         dossier, requested_paths=3, accepted_paths=3,
@@ -378,22 +378,21 @@ def test_selected_external_analogue_admits_that_more_evidence_can_help():
     contract = scenario_selection_contract(
         scenarios=scenarios, dossiers=[dossier],
         allow_prior_assisted_choice=True)
-    assert contract["selection_required"] is True
-    selection = validate_scenario_selection({
-        "selected_scenario_id": "prior-assisted-1",
-        "ranking": ["prior-assisted-1", "primary"],
-        "cited_claim_ids": ["claim-1"],
-        "counterevidence_claim_ids": [],
-        "counterevidence_hypothesis_ids": [],
-        "confidence": .4,
-        "rationale": "The external coastal assumption is useful but weak.",
-        "what_would_change_selection": "Source-stated peer attributes.",
-    }, scenarios=scenarios, dossiers=[dossier])
-    assert selection is not None
-    payload = publish_result(
-        _result(), mode="best_effort", dossiers=[dossier],
-        scenario_selection=selection)
-    assert payload["recommended_scenario_id"] == "prior-assisted-1"
+    assert contract["selection_required"] is False
+    candidate = next(item for item in scenarios
+                     if item["scenario_id"] == "prior-assisted-1")
+    assert candidate["human_selection_eligible"] is False
+    with pytest.raises(ValueError, match="invalid derivation"):
+        validate_scenario_selection({
+            "selected_scenario_id": "prior-assisted-1",
+            "ranking": ["prior-assisted-1", "primary"],
+            "cited_claim_ids": ["claim-1"],
+            "counterevidence_claim_ids": [],
+            "counterevidence_hypothesis_ids": [],
+            "confidence": .4,
+            "rationale": "The external coastal assumption is useful but weak.",
+            "what_would_change_selection": "Source-stated peer attributes.",
+        }, scenarios=scenarios, dossiers=[dossier])
     summary = payload["context_summary"]
     assert summary["follow_up_required_for_current_recommendation"] is False
     assert summary["additional_evidence_could_change_recommendation"] is True
@@ -1310,7 +1309,9 @@ def test_sampled_outliers_remain_diagnostics_not_published_tail_width():
             if key != "seal_sha256"}
     dossier["seal_sha256"] = hashlib.sha256(json.dumps(
         body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
-    scenarios, _ = build_scenario_catalog(_result(), dossiers=[dossier])
+    result = _result()
+    result["support"] = "best_effort"
+    scenarios, _ = build_scenario_catalog(result, dossiers=[dossier])
     sampled = next(item for item in scenarios
                    if item["scenario_id"] == "prior-assisted-1")
     assert [row["q50"] for row in sampled["forecast"]] == [11.0, 12.0]
@@ -1323,8 +1324,8 @@ def test_sampled_outliers_remain_diagnostics_not_published_tail_width():
     assert selection is not None
     assert selection["selected_scenario_id"] == "prior-assisted-1"
     assert selection["channel"] == "best_effort_sampled_prior_policy"
-    best = publish_result(_result(), mode="best_effort", dossiers=[dossier])
-    strict = publish_result(_result(), mode="strict", dossiers=[dossier])
+    best = publish_result(result, mode="best_effort", dossiers=[dossier])
+    strict = publish_result(result, mode="strict", dossiers=[dossier])
     assert best["recommended_scenario_id"] == "prior-assisted-1"
     assert best["automation"]["eligible"] is False
     assert best["primary_forecast_unchanged"] is True
@@ -1349,6 +1350,50 @@ def test_sampled_outliers_remain_diagnostics_not_published_tail_width():
     assert strict["recommended_scenario_id"] == "primary"
 
 
+def test_sampled_prior_cannot_displace_fully_supported_primary():
+    dossier = attach_host_candidate_elicitation(
+        _dossier(), requested_paths=5, accepted_paths=5,
+        aggregation="linear_empirical_marginal_q10_q50_q90",
+        temperature=1.0, stability=_stable_sampling(5),
+        sample_paths=[[10.8, 11.8], [10.9, 11.9], [11.0, 12.0],
+                      [11.1, 12.1], [11.2, 12.2]])
+
+    invalid_selection = {
+            "selected_scenario_id": "prior-assisted-1",
+            "ranking": ["prior-assisted-1", "primary"],
+            "cited_claim_ids": ["claim-1"],
+            "counterevidence_claim_ids": [],
+            "confidence": .7,
+            "rationale": "Sampled paths agree on an increase.",
+            "what_would_change_selection": "Historical replay evidence.",
+        }
+    with pytest.raises(ValueError, match="invalid derivation"):
+        publish_result(
+            _result(), mode="best_effort", dossiers=[dossier],
+            scenario_selection=invalid_selection)
+    publication = publish_result(
+        _result(), mode="best_effort", dossiers=[dossier])
+    candidate = next(
+        item for item in publication["candidate_portfolio"]
+        if item["scenario_id"] == "prior-assisted-1")
+
+    assert publication["recommended_scenario_id"] == "primary"
+    assert candidate["selection_eligible"] is False
+    assert candidate["human_selection_eligible"] is False
+    assert candidate["effect"]["recommendation_stability"] == {
+        "status": "withheld_for_supported_primary",
+        "reason_code": "sampled_prior_has_no_historical_skill",
+        "primary_support": "supported",
+        "host_observed": True,
+        "historical_skill_evidence": False,
+        "candidate_preserved": True,
+    }
+    assert any("not historical skill" in item
+               for item in candidate["assumptions"])
+    assert publication["primary_forecast"] == _result()["forecast"]
+    assert publication["automation"]["eligible"] is False
+
+
 def test_failed_categorical_mapping_fallback_requires_bounded_selection():
     dossier = attach_host_candidate_elicitation(
         _dossier(), requested_paths=3, accepted_paths=3,
@@ -1366,7 +1411,7 @@ def test_failed_categorical_mapping_fallback_requires_bounded_selection():
     contract = scenario_selection_contract(
         scenarios=scenarios, dossiers=[dossier],
         allow_prior_assisted_choice=True)
-    assert contract["selection_required"] is True
+    assert contract["selection_required"] is False
 
 
 def test_sampled_prior_does_not_auto_override_competing_eligible_candidate():
@@ -1411,7 +1456,9 @@ def test_selected_prior_marks_only_its_cited_claims_used():
     dossier["seal_sha256"] = hashlib.sha256(json.dumps(
         body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
-    payload = publish_result(_result(), mode="best_effort", dossiers=[dossier])
+    result = _result()
+    result["support"] = "best_effort"
+    payload = publish_result(result, mode="best_effort", dossiers=[dossier])
 
     by_claim = {item.get("claim_id"): item
                 for item in payload["context_dispositions"]}
@@ -1732,7 +1779,9 @@ def test_host_sampled_prior_policy_is_not_mislabeled_as_model_selection():
             if key != "seal_sha256"}
     dossier["seal_sha256"] = hashlib.sha256(json.dumps(
         body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
-    payload = publish_result(_result(), mode="scenario", dossiers=[dossier])
+    result = _result()
+    result["support"] = "best_effort"
+    payload = publish_result(result, mode="scenario", dossiers=[dossier])
     selection = best_effort_prior_selection(
         scenarios=payload["candidate_portfolio"], dossiers=[dossier])
     assert selection is not None
@@ -2315,11 +2364,13 @@ def test_mcp_model_candidate_is_grid_bound_sealed_and_human_only(tmp_path):
     publication = payload["publication"]
     candidate = next(item for item in publication["candidate_portfolio"]
                      if item["role"] == "model_authored")
-    assert publication["recommended_scenario_id"] == candidate["scenario_id"]
+    assert publication["recommended_scenario_id"] == "primary"
     assert candidate["support"] == "prior_assisted"
-    assert candidate["human_selection_eligible"] is True
+    assert candidate["human_selection_eligible"] is False
     assert candidate["automation_eligible"] is False
     assert candidate["effect"]["distribution"]["sample_count"] == 3
+    assert candidate["effect"]["recommendation_stability"][
+        "reason_code"] == "sampled_prior_has_no_historical_skill"
     assert publication["primary_forecast_unchanged"] is True
     assert publication["automation"]["eligible"] is False
     assert verify_publication(publication)

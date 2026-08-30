@@ -1531,8 +1531,20 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 not sampled_prior
                 or sampled_prior_assessment.get(
                     "eligible_for_human_recommendation") is True)
+            supported_primary_sampled_prior_withheld = bool(
+                sampled_prior
+                and primary_path_support in {"supported", "context_trusted"}
+                and elicitation.get("host_observed") is True
+                and elicitation.get("historical_skill_evidence") is False)
+            if supported_primary_sampled_prior_withheld:
+                # Repeated model samples measure elicitation stability, not
+                # forecast skill. Keep the sealed prior available for human
+                # inspection and later outcome scoring, but do not let that
+                # coherence alone displace an already supported primary.
+                selection_eligible = False
             human_selection_eligible = bool(
                 sampled_prior_sufficient
+                and not supported_primary_sampled_prior_withheld
                 and (selection_eligible
                      or (candidate_origin.startswith("governed_")
                          and candidate_critique.get(
@@ -1618,7 +1630,11 @@ def build_scenario_catalog(result: dict[str, Any], *,
                     *(["Replay evidence did not win every evaluated "
                         "chronological block, so it cannot displace a fully "
                         "supported primary recommendation."]
-                      if supported_primary_stability_withheld else [])],
+                      if supported_primary_stability_withheld else []),
+                    *(["Sampled model-path agreement is elicitation stability, "
+                        "not historical skill, so this prior cannot displace "
+                        "a fully supported primary recommendation."]
+                      if supported_primary_sampled_prior_withheld else [])],
                 source_seal=str(dossier["seal_sha256"]),
                 effect={
                     "candidate_origin": candidate_origin,
@@ -1695,6 +1711,15 @@ def build_scenario_catalog(result: dict[str, Any], *,
                         "primary_support": primary_path_support,
                         "candidate_preserved": True,
                     }} if supported_primary_stability_withheld else {}),
+                    **({"recommendation_stability": {
+                        "status": "withheld_for_supported_primary",
+                        "reason_code": (
+                            "sampled_prior_has_no_historical_skill"),
+                        "primary_support": primary_path_support,
+                        "host_observed": True,
+                        "historical_skill_evidence": False,
+                        "candidate_preserved": True,
+                    }} if supported_primary_sampled_prior_withheld else {}),
                     "calibration_replay": calibration_replay,
                     "validation": candidate.get("validation") or {},
                     "executable": candidate.get("executable") or {},
