@@ -1,0 +1,6 @@
+{
+  "benchmark": "naturalistic-selector",
+  "code_revision": "e11ee61",
+  "condition": "current-production-policy-full",
+  "target": "12-real-series-48-frozen-origins"
+}

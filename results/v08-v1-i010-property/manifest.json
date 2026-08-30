@@ -1,0 +1,10 @@
+{
+  "benchmark": "propertybench",
+  "cases": 312,
+  "code_revision": "e11ee61",
+  "condition": "gnomon-engine",
+  "replicates": 12,
+  "run_status": "complete",
+  "seed": 2026083801,
+  "target": "general-temporal-properties"
+}
