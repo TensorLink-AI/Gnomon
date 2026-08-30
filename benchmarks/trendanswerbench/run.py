@@ -89,12 +89,13 @@ def _generate(case: dict[str, Any]) -> tuple[list[float], list[float]]:
     return values[:history_length], values[history_length:]
 
 
-def _cases() -> list[dict[str, Any]]:
+def _cases(seeds: tuple[int, ...] | None = None) -> list[dict[str, Any]]:
+    selected_seeds = SEEDS if seeds is None else seeds
     cases: list[dict[str, Any]] = []
     for family in FAMILIES:
         mechanism = str(family["mechanism"])
         short = mechanism == "insufficient"
-        for seed in SEEDS:
+        for seed in selected_seeds:
             structural_slope = (
                 0.0 if mechanism in {"plateau", "changepoint"}
                 else float(family.get("slope", 0.0)))
