@@ -28,10 +28,11 @@ error and return exit code `2`.
 | `AMBIGUOUS_FREQUENCY` | Too few timestamps or no supported interval dominates. | Supply more regular data or an explicit supported frequency. |
 | `UNSUPPORTED_FREQUENCY` | The requested code is unsupported. | Use a code from `gnomon capabilities` (e.g. `min`, `h`, `D`, `W`, `MS`). |
 | `DUPLICATE_TIMESTAMPS` | Conflicting values share a timestamp (identical rows collapse under the default repair). | Resolve upstream, ingest as revisions, or `--repair aggressive` (last row wins, disclosed). |
-| `IRREGULAR_TIME_GRID` | A period is missing or spacing is irregular. | Fill/reindex upstream, or `--repair aggressive` to interpolate interior gaps and snap jitter (capped). |
+| `IRREGULAR_TIME_GRID` | A period is missing or spacing is irregular. | Default safe repair already aligns bounded jitter; fill/reindex upstream, or use `--repair aggressive` only for small interior gaps (capped and disclosed). |
+| `TIMESTAMP_ALIGNMENT_CONFLICT` | Bounded alignment would merge or reorder observations. | Aggregate or resample the conflicting points upstream; Gnomon will not choose a value. |
 | `FREQUENCY_MISMATCH` | Requested and inferred frequencies disagree. | Correct the frequency or input timestamps. |
 | `INVALID_HORIZON` | Horizon is less than one. | Use a positive integer. |
-| `EXCESSIVE_REPAIR` | Repair would touch too much of a series (~30%, or >5% dropped rows). | Fix the export at the source; forecasting a mostly invented series is refused. |
+| `EXCESSIVE_REPAIR` | Repair would invent or choose too many values (~30%, or >5% dropped rows). | Fix the export at the source; forecasting a mostly invented series is refused. Bounded timestamp alignment is disclosed separately. |
 | `INVALID_REPAIR_LEVEL` | Unknown `--repair` value. | Use `off`, `safe`, or `aggressive`. |
 
 The JSON error's `details` field often includes the row, value, expected next

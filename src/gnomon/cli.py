@@ -509,8 +509,8 @@ def build_parser() -> argparse.ArgumentParser:
     forecast_parser.add_argument(
         "--repair", choices=("off", "safe", "aggressive"), default="safe",
         help="Messy-data handling: off rejects anything non-strict; safe "
-             "(default) normalises cell text with disclosure; aggressive "
-             "additionally fills gaps, snaps jittered timestamps, and "
+             "(default) normalises cell text and bounded timestamp jitter "
+             "with disclosure; aggressive additionally fills small gaps and "
              "resolves conflicts — capped and reported as warnings",
     )
     forecast_parser.add_argument(

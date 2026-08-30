@@ -96,15 +96,19 @@ What happens when a file falls short depends on `--repair`:
 
 - `off`: strict rejection with a typed error, exactly as in v0.2.
 - `safe` (default): cell text is normalised (formats, currency, sentinel
-  missing values, byte-identical duplicate rows), but nothing is invented,
-  moved, or dropped — a genuine gap or conflicting duplicate is still an
-  error, now carrying an `enable_repair` option.
-- `aggressive`: interior gaps are linearly interpolated, jittered
-  timestamps snapped to the grid, and conflicting duplicates resolved
-  (last row in file order wins) — each fix is recorded in the artifact's
-  `data_repair` evidence, surfaces as a `repaired_data:` warning that
-  downgrades support, and is capped: past roughly 30% of a series the run
-  refuses with `EXCESSIVE_REPAIR`.
+  missing values, byte-identical duplicate rows), and bounded timestamp
+  jitter is aligned to a phase learned from the series. The bound is 1% of
+  cadence, capped at 60 seconds. Alignment never merges observations or
+  changes values; its cadence, phase, count, tolerance, and maximum
+  displacement are disclosed. A genuine gap or conflicting duplicate is
+  still an error.
+- `aggressive`: the same bounded alignment applies, while interior gaps may
+  additionally be linearly interpolated and conflicting duplicates resolved
+  (last row in file order wins). Each fix is recorded in the artifact's
+  `data_repair` evidence and surfaces as a `repaired_data:` warning that
+  downgrades support. Value invention/selection is capped at roughly 30% of
+  a series; timestamp alignment is counted separately and does not consume
+  that ceiling.
 
 Gnomon never aggregates or imputes silently: either you resolved the mess
 upstream, or the artifact says exactly what was repaired.
@@ -168,4 +172,3 @@ Files that are not UTF-8 are read as Windows-1252 under repair, disclosed
 as an `encoding_assumed` assumption (strict mode raises `INVALID_ENCODING`).
 The same logical column and temporal rules apply to every format, and
 `gnomon capabilities` reports which optional formats are installed.
-

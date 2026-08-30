@@ -195,6 +195,7 @@ def load_stage(
             repair=repair, repair_log=log,
         )
         raw_observations = _knowledge_bound_plain_rows(raw_observations, as_of)
+        _record_reordering(raw_observations, log)
         # Calendar first, messiness second: the declared regrid settles the
         # grid before repair_observations measures gaps against it —
         # otherwise aggressive repair tries to interpolate every weekend
@@ -205,7 +206,6 @@ def load_stage(
                 raw_observations, regrid, log)
             frequency = _regrid_frequency(frequency, implied, regrid)
         raw_observations = repair_observations(raw_observations, frequency, repair, log)
-        _record_reordering(raw_observations, log)
         store, _ = InMemoryTemporalStore.from_plain_observations(
             raw_observations, variable, source_fingerprint,
         )
@@ -276,6 +276,7 @@ def load_stage_multi(
             )
             raw_observations = _knowledge_bound_plain_rows(
                 raw_observations, as_of)
+            _record_reordering(raw_observations, log)
             target_frequency = frequency
             if regrid:
                 from .repair import regrid_observations
@@ -284,7 +285,6 @@ def load_stage_multi(
                 target_frequency = _regrid_frequency(frequency, implied, regrid)
             raw_observations = repair_observations(
                 raw_observations, target_frequency, repair, log)
-            _record_reordering(raw_observations, log)
             store, _ = InMemoryTemporalStore.from_plain_observations(
                 raw_observations, target, source_fingerprint,
             )

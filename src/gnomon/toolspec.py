@@ -3438,7 +3438,7 @@ TOOLS: list[dict[str, Any]] = [
                 "covariate_known_at_column": {"type": "string", "description": "Availability timestamp column (default known_at)."},
                 **_TEMPORAL_QUESTIONS_PROPERTY,
                 "covariate_series_column": {"type": "string", "description": "Optional series column in the covariate CSV."},
-                "repair": {"type": "string", "enum": ["off", "safe", "aggressive"], "description": "Data repair (default safe); aggressive may fill gaps or snap times. Every change is disclosed."},
+                "repair": {"type": "string", "enum": ["off", "safe", "aggressive"], "description": "Repair: off strict; safe aligns bounded jitter; aggressive also fills gaps/conflicts. All disclosed."},
                 "best_effort": {"type": "boolean", "description": (
                     "Deprecated alias for minimum_support=best_effort."
                 )},
@@ -4879,8 +4879,9 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
                         error.repair_options = [{
                             "action": "retry_with_aggressive_repair",
                             "description": (
-                                "Retry once with capped interpolation and "
-                                "timestamp snapping; every repair is disclosed."),
+                                "Retry once with capped interpolation; bounded "
+                                "timestamp jitter is already handled by safe "
+                                "repair, and every repair is disclosed."),
                             "tool_call": {"name": _name,
                                           "arguments": retry_arguments},
                         }, *(error.repair_options

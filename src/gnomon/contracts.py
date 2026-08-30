@@ -361,8 +361,12 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
     ],
     "IRREGULAR_TIME_GRID": [
         {"action": "fill_or_resample", "description": "Fill the missing period named in details, or resample to a coarser regular frequency."},
-        {"action": "enable_repair", "description": "Pass repair=aggressive to interpolate interior gaps and snap jittered timestamps — capped, and every fix becomes a warning."},
+        {"action": "enable_repair", "description": "The default repair=safe aligns bounded scheduler/scrape jitter; pass repair=aggressive only to interpolate small interior gaps. Every change is disclosed."},
         {"action": "regrid_business_daily", "description": "When details.gap_weekend_only is true the series is business-day (Mon-Fri) data: pass regrid=business_daily to forward-fill non-trading days onto the continuous daily grid, disclosed and uncapped."},
+    ],
+    "TIMESTAMP_ALIGNMENT_CONFLICT": [
+        {"action": "deduplicate_or_resample", "description": "Two observations would occupy one aligned grid slot. Aggregate or resample them upstream; Gnomon will not choose or merge values."},
+        {"action": "disable_alignment", "description": "Pass repair=off to preserve timestamps and receive the strict grid diagnosis."},
     ],
     "REGRID_CONFLICT": [
         {"action": "deduplicate_months", "description": "regrid=month_start needs one observation per month per series; aggregate or drop the extra rows named in details."},
