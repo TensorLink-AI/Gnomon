@@ -1,0 +1,44 @@
+{
+  "benchmarks": [
+    {
+      "arm": "current-head-reproduction",
+      "benchmark": "jitterbench",
+      "bytes": 1903,
+      "file": "baseline.json",
+      "scope": "full",
+      "sha256": "e7686cabb95b88248fa881ce0399151c0f4004877035874b7143e503d30f3c8d",
+      "status": "complete"
+    },
+    {
+      "arm": "bounded-phase-aware-alignment",
+      "benchmark": "jitterbench",
+      "bytes": 1944,
+      "file": "candidate.json",
+      "scope": "full",
+      "sha256": "1c9caa6d7f94a45ca97f481f156e4996d2d9d58a95f96e17dc92f2f735195959",
+      "status": "complete"
+    }
+  ],
+  "curated_by_commit": "ec99285944adb95e28a7bb3d7d595f45874fb9c4",
+  "not_included": [
+    {
+      "benchmark": "exploratory dirty-tree S2 candidate runs",
+      "reason": "Retained locally under results/v07-s2-i003-candidate-v1 and candidate-v2; excluded from the aggregate release because their evaluated_commit cannot identify uncommitted production changes."
+    },
+    {
+      "benchmark": "raw S2 boundary records",
+      "reason": "Retained under results/v07-s2-i003-baseline and results/v07-s2-i003-candidate-v3; aggregate arms omit raw per-case payloads while retaining source digests."
+    },
+    {
+      "benchmark": "competition-specific plan",
+      "reason": "docs/astrid-btc-agent-plan.md is explicitly outside this loop and release."
+    }
+  ],
+  "policy": {
+    "aggregate_only": true,
+    "raw_runs_are_ci_artifacts": true,
+    "smoke_results_are_not_full_results": true
+  },
+  "release": "2026-08-30-v07-loop-i003",
+  "schema_version": "1.1"
+}

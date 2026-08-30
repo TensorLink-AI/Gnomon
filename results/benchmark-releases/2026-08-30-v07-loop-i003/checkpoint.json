@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "loop": "v0.7-forecast-quality",
+  "status": "active",
+  "base_commit": "7717cd940a9fc1fb7f85569dc20a0a8e1a63b3f7",
+  "latest_evaluated_commit": "ec99285944adb95e28a7bb3d7d595f45874fb9c4",
+  "branch": "agent/v0.7-forecast-quality-loop",
+  "protocol": "docs/v0.7-forecast-quality-loop.md",
+  "external_evaluation_intake": "docs/v0.7-external-evaluation-intake.md",
+  "preservation": {
+    "preserve_v06_release_and_pr83": true,
+    "preserve_preexisting_committed_work": true,
+    "preserve_preexisting_benchmark_artifacts": true,
+    "preserve_all_preexisting_untracked_files": true,
+    "excluded_from_commits": ["docs/astrid-btc-agent-plan.md"]
+  },
+  "execution_defaults": {
+    "one_active_issue": true,
+    "api_jobs": 1,
+    "bounded_retries_required": true,
+    "per_call_timeout_required": true,
+    "wall_clock_timeout_required": true,
+    "incremental_rows_required": true,
+    "resume_required": true,
+    "smoke_shard_before_expansion": true,
+    "engine_and_agent_scored_separately": true
+  },
+  "active_iteration": {
+    "id": "I004",
+    "issue": "Q1",
+    "phase": "freeze_fresh_naturalistic_confirmation",
+    "user_hypothesis": "Agents receive a non-flat forecast only when prefix-visible evidence shows it is more useful than the strongest honest level baseline on naturalistic data; humans retain a disclosed fallback when that evidence is absent.",
+    "must_not_regress": [
+      "last-value and historical-mean baselines remain mandatory and honestly measured",
+      "final horizons remain unavailable to selection",
+      "product completion and engine support remain separate",
+      "support and confidence language agree with measured gain and calibration",
+      "no family median regression beyond the frozen bound",
+      "no benchmark identity or future label reaches production selection"
+    ],
+    "protocol": "docs/v0.7-forecast-quality-loop.md#q1--useful-departures-from-last-value",
+    "next_action": "Inventory fresh naturalistic series and source licenses not used by prior TemporalBench or CiK scoring, then freeze dataset identities, cutoffs, horizons, baseline set including historical mean, denominators, paired metrics, and a small local smoke shard before any selector change or external run.",
+    "last_completed_action": "Promoted S2 at exact commit ec99285: all 13 frozen jitter gates passed, 182 focused tests passed, and the clean empty-sandbox full suite passed 2599 with 11 skips."
+  },
+  "issues": [
+    {"id": "S1", "name": "decision input integrity", "status": "complete"},
+    {"id": "S2", "name": "bounded timestamp jitter", "status": "complete"},
+    {"id": "Q1", "name": "useful departures from last-value", "status": "in_progress_naturalistic_confirmation"},
+    {"id": "Q2", "name": "decision-grade typed temporal answers", "status": "pending"},
+    {"id": "Q3", "name": "context recall at fixed precision", "status": "pending"},
+    {"id": "Q4", "name": "stable context-mechanism selection", "status": "pending"},
+    {"id": "Q5", "name": "crash-safe economical orchestration", "status": "pending"},
+    {"id": "Q6", "name": "regime-aware anomaly behavior", "status": "pending_current_head_reproduction"}
+  ],
+  "completed_iterations": [
+    {
+      "id": "I001",
+      "issue": "Q1",
+      "decision": "retain_current_policy_pending_naturalistic_confirmation",
+      "evidence": ["results/benchmark-releases/2026-08-30-v07-loop-i001/decision.json"]
+    },
+    {
+      "id": "I002",
+      "issue": "S1",
+      "decision": "promote",
+      "evidence": ["results/benchmark-releases/2026-08-30-v07-loop-i002/decision.json"]
+    },
+    {
+      "id": "I003",
+      "issue": "S2",
+      "decision": "promote",
+      "evidence": [
+        "results/benchmark-releases/2026-08-30-v07-loop-i003/baseline.json",
+        "results/benchmark-releases/2026-08-30-v07-loop-i003/candidate.json",
+        "results/benchmark-releases/2026-08-30-v07-loop-i003/decision.json"
+      ]
+    }
+  ]
+}
