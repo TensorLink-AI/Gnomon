@@ -25,7 +25,8 @@
   benchmarks, and exact-head pull-request CI are green.
 - Broad forecast-superiority, hosted-agent utility, request/token economy,
   TemporalBench, and CiK claims remain withheld pending the frozen external
-  evaluation lanes. The v0.8 pull request remains a draft.
+  evaluation lanes. PR #86 is merged, but no v0.8 release has been tagged or
+  recommended from that incomplete external evidence.
 
 ## 0.7.0 — forecast-quality and agent-boundary hardening (2026-08-30)
 
