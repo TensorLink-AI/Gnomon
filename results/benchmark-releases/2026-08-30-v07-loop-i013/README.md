@@ -3,10 +3,15 @@
 Local decision: **the 0.7.0 candidate is green and ready for exact-head CI. Do
 not tag until that CI is green.**
 
-The versioned product candidate was `77ffb5a`; `7352f91` refreshed five
+The forecast product candidate was `77ffb5a`; `7352f91` refreshed five
 byte-exact goldens whose only changes were the 0.7.0 runtime stamp and
-version-derived forecast IDs. No product behavior changed after the small
-benchmark shards.
+version-derived forecast IDs. The first exact-head CI run then exposed a
+general checkout-path-dependent overflow in the compact capabilities response
+and a release validator that understood curated manifests but not loop
+checkpoint manifests. Commit `58a395f` made the workspace brief relative and
+bounded, added strict checkpoint path/byte/digest validation, and retained all
+checkpoint metadata. These changes do not touch forecasts, context admission,
+selection, or the Evidence profile used by the small shards.
 
 The untouched four-case ContextBench confirmation completed 4/4 with zero
 errors, retries, or leakage; exact publication parity; and one Gnomon call per
@@ -39,7 +44,7 @@ threshold artifact and its human brief were inspected: the first 33 evaluated
 steps were separated from the extrapolated remainder, breach probability was
 withheld as uncalibrated, automation stayed false, and the immutable primary
 was preserved beside a labelled prior-assisted path. The full TSFM-isolated
-repository suite passed **2,651 with 11 skipped**.
+repository suite passed **2,653 with 11 skipped** after the CI revision.
 
 Raw responses, attempts, receipts, traces, and artifacts remain in the local
 paths in `validation.json`. The external-evaluation intake remains unchanged.

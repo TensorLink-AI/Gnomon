@@ -30,7 +30,7 @@ the immutable history-only primary and human-review automation boundary.
 
 - Every v0.7 safety and forecast-quality issue reached a promoted fix or a
   preregistered evidence-backed no-build decision.
-- The exact 0.7.0 candidate passed 2,651 tests with 11 skips in the full
+- The exact 0.7.0 candidate passed 2,653 tests with 11 skips in the full
   TSFM-isolated suite; its small matched external shards and clean-wheel smoke
   are recorded in the v0.7 benchmark-release artifacts.
 
