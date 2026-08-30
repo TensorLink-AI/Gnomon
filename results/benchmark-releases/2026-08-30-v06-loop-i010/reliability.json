@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "baseline_commit": "2fc6d15",
+  "candidate_commit": "cf4bfd8",
+  "protocol": "docs/v0.6-p10-reliability-protocol.md",
+  "configuration": {
+    "cases": 6,
+    "case_jobs": 1,
+    "race_writers": 2,
+    "case_timeout_seconds": 30,
+    "retries": 1,
+    "atomic_case_files": true,
+    "external_calls": 0
+  },
+  "baseline": {
+    "completed": 6,
+    "same_id_successful_callers": 0,
+    "same_id_expected_callers": 4,
+    "race_errors": ["FileExistsError", "BrokenBarrierError"],
+    "serial_load_completed": 12,
+    "serial_load_p95_seconds": 0.003444015999775729,
+    "all_gates_pass": false
+  },
+  "candidate_replications": [
+    {
+      "run": "candidate-c",
+      "completed": 6,
+      "same_id_successful_callers": 4,
+      "forecast_payload_matches_control": true,
+      "json_payload_matches_control": true,
+      "serial_load_completed": 12,
+      "serial_load_p95_seconds": 0.0034371679994364968,
+      "all_gates_pass": true
+    },
+    {
+      "run": "candidate-d",
+      "completed": 6,
+      "same_id_successful_callers": 4,
+      "forecast_payload_matches_control": true,
+      "json_payload_matches_control": true,
+      "serial_load_completed": 12,
+      "serial_load_p95_seconds": 0.003685709998535458,
+      "all_gates_pass": true
+    }
+  ],
+  "fault_injection": {
+    "forecast_final_invisible_after_failure": true,
+    "json_final_invisible_after_failure": true,
+    "private_diagnostic_partial_retained": true,
+    "clean_retry_integrity_verified": true,
+    "public_reader_verified": true
+  },
+  "mcp_failure": {
+    "is_error_tool_result": true,
+    "error_code": "INTERNAL_ERROR",
+    "repair_option": "report_bug",
+    "transport_error": false
+  },
+  "production_change": {
+    "private_writer_trees": true,
+    "atomic_no_overwrite_publish": true,
+    "concurrent_winner_verified": true,
+    "loser_removes_only_own_tree": true,
+    "locks_or_unbounded_waits_added": false,
+    "artifact_id_or_payload_changed": false
+  },
+  "raw_evidence": [
+    "results/v06-p10-i010-reliability-baseline/",
+    "results/v06-p10-i010-reliability-candidate-c/",
+    "results/v06-p10-i010-reliability-candidate-d/"
+  ],
+  "decision_ready": true
+}

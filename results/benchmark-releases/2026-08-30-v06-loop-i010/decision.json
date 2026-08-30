@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "iteration": "I010",
+  "priority": "P10",
+  "decision": "complete_promoted",
+  "evaluated_commit": "cf4bfd8",
+  "protocol": "docs/v0.6-p10-reliability-protocol.md",
+  "user_outcome": "Agents can safely repeat the same forecast concurrently, and humans receive one complete verified artifact or a private diagnosable partial rather than corruption, hangs, or transport failure.",
+  "validation": {
+    "full_local_suite": {"passed": 2579, "skipped": 11, "failed": 0},
+    "focused_suite": {"passed": 13, "failed": 0},
+    "reliability_benchmark_replications": 2,
+    "candidate_cases_completed": 12,
+    "same_id_callers_succeeded": 8,
+    "same_id_callers_expected": 8,
+    "result": "results/benchmark-releases/2026-08-30-v06-loop-i010/reliability.json"
+  },
+  "retained_behavior": [
+    "content-addressed artifact IDs and first-write-wins semantics",
+    "forecast, evidence, lineage, summaries, reports, and integrity bytes",
+    "writer-private failure diagnostics",
+    "typed MCP INTERNAL_ERROR boundary",
+    "serial low-resource execution with no external calls"
+  ],
+  "not_built": [
+    "global or distributed locks",
+    "unbounded waits, automatic retries, or background daemons",
+    "silent optional-model fallback or new concurrency defaults"
+  ],
+  "remaining_risks": [
+    "The synchronized probe covers two local same-host writers, not unreliable network filesystems.",
+    "Failed writer-private directories require deliberate operator cleanup after diagnosis.",
+    "The latency gate measures a frozen short local fixture and is a regression bound, not a universal service SLO."
+  ]
+}

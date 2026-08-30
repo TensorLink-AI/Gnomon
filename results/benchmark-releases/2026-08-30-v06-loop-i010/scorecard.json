@@ -1,0 +1,41 @@
+{
+  "schema_version": "0.1",
+  "scorecard_id": "v0.6-i010-production-reliability",
+  "scorecard_commit": "cf4bfd8",
+  "dirty_tree": false,
+  "scope": "smoke",
+  "layers": {
+    "output": {
+      "status": "pass",
+      "dataset_identity": "Forecast and JSON artifacts built from frozen local payloads",
+      "configuration_identity": "single-writer controls versus synchronized two-writer publication",
+      "accounting": {"expected": 8, "completed": 8, "failed": 0},
+      "metrics": [
+        {"name": "same_id_caller_success", "value": 1.0, "unit": "fraction", "denominator": 8, "gate": {"operator": "eq", "threshold": 1.0, "passed": true}},
+        {"name": "single_writer_payload_identity", "value": 1.0, "unit": "fraction", "denominator": 4, "gate": {"operator": "eq", "threshold": 1.0, "passed": true}}
+      ]
+    },
+    "reasoning": {
+      "status": "pass",
+      "dataset_identity": "Injected pre-seal faults and unexpected MCP tool exception",
+      "configuration_identity": "private partial visibility, public integrity verification, typed tool-error contract",
+      "accounting": {"expected": 6, "completed": 6, "failed": 0},
+      "metrics": [
+        {"name": "failed_final_invisibility_and_clean_retry", "value": 1.0, "unit": "fraction", "denominator": 4, "gate": {"operator": "eq", "threshold": 1.0, "passed": true}},
+        {"name": "typed_mcp_internal_failure", "value": 1.0, "unit": "fraction", "denominator": 2, "gate": {"operator": "eq", "threshold": 1.0, "passed": true}}
+      ]
+    },
+    "topology": {
+      "status": "pass",
+      "dataset_identity": "Two independent serial ReliabilityBench runs",
+      "configuration_identity": "jobs=1; two writers only in race fixtures; 30s timeout; one retry; atomic resume",
+      "accounting": {"expected": 24, "completed": 24, "failed": 0},
+      "metrics": [
+        {"name": "serial_forecast_completion", "value": 1.0, "unit": "fraction", "denominator": 24, "gate": {"operator": "eq", "threshold": 1.0, "passed": true}},
+        {"name": "worst_replication_p95_seconds", "value": 0.003685709998535458, "unit": "seconds", "denominator": 24, "gate": {"operator": "lte", "threshold": 1.0, "passed": true}},
+        {"name": "external_calls_and_retries", "value": 0, "unit": "calls", "denominator": 24, "gate": {"operator": "eq", "threshold": 0, "passed": true}}
+      ]
+    }
+  },
+  "decision": {"status": "complete_promoted", "reason": "Both clean replications passed every frozen fault, concurrency, integrity, latency, cost, retry, and topology gate."}
+}
