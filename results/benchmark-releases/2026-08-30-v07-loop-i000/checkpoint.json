@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "loop": "v0.7-forecast-quality",
+  "status": "active",
+  "base_commit": "7717cd940a9fc1fb7f85569dc20a0a8e1a63b3f7",
+  "branch": "agent/v0.7-forecast-quality-loop",
+  "protocol": "docs/v0.7-forecast-quality-loop.md",
+  "preservation": {
+    "preserve_v06_release_and_pr83": true,
+    "preserve_preexisting_committed_work": true,
+    "preserve_preexisting_benchmark_artifacts": true,
+    "preserve_all_preexisting_untracked_files": true,
+    "excluded_from_commits": [
+      "docs/astrid-btc-agent-plan.md"
+    ]
+  },
+  "execution_defaults": {
+    "one_active_issue": true,
+    "api_jobs": 1,
+    "bounded_retries_required": true,
+    "per_call_timeout_required": true,
+    "wall_clock_timeout_required": true,
+    "incremental_rows_required": true,
+    "resume_required": true,
+    "smoke_shard_before_expansion": true,
+    "engine_and_agent_scored_separately": true
+  },
+  "active_iteration": {
+    "id": "I001",
+    "issue": "Q1",
+    "phase": "protocol_frozen",
+    "user_hypothesis": "Prefix-only evidence can admit useful non-flat paths often enough to improve agent forecasts, while weak evidence preserves the safe last-value fallback and its visible support limitations.",
+    "must_not_regress": [
+      "future leakage remains zero",
+      "benchmark identity never enters runtime selection",
+      "unsupported candidates retain last-value deterministically",
+      "support, model identity, and admission evidence remain visible",
+      "context and answer synthesis do not mutate the immutable primary"
+    ],
+    "frozen_development_seed": 92741,
+    "baseline_evidence": [
+      "results/benchmark-releases/2026-08-30-v06-external-validation/temporalbench-channel-comparison.json",
+      "results/v06-release-validation-466d577/temporalbench-evidence-035/details/tsb_000021_T2.json",
+      "results/v06-release-validation-466d577/temporalbench-evidence-045/details/tsb_000026_T2.json",
+      "results/benchmark-releases/2026-08-30-v06-loop-i002/decision.json"
+    ],
+    "next_action": "Add a benchmark-only production-selector lane to the independent short-history runner, with retained per-case admission evidence and untouched final horizons; run seed 92741 baseline and inspect admitted wins, losses, and fallbacks before modifying selection.",
+    "last_completed_action": "Traced all four non-last-value TemporalBench paths to two duplicated seasonal_naive selections, ruled out panel pooling as their source, and froze the v0.7 loop plus Q1 gate before implementation."
+  },
+  "issues": [
+    {"id": "Q1", "name": "useful departures from last-value", "status": "in_progress"},
+    {"id": "Q2", "name": "decision-grade typed temporal answers", "status": "pending"},
+    {"id": "Q3", "name": "context recall at fixed precision", "status": "pending"},
+    {"id": "Q4", "name": "stable context-mechanism selection", "status": "pending"},
+    {"id": "Q5", "name": "crash-safe economical orchestration", "status": "pending"}
+  ],
+  "completed_iterations": []
+}
