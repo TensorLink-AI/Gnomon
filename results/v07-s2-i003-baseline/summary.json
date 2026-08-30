@@ -1,0 +1,1132 @@
+{
+  "accepted": 3,
+  "benchmark": "bounded-timestamp-jitter",
+  "cases": 22,
+  "evaluated_commit": "4cfe8fa",
+  "fixture_provenance": "independently_regenerated",
+  "frozen_policy": {
+    "maximum_tolerance_seconds": 60.0,
+    "tolerance_fraction": 0.01,
+    "twenty_minute_tolerance_seconds": 12.0
+  },
+  "gates": {
+    "bounded_alignment_preserves_values_and_count": false,
+    "bounded_jitter_safe_and_aggressive": false,
+    "collisions_refused_without_merge": false,
+    "exact_grid_untouched_all_levels": true,
+    "long_outage_refused_typed": true,
+    "mixed_cadence_refused_typed": true,
+    "no_internal_errors": true,
+    "off_remains_strict": true,
+    "outside_boundary_refused": true,
+    "phase_and_tolerance_are_visible": false,
+    "reordering_disclosed_separately": false,
+    "small_gap_not_hidden": false,
+    "snaps_do_not_consume_invention_ceiling": false
+  },
+  "internal_errors": 0,
+  "raw_records": [
+    {
+      "actions": [],
+      "case_id": "exact_phase",
+      "error": null,
+      "frequency": "20min",
+      "repair": "off",
+      "termination": "accepted",
+      "timestamps": [
+        "2026-01-01T00:07:00",
+        "2026-01-01T00:27:00",
+        "2026-01-01T00:47:00",
+        "2026-01-01T01:07:00",
+        "2026-01-01T01:27:00",
+        "2026-01-01T01:47:00",
+        "2026-01-01T02:07:00",
+        "2026-01-01T02:27:00",
+        "2026-01-01T02:47:00",
+        "2026-01-01T03:07:00",
+        "2026-01-01T03:27:00",
+        "2026-01-01T03:47:00",
+        "2026-01-01T04:07:00",
+        "2026-01-01T04:27:00",
+        "2026-01-01T04:47:00",
+        "2026-01-01T05:07:00",
+        "2026-01-01T05:27:00",
+        "2026-01-01T05:47:00",
+        "2026-01-01T06:07:00",
+        "2026-01-01T06:27:00",
+        "2026-01-01T06:47:00",
+        "2026-01-01T07:07:00",
+        "2026-01-01T07:27:00",
+        "2026-01-01T07:47:00",
+        "2026-01-01T08:07:00",
+        "2026-01-01T08:27:00",
+        "2026-01-01T08:47:00",
+        "2026-01-01T09:07:00",
+        "2026-01-01T09:27:00",
+        "2026-01-01T09:47:00",
+        "2026-01-01T10:07:00",
+        "2026-01-01T10:27:00",
+        "2026-01-01T10:47:00",
+        "2026-01-01T11:07:00",
+        "2026-01-01T11:27:00",
+        "2026-01-01T11:47:00"
+      ],
+      "values": [
+        0.0,
+        1.0,
+        2.0,
+        3.0,
+        4.0,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        13.0,
+        14.0,
+        15.0,
+        16.0,
+        17.0,
+        18.0,
+        19.0,
+        20.0,
+        21.0,
+        22.0,
+        23.0,
+        24.0,
+        25.0,
+        26.0,
+        27.0,
+        28.0,
+        29.0,
+        30.0,
+        31.0,
+        32.0,
+        33.0,
+        34.0,
+        35.0
+      ]
+    },
+    {
+      "actions": [],
+      "case_id": "exact_phase",
+      "error": null,
+      "frequency": "20min",
+      "repair": "safe",
+      "termination": "accepted",
+      "timestamps": [
+        "2026-01-01T00:07:00",
+        "2026-01-01T00:27:00",
+        "2026-01-01T00:47:00",
+        "2026-01-01T01:07:00",
+        "2026-01-01T01:27:00",
+        "2026-01-01T01:47:00",
+        "2026-01-01T02:07:00",
+        "2026-01-01T02:27:00",
+        "2026-01-01T02:47:00",
+        "2026-01-01T03:07:00",
+        "2026-01-01T03:27:00",
+        "2026-01-01T03:47:00",
+        "2026-01-01T04:07:00",
+        "2026-01-01T04:27:00",
+        "2026-01-01T04:47:00",
+        "2026-01-01T05:07:00",
+        "2026-01-01T05:27:00",
+        "2026-01-01T05:47:00",
+        "2026-01-01T06:07:00",
+        "2026-01-01T06:27:00",
+        "2026-01-01T06:47:00",
+        "2026-01-01T07:07:00",
+        "2026-01-01T07:27:00",
+        "2026-01-01T07:47:00",
+        "2026-01-01T08:07:00",
+        "2026-01-01T08:27:00",
+        "2026-01-01T08:47:00",
+        "2026-01-01T09:07:00",
+        "2026-01-01T09:27:00",
+        "2026-01-01T09:47:00",
+        "2026-01-01T10:07:00",
+        "2026-01-01T10:27:00",
+        "2026-01-01T10:47:00",
+        "2026-01-01T11:07:00",
+        "2026-01-01T11:27:00",
+        "2026-01-01T11:47:00"
+      ],
+      "values": [
+        0.0,
+        1.0,
+        2.0,
+        3.0,
+        4.0,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        13.0,
+        14.0,
+        15.0,
+        16.0,
+        17.0,
+        18.0,
+        19.0,
+        20.0,
+        21.0,
+        22.0,
+        23.0,
+        24.0,
+        25.0,
+        26.0,
+        27.0,
+        28.0,
+        29.0,
+        30.0,
+        31.0,
+        32.0,
+        33.0,
+        34.0,
+        35.0
+      ]
+    },
+    {
+      "actions": [],
+      "case_id": "exact_phase",
+      "error": null,
+      "frequency": "20min",
+      "repair": "aggressive",
+      "termination": "accepted",
+      "timestamps": [
+        "2026-01-01T00:07:00",
+        "2026-01-01T00:27:00",
+        "2026-01-01T00:47:00",
+        "2026-01-01T01:07:00",
+        "2026-01-01T01:27:00",
+        "2026-01-01T01:47:00",
+        "2026-01-01T02:07:00",
+        "2026-01-01T02:27:00",
+        "2026-01-01T02:47:00",
+        "2026-01-01T03:07:00",
+        "2026-01-01T03:27:00",
+        "2026-01-01T03:47:00",
+        "2026-01-01T04:07:00",
+        "2026-01-01T04:27:00",
+        "2026-01-01T04:47:00",
+        "2026-01-01T05:07:00",
+        "2026-01-01T05:27:00",
+        "2026-01-01T05:47:00",
+        "2026-01-01T06:07:00",
+        "2026-01-01T06:27:00",
+        "2026-01-01T06:47:00",
+        "2026-01-01T07:07:00",
+        "2026-01-01T07:27:00",
+        "2026-01-01T07:47:00",
+        "2026-01-01T08:07:00",
+        "2026-01-01T08:27:00",
+        "2026-01-01T08:47:00",
+        "2026-01-01T09:07:00",
+        "2026-01-01T09:27:00",
+        "2026-01-01T09:47:00",
+        "2026-01-01T10:07:00",
+        "2026-01-01T10:27:00",
+        "2026-01-01T10:47:00",
+        "2026-01-01T11:07:00",
+        "2026-01-01T11:27:00",
+        "2026-01-01T11:47:00"
+      ],
+      "values": [
+        0.0,
+        1.0,
+        2.0,
+        3.0,
+        4.0,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        13.0,
+        14.0,
+        15.0,
+        16.0,
+        17.0,
+        18.0,
+        19.0,
+        20.0,
+        21.0,
+        22.0,
+        23.0,
+        24.0,
+        25.0,
+        26.0,
+        27.0,
+        28.0,
+        29.0,
+        30.0,
+        31.0,
+        32.0,
+        33.0,
+        34.0,
+        35.0
+      ]
+    },
+    {
+      "actions": [],
+      "case_id": "cron_jitter",
+      "error": {
+        "code": "AMBIGUOUS_FREQUENCY",
+        "details": {
+          "distinct_spacings": 2,
+          "observed_step": "0:19:59",
+          "regular": false,
+          "supported": [
+            "10min",
+            "15min",
+            "30min",
+            "5min",
+            "D",
+            "MS",
+            "W",
+            "h",
+            "min",
+            "s"
+          ]
+        },
+        "message": "Could not infer a regular frequency: the spacing between consecutive timestamps varies (most common step: 0:19:59, 2 distinct spacings). Pass an explicit frequency \u2014 a named code or any whole-second sub-daily step as <N>s/<N>min/<N>h \u2014 or repair the grid upstream.",
+        "repair_options": [
+          {
+            "action": "set_frequency",
+            "description": "Pass frequency explicitly; the supported codes are in details.supported."
+          },
+          {
+            "action": "inspect_dataset",
+            "description": "Call gnomon_inspect to see the observed step between timestamps."
+          },
+          {
+            "action": "restamp_to_month_start",
+            "description": "Month-end dates (Jan 31, Feb 28, \u2026) are not a supported grid. Pass regrid=month_start to restamp each observation to the first of its month (disclosed), or restamp upstream and pass frequency=MS."
+          }
+        ],
+        "retryable": false
+      },
+      "frequency": null,
+      "repair": "safe",
+      "termination": "typed_rejection",
+      "timestamps": [],
+      "values": []
+    },
+    {
+      "actions": [],
+      "case_id": "cron_jitter",
+      "error": {
+        "code": "AMBIGUOUS_FREQUENCY",
+        "details": {
+          "distinct_spacings": 2,
+          "observed_step": "0:19:59",
+          "regular": false,
+          "supported": [
+            "10min",
+            "15min",
+            "30min",
+            "5min",
+            "D",
+            "MS",
+            "W",
+            "h",
+            "min",
+            "s"
+          ]
+        },
+        "message": "Could not infer a regular frequency: the spacing between consecutive timestamps varies (most common step: 0:19:59, 2 distinct spacings). Pass an explicit frequency \u2014 a named code or any whole-second sub-daily step as <N>s/<N>min/<N>h \u2014 or repair the grid upstream.",
+        "repair_options": [
+          {
+            "action": "set_frequency",
+            "description": "Pass frequency explicitly; the supported codes are in details.supported."
+          },
+          {
+            "action": "inspect_dataset",
+            "description": "Call gnomon_inspect to see the observed step between timestamps."
+          },
+          {
+            "action": "restamp_to_month_start",
+            "description": "Month-end dates (Jan 31, Feb 28, \u2026) are not a supported grid. Pass regrid=month_start to restamp each observation to the first of its month (disclosed), or restamp upstream and pass frequency=MS."
+          }
+        ],
+        "retryable": false
+      },
+      "frequency": null,
+      "repair": "aggressive",
+      "termination": "typed_rejection",
+      "timestamps": [],
+      "values": []
+    },
+    {
+      "actions": [],
+      "case_id": "scrape_jitter",
+      "error": {
+        "code": "AMBIGUOUS_FREQUENCY",
+        "details": {
+          "distinct_spacings": 6,
+          "observed_step": "0:20:14",
+          "regular": false,
+          "supported": [
+            "10min",
+            "15min",
+            "30min",
+            "5min",
+            "D",
+            "MS",
+            "W",
+            "h",
+            "min",
+            "s"
+          ]
+        },
+        "message": "Could not infer a regular frequency: the spacing between consecutive timestamps varies (most common step: 0:20:14, 6 distinct spacings). Pass an explicit frequency \u2014 a named code or any whole-second sub-daily step as <N>s/<N>min/<N>h \u2014 or repair the grid upstream.",
+        "repair_options": [
+          {
+            "action": "set_frequency",
+            "description": "Pass frequency explicitly; the supported codes are in details.supported."
+          },
+          {
+            "action": "inspect_dataset",
+            "description": "Call gnomon_inspect to see the observed step between timestamps."
+          },
+          {
+            "action": "restamp_to_month_start",
+            "description": "Month-end dates (Jan 31, Feb 28, \u2026) are not a supported grid. Pass regrid=month_start to restamp each observation to the first of its month (disclosed), or restamp upstream and pass frequency=MS."
+          }
+        ],
+        "retryable": false
+      },
+      "frequency": null,
+      "repair": "safe",
+      "termination": "typed_rejection",
+      "timestamps": [],
+      "values": []
+    },
+    {
+      "actions": [],
+      "case_id": "scrape_jitter",
+      "error": {
+        "code": "AMBIGUOUS_FREQUENCY",
+        "details": {
+          "distinct_spacings": 6,
+          "observed_step": "0:20:14",
+          "regular": false,
+          "supported": [
+            "10min",
+            "15min",
+            "30min",
+            "5min",
+            "D",
+            "MS",
+            "W",
+            "h",
+            "min",
+            "s"
+          ]
+        },
+        "message": "Could not infer a regular frequency: the spacing between consecutive timestamps varies (most common step: 0:20:14, 6 distinct spacings). Pass an explicit frequency \u2014 a named code or any whole-second sub-daily step as <N>s/<N>min/<N>h \u2014 or repair the grid upstream.",
+        "repair_options": [
+          {
+            "action": "set_frequency",
+            "description": "Pass frequency explicitly; the supported codes are in details.supported."
+          },
+          {
+            "action": "inspect_dataset",
+            "description": "Call gnomon_inspect to see the observed step between timestamps."
+          },
+          {
+            "action": "restamp_to_month_start",
+            "description": "Month-end dates (Jan 31, Feb 28, \u2026) are not a supported grid. Pass regrid=month_start to restamp each observation to the first of its month (disclosed), or restamp upstream and pass frequency=MS."
+          }
+        ],
+        "retryable": false
+      },
+      "frequency": null,
+      "repair": "aggressive",
+      "termination": "typed_rejection",
+      "timestamps": [],
+      "values": []
+    },
+    {
+      "actions": [],
+      "case_id": "boundary_inside",
+      "error": {
+        "code": "AMBIGUOUS_FREQUENCY",
+        "details": {
+          "distinct_spacings": 3,
+          "observed_step": "0:20:00",
+          "regular": false,
+          "supported": [
+            "10min",
+            "15min",
+            "30min",
+            "5min",
+            "D",
+            "MS",
+            "W",
+            "h",
+            "min",
+            "s"
+          ]
+        },
+        "message": "Could not infer a regular frequency: the spacing between consecutive timestamps varies (most common step: 0:20:00, 3 distinct spacings). Pass an explicit frequency \u2014 a named code or any whole-second sub-daily step as <N>s/<N>min/<N>h \u2014 or repair the grid upstream.",
+        "repair_options": [
+          {
+            "action": "set_frequency",
+            "description": "Pass frequency explicitly; the supported codes are in details.supported."
+          },
+          {
+            "action": "inspect_dataset",
+            "description": "Call gnomon_inspect to see the observed step between timestamps."
+          },
+          {
+            "action": "restamp_to_month_start",
+            "description": "Month-end dates (Jan 31, Feb 28, \u2026) are not a supported grid. Pass regrid=month_start to restamp each observation to the first of its month (disclosed), or restamp upstream and pass frequency=MS."
+          }
+        ],
+        "retryable": false
+      },
+      "frequency": null,
+      "repair": "safe",
+      "termination": "typed_rejection",
+      "timestamps": [],
+      "values": []
+    },
+    {
+      "actions": [],
+      "case_id": "boundary_inside",
+      "error": {
+        "code": "AMBIGUOUS_FREQUENCY",
+        "details": {
+          "distinct_spacings": 3,
+          "observed_step": "0:20:00",
+          "regular": false,
+          "supported": [
+            "10min",
+            "15min",
+            "30min",
+            "5min",
+            "D",
+            "MS",
+            "W",
+            "h",
+            "min",
+            "s"
+          ]
+        },
+        "message": "Could not infer a regular frequency: the spacing between consecutive timestamps varies (most common step: 0:20:00, 3 distinct spacings). Pass an explicit frequency \u2014 a named code or any whole-second sub-daily step as <N>s/<N>min/<N>h \u2014 or repair the grid upstream.",
+        "repair_options": [
+          {
+            "action": "set_frequency",
+            "description": "Pass frequency explicitly; the supported codes are in details.supported."
+          },
+          {
+            "action": "inspect_dataset",
+            "description": "Call gnomon_inspect to see the observed step between timestamps."
+          },
+          {
+            "action": "restamp_to_month_start",
+            "description": "Month-end dates (Jan 31, Feb 28, \u2026) are not a supported grid. Pass regrid=month_start to restamp each observation to the first of its month (disclosed), or restamp upstream and pass frequency=MS."
+          }
+        ],
+        "retryable": false
+      },
+      "frequency": null,
+      "repair": "aggressive",
+      "termination": "typed_rejection",
+      "timestamps": [],
+      "values": []
+    },
+    {
+      "actions": [],
+      "case_id": "boundary_outside",
+      "error": {
+        "code": "AMBIGUOUS_FREQUENCY",
+        "details": {
+          "distinct_spacings": 3,
+          "observed_step": "0:20:00",
+          "regular": false,
+          "supported": [
+            "10min",
+            "15min",
+            "30min",
+            "5min",
+            "D",
+            "MS",
+            "W",
+            "h",
+            "min",
+            "s"
+          ]
+        },
+        "message": "Could not infer a regular frequency: the spacing between consecutive timestamps varies (most common step: 0:20:00, 3 distinct spacings). Pass an explicit frequency \u2014 a named code or any whole-second sub-daily step as <N>s/<N>min/<N>h \u2014 or repair the grid upstream.",
+        "repair_options": [
+          {
+            "action": "set_frequency",
+            "description": "Pass frequency explicitly; the supported codes are in details.supported."
+          },
+          {
+            "action": "inspect_dataset",
+            "description": "Call gnomon_inspect to see the observed step between timestamps."
+          },
+          {
+            "action": "restamp_to_month_start",
+            "description": "Month-end dates (Jan 31, Feb 28, \u2026) are not a supported grid. Pass regrid=month_start to restamp each observation to the first of its month (disclosed), or restamp upstream and pass frequency=MS."
+          }
+        ],
+        "retryable": false
+      },
+      "frequency": null,
+      "repair": "safe",
+      "termination": "typed_rejection",
+      "timestamps": [],
+      "values": []
+    },
+    {
+      "actions": [],
+      "case_id": "boundary_outside",
+      "error": {
+        "code": "AMBIGUOUS_FREQUENCY",
+        "details": {
+          "distinct_spacings": 3,
+          "observed_step": "0:20:00",
+          "regular": false,
+          "supported": [
+            "10min",
+            "15min",
+            "30min",
+            "5min",
+            "D",
+            "MS",
+            "W",
+            "h",
+            "min",
+            "s"
+          ]
+        },
+        "message": "Could not infer a regular frequency: the spacing between consecutive timestamps varies (most common step: 0:20:00, 3 distinct spacings). Pass an explicit frequency \u2014 a named code or any whole-second sub-daily step as <N>s/<N>min/<N>h \u2014 or repair the grid upstream.",
+        "repair_options": [
+          {
+            "action": "set_frequency",
+            "description": "Pass frequency explicitly; the supported codes are in details.supported."
+          },
+          {
+            "action": "inspect_dataset",
+            "description": "Call gnomon_inspect to see the observed step between timestamps."
+          },
+          {
+            "action": "restamp_to_month_start",
+            "description": "Month-end dates (Jan 31, Feb 28, \u2026) are not a supported grid. Pass regrid=month_start to restamp each observation to the first of its month (disclosed), or restamp upstream and pass frequency=MS."
+          }
+        ],
+        "retryable": false
+      },
+      "frequency": null,
+      "repair": "aggressive",
+      "termination": "typed_rejection",
+      "timestamps": [],
+      "values": []
+    },
+    {
+      "actions": [
+        {
+          "assumptive": false,
+          "code": "timestamps_reordered",
+          "count": 2,
+          "detail": "Rows arrived out of chronological order and were sorted. The sort is correct; it is recorded because an unsorted export is usually a symptom worth knowing about.",
+          "examples": [],
+          "series": "__default__"
+        }
+      ],
+      "case_id": "reordered",
+      "error": {
+        "code": "AMBIGUOUS_FREQUENCY",
+        "details": {
+          "distinct_spacings": 2,
+          "observed_step": "0:19:59",
+          "regular": false,
+          "supported": [
+            "10min",
+            "15min",
+            "30min",
+            "5min",
+            "D",
+            "MS",
+            "W",
+            "h",
+            "min",
+            "s"
+          ]
+        },
+        "message": "Could not infer a regular frequency: the spacing between consecutive timestamps varies (most common step: 0:19:59, 2 distinct spacings). Pass an explicit frequency \u2014 a named code or any whole-second sub-daily step as <N>s/<N>min/<N>h \u2014 or repair the grid upstream.",
+        "repair_options": [
+          {
+            "action": "set_frequency",
+            "description": "Pass frequency explicitly; the supported codes are in details.supported."
+          },
+          {
+            "action": "inspect_dataset",
+            "description": "Call gnomon_inspect to see the observed step between timestamps."
+          },
+          {
+            "action": "restamp_to_month_start",
+            "description": "Month-end dates (Jan 31, Feb 28, \u2026) are not a supported grid. Pass regrid=month_start to restamp each observation to the first of its month (disclosed), or restamp upstream and pass frequency=MS."
+          }
+        ],
+        "retryable": false
+      },
+      "frequency": null,
+      "repair": "safe",
+      "termination": "typed_rejection",
+      "timestamps": [],
+      "values": []
+    },
+    {
+      "actions": [],
+      "case_id": "reordered",
+      "error": {
+        "code": "AMBIGUOUS_FREQUENCY",
+        "details": {
+          "distinct_spacings": 2,
+          "observed_step": "0:19:59",
+          "regular": false,
+          "supported": [
+            "10min",
+            "15min",
+            "30min",
+            "5min",
+            "D",
+            "MS",
+            "W",
+            "h",
+            "min",
+            "s"
+          ]
+        },
+        "message": "Could not infer a regular frequency: the spacing between consecutive timestamps varies (most common step: 0:19:59, 2 distinct spacings). Pass an explicit frequency \u2014 a named code or any whole-second sub-daily step as <N>s/<N>min/<N>h \u2014 or repair the grid upstream.",
+        "repair_options": [
+          {
+            "action": "set_frequency",
+            "description": "Pass frequency explicitly; the supported codes are in details.supported."
+          },
+          {
+            "action": "inspect_dataset",
+            "description": "Call gnomon_inspect to see the observed step between timestamps."
+          },
+          {
+            "action": "restamp_to_month_start",
+            "description": "Month-end dates (Jan 31, Feb 28, \u2026) are not a supported grid. Pass regrid=month_start to restamp each observation to the first of its month (disclosed), or restamp upstream and pass frequency=MS."
+          }
+        ],
+        "retryable": false
+      },
+      "frequency": null,
+      "repair": "aggressive",
+      "termination": "typed_rejection",
+      "timestamps": [],
+      "values": []
+    },
+    {
+      "actions": [],
+      "case_id": "mixed_cadence",
+      "error": {
+        "code": "AMBIGUOUS_FREQUENCY",
+        "details": {
+          "distinct_spacings": 2,
+          "observed_step": "0:20:00",
+          "regular": false,
+          "supported": [
+            "10min",
+            "15min",
+            "30min",
+            "5min",
+            "D",
+            "MS",
+            "W",
+            "h",
+            "min",
+            "s"
+          ]
+        },
+        "message": "Could not infer a regular frequency: the spacing between consecutive timestamps varies (most common step: 0:20:00, 2 distinct spacings). Pass an explicit frequency \u2014 a named code or any whole-second sub-daily step as <N>s/<N>min/<N>h \u2014 or repair the grid upstream.",
+        "repair_options": [
+          {
+            "action": "set_frequency",
+            "description": "Pass frequency explicitly; the supported codes are in details.supported."
+          },
+          {
+            "action": "inspect_dataset",
+            "description": "Call gnomon_inspect to see the observed step between timestamps."
+          },
+          {
+            "action": "restamp_to_month_start",
+            "description": "Month-end dates (Jan 31, Feb 28, \u2026) are not a supported grid. Pass regrid=month_start to restamp each observation to the first of its month (disclosed), or restamp upstream and pass frequency=MS."
+          }
+        ],
+        "retryable": false
+      },
+      "frequency": null,
+      "repair": "safe",
+      "termination": "typed_rejection",
+      "timestamps": [],
+      "values": []
+    },
+    {
+      "actions": [],
+      "case_id": "mixed_cadence",
+      "error": {
+        "code": "AMBIGUOUS_FREQUENCY",
+        "details": {
+          "distinct_spacings": 2,
+          "observed_step": "0:20:00",
+          "regular": false,
+          "supported": [
+            "10min",
+            "15min",
+            "30min",
+            "5min",
+            "D",
+            "MS",
+            "W",
+            "h",
+            "min",
+            "s"
+          ]
+        },
+        "message": "Could not infer a regular frequency: the spacing between consecutive timestamps varies (most common step: 0:20:00, 2 distinct spacings). Pass an explicit frequency \u2014 a named code or any whole-second sub-daily step as <N>s/<N>min/<N>h \u2014 or repair the grid upstream.",
+        "repair_options": [
+          {
+            "action": "set_frequency",
+            "description": "Pass frequency explicitly; the supported codes are in details.supported."
+          },
+          {
+            "action": "inspect_dataset",
+            "description": "Call gnomon_inspect to see the observed step between timestamps."
+          },
+          {
+            "action": "restamp_to_month_start",
+            "description": "Month-end dates (Jan 31, Feb 28, \u2026) are not a supported grid. Pass regrid=month_start to restamp each observation to the first of its month (disclosed), or restamp upstream and pass frequency=MS."
+          }
+        ],
+        "retryable": false
+      },
+      "frequency": null,
+      "repair": "aggressive",
+      "termination": "typed_rejection",
+      "timestamps": [],
+      "values": []
+    },
+    {
+      "actions": [],
+      "case_id": "small_gap",
+      "error": {
+        "code": "AMBIGUOUS_FREQUENCY",
+        "details": {
+          "distinct_spacings": 3,
+          "observed_step": "0:19:59",
+          "regular": false,
+          "supported": [
+            "10min",
+            "15min",
+            "30min",
+            "5min",
+            "D",
+            "MS",
+            "W",
+            "h",
+            "min",
+            "s"
+          ]
+        },
+        "message": "Could not infer a regular frequency: the spacing between consecutive timestamps varies (most common step: 0:19:59, 3 distinct spacings). Pass an explicit frequency \u2014 a named code or any whole-second sub-daily step as <N>s/<N>min/<N>h \u2014 or repair the grid upstream.",
+        "repair_options": [
+          {
+            "action": "set_frequency",
+            "description": "Pass frequency explicitly; the supported codes are in details.supported."
+          },
+          {
+            "action": "inspect_dataset",
+            "description": "Call gnomon_inspect to see the observed step between timestamps."
+          },
+          {
+            "action": "restamp_to_month_start",
+            "description": "Month-end dates (Jan 31, Feb 28, \u2026) are not a supported grid. Pass regrid=month_start to restamp each observation to the first of its month (disclosed), or restamp upstream and pass frequency=MS."
+          }
+        ],
+        "retryable": false
+      },
+      "frequency": null,
+      "repair": "safe",
+      "termination": "typed_rejection",
+      "timestamps": [],
+      "values": []
+    },
+    {
+      "actions": [],
+      "case_id": "small_gap",
+      "error": {
+        "code": "AMBIGUOUS_FREQUENCY",
+        "details": {
+          "distinct_spacings": 3,
+          "observed_step": "0:19:59",
+          "regular": false,
+          "supported": [
+            "10min",
+            "15min",
+            "30min",
+            "5min",
+            "D",
+            "MS",
+            "W",
+            "h",
+            "min",
+            "s"
+          ]
+        },
+        "message": "Could not infer a regular frequency: the spacing between consecutive timestamps varies (most common step: 0:19:59, 3 distinct spacings). Pass an explicit frequency \u2014 a named code or any whole-second sub-daily step as <N>s/<N>min/<N>h \u2014 or repair the grid upstream.",
+        "repair_options": [
+          {
+            "action": "set_frequency",
+            "description": "Pass frequency explicitly; the supported codes are in details.supported."
+          },
+          {
+            "action": "inspect_dataset",
+            "description": "Call gnomon_inspect to see the observed step between timestamps."
+          },
+          {
+            "action": "restamp_to_month_start",
+            "description": "Month-end dates (Jan 31, Feb 28, \u2026) are not a supported grid. Pass regrid=month_start to restamp each observation to the first of its month (disclosed), or restamp upstream and pass frequency=MS."
+          }
+        ],
+        "retryable": false
+      },
+      "frequency": null,
+      "repair": "aggressive",
+      "termination": "typed_rejection",
+      "timestamps": [],
+      "values": []
+    },
+    {
+      "actions": [],
+      "case_id": "long_outage",
+      "error": {
+        "code": "AMBIGUOUS_FREQUENCY",
+        "details": {
+          "distinct_spacings": 3,
+          "observed_step": "0:19:59",
+          "regular": false,
+          "supported": [
+            "10min",
+            "15min",
+            "30min",
+            "5min",
+            "D",
+            "MS",
+            "W",
+            "h",
+            "min",
+            "s"
+          ]
+        },
+        "message": "Could not infer a regular frequency: the spacing between consecutive timestamps varies (most common step: 0:19:59, 3 distinct spacings). Pass an explicit frequency \u2014 a named code or any whole-second sub-daily step as <N>s/<N>min/<N>h \u2014 or repair the grid upstream.",
+        "repair_options": [
+          {
+            "action": "set_frequency",
+            "description": "Pass frequency explicitly; the supported codes are in details.supported."
+          },
+          {
+            "action": "inspect_dataset",
+            "description": "Call gnomon_inspect to see the observed step between timestamps."
+          },
+          {
+            "action": "restamp_to_month_start",
+            "description": "Month-end dates (Jan 31, Feb 28, \u2026) are not a supported grid. Pass regrid=month_start to restamp each observation to the first of its month (disclosed), or restamp upstream and pass frequency=MS."
+          }
+        ],
+        "retryable": false
+      },
+      "frequency": null,
+      "repair": "safe",
+      "termination": "typed_rejection",
+      "timestamps": [],
+      "values": []
+    },
+    {
+      "actions": [],
+      "case_id": "long_outage",
+      "error": {
+        "code": "AMBIGUOUS_FREQUENCY",
+        "details": {
+          "distinct_spacings": 3,
+          "observed_step": "0:19:59",
+          "regular": false,
+          "supported": [
+            "10min",
+            "15min",
+            "30min",
+            "5min",
+            "D",
+            "MS",
+            "W",
+            "h",
+            "min",
+            "s"
+          ]
+        },
+        "message": "Could not infer a regular frequency: the spacing between consecutive timestamps varies (most common step: 0:19:59, 3 distinct spacings). Pass an explicit frequency \u2014 a named code or any whole-second sub-daily step as <N>s/<N>min/<N>h \u2014 or repair the grid upstream.",
+        "repair_options": [
+          {
+            "action": "set_frequency",
+            "description": "Pass frequency explicitly; the supported codes are in details.supported."
+          },
+          {
+            "action": "inspect_dataset",
+            "description": "Call gnomon_inspect to see the observed step between timestamps."
+          },
+          {
+            "action": "restamp_to_month_start",
+            "description": "Month-end dates (Jan 31, Feb 28, \u2026) are not a supported grid. Pass regrid=month_start to restamp each observation to the first of its month (disclosed), or restamp upstream and pass frequency=MS."
+          }
+        ],
+        "retryable": false
+      },
+      "frequency": null,
+      "repair": "aggressive",
+      "termination": "typed_rejection",
+      "timestamps": [],
+      "values": []
+    },
+    {
+      "actions": [],
+      "case_id": "cron_jitter",
+      "error": {
+        "code": "AMBIGUOUS_FREQUENCY",
+        "details": {
+          "distinct_spacings": 2,
+          "observed_step": "0:19:59",
+          "regular": false,
+          "supported": [
+            "10min",
+            "15min",
+            "30min",
+            "5min",
+            "D",
+            "MS",
+            "W",
+            "h",
+            "min",
+            "s"
+          ]
+        },
+        "message": "Could not infer a regular frequency: the spacing between consecutive timestamps varies (most common step: 0:19:59, 2 distinct spacings). Pass an explicit frequency \u2014 a named code or any whole-second sub-daily step as <N>s/<N>min/<N>h \u2014 or repair the grid upstream.",
+        "repair_options": [
+          {
+            "action": "set_frequency",
+            "description": "Pass frequency explicitly; the supported codes are in details.supported."
+          },
+          {
+            "action": "inspect_dataset",
+            "description": "Call gnomon_inspect to see the observed step between timestamps."
+          },
+          {
+            "action": "restamp_to_month_start",
+            "description": "Month-end dates (Jan 31, Feb 28, \u2026) are not a supported grid. Pass regrid=month_start to restamp each observation to the first of its month (disclosed), or restamp upstream and pass frequency=MS."
+          }
+        ],
+        "retryable": false
+      },
+      "frequency": null,
+      "repair": "off",
+      "termination": "typed_rejection",
+      "timestamps": [],
+      "values": []
+    },
+    {
+      "actions": [],
+      "case_id": "collision",
+      "error": {
+        "code": "IRREGULAR_TIME_GRID",
+        "details": {
+          "after": "2026-01-01T03:27:00",
+          "expected": "2026-01-01T03:47:00",
+          "found": "2026-01-01T03:27:05",
+          "frequency": "20min",
+          "modal_step": "20min (0:20:00)",
+          "series": "__default__"
+        },
+        "message": "Series __default__ has a missing or irregular period after 2026-01-01T03:27:00: expected 2026-01-01T03:47:00, found 2026-01-01T03:27:05. The most common step in this series is 20min (0:20:00).",
+        "repair_options": [
+          {
+            "action": "fill_or_resample",
+            "description": "Fill the missing period named in details, or resample to a coarser regular frequency."
+          },
+          {
+            "action": "enable_repair",
+            "description": "Pass repair=aggressive to interpolate interior gaps and snap jittered timestamps \u2014 capped, and every fix becomes a warning."
+          },
+          {
+            "action": "regrid_business_daily",
+            "description": "When details.gap_weekend_only is true the series is business-day (Mon-Fri) data: pass regrid=business_daily to forward-fill non-trading days onto the continuous daily grid, disclosed and uncapped."
+          }
+        ],
+        "retryable": false
+      },
+      "frequency": null,
+      "repair": "safe",
+      "termination": "typed_rejection",
+      "timestamps": [],
+      "values": []
+    },
+    {
+      "actions": [
+        {
+          "assumptive": true,
+          "code": "timestamp_snapped",
+          "count": 37,
+          "detail": "Jittered timestamps rounded to the 20min grid.",
+          "examples": [],
+          "series": "__default__"
+        }
+      ],
+      "case_id": "collision",
+      "error": {
+        "code": "EXCESSIVE_REPAIR",
+        "details": {
+          "repair_counts": {
+            "conflicts": 1,
+            "filled": 0,
+            "snapped": 37
+          },
+          "series": "__default__",
+          "total_observations": 37
+        },
+        "message": "Series __default__ would need repairs to more than 30% of its rows; fix the data at the source instead of forecasting on a mostly invented series.",
+        "repair_options": [
+          {
+            "action": "fix_source_data",
+            "description": "Too much of this series would be invented by repair; fix the export at the source. Counts are in details."
+          }
+        ],
+        "retryable": false
+      },
+      "frequency": null,
+      "repair": "aggressive",
+      "termination": "typed_rejection",
+      "timestamps": [],
+      "values": []
+    }
+  ],
+  "schema_version": "0.1",
+  "typed_rejections": 19
+}
