@@ -579,6 +579,14 @@ def _series_result(
             # beside the rest of the measured facts.
             support_assessment.sensitivity["observations"] = len(state.values)
     from .contracts import DEFAULT_MINIMUM_BASELINE_IMPROVEMENT, SupportReason
+    from .support import disclose_seasonal_period_override
+    seasonal_override_conflict = disclose_seasonal_period_override(
+        support_assessment,
+        override=state.seasonal_period_override,
+        detected_period=state.detected_season,
+        detected_strength=state.detected_season_strength,
+        detected_basis=state.detected_season_basis,
+    )
     if minimum_baseline_improvement != DEFAULT_MINIMUM_BASELINE_IMPROVEMENT:
         # A caller-chosen evidence rule is not the documented one. Below the
         # default the mandated-baseline gate is weaker, so the verdict is
@@ -795,6 +803,16 @@ def _series_result(
                 state.season, loaded.frequency),
             "frequency": loaded.frequency,
             "source": "computed_from_observations",
+            **({
+                "seasonal_period_evidence": {
+                    "used_period": state.season,
+                    "used_source": "override",
+                    "detected_period": state.detected_season,
+                    "detected_strength": state.detected_season_strength,
+                    "detected_basis": state.detected_season_basis,
+                    "override_conflict": seasonal_override_conflict,
+                },
+            } if state.seasonal_period_override is not None else {}),
             "temporal_profile": profile,
             **({
                 "threshold_decision": threshold_analysis[

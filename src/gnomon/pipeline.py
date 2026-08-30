@@ -91,6 +91,10 @@ class SeriesState:
     timestamps: list[datetime]
     future_timestamps: list[datetime]
     season: int
+    detected_season: int | None = None
+    detected_season_strength: float = 0.0
+    detected_season_basis: str | None = None
+    seasonal_period_override: int | None = None
     assessment: Evaluation | None = None
     selected_model: str | None = None
     points: list[float] = field(default_factory=list)
@@ -355,9 +359,16 @@ def horizon_stage(
     for _ in range(horizon):
         timestamp = next_timestamp(timestamp, frequency)
         future_timestamps.append(timestamp)
-    detected_season, _, _ = detect_season(values, frequency)
+    detected_season, detected_strength, detected_basis = detect_season(
+        values, frequency)
     season = seasonal_period or detected_season
-    return SeriesState(name, values, timestamps, future_timestamps, season)
+    return SeriesState(
+        name, values, timestamps, future_timestamps, season,
+        detected_season=detected_season,
+        detected_season_strength=detected_strength,
+        detected_season_basis=detected_basis,
+        seasonal_period_override=seasonal_period,
+    )
 
 
 def evaluate_stage(

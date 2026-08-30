@@ -15,7 +15,10 @@ from gnomon.evaluation import Evaluation, evaluate
 from gnomon.models import (
     MODELS, historical_mean, last_value, predict, seasonal_naive,
 )
-from gnomon.support import assess_forecast_support, forecast_headline
+from gnomon.support import (
+    assess_forecast_support, disclose_seasonal_period_override,
+    forecast_headline,
+)
 from gnomon.temporal import detect_season
 
 
@@ -82,8 +85,15 @@ def _published(
     raise ValueError(f"unbound production candidate {selected}")
 
 
-def _headline(support: str, assessment: Evaluation) -> tuple[str, str]:
+def _headline(
+    support: str, assessment: Evaluation, *, override: int | None,
+    detected_period: int, detected_strength: float, detected_basis: str,
+) -> tuple[str, str]:
     public = assess_forecast_support(support, assessment.warnings, assessment)
+    disclose_seasonal_period_override(
+        public, override=override, detected_period=detected_period,
+        detected_strength=detected_strength, detected_basis=detected_basis,
+    )
     row_tier = (
         "conditionally_supported"
         if public.status == "conditionally_supported" else
@@ -134,7 +144,11 @@ def _run_case(case: dict[str, Any]) -> dict[str, Any]:
         not math.isclose(left, right, rel_tol=0.0, abs_tol=1e-12)
         for left, right in zip(points, robust)
     )
-    headline, support_status = _headline(support, assessment)
+    headline, support_status = _headline(
+        support, assessment, override=case["override"],
+        detected_period=detected_period, detected_strength=detected_strength,
+        detected_basis=detected_basis,
+    )
     return {
         "case_id": case["case_id"],
         "family": case["family"],
@@ -215,6 +229,13 @@ def _group(rows: list[dict[str, Any]]) -> dict[str, Any]:
             and float(row["relative_gain"] or 0.0) < 0
             and row["support_status"] == "supported"
             for row in rows),
+        "supported_harmful_nonbaseline_departures": sum(
+            row["departed_from_last_value"]
+            and float(row["relative_gain"] or 0.0) < 0
+            and row["support_status"] == "supported"
+            and row["published_model"] not in {
+                "last_value", "seasonal_naive", "historical_mean"}
+            for row in rows),
     }
 
 
@@ -264,8 +285,11 @@ def _summarise(rows: list[dict[str, Any]]) -> dict[str, Any]:
                 neighbor_cells[f"{family}/{lane}/{condition}"] = (
                     median(values) if values else None)
     ambiguous = [row for row in rows if row["family"] != "stable_seasonal"]
-    ambiguous_departures = [row for row in ambiguous
-                            if row["departed_from_last_value"]]
+    ambiguous_departures = [
+        row for row in ambiguous if row["departed_from_last_value"]
+        and row["published_model"] not in {
+            "last_value", "seasonal_naive", "historical_mean"}
+    ]
     ambiguous_wins = sum(float(row["relative_gain"] or 0.0) > 0
                          for row in ambiguous_departures)
     auto_cycle_honesty = all(

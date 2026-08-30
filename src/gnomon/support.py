@@ -398,3 +398,47 @@ def disclose_epistemic_deviation(
     if cap and assessment.status == "supported":
         assessment.status = "conditionally_supported"
     return assessment
+
+
+def disclose_seasonal_period_override(
+    assessment: SupportAssessment,
+    *,
+    override: int | None,
+    detected_period: int | None,
+    detected_strength: float,
+    detected_basis: str | None,
+) -> bool:
+    """Cap authority when a caller override conflicts with measured period.
+
+    Caller authority is preserved: this function never changes the period or
+    forecast. It only makes the visible evidence conflict impossible to miss.
+    Returns whether a conflict was disclosed so callers can project the same
+    fact into compact temporal metadata.
+    """
+    conflict = (
+        override is not None
+        and detected_basis == "autocorrelation"
+        and detected_period is not None
+        and override != detected_period
+    )
+    if not conflict:
+        return False
+    disclose_epistemic_deviation(
+        assessment,
+        SupportReason(
+            "seasonal_period_override_conflict",
+            f"The explicit seasonal period {override} was honored, but the "
+            f"visible history independently detected period "
+            f"{detected_period} by autocorrelation (strength "
+            f"{detected_strength:.3f}). The forecast is conditional on the "
+            f"caller's period; Gnomon did not silently replace it with the "
+            f"detected period.",
+        ),
+        cap=True,
+    )
+    assessment.recovery_actions.insert(0, SupportReason(
+        "review_seasonal_period_override",
+        f"Verify that period {override} is a domain requirement, or remove "
+        f"the override to evaluate the detected period {detected_period}.",
+    ))
+    return True

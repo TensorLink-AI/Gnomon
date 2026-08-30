@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+import math
 import random
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -74,6 +75,54 @@ def test_forecast_selects_drift_and_writes_complete_artifact(tmp_path: Path) -> 
         "selection folds, then independent confirmation fold, then "
         "calibration fold, then final test fold"
     )
+
+
+def test_explicit_seasonal_override_conflict_is_caveated(tmp_path: Path) -> None:
+    source = tmp_path / "periodic.csv"
+    start = datetime(2026, 1, 1)
+    with source.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["timestamp", "value"])
+        for index in range(72):
+            writer.writerow([
+                (start + timedelta(hours=index)).isoformat(),
+                50.0 + 8.0 * math.sin(2 * math.pi * index / 6),
+            ])
+
+    artifact, _ = forecast(
+        str(source), time_column="timestamp", target_column="value",
+        frequency="h", horizon=6, seasonal_period=5,
+        output=str(tmp_path / "conflict"),
+    )
+    result = artifact.results[0]
+    assessment = result.support_assessment
+    codes = {reason["code"] for reason in assessment["reasons"]}
+    recovery = {item["code"] for item in assessment["recovery_actions"]}
+    evidence = result.temporal_facts["seasonal_period_evidence"]
+    assert assessment["status"] == "conditionally_supported"
+    assert "seasonal_period_override_conflict" in codes
+    assert "review_seasonal_period_override" in recovery
+    assert result.temporal_facts["seasonal_period_steps"] == 5
+    assert evidence["used_period"] == 5
+    assert evidence["used_source"] == "override"
+    assert evidence["detected_period"] == 6
+    assert evidence["detected_basis"] == "autocorrelation"
+    assert evidence["override_conflict"] is True
+    assert evidence["detected_strength"] >= 0.3
+
+    matching, _ = forecast(
+        str(source), time_column="timestamp", target_column="value",
+        frequency="h", horizon=6, seasonal_period=6,
+        output=str(tmp_path / "matching"),
+    )
+    matching_result = matching.results[0]
+    matching_codes = {
+        reason["code"]
+        for reason in matching_result.support_assessment["reasons"]
+    }
+    assert "seasonal_period_override_conflict" not in matching_codes
+    assert matching_result.temporal_facts[
+        "seasonal_period_evidence"]["override_conflict"] is False
 
 
 def test_short_valid_series_uses_degraded_forecast(tmp_path: Path) -> None:
