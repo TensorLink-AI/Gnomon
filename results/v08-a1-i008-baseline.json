@@ -1,0 +1,113 @@
+{
+  "benchmark": "calibrationactionbench",
+  "cases": 12,
+  "completed": 0,
+  "exact": 0,
+  "gates": {
+    "complete": false,
+    "exact": false,
+    "primary_unchanged": false,
+    "sealed": false
+  },
+  "primary_unchanged": 0,
+  "rows": [
+    {
+      "case": "legacy",
+      "error": "TypeError: publish_result() got an unexpected keyword argument 'calibration_evidence'",
+      "exact": false,
+      "primary_unchanged": false,
+      "seal_valid": false,
+      "status": "error"
+    },
+    {
+      "case": "advisory",
+      "error": "TypeError: publish_result() got an unexpected keyword argument 'calibration_evidence'",
+      "exact": false,
+      "primary_unchanged": false,
+      "seal_valid": false,
+      "status": "error"
+    },
+    {
+      "case": "reversible_matched",
+      "error": "TypeError: publish_result() got an unexpected keyword argument 'calibration_evidence'",
+      "exact": false,
+      "primary_unchanged": false,
+      "seal_valid": false,
+      "status": "error"
+    },
+    {
+      "case": "reversible_absent",
+      "error": "TypeError: publish_result() got an unexpected keyword argument 'calibration_evidence'",
+      "exact": false,
+      "primary_unchanged": false,
+      "seal_valid": false,
+      "status": "error"
+    },
+    {
+      "case": "wrong_series",
+      "error": "TypeError: publish_result() got an unexpected keyword argument 'calibration_evidence'",
+      "exact": false,
+      "primary_unchanged": false,
+      "seal_valid": false,
+      "status": "error"
+    },
+    {
+      "case": "wrong_model",
+      "error": "TypeError: publish_result() got an unexpected keyword argument 'calibration_evidence'",
+      "exact": false,
+      "primary_unchanged": false,
+      "seal_valid": false,
+      "status": "error"
+    },
+    {
+      "case": "wrong_horizon",
+      "error": "TypeError: publish_result() got an unexpected keyword argument 'calibration_evidence'",
+      "exact": false,
+      "primary_unchanged": false,
+      "seal_valid": false,
+      "status": "error"
+    },
+    {
+      "case": "pooled_selection",
+      "error": "TypeError: publish_result() got an unexpected keyword argument 'calibration_evidence'",
+      "exact": false,
+      "primary_unchanged": false,
+      "seal_valid": false,
+      "status": "error"
+    },
+    {
+      "case": "coverage_out_of_band",
+      "error": "TypeError: publish_result() got an unexpected keyword argument 'calibration_evidence'",
+      "exact": false,
+      "primary_unchanged": false,
+      "seal_valid": false,
+      "status": "error"
+    },
+    {
+      "case": "too_few_points",
+      "error": "TypeError: publish_result() got an unexpected keyword argument 'calibration_evidence'",
+      "exact": false,
+      "primary_unchanged": false,
+      "seal_valid": false,
+      "status": "error"
+    },
+    {
+      "case": "high_impact",
+      "error": "TypeError: publish_result() got an unexpected keyword argument 'calibration_evidence'",
+      "exact": false,
+      "primary_unchanged": false,
+      "seal_valid": false,
+      "status": "error"
+    },
+    {
+      "case": "untrusted_reversible",
+      "error": "TypeError: publish_result() got an unexpected keyword argument 'calibration_evidence'",
+      "exact": false,
+      "primary_unchanged": false,
+      "seal_valid": false,
+      "status": "error"
+    }
+  ],
+  "schema_version": 1,
+  "sealed": 0
+}
