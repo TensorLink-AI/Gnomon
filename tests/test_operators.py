@@ -199,6 +199,71 @@ def test_evaluate_actions_chooses_with_utilities():
     assert result["decision_rule"] == "maximum expected utility over feasible actions"
 
 
+def test_evaluate_actions_rejects_unknown_or_incomplete_utility_keys():
+    from gnomon.contracts import GnomonError
+
+    for utilities in (
+        {"scale_up": {"exceed": 10, "no_exceed": 0}},
+        {"scale_up": {"up": 10}, "wait": {"down": 0}},
+        {"scale_up": {"exceed": 10, "no_exceed": 0, "typo": 999},
+         "wait": {"exceed": 0, "no_exceed": 1}},
+    ):
+        with pytest.raises(GnomonError) as caught:
+            evaluate_actions(
+                [{"name": "scale_up"}, {"name": "wait"}],
+                {"exceed": 0.4, "no_exceed": 0.6}, utilities=utilities,
+            )
+        assert caught.value.code == "INVALID_UTILITIES"
+        repair = caught.value.to_dict()["error"]["repair_options"][0]
+        assert repair["tool"] == "gnomon_decide"
+        assert "utilities" in repair["arguments"]
+
+
+def test_evaluate_actions_exact_tie_is_inconclusive():
+    result = evaluate_actions(
+        [{"name": "scale_up"}, {"name": "wait"}],
+        {"exceed": 0.4, "no_exceed": 0.6},
+        utilities={
+            "scale_up": {"exceed": 5, "no_exceed": 5},
+            "wait": {"exceed": 5, "no_exceed": 5},
+        },
+    )
+    assert result["selected"] is None
+    assert result["selection_margin"] == 0.0
+    assert result["support"]["status"] == "inconclusive"
+    assert result["support"]["reasons"][0]["code"] == "utility_tie"
+
+
+@pytest.mark.parametrize("bad_payoff", [True, "5", float("nan"), float("inf")])
+def test_evaluate_actions_requires_finite_real_payoffs(bad_payoff):
+    from gnomon.contracts import GnomonError
+
+    with pytest.raises(GnomonError) as caught:
+        evaluate_actions(
+            [{"name": "act"}], {"exceed": 1.0},
+            utilities={"act": {"exceed": bad_payoff}},
+        )
+    assert caught.value.code == "INVALID_UTILITIES"
+    assert caught.value.details["problems"][0]["code"] == \
+        "non_finite_or_non_numeric_payoff"
+
+
+def test_evaluate_actions_rejects_unknown_utility_action():
+    from gnomon.contracts import GnomonError
+
+    with pytest.raises(GnomonError) as caught:
+        evaluate_actions(
+            [{"name": "act"}], {"exceed": 1.0},
+            utilities={
+                "act": {"exceed": 1.0},
+                "invented": {"exceed": 999.0},
+            },
+        )
+    assert caught.value.code == "INVALID_UTILITIES"
+    assert caught.value.details["problems"][0]["code"] == \
+        "unknown_utility_actions"
+
+
 def test_evaluate_actions_constraint_infeasibility():
     result = evaluate_actions(
         [{"name": "risky", "residual_risk": 0.9}],

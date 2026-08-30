@@ -103,6 +103,32 @@ def test_effect_prior_and_robust_decision_are_agent_callable(monkeypatch, tmp_pa
     assert TrackingStore().get_decision_artifact("decision-1") is not None
 
 
+def test_decide_rejects_malformed_utilities_before_forecasting(monkeypatch) -> None:
+    from gnomon.contracts import GnomonError
+    from gnomon.toolspec import runner_for
+
+    def forecast_must_not_run(*args, **kwargs):
+        raise AssertionError("forecast was spent before utility validation")
+
+    monkeypatch.setattr("gnomon.macros.decide", forecast_must_not_run)
+    with pytest.raises(GnomonError) as caught:
+        runner_for("gnomon_decide")({
+            "input": "unused.csv", "time_column": "timestamp",
+            "target_column": "value", "horizon": 3, "threshold": 10,
+            "actions": [{"name": "act"}, {"name": "wait"}],
+            "utilities": {"act": 1, "wait": 2},
+        })
+    assert caught.value.code == "INVALID_UTILITIES"
+    repair = caught.value.to_dict()["error"]["repair_options"][0]
+    assert repair == {
+        "tool": "gnomon_decide",
+        "arguments": {"utilities": {
+            "act": {"exceed": 0.0, "no_exceed": 0.0},
+            "wait": {"exceed": 0.0, "no_exceed": 0.0},
+        }},
+    }
+
+
 def test_surviving_covariate_contract_is_complete(monkeypatch) -> None:
     from gnomon.toolspec import TOOLS
 

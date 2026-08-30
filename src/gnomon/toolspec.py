@@ -3722,6 +3722,7 @@ def _run_detect_anomalies(arguments: dict[str, Any]) -> dict[str, Any]:
 
 def _run_decide(arguments: dict[str, Any]) -> dict[str, Any]:
     from .macros import decide
+    from .operators import validate_action_utilities
     actions = arguments.get("actions")
     problems: list[str] = []
     if not isinstance(actions, list):
@@ -3753,6 +3754,19 @@ def _run_decide(arguments: dict[str, Any]) -> dict[str, Any]:
                 {"name": "do_nothing"},
             ], "problems": problems},
         )
+    feasible_names = set()
+    for action in actions:
+        feasible = bool(action.get("feasible", True))
+        if (feasible and arguments.get("max_acceptable_risk") is not None
+                and "residual_risk" in action):
+            feasible = (float(action["residual_risk"])
+                        <= float(arguments["max_acceptable_risk"]))
+        if feasible:
+            feasible_names.add(str(action["name"]))
+    utilities = validate_action_utilities(
+        list(actions), ("exceed", "no_exceed"), arguments.get("utilities"),
+        feasible_names=feasible_names,
+    )
     payload, path = decide(
         arguments["input"],
         time_column=arguments["time_column"],
@@ -3760,7 +3774,7 @@ def _run_decide(arguments: dict[str, Any]) -> dict[str, Any]:
         horizon=int(arguments["horizon"]),
         threshold=float(arguments["threshold"]),
         actions=list(actions),
-        utilities=arguments.get("utilities"),
+        utilities=utilities,
         max_acceptable_risk=(
             float(arguments["max_acceptable_risk"])
             if arguments.get("max_acceptable_risk") is not None else None
@@ -4364,7 +4378,14 @@ TOOLS.extend([
                     "constraint_results": {"type": "object"},
                 }, "required": ["name"]},
             ]}},
-            "utilities": {"type": "object"},
+            "utilities": {
+                "type": "object",
+                "description": "Exact action-to-scenario payoff matrix. Every feasible action needs finite numeric payoffs for exceed and no_exceed; unknown action or scenario keys are rejected.",
+                "additionalProperties": {
+                    "type": "object",
+                    "additionalProperties": {"type": "number"}
+                }
+            },
             "decision_id": {"type": "string"},
             "forecast_id": {"type": "string"},
             "scenario_ids": {"type": "array", "items": {"type": "string"}},

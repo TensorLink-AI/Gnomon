@@ -520,6 +520,9 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
     "INVALID_ACTIONS": [
         {"action": "fix_actions", "description": "actions is a list of objects, each with a 'name' and optionally 'feasible' and 'residual_risk'. details.example shows the shape."},
     ],
+    "INVALID_UTILITIES": [
+        {"action": "fix_utilities", "description": "Supply exactly one finite numeric payoff for every feasible action and governed scenario. details.expected_scenarios and details.example show the required matrix."},
+    ],
     "INVALID_MINIMUM_IMPROVEMENT": [
         {"action": "set_minimum_improvement", "description": "Use a value >= 0. Zero means the candidate must merely not be worse than the strongest baseline; the default 0.02 asks for 2% better."},
     ],
