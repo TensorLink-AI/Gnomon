@@ -367,6 +367,23 @@ def test_requested_threshold_is_disclosed_not_dropped(tmp_path) -> None:
         "automation_eligible"] is False
 
 
+def test_degraded_threshold_is_bounded_not_probabilistic(tmp_path) -> None:
+    from gnomon.toolspec import runner_for
+
+    payload = runner_for("gnomon_forecast")({
+        "input": _short_csv(tmp_path, rows=30), "horizon": 12,
+        "threshold": 150.0, "output_dir": str(tmp_path / "out"),
+    })
+    result = payload["results"][0]
+    assert result["support_assessment"]["status"] == \
+        "conditionally_supported"
+    threshold = result["threshold"]
+    assert threshold["probability_status"] == "unavailable_uncalibrated"
+    assert threshold["probability_above"] == []
+    assert "horizon_event" not in threshold
+    assert threshold["bounded_assessment"]["automation_eligible"] is False
+
+
 def test_decide_and_monitor_never_rest_on_fallback_rows(tmp_path) -> None:
     # The graduated default gives the embedded forecast labelled rows,
     # but a decision or alert rule must still refuse: sub-supported rows
@@ -406,6 +423,22 @@ def test_headline_caveat_is_one_sentence(tmp_path) -> None:
     )
     assert headline.endswith("with caveats: First sentence here.")
     assert "Second sentence" not in headline
+
+
+def test_supported_zero_gain_headline_names_baseline_retention() -> None:
+    from gnomon.support import forecast_headline
+
+    headline = forecast_headline(
+        "supported",
+        {"status": "supported", "reasons": [],
+         "sensitivity": {"baseline_improvement": 0.0}},
+        [{"timestamp": "2026-01-08T00:00:00", "tier": "supported"}],
+    )
+    assert headline.startswith("Evaluated baseline forecast through")
+    assert "strongest baseline was retained" in headline
+    assert "no measured uplift" in headline
+    assert "High-confidence" not in headline
+    assert " beat " not in headline
 
 
 def test_capabilities_report_the_default_floor() -> None:

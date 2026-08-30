@@ -92,6 +92,13 @@ def forecast_headline(
     if status == "supported":
         improvement = sensitivity.get("baseline_improvement")
         if improvement is not None:
+            if float(improvement) <= 0.0:
+                return (
+                    f"Evaluated baseline forecast through {end}: the "
+                    f"strongest baseline was retained on separated "
+                    f"evaluation folds; no measured uplift over the "
+                    f"mandatory baselines was established."
+                )
             return (
                 f"High-confidence forecast through {end}: the selected "
                 f"model beat the strongest baseline by "

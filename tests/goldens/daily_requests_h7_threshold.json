@@ -177,78 +177,24 @@
       "covariates": null,
       "threshold": {
         "value": 120.0,
-        "probability_above": [
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0,
-          1.0
-        ],
-        "first_timestamp_point_above": "2026-02-05T00:00:00",
-        "first_timestamp_interval_above": "2026-02-05T00:00:00",
-        "first_timestamp_point_below": null,
-        "first_timestamp_interval_below": null,
-        "basis": "empirical probabilities from backtest residuals scaled to the per-lead-time conformal spread",
-        "horizon_event": {
-          "method": "independence_composed_marginals_v1",
-          "residual_source": "selection_folds_reused",
-          "probability_any_breach": 0.833333,
-          "probability_any_breach_interval_90": {
-            "lower": 0.425031,
-            "upper": 1.0
+        "probability_status": "unavailable_uncalibrated",
+        "probability_above": [],
+        "bounded_assessment": {
+          "decision": "yes",
+          "best_estimate": "yes",
+          "primary": {
+            "path": "primary",
+            "support": "best_effort",
+            "best_estimate": "yes",
+            "point_path_crosses": true,
+            "published_range_relation": "range_above_at_least_one_step",
+            "maximum_point": 223.0
           },
-          "breach_more_likely_than_not": true,
-          "first_breach_step_probability": {
-            "1": 1.0
-          },
-          "first_breach_step_median_conditional": 1,
-          "expected_maximum": 223.0,
-          "maximum_interval_80": {
-            "lower": 223.0,
-            "upper": 223.0
-          },
-          "joint_path_count": 1,
-          "bootstrap_path_count": 200,
-          "bootstrap_diagnostic_probability": 1.0,
-          "independence_composed_reference": 1.0,
-          "finite_sample_regularized_probability": 0.833333,
-          "effective_origins": 2,
-          "calibration_partition": "post_selection_disjoint_origins",
-          "dependence_preserved": false,
-          "residual_regime": {
-            "status": "unknown",
-            "passed": false,
-            "reason": "at least 8 aligned origins are required"
-          },
-          "measured_interval_coverage": 1.0,
-          "support": "best_effort",
-          "reasons": [
-            {
-              "code": "insufficient_joint_paths",
-              "message": "Only 1 aligned rolling-origin residual paths are available; at least 8 are required for a governed horizon-event probability."
-            },
-            {
-              "code": "bootstrap_synthesized_paths",
-              "message": "Trajectories were synthesized by a blocked residual bootstrap; dependence across block boundaries is not preserved, so the estimate carries best-effort authority."
-            },
-            {
-              "code": "selection_folds_reused",
-              "message": "Residuals come from the folds that selected the winning model, not the disjoint event reserve; the estimate can inherit selection optimism."
-            },
-            {
-              "code": "independence_composition_used",
-              "message": "The probability composes published per-step marginals as though forecast leads were independent; the leads are dependent, so this is a best-effort estimate, not a governed joint-event measurement."
-            },
-            {
-              "code": "finite_sample_regularization_used",
-              "message": "The communicated horizon-event probability uses one Jeffreys half-success/half-failure regularisation based on 2 real rolling-origin clusters; the raw independence composition remains a diagnostic."
-            }
-          ],
-          "assumptions": [
-            "The probability composes conformally scaled per-step marginals under an independence assumption the leads do not satisfy; path-based timing and maximum figures are bootstrap diagnostics."
-          ]
+          "alternatives": [],
+          "model_conflict": false,
+          "automation_eligible": false,
+          "primary_forecast_unchanged": true,
+          "interpretation": "A point-path answer and published-range relation, not a breach probability. Indeterminate means the displayed range overlaps the threshold or a labelled candidate disagrees with the immutable primary."
         }
       },
       "support_assessment": {
@@ -316,7 +262,8 @@
         ]
       },
       "notes": [
-        "No foundation-model candidate competed: chronos_bolt_mini, chronos_bolt_small, flowstate, moirai2_small, moment_small, toto2_22m, toto2_4m, ttm are eligible for this series but no sandbox is installed. Run `gnomon tsfm install chronos_bolt_mini` to add one; it enters the same folds against the same baselines."
+        "No foundation-model candidate competed: chronos_bolt_mini, chronos_bolt_small, flowstate, moirai2_small, moment_small, toto2_22m, toto2_4m, ttm are eligible for this series but no sandbox is installed. Run `gnomon tsfm install chronos_bolt_mini` to add one; it enters the same folds against the same baselines.",
+        "threshold 120.0 was requested but no crossing probability is reported: exceedance probabilities require calibrated residuals and supported publication; this result achieved conditionally_supported. A bounded point/range assessment is reported separately and is not automation-eligible."
       ]
     }
   ],
