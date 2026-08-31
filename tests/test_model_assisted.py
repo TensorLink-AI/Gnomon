@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
-from gnomon.model_assisted import build_model_assisted_lane
+from gnomon.model_assisted import _short_trend_probe, build_model_assisted_lane
 
 
 def _stamps(count: int) -> list[datetime]:
@@ -118,6 +118,58 @@ def test_complete_cycle_gate_rarely_admits_unrelated_random_walks() -> None:
                 and lane["validation"]["basis"] == "full_cycle_prequential":
             admitted += 1
     assert admitted <= 10
+
+
+def test_short_trend_probe_admits_persistent_growth_and_names_its_boundary() -> None:
+    values = [1060.0 + 325.0 * index / 74 for index in range(75)]
+    validation = _short_trend_probe(values, horizon=72, season=72)
+
+    assert validation is not None
+    assert validation["admitted"] is True
+    assert validation["candidate"] == "drift"
+    assert validation["basis"] == "non_overlapping_short_horizon_blocks"
+    assert validation["comparisons"] == 6
+    assert validation["chronological_block_wins"] == 3
+    assert validation["maximum_locally_evaluated_lead"] == 9
+    assert validation["out_of_sample_steps"] == 54
+
+
+def test_short_trend_probe_is_conservative_on_no_signal_controls() -> None:
+    import random
+
+    admissions = {"random_walk": 0, "white_noise": 0, "stationary_ar": 0}
+    for seed in range(200):
+        rng = random.Random(seed)
+        random_walk = [100.0]
+        for _ in range(74):
+            random_walk.append(random_walk[-1] + rng.gauss(0, 1))
+        white_noise = [100.0 + rng.gauss(0, 5) for _ in range(75)]
+        stationary_ar = [100.0]
+        for _ in range(74):
+            stationary_ar.append(
+                100.0 + .8 * (stationary_ar[-1] - 100.0)
+                + rng.gauss(0, 1))
+        for name, values in (
+                ("random_walk", random_walk),
+                ("white_noise", white_noise),
+                ("stationary_ar", stationary_ar)):
+            validation = _short_trend_probe(values, horizon=72, season=72)
+            admissions[name] += bool(
+                validation and validation["admitted"])
+
+    # The lane is advisory, but should still be much more selective than a
+    # one-holdout winner: no stationary control and at most 2% of random
+    # walks may acquire a trend prior under these frozen seeds.
+    assert admissions["random_walk"] <= 4
+    assert admissions["white_noise"] == 0
+    assert admissions["stationary_ar"] == 0
+
+
+def test_short_trend_probe_rejects_a_level_shift_as_persistent_drift() -> None:
+    validation = _short_trend_probe(
+        [100.0] * 50 + [130.0] * 25, horizon=72, season=72)
+    assert validation is not None
+    assert validation["admitted"] is False
 
 
 def test_one_observed_intraday_week_is_visible_only_as_calendar_prior() -> None:
@@ -260,6 +312,45 @@ def test_forecast_fallback_preserves_a_model_prior_beside_the_naive_rows(tmp_pat
                for item in artifact.evidence)
     payload = artifact.to_dict()
     assert payload["results"][0]["model_assisted"]["support"] == "prior_assisted"
+
+
+def test_jittered_short_telemetry_exposes_trend_without_promoting_primary(
+        tmp_path) -> None:
+    from gnomon import forecast
+
+    source = tmp_path / "cron-growth.csv"
+    start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    lines = ["timestamp,value"]
+    for index in range(75):
+        stamp = start + timedelta(minutes=20 * index, seconds=index % 8)
+        lines.append(f"{stamp.isoformat()},{1060 + 325 * index / 74}")
+    source.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    artifact, _ = forecast(
+        str(source), time_column="timestamp", target_column="value",
+        horizon=72, frequency="20min", repair="safe",
+        output=str(tmp_path / "out"))
+    result = artifact.results[0]
+
+    assert result.support == "degraded"
+    assert result.selected_model == "last_value"
+    assert len({row["point"] for row in result.forecast}) == 1
+    assert any("timestamp_jitter_aligned" in warning
+               for warning in result.warnings)
+    lane = result.model_assisted
+    assert lane is not None
+    assert lane["selected_model"] == "drift"
+    assert lane["points"][-1] > result.forecast[-1]["point"]
+    assert lane["validation"]["maximum_locally_evaluated_lead"] == 9
+    assert lane["validation"]["extrapolated_tail_steps"] == 63
+    assert lane["validation"]["tail_support"] == "prior_assisted"
+    assert lane["validation"]["tail_automation_eligible"] is False
+    assert lane["governed_primary"]["why_flat"]
+    from gnomon.support import artifact_headline
+    headline = artifact_headline(artifact.results)
+    assert "Separate prior_assisted drift path" in headline
+    assert "locally evaluated through lead 9" in headline
+    assert "non-automatable" in headline
 
 
 def test_a_raised_floor_that_publishes_nothing_publishes_no_lane(tmp_path) -> None:

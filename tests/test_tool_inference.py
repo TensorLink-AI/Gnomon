@@ -12,6 +12,7 @@ CLI flags.
 from __future__ import annotations
 
 import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -46,6 +47,30 @@ def test_forecast_needs_only_the_file(tmp_path) -> None:
     assert any("horizon was not supplied" in item for item in assumptions)
     # The default horizon is one seasonal period of the inferred grid.
     assert result["forecast_rows"] >= 1
+
+
+def test_default_horizon_inference_forwards_repair_to_jittered_input(
+        tmp_path) -> None:
+    source = tmp_path / "jittered-cron.csv"
+    start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    lines = ["timestamp,value"]
+    for index in range(75):
+        stamp = start + timedelta(minutes=20 * index, seconds=index % 8)
+        lines.append(f"{stamp.isoformat()},{1060 + 4 * index}")
+    source.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    payload = runner_for("gnomon_forecast")({
+        "input": str(source), "frequency": "20min", "repair": "safe",
+        "output_dir": str(tmp_path / "out"),
+    })
+
+    assert payload["status"] == "complete"
+    result = payload["results"][0]
+    assert result["forecast_rows"] >= 1
+    assert any("timestamp_jitter_aligned" in warning
+               for warning in result["warnings"])
+    assumptions = result["support_assessment"]["assumptions"]
+    assert any("horizon was not supplied" in item for item in assumptions)
 
 
 def test_registry_macro_infers_too(tmp_path) -> None:

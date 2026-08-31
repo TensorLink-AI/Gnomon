@@ -123,8 +123,13 @@ def _handle(message: dict[str, Any]) -> dict[str, Any] | None:
         except GnomonError as exc:
             return _tool_result(exc.to_dict(), True)
         except KeyError as exc:
+            missing = str(exc.args[0])
             return _tool_result(
-                GnomonError("INVALID_ARGUMENTS", f"Missing required argument: {exc.args[0]}").to_dict(),
+                GnomonError(
+                    "INVALID_ARGUMENTS",
+                    f"Missing required argument: {missing}",
+                    {"missing_arguments": [missing], "tool": name},
+                ).to_dict(),
                 True,
             )
         except FileNotFoundError as exc:

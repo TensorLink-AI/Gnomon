@@ -209,6 +209,22 @@ def artifact_headline(results: list) -> str:
         text = forecast_headline(
             result.support, result.support_assessment, result.forecast,
         )
+        lane = getattr(result, "model_assisted", None) or {}
+        validation = lane.get("validation") or {}
+        if lane and len(results) == 1:
+            lead = validation.get("maximum_locally_evaluated_lead")
+            tail = validation.get("extrapolated_tail_steps")
+            boundary = (
+                f" locally evaluated through lead {lead}, with {tail} later "
+                f"steps explicitly extrapolated"
+                if isinstance(lead, int) and isinstance(tail, int) and tail
+                else " available as a separately labelled alternative"
+            )
+            text += (
+                f" Separate {lane.get('support')} "
+                f"{lane.get('selected_model')} path{boundary}; "
+                "non-automatable."
+            )
         lines.append(text if len(results) == 1
                      else f"{result.series}: {text}")
     return " | ".join(lines)
