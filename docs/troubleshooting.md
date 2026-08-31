@@ -55,6 +55,22 @@ Possible remedies:
 Do not duplicate observations or invent finer-grained values merely to pass the
 history requirement.
 
+### The primary forecast is flat despite an obvious trend
+
+Check `selected_model` and `results[*].model_assisted`. On a short history,
+Gnomon may retain `last_value` as the governed primary because the candidate
+comparison lacks separated calibration and test folds. That is an evidence
+boundary, not a claim that the observed series is constant. When a persistent
+drift wins enough non-overlapping short-horizon checks, Gnomon publishes it in
+the labelled `model_assisted` lane with `automation_eligible: false`.
+
+Read `model_assisted.validation.maximum_locally_evaluated_lead` and
+`extrapolated_tail_steps` together. The former is the longest lead tested at
+each local origin; the latter is an explicitly weaker extrapolation, not a
+backtest result. If no assisted lane appears, the candidate did not pass the
+available evidence and plausibility checks. Supply more history or shorten the
+decision horizon rather than treating the flat primary as hidden confidence.
+
 ## Parquet still reports unavailable
 
 `uv tool` installations are isolated. Installing `pyarrow` into an unrelated
