@@ -42,7 +42,9 @@ _PUBLICATION_TIER_ALIASES = {
     "supported": "supported",
     "supported_ensemble": "supported",
 }
-_NONPUBLICATION_ORDER = {"invalid": 0, "unsupported": 1, "inconclusive": 2}
+_NONPUBLICATION_ORDER = {
+    "invalid": 0, "unsupported": 1, "inconclusive": 2,
+}
 
 
 def canonical_support_tier(value: object, *, published: bool) -> str | None:
@@ -52,6 +54,12 @@ def canonical_support_tier(value: object, *, published: bool) -> str | None:
     name = str(value)
     if name in {"invalid", "unsupported"}:
         return name
+    if name == "insufficient":
+        # Horizon-event analysis uses ``insufficient`` when it withheld the
+        # requested probability.  It is not a publication tier, but dropping
+        # it would let an otherwise-supported point path hide that the
+        # threshold question was unanswered.
+        return "best_effort" if published else "inconclusive"
     if name == "inconclusive" and not published:
         return name
     return _PUBLICATION_TIER_ALIASES.get(name)
@@ -74,23 +82,58 @@ def weakest_support_tier(values: list[object], *, published: bool) -> str | None
     return min(canonical, key=rank)
 
 
-def result_support_tier(result: dict) -> str | None:
+def _result_field(result: object, name: str, default: object = None) -> object:
+    return (result.get(name, default) if isinstance(result, dict)
+            else getattr(result, name, default))
+
+
+def forecast_path_support_tier(result: object) -> str | None:
+    """Return the authority of the published point/interval path only."""
+    rows = (_result_field(result, "forecast")
+            or _result_field(result, "forecast_preview") or [])
+    row_tiers = [
+        row.get("tier") for row in rows
+        if isinstance(row, dict) and row.get("tier") is not None
+    ] if isinstance(rows, list) else []
+    assessment = _result_field(result, "support_assessment") or {}
+    if not isinstance(assessment, dict):
+        assessment = {}
+    return weakest_support_tier(
+        [_result_field(result, "support"), assessment.get("status"),
+         assessment.get("legacy_support"), *row_tiers],
+        published=bool(rows),
+    )
+
+
+def horizon_event_support_tier(result: object) -> str | None:
+    """Return the authority of a requested horizon-event answer.
+
+    A withheld probability is ``inconclusive`` rather than absent.  A
+    published numeric estimate maps onto the publication tiers.  This keeps
+    the event claim separate from the point path while ensuring neither can
+    disappear from the response-wide floor.
+    """
+    threshold = _result_field(result, "threshold") or {}
+    if not isinstance(threshold, dict):
+        return None
+    event = threshold.get("horizon_event") or {}
+    if not isinstance(event, dict) or not event:
+        return None
+    published = event.get("probability_any_breach") is not None
+    return canonical_support_tier(event.get("support"), published=published)
+
+
+def result_support_tier(result: object) -> str | None:
     """Return the weakest authority tier carried by one result.
 
     Both full artifacts (``forecast``) and bounded wire responses
     (``forecast_preview``) use this path so a rendering cannot accidentally
     prefer the series-level label over a weaker published row.
     """
-    rows = result.get("forecast") or result.get("forecast_preview") or []
-    row_tiers = [
-        row.get("tier") for row in rows
-        if isinstance(row, dict) and row.get("tier") is not None
-    ] if isinstance(rows, list) else []
-    assessment = result.get("support_assessment") or {}
+    path_tier = forecast_path_support_tier(result)
+    event_tier = horizon_event_support_tier(result)
     return weakest_support_tier(
-        [result.get("support"), assessment.get("status"),
-         assessment.get("legacy_support"), *row_tiers],
-        published=bool(rows),
+        [path_tier, event_tier], published=False,
     )
 
 
@@ -149,6 +192,7 @@ def forecast_headline(
     support: str,
     assessment: dict | None,
     rows: list[dict],
+    threshold: dict | None = None,
 ) -> str:
     """One deterministic plain-language sentence: what can be trusted.
 
@@ -165,10 +209,27 @@ def forecast_headline(
             "the evaluation could not run.")
         return f"No forecast published: {first}"
     end = str(rows[-1].get("timestamp"))
-    weakest = weakest_support_tier(
-        [support, status, *(row.get("tier") for row in rows)],
-        published=True,
-    )
+    path_tier = forecast_path_support_tier({
+        "support": support, "support_assessment": assessment,
+        "forecast": rows,
+    })
+    event_tier = horizon_event_support_tier({"threshold": threshold})
+    event = (threshold or {}).get("horizon_event") or {}
+    if event_tier is not None and event_tier != path_tier:
+        probability = event.get("probability_any_breach")
+        path_label = path_tier or "unknown"
+        if probability is None:
+            return (
+                f"Point forecast through {end} is tier {path_label}; the "
+                "requested horizon-event probability is unavailable at tier "
+                f"{event_tier}."
+            )
+        return (
+            f"Point forecast through {end} is tier {path_label}; the "
+            f"horizon-event probability ({float(probability):.0%}) is tier "
+            f"{event_tier} and is not governed for automation."
+        )
+    weakest = path_tier
     split = next((reason for reason in reasons
                   if reason.get("code") == "horizon_split"), None)
     if split is not None:
@@ -253,11 +314,12 @@ def artifact_headline(results: list) -> str:
             -forecast_notability(item), str(item.series)))
         tier_counts: dict[str, int] = {}
         for result in results:
-            tier = str(getattr(result, "support", "unknown"))
+            tier = str(result_support_tier(result) or "unknown")
             tier_counts[tier] = tier_counts.get(tier, 0) + 1
         mix = ", ".join(f"{count} {tier}" for tier, count in sorted(tier_counts.items()))
         examples = "; ".join(
-            f"{item.series}: {forecast_headline(item.support, item.support_assessment, item.forecast)}"
+            f"{item.series}: "
+            f"{forecast_headline(item.support, item.support_assessment, item.forecast, item.threshold)}"
             for item in ranked[:3]
         )
         return (f"Forecasted {len(results)} series ({mix}). Most notable by "
@@ -266,6 +328,7 @@ def artifact_headline(results: list) -> str:
     for result in results:
         text = forecast_headline(
             result.support, result.support_assessment, result.forecast,
+            result.threshold,
         )
         lane = getattr(result, "model_assisted", None) or {}
         validation = lane.get("validation") or {}

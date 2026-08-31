@@ -190,6 +190,7 @@ def write_artifact(
                 "support": result.support,
                 "support_assessment": result.support_assessment,
                 "forecast": result.forecast,
+                "threshold": result.threshold,
             }) or result.support
             lines.extend([
                 f"## {result.series}", "",

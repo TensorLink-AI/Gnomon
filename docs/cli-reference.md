@@ -564,6 +564,15 @@ same observed threshold as a Prometheus rule. The probabilistic forecast and
 its support remain in the integrity-sealed artifact rather than being misrepresented
 as PromQL.
 
+Every monitor response and artifact includes the side-effect-free `events`
+projection, so CLI and MCP callers inspect the same event authority before any
+webhook delivery. The live response also reports `firing_rate`, defined as
+compiled triggers with a first-alert step divided by armed trigger evaluations;
+unarmed abstentions are counted separately. Evaluations are deduplicated by the
+content-addressed `monitor_id` in the durable state file, so replaying one
+artifact cannot inflate the rate. The immutable artifact carries its
+current-evaluation measurement and explicitly marks that it is not historical.
+
 With `--project`, `monitor run` first submits currently materialized rows to
 the tracking registry and scores any forecasts whose complete horizons are now
 known. Disable this cron-friendly default with `--no-auto-score`. The temporal

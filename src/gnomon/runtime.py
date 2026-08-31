@@ -1827,6 +1827,7 @@ def capabilities() -> dict[str, object]:
             "best_effort_fallback": True, "model_assisted_lane": True,
             "graduated_support": True, "horizon_split": True,
             "row_tier_labels": True, "forecast_headline": True,
+            "monitor_firing_rate": True,
             "multi_target_batching": True, "brief_output": True,
             "inline_data_channels": True,
             "structural_regrid": True, "long_series_fit_window": True,
