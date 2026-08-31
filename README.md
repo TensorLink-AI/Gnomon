@@ -98,11 +98,12 @@ bash install.sh --local
 gnomon forecast examples/daily_requests.csv --horizon 3
 ```
 
-The CLI prints a readable answer and writes the complete evidence-linked
-artifact to `gnomon-output/`. Start with `summary.md`; use `forecast.csv` in
-downstream systems; keep `artifact.json` and `lineage.json` for replay and
-audit. See [the full CLI workflow](#see-the-full-cli-workflow) or the
-[getting-started guide](docs/getting-started.md).
+The CLI prints a structured JSON answer for agents and pipelines and writes
+the complete evidence-linked artifact to `gnomon-output/`. Humans should start
+with `summary.md` or `report.html`; use `forecast.csv` in downstream systems;
+keep `artifact.json` and `lineage.json` for replay and audit. See [the full CLI
+workflow](#see-the-full-cli-workflow) or the [getting-started
+guide](docs/getting-started.md).
 
 ## Hook it to your agent (60 seconds)
 
