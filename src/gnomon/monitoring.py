@@ -35,6 +35,8 @@ def firing_events(payload: dict[str, Any], artifact_path: str) -> list[dict[str,
             "threshold": (trigger.get("trigger") or {}).get("threshold"),
         }
         encoded = json.dumps(identity, sort_keys=True, separators=(",", ":"))
+        from .support import trigger_support_tier
+        tier_floor = trigger_support_tier(trigger)
         events.append({
             "schema_version": "0.1",
             "event_id": "monitor-event-" + hashlib.sha256(encoded.encode()).hexdigest()[:24],
@@ -42,6 +44,7 @@ def firing_events(payload: dict[str, Any], artifact_path: str) -> list[dict[str,
             "created_at": payload.get("created_at"),
             "artifact_id": payload.get("monitor_id"),
             "artifact_path": artifact_path,
+            "tier_floor": tier_floor,
             "trigger": trigger,
         })
     return events

@@ -151,14 +151,8 @@ def render_artifact_html(
         if not isinstance(result, dict):
             continue
         series = escape(str(result.get("series") or "series"))
-        from .support import weakest_support_tier
-        rows = result.get("forecast") or []
-        support = escape(str(weakest_support_tier(
-            [result.get("support"),
-             (result.get("support_assessment") or {}).get("status"),
-             *(row.get("tier") for row in rows if isinstance(row, dict))],
-            published=bool(rows),
-        ) or "unknown"))
+        from .support import result_support_tier
+        support = escape(str(result_support_tier(result) or "unknown"))
         chart = _forecast_chart(result, (history or {}).get(str(result.get("series"))))
         details = [f"<dt>Support</dt><dd>{support}</dd>"]
         for key, label in (("selected_model", "Selected model"),
@@ -170,13 +164,8 @@ def render_artifact_html(
         )
     for trigger in payload.get("triggers") or []:
         if isinstance(trigger, dict):
-            assessment = trigger.get("support_assessment") or {}
-            from .support import weakest_support_tier
-            support = weakest_support_tier(
-                [assessment.get("status"), assessment.get("legacy_support"),
-                 (trigger.get("horizon_event") or {}).get("support")],
-                published=bool(trigger.get("horizon_event")),
-            ) or "unknown"
+            from .support import trigger_support_tier
+            support = trigger_support_tier(trigger) or "unknown"
             sections.append(
                 f"<section><h2>Trigger · {escape(str(trigger.get('series', 'series')))}</h2>"
                 f"<dl><dt>Support</dt><dd>{escape(str(support))}</dd>"

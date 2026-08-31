@@ -67,24 +67,12 @@ def apply_response_contract(payload: dict[str, Any]) -> dict[str, Any]:
 
     entries = [item for item in result.get("results", [])
                if isinstance(item, dict)]
-    tiers: list[str] = []
     warning_series: dict[str, set[str]] = {}
     warning_examples: dict[str, list[str]] = {}
     recoveries: list[dict[str, Any]] = []
-    from .support import weakest_support_tier
+    from .support import payload_support_tier
     for entry in entries:
         assessment = entry.get("support_assessment") or {}
-        raw_tier = assessment.get("status") or entry.get("support")
-        rows = entry.get("forecast") or entry.get("forecast_preview") or []
-        row_tiers = [
-            row.get("tier") for row in rows
-            if isinstance(row, dict) and row.get("tier") is not None
-        ] if isinstance(rows, list) else []
-        tier = weakest_support_tier(
-            [raw_tier, *row_tiers], published=bool(row_tiers),
-        ) or raw_tier
-        if tier:
-            tiers.append(str(tier))
         series = str(entry.get("series") or "__default__")
         for warning in entry.get("warnings") or []:
             text = str(warning)
@@ -96,8 +84,12 @@ def apply_response_contract(payload: dict[str, Any]) -> dict[str, Any]:
             if isinstance(action, dict) and action not in recoveries:
                 recoveries.append(action)
 
-    if tiers and "tier_floor" not in result:
-        result["tier_floor"] = weakest_support_tier(tiers, published=False)
+    tier_floor = payload_support_tier(result)
+    if tier_floor is not None:
+        # Recompute rather than trusting a pre-existing summary. A bounded
+        # response may carry a floor calculated before its weakest series was
+        # moved into triage.remainder_tiers.
+        result["tier_floor"] = tier_floor
     if warning_series and "limitation_groups" not in result:
         result["limitation_groups"] = [
             {
@@ -397,9 +389,9 @@ def triage_wide_response(payload: dict[str, Any], top_k: int = 3) -> dict[str, A
         -float(row.get("notability", 0.0)), str(row.get("series", ""))))
     remainder = ranked[top_k:]
     tier_counts: dict[str, int] = {}
+    from .support import result_support_tier
     for row in remainder:
-        assessment = row.get("support_assessment") or {}
-        tier = str(assessment.get("status") or row.get("support") or "unknown")
+        tier = str(result_support_tier(row) or "unknown")
         tier_counts[tier] = tier_counts.get(tier, 0) + 1
     existing = (payload.get("triage")
                 if isinstance(payload.get("triage"), dict) else {})
