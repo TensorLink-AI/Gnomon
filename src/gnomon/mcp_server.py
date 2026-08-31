@@ -17,8 +17,7 @@ from typing import Any, TextIO
 
 from .contracts import GnomonError
 from .toolspec import (
-    PROFILES, TOOLS, _SURFACE_EXPERIMENT_TOOLS, active_profile, runner_for,
-    visible_tools,
+    TOOLS, active_profile, profiles_for_tool, runner_for, visible_tools,
 )
 
 logger = logging.getLogger(__name__)
@@ -103,18 +102,12 @@ def _handle(message: dict[str, Any]) -> dict[str, Any] | None:
         if runner is None:
             known = next((tool for tool in TOOLS if tool["name"] == name), None)
             if known is not None:
-                profiles = sorted(
-                    profile for profile, names in PROFILES.items()
-                    if name in names
-                )
-                if name not in _SURFACE_EXPERIMENT_TOOLS:
-                    profiles.append("full")
                 return _tool_result(
                     GnomonError(
                         "TOOL_NOT_IN_PROFILE",
                         f"Tool {name!r} is not exposed by the active "
                         f"{active_profile()!r} profile.",
-                        {"tool": name, "profiles": profiles,
+                        {"tool": name, "profiles": profiles_for_tool(name),
                          "active_profile": active_profile()},
                     ).to_dict(),
                     True,

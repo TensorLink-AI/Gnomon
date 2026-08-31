@@ -4832,6 +4832,48 @@ def visible_tools() -> list[dict[str, Any]]:
     return [tool for tool in tools if tool["name"] in allowed]
 
 
+def profiles_for_tool(name: str) -> list[str]:
+    """Named profiles that can expose ``name``, including virtual ``full``."""
+    profiles = sorted(
+        profile for profile, names in PROFILES.items() if name in names
+    )
+    known = any(tool["name"] == name for tool in TOOLS)
+    if known and name not in _SURFACE_EXPERIMENT_TOOLS:
+        profiles.append("full")
+    return profiles
+
+
+def enforce_profile_tool_calls(value: Any) -> Any:
+    """Never hand an agent a ready call that this server will refuse."""
+    visible = {tool["name"] for tool in visible_tools()}
+
+    def visit(item: Any) -> Any:
+        if isinstance(item, list):
+            return [visit(entry) for entry in item]
+        if not isinstance(item, dict):
+            return item
+        result: dict[str, Any] = {}
+        for key, nested in item.items():
+            if key == "tool_call" and isinstance(nested, dict):
+                name = str(nested.get("name") or "")
+                if name and name not in visible:
+                    result["tool_unavailable_in_profile"] = {
+                        "tool": name,
+                        "active_profile": active_profile(),
+                        "profiles": profiles_for_tool(name),
+                        "note": (
+                            "The referenced data remains available at the "
+                            "response's artifact path; this server profile "
+                            "does not expose the suggested follow-up tool."
+                        ),
+                    }
+                    continue
+            result[key] = visit(nested)
+        return result
+
+    return visit(value)
+
+
 _SESSION_DATA_REFS: dict[str, dict[str, Any]] = {}
 _MAX_SESSION_DATA_REFS = 128
 _DATA_BINDING_KEYS = frozenset({
@@ -5085,8 +5127,9 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
                 if isinstance(payload, dict) and "verb" not in payload:
                     payload = {**payload,
                                "verb": _name.removeprefix("gnomon_")}
-                return apply_response_contract(
+                contracted = apply_response_contract(
                     enforce_response_budget(payload, budget))
+                return enforce_profile_tool_calls(contracted)
 
             return wrapped
     return None
