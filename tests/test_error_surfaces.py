@@ -209,6 +209,31 @@ def test_mcp_tool_bug_returns_a_repairable_result():
     assert "TypeError" in payload["error"]["message"]
 
 
+def test_mcp_missing_argument_names_the_field_referenced_by_repair_options(
+        monkeypatch):
+    from gnomon import mcp_server
+
+    def missing_runner(_name):
+        def runner(_arguments):
+            raise KeyError("horizon")
+        return runner
+
+    monkeypatch.setattr(mcp_server, "runner_for", missing_runner)
+    result = mcp_server._handle({
+        "method": "tools/call",
+        "params": {"name": "gnomon_forecast", "arguments": {}},
+    })
+
+    assert result["isError"] is True
+    error = result["structuredContent"]["error"]
+    assert error["code"] == "INVALID_ARGUMENTS"
+    assert error["details"] == {
+        "missing_arguments": ["horizon"], "tool": "gnomon_forecast",
+    }
+    assert "details.missing_arguments" in \
+        error["repair_options"][0]["description"]
+
+
 def test_mcp_results_carry_structured_content():
     """M4. Protocol 2025-06-18 supports it; every agent was parsing a string."""
     from gnomon import mcp_server
