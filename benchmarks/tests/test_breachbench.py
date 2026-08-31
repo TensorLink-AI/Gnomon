@@ -136,8 +136,9 @@ def test_the_product_packet_is_real_gnomon_output() -> None:
     cases, _, _ = generate_cases(9, 3)
     packet = product_packet(cases[0])
     assert packet["authority"] == \
-        "computed_gnomon_forecast_with_threshold_analysis"
+        "bounded_projection_of_gnomon_forecast_response"
     assert packet["support"]
+    assert packet["tier_floor"]
     assert packet["headline"]
     assert len(packet["forecast"]) == cases[0].horizon
     assert "threshold_analysis" in packet
@@ -147,6 +148,21 @@ def test_the_product_packet_is_real_gnomon_output() -> None:
     rule = product_rule(cases[0], packet)
     assert rule["action"] in {"act", "monitor"}
     assert isinstance(rule["breach_expected"], bool)
+
+
+def test_product_packet_preserves_weaker_horizon_event_authority() -> None:
+    """The benchmark must exercise the same trust boundary as the product."""
+    cases, _, _ = generate_cases(20260826, 12)
+    packet = product_packet(next(
+        case for case in cases if case.case_id == "b20260826-0009"))
+    event = packet["threshold_analysis"]["horizon_event"]
+    assert packet["support"] == "supported"
+    assert packet["support_scope"] == "forecast_path"
+    assert packet["tier_floor"] == "best_effort"
+    assert event["support"] == "best_effort"
+    assert "tier supported" in packet["headline"]
+    assert "tier best_effort" in packet["headline"]
+    assert "High-confidence" not in packet["headline"]
 
 
 def test_answers_are_validated_not_guessed() -> None:
@@ -329,3 +345,7 @@ def test_a_matched_offline_run_prices_decisions_in_client_units(
     rows = [json.loads(line) for line in
             (tmp_path / "out" / "rows.jsonl").read_text().splitlines()]
     assert len(rows) == 6 * len(ARMS)
+    assert all(row["raw_response"] for row in rows)
+    assert all(len(row["raw_response_sha256"]) == 64 for row in rows)
+    assert all(("evidence_packet" in row) == (row["arm"] == "gnomon")
+               for row in rows)

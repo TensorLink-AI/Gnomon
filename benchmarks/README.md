@@ -142,11 +142,26 @@ lower layer deliberately and must never be described as agent-reasoning lift.
 | [BreachBench](breachbench/) | The client job on real telemetry: breach call, timing, and intervention decision priced in cost and regret against realized outcomes, with the production forecast/threshold output as the treatment | `benchmarks/breachbench` |
 | [RecallBench](recallbench/) | Skill or recall: matched forecasts of identical real windows raw versus affine-anonymized, scored in affine-invariant MASE against the production engine — the gate for any LLM-forecast candidate lane | `benchmarks/recallbench` |
 | ModelBench (internal) | Immutable primary-forecast model comparison with agent/context behavior excluded; `run_short_history` tests nested classical selection and production LOCO panel admission on untouched horizons with raw records retained | `benchmarks/modelbench` |
+| CapabilityBench (internal) | Temporal capability-registry classification and executable behavior | `benchmarks/capabilitybench` |
+| SeasonalBench (internal) | Seasonal-period admission, harmful departures, and support precision | `benchmarks/seasonalbench` |
+| ClaimBench (internal) | Forecast headline, support, artifact, and renderer coherence | `benchmarks/claimbench` |
+| DecisionInputBench (internal) | Malformed and non-identifying decision-input rejection | `benchmarks/decisioninputbench` |
+| DecisionContractBench (internal) | Agent-response conclusion and authority preservation | `benchmarks/decisioncontractbench` |
+| CalibrationActionBench (internal) | Calibration evidence required for action authority | `benchmarks/calibrationactionbench` |
+| JitterBench (internal) | Bounded timestamp alignment, repair disclosure, and refusal | `benchmarks/jitterbench` |
+| JointHorizonBench (internal) | Joint-event calibration, breach-policy regret, and authority | `benchmarks/jointhorizonbench` |
+| HierarchyBench (internal) | Bottom-up hierarchy coherence, immutable leaves, and tiered error | `benchmarks/hierarchybench` |
+| MultivariateBench (internal) | Held-out multivariate candidate admission and error | `benchmarks/multivariatebench` |
+| RecoveryBench (internal) | Executable recovery, canonical immutability, and bounded retries | `benchmarks/recoverybench` |
+| ReliabilityBench (internal) | Atomic artifact publication, integrity, concurrency, and local loading | `benchmarks/reliabilitybench` |
+| RoutingBench (internal) | Prequential adapter promotion, drift response, and route authority | `benchmarks/routingbench` |
 
 The machine-readable source of truth is `benchmarks/catalog.py`. Batch
 manifests embed its `benchmark_contract`, and CI rejects catalog/orchestrator
-drift. A benchmark with no `reasoning_harness` treatment cannot support a
-claim that Gnomon improved an LLM's reasoning.
+drift. Frozen protocol runners with bespoke baseline/candidate files or atomic
+case checkpoints are catalogued but intentionally remain outside the generic
+`run_all` adapter registry. A benchmark with no `reasoning_harness` treatment
+cannot support a claim that Gnomon improved an LLM's reasoning.
 
 LeakTrap is ours, not a community benchmark — its numbers validate
 Gnomon's bitemporal contract and are not comparable to anything
@@ -212,8 +227,9 @@ python -m benchmarks.run_all --config my-batch.yaml --only tb-control,tb-gnomon
 python -m benchmarks.run_all --config my-batch.yaml --continue-on-error
 ```
 
-See `benchmarks/configs/example.yaml` for a config covering all five
-benchmarks. Datasets are not downloaded by the orchestrator — run each
+See `benchmarks/configs/example.yaml` for a representative config covering
+five externally sourced adapters. Datasets are not downloaded by the
+orchestrator — run each
 adapter's `--download`/setup step once first (see the per-benchmark
 READMEs).
 

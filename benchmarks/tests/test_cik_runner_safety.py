@@ -5,7 +5,8 @@ from types import SimpleNamespace
 import pytest
 
 from benchmarks.cik.run_cik import (
-    _counterfactual_candidate_scores, _load_checkpoint,
+    _checkpoint_identity, _counterfactual_candidate_scores,
+    _load_checkpoint, _prepare_checkpoint_identity,
     _summarize_selection_diagnostics, _task_information_profile, build_parser,
     select_tasks, write_outputs,
 )
@@ -169,6 +170,28 @@ def test_resume_retries_provider_and_process_failures_but_keeps_model_results(tm
     (tmp_path / "case-checkpoint.json").write_text(json.dumps(payload))
     loaded = _load_checkpoint(tmp_path)
     assert set(loaded) == {"valid", "model"}
+
+
+def test_cik_checkpoint_identity_covers_request_and_corpus_scope(tmp_path):
+    class AlphaTask:
+        pass
+
+    args = build_parser().parse_args([
+        "--method", "gnomon-pure", "--seed-start", "6", "--seeds", "2",
+        "--output-dir", str(tmp_path),
+    ])
+    identity = _checkpoint_identity(args, [AlphaTask], 20, "abc")
+    _prepare_checkpoint_identity(tmp_path, identity, fresh=False)
+    changed = {**identity, "base_url": "https://different.test/v1"}
+    with pytest.raises(SystemExit, match="resume identity mismatch"):
+        _prepare_checkpoint_identity(tmp_path, changed, fresh=False)
+
+
+def test_cik_checkpoint_refuses_legacy_state_without_identity(tmp_path):
+    (tmp_path / "case-checkpoint.json").write_text("{}")
+    with pytest.raises(SystemExit, match="without run_identity"):
+        _prepare_checkpoint_identity(
+            tmp_path, {"schema_version": 1}, fresh=False)
 
 
 def test_held_out_seed_range_is_explicit_in_cli():

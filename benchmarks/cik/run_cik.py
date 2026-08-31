@@ -298,6 +298,67 @@ def _write_checkpoint(output_dir: Path, completed: dict[str, dict]) -> None:
     os.replace(temporary, path)
 
 
+def _checkpoint_identity(args, selected, n_samples: int,
+                         revision: str) -> dict[str, object]:
+    """Describe every input that can change a resumed CiK case result."""
+    return {
+        "schema_version": 1,
+        "benchmark": "context-is-key",
+        "code_revision": revision,
+        "method": args.method,
+        "model": args.model,
+        "base_url": args.base_url,
+        "api_key_env": args.api_key_env,
+        "temperature": args.temperature,
+        "selected_tasks": [task.__name__ for task in selected],
+        "seed_start": args.seed_start,
+        "seeds": args.seeds,
+        "n_samples": n_samples,
+        "fail_on_invalid": args.fail_on_invalid,
+        "future_context": args.future_context,
+        "structural_context": args.structural_context,
+        "mcp_profile": args.mcp_profile,
+        "mcp_output_role": args.mcp_output_role,
+        "mcp_candidate_paths": args.mcp_candidate_paths,
+        "mcp_candidate_history_rows": args.mcp_candidate_history_rows,
+        "mcp_candidate_temporal_facts": args.mcp_candidate_temporal_facts,
+        "no_cache": args.no_cache,
+        "case_timeout_seconds": args.case_timeout_seconds,
+        "case_memory_mb": args.case_memory_mb,
+        "min_free_memory_mb": args.min_free_memory_mb,
+        "max_parallel": args.max_parallel,
+    }
+
+
+def _prepare_checkpoint_identity(output_dir: Path,
+                                 identity: dict[str, object],
+                                 *, fresh: bool) -> None:
+    """Fail closed instead of mixing checkpoints from different runs."""
+    path = output_dir / "run_identity.json"
+    checkpoint = _checkpoint_path(output_dir)
+    if fresh:
+        # Clear the only resumable state before adopting the new identity.
+        # Otherwise an interrupt between writing identity and the first case
+        # could make old rows look as if they belonged to the fresh run.
+        _write_checkpoint(output_dir, {})
+    if not fresh and path.is_file():
+        existing = json.loads(path.read_text(encoding="utf-8"))
+        if existing != identity:
+            raise SystemExit(
+                "resume identity mismatch; use a new output directory or "
+                "pass --no-resume")
+        return
+    if not fresh and checkpoint.is_file():
+        raise SystemExit(
+            "cannot resume CiK checkpoint without run_identity.json; use a "
+            "new output directory or pass --no-resume")
+    temporary = path.with_suffix(".tmp")
+    temporary.write_text(
+        json.dumps(identity, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8")
+    os.replace(temporary, path)
+
+
 def _run_isolated_cases(selected, args, n_samples: int,
                         output_dir: Path) -> dict:
     """Run sequential disposable cases with resume, timeout, and RAM caps."""
@@ -543,6 +604,10 @@ def run(args) -> int:
 
     selected = select_tasks(
         ALL_TASKS, task_names=args.task_name, task_filter=args.task_filter)
+    run_identity = _checkpoint_identity(
+        args, selected, n_samples, run_revision)
+    _prepare_checkpoint_identity(
+        output_dir, run_identity, fresh=args.no_resume)
     if args.task_name:
         print(f"Running {len(selected)} exact task(s): " +
               ", ".join(args.task_name), flush=True)
@@ -557,7 +622,8 @@ def run(args) -> int:
         print(f"Running all {len(selected)} CiK tasks safely", flush=True)
         results = _run_isolated_cases(selected, args, n_samples, output_dir)
 
-    write_outputs(results, method, args, output_dir)
+    write_outputs(results, method, args, output_dir,
+                  run_identity=run_identity)
     write_manifest(
         output_dir,
         benchmark="cik",
@@ -578,7 +644,8 @@ def run(args) -> int:
     return 0
 
 
-def write_outputs(results: dict, method, args, output_dir: Path) -> None:
+def write_outputs(results: dict, method, args, output_dir: Path,
+                  *, run_identity: dict[str, object] | None = None) -> None:
     scores_path = output_dir / "scores.csv"
     records_path = output_dir / "gnomonbench.jsonl"
     selection_records_path = output_dir / "selection-diagnostics.jsonl"
@@ -735,6 +802,7 @@ def write_outputs(results: dict, method, args, output_dir: Path) -> None:
         ),
         "selection_diagnostics": _summarize_selection_diagnostics(
             selection_diagnostics),
+        "run_identity": run_identity,
         "note": (
             "mean_rcrps_capped_imputed follows the official aggregation "
             "rule (cap per-run RCRPS at 5.0, impute every abstained or "

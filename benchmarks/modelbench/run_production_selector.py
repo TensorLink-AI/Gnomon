@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 
+from benchmarks.common.checkpoint import prepare_run_identity
 from benchmarks.common.manifest import code_revision, write_manifest
 from gnomon.evaluation import Evaluation, evaluate
 from gnomon.config import GnomonConfig
@@ -325,9 +326,27 @@ def main() -> int:
         "--resume", action="store_true",
         help="Resume from output-dir/observations.jsonl and append each new row.")
     args = parser.parse_args()
+    if args.resume and args.output_dir is None:
+        parser.error("--resume requires --output-dir")
     existing: list[dict[str, object]] = []
     observations = (args.output_dir / "observations.jsonl"
                     if args.output_dir else None)
+    revision = code_revision()
+    if args.output_dir:
+        prepare_run_identity(
+            args.output_dir,
+            {
+                "schema_version": 1,
+                "benchmark": "production-short-history-selector",
+                "code_revision": revision,
+                "seed": args.seed,
+                "cases_per_family": args.cases_per_family,
+                "families": list(FAMILIES),
+                "statsforecast_enabled": args.statsforecast,
+            },
+            resume=args.resume,
+            state_paths=[observations, args.output_dir / "summary.json"],
+        )
     if args.resume and observations and observations.is_file():
         existing = [json.loads(line) for line in observations.read_text(
             encoding="utf-8").splitlines() if line.strip()]
@@ -346,7 +365,7 @@ def main() -> int:
         statsforecast_enabled=args.statsforecast,
         existing_rows=existing, on_row=checkpoint,
     )
-    result["evaluated_commit"] = code_revision()
+    result["evaluated_commit"] = revision
     if args.output_dir:
         args.output_dir.mkdir(parents=True, exist_ok=True)
         (args.output_dir / "summary.json").write_text(

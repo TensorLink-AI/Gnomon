@@ -15,6 +15,8 @@ from pathlib import Path
 import subprocess
 from typing import Any
 
+from benchmarks.catalog import CATALOG
+
 
 SCHEMA_VERSION = "1.1"
 DROP_KEYS = {
@@ -192,6 +194,11 @@ def validate(release_dir: Path) -> None:
             raise ValueError(f"invalid run scope: {path}")
         if metadata.get("scope") != record.get("scope"):
             raise ValueError(f"scope mismatch: {path}")
+        contract = CATALOG.get(str(record.get("benchmark")))
+        if (record.get("status") == "graduated" and contract is not None
+                and contract.retired):
+            raise ValueError(
+                f"retired benchmark cannot be graduated: {path}")
         provenance = ("evaluated_commit", "harness_commit", "dataset_identity",
                       "configuration_identity")
         if any(not metadata.get(field) for field in provenance):

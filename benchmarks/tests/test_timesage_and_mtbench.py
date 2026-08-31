@@ -286,6 +286,20 @@ def test_timesage_usage_aggregation_preserves_requests_and_provenance():
     }
 
 
+def test_timesage_resume_identity_covers_corpus_and_request_contract(tmp_path):
+    _write_timesage_fixture(tmp_path)
+    from benchmarks.timesage_mt.run_timesage import task_request_identity
+
+    task = load_tasks(tmp_path)[0]
+    common = dict(
+        condition="gnomon-tools", model="deepseek", base_url="https://a/v1",
+        temperature=0.2, timeout=180.0, revision="abc")
+    original = task_request_identity(task, **common)
+    assert task_request_identity(task, **{**common, "base_url": "https://b/v1"}) != original
+    task.visible_csv.write_text("date,ride_count\n2023-01-01,999\n")
+    assert task_request_identity(task, **common) != original
+
+
 def test_official_mape_fallback_masks_zeros():
     assert official_mape([0.0, 10.0], [5.0, 11.0]) == 10.0
     assert official_mape([2.0, 4.0], [2.0, 4.0]) == 0.0

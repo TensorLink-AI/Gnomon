@@ -9,7 +9,9 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from benchmarks.catalog import CATALOG
-from benchmarks.run_all import REGISTRY, build_command, summary_path
+from benchmarks.run_all import (
+    REGISTRY, build_command, completed_gate_failure, summary_path,
+)
 
 CONFIG = {
     "model": "openai/gpt-4o",
@@ -19,7 +21,10 @@ CONFIG = {
 
 
 def test_registry_and_claim_catalog_cover_the_same_benchmarks():
-    assert set(REGISTRY) == set(CATALOG)
+    # Every batch-orchestrated adapter needs a claim boundary. Frozen protocol
+    # runners with bespoke output/checkpoint contracts may remain catalogued
+    # without being forced through this generic orchestrator.
+    assert set(REGISTRY) <= set(CATALOG)
     assert CATALOG["temporalbench"].layer == "reasoning_harness"
     assert CATALOG["propertybench"].layer == "engine"
     assert CATALOG["effectbench"].layer == "safety_contract"
@@ -126,11 +131,41 @@ def test_summary_path_prefers_explicit_output_dir():
     assert summary_path(run2, CONFIG) == Path("results/batch/c/summary.json")
 
 
+@pytest.mark.parametrize(("benchmark", "gate"), [
+    ("workflow", "release_gate_pass"),
+    ("contextbench", "decision_ready"),
+])
+def test_completed_gate_failure_requires_a_real_negative_summary(
+        tmp_path, benchmark, gate):
+    config = {"output_root": str(tmp_path)}
+    run = {"benchmark": benchmark, "name": "case", "args": {}}
+    output = tmp_path / "case"
+    output.mkdir()
+    (output / "summary.json").write_text(
+        '{"' + gate + '": false}', encoding="utf-8")
+    assert completed_gate_failure(run, config, 2) is True
+    assert completed_gate_failure(run, config, 3) is False
+    (output / "summary.json").write_text(
+        '{"' + gate + '": true}', encoding="utf-8")
+    assert completed_gate_failure(run, config, 2) is False
+
+
+def test_argparse_exit_two_is_not_scored_evidence(tmp_path):
+    run = {"benchmark": "contextbench", "name": "missing", "args": {}}
+    assert completed_gate_failure(
+        run, {"output_root": str(tmp_path)}, 2) is False
+
+
 def test_registry_covers_all_adapters():
-    adapters = {p.name for p in
-                (Path(__file__).resolve().parents[1]).iterdir()
-                if p.is_dir() and list(p.glob("run_*.py"))}
-    assert adapters == set(REGISTRY)
+    root = Path(__file__).resolve().parents[1]
+    active = {
+        p.name for p in root.iterdir()
+        if p.is_dir() and (
+            (p / "run.py").is_file() or any(p.glob("run_*.py")))
+    }
+    active.add("capabilitybench")
+    assert active <= set(CATALOG)
+    assert set(REGISTRY) <= active
 
 
 def test_reasoningbench_gets_model_output_and_case_limit():

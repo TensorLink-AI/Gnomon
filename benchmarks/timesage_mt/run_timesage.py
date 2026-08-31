@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import sys
 import time
@@ -56,6 +57,34 @@ from benchmarks.timesage_mt.tasks import (  # noqa: E402
     download,
     load_tasks,
 )
+
+
+def task_request_identity(
+    task: TimeSageTask, *, condition: str, model: str, base_url: str,
+    temperature: float, timeout: float, revision: str,
+) -> str:
+    """Fingerprint every input that can change a resumed model response."""
+    visible = (task.visible_csv.read_bytes() if task.visible_csv
+               and task.visible_csv.is_file() else b"")
+    corpus = hashlib.sha256(
+        json.dumps(task.raw, sort_keys=True, separators=(",", ":"),
+                   ensure_ascii=False).encode("utf-8") + b"\0" + visible
+    ).hexdigest()
+    payload = {
+        "schema_version": 1,
+        "task_id": task.task_id,
+        "tier": task.tier,
+        "corpus_sha256": corpus,
+        "condition": condition,
+        "model": model,
+        "base_url": base_url,
+        "temperature": temperature,
+        "timeout_seconds": timeout,
+        "code_revision": revision,
+    }
+    return hashlib.sha256(json.dumps(
+        payload, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")).hexdigest()
 
 
 def scorable_turns_on_failure(
@@ -205,6 +234,10 @@ def main() -> int:
     task_results: dict[str, tuple[list[dict], dict, float] | Exception] = {}
     pending: list[TimeSageTask] = []
     for task in tasks:
+        request_identity = task_request_identity(
+            task, condition=args.condition, model=args.model,
+            base_url=client.base_url, temperature=args.temperature,
+            timeout=args.timeout, revision=run_revision)
         transcript_path = transcripts_dir / f"{task.task_id}.json"
         if args.resume and transcript_path.exists():
             try:
@@ -213,6 +246,8 @@ def main() -> int:
                         and saved.get("condition") == args.condition
                         and saved.get("model") == args.model
                         and saved.get("code_revision") == run_revision
+                        and saved.get("request_identity_sha256")
+                        == request_identity
                         and isinstance(saved.get("llm_usage"), dict)
                         and len(saved.get("turns", [])) == len(task.user_turns)):
                     task_results[task.task_id] = (
@@ -248,6 +283,11 @@ def main() -> int:
                     "task_id": task.task_id, "tier": task.tier,
                     "condition": args.condition, "model": args.model,
                     "code_revision": run_revision,
+                    "request_identity_sha256": task_request_identity(
+                        task, condition=args.condition, model=args.model,
+                        base_url=client.base_url,
+                        temperature=args.temperature, timeout=args.timeout,
+                        revision=run_revision),
                     "elapsed_seconds": elapsed, "llm_usage": usage,
                     "turns": turn_records,
                 }
@@ -304,6 +344,10 @@ def main() -> int:
             "task_id": task.task_id, "tier": task.tier,
             "condition": args.condition, "model": args.model,
             "code_revision": run_revision,
+            "request_identity_sha256": task_request_identity(
+                task, condition=args.condition, model=args.model,
+                base_url=client.base_url, temperature=args.temperature,
+                timeout=args.timeout, revision=run_revision),
             "elapsed_seconds": elapsed, "llm_usage": usage, "turns": [],
         }
         for record in turn_records:

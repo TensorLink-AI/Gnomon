@@ -57,6 +57,7 @@ Examples
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import traceback
@@ -69,6 +70,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
+from benchmarks.common.checkpoint import prepare_run_identity  # noqa: E402
 from benchmarks.common.manifest import (  # noqa: E402
     code_revision, read_manifest, write_manifest,
 )
@@ -76,6 +78,8 @@ from benchmarks.common.openrouter import OpenRouterClient  # noqa: E402
 from benchmarks.common.records import RecordWriter, RunRecord  # noqa: E402
 from benchmarks.temporalbench import gnomon_runner, scoring  # noqa: E402
 from benchmarks.temporalbench.tasks import (  # noqa: E402
+    LABELED_FILE,
+    METRICS_FILE,
     TIERS,
     download,
     extract_json_object,
@@ -98,6 +102,12 @@ forecast values here can only introduce truncation or transcription error.
 """
 
 EVIDENCE_BUDGET = 40_000
+
+
+def _file_sha256(path: Path) -> str | None:
+    """Hash a real dataset component; permit dependency-isolated unit stubs."""
+    return hashlib.sha256(path.read_bytes()).hexdigest() \
+        if path.is_file() else None
 
 
 def load_resume_state(output_dir: Path, *, resume: bool) -> dict[str, Any]:
@@ -581,7 +591,6 @@ def main() -> int:
     current_revision = code_revision()
     prior_manifest = read_manifest(output_dir) if args.resume else {}
     details_dir = output_dir / "details"
-    details_dir.mkdir(parents=True, exist_ok=True)
     manifest_common = {
         "benchmark": "temporalbench",
         "condition": args.condition,
@@ -614,6 +623,47 @@ def main() -> int:
                                   if args.condition == "gnomon-mcp" else None),
         "model_evidence_registry": args.model_evidence_registry,
     }
+    run_identity = {
+        "schema_version": 1,
+        "benchmark": "temporalbench",
+        "code_revision": current_revision,
+        "condition": args.condition,
+        "model": args.model,
+        "base_url": client.base_url if client is not None else None,
+        "temperature": args.temperature,
+        "reasoning_effort": args.reasoning_effort,
+        "tiers": list(tiers or TIERS),
+        "datasets": list(datasets) if datasets else None,
+        "limit": args.limit,
+        "offset": args.offset,
+        "labeled_split_sha256": _file_sha256(data_dir / LABELED_FILE),
+        "official_metrics_sha256": _file_sha256(data_dir / METRICS_FILE),
+        "request_timeout_seconds": args.request_timeout,
+        "max_tokens": args.max_tokens,
+        "max_retries": args.max_retries,
+        "infrastructure_retries": args.infrastructure_retries,
+        "best_effort": args.best_effort,
+        "named_tsfm": args.named_tsfm,
+        "forecast_jobs": args.forecast_jobs,
+        "forecast_candidates": forecast_candidates,
+        "mcp_profile": args.mcp_profile,
+        "compile_context": args.compile_context,
+        "context_receipts_dir": args.context_receipts_dir,
+        "compile_questions": args.compile_questions,
+        "question_receipts_dir": args.question_receipts_dir,
+        "model_evidence_registry": args.model_evidence_registry,
+    }
+    prepare_run_identity(
+        output_dir, run_identity, resume=args.resume,
+        state_paths=[
+            output_dir / "summary.json",
+            output_dir / "usage.checkpoint.json",
+            output_dir / "gnomonbench.jsonl",
+            output_dir / "gnomonbench.partial.jsonl",
+            output_dir / "details",
+        ],
+    )
+    details_dir.mkdir(parents=True, exist_ok=True)
     # Publish provenance before the first paid request. An operator interrupt
     # must leave resumable rows attached to the exact arm and code that made
     # them, not an orphan partial file that a merger can only guess about.
@@ -960,7 +1010,6 @@ def main() -> int:
                 requested_order, list(receipt_answers.values()))
             typed_questions_requested += len(requested_order)
             final_choices = (outcome.get("answer") or {}).get("mcq") or {}
-            per_question = choice.get("per_question") or {}
             for question_id in requested_keys & set(row_engine_answers):
                 typed_questions_with_engine_answer += 1
                 best = row_engine_answers[question_id].get("best_estimate") or {}

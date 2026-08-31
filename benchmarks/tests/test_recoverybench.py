@@ -24,6 +24,15 @@ def test_additive_fields_are_excluded_from_canonical_comparison() -> None:
     }
 
 
+def test_canonical_comparison_normalises_the_declared_run_root(tmp_path) -> None:
+    first = tmp_path / "arbitrary-baseline-name"
+    second = tmp_path / "unrelated-candidate-name"
+    payload = {"error": {"message": f"missing {first}/absent.csv"}}
+    replay = {"error": {"message": f"missing {second}/absent.csv"}}
+    assert _normalise_identity(payload, (first,)) == \
+        _normalise_identity(replay, (second,))
+
+
 def test_plan_checks_reject_guessed_external_patch() -> None:
     payload = {"recovery_plan": [{
         "rank": 1, "recommended": True,

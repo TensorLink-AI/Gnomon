@@ -13,10 +13,11 @@ Two model arms answer with the same model at temperature zero, prompts
 differing by the evidence block alone (verified pre-flight):
 
 - ``control`` — history, threshold, costs, question.
-- ``gnomon``  — the same plus Gnomon's real product output for this exact
-  call: ``forecast(threshold=...)``'s headline, support, per-step breach
-  probabilities, interval path, warnings, and the model-assisted lane —
-  the artifact a client integration actually receives.
+- ``gnomon``  — the same plus a bounded projection of Gnomon's real product
+  response for this exact call: ``forecast(threshold=...)``'s production
+  headline and tier floor, support, per-step breach probabilities, interval
+  path, warnings, and the model-assisted lane. Full rows come from the sealed
+  artifact named by that response.
 
 The primary metric is not accuracy but **decision cost and regret** under
 a stated cost model (acting costs 2 and mitigates; a missed breach costs
@@ -294,13 +295,17 @@ def _grid_timestamps(frequency: str, count: int) -> list[str]:
 
 
 def product_packet(case: Case) -> dict[str, Any]:
-    """Gnomon's real output for this exact client call, bounded for a
-    prompt. Computed from the visible history alone."""
+    """Bound Gnomon's production response for this exact client call.
+
+    Trust-boundary fields come from the shared MCP/CLI runner; full forecast
+    rows come from the sealed artifact named by that response.  The packet is
+    computed from visible history alone and omits machine-local paths.
+    """
     import shutil
 
-    from gnomon import forecast as gnomon_forecast
+    from gnomon.artifacts import read_artifact
     from gnomon.contracts import GnomonError
-    from gnomon.support import forecast_headline
+    from gnomon.toolspec import runner_for
 
     run_dir = Path(tempfile.mkdtemp(prefix="breachbench-"))
     try:
@@ -312,22 +317,33 @@ def product_packet(case: Case) -> dict[str, Any]:
         ]
         csv_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
         try:
-            artifact, _ = gnomon_forecast(
-                str(csv_path), time_column="timestamp",
-                target_column="value", horizon=case.horizon,
-                frequency=case.frequency, threshold=case.threshold,
-                output=str(run_dir / "out"))
+            runner = runner_for("gnomon_forecast")
+            if runner is None:  # pragma: no cover - registry invariant
+                raise RuntimeError("gnomon_forecast runner is unavailable")
+            response = runner({
+                "input": str(csv_path), "time_column": "timestamp",
+                "target_column": "value", "horizon": case.horizon,
+                "frequency": case.frequency, "threshold": case.threshold,
+                "output_dir": str(run_dir / "out"),
+            })
         except GnomonError as error:
             return {"status": "abstained", "code": error.code,
                     "message": str(error.message)[:300]}
-        result = artifact.results[0]
-        rows = result.forecast or []
+        artifact = read_artifact(response["artifact_path"])
+        result = artifact["results"][0]
+        public_result = response["results"][0]
+        rows = result.get("forecast") or []
         packet: dict[str, Any] = {
-            "authority": "computed_gnomon_forecast_with_threshold_analysis",
-            "support": result.support,
-            "selected_model": result.selected_model,
-            "headline": forecast_headline(
-                result.support, result.support_assessment, rows),
+            "authority": "bounded_projection_of_gnomon_forecast_response",
+            "support": public_result["support"],
+            **({"support_scope": public_result["support_scope"]}
+               if public_result.get("support_scope") else {}),
+            "tier_floor": response.get("tier_floor"),
+            "selected_model": result.get("selected_model"),
+            # These trust-boundary fields come from the shared production
+            # MCP/CLI runner.  Recomputing them here previously let this
+            # benchmark test a stale projection rather than the product.
+            "headline": response["headline"],
             "forecast": [
                 {"step": step,
                  "q50": round(float(row.get("q50", row["point"])), 4),
@@ -337,9 +353,9 @@ def product_packet(case: Case) -> dict[str, Any]:
                 for step, row in enumerate(rows, 1)
             ],
             "warnings": [str(item)[:200]
-                         for item in (result.warnings or [])[:2]],
+                         for item in (result.get("warnings") or [])[:2]],
         }
-        threshold = result.threshold or {}
+        threshold = public_result.get("threshold") or {}
         if threshold:
             horizon_event = threshold.get("horizon_event") or {}
             stamp_to_step = {str(row.get("timestamp")): step
@@ -378,7 +394,7 @@ def product_packet(case: Case) -> dict[str, Any]:
                                 "calibrated residuals, which these rows "
                                 "do not have"),
             }
-        lane = result.model_assisted
+        lane = result.get("model_assisted")
         if lane:
             packet["model_assisted"] = {
                 "support": lane.get("support"),
@@ -726,7 +742,8 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
             args.model, api_key=os.environ.get(args.api_key_env),
             base_url=args.base_url, temperature=0,
             max_tokens=getattr(args, "max_tokens", 400),
-            max_retries=4,
+            max_retries=getattr(args, "max_retries", 2),
+            timeout=getattr(args, "request_timeout", 180),
             reasoning_effort=getattr(args, "reasoning_effort", None))
     cases, corpus_provenance, futures = generate_cases(
         args.seed, args.cases,
@@ -830,6 +847,7 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
     lock = threading.Lock()
 
     def one(case: Case, arm: str) -> dict[str, Any]:
+        evidence_packet = packets[case.case_id] if arm == "gnomon" else None
         text = client.completions([
             {"role": "system", "content": SYSTEM},
             {"role": "user", "content": prompt(
@@ -840,6 +858,15 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
                 "dataset": dataset_identity, "model": model_name,
                 "request_sha256": request_identity(
                     case, arm, packets[case.case_id], args),
+                # Raw runs are ignored/uploaded artifacts, not curated
+                # releases. Retaining the exact response and treatment packet
+                # makes parser, preservation, and prompt-contract failures
+                # independently auditable after the production code changes.
+                "raw_response": text,
+                "raw_response_sha256": hashlib.sha256(
+                    text.encode("utf-8")).hexdigest(),
+                **({"evidence_packet": evidence_packet}
+                   if evidence_packet is not None else {}),
                 "origin": case.origin, "outcome_cell": case.outcome_cell,
                 "history_length": case.history_length,
                 "history_band": case.history_band,
@@ -1068,10 +1095,14 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
             "matched": True,
             "reasoning_effort": getattr(args, "reasoning_effort", None),
             "initial_max_tokens": getattr(args, "max_tokens", 400),
+            "request_timeout_seconds": getattr(args, "request_timeout", 180),
+            "transport_retries": getattr(args, "max_retries", 2),
             "arms_differ_by_packet_block_only": True,
             "truth_is_realized_held_out_future": True,
             "held_out_future_absent_from_prompts_verified": True,
             "gnomon_packet_is_production_output": True,
+            "gnomon_packet_projection": (
+                "bounded_from_shared_mcp_cli_response_and_sealed_artifact"),
             "costs_stated_in_prompt": True,
             "history_length_strata_preregistered": list(HISTORY_WINDOWS),
             "binary_prediction_separate_from_evidence_assessment": True,
@@ -1099,9 +1130,15 @@ def main() -> int:
     parser.add_argument("--cases", type=int, default=180)
     parser.add_argument("--seed", type=int, default=20260826)
     parser.add_argument("--data-dir", default=None)
-    parser.add_argument("--concurrency", type=int, default=8)
+    parser.add_argument(
+        "--concurrency", type=int, default=1,
+        help="Matched model calls in flight; serial by default for crash safety.")
     parser.add_argument("--max-tokens", type=int, default=400,
                         help="Initial completion budget; retries may escalate it.")
+    parser.add_argument("--request-timeout", type=int, default=180,
+                        help="Seconds per provider request.")
+    parser.add_argument("--max-retries", type=int, default=2,
+                        help="Bounded transport retries per provider request.")
     parser.add_argument(
         "--reasoning-effort", default=None,
         choices=("none", "low", "medium", "high"),

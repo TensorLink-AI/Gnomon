@@ -118,6 +118,9 @@ def test_a_matched_offline_run_separates_recall_from_skill(
     for row in rows:
         assert row["dataset"] == summary["provenance"]["dataset_identity"]
         assert row["reasoning_effort"] == "none"
+        assert len(row["request_sha256"]) == 64
+        assert row["raw_response"]
+        assert len(row["raw_response_sha256"]) == 64
 
 
 def test_futures_transform_with_the_arm() -> None:

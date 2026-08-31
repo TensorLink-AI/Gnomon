@@ -78,6 +78,7 @@ from gnomon.temporal_planner import build_evidence_plan  # noqa: E402
 from gnomon.temporal_question import TemporalQuestion  # noqa: E402
 
 GENERATOR_VERSION = "0.2"
+REQUEST_CONTRACT_VERSION = "dossierbench-request-1"
 DATA_DIR = Path(__file__).resolve().parent / "data"
 #: Properties where the descriptive canonical and the discriminator share a
 #: public vocabulary, so both packet arms can be built from one machinery.
@@ -387,7 +388,8 @@ def answer_dossier_arm(case: Case, computed: dict[str, Any],
     verdict = repair_selection(packet, first)
     if verdict["accepted"]:
         return {"value": first["value"], "stage": "accepted_first",
-                "violations": [], "calls": 1}
+                "violations": [], "calls": 1,
+                "raw_responses": [first_text]}
     messages.extend([
         {"role": "assistant", "content": first_text},
         {"role": "user", "content": (
@@ -397,16 +399,34 @@ def answer_dossier_arm(case: Case, computed: dict[str, Any],
             + '\nFollow repair.instruction. Return {"value": "<option>", '
             '"cited_evidence": ["<kind>", ...]}.')},
     ])
-    second = parse_answer(client.completions(messages, n=1)[0])
+    second_text = client.completions(messages, n=1)[0]
+    second = parse_answer(second_text)
     if repair_selection(packet, second)["accepted"]:
         return {"value": second["value"], "stage": "repaired",
                 "violations": [item["code"] for item in verdict["violations"]],
-                "calls": 2}
+                "calls": 2, "raw_responses": [first_text, second_text]}
     fallback = verdict["repair"]["canonical_default"]
     return {"value": str(fallback.get("value") or "").lower(),
             "stage": "canonical_fallback",
             "violations": [item["code"] for item in verdict["violations"]],
-            "calls": 2}
+            "calls": 2, "raw_responses": [first_text, second_text]}
+
+
+def request_identity(case: Case, arm: str, computed: dict[str, Any],
+                     args: Any) -> str:
+    payload = {
+        "contract": REQUEST_CONTRACT_VERSION,
+        "system": SYSTEM,
+        "user": prompt(case, arm, computed),
+        "model": getattr(args, "model", None),
+        "base_url": getattr(args, "base_url", None),
+        "temperature": 0,
+        "initial_max_tokens": getattr(args, "max_tokens", 500),
+        "reasoning_effort": getattr(args, "reasoning_effort", None),
+    }
+    return hashlib.sha256(json.dumps(
+        payload, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")).hexdigest()
 
 
 def verify_arm_symmetry(cases: list[Case],
@@ -480,7 +500,8 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
             args.model, api_key=os.environ.get(args.api_key_env),
             base_url=args.base_url, temperature=0,
             max_tokens=getattr(args, "max_tokens", 500),
-            max_retries=4,
+            max_retries=getattr(args, "max_retries", 2),
+            timeout=getattr(args, "request_timeout", 180),
             reasoning_effort=getattr(args, "reasoning_effort", None))
     source = getattr(args, "source", "real")
     if source == "real":
@@ -551,7 +572,12 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
                 continue
             if (row.get("case_id") in valid_ids and row.get("arm") in ARMS
                     and row.get("dataset") == dataset_identity
-                    and row.get("model") == model_name):
+                    and row.get("model") == model_name
+                    and row.get("request_sha256") == request_identity(
+                        next(case for case in cases
+                             if case.case_id == row.get("case_id")),
+                        row.get("arm"),
+                        computed[row.get("case_id")], args)):
                 completed[(row["case_id"], row["arm"])] = row
             else:
                 stale += 1
@@ -570,11 +596,17 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
                 {"role": "user", "content": prompt(case, arm, aids)},
             ], n=1)[0]
             outcome = {"value": parse_answer(text).get("value", ""),
-                       "stage": "single_turn", "violations": [], "calls": 1}
+                       "stage": "single_turn", "violations": [], "calls": 1,
+                       "raw_responses": [text]}
         packet = aids["packet"]
         return {
             "case_id": case.case_id, "arm": arm,
             "dataset": dataset_identity, "model": model_name,
+            "request_sha256": request_identity(case, arm, aids, args),
+            "raw_responses": outcome["raw_responses"],
+            "raw_responses_sha256": [hashlib.sha256(
+                text.encode("utf-8")).hexdigest()
+                for text in outcome["raw_responses"]],
             "property": case.property,
             "truth": case.truth, "value": outcome["value"],
             "correct": outcome["value"] == case.truth,
@@ -692,6 +724,8 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
             "matched": True,
             "reasoning_effort": getattr(args, "reasoning_effort", None),
             "initial_max_tokens": getattr(args, "max_tokens", 500),
+            "request_timeout_seconds": getattr(args, "request_timeout", 180),
+            "transport_retries": getattr(args, "max_retries", 2),
             "arms_differ_by_packet_block_only": True,
             "labels_absent_from_prompts_and_packets": True,
             "same_machinery_feeds_both_packet_arms": True,
@@ -725,10 +759,16 @@ def main() -> int:
     parser.add_argument("--source", choices=("real", "synthetic"),
                         default="real")
     parser.add_argument("--data-dir", default=None)
-    parser.add_argument("--concurrency", type=int, default=8)
+    parser.add_argument(
+        "--concurrency", type=int, default=1,
+        help="Matched model calls in flight; serial by default for crash safety.")
     parser.add_argument(
         "--max-tokens", type=int, default=500,
         help="Initial completion budget; retries may escalate it.")
+    parser.add_argument("--request-timeout", type=int, default=180,
+                        help="Seconds per provider request.")
+    parser.add_argument("--max-retries", type=int, default=2,
+                        help="Bounded transport retries per provider request.")
     parser.add_argument("--reasoning-effort", default=None,
                         choices=("none", "low", "medium", "high"))
     parser.add_argument("--output-dir", required=True)

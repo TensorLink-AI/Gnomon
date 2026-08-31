@@ -8,7 +8,6 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import re
 import signal
 from typing import Any
 
@@ -134,7 +133,9 @@ def _strip_additions(payload: dict[str, Any]) -> dict[str, Any]:
     return value
 
 
-def _normalise_identity(payload: dict[str, Any]) -> dict[str, Any]:
+def _normalise_identity(
+        payload: dict[str, Any], run_roots: tuple[Path, ...] = (),
+) -> dict[str, Any]:
     value = deepcopy(_strip_additions(payload))
     for key in ("artifact_id", "artifact_path", "forecast_id", "data_ref",
                 "wall_clock_now", "staleness"):
@@ -148,9 +149,11 @@ def _normalise_identity(payload: dict[str, Any]) -> dict[str, Any]:
         if isinstance(node, str):
             # Baseline and treatment use separate artifact roots. The path is
             # an execution identity, not a semantic response difference.
-            return re.sub(
-                r"/root/Gnomon/results/v06-p9-[^/]*recovery-[^/]+",
-                "<RUN_DIR>", node)
+            for root in run_roots:
+                prefix = str(root.resolve())
+                if prefix in node:
+                    node = node.replace(prefix, "<RUN_DIR>")
+            return node
         return node
 
     return scrub(value)
@@ -240,8 +243,9 @@ def evaluate(case: dict[str, Any], mode: str, run_dir: Path,
         baseline = json.loads((baseline_dir / "cases" /
                                f"{case['case_id']}.json").read_text())
         baseline_response = baseline["response"]
-        canonical_equal = _sha(_normalise_identity(response)) == _sha(
-            _normalise_identity(baseline_response))
+        canonical_equal = _sha(
+            _normalise_identity(response, (run_dir,))) == _sha(
+                _normalise_identity(baseline_response, (baseline_dir,)))
         baseline_exact_patch = bool(
             (baseline_response.get("recovery_plan") or []))
     contract_repair_allowed = bool(

@@ -172,7 +172,8 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
         client = OpenRouterClient(
             args.model, api_key=os.environ.get(args.api_key_env),
             base_url=args.base_url, temperature=0,
-            max_tokens=args.max_tokens, max_retries=4,
+            max_tokens=args.max_tokens, max_retries=args.max_retries,
+            timeout=args.request_timeout,
             reasoning_effort=args.reasoning_effort)
     output = Path(args.output_dir)
     output.mkdir(parents=True, exist_ok=True)
@@ -388,8 +389,14 @@ def main() -> int:
     parser.add_argument("--api-key-env", default="ENGY_API_KEY")
     parser.add_argument("--cases", type=int, default=80)
     parser.add_argument("--seed", type=int, default=20260828)
-    parser.add_argument("--concurrency", type=int, default=8)
+    parser.add_argument(
+        "--concurrency", type=int, default=1,
+        help="Model calls in flight; serial by default for crash safety.")
     parser.add_argument("--max-tokens", type=int, default=400)
+    parser.add_argument("--request-timeout", type=int, default=180,
+                        help="Seconds per provider request.")
+    parser.add_argument("--max-retries", type=int, default=2,
+                        help="Bounded transport retries per provider request.")
     parser.add_argument("--reasoning-effort",
                         choices=("none", "low", "medium", "high"),
                         default="none")
