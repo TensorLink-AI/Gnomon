@@ -48,7 +48,7 @@ answers are used.
 
 | Caller | How it uses Gnomon | What Gnomon contributes |
 | --- | --- | --- |
-| Human operator or analyst | Runs CLI commands against local files or the bitemporal store | Data diagnosis, forecasts, change and anomaly analysis, decision support, readable summaries, and audit-ready artifacts |
+| Human operator or analyst | Runs CLI commands against local files or the bitemporal store | Data diagnosis, forecasts, change and anomaly analysis, decision support, readable summaries, and traceable integrity-sealed artifacts |
 | AI agent | Calls the local MCP server with the data and question | JSON-schema tools, computed numbers, support tiers, quotable headlines, provenance, and machine-readable recovery actions |
 | Application | Calls the documented Python API | The same validated runtime and artifacts embedded in a larger workflow |
 

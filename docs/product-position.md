@@ -92,6 +92,25 @@ Public claims follow the same rule as forecast claims: measured or absent.
   family wins universally; candidates must beat baselines on the caller's
   permitted evaluation window.
 
+## Deployment acceptance journey
+
+A buyer should not have to construct the governance case from implementation
+details. A controlled deployment is ready for a local pilot only after it can:
+
+1. install a checksum-verified wheel without a package index;
+2. record `gnomon capabilities`, including the version, default profile, and
+   explicit non-claims;
+3. run a representative local series through the CLI and inspect the sealed
+   JSON, Markdown, and HTML artifact;
+4. make the same forecast through the packaged MCP server and preserve its
+   `tier_floor`, limitations, and artifact identity in the final agent answer;
+5. replay a revision-bearing dataset at an earlier `--as-of` cutoff; and
+6. retain the result until actuals can score it.
+
+CI owns the first four structural steps. The organization owns representative
+data, access policy, retention, and acceptance criteria; no synthetic test can
+certify those deployment controls.
+
 ## Product metrics
 
 Engineering completion is necessary but not evidence of demand. The product

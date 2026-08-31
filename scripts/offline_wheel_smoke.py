@@ -21,6 +21,20 @@ def run(command: list[str], *, cwd: Path | None = None) -> str:
     return completed.stdout
 
 
+def mcp_exchange(gnomon: Path, messages: list[dict[str, object]], *, cwd: Path) \
+        -> dict[int, dict[str, object]]:
+    completed = subprocess.run(
+        [str(gnomon), "mcp", "serve"], cwd=cwd, check=True, text=True,
+        input="".join(json.dumps(message) + "\n" for message in messages),
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        env={**os.environ, "PIP_NO_INDEX": "1", "PIP_DISABLE_PIP_VERSION_CHECK": "1"},
+    )
+    responses = [json.loads(line) for line in completed.stdout.splitlines()
+                 if line.strip()]
+    return {int(response["id"]): response for response in responses
+            if response.get("id") is not None}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("wheel", type=Path)
@@ -74,6 +88,42 @@ def main() -> int:
         assert forecast["tier_floor"] in {
             "supported", "conditionally_supported", "best_effort",
         }
+        summary = artifact.joinpath("summary.md").read_text(encoding="utf-8")
+        report = artifact.joinpath("report.html").read_text(encoding="utf-8")
+        assert f"- Support: {forecast['tier_floor']}" in summary
+        assert f"<dt>Support</dt><dd>{forecast['tier_floor']}</dd>" in report
+
+        mcp = mcp_exchange(gnomon, [
+            {
+                "jsonrpc": "2.0", "id": 1, "method": "initialize",
+                "params": {"protocolVersion": "2025-06-18", "capabilities": {}},
+            },
+            {"jsonrpc": "2.0", "method": "notifications/initialized"},
+            {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+            {
+                "jsonrpc": "2.0", "id": 3, "method": "tools/call",
+                "params": {
+                    "name": "gnomon_forecast",
+                    "arguments": {
+                        "input": str(source), "time_column": "timestamp",
+                        "target_column": "value", "frequency": "D",
+                        "horizon": 7, "output_dir": str(root / "mcp-artifacts"),
+                    },
+                },
+            },
+        ], cwd=root)
+        assert mcp[1]["result"]["serverInfo"]["version"] == \
+            capabilities["runtime_version"]
+        tools = mcp[2]["result"]["tools"]
+        assert len(tools) == 10
+        assert {tool["name"] for tool in tools} >= {
+            "gnomon_forecast", "gnomon_monitor", "gnomon_explain_run",
+        }
+        tool_result = mcp[3]["result"]
+        assert tool_result["isError"] is False
+        structured = tool_result["structuredContent"]
+        assert structured["tier_floor"] == forecast["tier_floor"]
+        assert structured["artifact_id"] == structured["forecast_id"]
 
         print(json.dumps({
             "status": "passed",
@@ -81,6 +131,7 @@ def main() -> int:
             "default_mcp_profile": capabilities["mcp_profile"]["active"],
             "structural_leakage_check": "passed",
             "forecast_tier_floor": forecast["tier_floor"],
+            "packaged_mcp_journey": "passed",
         }, sort_keys=True))
     return 0
 

@@ -7,8 +7,9 @@ data, evaluates the candidates, computes the governed primary numbers, and
 preserves the evidence tier and receipts. Externally proposed conditional
 paths remain attributed and cannot silently replace the primary. The
 executable that wins evaluation is the executable that publishes. Its first
-product job is operational threshold risk—what may
-breach, when, and whether intervention is justified—but the runtime exposes
+deployment wedge is security-sensitive and regulated agent work; the first
+concrete workflow is operational threshold risk—what may breach, when, and
+whether intervention is justified. The runtime exposes
 five governed views: *what happens next?*
 (`forecast`), *what changed?* (`investigate`), *what is abnormal?*
 (`detect`), *what should we do?* (`decide`), and *when should we

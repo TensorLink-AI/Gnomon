@@ -61,6 +61,7 @@ automation.
 
 - Relay `headline` verbatim when possible.
 - Keep each point value with its `tier`; state `tier_floor`, material limitations, staleness, and repairs.
+- Treat `tier_floor` as authoritative for the whole response, including series summarized under `triage.remainder_tiers`; never recompute it from only the visible top series.
 - Preserve provenance and `artifact_id` when the answer relies on an artifact.
 - For multi-series answers, preserve `ranking_rule`, notable series, and `remainder_preserved` instead of inventing a new ranking.
 - Distinguish the immutable primary forecast from conditional context scenarios. Never present a context-conditioned scenario as though it replaced the primary answer.
