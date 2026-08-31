@@ -36,6 +36,7 @@ build can do.** Prefer it to any prose here, including this file.
 | Document | Use it when |
 | --- | --- |
 | [Installation](installation.md) | You want Bash, uv, Docker, or GitHub installation options. |
+| [Offline installation](offline-installation.md) | You need a checksum-verified wheel install with no package index or runtime network. |
 | [Getting started](getting-started.md) | You want a complete first run. |
 | [MCP quickstart](quickstart-mcp.md) | You are wiring Gnomon to an agent over stdio MCP. |
 | [Data format](data-format.md) | You need to prepare or validate input data. |

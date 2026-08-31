@@ -36,6 +36,11 @@ jobs:
               names = archive.namelist()
           assert any(name.endswith("share/gnomon/skills/use-gnomon/SKILL.md") for name in names)
           PY
+      - name: Prove clean-wheel operation without network
+        run: |
+          docker run --rm --network none \
+            --volume "$PWD:/work:ro" --workdir /work python:3.12-slim \
+            python scripts/offline_wheel_smoke.py dist/*.whl
       - name: Verify wheel installation
         env:
           GNOMON_REGISTRY_PATH: ${{ runner.temp }}/gnomon-release-registry.sqlite

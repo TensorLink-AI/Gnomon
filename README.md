@@ -94,6 +94,11 @@ given build can do.** Roadmap features are never exposed as mocked
 commands. If this README and `gnomon capabilities` disagree, the command is
 right and this file is a bug.
 
+The built-in runtime has no required dependencies or runtime network service.
+For controlled deployments, follow the [checksum-verified offline wheel
+procedure](docs/offline-installation.md); CI executes the same clean-wheel
+journey with container networking disabled.
+
 ## Use it directly
 
 ```bash

@@ -8,6 +8,10 @@ From PyPI:
 uvx --from gnomon-forecast gnomon mcp serve
 ```
 
+In an air-gapped environment, do not use `uvx`: install the reviewed wheel
+with the [offline procedure](offline-installation.md) and configure the MCP
+host with the installed `gnomon` executable's absolute path.
+
 For repository development, use `uvx --from . gnomon mcp serve` from a checkout.
 
 ## 2. Connect a client

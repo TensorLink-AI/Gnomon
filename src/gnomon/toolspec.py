@@ -626,7 +626,9 @@ def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
 
     The first forecast rows are inlined so an agent can quote numbers without
     a second read; the full series always lives in forecast.csv."""
-    from .support import artifact_headline, forecast_notability
+    from .support import (
+        artifact_headline, forecast_notability, payload_support_tier,
+    )
     from .temporal_profile import compact_temporal_profile
 
     def response_facts(item: Any) -> dict[str, Any] | None:
@@ -699,7 +701,9 @@ def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
         ],
     }
     _attach_tsfm_on_ramp(payload, artifact)
-    return _attach_multiseries_triage(payload)
+    payload = _attach_multiseries_triage(payload)
+    payload["tier_floor"] = payload_support_tier(payload)
+    return payload
 
 
 def _model_assisted_summary(item: Any) -> dict[str, Any]:
@@ -836,7 +840,7 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
     same structured support assessment full mode carries. Hiding
     disclosures is the one thing this codebase exists to not do.
     """
-    from .support import forecast_notability
+    from .support import forecast_notability, payload_support_tier
     from .temporal_profile import compact_temporal_profile
 
     def context_outcome_projection(item: Any) -> dict[str, Any] | None:
@@ -1047,7 +1051,9 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
         "results": results,
     }
     _attach_tsfm_on_ramp(payload, artifact)
-    return _attach_multiseries_triage(payload)
+    payload = _attach_multiseries_triage(payload)
+    payload["tier_floor"] = payload_support_tier(payload)
+    return payload
 
 
 def _execution_identity(artifact: ForecastArtifact, item: Any) -> dict[str, Any]:
