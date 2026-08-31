@@ -277,7 +277,9 @@ def test_headline_names_the_weakest_tier(tmp_path) -> None:
         "output_dir": str(tmp_path / "a"),
     })
     assert "naive extrapolation" in split["headline"]
-    assert "Higher-confidence through" in split["headline"]
+    assert "Evaluated through" in split["headline"]
+    assert "tier best_effort" in split["headline"]
+    assert split["tier_floor"] == "best_effort"
 
     # Evaluated with caveats: the first typed reason, plain form.
     graded = runner_for("gnomon_forecast")({
@@ -318,6 +320,29 @@ def test_headline_is_the_summary_md_first_line(tmp_path) -> None:
     })
     first_line = open(payload["artifact_path"] + "/summary.md").readline()
     assert first_line.strip() == payload["headline"]
+
+
+def test_weakest_row_tier_survives_every_summary_layer(tmp_path) -> None:
+    from pathlib import Path
+
+    from gnomon.toolspec import runner_for
+
+    payload = runner_for("gnomon_forecast")({
+        "input": _short_csv(tmp_path), "horizon": 14,
+        "output_dir": str(tmp_path / "out"),
+    })
+    result = payload["results"][0]
+    rows = result.get("forecast") or result.get("forecast_preview")
+    assert {row["tier"] for row in rows} >= {"best_effort"}
+    assert payload["tier_floor"] == "best_effort"
+    assert "tier best_effort" in payload["headline"]
+
+    artifact = Path(payload["artifact_path"])
+    summary = (artifact / "summary.md").read_text(encoding="utf-8")
+    report = (artifact / "report.html").read_text(encoding="utf-8")
+    assert summary.splitlines()[0] == payload["headline"]
+    assert "- Support: best_effort" in summary
+    assert "<dt>Support</dt><dd>best_effort</dd>" in report
 
 
 def test_abstention_headline_states_no_publication(tmp_path) -> None:
