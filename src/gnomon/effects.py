@@ -22,13 +22,6 @@ EffectProvenanceClass = Literal[
     "standardized_sensitivity",
 ]
 
-EffectShape = Literal[
-    "temporary_pulse", "level_shift", "trend_change", "variance_change",
-    "ramp_recovery", "seasonal_amplitude", "seasonal_phase",
-    "cross_series_relationship", "saturation_bound", "custom_scenario",
-    "seasonal_regime_change", "unknown",
-]
-
 EFFECT_SHAPES = frozenset({
     "temporary_pulse", "level_shift", "trend_change", "variance_change",
     "ramp_recovery", "seasonal_amplitude", "seasonal_phase",

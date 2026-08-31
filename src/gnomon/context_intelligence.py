@@ -15,8 +15,9 @@ import re
 import statistics
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, Callable
 
+from .contracts import GnomonError
 from .effect_proposals import validate_effect_proposal
 from .statistical_executables import fit_regression_executable
 
@@ -333,6 +334,61 @@ def expand_cited_history_segments(
                 "Cited ranges must cover every governed pre-cutoff timestamp.")
         output[str(name)] = [float(value) for value in expanded]
     return output
+
+
+def load_recurrence_history(
+    expression: Any,
+    historical_segments: Any = None,
+    *,
+    target_name: str,
+    observations_for: Callable[[str], list[Any]],
+    verified_claim_ids: list[str] | None = None,
+    verified_claim_spans: dict[str, str] | None = None,
+) -> tuple[list[float], dict[str, list[float]]]:
+    """Align recurrence state from a governed observation loader.
+
+    CLI and MCP callers supply their own snapshot-aware loader; all history
+    alignment and cited-segment admission stays identical at both surfaces.
+    """
+    if not isinstance(expression, dict) or expression.get("op") not in {
+            "recursive_linear", "fit_recursive_linear"}:
+        return [], {}
+
+    target_observations = observations_for(target_name)
+    target_map = {item.timestamp: float(item.value)
+                  for item in target_observations}
+    common = sorted(target_map)
+    driver_terms = (expression.get("driver_terms") or []
+                    if expression.get("op") == "recursive_linear"
+                    else expression.get("driver_lags") or [])
+    driver_names = sorted({str(term.get("series")) for term in driver_terms
+                           if term.get("series")})
+    histories: dict[str, list[float]] = {}
+    if historical_segments:
+        documented = expand_cited_history_segments(
+            historical_segments, timestamps=common, cutoff=max(common),
+            claim_spans=verified_claim_spans or {},
+            allowed_claim_ids=verified_claim_ids or [])
+        unknown = set(documented) - set(driver_names)
+        if unknown:
+            raise GnomonError(
+                "UNKNOWN_HISTORY_SERIES",
+                "Document history names are not recurrence drivers: "
+                + ", ".join(sorted(unknown)))
+        histories.update(documented)
+    for name in driver_names:
+        if name in histories:
+            continue
+        observations = observations_for(name)
+        mapping = {item.timestamp: float(item.value) for item in observations}
+        common = [timestamp for timestamp in common if timestamp in mapping]
+        histories[name] = [mapping[timestamp] for timestamp in common]
+    if historical_segments:
+        histories.update(expand_cited_history_segments(
+            historical_segments, timestamps=common, cutoff=max(common),
+            claim_spans=verified_claim_spans or {},
+            allowed_claim_ids=verified_claim_ids or []))
+    return ([target_map[timestamp] for timestamp in common], histories)
 
 
 def _finite(value: Any, field: str) -> float:

@@ -27,9 +27,6 @@ ENTITY_KINDS = (
     "service", "product", "medication", "procedure", "calendar",
     "capacity", "price", "environment", "unknown",
 )
-CONTEXT_OUTCOMES = ("not_considered", "rejected", "scenario_only", "applied")
-
-
 def _canonical(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"),
                       ensure_ascii=False)

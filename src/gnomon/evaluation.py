@@ -133,13 +133,6 @@ class Evaluation:
     adapter_receipts: dict[str, Any] = field(default_factory=dict)
 
 
-#: The metric every selection decision is made on. Named so that hindsight
-#: scoring (`gnomon.tracking`) can report the same quantity: a leaderboard in
-#: different units from selection can contradict it for reasons that are pure
-#: metric artefact rather than forecast quality.
-SELECTION_METRIC = "wape"
-
-
 def error_score(actual: list[float], predicted: list[float]) -> float | None:
     """Weighted absolute percentage error: sum|a-p| / sum|a|.
 
@@ -1517,7 +1510,7 @@ def evaluate(
     ensemble_fold_scores: list[float | None] = []
     ensemble_fold_forecasts: list[list[float]] = []
     if ensemble_enabled or meta_model_enabled:
-        from .ensemble import compute_ensemble_forecast, ENSEMBLE_MODEL_NAME
+        from .ensemble import compute_ensemble_forecast
 
         def _weighting_scores(fold_idx: int) -> dict[str, float | None]:
             """Member scores available *before* fold ``fold_idx``.

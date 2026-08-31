@@ -2875,73 +2875,21 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                 "INVALID_ARGUMENTS",
                 "context_submission.rejections items must be strings or objects")
 
-    def trusted_recurrence_history(
-            expression: Any, historical_segments: Any = None,
-            verified_claim_ids: list[str] | None = None,
-            verified_claim_spans: dict[str, str] | None = None,
-    ) -> tuple[list[float], dict[str, list[float]]]:
-        """Reload recurrence state through the same governed snapshot seam."""
-        if not isinstance(expression, dict) or expression.get("op") not in {
-                "recursive_linear", "fit_recursive_linear"}:
-            return [], {}
+    def recurrence_observations_for(target: str) -> list[Any]:
         from .pipeline import load_stage
-
-        def observations_for(target: str) -> list[Any]:
-            loaded = load_stage(
-                arguments["input"], time_column=arguments["time_column"],
-                target_column=target, series_column=arguments.get("series_column"),
-                frequency=arguments.get("frequency"),
-                as_of=_parse_as_of(arguments.get("as_of")),
-                store_path=arguments.get("store_path"),
-                regrid=arguments.get("regrid"),
-                repair=arguments.get("repair", "safe"))
-            if len(loaded.groups) != 1:
-                raise GnomonError(
-                    "AMBIGUOUS_RECURSIVE_HISTORY",
-                    "Recursive context execution requires exactly one series per target.")
-            return list(next(iter(loaded.groups.values())))
-
-        target_observations = observations_for(str(arguments["target_column"]))
-        target_map = {item.timestamp: float(item.value)
-                      for item in target_observations}
-        common = sorted(target_map)
-        driver_terms = (expression.get("driver_terms") or []
-                        if expression.get("op") == "recursive_linear"
-                        else expression.get("driver_lags") or [])
-        driver_names = sorted({str(term.get("series")) for term in driver_terms
-                               if term.get("series")})
-        histories: dict[str, list[float]] = {}
-        if historical_segments:
-            from .context_intelligence import expand_cited_history_segments
-            documented = expand_cited_history_segments(
-                historical_segments, timestamps=common,
-                cutoff=max(common), claim_spans=verified_claim_spans or {},
-                allowed_claim_ids=verified_claim_ids or [])
-            unknown = set(documented) - set(driver_names)
-            if unknown:
-                raise GnomonError(
-                    "UNKNOWN_HISTORY_SERIES",
-                    "Document history names are not recurrence drivers: "
-                    + ", ".join(sorted(unknown)))
-            histories.update(documented)
-        # A cited document may be the governed source for a driver that is
-        # absent from the input table. Only unresolved drivers are loaded as
-        # columns, avoiding a false UNKNOWN_TARGET before cited history can be
-        # reconstructed.
-        for name in driver_names:
-            if name in histories:
-                continue
-            observations = observations_for(name)
-            mapping = {item.timestamp: float(item.value) for item in observations}
-            common = [timestamp for timestamp in common if timestamp in mapping]
-            histories[name] = [mapping[timestamp] for timestamp in common]
-        if historical_segments:
-            documented = expand_cited_history_segments(
-                historical_segments, timestamps=common,
-                cutoff=max(common), claim_spans=verified_claim_spans or {},
-                allowed_claim_ids=verified_claim_ids or [])
-            histories.update(documented)
-        return ([target_map[timestamp] for timestamp in common], histories)
+        loaded = load_stage(
+            arguments["input"], time_column=arguments["time_column"],
+            target_column=target, series_column=arguments.get("series_column"),
+            frequency=arguments.get("frequency"),
+            as_of=_parse_as_of(arguments.get("as_of")),
+            store_path=arguments.get("store_path"),
+            regrid=arguments.get("regrid"),
+            repair=arguments.get("repair", "safe"))
+        if len(loaded.groups) != 1:
+            raise GnomonError(
+                "AMBIGUOUS_RECURSIVE_HISTORY",
+                "Recursive context execution requires exactly one series per target.")
+        return list(next(iter(loaded.groups.values())))
     if deterministic_compile:
         context_text = str(submission.get("text") or "")
         known_at = str(submission.get("known_at") or "")
@@ -3023,8 +2971,11 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
         dossiers = [*dossiers, dossier]
     transformations = submission.get("transformations") or []
     if transformations:
-        from .context_intelligence import (compile_transformation,
-                                           execute_transformation)
+        from .context_intelligence import (
+            compile_transformation,
+            execute_transformation,
+            load_recurrence_history,
+        )
         claims = [claim for dossier in dossiers
                   for claim in dossier.get("claims") or []]
         claim_ids = [str(claim.get("claim_id")) for claim in claims
@@ -3061,10 +3012,13 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                 })
                 continue
             try:
-                target_history, driver_history = trusted_recurrence_history(
+                target_history, driver_history = load_recurrence_history(
                     compiled.get("expression"),
                     wrapper.get("historical_series_segments"),
-                    claim_ids, claim_spans)
+                    target_name=str(arguments["target_column"]),
+                    observations_for=recurrence_observations_for,
+                    verified_claim_ids=claim_ids,
+                    verified_claim_spans=claim_spans)
                 candidate = execute_transformation(
                     compiled,
                     primary=(result.get("primary_forecast") or

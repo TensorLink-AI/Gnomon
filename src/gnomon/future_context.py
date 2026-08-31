@@ -120,10 +120,6 @@ REGIME_EFFECT_QUANTILES = {
     "level_matches_seasonal_low": 0.1,
 }
 
-#: Support state for a forecast this lane influenced: trusted text, not
-#: fold proof. Deliberately weaker than every fold-backed state.
-CONTEXT_TRUSTED_SUPPORT = "context_trusted"
-
 #: How many trailing observations "recent history" means for the
 #: constraint consistency check: two seasonal cycles or one horizon,
 #: whichever is longer, and never fewer than eight points. Recent rather
@@ -823,7 +819,6 @@ def assess_future_events(
     horizon = len(future_timestamps)
     last_observed = timestamps[-1]
     window_values = values[-recent_window(season, horizon):]
-    window_timestamps = timestamps[-recent_window(season, horizon):]
 
     for event in events:
         event_class = _classify(event)
@@ -919,7 +914,7 @@ def assess_future_events(
 
         if event_class == "constraint":
             admitted = _admit_constraint(
-                assessment, event, span, window_values, window_timestamps,
+                assessment, event, span, window_values,
             )
         elif event_class == "structural":
             admitted = _admit_structural(
@@ -1151,7 +1146,6 @@ def _admit_constraint(
     event: ContextEvent,
     span: str,
     recent_values: list[float],
-    recent_timestamps: list[datetime],
 ) -> FutureEvent | None:
     bound, problem = parse_bound_span(span)
     if bound is None:

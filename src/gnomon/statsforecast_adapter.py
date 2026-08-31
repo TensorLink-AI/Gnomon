@@ -261,16 +261,6 @@ class StatsForecastPortfolioAdapter:
         return points
 
 
-def statsforecast_component_adapters(
-    requested: list[str] | tuple[str, ...] | None = None,
-) -> list[StatsForecastAdapter]:
-    revision = installed_version()
-    if revision is None or not _major_minor_eligible(revision):
-        return []
-    names = list(DEFAULT_CANDIDATES if requested is None else requested)
-    return [StatsForecastAdapter(name, revision) for name in names]
-
-
 def statsforecast_candidates(
     requested: list[str] | tuple[str, ...] | None = None,
 ) -> tuple[list[StatsForecastAdapter], dict[str, Any]]:

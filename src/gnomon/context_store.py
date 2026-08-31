@@ -16,7 +16,6 @@ from typing import Any
 from .soft_context import make_context_receipt
 
 
-STORE_SCHEMA_VERSION = "0.1"
 _CACHE_METRICS = {
     "receipt_hits": 0, "receipt_misses": 0,
     "assessment_hits": 0, "assessment_misses": 0,

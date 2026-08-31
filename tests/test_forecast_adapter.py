@@ -76,6 +76,8 @@ def _provider() -> APIProviderConfig:
 
 def test_api_adapter_sends_protocol_and_season_and_validates_response(monkeypatch) -> None:
     adapter = APIAdapter("remote", _provider())
+    assert adapter.params_m == 0.0
+    assert adapter.supports_quantiles is True
     seen = {}
     def call(payload):
         seen.update(payload)

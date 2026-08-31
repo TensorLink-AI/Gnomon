@@ -43,7 +43,6 @@ CLAIM_KEY = "claim"
 
 #: Reserved `event_type` namespaces.
 CONSTRAINT_PREFIX = "constraint:"
-MAGNITUDE_PREFIX = "magnitude:"
 
 #: Claim kinds that bound the feasible region. Deliberately excludes any
 #: kind that would supply a value rather than a limit — see the module

@@ -39,7 +39,12 @@ import urllib.request
 from typing import Any
 
 from .config import APIProviderConfig
-from .tsfm import TSFMAdapter, TSFMError, TSFMUnavailable
+from .tsfm import (
+    TSFMError,
+    TSFMUnavailable,
+    tsfm_parameter_count,
+    tsfm_supports_quantiles,
+)
 from .forecast_adapter import (
     PROTOCOL_VERSION, AdapterCapabilities, ForecastAdapterError,
     ForecastRequest, ForecastResult,
@@ -70,30 +75,10 @@ class APIAdapter:
         self._timeout = provider.timeout or timeout
         self._retry = provider.retry or retry
 
-        # Infer metadata from name
-        self._params_m = self._lookup_params(name)
-        self._supports_quantiles = self._lookup_supports_quantiles(name)
+        self._params_m = tsfm_parameter_count(name)
+        self._supports_quantiles = tsfm_supports_quantiles(name)
         self.capabilities = AdapterCapabilities(
             quantiles=self._supports_quantiles)
-
-    @staticmethod
-    def _lookup_params(name: str) -> float:
-        params_map = {
-            "chronos_bolt_mini": 21.0,
-            "chronos_bolt_small": 48.0,
-            "toto2_4m": 4.14,
-            "toto2_22m": 22.0,
-            "flowstate": 18.5,
-            "ttm": 3.0,
-            "moirai2_small": 14.0,
-            "moment_small": 38.0,
-        }
-        return params_map.get(name, 0.0)
-
-    @staticmethod
-    def _lookup_supports_quantiles(name: str) -> bool:
-        no_quantiles = {"ttm", "moment_small"}
-        return name not in no_quantiles
 
     @property
     def params_m(self) -> float:

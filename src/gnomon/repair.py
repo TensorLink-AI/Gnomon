@@ -373,15 +373,6 @@ def _nearest_integer(value: float) -> int:
     return math.floor(value + 0.5) if value >= 0 else math.ceil(value - 0.5)
 
 
-def _round_to_month_start(value: datetime) -> datetime:
-    year, month = value.year, value.month
-    if value.day > 15:
-        year, month = (year + 1, 1) if month == 12 else (year, month + 1)
-    result = value.replace(year=year, month=month, day=1,
-                           hour=0, minute=0, second=0, microsecond=0)
-    return result
-
-
 def _snap_frequency(timestamps: list[datetime]) -> str | None:
     """Infer a representable intended cadence from a jittered fixed grid.
 

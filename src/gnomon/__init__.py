@@ -30,5 +30,6 @@ __all__ = [
     # Persistent state: the bitemporal store and the tracking registry.
     "TemporalStore",
     "TrackingStore",
+    "__version__",
 ]
 from .versioning import RUNTIME_VERSION as __version__  # noqa: E402

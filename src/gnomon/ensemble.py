@@ -25,7 +25,6 @@ Quantile combination strategies:
 from __future__ import annotations
 
 import logging
-import math
 from statistics import median
 from typing import Any
 
@@ -254,7 +253,6 @@ def combine_quantiles(
 # Ensemble evaluation — used as a candidate in the evaluation pipeline
 # ---------------------------------------------------------------------------
 
-ENSEMBLE_MODEL_NAME = "ensemble"
 
 
 def compute_ensemble_forecast(

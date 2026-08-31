@@ -36,13 +36,8 @@ and adds zero dependencies.
 from __future__ import annotations
 
 import logging
-import math
-from typing import Any
 
 logger = logging.getLogger(__name__)
-
-META_MODEL_NAME = "meta_model"
-
 
 # ---------------------------------------------------------------------------
 # Constrained least squares (non-negative weights)

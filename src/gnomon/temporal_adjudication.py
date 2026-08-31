@@ -8,7 +8,6 @@ Probability is exposed only when supplied by a fitted calibrated executable.
 
 from __future__ import annotations
 
-from collections import defaultdict
 from typing import Any
 
 
