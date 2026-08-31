@@ -2051,6 +2051,28 @@ def test_agent_response_tier_floor_includes_weakest_forecast_row() -> None:
     assert payload["tier_floor"] == "best_effort"
 
 
+def test_agent_response_promotes_nested_monitor_recovery() -> None:
+    from gnomon.toolspec import apply_response_contract
+
+    action = {
+        "code": "provide_more_history",
+        "message": "Provide more history or lower the horizon.",
+    }
+    payload = apply_response_contract({
+        "status": "complete", "monitor_id": "monitor-1",
+        "task": {"task_type": "monitor"},
+        "triggers": [{
+            "series": "api", "armed": False,
+            "support_assessment": {
+                "status": "inconclusive", "recovery_actions": [action],
+            },
+        }],
+    })
+    assert payload["recovery_actions"] == [action]
+    assert payload["recovery_plan"][0]["source"] == "/recovery_actions/0"
+    assert payload["reasoning"]["resolution"]["kind"] == "recovery"
+
+
 def test_agent_response_tier_floor_includes_hidden_triage_series() -> None:
     """Bounding a wide response must not upgrade its authority floor."""
     from gnomon.toolspec import apply_response_contract, triage_wide_response

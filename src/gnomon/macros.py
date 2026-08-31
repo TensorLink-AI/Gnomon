@@ -1006,6 +1006,14 @@ def monitor(
         "forecast_artifact_path": str(forecast_dir),
         "triggers": triggers,
     }
+    # Event projection is pure and belongs to the monitor contract, not only
+    # to the CLI delivery adapter.  The final artifact path is deterministic
+    # from the content-addressed monitor id, so MCP, CLI, and the immutable
+    # receipt all expose the same event body without performing delivery.
+    from .monitoring import current_firing_rate, firing_events
+    monitor_path = Path(output).expanduser().resolve() / monitor_id
+    payload["events"] = firing_events(payload, str(monitor_path))
+    payload["firing_rate"] = current_firing_rate(payload)
     _attach_temporal_questions(
         payload, artifact, forecast_dir, input_path=input_path,
         time_column=time_column, target_column=target_column,

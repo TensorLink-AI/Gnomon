@@ -1475,7 +1475,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "monitor":
             from .macros import monitor
             from .monitoring import (
-                default_state_path, deliver_events, firing_events, prometheus_rule,
+                default_state_path, deliver_events, prometheus_rule,
+                record_monitor_evaluation,
             )
 
             resolved_forecasts = []
@@ -1490,6 +1491,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         series_column=args.series_column,
                     )
                 ]
+            state_path = args.state or default_state_path(args.output)
             payload, path = monitor(
                 args.input, time_column=args.time_column,
                 target_column=args.target_column, horizon=args.horizon,
@@ -1502,9 +1504,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                 store_path=args.store_path,
                 regrid=getattr(args, "regrid", None),
             )
-            events = firing_events(payload, str(path))
+            payload["firing_rate"] = record_monitor_evaluation(
+                payload, state_path=state_path,
+            )
+            events = payload["events"]
             delivery = deliver_events(
-                events, state_path=args.state or default_state_path(args.output),
+                events, state_path=state_path,
                 webhook=args.webhook,
                 secret_env=args.webhook_secret_env,
             )

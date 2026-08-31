@@ -68,9 +68,28 @@ def apply_response_contract(payload: dict[str, Any]) -> dict[str, Any]:
 
     entries = [item for item in result.get("results", [])
                if isinstance(item, dict)]
+    triggers = [item for item in result.get("triggers", [])
+                if isinstance(item, dict)]
     warning_series: dict[str, set[str]] = {}
     warning_examples: dict[str, list[str]] = {}
     recoveries: list[dict[str, Any]] = []
+
+    def add_recoveries(assessment: object) -> None:
+        if not isinstance(assessment, dict):
+            return
+        actions = assessment.get("recovery_actions") or []
+        if not isinstance(actions, list):
+            return
+        for action in actions:
+            if isinstance(action, dict) and action not in recoveries:
+                recoveries.append(action)
+
+    root_recoveries = result.get("recovery_actions") or []
+    if isinstance(root_recoveries, list):
+        for action in root_recoveries:
+            if isinstance(action, dict) and action not in recoveries:
+                recoveries.append(action)
+    add_recoveries(result.get("support_assessment"))
     from .support import payload_support_tier
     for entry in entries:
         assessment = entry.get("support_assessment") or {}
@@ -81,9 +100,9 @@ def apply_response_contract(payload: dict[str, Any]) -> dict[str, Any]:
             examples = warning_examples.setdefault(text, [])
             if series not in examples and len(examples) < 3:
                 examples.append(series)
-        for action in assessment.get("recovery_actions") or []:
-            if isinstance(action, dict) and action not in recoveries:
-                recoveries.append(action)
+        add_recoveries(assessment)
+    for trigger in triggers:
+        add_recoveries(trigger.get("support_assessment"))
 
     tier_floor = payload_support_tier(result)
     if tier_floor is not None:
@@ -161,7 +180,7 @@ def apply_response_contract(payload: dict[str, Any]) -> dict[str, Any]:
         # artifact_path already names the complete result; this prose merely
         # restated the same pointer and consumed every subsequent agent turn.
         result.pop("note", None)
-    if recoveries and "recovery_actions" not in result:
+    if recoveries:
         result["recovery_actions"] = recoveries
     from .reasoning_boundary import apply_reasoning_boundary
     bounded = apply_reasoning_boundary(result)
@@ -621,6 +640,17 @@ def _default_forecast_horizon(arguments: dict[str, Any]) -> int:
     return max(1, int(season))
 
 
+def _result_authority_projection(item: Any) -> dict[str, Any]:
+    """Disambiguate path support only when another claim is weaker."""
+    from .support import forecast_path_support_tier, result_support_tier
+
+    path_tier = forecast_path_support_tier(item)
+    result_tier = result_support_tier(item)
+    if result_tier is None or result_tier == path_tier:
+        return {}
+    return {"support_scope": "forecast_path", "tier_floor": result_tier}
+
+
 def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
     """The compact forecast payload shared by the CLI and every adapter.
 
@@ -656,6 +686,7 @@ def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
         "results": [
             {
                 "series": item.series, "support": item.support,
+                **_result_authority_projection(item),
                 "support_assessment": item.support_assessment,
                 "selected_model": item.selected_model,
                 "interval_coverage": item.interval_coverage,
@@ -986,6 +1017,7 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
         results.append({
             "series": item.series,
             "support": item.support,
+            **_result_authority_projection(item),
             "selected_model": item.selected_model,
             "interval_coverage": item.interval_coverage,
             # Verbatim, never summarised: the same objects full mode carries.
@@ -3712,6 +3744,8 @@ def _run_resolve_outcome(arguments: dict[str, Any]) -> dict[str, Any]:
 
 def _run_monitor(arguments: dict[str, Any]) -> dict[str, Any]:
     from .macros import monitor
+    from .monitoring import default_state_path, record_monitor_evaluation
+    output = arguments.get("output_dir") or "gnomon-output"
     payload, path = monitor(
         arguments["input"],
         time_column=arguments["time_column"],
@@ -3726,10 +3760,13 @@ def _run_monitor(arguments: dict[str, Any]) -> dict[str, Any]:
         frequency=arguments.get("frequency"),
         as_of=_parse_as_of(arguments.get("as_of")),
         project=arguments.get("project"),
-        output=arguments.get("output_dir") or "gnomon-output",
+        output=output,
         input_provenance=arguments.get("input_provenance"),
         regrid=arguments.get("regrid"),
         questions=arguments.get("questions"),
+    )
+    payload["firing_rate"] = record_monitor_evaluation(
+        payload, state_path=default_state_path(output),
     )
     return {**payload, "artifact_path": str(path)}
 

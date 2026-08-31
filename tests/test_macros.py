@@ -233,6 +233,11 @@ def test_monitor_with_costs_does_not_round_up_event_support(tmp_path):
     assert {reason["code"] for reason in support["reasons"]} >= {
         "insufficient_joint_paths",
     }
+    assert payload["events"][0]["tier_floor"] == "best_effort"
+    assert payload["firing_rate"]["status"] == "current_evaluation_only"
+    persisted = json.loads((directory / "artifact.json").read_text())
+    assert persisted["events"] == payload["events"]
+    assert persisted["firing_rate"]["history_complete"] is False
     lineage = json.loads((directory / "lineage.json").read_text())
     risk_claims = [claim for claim in lineage["claims"] if "sequential_risk" in claim["claim_id"]]
     assert risk_claims and risk_claims[0]["calibration_ref"] is not None

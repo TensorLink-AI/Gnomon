@@ -303,6 +303,14 @@ def test_inline_monitor_stamps_provenance_on_task_sources(tmp_path):
     )
     assert all(source["provenance"] == "inline"
                for source in artifact["task"]["sources"])
+    # The MCP runner exposes the same pure event projection as the CLI. Its
+    # live rate includes the durable ledger; the immutable artifact records
+    # only this evaluation and says so.
+    assert payload["events"] == artifact["events"]
+    assert payload["firing_rate"]["history_complete"] is None
+    assert payload["firing_rate"]["history_scope"] == \
+        "content-distinct evaluations in this state file"
+    assert artifact["firing_rate"]["history_complete"] is False
 
 
 def test_file_runs_carry_no_provenance_key(tmp_path):

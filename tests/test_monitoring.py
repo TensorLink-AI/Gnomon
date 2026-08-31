@@ -1,7 +1,8 @@
 import json
 
 from gnomon.monitoring import (
-    default_state_path, deliver_events, firing_events, prometheus_rule,
+    current_firing_rate, default_state_path, deliver_events, firing_events,
+    prometheus_rule, record_monitor_evaluation,
 )
 
 
@@ -62,6 +63,45 @@ def test_firing_event_carries_trigger_authority_floor():
     [event] = firing_events(payload, "/tmp/monitor-1")
     assert event["tier_floor"] == "best_effort"
     assert event["trigger"]["horizon_event"]["support"] == "best_effort"
+
+
+def test_firing_rate_counts_eligible_triggers_and_abstentions() -> None:
+    payload = {
+        "monitor_id": "monitor-1", "created_at": "2026-01-01T00:00:00Z",
+        "triggers": [
+            {"armed": True, "first_alert_step": 1},
+            {"armed": True, "first_alert_step": None},
+            {"armed": False, "first_alert_step": None},
+        ],
+    }
+    rate = current_firing_rate(payload)
+    assert rate["status"] == "current_evaluation_only"
+    assert rate["value"] == 0.5
+    assert rate["firing_trigger_evaluations"] == 1
+    assert rate["eligible_trigger_evaluations"] == 2
+    assert rate["abstained_trigger_evaluations"] == 1
+
+
+def test_firing_rate_history_is_content_deduplicated(tmp_path) -> None:
+    state = tmp_path / "monitor-state.json"
+    first = {
+        "monitor_id": "monitor-1", "created_at": "2026-01-01T00:00:00Z",
+        "triggers": [{"armed": True, "first_alert_step": 1}],
+    }
+    second = {
+        "monitor_id": "monitor-2", "created_at": "2026-01-02T00:00:00Z",
+        "triggers": [{"armed": True, "first_alert_step": None}],
+    }
+    initial = record_monitor_evaluation(first, state_path=state)
+    replay = record_monitor_evaluation(first, state_path=state)
+    combined = record_monitor_evaluation(second, state_path=state)
+    assert initial["value"] == replay["value"] == 1.0
+    assert replay["monitor_evaluations"] == 1
+    assert replay["current_evaluation_already_recorded"] is True
+    assert combined["value"] == 0.5
+    assert combined["monitor_evaluations"] == 2
+    assert combined["history_complete"] is None
+    assert combined["basis"] == "compiled_policy_projection"
 
 
 def test_failed_delivery_retries_and_can_resume(tmp_path, monkeypatch):

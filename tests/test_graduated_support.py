@@ -26,6 +26,21 @@ def _short_csv(tmp_path: Path, rows: int = 12) -> str:
     return str(path)
 
 
+def _supported_event_csv(tmp_path: Path) -> str:
+    noise = [0.5, -0.3, 0.2, -0.4, 0.1, 0.3, -0.2, -0.1, 0.4, -0.5]
+    start = date(2026, 1, 1)
+    path = tmp_path / "supported-event.csv"
+    path.write_text(
+        "timestamp,value\n" + "\n".join(
+            f"{start + timedelta(days=index)},"
+            f"{100 + index * 1.5 + noise[index % 10] * 3}"
+            for index in range(48)
+        ) + "\n",
+        encoding="utf-8",
+    )
+    return str(path)
+
+
 def test_default_answers_on_fold_starved_data(tmp_path) -> None:
     from gnomon.toolspec import runner_for
 
@@ -343,6 +358,60 @@ def test_weakest_row_tier_survives_every_summary_layer(tmp_path) -> None:
     assert summary.splitlines()[0] == payload["headline"]
     assert "- Support: best_effort" in summary
     assert "<dt>Support</dt><dd>best_effort</dd>" in report
+
+
+def test_weakest_threshold_claim_survives_every_forecast_layer(tmp_path) -> None:
+    """A supported path must not hide a weaker published event estimate."""
+    import json
+
+    from gnomon.toolspec import runner_for
+
+    payload = runner_for("gnomon_forecast")({
+        "input": _supported_event_csv(tmp_path), "horizon": 6,
+        "threshold": 165.0, "output_dir": str(tmp_path / "out"),
+    })
+    result = payload["results"][0]
+    event = result["threshold"]["horizon_event"]
+    assert result["support"] == "supported"
+    assert result["support_scope"] == "forecast_path"
+    assert result["tier_floor"] == "best_effort"
+    assert {row["tier"] for row in result["forecast"]} == {"supported"}
+    assert event["probability_any_breach"] == 0.9
+    assert event["support"] == "best_effort"
+    assert payload["tier_floor"] == "best_effort"
+    assert "Point forecast" in payload["headline"]
+    assert "tier supported" in payload["headline"]
+    assert "probability (90%) is tier best_effort" in payload["headline"]
+    assert "High-confidence" not in payload["headline"]
+
+    artifact = Path(payload["artifact_path"])
+    persisted = json.loads((artifact / "artifact.json").read_text())
+    assert persisted["results"][0]["threshold"]["horizon_event"][
+        "support"] == "best_effort"
+    summary = (artifact / "summary.md").read_text(encoding="utf-8")
+    report = (artifact / "report.html").read_text(encoding="utf-8")
+    assert summary.splitlines()[0] == payload["headline"]
+    assert "- Support: best_effort" in summary
+    assert "<dt>Support</dt><dd>best_effort</dd>" in report
+
+
+def test_withheld_threshold_claim_is_inconclusive_not_dropped() -> None:
+    from gnomon.support import forecast_headline, result_support_tier
+
+    result = {
+        "support": "supported",
+        "support_assessment": {"status": "supported"},
+        "forecast": [{"timestamp": "2026-01-02", "tier": "supported"}],
+        "threshold": {"horizon_event": {
+            "support": "insufficient", "probability_any_breach": None,
+        }},
+    }
+    assert result_support_tier(result) == "inconclusive"
+    headline = forecast_headline(
+        result["support"], result["support_assessment"], result["forecast"],
+        result["threshold"],
+    )
+    assert "probability is unavailable at tier inconclusive" in headline
 
 
 def test_abstention_headline_states_no_publication(tmp_path) -> None:

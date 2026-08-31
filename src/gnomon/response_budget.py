@@ -19,7 +19,10 @@ __all__ = [
 #: Retuned as richer bounded decision and recovery projections were added.
 RESPONSE_BUDGET_BYTES = 9728
 DESCRIBE_RESPONSE_BUDGET_BYTES = 2400
-CAPABILITIES_RESPONSE_BUDGET_BYTES = 6000
+# The monitor firing-rate contract is now discoverable in the ambient feature
+# list. Keep the envelope tightly bounded while allowing that public name to
+# survive without removing another capability from the brief view.
+CAPABILITIES_RESPONSE_BUDGET_BYTES = 6100
 
 #: Subtrees that are the contract and are never trimmed, wherever they
 #: appear: support state, warnings, abstention payloads, disclosed

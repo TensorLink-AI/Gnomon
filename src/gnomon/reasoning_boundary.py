@@ -263,7 +263,9 @@ def build_argument_envelope(payload: dict[str, Any]) -> dict[str, Any]:
     assessment = assessment if isinstance(assessment, dict) else {}
     assessment_state = assessment.get("status")
     tier_floor = payload.get("tier_floor")
-    unusable = {"invalid", "unsupported", "inconclusive", "abstained"}
+    unusable = {
+        "invalid", "unsupported", "inconclusive", "abstained", "best_effort",
+    }
     has_answer = canonical is not None
     recoverable_fallback = tier_floor == "best_effort" and bool(flips)
     supported = bool(

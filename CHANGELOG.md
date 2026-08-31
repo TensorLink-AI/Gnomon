@@ -18,6 +18,10 @@
   did not pass.
 - Improve agent and operator ergonomics for candidate lists, investigation
   headlines, frequency diagnostics, repair guidance, and Prometheus YAML.
+- Preserve weaker horizon-event authority in forecast tier floors, headlines,
+  summaries, reports, and agent contracts; promote nested monitor recoveries,
+  expose the same event projection over CLI and MCP, and measure firing over a
+  content-deduplicated local evaluation ledger.
 
 ### Validation status
 
