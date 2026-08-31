@@ -277,14 +277,18 @@ MACROS: dict[str, MacroSpec] = {
                     "horizon": {"type": "integer", "description": "Future periods to forecast."},
                     "threshold": {"type": "number", "description": "Decision threshold on the target."},
                     "actions": {"type": "array", "items": {"type": "object"}, "description": (
-                        "Candidate actions: [{name, feasible?, residual_risk?}]."
+                        "Candidate actions: [{name, feasible?, residual_risk?}]. "
+                        "residual_risk is a caller-supplied feasibility "
+                        "constraint only; it does not change Gnomon's breach "
+                        "probability or model an action's mitigation effect."
                     )},
                     "utilities": {"type": "object", "description": (
                         "Optional payoff per action per scenario: "
                         "{action: {exceed: x, no_exceed: y}}. Omit for the degraded comparison."
                     )},
                     "max_acceptable_risk": {"type": "number", "description": (
-                        "Optional constraint on each action's residual_risk."
+                        "Optional feasibility ceiling on each caller-supplied "
+                        "residual_risk; it does not transform forecast risk."
                     )},
                     "series_name": {"type": "string", "description": "Series to decide for (required when multiple)."},
                     "project": {"type": "string", "description": (

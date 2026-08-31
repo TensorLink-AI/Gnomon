@@ -653,7 +653,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--actions", required=True,
         help=f"JSON list of action objects, or @path/to/actions.json. Each "
              f"object needs a 'name' and may carry 'feasible' (bool) and "
-             f"'residual_risk' (number). Example: {ACTIONS_EXAMPLE}",
+             f"'residual_risk' (caller-supplied feasibility constraint only; "
+             f"it does not change forecast probabilities). Example: "
+             f"{ACTIONS_EXAMPLE}",
     )
     decide_parser.add_argument("--utilities",
                                help="JSON {action: {exceed: x, no_exceed: y}}, or @file")

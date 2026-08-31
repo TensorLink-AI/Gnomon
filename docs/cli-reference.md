@@ -151,6 +151,16 @@ Short histories use a single trailing holdout and return `degraded` forecasts
 by default. Pass `--strict-abstention` to retain empty-result abstention when
 separated rolling evaluation is unavailable.
 
+If that underpowered comparison retains the assumption-minimal `last_value`
+primary, inspect `results[*].model_assisted` before concluding that Gnomon saw
+no movement. This separate, non-automatable lane can carry a useful drift or
+seasonal path without promoting it into the governed primary. Its `validation`
+names the comparison basis, `maximum_locally_evaluated_lead`, requested
+horizon, and any explicitly extrapolated tail. The primary remains flat when
+that evidence is useful for planning but insufficient for calibration or
+automatic action; the response headline calls out the alternative when one
+exists.
+
 When even the degraded path cannot run — the horizon exceeds what the
 history can support at all — the default (`--minimum-support
 best_effort`) still answers, honestly graded: the largest supportable
@@ -510,6 +520,14 @@ gnomon decide data.csv --time timestamp --target value --horizon 14 \
 ```
 
 `--actions` and `--utilities` accept inline JSON or `@path/to/file.json`.
+
+`residual_risk` is a caller-supplied property used only with
+`--max-acceptable-risk` to exclude infeasible actions. It does **not** tell
+Gnomon that an action changes the probability of `exceed` versus `no_exceed`.
+Gnomon does not currently model intervention effects. If an action's benefit
+has already been estimated elsewhere, encode that consequence in the action's
+scenario payoffs and cite the external assumption in the surrounding decision
+record; do not treat `residual_risk` as a probability transform.
 
 ## `gnomon monitor`
 
