@@ -117,6 +117,19 @@ _MAX_DEFAULT_SEASON = 288
 #: two full observed cycles — before it can be chosen at all.
 _SEASON_SEARCH_CAP = 366
 
+#: At the two-cycle boundary, a full-window autocorrelation denominator
+#: penalises the expected period more than its shorter neighbour. Require a
+#: strong overlap correlation before the frequency prior may correct that
+#: finite-window bias; this is deliberately too high for weak seasonality.
+_FREQUENCY_PRIOR_REPEATABILITY = 0.90
+
+#: Detrending an exactly linear series can leave representation or export-
+#: rounding dust. Normalising that dust by its own tiny energy creates large,
+#: apparently meaningful autocorrelations at arbitrary lags. Treat residual
+#: energy below this fraction of the observed variation as numerical, not as
+#: evidence of seasonality.
+_DETREND_RESIDUAL_ENERGY_FLOOR = 1e-12
+
 
 def default_season(frequency: str) -> int:
     """The fallback seasonal period for any supported frequency code.
@@ -137,6 +150,26 @@ def default_season(frequency: str) -> int:
     return 1
 
 
+def _lag_correlation(values: list[float], lag: int) -> float:
+    """Pearson correlation of the two overlapping windows at ``lag``."""
+    if lag < 1 or len(values) <= lag:
+        return 0.0
+    current = values[lag:]
+    prior = values[:-lag]
+    current_mean = sum(current) / len(current)
+    prior_mean = sum(prior) / len(prior)
+    covariance = sum(
+        (left - current_mean) * (right - prior_mean)
+        for left, right in zip(current, prior)
+    )
+    current_scale = sum((value - current_mean) ** 2 for value in current)
+    prior_scale = sum((value - prior_mean) ** 2 for value in prior)
+    denominator = (current_scale * prior_scale) ** 0.5
+    if denominator <= 1e-12:
+        return 0.0
+    return max(-1.0, min(1.0, covariance / denominator))
+
+
 def detect_season(values: list[float], frequency: str) -> tuple[int, float, str]:
     """Detect a repeat period from autocorrelation, falling back to frequency.
 
@@ -155,7 +188,9 @@ def detect_season(values: list[float], frequency: str) -> tuple[int, float, str]
     slope = sum((i - x_mean) * (value - y_mean) for i, value in enumerate(values)) / x_var
     centred = [value - (y_mean + slope * (i - x_mean)) for i, value in enumerate(values)]
     denominator = sum(value * value for value in centred)
-    if denominator <= 1e-12:
+    observed_energy = sum((value - y_mean) ** 2 for value in values)
+    if denominator <= max(
+            1e-12, observed_energy * _DETREND_RESIDUAL_ENERGY_FLOOR):
         return fallback, 0.0, "frequency_default"
     # The search must reach beyond the calendar default: a true period the
     # frequency never anticipated (a 50-step oscillation on an hourly axis,
@@ -181,6 +216,24 @@ def detect_season(values: list[float], frequency: str) -> tuple[int, float, str]
     # cannot reliably distinguish 23 from the known hourly period 24.
     if maximum == fallback and maximum >= 2 and acf[maximum] >= threshold:
         peaks.append(maximum)
+    # The biased ACF above is intentionally conservative across a wide lag
+    # search, but near two cycles it compares different overlap lengths: lag
+    # 23 receives one more product than lag 24 and can win by that product
+    # alone. A strong correlation on the equal-length overlap is admissible
+    # only for the frequency prior. It can validate the exact upper boundary
+    # or correct a one-step-left result when its repeatability is stronger;
+    # it cannot displace an independently detected shorter period.
+    fallback_repeatability = (
+        _lag_correlation(centred, fallback)
+        if fallback >= 2 and fallback <= maximum else 0.0
+    )
+    if fallback_repeatability >= _FREQUENCY_PRIOR_REPEATABILITY:
+        if maximum == fallback and not peaks:
+            return fallback, fallback_repeatability, "autocorrelation"
+        if (peaks and peaks[0] == fallback - 1
+                and fallback_repeatability
+                > _lag_correlation(centred, fallback - 1)):
+            return fallback, fallback_repeatability, "autocorrelation"
     if not peaks:
         return fallback, 0.0, "frequency_default"
     peaks = sorted(set(peaks))
