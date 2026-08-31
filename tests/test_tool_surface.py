@@ -2021,6 +2021,25 @@ def test_agent_response_contract_groups_limitations_and_names_tier_floor():
     assert payload["recovery_actions"][0]["code"] == "provide_more_history"
 
 
+def test_agent_response_tier_floor_includes_weakest_forecast_row() -> None:
+    from gnomon.toolspec import apply_response_contract
+
+    payload = apply_response_contract({
+        "status": "complete", "forecast_id": "fc_split",
+        "results": [{
+            "series": "api", "support": "degraded", "warnings": [],
+            "support_assessment": {
+                "status": "conditionally_supported", "recovery_actions": [],
+            },
+            "forecast": [
+                {"timestamp": "2026-01-01", "tier": "conditionally_supported"},
+                {"timestamp": "2026-01-02", "tier": "best_effort"},
+            ],
+        }],
+    })
+    assert payload["tier_floor"] == "best_effort"
+
+
 def test_decide_runner_returns_typed_repair_for_malformed_actions(tmp_path):
     import pytest
 

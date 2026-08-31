@@ -354,14 +354,6 @@ def enforce_response_budget(payload: Any, budget_bytes: int = RESPONSE_BUDGET_BY
     return result
 
 
-_TIER_ORDER = {
-    "invalid": 0, "unsupported": 1, "inconclusive": 2,
-    "best_effort": 3, "conditionally_supported": 4,
-    "context_trusted": 4, "degraded": 4, "weakly_supported": 4,
-    "supported": 5, "supported_ensemble": 5,
-}
-
-
 def apply_response_contract(payload: dict[str, Any]) -> dict[str, Any]:
     """Add the compact agent-facing envelope without rewriting artifacts.
 
@@ -389,9 +381,18 @@ def apply_response_contract(payload: dict[str, Any]) -> dict[str, Any]:
     warning_series: dict[str, set[str]] = {}
     warning_examples: dict[str, list[str]] = {}
     recoveries: list[dict[str, Any]] = []
+    from .support import weakest_support_tier
     for entry in entries:
         assessment = entry.get("support_assessment") or {}
-        tier = assessment.get("status") or entry.get("support")
+        raw_tier = assessment.get("status") or entry.get("support")
+        rows = entry.get("forecast") or entry.get("forecast_preview") or []
+        row_tiers = [
+            row.get("tier") for row in rows
+            if isinstance(row, dict) and row.get("tier") is not None
+        ] if isinstance(rows, list) else []
+        tier = weakest_support_tier(
+            [raw_tier, *row_tiers], published=bool(row_tiers),
+        ) or raw_tier
         if tier:
             tiers.append(str(tier))
         series = str(entry.get("series") or "__default__")
@@ -406,7 +407,7 @@ def apply_response_contract(payload: dict[str, Any]) -> dict[str, Any]:
                 recoveries.append(action)
 
     if tiers and "tier_floor" not in result:
-        result["tier_floor"] = min(tiers, key=lambda item: _TIER_ORDER.get(item, 0))
+        result["tier_floor"] = weakest_support_tier(tiers, published=False)
     if warning_series and "limitation_groups" not in result:
         result["limitation_groups"] = [
             {
