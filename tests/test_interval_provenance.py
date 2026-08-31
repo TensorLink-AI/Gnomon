@@ -43,6 +43,38 @@ def _codes(result) -> set[str]:
     }
 
 
+def test_foldless_point_interval_is_disclosed_and_capped(tmp_path) -> None:
+    source = tmp_path / "six.csv"
+    rows = (Path(__file__).resolve().parent.parent / "examples" /
+            "messy_requests.csv").read_text(encoding="utf-8").splitlines()[:7]
+    source.write_text("\n".join(rows) + "\n", encoding="utf-8")
+    artifact, directory = forecast(
+        str(source), time_column="timestamp", target_column="requests",
+        horizon=2, output=str(tmp_path / "out"), clock=CLOCK,
+    )
+    result = artifact.results[0]
+    assert all(row["q10"] == row["q50"] == row["q90"]
+               for row in result.forecast)
+    assert "interval_collapsed_to_point" in _codes(result)
+    assert result.support_assessment["status"] == "inconclusive"
+    assert {row["tier"] for row in result.forecast} == {"best_effort"}
+    summary = (directory / "summary.md").read_text(encoding="utf-8")
+    report = (directory / "report.html").read_text(encoding="utf-8")
+    assert "- Support: best_effort" in summary
+    assert "<dt>Support</dt><dd>best_effort</dd>" in report
+
+
+def test_zero_residual_interval_with_evaluation_is_not_foldless(tmp_path) -> None:
+    artifact, _ = forecast(
+        str(Path(__file__).resolve().parent.parent /
+            "examples" / "daily_requests.csv"),
+        time_column="timestamp", target_column="requests", horizon=3,
+        output=str(tmp_path / "out"), clock=CLOCK,
+    )
+    result = artifact.results[0]
+    assert "interval_collapsed_to_point" not in _codes(result)
+
+
 # -- The invariant --------------------------------------------------------
 
 def test_mismatched_residual_provenance_is_refused():

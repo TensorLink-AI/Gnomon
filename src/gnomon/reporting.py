@@ -146,9 +146,14 @@ def render_artifact_html(
         if not isinstance(result, dict):
             continue
         series = escape(str(result.get("series") or "series"))
-        support = escape(str(result.get("support") or
-                             (result.get("support_assessment") or {}).get("status") or
-                             "unknown"))
+        from .support import weakest_support_tier
+        rows = result.get("forecast") or []
+        support = escape(str(weakest_support_tier(
+            [result.get("support"),
+             (result.get("support_assessment") or {}).get("status"),
+             *(row.get("tier") for row in rows if isinstance(row, dict))],
+            published=bool(rows),
+        ) or "unknown"))
         chart = _forecast_chart(result, (history or {}).get(str(result.get("series"))))
         details = [f"<dt>Support</dt><dd>{support}</dd>"]
         for key, label in (("selected_model", "Selected model"),

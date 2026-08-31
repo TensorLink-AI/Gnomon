@@ -629,7 +629,7 @@ def _series_result(
             # beside the rest of the measured facts.
             support_assessment.sensitivity["observations"] = len(state.values)
     from .contracts import DEFAULT_MINIMUM_BASELINE_IMPROVEMENT, SupportReason
-    from .support import disclose_seasonal_period_override
+    from .support import cap_unresolved_point_interval, disclose_seasonal_period_override
     seasonal_override_conflict = disclose_seasonal_period_override(
         support_assessment,
         override=state.seasonal_period_override,
@@ -637,6 +637,7 @@ def _series_result(
         detected_strength=state.detected_season_strength,
         detected_basis=state.detected_season_basis,
     )
+    support_assessment = cap_unresolved_point_interval(support_assessment)
     if minimum_baseline_improvement != DEFAULT_MINIMUM_BASELINE_IMPROVEMENT:
         # A caller-chosen evidence rule is not the documented one. Below the
         # default the mandated-baseline gate is weaker, so the verdict is

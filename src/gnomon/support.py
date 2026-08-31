@@ -426,6 +426,34 @@ def assess_forecast_support(
     )
 
 
+def cap_unresolved_point_interval(
+    assessment: SupportAssessment,
+) -> SupportAssessment:
+    """Fail closed when repeated quantiles carry no residual evidence."""
+    if not any(
+        item.code == "interval_collapsed_to_point"
+        for item in assessment.disclosures
+    ):
+        return assessment
+    if not any(item.code == "interval_collapsed_to_point"
+               for item in assessment.reasons):
+        assessment.reasons.insert(0, SupportReason(
+            "interval_collapsed_to_point",
+            "The published q10/q50/q90 values contain no measured interval "
+            "width, so the rows are capped at best_effort and cannot carry "
+            "probability or automation authority.",
+        ))
+    if not any(item.code == "provide_interval_calibration"
+               for item in assessment.recovery_actions):
+        assessment.recovery_actions.append(SupportReason(
+            "provide_interval_calibration",
+            "Provide enough history for at least one fold-separated residual "
+            "origin, then re-run the same horizon.",
+        ))
+    assessment.status = "inconclusive"
+    return assessment
+
+
 def disclose_epistemic_deviation(
     assessment: SupportAssessment, reason: SupportReason, *, cap: bool,
 ) -> SupportAssessment:
