@@ -389,3 +389,26 @@ def test_frequency_prior_does_not_replace_a_measured_period_23() -> None:
     season, strength, basis = detect_season(values, "h")
     assert (season, basis) == (23, "autocorrelation")
     assert strength > .3
+
+
+def test_export_rounding_dust_does_not_become_a_short_season() -> None:
+    """A rounded linear cron counter has trend, not a nine-step cycle."""
+    from gnomon.temporal import detect_season
+
+    values = [round(1060 + 325 * index / 74, 6) for index in range(75)]
+    assert detect_season(values, "20min") == (
+        72, 0.0, "frequency_default")
+
+
+def test_small_real_cycle_survives_relative_residual_energy_floor() -> None:
+    import math
+
+    from gnomon.temporal import detect_season
+
+    values = [
+        1060 + 325 * index / 74 + .01 * math.sin(2 * math.pi * index / 9)
+        for index in range(75)
+    ]
+    season, strength, basis = detect_season(values, "20min")
+    assert (season, basis) == (9, "autocorrelation")
+    assert strength > .5

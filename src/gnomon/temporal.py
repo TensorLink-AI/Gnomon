@@ -123,6 +123,13 @@ _SEASON_SEARCH_CAP = 366
 #: finite-window bias; this is deliberately too high for weak seasonality.
 _FREQUENCY_PRIOR_REPEATABILITY = 0.90
 
+#: Detrending an exactly linear series can leave representation or export-
+#: rounding dust. Normalising that dust by its own tiny energy creates large,
+#: apparently meaningful autocorrelations at arbitrary lags. Treat residual
+#: energy below this fraction of the observed variation as numerical, not as
+#: evidence of seasonality.
+_DETREND_RESIDUAL_ENERGY_FLOOR = 1e-12
+
 
 def default_season(frequency: str) -> int:
     """The fallback seasonal period for any supported frequency code.
@@ -181,7 +188,9 @@ def detect_season(values: list[float], frequency: str) -> tuple[int, float, str]
     slope = sum((i - x_mean) * (value - y_mean) for i, value in enumerate(values)) / x_var
     centred = [value - (y_mean + slope * (i - x_mean)) for i, value in enumerate(values)]
     denominator = sum(value * value for value in centred)
-    if denominator <= 1e-12:
+    observed_energy = sum((value - y_mean) ** 2 for value in values)
+    if denominator <= max(
+            1e-12, observed_energy * _DETREND_RESIDUAL_ENERGY_FLOOR):
         return fallback, 0.0, "frequency_default"
     # The search must reach beyond the calendar default: a true period the
     # frequency never anticipated (a 50-step oscillation on an hourly axis,
