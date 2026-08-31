@@ -185,13 +185,12 @@ def write_artifact(
         lines = [artifact_headline(artifact.results), "",
                  f"# Forecast {artifact.forecast_id}", ""]
         for result in artifact.results:
-            from .support import weakest_support_tier
-            assessment_status = (result.support_assessment or {}).get("status")
-            rendered_support = weakest_support_tier(
-                [result.support, assessment_status,
-                 *(row.get("tier") for row in result.forecast)],
-                published=bool(result.forecast),
-            ) or result.support
+            from .support import result_support_tier
+            rendered_support = result_support_tier({
+                "support": result.support,
+                "support_assessment": result.support_assessment,
+                "forecast": result.forecast,
+            }) or result.support
             lines.extend([
                 f"## {result.series}", "",
                 f"- Support: {rendered_support}",

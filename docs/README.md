@@ -7,8 +7,9 @@ data, evaluates the candidates, computes the governed primary numbers, and
 preserves the evidence tier and receipts. Externally proposed conditional
 paths remain attributed and cannot silently replace the primary. The
 executable that wins evaluation is the executable that publishes. Its first
-product job is operational threshold risk—what may
-breach, when, and whether intervention is justified—but the runtime exposes
+deployment wedge is security-sensitive and regulated agent work; the first
+concrete workflow is operational threshold risk—what may breach, when, and
+whether intervention is justified. The runtime exposes
 five governed views: *what happens next?*
 (`forecast`), *what changed?* (`investigate`), *what is abnormal?*
 (`detect`), *what should we do?* (`decide`), and *when should we
@@ -36,6 +37,7 @@ build can do.** Prefer it to any prose here, including this file.
 | Document | Use it when |
 | --- | --- |
 | [Installation](installation.md) | You want Bash, uv, Docker, or GitHub installation options. |
+| [Offline installation](offline-installation.md) | You need a checksum-verified wheel install with no package index or runtime network. |
 | [Getting started](getting-started.md) | You want a complete first run. |
 | [MCP quickstart](quickstart-mcp.md) | You are wiring Gnomon to an agent over stdio MCP. |
 | [Data format](data-format.md) | You need to prepare or validate input data. |

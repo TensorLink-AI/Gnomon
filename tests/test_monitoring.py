@@ -44,6 +44,26 @@ def test_prometheus_rule_is_dependency_free_block_yaml(tmp_path):
     assert 'monitor_id: "monitor-1"' in rendered
 
 
+def test_firing_event_carries_trigger_authority_floor():
+    payload = {
+        "monitor_id": "monitor-1",
+        "created_at": "2026-01-01T00:00:00+00:00",
+        "triggers": [{
+            "series": "requests", "armed": True, "first_alert_step": 1,
+            "first_alert_timestamp": "2026-01-02T00:00:00+00:00",
+            "trigger": {"threshold": 10},
+            "horizon_event": {"support": "best_effort"},
+            "support_assessment": {
+                "status": "inconclusive", "legacy_support": "best_effort",
+            },
+        }],
+    }
+
+    [event] = firing_events(payload, "/tmp/monitor-1")
+    assert event["tier_floor"] == "best_effort"
+    assert event["trigger"]["horizon_event"]["support"] == "best_effort"
+
+
 def test_failed_delivery_retries_and_can_resume(tmp_path, monkeypatch):
     event = {"event_id": "e1", "kind": "test"}
     attempts = []

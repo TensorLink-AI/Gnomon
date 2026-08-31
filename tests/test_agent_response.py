@@ -147,6 +147,26 @@ def test_decision_contract_is_complete_and_sealed():
     assert verify_agent_response_contract(payload, contract)
 
 
+def test_agent_response_contract_exposes_weakest_row_tier():
+    payload = {
+        "results": [{
+            "series": "requests",
+            "support": "degraded",
+            "support_assessment": {"status": "conditionally_supported"},
+            "forecast": [
+                {"timestamp": "2026-01-01", "tier": "conditionally_supported"},
+                {"timestamp": "2026-01-02", "tier": "best_effort"},
+            ],
+            "context_outcome": {"status": "not_used"},
+        }],
+    }
+
+    contract = build_agent_response_contract(payload)
+    assert contract is not None
+    assert contract["series"][0]["support"] == "degraded"
+    assert contract["series"][0]["tier_floor"] == "best_effort"
+
+
 def test_decision_verifier_requires_support_for_a_weak_override():
     contract = build_agent_response_contract(_decision_payload())
     assert verify_agent_decision_selection(

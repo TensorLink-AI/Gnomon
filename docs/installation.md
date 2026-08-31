@@ -1,5 +1,10 @@
 # Installation options
 
+For a controlled network or air-gapped environment, use the
+[offline wheel procedure](offline-installation.md). It verifies a pinned
+artifact and never asks an installer to resolve from PyPI or GitHub inside the
+boundary.
+
 ## One-command Bash installer
 
 From a cloned checkout:

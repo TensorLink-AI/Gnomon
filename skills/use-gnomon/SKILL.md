@@ -60,7 +60,7 @@ automation.
 ## Preserve the answer contract
 
 - Relay `headline` verbatim when possible.
-- Keep each point value with its `tier`; state `tier_floor`, material limitations, staleness, and repairs.
+- Preserve point `tier` and response `tier_floor`, including `triage.remainder_tiers`; never infer from visible series. State limitations, staleness, and repairs.
 - Preserve provenance and `artifact_id` when the answer relies on an artifact.
 - For multi-series answers, preserve `ranking_rule`, notable series, and `remainder_preserved` instead of inventing a new ranking.
 - Distinguish the immutable primary forecast from conditional context scenarios. Never present a context-conditioned scenario as though it replaced the primary answer.

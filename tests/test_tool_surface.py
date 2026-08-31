@@ -1178,9 +1178,20 @@ def test_capabilities_brief_fits_the_budget_and_hides_nothing() -> None:
     assert brief["models"]["statistical"] == full["models"]["statistical"]
     assert brief["models"]["tsfm_capabilities"]["models"] \
         == sorted(full["models"]["tsfm_capabilities"])
-    assert brief["features"] == full["features"]
+    assert set(brief["features"]["enabled"]) == {
+        name for name, enabled in full["features"].items() if enabled is True
+    }
+    assert set(brief["features"]["disabled"]) == {
+        name for name, enabled in full["features"].items() if enabled is False
+    }
     assert brief["frequencies"] == full["frequencies"]
     assert brief["mcp_profile"] == full["mcp_profile"]
+    assert brief["product_contract"]["current_evidence_release"] == \
+        full["product_contract"]["current_evidence_release"]
+    assert set(brief["product_contract"]["withheld_claims"]) == {
+        "forecast_superiority", "agent_choice_lift",
+        "regulatory_certification",
+    }
     # And the view names what was elided and how to get it back.
     view = brief["view"]
     assert view["format"] == "brief"
@@ -1548,7 +1559,7 @@ def test_wide_response_bounding_refreshes_the_one_canonical_triage_block():
     assert triage["series_count"] == 5
     assert triage["returned"] == 3
     assert triage["remainder_count"] == 2
-    assert triage["remainder_tiers"] == {"degraded": 2}
+    assert triage["remainder_tiers"] == {"conditionally_supported": 2}
     assert triage["remainder_preserved"] is True
     assert triage["artifact"] == {"forecast_id": "fc-1",
                                   "artifact_path": "/tmp/artifact"}
@@ -2038,6 +2049,36 @@ def test_agent_response_tier_floor_includes_weakest_forecast_row() -> None:
         }],
     })
     assert payload["tier_floor"] == "best_effort"
+
+
+def test_agent_response_tier_floor_includes_hidden_triage_series() -> None:
+    """Bounding a wide response must not upgrade its authority floor."""
+    from gnomon.toolspec import apply_response_contract, triage_wide_response
+
+    payload = {
+        "status": "complete", "tier_floor": "supported",
+        "results": [
+            {
+                "series": f"series-{index}",
+                "notability": float(10 - index),
+                "support": "supported" if index < 3 else "best_effort",
+                "support_assessment": {
+                    "status": "supported" if index < 3 else "inconclusive",
+                    "recovery_actions": [],
+                },
+                "forecast": [{
+                    "timestamp": "2026-01-01",
+                    "tier": "supported" if index < 3 else "best_effort",
+                }],
+            }
+            for index in range(4)
+        ],
+    }
+
+    bounded = triage_wide_response(payload, top_k=3)
+    assert all(item["support"] == "supported" for item in bounded["results"])
+    assert bounded["triage"]["remainder_tiers"] == {"best_effort": 1}
+    assert apply_response_contract(bounded)["tier_floor"] == "best_effort"
 
 
 def test_decide_runner_returns_typed_repair_for_malformed_actions(tmp_path):

@@ -12,9 +12,15 @@ agent may act on. It determines what was knowable, evaluates what should
 produce the answer, computes every published number, states the evidence tier,
 and leaves an immutable record that can be checked and scored later.
 
-## The first job
+## The first deployment wedge
 
-The beachhead is operational threshold risk:
+The first buyer is a security-sensitive or regulated team putting agents near
+consequential temporal data. Gnomon's unusual advantage there is deployable
+rather than aspirational: the built-in runtime works offline, point-in-time
+replay prevents later revisions from leaking backward, and integrity-sealed
+artifacts retain what the agent was allowed to claim.
+
+The first workflow inside that market is operational threshold risk:
 
 > Which metric may cross a meaningful threshold, when, and does the evidence
 > justify intervention?
@@ -23,12 +29,11 @@ This is concrete enough to test against an existing capacity, alerting, or
 planning workflow. Forecast, investigate, detect, decide, and monitor are
 governed views over that job, not five unrelated product promises.
 
-The installer is usually an infrastructure, platform, or data engineer. The
-first paying team, if a hosted model backend is used, is the operational group
-that already pays for forecast maintenance, overprovisioning, missed demand,
-or alert fatigue. Audit and compliance can strengthen an enterprise case, but
-they are not the default pitch and this repository does not claim regulatory
-certification.
+The installer is usually an infrastructure, platform, data, model-risk, or
+governance engineer. The operational group still owns the concrete cost of
+overprovisioning, missed demand, or alert fatigue; governance is the reason an
+agent is permitted into that workflow. This repository provides traceability
+and offline controls, not regulatory certification.
 
 ## The promise
 
@@ -86,6 +91,25 @@ Public claims follow the same rule as forecast claims: measured or absent.
 - Foundation models are optional candidates. Gnomon does not claim that one
   family wins universally; candidates must beat baselines on the caller's
   permitted evaluation window.
+
+## Deployment acceptance journey
+
+A buyer should not have to construct the governance case from implementation
+details. A controlled deployment is ready for a local pilot only after it can:
+
+1. install a checksum-verified wheel without a package index;
+2. record `gnomon capabilities`, including the version, default profile, and
+   explicit non-claims;
+3. run a representative local series through the CLI and inspect the sealed
+   JSON, Markdown, and HTML artifact;
+4. make the same forecast through the packaged MCP server and preserve its
+   `tier_floor`, limitations, and artifact identity in the final agent answer;
+5. replay a revision-bearing dataset at an earlier `--as-of` cutoff; and
+6. retain the result until actuals can score it.
+
+CI owns the first four structural steps. The organization owns representative
+data, access policy, retention, and acceptance criteria; no synthetic test can
+certify those deployment controls.
 
 ## Product metrics
 

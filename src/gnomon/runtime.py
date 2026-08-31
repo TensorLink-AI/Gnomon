@@ -1650,9 +1650,11 @@ def capabilities() -> dict[str, object]:
         future_events_on = False
         structural_events_on = False
         statsforecast_on = False
+    from .product_contract import product_claims
     return {
         "schema_version": "0.1",
         "runtime_version": RUNTIME_VERSION,
+        "product_contract": product_claims(),
         "interfaces": {"cli": True, "python": True, "mcp": True, "http": False},
         "inputs": {
             "csv": True, "tsv": True, "json": True, "jsonl": True,

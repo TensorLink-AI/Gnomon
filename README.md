@@ -1,6 +1,6 @@
 # Gnomon
 
-**Trusted time-series answers for people and AI agents.**
+**Temporal evidence and governance for people and AI agents.**
 
 Give Gnomon timestamped data and a practical question. It validates the data,
 tests competing methods against honest historical baselines, and returns an
@@ -31,7 +31,10 @@ also includes supporting tools for capabilities, inspection, description,
 routing, and run explanation; those tools prepare or explain an outcome rather
 than creating additional product promises.
 
-Its first product job is operational threshold risk:
+Its first deployment wedge is security-sensitive and regulated agent
+workflows, where offline execution, point-in-time replay, and sealed evidence
+matter as much as the estimate. Its first concrete job inside that boundary is
+operational threshold risk:
 
 > Which service metric may breach a meaningful limit, when, and does the
 > evidence justify intervening?
@@ -45,7 +48,7 @@ answers are used.
 
 | Caller | How it uses Gnomon | What Gnomon contributes |
 | --- | --- | --- |
-| Human operator or analyst | Runs CLI commands against local files or the bitemporal store | Data diagnosis, forecasts, change and anomaly analysis, decision support, readable summaries, and audit-ready artifacts |
+| Human operator or analyst | Runs CLI commands against local files or the bitemporal store | Data diagnosis, forecasts, change and anomaly analysis, decision support, readable summaries, and traceable integrity-sealed artifacts |
 | AI agent | Calls the local MCP server with the data and question | JSON-schema tools, computed numbers, support tiers, quotable headlines, provenance, and machine-readable recovery actions |
 | Application | Calls the documented Python API | The same validated runtime and artifacts embedded in a larger workflow |
 
@@ -90,6 +93,11 @@ none may bypass that contract.
 given build can do.** Roadmap features are never exposed as mocked
 commands. If this README and `gnomon capabilities` disagree, the command is
 right and this file is a bug.
+
+The built-in runtime has no required dependencies or runtime network service.
+For controlled deployments, follow the [checksum-verified offline wheel
+procedure](docs/offline-installation.md); CI executes the same clean-wheel
+journey with container networking disabled.
 
 ## Use it directly
 

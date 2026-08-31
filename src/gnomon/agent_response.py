@@ -265,9 +265,11 @@ def build_agent_response_contract(payload: dict[str, Any]) -> dict[str, Any] | N
             context_automation = (series_publication.get(
                 "context_summary") or {}).get(
                     "context_can_authorize_automation")
+        from .support import result_support_tier
         contract = {
             "series": series_name,
             "support": result.get("support"),
+            "tier_floor": result_support_tier(result),
             "context_status": context.get("status", "not_supplied"),
             "canonical_primary_preserved": canonical_preserved,
             "context_automation_eligible": bool(context_automation),

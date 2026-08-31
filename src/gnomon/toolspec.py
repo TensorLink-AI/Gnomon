@@ -13,6 +13,7 @@ from typing import Any, Callable
 
 from .context import load_events_file
 from .contracts import ForecastArtifact, GnomonError, REPAIR_OPTIONS
+from .product_contract import DEFAULT_MCP_PROFILE
 from .response_budget import (
     CAPABILITIES_RESPONSE_BUDGET_BYTES as CAPABILITIES_RESPONSE_BUDGET_BYTES,
     DESCRIBE_RESPONSE_BUDGET_BYTES,
@@ -67,24 +68,12 @@ def apply_response_contract(payload: dict[str, Any]) -> dict[str, Any]:
 
     entries = [item for item in result.get("results", [])
                if isinstance(item, dict)]
-    tiers: list[str] = []
     warning_series: dict[str, set[str]] = {}
     warning_examples: dict[str, list[str]] = {}
     recoveries: list[dict[str, Any]] = []
-    from .support import weakest_support_tier
+    from .support import payload_support_tier
     for entry in entries:
         assessment = entry.get("support_assessment") or {}
-        raw_tier = assessment.get("status") or entry.get("support")
-        rows = entry.get("forecast") or entry.get("forecast_preview") or []
-        row_tiers = [
-            row.get("tier") for row in rows
-            if isinstance(row, dict) and row.get("tier") is not None
-        ] if isinstance(rows, list) else []
-        tier = weakest_support_tier(
-            [raw_tier, *row_tiers], published=bool(row_tiers),
-        ) or raw_tier
-        if tier:
-            tiers.append(str(tier))
         series = str(entry.get("series") or "__default__")
         for warning in entry.get("warnings") or []:
             text = str(warning)
@@ -96,8 +85,12 @@ def apply_response_contract(payload: dict[str, Any]) -> dict[str, Any]:
             if isinstance(action, dict) and action not in recoveries:
                 recoveries.append(action)
 
-    if tiers and "tier_floor" not in result:
-        result["tier_floor"] = weakest_support_tier(tiers, published=False)
+    tier_floor = payload_support_tier(result)
+    if tier_floor is not None:
+        # Recompute rather than trusting a pre-existing summary. A bounded
+        # response may carry a floor calculated before its weakest series was
+        # moved into triage.remainder_tiers.
+        result["tier_floor"] = tier_floor
     if warning_series and "limitation_groups" not in result:
         result["limitation_groups"] = [
             {
@@ -397,9 +390,9 @@ def triage_wide_response(payload: dict[str, Any], top_k: int = 3) -> dict[str, A
         -float(row.get("notability", 0.0)), str(row.get("series", ""))))
     remainder = ranked[top_k:]
     tier_counts: dict[str, int] = {}
+    from .support import result_support_tier
     for row in remainder:
-        assessment = row.get("support_assessment") or {}
-        tier = str(assessment.get("status") or row.get("support") or "unknown")
+        tier = str(result_support_tier(row) or "unknown")
         tier_counts[tier] = tier_counts.get(tier, 0) + 1
     existing = (payload.get("triage")
                 if isinstance(payload.get("triage"), dict) else {})
@@ -633,7 +626,9 @@ def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
 
     The first forecast rows are inlined so an agent can quote numbers without
     a second read; the full series always lives in forecast.csv."""
-    from .support import artifact_headline, forecast_notability
+    from .support import (
+        artifact_headline, forecast_notability, payload_support_tier,
+    )
     from .temporal_profile import compact_temporal_profile
 
     def response_facts(item: Any) -> dict[str, Any] | None:
@@ -706,7 +701,9 @@ def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
         ],
     }
     _attach_tsfm_on_ramp(payload, artifact)
-    return _attach_multiseries_triage(payload)
+    payload = _attach_multiseries_triage(payload)
+    payload["tier_floor"] = payload_support_tier(payload)
+    return payload
 
 
 def _model_assisted_summary(item: Any) -> dict[str, Any]:
@@ -843,7 +840,7 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
     same structured support assessment full mode carries. Hiding
     disclosures is the one thing this codebase exists to not do.
     """
-    from .support import forecast_notability
+    from .support import forecast_notability, payload_support_tier
     from .temporal_profile import compact_temporal_profile
 
     def context_outcome_projection(item: Any) -> dict[str, Any] | None:
@@ -1054,7 +1051,9 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
         "results": results,
     }
     _attach_tsfm_on_ramp(payload, artifact)
-    return _attach_multiseries_triage(payload)
+    payload = _attach_multiseries_triage(payload)
+    payload["tier_floor"] = payload_support_tier(payload)
+    return payload
 
 
 def _execution_identity(artifact: ForecastArtifact, item: Any) -> dict[str, Any]:
@@ -1201,6 +1200,36 @@ def _brief_capabilities(full: dict[str, Any]) -> dict[str, Any]:
             # is detail available in the named/full view.
             brief[key] = {"pattern": value.get("pattern")}
             elided.append("general_frequencies.<details>")
+        elif key == "product_contract" and isinstance(value, dict):
+            # Keep the deployment identity and every withheld public claim in
+            # the ambient view; positioning prose stays in the explicit
+            # section. This remains actionable while fitting even the broad
+            # full-profile tool list inside the fixed response budget.
+            brief[key] = {
+                "default_mcp_profile": value.get("default_mcp_profile"),
+                "offline_builtin_runtime": value.get("offline_builtin_runtime"),
+                "current_evidence_release": value.get("current_evidence_release"),
+                "withheld_claims": sorted(
+                    name for name in (
+                        "forecast_superiority", "agent_choice_lift",
+                        "regulatory_certification",
+                    ) if value.get(name) in {"not_established", "not_claimed"}
+                ),
+            }
+            elided.append("product_contract.<positioning_details>")
+        elif key == "features" and isinstance(value, dict):
+            # A boolean map repeats JSON punctuation and ``true`` for every
+            # feature. Preserve every name and state in two lists; callers
+            # requesting the section or full view still receive the exact
+            # map. This recovered enough budget for the product claim
+            # contract without hiding capabilities.
+            brief[key] = {
+                "enabled": sorted(name for name, enabled in value.items()
+                                  if enabled is True),
+                "disabled": sorted(name for name, enabled in value.items()
+                                   if enabled is False),
+            }
+            elided.append("features.<boolean_map>")
         else:
             brief[key] = compact(value, key)
     brief["view"] = {
@@ -4459,7 +4488,7 @@ def active_profile() -> str:
     # three-tool evidence profile remains available for tightly bounded
     # evaluation sessions, but making it the product default hid Gnomon's
     # strongest operational verbs from ordinary agents.
-    name = os.environ.get("GNOMON_MCP_PROFILE", "core")
+    name = os.environ.get("GNOMON_MCP_PROFILE", DEFAULT_MCP_PROFILE)
     if name != "full" and name not in PROFILES:
         raise ValueError(
             f"Unknown GNOMON_MCP_PROFILE {name!r}; expected one of "

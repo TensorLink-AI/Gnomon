@@ -73,12 +73,17 @@ with no access log cannot make that claim, and is reported as
 ## External benchmarks
 
 Beyond the internal task families, [`benchmarks/`](../benchmarks/README.md)
-contains faithful adapters for published benchmarks — Context is Key
-(context-aided forecasting, RCRPS) and AnomLLM (anomaly detection, F1) —
-whose official metrics stay authoritative and whose runners also emit
-GnomonBench JSONL rows, so the same `gnomon eval compare` treatment/control
-comparison works there too. LLM conditions are served through OpenRouter
-so control and treatment share one model and provider.
+contains adapters for Context is Key, AnomLLM, MTBench, TimeSage-MT and
+TemporalBench. Each benchmark README states where the official scorer runs and
+where a disclosed local metric is necessary. Lower-layer engine, compiler,
+policy and safety-contract runs must not be described as agent-reasoning lift.
+
+LLM comparisons match the model, endpoint, sampling settings and task IDs.
+OpenRouter is the default; adapters with an OpenAI-compatible `--base-url` may
+use another endpoint such as Engy. Provider identity travels with the result
+because the same model name served by a different endpoint is a different
+measurement. Smoke shards remain smoke evidence and cannot be promoted into a
+full benchmark claim.
 
 ## Agent lifecycle
 

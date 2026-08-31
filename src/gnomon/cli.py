@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from .contracts import GnomonError
+from .product_contract import __version__
 
 
 def _common_input(parser: argparse.ArgumentParser) -> None:
@@ -327,7 +328,7 @@ def _attach_publication(payload, artifact, path, args) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = _StructuredArgumentParser(prog="gnomon", description="Evidence-backed local forecasting")
-    parser.add_argument("--version", action="version", version="gnomon 0.7.0")
+    parser.add_argument("--version", action="version", version=f"gnomon {__version__}")
     subcommands = parser.add_subparsers(dest="command", required=True)
 
     capability_parser = subcommands.add_parser("capabilities", help="Report implemented capabilities")

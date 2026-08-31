@@ -74,6 +74,64 @@ def weakest_support_tier(values: list[object], *, published: bool) -> str | None
     return min(canonical, key=rank)
 
 
+def result_support_tier(result: dict) -> str | None:
+    """Return the weakest authority tier carried by one result.
+
+    Both full artifacts (``forecast``) and bounded wire responses
+    (``forecast_preview``) use this path so a rendering cannot accidentally
+    prefer the series-level label over a weaker published row.
+    """
+    rows = result.get("forecast") or result.get("forecast_preview") or []
+    row_tiers = [
+        row.get("tier") for row in rows
+        if isinstance(row, dict) and row.get("tier") is not None
+    ] if isinstance(rows, list) else []
+    assessment = result.get("support_assessment") or {}
+    return weakest_support_tier(
+        [result.get("support"), assessment.get("status"),
+         assessment.get("legacy_support"), *row_tiers],
+        published=bool(rows),
+    )
+
+
+def trigger_support_tier(trigger: dict) -> str | None:
+    """Return the weakest authority tier carried by one monitor trigger."""
+    assessment = trigger.get("support_assessment") or {}
+    event = trigger.get("horizon_event") or {}
+    return weakest_support_tier(
+        [assessment.get("status"), assessment.get("legacy_support"),
+         event.get("support")],
+        published=bool(event),
+    )
+
+
+def payload_support_tier(payload: dict) -> str | None:
+    """Return the weakest tier that any supported payload surface exposes.
+
+    ``triage.remainder_tiers`` is part of the authority boundary: wide MCP
+    responses may omit lower-ranked series for size, but omission must never
+    upgrade the response's floor.  The existing ``tier_floor`` is deliberately
+    ignored so this function can repair stale or caller-supplied summaries.
+    """
+    values: list[object] = []
+    assessment = payload.get("support_assessment") or {}
+    values.extend([
+        payload.get("support"), assessment.get("status"),
+        assessment.get("legacy_support"),
+    ])
+    for result in payload.get("results") or []:
+        if isinstance(result, dict):
+            values.append(result_support_tier(result))
+    for trigger in payload.get("triggers") or []:
+        if isinstance(trigger, dict):
+            values.append(trigger_support_tier(trigger))
+    triage = payload.get("triage") or {}
+    for tier, count in (triage.get("remainder_tiers") or {}).items():
+        if isinstance(count, int) and count > 0:
+            values.append(tier)
+    return weakest_support_tier(values, published=False)
+
+
 def achieved_tier(status: str, has_rows: bool) -> str | None:
     """The publication tier a result's assessment status earned.
 
