@@ -218,7 +218,7 @@ def test_decide_multiple_series_requires_selection(tmp_path):
 
 # -- D. monitor -----------------------------------------------------------
 
-def test_monitor_with_costs_gives_optimal_rule(tmp_path):
+def test_monitor_with_costs_does_not_round_up_event_support(tmp_path):
     payload, directory = monitor(
         str(_forecastable(tmp_path)), time_column="timestamp", target_column="value",
         horizon=6, threshold=165.0, alert_cost=1.0, miss_cost=9.0,
@@ -227,14 +227,19 @@ def test_monitor_with_costs_gives_optimal_rule(tmp_path):
     trigger = payload["triggers"][0]
     assert trigger["armed"] is True
     assert trigger["alert_probability_threshold"] == pytest.approx(0.1)
-    assert trigger["support_assessment"]["status"] == "supported"
+    support = trigger["support_assessment"]
+    assert support["status"] == "inconclusive"
+    assert support["legacy_support"] == "best_effort"
+    assert {reason["code"] for reason in support["reasons"]} >= {
+        "insufficient_joint_paths",
+    }
     lineage = json.loads((directory / "lineage.json").read_text())
     risk_claims = [claim for claim in lineage["claims"] if "sequential_risk" in claim["claim_id"]]
     assert risk_claims and risk_claims[0]["calibration_ref"] is not None
 
 
 def test_monitor_single_shot_policy_is_typed_and_may_withhold(tmp_path):
-    payload, _ = monitor(
+    payload, directory = monitor(
         str(_forecastable(tmp_path)), time_column="timestamp",
         target_column="value", horizon=6, threshold=165.0,
         action_cost=2.0, miss_cost=10.0,
@@ -259,6 +264,17 @@ def test_monitor_single_shot_policy_is_typed_and_may_withhold(tmp_path):
     assert decision["decision_support"] == "best_effort"
     assert decision["reason_code"] == \
         "event_estimate_not_governed_point_estimate_used"
+    support = trigger["support_assessment"]
+    assert support["status"] == "inconclusive"
+    assert support["legacy_support"] == "best_effort"
+    assert {reason["code"] for reason in support["reasons"]} >= {
+        "insufficient_joint_paths",
+    }
+    summary = (directory / "summary.md").read_text(encoding="utf-8")
+    report = (directory / "report.html").read_text(encoding="utf-8")
+    assert "- Support: best_effort" in summary
+    assert "<dt>Support</dt><dd>best_effort</dd>" in report
+    assert "insufficient_joint_paths" in report
 
 
 def test_monitor_refuses_ambiguous_alert_and_action_cost_models(tmp_path):
@@ -322,7 +338,7 @@ def test_decide_and_monitor_share_immutable_typed_answer_contract(tmp_path):
         assert receipt["answers"] == payload["answers"]
 
 
-def test_monitor_without_costs_is_conditional(tmp_path):
+def test_monitor_without_costs_preserves_the_weaker_event_tier(tmp_path):
     payload, _ = monitor(
         str(_forecastable(tmp_path)), time_column="timestamp", target_column="value",
         horizon=6, threshold=165.0,
@@ -330,8 +346,13 @@ def test_monitor_without_costs_is_conditional(tmp_path):
     )
     trigger = payload["triggers"][0]
     assert trigger["alert_probability_threshold"] == 0.5
-    assert trigger["support_assessment"]["status"] == "conditionally_supported"
-    assert trigger["support_assessment"]["reasons"][0]["code"] == "missing_cost_inputs"
+    support = trigger["support_assessment"]
+    assert support["status"] == "inconclusive"
+    assert support["legacy_support"] == "best_effort"
+    assert support["reasons"][0]["code"] == "missing_cost_inputs"
+    assert {reason["code"] for reason in support["reasons"]} >= {
+        "insufficient_joint_paths",
+    }
 
 
 def test_monitor_abstains_on_short_history(tmp_path):

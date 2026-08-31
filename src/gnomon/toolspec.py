@@ -354,14 +354,6 @@ def enforce_response_budget(payload: Any, budget_bytes: int = RESPONSE_BUDGET_BY
     return result
 
 
-_TIER_ORDER = {
-    "invalid": 0, "unsupported": 1, "inconclusive": 2,
-    "best_effort": 3, "conditionally_supported": 4,
-    "context_trusted": 4, "degraded": 4, "weakly_supported": 4,
-    "supported": 5, "supported_ensemble": 5,
-}
-
-
 def apply_response_contract(payload: dict[str, Any]) -> dict[str, Any]:
     """Add the compact agent-facing envelope without rewriting artifacts.
 
@@ -389,9 +381,18 @@ def apply_response_contract(payload: dict[str, Any]) -> dict[str, Any]:
     warning_series: dict[str, set[str]] = {}
     warning_examples: dict[str, list[str]] = {}
     recoveries: list[dict[str, Any]] = []
+    from .support import weakest_support_tier
     for entry in entries:
         assessment = entry.get("support_assessment") or {}
-        tier = assessment.get("status") or entry.get("support")
+        raw_tier = assessment.get("status") or entry.get("support")
+        rows = entry.get("forecast") or entry.get("forecast_preview") or []
+        row_tiers = [
+            row.get("tier") for row in rows
+            if isinstance(row, dict) and row.get("tier") is not None
+        ] if isinstance(rows, list) else []
+        tier = weakest_support_tier(
+            [raw_tier, *row_tiers], published=bool(row_tiers),
+        ) or raw_tier
         if tier:
             tiers.append(str(tier))
         series = str(entry.get("series") or "__default__")
@@ -406,7 +407,7 @@ def apply_response_contract(payload: dict[str, Any]) -> dict[str, Any]:
                 recoveries.append(action)
 
     if tiers and "tier_floor" not in result:
-        result["tier_floor"] = min(tiers, key=lambda item: _TIER_ORDER.get(item, 0))
+        result["tier_floor"] = weakest_support_tier(tiers, published=False)
     if warning_series and "limitation_groups" not in result:
         result["limitation_groups"] = [
             {
@@ -894,8 +895,7 @@ def _resolve_schema_arguments(
                 + f" Pass {parameter} explicitly; every other parameter is "
                   f"inferred from the file.",
                 {"parameter": parameter, "candidates": candidates,
-                 "columns_examined": list(inferred["time_candidates"])
-                 + list(inferred["target_candidates"])},
+                 "columns_examined": list(inferred["columns"])},
                 repair_options=repairs,
             )
         resolved[parameter] = chosen
@@ -4833,6 +4833,48 @@ def visible_tools() -> list[dict[str, Any]]:
     return [tool for tool in tools if tool["name"] in allowed]
 
 
+def profiles_for_tool(name: str) -> list[str]:
+    """Named profiles that can expose ``name``, including virtual ``full``."""
+    profiles = sorted(
+        profile for profile, names in PROFILES.items() if name in names
+    )
+    known = any(tool["name"] == name for tool in TOOLS)
+    if known and name not in _SURFACE_EXPERIMENT_TOOLS:
+        profiles.append("full")
+    return profiles
+
+
+def enforce_profile_tool_calls(value: Any) -> Any:
+    """Never hand an agent a ready call that this server will refuse."""
+    visible = {tool["name"] for tool in visible_tools()}
+
+    def visit(item: Any) -> Any:
+        if isinstance(item, list):
+            return [visit(entry) for entry in item]
+        if not isinstance(item, dict):
+            return item
+        result: dict[str, Any] = {}
+        for key, nested in item.items():
+            if key == "tool_call" and isinstance(nested, dict):
+                name = str(nested.get("name") or "")
+                if name and name not in visible:
+                    result["tool_unavailable_in_profile"] = {
+                        "tool": name,
+                        "active_profile": active_profile(),
+                        "profiles": profiles_for_tool(name),
+                        "note": (
+                            "The referenced data remains available at the "
+                            "response's artifact path; this server profile "
+                            "does not expose the suggested follow-up tool."
+                        ),
+                    }
+                    continue
+            result[key] = visit(nested)
+        return result
+
+    return visit(value)
+
+
 _SESSION_DATA_REFS: dict[str, dict[str, Any]] = {}
 _MAX_SESSION_DATA_REFS = 128
 _DATA_BINDING_KEYS = frozenset({
@@ -5086,8 +5128,9 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
                 if isinstance(payload, dict) and "verb" not in payload:
                     payload = {**payload,
                                "verb": _name.removeprefix("gnomon_")}
-                return apply_response_contract(
+                contracted = apply_response_contract(
                     enforce_response_budget(payload, budget))
+                return enforce_profile_tool_calls(contracted)
 
             return wrapped
     return None

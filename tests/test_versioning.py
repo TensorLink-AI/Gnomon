@@ -85,6 +85,27 @@ def test_same_id_forecast_writers_publish_one_verified_artifact(
     assert not list(output.glob(f".{artifact.forecast_id}.tmp-*"))
 
 
+def test_interrupted_artifact_write_retains_and_names_private_partial(
+        tmp_path, monkeypatch):
+    import gnomon.artifacts as artifacts_module
+
+    source = _series_csv(tmp_path)
+    artifact, _ = forecast(
+        str(source), time_column="timestamp", target_column="value",
+        horizon=3, output=str(tmp_path / "seed"), clock=CLOCK,
+    )
+
+    def interrupt(_directory):
+        raise KeyboardInterrupt()
+
+    monkeypatch.setattr(artifacts_module, "_write_integrity", interrupt)
+    with pytest.raises(KeyboardInterrupt) as caught:
+        artifacts_module.write_artifact(artifact, str(tmp_path / "interrupted"))
+    partial = Path(caught.value.gnomon_partial_artifact)
+    assert partial.is_dir()
+    assert partial.name.startswith(f".{artifact.forecast_id}.tmp-")
+
+
 def test_same_id_json_writers_publish_one_verified_artifact(
         tmp_path, monkeypatch):
     from concurrent.futures import ThreadPoolExecutor

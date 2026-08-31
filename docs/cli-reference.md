@@ -607,6 +607,15 @@ breaks) with the honest reference policy and emit rows for
 gnomon eval episodes --workdir /tmp/gnomon-episodes --trials 2 --jsonl runs.jsonl
 ```
 
+## Exit statuses
+
+- `0` — the command completed and emitted its structured result.
+- `2` — input, validation, or runtime failure; stderr contains a typed JSON
+  error envelope with recovery options.
+- `130` — the caller interrupted the command; stderr contains an `INTERRUPTED`
+  envelope. If artifact construction had started, `details.partial_artifact`
+  names the retained private diagnostic directory.
+
 ## Not currently available
 
 `gnomon init`, `gnomon run`, `gnomon share`, and the retired experimental

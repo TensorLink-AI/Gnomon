@@ -23,6 +23,18 @@ def _private_partial(parent: Path, artifact_id: str) -> Path:
         prefix=f".{artifact_id}.tmp-", dir=str(parent)))
 
 
+def _retain_failed_partial(exc: BaseException, temporary: Path) -> None:
+    """Attach a private diagnostic tree to an escaping failure when possible."""
+    try:
+        setattr(exc, "gnomon_partial_artifact", str(temporary))
+    except Exception:  # pragma: no cover - exotic immutable exceptions
+        pass
+    logger.warning(
+        "Artifact write failed; the partial directory is retained at %s "
+        "and is owned only by this failed writer.", temporary,
+    )
+
+
 def _publish_first_writer(temporary: Path, final: Path) -> Path:
     """Atomically publish, or verify and reuse a concurrent winner.
 
@@ -173,9 +185,16 @@ def write_artifact(
         lines = [artifact_headline(artifact.results), "",
                  f"# Forecast {artifact.forecast_id}", ""]
         for result in artifact.results:
+            from .support import weakest_support_tier
+            assessment_status = (result.support_assessment or {}).get("status")
+            rendered_support = weakest_support_tier(
+                [result.support, assessment_status,
+                 *(row.get("tier") for row in result.forecast)],
+                published=bool(result.forecast),
+            ) or result.support
             lines.extend([
                 f"## {result.series}", "",
-                f"- Support: {result.support}",
+                f"- Support: {rendered_support}",
                 f"- Selected model: {result.selected_model or 'none'}",
                 f"- Strongest baseline: {result.strongest_baseline or 'none'}",
             ])
@@ -261,14 +280,13 @@ def write_artifact(
         )
         _write_integrity(temporary)
         _publish_first_writer(temporary, final)
-    except Exception:
+    except BaseException as exc:
         # The partial directory is kept for diagnosis and never exposed as a
         # complete run. It is writer-private, so a retry or concurrent writer
         # cannot erase it; say where it is for deliberate inspection/cleanup.
-        logger.warning(
-            "Artifact write failed; the partial directory is retained at %s "
-            "and is owned only by this failed writer.", temporary,
-        )
+        # KeyboardInterrupt is deliberately included: the CLI converts it to
+        # a typed exit-130 response and discloses this private path.
+        _retain_failed_partial(exc, temporary)
         raise
     return final
 
@@ -307,11 +325,8 @@ def write_json_artifact(
         )
         _write_integrity(temporary)
         _publish_first_writer(temporary, final)
-    except Exception:
-        logger.warning(
-            "Artifact write failed; the partial directory is retained at %s "
-            "and is owned only by this failed writer.", temporary,
-        )
+    except BaseException as exc:
+        _retain_failed_partial(exc, temporary)
         raise
     return final
 
@@ -332,7 +347,13 @@ def _macro_summary(artifact_id: str, payload: dict[str, Any]) -> str:
     def render_support(assessment: dict[str, Any] | None, indent: str = "") -> None:
         if not assessment:
             return
-        lines.append(f"{indent}- Support: {assessment.get('status', 'unknown')}")
+        from .support import weakest_support_tier
+        legacy_support = assessment.get("legacy_support")
+        rendered_support = weakest_support_tier(
+            [assessment.get("status"), legacy_support],
+            published=legacy_support is not None,
+        ) or assessment.get("status", "unknown")
+        lines.append(f"{indent}- Support: {rendered_support}")
         for reason in assessment.get("reasons", []):
             lines.append(f"{indent}- Reason ({reason['code']}): {reason['message']}")
         for disclosure in assessment.get("disclosures", []):

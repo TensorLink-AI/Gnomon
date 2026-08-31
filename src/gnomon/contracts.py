@@ -533,6 +533,12 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
     "UNKNOWN_TOOL": [
         {"action": "list_tools", "description": "Call tools/list for the available tool names."},
     ],
+    "TOOL_NOT_IN_PROFILE": [
+        {"action": "select_profile", "description": "Restart the MCP server with --profile PROFILE or set GNOMON_MCP_PROFILE=PROFILE to a profile named in error.details.profiles."},
+    ],
+    "INTERRUPTED": [
+        {"action": "retry", "description": "Retry the same idempotent command when ready; details.partial_artifact names any private diagnostic directory retained from an interrupted write."},
+    ],
     "SOURCE_TOO_LARGE": [
         {"action": "reduce_source", "description": "Reduce the stdin or Prometheus range below 10 MiB, or ingest it into the temporal store in bounded batches."},
     ],
@@ -655,7 +661,8 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
 
 class GnomonError(Exception):
     def __init__(self, code: str, message: str, details: dict[str, Any] | None = None,
-                 repair_options: list[dict[str, Any]] | None = None):
+                 repair_options: list[dict[str, Any]] | None = None,
+                 retryable: bool = False):
         super().__init__(message)
         self.code = code
         self.message = message
@@ -664,6 +671,7 @@ class GnomonError(Exception):
         #: particular failure rather than only on the code. Falls back to
         #: the code's entry in REPAIR_OPTIONS.
         self.repair_options = repair_options
+        self.retryable = retryable
 
     def to_dict(self) -> dict[str, Any]:
         repairs = (self.repair_options if self.repair_options is not None
@@ -674,7 +682,7 @@ class GnomonError(Exception):
             "error": {
                 "code": self.code,
                 "message": self.message,
-                "retryable": False,
+                "retryable": self.retryable,
                 "details": self.details,
                 "repair_options": repairs,
             },

@@ -1727,12 +1727,30 @@ def _forecast_disclosures(
 
     # L6 / S-. Adjacent levels sharing an order statistic is the sample's
     # resolution, not a defect. Promoted from free-text `notes` to a code.
+    point_collapsed = sum(
+        1 for row in rows
+        if row.get("q10") == row.get("q50") == row.get("q90")
+    )
+    unresolved_point_interval = bool(
+        point_collapsed
+        and assessment is not None
+        and assessment.residual_fold_count == 0
+    )
+    if unresolved_point_interval:
+        disclosures.append(SupportReason(
+            "interval_collapsed_to_point",
+            f"At {point_collapsed} of {len(rows)} lead times q10, q50, and "
+            f"q90 collapse to one point because no fold-separated residual "
+            f"origin was available. The repeated value is a point estimate, "
+            f"not an uncertainty interval.",
+        ))
+
     collapsed = sum(
         1 for row in rows
         if len({row[key] for key in row if _is_quantile(key)})
         < len([key for key in row if _is_quantile(key)])
     )
-    if collapsed:
+    if collapsed and not unresolved_point_interval:
         disclosures.append(SupportReason(
             "quantile_levels_collapsed",
             f"Quantile levels are limited by the residual sample: at "

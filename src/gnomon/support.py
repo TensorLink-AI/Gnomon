@@ -32,6 +32,47 @@ PUBLICATION_TIERS = ("best_effort", "conditionally_supported", "supported")
 TIER_ORDER = {name: rank for rank, name in enumerate(PUBLICATION_TIERS)}
 DEFAULT_MINIMUM_SUPPORT = "best_effort"
 
+_PUBLICATION_TIER_ALIASES = {
+    "best_effort": "best_effort",
+    "inconclusive": "best_effort",
+    "conditionally_supported": "conditionally_supported",
+    "context_trusted": "conditionally_supported",
+    "degraded": "conditionally_supported",
+    "weakly_supported": "conditionally_supported",
+    "supported": "supported",
+    "supported_ensemble": "supported",
+}
+_NONPUBLICATION_ORDER = {"invalid": 0, "unsupported": 1, "inconclusive": 2}
+
+
+def canonical_support_tier(value: object, *, published: bool) -> str | None:
+    """Map legacy, assessment, and row vocabularies onto one authority tier."""
+    if value is None:
+        return None
+    name = str(value)
+    if name in {"invalid", "unsupported"}:
+        return name
+    if name == "inconclusive" and not published:
+        return name
+    return _PUBLICATION_TIER_ALIASES.get(name)
+
+
+def weakest_support_tier(values: list[object], *, published: bool) -> str | None:
+    """Return the weakest comparable tier without rounding legacy states up."""
+    canonical = [
+        tier for value in values
+        if (tier := canonical_support_tier(value, published=published)) is not None
+    ]
+    if not canonical:
+        return None
+
+    def rank(tier: str) -> int:
+        if tier in _NONPUBLICATION_ORDER:
+            return _NONPUBLICATION_ORDER[tier]
+        return 3 + TIER_ORDER[tier]
+
+    return min(canonical, key=rank)
+
 
 def achieved_tier(status: str, has_rows: bool) -> str | None:
     """The publication tier a result's assessment status earned.
@@ -66,6 +107,10 @@ def forecast_headline(
             "the evaluation could not run.")
         return f"No forecast published: {first}"
     end = str(rows[-1].get("timestamp"))
+    weakest = weakest_support_tier(
+        [support, status, *(row.get("tier") for row in rows)],
+        published=True,
+    )
     split = next((reason for reason in reasons
                   if reason.get("code") == "horizon_split"), None)
     if split is not None:
@@ -75,13 +120,15 @@ def forecast_headline(
             remainder_start = str(rows[boundary].get("timestamp"))
         else:  # defensive: the reason still names the ranges
             prefix_end, remainder_start = end, end
-        prefix_tier = str(rows[0].get("tier", "conditionally_supported"))
+        prefix_tier = canonical_support_tier(
+            rows[0].get("tier", "conditionally_supported"), published=True,
+        ) or "conditionally_supported"
         return (
-            f"Higher-confidence through {prefix_end} ({prefix_tier}); "
-            f"{remainder_start}-{end} is a naive extrapolation, not an "
-            f"evaluated forecast."
+            f"Evaluated through {prefix_end} at tier {prefix_tier}; "
+            f"{remainder_start}-{end} is tier best_effort: a naive "
+            f"extrapolation, not an evaluated forecast."
         )
-    if support == "best_effort":
+    if weakest == "best_effort":
         observations = sensitivity.get("observations")
         source = (f"from {observations} observations"
                   if observations is not None else "from this history")
@@ -377,6 +424,34 @@ def assess_forecast_support(
         recovery,
         support, disclosures,
     )
+
+
+def cap_unresolved_point_interval(
+    assessment: SupportAssessment,
+) -> SupportAssessment:
+    """Fail closed when repeated quantiles carry no residual evidence."""
+    if not any(
+        item.code == "interval_collapsed_to_point"
+        for item in assessment.disclosures
+    ):
+        return assessment
+    if not any(item.code == "interval_collapsed_to_point"
+               for item in assessment.reasons):
+        assessment.reasons.insert(0, SupportReason(
+            "interval_collapsed_to_point",
+            "The published q10/q50/q90 values contain no measured interval "
+            "width, so the rows are capped at best_effort and cannot carry "
+            "probability or automation authority.",
+        ))
+    if not any(item.code == "provide_interval_calibration"
+               for item in assessment.recovery_actions):
+        assessment.recovery_actions.append(SupportReason(
+            "provide_interval_calibration",
+            "Provide enough history for at least one fold-separated residual "
+            "origin, then re-run the same horizon.",
+        ))
+    assessment.status = "inconclusive"
+    return assessment
 
 
 def disclose_epistemic_deviation(

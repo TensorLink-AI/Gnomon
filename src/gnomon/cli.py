@@ -1193,6 +1193,8 @@ def _default_horizon(args) -> int:
         frequency=getattr(args, "frequency", None),
         as_of=_parse_as_of(getattr(args, "as_of", None)),
         store_path=getattr(args, "store_path", None),
+        repair=getattr(args, "repair", "safe"),
+        regrid=getattr(args, "regrid", None),
     )
     longest = max(loaded.groups.values(), key=len, default=[])
     season, _, _ = detect_season([item.value for item in longest], loaded.frequency)
@@ -2402,6 +2404,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         error = GnomonError("INVALID_ARGUMENTS", str(exc))
         print(json.dumps(error.to_dict(), indent=2), file=sys.stderr)
         return 2
+    except KeyboardInterrupt as exc:
+        details = {"command": getattr(args, "command", None)}
+        partial = getattr(exc, "gnomon_partial_artifact", None)
+        if partial:
+            details["partial_artifact"] = partial
+        error = GnomonError(
+            "INTERRUPTED",
+            "The command was interrupted before it completed.",
+            details,
+            retryable=True,
+        )
+        print(json.dumps(error.to_dict(), indent=2), file=sys.stderr)
+        return 130
     except Exception as exc:
         # No `gnomon` invocation prints a Python traceback. An unexpected
         # failure is still a failure of the product, and it reaches the

@@ -1486,6 +1486,48 @@ def test_forecast_triage_contract_preserves_remainder():
     assert payload["triage"]["artifact"]["artifact_path"] == "/tmp/artifact"
 
 
+def test_ready_tool_calls_never_name_a_tool_absent_from_active_profile(
+        monkeypatch) -> None:
+    from gnomon.toolspec import (
+        PROFILES, _attach_multiseries_triage, enforce_profile_tool_calls,
+        visible_tools,
+    )
+
+    payload = _attach_multiseries_triage({
+        "artifact_path": "/tmp/artifact",
+        "results": [
+            {"series": name, "notability": score, "support": "degraded"}
+            for name, score in (("a", 1), ("b", 4), ("c", 2), ("d", 3))
+        ],
+    })
+
+    def calls(value):
+        if isinstance(value, list):
+            return [name for item in value for name in calls(item)]
+        if not isinstance(value, dict):
+            return []
+        found = []
+        if isinstance(value.get("tool_call"), dict):
+            found.append(value["tool_call"].get("name"))
+        return found + [
+            name for nested in value.values() for name in calls(nested)
+        ]
+
+    for profile in [*PROFILES, "full"]:
+        monkeypatch.setenv("GNOMON_MCP_PROFILE", profile)
+        coherent = enforce_profile_tool_calls(payload)
+        visible = {tool["name"] for tool in visible_tools()}
+        assert set(calls(coherent)) <= visible, profile
+        full_results = coherent["triage"]["full_results"]
+        if "gnomon_get_artifact" in visible:
+            assert full_results["tool_call"]["name"] == "gnomon_get_artifact"
+        else:
+            assert "tool_call" not in full_results
+            limitation = full_results["tool_unavailable_in_profile"]
+            assert limitation["tool"] == "gnomon_get_artifact"
+            assert coherent["triage"]["artifact"]["artifact_path"] == "/tmp/artifact"
+
+
 def test_wide_response_bounding_refreshes_the_one_canonical_triage_block():
     from gnomon.toolspec import _attach_multiseries_triage, triage_wide_response
 
@@ -1977,6 +2019,25 @@ def test_agent_response_contract_groups_limitations_and_names_tier_floor():
     assert group["affected_series_count"] == 2
     assert group["examples"] == ["worker", "billing"]
     assert payload["recovery_actions"][0]["code"] == "provide_more_history"
+
+
+def test_agent_response_tier_floor_includes_weakest_forecast_row() -> None:
+    from gnomon.toolspec import apply_response_contract
+
+    payload = apply_response_contract({
+        "status": "complete", "forecast_id": "fc_split",
+        "results": [{
+            "series": "api", "support": "degraded", "warnings": [],
+            "support_assessment": {
+                "status": "conditionally_supported", "recovery_actions": [],
+            },
+            "forecast": [
+                {"timestamp": "2026-01-01", "tier": "conditionally_supported"},
+                {"timestamp": "2026-01-02", "tier": "best_effort"},
+            ],
+        }],
+    })
+    assert payload["tier_floor"] == "best_effort"
 
 
 def test_decide_runner_returns_typed_repair_for_malformed_actions(tmp_path):

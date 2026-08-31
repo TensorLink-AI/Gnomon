@@ -155,7 +155,16 @@ def build_forecast_lineage(
     for result in artifact.results:
         evaluation_id = f"evaluation:{result.series}"
         support_id = f"support:{result.series}"
-        if result.forecast and result.support == "best_effort":
+        from .support import weakest_support_tier
+        published_tier = weakest_support_tier(
+            [
+                result.support,
+                (result.support_assessment or {}).get("status"),
+                *(row.get("tier") for row in result.forecast),
+            ],
+            published=bool(result.forecast),
+        )
+        if result.forecast and published_tier == "best_effort":
             # Sub-supported rows were published. The claim class is
             # descriptive — never predictive — so the verifier's
             # calibration gate cannot be satisfied by numbers no fold ever

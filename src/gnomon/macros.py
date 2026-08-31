@@ -940,6 +940,25 @@ def monitor(
             "uninformative 0.5 probability threshold.",
         )]
         reasons += [SupportReason("forecast_warning", warning) for warning in result.warnings]
+        reasons += [
+            SupportReason(
+                str(reason.get("code") or "horizon_event_limitation"),
+                str(reason.get("message") or reason),
+            )
+            for reason in horizon_event.get("reasons", [])
+            if isinstance(reason, dict)
+        ]
+        rule_status = (
+            "supported" if costed and not result.warnings
+            else "conditionally_supported"
+        )
+        from .support import weakest_support_tier
+        trigger_tier = weakest_support_tier(
+            [rule_status, horizon_event.get("support")], published=True,
+        ) or rule_status
+        trigger_status = (
+            "inconclusive" if trigger_tier == "best_effort" else trigger_tier
+        )
         triggers.append({
             "series": result.series,
             "armed": True,
@@ -957,12 +976,13 @@ def monitor(
                 result.forecast[first_alert - 1]["timestamp"] if first_alert else None
             ),
             "support_assessment": SupportAssessment(
-                "supported" if costed and not result.warnings else "conditionally_supported",
+                trigger_status,
                 reasons,
                 recovery_actions=[] if costed else [SupportReason(
                     "provide_costs",
                     "Supply alert_cost and miss_cost to get a cost-optimal rule.",
                 )],
+                legacy_support=trigger_tier,
             ).to_dict(),
         })
 
