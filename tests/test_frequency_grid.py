@@ -351,3 +351,41 @@ def test_detect_season_considers_period_at_two_cycle_boundary() -> None:
         season, strength, basis = detect_season(values, "h")
         assert (season, basis) == (24, "autocorrelation")
         assert strength > .3
+
+
+def test_detect_season_does_not_round_hourly_period_down_to_23() -> None:
+    """Unequal overlap lengths must not make 23 beat a perfect 24-hour cycle."""
+    import math
+
+    from gnomon.temporal import detect_season
+
+    values = [math.sin(2 * math.pi * index / 24) for index in range(50)]
+    season, strength, basis = detect_season(values, "h")
+    assert (season, basis) == (24, "autocorrelation")
+    assert strength > .75
+
+
+def test_detect_season_measures_non_sinusoidal_two_cycle_repeat() -> None:
+    """A clean repeated daily shape is evidence, not a zero-strength default."""
+    from gnomon.fingerprint import series_fingerprint
+    from gnomon.temporal import detect_season
+
+    values = [float(index % 24) for index in range(48)]
+    season, strength, basis = detect_season(values, "h")
+    assert (season, basis) == (24, "autocorrelation")
+    assert strength > .75
+    fingerprint = series_fingerprint(values, "h")
+    assert fingerprint["season_period"] == 24
+    assert fingerprint["season_source"] == "autocorrelation"
+    assert fingerprint["season_strength"] > .75
+
+
+def test_frequency_prior_does_not_replace_a_measured_period_23() -> None:
+    import math
+
+    from gnomon.temporal import detect_season
+
+    values = [math.sin(2 * math.pi * index / 23) for index in range(69)]
+    season, strength, basis = detect_season(values, "h")
+    assert (season, basis) == (23, "autocorrelation")
+    assert strength > .3
