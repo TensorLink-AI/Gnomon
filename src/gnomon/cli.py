@@ -232,8 +232,11 @@ def _attach_publication(payload, artifact, path, args) -> None:
             raise GnomonError(
                 "INVALID_ARGUMENTS",
                 "--context-transformation requires --context-known-at")
-        from .context_intelligence import (compile_transformation,
-                                           execute_transformation)
+        from .context_intelligence import (
+            compile_transformation,
+            execute_transformation,
+            load_recurrence_history,
+        )
         claims = [claim for dossier in dossiers
                   for claim in dossier.get("claims") or []]
         claim_ids = [str(claim.get("claim_id")) for claim in claims
@@ -244,67 +247,22 @@ def _attach_publication(payload, artifact, path, args) -> None:
         result["transformation_candidates"] = []
         result["transformation_rejections"] = []
 
-        def trusted_recurrence_history(expression, historical_segments=None):
-            if not isinstance(expression, dict) or expression.get("op") not in {
-                    "recursive_linear", "fit_recursive_linear"}:
-                return [], {}
+        def observations_for(target):
             from .pipeline import load_stage
-
-            def observations_for(target):
-                loaded = load_stage(
-                    args.input, time_column=args.time_column,
-                    target_column=target,
-                    series_column=getattr(args, "series_column", None),
-                    frequency=getattr(args, "frequency", None),
-                    as_of=getattr(args, "as_of", None),
-                    store_path=getattr(args, "store_path", None),
-                    regrid=getattr(args, "regrid", None),
-                    repair=getattr(args, "repair", "safe"))
-                if len(loaded.groups) != 1:
-                    raise GnomonError(
-                        "AMBIGUOUS_RECURSIVE_HISTORY",
-                        "Recursive context execution requires exactly one series per target.")
-                return list(next(iter(loaded.groups.values())))
-
-            driver_terms = (expression.get("driver_terms") or []
-                            if expression.get("op") == "recursive_linear"
-                            else expression.get("driver_lags") or [])
-            drivers = sorted({str(term.get("series"))
-                              for term in driver_terms
-                              if term.get("series")})
-            target_observations = observations_for(args.target_column)
-            target_map = {item.timestamp: float(item.value)
-                          for item in target_observations}
-            common = sorted(target_map)
-            histories = {}
-            if historical_segments:
-                from .context_intelligence import expand_cited_history_segments
-                documented = expand_cited_history_segments(
-                    historical_segments, timestamps=common, cutoff=max(common),
-                    claim_spans=claim_spans, allowed_claim_ids=claim_ids)
-                unknown = set(documented) - set(drivers)
-                if unknown:
-                    raise GnomonError(
-                        "UNKNOWN_HISTORY_SERIES",
-                        "Document history names are not recurrence drivers: "
-                        + ", ".join(sorted(unknown)))
-                histories.update(documented)
-            for name in drivers:
-                if name in histories:
-                    continue
-                observations = observations_for(name)
-                mapping = {item.timestamp: float(item.value)
-                           for item in observations}
-                common = [timestamp for timestamp in common
-                          if timestamp in mapping]
-                histories[name] = [mapping[timestamp] for timestamp in common]
-            if historical_segments:
-                documented = expand_cited_history_segments(
-                    historical_segments, timestamps=common,
-                    cutoff=max(common), claim_spans=claim_spans,
-                    allowed_claim_ids=claim_ids)
-                histories.update(documented)
-            return ([target_map[timestamp] for timestamp in common], histories)
+            loaded = load_stage(
+                args.input, time_column=args.time_column,
+                target_column=target,
+                series_column=getattr(args, "series_column", None),
+                frequency=getattr(args, "frequency", None),
+                as_of=getattr(args, "as_of", None),
+                store_path=getattr(args, "store_path", None),
+                regrid=getattr(args, "regrid", None),
+                repair=getattr(args, "repair", "safe"))
+            if len(loaded.groups) != 1:
+                raise GnomonError(
+                    "AMBIGUOUS_RECURSIVE_HISTORY",
+                    "Recursive context execution requires exactly one series per target.")
+            return list(next(iter(loaded.groups.values())))
 
         transformation_inputs = [
             *(read(path, "--context-transformation")
@@ -326,9 +284,13 @@ def _attach_publication(payload, artifact, path, args) -> None:
                 })
                 continue
             try:
-                target_history, driver_history = trusted_recurrence_history(
+                target_history, driver_history = load_recurrence_history(
                     compiled.get("expression"),
-                    wrapper.get("historical_series_segments"))
+                    wrapper.get("historical_series_segments"),
+                    target_name=str(args.target_column),
+                    observations_for=observations_for,
+                    verified_claim_ids=claim_ids,
+                    verified_claim_spans=claim_spans)
                 candidate = execute_transformation(
                     compiled,
                     primary=(result.get("primary_forecast")
