@@ -5,7 +5,7 @@ import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Sequence
+from typing import Any, Sequence
 
 from .contracts import GnomonError
 
@@ -790,7 +790,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     tsfm_commands = tsfm_parser.add_subparsers(dest="tsfm_command", required=True)
 
-    tsfm_list = tsfm_commands.add_parser(
+    tsfm_commands.add_parser(
         "list", help="List available, installed (in-process), and sandboxed TSFMs"
     )
 
@@ -804,7 +804,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     tsfm_remove.add_argument("name", help="TSFM adapter name")
 
-    tsfm_install_all = tsfm_commands.add_parser(
+    tsfm_commands.add_parser(
         "install-all", help="Create sandboxed venvs for all known TSFMs"
     )
 
@@ -1595,7 +1595,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             from .tsfm import available_tsfms, installed_tsfms
             from .tsfm_sandbox import (
                 ensure_sandbox, remove_sandbox, list_sandboxes,
-                sandbox_exists, TSFM_PIP_SPECS,
+                TSFM_PIP_SPECS,
             )
             from .tsfm import TSFMUnavailable, TSFMError
 

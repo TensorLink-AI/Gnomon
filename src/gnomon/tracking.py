@@ -43,10 +43,10 @@ import math
 import os
 import sqlite3
 import statistics
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterator, Sequence
+from typing import Any, Iterator
 
 from .contracts import GnomonError
 
@@ -143,14 +143,6 @@ class DecisionRecord:
 # ---------------------------------------------------------------------------
 # Scoring functions
 # ---------------------------------------------------------------------------
-
-def mean_absolute_error(actual: list[float], predicted: list[float]) -> float:
-    """Mean Absolute Error."""
-    n = min(len(actual), len(predicted))
-    if n == 0:
-        return float("inf")
-    return sum(abs(a - p) for a, p in zip(actual[:n], predicted[:n])) / n
-
 
 #: Nominal coverage the adaptive level is steered toward, matching the
 #: 80% interval the rest of the pipeline publishes.

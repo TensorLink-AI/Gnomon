@@ -12,7 +12,6 @@ import pytest
 from gnomon.tracking import (
     DEFAULT_REGISTRY_PATH, TrackingStore, ForecastRecord, ModelPerformance, ScoreResult,
     mase_score, mape_score, bias_score, interval_coverage, threshold_accuracy,
-    mean_absolute_error,
 )
 
 
@@ -42,9 +41,6 @@ def sample_forecast_dir(tmp_path):
 
 class TestScoringFunctions:
     """Individual scoring metric functions."""
-
-    def test_mae(self):
-        assert mean_absolute_error([100, 110], [95, 105]) == 5.0
 
     def test_mase_beats_baseline(self):
         # If prediction equals actual, MASE = 0

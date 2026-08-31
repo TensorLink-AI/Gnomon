@@ -6,8 +6,12 @@ import math
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .contracts import GnomonError
+
+if TYPE_CHECKING:
+    from .repair import RepairLog
 
 
 @dataclass(frozen=True)

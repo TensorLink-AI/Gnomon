@@ -12,8 +12,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from datetime import datetime
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .adjudication import adjudicate_enrichments
 from .context import ContextEvent
@@ -39,6 +38,9 @@ from .multivariate import MULTIVARIATE_MODEL_NAME
 from .repair import RepairLog, repair_observations
 from .temporal import detect_season, next_timestamp, validate_and_group
 from .temporal_store import InMemoryTemporalStore, Snapshot, TemporalStore
+
+if TYPE_CHECKING:
+    from .constraints import Claim
 
 STORE_SCHEME = "store:"
 

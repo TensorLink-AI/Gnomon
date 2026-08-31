@@ -39,7 +39,7 @@ import urllib.request
 from typing import Any
 
 from .config import APIProviderConfig
-from .tsfm import TSFMAdapter, TSFMError, TSFMUnavailable
+from .tsfm import TSFMError, TSFMUnavailable
 from .forecast_adapter import (
     PROTOCOL_VERSION, AdapterCapabilities, ForecastAdapterError,
     ForecastRequest, ForecastResult,

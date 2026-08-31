@@ -442,7 +442,7 @@ class ChronosBoltAdapter:
         if self._pipeline is not None:
             return
         torch = _import_torch()
-        chronos = _try_import("chronos")
+        _try_import("chronos")
         model_id = self._MODEL_IDS.get(self._variant, self._MODEL_IDS["chronos_bolt_mini"])
         try:
             from chronos import BaseChronosPipeline
@@ -468,7 +468,6 @@ class ChronosBoltAdapter:
             )
             # Chronos-Bolt returns quantile forecasts: shape [num_quantiles, prediction_length]
             # The median (0.5) is used as the point forecast.
-            import numpy as np
             arr = forecast.numpy()
             if arr.ndim == 3:
                 # [num_series, num_quantiles, horizon] — take first series
@@ -497,7 +496,6 @@ class ChronosBoltAdapter:
                 prediction_length=horizon,
                 quantile_levels=list(quantiles),
             )
-            import numpy as np
             arr = forecast.numpy()
             if arr.ndim == 3:
                 arr = arr[0]
@@ -785,7 +783,7 @@ class TinyTimeMixerAdapter:
     def _ensure_loaded(self):
         if self._model is not None:
             return
-        torch = _import_torch()
+        _import_torch()
         _try_import("tsfm_public")
         try:
             from tsfm_public import TinyTimeMixerForPrediction
@@ -801,7 +799,6 @@ class TinyTimeMixerAdapter:
         self._ensure_loaded()
         torch = _import_torch()
         try:
-            import numpy as np
             device = next(self._model.parameters()).device
             # TTM expects a specific input shape and context length
             # Pad or truncate context to the model's expected length
@@ -810,7 +807,6 @@ class TinyTimeMixerAdapter:
             ts = torch.tensor(ctx, dtype=torch.float32, device=device)
             ts = ts.unsqueeze(0).unsqueeze(0)  # (batch, n_variates, time)
 
-            from tsfm_public.toolkit.util import select_by_index
             # Use the model's forecast method
             output = self._model(ts, prediction_length=horizon)
             arr = output.prediction_outputs.detach().cpu().numpy().squeeze()
@@ -883,10 +879,9 @@ class Moirai2Adapter:
 
     def predict(self, history: list[float], horizon: int, season: int) -> list[float]:
         self._ensure_loaded()
-        torch = _import_torch()
+        _import_torch()
         try:
             import pandas as pd
-            import numpy as np
             from gluonts.dataset.pandas import PandasDataset
             from gluonts.dataset.split import split
 
@@ -925,10 +920,9 @@ class Moirai2Adapter:
         quantiles: tuple[float, ...] = (0.1, 0.5, 0.9),
     ) -> list[dict[str, float]]:
         self._ensure_loaded()
-        torch = _import_torch()
+        _import_torch()
         try:
             import pandas as pd
-            import numpy as np
             from gluonts.dataset.pandas import PandasDataset
             from gluonts.dataset.split import split
 
@@ -991,7 +985,7 @@ class MomentAdapter:
     def _ensure_loaded(self):
         if self._model is not None:
             return
-        torch = _import_torch()
+        _import_torch()
         _try_import("momentfm")
         try:
             from momentfm import MOMENTPipeline
@@ -1013,7 +1007,6 @@ class MomentAdapter:
         self._ensure_loaded()
         torch = _import_torch()
         try:
-            import numpy as np
             device = next(self._model.model.parameters()).device
             # MOMENT expects context length of 512
             ctx_len = min(len(history), 512)
@@ -1051,7 +1044,7 @@ class MomentAdapter:
         return None
 
     def _reconstruction_pipeline(self):
-        torch = _import_torch()
+        _import_torch()
         _try_import("momentfm")
         try:
             from momentfm import MOMENTPipeline

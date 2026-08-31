@@ -8,7 +8,7 @@ question, but it cannot invent a capability or substitute a nearby operation.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from typing import Any, Protocol, runtime_checkable
+from typing import Any
 import re
 
 from .temporal_question import TemporalQuestion
@@ -220,13 +220,6 @@ def plan_execution(
         )
     return ExecutionPlan(
         "ready", question.to_dict(), dataset.to_dict(), asdict(capability))
-
-
-@runtime_checkable
-class FittedExecutable(Protocol):
-    """One lifecycle for every numeric capability."""
-
-    def execute(self) -> dict[str, Any]: ...
 
 
 def unsupported_answer(question: TemporalQuestion, plan: ExecutionPlan

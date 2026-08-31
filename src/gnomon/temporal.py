@@ -4,7 +4,6 @@ import calendar
 import re
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
-from typing import Any
 
 from .contracts import GnomonError
 from .data import Observation, timezone_name

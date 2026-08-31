@@ -25,7 +25,6 @@ from .context_intelligence import candidate_evidence_score
 from .agent_context import sampled_prior_sufficiency
 
 PublicationMode = Literal["strict", "best_effort", "scenario"]
-ActionTier = Literal["advisory", "reversible_low_impact", "high_impact"]
 PUBLICATION_VERSION = "0.1"
 MODES = frozenset({"strict", "best_effort", "scenario"})
 ACTION_TIERS = frozenset({"advisory", "reversible_low_impact", "high_impact"})
@@ -944,7 +943,6 @@ def _claim_disposition(
                 "The source states a relevant temporal rule but does not "
                 "establish whether or when its trigger occurs in the "
                 "forecast horizon. It was not applied numerically."),
-            "claim_id": claim.get("claim_id"),
             "cited_fact": cited_fact,
             "scenario_ids": list(scenario_ids or []),
             "_claim_fingerprint": claim_fingerprint,
@@ -975,7 +973,6 @@ def _claim_disposition(
                 "The source states background evidence or a relationship, "
                 "not a dated event. It remains available to interpretation "
                 "but was not treated as a deterministic forecast adjustment."),
-            "claim_id": claim.get("claim_id"),
             "cited_fact": cited_fact,
             "scenario_ids": list(scenario_ids or []),
             "_claim_fingerprint": claim_fingerprint,

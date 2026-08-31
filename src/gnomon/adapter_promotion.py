@@ -330,10 +330,6 @@ def _normalise_timestamp(value: str, field: str) -> str:
     return _parse_timestamp(value, field).isoformat()
 
 
-def _validate_timestamp(value: str, field: str) -> None:
-    _parse_timestamp(value, field)
-
-
 def _wilson_lower(wins: int, count: int) -> float:
     if count < 1:
         return 0.0

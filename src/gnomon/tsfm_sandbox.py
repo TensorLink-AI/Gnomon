@@ -47,7 +47,6 @@ import select
 import shutil
 import subprocess
 import sys
-import tempfile
 import textwrap
 import threading
 from pathlib import Path
@@ -120,10 +119,6 @@ TSFM_PIP_SPECS: dict[str, list[str]] = {
         "torch==2.13.0",
     ],
 }
-
-# Which Python to use for sandboxes (defaults to current interpreter)
-SANDBOX_PYTHON = os.environ.get("GNOMON_TSFM_PYTHON", sys.executable)
-
 
 # ---------------------------------------------------------------------------
 # Sandbox management
@@ -1004,11 +999,6 @@ class SubprocessAdapter:
 # ---------------------------------------------------------------------------
 # Registry integration: override check_tsfm and tsfm_candidates for sandbox mode
 # ---------------------------------------------------------------------------
-
-def sandbox_check_tsfm(name: str) -> bool:
-    """Check if a TSFM sandbox is ready (venv created and deps installed)."""
-    return sandbox_exists(name)
-
 
 def sandbox_available_tsfms() -> list[str]:
     """Return names of TSFMs with ready sandboxes."""
