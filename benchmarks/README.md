@@ -21,14 +21,21 @@ python -m benchmarks.release build benchmarks/releases/2026-08-23.json
 python -m benchmarks.release validate results/benchmark-releases/2026-08-23
 ```
 
-The latest citable result is the
-[2026-08-23 defensible temporal-reasoning release](../results/benchmark-releases/2026-08-23/README.md).
-The later [usefulness-roadmap validation](../results/benchmark-releases/2026-08-23-usefulness-roadmap/README.md)
+The current public agent-behaviour claim is the
+[v0.6 external-validation release](../results/benchmark-releases/2026-08-30-v06-external-validation/README.md).
+It supersedes earlier positive choice results: on the complete matched sample,
+agent choice lift and broad forecast superiority were not established. The
+[2026-08-23 usefulness-roadmap validation](../results/benchmark-releases/2026-08-23-usefulness-roadmap/README.md)
 reports uplift, safety preservation, and regression separately for product
 commit `10b830a`.
 It reports a statistically significant matched TemporalBench choice lift,
 non-significant forecast differences, independent property gates, and the
 volatility-direction lane that remains ungraduated.
+
+`gnomon capabilities` exposes the canonical evidence-release identity and the
+current non-claims under `product_contract`; dated release directories remain
+available as historical evidence and do not become current merely because
+their files remain in the repository.
 
 The Benchmarks GitHub workflow validates committed evidence and runs a small
 deterministic product suite on pull requests. A fuller deterministic suite runs

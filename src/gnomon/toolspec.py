@@ -13,6 +13,7 @@ from typing import Any, Callable
 
 from .context import load_events_file
 from .contracts import ForecastArtifact, GnomonError, REPAIR_OPTIONS
+from .product_contract import DEFAULT_MCP_PROFILE
 from .response_budget import (
     CAPABILITIES_RESPONSE_BUDGET_BYTES as CAPABILITIES_RESPONSE_BUDGET_BYTES,
     DESCRIBE_RESPONSE_BUDGET_BYTES,
@@ -4451,7 +4452,7 @@ def active_profile() -> str:
     # three-tool evidence profile remains available for tightly bounded
     # evaluation sessions, but making it the product default hid Gnomon's
     # strongest operational verbs from ordinary agents.
-    name = os.environ.get("GNOMON_MCP_PROFILE", "core")
+    name = os.environ.get("GNOMON_MCP_PROFILE", DEFAULT_MCP_PROFILE)
     if name != "full" and name not in PROFILES:
         raise ValueError(
             f"Unknown GNOMON_MCP_PROFILE {name!r}; expected one of "

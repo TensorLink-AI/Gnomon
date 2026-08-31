@@ -1,6 +1,6 @@
 # Gnomon
 
-**Trusted time-series answers for people and AI agents.**
+**Temporal evidence and governance for people and AI agents.**
 
 Give Gnomon timestamped data and a practical question. It validates the data,
 tests competing methods against honest historical baselines, and returns an
@@ -31,7 +31,10 @@ also includes supporting tools for capabilities, inspection, description,
 routing, and run explanation; those tools prepare or explain an outcome rather
 than creating additional product promises.
 
-Its first product job is operational threshold risk:
+Its first deployment wedge is security-sensitive and regulated agent
+workflows, where offline execution, point-in-time replay, and sealed evidence
+matter as much as the estimate. Its first concrete job inside that boundary is
+operational threshold risk:
 
 > Which service metric may breach a meaningful limit, when, and does the
 > evidence justify intervening?

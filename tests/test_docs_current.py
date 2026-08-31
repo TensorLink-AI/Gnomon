@@ -69,19 +69,44 @@ def test_documents_claiming_the_current_version_state_the_current_one():
     assert checked == 2, f"expected 2 self-dating documents, found {checked}"
 
 
-def test_the_hardcoded_versions_agree_with_the_package():
-    """Six version strings drifted independently of pyproject.toml before
-    the 0.5.0 bump; `gnomon --version` reported 0.4.0 against a 0.5.0 wheel."""
+def test_the_package_has_one_version_source():
+    """The builder, CLI, MCP, ids, and artifacts share one version value."""
     from gnomon import __version__
     from gnomon.ids import GNOMON_VERSION
     from gnomon.mcp_server import SERVER_INFO
+    from gnomon.product_contract import __version__ as contract_version
     from gnomon.runtime import capabilities
 
+    assert contract_version == __version__
     assert GNOMON_VERSION == __version__
     assert SERVER_INFO["version"] == __version__
     assert capabilities()["runtime_version"] == __version__
     pyproject = (REPO / "pyproject.toml").read_text(encoding="utf-8")
-    assert f'version = "{__version__}"' in pyproject
+    assert 'dynamic = ["version"]' in pyproject
+    assert 'path = "src/gnomon/product_contract.py"' in pyproject
+
+
+def test_current_product_claims_match_the_public_surfaces(monkeypatch):
+    from gnomon.product_contract import (
+        CURRENT_EVIDENCE_RELEASE,
+        DEFAULT_MCP_PROFILE,
+        product_claims,
+    )
+    from gnomon.runtime import capabilities
+    from gnomon.toolspec import active_profile
+
+    monkeypatch.delenv("GNOMON_MCP_PROFILE", raising=False)
+    claims = product_claims()
+    assert active_profile() == DEFAULT_MCP_PROFILE == "core"
+    assert capabilities()["product_contract"] == claims
+    assert claims["forecast_superiority"] == "not_established"
+    assert claims["agent_choice_lift"] == "not_established"
+    assert claims["regulatory_certification"] == "not_claimed"
+    assert f"results/benchmark-releases/{CURRENT_EVIDENCE_RELEASE}/README.md" in README
+    benchmark_index = (REPO / "benchmarks" / "README.md").read_text(
+        encoding="utf-8")
+    assert CURRENT_EVIDENCE_RELEASE in benchmark_index
+    assert "latest citable result" not in benchmark_index
 
 
 # -- the counts ------------------------------------------------------------

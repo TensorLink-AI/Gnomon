@@ -12,9 +12,15 @@ agent may act on. It determines what was knowable, evaluates what should
 produce the answer, computes every published number, states the evidence tier,
 and leaves an immutable record that can be checked and scored later.
 
-## The first job
+## The first deployment wedge
 
-The beachhead is operational threshold risk:
+The first buyer is a security-sensitive or regulated team putting agents near
+consequential temporal data. Gnomon's unusual advantage there is deployable
+rather than aspirational: the built-in runtime works offline, point-in-time
+replay prevents later revisions from leaking backward, and integrity-sealed
+artifacts retain what the agent was allowed to claim.
+
+The first workflow inside that market is operational threshold risk:
 
 > Which metric may cross a meaningful threshold, when, and does the evidence
 > justify intervention?
@@ -23,12 +29,11 @@ This is concrete enough to test against an existing capacity, alerting, or
 planning workflow. Forecast, investigate, detect, decide, and monitor are
 governed views over that job, not five unrelated product promises.
 
-The installer is usually an infrastructure, platform, or data engineer. The
-first paying team, if a hosted model backend is used, is the operational group
-that already pays for forecast maintenance, overprovisioning, missed demand,
-or alert fatigue. Audit and compliance can strengthen an enterprise case, but
-they are not the default pitch and this repository does not claim regulatory
-certification.
+The installer is usually an infrastructure, platform, data, model-risk, or
+governance engineer. The operational group still owns the concrete cost of
+overprovisioning, missed demand, or alert fatigue; governance is the reason an
+agent is permitted into that workflow. This repository provides traceability
+and offline controls, not regulatory certification.
 
 ## The promise
 

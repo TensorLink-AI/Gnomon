@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gnomon-forecast"
-version = "0.7.0"
+dynamic = ["version"]
 description = "A local-first trusted temporal execution runtime for agents"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -54,6 +54,9 @@ Issues = "https://github.com/TensorLink-AI/Gnomon/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/gnomon"]
+
+[tool.hatch.version]
+path = "src/gnomon/product_contract.py"
 
 [tool.hatch.build.targets.wheel.shared-data]
 "skills/use-gnomon" = "share/gnomon/skills/use-gnomon"
