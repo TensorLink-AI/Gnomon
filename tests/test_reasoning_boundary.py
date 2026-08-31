@@ -138,6 +138,18 @@ def test_optional_improvement_does_not_override_complete_resolution():
     assert result["recovery_plan"][0]["execution"]["requires_user_input"] is True
 
 
+def test_best_effort_with_recovery_requires_follow_up() -> None:
+    result = apply_response_contract({
+        "headline": "Orientation-only fallback.", "verb": "forecast",
+        "tier_floor": "best_effort",
+        "recovery_actions": [{
+            "code": "reduce_horizon", "message": "Retry with horizon 4.",
+        }],
+    })
+    assert result["reasoning"]["sufficiency"]["requires_follow_up"] is True
+    assert result["reasoning"]["resolution"]["kind"] == "recovery"
+
+
 def test_inconclusive_tier_floor_keeps_recovery_resolution():
     result = apply_response_contract({
         "headline": "No forecast published.", "verb": "forecast",

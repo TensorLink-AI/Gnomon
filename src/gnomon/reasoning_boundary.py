@@ -265,9 +265,11 @@ def build_argument_envelope(payload: dict[str, Any]) -> dict[str, Any]:
     tier_floor = payload.get("tier_floor")
     unusable = {"invalid", "unsupported", "inconclusive", "abstained"}
     has_answer = canonical is not None
+    recoverable_fallback = tier_floor == "best_effort" and bool(flips)
     supported = bool(
         request_kind and has_answer and support_state not in unusable
         and assessment_state not in unusable and tier_floor not in unusable
+        and not recoverable_fallback
     )
     sufficient_for = ([f"{request_kind}:canonical_answer", "explain_support"]
                       if supported else [])
