@@ -620,6 +620,8 @@ def _default_forecast_horizon(arguments: dict[str, Any]) -> int:
         frequency=arguments.get("frequency"),
         as_of=_parse_as_of(arguments.get("as_of")),
         store_path=arguments.get("store_path"),
+        repair=str(arguments.get("repair", "safe")),
+        regrid=arguments.get("regrid"),
     )
     longest = max(loaded.groups.values(), key=len, default=[])
     season, _, _ = detect_season([item.value for item in longest], loaded.frequency)
