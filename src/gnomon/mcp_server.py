@@ -16,7 +16,10 @@ import sys
 from typing import Any, TextIO
 
 from .contracts import GnomonError
-from .toolspec import runner_for, visible_tools
+from .toolspec import (
+    PROFILES, TOOLS, _SURFACE_EXPERIMENT_TOOLS, active_profile, runner_for,
+    visible_tools,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -95,10 +98,29 @@ def _handle(message: dict[str, Any]) -> dict[str, Any] | None:
         }
     if method == "tools/call":
         params = message.get("params") or {}
-        runner = runner_for(str(params.get("name")))
+        name = str(params.get("name"))
+        runner = runner_for(name)
         if runner is None:
+            known = next((tool for tool in TOOLS if tool["name"] == name), None)
+            if known is not None:
+                profiles = sorted(
+                    profile for profile, names in PROFILES.items()
+                    if name in names
+                )
+                if name not in _SURFACE_EXPERIMENT_TOOLS:
+                    profiles.append("full")
+                return _tool_result(
+                    GnomonError(
+                        "TOOL_NOT_IN_PROFILE",
+                        f"Tool {name!r} is not exposed by the active "
+                        f"{active_profile()!r} profile.",
+                        {"tool": name, "profiles": profiles,
+                         "active_profile": active_profile()},
+                    ).to_dict(),
+                    True,
+                )
             return _tool_result(
-                GnomonError("UNKNOWN_TOOL", f"No such tool: {params.get('name')!r}").to_dict(),
+                GnomonError("UNKNOWN_TOOL", f"No such tool: {name!r}").to_dict(),
                 True,
             )
         arguments = {**(params.get("arguments") or {}),

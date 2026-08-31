@@ -6,6 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from gnomon.mcp_server import _handle
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -79,3 +81,30 @@ def test_tool_error_is_structured_not_fatal() -> None:
 def test_unknown_method_returns_jsonrpc_error() -> None:
     responses = _talk([{"jsonrpc": "2.0", "id": 1, "method": "resources/list"}])
     assert responses[0]["error"]["code"] == -32601
+
+
+def test_known_tool_hidden_by_profile_names_reachable_profiles(monkeypatch) -> None:
+    monkeypatch.setenv("GNOMON_MCP_PROFILE", "evidence")
+    result = _handle({
+        "method": "tools/call",
+        "params": {"name": "gnomon_monitor", "arguments": {}},
+    })
+    assert result is not None and result["isError"] is True
+    error = result["structuredContent"]["error"]
+    assert error["code"] == "TOOL_NOT_IN_PROFILE"
+    assert error["details"] == {
+        "tool": "gnomon_monitor",
+        "profiles": ["core", "data", "decision", "describe", "full"],
+        "active_profile": "evidence",
+    }
+    assert error["repair_options"][0]["action"] == "select_profile"
+
+
+def test_truly_unknown_tool_remains_unknown(monkeypatch) -> None:
+    monkeypatch.setenv("GNOMON_MCP_PROFILE", "core")
+    result = _handle({
+        "method": "tools/call",
+        "params": {"name": "gnomon_time_machine", "arguments": {}},
+    })
+    assert result is not None
+    assert result["structuredContent"]["error"]["code"] == "UNKNOWN_TOOL"

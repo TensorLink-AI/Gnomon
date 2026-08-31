@@ -533,6 +533,9 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
     "UNKNOWN_TOOL": [
         {"action": "list_tools", "description": "Call tools/list for the available tool names."},
     ],
+    "TOOL_NOT_IN_PROFILE": [
+        {"action": "select_profile", "description": "Restart the MCP server with --profile PROFILE or set GNOMON_MCP_PROFILE=PROFILE to a profile named in error.details.profiles."},
+    ],
     "INTERRUPTED": [
         {"action": "retry", "description": "Retry the same idempotent command when ready; details.partial_artifact names any private diagnostic directory retained from an interrupted write."},
     ],
