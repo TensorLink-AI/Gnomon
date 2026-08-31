@@ -1200,6 +1200,36 @@ def _brief_capabilities(full: dict[str, Any]) -> dict[str, Any]:
             # is detail available in the named/full view.
             brief[key] = {"pattern": value.get("pattern")}
             elided.append("general_frequencies.<details>")
+        elif key == "product_contract" and isinstance(value, dict):
+            # Keep the deployment identity and every withheld public claim in
+            # the ambient view; positioning prose stays in the explicit
+            # section. This remains actionable while fitting even the broad
+            # full-profile tool list inside the fixed response budget.
+            brief[key] = {
+                "default_mcp_profile": value.get("default_mcp_profile"),
+                "offline_builtin_runtime": value.get("offline_builtin_runtime"),
+                "current_evidence_release": value.get("current_evidence_release"),
+                "withheld_claims": sorted(
+                    name for name in (
+                        "forecast_superiority", "agent_choice_lift",
+                        "regulatory_certification",
+                    ) if value.get(name) in {"not_established", "not_claimed"}
+                ),
+            }
+            elided.append("product_contract.<positioning_details>")
+        elif key == "features" and isinstance(value, dict):
+            # A boolean map repeats JSON punctuation and ``true`` for every
+            # feature. Preserve every name and state in two lists; callers
+            # requesting the section or full view still receive the exact
+            # map. This recovered enough budget for the product claim
+            # contract without hiding capabilities.
+            brief[key] = {
+                "enabled": sorted(name for name, enabled in value.items()
+                                  if enabled is True),
+                "disabled": sorted(name for name, enabled in value.items()
+                                   if enabled is False),
+            }
+            elided.append("features.<boolean_map>")
         else:
             brief[key] = compact(value, key)
     brief["view"] = {

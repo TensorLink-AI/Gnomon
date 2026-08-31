@@ -93,6 +93,29 @@ def main() -> int:
         assert f"- Support: {forecast['tier_floor']}" in summary
         assert f"<dt>Support</dt><dd>{forecast['tier_floor']}</dd>" in report
 
+        short_source = root / "short-series.csv"
+        short_source.write_text(
+            "timestamp,value\n" + "\n".join(
+                f"{start + timedelta(days=index)},{100 + index}"
+                for index in range(12)
+            ) + "\n",
+            encoding="utf-8",
+        )
+        weak = json.loads(run([
+            str(gnomon), "forecast", str(short_source), "--time", "timestamp",
+            "--target", "value", "--frequency", "D", "--horizon", "14",
+            "--output", str(root / "weak-artifacts"),
+        ], cwd=root))
+        assert weak["tier_floor"] == "best_effort"
+        assert "High-confidence" not in weak["headline"]
+        weak_artifact = Path(weak["artifact_path"])
+        weak_summary = weak_artifact.joinpath("summary.md").read_text(
+            encoding="utf-8")
+        weak_report = weak_artifact.joinpath("report.html").read_text(
+            encoding="utf-8")
+        assert "- Support: best_effort" in weak_summary
+        assert "<dt>Support</dt><dd>best_effort</dd>" in weak_report
+
         mcp = mcp_exchange(gnomon, [
             {
                 "jsonrpc": "2.0", "id": 1, "method": "initialize",
@@ -105,9 +128,9 @@ def main() -> int:
                 "params": {
                     "name": "gnomon_forecast",
                     "arguments": {
-                        "input": str(source), "time_column": "timestamp",
+                        "input": str(short_source), "time_column": "timestamp",
                         "target_column": "value", "frequency": "D",
-                        "horizon": 7, "output_dir": str(root / "mcp-artifacts"),
+                        "horizon": 14, "output_dir": str(root / "mcp-artifacts"),
                     },
                 },
             },
@@ -122,7 +145,8 @@ def main() -> int:
         tool_result = mcp[3]["result"]
         assert tool_result["isError"] is False
         structured = tool_result["structuredContent"]
-        assert structured["tier_floor"] == forecast["tier_floor"]
+        assert structured["tier_floor"] == "best_effort"
+        assert "High-confidence" not in structured["headline"]
         assert structured["artifact_id"] == structured["forecast_id"]
 
         print(json.dumps({
@@ -131,6 +155,7 @@ def main() -> int:
             "default_mcp_profile": capabilities["mcp_profile"]["active"],
             "structural_leakage_check": "passed",
             "forecast_tier_floor": forecast["tier_floor"],
+            "weakest_tier_preservation": "passed",
             "packaged_mcp_journey": "passed",
         }, sort_keys=True))
     return 0

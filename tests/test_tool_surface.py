@@ -1178,9 +1178,20 @@ def test_capabilities_brief_fits_the_budget_and_hides_nothing() -> None:
     assert brief["models"]["statistical"] == full["models"]["statistical"]
     assert brief["models"]["tsfm_capabilities"]["models"] \
         == sorted(full["models"]["tsfm_capabilities"])
-    assert brief["features"] == full["features"]
+    assert set(brief["features"]["enabled"]) == {
+        name for name, enabled in full["features"].items() if enabled is True
+    }
+    assert set(brief["features"]["disabled"]) == {
+        name for name, enabled in full["features"].items() if enabled is False
+    }
     assert brief["frequencies"] == full["frequencies"]
     assert brief["mcp_profile"] == full["mcp_profile"]
+    assert brief["product_contract"]["current_evidence_release"] == \
+        full["product_contract"]["current_evidence_release"]
+    assert set(brief["product_contract"]["withheld_claims"]) == {
+        "forecast_superiority", "agent_choice_lift",
+        "regulatory_certification",
+    }
     # And the view names what was elided and how to get it back.
     view = brief["view"]
     assert view["format"] == "brief"
@@ -1548,7 +1559,7 @@ def test_wide_response_bounding_refreshes_the_one_canonical_triage_block():
     assert triage["series_count"] == 5
     assert triage["returned"] == 3
     assert triage["remainder_count"] == 2
-    assert triage["remainder_tiers"] == {"degraded": 2}
+    assert triage["remainder_tiers"] == {"conditionally_supported": 2}
     assert triage["remainder_preserved"] is True
     assert triage["artifact"] == {"forecast_id": "fc-1",
                                   "artifact_path": "/tmp/artifact"}
