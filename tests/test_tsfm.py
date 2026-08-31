@@ -300,6 +300,32 @@ class TestSandbox:
         adapter = SubprocessAdapter("moment_small")
         assert adapter.supports_quantiles is False
 
+    def test_adapter_metadata_has_one_authoritative_source(self):
+        from gnomon.api_inference import APIAdapter
+        from gnomon.config import APIAuthConfig, APIProviderConfig
+        from gnomon.tsfm import (
+            available_tsfms,
+            get_tsfm,
+            tsfm_parameter_count,
+            tsfm_supports_quantiles,
+        )
+        from gnomon.tsfm_sandbox import SubprocessAdapter
+
+        provider = APIProviderConfig(
+            url="https://example.invalid/forecast",
+            auth=APIAuthConfig(type="none"),
+        )
+        for name in available_tsfms():
+            expected_params = tsfm_parameter_count(name)
+            expected_quantiles = tsfm_supports_quantiles(name)
+            assert expected_params > 0
+            assert get_tsfm(name).params_m == expected_params
+            assert get_tsfm(name).supports_quantiles is expected_quantiles
+            assert SubprocessAdapter(name).params_m == expected_params
+            assert SubprocessAdapter(name).supports_quantiles is expected_quantiles
+            assert APIAdapter(name, provider).params_m == expected_params
+            assert APIAdapter(name, provider).supports_quantiles is expected_quantiles
+
     def test_sandbox_candidates_empty_without_venvs(self):
         from gnomon.tsfm_sandbox import sandbox_tsfm_candidates
         candidates = sandbox_tsfm_candidates(frequency="h")

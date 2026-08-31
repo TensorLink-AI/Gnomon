@@ -176,12 +176,38 @@ _CAPABILITIES: dict[str, TSFMCapabilities] = {
     ),
 }
 
+_PARAMETER_COUNTS_M: dict[str, float] = {
+    "chronos_bolt_mini": 21.0,
+    "chronos_bolt_small": 48.0,
+    "toto2_4m": 4.14,
+    "toto2_22m": 22.0,
+    "flowstate": 18.5,
+    "ttm": 3.0,
+    "moirai2_small": 14.0,
+    "moment_small": 38.0,
+}
+
 
 def tsfm_capabilities(name: str) -> TSFMCapabilities:
     """Return adapter-level capabilities for a registered model."""
     if name not in _CAPABILITIES:
         raise KeyError(f"Unknown TSFM adapter: {name}")
     return _CAPABILITIES[name]
+
+
+def tsfm_parameter_count(name: str) -> float:
+    """Return the registered parameter count in millions, or zero if unknown."""
+    return _PARAMETER_COUNTS_M.get(name, 0.0)
+
+
+def tsfm_supports_quantiles(name: str) -> bool:
+    """Return verified native-quantile support.
+
+    Unregistered names are allowed by the generic HTTP adapter, whose remote
+    protocol historically assumes quantile support unless told otherwise.
+    """
+    capabilities = _CAPABILITIES.get(name)
+    return capabilities.native_quantiles if capabilities is not None else True
 
 
 def capability_matrix() -> dict[str, dict[str, Any]]:
@@ -435,7 +461,7 @@ class ChronosBoltAdapter:
         # and forecast identity.  A family-level name made mini and small
         # silently collide after instantiation.
         self.name = variant
-        self.params_m = 21.0 if "mini" in variant else 48.0
+        self.params_m = tsfm_parameter_count(variant)
         self._pipeline = None
 
     def _ensure_loaded(self):
@@ -537,13 +563,14 @@ class Toto2Adapter:
 
     def __init__(self, name: str = "toto2_22m"):
         variants = {
-            "toto2_4m": ("Datadog/Toto-2.0-4m", 4.14),
-            "toto2_22m": ("Datadog/Toto-2.0-22m", 22.0),
+            "toto2_4m": "Datadog/Toto-2.0-4m",
+            "toto2_22m": "Datadog/Toto-2.0-22m",
         }
         if name not in variants:
             raise TSFMUnavailable(f"Unknown Toto 2.0 adapter: {name}")
         self.name = name
-        self._MODEL_ID, self.params_m = variants[name]
+        self._MODEL_ID = variants[name]
+        self.params_m = tsfm_parameter_count(name)
         self._model = None
 
     def _ensure_loaded(self):
@@ -653,7 +680,7 @@ class FlowStateAdapter:
     """
 
     name: str = "flowstate"
-    params_m: float = 18.5
+    params_m: float = tsfm_parameter_count(name)
     supports_quantiles = True
 
     _MODEL_ID = "ibm-granite/granite-timeseries-flowstate-r1"
@@ -772,7 +799,7 @@ class TinyTimeMixerAdapter:
     """
 
     name: str = "ttm"
-    params_m: float = 3.0
+    params_m: float = tsfm_parameter_count(name)
     supports_quantiles = False
 
     _MODEL_ID = "ibm-granite/granite-timeseries-ttm-r2"
@@ -844,7 +871,7 @@ class Moirai2Adapter:
     """
 
     name: str = "moirai2_small"
-    params_m: float = 14.0
+    params_m: float = tsfm_parameter_count(name)
     supports_quantiles = True
 
     _MODEL_ID = "Salesforce/moirai-2.0-R-small"
@@ -974,8 +1001,8 @@ class MomentAdapter:
     """
 
     name: str = "moment_small"
-    params_m: float = 38.0
-    supports_quantiles = True
+    params_m: float = tsfm_parameter_count(name)
+    supports_quantiles = False
 
     _MODEL_ID = "AutonLab/MOMENT-1-small"
 

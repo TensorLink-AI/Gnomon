@@ -52,7 +52,15 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from .tsfm import TSFMAdapter, TSFMError, TSFMUnavailable
+from .tsfm import (
+    TSFMAdapter,
+    TSFMError,
+    TSFMUnavailable,
+    resolved_weights,
+    tsfm_capabilities,
+    tsfm_parameter_count,
+    tsfm_supports_quantiles,
+)
 
 logger = logging.getLogger(__name__)
 _ADAPTER_POOL: dict[tuple[str, str, str], "SubprocessAdapter"] = {}
@@ -756,16 +764,14 @@ class SubprocessAdapter:
         timeout: int = 300,
     ):
         self.name = name
-        from .tsfm import resolved_weights, tsfm_capabilities
         pins = resolved_weights(name)
         self.revision = ",".join(
             f"{model_id}@{revision}"
             for model_id, revision in sorted(pins.items())) or None
         self.frequency = frequency
         self.timeout = timeout
-        # Infer metadata from the registration in tsfm.py
-        self._params_m = self._lookup_params(name)
-        self._supports_quantiles = self._lookup_supports_quantiles(name)
+        self._params_m = tsfm_parameter_count(name)
+        self._supports_quantiles = tsfm_supports_quantiles(name)
         minimum = tsfm_capabilities(name).min_context_length
         self.min_history = minimum if minimum > 1 else None
         self._process: subprocess.Popen[str] | None = None
@@ -783,23 +789,6 @@ class SubprocessAdapter:
     @property
     def supports_quantiles(self) -> bool:
         return self._supports_quantiles
-
-    def _lookup_params(self, name: str) -> float:
-        params_map = {
-            "chronos_bolt_mini": 21.0,
-            "chronos_bolt_small": 48.0,
-            "toto2_4m": 4.14,
-            "toto2_22m": 22.0,
-            "flowstate": 18.5,
-            "ttm": 3.0,
-            "moirai2_small": 14.0,
-            "moment_small": 38.0,
-        }
-        return params_map.get(name, 0.0)
-
-    def _lookup_supports_quantiles(self, name: str) -> bool:
-        no_quantiles = {"ttm", "moment_small"}
-        return name not in no_quantiles
 
     def _start_worker(self) -> subprocess.Popen[str]:
         """Start one long-lived worker for this adapter instance."""
