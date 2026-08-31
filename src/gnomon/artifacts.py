@@ -347,7 +347,13 @@ def _macro_summary(artifact_id: str, payload: dict[str, Any]) -> str:
     def render_support(assessment: dict[str, Any] | None, indent: str = "") -> None:
         if not assessment:
             return
-        lines.append(f"{indent}- Support: {assessment.get('status', 'unknown')}")
+        from .support import weakest_support_tier
+        legacy_support = assessment.get("legacy_support")
+        rendered_support = weakest_support_tier(
+            [assessment.get("status"), legacy_support],
+            published=legacy_support is not None,
+        ) or assessment.get("status", "unknown")
+        lines.append(f"{indent}- Support: {rendered_support}")
         for reason in assessment.get("reasons", []):
             lines.append(f"{indent}- Reason ({reason['code']}): {reason['message']}")
         for disclosure in assessment.get("disclosures", []):

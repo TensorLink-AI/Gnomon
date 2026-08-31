@@ -108,6 +108,11 @@ def _support_panel(payload: dict[str, Any]) -> str:
                 items.append(f"<li><strong>Warning:</strong> {escape(str(warning))}</li>")
             for note in result.get("notes") or []:
                 items.append(f"<li><strong>Note:</strong> {escape(str(note))}</li>")
+    for trigger in payload.get("triggers") or []:
+        if isinstance(trigger, dict) and isinstance(
+            trigger.get("support_assessment"), dict,
+        ):
+            assessments.append(trigger["support_assessment"])
     for assessment in assessments:
         for group, label in (("reasons", "Reason"), ("disclosures", "Disclosure"),
                              ("recovery_actions", "Next step")):
@@ -165,9 +170,17 @@ def render_artifact_html(
         )
     for trigger in payload.get("triggers") or []:
         if isinstance(trigger, dict):
+            assessment = trigger.get("support_assessment") or {}
+            from .support import weakest_support_tier
+            support = weakest_support_tier(
+                [assessment.get("status"), assessment.get("legacy_support"),
+                 (trigger.get("horizon_event") or {}).get("support")],
+                published=bool(trigger.get("horizon_event")),
+            ) or "unknown"
             sections.append(
                 f"<section><h2>Trigger · {escape(str(trigger.get('series', 'series')))}</h2>"
-                f"<p>Armed: <strong>{escape(str(trigger.get('armed')))}</strong></p></section>"
+                f"<dl><dt>Support</dt><dd>{escape(str(support))}</dd>"
+                f"<dt>Armed</dt><dd>{escape(str(trigger.get('armed')))}</dd></dl></section>"
             )
     evaluation = payload.get("evaluation")
     if isinstance(evaluation, dict):
