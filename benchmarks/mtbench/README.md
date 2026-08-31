@@ -139,6 +139,13 @@ download's parquet shards as temporary per-task JSON, because MTBench's
 published evaluator only globs JSON even though its downloader currently
 ships parquet. The official evaluator and scorer remain unmodified.
 
+Hosted runs also expose `--base-url`, `--api-key-env`,
+`--request-timeout`, and `--max-retries`. Record the same values for every
+matched arm; the defaults bound each request to 180 seconds and two retries.
+A provider or agent-loop failure is charged to its sample and retained in the
+error count, detail file, JSONL record, summary, and manifest instead of
+discarding the whole shard.
+
 Outputs: `summary.json` (official-style mean MSE/MAE/RMSE/MAPE over
 samples passing the official filter, plus abstention/error counts and
 which MAPE implementation scored the run), `output_details/` per

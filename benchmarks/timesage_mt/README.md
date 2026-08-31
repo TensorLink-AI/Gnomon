@@ -111,3 +111,7 @@ with `--resume`; only complete transcripts matching the requested condition
 and model are reused, while missing or legacy transcripts are rerun. Usage is
 then reconstructed by summing those per-task receipts rather than guessed from
 the surviving process. `--timeout` bounds each individual API request.
+`--max-retries` bounds transport retries (default 2); `--base-url` and
+`--api-key-env` make the hosted endpoint contract explicit. All three are part
+of the resume identity, so a checkpoint created under different request
+semantics is rerun rather than silently reused.

@@ -310,10 +310,15 @@ def forecast_sample(sample: dict[str, Any], *, mode: str,
 def run(dataset_folder: Path, output_dir: Path, *, mode: str,
         openrouter_model: str | None, mtbench_root: Path | None,
         temperature: float = 0.7, limit: int | None = None,
-        work_dir: str | None = None) -> dict[str, Any]:
+        work_dir: str | None = None, api_key: str | None = None,
+        base_url: str | None = None, request_timeout: float = 180.0,
+        max_retries: int = 2) -> dict[str, Any]:
     if mtbench_root is not None and str(mtbench_root) not in sys.path:
         sys.path.insert(0, str(mtbench_root))
-    client = (OpenRouterClient(openrouter_model, temperature=temperature)
+    client = (OpenRouterClient(
+        openrouter_model, api_key=api_key, base_url=base_url,
+        temperature=temperature, timeout=request_timeout,
+        max_retries=max_retries)
               if mode in ("agent", "tools", "mcp") else None)
     samples = load_samples(dataset_folder)
     if limit:
@@ -347,8 +352,31 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
                  "submit_reasoning", "trace")
     for sample in samples:
         started = time.time()
-        outcome = forecast_sample(sample, mode=mode, client=client,
-                                  work_dir=work_dir)
+        try:
+            outcome = forecast_sample(sample, mode=mode, client=client,
+                                      work_dir=work_dir)
+        except Exception as error:  # noqa: BLE001 — provider and agent
+            # failures cost exactly this sample. A bounded provider timeout
+            # must not discard already completed rows or prevent the shard
+            # from emitting a summary and manifest.
+            elapsed = time.time() - started
+            errored += 1
+            entry = {
+                "filename": sample["filename"],
+                "error": str(error),
+                "error_type": type(error).__name__,
+            }
+            records.write(RunRecord(
+                task_id=sample["filename"], success=False,
+                latency_seconds=round(elapsed, 3),
+                extra={"error": str(error),
+                       "error_type": type(error).__name__},
+            ))
+            per_sample.append(entry)
+            (details_dir / sample["filename"]).write_text(
+                json.dumps(entry, indent=2) + "\n", encoding="utf-8"
+            )
+            continue
         elapsed = time.time() - started
         truth = [float(v) for v in sample["output_window"]]
         entry: dict[str, Any] = {"filename": sample["filename"]}
@@ -472,6 +500,11 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
         summary["routes"] = dict(sorted(routes.items()))
     if client is not None:
         summary["llm_usage"] = client.usage_summary
+        summary["request_contract"] = {
+            "base_url": client.base_url,
+            "request_timeout_seconds": request_timeout,
+            "max_retries": max_retries,
+        }
     (output_dir / "summary.json").write_text(
         json.dumps(summary, indent=2) + "\n", encoding="utf-8"
     )
@@ -492,6 +525,8 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
         command=" ".join(sys.argv),
         limit=limit,
         base_url=client.base_url if client is not None else None,
+        request_timeout=(request_timeout if client is not None else None),
+        max_retries=(max_retries if client is not None else None),
         code_revision=run_revision,
     )
     return summary

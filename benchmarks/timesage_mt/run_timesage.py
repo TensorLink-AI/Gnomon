@@ -38,6 +38,7 @@ import argparse
 import csv
 import hashlib
 import json
+import os
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -48,6 +49,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 
 from benchmarks.common.manifest import code_revision, write_manifest  # noqa: E402
+from benchmarks.common.envfile import load_env_file  # noqa: E402
 from benchmarks.common.openrouter import OpenRouterClient  # noqa: E402
 from benchmarks.common.records import RecordWriter, RunRecord  # noqa: E402
 from benchmarks.timesage_mt import harness, scoring  # noqa: E402
@@ -61,7 +63,7 @@ from benchmarks.timesage_mt.tasks import (  # noqa: E402
 
 def task_request_identity(
     task: TimeSageTask, *, condition: str, model: str, base_url: str,
-    temperature: float, timeout: float, revision: str,
+    temperature: float, timeout: float, max_retries: int, revision: str,
 ) -> str:
     """Fingerprint every input that can change a resumed model response."""
     visible = (task.visible_csv.read_bytes() if task.visible_csv
@@ -80,6 +82,7 @@ def task_request_identity(
         "base_url": base_url,
         "temperature": temperature,
         "timeout_seconds": timeout,
+        "max_retries": max_retries,
         "code_revision": revision,
     }
     return hashlib.sha256(json.dumps(
@@ -152,9 +155,13 @@ class _TaskRunError(RuntimeError):
 
 
 def _run_task(task: TimeSageTask, *, model: str, temperature: float,
-              timeout: float, condition: str) -> tuple[list[dict], dict, float]:
+              timeout: float, max_retries: int, base_url: str,
+              api_key: str | None, condition: str,
+              ) -> tuple[list[dict], dict, float]:
     """Run one independent dialogue with task-local accounting."""
-    client = OpenRouterClient(model, temperature=temperature, timeout=timeout)
+    client = OpenRouterClient(
+        model, temperature=temperature, timeout=timeout,
+        max_retries=max_retries, base_url=base_url, api_key=api_key)
     started = time.time()
     try:
         turns = harness.run_dialogue(task, client, condition=condition)
@@ -177,6 +184,11 @@ def main() -> int:
     parser.add_argument("--condition", choices=["direct", "gnomon-tools"],
                         default=None, help="Agent condition to run")
     parser.add_argument("--model", default=None, help="OpenRouter model id")
+    parser.add_argument("--base-url", default=None,
+                        help="OpenAI-compatible endpoint; recorded in provenance")
+    parser.add_argument("--api-key-env", default="OPENROUTER_API_KEY",
+                        choices=("OPENROUTER_API_KEY", "ENGY_API_KEY",
+                                 "CHUTES_API_KEY"))
     parser.add_argument("--judge-model", default=None,
                         help="Optional OpenRouter judge for non-mechanical specs")
     parser.add_argument("--tiers", default="L1,L2,L3,L4")
@@ -185,6 +197,8 @@ def main() -> int:
     parser.add_argument("--temperature", type=float, default=0.2)
     parser.add_argument("--timeout", type=float, default=180.0,
                         help="Per-request timeout in seconds (default: 180)")
+    parser.add_argument("--max-retries", type=int, default=2,
+                        help="Bounded transport retries per request (default: 2)")
     parser.add_argument("--workers", type=int, default=1,
                         help="Independent task dialogues to run concurrently")
     parser.add_argument("--resume", action="store_true",
@@ -208,11 +222,20 @@ def main() -> int:
     tasks = load_tasks(data_dir, tiers=tiers or TIERS, limit=args.limit)
     if args.workers < 1:
         parser.error("--workers must be at least 1")
+    if args.max_retries < 0:
+        parser.error("--max-retries must be non-negative")
+    load_env_file()
+    api_key = os.environ.get(args.api_key_env)
     # This client performs no requests. It resolves credentials and endpoint
     # provenance once; each worker gets an independent accounting client.
-    client = OpenRouterClient(args.model, temperature=args.temperature,
-                              timeout=args.timeout)
-    judge = OpenRouterClient(args.judge_model, temperature=0.0) \
+    client = OpenRouterClient(
+        args.model, api_key=api_key, base_url=args.base_url,
+        temperature=args.temperature, timeout=args.timeout,
+        max_retries=args.max_retries)
+    judge = OpenRouterClient(
+        args.judge_model, api_key=api_key, base_url=args.base_url,
+        temperature=0.0, timeout=args.timeout,
+        max_retries=args.max_retries) \
         if args.judge_model else None
 
     output_dir = Path(args.output_dir)
@@ -237,7 +260,8 @@ def main() -> int:
         request_identity = task_request_identity(
             task, condition=args.condition, model=args.model,
             base_url=client.base_url, temperature=args.temperature,
-            timeout=args.timeout, revision=run_revision)
+            timeout=args.timeout, max_retries=args.max_retries,
+            revision=run_revision)
         transcript_path = transcripts_dir / f"{task.task_id}.json"
         if args.resume and transcript_path.exists():
             try:
@@ -265,6 +289,8 @@ def main() -> int:
             pool.submit(
                 _run_task, task, model=args.model,
                 temperature=args.temperature, timeout=args.timeout,
+                max_retries=args.max_retries, base_url=client.base_url,
+                api_key=api_key,
                 condition=args.condition,
             ): task
             for task in pending
@@ -287,6 +313,7 @@ def main() -> int:
                         task, condition=args.condition, model=args.model,
                         base_url=client.base_url,
                         temperature=args.temperature, timeout=args.timeout,
+                        max_retries=args.max_retries,
                         revision=run_revision),
                     "elapsed_seconds": elapsed, "llm_usage": usage,
                     "turns": turn_records,
@@ -347,7 +374,8 @@ def main() -> int:
             "request_identity_sha256": task_request_identity(
                 task, condition=args.condition, model=args.model,
                 base_url=client.base_url, temperature=args.temperature,
-                timeout=args.timeout, revision=run_revision),
+                timeout=args.timeout, max_retries=args.max_retries,
+                revision=run_revision),
             "elapsed_seconds": elapsed, "llm_usage": usage, "turns": [],
         }
         for record in turn_records:
@@ -438,6 +466,9 @@ def main() -> int:
         limit=args.limit,
         judge_model=args.judge_model,
         base_url=client.base_url,
+        api_key_env=args.api_key_env,
+        request_timeout=args.timeout,
+        max_retries=args.max_retries,
         code_revision=run_revision,
     )
     print(json.dumps(summary, indent=2))
