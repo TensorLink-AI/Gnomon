@@ -713,6 +713,8 @@ def main() -> int:
     typed_engine_answers_officially_correct = 0
     typed_answers_comparable_to_submission = 0
     typed_answers_preserved_by_agent = 0
+    typed_synthesized_comparable = 0
+    typed_synthesized_preserved = 0
     canonical_choice_correct = canonical_choice_total = 0
     synthesized_choice_correct = synthesized_choice_total = 0
     hybrid_choice_correct = hybrid_choice_total = 0
@@ -1001,6 +1003,13 @@ def main() -> int:
                         # Later receipts for the same immutable artifact do
                         # not multiply the evaluation denominator.
                         receipt_answers[question_id] = typed_answer
+            for key, canonical in canonical_choices.items():
+                if key not in synthesized_choices:
+                    continue
+                typed_synthesized_comparable += 1
+                typed_synthesized_preserved += int(
+                    str(synthesized_choices[key]).strip().lower()
+                    == str(canonical).strip().lower())
             if tier in {"T1", "T3"}:
                 requested_count = int(temporal_compilation.get("accepted", 0))
                 typed_questions_requested += requested_count
@@ -1295,9 +1304,21 @@ def main() -> int:
                         typed_answers_preserved_by_agent
                         / typed_answers_comparable_to_submission, 4)
                         if typed_answers_comparable_to_submission else None,
+                    "model_synthesis_comparable_to_engine_answer":
+                        typed_synthesized_comparable,
+                    "model_synthesis_preserved_engine_answer":
+                        typed_synthesized_preserved,
+                    "model_synthesis_preservation_rate": round(
+                        typed_synthesized_preserved
+                        / typed_synthesized_comparable, 4)
+                        if typed_synthesized_comparable else None,
                     "note": ("Official accuracy measures the submitted task "
-                             "answer; preservation only compares exact canonical "
-                             "or explicitly projected display values."),
+                             "answer. model_synthesis_* measures the model's "
+                             "raw submitted choices before host binding; "
+                             "agent_preservation_rate measures the final "
+                             "accepted response after supported binding. Both "
+                             "compare only exact canonical or explicitly "
+                             "projected display values."),
                 }}
                if args.compile_questions else {}),
             **({
