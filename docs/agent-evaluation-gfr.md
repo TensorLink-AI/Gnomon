@@ -56,3 +56,9 @@ Run a retained result with:
 ```bash
 python -m benchmarks.gfr results/gfr/result.json --root .
 ```
+
+The bounded smoke producer is `python -m benchmarks.gfr_smoke --help`. It
+requires same-revision, provider-, model-, temperature-, task-, seed-, and
+sample-matched CiK arms plus retained deterministic governance shards. It
+records unavailable candidate-calibration or efficiency measurements as
+failures; it does not infer a favorable value from a nearby metric.
