@@ -439,8 +439,10 @@ def sampled_prior_sufficiency(
         })
         direction_agreement = None
         pairwise_ratio = None
+        scale_basis = None
     else:
         try:
+            scale_basis = str(stability["scale_basis"])
             direction_agreement = float(stability["mean_direction_agreement"])
             median_pairwise = float(stability["median_pairwise_mae_scaled"])
             mean_width = float(
@@ -463,10 +465,14 @@ def sampled_prior_sufficiency(
             })
             direction_agreement = None
             pairwise_ratio = None
+            scale_basis = None
         else:
             valid_stability = bool(
                 stability.get("interpretation") ==
                 "stability_not_historical_skill"
+                and scale_basis in {
+                    "median_nonzero_history_increment", "history_range",
+                    "level_floor"}
                 and stability.get("path_count") == accepted
                 and all(math.isfinite(value) and value >= 0 for value in (
                     direction_agreement, median_pairwise, mean_width))
@@ -475,6 +481,16 @@ def sampled_prior_sufficiency(
                 reasons.append({
                     "code": "invalid_stability_diagnostics",
                     "message": "Host-observed stability diagnostics are invalid.",
+                })
+            elif scale_basis == "level_floor":
+                reasons.append({
+                    "code": "unanchored_stability_scale",
+                    "message": (
+                        "The observed target history has no empirical "
+                        "variation with which to scale a model-authored "
+                        "numeric prior. The prior remains available as a "
+                        "labelled scenario but cannot displace the primary "
+                        "human recommendation."),
                 })
             elif direction_agreement < SAMPLED_PRIOR_MIN_DIRECTION_AGREEMENT:
                 reasons.append({
@@ -507,6 +523,8 @@ def sampled_prior_sufficiency(
             SAMPLED_PRIOR_MAX_PAIRWISE_TO_POINTWISE_RATIO,
         "observed_direction_agreement": direction_agreement,
         "observed_pairwise_to_pointwise_ratio": pairwise_ratio,
+        "observed_scale_basis": scale_basis,
+        "empirical_scale_required": True,
         "interpretation": "elicitation_sufficiency_not_historical_skill",
         "historical_skill_evidence": False,
         "automation_eligible": False,

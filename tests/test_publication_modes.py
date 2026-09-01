@@ -1420,6 +1420,41 @@ def test_unstable_sampled_prior_stays_visible_without_displacing_primary():
                for item in publication["candidate_portfolio"])
 
 
+def test_unanchored_sampled_prior_stays_visible_without_displacing_primary():
+    dossier = _dossier()
+    dossier["forecast_candidate"]["elicitation"] = {
+        "kind": "sampled_point_paths", "requested_paths": 3,
+        "accepted_paths": 3,
+        "aggregation": "linear_empirical_marginal_q10_q50_q90",
+        "temperature": 1.0, "host_observed": True,
+        "historical_skill_evidence": False, "automation_eligible": False,
+        "stability": {
+            **_stable_sampling(3),
+            "scale_basis": "level_floor",
+        },
+    }
+    import hashlib, json
+    body = {key: value for key, value in dossier.items()
+            if key != "seal_sha256"}
+    dossier["seal_sha256"] = hashlib.sha256(json.dumps(
+        body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+    scenarios, _ = build_scenario_catalog(_result(), dossiers=[dossier])
+    sampled = next(item for item in scenarios
+                   if item["scenario_id"] == "prior-assisted-1")
+
+    assert sampled["human_selection_eligible"] is False
+    assert sampled["effect"]["elicitation_sufficiency"]["reason_codes"] == [
+        "unanchored_stability_scale"]
+    assert best_effort_prior_selection(
+        scenarios=scenarios, dossiers=[dossier]) is None
+    publication = publish_result(
+        _result(), mode="best_effort", dossiers=[dossier])
+    assert publication["recommended_scenario_id"] == "primary"
+    assert any(item["scenario_id"] == "prior-assisted-1"
+               for item in publication["candidate_portfolio"])
+
+
 def test_sampled_outliers_remain_diagnostics_not_published_tail_width():
     dossier = _dossier()
     for row in dossier["forecast_candidate"]["quantiles"]:
@@ -2468,12 +2503,23 @@ def test_mcp_context_transformation_rejection_is_typed_and_primary_is_intact(tmp
     assert verify_publication(publication)
 
 
-def test_mcp_model_candidate_is_grid_bound_sealed_and_human_only(tmp_path):
+def test_mcp_model_candidate_is_grid_bound_sealed_and_human_only(
+        tmp_path, monkeypatch):
     from datetime import date, timedelta
+    from gnomon import agent_context
     source = tmp_path / "series.csv"
     start = date(2026, 1, 1)
     source.write_text("timestamp,value\n" + "\n".join(
         f"{start + timedelta(days=i)},{100 + i}" for i in range(40)) + "\n")
+    observed_stability_histories = []
+    original_stability = agent_context.sample_path_stability
+
+    def record_stability_history(paths, history_values):
+        observed_stability_histories.append(list(history_values))
+        return original_stability(paths, history_values)
+
+    monkeypatch.setattr(
+        agent_context, "sample_path_stability", record_stability_history)
     context = "The signed sales plan expects a temporary campaign uplift."
     payload = runner_for("gnomon_forecast")({
         "input": str(source), "horizon": 2,
@@ -2503,6 +2549,9 @@ def test_mcp_model_candidate_is_grid_bound_sealed_and_human_only(tmp_path):
         "reason_code"] == "sampled_prior_has_no_historical_skill"
     assert publication["primary_forecast_unchanged"] is True
     assert publication["automation"]["eligible"] is False
+    assert observed_stability_histories
+    assert all(history == list(range(100, 140))
+               for history in observed_stability_histories)
     assert verify_publication(publication)
 
 

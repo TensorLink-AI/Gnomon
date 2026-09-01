@@ -423,6 +423,22 @@ def test_zero_marginal_width_does_not_waive_path_coherence():
     assert "dispersed_sampled_paths" in result["reason_codes"]
 
 
+def test_sampled_prior_without_empirical_target_scale_cannot_headline():
+    result = sampled_prior_sufficiency({
+        "requested": 3,
+        "accepted": 3,
+        "stability": sample_path_stability(
+            [[0, 10, 20], [0, 10.1, 20.1], [0, 9.9, 19.9]],
+            [0, 0, 0, 0],
+        ),
+    })
+
+    assert result["eligible_for_human_recommendation"] is False
+    assert result["reason_codes"] == ["unanchored_stability_scale"]
+    assert result["observed_scale_basis"] == "level_floor"
+    assert result["empirical_scale_required"] is True
+
+
 def test_sampled_prior_sufficiency_is_invariant_to_units_and_level():
     paths = [[10, 11, 13], [10.1, 11.2, 13.1], [9.9, 10.8, 12.9]]
     transformed = [[1000 + 25 * value for value in path] for path in paths]

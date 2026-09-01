@@ -2709,9 +2709,7 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                     temperature = float(temperature)
                     stability = sample_path_stability(
                         model_candidate_paths,
-                        [float(row.get("q50", row.get("point"))) for row in
-                         (result.get("primary_forecast") or
-                          result.get("forecast") or [])])
+                        governed_history)
                     dossier = attach_host_candidate_elicitation(
                         dossier, requested_paths=len(sample_paths),
                         accepted_paths=len(model_candidate_paths),
