@@ -1889,6 +1889,80 @@ def test_t3_answers_are_the_pack_list_in_order(tmp_path):
     assert score_t3(_t3_row(), outcome["answer"]["answers"])["correct"] == 2
 
 
+def _typed_choice(value: str, *, support: str = "supported",
+                  automation_eligible: bool = True) -> dict:
+    return {"source": "inline_describe", "answers": [{
+        "question": {"id": "q1"},
+        "best_estimate": {
+            "value": value, "display_value": value, "support": support,
+            "automation_eligible": automation_eligible,
+        },
+        "reasoning": {"primary_forecast_unchanged": True},
+    }]}
+
+
+def test_t1_supported_typed_answer_binds_final_agent_choice() -> None:
+    from benchmarks.temporalbench.mcp_agent import _McqRun
+
+    run = _McqRun.__new__(_McqRun)
+    run.submission = None
+    run.rejections = 0
+    run.is_pack = False
+    run.expected_fields = ["trend"]
+    run.choice_slots = [("trend", ["upward", "downward", "constant"])]
+    run.descriptive_answer_receipts = [_typed_choice("constant")]
+    run.trace = []
+
+    accepted = run._handle_submit({"answers": {"trend": "upward"}})
+
+    assert accepted["accepted"] is True
+    assert run.submission["answer"] == {"trend": "constant"}
+    assert run.submission["canonical_choices"] == {"trend": "constant"}
+    assert run.submission["synthesized_choices"] == {"trend": "upward"}
+    assert run.submission["choice_authority"] == {"trend": "binding"}
+
+
+def test_t1_weak_typed_answer_remains_advisory() -> None:
+    from benchmarks.temporalbench.mcp_agent import _McqRun
+
+    run = _McqRun.__new__(_McqRun)
+    run.submission = None
+    run.rejections = 0
+    run.is_pack = False
+    run.expected_fields = ["trend"]
+    run.choice_slots = [("trend", ["upward", "downward", "constant"])]
+    run.descriptive_answer_receipts = [
+        _typed_choice("constant", support="weak",
+                      automation_eligible=False)]
+    run.trace = []
+
+    run._handle_submit({"answers": {"trend": "upward"}})
+
+    assert run.submission["answer"] == {"trend": "upward"}
+    assert run.submission["choice_authority"] == {
+        "trend": "advisory_synthesis"}
+
+
+def test_t3_supported_typed_answer_uses_public_semantic_alias() -> None:
+    from benchmarks.temporalbench.mcp_agent import _McqRun
+
+    run = _McqRun.__new__(_McqRun)
+    run.submission = None
+    run.rejections = 0
+    run.is_pack = True
+    run.expected_count = 1
+    run.pack_options = [["Rising", "Falling", "Flat", "Uncertain"]]
+    run.choice_slots = [("q1", run.pack_options[0])]
+    run.descriptive_answer_receipts = [_typed_choice("constant")]
+    run.trace = []
+
+    run._handle_submit({"answers": ["Rising"]})
+
+    assert run.submission["answer"] == {"answers": ["Flat"]}
+    assert run.submission["canonical_choices"] == {"q1": "Flat"}
+    assert run.submission["synthesized_choices"] == {"q1": "Rising"}
+
+
 def test_t3_invalid_option_envelope_gets_one_bounded_repair(tmp_path):
     outcome = _run_mcq(_t3_row(), [
         {"tool_calls": [("submit_answer", {"answers": ["A", "B"]})]},

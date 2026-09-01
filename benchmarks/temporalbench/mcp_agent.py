@@ -715,6 +715,92 @@ def mcq_submit_tool(row: dict[str, Any]) -> tuple[dict[str, Any], str]:
     }, rule)
 
 
+def _row_choice_slots(row: dict[str, Any]) -> list[tuple[str, list[str]]]:
+    """Return public answer slots and option vocabularies without labels.
+
+    T3 already stores its public options structurally.  T1 stores only field
+    names structurally, so parse the numbered question lines that are also
+    shown verbatim to the agent.  A parse mismatch yields no projection; it
+    must never guess a vocabulary from the hidden label values.
+    """
+    if row.get("tier") == "T3":
+        return [
+            (f"q{index + 1}", [str(option) for option in
+                               (item.get("options") or [])])
+            for index, item in enumerate(row.get("pack") or [])
+            if isinstance(item, dict)
+        ]
+    fields = list((row.get("labels") or {}).keys())
+    groups = re.findall(
+        r"(?m)^\s*\d+\)\s*[^:\n]+:\s*\{([^}\n]+)\}",
+        str(row.get("prompt") or ""),
+    )
+    vocabularies = [re.findall(r'"([^"]+)"', group) for group in groups]
+    if len(vocabularies) != len(fields) or any(not row for row in vocabularies):
+        return []
+    return list(zip(fields, vocabularies))
+
+
+def _project_temporal_answer_choices(
+    receipts: list[dict[str, Any]],
+    slots: list[tuple[str, list[str]]],
+) -> dict[str, dict[str, Any]]:
+    """Project engine-owned typed answers into caller-owned vocabularies.
+
+    The projection sees only the typed receipt and public options.  It never
+    sees benchmark labels or future values.  Supported automation-eligible
+    results may therefore bind a final choice; weaker results remain advisory.
+    """
+    from gnomon.temporal_vocabulary import project_temporal_choice
+
+    answers: dict[str, dict[str, Any]] = {}
+    for receipt in receipts:
+        for answer in receipt.get("answers") or []:
+            raw_id = str((answer.get("question") or {}).get("id") or "")
+            base_id = raw_id.split(":", 1)[0]
+            if base_id:
+                answers[base_id] = answer
+    projected: dict[str, dict[str, Any]] = {}
+    for index, (slot, options) in enumerate(slots):
+        answer = answers.get(slot) or answers.get(f"q{index + 1}")
+        if not answer:
+            continue
+        best = answer.get("best_estimate") or {}
+        choice = project_temporal_choice(best.get("value"), options)
+        if choice is None:
+            continue
+        reasoning = answer.get("reasoning") or \
+            (answer.get("answer") or {}).get("reasoning") or {}
+        adjudication = reasoning.get("adjudication") or {}
+        eligibility = adjudication.get("synthesis_eligibility") or {}
+        alternative = adjudication.get("alternative") or {}
+        alternative_choice = project_temporal_choice(
+            alternative.get("value"), options)
+        synthesis_eligible = bool(
+            adjudication.get("synthesis_eligible") is True
+            or eligibility.get("eligible") is True)
+        projected[slot] = {
+            **choice,
+            "canonical_value": best.get("value"),
+            "support": str(best.get("support") or "unknown"),
+            "automation_eligible": bool(
+                best.get("automation_eligible") is True),
+            "primary_forecast_unchanged": bool(
+                reasoning.get("primary_forecast_unchanged") is True),
+            "authority": (
+                "binding" if best.get("support") == "supported"
+                and best.get("automation_eligible") is True else "advisory"),
+            "has_computed_opposition": bool(
+                synthesis_eligible and alternative_choice is not None),
+            "computed_alternative": (
+                alternative_choice.get("display_value")
+                if alternative_choice else None),
+            "adjudication_relationship": adjudication.get(
+                "relationship", "unresolved"),
+        }
+    return projected
+
+
 def _write_wide_csv(channels: dict[str, list[float]], csv_path: Path,
                     epoch: datetime = EPOCH,
                     step: timedelta = STEP) -> None:
@@ -2766,10 +2852,8 @@ class _Run(_RunBase):
 
     def _project_receipt_choices(self) -> dict[str, dict[str, Any]]:
         """Project immutable engine answers into explicit task vocabulary."""
-        from gnomon.temporal_vocabulary import project_temporal_choice
-
         question_keys = list((self.row.get("mcq") or {}).keys())
-        aligned: dict[str, dict[str, Any]] = {}
+        receipts: list[dict[str, Any]] = []
         for artifact_path in sorted(self.artifact_paths):
             receipt_path = Path(artifact_path) / "temporal_answers.json"
             if not receipt_path.is_file():
@@ -2778,56 +2862,14 @@ class _Run(_RunBase):
                 receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError):
                 continue
-            for answer in receipt.get("answers") or []:
-                raw_id = str((answer.get("question") or {}).get("id") or "")
-                base_id = raw_id.split(":", 1)[0]
-                key = base_id if base_id in question_keys else None
-                if key is None and base_id.startswith("q") and base_id[1:].isdigit():
-                    index = int(base_id[1:]) - 1
-                    if 0 <= index < len(question_keys):
-                        key = question_keys[index]
-                if key is not None:
-                    aligned[key] = answer
-        projected: dict[str, dict[str, str]] = {}
-        for key, answer in aligned.items():
-            best = answer.get("best_estimate") or {}
-            # Supported automation-eligible answers bind the published
-            # software answer. Weak estimates are advisory evidence for a
-            # separately labelled model synthesis. A genuine abstention has
-            # no projectable canonical value.
-            options = ((self.row.get("mcq") or {}).get(key) or {}).get(
-                "options") or []
-            choice = project_temporal_choice(best.get("value"), options)
-            if choice is not None:
-                reasoning = (answer.get("answer") or {}).get("reasoning") or {}
-                adjudication = reasoning.get("adjudication") or {}
-                synthesis = adjudication.get("synthesis_eligibility") or {}
-                alternative = adjudication.get("alternative") or {}
-                alternative_choice = project_temporal_choice(
-                    alternative.get("value"), options)
-                computed_alternative = (
-                    alternative_choice.get("display_value")
-                    if alternative_choice else None)
-                projected[key] = {
-                    **choice,
-                    "canonical_value": best.get("value"),
-                    "support": str(best.get("support") or "unknown"),
-                    "automation_eligible": bool(
-                        best.get("automation_eligible") is True),
-                    "primary_forecast_unchanged": bool(
-                        reasoning.get("primary_forecast_unchanged") is True),
-                    "authority": ("binding" if
-                                  best.get("support") == "supported"
-                                  and best.get("automation_eligible") is True
-                                  else "advisory"),
-                    "has_computed_opposition": bool(
-                        synthesis.get("eligible") is True
-                        and computed_alternative is not None),
-                    "computed_alternative": computed_alternative,
-                    "adjudication_relationship": adjudication.get(
-                        "relationship", "unresolved"),
-                }
-        return projected
+            receipts.append(receipt)
+        slots = [
+            (key, [str(option) for option in
+                   (((self.row.get("mcq") or {}).get(key) or {}).get(
+                       "options") or [])])
+            for key in question_keys
+        ]
+        return _project_temporal_answer_choices(receipts, slots)
 
     # -- result ------------------------------------------------------------
     def _resolve_submission(self) -> dict[str, Any]:
@@ -2904,6 +2946,7 @@ class _McqRun(_RunBase):
             ([str(option) for option in item.get("options") or []]
              if isinstance(item, dict) else [])
             for item in row.get("pack") or []]
+        self.choice_slots = _row_choice_slots(row)
         self.rejections = 0
         super().__init__(row, client, session_factory=session_factory,
                          work_dir=work_dir, profile=profile,
@@ -3002,6 +3045,11 @@ class _McqRun(_RunBase):
                 + json.dumps(rejected[:8], separators=(",", ":"))
                 + ". Never substitute an accepted sibling for a rejected "
                 "question.\n")
+            text += (
+                "A supported, automation-eligible Gnomon answer that maps "
+                "uniquely into the task's public option vocabulary is the "
+                "binding software answer. Weaker or unprojectable answers "
+                "remain advisory and do not replace your synthesis.\n")
         return text
 
     def _abstain_outcome(self, reason: str) -> dict[str, Any]:
@@ -3037,9 +3085,53 @@ class _McqRun(_RunBase):
             resolved = {str(key): str(value)
                         for key, value in (answers or {}).items()} \
                 if isinstance(answers, dict) else {}
+        synthesized_by_slot = (
+            {f"q{index + 1}": value
+             for index, value in enumerate(resolved.get("answers") or [])}
+            if self.is_pack else dict(resolved))
+        projected = _project_temporal_answer_choices(
+            self.descriptive_answer_receipts, self.choice_slots)
+        canonical_by_slot = {
+            key: value["display_value"] for key, value in projected.items()}
+        for index, (slot, _options) in enumerate(self.choice_slots):
+            choice = projected.get(slot)
+            if not choice or choice["authority"] != "binding":
+                continue
+            if self.is_pack:
+                if index < len(resolved["answers"]):
+                    resolved["answers"][index] = choice["display_value"]
+            else:
+                resolved[slot] = choice["display_value"]
+        if projected:
+            self.trace.append({
+                "tool": "host_choice_projection",
+                "host_submission": "support_tiered_temporal_answer",
+                "projected": projected,
+            })
         self.submission = {"answer": resolved,
                            "reasoning": arguments.get("reasoning"),
-                           "problems": problems}
+                           "problems": problems,
+                           "canonical_choices": canonical_by_slot,
+                           "synthesized_choices": synthesized_by_slot,
+                           "choice_authority": {
+                               key: ("binding" if value["authority"] ==
+                                     "binding" else "advisory_synthesis")
+                               for key, value in projected.items()},
+                           "temporal_choice_contracts": {
+                               key: {
+                                   "canonical_value": value.get(
+                                       "canonical_value"),
+                                   "display_value": value.get(
+                                       "display_value"),
+                                   "support": value.get("support"),
+                                   "automation_eligible": value.get(
+                                       "automation_eligible"),
+                                   "primary_forecast_unchanged": value.get(
+                                       "primary_forecast_unchanged"),
+                                   "authority": value.get("authority"),
+                               }
+                               for key, value in projected.items()},
+                           }
         return {"accepted": True,
                 **({"noted": problems} if problems else {})}
 
@@ -3082,6 +3174,14 @@ class _McqRun(_RunBase):
                if self.submission["problems"] else {}),
             **({"last_call": self.submission["last_call"]}
                if self.submission.get("last_call") else {}),
+            "canonical_choices": self.submission.get(
+                "canonical_choices", {}),
+            "synthesized_choices": self.submission.get(
+                "synthesized_choices", {}),
+            "choice_authority": self.submission.get(
+                "choice_authority", {}),
+            "temporal_choice_contracts": self.submission.get(
+                "temporal_choice_contracts", {}),
             "mcp": self._mcp_info(),
         }
 

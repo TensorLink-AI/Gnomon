@@ -14,6 +14,12 @@ from typing import Iterable
 PROJECTION_VERSION = "0.1"
 
 _CONCEPTS = {
+    "upward": {"upward", "rising", "increasing"},
+    "downward": {"downward", "falling", "decreasing"},
+    # ``constant`` is intentionally projected only when the caller's option
+    # vocabulary makes one interpretation unique.  It can mean a flat trend
+    # or stable scale, but project_temporal_choice refuses ambiguous matches.
+    "constant": {"constant", "flat", "stable"},
     "higher": {"higher", "above", "increased level"},
     "lower": {"lower", "below", "decreased level"},
     "similar": {"similar", "same", "unchanged level"},

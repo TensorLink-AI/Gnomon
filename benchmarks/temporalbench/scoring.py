@@ -61,6 +61,53 @@ def score_mcq(row: dict[str, Any], mcq_answer: dict[str, Any]) -> dict[str, Any]
     }
 
 
+def choice_reference(row: dict[str, Any]) -> dict[str, Any]:
+    """Public slot-to-label map used only after a row has been answered.
+
+    The agent and projection boundary never receive this map.  Keeping the
+    scorer-side representation uniform lets preservation accounting cover
+    T1/T3 as well as the forecast tiers without exposing labels to inference.
+    """
+    tier = row.get("tier")
+    if tier == "T1":
+        return dict(row.get("labels") or {})
+    if tier == "T3":
+        return {f"q{index + 1}": item.get("label")
+                for index, item in enumerate(row.get("pack") or [])
+                if isinstance(item, dict)}
+    return {key: item.get("label")
+            for key, item in (row.get("mcq") or {}).items()
+            if isinstance(item, dict)}
+
+
+def choice_answer_map(row: dict[str, Any], answer: dict[str, Any],
+                      ) -> dict[str, Any]:
+    """Normalize a tier-native submitted answer into named public slots."""
+    if row.get("tier") == "T3":
+        values = (answer or {}).get("answers") or []
+        return {f"q{index + 1}": value
+                for index, value in enumerate(values)}
+    if row.get("tier") == "T1":
+        return {key: (answer or {}).get(key)
+                for key in (row.get("labels") or {}) if key in (answer or {})}
+    return dict((answer or {}).get("mcq") or answer or {})
+
+
+def score_choice_map(row: dict[str, Any], answers: dict[str, Any],
+                     ) -> dict[str, Any]:
+    """Score only the named slots present in ``answers``."""
+    reference = choice_reference(row)
+    comparable = {key: value for key, value in (answers or {}).items()
+                  if key in reference}
+    per_question = {
+        key: _norm(value) == _norm(reference[key])
+        for key, value in comparable.items()
+    }
+    return {"per_question": per_question,
+            "correct": sum(per_question.values()),
+            "total": len(per_question)}
+
+
 def score_forecast(
     row: dict[str, Any], forecast: Any, official_metrics
 ) -> tuple[dict[str, Any] | None, str | None]:
