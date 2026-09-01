@@ -219,3 +219,47 @@ def test_explicit_noisier_request_cannot_drift_to_level() -> None:
     assert result[0].target == "error_rate"
     assert result[0].horizon == 6
     assert result[0].measure is None
+
+
+@pytest.mark.parametrize("user_text", [
+    "During fever episodes, is heart rate higher than normal?",
+    "Does heart rate stay above the 90th percentile for 5 consecutive minutes?",
+    "After respiratory rate increases, what is the delay before heart rate responds?",
+    "Did the lowest 10% baseline shift compared with the earlier half?",
+    "Do low pressure and high respiratory rate jointly elevate heart rate?",
+    "Within 10 minutes after medication start, does heart rate go up?",
+])
+def test_compiler_refuses_semantics_the_typed_question_cannot_represent(
+        user_text: str) -> None:
+    adapter = Adapter({"status": "compiled", "questions": [{
+        "id": "q1", "verb": "compare", "property": "level",
+        "target": "heart_rate",
+    }]})
+
+    with pytest.raises(GnomonError) as raised:
+        compile_temporal_text(
+            user_text, available_targets=["heart_rate", "resp_rate"],
+            adapter=adapter,
+        )
+
+    assert raised.value.code == "INVALID_TEMPORAL_QUESTION"
+    assert raised.value.details["unsupported_semantics"][0]["reasons"]
+
+
+def test_receipt_rejects_lossy_question_but_keeps_simple_sibling() -> None:
+    adapter = Adapter({"status": "compiled", "questions": [
+        {"id": "conditional", "verb": "compare", "property": "level",
+         "target": "heart_rate"},
+        {"id": "trend", "verb": "describe", "property": "trend",
+         "target": "heart_rate"},
+    ]})
+
+    receipt = compile_temporal_text_receipt(
+        "During fever episodes, is heart rate higher than normal?\n"
+        "Over recent history, what is the heart rate trend?",
+        available_targets=["heart_rate", "temperature_c"], adapter=adapter,
+    )
+
+    assert [item.id for item in receipt["accepted"]] == ["trend"]
+    assert receipt["rejected"][0]["proposal"]["id"] == "conditional"
+    assert receipt["rejected"][0]["details"]["unsupported_semantics"]

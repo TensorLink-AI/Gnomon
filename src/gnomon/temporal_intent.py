@@ -12,7 +12,7 @@ from .temporal_question import (
     compile_temporal_questions,
 )
 
-INTENT_COMPILER_VERSION = "0.6"
+INTENT_COMPILER_VERSION = "0.7"
 # A structured intent is tiny, but reasoning providers may spend substantially
 # more tokens deciding it before emitting the tool call. Measured 700-token
 # caps produced syntactically valid `compiled` envelopes with no questions.
@@ -328,6 +328,95 @@ def _normalize_nonsemantic_optionals(questions: Any) -> Any:
     return normalized
 
 
+_UNREPRESENTED_SEMANTICS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    (
+        "conditional_subgroup",
+        re.compile(
+            r"\b(during|whenever|conditioned\s+on|conditional\s+on|"
+            r"among|when)\b",
+            re.I,
+        ),
+    ),
+    (
+        "threshold_or_streak",
+        re.compile(
+            r"(?:[<>]=?|[\u2264\u2265]|\bpercentile\b|\bquantile\b|"
+            r"\bconsecutive\b|\bstreak\b|\b(?:lowest|highest)\s+\d+(?:\.\d+)?\s*%)",
+            re.I,
+        ),
+    ),
+    (
+        "response_lag",
+        re.compile(r"\b(delay|lag|lead(?:s|ing)?|responds?\s+after)\b", re.I),
+    ),
+    (
+        "event_relative_window",
+        re.compile(
+            r"\b(?:within|over)\s+\d+(?:\.\d+)?\s*"
+            r"(?:seconds?|minutes?|hours?|days?|steps?|periods?)\s+after\b",
+            re.I,
+        ),
+    ),
+    (
+        "interaction_effect",
+        re.compile(
+            r"\b(jointly|interaction|combined\s+effect|coincides?\s+with)\b",
+            re.I,
+        ),
+    ),
+)
+
+
+def _unrepresented_semantics(segment: str) -> list[str]:
+    """Name source semantics the current typed question cannot preserve.
+
+    The temporal-question schema can express a target, property, horizon and
+    a small set of registered estimators.  It cannot yet carry arbitrary row
+    predicates, threshold streaks, response lags, event-relative windows or
+    interaction terms.  Accepting a simpler question in their place gives a
+    type-correct answer to a different user request, which is worse than an
+    explicit refusal.
+    """
+    return [name for name, pattern in _UNREPRESENTED_SEMANTICS
+            if pattern.search(segment)]
+
+
+def _semantic_loss_rows(text: str, questions: Any) -> list[dict[str, Any]]:
+    if not isinstance(questions, list):
+        return []
+    segments = _question_segments(text)
+    aligned = len(segments) == len(questions)
+    failures = []
+    for index, _question in enumerate(questions):
+        segment = segments[index] if aligned else text
+        reasons = _unrepresented_semantics(segment)
+        if reasons:
+            failures.append({
+                "index": index,
+                "reasons": reasons,
+                "source_question": segment,
+            })
+    return failures
+
+
+def _require_semantic_fidelity(text: str, questions: Any) -> None:
+    failures = _semantic_loss_rows(text, questions)
+    if not failures:
+        return
+    from .contracts import GnomonError
+    raise GnomonError(
+        "INVALID_TEMPORAL_QUESTION",
+        "The typed question cannot preserve all material source semantics.",
+        {
+            "unsupported_semantics": failures,
+            "resolution": (
+                "Retain the original question for human or agent analysis, "
+                "or express it through a registered conditional executable."
+            ),
+        },
+    )
+
+
 def compile_temporal_text(
     text: str, *, available_targets: list[str], adapter: LLMAdapter,
     default_verb: str = "describe", default_horizon: int | None = None,
@@ -419,6 +508,7 @@ def compile_temporal_text(
             text, proposed_questions, available_targets)
         proposed_questions = _normalize_nonsemantic_optionals(
             proposed_questions)
+        _require_semantic_fidelity(text, proposed_questions)
         return compile_temporal_questions(
             proposed_questions, available_targets=available_targets,
             default_verb=default_verb, default_horizon=default_horizon)
@@ -472,7 +562,26 @@ def compile_temporal_text_receipt(
             text, proposed_questions, available_targets)
         proposed_questions = _normalize_nonsemantic_optionals(
             proposed_questions)
+        semantic_failures = {
+            int(item["index"]): item
+            for item in _semantic_loss_rows(text, proposed_questions)
+        }
         for index, raw in enumerate(proposed_questions):
+            semantic_failure = semantic_failures.get(index)
+            if semantic_failure is not None:
+                rejected.append({
+                    "index": index,
+                    "proposal": raw,
+                    "type": "GnomonError",
+                    "message": (
+                        "The typed question cannot preserve all material "
+                        "source semantics."
+                    ),
+                    "details": {
+                        "unsupported_semantics": [semantic_failure],
+                    },
+                })
+                continue
             try:
                 accepted.append(compile_temporal_question(
                     raw, available_targets=available_targets,

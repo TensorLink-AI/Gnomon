@@ -577,7 +577,7 @@ def compile_row_temporal_questions(
             cached = json.loads(receipt_path.read_text(encoding="utf-8"))
             if cached.get("input_fingerprint") != fingerprint:
                 raise ValueError("cached temporal-intent receipt does not match input")
-            if cached.get("questions"):
+            if cached.get("questions") or cached.get("terminal_refusal"):
                 return {**cached, "attempted": True, "compiler_called": False,
                         "receipt_reused": True}
             # A failed proposal is an immutable diagnostic, not a reusable
@@ -598,7 +598,7 @@ def compile_row_temporal_questions(
                 if retry.get("input_fingerprint") != fingerprint:
                     raise ValueError(
                         "cached temporal-intent retry does not match input")
-                if retry.get("questions"):
+                if retry.get("questions") or retry.get("terminal_refusal"):
                     return {**retry, "attempted": True,
                             "compiler_called": False,
                             "receipt_reused": True,
@@ -630,6 +630,12 @@ def compile_row_temporal_questions(
                   "proposed": receipt["proposed"],
                   "questions": [item.to_dict() for item in receipt["accepted"]],
                   "rejected": receipt["rejected"], "compiler_called": True}
+        result["terminal_refusal"] = bool(
+            not result["questions"] and result["rejected"] and all(
+                isinstance(item, dict) and
+                ((item.get("details") or {}).get("unsupported_semantics"))
+                for item in result["rejected"]
+            ))
     except Exception as error:
         result = {"input_fingerprint": fingerprint, "questions": [],
                   "rejected": [{"type": type(error).__name__, "message": str(error),
@@ -654,18 +660,23 @@ def mcq_submit_tool(row: dict[str, Any]) -> tuple[dict[str, Any], str]:
     named properties, T3's pack as a fixed-length list in question order
     — so a correct answer cannot be lost to output formatting, which is
     a property of the harness, not of the model's temporal reasoning.
-    The option strings are not repeated into the schema: the official
-    prompt already carries them verbatim, and paraphrasing them here
-    would put this adapter between the benchmark and the model.
+    Public option strings are repeated only as an output vocabulary, never
+    with labels or evidence. This lets a host reject an unscorable ``A/B``
+    envelope without inserting itself into the answer.
     """
     if row.get("tier") == "T3":
         count = len(row.get("pack") or [])
+        vocabularies = [
+            ([str(option) for option in item.get("options") or []]
+             if isinstance(item, dict) else [])
+            for item in row.get("pack") or []]
         answers = {
             "type": "array", "items": {"type": "string"},
             "description": (
                 f"Exactly {count} answers, one per question of the task's "
                 f"pack, in the order the task lists them; each the option "
-                f"string that question offers."
+                f"string that question offers. Position-specific options: "
+                f"{json.dumps(vocabularies, separators=(',', ':'))}."
             ),
         }
         if count:
@@ -1266,6 +1277,7 @@ class _RunBase:
                             "superseded", "coerced", "submit_rejected",
                             "last_call_repair", "submission_fallback",
                             "host_submission", "host_preexecution",
+                            "typed_question_refusal",
                             "typed_questions",
                             "compiled_questions", "engine_answers",
                             "host_data_binding")}
@@ -2871,6 +2883,10 @@ class _McqRun(_RunBase):
         self.expected_fields = list(row.get("labels") or {})
         self.expected_count = len(row.get("pack") or [])
         self.is_pack = row.get("tier") == "T3"
+        self.pack_options = [
+            ([str(option) for option in item.get("options") or []]
+             if isinstance(item, dict) else [])
+            for item in row.get("pack") or []]
         self.rejections = 0
         super().__init__(row, client, session_factory=session_factory,
                          work_dir=work_dir, profile=profile,
@@ -2900,6 +2916,27 @@ class _McqRun(_RunBase):
     def _submit_tool(self) -> dict[str, Any]:
         return self.tool
 
+    def drive(self) -> dict[str, Any]:
+        """Do not browse an engine that accepted no executable question."""
+        compilation = self.temporal_compilation or {}
+        if compilation.get("attempted") and not compilation.get("questions"):
+            self.session.initialize()
+            messages = [
+                {"role": "system", "content": self._system()},
+                {"role": "user", "content": self.row["prompt"]},
+                {"role": "user", "content": (
+                    "Gnomon's typed-intent boundary accepted no executable "
+                    "question from this task. Do not call a product tool or "
+                    "treat a simpler temporal property as equivalent. Answer "
+                    "from the original task data when justified; otherwise "
+                    "use the task's uncertainty option. Submit once.")},
+            ]
+            self.trace.append({"typed_question_refusal": True})
+            return self._last_call(
+                messages, self._submit_tool(),
+                "no semantically faithful typed question; synthesis only")
+        return super().drive()
+
     def _system(self) -> str:
         if self.csv_path is not None:
             data_rule = (
@@ -2927,6 +2964,27 @@ class _McqRun(_RunBase):
                      + json.dumps(compact_context_compilation_for_prompt(
                          self.context_compilation), separators=(",", ":"))
                      + "\n")
+        temporal = self.temporal_compilation or {}
+        if temporal.get("attempted"):
+            rejected = []
+            for item in temporal.get("rejected") or []:
+                details = item.get("details") or {}
+                semantic = details.get("unsupported_semantics") or []
+                rejected.append({
+                    "index": item.get("index"),
+                    "reasons": [reason for row in semantic
+                                for reason in row.get("reasons") or []],
+                    "message": item.get("message"),
+                })
+            text += (
+                "\nThe host's typed-question receipt is advisory about "
+                "executable coverage, not an answer. Accepted question IDs: "
+                + json.dumps([str(item.get("id")) for item in
+                              temporal.get("questions") or []])
+                + ". Rejected source questions: "
+                + json.dumps(rejected[:8], separators=(",", ":"))
+                + ". Never substitute an accepted sibling for a rejected "
+                "question.\n")
         return text
 
     def _abstain_outcome(self, reason: str) -> dict[str, Any]:
@@ -2948,8 +3006,16 @@ class _McqRun(_RunBase):
             return {"accepted": False, "authored_by": "harness",
                     "problems": problems}
         if self.is_pack:
-            resolved: Any = {"answers": [str(item) for item in answers]
-                             if isinstance(answers, list) else []}
+            normalized = []
+            for index, item in enumerate(
+                    answers if isinstance(answers, list) else []):
+                value = str(item)
+                options = (self.pack_options[index]
+                           if index < len(self.pack_options) else [])
+                normalized.append(next((option for option in options
+                                        if option.casefold() == value.casefold()),
+                                       value))
+            resolved: Any = {"answers": normalized}
         else:
             resolved = {str(key): str(value)
                         for key, value in (answers or {}).items()} \
@@ -2969,7 +3035,16 @@ class _McqRun(_RunBase):
                 return [f"answers must hold exactly {self.expected_count} "
                         f"entries, one per question of the pack, in the "
                         f"task's order; got {len(answers)}"]
-            return []
+            invalid = []
+            for index, answer in enumerate(answers):
+                options = (self.pack_options[index]
+                           if index < len(self.pack_options) else [])
+                if options and not any(str(answer).casefold() == option.casefold()
+                                       for option in options):
+                    invalid.append(
+                        f"answers[{index}] must be exactly one of "
+                        f"{options}; got {answer!r}")
+            return invalid
         if not isinstance(answers, dict):
             return ["answers must be an object with one entry per answer "
                     "field the task asks for: "

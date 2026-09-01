@@ -151,6 +151,33 @@ def test_failed_temporal_receipt_is_diagnostic_not_permanent_cache(
     assert (receipts / f"{row['id']}.retry.json").exists()
 
 
+def test_semantic_refusal_is_a_terminal_reusable_receipt(tmp_path) -> None:
+    row = _t3_row()
+    row["pack"] = [{
+        "question": "During fever episodes, is hr higher?",
+        "options": ["Higher", "Lower", "Uncertain"],
+        "label": "Uncertain",
+    }]
+    receipts = tmp_path / "receipts"
+    client = ScriptedClient([{"tool_calls": [
+        ("submit_temporal_intent", {
+            "status": "compiled", "questions": [{
+                "id": "q1", "verb": "compare", "property": "level",
+                "target": "hr"}]})]}])
+
+    first = mcp_agent.compile_row_temporal_questions(
+        row, client, ["hr"], str(receipts))
+    reused = mcp_agent.compile_row_temporal_questions(
+        row, ScriptedClient([]), ["hr"], str(receipts))
+
+    assert first["terminal_refusal"] is True
+    assert first["questions"] == []
+    assert reused["terminal_refusal"] is True
+    assert reused["receipt_reused"] is True
+    assert reused["compiler_called"] is False
+    assert not (receipts / f"{row['id']}.retry.json").exists()
+
+
 def test_t1_compiler_uses_public_question_names_and_seals_options(
         tmp_path) -> None:
     row = {
@@ -1837,6 +1864,18 @@ def test_t3_answers_are_the_pack_list_in_order(tmp_path):
     assert score_t3(_t3_row(), outcome["answer"]["answers"])["correct"] == 2
 
 
+def test_t3_invalid_option_envelope_gets_one_bounded_repair(tmp_path):
+    outcome = _run_mcq(_t3_row(), [
+        {"tool_calls": [("submit_answer", {"answers": ["A", "B"]})]},
+        {"tool_calls": [("submit_answer", {
+            "answers": ["higher", "No"]})]},
+    ], tmp_path)
+
+    assert outcome["answer"] == {"answers": ["Higher", "No"]}
+    sequence = outcome["mcp"]["tool_sequence"]
+    assert "answers[0]" in sequence[0]["submit_rejected"][0]
+
+
 def test_evidence_t3_describe_uses_host_resolved_panel_binding(tmp_path):
     """The agent chooses the verb/questions, never the data schema."""
     row = _t3_row()
@@ -1897,6 +1936,39 @@ def test_evidence_t3_attaches_compiled_pack_questions_to_describe(tmp_path):
     assert receipts[0]["primary_forecast_unchanged"] is None
     assert len(receipts[0]["answers"]) == 2
     assert len(client.requests) == 3  # compiler, describe, forced submission
+
+
+def test_evidence_t3_empty_compilation_skips_unanswerable_tool_loop(tmp_path):
+    row = {
+        "id": "tb-mcp-t3-conditional", "tier": "T3",
+        "source_dataset": "MIMIC",
+        "prompt": ('Answer the pack. Input (JSON): {"hr": [70, 71, 72]}'
+                   '\nDuring fever episodes, is hr higher?'),
+        "pack": [{"question": "During fever episodes, is hr higher?",
+                  "options": ["Higher", "Lower", "Uncertain"],
+                  "label": "Uncertain"}],
+    }
+    client = ScriptedClient([
+        {"tool_calls": [("submit_temporal_intent", {
+            "status": "compiled", "questions": [{
+                "id": "q1", "verb": "compare", "property": "level",
+                "target": "hr"}]} )]},
+        {"tool_calls": [("submit_answer", {"answers": ["Uncertain"]})]},
+    ])
+
+    outcome = mcq_row(
+        row, client, session_factory=_factory(), work_dir=str(tmp_path),
+        profile="evidence", compile_questions=True,
+        question_receipts_dir=str(tmp_path / "question-receipts"))
+
+    assert outcome["answer"] == {"answers": ["Uncertain"]}
+    assert outcome["mcp"]["calls"] == 0
+    assert outcome["mcp"]["tool_sequence"][0] == {
+        "typed_question_refusal": True}
+    assert "synthesis only" in outcome["last_call"]
+    assert len(client.requests) == 2  # compiler, bounded submission
+    assert "conditional_subgroup" in client.requests[-1]["messages"][0][
+        "content"]
 
 
 def test_mcq_submit_schema_is_the_row_s_own_shape():
