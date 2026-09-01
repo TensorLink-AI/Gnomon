@@ -1960,7 +1960,9 @@ class _Run(_RunBase):
                         "Copy the engine's context/covariate publication "
                         "automation_eligible fact exactly. False means "
                         "context evidence alone cannot authorize automation; "
-                        "do not weaken it to 'not requested'."),
+                        "do not attribute it to automation being 'not "
+                        "requested', even if you also state the correct "
+                        "context-authority limitation."),
                 }
                 parameters["properties"]["canonical_primary_preserved"] = {
                     "type": "boolean",
@@ -2067,8 +2069,10 @@ class _Run(_RunBase):
                 "canonical_primary_preserved is true, say the canonical "
                 "primary remains preserved. If automation_eligible is false, "
                 "say context evidence alone cannot authorize automation; "
-                "'not requested' is not equivalent. The verifier rejects a "
-                "submission that hides either fact.\n")
+                "'not requested' is not equivalent and must not be stated as "
+                "the cause, even alongside the correct limitation. The "
+                "verifier rejects a submission that hides or contradicts "
+                "either fact.\n")
             text += (
                 "If Gnomon exposes a scenario consequence_summary, copy it "
                 "exactly into cited_scenario_consequences and communicate "
@@ -2675,13 +2679,26 @@ class _Run(_RunBase):
                     token in reasoning_text for token in (
                         "cannot automate", "cannot authorize",
                         "does not authorize", "no automation authority"))))
+            request_status_made_causal = bool(re.search(
+                r"(?:\bautomation(?:_eligible)?\s+(?:is|was)\s+false\b|"
+                r"\bautomation\s+(?:is|was)\s+(?:ineligible|not\s+eligible|"
+                r"disabled)\b)[^.;]{0,80}\b(?:because|since|due\s+to)\b"
+                r"[^.;]{0,60}\bnot\s+requested\b|"
+                r"\b(?:because|since|due\s+to)\b[^.;]{0,60}"
+                r"\bautomation\s+(?:was|is)\s+not\s+requested\b[^.;]{0,80}"
+                r"\bautomation(?:_eligible)?\b|"
+                r"\breason\s*[:=]\s*not[_\s-]*requested\b",
+                reasoning_text,
+            ))
             if engine_automation == {False} and not context_authority_stated:
                 authority_problems.append(
                     "context_authority_omitted: state that context evidence "
                     "alone cannot authorize automation; 'not requested' is "
                     "not equivalent")
-            if (engine_automation == {False} and "not requested" in reasoning_text
-                    and not context_authority_stated):
+            if (engine_automation == {False} and (
+                    request_status_made_causal or (
+                        "not requested" in reasoning_text
+                        and not context_authority_stated))):
                 authority_problems.append(
                     "context_authority_misattributed: automation is ineligible "
                     "because context evidence lacks authority, not because "

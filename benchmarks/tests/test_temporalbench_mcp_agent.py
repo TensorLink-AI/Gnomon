@@ -1168,8 +1168,9 @@ def test_context_contract_requires_bounded_typed_gate_citations():
         "description": (
             "Copy the engine's context/covariate publication "
             "automation_eligible fact exactly. False means context evidence "
-            "alone cannot authorize automation; do not weaken it to 'not "
-            "requested'."),
+            "alone cannot authorize automation; do not attribute it to "
+            "automation being 'not requested', even if you also state the "
+            "correct context-authority limitation."),
     }
     assert parameters["properties"]["canonical_primary_preserved"][
         "type"] == "boolean"
@@ -1230,6 +1231,30 @@ def test_context_authority_omission_gets_one_artifact_reuse_repair():
     assert misattributed["accepted"] is False
     assert any("context_authority_misattributed" in problem
                for problem in misattributed["problems"])
+    assert run.submission is None
+
+    contradictory = run._handle_submit({
+        **base,
+        "reasoning": (
+            "The canonical primary remains preserved. The engine's "
+            "automation_eligible is false because automation was not "
+            "requested; context evidence alone cannot authorize automation."),
+    })
+    assert contradictory["accepted"] is False
+    assert any("context_authority_misattributed" in problem
+               for problem in contradictory["problems"])
+    assert run.submission is None
+
+    structured_contradiction = run._handle_submit({
+        **base,
+        "reasoning": (
+            "The canonical primary remains preserved. Context evidence alone "
+            "cannot authorize automation (automation_eligible: false, "
+            "reason: not_requested)."),
+    })
+    assert structured_contradiction["accepted"] is False
+    assert any("context_authority_misattributed" in problem
+               for problem in structured_contradiction["problems"])
     assert run.submission is None
 
     both_true = run._handle_submit({
