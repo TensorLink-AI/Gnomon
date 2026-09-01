@@ -2683,10 +2683,10 @@ class _Run(_RunBase):
             agent_supplied_sources = [str(value) for value in
                                       (arguments.get(
                                           "cited_context_sources") or [])[:8]]
-            # The artifact is authoritative. A model-provided duplicate is
-            # useful preservation evidence, but it must never replace the
-            # exact host-bound references or void an otherwise valid answer.
-            # Human-facing prose is checked independently below.
+            # The artifact is authoritative and supplies the accepted list.
+            # Keep the model's list separately so an invented citation cannot
+            # disappear behind host projection: the final human-facing answer
+            # must name every validated source and no unvalidated one.
             supplied_sources = expected_sources
             self.submission["context_source_projection"] = {
                 "expected": expected_sources,
@@ -2823,7 +2823,17 @@ class _Run(_RunBase):
                     "consequence_summary exactly and communicate its "
                     "conditional q50 endpoints without calling them primary")
             sources = self.submission["context_source_projection"]
+            if sources["agent_invalid"]:
+                authority_problems.append(
+                    "context_source_invalid: remove these unvalidated "
+                    "references from both cited_context_sources and the "
+                    "reasoning: " + ", ".join(sources["agent_invalid"]) +
+                    ". The complete accepted source list is: " +
+                    (", ".join(sources["expected"]) or "(none)"))
             if sources["invalid"] or (
+                    sources["agent_supplied"] and
+                    set(sources["agent_matched"]) !=
+                    set(sources["expected"])) or (
                     sources["expected"] and
                     set(sources["matched"]) != set(sources["expected"])):
                 authority_problems.append(

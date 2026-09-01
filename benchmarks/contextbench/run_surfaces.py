@@ -519,6 +519,7 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
         source_evidence_preserved = (
             set(source_projection.get("matched") or []) == expected_sources
             and not source_projection.get("invalid")
+            and not source_projection.get("agent_invalid")
             and all(str(source).casefold() in explanation
                     for source in expected_sources)
         )

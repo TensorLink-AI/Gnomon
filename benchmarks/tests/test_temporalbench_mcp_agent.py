@@ -1386,17 +1386,16 @@ def test_context_source_requires_exact_human_visible_projection():
                for problem in invented["problems"])
     assert run.submission is None
 
-    ignored_duplicate = run._handle_submit({
+    invented_duplicate = run._handle_submit({
         **base,
         "cited_context_sources": ["invented.md"],
         "reasoning": (base["reasoning"] + f" Source: {source_reference}."),
     })
-    assert ignored_duplicate["accepted"] is True
-    projection = run.submission["context_source_projection"]
-    assert projection["supplied"] == [source_reference]
-    assert projection["agent_invalid"] == ["invented.md"]
-    assert projection["host_projected"] is True
-    run.submission = None
+    assert invented_duplicate["accepted"] is False
+    assert any("context_source_invalid" in problem
+               and "invented.md" in problem
+               for problem in invented_duplicate["problems"])
+    assert run.submission is None
 
     accepted = run._handle_submit({
         **base,
