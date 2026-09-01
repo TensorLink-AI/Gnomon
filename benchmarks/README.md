@@ -155,6 +155,7 @@ lower layer deliberately and must never be described as agent-reasoning lift.
 | RecoveryBench (internal) | Executable recovery, canonical immutability, and bounded retries | `benchmarks/recoverybench` |
 | ReliabilityBench (internal) | Atomic artifact publication, integrity, concurrency, and local loading | `benchmarks/reliabilitybench` |
 | RoutingBench (internal) | Prequential adapter promotion, drift response, and route authority | `benchmarks/routingbench` |
+| [Governed Forecast Readiness](../docs/agent-evaluation-gfr.md) | Frozen safety-gated progress bar over retained evidence from ten product capabilities; not a replacement forecast leaderboard | `benchmarks/gfr.py` |
 
 The machine-readable source of truth is `benchmarks/catalog.py`. Batch
 manifests embed its `benchmark_contract`, and CI rejects catalog/orchestrator

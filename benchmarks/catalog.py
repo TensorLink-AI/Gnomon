@@ -115,6 +115,10 @@ CATALOG: dict[str, BenchmarkContract] = {
     "capabilitybench": BenchmarkContract(
         "engine", "production temporal capability registry executables",
         "Capability classification, regression, and decomposition behavior; not agent reasoning."),
+    "gfr": BenchmarkContract(
+        "mixed", "frozen aggregation of retained benchmark evidence",
+        "Safety-gated product readiness across ten capabilities; preserves each "
+        "source benchmark's native metric and claim boundary."),
 }
 
 
