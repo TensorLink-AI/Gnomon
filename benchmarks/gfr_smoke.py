@@ -63,6 +63,16 @@ def validate_matched_identities(control: dict[str, Any],
         raise ValueError("GFR smoke requires the Evidence MCP profile")
 
 
+def prior_classified_without_skill(candidates: Any) -> bool:
+    """Recognize a retained prior even when the primary remains selected."""
+    return isinstance(candidates, list) and any(
+        isinstance(item, dict) and item.get("support") == "prior_assisted"
+        and ((item.get("effect") or {}).get(
+            "recommendation_stability") or {}).get("reason_code")
+        == "sampled_prior_has_no_historical_skill"
+        for item in candidates)
+
+
 def _constraint_observation() -> dict[str, Any]:
     row = {
         "timestamp": "2026-06-04T00:00:00+00:00", "point": -2.0,
@@ -145,12 +155,15 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
     compilation = trace.get("context_compilation") or {}
     authority = publication.get("recommendation_authority") or {}
     context_summary = publication.get("context_summary") or {}
+    candidates = publication.get("candidate_portfolio") or []
+    retained_prior = prior_classified_without_skill(candidates)
     constraint_raw = _constraint_observation()
 
     raw_by_capability: dict[str, tuple[str, dict[str, Any] | None]] = {
         "future_input_authority": ("answered", {
             "classification_correct": bool(
-                authority.get("prior_assisted")
+                (authority.get("prior_assisted")
+                 or retained_prior)
                 and not compilation.get("future_observations_exposed")
                 and context_summary.get("authoritative_for_publication") is False),
             "authority_escalated": bool(publication.get("automation_eligible")),

@@ -1,6 +1,7 @@
 import pytest
 
-from benchmarks.gfr_smoke import validate_matched_identities
+from benchmarks.gfr_smoke import (prior_classified_without_skill,
+                                  validate_matched_identities)
 
 
 def _identity(method: str) -> dict:
@@ -34,3 +35,14 @@ def test_wide_mcp_profile_is_rejected() -> None:
 
     with pytest.raises(ValueError, match="Evidence MCP profile"):
         validate_matched_identities(_identity("control"), treatment)
+
+
+def test_retained_unskilled_prior_is_still_authority_classified() -> None:
+    assert prior_classified_without_skill([{
+        "support": "prior_assisted",
+        "effect": {"recommendation_stability": {
+            "reason_code": "sampled_prior_has_no_historical_skill"}},
+    }])
+    assert not prior_classified_without_skill([{
+        "support": "supported", "effect": {},
+    }])
