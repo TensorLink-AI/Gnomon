@@ -500,6 +500,95 @@ class TestEffectShapes:
             )
 
 
+def test_opaque_base_uses_cross_fitted_event_residuals_without_false_influence():
+    """A remote/TSFM winner gets the same governed event lane as a built-in.
+
+    The executable remains opaque: the context gate may only reuse its
+    point-in-time fold forecasts. A planted aperiodic pulse must pass the
+    unchanged lift, stability, and displaced-schedule gates, while the same
+    calendar over a signal-free series must still be rejected.
+    """
+    import random
+
+    from gnomon.candidate import (
+        CandidateIdentity, CandidateSpec, FittedCandidate,
+    )
+    from gnomon.context_eval import assess_context
+    from gnomon.evaluation import Evaluation
+
+    count, horizon, period = 300, 12, 24
+    timestamps = [START + timedelta(hours=index) for index in range(count)]
+    future = [START + timedelta(hours=index)
+              for index in range(count, count + horizon)]
+
+    def base_value(index):
+        import math
+        return 100 + 0.01 * index + 3 * math.sin(2 * math.pi * index / period)
+
+    rng = random.Random(4)
+    starts = []
+    cursor = 24
+    while cursor < 290:
+        starts.append(cursor)
+        cursor += rng.randint(13, 17)
+    starts.append(305)
+    span = 5
+    events = [
+        ContextEvent(
+            event_id=f"opaque-{index}", event_type="deploy",
+            entity_scope=("*",),
+            effective_start=(START + timedelta(hours=onset)).isoformat(),
+            effective_end=(START + timedelta(
+                hours=onset + span - 1)).isoformat(),
+            known_at=START.isoformat(),
+            source=ContextSource("calendar", "ops.ics"),
+        )
+        for index, onset in enumerate(starts)
+    ]
+    identity = CandidateIdentity(kind="remote", name="opaque-base")
+
+    def fit(history, _season):
+        origin = len(history)
+        return FittedCandidate(identity, lambda steps: [
+            base_value(index) for index in range(origin, origin + steps)
+        ])
+
+    def predict_many(histories, steps, _season):
+        return [[base_value(index) for index in
+                 range(len(history), len(history) + steps)]
+                for history in histories]
+
+    candidate = CandidateSpec(
+        identity, fit, min_history=period, predict_many=predict_many)
+    base = Evaluation(
+        "opaque-base", "last_value", {}, {}, 0.2,
+        [0.0] * (4 * horizon), 0.8, [], True,
+        residuals_by_lead={step: [-1.0, 0.0, 1.0]
+                           for step in range(1, horizon + 1)},
+        final_candidate=candidate,
+    )
+
+    plain = [base_value(index) for index in range(count)]
+    signal = list(plain)
+    for onset in starts:
+        for offset in range(span):
+            if onset + offset < count:
+                signal[onset + offset] += 16 * (0.6 ** offset)
+
+    admitted = assess_context(
+        signal, timestamps, future, events, "value", horizon, period,
+        0.02, base)
+    rejected = assess_context(
+        plain, timestamps, future, events, "value", horizon, period,
+        0.02, base)
+
+    assert admitted.admitted is True
+    assert admitted.effect_estimator == "base_model_fold_residual"
+    assert admitted.effect_shape == "decay"
+    assert rejected.admitted is False
+    assert rejected.points == []
+
+
 class TestShrinkageAdmission:
     """λ governs strength, never validity.
 

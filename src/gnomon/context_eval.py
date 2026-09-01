@@ -392,13 +392,22 @@ def assess_context(
         return assessment
     selection_origins, calibration_origin, test_origin = origins[:-2], origins[-2], origins[-1]
 
+    builtin_base = base.selected_model in MODELS
+    vintage_stable = all(
+        history_at(origin) == (values[:origin], timestamps[:origin])
+        for origin in [*selection_origins, calibration_origin, test_origin]
+    )
+
     # The entire ablation replays one immutable executable at known origins.
     # Batch-capable backends load/serve once; scalar backends retain identical
     # semantics through CandidateSpec's fallback.  Include calibration, test,
     # and publication now so later stages cannot accidentally restart an
     # isolated model for each fold.
-    replay_origins = [*selection_origins, calibration_origin, test_origin]
-    replay_histories = [history_at(origin)[0] for origin in replay_origins] + [values]
+    #
+    replay_origins = list(dict.fromkeys([
+        *selection_origins, calibration_origin, test_origin, len(values),
+    ]))
+    replay_histories = [history_at(origin)[0] for origin in replay_origins]
     replay_points = candidate_predict_many(
         base, replay_histories, horizon, season)
     base_path_cache = {
@@ -436,11 +445,6 @@ def assess_context(
     base_paths = {
         origin: base_predict(history_at(origin)[0]) for origin in selection_origins
     }
-    builtin_base = base.selected_model in MODELS
-    vintage_stable = all(
-        history_at(origin) == (values[:origin], timestamps[:origin])
-        for origin in replay_origins
-    )
     base_residuals = (
         rolling_residuals(values, base.selected_model, season)
         if builtin_base else []
@@ -472,14 +476,86 @@ def assess_context(
     # paths, without being redispatched through the classical registry.
     if builtin_base and vintage_stable:
         candidates += [("residual", shape) for shape in contested_shapes]
+    if builtin_base and vintage_stable:
         candidates += [("episode", shape) for shape in contested_shapes]
     by_estimator: dict[str, dict[str, list[float]]] = {
-        "drift": {}, "residual": {}, "episode": {}}
+        "drift": {}, "residual": {}, "episode": {}, "fold_episode": {}}
     episode_cache: dict[int, list[tuple[float, int, int]]] = {}
+
+    def episode_observations(
+        origin: int, fold_values: list[float], historical_flags: list[bool],
+    ) -> list[tuple[float, int, int]]:
+        return episode_residual_observations(
+            fold_values, historical_flags, base.selected_model, season)
+
+    def fold_episode_observations(
+        origin: int, historical_flags: list[bool],
+    ) -> list[tuple[float, int, int]]:
+        """Event residuals from prior, non-overlapping base forecast folds.
+
+        This is the opaque-executable analogue of ``episode_observations``.
+        Every residual comes from the already selected executable fitted
+        before the event began.  Only complete episodes contained in one
+        earlier selection forecast are used, so the base cannot adapt during
+        a pulse and no outcome at or after ``origin`` enters the estimate.
+        """
+        observations: list[tuple[float, int, int]] = []
+        episodes = 0
+        index = 0
+        prior_origins = [item for item in selection_origins
+                         if item + horizon <= origin]
+        while index < min(origin, len(historical_flags)):
+            if not historical_flags[index]:
+                index += 1
+                continue
+            end = index
+            while end < min(origin, len(historical_flags)) \
+                    and historical_flags[end]:
+                end += 1
+            forecast_origin = next((item for item in reversed(prior_origins)
+                                    if item <= index and end <= item + horizon),
+                                   None)
+            span = end - index
+            base_points = (base_paths.get(forecast_origin)
+                           if forecast_origin is not None else None)
+            if base_points is not None:
+                offset_in_forecast = index - forecast_origin
+                observations.extend(
+                    (values[index + offset] -
+                     base_points[offset_in_forecast + offset],
+                     offset, span)
+                    for offset in range(span)
+                )
+                episodes += 1
+            index = end
+        if episodes < 2:
+            raise ValueError(
+                "fewer than two scoreable event episodes in training history")
+        return observations
+
+    candidate_origins = selection_origins
+    if not builtin_base and vintage_stable:
+        opaque_origins: list[int] = []
+        for origin in selection_origins:
+            flags = event_flags(
+                eligible, timestamps[:origin], timestamps[origin - 1])
+            try:
+                fold_episode_observations(origin, flags)
+            except ValueError:
+                continue
+            opaque_origins.append(origin)
+        # Keep every estimator on identical folds. Two scored folds plus the
+        # separately held calibration and test origins are the smallest
+        # contest on which the existing single-best guard is meaningful.
+        if len(opaque_origins) >= 2:
+            candidate_origins = opaque_origins
+            candidates += [
+                ("fold_episode", shape) for shape in contested_shapes]
+
     for estimator, shape in candidates:
         improvements: list[float] = []
         failed: str | None = None
-        for origin in selection_origins:
+        for origin in candidate_origins:
             cutoff = timestamps[origin - 1]
             actual = values[origin : origin + horizon]
             try:
@@ -490,13 +566,18 @@ def assess_context(
                     eligible, timestamps[origin : origin + horizon], cutoff)
                 if estimator == "episode":
                     if origin not in episode_cache:
-                        episode_cache[origin] = episode_residual_observations(
-                            fold_values, historical_flags,
-                            base.selected_model, season)
+                        episode_cache[origin] = episode_observations(
+                            origin, fold_values, historical_flags)
                     context_prediction = episode_residual_adjusted(
                         fold_values, horizon, season, historical_flags,
                         future_flags, base_paths[origin], base.selected_model,
                         shape, episode_cache[origin])
+                elif estimator == "fold_episode":
+                    context_prediction = episode_residual_adjusted(
+                        fold_values, horizon, season, historical_flags,
+                        future_flags, base_paths[origin], base.selected_model,
+                        shape, fold_episode_observations(
+                            origin, historical_flags))
                 elif estimator == "residual":
                     context_prediction = residual_event_adjusted(
                         base_residuals[:len(fold_values)], horizon, historical_flags,
@@ -562,12 +643,19 @@ def assess_context(
         historical_flags = event_flags(eligible, fold_timestamps, cutoff)
         future_flags = event_flags(
             eligible, timestamps[origin : origin + horizon], cutoff)
-        if selected_estimator == "episode":
+        if selected_estimator in {"episode", "fold_episode"}:
+            observations = (
+                episode_cache.get(origin) or episode_observations(
+                    origin, fold_values, historical_flags)
+                if selected_estimator == "episode" else
+                fold_episode_observations(origin, historical_flags)
+            )
             return episode_residual_adjusted(
                 fold_values, horizon, season, historical_flags,
                 future_flags,
                 base_predict(fold_values),
-                base.selected_model, selected_shape)
+                base.selected_model, selected_shape,
+                observations)
         if selected_estimator == "residual":
             base_path = base_predict(fold_values)
             return residual_event_adjusted(
@@ -586,6 +674,8 @@ def assess_context(
         effect_shape=selected_shape,
         effect_estimator=(
             "base_model_episode_residual" if selected_estimator == "episode"
+            else "base_model_fold_residual"
+            if selected_estimator == "fold_episode"
             else "base_model_residual" if selected_estimator == "residual"
             else "detrended_level"),
         shape_scores={name: round(mean(scores), 6)
@@ -606,17 +696,27 @@ def assess_context(
         "mean_improvement_meets_margin",
         assessment.mean_improvement >= (
             max(minimum_improvement, EPISODE_MINIMUM_IMPROVEMENT)
-            if selected_estimator == "episode" else minimum_improvement),
+            if selected_estimator in {"episode", "fold_episode"}
+            else minimum_improvement),
         measured=round(assessment.mean_improvement, 6),
         threshold=(max(minimum_improvement, EPISODE_MINIMUM_IMPROVEMENT)
-                   if selected_estimator == "episode" else minimum_improvement),
+                   if selected_estimator in {"episode", "fold_episode"}
+                   else minimum_improvement),
         detail=(f"mean fold improvement {assessment.mean_improvement:.3f} is below "
                 "the required margin " + str(
-                    max(minimum_improvement, EPISODE_MINIMUM_IMPROVEMENT)
-                    if selected_estimator == "episode" else minimum_improvement)),
+                max(minimum_improvement, EPISODE_MINIMUM_IMPROVEMENT)
+                    if selected_estimator in {"episode", "fold_episode"}
+                    else minimum_improvement)),
     )
-    if selected_estimator == "episode":
-        episode_gate_observations = episode_cache[selection_origins[-1]]
+    if selected_estimator in {"episode", "fold_episode"}:
+        origin = candidate_origins[-1]
+        cutoff = timestamps[origin - 1]
+        fold_values, fold_timestamps = history_at(origin)
+        actual_flags = event_flags(eligible, fold_timestamps, cutoff)
+        episode_gate_observations = (
+            episode_cache[origin] if selected_estimator == "episode"
+            else fold_episode_observations(origin, actual_flags)
+        )
         amplitudes = episode_residual_amplitudes(
             episode_gate_observations, selected_shape)
         amplitude_mean = mean(amplitudes)
@@ -640,10 +740,6 @@ def assess_context(
         # its measured amplitude with deliberately displaced versions of the
         # same schedule. Requiring it to beat every fixed placebo prices in
         # the schedule-search opportunity without consulting the test fold.
-        origin = selection_origins[-1]
-        cutoff = timestamps[origin - 1]
-        fold_values, fold_timestamps = history_at(origin)
-        actual_flags = event_flags(eligible, fold_timestamps, cutoff)
         placebo_amplitudes: list[float] = []
         for offset in SCHEDULE_PLACEBO_OFFSETS:
             if offset > 0:
@@ -652,8 +748,12 @@ def assess_context(
                 distance = -offset
                 shifted = actual_flags[distance:] + [False] * distance
             try:
-                observations = episode_residual_observations(
-                    fold_values, shifted, base.selected_model, season)
+                observations = (
+                    episode_residual_observations(
+                        fold_values, shifted, base.selected_model, season)
+                    if selected_estimator == "episode" else
+                    fold_episode_observations(origin, shifted)
+                )
                 placebo_amplitudes.append(abs(mean(
                     episode_residual_amplitudes(observations, selected_shape))))
             except ValueError:
@@ -684,7 +784,7 @@ def assess_context(
         for offset in SCHEDULE_PLACEBO_OFFSETS:
             displaced_scores: list[float] = []
             failed = False
-            for origin in selection_origins:
+            for origin in candidate_origins:
                 cutoff = timestamps[origin - 1]
                 actual = values[origin : origin + horizon]
                 fold_values, fold_timestamps = history_at(origin)
@@ -748,7 +848,7 @@ def assess_context(
     # exposed windows for the majority and single-best robustness checks.
     exposed_improvements = [
         improvement
-        for origin, improvement in zip(selection_origins, improvements)
+        for origin, improvement in zip(candidate_origins, improvements)
         if any(event_flags(
             eligible,
             timestamps[origin : origin + horizon],
@@ -782,7 +882,7 @@ def assess_context(
     # still vetoes a candidate whose resulting intervals degrade materially.
     assessment.residuals_by_lead = {
         step: [] for step in range(1, horizon + 1)}
-    for origin in [*selection_origins, calibration_origin]:
+    for origin in [*candidate_origins, calibration_origin]:
         prediction = context_prediction(origin)
         actuals = values[origin : origin + horizon]
         for step, (actual, predicted) in enumerate(
@@ -801,7 +901,8 @@ def assess_context(
     # steps moved published q50 before the event even though raw points were
     # byte-identical. Detrended-level is a complete alternative model and
     # therefore retains its own calibration on every step.
-    inherits_base_when_inactive = selected_estimator in {"residual", "episode"}
+    inherits_base_when_inactive = selected_estimator in {
+        "residual", "episode", "fold_episode"}
     base_spreads = conformal_spreads(
         base.residuals_by_lead, horizon, base.residuals,
     ) if inherits_base_when_inactive else {}
@@ -848,13 +949,22 @@ def assess_context(
     }
     final_cutoff = timestamps[-1]
     final_active = event_flags(eligible, future_timestamps, final_cutoff)
-    if selected_estimator == "episode":
+    if selected_estimator in {"episode", "fold_episode"}:
+        final_historical_flags = event_flags(
+            eligible, timestamps, final_cutoff)
+        final_observations = (
+            episode_cache.get(len(values)) or episode_observations(
+                len(values), values, final_historical_flags)
+            if selected_estimator == "episode" else
+            fold_episode_observations(len(values), final_historical_flags)
+        )
         candidate_points = episode_residual_adjusted(
             values, horizon, season,
-            event_flags(eligible, timestamps, final_cutoff),
+            final_historical_flags,
             final_active,
             base_predict(values),
             base.selected_model, selected_shape,
+            final_observations,
         )
     elif selected_estimator == "residual":
         candidate_points = residual_event_adjusted(
