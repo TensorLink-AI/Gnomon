@@ -1682,20 +1682,20 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 not sampled_prior
                 or sampled_prior_assessment.get(
                     "eligible_for_human_recommendation") is True)
-            supported_primary_sampled_prior_withheld = bool(
+            unvalidated_sampled_prior_withheld = bool(
                 sampled_prior
-                and primary_path_support in {"supported", "context_trusted"}
                 and elicitation.get("host_observed") is True
                 and elicitation.get("historical_skill_evidence") is False)
-            if supported_primary_sampled_prior_withheld:
+            if unvalidated_sampled_prior_withheld:
                 # Repeated model samples measure elicitation stability, not
                 # forecast skill. Keep the sealed prior available for human
-                # inspection and later outcome scoring, but do not let that
-                # coherence alone displace an already supported primary.
+                # inspection and later outcome scoring, but never let that
+                # coherence alone displace the primary. A weak primary does
+                # not turn an unvalidated alternative into evidence.
                 selection_eligible = False
             human_selection_eligible = bool(
                 sampled_prior_sufficient
-                and not supported_primary_sampled_prior_withheld
+                and not unvalidated_sampled_prior_withheld
                 and (selection_eligible
                      or (candidate_origin.startswith("governed_")
                          and candidate_critique.get(
@@ -1784,8 +1784,8 @@ def build_scenario_catalog(result: dict[str, Any], *,
                       if supported_primary_stability_withheld else []),
                     *(["Sampled model-path agreement is elicitation stability, "
                         "not historical skill, so this prior cannot displace "
-                        "a fully supported primary recommendation."]
-                      if supported_primary_sampled_prior_withheld else [])],
+                        "the primary recommendation."]
+                      if unvalidated_sampled_prior_withheld else [])],
                 source_seal=str(dossier["seal_sha256"]),
                 effect={
                     "candidate_origin": candidate_origin,
@@ -1863,14 +1863,14 @@ def build_scenario_catalog(result: dict[str, Any], *,
                         "candidate_preserved": True,
                     }} if supported_primary_stability_withheld else {}),
                     **({"recommendation_stability": {
-                        "status": "withheld_for_supported_primary",
+                        "status": "withheld_without_historical_skill",
                         "reason_code": (
                             "sampled_prior_has_no_historical_skill"),
                         "primary_support": primary_path_support,
                         "host_observed": True,
                         "historical_skill_evidence": False,
                         "candidate_preserved": True,
-                    }} if supported_primary_sampled_prior_withheld else {}),
+                    }} if unvalidated_sampled_prior_withheld else {}),
                     "calibration_replay": calibration_replay,
                     "validation": candidate.get("validation") or {},
                     "executable": candidate.get("executable") or {},
@@ -2066,13 +2066,12 @@ def best_effort_prior_selection(
     *, scenarios: list[dict[str, Any]],
     dossiers: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any] | None:
-    """Apply the explicit best-effort policy to one sampled model prior.
+    """Return no automatic choice for an unvalidated sampled model prior.
 
-    This is a publication policy, not an evidence upgrade. It applies only
-    when no historically/evidence-dominant path exists and exactly one
-    human-eligible model candidate carries a host-aggregated distribution from
-    at least three independently elicited paths. Strict and scenario publication
-    remain unchanged, and automation remains categorically unavailable.
+    Repeated paths can establish transport and elicitation stability, but not
+    forecast skill. Such candidates remain sealed in the portfolio for an
+    explicit human decision and later outcome graduation; best-effort mode
+    cannot make them the default merely because the primary is weak.
     """
     if dominant_scenario_id(scenarios) is not None:
         return None
@@ -2090,92 +2089,7 @@ def best_effort_prior_selection(
                 and item.get("human_selection_eligible") is not True
                 for item in scenarios)):
         return None
-    sampled = []
-    for item in scenarios:
-        effect = item.get("effect") or {}
-        elicitation = effect.get("elicitation") or {}
-        sufficiency = effect.get("elicitation_sufficiency") or {}
-        if (item.get("role") == "model_authored"
-                and item.get("human_selection_eligible") is True
-                and sufficiency.get(
-                    "eligible_for_human_recommendation") is True
-                and elicitation.get("host_observed") is True
-                and elicitation.get("historical_skill_evidence") is False
-                and elicitation.get("automation_eligible") is False
-                and isinstance(elicitation.get("accepted_paths"), int)):
-            sampled.append(item)
-    if len(sampled) != 1:
-        return None
-    selected = sampled[0]
-    # Agreement among sampled model paths is a coherence check, not evidence
-    # that this prior dominates another viable interpretation. Auto-selection
-    # is therefore reserved for the simple primary-versus-one-prior case. If
-    # another non-primary candidate is eligible, preserve the alternatives and
-    # route the genuine ambiguity through the bounded evidence selector.
-    if any(item is not selected
-           and item.get("scenario_id") != "primary"
-           and item.get("human_selection_eligible") is True
-           for item in scenarios):
-        return None
-    selected_claims = {str(item) for item in selected.get("claim_ids") or []}
-    if not selected_claims:
-        # RecallBench shows that a hosted model's apparent edge on named public
-        # numeric histories can disappear under affine anonymization. Sampled
-        # path agreement is therefore insufficient cold-start authority by
-        # itself. A model forecast with no verified, future-relevant context
-        # remains visible for outcome scoring but cannot become the default
-        # human recommendation until same-series outcomes graduate it.
-        return None
-    externally_matched = any(
-        str(claim.get("claim_id")) in selected_claims
-        and str(claim.get("mechanism") or "").endswith(
-            "without stated matching attributes")
-        for dossier in dossiers or [] if verify_temporal_dossier_seal(dossier)
-        for claim in dossier.get("claims") or [])
-    if externally_matched:
-        # Best-effort permits consideration of a prior; it does not prove that
-        # a peer chosen using outside model knowledge matches the target. Route
-        # that genuinely ambiguous pair through the bounded selector. If the
-        # selector is unavailable, publication retains the immutable primary.
-        return None
-    eligible = [item for item in scenarios
-                if item.get("human_selection_eligible") is True
-                and item is not selected]
-    ineligible = [item for item in scenarios
-                  if item.get("human_selection_eligible") is not True]
-    ranking = [selected["scenario_id"], *[
-        item["scenario_id"] for item in eligible], *[
-        item["scenario_id"] for item in ineligible]]
-    cited = list(dict.fromkeys(str(item) for item in
-                              selected.get("claim_ids") or []))
-    counter = list(dict.fromkeys(
-        str(hypothesis.get("hypothesis_id"))
-        for dossier in dossiers or []
-        for hypothesis in dossier.get("hypotheses") or []
-        if hypothesis.get("kind") == "unsupported"
-        and hypothesis.get("hypothesis_id")))
-    raw = {
-        "selected_scenario_id": selected["scenario_id"],
-        "ranking": ranking,
-        "cited_claim_ids": cited,
-        "counterevidence_claim_ids": [],
-        "counterevidence_hypothesis_ids": counter,
-        "confidence": .5,
-        "rationale": (
-            "The caller selected best_effort publication, and one bounded "
-            "host-sampled model prior passed the host's elicitation-sufficiency "
-            "gate and directly conditions on the supplied claims. Sampling "
-            "agreement is stability context, not historical skill; the "
-            "immutable primary and counterevidence remain visible."),
-        "what_would_change_selection": (
-            "Historical replay, resolved outcomes, or a supported executable "
-            "that contradicts this prior would change the recommendation."),
-    }
-    selection = validate_scenario_selection(
-        raw, scenarios=scenarios, dossiers=dossiers)
-    if selection is not None:
-        selection["channel"] = "best_effort_sampled_prior_policy"
-    return selection
+    return None
 
 
 def outcome_informed_prior_selection(

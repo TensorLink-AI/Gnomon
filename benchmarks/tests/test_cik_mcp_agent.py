@@ -2889,14 +2889,10 @@ def test_typed_interpretation_without_executable_gets_sealed_sampled_prior(
                  if item["role"] == "model_authored")
     primary = next(item for item in publication["candidate_portfolio"]
                    if item["role"] == "immutable_primary")
-    if primary["support"] in {"supported", "context_trusted"}:
-        assert publication["recommended_scenario_id"] == "primary"
-        assert prior["human_selection_eligible"] is False
-        assert prior["effect"]["recommendation_stability"][
-            "reason_code"] == "sampled_prior_has_no_historical_skill"
-    else:
-        assert publication["recommended_scenario_id"] == prior["scenario_id"]
-        assert prior["human_selection_eligible"] is True
+    assert publication["recommended_scenario_id"] == "primary"
+    assert prior["human_selection_eligible"] is False
+    assert prior["effect"]["recommendation_stability"][
+        "reason_code"] == "sampled_prior_has_no_historical_skill"
     assert publication["primary_forecast_unchanged"] is True
     assert publication["automation"]["eligible"] is False
     assert prior["effect"]["distribution"]["sample_count"] == expected_paths

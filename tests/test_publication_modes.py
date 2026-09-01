@@ -1486,32 +1486,20 @@ def test_sampled_outliers_remain_diagnostics_not_published_tail_width():
         "immutable_primary_offsets_around_sampled_median")
     selection = best_effort_prior_selection(
         scenarios=scenarios, dossiers=[dossier])
-    assert selection is not None
-    assert selection["selected_scenario_id"] == "prior-assisted-1"
-    assert selection["channel"] == "best_effort_sampled_prior_policy"
+    assert selection is None
     best = publish_result(result, mode="best_effort", dossiers=[dossier])
     strict = publish_result(result, mode="strict", dossiers=[dossier])
-    assert best["recommended_scenario_id"] == "prior-assisted-1"
+    assert best["recommended_scenario_id"] == "primary"
     assert best["automation"]["eligible"] is False
     assert best["primary_forecast_unchanged"] is True
     assert best["recommendation_authority"]["selection_method"] == (
-        "best_effort_sampled_prior_policy")
-    assert "host-aggregated prior distribution" in best[
-        "recommendation_authority"]["reason"]
-    assert "consensus" not in best["recommendation_authority"]["reason"]
+        "immutable_primary_default")
     assert best["recommendation_authority"][
         "independent_selection_performed"] is False
-    selected_disposition = next(item for item in best[
-        "context_dispositions"] if item.get("disposition") == "used")
-    assert selected_disposition["selection_reason_code"] == \
-        "selected_human_facing_scenario"
-    assert selected_disposition["reason_code"]
-    assert "did not alter the selected numeric forecast" not in \
-        selected_disposition["reason"]
-    assert "grounds the separately sealed scenario" in \
-        selected_disposition["reason"]
-    assert "does not upgrade support" in selected_disposition[
-        "selection_reason"]
+    retained = next(item for item in best["candidate_portfolio"]
+                    if item["scenario_id"] == "prior-assisted-1")
+    assert retained["effect"]["recommendation_stability"]["reason_code"] == \
+        "sampled_prior_has_no_historical_skill"
     assert strict["recommended_scenario_id"] == "primary"
 
 
@@ -1546,7 +1534,7 @@ def test_sampled_prior_cannot_displace_fully_supported_primary():
     assert candidate["selection_eligible"] is False
     assert candidate["human_selection_eligible"] is False
     assert candidate["effect"]["recommendation_stability"] == {
-        "status": "withheld_for_supported_primary",
+        "status": "withheld_without_historical_skill",
         "reason_code": "sampled_prior_has_no_historical_skill",
         "primary_support": "supported",
         "host_observed": True,
@@ -1627,9 +1615,8 @@ def test_selected_prior_marks_only_its_cited_claims_used():
 
     by_claim = {item.get("claim_id"): item
                 for item in payload["context_dispositions"]}
-    assert by_claim["claim-1"]["disposition"] == "used"
-    assert by_claim["claim-1"]["selection_reason_code"] == (
-        "selected_human_facing_scenario")
+    assert by_claim["claim-1"]["disposition"] == "scenario"
+    assert by_claim["claim-1"].get("selection_reason_code") is None
     assert by_claim["claim-2"]["disposition"] == "scenario"
     assert by_claim["claim-2"].get("selection_reason_code") is None
 
@@ -1928,7 +1915,7 @@ def test_unknown_citations_and_tampering_fail_loudly():
     assert not verify_publication(damaged)
 
 
-def test_host_sampled_prior_policy_is_not_mislabeled_as_model_selection():
+def test_host_sampled_prior_without_skill_is_not_auto_selected():
     dossier = _dossier()
     dossier["forecast_candidate"]["elicitation"] = {
         "kind": "sampled_point_paths", "host_observed": True,
@@ -1949,19 +1936,14 @@ def test_host_sampled_prior_policy_is_not_mislabeled_as_model_selection():
     payload = publish_result(result, mode="scenario", dossiers=[dossier])
     selection = best_effort_prior_selection(
         scenarios=payload["candidate_portfolio"], dossiers=[dossier])
-    assert selection is not None
-
-    selected = select_publication(
-        payload, selection,
-        selection_channel="best_effort_sampled_prior_policy")
-
-    authority = selected["recommendation_authority"]
-    assert authority["selection_method"] == \
-        "best_effort_sampled_prior_policy"
-    assert authority["selection_pass_performed"] is False
-    assert authority["selector_independence"] == "not_applicable"
-    assert selected["scenario_selection"]["channel"] == \
-        "best_effort_sampled_prior_policy"
+    assert selection is None
+    selected = publish_result(result, mode="best_effort", dossiers=[dossier])
+    assert selected["recommended_scenario_id"] == "primary"
+    candidate = next(item for item in selected["candidate_portfolio"]
+                     if item["role"] == "model_authored")
+    assert candidate["human_selection_eligible"] is False
+    assert candidate["effect"]["recommendation_stability"]["status"] == \
+        "withheld_without_historical_skill"
     assert verify_publication(selected)
 
 
