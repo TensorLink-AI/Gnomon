@@ -84,7 +84,11 @@ The compact `context_summary` also separates record authority from evidence
 authority. `summary_is_canonical` means the disposition record is the engine's
 canonical account of what happened; it does not mean the context was validated.
 `context_evidence_authority` is independently labelled `historically_admitted`,
-`prior_assisted`, `hypothetical_sensitivity`, or `none`. The legacy
+`retrospectively_validated`, `conditional_replay_evidence`, `prior_assisted`,
+`hypothetical_sensitivity`, or `none`. Conditional replay means that a fixed
+observation interpretation beat its comparator under expanding-origin replay at
+the current receipt cutoff; it is not evidence that the interpretation was
+known at each historical origin. The legacy
 `authoritative_for_publication` flag is true only for historically admitted
 context. `context_changed_human_recommendation` reports whether a weaker lane
 was intentionally shown first, while `context_can_authorize_automation` remains

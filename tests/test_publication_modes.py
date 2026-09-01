@@ -1023,6 +1023,12 @@ def test_replay_admitted_observation_counterfactual_has_truthful_authority():
     assert authority["conditional_replay_admitted"] is True
     assert authority["historically_admitted"] is False
     assert authority["human_review_required"] is True
+    summary = payload["context_summary"]
+    assert summary["context_evidence_authority"] == \
+        "conditional_replay_evidence"
+    assert summary["authoritative_for_publication"] is False
+    assert summary["context_can_authorize_automation"] is False
+    assert payload["primary_forecast_unchanged"] is True
     assert payload["automation"]["eligible"] is False
     assert verify_publication(payload)
     assert payload["selection_contract"]["selection_required"] is False

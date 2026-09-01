@@ -300,6 +300,12 @@ def _context_summary(
         evidence_authority = "historically_admitted"
     elif authority.get("retrospectively_validated") is True:
         evidence_authority = "retrospectively_validated"
+    elif authority.get("conditional_replay_admitted") is True:
+        # Conditional replay is empirical evidence for the fixed observation
+        # interpretation at the current receipt cutoff.  It is stronger than
+        # a hypothetical sensitivity, but it is not bitemporal historical
+        # admission and therefore cannot authorize publication or automation.
+        evidence_authority = "conditional_replay_evidence"
     elif authority.get("prior_assisted") is True:
         evidence_authority = "prior_assisted"
     elif context_changed_recommendation:
