@@ -221,6 +221,7 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
              authority_path: Path | None = None,
              calibration_evaluation_path: Path | None = None,
              bounded_calibration_path: Path | None = None,
+             shared_trend_path: Path | None = None,
              ) -> tuple[Path, Path]:
     root = root.resolve()
     protocol = load_protocol(protocol_path)
@@ -269,6 +270,7 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
     calibration_cases: dict[str, dict[str, float]] = {}
     calibration_safety_denominator = 0
     bounded_safety_denominator = 0
+    shared_trend_safety_denominator = 0
     if (context_standard_dir is None) != (context_stress_dir is None):
         raise ValueError("both ContextBench shard directories are required")
     if context_standard_dir is not None and context_stress_dir is not None:
@@ -357,6 +359,21 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
         if bounded_safety_denominator <= 0:
             raise ValueError("bounded calibration has no sealed cases")
         sources.append(bounded_calibration_path)
+    if shared_trend_path is not None:
+        shared_trend = _read(shared_trend_path)
+        if shared_trend.get("evaluated_commit") != revision:
+            raise ValueError("shared-trend and CiK evidence must share a revision")
+        if not shared_trend.get("all_gates_passed"):
+            raise ValueError("shared-trend evidence must pass every gate")
+        context_cases["context:confounded:shared-trend"] = {
+            "context_is_useful": bool(shared_trend.get("context_is_useful")),
+            "context_admitted": bool(shared_trend.get("context_admitted")),
+        }
+        shared_trend_safety_denominator = int(
+            shared_trend.get("cases") or 0)
+        if shared_trend_safety_denominator <= 0:
+            raise ValueError("shared-trend evidence has no sealed cases")
+        sources.append(shared_trend_path)
     mutation_failures = automation_failures = oracle_failures = 0
     categorical_context: dict[str, Any] | None = None
     for task, seed in sorted(expected_keys):
@@ -503,6 +520,10 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
         for name in ("temporal_leakage", "declared_bound_violation",
                      "benchmark_oracle_exposure"):
             safety[name]["denominator"] += bounded_safety_denominator
+    if shared_trend_safety_denominator:
+        for name in ("temporal_leakage", "immutable_primary_mutation",
+                     "benchmark_oracle_exposure"):
+            safety[name]["denominator"] += shared_trend_safety_denominator
     result = {
         **base, "evaluated_commit": revision,
         "evidence": [*base["evidence"], {
@@ -530,6 +551,7 @@ def main() -> int:
     parser.add_argument("--authority", type=Path)
     parser.add_argument("--calibration-evaluation", type=Path)
     parser.add_argument("--bounded-calibration", type=Path)
+    parser.add_argument("--shared-trend", type=Path)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
     _, result = assemble(
@@ -540,7 +562,8 @@ def main() -> int:
         context_stress_dir=args.context_stress_dir,
         authority_path=args.authority,
         calibration_evaluation_path=args.calibration_evaluation,
-        bounded_calibration_path=args.bounded_calibration)
+        bounded_calibration_path=args.bounded_calibration,
+        shared_trend_path=args.shared_trend)
     print(result)
     return 0
 

@@ -286,6 +286,14 @@ def test_full_cik_assembler_binds_all_frozen_rows_and_safety(tmp_path: Path):
         "reference_wis": 1.2,
         "all_gates_passed": True,
     })
+    shared_trend_path = tmp_path / "shared-trend.json"
+    _write_json(shared_trend_path, {
+        "evaluated_commit": "revision-under-test",
+        "cases": 40,
+        "context_is_useful": False,
+        "context_admitted": False,
+        "all_gates_passed": True,
+    })
 
     base = {
         "schema_version": "0.1",
@@ -313,10 +321,11 @@ def test_full_cik_assembler_binds_all_frozen_rows_and_safety(tmp_path: Path):
         authority_path=authority_path,
         calibration_evaluation_path=calibration_path,
         bounded_calibration_path=bounded_path,
+        shared_trend_path=shared_trend_path,
     )
     result = json.loads(result_path.read_text(encoding="utf-8"))
 
-    assert len(result["observations"]) == 36
+    assert len(result["observations"]) == 37
     assert all(item["status"] == "answered"
                for item in result["observations"])
     for name in (
@@ -327,10 +336,10 @@ def test_full_cik_assembler_binds_all_frozen_rows_and_safety(tmp_path: Path):
         "benchmark_oracle_exposure",
     ):
         expected = (
-            141 if name == "temporal_leakage"
-            else 13 if name == "immutable_primary_mutation"
+            181 if name == "temporal_leakage"
+            else 53 if name == "immutable_primary_mutation"
             else 15 if name == "authority_escalation"
-            else 135 if name == "benchmark_oracle_exposure"
+            else 175 if name == "benchmark_oracle_exposure"
             else 9 if name == "declared_bound_violation" else 7)
         assert result["safety"][name] == {
             "denominator": expected, "failures": 0,
