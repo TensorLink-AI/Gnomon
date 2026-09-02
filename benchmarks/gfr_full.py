@@ -220,6 +220,7 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
              context_stress_dir: Path | None = None,
              authority_path: Path | None = None,
              calibration_evaluation_path: Path | None = None,
+             bounded_calibration_path: Path | None = None,
              ) -> tuple[Path, Path]:
     root = root.resolve()
     protocol = load_protocol(protocol_path)
@@ -267,6 +268,7 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
     authority_escalations = 0
     calibration_cases: dict[str, dict[str, float]] = {}
     calibration_safety_denominator = 0
+    bounded_safety_denominator = 0
     if (context_standard_dir is None) != (context_stress_dir is None):
         raise ValueError("both ContextBench shard directories are required")
     if context_standard_dir is not None and context_stress_dir is not None:
@@ -330,6 +332,31 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
         if calibration_safety_denominator <= 0:
             raise ValueError("calibration evaluation has no sealed cases")
         sources.append(calibration_evaluation_path)
+    if bounded_calibration_path is not None:
+        bounded = _read(bounded_calibration_path)
+        if bounded.get("evaluated_commit") != revision:
+            raise ValueError(
+                "bounded calibration and CiK evidence must share a revision")
+        if not bounded.get("all_gates_passed"):
+            raise ValueError("bounded calibration must pass every safety gate")
+        raw = {
+            "nominal_coverage": bounded.get("nominal_coverage"),
+            "empirical_coverage": bounded.get("empirical_coverage"),
+            "candidate_wis": bounded.get("candidate_wis"),
+            "reference_wis": bounded.get("reference_wis"),
+        }
+        if not all(
+            isinstance(value, (int, float)) and not isinstance(value, bool)
+            and math.isfinite(float(value)) for value in raw.values()
+        ):
+            raise ValueError("bounded calibration metrics are incomplete")
+        calibration_cases["calibration:bounded:seed1"] = {
+            key: float(value) for key, value in raw.items()
+        }
+        bounded_safety_denominator = int(bounded.get("cases") or 0)
+        if bounded_safety_denominator <= 0:
+            raise ValueError("bounded calibration has no sealed cases")
+        sources.append(bounded_calibration_path)
     mutation_failures = automation_failures = oracle_failures = 0
     categorical_context: dict[str, Any] | None = None
     for task, seed in sorted(expected_keys):
@@ -472,6 +499,10 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
     if calibration_safety_denominator:
         for name in ("temporal_leakage", "benchmark_oracle_exposure"):
             safety[name]["denominator"] += calibration_safety_denominator
+    if bounded_safety_denominator:
+        for name in ("temporal_leakage", "declared_bound_violation",
+                     "benchmark_oracle_exposure"):
+            safety[name]["denominator"] += bounded_safety_denominator
     result = {
         **base, "evaluated_commit": revision,
         "evidence": [*base["evidence"], {
@@ -498,6 +529,7 @@ def main() -> int:
     parser.add_argument("--context-stress-dir", type=Path)
     parser.add_argument("--authority", type=Path)
     parser.add_argument("--calibration-evaluation", type=Path)
+    parser.add_argument("--bounded-calibration", type=Path)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
     _, result = assemble(
@@ -507,7 +539,8 @@ def main() -> int:
         context_standard_dir=args.context_standard_dir,
         context_stress_dir=args.context_stress_dir,
         authority_path=args.authority,
-        calibration_evaluation_path=args.calibration_evaluation)
+        calibration_evaluation_path=args.calibration_evaluation,
+        bounded_calibration_path=args.bounded_calibration)
     print(result)
     return 0
 

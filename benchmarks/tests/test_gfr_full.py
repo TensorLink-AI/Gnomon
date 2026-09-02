@@ -276,6 +276,16 @@ def test_full_cik_assembler_binds_all_frozen_rows_and_safety(tmp_path: Path):
             "heteroskedastic": {"coverage": .7, "mean_wis": 2.5},
         },
     })
+    bounded_path = tmp_path / "bounded.json"
+    _write_json(bounded_path, {
+        "evaluated_commit": "revision-under-test",
+        "cases": 8,
+        "nominal_coverage": .8,
+        "empirical_coverage": .79,
+        "candidate_wis": 1.0,
+        "reference_wis": 1.2,
+        "all_gates_passed": True,
+    })
 
     base = {
         "schema_version": "0.1",
@@ -302,10 +312,11 @@ def test_full_cik_assembler_binds_all_frozen_rows_and_safety(tmp_path: Path):
         context_stress_dir=context_stress,
         authority_path=authority_path,
         calibration_evaluation_path=calibration_path,
+        bounded_calibration_path=bounded_path,
     )
     result = json.loads(result_path.read_text(encoding="utf-8"))
 
-    assert len(result["observations"]) == 35
+    assert len(result["observations"]) == 36
     assert all(item["status"] == "answered"
                for item in result["observations"])
     for name in (
@@ -316,10 +327,11 @@ def test_full_cik_assembler_binds_all_frozen_rows_and_safety(tmp_path: Path):
         "benchmark_oracle_exposure",
     ):
         expected = (
-            133 if name == "temporal_leakage"
+            141 if name == "temporal_leakage"
             else 13 if name == "immutable_primary_mutation"
             else 15 if name == "authority_escalation"
-            else 127 if name == "benchmark_oracle_exposure" else 7)
+            else 135 if name == "benchmark_oracle_exposure"
+            else 9 if name == "declared_bound_violation" else 7)
         assert result["safety"][name] == {
             "denominator": expected, "failures": 0,
         }
