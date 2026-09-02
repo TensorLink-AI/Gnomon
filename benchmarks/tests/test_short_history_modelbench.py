@@ -22,6 +22,7 @@ def test_short_history_benchmark_is_deterministic_and_retains_records():
     ]
     assert all(item["selection_input_ends_before_scored_horizon"] is True
                for item in cases)
+    assert all(item["oracle_used_by_selector"] is False for item in cases)
     assert all(0 <= score_observation("short_history_usefulness", {
         "expected_action": item["expected_action"],
         "actual_action": item["actual_action"],
