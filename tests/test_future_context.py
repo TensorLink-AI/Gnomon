@@ -240,6 +240,22 @@ def test_override_spans_parse_to_the_stated_value(span, value):
     assert parsed == value
 
 
+def test_direct_maintenance_outage_has_literal_authority_not_forecast_authority():
+    from gnomon.future_context import literal_authority
+
+    direct = (
+        "Consider that the meter will be offline for maintenance between "
+        "2026-02-28 04:00 and 2026-02-28 07:00, resulting in zero readings."
+    )
+    attributed = (
+        "The vendor predicts the meter will be offline for maintenance "
+        "between 2026-02-28 04:00 and 2026-02-28 07:00."
+    )
+
+    assert literal_authority(direct) == (True, True)
+    assert literal_authority(attributed) == (True, False)
+
+
 def test_an_explicit_number_wins_over_a_zero_word():
     parsed, _ = parse_override_span(
         "output reduced to 120 while the line is partially shut down"

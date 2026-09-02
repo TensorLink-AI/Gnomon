@@ -1672,6 +1672,12 @@ _BINDING_SOURCE_RE = re.compile(
     r"guaranteed?|binding|hard\s+cap|capped?|ceiling|floor|limit|"
     r"design\s+capacity|rated\s+capacity|"
     r"cannot|prohibited?|mandated?)\b", re.IGNORECASE)
+_MAINTENANCE_OUTAGE_RE = re.compile(
+    r"\boffline\s+for\s+(?:scheduled\s+)?maintenance\b", re.IGNORECASE)
+_ATTRIBUTED_PREDICTION_RE = re.compile(
+    r"\b(?:forecasts?|predicts?|projects?|estimates?|expects?|anticipates?)\b",
+    re.IGNORECASE,
+)
 
 
 def literal_authority(text: str) -> tuple[bool, bool]:
@@ -1685,5 +1691,13 @@ def literal_authority(text: str) -> tuple[bool, bool]:
     authority to the same words.
     """
     value = str(text or "")
-    return bool(_PREDICTIVE_SOURCE_RE.search(value)), bool(
-        _BINDING_SOURCE_RE.search(value))
+    predictive = bool(_PREDICTIVE_SOURCE_RE.search(value))
+    binding = bool(_BINDING_SOURCE_RE.search(value))
+    # A direct declaration of a planned outage is the canonical deterministic
+    # maintenance-window case handled by this lane.  Keep an attributed
+    # analyst/vendor prediction out: provenance plus a date does not turn a
+    # forecast into an operational schedule.
+    maintenance_outage = bool(_MAINTENANCE_OUTAGE_RE.search(value)) and not bool(
+        _ATTRIBUTED_PREDICTION_RE.search(value)
+    )
+    return predictive, binding or maintenance_outage
