@@ -26,6 +26,14 @@ from gnomon.panel_pooling import PanelTrendCandidate
 
 
 FAMILIES = ("level", "trend", "seasonal", "intermittent", "multiplicative")
+GFR_SHORT_CASE_IDS = (
+    "short:seasonal:one-cycle",
+    "short:seasonal:two-cycles",
+    "short:trend:two-horizons",
+    "short:level:two-horizons",
+    "short:intermittent:two-cycles",
+    "short:noise:two-cycles",
+)
 
 
 def _series(rng: random.Random, family: str, length: int, direction: float = 1) -> list[float]:
@@ -87,6 +95,73 @@ def _outcome(candidate: float, baseline: float) -> str:
     if math.isclose(candidate, baseline, rel_tol=0, abs_tol=1e-12):
         return "safety_preservation"
     return "uplift" if candidate < baseline else "regression"
+
+
+def _gfr_short_history_cases(seed: int) -> list[dict[str, object]]:
+    """Run the six frozen short-history strata on untouched final horizons."""
+    rng = random.Random(seed ^ 0x6F726163)
+
+    def one(case_id: str, family: str, train_length: int, horizon: int,
+            season: int, *, noise_only: bool = False) -> dict[str, object]:
+        if noise_only:
+            level = rng.uniform(20, 80)
+            complete = [level + rng.gauss(0, 2.0)
+                        for _ in range(train_length + horizon)]
+        else:
+            complete = _series(rng, family, train_length + horizon)
+        history, actual = complete[:train_length], complete[train_length:]
+        baseline_points = last_value(history, horizon, season)
+        selected, candidate_points = _classical_forecast(
+            history, horizon, season)
+        baseline_loss = _loss(actual, baseline_points)
+        selected_loss = _loss(actual, candidate_points)
+        return {
+            "case_id": case_id, "family": family,
+            "history_length": train_length, "horizon": horizon,
+            "seasonal_period": season, "selected": selected,
+            "baseline_loss": baseline_loss, "selected_loss": selected_loss,
+            "expected_action": ("publish_candidate"
+                                if selected_loss < baseline_loss
+                                else "retain_baseline"),
+            "actual_action": ("retain_baseline" if selected == "last_value"
+                              else "publish_candidate"),
+            "outcome": _outcome(selected_loss, baseline_loss),
+            "selection_input_ends_before_scored_horizon": True,
+        }
+
+    cases = [
+        one("short:seasonal:one-cycle", "seasonal", 6, 3, 6),
+        one("short:seasonal:two-cycles", "seasonal", 12, 3, 6),
+        one("short:intermittent:two-cycles", "intermittent", 12, 3, 6),
+        one("short:noise:two-cycles", "noise", 12, 3, 6,
+            noise_only=True),
+    ]
+    for case_id, family in (
+            ("short:trend:two-horizons", "trend"),
+            ("short:level:two-horizons", "level")):
+        components = [one(case_id, family, 18, horizon, 1)
+                      for horizon in (3, 6)]
+        baseline_loss = mean(float(item["baseline_loss"])
+                             for item in components)
+        selected_loss = mean(float(item["selected_loss"])
+                             for item in components)
+        cases.append({
+            "case_id": case_id, "family": family,
+            "history_length": 18, "horizons": [3, 6],
+            "selected": [item["selected"] for item in components],
+            "baseline_loss": baseline_loss, "selected_loss": selected_loss,
+            "expected_action": ("publish_candidate"
+                                if selected_loss < baseline_loss
+                                else "retain_baseline"),
+            "actual_action": ("retain_baseline" if all(
+                item["selected"] == "last_value" for item in components)
+                else "publish_candidate"),
+            "outcome": _outcome(selected_loss, baseline_loss),
+            "selection_input_ends_before_scored_horizon": True,
+            "components": components,
+        })
+    by_id = {str(item["case_id"]): item for item in cases}
+    return [by_id[case_id] for case_id in GFR_SHORT_CASE_IDS]
 
 
 def run(seed: int = 82631, cases_per_family: int = 40) -> dict[str, object]:
@@ -183,6 +258,7 @@ def run(seed: int = 82631, cases_per_family: int = 40) -> dict[str, object]:
                     for regime, items in by_regime.items()},
         "precision_gate_min_admissions": 20,
         "raw_records": rows,
+        "gfr_cases": _gfr_short_history_cases(seed),
     }
     result["gates"] = {
         "classical_median_gain_positive": result["classical"]["median_relative_gain"] > 0,

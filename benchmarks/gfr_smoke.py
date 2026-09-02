@@ -294,11 +294,19 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
     if useful is None:
         raise ValueError("ContextBench evidence contains no admitted useful case")
     short = _read(short_history)
-    seasonal = next((row for row in short.get("raw_records", [])
-                     if row.get("lane") == "classical"
-                     and row.get("family") == "seasonal"), None)
-    if seasonal is None:
-        raise ValueError("short-history evidence contains no seasonal case")
+    short_cases = {str(row.get("case_id")): row
+                   for row in short.get("gfr_cases", [])
+                   if isinstance(row, dict) and row.get("case_id")}
+    frozen_short_ids = protocol["capabilities"][
+        "short_history_usefulness"]["full_case_ids"]
+    if any(case_id not in short_cases for case_id in frozen_short_ids):
+        raise ValueError("short-history evidence lacks frozen GFR cases")
+    short_raw = {case_id: {
+        "expected_action": short_cases[case_id]["expected_action"],
+        "actual_action": short_cases[case_id]["actual_action"],
+        "baseline_loss": float(short_cases[case_id]["baseline_loss"]),
+        "selected_loss": float(short_cases[case_id]["selected_loss"]),
+    } for case_id in frozen_short_ids}
     decision = _read(decision_contract)
     preservation_cases = preservation_observations(decision)
     outcome_summary = _read(outcome)
@@ -374,17 +382,8 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
         "candidate_calibration": (
             ("answered", candidate_calibration_raw)
             if candidate_calibration_raw is not None else ("failed", None)),
-        "short_history_usefulness": ("answered", {
-            "expected_action": ("publish_candidate"
-                                if seasonal["candidate_loss"]
-                                < seasonal["baseline_loss"]
-                                else "retain_baseline"),
-            "actual_action": ("retain_baseline"
-                              if seasonal.get("selected") == "last_value"
-                              else "publish_candidate"),
-            "baseline_loss": float(seasonal["baseline_loss"]),
-            "selected_loss": float(seasonal["candidate_loss"]),
-        }),
+        "short_history_usefulness": (
+            "answered", short_raw["short:seasonal:two-cycles"]),
         "selection_discipline": ("answered", {
             "selected_admissible": any(
                 item.get("selected") and item.get("human_selection_eligible")
@@ -429,6 +428,7 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
             "response_preservation": preservation_cases,
             "outcome_graduation": outcome_cases,
             "domain_constraints": constraint_cases,
+            "short_history_usefulness": short_raw,
         }} if scope == "full" else {}),
         "known_measurement_gaps": {
             **({"candidate_calibration": (
@@ -461,7 +461,8 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
         for capability, cases in (
                 ("response_preservation", preservation_cases),
                 ("outcome_graduation", outcome_cases),
-                ("domain_constraints", constraint_cases)):
+                ("domain_constraints", constraint_cases),
+                ("short_history_usefulness", short_raw)):
             smoke_case = protocol["capabilities"][capability][
                 "smoke_case_ids"][0]
             for case_id, raw in cases.items():
