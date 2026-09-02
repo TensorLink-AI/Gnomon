@@ -7,14 +7,16 @@ selection at the default margin picked a non-baseline on 39 of 50
 near-martingale series, running 2.9x the MSE of `last_value`; the
 median-residual recentring shifted the published path by ~1 sigma in a
 coin-flip direction. The guardrail publishes the assumption-minimal level
-baseline when the contest cannot rank; degraded runs centre quantiles on the point
-path. Both fire only on fold-starved runs: a fully evidenced series is
-byte-identical (test_golden_artifacts pins that).
+baseline when the contest cannot rank, except when a predeclared structured
+baseline clears a high-specificity recurrence screen; degraded runs centre
+quantiles on the point path. Both fire only on fold-starved runs: a fully
+evidenced series is byte-identical (test_golden_artifacts pins that).
 """
 
 from __future__ import annotations
 
 import csv
+import math
 import random
 from pathlib import Path
 
@@ -146,6 +148,74 @@ class TestSelectionGuardrail:
             if warning.startswith("Degraded baseline admission:"))
         assert '"admitted": true' in disclosure
         assert '"chronological_block_wins": 3' in disclosure
+
+    def test_two_cycle_recurrence_can_earn_degraded_admission(self):
+        # Exactly two stable, dense cycles can establish one narrow fact: the
+        # predeclared seasonal baseline materially beats copying one point.
+        # The result remains degraded and reports only one evidence origin.
+        cycle = [20.0, 28.0, 35.0, 31.0, 22.0, 17.0]
+        values = cycle + [20.1, 27.9, 35.1, 30.9, 22.1, 16.9]
+
+        result = select_model_lightweight(values, 3, 6)
+
+        assert result.selected_model == "seasonal_naive"
+        assert result.strongest_baseline == "seasonal_naive"
+        assert result.selection_fold_count == 1
+        assert result.degraded is True
+        disclosure = next(
+            warning for warning in result.warnings
+            if warning.startswith("Degraded baseline admission:"))
+        assert '"scheme": "single_complete_cycle_recurrence"' in disclosure
+        assert '"evidence_scope": "one_complete_report_only_cycle"' in disclosure
+        assert '"admitted": true' in disclosure
+
+    def test_two_cycle_recurrence_uses_origin_vintage(self):
+        cycle = [20.0, 28.0, 35.0, 31.0, 22.0, 17.0]
+        values = cycle * 2
+
+        result = select_model_lightweight(
+            values, 3, 6,
+            train_at=lambda origin: [10.0 + index for index in range(origin)])
+
+        assert result.selected_model == "last_value"
+        disclosure = next(
+            warning for warning in result.warnings
+            if warning.startswith("Degraded baseline admission:"))
+        assert '"admitted": false' in disclosure
+
+    @pytest.mark.parametrize("family", [
+        "phase_shift", "level", "random_walk", "trend", "intermittent",
+    ])
+    def test_two_cycle_recurrence_rejects_structural_controls(self, family):
+        admitted = 0
+        for seed in range(500):
+            generator = random.Random(seed + 80_000)
+            level = generator.uniform(20, 80)
+            amplitude = generator.uniform(4, 12)
+            phase = generator.random() * 2 * math.pi
+            current = level
+            values = []
+            for index in range(12):
+                if family == "phase_shift":
+                    shift = 0 if index < 6 else .7
+                    value = level + amplitude * math.sin(
+                        2 * math.pi * index / 6 + phase + shift)
+                    value += generator.gauss(0, .7)
+                elif family == "level":
+                    value = level + generator.gauss(0, 2)
+                elif family == "random_walk":
+                    current += generator.gauss(0, 1)
+                    value = current
+                elif family == "trend":
+                    value = level + .5 * index + generator.gauss(0, 1)
+                else:
+                    value = (generator.uniform(5, 15)
+                             if generator.random() < .2 else 0.0)
+                values.append(value)
+            admitted += int(select_model_lightweight(
+                values, 3, 6).selected_model == "seasonal_naive")
+
+        assert admitted == 0
 
     def test_degraded_seasonal_admission_rejects_level_series(self):
         # When the structured baseline has no demonstrated improvement, the

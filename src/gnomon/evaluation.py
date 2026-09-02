@@ -657,6 +657,101 @@ def supportable_horizon(length: int, season: int) -> int | None:
     return None
 
 
+def _two_cycle_seasonal_recurrence(
+    values: list[float], horizon: int, season: int,
+    train_at: Callable[[int], list[float]],
+) -> dict[str, object] | None:
+    """Screen one complete recurrence without treating it as many folds.
+
+    Two cycles cannot support a candidate tournament.  They can establish a
+    narrowly defined structured-baseline fact when the second complete cycle
+    is an almost exact recurrence of the first: the waveform is dense, stable,
+    and materially unlike copying the last point.  The thresholds are fixed
+    and deliberately stringent because this is only one report-only cycle.
+    """
+    if (season < 6 or horizon > season
+            or len(values) < 2 * season or len(values) >= 3 * season):
+        return None
+    origin = len(values) - season
+    origin_train = train_at(origin)
+    if len(origin_train) < season:
+        return None
+    reference = [float(value) for value in origin_train[-season:]]
+    observed = [float(value) for value in values[origin:]]
+    if (len(observed) != season
+            or any(not math.isfinite(value)
+                   for value in [*reference, *observed])):
+        return None
+
+    reference_mean, observed_mean = mean(reference), mean(observed)
+    reference_scale = math.sqrt(mean(
+        (value - reference_mean) ** 2 for value in reference))
+    observed_scale = math.sqrt(mean(
+        (value - observed_mean) ** 2 for value in observed))
+    cycle_scale = min(reference_scale, observed_scale)
+    if cycle_scale <= 1e-12:
+        correlation = None
+    else:
+        covariance = mean(
+            (left - reference_mean) * (right - observed_mean)
+            for left, right in zip(reference, observed))
+        correlation = covariance / (reference_scale * observed_scale)
+    recurrence_loss = mean(abs(left - right)
+                           for left, right in zip(reference, observed))
+    last_value_loss = mean(abs(value - reference[-1]) for value in observed)
+    transition_floor = .05 * cycle_scale
+    transitions = min(sum(
+        abs(cycle[index] - cycle[index - 1]) > transition_floor
+        for index in range(1, season)) for cycle in (reference, observed))
+    plateau_points = max(max(sum(
+        abs(value - centre) <= transition_floor for value in cycle)
+        for centre in cycle) for cycle in (reference, observed))
+    typical_level = max(
+        median(abs(value) for value in [*reference, *observed]), 1e-12)
+    relative_cycle_scale = cycle_scale / typical_level
+    required_transitions = max(3, season // 3)
+    admitted = bool(
+        correlation is not None and correlation >= .985
+        and last_value_loss > 1e-12
+        and recurrence_loss <= .25 * last_value_loss
+        and recurrence_loss <= .25 * cycle_scale
+        and abs(reference_mean - observed_mean) <= .25 * cycle_scale
+        and transitions >= required_transitions
+        and plateau_points < season / 2
+        and relative_cycle_scale >= .05)
+    return {
+        "scheme": "single_complete_cycle_recurrence",
+        "probe_horizon": season,
+        "origins": 1,
+        "seasonal_naive_loss": recurrence_loss,
+        "last_value_loss": last_value_loss,
+        "relative_improvement": (
+            (last_value_loss - recurrence_loss) / last_value_loss
+            if last_value_loss > 0 else None),
+        "cycle_correlation": correlation,
+        "minimum_cycle_correlation": .985,
+        "recurrence_to_last_value_ratio": (
+            recurrence_loss / last_value_loss
+            if last_value_loss > 0 else None),
+        "maximum_recurrence_to_last_value_ratio": .25,
+        "recurrence_to_cycle_scale_ratio": (
+            recurrence_loss / cycle_scale if cycle_scale > 0 else None),
+        "maximum_recurrence_to_cycle_scale_ratio": .25,
+        "cycle_level_shift_to_scale_ratio": (
+            abs(reference_mean - observed_mean) / cycle_scale
+            if cycle_scale > 0 else None),
+        "maximum_cycle_level_shift_to_scale_ratio": .25,
+        "minimum_transitions": required_transitions,
+        "observed_transitions": transitions,
+        "maximum_plateau_fraction": .5,
+        "observed_plateau_fraction": plateau_points / season,
+        "minimum_cycle_scale_to_level_ratio": .05,
+        "observed_cycle_scale_to_level_ratio": relative_cycle_scale,
+        "evidence_scope": "one_complete_report_only_cycle",
+        "admitted": admitted,
+    }
+
+
 def select_model_lightweight(
     values: list[float], horizon: int, season: int,
     train_at: Callable[[int], list[float]] | None = None,
@@ -701,19 +796,27 @@ def select_model_lightweight(
     non_baselines = [name for name in valid if name not in BASELINES]
     degraded_baseline_evidence = None
     if "last_value" in baselines:
-        # One holdout cannot establish that a structured baseline generalises
-        # any more reliably than it can rank an incremental model.  Publish
-        # the assumption-minimal level baseline; seasonal/TSFM candidates can
-        # still enter through repeatable folds or separately labelled transfer
-        # evidence.  This rule is history-length based, never channel based.
+        # One holdout cannot ordinarily establish that a structured baseline
+        # generalises any more reliably than it can rank an incremental model.
+        # Publish the assumption-minimal level baseline unless a predeclared,
+        # high-specificity recurrence screen or repeatable seasonal blocks
+        # establish the structured baseline. This rule is history-length and
+        # shape based, never channel or benchmark-label based.
         selected = "last_value"
+        if season > 1 and "seasonal_naive" in baselines:
+            degraded_baseline_evidence = _two_cycle_seasonal_recurrence(
+                values, horizon, season, train_at)
+            if (degraded_baseline_evidence is not None
+                    and degraded_baseline_evidence["admitted"] is True):
+                selected = "seasonal_naive"
         # A long requested horizon can prevent separated full-horizon folds
         # even when the history contains repeatable seasonal evidence. Admit
         # only the single structured baseline against last-value on fixed,
         # non-overlapping seasonal blocks. This is not a candidate tournament:
         # two predeclared baselines, a 10% margin, and wins in two of three
         # chronological blocks are required.
-        if (season > 1 and "seasonal_naive" in baselines
+        if (selected == "last_value"
+                and season > 1 and "seasonal_naive" in baselines
                 and len(values) >= 3 * season):
             probe_horizon = min(season, horizon)
             first = max(season, len(values) - 8 * probe_horizon)
