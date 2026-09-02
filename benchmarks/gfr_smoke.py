@@ -377,6 +377,20 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
         isinstance(usage.get(field), int) and usage[field] > 0
         for usage in (control_usage, treatment_usage)
         for field in ("requests", "prompt_tokens", "completion_tokens"))
+    usage_complete = usage_complete and all(
+        usage.get("sample_cache_hits") in (None, 0)
+        or usage.get("sample_cache_accounting_complete") is True
+        for usage in (control_usage, treatment_usage)
+    )
+    control_latency = (control_row.get("latency_seconds")
+                       or control_extra.get("total_time"))
+    treatment_latency = (treatment_row.get("latency_seconds")
+                         or treatment_extra.get("total_time"))
+    usage_complete = usage_complete and all(
+        isinstance(value, (int, float)) and not isinstance(value, bool)
+        and math.isfinite(float(value)) and float(value) > 0
+        for value in (control_latency, treatment_latency)
+    )
     efficiency_raw = ({
         "control_requests": control_usage["requests"],
         "treatment_requests": treatment_usage["requests"],
@@ -384,8 +398,8 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
                            + control_usage["completion_tokens"]),
         "treatment_tokens": (treatment_usage["prompt_tokens"]
                              + treatment_usage["completion_tokens"]),
-        "control_latency_seconds": float(control_extra["total_time"]),
-        "treatment_latency_seconds": float(treatment_extra["total_time"]),
+        "control_latency_seconds": float(control_latency),
+        "treatment_latency_seconds": float(treatment_latency),
     } if usage_complete else None)
 
     raw_by_capability: dict[str, tuple[str, dict[str, Any] | None]] = {

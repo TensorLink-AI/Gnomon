@@ -3517,12 +3517,16 @@ class McpAgentForecaster:
         candidate_temporal_facts_enabled: bool = True,
         base_url: str | None = None,
         api_key: str | None = None,
+        sample_parallelism: int = 4,
+        sample_cache_dir: str | Path | None = None,
     ) -> None:
         self.openrouter_model = openrouter_model
         self.temperature = temperature
         self.client = client or OpenRouterClient(
             openrouter_model, temperature=temperature,
-            base_url=base_url, api_key=api_key)
+            base_url=base_url, api_key=api_key,
+            sample_parallelism=sample_parallelism,
+            sample_cache_dir=sample_cache_dir)
         self.work_dir = work_dir
         self.trace_dir = Path(trace_dir) if trace_dir else None
         self.profile = (profile or os.environ.get(

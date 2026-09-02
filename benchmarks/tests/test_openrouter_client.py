@@ -252,8 +252,40 @@ def test_sample_cache_replays_without_new_requests(tmp_path, monkeypatch):
 
     assert sorted(choice.message.content for choice in replayed.choices) == \
         sorted(choice.message.content for choice in original.choices)
-    assert resumed.usage_summary["requests"] == 0
-    assert resumed.usage_summary["sample_cache_hits"] == 5
+    usage = resumed.usage_summary
+    assert usage["requests"] == 5
+    assert usage["restored_requests"] == 5
+    assert usage["prompt_tokens"] == 50
+    assert usage["completion_tokens"] == 100
+    assert usage["cost_usd"] == pytest.approx(.005)
+    assert usage["sample_cache_hits"] == 5
+    assert usage["sample_cache_accounting_complete"] is True
+
+
+def test_legacy_choice_only_cache_is_replayed_but_economics_fail_closed(
+        tmp_path, monkeypatch):
+    producer, _ = _client(
+        monkeypatch, [_response("sample")], sample_cache_dir=tmp_path)
+    key = producer._sample_key(
+        MESSAGES, temperature=None, max_tokens=producer.max_tokens,
+        tools=None, tool_choice=None, reasoning_effort=None)
+    directory = tmp_path / key
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "choice-legacy.json").write_text(json.dumps({
+        "choice": _response("legacy")["choices"][0],
+        "provider": "legacy",
+    }))
+
+    resumed = OpenRouterClient(
+        "test/model", api_key="k", sample_cache_dir=tmp_path)
+    monkeypatch.setattr(
+        OpenRouterClient, "_request",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("legacy sample should remain resumable")),
+    )
+
+    assert resumed.completions(MESSAGES) == ["legacy"]
+    assert resumed.usage_summary["sample_cache_accounting_complete"] is False
 
 
 def test_cached_samples_are_consumed_once_per_process(tmp_path, monkeypatch):
@@ -365,7 +397,8 @@ def test_zero_retries_still_performs_the_initial_request(monkeypatch):
     assert client.usage_summary["transport_attempts"] == 1
 
 
-def test_retryable_error_inside_success_body_is_retried(monkeypatch):
+def test_retryable_error_inside_success_body_is_retried(
+        tmp_path, monkeypatch):
     replies = [
         {"error": {"message": "miner timeout or disconnect", "code": 504}},
         _response("recovered"),
@@ -386,15 +419,25 @@ def test_retryable_error_inside_success_body_is_retried(monkeypatch):
         lambda *args, **kwargs: Response(replies.pop(0)))
     monkeypatch.setattr("time.sleep", lambda _seconds: None)
     client = OpenRouterClient(
-        "test/model", api_key="k", max_retries=1, timeout=1)
+        "test/model", api_key="k", max_retries=1, timeout=1,
+        sample_cache_dir=tmp_path)
 
     response = client._request(
         MESSAGES, n=1, temperature=None, max_tokens=10,
-        tools=None, tool_choice=None)
+        tools=None, tool_choice=None, sample_cache_key="request-key")
 
     assert response.choices[0].message.content == "recovered"
     assert client.usage_summary["transport_attempts"] == 2
     assert client.usage_summary["requests"] == 1
+    resumed = OpenRouterClient(
+        "test/model", api_key="k", max_retries=1, timeout=1,
+        sample_cache_dir=tmp_path)
+    assert resumed.usage_summary["requests"] == 1
+    assert resumed.usage_summary["restored_requests"] == 1
+    assert resumed.usage_summary["transport_attempts"] == 2
+    assert resumed.usage_summary["prompt_tokens"] == 10
+    assert resumed.usage_summary["completion_tokens"] == 20
+    assert resumed.usage_summary["sample_cache_accounting_complete"] is True
 
 
 def test_reasoning_effort_is_sent_only_when_explicit(monkeypatch):

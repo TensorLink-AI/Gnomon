@@ -7,9 +7,9 @@ import pytest
 from benchmarks.cik.run_cik import (
     _candidate_interval_diagnostics, _checkpoint_identity,
     _counterfactual_candidate_scores,
-    _load_checkpoint, _prepare_checkpoint_identity,
+    _load_attempt_checkpoint, _load_checkpoint, _prepare_checkpoint_identity,
     _summarize_selection_diagnostics, _task_information_profile, build_parser,
-    select_tasks, write_outputs,
+    _write_attempt_checkpoint, select_tasks, write_outputs,
 )
 
 
@@ -166,6 +166,7 @@ def test_write_outputs_retains_versioned_raw_selection_diagnostics(
         ],
         "primary_forecast_unchanged": True,
         "automation_eligible": False,
+        "total_time": 2.0,
     }
     monkeypatch.setattr(
         "benchmarks.cik.run_cik.load_run_extra_info",
@@ -176,7 +177,9 @@ def test_write_outputs_retains_versioned_raw_selection_diagnostics(
     method = SimpleNamespace(cache_name="method-contract-238")
 
     write_outputs(
-        {"Task": [{"seed": 7, "score": .4}]}, method, args, tmp_path)
+        {"Task": [{"seed": 7, "score": .4,
+                   "cumulative_active_seconds": 9.5}]},
+        method, args, tmp_path)
 
     rows = [json.loads(line) for line in (
         tmp_path / "selection-diagnostics.jsonl").read_text(
@@ -188,6 +191,25 @@ def test_write_outputs_retains_versioned_raw_selection_diagnostics(
     assert rows[0]["computed_after_forecast"] is True
     assert rows[0]["passed_to_forecaster"] is False
     assert rows[0]["candidates"][1]["scenario_id"] == "prior"
+    [run_row] = [json.loads(line) for line in (
+        tmp_path / "gnomonbench.jsonl").read_text(
+            encoding="utf-8").splitlines()]
+    assert run_row["latency_seconds"] == 9.5
+
+
+def test_attempt_checkpoint_retains_cumulative_active_work(tmp_path):
+    attempts = {
+        "Task::seed=7": [
+            {"active_seconds": 3.5, "completed": False,
+             "error": "case_timeout_after_3s", "peak_rss_mb": 700},
+            {"active_seconds": 1.25, "completed": True,
+             "error": None, "peak_rss_mb": 710},
+        ],
+    }
+
+    _write_attempt_checkpoint(tmp_path, attempts)
+
+    assert _load_attempt_checkpoint(tmp_path) == attempts
 
 
 def test_resume_retries_provider_and_process_failures_but_keeps_model_results(tmp_path):

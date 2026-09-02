@@ -204,6 +204,7 @@ class OpenRouterClient:
         self._usage_lock = threading.Lock()
         self._sample_cache_lock = threading.Lock()
         self._sample_cache_consumed: set[str] = set()
+        self._sample_usage_consumed: set[str] = set()
         self._rate_limit_lock = threading.Lock()
         self._rate_limit_not_before = 0.0
         self._rate_limit_next_start = 0.0
@@ -212,11 +213,15 @@ class OpenRouterClient:
         self.total_cost_usd = 0.0
         self.total_requests = 0
         self.total_transport_attempts = 0
+        self.total_request_latency_seconds = 0.0
+        self.restored_requests = 0
         self.truncation_escalations = 0
         self.sample_cache_hits = 0
         self.sample_cache_writes = 0
         self.rate_limit_events = 0
         self.rate_limit_wait_seconds = 0.0
+        self.sample_cache_accounting_complete = True
+        self._restore_all_cached_usage()
 
     def _register_rate_limit(self, retry_after: float | None = None) -> None:
         """Apply one shared cooldown to all sibling request workers."""
@@ -307,14 +312,133 @@ class OpenRouterClient:
             self.sample_cache_hits += len(choices)
         return choices, providers
 
+    def _restore_all_cached_usage(self) -> None:
+        """Restore cumulative request economics for this case cache.
+
+        A resumed benchmark must not look cheaper merely because its earlier
+        completions came from disk. Request ledgers are written before their
+        choices, so every reusable sample has durable provider accounting.
+        Legacy choice-only caches remain usable for recovery, but are marked
+        incomplete so score assemblers can fail closed on their economics.
+        """
+        if self.sample_cache_dir is None or not self.sample_cache_dir.exists():
+            return
+        with self._sample_cache_lock:
+            request_paths = {
+                path.stem.removeprefix("request-"): path
+                for path in self.sample_cache_dir.glob("*/request-*.json")
+            }
+            for path in sorted(request_paths.values()):
+                identity = str(path)
+                if identity in self._sample_usage_consumed:
+                    continue
+                try:
+                    record = json.loads(path.read_text(encoding="utf-8"))
+                    successful = record["successful"]
+                    integer_fields = (
+                        record["requests"], record["transport_attempts"],
+                        record["prompt_tokens"], record["completion_tokens"],
+                    )
+                    if (not isinstance(successful, bool)
+                            or any(isinstance(value, bool)
+                                   or not isinstance(value, int)
+                                   for value in integer_fields)):
+                        raise ValueError("invalid request accounting types")
+                    (requests, transport_attempts, prompt_tokens,
+                     completion_tokens) = integer_fields
+                    cost_usd = float(record["cost_usd"])
+                    latency = float(record["request_latency_seconds"])
+                    if min(requests, transport_attempts, prompt_tokens,
+                           completion_tokens) < 0 or cost_usd < 0 or latency < 0:
+                        raise ValueError("negative request accounting")
+                    if requests != int(successful):
+                        raise ValueError("request success accounting mismatch")
+                except (OSError, KeyError, TypeError, ValueError,
+                        json.JSONDecodeError):
+                    self.sample_cache_accounting_complete = False
+                    continue
+                self._sample_usage_consumed.add(identity)
+                with self._usage_lock:
+                    self.total_requests += requests
+                    self.restored_requests += requests
+                    self.total_transport_attempts += transport_attempts
+                    self.total_prompt_tokens += prompt_tokens
+                    self.total_completion_tokens += completion_tokens
+                    self.total_cost_usd += cost_usd
+                    self.total_request_latency_seconds += latency
+            for path in self.sample_cache_dir.glob("*/choice-*.json"):
+                try:
+                    record = json.loads(path.read_text(encoding="utf-8"))
+                    request_id = str(record["request_id"])
+                except (OSError, KeyError, TypeError, json.JSONDecodeError):
+                    self.sample_cache_accounting_complete = False
+                    continue
+                if request_id not in request_paths:
+                    self.sample_cache_accounting_complete = False
+
+    def _persist_request_record(
+        self,
+        key: str | None,
+        *,
+        successful: bool,
+        usage: Any = None,
+        provider: str = "unknown",
+        transport_attempts: int = 1,
+        request_latency_seconds: float = 0.0,
+    ) -> str | None:
+        """Durably record one logical provider request before its choices."""
+        if self.sample_cache_dir is None or key is None:
+            return None
+        plain_usage = _to_plain(usage) if usage is not None else {}
+        if not isinstance(plain_usage, dict):
+            plain_usage = {}
+        request_id = uuid.uuid4().hex
+        record = {
+            "schema_version": 1,
+            "successful": bool(successful),
+            "requests": int(bool(successful)),
+            "transport_attempts": max(0, int(transport_attempts)),
+            "prompt_tokens": max(0, int(plain_usage.get("prompt_tokens") or 0)),
+            "completion_tokens": max(
+                0, int(plain_usage.get("completion_tokens") or 0)),
+            "cost_usd": max(0.0, float(plain_usage.get("cost") or 0.0)),
+            "request_latency_seconds": max(
+                0.0, float(request_latency_seconds)),
+            "provider": provider,
+        }
+        directory = self.sample_cache_dir / key
+        path = directory / f"request-{request_id}.json"
+        temporary = directory / f".request-{request_id}.tmp"
+        with self._sample_cache_lock:
+            directory.mkdir(parents=True, exist_ok=True)
+            temporary.write_text(
+                json.dumps(record, sort_keys=True) + "\n", encoding="utf-8")
+            temporary.replace(path)
+            # The live client already counted this request. Marking the ledger
+            # consumed prevents a later cache claim in the same process from
+            # counting it twice.
+            self._sample_usage_consumed.add(str(path))
+        return request_id
+
     def _store_cached_samples(self, key: str,
                               response: SimpleNamespace) -> None:
         if self.sample_cache_dir is None:
             return
         directory = self.sample_cache_dir / key
         provider = str(getattr(response, "provider", None) or "unknown")
+        request_id = getattr(response, "_gnomon_cache_request_id", None)
+        if request_id is None:
+            request_id = self._persist_request_record(
+                key, successful=True, usage=getattr(response, "usage", None),
+                provider=provider,
+                transport_attempts=int(getattr(
+                    response, "_gnomon_transport_attempts", 1)),
+                request_latency_seconds=float(getattr(
+                    response, "_gnomon_request_latency_seconds", 0.0)),
+            )
         for choice in list(getattr(response, "choices", None) or []):
-            record = {"choice": _to_plain(choice), "provider": provider}
+            record = {"choice": _to_plain(choice), "provider": provider,
+                      "request_id": request_id}
             with self._sample_cache_lock:
                 directory.mkdir(parents=True, exist_ok=True)
                 suffix = uuid.uuid4().hex
@@ -340,6 +464,7 @@ class OpenRouterClient:
         request_timeout: float | None = None,
         transport_retries: int | None = None,
         _skip_sample_cache: bool = False,
+        _sample_cache_key: str | None = None,
     ) -> SimpleNamespace:
         """Send one chat-completion request and return the parsed response.
 
@@ -362,7 +487,7 @@ class OpenRouterClient:
             )
         caller_budget = max_tokens is not None
         budget = self.max_tokens if max_tokens is None else max_tokens
-        cache_key = None
+        cache_key = _sample_cache_key
         cached_choices: list[Any] = []
         cached_providers: list[str] = []
         if self.sample_cache_dir is not None and not _skip_sample_cache:
@@ -389,6 +514,7 @@ class OpenRouterClient:
                 reasoning_effort=reasoning_effort,
                 request_timeout=request_timeout,
                 transport_retries=transport_retries,
+                sample_cache_key=cache_key,
             )
             if not _truncated_empty(response) or budget >= MAX_TOKENS_CEILING:
                 break
@@ -424,13 +550,12 @@ class OpenRouterClient:
                     request_timeout=request_timeout,
                     transport_retries=transport_retries,
                     _skip_sample_cache=True,
+                    _sample_cache_key=cache_key,
                 )
-                # Persist each successful sibling immediately. A later
-                # sibling may exhaust retries, or the case supervisor may
-                # kill the worker at its deadline; neither should discard
-                # samples that already completed.
-                if cache_key is not None:
-                    self._store_cached_samples(cache_key, extra)
+                # Recursive chat() persists this successful sibling before
+                # returning. A later sibling may exhaust retries, or the case
+                # supervisor may kill the worker at its deadline; neither
+                # discards samples that already completed.
                 return extra
 
             # Task-level ``jobs=1`` does not constrain this inner fan-out.
@@ -464,6 +589,7 @@ class OpenRouterClient:
         reasoning_effort: str | None = None,
         request_timeout: float | None = None,
         transport_retries: int | None = None,
+        sample_cache_key: str | None = None,
     ) -> SimpleNamespace:
         """Perform one request, retrying transient HTTP failures."""
         payload = {
@@ -490,7 +616,10 @@ class OpenRouterClient:
                     else max(0, int(transport_retries))) + 1
         effective_timeout = (self.timeout if request_timeout is None
                              else max(.001, float(request_timeout)))
+        request_started = time.monotonic()
+        attempts_used = 0
         for attempt in range(attempts):
+            attempts_used = attempt + 1
             self._wait_for_provider_slot()
             with self._usage_lock:
                 self.total_transport_attempts += 1
@@ -549,6 +678,18 @@ class OpenRouterClient:
                 response = _to_namespace(parsed)
                 if not getattr(response, "provider", None):
                     response.provider = "unknown"
+                request_latency = time.monotonic() - request_started
+                response._gnomon_request_latency_seconds = request_latency
+                response._gnomon_transport_attempts = attempts_used
+                response._gnomon_cache_request_id = self._persist_request_record(
+                    sample_cache_key, successful=True,
+                    usage=getattr(response, "usage", None),
+                    provider=str(response.provider),
+                    transport_attempts=attempts_used,
+                    request_latency_seconds=request_latency,
+                )
+                with self._usage_lock:
+                    self.total_request_latency_seconds += request_latency
                 return response
             except urllib.error.HTTPError as error:
                 last_error = error
@@ -572,6 +713,14 @@ class OpenRouterClient:
                 last_error = error
             if attempt + 1 < attempts:
                 time.sleep(2**attempt)
+        request_latency = time.monotonic() - request_started
+        self._persist_request_record(
+            sample_cache_key, successful=False,
+            transport_attempts=attempts_used,
+            request_latency_seconds=request_latency,
+        )
+        with self._usage_lock:
+            self.total_request_latency_seconds += request_latency
         raise OpenRouterError(
             f"OpenRouter request failed after {attempts} attempts: {last_error}"
         )
@@ -647,10 +796,15 @@ class OpenRouterClient:
             "rate_limit_wait_seconds": round(
                 self.rate_limit_wait_seconds, 3),
             "requests": self.total_requests,
+            "restored_requests": self.restored_requests,
             "transport_attempts": self.total_transport_attempts,
             "prompt_tokens": self.total_prompt_tokens,
             "completion_tokens": self.total_completion_tokens,
             "cost_usd": round(self.total_cost_usd, 6),
+            "request_latency_seconds": round(
+                self.total_request_latency_seconds, 6),
+            "sample_cache_accounting_complete": (
+                self.sample_cache_accounting_complete),
             # Disclosed, not hidden: requests that had to be re-sent with
             # a larger budget because the model reasoned past the first.
             "truncation_escalations": self.truncation_escalations,

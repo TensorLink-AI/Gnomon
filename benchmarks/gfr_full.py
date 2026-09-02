@@ -69,13 +69,32 @@ def _index_diagnostics(rows: list[dict[str, Any]]) -> dict[tuple[str, int], dict
     return output
 
 
-def _usage_raw(control: dict[str, Any], treatment: dict[str, Any]) -> dict[str, Any] | None:
+def _usage_raw(
+    control: dict[str, Any],
+    treatment: dict[str, Any],
+    control_row: dict[str, Any] | None = None,
+    treatment_row: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
     control_usage = control.get("llm_usage") or {}
     treatment_usage = treatment.get("llm_usage") or {}
     complete = all(
         isinstance(usage.get(field), int) and usage[field] > 0
         for usage in (control_usage, treatment_usage)
         for field in ("requests", "prompt_tokens", "completion_tokens"))
+    resumed_accounting_complete = all(
+        usage.get("sample_cache_hits") in (None, 0)
+        or usage.get("sample_cache_accounting_complete") is True
+        for usage in (control_usage, treatment_usage)
+    )
+    control_latency = ((control_row or {}).get("latency_seconds")
+                       or control.get("total_time"))
+    treatment_latency = ((treatment_row or {}).get("latency_seconds")
+                         or treatment.get("total_time"))
+    complete = complete and resumed_accounting_complete and all(
+        isinstance(value, (int, float)) and not isinstance(value, bool)
+        and math.isfinite(float(value)) and float(value) > 0
+        for value in (control_latency, treatment_latency)
+    )
     if not complete:
         return None
     return {
@@ -85,8 +104,8 @@ def _usage_raw(control: dict[str, Any], treatment: dict[str, Any]) -> dict[str, 
                            + control_usage["completion_tokens"]),
         "treatment_tokens": (treatment_usage["prompt_tokens"]
                              + treatment_usage["completion_tokens"]),
-        "control_latency_seconds": float(control["total_time"]),
-        "treatment_latency_seconds": float(treatment["total_time"]),
+        "control_latency_seconds": float(control_latency),
+        "treatment_latency_seconds": float(treatment_latency),
     }
 
 
@@ -497,7 +516,8 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
             extracted.append((
                 "candidate_calibration", f"calibration:conditional:seed{seed}",
                 "answered" if calibration is not None else "failed", calibration))
-            usage = _usage_raw(control_extra, treatment_extra)
+            usage = _usage_raw(
+                control_extra, treatment_extra, control_row, treatment_row)
             extracted.append((
                 "efficiency", f"efficiency:cik:DNICloud:seed{seed}",
                 "answered" if usage is not None else "failed", usage))
