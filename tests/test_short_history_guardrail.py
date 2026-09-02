@@ -8,9 +8,10 @@ near-martingale series, running 2.9x the MSE of `last_value`; the
 median-residual recentring shifted the published path by ~1 sigma in a
 coin-flip direction. The guardrail publishes the assumption-minimal level
 baseline when the contest cannot rank, except when a predeclared structured
-baseline clears a high-specificity recurrence screen; degraded runs centre
-quantiles on the point path. Both fire only on fold-starved runs: a fully
-evidenced series is byte-identical (test_golden_artifacts pins that).
+baseline or prefix-stable trend/level clears a high-specificity screen;
+degraded runs centre quantiles on the point path. Both fire only on
+fold-starved runs: a fully evidenced series is byte-identical
+(test_golden_artifacts pins that).
 """
 
 from __future__ import annotations
@@ -50,7 +51,7 @@ class TestSelectionGuardrail:
     def test_single_fold_noise_win_publishes_baseline_with_evidence(self):
         # 30 points, horizon 7, season 7: origins [14, 21] -> one
         # selection fold. On a trendless series no candidate clears the
-        # raised single-fold margin, whatever the fold says.
+        # prefix-stability screen, whatever the one full-horizon fold says.
         result = evaluate(near_martingale(30), 7, 7, 0.02, frequency="D")
         assert result.supported and result.degraded
         assert result.selection_fold_count == 1
@@ -65,9 +66,10 @@ class TestSelectionGuardrail:
         assert any("Selection under-powered" in w for w in result.warnings)
 
     def test_single_fold_overwhelming_margin_selects_the_candidate(self):
-        # A deterministic trend cuts the baseline's single-fold error by
-        # far more than SINGLE_FOLD_SELECTION_MARGIN: the escape hatch
-        # for structure one fold *can* prove.
+        # A deterministic trend persists in both chronological halves and
+        # repeatedly beats last-value on prefix-only replay.  The narrow
+        # structural screen can establish that fact without treating the
+        # dense proxy origins as independent full-horizon folds.
         result = evaluate(trending(30), 7, 7, 0.02, frequency="D")
         assert result.degraded
         assert result.selection_fold_count == 1
@@ -122,14 +124,62 @@ class TestSelectionGuardrail:
         assert result.selected_model in BASELINES
 
     def test_lightweight_holdout_keeps_the_hard_lock(self):
-        # The lightweight path's holdout can be a single observation —
-        # too thin for even an overwhelming-margin escape hatch, so a
-        # trend still publishes the baseline there.
+        # The lightweight path has too little history for the minimum
+        # 12-observation prefix-stability screen, so it publishes baseline.
         result = select_model_lightweight(trending(10), 3, 7)
         assert result.supported and result.degraded
         assert result.selection_guardrail_applied
         assert result.selected_model in BASELINES
         assert any("Selection under-powered" in w for w in result.warnings)
+
+    def test_lightweight_stable_trend_earns_narrow_admission(self):
+        values = [100 + 2 * index + (0.3 if index % 2 else -0.3)
+                  for index in range(18)]
+
+        result = select_model_lightweight(values, 6, 1)
+
+        evidence = result.selection_stability["fold_starved_structural"]
+        assert result.selected_model == "linear_trend"
+        assert result.degraded is True
+        assert result.selection_fold_count == 1
+        assert evidence["admitted"] is True
+        assert evidence["full_horizon_fold_claimed"] is False
+
+    def test_lightweight_stable_level_earns_narrow_admission(self):
+        wobble = [1, -1, .5, -.5, .8, -.8]
+        values = [100 + wobble[index % len(wobble)] for index in range(18)]
+
+        result = select_model_lightweight(values, 6, 1)
+
+        assert result.selected_model == "historical_mean"
+        assert result.degraded is True
+        assert result.selection_stability[
+            "fold_starved_structural"]["admitted"] is True
+
+    def test_one_fold_recent_shift_cannot_promote_historical_mean(self):
+        values = [100 + (10 if index >= 13 else 0)
+                  + (0.2 if index % 2 else -0.2)
+                  for index in range(18)]
+
+        result = evaluate(
+            values, 3, 1, .02, frequency="D", tsfm_names=[])
+
+        evidence = result.selection_stability["fold_starved_structural"]
+        assert result.selected_model == "last_value"
+        assert result.selection_guardrail_applied is True
+        assert evidence["admitted"] is False
+
+    def test_structural_replay_uses_origin_vintages(self):
+        values = [100 + 2 * index for index in range(18)]
+
+        result = select_model_lightweight(
+            values, 6, 1,
+            train_at=lambda origin: near_martingale(origin),
+        )
+
+        assert result.selected_model == "last_value"
+        assert result.selection_stability[
+            "fold_starved_structural"]["admitted"] is False
 
     def test_repeatable_seasonal_baseline_can_earn_degraded_admission(self):
         # Full 56-step evaluation cannot fit, but eight disjoint historical

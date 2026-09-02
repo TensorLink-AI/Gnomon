@@ -28,7 +28,7 @@
     {
       "series": "__default__",
       "support": "degraded",
-      "selected_model": "drift",
+      "selected_model": "linear_trend",
       "strongest_baseline": "last_value",
       "selection_scores": {
         "last_value": 0.07947019867549669,
@@ -45,8 +45,8 @@
         "last_value": 0.06217616580310881,
         "seasonal_naive": null,
         "historical_mean": null,
-        "drift": 0.0,
-        "linear_trend": null,
+        "drift": null,
+        "linear_trend": 0.0,
         "window_average": null,
         "theta": null,
         "ets": null,
@@ -64,7 +64,7 @@
       "interval_coverage": 1.0,
       "warnings": [
         "Limited evaluation: only 3 rolling folds were available; 42 observations enable fully separated selection, calibration, and test windows.",
-        "Single-fold selection: drift beat the strongest baseline (last_value) by more than 75% on the one available fold \u2014 evidence strong enough to clear the raised short-history margin, but still a single comparison."
+        "Single-fold selection: linear_trend cleared the degraded prefix-stability screen against last_value. Dense one-step replay was not counted as additional full-horizon folds; the result remains degraded. Full diagnostics are retained in sensitivity.fold_starved_structural."
       ],
       "forecast": [
         {
@@ -210,7 +210,7 @@
           },
           {
             "code": "warning",
-            "message": "Single-fold selection: drift beat the strongest baseline (last_value) by more than 75% on the one available fold \u2014 evidence strong enough to clear the raised short-history margin, but still a single comparison."
+            "message": "Single-fold selection: linear_trend cleared the degraded prefix-stability screen against last_value. Dense one-step replay was not counted as additional full-horizon folds; the result remains degraded. Full diagnostics are retained in sensitivity.fold_starved_structural."
           }
         ],
         "assumptions": [
@@ -224,11 +224,42 @@
             "paired_folds": 0,
             "candidate_win_rate": null,
             "median_relative_gain": null,
-            "scaled_error_improvement": 1.0,
-            "scaled_error_passed": true,
+            "scaled_error_improvement": null,
+            "scaled_error_passed": false,
             "passed": true,
-            "scaled_error_paired_folds": 1,
-            "scaled_error_win_rate": 1.0
+            "fold_starved_structural": {
+              "scheme": "stable_prefix_structure",
+              "candidate": "linear_trend",
+              "admitted": true,
+              "proxy_horizon": 1,
+              "full_horizon_fold_claimed": false,
+              "slope": 3.0,
+              "first_half_slope": 3.0,
+              "second_half_slope": 3.0,
+              "projected_change_to_robust_noise": null,
+              "zero_residual_scale": true,
+              "thresholds": {
+                "maximum_slope_ratio": 2.5,
+                "minimum_projected_change_to_noise": 2.0,
+                "minimum_replay_gain": 0.35,
+                "minimum_block_gain": 0.15,
+                "minimum_block_win_rate": 0.6
+              },
+              "replay": {
+                "origins": 29,
+                "relative_gain": 1.0,
+                "chronological_blocks": [
+                  {
+                    "relative_gain": 1.0,
+                    "win_rate": 1.0
+                  },
+                  {
+                    "relative_gain": 1.0,
+                    "win_rate": 1.0
+                  }
+                ]
+              }
+            }
           }
         },
         "recovery_actions": [
@@ -289,8 +320,8 @@
           "last_value": 0.06217616580310881,
           "seasonal_naive": null,
           "historical_mean": null,
-          "drift": 0.0,
-          "linear_trend": null,
+          "drift": null,
+          "linear_trend": 0.0,
           "window_average": null,
           "theta": null,
           "ets": null,
@@ -307,7 +338,7 @@
         "measured_interval_coverage": 1.0,
         "baseline_improvement": 1.0,
         "strongest_baseline": "last_value",
-        "selected_model": "drift",
+        "selected_model": "linear_trend",
         "residuals_pooled_across_selection": true,
         "residual_fold_count": 2
       }
@@ -320,7 +351,7 @@
         "support": "degraded",
         "warnings": [
           "Limited evaluation: only 3 rolling folds were available; 42 observations enable fully separated selection, calibration, and test windows.",
-          "Single-fold selection: drift beat the strongest baseline (last_value) by more than 75% on the one available fold \u2014 evidence strong enough to clear the raised short-history margin, but still a single comparison."
+          "Single-fold selection: linear_trend cleared the degraded prefix-stability screen against last_value. Dense one-step replay was not counted as additional full-horizon folds; the result remains degraded. Full diagnostics are retained in sensitivity.fold_starved_structural."
         ],
         "row_tiers": {
           "conditionally_supported": 7

@@ -1777,13 +1777,11 @@ def capabilities() -> dict[str, object]:
             # trust contract is that under-powered evidence is not acted on
             # as if it ranked anything.
             "selection_guardrail": (
-                "below 2 disjoint selection folds the selection margin "
-                "rises to 75%: a candidate is selectable only by cutting "
-                "the strongest baseline's single-fold error by more than "
-                "three-quarters (deterministic structure, not fold luck); "
-                "otherwise the baseline is published with a "
+                "below 2 disjoint selection folds the ordinary candidate "
+                "tournament is disabled; last-value is published with a "
                 "'selection_underpowered' reason and selection_fold_count "
-                "in sensitivity"
+                "in sensitivity unless a narrow prefix-only stability "
+                "screen establishes a persistent trend or stationary level"
             ),
             "point_recentring": (
                 "on degraded runs, quantiles are centred on the model's "
@@ -1798,6 +1796,15 @@ def capabilities() -> dict[str, object]:
                 "only after at least six non-overlapping seasonal probes, "
                 "at least 10% mean improvement, and wins in two of three "
                 "chronological blocks; incremental candidates remain locked"
+            ),
+            "degraded_structural_admission": (
+                "for at least 12 observations, a stable linear trend may "
+                "replace last-value; on a nonseasonal series, a stable "
+                "historical mean may do so only when "
+                "prefix-only one-step replay wins in both chronological "
+                "halves and slope/level diagnostics reject recent shifts "
+                "and reversals; proxy origins are not reported as extra "
+                "full-horizon folds and support remains degraded"
             ),
         },
         # Where this process writes. Agents used to guess output_dir (and
