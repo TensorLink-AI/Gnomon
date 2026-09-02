@@ -2640,7 +2640,14 @@ def fit_categorical_state_candidate(
     width_floor = scale * 1e-6
     state_counts = {state: states.count(state) for state in set(states)}
     replay_points = len(actuals)
-    evidence_weight = min(1.0, replay_points / 8.0)
+    replay_evidence_weight = min(1.0, replay_points / 8.0)
+    # Replay volume is not evidence of usefulness by itself. A candidate that
+    # merely ties or loses to its comparator must remain at the baseline even
+    # in the human-review lane; positive skill gradually earns its numerical
+    # departure, reaching full weight at the same 2% admission threshold.
+    skill_evidence_weight = (
+        max(0.0, min(1.0, skill / .02)) if math.isfinite(skill) else 0.0)
+    evidence_weight = replay_evidence_weight * skill_evidence_weight
     baseline_point = target[-1]
     rows = []
     for offset, (source, state) in enumerate(zip(primary, future)):
@@ -2710,6 +2717,10 @@ def fit_categorical_state_candidate(
             "retrospective_skill_not_admission": not availability_proven,
             "publication_evidence_weight": evidence_weight,
             "publication_shrunk_to_baseline": evidence_weight < 1.0,
+            "publication_weight_basis": {
+                "replay_sufficiency": replay_evidence_weight,
+                "positive_skill": skill_evidence_weight,
+            },
             "interval_calibration": {
                 "source": "expanding_origin_replay_residuals",
                 "residual_points": len(replay_residuals),

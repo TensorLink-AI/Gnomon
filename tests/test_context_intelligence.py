@@ -520,6 +520,10 @@ def test_categorical_intervals_use_replay_errors_not_collapsed_fit_mad():
         "quantile_method": "finite_sample_split_conformal",
         "nominal_coverage": .8,
     }
+    assert candidate["validation"]["skill"] == 0
+    assert candidate["validation"]["publication_evidence_weight"] == 0
+    assert candidate["validation"]["publication_shrunk_to_baseline"] is True
+    assert all(row["q50"] == target[-1] for row in candidate["forecast"])
 
 
 def test_categorical_retrospective_skill_is_not_vintage_admission():
