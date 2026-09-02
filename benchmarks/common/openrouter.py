@@ -22,10 +22,13 @@ from __future__ import annotations
 
 import json
 import os
+import hashlib
 import threading
 import time
 import urllib.error
 import urllib.request
+import uuid
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
@@ -113,6 +116,17 @@ def _to_namespace(value: Any) -> Any:
     return value
 
 
+def _to_plain(value: Any) -> Any:
+    """Convert an OpenAI-shaped namespace back to JSON-safe values."""
+    if isinstance(value, SimpleNamespace):
+        return {key: _to_plain(item) for key, item in vars(value).items()}
+    if isinstance(value, list):
+        return [_to_plain(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _to_plain(item) for key, item in value.items()}
+    return value
+
+
 class OpenRouterClient:
     """Chat-completion client for any model hosted on OpenRouter.
 
@@ -133,6 +147,10 @@ class OpenRouterClient:
         Maximum concurrent single-sample requests used when a provider
         ignores ``n``. This is deliberately independent of a benchmark's
         task-level parallelism and defaults to a conservative four.
+    sample_cache_dir:
+        Optional per-run crash-safe sample bank. Completed choices are
+        atomically retained and consumed only once per client process, so a
+        killed benchmark case resumes by requesting only its missing samples.
     """
 
     def __init__(
@@ -147,6 +165,7 @@ class OpenRouterClient:
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
         reasoning_effort: str | None = None,
         sample_parallelism: int = 4,
+        sample_cache_dir: str | Path | None = None,
     ) -> None:
         if int(sample_parallelism) < 1:
             raise ValueError("sample_parallelism must be at least 1")
@@ -163,15 +182,99 @@ class OpenRouterClient:
         self.timeout = timeout
         self.reasoning_effort = reasoning_effort
         self.sample_parallelism = int(sample_parallelism)
+        self.sample_cache_dir = (
+            Path(sample_cache_dir) if sample_cache_dir is not None else None)
         # chat() may fan out concurrent single-sample requests when a
         # provider ignores ``n``; accounting must not lose updates.
         self._usage_lock = threading.Lock()
+        self._sample_cache_lock = threading.Lock()
+        self._sample_cache_consumed: set[str] = set()
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
         self.total_cost_usd = 0.0
         self.total_requests = 0
         self.total_transport_attempts = 0
         self.truncation_escalations = 0
+        self.sample_cache_hits = 0
+        self.sample_cache_writes = 0
+
+    def _sample_key(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        temperature: float | None,
+        max_tokens: int,
+        tools: list[dict[str, Any]] | None,
+        tool_choice: str | None,
+        reasoning_effort: str | None,
+    ) -> str:
+        """Identity of one exchangeable sample distribution."""
+        effective_reasoning = (self.reasoning_effort
+                               if reasoning_effort is None
+                               else reasoning_effort)
+        payload = {
+            "schema_version": 1,
+            "model": self.model,
+            "base_url": self.base_url,
+            "messages": messages,
+            "temperature": (self.temperature if temperature is None
+                            else temperature),
+            "max_tokens": max_tokens,
+            "tools": tools,
+            "tool_choice": tool_choice,
+            "reasoning_effort": effective_reasoning,
+        }
+        encoded = json.dumps(
+            payload, sort_keys=True, separators=(",", ":"),
+            ensure_ascii=False).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
+
+    def _claim_cached_samples(
+            self, key: str, count: int) -> tuple[list[Any], list[str]]:
+        if self.sample_cache_dir is None or count <= 0:
+            return [], []
+        directory = self.sample_cache_dir / key
+        choices: list[Any] = []
+        providers: list[str] = []
+        with self._sample_cache_lock:
+            for path in sorted(directory.glob("choice-*.json")):
+                identity = str(path)
+                if identity in self._sample_cache_consumed:
+                    continue
+                try:
+                    record = json.loads(path.read_text(encoding="utf-8"))
+                    choice = record["choice"]
+                    if not isinstance(choice, dict):
+                        continue
+                except (OSError, KeyError, json.JSONDecodeError):
+                    continue
+                self._sample_cache_consumed.add(identity)
+                choices.append(_to_namespace(choice))
+                providers.append(str(record.get("provider") or "cache"))
+                if len(choices) >= count:
+                    break
+            self.sample_cache_hits += len(choices)
+        return choices, providers
+
+    def _store_cached_samples(self, key: str,
+                              response: SimpleNamespace) -> None:
+        if self.sample_cache_dir is None:
+            return
+        directory = self.sample_cache_dir / key
+        provider = str(getattr(response, "provider", None) or "unknown")
+        for choice in list(getattr(response, "choices", None) or []):
+            record = {"choice": _to_plain(choice), "provider": provider}
+            with self._sample_cache_lock:
+                directory.mkdir(parents=True, exist_ok=True)
+                suffix = uuid.uuid4().hex
+                path = directory / f"choice-{suffix}.json"
+                temporary = directory / f".choice-{suffix}.tmp"
+                temporary.write_text(
+                    json.dumps(record, sort_keys=True) + "\n",
+                    encoding="utf-8")
+                temporary.replace(path)
+                self._sample_cache_consumed.add(str(path))
+                self.sample_cache_writes += 1
 
     def chat(
         self,
@@ -185,6 +288,7 @@ class OpenRouterClient:
         reasoning_effort: str | None = None,
         request_timeout: float | None = None,
         transport_retries: int | None = None,
+        _skip_sample_cache: bool = False,
     ) -> SimpleNamespace:
         """Send one chat-completion request and return the parsed response.
 
@@ -207,9 +311,29 @@ class OpenRouterClient:
             )
         caller_budget = max_tokens is not None
         budget = self.max_tokens if max_tokens is None else max_tokens
+        cache_key = None
+        cached_choices: list[Any] = []
+        cached_providers: list[str] = []
+        if self.sample_cache_dir is not None and not _skip_sample_cache:
+            cache_key = self._sample_key(
+                messages, temperature=temperature, max_tokens=budget,
+                tools=tools, tool_choice=tool_choice,
+                reasoning_effort=reasoning_effort)
+            cached_choices, cached_providers = self._claim_cached_samples(
+                cache_key, n)
+        request_n = n - len(cached_choices)
+        if request_n <= 0:
+            for index, choice in enumerate(cached_choices):
+                choice.index = index
+            return SimpleNamespace(
+                choices=cached_choices,
+                usage=SimpleNamespace(prompt_tokens=0, completion_tokens=0),
+                provider=(cached_providers[0] if cached_providers else "cache"),
+            )
         while True:
             response = self._request(
-                messages, n=n, temperature=temperature, max_tokens=budget,
+                messages, n=request_n, temperature=temperature,
+                max_tokens=budget,
                 tools=tools, tool_choice=tool_choice,
                 reasoning_effort=reasoning_effort,
                 request_timeout=request_timeout,
@@ -225,7 +349,9 @@ class OpenRouterClient:
                 # keep the larger budget so only the first call pays for
                 # the discovery.
                 self.max_tokens = budget
-        missing = n - len(response.choices)
+        if cache_key is not None:
+            self._store_cached_samples(cache_key, response)
+        missing = request_n - len(response.choices)
         if missing > 0:
             # OpenRouter providers may ignore ``n`` and return a single
             # choice (measured: n=3 -> 1 choice on both BaseTen and
@@ -239,14 +365,22 @@ class OpenRouterClient:
             from concurrent.futures import ThreadPoolExecutor
 
             def one_more(_: int) -> Any:
-                return self.chat(
+                extra = self.chat(
                     messages, n=1, temperature=temperature,
                     max_tokens=max_tokens, tools=tools,
                     tool_choice=tool_choice,
                     reasoning_effort=reasoning_effort,
                     request_timeout=request_timeout,
                     transport_retries=transport_retries,
+                    _skip_sample_cache=True,
                 )
+                # Persist each successful sibling immediately. A later
+                # sibling may exhaust retries, or the case supervisor may
+                # kill the worker at its deadline; neither should discard
+                # samples that already completed.
+                if cache_key is not None:
+                    self._store_cached_samples(cache_key, extra)
+                return extra
 
             # Task-level ``jobs=1`` does not constrain this inner fan-out.
             # Keep it independently bounded: large bursts can trip provider
@@ -255,12 +389,16 @@ class OpenRouterClient:
             workers = min(self.sample_parallelism, missing)
             with ThreadPoolExecutor(max_workers=workers) as pool:
                 extras = list(pool.map(one_more, range(missing)))
-            merged = list(response.choices)
+            merged = cached_choices + list(response.choices)
             for extra in extras:
                 merged.extend(extra.choices)
             for index, choice in enumerate(merged):
                 choice.index = index
             response.choices = merged
+        elif cached_choices:
+            response.choices = cached_choices + list(response.choices)
+            for index, choice in enumerate(response.choices):
+                choice.index = index
         return response
 
     def _request(
@@ -412,11 +550,13 @@ class OpenRouterClient:
         # correct: accounting is per-process.
         state = self.__dict__.copy()
         del state["_usage_lock"]
+        del state["_sample_cache_lock"]
         return state
 
     def __setstate__(self, state: dict[str, Any]) -> None:
         self.__dict__.update(state)
         self._usage_lock = threading.Lock()
+        self._sample_cache_lock = threading.Lock()
 
     def _account(self, parsed: dict[str, Any]) -> None:
         usage = parsed.get("usage") or {}
@@ -437,6 +577,8 @@ class OpenRouterClient:
             # different endpoint is a different measurement.
             "base_url": self.base_url,
             "sample_parallelism": self.sample_parallelism,
+            "sample_cache_hits": self.sample_cache_hits,
+            "sample_cache_writes": self.sample_cache_writes,
             "requests": self.total_requests,
             "transport_attempts": self.total_transport_attempts,
             "prompt_tokens": self.total_prompt_tokens,

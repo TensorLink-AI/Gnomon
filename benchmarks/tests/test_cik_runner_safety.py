@@ -235,6 +235,20 @@ def test_cik_checkpoint_refuses_legacy_state_without_identity(tmp_path):
             tmp_path, {"schema_version": 1}, fresh=False)
 
 
+def test_fresh_cik_run_clears_only_its_sample_cache(tmp_path):
+    cache_file = tmp_path / "sample-cache" / "key" / "choice-old.json"
+    cache_file.parent.mkdir(parents=True)
+    cache_file.write_text("{}")
+    unrelated = tmp_path / "keep.txt"
+    unrelated.write_text("keep")
+
+    _prepare_checkpoint_identity(
+        tmp_path, {"schema_version": 1}, fresh=True)
+
+    assert not (tmp_path / "sample-cache").exists()
+    assert unrelated.read_text() == "keep"
+
+
 def test_held_out_seed_range_is_explicit_in_cli():
     args = build_parser().parse_args([
         "--method", "gnomon-pure", "--seed-start", "6", "--seeds", "2",

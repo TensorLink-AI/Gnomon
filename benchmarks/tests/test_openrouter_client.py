@@ -207,6 +207,95 @@ def test_sample_parallelism_must_be_positive():
         OpenRouterClient("test/model", api_key="k", sample_parallelism=0)
 
 
+def test_sample_cache_replays_without_new_requests(tmp_path, monkeypatch):
+    client, _ = _client(
+        monkeypatch, [_response(f"sample-{i}") for i in range(5)],
+        max_tokens=8000, sample_parallelism=2,
+        sample_cache_dir=tmp_path,
+    )
+    original = client.chat(MESSAGES, n=5)
+
+    resumed = OpenRouterClient(
+        "test/model", api_key="k", max_tokens=8000,
+        sample_parallelism=2, sample_cache_dir=tmp_path)
+
+    def unexpected_request(*args, **kwargs):
+        raise AssertionError("a complete sample bank must not call the provider")
+
+    monkeypatch.setattr(OpenRouterClient, "_request", unexpected_request)
+    replayed = resumed.chat(MESSAGES, n=5)
+
+    assert sorted(choice.message.content for choice in replayed.choices) == \
+        sorted(choice.message.content for choice in original.choices)
+    assert resumed.usage_summary["requests"] == 0
+    assert resumed.usage_summary["sample_cache_hits"] == 5
+
+
+def test_cached_samples_are_consumed_once_per_process(tmp_path, monkeypatch):
+    producer, _ = _client(
+        monkeypatch, [_response(f"sample-{i}") for i in range(3)],
+        max_tokens=8000, sample_parallelism=2,
+        sample_cache_dir=tmp_path,
+    )
+    producer.chat(MESSAGES, n=3)
+
+    resumed = OpenRouterClient(
+        "test/model", api_key="k", max_tokens=8000,
+        sample_cache_dir=tmp_path)
+    monkeypatch.setattr(
+        OpenRouterClient, "_request",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("cached samples unexpectedly exhausted")),
+    )
+    first = resumed.chat(MESSAGES, n=2)
+    second = resumed.chat(MESSAGES, n=1)
+
+    first_contents = {choice.message.content for choice in first.choices}
+    second_contents = {choice.message.content for choice in second.choices}
+    assert not first_contents & second_contents
+    assert first_contents | second_contents == {
+        "sample-0", "sample-1", "sample-2"}
+
+
+def test_successful_siblings_survive_one_top_up_failure(
+        tmp_path, monkeypatch):
+    calls = 0
+    lock = threading.Lock()
+
+    def flaky(client, messages, **kwargs):
+        nonlocal calls
+        with lock:
+            call = calls
+            calls += 1
+        if call == 2:
+            raise OpenRouterError("one sibling failed")
+        payload = _response(f"sample-{call}")
+        client._account(payload)
+        from benchmarks.common.openrouter import _to_namespace
+        return _to_namespace(payload)
+
+    client = OpenRouterClient(
+        "test/model", api_key="k", sample_parallelism=4,
+        sample_cache_dir=tmp_path)
+    monkeypatch.setattr(OpenRouterClient, "_request", flaky)
+
+    with pytest.raises(OpenRouterError, match="one sibling failed"):
+        client.chat(MESSAGES, n=5)
+
+    assert len(list(tmp_path.glob("*/choice-*.json"))) == 4
+
+    resumed = OpenRouterClient(
+        "test/model", api_key="k", sample_cache_dir=tmp_path)
+    transport = _Transport([_response("replacement")])
+    monkeypatch.setattr(
+        OpenRouterClient, "_request",
+        lambda self, messages, **kwargs: transport(self, messages, **kwargs),
+    )
+    response = resumed.chat(MESSAGES, n=5)
+    assert len(response.choices) == 5
+    assert transport.calls and len(transport.calls) == 1
+
+
 def test_full_batch_from_provider_is_not_fanned_out(monkeypatch):
     batch = {
         "choices": [

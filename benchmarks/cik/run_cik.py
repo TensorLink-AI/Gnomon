@@ -50,6 +50,7 @@ import json
 import math
 import multiprocessing as mp
 import os
+import shutil
 import sys
 import time
 import traceback
@@ -401,6 +402,7 @@ def _prepare_checkpoint_identity(output_dir: Path,
         # Otherwise an interrupt between writing identity and the first case
         # could make old rows look as if they belonged to the fresh run.
         _write_checkpoint(output_dir, {})
+        shutil.rmtree(output_dir / "sample-cache", ignore_errors=True)
     if not fresh and path.is_file():
         existing = json.loads(path.read_text(encoding="utf-8"))
         if existing != identity:
@@ -583,6 +585,7 @@ def build_method(args):
             fail_on_invalid=args.fail_on_invalid,
             base_url=base_url, api_key=api_key,
             sample_parallelism=args.sample_parallelism,
+            sample_cache_dir=Path(args.output_dir) / "sample-cache",
         )
     if args.method == "gnomon-mcp":
         if not args.model:
