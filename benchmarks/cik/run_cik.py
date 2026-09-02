@@ -158,6 +158,57 @@ def _task_information_profile(task) -> dict:
     }
 
 
+def _candidate_interval_diagnostics(task, rows: list[dict],
+                                    nominal_coverage: float = .8) -> dict:
+    """Measure one candidate's retained intervals against sealed outcomes.
+
+    This is post-forecast benchmark telemetry.  It deliberately consumes the
+    task's future target only after publication and returns no value that can
+    flow back into model or scenario selection.
+    """
+    future = task.future_time
+    columns = list(future.columns)
+    if not columns:
+        raise ValueError("future target has no columns")
+    series = future[columns[-1]]
+    values = series.tolist() if hasattr(series, "tolist") else list(series)
+    if len(values) != len(rows) or not values:
+        raise ValueError("future target and forecast horizon differ")
+    alpha = 1.0 - nominal_coverage
+    if not 0.0 < alpha < 1.0:
+        raise ValueError("nominal coverage must be strictly between zero and one")
+    covered = 0
+    weighted_interval_scores = []
+    for truth_raw, row in zip(values, rows):
+        truth = float(truth_raw)
+        lower = float(row["q10"])
+        median = float(row["q50"])
+        upper = float(row["q90"])
+        if not all(math.isfinite(value) for value in
+                   (truth, lower, median, upper)):
+            raise ValueError("interval diagnostic contains non-finite values")
+        if not lower <= median <= upper:
+            raise ValueError("interval quantiles are crossed")
+        covered += int(lower <= truth <= upper)
+        interval_score = upper - lower
+        if truth < lower:
+            interval_score += (2.0 / alpha) * (lower - truth)
+        elif truth > upper:
+            interval_score += (2.0 / alpha) * (truth - upper)
+        # Proper WIS with the median and one central (1-alpha) interval.
+        weighted_interval_scores.append(
+            (.5 * abs(truth - median) + (alpha / 2.0) * interval_score)
+            / (.5 + alpha / 2.0))
+    return {
+        "nominal_coverage": nominal_coverage,
+        "empirical_coverage": covered / len(values),
+        "wis": sum(weighted_interval_scores) / len(weighted_interval_scores),
+        "interval_points": len(values),
+        "computed_after_forecast": True,
+        "passed_to_forecaster": False,
+    }
+
+
 def _counterfactual_candidate_scores(task, extra_info: dict,
                                      n_samples: int) -> list[dict]:
     """Score sealed publication candidates after forecasting, for diagnosis.
@@ -192,7 +243,7 @@ def _counterfactual_candidate_scores(task, extra_info: dict,
             score = float(score)
             if not math.isfinite(score):
                 raise ValueError("non-finite counterfactual score")
-            output.append({
+            record = {
                 "scenario_id": scenario_id,
                 "role": str(item.get("role") or "unknown"),
                 "selected": scenario_id == selected,
@@ -201,7 +252,14 @@ def _counterfactual_candidate_scores(task, extra_info: dict,
                 "scoring_representation": "deterministic_quantile_reconstruction",
                 "computed_after_forecast": True,
                 "passed_to_forecaster": False,
-            })
+            }
+            try:
+                record.update(_candidate_interval_diagnostics(
+                    task, item["forecast"]))
+            except Exception as error:
+                record["calibration_error"] = (
+                    f"{type(error).__name__}: {error}"[:300])
+            output.append(record)
         except Exception as error:
             output.append({
                 "scenario_id": scenario_id,

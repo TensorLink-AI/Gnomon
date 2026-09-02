@@ -1,9 +1,8 @@
 """Assemble the frozen GFR smoke matrix from retained benchmark evidence.
 
-This producer deliberately refuses unmatched CiK arms.  It also records two
-known evidence gaps as failed observations instead of manufacturing favorable
-numbers: one case cannot establish candidate-specific calibration, and the
-current DirectPrompt control does not retain comparable request/token usage.
+This producer deliberately refuses unmatched CiK arms. Candidate calibration
+uses post-forecast sealed outcomes retained by the CiK harness; those outcomes
+never flow back into selection or the model prompt.
 """
 
 from __future__ import annotations
@@ -12,6 +11,7 @@ import argparse
 import ast
 import hashlib
 import json
+import math
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -161,6 +161,24 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
                 if item.get("human_selection_eligible")]
     if not eligible:
         raise ValueError("selection diagnostic has no admissible candidate")
+    selected_candidate = next((item for item in diagnostic["candidates"]
+                               if item.get("selected")), None)
+    primary_candidate = next((item for item in diagnostic["candidates"]
+                              if item.get("role") == "immutable_primary"), None)
+    calibration_complete = all(
+        isinstance(candidate, dict)
+        and all(isinstance(candidate.get(field), (int, float))
+                and math.isfinite(float(candidate[field]))
+                for field in ("nominal_coverage", "empirical_coverage", "wis"))
+        and candidate.get("computed_after_forecast") is True
+        and candidate.get("passed_to_forecaster") is False
+        for candidate in (selected_candidate, primary_candidate))
+    candidate_calibration_raw = ({
+        "nominal_coverage": float(selected_candidate["nominal_coverage"]),
+        "empirical_coverage": float(selected_candidate["empirical_coverage"]),
+        "candidate_wis": float(selected_candidate["wis"]),
+        "reference_wis": float(primary_candidate["wis"]),
+    } if calibration_complete else None)
     publication = trace.get("final_submission") or {}
     compilation = trace.get("context_compilation") or {}
     authority = publication.get("recommendation_authority") or {}
@@ -202,7 +220,9 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
             "control_loss": float(control_row["rcrps"]),
             "treatment_loss": float(treatment_row["rcrps"]),
         }),
-        "candidate_calibration": ("failed", None),
+        "candidate_calibration": (
+            ("answered", candidate_calibration_raw)
+            if candidate_calibration_raw is not None else ("failed", None)),
         "short_history_usefulness": ("answered", {
             "expected_action": ("publish_candidate"
                                 if seasonal["candidate_loss"]
@@ -258,9 +278,9 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
         "sources": [_source(path, root) for path in source_paths],
         "extracted_observations": raw_by_capability,
         "known_measurement_gaps": {
-            "candidate_calibration": (
-                "one forecast instance cannot establish candidate-specific "
-                "coverage or WIS calibration"),
+            **({"candidate_calibration": (
+                "matched candidate interval diagnostics are unavailable")}
+               if candidate_calibration_raw is None else {}),
             **({"efficiency": (
                 "the official DirectPrompt row does not retain comparable "
                 "provider request and token totals")}

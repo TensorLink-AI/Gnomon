@@ -5,7 +5,8 @@ from types import SimpleNamespace
 import pytest
 
 from benchmarks.cik.run_cik import (
-    _checkpoint_identity, _counterfactual_candidate_scores,
+    _candidate_interval_diagnostics, _checkpoint_identity,
+    _counterfactual_candidate_scores,
     _load_checkpoint, _prepare_checkpoint_identity,
     _summarize_selection_diagnostics, _task_information_profile, build_parser,
     select_tasks, write_outputs,
@@ -56,6 +57,8 @@ def test_candidate_scores_are_post_forecast_diagnostics_only(monkeypatch):
         asarray=lambda values, dtype: Array(values)))
 
     class Task:
+        future_time = None
+
         def evaluate(self, samples):
             assert samples.shape == (5, 2, 1)
             return {"metric": float(samples.values[0][0])}
@@ -67,7 +70,20 @@ def test_candidate_scores_are_post_forecast_diagnostics_only(monkeypatch):
             {"timestamp": "t2", "q10": value, "q50": value + 1,
              "q90": value + 2},
         ]
-    scores = _counterfactual_candidate_scores(Task(), {"publication": {
+    class Series:
+        def tolist(self):
+            return [10.0, 11.0]
+
+    class Future:
+        columns = ["target"]
+
+        def __getitem__(self, name):
+            assert name == "target"
+            return Series()
+
+    task = Task()
+    task.future_time = Future()
+    scores = _counterfactual_candidate_scores(task, {"publication": {
         "recommended_scenario_id": "primary",
         "candidate_portfolio": [
             {"scenario_id": "primary", "role": "immutable_primary",
@@ -83,6 +99,23 @@ def test_candidate_scores_are_post_forecast_diagnostics_only(monkeypatch):
     assert all(item["passed_to_forecaster"] is False for item in scores)
     assert scores[0]["human_selection_eligible"] is True
     assert scores[1]["human_selection_eligible"] is False
+    assert scores[0]["nominal_coverage"] == .8
+    assert scores[0]["empirical_coverage"] == 1
+    assert abs(scores[0]["wis"] - 1 / 3) < 1e-12
+    assert scores[1]["wis"] > scores[0]["wis"]
+
+
+def test_candidate_interval_diagnostics_reject_crossed_quantiles():
+    class Future:
+        columns = ["target"]
+
+        def __getitem__(self, _name):
+            return [10.0]
+
+    with pytest.raises(ValueError, match="crossed"):
+        _candidate_interval_diagnostics(
+            SimpleNamespace(future_time=Future()),
+            [{"q10": 11, "q50": 10, "q90": 12}])
 
 
 def test_selection_summary_separates_uplift_from_hindsight_regret():
