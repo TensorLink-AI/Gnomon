@@ -20,6 +20,8 @@ from pathlib import Path
 from typing import Any
 
 from benchmarks.common.manifest import code_revision
+from gnomon.evaluation import supportable_horizon
+from gnomon.temporal import detect_season
 from gnomon.toolspec import runner_for
 
 
@@ -89,6 +91,20 @@ def _case(family: str, case_index: int, seed: int) -> dict[str, Any]:
         payload = runner_for("gnomon_forecast")(arguments)
         artifact = json.loads((Path(payload["artifact_path"]) /
                                "artifact.json").read_text(encoding="utf-8"))
+        season = PERIOD if family == "seasonal" else detect_season(
+            history, frequency)[0]
+        reachable = supportable_horizon(len(history), season)
+        shadow_result: dict[str, Any] | None = None
+        if reachable is not None and 0 < reachable < HORIZON:
+            shadow_arguments = {
+                **arguments, "horizon": reachable,
+                "output_dir": str(root / "shadow-output"),
+            }
+            shadow_payload = runner_for("gnomon_forecast")(shadow_arguments)
+            shadow_artifact = json.loads((Path(shadow_payload["artifact_path"]) /
+                                          "artifact.json").read_text(
+                                              encoding="utf-8"))
+            shadow_result = shadow_artifact["results"][0]
     result = artifact["results"][0]
     rows = result["forecast"]
     reasons = [str(item.get("code")) for item in
@@ -99,6 +115,15 @@ def _case(family: str, case_index: int, seed: int) -> dict[str, Any]:
               for actual, quantiles in zip(future, numeric)]
     points = [row[1] for row in numeric]
     tiers = [str(row.get("tier")) for row in rows]
+    shadow_points = ([float(row.get("q50", row["point"]))
+                      for row in shadow_result["forecast"]]
+                     if shadow_result is not None else [])
+    comparison_points = points[:len(shadow_points)]
+    scale = max(statistics.median(abs(value) for value in history), 1.0)
+    shadow_distinct = bool(
+        shadow_points and len(shadow_points) == len(comparison_points)
+        and any(abs(left - right) > scale * 1e-9
+                for left, right in zip(shadow_points, comparison_points)))
     prefix = 0
     for tier in tiers:
         if tier == "best_effort":
@@ -124,6 +149,14 @@ def _case(family: str, case_index: int, seed: int) -> dict[str, Any]:
             and all(math.isfinite(value) for value in (low, middle, high))
             for low, middle, high in numeric),
         "flat_point_path": len(set(round(value, 12) for value in points)) == 1,
+        "shadow_prefix_horizon": reachable,
+        "shadow_prefix_selected_model": (
+            shadow_result.get("selected_model")
+            if shadow_result is not None else None),
+        "shadow_prefix_support": (
+            shadow_result.get("support") if shadow_result is not None else None),
+        "shadow_prefix_points": shadow_points,
+        "shadow_prefix_distinct": shadow_distinct,
         "mean_absolute_error": statistics.mean(
             abs(actual - point) for actual, point in zip(future, points)),
         "mean_wis": statistics.mean(scores),
@@ -169,21 +202,21 @@ def summarize(rows: list[dict[str, Any]], identity: dict[str, Any],
         current_rows = {row["case_id"]: row for row in rows}
         if set(reference_rows) != set(current_rows):
             raise ValueError("reference case matrix differs")
-        eligible_ids = [case_id for case_id, row in reference_rows.items()
+        flat_ids = [case_id for case_id, row in reference_rows.items()
                         if row["support"] == "degraded"
                         and row["selected_model"] == "last_value"
                         and row["flat_point_path"]
                         and not row["horizon_split"]]
+        eligible_ids = [case_id for case_id in flat_ids
+                        if reference_rows[case_id]["shadow_prefix_distinct"]]
+        preservation_ids = [case_id for case_id in flat_ids
+                            if not reference_rows[case_id][
+                                "shadow_prefix_distinct"]]
         eligible = [current_rows[case_id] for case_id in eligible_ids]
         ref_eligible = [reference_rows[case_id] for case_id in eligible_ids]
-        signal_ids = [case_id for case_id in eligible_ids
-                      if reference_rows[case_id]["family"] in {"trend", "seasonal"}]
-        signal = [current_rows[case_id] for case_id in signal_ids]
-        ref_signal = [reference_rows[case_id] for case_id in signal_ids]
-        safety_ids = [case_id for case_id in eligible_ids
-                      if reference_rows[case_id]["family"] in {"level", "random_walk"}]
-        safety = [current_rows[case_id] for case_id in safety_ids]
-        ref_safety = [reference_rows[case_id] for case_id in safety_ids]
+        preservation = [current_rows[case_id] for case_id in preservation_ids]
+        ref_preservation = [reference_rows[case_id]
+                            for case_id in preservation_ids]
 
         def mean(items: list[dict[str, Any]], field: str) -> float:
             return statistics.mean(float(item[field]) for item in items)
@@ -197,12 +230,10 @@ def summarize(rows: list[dict[str, Any]], identity: dict[str, Any],
         }
         gates = {
             **base_gates,
-            "reference_contains_all_control_families": all(
-                any(reference_rows[case_id]["family"] == family
-                    for case_id in eligible_ids) for family in FAMILIES),
-            "graduated_split_applies_to_80pct": bool(eligible) and
-                statistics.mean(bool(row["horizon_split"])
-                                for row in eligible) >= .8,
+            "reference_contains_distinct_and_preservation_cases": bool(
+                eligible_ids) and bool(preservation_ids),
+            "graduated_split_applies_to_every_distinct_prefix": bool(eligible)
+                and all(row["horizon_split"] for row in eligible),
             "split_has_contiguous_evaluated_prefix_and_tail": all(
                 row["horizon_split"]
                 and 0 < row["evaluated_prefix_steps"] < HORIZON
@@ -219,10 +250,15 @@ def summarize(rows: list[dict[str, Any]], identity: dict[str, Any],
                 <= mean(ref_eligible, "mean_wis") + 1e-12,
             "aggregate_mae_improves_2pct": mean(eligible, "mean_absolute_error")
                 <= mean(ref_eligible, "mean_absolute_error") * .98,
-            "signal_wis_improves_10pct": mean(signal, "mean_wis")
-                <= mean(ref_signal, "mean_wis") * .9,
+            "distinct_prefix_wis_improves_10pct": mean(
+                eligible, "mean_wis") <= mean(ref_eligible, "mean_wis") * .9,
+            "no_distinct_path_numeric_rows_preserved": all(
+                row["quantiles"] == reference_rows[row["case_id"]]["quantiles"]
+                and row["tiers"] == reference_rows[row["case_id"]]["tiers"]
+                for row in preservation),
             "safety_control_wis_regression_within_2pct": mean(
-                safety, "mean_wis") <= mean(ref_safety, "mean_wis") * 1.02,
+                preservation, "mean_wis") <= mean(
+                    ref_preservation, "mean_wis") * 1.02,
             "family_median_wis_regression_within_3pct": max(
                 family_changes.values()) <= .03,
         }
@@ -235,14 +271,16 @@ def summarize(rows: list[dict[str, Any]], identity: dict[str, Any],
             "eligible_mae_relative_change": (
                 mean(eligible, "mean_absolute_error") /
                 mean(ref_eligible, "mean_absolute_error") - 1),
-            "signal_wis_relative_change": (
-                mean(signal, "mean_wis") / mean(ref_signal, "mean_wis") - 1),
+            "distinct_prefix_wis_relative_change": (
+                mean(eligible, "mean_wis") /
+                mean(ref_eligible, "mean_wis") - 1),
             "safety_wis_relative_change": (
-                mean(safety, "mean_wis") / mean(ref_safety, "mean_wis") - 1),
+                mean(preservation, "mean_wis") /
+                mean(ref_preservation, "mean_wis") - 1),
             "family_median_wis_relative_change": family_changes,
         }
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "benchmark": "graduated-horizon-publication",
         "evaluated_commit": identity["evaluated_commit"],
         "run_identity": identity,
@@ -262,7 +300,7 @@ def run(seed: int, cases_per_family: int, output_dir: Path, *,
     identity_path = output_dir / "run-identity.json"
     checkpoint = output_dir / "observations.jsonl"
     identity = {
-        "schema_version": 2,
+        "schema_version": 3,
         "benchmark": "graduated-horizon-publication",
         "evaluated_commit": code_revision(),
         "seed": seed,
