@@ -512,8 +512,17 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
                 not consequence_projection.get("invalid")))
         primary_relationship = str(
             context_gate.get("relationship_to_primary") or "")
-        primary_relationship_preserved = preserves_primary_relationship(
-            agent_reasoning, primary_relationship)
+        relationship_projection = contextual.get(
+            "context_relationship_projection") or {}
+        primary_relationship_preserved = (
+            (not primary_relationship or (
+                relationship_projection.get("matched") ==
+                relationship_projection.get("expected") ==
+                [primary_relationship]
+                and not relationship_projection.get("invalid")))
+            and preserves_primary_relationship(
+                agent_reasoning, primary_relationship)
+        )
         source_projection = contextual.get("context_source_projection") or {}
         expected_sources = set(source_projection.get("expected") or [])
         source_evidence_preserved = (

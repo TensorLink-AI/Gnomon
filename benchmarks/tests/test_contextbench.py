@@ -507,6 +507,21 @@ def test_agent_relationship_measure_is_semantic_and_fail_closed():
     assert preserves_primary_relationship("anything", "")
 
 
+def test_agent_relationship_measure_requires_exact_typed_projection():
+    relationship = "no_distinct_numeric_path"
+    reasoning = (
+        "relationship_to_primary=no_distinct_numeric_path: the emitted "
+        "primary already does not contain a stable continuation.")
+    projection = {
+        "expected": [relationship], "supplied": [relationship],
+        "matched": [relationship], "invalid": [],
+    }
+    assert projection["matched"] == projection["expected"]
+    assert preserves_primary_relationship(reasoning, relationship)
+    assert {**projection, "matched": []}["matched"] != \
+        projection["expected"]
+
+
 def test_surface_checkpoints_are_durable_and_resume_identity_is_strict(
         tmp_path):
     output = tmp_path / "surface"

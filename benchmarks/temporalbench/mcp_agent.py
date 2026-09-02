@@ -2078,6 +2078,17 @@ class _Run(_RunBase):
                     "items": {"type": "string"},
                     "maxItems": 8,
                 }
+                parameters["properties"]["cited_context_relationships"] = {
+                    "type": "array",
+                    "description": (
+                        "Copy every non-empty relationship_to_primary value "
+                        "from Gnomon's agent_response_contract exactly; use "
+                        "an empty array when no relationship is emitted. "
+                        "Also name each exact type in the human-facing "
+                        "reasoning and explain its practical meaning."),
+                    "items": {"type": "string"},
+                    "maxItems": 8,
+                }
                 parameters["properties"]["reasoning"]["description"] = (
                     "Human-facing explanation of Gnomon's typed context "
                     "outcome. Scenario representation is not numeric "
@@ -2092,6 +2103,8 @@ class _Run(_RunBase):
                     "canonical_primary_preserved")
                 parameters["required"].append(
                     "cited_scenario_consequences")
+                parameters["required"].append(
+                    "cited_context_relationships")
             else:
                 parameters["properties"].pop("reasoning", None)
             if getattr(self, "temporal_compilation", {}).get("questions"):
@@ -2194,6 +2207,12 @@ class _Run(_RunBase):
                 "cited_context_sources and name it in the human-facing "
                 "reasoning. Do not invent a source when source_evidence is "
                 "absent.\n")
+            text += (
+                "Copy every non-empty relationship_to_primary value exactly "
+                "into cited_context_relationships, name the exact type in "
+                "the human-facing reasoning, and explain its practical "
+                "meaning. Use an empty array only when Gnomon emits no "
+                "relationship type.\n")
         if self.row.get("_require_gnomon_execution"):
             text += ("\nThis product run delegates every published numeric "
                      "trajectory to Gnomon. Submit the forecast artifact "
@@ -2703,6 +2722,22 @@ class _Run(_RunBase):
                 "host_projected": bool(
                     expected_sources != agent_supplied_sources),
             }
+            expected_relationships = sorted({
+                str(outcome.get("relationship_to_primary"))
+                for outcome in self.context_execution.values()
+                if outcome.get("relationship_to_primary")
+            })
+            supplied_relationships = [str(value) for value in
+                                      (arguments.get(
+                                          "cited_context_relationships") or [])[:8]]
+            self.submission["context_relationship_projection"] = {
+                "expected": expected_relationships,
+                "supplied": supplied_relationships,
+                "matched": [value for value in supplied_relationships
+                            if value in expected_relationships],
+                "invalid": [value for value in supplied_relationships
+                            if value not in expected_relationships],
+            }
             reasoning_text = str(arguments.get("reasoning") or "").lower()
             authority_problems: list[str] = []
             scenario_count = sum(
@@ -2849,6 +2884,25 @@ class _Run(_RunBase):
                     "context_source_not_human_visible: name these validated "
                     "context sources in the reasoning: "
                     + ", ".join(prose_missing_sources))
+            relationships = self.submission[
+                "context_relationship_projection"]
+            if relationships["invalid"] or (
+                    set(relationships["matched"]) !=
+                    set(relationships["expected"])):
+                authority_problems.append(
+                    "context_relationship_invalid: copy every exact "
+                    "relationship_to_primary type and no others: "
+                    + (", ".join(relationships["expected"]) or "(none)"))
+            prose_missing_relationships = [
+                relationship for relationship in relationships["expected"]
+                if relationship.casefold() not in reasoning_text
+            ]
+            if prose_missing_relationships:
+                authority_problems.append(
+                    "context_relationship_not_human_visible: name these "
+                    "exact relationship_to_primary types in the reasoning "
+                    "and explain their practical meaning: "
+                    + ", ".join(prose_missing_relationships))
             if authority_problems:
                 self.submission = None
                 return {"accepted": False, "authored_by": "harness",

@@ -1156,7 +1156,7 @@ def test_context_contract_requires_bounded_typed_gate_citations():
     assert parameters["required"] == [
         "forecast", "reasoning", "cited_context_gate_codes",
         "context_automation_eligible", "canonical_primary_preserved",
-        "cited_scenario_consequences"]
+        "cited_scenario_consequences", "cited_context_relationships"]
     citations = parameters["properties"]["cited_context_gate_codes"]
     assert citations["maxItems"] == 8
     assert citations["items"] == {"type": "string"}
@@ -1180,6 +1180,71 @@ def test_context_contract_requires_bounded_typed_gate_citations():
     assert sources["maxItems"] == 8
     assert "source.reference" in sources["description"]
     assert "host projects omitted values" in sources["description"]
+    relationships = parameters["properties"]["cited_context_relationships"]
+    assert relationships["maxItems"] == 8
+    assert "relationship_to_primary" in relationships["description"]
+    assert "exact type" in relationships["description"]
+
+
+def test_context_relationship_requires_exact_human_visible_projection():
+    run = object.__new__(mcp_agent._Run)
+    run.row = {"_require_gnomon_execution": True,
+               "_require_context_explanation": True}
+    run.target_keys = ["value"]
+    run.horizon = 1
+    run.submission = None
+    run.mcp_calls = 1
+    run.trace = []
+    run.artifact_paths = set()
+    run.context_execution = {}
+    run._project_receipt_choices = lambda: {}
+    relationship = "no_distinct_numeric_path"
+
+    def artifact_rows(path, channel):
+        run._pending_support[channel] = "supported"
+        run.context_execution[channel] = {
+            "automation_eligible": False,
+            "canonical_primary_preserved": True,
+            "rejection_codes": [],
+            "relationship_to_primary": relationship,
+        }
+        return [10.0]
+
+    run._artifact_channel_rows = artifact_rows
+    base = {
+        "forecast": {"value": {"artifact_path": "/sealed/artifact.json"}},
+        "cited_context_gate_codes": [],
+        "context_automation_eligible": False,
+        "canonical_primary_preserved": True,
+        "cited_scenario_consequences": [],
+        "reasoning": ("The canonical primary remains preserved and context "
+                      "evidence cannot authorize automation."),
+    }
+    omitted = run._handle_submit({
+        **base, "cited_context_relationships": []})
+    assert omitted["accepted"] is False
+    assert any("context_relationship_invalid" in problem
+               for problem in omitted["problems"])
+
+    prose_omitted = run._handle_submit({
+        **base, "cited_context_relationships": [relationship]})
+    assert prose_omitted["accepted"] is False
+    assert any("context_relationship_not_human_visible" in problem
+               for problem in prose_omitted["problems"])
+
+    accepted = run._handle_submit({
+        **base,
+        "cited_context_relationships": [relationship],
+        "reasoning": (base["reasoning"] + " relationship_to_primary="
+                      f"{relationship}: the primary already represents the "
+                      "claimed structural change, so there is no separate "
+                      "numeric path."),
+    })
+    assert accepted["accepted"] is True
+    assert run.submission["context_relationship_projection"] == {
+        "expected": [relationship], "supplied": [relationship],
+        "matched": [relationship], "invalid": [],
+    }
 
 
 def test_context_authority_omission_gets_one_artifact_reuse_repair():
