@@ -207,6 +207,31 @@ def test_sample_parallelism_must_be_positive():
         OpenRouterClient("test/model", api_key="k", sample_parallelism=0)
 
 
+def test_shared_rate_limit_gate_cools_and_staggers_siblings(monkeypatch):
+    clock = [100.0]
+    sleeps = []
+
+    def sleep(seconds):
+        sleeps.append(seconds)
+        clock[0] += seconds
+
+    monkeypatch.setattr("time.monotonic", lambda: clock[0])
+    monkeypatch.setattr("time.sleep", sleep)
+    client = OpenRouterClient(
+        "test/model", api_key="k",
+        rate_limit_cooldown_seconds=60,
+        rate_limit_spacing_seconds=2,
+    )
+
+    client._register_rate_limit()
+    client._wait_for_provider_slot()
+    client._wait_for_provider_slot()
+
+    assert sleeps == [60.0, 2.0]
+    assert client.usage_summary["rate_limit_events"] == 1
+    assert client.usage_summary["rate_limit_wait_seconds"] == 62.0
+
+
 def test_sample_cache_replays_without_new_requests(tmp_path, monkeypatch):
     client, _ = _client(
         monkeypatch, [_response(f"sample-{i}") for i in range(5)],

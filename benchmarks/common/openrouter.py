@@ -77,6 +77,10 @@ class OpenRouterError(RuntimeError):
 class _TransientProviderError(OpenRouterError):
     """A retryable error returned inside an otherwise successful HTTP body."""
 
+    def __init__(self, message: str, *, status_code: int | None = None):
+        super().__init__(message)
+        self.status_code = status_code
+
 
 def _provider_error_is_retryable(value: Any) -> bool:
     """Recognize OpenAI-wire transient errors without retrying semantics.
@@ -151,6 +155,11 @@ class OpenRouterClient:
         Optional per-run crash-safe sample bank. Completed choices are
         atomically retained and consumed only once per client process, so a
         killed benchmark case resumes by requesting only its missing samples.
+    rate_limit_cooldown_seconds:
+        Shared cooldown applied after any HTTP 429 (default: 60 seconds).
+    rate_limit_spacing_seconds:
+        Minimum spacing between sibling request starts after a 429, preventing
+        deterministic retry backoff from creating another synchronized burst.
     """
 
     def __init__(
@@ -166,6 +175,8 @@ class OpenRouterClient:
         reasoning_effort: str | None = None,
         sample_parallelism: int = 4,
         sample_cache_dir: str | Path | None = None,
+        rate_limit_cooldown_seconds: float = 60.0,
+        rate_limit_spacing_seconds: float = 2.0,
     ) -> None:
         if int(sample_parallelism) < 1:
             raise ValueError("sample_parallelism must be at least 1")
@@ -184,11 +195,18 @@ class OpenRouterClient:
         self.sample_parallelism = int(sample_parallelism)
         self.sample_cache_dir = (
             Path(sample_cache_dir) if sample_cache_dir is not None else None)
+        self.rate_limit_cooldown_seconds = max(
+            0.0, float(rate_limit_cooldown_seconds))
+        self.rate_limit_spacing_seconds = max(
+            0.0, float(rate_limit_spacing_seconds))
         # chat() may fan out concurrent single-sample requests when a
         # provider ignores ``n``; accounting must not lose updates.
         self._usage_lock = threading.Lock()
         self._sample_cache_lock = threading.Lock()
         self._sample_cache_consumed: set[str] = set()
+        self._rate_limit_lock = threading.Lock()
+        self._rate_limit_not_before = 0.0
+        self._rate_limit_next_start = 0.0
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
         self.total_cost_usd = 0.0
@@ -197,6 +215,39 @@ class OpenRouterClient:
         self.truncation_escalations = 0
         self.sample_cache_hits = 0
         self.sample_cache_writes = 0
+        self.rate_limit_events = 0
+        self.rate_limit_wait_seconds = 0.0
+
+    def _register_rate_limit(self, retry_after: float | None = None) -> None:
+        """Apply one shared cooldown to all sibling request workers."""
+        cooldown = self.rate_limit_cooldown_seconds
+        if retry_after is not None:
+            cooldown = max(cooldown, max(0.0, retry_after))
+        now = time.monotonic()
+        with self._rate_limit_lock:
+            self._rate_limit_not_before = max(
+                self._rate_limit_not_before, now + cooldown)
+            self._rate_limit_next_start = max(
+                self._rate_limit_next_start, self._rate_limit_not_before)
+        with self._usage_lock:
+            self.rate_limit_events += 1
+
+    def _wait_for_provider_slot(self) -> None:
+        """After any 429, stagger every sibling's next request start."""
+        while True:
+            with self._rate_limit_lock:
+                now = time.monotonic()
+                ready = max(
+                    self._rate_limit_not_before, self._rate_limit_next_start)
+                delay = ready - now
+                if delay <= 0:
+                    if self._rate_limit_next_start > 0:
+                        self._rate_limit_next_start = (
+                            now + self.rate_limit_spacing_seconds)
+                    return
+            time.sleep(delay)
+            with self._usage_lock:
+                self.rate_limit_wait_seconds += delay
 
     def _sample_key(
         self,
@@ -440,6 +491,7 @@ class OpenRouterClient:
         effective_timeout = (self.timeout if request_timeout is None
                              else max(.001, float(request_timeout)))
         for attempt in range(attempts):
+            self._wait_for_provider_slot()
             with self._usage_lock:
                 self.total_transport_attempts += 1
             request = urllib.request.Request(
@@ -490,7 +542,8 @@ class OpenRouterClient:
                 if "error" in parsed and "choices" not in parsed:
                     error = parsed["error"]
                     if _provider_error_is_retryable(error):
-                        raise _TransientProviderError(str(error))
+                        raise _TransientProviderError(
+                            str(error), status_code=int(error["code"]))
                     raise OpenRouterError(str(error))
                 self._account(parsed)
                 response = _to_namespace(parsed)
@@ -504,8 +557,17 @@ class OpenRouterClient:
                     raise OpenRouterError(
                         f"OpenRouter returned HTTP {error.code}: {detail}"
                     ) from error
+                if error.code == 429:
+                    retry_after = None
+                    try:
+                        retry_after = float(error.headers.get("Retry-After"))
+                    except (AttributeError, TypeError, ValueError):
+                        pass
+                    self._register_rate_limit(retry_after)
             except _TransientProviderError as error:
                 last_error = error
+                if error.status_code == 429:
+                    self._register_rate_limit()
             except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as error:
                 last_error = error
             if attempt + 1 < attempts:
@@ -551,12 +613,14 @@ class OpenRouterClient:
         state = self.__dict__.copy()
         del state["_usage_lock"]
         del state["_sample_cache_lock"]
+        del state["_rate_limit_lock"]
         return state
 
     def __setstate__(self, state: dict[str, Any]) -> None:
         self.__dict__.update(state)
         self._usage_lock = threading.Lock()
         self._sample_cache_lock = threading.Lock()
+        self._rate_limit_lock = threading.Lock()
 
     def _account(self, parsed: dict[str, Any]) -> None:
         usage = parsed.get("usage") or {}
@@ -579,6 +643,9 @@ class OpenRouterClient:
             "sample_parallelism": self.sample_parallelism,
             "sample_cache_hits": self.sample_cache_hits,
             "sample_cache_writes": self.sample_cache_writes,
+            "rate_limit_events": self.rate_limit_events,
+            "rate_limit_wait_seconds": round(
+                self.rate_limit_wait_seconds, 3),
             "requests": self.total_requests,
             "transport_attempts": self.total_transport_attempts,
             "prompt_tokens": self.total_prompt_tokens,
