@@ -46,7 +46,7 @@ def _series(family: str, seed: int) -> tuple[list[float], list[float], str]:
         slope = rng.uniform(.25, .75)
         values = [40.0 + slope * index + rng.gauss(0.0, .7)
                   for index in range(total)]
-        return values[:HISTORY], values[HISTORY:], "h"
+        return values[:HISTORY], values[HISTORY:], "D"
     if family == "seasonal":
         amplitude = rng.uniform(7.0, 14.0)
         phase = rng.uniform(-.25, .25)
@@ -60,12 +60,12 @@ def _series(family: str, seed: int) -> tuple[list[float], list[float], str]:
     if family == "level":
         level = rng.uniform(30.0, 70.0)
         values = [level + rng.gauss(0.0, 1.5) for _ in range(total)]
-        return values[:HISTORY], values[HISTORY:], "h"
+        return values[:HISTORY], values[HISTORY:], "D"
     if family == "random_walk":
         values = [rng.uniform(30.0, 70.0)]
         for _ in range(1, total):
             values.append(values[-1] + rng.gauss(0.0, 1.0))
-        return values[:HISTORY], values[HISTORY:], "h"
+        return values[:HISTORY], values[HISTORY:], "D"
     raise ValueError(f"unknown family: {family}")
 
 
@@ -75,8 +75,9 @@ def _case(family: str, case_index: int, seed: int) -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="gnomon-graduated-") as raw:
         root = Path(raw)
         source = root / "history.csv"
+        step = timedelta(hours=1) if frequency == "h" else timedelta(days=1)
         source.write_text("timestamp,value\n" + "\n".join(
-            f"{(start + timedelta(hours=index)).isoformat()},{value}"
+            f"{(start + step * index).isoformat()},{value}"
             for index, value in enumerate(history)) + "\n", encoding="utf-8")
         arguments: dict[str, Any] = {
             "input": str(source), "time": "timestamp", "target": "value",
@@ -241,7 +242,7 @@ def summarize(rows: list[dict[str, Any]], identity: dict[str, Any],
             "family_median_wis_relative_change": family_changes,
         }
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "benchmark": "graduated-horizon-publication",
         "evaluated_commit": identity["evaluated_commit"],
         "run_identity": identity,
@@ -261,7 +262,7 @@ def run(seed: int, cases_per_family: int, output_dir: Path, *,
     identity_path = output_dir / "run-identity.json"
     checkpoint = output_dir / "observations.jsonl"
     identity = {
-        "schema_version": 1,
+        "schema_version": 2,
         "benchmark": "graduated-horizon-publication",
         "evaluated_commit": code_revision(),
         "seed": seed,
