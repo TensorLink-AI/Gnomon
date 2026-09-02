@@ -226,6 +226,18 @@ def test_full_cik_assembler_binds_all_frozen_rows_and_safety(tmp_path: Path):
     ]
     _write_rows(context_standard / "observations.jsonl", standard_rows)
     _write_rows(context_stress / "observations.jsonl", stress_rows)
+    authority_path = tmp_path / "authority.json"
+    authority_ids = json.loads(Path(
+        "benchmarks/gfr_protocol.json").read_text(encoding="utf-8"))[
+            "capabilities"]["future_input_authority"]["full_case_ids"]
+    _write_json(authority_path, {
+        "evaluated_commit": "revision-under-test",
+        "rows": [{
+            "case_id": case_id,
+            "classification_correct": True,
+            "authority_escalated": False,
+        } for case_id in authority_ids],
+    })
 
     base = {
         "schema_version": "0.1",
@@ -250,10 +262,11 @@ def test_full_cik_assembler_binds_all_frozen_rows_and_safety(tmp_path: Path):
         output_dir=output_dir,
         context_standard_dir=context_standard,
         context_stress_dir=context_stress,
+        authority_path=authority_path,
     )
     result = json.loads(result_path.read_text(encoding="utf-8"))
 
-    assert len(result["observations"]) == 25
+    assert len(result["observations"]) == 33
     assert all(item["status"] == "answered"
                for item in result["observations"])
     for name in (
@@ -263,9 +276,9 @@ def test_full_cik_assembler_binds_all_frozen_rows_and_safety(tmp_path: Path):
         "authority_escalation",
         "benchmark_oracle_exposure",
     ):
-        expected = 13 if name in {
-            "temporal_leakage", "immutable_primary_mutation",
-        } else 7
+        expected = (
+            13 if name in {"temporal_leakage", "immutable_primary_mutation"}
+            else 15 if name == "authority_escalation" else 7)
         assert result["safety"][name] == {
             "denominator": expected, "failures": 0,
         }

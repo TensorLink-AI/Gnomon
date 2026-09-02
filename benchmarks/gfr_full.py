@@ -187,7 +187,8 @@ def categorical_context_observation(
 def assemble(*, root: Path, protocol_path: Path, base_result: Path,
              control_dir: Path, treatment_dir: Path,
              output_dir: Path, context_standard_dir: Path | None = None,
-             context_stress_dir: Path | None = None) -> tuple[Path, Path]:
+             context_stress_dir: Path | None = None,
+             authority_path: Path | None = None) -> tuple[Path, Path]:
     root = root.resolve()
     protocol = load_protocol(protocol_path)
     base = _read(base_result)
@@ -230,6 +231,8 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
     ]
     context_cases: dict[str, dict[str, Any]] = {}
     context_safety_rows: list[dict[str, Any]] = []
+    authority_cases: dict[str, dict[str, Any]] = {}
+    authority_escalations = 0
     if (context_standard_dir is None) != (context_stress_dir is None):
         raise ValueError("both ContextBench shard directories are required")
     if context_standard_dir is not None and context_stress_dir is not None:
@@ -249,6 +252,27 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
             context_stress_dir / "observations.jsonl",
             context_stress_dir / "summary.json",
         ])
+    if authority_path is not None:
+        authority = _read(authority_path)
+        if authority.get("evaluated_commit") != revision:
+            raise ValueError("authority and CiK evidence must share a revision")
+        authority_rows = authority.get("rows") or []
+        expected_authority_ids = set(protocol["capabilities"][
+            "future_input_authority"]["full_case_ids"])
+        indexed_authority = {
+            str(row.get("case_id") or ""): row for row in authority_rows
+            if isinstance(row, dict)
+        }
+        if (set(indexed_authority) != expected_authority_ids
+                or len(indexed_authority) != len(authority_rows)):
+            raise ValueError("authority evidence does not match the frozen matrix")
+        authority_cases = {case_id: {
+            "classification_correct": bool(row.get("classification_correct")),
+            "authority_escalated": bool(row.get("authority_escalated")),
+        } for case_id, row in indexed_authority.items()}
+        authority_escalations = sum(
+            raw["authority_escalated"] for raw in authority_cases.values())
+        sources.append(authority_path)
     mutation_failures = automation_failures = oracle_failures = 0
     categorical_context: dict[str, Any] | None = None
     for task, seed in sorted(expected_keys):
@@ -311,6 +335,10 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
             "conditional_replay", case_id,
             "answered" if raw is not None else "failed", raw,
         ))
+    for case_id, raw in authority_cases.items():
+        extracted.append((
+            "future_input_authority", case_id, "answered", raw,
+        ))
 
     evidence_payload = {
         "schema_version": "0.1", "producer": "benchmarks.gfr_full",
@@ -342,6 +370,8 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
     }
     replace.update(("conditional_replay", case_id)
                    for case_id in context_cases)
+    replace.update(("future_input_authority", case_id)
+                   for case_id in authority_cases)
     observations = [item for item in base.get("observations") or []
                     if (item.get("capability"), item.get("case_id")) not in replace]
     for capability, case_id, status, raw in extracted:
@@ -366,6 +396,9 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
     }.items():
         safety[name]["denominator"] += len(expected_keys)
         safety[name]["failures"] += failures
+    if authority_cases:
+        safety["authority_escalation"]["denominator"] += len(authority_cases)
+        safety["authority_escalation"]["failures"] += authority_escalations
     if context_safety_rows:
         safety["temporal_leakage"]["denominator"] += len(context_safety_rows)
         safety["temporal_leakage"]["failures"] += context_leakage_failures
@@ -397,6 +430,7 @@ def main() -> int:
     parser.add_argument("--treatment-dir", type=Path, required=True)
     parser.add_argument("--context-standard-dir", type=Path)
     parser.add_argument("--context-stress-dir", type=Path)
+    parser.add_argument("--authority", type=Path)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
     _, result = assemble(
@@ -404,7 +438,8 @@ def main() -> int:
         base_result=args.base_result, control_dir=args.control_dir,
         treatment_dir=args.treatment_dir, output_dir=args.output_dir,
         context_standard_dir=args.context_standard_dir,
-        context_stress_dir=args.context_stress_dir)
+        context_stress_dir=args.context_stress_dir,
+        authority_path=args.authority)
     print(result)
     return 0
 
