@@ -30,7 +30,9 @@ from .evaluation import (
     conformal_quantile_spreads,
     conformal_spreads,
     evaluate,
+    intermittent_predictive_quantiles,
     interval_from_spread,
+    quantile_key,
     quantiles_from_spread,
 )
 from .models import MODELS, predict
@@ -736,6 +738,8 @@ def conditional_stage(
     spreads = conformal_spreads(
         state.residuals_by_lead, len(state.points), state.residuals,
         recentre=not assessment.degraded,
+        finite_sample_expansion=(
+            not assessment.residuals_pooled_across_selection),
     )
     forecasts, excluded = assess_conditional(
         state.values, state.timestamps, state.future_timestamps,
@@ -1699,6 +1703,14 @@ def _forecast_disclosures(
             f"{len(borrowed)} of {horizon} lead times borrow the pooled "
             f"residual spread rather than measuring their own.",
         ))
+    if rows and intermittent_predictive_quantiles(state.values) is not None:
+        disclosures.append(SupportReason(
+            "zero_inflated_intermittent_distribution",
+            "The history is non-negative and majority-zero. Quantiles use a "
+            "zero-inflated empirical distribution: the observed zero mass is "
+            "modelled separately from observed positive demand sizes. The "
+            "selected point forecast remains visible and unchanged.",
+        ))
 
     # H4. Pooling the selection folds is not split conformal, and the
     # direction of the bias is known: the winner was chosen to minimise
@@ -1714,6 +1726,14 @@ def _forecast_disclosures(
             f"optimistically small, so the interval is narrower than strict "
             f"split conformal would give. Set `evaluation.pool_residuals: "
             f"false` to calibrate on the held-out fold alone.",
+        ))
+    elif assessment is not None and assessment.residual_fold_count > 0:
+        disclosures.append(SupportReason(
+            "split_conformal_finite_sample_expansion",
+            "Interval calibration uses only the held-out residual fold. "
+            "Because that finite sample cannot resolve the labelled tails "
+            "directly, interval widths carry a disclosed Student-t "
+            "predictive expansion; model-selection residuals remain excluded.",
         ))
 
     # M2 / S3. Coverage measured on one fold of `horizon` points carries
@@ -1899,6 +1919,8 @@ def interval_stage(
         spreads = conformal_spreads(
             state.residuals_by_lead, len(state.points), state.residuals,
             target_coverage, recentre=not assessment.degraded,
+            finite_sample_expansion=(
+                not assessment.residuals_pooled_across_selection),
         )
         # The full quantile set comes from the same residuals and the same
         # fit; q10/q50/q90 are the identical order statistics they always
@@ -1906,7 +1928,10 @@ def interval_stage(
         level_spreads = conformal_quantile_spreads(
             state.residuals_by_lead, len(state.points), state.residuals,
             recentre=not assessment.degraded,
+            finite_sample_expansion=(
+                not assessment.residuals_pooled_across_selection),
         )
+        intermittent = intermittent_predictive_quantiles(state.values)
         for step, (timestamp, point) in enumerate(zip(state.future_timestamps, state.points), 1):
             q10, q50, q90 = interval_from_spread(point, spreads[step])
             row = {
@@ -1921,6 +1946,10 @@ def interval_stage(
             extra = quantiles_from_spread(point, level_spreads[step])
             row.update({key: value for key, value in extra.items()
                         if key not in row})
+            if intermittent is not None:
+                row.update({quantile_key(level): value
+                            for level, value in intermittent.items()})
+                row["point_bias_correction"] = float(row["q50"]) - point
             rows.append(row)
         state.disclosures.extend(_forecast_disclosures(state, rows, spreads))
         # Feasibility bounds are projected onto the emitted quantiles here,

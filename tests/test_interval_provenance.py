@@ -16,7 +16,12 @@ from pathlib import Path
 import pytest
 
 from gnomon.contracts import GnomonError
-from gnomon.evaluation import MIN_RESIDUALS_PER_LEAD, pooled_fallback_leads
+from gnomon.evaluation import (
+    MIN_RESIDUALS_PER_LEAD,
+    finite_sample_predictive_expansion,
+    intermittent_predictive_quantiles,
+    pooled_fallback_leads,
+)
 from gnomon.ids import FixedClock
 from gnomon.pipeline import SeriesState, assert_residual_provenance
 from gnomon.runtime import forecast
@@ -291,6 +296,58 @@ def test_held_out_calibration_uses_one_fold(tmp_path):
     assert held_out.residual_fold_count == 1
     assert pooled.residual_fold_count > 1
     assert len(held_out.residuals) < len(pooled.residuals)
+
+
+def test_strict_small_sample_expansion_shrinks_toward_one_with_more_data():
+    three = finite_sample_predictive_expansion(3, 0.8)
+    twelve = finite_sample_predictive_expansion(12, 0.8)
+
+    assert three > twelve > 1.0
+    assert finite_sample_predictive_expansion(1, 0.8) == 1.0
+
+
+def test_intermittent_quantiles_keep_the_zero_atom_and_positive_tail():
+    history = [0.0, 0.0, 0.0, 8.0] * 12
+    quantiles = intermittent_predictive_quantiles(
+        history, levels=(0.1, 0.5, 0.9))
+
+    assert quantiles is not None
+    assert quantiles[0.1] == quantiles[0.5] == 0.0
+    assert quantiles[0.9] == 8.0
+    assert intermittent_predictive_quantiles(
+        [1.0, 2.0, 3.0] * 8) is None
+
+
+def test_supported_intermittent_forecast_emits_zero_atom_and_tail(tmp_path):
+    source = tmp_path / "intermittent.csv"
+    start = date(2025, 1, 1)
+    # Frozen generator output whose fold-backed winner is supported. The
+    # positive tail must survive even though the selected point is zero.
+    import random
+    rng = random.Random(2026690219)
+    rng.uniform(40.0, 90.0)
+    rng.choice((-1.0, 1.0))
+    rng.uniform(.08, .35)
+    rng.uniform(3.0, 9.0)
+    values = [rng.uniform(4.0, 18.0) if rng.random() < .24 else 0.0
+              for _ in range(72)]
+    source.write_text(
+        "timestamp,value\n" + "".join(
+            f"{start + timedelta(days=index)},{value}\n"
+            for index, value in enumerate(values)),
+        encoding="utf-8",
+    )
+
+    artifact, _ = forecast(
+        str(source), time_column="timestamp", target_column="value",
+        horizon=3, output=str(tmp_path / "out"), clock=CLOCK,
+    )
+    result = artifact.results[0]
+
+    assert result.support_assessment["status"] == "supported"
+    assert all(row["point"] == row["q10"] == row["q50"] == 0.0
+               and row["q90"] > 0.0 for row in result.forecast)
+    assert "zero_inflated_intermittent_distribution" in _codes(result)
 
 
 def test_disclosures_never_change_support_status():

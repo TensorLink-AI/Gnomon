@@ -4,7 +4,7 @@ import json
 import logging
 import math
 from dataclasses import dataclass, field, replace
-from statistics import mean, median
+from statistics import NormalDist, mean, median
 from typing import Any, Callable
 
 from .contracts import GnomonError
@@ -313,6 +313,35 @@ def active_models(config: Any = None) -> dict[str, Any]:
 DEFAULT_TARGET_COVERAGE = 0.80
 
 
+def finite_sample_predictive_expansion(
+    sample_size: int, central_coverage: float = DEFAULT_TARGET_COVERAGE,
+) -> float:
+    """Return a predictive-width correction for tiny held-out samples.
+
+    Strict split calibration may have only one short trajectory. Empirical
+    order statistics then understate a labelled central interval (three
+    residuals cannot resolve a finite 80% interval). This Student-t tail plus
+    ``sqrt(1 + 1/n)`` correction estimates a future residual rather than only
+    the sampled mean. It is used solely by the explicit non-pooled mode.
+    """
+    if sample_size < 2 or not 0.0 < central_coverage < 1.0:
+        return 1.0
+    probability = (1.0 + central_coverage) / 2.0
+    z = NormalDist().inv_cdf(probability)
+    if z <= 0:
+        return 1.0
+    degrees = float(sample_size - 1)
+    # Dependency-free Cornish-Fisher expansion of the Student-t quantile.
+    z2 = z * z
+    t = z
+    t += (z * z2 + z) / (4.0 * degrees)
+    t += (5.0 * z * z2 * z2 + 16.0 * z * z2 + 3.0 * z) / (
+        96.0 * degrees * degrees)
+    t += (3.0 * z * z2 * z2 * z2 + 19.0 * z * z2 * z2
+          + 17.0 * z * z2 - 15.0 * z) / (384.0 * degrees ** 3)
+    return max(1.0, (t / z) * math.sqrt(1.0 + 1.0 / sample_size))
+
+
 def coverage_levels(target_coverage: float = DEFAULT_TARGET_COVERAGE) -> tuple[float, float, float]:
     """The (lower, median, upper) residual levels for a nominal coverage.
 
@@ -330,6 +359,7 @@ def conformal_spreads(
     pooled: list[float] | None = None,
     target_coverage: float = DEFAULT_TARGET_COVERAGE,
     recentre: bool = True,
+    finite_sample_expansion: bool = False,
 ) -> dict[int, tuple[float, float, float]]:
     """Split-conformal offsets (low, median, high) for each lead time.
 
@@ -386,6 +416,11 @@ def conformal_spreads(
 
     lows = _isotonic([max(0.0, value) for value in lows])
     highs = _isotonic([max(0.0, value) for value in highs])
+    if finite_sample_expansion:
+        expansion = finite_sample_predictive_expansion(
+            len(pooled), target_coverage)
+        lows = [value * expansion for value in lows]
+        highs = [value * expansion for value in highs]
     return {step + 1: (lows[step], medians[step], highs[step])
             for step in range(horizon)}
 
@@ -430,6 +465,7 @@ def conformal_quantile_spreads(
     pooled: list[float] | None = None,
     levels: tuple[float, ...] = QUANTILE_LEVELS,
     recentre: bool = True,
+    finite_sample_expansion: bool = False,
 ) -> dict[int, dict[float, float]]:
     """Split-conformal offset from the point forecast, per lead and level.
 
@@ -470,12 +506,18 @@ def conformal_quantile_spreads(
     fitted: dict[float, list[float]] = {}
     for level in levels:
         offsets = by_level[level]
+        central_coverage = abs(2.0 * level - 1.0)
+        expansion = (finite_sample_predictive_expansion(
+            len(pooled), central_coverage)
+            if finite_sample_expansion and level != 0.5 else 1.0)
         if level < 0.5:
             # Lower tail: fit the magnitude monotone, then re-sign.
-            widths = _isotonic([max(0.0, -value) for value in offsets])
+            widths = _isotonic([
+                max(0.0, -value) * expansion for value in offsets])
             fitted[level] = [-value for value in widths]
         elif level > 0.5:
-            fitted[level] = _isotonic([max(0.0, value) for value in offsets])
+            fitted[level] = _isotonic([
+                max(0.0, value) * expansion for value in offsets])
         else:
             fitted[level] = [0.0] * horizon
 
@@ -499,6 +541,43 @@ def quantiles_from_spread(
     """Named quantile columns at one lead time."""
     return {quantile_key(level): point + offset
             for level, offset in sorted(spread.items())}
+
+
+def intermittent_predictive_quantiles(
+    history: list[float],
+    levels: tuple[float, ...] = QUANTILE_LEVELS,
+) -> dict[float, float] | None:
+    """Return a zero-inflated empirical predictive distribution when visible.
+
+    Residual intervals around a positive mean forecast can exclude zero when
+    a held-out fold happens to contain demand. For genuinely intermittent,
+    non-negative histories that is the wrong distributional shape: zero is
+    still the median outcome. Estimate the zero atom and positive-size
+    distribution separately. The selected point path stays visible as its
+    own mean-like estimate; a weak point model cannot collapse the observed
+    positive-demand tail.
+    """
+    values = [float(value) for value in history
+              if isinstance(value, (int, float)) and not isinstance(value, bool)
+              and math.isfinite(float(value))]
+    if len(values) != len(history) or any(value < 0 for value in values):
+        return None
+    positives = [value for value in values if value > 0]
+    zeros = len(values) - len(positives)
+    if (len(values) < 16 or len(positives) < 4
+            or zeros / len(values) < 0.5):
+        return None
+    zero_probability = zeros / len(values)
+    output = {}
+    for level in levels:
+        if level <= zero_probability:
+            output[level] = 0.0
+            continue
+        positive_level = (level - zero_probability) / (
+            1.0 - zero_probability)
+        output[level] = max(
+            0.0, conformal_quantile(positives, positive_level))
+    return output
 
 
 def pinball_loss(actual: float, predicted: float, level: float) -> float:
@@ -2254,8 +2333,9 @@ def evaluate(
     # `conformal_spreads`); measuring test-fold coverage on the same
     # spreads keeps the measurement about the interval a reader actually
     # gets.
-    spreads = conformal_spreads(residuals_by_lead, horizon, residuals,
-                                recentre=not degraded)
+    spreads = conformal_spreads(
+        residuals_by_lead, horizon, residuals, recentre=not degraded,
+        finite_sample_expansion=not pool_residuals)
 
     # The `--ensemble` override can force the ensemble even when it did not win
     # selection. Calibrate it here, on the same folds, so the override never
@@ -2294,11 +2374,16 @@ def evaluate(
             test_prediction = _predict_statistical(
                 strongest_baseline, train_at(test_origin), horizon, season)
         covered = []
+        intermittent = intermittent_predictive_quantiles(
+            train_at(test_origin), (0.1, 0.5, 0.9))
         for step, (actual, prediction) in enumerate(zip(test_actual, test_prediction), 1):
             spread = spreads.get(step)
             if spread is None:
                 continue
-            low, _, high = interval_from_spread(prediction, spread)
+            if intermittent is not None:
+                low, high = intermittent[0.1], intermittent[0.9]
+            else:
+                low, _, high = interval_from_spread(prediction, spread)
             covered.append(1.0 if low <= actual <= high else 0.0)
         coverage = mean(covered) if covered else None
         if coverage is not None and coverage < 0.7:

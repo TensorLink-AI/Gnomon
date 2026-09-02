@@ -791,17 +791,22 @@ def _series_result(
     if rows and state.primary_points and context_changed_output:
         from .evaluation import (
             conformal_quantile_spreads, conformal_spreads,
-            interval_from_spread, quantiles_from_spread,
+            intermittent_predictive_quantiles, interval_from_spread,
+            quantile_key, quantiles_from_spread,
         )
 
         primary_spreads = conformal_spreads(
             state.primary_residuals_by_lead, len(state.primary_points),
             state.primary_residuals, target_coverage,
             recentre=not assessment.degraded,
+            finite_sample_expansion=(
+                not assessment.residuals_pooled_across_selection),
         )
         primary_levels = conformal_quantile_spreads(
             state.primary_residuals_by_lead, len(state.primary_points),
             state.primary_residuals, recentre=not assessment.degraded,
+            finite_sample_expansion=(
+                not assessment.residuals_pooled_across_selection),
         )
         # The primary lane is immutable evidence, not merely immutable
         # points. An admitted context candidate can earn a different support
@@ -815,6 +820,7 @@ def _series_result(
             known_time_assumed=loaded.snapshot.assumed_known_time,
         )
         primary_tier = achieved_tier(primary_assessment.status, True)
+        intermittent = intermittent_predictive_quantiles(state.values)
         for step, (timestamp, point) in enumerate(
                 zip(state.future_timestamps, state.primary_points), 1):
             if step not in primary_spreads:
@@ -832,6 +838,11 @@ def _series_result(
                     point, primary_levels[step]).items()
                 if key not in primary_row
             })
+            if intermittent is not None:
+                primary_row.update({quantile_key(level): value
+                                    for level, value in intermittent.items()})
+                primary_row["point_bias_correction"] = (
+                    float(primary_row["q50"]) - point)
             primary_forecast.append(primary_row)
     from .soft_context import context_outcome as project_context_outcome
     profile = temporal_profile(
