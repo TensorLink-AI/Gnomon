@@ -1503,7 +1503,7 @@ def test_sampled_outliers_remain_diagnostics_not_published_tail_width():
     assert strict["recommended_scenario_id"] == "primary"
 
 
-def test_unadmitted_governed_categorical_path_inherits_primary_envelope():
+def test_unadmitted_governed_categorical_has_no_distinct_numeric_path():
     import hashlib
     import json
 
@@ -1525,21 +1525,24 @@ def test_unadmitted_governed_categorical_path_inherits_primary_envelope():
         if item["role"] == "governed_categorical_state_mapping")
 
     assert scenario["human_selection_eligible"] is False
-    assert [[row[key] for key in ("q10", "q50", "q90")]
-            for row in scenario["forecast"]] == [[9.0, 11.0, 11.0],
-                                                  [9.0, 12.0, 12.0]]
+    assert scenario["forecast"] == _result()["forecast"]
     normalization = scenario["effect"]["uncertainty_normalization"]
     assert normalization["basis"] == (
-        "immutable_primary_envelope_for_unadmitted_governed_candidate")
-    assert normalization["candidate_centre_unchanged"] is True
+        "immutable_primary_for_unadmitted_governed_candidate")
+    assert normalization["numeric_authority"] == (
+        "withheld_no_distinct_path")
+    assert normalization["source_candidate_preserved_in_sealed_dossier"] is True
     assert normalization["primary_forecast_unchanged"] is True
-    assert normalization["tails_are_calibrated_quantiles"] is False
     assert scenario["effect"]["distribution"]["kind"] == (
-        "under_evidence_sensitivity_envelope")
+        "under_evidence_no_distinct_numeric_path")
     assert scenario["effect"]["distribution"][
         "probabilistic_consumers_should_use"] == "primary_forecast"
-    assert scenario["effect"]["distribution"]["probability_status"] == (
-        "unavailable_uncalibrated")
+    assert scenario["effect"]["distribution"]["numeric_authority"] == (
+        "withheld_no_distinct_path")
+    assert scenario["effect"]["primary_disagreement"][
+        "median_absolute_difference_scaled"] == 0
+    assert scenario["effect"]["source_candidate_disagreement"][
+        "max_absolute_difference_scaled"] > 0
     assert payload["primary_forecast"] == _result()["forecast"]
     assert payload["recommended_scenario_id"] == "primary"
     assert payload["automation"]["eligible"] is False
