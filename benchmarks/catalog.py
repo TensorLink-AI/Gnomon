@@ -128,6 +128,10 @@ CATALOG: dict[str, BenchmarkContract] = {
         "Prefix-only structural admission, useful-departure recall, and "
         "harmful-departure control on sealed synthetic futures; not agent "
         "reasoning or fully supported forecast accuracy."),
+    "windowsemanticsbench": BenchmarkContract(
+        "compiler", "production deterministic temporal-dossier compiler",
+        "Exact operational-window boundary and refusal semantics without "
+        "future outcomes or an LLM; not forecast accuracy."),
     "sharedtrendbench": BenchmarkContract(
         "policy", "production companion-relationship admission policy",
         "Useful-driver admission and shared-trend false-admission control; not causal identification or agent reasoning."),
