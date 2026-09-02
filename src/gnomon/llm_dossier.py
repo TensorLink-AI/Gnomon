@@ -197,10 +197,11 @@ def deterministic_dated_zero_window_dossier(
 
     This front door covers hard operational states such as no sales during a
     closure, no withdrawals while cash is depleted, zero production during an
-    outage, or no requests while a service is disabled. It requires one exact
-    start, one duration, and a phrase that the existing conservative override
-    parser independently resolves to zero. Operational causes alone never
-    imply zero.
+    outage, or no requests while a service is disabled. It requires either one
+    exact start plus a duration, or two exact endpoints joined by an
+    unambiguous boundary word, and a phrase that the existing conservative
+    override parser independently resolves to zero. Operational causes alone
+    never imply zero.
     """
     from .future_context import parse_override_span
 
@@ -218,7 +219,9 @@ def deterministic_dated_zero_window_dossier(
         r"(?:approximately\s+|about\s+|roughly\s+)?"
         r"(\d+(?:\.\d+)?)\s*(minutes?|hours?|days?)\b",
         text, flags=re.IGNORECASE)
-    if len(timestamps) != 1 or len(durations) != 1:
+    duration_form = len(timestamps) == 1 and len(durations) == 1
+    endpoint_form = len(timestamps) == 2 and not durations
+    if not duration_form and not endpoint_form:
         return None
     target_terms = (
         "production", "output", "traffic", "flow", "generation",
@@ -241,20 +244,46 @@ def deterministic_dated_zero_window_dossier(
     if cutoff_time is None or not future or any(value is None for value in future):
         return None
     try:
-        start = datetime.fromisoformat(timestamps[0].replace(" ", "T"))
+        cited = [datetime.fromisoformat(value.replace(" ", "T"))
+                 for value in timestamps]
     except ValueError:
         return None
-    if start.tzinfo is None:
-        start = start.replace(tzinfo=cutoff_time.tzinfo)
-    amount = float(durations[0][0])
-    unit = durations[0][1].casefold()
-    seconds = amount * (60 if unit.startswith("minute") else
-                        3600 if unit.startswith("hour") else 86400)
-    if not math.isfinite(seconds) or seconds <= 0 or start <= cutoff_time:
+    cited = [value if value.tzinfo is not None else value.replace(
+        tzinfo=cutoff_time.tzinfo) for value in cited]
+    start = cited[0]
+    boundary_semantics = "half_open"
+    if duration_form:
+        amount = float(durations[0][0])
+        unit = durations[0][1].casefold()
+        seconds = amount * (60 if unit.startswith("minute") else
+                            3600 if unit.startswith("hour") else 86400)
+        if not math.isfinite(seconds) or seconds <= 0:
+            return None
+        source_end = start + timedelta(seconds=seconds)
+    else:
+        # Approximate endpoints cannot safely be mapped onto discrete host
+        # rows. The duration form retains its established handling above.
+        if re.search(r"\b(?:approximately|about|roughly|around)\b", text,
+                     re.IGNORECASE):
+            return None
+        first, second = (re.escape(value) for value in timestamps)
+        half_open = bool(re.search(
+            rf"\b(?:between\s+{first}\s+and|from\s+{first}\s+until)\s+{second}\b",
+            text, re.IGNORECASE))
+        closed = bool(re.search(
+            rf"\bfrom\s+{first}\s+through\s+{second}\b", text,
+            re.IGNORECASE))
+        if half_open == closed:
+            # This also refuses the deliberately ambiguous ``from ... to``.
+            return None
+        boundary_semantics = "half_open" if half_open else "closed"
+        source_end = cited[1]
+    if start <= cutoff_time or source_end <= start:
         return None
-    exclusive_end = start + timedelta(seconds=seconds)
     active = [index for index, stamp in enumerate(future)
-              if stamp is not None and start <= stamp < exclusive_end]
+              if stamp is not None and start <= stamp
+              and (stamp < source_end if boundary_semantics == "half_open"
+                   else stamp <= source_end)]
     if not active or active != list(range(active[0], active[-1] + 1)):
         return None
     # Public event windows are inclusive. Bind the stated duration to the
@@ -284,10 +313,15 @@ def deterministic_dated_zero_window_dossier(
             "scope": {"kind": "single_series", "series": ["*"]},
             "claim_ids": ["claim-1"],
             "rationale": (
-                "Deterministic compilation of one verbatim future timestamp, "
-                "duration, and zero-activity scenario. The proposal remains "
-                "a labelled sensitivity unless the source grants binding "
-                "future-input authority."),
+                "Deterministic compilation of "
+                + ("one verbatim future timestamp and duration"
+                   if duration_form else
+                   "two verbatim future timestamps and an explicit "
+                   f"{boundary_semantics.replace('_', '-')} connector")
+                + ", plus a zero-activity scenario. The source interval was "
+                "normalized to its covered host-grid rows. The proposal "
+                "remains a labelled sensitivity unless the source grants "
+                "binding future-input authority."),
         },
     }
 

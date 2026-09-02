@@ -102,6 +102,41 @@ def test_explicit_dated_zero_window_binds_exclusive_duration_to_grid():
                    "semantic_normalizations"])
 
 
+@pytest.mark.parametrize(("connector", "expected"), [
+    ("between 2026-01-03 02:00:00 and", [2, 3]),
+    ("from 2026-01-03 02:00:00 until", [2, 3]),
+    ("from 2026-01-03 02:00:00 through", [2, 3, 4]),
+])
+def test_explicit_dated_zero_window_preserves_connector_boundaries(
+        connector, expected):
+    future = [f"2026-01-03T{hour:02d}:00:00+00:00" for hour in range(8)]
+    text = (
+        f"Readings will be zero {connector} 2026-01-03 04:00:00 while "
+        "the meter is offline.")
+
+    raw = deterministic_dated_zero_window_dossier(
+        text, cutoff="2026-01-02T23:00:00+00:00",
+        future_timestamps=future, target_name="readings")
+
+    assert raw is not None
+    assert raw["claims"][0]["effective_start"] == future[expected[0]]
+    assert raw["claims"][0]["effective_end"] == future[expected[-1]]
+    assert raw["effect_proposal"]["duration_steps"] == len(expected)
+
+
+@pytest.mark.parametrize("text", [
+    ("Readings will be zero from 2026-01-03 02:00:00 to "
+     "2026-01-03 04:00:00."),
+    ("Readings will be zero between approximately "
+     "2026-01-03 02:00:00 and 2026-01-03 04:00:00."),
+])
+def test_explicit_dated_zero_window_refuses_unclear_endpoint_semantics(text):
+    future = [f"2026-01-03T{hour:02d}:00:00+00:00" for hour in range(8)]
+    assert deterministic_dated_zero_window_dossier(
+        text, cutoff="2026-01-02T23:00:00+00:00",
+        future_timestamps=future, target_name="readings") is None
+
+
 @pytest.mark.parametrize("text", [
     "Cash is depleted from 2026-01-03 00:00:00 for 10 days.",
     "There will be no withdrawals for 10 days.",

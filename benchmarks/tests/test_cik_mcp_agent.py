@@ -2621,6 +2621,36 @@ def test_dated_zero_window_front_door_uses_context_without_model_call(tmp_path):
     assert publication["automation"]["eligible"] is False
 
 
+def test_dated_zero_endpoint_window_uses_half_open_host_rows(tmp_path):
+    task = _task(horizon=12)
+    start = task.future_time[2].replace("T", " ").split("+", 1)[0]
+    end = task.future_time[5].replace("T", " ").split("+", 1)[0]
+    task.scenario = (
+        f"The service will be offline between {start} and {end}, resulting "
+        "in zero requests.")
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}])
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 1)
+
+    assert client.completion_prompts == []
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    assert receipt["compiler"]["contract"] == "explicit_dated_zero_window"
+    assert receipt["dossier"]["claims"][0]["effective_start"] == (
+        task.future_time[2])
+    assert receipt["dossier"]["claims"][0]["effective_end"] == (
+        task.future_time[4])
+    assert receipt["dossier"]["effect_proposal"]["duration_steps"] == 3
+    assert extra["publication"]["primary_forecast_unchanged"] is True
+    assert extra["publication"]["automation"]["eligible"] is False
+
+
 def test_additive_drift_front_door_survives_compiler_unavailability(tmp_path):
     from datetime import datetime, timedelta, timezone
 
