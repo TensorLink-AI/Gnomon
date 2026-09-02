@@ -71,6 +71,8 @@ def _control_patch(
     prompt = (
         "Repair this forecast request once. The goal is the longest "
         "supportable orientation forecast without claiming stronger support. "
+        "The single patch must be complete: combine compatible supplied "
+        "recovery actions when one change alone would still reject rows. "
         "Do not invent observations or change the input. Return only JSON as "
         "{\"tool\":\"gnomon_forecast\",\"argument_patch\":{...}}.\n"
         + json.dumps(compact, sort_keys=True)
