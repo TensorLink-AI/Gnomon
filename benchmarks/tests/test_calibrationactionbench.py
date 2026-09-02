@@ -24,6 +24,7 @@ def test_calibration_action_evaluation_is_resumable_and_preserves_points(
     assert first["gates"]["point_forecasts_unchanged"] is True
     assert first["gates"]["pooled_never_policy_eligible"] is True
     assert first["arms"]["strict"]["mean_wis"] is not None
+    assert first["arms"]["strict_reference"]["mean_wis"] is not None
 
 
 def test_calibration_action_resume_rejects_mismatched_identity(tmp_path):

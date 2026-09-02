@@ -73,7 +73,8 @@ def _wis(actual: float, low: float, middle: float, high: float) -> float:
 
 
 def _arm(history: list[float], actual: list[float], horizon: int,
-         season: int, frequency: str, *, pooled: bool) -> dict[str, Any]:
+         season: int, frequency: str, *, pooled: bool,
+         current_calibrator: bool = True) -> dict[str, Any]:
     config = GnomonConfig()
     config.evaluation.pool_residuals = pooled
     assessment = evaluate(
@@ -95,11 +96,11 @@ def _arm(history: list[float], actual: list[float], horizon: int,
     spreads = conformal_spreads(
         assessment.residuals_by_lead, horizon, assessment.residuals,
         recentre=not assessment.degraded,
-        finite_sample_expansion=not pooled,
+        finite_sample_expansion=not pooled and current_calibrator,
     )
     intervals = []
-    intermittent = intermittent_predictive_quantiles(
-        history, (0.1, 0.5, 0.9))
+    intermittent = (intermittent_predictive_quantiles(
+        history, (0.1, 0.5, 0.9)) if current_calibrator else None)
     for index in range(horizon):
         intervals.append((
             (intermittent[0.1], intermittent[0.5], intermittent[0.9])
@@ -203,6 +204,7 @@ def _aggregate(rows: list[dict[str, Any]], arm: str) -> dict[str, Any]:
 
 def summarize(rows: list[dict[str, Any]], expected: int) -> dict[str, Any]:
     pooled = _aggregate(rows, "pooled")
+    strict_reference = _aggregate(rows, "strict_reference")
     strict = _aggregate(rows, "strict")
     by_family = {
         family: _aggregate([row for row in rows if row["family"] == family],
@@ -214,20 +216,29 @@ def summarize(rows: list[dict[str, Any]], expected: int) -> dict[str, Any]:
                            "pooled")
         for family in FAMILIES
     }
+    reference_by_family = {
+        family: _aggregate([row for row in rows if row["family"] == family],
+                           "strict_reference")
+        for family in FAMILIES
+    }
     family_coverage = [item["coverage"] for item in by_family.values()
                        if item["coverage"] is not None]
     point_parity = all(
         row["pooled"].get("points") == row["strict"].get("points")
+        == row["strict_reference"].get("points")
         for row in rows if row["pooled"].get("complete")
-        and row["strict"].get("complete"))
+        and row["strict"].get("complete")
+        and row["strict_reference"].get("complete"))
     gates = {
         "all_cases_complete": len(rows) == expected and all(
             row[arm].get("executed") is True
-            for row in rows for arm in ("pooled", "strict")),
+            for row in rows
+            for arm in ("pooled", "strict_reference", "strict")),
         "point_forecasts_unchanged": point_parity,
         "strict_split_provenance": all(
-            row["strict"].get("residuals_pooled_across_selection") is False
-            for row in rows if row["strict"].get("complete")),
+            row[arm].get("residuals_pooled_across_selection") is False
+            for row in rows for arm in ("strict_reference", "strict")
+            if row[arm].get("complete")),
         "pooled_never_policy_eligible": pooled["policy_eligible_cases"] == 0,
         "overall_coverage_within_10_points": bool(
             strict["coverage"] is not None
@@ -251,6 +262,11 @@ def summarize(rows: list[dict[str, Any]], expected: int) -> dict[str, Any]:
             and pooled["mean_wis"] is not None
             and float(strict["mean_wis"])
             <= float(pooled["mean_wis"]) + 1e-12),
+        "current_wis_improves_strict_reference": bool(
+            strict["mean_wis"] is not None
+            and strict_reference["mean_wis"] is not None
+            and float(strict["mean_wis"])
+            <= float(strict_reference["mean_wis"]) + 1e-12),
         "false_action_cost_nonincreasing": (
             strict["false_action_cost"] <= pooled["false_action_cost"]),
         "positive_selective_utility": strict["actions"] > 0
@@ -259,8 +275,10 @@ def summarize(rows: list[dict[str, Any]], expected: int) -> dict[str, Any]:
     return {
         "schema_version": 1, "benchmark": "calibration-action-evaluation",
         "cases": len(rows), "expected_cases": expected,
-        "arms": {"pooled": pooled, "strict": strict},
+        "arms": {"pooled": pooled, "strict_reference": strict_reference,
+                 "strict": strict},
         "pooled_by_family": pooled_by_family,
+        "strict_reference_by_family": reference_by_family,
         "strict_by_family": by_family, "gates": gates,
         "all_promotion_gates_passed": all(gates.values()),
         "rows": rows,
@@ -313,8 +331,11 @@ def run(seed: int, cases_per_family: int, output_dir: Path,
         row = {
             **case,
             "future_observations_used_by_forecaster": 0,
-            "pooled": _arm(history, actual, case["horizon"], case["season"],
+                "pooled": _arm(history, actual, case["horizon"], case["season"],
                            case["frequency"], pooled=True),
+            "strict_reference": _arm(
+                history, actual, case["horizon"], case["season"],
+                case["frequency"], pooled=False, current_calibrator=False),
             "strict": _arm(history, actual, case["horizon"], case["season"],
                            case["frequency"], pooled=False),
         }
