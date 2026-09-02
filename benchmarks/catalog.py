@@ -112,6 +112,15 @@ CATALOG: dict[str, BenchmarkContract] = {
     "seasonalbench": BenchmarkContract(
         "engine", "production season detection, evaluation, and support rendering",
         "Seasonal-period admission, harmful departure, and support precision; agent behavior excluded."),
+    "authoritybench": BenchmarkContract(
+        "safety_contract", "production future-input authority classifier and MCP context boundary",
+        "Observed, predicted, assumed, and binding input authority plus target-scope isolation; not context usefulness or agent reasoning."),
+    "boundedcalibrationbench": BenchmarkContract(
+        "engine", "production forecast calibration and declared-bound path",
+        "Interval coverage, WIS, and bound preservation on sealed synthetic futures; agent behavior excluded."),
+    "sharedtrendbench": BenchmarkContract(
+        "policy", "production companion-relationship admission policy",
+        "Useful-driver admission and shared-trend false-admission control; not causal identification or agent reasoning."),
     "capabilitybench": BenchmarkContract(
         "engine", "production temporal capability registry executables",
         "Capability classification, regression, and decomposition behavior; not agent reasoning."),

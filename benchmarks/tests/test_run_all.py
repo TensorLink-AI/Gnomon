@@ -28,6 +28,9 @@ def test_registry_and_claim_catalog_cover_the_same_benchmarks():
     assert CATALOG["temporalbench"].layer == "reasoning_harness"
     assert CATALOG["propertybench"].layer == "engine"
     assert CATALOG["effectbench"].layer == "safety_contract"
+    assert CATALOG["authoritybench"].layer == "safety_contract"
+    assert CATALOG["boundedcalibrationbench"].layer == "engine"
+    assert CATALOG["sharedtrendbench"].layer == "policy"
 
 
 @pytest.mark.parametrize("module", [
