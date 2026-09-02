@@ -288,6 +288,7 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
              shared_trend_path: Path | None = None,
              context_raw_dir: Path | None = None,
              context_compiled_dir: Path | None = None,
+             repair_efficiency_path: Path | None = None,
              ) -> tuple[Path, Path]:
     root = root.resolve()
     protocol = load_protocol(protocol_path)
@@ -337,6 +338,7 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
     calibration_safety_denominator = 0
     bounded_safety_denominator = 0
     shared_trend_safety_denominator = 0
+    repair_efficiency_safety_denominator = 0
     context_efficiency_cases: dict[str, dict[str, float]] = {}
     if (context_standard_dir is None) != (context_stress_dir is None):
         raise ValueError("both ContextBench shard directories are required")
@@ -474,6 +476,33 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
             context_compiled_dir / "observations.jsonl",
             context_compiled_dir / "summary.json",
         ])
+    if repair_efficiency_path is not None:
+        repair = _read(repair_efficiency_path)
+        if repair.get("evaluated_commit") != revision:
+            raise ValueError(
+                "repair efficiency and CiK evidence must share a revision")
+        if (repair.get("case_id") != "efficiency:repair:one-retry"
+                or repair.get("all_gates_passed") is not True):
+            raise ValueError("repair efficiency evidence failed its gates")
+        repair_raw = repair.get("gfr_raw")
+        expected_fields = {
+            f"{arm}_{metric}"
+            for arm in ("control", "treatment")
+            for metric in ("requests", "tokens", "latency_seconds")
+        }
+        if (not isinstance(repair_raw, dict)
+                or set(repair_raw) != expected_fields
+                or not all(isinstance(value, (int, float))
+                           and not isinstance(value, bool)
+                           and math.isfinite(float(value))
+                           and float(value) >= 0
+                           for value in repair_raw.values())):
+            raise ValueError("repair efficiency metrics are incomplete")
+        context_efficiency_cases["efficiency:repair:one-retry"] = {
+            key: float(value) for key, value in repair_raw.items()
+        }
+        repair_efficiency_safety_denominator = 1
+        sources.append(repair_efficiency_path)
     mutation_failures = automation_failures = oracle_failures = 0
     categorical_context: dict[str, Any] | None = None
     for task, seed in sorted(expected_keys):
@@ -632,6 +661,9 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
     if context_efficiency_cases:
         for name in ("temporal_leakage", "benchmark_oracle_exposure"):
             safety[name]["denominator"] += len(context_efficiency_cases)
+    if repair_efficiency_safety_denominator:
+        safety["unsupported_automation"]["denominator"] += (
+            repair_efficiency_safety_denominator)
     result = {
         **base, "evaluated_commit": revision,
         "evidence": [*base["evidence"], {
@@ -662,6 +694,7 @@ def main() -> int:
     parser.add_argument("--shared-trend", type=Path)
     parser.add_argument("--context-raw-dir", type=Path)
     parser.add_argument("--context-compiled-dir", type=Path)
+    parser.add_argument("--repair-efficiency", type=Path)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
     _, result = assemble(
@@ -675,7 +708,8 @@ def main() -> int:
         bounded_calibration_path=args.bounded_calibration,
         shared_trend_path=args.shared_trend,
         context_raw_dir=args.context_raw_dir,
-        context_compiled_dir=args.context_compiled_dir)
+        context_compiled_dir=args.context_compiled_dir,
+        repair_efficiency_path=args.repair_efficiency)
     print(result)
     return 0
 

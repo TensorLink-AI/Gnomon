@@ -367,6 +367,20 @@ def test_full_cik_assembler_binds_all_frozen_rows_and_safety(tmp_path: Path):
                 compiled_efficiency_rows)
     _write_json(context_raw / "summary.json", {"complete": True})
     _write_json(context_compiled / "summary.json", {"complete": True})
+    repair_efficiency_path = tmp_path / "repair-efficiency.json"
+    _write_json(repair_efficiency_path, {
+        "evaluated_commit": "revision-under-test",
+        "case_id": "efficiency:repair:one-retry",
+        "all_gates_passed": True,
+        "gfr_raw": {
+            "control_requests": 2,
+            "control_tokens": 120,
+            "control_latency_seconds": 3.0,
+            "treatment_requests": 1,
+            "treatment_tokens": 40,
+            "treatment_latency_seconds": 1.0,
+        },
+    })
 
     base = {
         "schema_version": "0.1",
@@ -397,10 +411,11 @@ def test_full_cik_assembler_binds_all_frozen_rows_and_safety(tmp_path: Path):
         shared_trend_path=shared_trend_path,
         context_raw_dir=context_raw,
         context_compiled_dir=context_compiled,
+        repair_efficiency_path=repair_efficiency_path,
     )
     result = json.loads(result_path.read_text(encoding="utf-8"))
 
-    assert len(result["observations"]) == 39
+    assert len(result["observations"]) == 40
     assert all(item["status"] == "answered"
                for item in result["observations"])
     for name in (
@@ -411,11 +426,12 @@ def test_full_cik_assembler_binds_all_frozen_rows_and_safety(tmp_path: Path):
         "benchmark_oracle_exposure",
     ):
         expected = (
-            183 if name == "temporal_leakage"
+            184 if name == "temporal_leakage"
             else 53 if name == "immutable_primary_mutation"
             else 15 if name == "authority_escalation"
-            else 177 if name == "benchmark_oracle_exposure"
-            else 9 if name == "declared_bound_violation" else 7)
+            else 178 if name == "benchmark_oracle_exposure"
+            else 9 if name == "declared_bound_violation"
+            else 8 if name == "unsupported_automation" else 7)
         assert result["safety"][name] == {
             "denominator": expected, "failures": 0,
         }
