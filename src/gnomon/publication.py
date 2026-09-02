@@ -20,6 +20,7 @@ from .llm_dossier import (deterministic_events_from_claims,
                           validate_temporal_dossier,
                           verify_temporal_dossier_seal)
 from .effect_proposals import assess_composed_effect, compose_effect
+from .future_context import literal_input_authority
 from .temporal_state import build_temporal_state
 from .context_intelligence import candidate_evidence_score
 from .agent_context import sampled_prior_sufficiency
@@ -531,6 +532,7 @@ def dominant_scenario_id(scenarios: list[dict[str, Any]]) -> str | None:
                        and any(normalization.get("code") in {
                                    "EXACT_CITED_LEVEL_MULTIPLIER",
                                    "APPROXIMATE_CITED_LEVEL_MULTIPLIER",
+                                   "EXACT_CITED_ZERO_LEVEL",
                                }
                                for normalization in
                                (item.get("effect") or {}).get(
@@ -1483,16 +1485,24 @@ def build_scenario_catalog(result: dict[str, Any], *,
             dossier, target_name=str(result.get("target_identity")
                                      or result.get("series") or ""),
             forecast_window=forecast_window)
+        assumed_claim_ids = {
+            str(claim.get("claim_id"))
+            for claim in claims
+            if literal_input_authority(
+                str(claim.get("source_span") or "")) == "assumed"
+        }
         deterministic_claim_ids = {
             str(event.get("derived_from_claim_id"))
             for event in deterministic_events
             if event.get("derived_from_claim_id")}
+        deterministic_claim_ids.difference_update(assumed_claim_ids)
         absolute_override_claim_ids = {
             str(event.get("derived_from_claim_id"))
             for event in deterministic_events
             if str(event.get("event_type") or "").startswith("override:")
             and event.get("derived_from_claim_id")
         }
+        absolute_override_claim_ids.difference_update(assumed_claim_ids)
         if proposal and deterministic_claim_ids.intersection(
                 str(item) for item in proposal.get("claim_ids") or []):
             # An exact absolute/range claim belongs to the deterministic

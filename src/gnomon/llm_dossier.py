@@ -274,7 +274,21 @@ def deterministic_dated_zero_window_dossier(
         }],
         "hypotheses": [], "covariate_tables": [], "transformations": [],
         "observation_interpretations": [], "forecast_candidate": None,
-        "effect_proposal": None,
+        "effect_proposal": {
+            "shape": ("temporary_pulse" if len(active) < len(future)
+                      else "level_shift"),
+            "unit": "fraction_of_level",
+            "location": -1.0, "lower": -1.0, "upper": -1.0,
+            "confidence": 1.0,
+            "delay_steps": active[0], "duration_steps": len(active),
+            "scope": {"kind": "single_series", "series": ["*"]},
+            "claim_ids": ["claim-1"],
+            "rationale": (
+                "Deterministic compilation of one verbatim future timestamp, "
+                "duration, and zero-activity scenario. The proposal remains "
+                "a labelled sensitivity unless the source grants binding "
+                "future-input authority."),
+        },
     }
 
 

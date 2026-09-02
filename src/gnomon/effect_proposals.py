@@ -91,8 +91,15 @@ def _validate_one(raw: Any, *, claim_ids: set[str],
     lower = location if lower_raw is None else numeric(lower_raw)
     upper = location if upper_raw is None else numeric(upper_raw)
     source_scale_replaced_distribution = False
+    exact_cited_zero = False
     if unit == "fraction_of_level" and shape != "variance_change" and cited:
-        from .future_context import parse_override_scale
+        from .future_context import parse_override_scale, parse_override_span
+        if len(cited) == 1 and shape in {"temporary_pulse", "level_shift"}:
+            stated_value, stated_problem = parse_override_span(
+                claim_spans.get(cited[0], ""))
+            if stated_problem is None and stated_value == 0:
+                exact_cited_zero = True
+                location = lower = upper = -1.0
         source_scales = []
         for claim_id in cited:
             scale, problem = parse_override_scale(
@@ -159,6 +166,13 @@ def _validate_one(raw: Any, *, claim_ids: set[str],
     if errors:
         return None, errors
     semantic_normalizations: list[dict[str, Any]] = []
+    if exact_cited_zero:
+        semantic_normalizations.append({
+            "code": "EXACT_CITED_ZERO_LEVEL",
+            "stated_level": 0.0,
+            "applied_additive_fraction": -1.0,
+            "basis": "verified cited source span",
+        })
     if source_scale_replaced_distribution:
         semantic_normalizations.append({
             "code": "SOURCE_SCALE_REPLACED_MODEL_DISTRIBUTION",
@@ -287,11 +301,12 @@ def _validate_one(raw: Any, *, claim_ids: set[str],
         any(math.isclose(value, cited_value, rel_tol=1e-9, abs_tol=1e-12)
             for cited_value in cited_numbers)
         for value in distribution_values)
-    exact_multiplier_cited = any(
+    exact_source_level_cited = any(
         item.get("code") in {"EXACT_CITED_LEVEL_MULTIPLIER",
-                             "APPROXIMATE_CITED_LEVEL_MULTIPLIER"}
+                             "APPROXIMATE_CITED_LEVEL_MULTIPLIER",
+                             "EXACT_CITED_ZERO_LEVEL"}
         for item in semantic_normalizations)
-    if numeric_distribution_cited or exact_multiplier_cited:
+    if numeric_distribution_cited or exact_source_level_cited:
         provenance_class = "source_stated_distribution"
         safe_rationale = (
             "Conditional effect distribution is bound to numeric values in "
@@ -422,7 +437,8 @@ def assess_composed_effect(primary: list[dict[str, Any]], proposal: dict[str, An
         proposal.get("composition") == "scenario_only"
         and any(item.get("code") in {
                     "EXACT_CITED_LEVEL_MULTIPLIER",
-                    "APPROXIMATE_CITED_LEVEL_MULTIPLIER"}
+                    "APPROXIMATE_CITED_LEVEL_MULTIPLIER",
+                    "EXACT_CITED_ZERO_LEVEL"}
                 for item in proposal.get("semantic_normalizations") or []))
     if ratio > MAX_COMPOSED_EFFECT_SCALES and not exact_cited_scenario:
         violations.append({
