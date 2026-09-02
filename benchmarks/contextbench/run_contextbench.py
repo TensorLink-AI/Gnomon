@@ -28,6 +28,19 @@ EPOCH = datetime(2025, 1, 1, tzinfo=timezone.utc)
 STEP = timedelta(hours=1)
 
 
+def isolate_context_store(output: Path) -> Path:
+    """Bind benchmark cache state to one resumable output directory.
+
+    Context assessments are content-addressed production state. Benchmark
+    runs must not consume or mutate an ambient user's store, and a fresh
+    output must not inherit blobs produced by an older code revision.
+    """
+    store = (output / "context-store").resolve()
+    os.environ["GNOMON_CONTEXT_STORE"] = str(store)
+    os.environ["GNOMON_CONTEXT_NAMESPACE"] = "contextbench"
+    return store
+
+
 def frequency_step(frequency: str) -> timedelta:
     normalized = frequency.strip().lower()
     if normalized in {"15min", "15m"}:
@@ -745,6 +758,7 @@ def main() -> int:
     if missing:
         raise SystemExit(f"oracle is missing case IDs: {missing}")
     output = Path(args.output_dir); output.mkdir(parents=True, exist_ok=True)
+    isolate_context_store(output)
     corpus_identity = {
         "benchmark": "contextbench",
         "code_revision": code_revision(),

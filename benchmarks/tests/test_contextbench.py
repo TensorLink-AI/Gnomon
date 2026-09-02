@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -15,7 +16,8 @@ from benchmarks.contextbench.generate_stress import generate as generate_stress
 from benchmarks.contextbench import run_surfaces as surface_runner
 from benchmarks.contextbench.run_contextbench import (
     _append_checkpoint, _load_checkpoint, _raw_points, _structural_scenario,
-    run_case, select_cases, smape, summarize, valid_disposition,
+    isolate_context_store, run_case, select_cases, smape, summarize,
+    valid_disposition,
 )
 from benchmarks.contextbench.run_contextbench import main as run_main
 from benchmarks.contextbench.run_llm import (
@@ -33,6 +35,18 @@ from benchmarks.contextbench.schema import Case, load_cases, load_oracles
 from gnomon.context_model import rolling_residuals
 from gnomon.workflows import normalise_context_response_containers
 from gnomon.workflows import extract_explicit_schedule_context, DocumentRef
+
+
+def test_contextbench_store_is_scoped_to_resumable_output(
+        tmp_path, monkeypatch):
+    monkeypatch.setenv("GNOMON_CONTEXT_STORE", "/ambient/store")
+    monkeypatch.setenv("GNOMON_CONTEXT_NAMESPACE", "ambient")
+
+    store = isolate_context_store(tmp_path / "run")
+
+    assert store == (tmp_path / "run" / "context-store").resolve()
+    assert os.environ["GNOMON_CONTEXT_STORE"] == str(store)
+    assert os.environ["GNOMON_CONTEXT_NAMESPACE"] == "contextbench"
 
 
 def test_generator_is_reproducible_seed_sensitive_and_balanced():

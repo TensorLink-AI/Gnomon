@@ -27,7 +27,7 @@ from benchmarks.temporalbench.mcp_agent import run_row  # noqa: E402
 from gnomon.artifacts import read_artifact  # noqa: E402
 
 from .generate import EPOCH as CONTEXT_EPOCH  # noqa: E402
-from .run_contextbench import frequency_step  # noqa: E402
+from .run_contextbench import frequency_step, isolate_context_store  # noqa: E402
 from .run_contextbench import smape, valid_disposition, wilson  # noqa: E402
 from .run_llm import compile_events  # noqa: E402
 from .schema import Case, Oracle, load_cases, load_oracles  # noqa: E402
@@ -949,6 +949,7 @@ def main() -> int:
     resolved_base_url = OpenRouterClient(
         args.model, **client_kwargs).base_url
     output = Path(args.output_dir); output.mkdir(parents=True, exist_ok=True)
+    isolate_context_store(output)
     run_identity = {
         "schema_version": 1,
         "condition": "contextbench-surface",
