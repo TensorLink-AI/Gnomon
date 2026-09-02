@@ -78,6 +78,15 @@ def prior_classified_without_skill(candidates: Any) -> bool:
         for item in candidates)
 
 
+def conditional_calibration_candidate(candidates: Any) -> dict[str, Any] | None:
+    """Return the governed conditional lane named by the smoke case."""
+    if not isinstance(candidates, list):
+        return None
+    matches = [item for item in candidates if isinstance(item, dict)
+               and item.get("role") == "governed_categorical_state_mapping"]
+    return matches[0] if len(matches) == 1 else None
+
+
 def _constraint_observation() -> dict[str, Any]:
     row = {
         "timestamp": "2026-06-04T00:00:00+00:00", "point": -2.0,
@@ -161,8 +170,8 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
                 if item.get("human_selection_eligible")]
     if not eligible:
         raise ValueError("selection diagnostic has no admissible candidate")
-    selected_candidate = next((item for item in diagnostic["candidates"]
-                               if item.get("selected")), None)
+    calibration_candidate = conditional_calibration_candidate(
+        diagnostic["candidates"])
     primary_candidate = next((item for item in diagnostic["candidates"]
                               if item.get("role") == "immutable_primary"), None)
     calibration_complete = all(
@@ -172,11 +181,11 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
                 for field in ("nominal_coverage", "empirical_coverage", "wis"))
         and candidate.get("computed_after_forecast") is True
         and candidate.get("passed_to_forecaster") is False
-        for candidate in (selected_candidate, primary_candidate))
+        for candidate in (calibration_candidate, primary_candidate))
     candidate_calibration_raw = ({
-        "nominal_coverage": float(selected_candidate["nominal_coverage"]),
-        "empirical_coverage": float(selected_candidate["empirical_coverage"]),
-        "candidate_wis": float(selected_candidate["wis"]),
+        "nominal_coverage": float(calibration_candidate["nominal_coverage"]),
+        "empirical_coverage": float(calibration_candidate["empirical_coverage"]),
+        "candidate_wis": float(calibration_candidate["wis"]),
         "reference_wis": float(primary_candidate["wis"]),
     } if calibration_complete else None)
     publication = trace.get("final_submission") or {}

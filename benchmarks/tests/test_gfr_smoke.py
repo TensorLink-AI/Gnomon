@@ -1,6 +1,7 @@
 import pytest
 
-from benchmarks.gfr_smoke import (prior_classified_without_skill,
+from benchmarks.gfr_smoke import (conditional_calibration_candidate,
+                                  prior_classified_without_skill,
                                   validate_matched_identities)
 
 
@@ -46,3 +47,13 @@ def test_retained_unskilled_prior_is_still_authority_classified() -> None:
     assert not prior_classified_without_skill([{
         "support": "supported", "effect": {},
     }])
+
+
+def test_conditional_calibration_case_uses_governed_candidate_not_selected():
+    candidates = [
+        {"role": "immutable_primary", "selected": True, "wis": 1.0},
+        {"role": "governed_categorical_state_mapping", "selected": False,
+         "wis": 2.0},
+    ]
+    assert conditional_calibration_candidate(candidates) is candidates[1]
+    assert conditional_calibration_candidate(candidates[:1]) is None
