@@ -736,6 +736,49 @@ def _normalize_sampled_prior_uncertainty(
     }
 
 
+def _envelope_unadmitted_governed_uncertainty(
+    candidate: list[dict[str, Any]], primary: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Keep an unadmitted categorical sensitivity inside known uncertainty.
+
+    A short or inconsistent categorical replay may still expose a useful
+    conditional centre, but it has not earned independent tail calibration.
+    Preserve that centre while retaining the immutable primary's absolute
+    uncertainty envelope. This is deliberately an inspection envelope, not
+    evidence that the candidate quantiles are calibrated.
+    """
+    if not candidate or len(candidate) != len(primary):
+        return candidate, {"applied": False, "reason": "unaligned_paths"}
+    rows = []
+    adjusted = 0
+    for candidate_row, primary_row in zip(candidate, primary):
+        if str(candidate_row.get("timestamp")) != str(
+                primary_row.get("timestamp")):
+            return candidate, {
+                "applied": False, "reason": "unaligned_timestamps"}
+        centre = float(candidate_row.get("q50", candidate_row.get("point")))
+        lower = float(candidate_row.get("q10", centre))
+        upper = float(candidate_row.get("q90", centre))
+        primary_centre = float(primary_row.get(
+            "q50", primary_row.get("point")))
+        primary_lower = float(primary_row.get("q10", primary_centre))
+        primary_upper = float(primary_row.get("q90", primary_centre))
+        resolved_lower = min(primary_lower, centre)
+        resolved_upper = max(primary_upper, centre)
+        adjusted += int(resolved_lower != lower or resolved_upper != upper)
+        rows.append({**candidate_row, "q10": resolved_lower,
+                     "q50": centre, "q90": resolved_upper})
+    return rows, {
+        "applied": True,
+        "basis": "immutable_primary_envelope_for_unadmitted_governed_candidate",
+        "candidate_centre_unchanged": True,
+        "primary_forecast_unchanged": True,
+        "rows_adjusted": adjusted,
+        "interpretation": "sensitivity_envelope_not_independent_calibration",
+        "tails_are_calibrated_quantiles": False,
+    }
+
+
 def _scope_candidate_to_windows(
     candidate: list[dict[str, Any]], fallback: list[dict[str, Any]],
     windows: list[dict[str, Any]], *, fallback_source: str,
@@ -1775,6 +1818,11 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 candidate_rows, uncertainty_normalization = (
                     _normalize_sampled_prior_uncertainty(
                         candidate_rows, primary))
+            elif (candidate_origin == "governed_categorical_state_mapping"
+                  and not human_selection_eligible):
+                candidate_rows, uncertainty_normalization = (
+                    _envelope_unadmitted_governed_uncertainty(
+                        candidate_rows, primary))
             scenarios.append(_scenario(
                 identifier,
                 ("calibration_counterfactual" if
@@ -1820,7 +1868,14 @@ def build_scenario_catalog(result: dict[str, Any], *,
                     *(["Sampled model-path agreement is elicitation stability, "
                         "not historical skill, so this prior cannot displace "
                         "the primary recommendation."]
-                      if unvalidated_sampled_prior_withheld else [])],
+                      if unvalidated_sampled_prior_withheld else []),
+                    *(["The categorical replay did not earn independent tail "
+                        "calibration; its centre is retained inside the "
+                        "immutable primary uncertainty envelope for "
+                        "sensitivity inspection only."]
+                      if (uncertainty_normalization or {}).get("applied") is True
+                      and candidate_origin ==
+                      "governed_categorical_state_mapping" else [])],
                 source_seal=str(dossier["seal_sha256"]),
                 effect={
                     "candidate_origin": candidate_origin,
@@ -1868,18 +1923,36 @@ def build_scenario_catalog(result: dict[str, Any], *,
                         "compact_human_summary": "recommended_forecast",
                         "automation_eligible": False,
                     } if candidate_origin == "model_authored" else {
-                        "kind": "sealed_governed_quantiles",
+                        "kind": (
+                            "under_evidence_sensitivity_envelope"
+                            if (uncertainty_normalization or {}).get(
+                                "applied") is True else
+                            "sealed_governed_quantiles"),
                         "candidate_origin": candidate_origin,
                         "horizon": len(candidate_rows),
                         "quantile_levels": [0.1, 0.5, 0.9],
-                        "source": "sealed_context_receipt",
-                        "probabilistic_consumers_should_use": "quantiles",
+                        "source": (
+                            "sealed_context_receipt_plus_immutable_primary_envelope"
+                            if (uncertainty_normalization or {}).get(
+                                "applied") is True else
+                            "sealed_context_receipt"),
+                        "probabilistic_consumers_should_use": (
+                            "primary_forecast"
+                            if (uncertainty_normalization or {}).get(
+                                "applied") is True else
+                            "quantiles"),
                         "historical_skill_evidence": bool(replay_admitted),
                         "validation_status": (
                             str(conditional_replay.get("status"))
                             if conditional_replay else "not_available"),
                         "compact_human_summary": "recommended_forecast",
                         "automation_eligible": False,
+                        **({"interval_interpretation":
+                            "sensitivity_envelope_not_calibrated_quantiles",
+                            "probability_status":
+                            "unavailable_uncalibrated"}
+                           if (uncertainty_normalization or {}).get(
+                               "applied") is True else {}),
                     }),
                     "primary_disagreement": _primary_disagreement(
                         candidate_rows, primary),

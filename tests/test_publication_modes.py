@@ -1503,6 +1503,77 @@ def test_sampled_outliers_remain_diagnostics_not_published_tail_width():
     assert strict["recommended_scenario_id"] == "primary"
 
 
+def test_unadmitted_governed_categorical_path_inherits_primary_envelope():
+    import hashlib
+    import json
+
+    dossier = _dossier()
+    dossier["candidate_critique"].update({
+        "candidate_origin": "governed_categorical_state_mapping",
+        "selection_eligible": False,
+        "human_selection_eligible": False,
+    })
+    body = {key: value for key, value in dossier.items()
+            if key != "seal_sha256"}
+    dossier["seal_sha256"] = hashlib.sha256(json.dumps(
+        body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+    payload = publish_result(
+        _result(), mode="best_effort", dossiers=[dossier])
+    scenario = next(
+        item for item in payload["candidate_portfolio"]
+        if item["role"] == "governed_categorical_state_mapping")
+
+    assert scenario["human_selection_eligible"] is False
+    assert [[row[key] for key in ("q10", "q50", "q90")]
+            for row in scenario["forecast"]] == [[9.0, 11.0, 11.0],
+                                                  [9.0, 12.0, 12.0]]
+    normalization = scenario["effect"]["uncertainty_normalization"]
+    assert normalization["basis"] == (
+        "immutable_primary_envelope_for_unadmitted_governed_candidate")
+    assert normalization["candidate_centre_unchanged"] is True
+    assert normalization["primary_forecast_unchanged"] is True
+    assert normalization["tails_are_calibrated_quantiles"] is False
+    assert scenario["effect"]["distribution"]["kind"] == (
+        "under_evidence_sensitivity_envelope")
+    assert scenario["effect"]["distribution"][
+        "probabilistic_consumers_should_use"] == "primary_forecast"
+    assert scenario["effect"]["distribution"]["probability_status"] == (
+        "unavailable_uncalibrated")
+    assert payload["primary_forecast"] == _result()["forecast"]
+    assert payload["recommended_scenario_id"] == "primary"
+    assert payload["automation"]["eligible"] is False
+    assert verify_publication(payload)
+
+
+def test_admitted_governed_categorical_quantiles_remain_untouched():
+    import hashlib
+    import json
+
+    dossier = _dossier()
+    original = deepcopy(dossier["forecast_candidate"]["quantiles"])
+    dossier["candidate_critique"].update({
+        "candidate_origin": "governed_categorical_state_mapping",
+        "selection_eligible": False,
+        "human_selection_eligible": True,
+    })
+    body = {key: value for key, value in dossier.items()
+            if key != "seal_sha256"}
+    dossier["seal_sha256"] = hashlib.sha256(json.dumps(
+        body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+    payload = publish_result(
+        _result(), mode="best_effort", dossiers=[dossier])
+    scenario = next(
+        item for item in payload["candidate_portfolio"]
+        if item["role"] == "governed_categorical_state_mapping")
+
+    assert scenario["human_selection_eligible"] is True
+    assert scenario["forecast"] == original
+    assert scenario["effect"]["uncertainty_normalization"] is None
+    assert verify_publication(payload)
+
+
 def test_sampled_prior_cannot_displace_fully_supported_primary():
     dossier = attach_host_candidate_elicitation(
         _dossier(), requested_paths=5, accepted_paths=5,
