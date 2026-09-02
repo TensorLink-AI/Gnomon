@@ -1,6 +1,8 @@
+from pathlib import Path
+
 import pytest
 
-from benchmarks.gfr_smoke import (conditional_calibration_candidate,
+from benchmarks.gfr_smoke import (assemble, conditional_calibration_candidate,
                                   prior_classified_without_skill,
                                   validate_matched_identities)
 
@@ -57,3 +59,14 @@ def test_conditional_calibration_case_uses_governed_candidate_not_selected():
     ]
     assert conditional_calibration_candidate(candidates) is candidates[1]
     assert conditional_calibration_candidate(candidates[:1]) is None
+
+
+def test_assembler_rejects_unknown_scope_before_reading_evidence():
+    with pytest.raises(ValueError, match="scope must be smoke or full"):
+        assemble(
+            root=Path.cwd(), protocol_path=Path("benchmarks/gfr_protocol.json"),
+            control_dir=Path("missing"), treatment_dir=Path("missing"),
+            context_dir=Path("missing"), short_history=Path("missing"),
+            decision_contract=Path("missing"), outcome=Path("missing"),
+            boundary=Path("missing"), calibration_action=Path("missing"),
+            output_dir=Path("missing"), scope="invalid")

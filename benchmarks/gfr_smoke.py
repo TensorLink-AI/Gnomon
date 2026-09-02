@@ -116,9 +116,12 @@ def _source(path: Path, root: Path) -> dict[str, str]:
 def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
              treatment_dir: Path, context_dir: Path, short_history: Path,
              decision_contract: Path, outcome: Path, boundary: Path,
-             calibration_action: Path, output_dir: Path) -> tuple[Path, Path]:
+             calibration_action: Path, output_dir: Path,
+             scope: str = "smoke") -> tuple[Path, Path]:
     root = root.resolve()
     protocol = load_protocol(protocol_path)
+    if scope not in {"smoke", "full"}:
+        raise ValueError("GFR assembly scope must be smoke or full")
     control_identity = _read(control_dir / "run_identity.json")
     treatment_identity = _read(treatment_dir / "run_identity.json")
     validate_matched_identities(control_identity, treatment_identity)
@@ -343,7 +346,7 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
         "schema_version": "0.1",
         "protocol_id": protocol["protocol_id"],
         "protocol_sha256": protocol_sha,
-        "scope": "smoke",
+        "scope": scope,
         "evaluated_commit": treatment_identity["code_revision"],
         "evidence": [{
             "path": str(evidence_path.resolve().relative_to(root)),
@@ -373,6 +376,10 @@ def main() -> int:
     parser.add_argument("--boundary", type=Path, required=True)
     parser.add_argument("--calibration-action", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument(
+        "--scope", choices=("smoke", "full"), default="smoke",
+        help=("full emits an honest provisional full-scope result; every "
+              "unassembled frozen case remains missing and scores zero"))
     args = parser.parse_args()
     _, result = assemble(
         root=args.root, protocol_path=args.protocol,
@@ -380,7 +387,7 @@ def main() -> int:
         context_dir=args.context_dir, short_history=args.short_history,
         decision_contract=args.decision_contract, outcome=args.outcome,
         boundary=args.boundary, calibration_action=args.calibration_action,
-        output_dir=args.output_dir)
+        output_dir=args.output_dir, scope=args.scope)
     print(result)
     return 0
 

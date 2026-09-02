@@ -369,6 +369,12 @@ def evaluate(payload: Any, *, protocol: dict[str, Any], root: Path,
                 "expected": len(expected[name]),
                 "completed": len(by_capability[name]),
                 "missing": len(expected[name]) - len(by_capability[name]),
+                "completed_case_ids": [
+                    case_id for case_id in expected[name]
+                    if case_id in by_capability[name]],
+                "missing_case_ids": [
+                    case_id for case_id in expected[name]
+                    if case_id not in by_capability[name]],
                 "statuses": status_counts[name],
             } for name in expected},
         "full_ready": full_ready,

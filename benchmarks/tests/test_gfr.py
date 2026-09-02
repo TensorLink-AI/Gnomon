@@ -126,6 +126,9 @@ def test_missing_abstained_and_failed_cases_score_zero(tmp_path: Path) -> None:
 
     assert result["capabilities"][names[-2]]["score"] == 0
     assert result["capabilities"][names[-1]]["missing"] == 1
+    assert result["capabilities"][names[-2]]["missing_case_ids"] == []
+    assert result["capabilities"][names[-1]]["missing_case_ids"] == [
+        protocol["capabilities"][names[-1]]["smoke_case_ids"][0]]
     assert result["score"] < 100
 
 
