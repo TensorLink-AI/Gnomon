@@ -1,4 +1,4 @@
-"""Run the frozen categorical-state publication uncertainty matrix.
+"""Run the frozen categorical-state numeric-authority matrix.
 
 The benchmark exercises the same governed-candidate dossier and publication
 boundary used by the agent harness.  Sealed future targets are generated with
@@ -69,11 +69,9 @@ def _numeric(rows: list[dict[str, Any]]) -> list[list[float]]:
             for row in rows]
 
 
-def _expected_envelope(candidate: list[list[float]],
-                       primary: list[list[float]]) -> list[list[float]]:
-    return [[min(primary_row[0], candidate_row[1]), candidate_row[1],
-             max(primary_row[2], candidate_row[1])]
-            for candidate_row, primary_row in zip(candidate, primary)]
+def _expected_unadmitted_path(primary: list[list[float]]) \
+        -> list[list[float]]:
+    return [list(row) for row in primary]
 
 
 def _case(family: str, case_index: int, seed: int) -> dict[str, Any]:
@@ -163,8 +161,7 @@ def _case(family: str, case_index: int, seed: int) -> dict[str, Any]:
         "primary_rows": primary_rows,
         "published_primary_rows": _numeric(publication["primary_forecast"]),
         "published_candidate_rows": published_rows,
-        "expected_under_evidence_envelope": _expected_envelope(
-            source_rows, primary_rows),
+        "expected_unadmitted_path": _expected_unadmitted_path(primary_rows),
         "mean_wis": statistics.mean(scores),
         "covered_points": covered,
         "interval_points": HORIZON,
@@ -248,24 +245,31 @@ def summarize(rows: list[dict[str, Any]], identity: dict[str, Any],
             "contract_decisions_unchanged": all(
                 row["contract"] == reference_rows[row["case_id"]]["contract"]
                 for row in rows),
-            "source_candidate_centres_unchanged": all(
-                [item[1] for item in row["published_candidate_rows"]]
-                == [item[1] for item in row["source_candidate_rows"]]
+            "source_candidate_byte_preserved": all(
+                row["source_candidate_rows"] == reference_rows[
+                    row["case_id"]]["source_candidate_rows"]
                 for row in rows),
             "eligible_candidates_byte_unchanged": all(
                 row["published_candidate_rows"] == reference_rows[
                     row["case_id"]]["published_candidate_rows"]
                 for row in eligible),
-            "ineligible_candidates_use_primary_envelope": all(
+            "ineligible_candidates_have_no_distinct_numeric_path": all(
                 row["published_candidate_rows"]
-                == row["expected_under_evidence_envelope"]
+                == row["expected_unadmitted_path"]
+                for row in ineligible),
+            "ineligible_numeric_authority_explicitly_withheld": all(
+                (row["uncertainty_normalization"] or {}).get(
+                    "numeric_authority") == "withheld_no_distinct_path"
                 for row in ineligible),
             "aggregate_wis_nonworsening": overall["mean_wis"]
                 <= float(reference["overall"]["mean_wis"]) + 1e-12,
-            "ineligible_mean_wis_improves_10pct": treatment_ineligible_wis
-                <= reference_ineligible_wis * .9,
+            "ineligible_mean_wis_improves_20pct": treatment_ineligible_wis
+                <= reference_ineligible_wis * .8,
             "family_median_regression_within_2pct": max(
                 family_changes.values()) <= .02,
+            "coverage_within_5_points": abs(overall["coverage"] - .8) <= .05,
+            "coverage_error_improves": abs(overall["coverage"] - .8)
+                < abs(float(reference["overall"]["coverage"]) - .8),
         }
         comparison = {
             "reference_ineligible_mean_wis": reference_ineligible_wis,
@@ -277,8 +281,8 @@ def summarize(rows: list[dict[str, Any]], identity: dict[str, Any],
     else:
         gates = base_gates
     return {
-        "schema_version": 1,
-        "benchmark": "categorical-state-publication-uncertainty",
+        "schema_version": 2,
+        "benchmark": "categorical-state-numeric-authority",
         "evaluated_commit": identity["evaluated_commit"],
         "run_identity": identity,
         "overall": overall,
@@ -296,8 +300,8 @@ def run(seed: int, output_dir: Path, *, resume: bool = False,
     identity_path = output_dir / "run-identity.json"
     checkpoint = output_dir / "observations.jsonl"
     identity = {
-        "schema_version": 1,
-        "benchmark": "categorical-state-publication-uncertainty",
+        "schema_version": 2,
+        "benchmark": "categorical-state-numeric-authority",
         "evaluated_commit": code_revision(),
         "seed": seed,
         "families": list(FAMILIES),
