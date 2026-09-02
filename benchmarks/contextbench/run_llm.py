@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
 from benchmarks.common.envfile import load_env_file  # noqa: E402
+from benchmarks.common.manifest import code_revision  # noqa: E402
 from benchmarks.common.openrouter import (  # noqa: E402
     OpenRouterClient,
     OpenRouterError,
@@ -601,6 +602,7 @@ def main() -> int:
     output = Path(args.output_dir); output.mkdir(parents=True, exist_ok=True)
     run_identity = {
         "schema_version": 1,
+        "code_revision": code_revision(),
         "condition": args.condition,
         "model": args.model,
         "base_url": args.base_url,

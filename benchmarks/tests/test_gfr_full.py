@@ -11,6 +11,7 @@ from benchmarks.gfr_full import (
     assemble,
     calibration_family_observations,
     categorical_context_observation,
+    context_efficiency_observations,
     context_observations,
 )
 
@@ -146,6 +147,24 @@ def test_calibration_families_compare_current_to_prior_strict_protocol():
         "candidate_wis": 1.0,
         "reference_wis": 2.0,
     }
+
+
+def test_context_efficiency_requires_matched_useful_and_neutral_rows():
+    raw = []
+    compiled = []
+    for case_id, useful in (("a", True), ("b", False)):
+        common = {"case_id": case_id, "family": "x", "status": "answered",
+                  "should_influence": useful}
+        raw.append({**common, "requests": 3, "prompt_tokens": 100,
+                    "completion_tokens": 20, "latency_seconds": 2.0})
+        compiled.append({**common, "compiler_calls": 1, "prompt_tokens": 30,
+                         "completion_tokens": 10,
+                         "latency_seconds_total": 1.0})
+
+    observed = context_efficiency_observations(raw, compiled)
+
+    assert observed["efficiency:context:useful"]["control_requests"] == 3.0
+    assert observed["efficiency:context:neutral"]["treatment_tokens"] == 40.0
 
 
 def test_full_cik_assembler_binds_all_frozen_rows_and_safety(tmp_path: Path):
@@ -294,6 +313,42 @@ def test_full_cik_assembler_binds_all_frozen_rows_and_safety(tmp_path: Path):
         "context_admitted": False,
         "all_gates_passed": True,
     })
+    context_raw = tmp_path / "context-raw"
+    context_compiled = tmp_path / "context-compiled"
+    context_identity = {
+        "code_revision": "revision-under-test",
+        "model": "deepseek",
+        "base_url": "https://example.test/v1",
+        "temperature": .2,
+        "reasoning_effort": None,
+        "corpus_manifest_sha256": "corpus",
+        "selected_case_ids_sha256": "cases",
+        "selected_cases": 2,
+    }
+    _write_json(context_raw / "run_identity.json", {
+        **context_identity, "condition": "raw-llm",
+    })
+    _write_json(context_compiled / "run_identity.json", {
+        **context_identity, "condition": "compiled-context",
+    })
+    raw_efficiency_rows = []
+    compiled_efficiency_rows = []
+    for case_id, useful in (("useful", True), ("neutral", False)):
+        common = {"case_id": case_id, "family": "fixture",
+                  "status": "answered", "should_influence": useful}
+        raw_efficiency_rows.append({
+            **common, "requests": 3, "prompt_tokens": 100,
+            "completion_tokens": 20, "latency_seconds": 2.0,
+        })
+        compiled_efficiency_rows.append({
+            **common, "compiler_calls": 1, "prompt_tokens": 30,
+            "completion_tokens": 10, "latency_seconds_total": 1.0,
+        })
+    _write_rows(context_raw / "observations.jsonl", raw_efficiency_rows)
+    _write_rows(context_compiled / "observations.jsonl",
+                compiled_efficiency_rows)
+    _write_json(context_raw / "summary.json", {"complete": True})
+    _write_json(context_compiled / "summary.json", {"complete": True})
 
     base = {
         "schema_version": "0.1",
@@ -322,10 +377,12 @@ def test_full_cik_assembler_binds_all_frozen_rows_and_safety(tmp_path: Path):
         calibration_evaluation_path=calibration_path,
         bounded_calibration_path=bounded_path,
         shared_trend_path=shared_trend_path,
+        context_raw_dir=context_raw,
+        context_compiled_dir=context_compiled,
     )
     result = json.loads(result_path.read_text(encoding="utf-8"))
 
-    assert len(result["observations"]) == 37
+    assert len(result["observations"]) == 39
     assert all(item["status"] == "answered"
                for item in result["observations"])
     for name in (
@@ -336,10 +393,10 @@ def test_full_cik_assembler_binds_all_frozen_rows_and_safety(tmp_path: Path):
         "benchmark_oracle_exposure",
     ):
         expected = (
-            181 if name == "temporal_leakage"
+            183 if name == "temporal_leakage"
             else 53 if name == "immutable_primary_mutation"
             else 15 if name == "authority_escalation"
-            else 175 if name == "benchmark_oracle_exposure"
+            else 177 if name == "benchmark_oracle_exposure"
             else 9 if name == "declared_bound_violation" else 7)
         assert result["safety"][name] == {
             "denominator": expected, "failures": 0,

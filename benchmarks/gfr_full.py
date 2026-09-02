@@ -144,6 +144,51 @@ def calibration_family_observations(
     return output
 
 
+def context_efficiency_observations(
+    raw_rows: list[dict[str, Any]], compiled_rows: list[dict[str, Any]],
+) -> dict[str, dict[str, float]]:
+    """Extract matched useful/neutral orchestration cost observations."""
+    raw = {str(row.get("case_id") or ""): row for row in raw_rows}
+    compiled = {str(row.get("case_id") or ""): row for row in compiled_rows}
+    if ("" in raw or "" in compiled or len(raw) != len(raw_rows)
+            or len(compiled) != len(compiled_rows) or set(raw) != set(compiled)):
+        raise ValueError("context efficiency rows require matched unique IDs")
+    output: dict[str, dict[str, float]] = {}
+    for case_id in sorted(raw):
+        control, treatment = raw[case_id], compiled[case_id]
+        if (control.get("status") != "answered"
+                or treatment.get("status") != "answered"
+                or control.get("family") != treatment.get("family")):
+            raise ValueError("context efficiency rows are not matched answers")
+        useful = control.get("should_influence")
+        if not isinstance(useful, bool) or treatment.get(
+                "should_influence") is not useful:
+            raise ValueError("context efficiency rows lack matched authority")
+        key = ("efficiency:context:useful" if useful
+               else "efficiency:context:neutral")
+        if key in output:
+            raise ValueError("context efficiency requires one case per stratum")
+        values = {
+            "control_requests": control.get("requests"),
+            "treatment_requests": treatment.get("compiler_calls"),
+            "control_tokens": int(control.get("prompt_tokens", 0))
+                              + int(control.get("completion_tokens", 0)),
+            "treatment_tokens": int(treatment.get("prompt_tokens", 0))
+                                + int(treatment.get("completion_tokens", 0)),
+            "control_latency_seconds": control.get("latency_seconds"),
+            "treatment_latency_seconds": treatment.get(
+                "latency_seconds_total"),
+        }
+        if not all(
+            isinstance(value, (int, float)) and not isinstance(value, bool)
+            and math.isfinite(float(value)) and float(value) >= 0
+            for value in values.values()
+        ) or float(values["control_requests"]) <= 0:
+            raise ValueError("context efficiency usage is incomplete")
+        output[key] = {name: float(value) for name, value in values.items()}
+    return output
+
+
 def _selection_raw(diagnostic: dict[str, Any]) -> dict[str, Any] | None:
     candidates = diagnostic.get("candidates") or []
     eligible = [
@@ -222,6 +267,8 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
              calibration_evaluation_path: Path | None = None,
              bounded_calibration_path: Path | None = None,
              shared_trend_path: Path | None = None,
+             context_raw_dir: Path | None = None,
+             context_compiled_dir: Path | None = None,
              ) -> tuple[Path, Path]:
     root = root.resolve()
     protocol = load_protocol(protocol_path)
@@ -271,6 +318,7 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
     calibration_safety_denominator = 0
     bounded_safety_denominator = 0
     shared_trend_safety_denominator = 0
+    context_efficiency_cases: dict[str, dict[str, float]] = {}
     if (context_standard_dir is None) != (context_stress_dir is None):
         raise ValueError("both ContextBench shard directories are required")
     if context_standard_dir is not None and context_stress_dir is not None:
@@ -374,6 +422,39 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
         if shared_trend_safety_denominator <= 0:
             raise ValueError("shared-trend evidence has no sealed cases")
         sources.append(shared_trend_path)
+    if (context_raw_dir is None) != (context_compiled_dir is None):
+        raise ValueError("both context efficiency arms are required")
+    if context_raw_dir is not None and context_compiled_dir is not None:
+        raw_identity = _read(context_raw_dir / "run_identity.json")
+        compiled_identity = _read(context_compiled_dir / "run_identity.json")
+        for key in (
+            "code_revision", "model", "base_url", "temperature",
+            "reasoning_effort", "corpus_manifest_sha256",
+            "selected_case_ids_sha256", "selected_cases",
+        ):
+            if raw_identity.get(key) != compiled_identity.get(key):
+                raise ValueError(f"context efficiency identity mismatch: {key}")
+        if raw_identity.get("code_revision") != revision:
+            raise ValueError("context efficiency and CiK evidence differ")
+        if (raw_identity.get("condition") != "raw-llm"
+                or compiled_identity.get("condition") != "compiled-context"):
+            raise ValueError("context efficiency arms have wrong conditions")
+        context_efficiency_cases = context_efficiency_observations(
+            _rows(context_raw_dir / "observations.jsonl"),
+            _rows(context_compiled_dir / "observations.jsonl"),
+        )
+        if set(context_efficiency_cases) != {
+            "efficiency:context:useful", "efficiency:context:neutral",
+        }:
+            raise ValueError("context efficiency lacks useful/neutral strata")
+        sources.extend([
+            context_raw_dir / "run_identity.json",
+            context_raw_dir / "observations.jsonl",
+            context_raw_dir / "summary.json",
+            context_compiled_dir / "run_identity.json",
+            context_compiled_dir / "observations.jsonl",
+            context_compiled_dir / "summary.json",
+        ])
     mutation_failures = automation_failures = oracle_failures = 0
     categorical_context: dict[str, Any] | None = None
     for task, seed in sorted(expected_keys):
@@ -444,6 +525,8 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
         extracted.append((
             "candidate_calibration", case_id, "answered", raw,
         ))
+    for case_id, raw in context_efficiency_cases.items():
+        extracted.append(("efficiency", case_id, "answered", raw))
 
     evidence_payload = {
         "schema_version": "0.1", "producer": "benchmarks.gfr_full",
@@ -479,6 +562,8 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
                    for case_id in authority_cases)
     replace.update(("candidate_calibration", case_id)
                    for case_id in calibration_cases)
+    replace.update(("efficiency", case_id)
+                   for case_id in context_efficiency_cases)
     observations = [item for item in base.get("observations") or []
                     if (item.get("capability"), item.get("case_id")) not in replace]
     for capability, case_id, status, raw in extracted:
@@ -524,6 +609,9 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
         for name in ("temporal_leakage", "immutable_primary_mutation",
                      "benchmark_oracle_exposure"):
             safety[name]["denominator"] += shared_trend_safety_denominator
+    if context_efficiency_cases:
+        for name in ("temporal_leakage", "benchmark_oracle_exposure"):
+            safety[name]["denominator"] += len(context_efficiency_cases)
     result = {
         **base, "evaluated_commit": revision,
         "evidence": [*base["evidence"], {
@@ -552,6 +640,8 @@ def main() -> int:
     parser.add_argument("--calibration-evaluation", type=Path)
     parser.add_argument("--bounded-calibration", type=Path)
     parser.add_argument("--shared-trend", type=Path)
+    parser.add_argument("--context-raw-dir", type=Path)
+    parser.add_argument("--context-compiled-dir", type=Path)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
     _, result = assemble(
@@ -563,7 +653,9 @@ def main() -> int:
         authority_path=args.authority,
         calibration_evaluation_path=args.calibration_evaluation,
         bounded_calibration_path=args.bounded_calibration,
-        shared_trend_path=args.shared_trend)
+        shared_trend_path=args.shared_trend,
+        context_raw_dir=args.context_raw_dir,
+        context_compiled_dir=args.context_compiled_dir)
     print(result)
     return 0
 
