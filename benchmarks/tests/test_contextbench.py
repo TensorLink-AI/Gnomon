@@ -140,6 +140,8 @@ def test_documented_engine_runner_executes_from_clean_checkout(tmp_path):
     )
     assert resumed.returncode == 0, resumed.stderr
     assert len((output / "observations.jsonl").read_text().splitlines()) == 1
+    identity = json.loads((output / "run_identity.json").read_text())
+    assert identity["code_revision"]
 
 
 def test_contextbench_checkpoint_is_durable_and_strict(tmp_path):

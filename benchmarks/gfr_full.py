@@ -33,6 +33,20 @@ TASK_CASE_NAMES = {
     "SensorMaintenanceInPredictionTask": "SensorMaintenance",
 }
 SEEDS = (7, 8, 9)
+CONTEXT_ROWS = {
+    "context:useful:aperiodic-pulse": (
+        "standard", "ctx-repeated_event-0000", "repeated_event"),
+    "context:useful:numeric-driver": (
+        "standard", "ctx-future_covariate-0000", "future_covariate"),
+    "context:useful:bounded-event": (
+        "stress", "stress-constraint-true-0000", "numeric_claim"),
+    "context:neutral:no-effect": (
+        "standard", "ctx-irrelevant-0000", "irrelevant"),
+    "context:neutral:wrong-entity": (
+        "stress", "stress-scope-0000", "entity_scope"),
+    "context:leakage:future-revision": (
+        "stress", "stress-bitemporal-0000", "bitemporal_context"),
+}
 
 
 def _index_rows(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -133,9 +147,47 @@ def _selection_raw(diagnostic: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
+def context_observations(
+    standard_rows: list[dict[str, Any]],
+    stress_rows: list[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    """Bind semantic replay cases without selecting on observed outcomes."""
+    by_source = {}
+    for source, rows in (("standard", standard_rows), ("stress", stress_rows)):
+        indexed = {str(row.get("case_id") or ""): row for row in rows}
+        if ("" in indexed or len(indexed) != len(rows)):
+            raise ValueError("ContextBench rows require unique case identities")
+        by_source[source] = indexed
+    output = {}
+    for case_id, (source, row_id, family) in CONTEXT_ROWS.items():
+        row = by_source[source].get(row_id)
+        if row is None:
+            raise ValueError(f"ContextBench evidence lacks {row_id}")
+        if row.get("family") != family:
+            raise ValueError(f"ContextBench row {row_id} has wrong family")
+        output[case_id] = {
+            "context_is_useful": bool(row.get("should_influence")),
+            "context_admitted": bool(row.get("applied")),
+        }
+    return output
+
+
+def categorical_context_observation(
+    portfolio: Any,
+) -> dict[str, Any] | None:
+    candidate = conditional_calibration_candidate(portfolio)
+    validation = ((candidate or {}).get("effect") or {}).get("validation") or {}
+    useful = validation.get("beats_baseline")
+    admitted = (candidate or {}).get("human_selection_eligible")
+    if not isinstance(useful, bool) or not isinstance(admitted, bool):
+        return None
+    return {"context_is_useful": useful, "context_admitted": admitted}
+
+
 def assemble(*, root: Path, protocol_path: Path, base_result: Path,
              control_dir: Path, treatment_dir: Path,
-             output_dir: Path) -> tuple[Path, Path]:
+             output_dir: Path, context_standard_dir: Path | None = None,
+             context_stress_dir: Path | None = None) -> tuple[Path, Path]:
     root = root.resolve()
     protocol = load_protocol(protocol_path)
     base = _read(base_result)
@@ -176,7 +228,29 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
         treatment_dir / "gnomonbench.jsonl",
         treatment_dir / "selection-diagnostics.jsonl",
     ]
+    context_cases: dict[str, dict[str, Any]] = {}
+    context_safety_rows: list[dict[str, Any]] = []
+    if (context_standard_dir is None) != (context_stress_dir is None):
+        raise ValueError("both ContextBench shard directories are required")
+    if context_standard_dir is not None and context_stress_dir is not None:
+        for directory in (context_standard_dir, context_stress_dir):
+            identity = _read(directory / "run_identity.json")
+            if identity.get("code_revision") != revision:
+                raise ValueError("ContextBench and CiK evidence must share a revision")
+        standard_rows = _rows(context_standard_dir / "observations.jsonl")
+        stress_rows = _rows(context_stress_dir / "observations.jsonl")
+        context_cases = context_observations(standard_rows, stress_rows)
+        context_safety_rows = [*standard_rows, *stress_rows]
+        sources.extend([
+            context_standard_dir / "run_identity.json",
+            context_standard_dir / "observations.jsonl",
+            context_standard_dir / "summary.json",
+            context_stress_dir / "run_identity.json",
+            context_stress_dir / "observations.jsonl",
+            context_stress_dir / "summary.json",
+        ])
     mutation_failures = automation_failures = oracle_failures = 0
+    categorical_context: dict[str, Any] | None = None
     for task, seed in sorted(expected_keys):
         case_name = TASK_CASE_NAMES[task]
         task_id = f"{task}-seed{seed}"
@@ -194,6 +268,10 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
             treatment_dir / "runs" / task / str(seed) / "extra_info")
         control_extra = _literal(control_extra_path)
         treatment_extra = _literal(treatment_extra_path)
+        if task == "DirectNormalIrradianceFromCloudStatus" and seed == 8:
+            categorical_context = categorical_context_observation(
+                (treatment_extra.get("publication") or {}).get(
+                    "candidate_portfolio"))
         sources.extend([trace_path, control_extra_path, treatment_extra_path])
 
         extracted.append(("agent_forecast_uplift",
@@ -226,6 +304,13 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
             compilation.get("future_observations_exposed")
             or treatment_row.get("benchmark_input_profile", {}).get(
                 "passed_to_forecaster")))
+    if context_cases:
+        context_cases["context:useful:categorical-state"] = categorical_context
+    for case_id, raw in context_cases.items():
+        extracted.append((
+            "conditional_replay", case_id,
+            "answered" if raw is not None else "failed", raw,
+        ))
 
     evidence_payload = {
         "schema_version": "0.1", "producer": "benchmarks.gfr_full",
@@ -255,6 +340,8 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
     } | {
         ("efficiency", f"efficiency:cik:DNICloud:seed{seed}") for seed in SEEDS
     }
+    replace.update(("conditional_replay", case_id)
+                   for case_id in context_cases)
     observations = [item for item in base.get("observations") or []
                     if (item.get("capability"), item.get("case_id")) not in replace]
     for capability, case_id, status, raw in extracted:
@@ -265,6 +352,11 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
         observations.append(item)
 
     safety = json.loads(json.dumps(base["safety"]))
+    context_leakage_failures = sum(
+        bool(row.get("temporal_leakage")) for row in context_safety_rows)
+    context_mutation_failures = sum(
+        not bool(row.get("canonical_primary_preserved", True))
+        for row in context_safety_rows)
     for name, failures in {
         "temporal_leakage": oracle_failures,
         "immutable_primary_mutation": mutation_failures,
@@ -274,6 +366,13 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
     }.items():
         safety[name]["denominator"] += len(expected_keys)
         safety[name]["failures"] += failures
+    if context_safety_rows:
+        safety["temporal_leakage"]["denominator"] += len(context_safety_rows)
+        safety["temporal_leakage"]["failures"] += context_leakage_failures
+        safety["immutable_primary_mutation"]["denominator"] += len(
+            context_safety_rows)
+        safety["immutable_primary_mutation"]["failures"] += (
+            context_mutation_failures)
     result = {
         **base, "evaluated_commit": revision,
         "evidence": [*base["evidence"], {
@@ -296,12 +395,16 @@ def main() -> int:
     parser.add_argument("--base-result", type=Path, required=True)
     parser.add_argument("--control-dir", type=Path, required=True)
     parser.add_argument("--treatment-dir", type=Path, required=True)
+    parser.add_argument("--context-standard-dir", type=Path)
+    parser.add_argument("--context-stress-dir", type=Path)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
     _, result = assemble(
         root=args.root, protocol_path=args.protocol,
         base_result=args.base_result, control_dir=args.control_dir,
-        treatment_dir=args.treatment_dir, output_dir=args.output_dir)
+        treatment_dir=args.treatment_dir, output_dir=args.output_dir,
+        context_standard_dir=args.context_standard_dir,
+        context_stress_dir=args.context_stress_dir)
     print(result)
     return 0
 

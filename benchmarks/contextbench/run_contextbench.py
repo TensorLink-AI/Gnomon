@@ -17,6 +17,8 @@ from statistics import mean
 import sys
 from typing import Any
 
+from benchmarks.common.manifest import code_revision
+
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
@@ -745,6 +747,7 @@ def main() -> int:
     output = Path(args.output_dir); output.mkdir(parents=True, exist_ok=True)
     corpus_identity = {
         "benchmark": "contextbench",
+        "code_revision": code_revision(),
         "cases_sha256": manifest.get("cases_sha256"),
         "oracle_sha256": manifest.get("oracle_sha256"),
         "selected_case_ids": [case.case_id for case in cases],
