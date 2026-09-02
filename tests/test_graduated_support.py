@@ -214,6 +214,52 @@ def test_degraded_flat_primary_yields_evaluated_trend_prefix(tmp_path) -> None:
     assert bounded["alternatives"][0]["best_estimate"] == "yes"
 
 
+def test_ordinary_degraded_forecast_splits_only_for_distinct_prefix(
+        tmp_path) -> None:
+    """A useful prefix is published without perturbing flat controls."""
+    import random
+    from datetime import date, timedelta
+
+    from gnomon.toolspec import runner_for
+
+    start = date(2026, 1, 1)
+
+    def run(name: str, values: list[float]) -> dict:
+        source = tmp_path / f"{name}.csv"
+        source.write_text("\n".join([
+            "timestamp,value",
+            *(f"{start + timedelta(days=index)},{value}"
+              for index, value in enumerate(values)),
+        ]) + "\n", encoding="utf-8")
+        return runner_for("gnomon_forecast")({
+            "input": str(source), "time": "timestamp", "target": "value",
+            "frequency": "D", "horizon": 24,
+            "output_dir": str(tmp_path / f"{name}-out"),
+        })
+
+    rng = random.Random(2026090304)
+    slope = rng.uniform(.25, .75)
+    growth = run("growth", [40 + slope * index + rng.gauss(0.0, .7)
+                            for index in range(48)])
+    growth_result = growth["results"][0]
+    growth_tiers = [row["tier"] for row in growth_result["forecast"]]
+    assert growth["tier_floor"] == "best_effort"
+    assert "best_effort" in growth_tiers
+    assert any(reason["code"] == "horizon_split" for reason in
+               growth_result["support_assessment"]["reasons"])
+
+    stable_rng = random.Random(2026290301)
+    stable_level = stable_rng.uniform(30.0, 70.0)
+    stable = run("stable", [stable_level + stable_rng.gauss(0.0, 1.5)
+                            for _ in range(48)])
+    stable_result = stable["results"][0]
+    assert stable["tier_floor"] == "conditionally_supported"
+    assert all(row["tier"] == "conditionally_supported"
+               for row in stable_result["forecast"])
+    assert not any(reason["code"] == "horizon_split" for reason in
+                   stable_result["support_assessment"]["reasons"])
+
+
 def test_split_artifact_csv_carries_the_tier_column(tmp_path) -> None:
     import csv
 

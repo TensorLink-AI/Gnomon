@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import statistics
 from dataclasses import asdict, is_dataclass
 from datetime import datetime
 from pathlib import Path
@@ -483,15 +484,17 @@ def _series_result(
         and minimum_support == "best_effort" and not strict_abstention)
     needs_fallback = support == "unsupported" and not rows
     # Preserve the existing unsupported-horizon split for every shape. The
-    # newly supported degraded-primary split is intentionally limited to a
-    # material, context-free, single-series threshold boundary: fragmenting a
-    # routine wide response exceeds the agent budget, while dropping context
-    # on a re-evaluated prefix would change the caller's question.
+    # A degraded flat path can also conceal a genuinely different forecast at
+    # the shorter horizon the history can evaluate. For an ordinary forecast,
+    # split only when that independently evaluated prefix changes the point
+    # path; replacing uncertainty around the same flat path adds no forecast
+    # information and can make a stable series less calibrated. Context-bearing
+    # runs remain excluded because re-evaluating without their enrichments
+    # would change the caller's question.
     meaningful_degraded_tail = bool(
         flat_degraded_primary
         and len(loaded.groups) == 1
         and not context_events and not covariates
-        and threshold is not None
         and reachable is not None and reachable < 0.75 * horizon)
     should_split = needs_fallback or meaningful_degraded_tail
     if can_split and should_split:
@@ -506,6 +509,24 @@ def _series_result(
             seasonal_period=seasonal_period,
             target_coverage=target_coverage,
         )
+        if split is not None and threshold is None:
+            _, candidate_rows, _ = split
+            comparison_rows = rows[:len(candidate_rows)]
+            scale = max(
+                statistics.median(abs(float(value)) for value in state.values),
+                1.0,
+            )
+            point_path_differs = (
+                len(candidate_rows) == len(comparison_rows)
+                and any(abs(
+                    float(candidate.get("q50", candidate["point"]))
+                    - float(original.get("q50", original["point"])))
+                    > scale * 1e-9
+                    for candidate, original in zip(
+                        candidate_rows, comparison_rows))
+            )
+            if not point_path_differs:
+                split = None
     if ((needs_fallback or split is not None)
             and state.values and minimum_support == "best_effort"
             and not strict_abstention):
