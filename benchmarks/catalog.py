@@ -118,6 +118,11 @@ CATALOG: dict[str, BenchmarkContract] = {
     "boundedcalibrationbench": BenchmarkContract(
         "engine", "production forecast calibration and declared-bound path",
         "Interval coverage, WIS, and bound preservation on sealed synthetic futures; agent behavior excluded."),
+    "categoricalcalibrationbench": BenchmarkContract(
+        "engine", "production categorical-state candidate calibration",
+        "State-conditional interval calibration, sparse-state fallback, and "
+        "authority invariants on sealed synthetic futures; agent behavior "
+        "excluded."),
     "sharedtrendbench": BenchmarkContract(
         "policy", "production companion-relationship admission policy",
         "Useful-driver admission and shared-trend false-admission control; not causal identification or agent reasoning."),
