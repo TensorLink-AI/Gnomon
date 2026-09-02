@@ -501,6 +501,27 @@ def test_categorical_phase_mapping_requires_two_complete_cycles():
             hypothesis_id="short", seasonal_period=8)
 
 
+def test_categorical_intervals_use_replay_errors_not_collapsed_fit_mad():
+    target = [0.0, 0.0, 100.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    states = ["idle", "idle", "active", "idle"] + ["idle"] * 4
+    candidate = fit_categorical_state_candidate(
+        target, states, ["idle"] * 4,
+        primary=[{"timestamp": _stamp(8 + index)} for index in range(4)],
+        claim_ids=["schedule"], hypothesis_id="intermittent-state",
+        seasonal_period=4)
+
+    assert all(row["q10"] <= row["q50"] <= row["q90"]
+               for row in candidate["forecast"])
+    assert all(row["q90"] - row["q10"] >= 100
+               for row in candidate["forecast"])
+    assert candidate["validation"]["interval_calibration"] == {
+        "source": "expanding_origin_replay_residuals",
+        "residual_points": 4,
+        "quantile_method": "finite_sample_split_conformal",
+        "nominal_coverage": .8,
+    }
+
+
 def test_categorical_retrospective_skill_is_not_vintage_admission():
     states = ["open", "closed"] * 16
     target = [20.0 if state == "open" else 5.0 for state in states]

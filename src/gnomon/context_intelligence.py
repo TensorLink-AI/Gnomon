@@ -2625,15 +2625,19 @@ def fit_categorical_state_candidate(
     skill = (1 - candidate_mae / max(baseline_mae, 1e-12)
              if math.isfinite(candidate_mae) and math.isfinite(baseline_mae)
              else -math.inf)
-    fitted = [estimate(target, states, state,
-                       index % seasonal_period if seasonal_period else 0)[0]
-              for index, state in enumerate(states)]
-    residuals = [actual - prediction for actual, prediction in zip(target, fitted)]
-    center = statistics.median(residuals)
-    mad = statistics.median(abs(value - center) for value in residuals)
+    # A fitted residual can collapse to zero on intermittent state series even
+    # when the same estimator makes large expanding-origin errors. Quantiles
+    # therefore come from the already-separated replay above, never from the
+    # in-sample fit used to produce the point path.
+    from .evaluation import conformal_quantile
+
+    replay_residuals = [actual - prediction for actual, prediction in zip(
+        actuals, predictions)]
+    residual_lower = conformal_quantile(replay_residuals, .1)
+    residual_center = conformal_quantile(replay_residuals, .5)
+    residual_upper = conformal_quantile(replay_residuals, .9)
     scale = max(statistics.median(abs(value) for value in target), 1.0)
-    base_width = max(1.2815515655446004 * 1.4826 * mad,
-                     scale * 1e-6)
+    width_floor = scale * 1e-6
     state_counts = {state: states.count(state) for state in set(states)}
     replay_points = len(actuals)
     evidence_weight = min(1.0, replay_points / 8.0)
@@ -2644,13 +2648,20 @@ def fit_categorical_state_candidate(
             target, states, state,
             (len(target) + offset) % seasonal_period
             if seasonal_period else 0)
-        point = baseline_point + evidence_weight * (raw_point - baseline_point)
-        sparse_penalty = scale if count == 0 else base_width * (1 + 2 / count)
-        half_width = max(base_width, sparse_penalty, abs(raw_point - point))
+        uncalibrated_point = (
+            baseline_point + evidence_weight * (raw_point - baseline_point))
+        point = uncalibrated_point + residual_center
+        sparse_penalty = scale if count == 0 else width_floor
+        half_width_floor = max(
+            width_floor, sparse_penalty, abs(raw_point - uncalibrated_point))
         rows.append({
             "timestamp": source.get("timestamp"), "point": point,
-            "q10": point - half_width, "q50": point,
-            "q90": point + half_width, "state": state,
+            "q10": min(uncalibrated_point + residual_lower,
+                       point - half_width_floor),
+            "q50": point,
+            "q90": max(uncalibrated_point + residual_upper,
+                       point + half_width_floor),
+            "state": state,
         })
     future_state_counts = {state: state_counts.get(state, 0)
                            for state in sorted(set(future))}
@@ -2699,6 +2710,12 @@ def fit_categorical_state_candidate(
             "retrospective_skill_not_admission": not availability_proven,
             "publication_evidence_weight": evidence_weight,
             "publication_shrunk_to_baseline": evidence_weight < 1.0,
+            "interval_calibration": {
+                "source": "expanding_origin_replay_residuals",
+                "residual_points": len(replay_residuals),
+                "quantile_method": "finite_sample_split_conformal",
+                "nominal_coverage": .8,
+            },
         },
         "support": "prior_assisted",
         "selection_eligible": eligible,
