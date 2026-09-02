@@ -223,6 +223,10 @@ def test_cik_checkpoint_identity_covers_request_and_corpus_scope(tmp_path):
     with pytest.raises(SystemExit, match="resume identity mismatch"):
         _prepare_checkpoint_identity(tmp_path, changed, fresh=False)
 
+    changed = {**identity, "sample_parallelism": 2}
+    with pytest.raises(SystemExit, match="resume identity mismatch"):
+        _prepare_checkpoint_identity(tmp_path, changed, fresh=False)
+
 
 def test_cik_checkpoint_refuses_legacy_state_without_identity(tmp_path):
     (tmp_path / "case-checkpoint.json").write_text("{}")
@@ -276,6 +280,7 @@ def test_direct_control_has_explicit_cache_identified_reasoning_mode():
     assert control.reasoning_effort == "none"
     assert control._client.reasoning_effort == "none"
     assert "reasoning=none" in control.cache_name
+    assert "sample_parallelism=4" in control.cache_name
 
 
 def test_direct_control_retains_provider_usage(monkeypatch):

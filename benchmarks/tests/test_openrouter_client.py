@@ -8,6 +8,8 @@ answer would record a wrong answer the model never gave.
 
 import json
 import sys
+import threading
+import time
 import urllib.error
 from pathlib import Path
 
@@ -161,6 +163,48 @@ def test_provider_ignoring_n_is_fanned_out_to_singles(monkeypatch):
     assert contents == sorted(f"sample-{i}" for i in range(5))
     assert [c.index for c in response.choices] == [0, 1, 2, 3, 4]
     assert client.usage_summary["requests"] == 5
+
+
+def test_provider_top_up_respects_sample_parallelism(monkeypatch):
+    active = 0
+    peak = 0
+    calls = 0
+    lock = threading.Lock()
+
+    def request(client, messages, **kwargs):
+        nonlocal active, peak, calls
+        with lock:
+            call = calls
+            calls += 1
+            active += 1
+            peak = max(peak, active)
+        try:
+            # Every response deliberately contains one choice to exercise
+            # the provider-ignores-n top-up path.
+            time.sleep(.03 if call else .005)
+            payload = _response(f"sample-{call}")
+            client._account(payload)
+            from benchmarks.common.openrouter import _to_namespace
+            return _to_namespace(payload)
+        finally:
+            with lock:
+                active -= 1
+
+    client = OpenRouterClient(
+        "test/model", api_key="k", sample_parallelism=2)
+    monkeypatch.setattr(OpenRouterClient, "_request", request)
+
+    response = client.chat(MESSAGES, n=7)
+
+    assert peak == 2
+    assert len(response.choices) == 7
+    assert [choice.index for choice in response.choices] == list(range(7))
+    assert client.usage_summary["sample_parallelism"] == 2
+
+
+def test_sample_parallelism_must_be_positive():
+    with pytest.raises(ValueError, match="at least 1"):
+        OpenRouterClient("test/model", api_key="k", sample_parallelism=0)
 
 
 def test_full_batch_from_provider_is_not_fanned_out(monkeypatch):

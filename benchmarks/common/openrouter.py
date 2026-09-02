@@ -129,6 +129,10 @@ class OpenRouterClient:
         own. Whatever it resolves to is reported in ``usage_summary``
         and the runners' manifests: the endpoint that served a model is
         part of what a score means.
+    sample_parallelism:
+        Maximum concurrent single-sample requests used when a provider
+        ignores ``n``. This is deliberately independent of a benchmark's
+        task-level parallelism and defaults to a conservative four.
     """
 
     def __init__(
@@ -142,7 +146,10 @@ class OpenRouterClient:
         max_retries: int = 5,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
         reasoning_effort: str | None = None,
+        sample_parallelism: int = 4,
     ) -> None:
+        if int(sample_parallelism) < 1:
+            raise ValueError("sample_parallelism must be at least 1")
         self.model = model
         if not api_key and "OPENROUTER_API_KEY" not in os.environ:
             from benchmarks.common.envfile import load_env_file
@@ -155,6 +162,7 @@ class OpenRouterClient:
         self.max_retries = max_retries
         self.timeout = timeout
         self.reasoning_effort = reasoning_effort
+        self.sample_parallelism = int(sample_parallelism)
         # chat() may fan out concurrent single-sample requests when a
         # provider ignores ``n``; accounting must not lose updates.
         self._usage_lock = threading.Lock()
@@ -227,7 +235,7 @@ class OpenRouterClient:
             # that presents as endpoint degradation. Independent
             # single-sample requests at the same temperature are the
             # same sampling protocol as one n-sample request; issue the
-            # shortfall concurrently and merge.
+            # shortfall with explicit bounded concurrency and merge.
             from concurrent.futures import ThreadPoolExecutor
 
             def one_more(_: int) -> Any:
@@ -240,10 +248,12 @@ class OpenRouterClient:
                     transport_retries=transport_retries,
                 )
 
-            # All singles at once: a wave of 24 multi-minute requests
-            # serialised 8 at a time triples the batch latency for no
-            # protection — 429s are retryable with backoff.
-            with ThreadPoolExecutor(max_workers=min(32, missing)) as pool:
+            # Task-level ``jobs=1`` does not constrain this inner fan-out.
+            # Keep it independently bounded: large bursts can trip provider
+            # limits or exhaust a machine even though the outer benchmark is
+            # nominally serial. ``pool.map`` preserves request order.
+            workers = min(self.sample_parallelism, missing)
+            with ThreadPoolExecutor(max_workers=workers) as pool:
                 extras = list(pool.map(one_more, range(missing)))
             merged = list(response.choices)
             for extra in extras:
@@ -426,6 +436,7 @@ class OpenRouterClient:
             # Provenance, not decoration: the same model id served from a
             # different endpoint is a different measurement.
             "base_url": self.base_url,
+            "sample_parallelism": self.sample_parallelism,
             "requests": self.total_requests,
             "transport_attempts": self.total_transport_attempts,
             "prompt_tokens": self.total_prompt_tokens,

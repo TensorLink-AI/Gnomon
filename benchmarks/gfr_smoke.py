@@ -23,7 +23,7 @@ from gnomon.constraints import Claim, apply_claims, history_violations
 
 MATCHED_IDENTITY_FIELDS = (
     "model", "base_url", "temperature", "selected_tasks", "seed_start",
-    "seeds", "n_samples", "fail_on_invalid",
+    "seeds", "n_samples", "fail_on_invalid", "sample_parallelism",
 )
 
 

@@ -386,6 +386,7 @@ def _checkpoint_identity(args, selected, n_samples: int,
         "case_memory_mb": args.case_memory_mb,
         "min_free_memory_mb": args.min_free_memory_mb,
         "max_parallel": args.max_parallel,
+        "sample_parallelism": args.sample_parallelism,
     }
 
 
@@ -581,6 +582,7 @@ def build_method(args):
             temperature=args.temperature,
             fail_on_invalid=args.fail_on_invalid,
             base_url=base_url, api_key=api_key,
+            sample_parallelism=args.sample_parallelism,
         )
     if args.method == "gnomon-mcp":
         if not args.model:
@@ -699,6 +701,7 @@ def run(args) -> int:
         code_revision=run_revision,
         base_url=args.base_url,
         api_key_env=args.api_key_env,
+        sample_parallelism=args.sample_parallelism,
     )
     return 0
 
@@ -996,6 +999,13 @@ def build_parser() -> argparse.ArgumentParser:
              "Experimental: results/structural-effects/HYPOTHESIS.md",
     )
     parser.add_argument("--max-parallel", type=int, default=1)
+    parser.add_argument(
+        "--sample-parallelism", type=int, default=4, choices=range(1, 33),
+        metavar="1..32",
+        help="Maximum concurrent provider requests used only when a provider "
+             "ignores n-sample batching (default: 4). Set 1 for fully "
+             "serial crash-safe orchestration; recorded in checkpoints.",
+    )
     parser.add_argument(
         "--case-memory-mb", type=int, default=4096,
         help="Per-case process-tree resident-memory ceiling in MiB "

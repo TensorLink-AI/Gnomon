@@ -56,13 +56,15 @@ class OpenRouterDirectPrompt(DirectPrompt):
     def __init__(self, openrouter_model: str, temperature: float = 1.0,
                  *, base_url: str | None = None,
                  api_key: str | None = None,
-                 reasoning_effort: str | None = "none", **kwargs):
+                 reasoning_effort: str | None = "none",
+                 sample_parallelism: int = 4, **kwargs):
         self.openrouter_model = openrouter_model
         self.reasoning_effort = reasoning_effort
         self._client = OpenRouterClient(
             openrouter_model, temperature=temperature,
             base_url=base_url, api_key=api_key,
-            reasoning_effort=reasoning_effort)
+            reasoning_effort=reasoning_effort,
+            sample_parallelism=sample_parallelism)
         # The "openrouter-" prefix keeps DirectPrompt's own OpenRouter
         # behaviour (batch-of-1 retry budget, per-call cost accounting).
         super().__init__(
@@ -111,6 +113,7 @@ class OpenRouterDirectPrompt(DirectPrompt):
             f"n_retries={self.n_retries}",
             f"temperature={self.temperature}",
             f"reasoning={self.reasoning_effort or 'provider-default'}",
+            f"sample_parallelism={self._client.sample_parallelism}",
             f"endpoint={hashlib.sha256(self._client.base_url.encode()).hexdigest()[:10]}",
         ]
         return f"{self.__class__.__name__}_" + "_".join(args)

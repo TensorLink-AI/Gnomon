@@ -18,6 +18,7 @@ def _identity(method: str) -> dict:
         "temperature": 1.0, "selected_tasks": ["one"],
         "seed_start": 7, "seeds": 1, "n_samples": 50,
         "fail_on_invalid": True,
+        "sample_parallelism": 2,
         "mcp_profile": "evidence" if method == "gnomon-mcp" else None,
     }
 
@@ -33,6 +34,15 @@ def test_temperature_mismatch_is_rejected() -> None:
     treatment["temperature"] = 0.0
 
     with pytest.raises(ValueError, match="temperature"):
+        validate_matched_identities(control, treatment)
+
+
+def test_sample_parallelism_mismatch_is_rejected() -> None:
+    control = _identity("control")
+    treatment = _identity("gnomon-mcp")
+    treatment["sample_parallelism"] = 1
+
+    with pytest.raises(ValueError, match="sample_parallelism"):
         validate_matched_identities(control, treatment)
 
 

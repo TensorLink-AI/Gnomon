@@ -40,6 +40,7 @@ def _identity(method: str) -> dict:
         "seeds": 3,
         "n_samples": 50,
         "fail_on_invalid": True,
+        "sample_parallelism": 2,
         "mcp_profile": "evidence" if method == "gnomon-mcp" else None,
         "code_revision": "revision-under-test",
     }
