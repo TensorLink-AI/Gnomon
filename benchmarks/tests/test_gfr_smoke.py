@@ -3,6 +3,8 @@ from pathlib import Path
 import pytest
 
 from benchmarks.gfr_smoke import (assemble, conditional_calibration_candidate,
+                                  outcome_observations,
+                                  preservation_observations,
                                   prior_classified_without_skill,
                                   validate_matched_identities)
 
@@ -70,3 +72,41 @@ def test_assembler_rejects_unknown_scope_before_reading_evidence():
             decision_contract=Path("missing"), outcome=Path("missing"),
             boundary=Path("missing"), calibration_action=Path("missing"),
             output_dir=Path("missing"), scope="invalid")
+
+
+def test_preservation_cases_are_bound_to_semantic_rows():
+    rows = [{
+        "case": f"decision-{index:02d}", "exact": True,
+        "complete": True, "canonical_valid": True,
+    } for index in range(12)]
+    observed = preservation_observations({"rows": rows})
+
+    assert set(observed) == {
+        "preservation:conditional-scenario",
+        "preservation:no-distinct-numeric-path",
+        "preservation:best-effort", "preservation:typed-choice",
+        "preservation:invalid-citation-repair", "preservation:abstention",
+    }
+    rows[4]["exact"] = False
+    assert preservation_observations({"rows": rows})[
+        "preservation:conditional-scenario"]["support_preserved"] is False
+
+
+def test_outcome_cases_preserve_transition_and_automation_evidence():
+    family = {"outcome_informed_selections": 0,
+              "automation_violations": 0}
+    summary = {"gates": {}, "families": {
+        "stable_beneficial": {**family, "outcome_informed_selections": 2},
+        "delayed_outcomes": dict(family),
+        "regime_reversal": {
+            **family, "first_demoted_after_regime_change": 11,
+            "bad_recommendations_before_demotion": 2},
+        "stable_harmful": dict(family),
+        "proposer_identity_change": dict(family),
+    }}
+    observed = outcome_observations(summary)
+
+    assert all(item["expected_transition"] == item["actual_transition"]
+               for item in observed.values())
+    assert all(item["automatic_model_switch"] is False
+               for item in observed.values())

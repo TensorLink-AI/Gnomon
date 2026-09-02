@@ -87,6 +87,80 @@ def conditional_calibration_candidate(candidates: Any) -> dict[str, Any] | None:
     return matches[0] if len(matches) == 1 else None
 
 
+PRESERVATION_CASE_ROWS = {
+    "preservation:conditional-scenario": "decision-04",
+    "preservation:no-distinct-numeric-path": "decision-09",
+    "preservation:best-effort": "decision-05",
+    "preservation:typed-choice": "decision-01",
+    "preservation:invalid-citation-repair": "decision-02",
+    "preservation:abstention": "decision-07",
+}
+
+
+def preservation_observations(summary: Any) -> dict[str, dict[str, Any]]:
+    """Bind frozen preservation cases to their semantic contract rows."""
+    rows = {str(item.get("case")): item
+            for item in (summary.get("rows") if isinstance(summary, dict) else [])
+            if isinstance(item, dict)}
+    output = {}
+    for case_id, row_id in PRESERVATION_CASE_ROWS.items():
+        row = rows.get(row_id)
+        if row is None:
+            raise ValueError(f"decision contract lacks {row_id} for {case_id}")
+        output[case_id] = {
+            "support_preserved": bool(row.get("exact")),
+            "assumptions_preserved": bool(row.get("complete")),
+            "conditionality_preserved": bool(row.get("exact")),
+            "numbers_preserved": bool(row.get("canonical_valid")),
+        }
+    return output
+
+
+def outcome_observations(summary: Any) -> dict[str, dict[str, Any]]:
+    """Extract the six frozen transition outcomes from retained families."""
+    families = summary.get("families") if isinstance(summary, dict) else None
+    gates = summary.get("gates") if isinstance(summary, dict) else None
+    if not isinstance(families, dict) or not isinstance(gates, dict):
+        raise ValueError("outcome summary lacks families or gates")
+    stable = families.get("stable_beneficial") or {}
+    delayed = families.get("delayed_outcomes") or {}
+    reversal = families.get("regime_reversal") or {}
+    harmful = families.get("stable_harmful") or {}
+    proposer = families.get("proposer_identity_change") or {}
+
+    def raw(expected: str, actual: str, family: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "expected_transition": expected,
+            "actual_transition": actual,
+            "automatic_model_switch": bool(
+                family.get("automation_violations", 0)),
+        }
+
+    return {
+        "outcome:promote-supported": raw(
+            "promoted", "promoted" if stable.get(
+                "outcome_informed_selections", 0) > 0 else "retained", stable),
+        "outcome:retain-insufficient": raw(
+            "retained", "retained" if delayed.get(
+                "outcome_informed_selections", 0) == 0 else "promoted", delayed),
+        "outcome:demote-harmful": raw(
+            "demoted", "demoted" if reversal.get(
+                "first_demoted_after_regime_change") is not None
+            else "retained", reversal),
+        "outcome:drift-reset": raw(
+            "reset", "reset" if (
+                reversal.get("first_demoted_after_regime_change") is not None
+                and reversal.get("bad_recommendations_before_demotion", 99) <= 2)
+            else "not_reset", reversal),
+        "outcome:no-auto-switch": raw(
+            "retained", "retained" if harmful.get(
+                "outcome_informed_selections", 0) == 0 else "promoted", harmful),
+        "outcome:proposer-isolation": raw(
+            "retained", "retained" if proposer.get(
+                "outcome_informed_selections", 0) == 0 else "promoted", proposer),
+    }
+
+
 def _constraint_observation() -> dict[str, Any]:
     row = {
         "timestamp": "2026-06-04T00:00:00+00:00", "point": -2.0,
@@ -160,11 +234,9 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
     if seasonal is None:
         raise ValueError("short-history evidence contains no seasonal case")
     decision = _read(decision_contract)
-    preservation = next((row for row in decision.get("rows", [])
-                         if row.get("case") == "decision-09"), None)
-    if preservation is None:
-        raise ValueError("decision contract lacks no_distinct_numeric_path")
+    preservation_cases = preservation_observations(decision)
     outcome_summary = _read(outcome)
+    outcome_cases = outcome_observations(outcome_summary)
     boundary_summary = _read(boundary)
     calibration_summary = _read(calibration_action)
 
@@ -256,10 +328,7 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
         }),
         "domain_constraints": ("answered", constraint_raw),
         "response_preservation": ("answered", {
-            "support_preserved": bool(preservation.get("exact")),
-            "assumptions_preserved": bool(preservation.get("complete")),
-            "conditionality_preserved": bool(preservation.get("exact")),
-            "numbers_preserved": bool(preservation.get("canonical_valid")),
+            **preservation_cases["preservation:conditional-scenario"],
         }),
         "outcome_graduation": ("answered", {
             "expected_transition": "promoted",
@@ -289,6 +358,10 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "sources": [_source(path, root) for path in source_paths],
         "extracted_observations": raw_by_capability,
+        **({"full_case_extractions": {
+            "response_preservation": preservation_cases,
+            "outcome_graduation": outcome_cases,
+        }} if scope == "full" else {}),
         "known_measurement_gaps": {
             **({"candidate_calibration": (
                 "matched candidate interval diagnostics are unavailable")}
@@ -316,6 +389,22 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
         if raw is not None:
             item["raw"] = raw
         observations.append(item)
+    if scope == "full":
+        for capability, cases in (
+                ("response_preservation", preservation_cases),
+                ("outcome_graduation", outcome_cases)):
+            smoke_case = protocol["capabilities"][capability][
+                "smoke_case_ids"][0]
+            for case_id, raw in cases.items():
+                if case_id == smoke_case:
+                    continue
+                observations.append({
+                    "capability": capability,
+                    "case_id": case_id,
+                    "evidence_sha256": evidence_sha,
+                    "status": "answered",
+                    "raw": raw,
+                })
 
     zero_leakage = all(not row.get("temporal_leakage")
                        for row in context_rows)
