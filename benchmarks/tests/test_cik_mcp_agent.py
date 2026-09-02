@@ -3498,7 +3498,7 @@ def test_literal_zero_event_without_duplicate_claim_uses_override(tmp_path):
     task = _task()
     start, end = task.future_time[1], task.future_time[2]
     span = (
-        f"the meter will be offline for scheduled maintenance between {start} and "
+        f"the meter will be offline for scheduled maintenance from {start} to "
         f"{end}, which results in zero readings")
     task.scenario = span
     compiler_output = json.dumps({
