@@ -272,12 +272,28 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
     control_rows = _rows(control_dir / "gnomonbench.jsonl")
     treatment_rows = _rows(treatment_dir / "gnomonbench.jsonl")
     diagnostics = _rows(treatment_dir / "selection-diagnostics.jsonl")
-    if not (len(control_rows) == len(treatment_rows) == len(diagnostics) == 1):
-        raise ValueError("GFR smoke requires exactly one retained CiK row")
-    control_row, treatment_row, diagnostic = (
-        control_rows[0], treatment_rows[0], diagnostics[0])
-    if control_row.get("task_id") != treatment_row.get("task_id"):
-        raise ValueError("CiK result rows do not identify the same task")
+    if not control_rows or len(control_rows) != len(treatment_rows):
+        raise ValueError("GFR requires non-empty matched CiK rows")
+    control_by_id = {str(item.get("task_id") or ""): item
+                     for item in control_rows}
+    treatment_by_id = {str(item.get("task_id") or ""): item
+                       for item in treatment_rows}
+    if ("" in control_by_id or "" in treatment_by_id
+            or len(control_by_id) != len(control_rows)
+            or len(treatment_by_id) != len(treatment_rows)
+            or set(control_by_id) != set(treatment_by_id)):
+        raise ValueError("GFR CiK rows require unique matched task identities")
+    diagnostic = next((item for item in diagnostics
+                       if item.get("task")
+                       == "DirectNormalIrradianceFromCloudStatus"
+                       and int(item.get("seed", -1)) == 7), None)
+    if diagnostic is None:
+        raise ValueError("GFR CiK evidence lacks the frozen DNI seed-7 case")
+    representative_id = "DirectNormalIrradianceFromCloudStatus-seed7"
+    control_row = control_by_id.get(representative_id)
+    treatment_row = treatment_by_id.get(representative_id)
+    if control_row is None or treatment_row is None:
+        raise ValueError("CiK arms lack the matched frozen DNI seed-7 row")
 
     task = str(diagnostic["task"]); seed = int(diagnostic["seed"])
     trace_path = treatment_dir / "mcp-traces" / f"{task}-seed{seed}.json"
