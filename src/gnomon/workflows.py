@@ -409,19 +409,39 @@ def parse_context_response(
         numeric_type_normalizations: list[dict[str, Any]] = []
         if quote and event_type.startswith(("constraint:", "override:")):
             from .future_context import (
-                literal_authority,
+                literal_input_authority,
                 parse_bound_span,
                 parse_override_scale,
                 parse_override_span,
             )
-            predictive, binding = literal_authority(quote)
-            if predictive and not binding:
+            source_authority = literal_input_authority(quote)
+            if source_authority == "forecast":
                 rejected.append({
                     "proposal": proposal,
                     "reason_code": "external_prediction_not_constraint",
                     "problems": [
                         "the quoted future value is predictive, not a "
                         "binding constraint or deterministic state"
+                    ],
+                })
+                continue
+            if source_authority == "assumed":
+                rejected.append({
+                    "proposal": proposal,
+                    "reason_code": "scenario_assumption_not_constraint",
+                    "problems": [
+                        "the quoted future value is a scenario assumption, "
+                        "not a binding constraint or deterministic state"
+                    ],
+                })
+                continue
+            if source_authority == "observed":
+                rejected.append({
+                    "proposal": proposal,
+                    "reason_code": "observed_value_not_future_constraint",
+                    "problems": [
+                        "the quoted value is an observation, not a binding "
+                        "future constraint or deterministic state"
                     ],
                 })
                 continue

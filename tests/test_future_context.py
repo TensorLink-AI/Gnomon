@@ -241,7 +241,7 @@ def test_override_spans_parse_to_the_stated_value(span, value):
 
 
 def test_direct_maintenance_outage_has_literal_authority_not_forecast_authority():
-    from gnomon.future_context import literal_authority
+    from gnomon.future_context import literal_authority, literal_input_authority
 
     direct = (
         "Consider that the meter will be offline for maintenance between "
@@ -254,6 +254,19 @@ def test_direct_maintenance_outage_has_literal_authority_not_forecast_authority(
 
     assert literal_authority(direct) == (True, True)
     assert literal_authority(attributed) == (True, False)
+    assert literal_input_authority(direct) == "binding"
+    assert literal_input_authority(attributed) == "forecast"
+
+
+def test_literal_input_authority_keeps_assumptions_and_observations_nonbinding():
+    from gnomon.future_context import literal_input_authority
+
+    assert literal_input_authority(
+        "Assume throughput is exactly 500 tomorrow.") == "assumed"
+    assert literal_input_authority(
+        "Observed throughput was exactly 500 yesterday.") == "observed"
+    assert literal_input_authority(
+        "The capacity policy requires throughput not exceed 500.") == "binding"
 
 
 def test_an_explicit_number_wins_over_a_zero_word():

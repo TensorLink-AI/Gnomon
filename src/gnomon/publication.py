@@ -866,6 +866,31 @@ def _context_recovery(disposition: dict[str, Any]) -> dict[str, Any]:
             ],
             "automation_eligible": False,
         }
+    if code == "scenario_assumption_not_constraint":
+        return {
+            "code": "retain_as_labelled_scenario",
+            "message": (
+                "Keep the immutable primary and represent the assumption as "
+                "a labelled scenario; an assumption cannot become a "
+                "deterministic constraint or authorize automation."),
+            "required_evidence": [
+                "explicit scenario label", "effective window",
+                "source-cited assumed value",
+            ],
+            "automation_eligible": False,
+        }
+    if code == "observed_value_not_future_constraint":
+        return {
+            "code": "retain_as_historical_evidence",
+            "message": (
+                "Keep the observation as historical evidence. Supply a "
+                "separate binding schedule or point-in-time future input if "
+                "it should affect the forecast horizon."),
+            "required_evidence": [
+                "binding future schedule or archived future-input vintage",
+            ],
+            "automation_eligible": False,
+        }
     if code == "INSUFFICIENT_RELATIONSHIP_HISTORY":
         return {
             "code": "collect_relationship_history",

@@ -1822,10 +1822,9 @@ def _context_events_from(arguments: dict[str, Any]):
                     semantic_text = source_document[left:right]
                 else:
                     semantic_text = span
-                from .future_context import literal_authority
-                predictive_source, binding_source = literal_authority(
-                    semantic_text)
-                if predictive_source and not binding_source:
+                from .future_context import literal_input_authority
+                source_authority = literal_input_authority(semantic_text)
+                if source_authority == "forecast":
                     arguments.setdefault("context_rejections", []).append({
                         "context_id": str(item.get("event_id") or
                                           f"context-event-{index}"),
@@ -1833,6 +1832,28 @@ def _context_events_from(arguments: dict[str, Any]):
                         "reason": (
                             "The quoted source predicts a value; it does not "
                             "state a binding constraint or observed outcome."),
+                        "source_span": span,
+                    })
+                    continue
+                if source_authority == "assumed":
+                    arguments.setdefault("context_rejections", []).append({
+                        "context_id": str(item.get("event_id") or
+                                          f"context-event-{index}"),
+                        "reason_code": "scenario_assumption_not_constraint",
+                        "reason": (
+                            "The quoted value is a scenario assumption; it "
+                            "does not state a binding constraint or schedule."),
+                        "source_span": span,
+                    })
+                    continue
+                if source_authority == "observed":
+                    arguments.setdefault("context_rejections", []).append({
+                        "context_id": str(item.get("event_id") or
+                                          f"context-event-{index}"),
+                        "reason_code": "observed_value_not_future_constraint",
+                        "reason": (
+                            "The quoted value is an observation; it does not "
+                            "state a binding future constraint or schedule."),
                         "source_span": span,
                     })
                     continue

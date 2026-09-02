@@ -1678,6 +1678,15 @@ _ATTRIBUTED_PREDICTION_RE = re.compile(
     r"\b(?:forecasts?|predicts?|projects?|estimates?|expects?|anticipates?)\b",
     re.IGNORECASE,
 )
+_ASSUMED_SOURCE_RE = re.compile(
+    r"\b(?:assume[ds]?|assuming|assumption|scenario|hypothetical(?:ly)?|"
+    r"suppose[ds]?|supposing|what\s+if|sensitivity)\b",
+    re.IGNORECASE,
+)
+_OBSERVED_SOURCE_RE = re.compile(
+    r"\b(?:observed|measured|recorded|actual(?:ly)?|historical(?:ly)?)\b",
+    re.IGNORECASE,
+)
 
 
 def literal_authority(text: str) -> tuple[bool, bool]:
@@ -1701,3 +1710,26 @@ def literal_authority(text: str) -> tuple[bool, bool]:
         _ATTRIBUTED_PREDICTION_RE.search(value)
     )
     return predictive, binding or maintenance_outage
+
+
+def literal_input_authority(text: str) -> str:
+    """Classify what kind of authority a quoted numeric statement carries.
+
+    The class is derived from the source words, never from the model-proposed
+    event namespace.  Binding language wins because a policy may describe a
+    forecast or scenario while still imposing a real operational limit.
+    Assumptions and observations remain distinct from forecasts so callers can
+    route them to scenario or historical-evidence lanes without granting
+    deterministic projection authority.
+    """
+    value = str(text or "")
+    predictive, binding = literal_authority(value)
+    if binding:
+        return "binding"
+    if _ASSUMED_SOURCE_RE.search(value):
+        return "assumed"
+    if predictive:
+        return "forecast"
+    if _OBSERVED_SOURCE_RE.search(value):
+        return "observed"
+    return "unstated"

@@ -692,6 +692,26 @@ def test_context_span_must_exist_in_host_bound_document() -> None:
         "source_span_not_in_context_document"
 
 
+def test_assumed_or_observed_value_cannot_gain_literal_constraint_authority() -> None:
+    from gnomon.toolspec import _context_events_from
+
+    for authority, span, reason_code in (
+        ("assumed", "Assume throughput is exactly 500 on 2026-02-10.",
+         "scenario_assumption_not_constraint"),
+        ("observed", "Observed throughput was exactly 500 on 2026-02-10.",
+         "observed_value_not_future_constraint"),
+    ):
+        arguments = {"target_column": "throughput", "context_events": [{
+            "event_id": authority, "claim_kind": "exact",
+            "effective_start": "2026-02-10T00:00:00+00:00",
+            "effective_end": "2026-02-10T23:59:59+00:00",
+            "known_at": "2026-02-09T00:00:00+00:00",
+            "source_span": span,
+        }]}
+        assert _context_events_from(arguments) == []
+        assert arguments["context_rejections"][0]["reason_code"] == reason_code
+
+
 def test_binding_rule_with_predictive_language_remains_literal_context() -> None:
     from gnomon.toolspec import _context_events_from
 
