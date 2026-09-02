@@ -1245,6 +1245,11 @@ def test_context_relationship_requires_exact_human_visible_projection():
         "expected": [relationship], "supplied": [relationship],
         "matched": [relationship], "invalid": [],
     }
+    run._mcp_info = lambda: {}
+    assert run._resolve_submission()["context_relationship_projection"] == {
+        "expected": [relationship], "supplied": [relationship],
+        "matched": [relationship], "invalid": [],
+    }
 
 
 def test_context_authority_omission_gets_one_artifact_reuse_repair():

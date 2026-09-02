@@ -2973,6 +2973,10 @@ class _Run(_RunBase):
                 self.submission["context_source_projection"]}
                if self.submission.get(
                    "context_source_projection") is not None else {}),
+            **({"context_relationship_projection":
+                self.submission["context_relationship_projection"]}
+               if self.submission.get(
+                   "context_relationship_projection") is not None else {}),
             "canonical_mcq": self.submission.get("canonical_mcq", {}),
             "synthesized_mcq": self.submission.get("synthesized_mcq", {}),
             "choice_authority": self.submission.get("choice_authority", {}),
