@@ -15,7 +15,7 @@ from benchmarks.contextbench.generate_stress import generate as generate_stress
 from benchmarks.contextbench import run_surfaces as surface_runner
 from benchmarks.contextbench.run_contextbench import (
     _append_checkpoint, _load_checkpoint, _raw_points, _structural_scenario,
-    run_case, smape, summarize, valid_disposition,
+    run_case, select_cases, smape, summarize, valid_disposition,
 )
 from benchmarks.contextbench.run_contextbench import main as run_main
 from benchmarks.contextbench.run_llm import (
@@ -154,6 +154,21 @@ def test_contextbench_checkpoint_is_durable_and_strict(tmp_path):
     _append_checkpoint(checkpoint, {"case_id": "a", "score": 3})
     with pytest.raises(SystemExit, match="repeats case"):
         _load_checkpoint(checkpoint, {"a", "b"})
+
+
+def test_contextbench_exact_case_selection_is_ordered_and_strict():
+    raw_cases, _ = generate(17, per_family=1)
+    cases = [Case.from_dict(raw) for raw in raw_cases]
+    requested = [cases[2].case_id, cases[0].case_id]
+
+    assert [case.case_id for case in select_cases(
+        cases, case_ids=requested, limit=None)] == requested
+    with pytest.raises(SystemExit, match="mutually exclusive"):
+        select_cases(cases, case_ids=requested, limit=1)
+    with pytest.raises(SystemExit, match="unique"):
+        select_cases(cases, case_ids=[requested[0], requested[0]], limit=None)
+    with pytest.raises(SystemExit, match="unknown"):
+        select_cases(cases, case_ids=["not-a-case"], limit=None)
 
 
 def test_stress_generator_is_reproducible_and_covers_production_strata():
