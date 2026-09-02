@@ -17,6 +17,7 @@ import random
 import tempfile
 from typing import Any
 
+from benchmarks.common.manifest import code_revision
 from gnomon.llm_dossier import validate_temporal_dossier
 from gnomon.publication import publish_result, record_publication
 from gnomon.tracking import TrackingStore
@@ -246,6 +247,7 @@ def run_suite(database: Path) -> dict[str, Any]:
     result = {
         "benchmark": "outcome-learning-prequential",
         "schema_version": "0.1",
+        "evaluated_commit": code_revision(),
         "families": {
             "stable_beneficial": stable,
             "stable_harmful": harmful,

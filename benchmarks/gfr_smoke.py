@@ -329,6 +329,16 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
     outcome_cases = outcome_observations(outcome_summary)
     boundary_summary = _read(boundary)
     calibration_summary = _read(calibration_action)
+    for name, source in (
+        ("short-history", short),
+        ("decision-contract", decision),
+        ("outcome", outcome_summary),
+        ("boundary", boundary_summary),
+        ("calibration-action", calibration_summary),
+    ):
+        if source.get("evaluated_commit") != treatment_identity["code_revision"]:
+            raise ValueError(
+                f"{name} evidence and CiK evidence must share a revision")
 
     selected = float(diagnostic["selected_score"])
     eligible = [float(item["score"]) for item in diagnostic["candidates"]
