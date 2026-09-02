@@ -2,7 +2,9 @@ from pathlib import Path
 
 import pytest
 
+from benchmarks.gfr import score_observation
 from benchmarks.gfr_smoke import (assemble, conditional_calibration_candidate,
+                                  constraint_observations,
                                   outcome_observations,
                                   preservation_observations,
                                   prior_classified_without_skill,
@@ -110,3 +112,16 @@ def test_outcome_cases_preserve_transition_and_automation_evidence():
                for item in observed.values())
     assert all(item["automatic_model_switch"] is False
                for item in observed.values())
+
+
+def test_full_constraint_cases_pass_without_inventing_or_forcing_bounds():
+    observed = constraint_observations()
+
+    assert set(observed) == {
+        "constraint:declared-min", "constraint:declared-max",
+        "constraint:declared-window", "constraint:undeclared-min",
+        "constraint:contradicted-min",
+        "constraint:post-context-reassertion",
+    }
+    assert all(score_observation("domain_constraints", raw) == 1
+               for raw in observed.values())

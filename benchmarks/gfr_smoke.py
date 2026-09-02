@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from benchmarks.gfr import SAFETY_INVARIANTS, load_protocol
-from gnomon.constraints import Claim, apply_claims
+from gnomon.constraints import Claim, apply_claims, history_violations
 
 
 MATCHED_IDENTITY_FIELDS = (
@@ -161,22 +161,88 @@ def outcome_observations(summary: Any) -> dict[str, dict[str, Any]]:
     }
 
 
-def _constraint_observation() -> dict[str, Any]:
-    row = {
+def constraint_observations() -> dict[str, dict[str, Any]]:
+    """Exercise the frozen bound cases through production projection code."""
+    base = {
         "timestamp": "2026-06-04T00:00:00+00:00", "point": -2.0,
         "q05": -5.0, "q10": -4.0, "q50": -2.0, "q90": 1.0,
         "q95": 2.0,
     }
-    claim = Claim(
+    minimum = Claim(
         "gfr-min", "min", 0.0, "2026-06-01T00:00:00+00:00",
         "2026-06-30T00:00:00+00:00")
-    projected, applications = apply_claims([row], [claim])
-    values = [float(value) for key, value in projected[0].items()
-              if key == "point" or key.startswith("q")]
+    projected_min, applied_min = apply_claims([base], [minimum])
+
+    maximum = Claim(
+        "gfr-max", "max", 0.0, "2026-06-01T00:00:00+00:00",
+        "2026-06-30T00:00:00+00:00")
+    positive = {
+        "timestamp": base["timestamp"], "point": 2.0,
+        "q05": -2.0, "q10": -1.0, "q50": 2.0, "q90": 4.0,
+        "q95": 5.0,
+    }
+    projected_max, applied_max = apply_claims([positive], [maximum])
+
+    window_rows = [
+        {**base, "timestamp": f"2026-06-0{day}T00:00:00+00:00"}
+        for day in (3, 4, 5)]
+    window = Claim(
+        "gfr-window", "min", 0.0, "2026-06-04T00:00:00+00:00",
+        "2026-06-04T23:59:59+00:00")
+    projected_window, applied_window = apply_claims(window_rows, [window])
+    undeclared, undeclared_applications = apply_claims([base], [])
+
+    contradicted = Claim(
+        "gfr-contradicted", "min", 0.0,
+        "2026-05-01T00:00:00+00:00", "2026-05-31T00:00:00+00:00")
+    contradiction = history_violations(
+        contradicted, [-1.0], [datetime.fromisoformat(
+            "2026-05-15T00:00:00+00:00")])
+
+    # A context operation may reintroduce an impossible value; projection is
+    # intentionally the final numeric boundary and must reassert the claim.
+    context_modified = {**base, "point": -20.0, "q05": -25.0,
+                        "q10": -24.0, "q50": -20.0}
+    projected_post, applied_post = apply_claims(
+        [context_modified], [minimum])
+
+    def values(row: dict[str, Any]) -> list[float]:
+        return [float(value) for key, value in row.items()
+                if key == "point" or key.startswith("q")]
+
     return {
-        "bound_declared": True,
-        "bound_applied": bool(applications),
-        "violations": sum(value < 0 for value in values),
+        "constraint:declared-min": {
+            "bound_declared": True, "bound_applied": bool(applied_min),
+            "violations": sum(value < 0 for value in values(projected_min[0])),
+        },
+        "constraint:declared-max": {
+            "bound_declared": True, "bound_applied": bool(applied_max),
+            "violations": sum(value > 0 for value in values(projected_max[0])),
+        },
+        "constraint:declared-window": {
+            "bound_declared": True,
+            "bound_applied": bool(applied_window)
+            and projected_window[0] == window_rows[0]
+            and projected_window[2] == window_rows[2],
+            "violations": sum(value < 0 for value in values(
+                projected_window[1])),
+        },
+        "constraint:undeclared-min": {
+            "bound_declared": False,
+            "bound_applied": bool(undeclared_applications),
+            "violations": int(undeclared != [base]),
+        },
+        "constraint:contradicted-min": {
+            # The source statement exists, but no admissible bound survives
+            # history validation and therefore none may be applied.
+            "bound_declared": False,
+            "bound_applied": False,
+            "violations": 0 if contradiction else 1,
+        },
+        "constraint:post-context-reassertion": {
+            "bound_declared": True, "bound_applied": bool(applied_post),
+            "violations": sum(value < 0 for value in values(projected_post[0])),
+        },
     }
 
 
@@ -269,7 +335,8 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
     context_summary = publication.get("context_summary") or {}
     candidates = publication.get("candidate_portfolio") or []
     retained_prior = prior_classified_without_skill(candidates)
-    constraint_raw = _constraint_observation()
+    constraint_cases = constraint_observations()
+    constraint_raw = constraint_cases["constraint:declared-min"]
     control_usage = control_extra.get("llm_usage") or {}
     treatment_usage = treatment_extra.get("llm_usage") or {}
     usage_complete = all(
@@ -361,6 +428,7 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
         **({"full_case_extractions": {
             "response_preservation": preservation_cases,
             "outcome_graduation": outcome_cases,
+            "domain_constraints": constraint_cases,
         }} if scope == "full" else {}),
         "known_measurement_gaps": {
             **({"candidate_calibration": (
@@ -392,7 +460,8 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
     if scope == "full":
         for capability, cases in (
                 ("response_preservation", preservation_cases),
-                ("outcome_graduation", outcome_cases)):
+                ("outcome_graduation", outcome_cases),
+                ("domain_constraints", constraint_cases)):
             smoke_case = protocol["capabilities"][capability][
                 "smoke_case_ids"][0]
             for case_id, raw in cases.items():
