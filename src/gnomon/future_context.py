@@ -689,6 +689,63 @@ def _duration_window_is_exact_on_grid(
     return True
 
 
+def _endpoint_window_is_exact_on_grid(
+        event: FutureEvent, rows: list[dict[str, Any]], steps: list[int],
+) -> bool:
+    """Whether explicit endpoint words determine the exact covered rows.
+
+    Public event windows use inclusive host-grid endpoints. A source may use
+    a half-open interval, so its literal closing timestamp need not equal the
+    normalized event end. Re-derive the covered rows from the verbatim source
+    and accept exactness only when that set equals the event's set.
+    """
+    if not steps or re.search(
+            r"\b(?:approximately|about|roughly|around)\b",
+            event.source_span, re.I):
+        return False
+    timestamp_pattern = (
+        r"\b\d{4}-\d{2}-\d{2}[ T]\d{1,2}:\d{2}(?::\d{2})?"
+        r"(?:Z|[+-]\d{2}:?\d{2})?\b")
+    cited = re.findall(timestamp_pattern, event.source_span)
+    if len(cited) != 2:
+        return False
+    first, second = (re.escape(value) for value in cited)
+    half_open = bool(re.search(
+        rf"\b(?:between\s+{first}\s+and|from\s+{first}\s+until)\s+{second}\b",
+        event.source_span, re.I))
+    closed = bool(re.search(
+        rf"\bfrom\s+{first}\s+through\s+{second}\b",
+        event.source_span, re.I))
+    if half_open == closed:
+        return False
+    try:
+        source_start = datetime.fromisoformat(cited[0].replace(" ", "T"))
+        source_end = datetime.fromisoformat(cited[1].replace(" ", "T"))
+        stamps = [datetime.fromisoformat(str(row["timestamp"])) for row in rows]
+        event_start = datetime.fromisoformat(event.effective_start)
+        event_end = datetime.fromisoformat(event.effective_end)
+    except (KeyError, TypeError, ValueError):
+        return False
+    if source_end <= source_start:
+        return False
+    expected = []
+    for index, stamp in enumerate(stamps):
+        aligned_start, aligned_stamp = _align(source_start, stamp)
+        aligned_end, comparable_stamp = _align(source_end, stamp)
+        if (aligned_start <= aligned_stamp
+                and (comparable_stamp < aligned_end if half_open
+                     else comparable_stamp <= aligned_end)):
+            expected.append(index)
+    if expected != steps:
+        return False
+    aligned_event_start, aligned_first = _align(
+        event_start, stamps[expected[0]])
+    aligned_event_end, aligned_last = _align(
+        event_end, stamps[expected[-1]])
+    return (aligned_event_start == aligned_first
+            and aligned_event_end == aligned_last)
+
+
 @dataclass
 class FutureContextAssessment:
     """The lane's decisions for one series, countable and quotable."""
@@ -1623,8 +1680,10 @@ def apply_future_events(
         # its closing edge only when the window actually ends inside the
         # horizon — a window running past the horizon has no closing edge
         # here, and its final visible step is interior.
-        exact_window = event.boundary_exact or _duration_window_is_exact_on_grid(
-            event, projected, steps)
+        exact_window = (
+            event.boundary_exact
+            or _duration_window_is_exact_on_grid(event, projected, steps)
+            or _endpoint_window_is_exact_on_grid(event, projected, steps))
         boundary = set() if exact_window else {steps[0]}
         window_end, horizon_end = _align(
             datetime.fromisoformat(event.effective_end),

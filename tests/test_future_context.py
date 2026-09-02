@@ -613,6 +613,27 @@ def test_override_with_source_cited_exact_endpoints_sets_every_quantile():
     assert all(entry["boundary_step"] is False for entry in applications)
 
 
+def test_half_open_source_end_normalizes_to_exact_inclusive_host_window():
+    source_start = FUTURE[2].isoformat()
+    source_end = FUTURE[5].isoformat()
+    admitted = [FutureEvent(
+        "o1", "override", FUTURE[2].isoformat(), FUTURE[4].isoformat(),
+        f"output is zero between {source_start} and {source_end}",
+        value=0.0,
+    )]
+
+    projected, applications = apply_future_events(_rows(), admitted)
+
+    for index in (2, 3, 4):
+        assert projected[index]["point"] == 0.0
+        assert projected[index]["q10"] == 0.0
+        assert projected[index]["q50"] == 0.0
+        assert projected[index]["q90"] == 0.0
+    assert projected[1] == _rows()[1]
+    assert projected[5] == _rows()[5]
+    assert all(entry["boundary_step"] is False for entry in applications)
+
+
 def test_override_with_exact_start_and_duration_sets_every_quantile():
     start, end = FUTURE[2].isoformat(), FUTURE[3].isoformat()
     admitted = [FutureEvent(
