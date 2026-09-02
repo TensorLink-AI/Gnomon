@@ -175,12 +175,14 @@ def _plan_checks(payload: dict[str, Any], expected_actions: int,
         and "argument_patch" not in item.get("execution", {})
         for item in plan if isinstance(item, dict)
     ) if case_class == "external_choice" else True
-    sources = all(
-        isinstance(item.get("source"), str)
-        and item["source"].startswith(("/recovery_actions/",
-                                       "/error/repair_options/"))
-        for item in plan if isinstance(item, dict)
-    )
+    source_values = [source for item in plan if isinstance(item, dict)
+                     for source in [item.get("source"),
+                                    *(item.get("equivalent_sources") or [])]]
+    sources = (len(source_values) == expected_actions and all(
+        isinstance(source, str)
+        and source.startswith(("/recovery_actions/",
+                               "/error/repair_options/"))
+        for source in source_values))
     causal_authority = all(
         bool(item.get("code")) and bool(item.get("expected_effect"))
         and "upgrade" in str(item.get("authority_limit") or "")
@@ -192,7 +194,7 @@ def _plan_checks(payload: dict[str, Any], expected_actions: int,
                       and envelope.get("recovery_plan_ref") == "/recovery_plan/0")
     return {
         "valid": valid,
-        "action_coverage": len(plan) == expected_actions,
+        "action_coverage": len(source_values) == expected_actions,
         "ranks_consecutive": ranks == list(range(1, len(plan) + 1)),
         "one_recommended": len(recommended) == (1 if plan else 0),
         "first_recommended": not plan or bool(plan[0].get("recommended")),

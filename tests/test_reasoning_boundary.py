@@ -124,6 +124,30 @@ def test_support_recovery_plan_is_exact_but_does_not_upgrade_authority():
     assert external["source"] == "/recovery_actions/1"
 
 
+def test_recovery_plan_deduplicates_identical_executable_routes():
+    result = apply_response_contract({
+        "headline": "No forecast published.",
+        "task": {"task_type": "forecast"},
+        "support": "unsupported",
+        "recovery_actions": [{
+            "code": "lower_minimum_support",
+            "message": "Retry with minimum_support 'best_effort'.",
+        }, {
+            "code": "provide_more_history",
+            "message": "Supply more observations.",
+        }, {
+            "code": "retry_best_effort",
+            "message": "Publish orientation rows.",
+        }],
+    })
+
+    exact, external = result["recovery_plan"]
+    assert exact["rank"] == 1 and exact["recommended"] is True
+    assert exact["equivalent_sources"] == ["/recovery_actions/2"]
+    assert exact["equivalent_codes"] == ["retry_best_effort"]
+    assert external["rank"] == 2 and external["recommended"] is False
+
+
 def test_optional_improvement_does_not_override_complete_resolution():
     result = apply_response_contract({
         "headline": "Forecast published.", "verb": "forecast",
