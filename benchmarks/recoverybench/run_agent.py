@@ -24,7 +24,7 @@ from benchmarks.recoverybench.run import _call, cases
 
 
 SCHEMA_VERSION = 1
-CASE_ID = "floor-h7"
+CASE_ID = "floor-h1"
 
 
 def _atomic_json(path: Path, value: Any) -> None:
@@ -69,8 +69,8 @@ def _control_patch(
         "reasoning": response.get("reasoning") or {},
     }
     prompt = (
-        "Repair this forecast request once. The goal is the longest "
-        "supportable orientation forecast without claiming stronger support. "
+        "Repair this forecast request once. The goal is to publish the "
+        "already-computed orientation rows at exactly their earned support. "
         "The single patch must be complete: combine compatible supplied "
         "recovery actions when one change alone would still reject rows. "
         "Do not invent observations or change the input. Return only JSON as "
