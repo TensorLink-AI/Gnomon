@@ -123,6 +123,12 @@ CATALOG: dict[str, BenchmarkContract] = {
         "State-conditional interval calibration, sparse-state fallback, and "
         "authority invariants on sealed synthetic futures; agent behavior "
         "excluded."),
+    "categoricaluncertaintybench": BenchmarkContract(
+        "safety_contract",
+        "production categorical-state publication uncertainty",
+        "Under-evidence envelopes, centre preservation, immutable-primary "
+        "integrity, and authority invariants on sealed synthetic futures; "
+        "agent behavior excluded."),
     "categoricaladmissionbench": BenchmarkContract(
         "policy", "production categorical-state recommendation gate",
         "Recurrence, chronological consistency, forecast-state relevance, "
