@@ -2602,7 +2602,7 @@ def fit_categorical_state_candidate(
             return global_level
         return statistics.median(phase_values)
 
-    predictions, actuals, baselines = [], [], []
+    predictions, actuals, baselines, replay_states = [], [], [], []
     replay_start = max(4, minimum_overlap // 2,
                        seasonal_period or 0)
     for origin in range(replay_start, len(target)):
@@ -2614,6 +2614,7 @@ def fit_categorical_state_candidate(
             origin % seasonal_period if seasonal_period else 0)
         predictions.append(prediction)
         actuals.append(target[origin])
+        replay_states.append(states[origin])
         baselines.append(estimate_phase_only(
             target[:origin], origin % seasonal_period if seasonal_period else 0))
     candidate_mae = (statistics.mean(abs(a - b) for a, b in
@@ -2629,13 +2630,43 @@ def fit_categorical_state_candidate(
     # when the same estimator makes large expanding-origin errors. Quantiles
     # therefore come from the already-separated replay above, never from the
     # in-sample fit used to produce the point path.
-    from .evaluation import conformal_quantile
+    from .evaluation import MIN_RESIDUALS_PER_LEAD, conformal_quantile
 
     replay_residuals = [actual - prediction for actual, prediction in zip(
         actuals, predictions)]
-    residual_lower = conformal_quantile(replay_residuals, .1)
-    residual_center = conformal_quantile(replay_residuals, .5)
-    residual_upper = conformal_quantile(replay_residuals, .9)
+    global_residual_quantiles = tuple(
+        conformal_quantile(replay_residuals, probability)
+        for probability in (.1, .5, .9))
+    residuals_by_state = {
+        state: [residual for residual, replay_state in zip(
+            replay_residuals, replay_states) if replay_state == state]
+        for state in sorted(set(replay_states))
+    }
+    eligible_state_residuals = {
+        state: residuals for state, residuals in residuals_by_state.items()
+        if len(residuals) >= MIN_RESIDUALS_PER_LEAD
+    }
+    residual_scale_floor = max(
+        statistics.median(abs(value) for value in target) * 1e-6, 1e-12)
+    state_residual_scales = {
+        state: statistics.median(abs(value - statistics.median(residuals))
+                                 for value in residuals)
+        for state, residuals in eligible_state_residuals.items()
+    }
+    residual_scale_ratio = (
+        max(state_residual_scales.values())
+        / max(min(state_residual_scales.values()), residual_scale_floor)
+        if len(state_residual_scales) >= 2 else None)
+    # Stratification costs effective sample size. Spend it only when replay
+    # demonstrates meaningfully different conditional noise scales; otherwise
+    # the pooled empirical distribution is both stabler and more efficient.
+    state_conditioning_active = bool(
+        residual_scale_ratio is not None and residual_scale_ratio >= 2.0)
+    state_residual_quantiles = {
+        state: tuple(conformal_quantile(residuals, probability)
+                     for probability in (.1, .5, .9))
+        for state, residuals in eligible_state_residuals.items()
+    } if state_conditioning_active else {}
     scale = max(statistics.median(abs(value) for value in target), 1.0)
     width_floor = scale * 1e-6
     state_counts = {state: states.count(state) for state in set(states)}
@@ -2651,6 +2682,8 @@ def fit_categorical_state_candidate(
     baseline_point = target[-1]
     rows = []
     for offset, (source, state) in enumerate(zip(primary, future)):
+        residual_lower, residual_center, residual_upper = (
+            state_residual_quantiles.get(state, global_residual_quantiles))
         raw_point, count = estimate(
             target, states, state,
             (len(target) + offset) % seasonal_period
@@ -2722,8 +2755,21 @@ def fit_categorical_state_candidate(
                 "positive_skill": skill_evidence_weight,
             },
             "interval_calibration": {
-                "source": "expanding_origin_replay_residuals",
+                "source": "state_conditioned_expanding_origin_replay_residuals",
                 "residual_points": len(replay_residuals),
+                "state_residual_points": {
+                    state: len(residuals)
+                    for state, residuals in residuals_by_state.items()
+                },
+                "minimum_state_residual_points": MIN_RESIDUALS_PER_LEAD,
+                "state_residual_robust_scales": state_residual_scales,
+                "state_residual_scale_ratio": residual_scale_ratio,
+                "state_conditioning_minimum_scale_ratio": 2.0,
+                "state_conditioning_active": state_conditioning_active,
+                "state_conditioned": sorted(state_residual_quantiles),
+                "pooled_fallback_states": sorted(
+                    state for state in set(future)
+                    if state not in state_residual_quantiles),
                 "quantile_method": "finite_sample_split_conformal",
                 "nominal_coverage": .8,
             },

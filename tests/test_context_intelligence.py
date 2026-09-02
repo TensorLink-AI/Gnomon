@@ -515,8 +515,16 @@ def test_categorical_intervals_use_replay_errors_not_collapsed_fit_mad():
     assert all(row["q90"] - row["q10"] >= 100
                for row in candidate["forecast"])
     assert candidate["validation"]["interval_calibration"] == {
-        "source": "expanding_origin_replay_residuals",
+        "source": "state_conditioned_expanding_origin_replay_residuals",
         "residual_points": 4,
+        "state_residual_points": {"idle": 4},
+        "minimum_state_residual_points": 8,
+        "state_residual_robust_scales": {},
+        "state_residual_scale_ratio": None,
+        "state_conditioning_minimum_scale_ratio": 2.0,
+        "state_conditioning_active": False,
+        "state_conditioned": [],
+        "pooled_fallback_states": ["idle"],
         "quantile_method": "finite_sample_split_conformal",
         "nominal_coverage": .8,
     }
@@ -524,6 +532,30 @@ def test_categorical_intervals_use_replay_errors_not_collapsed_fit_mad():
     assert candidate["validation"]["publication_evidence_weight"] == 0
     assert candidate["validation"]["publication_shrunk_to_baseline"] is True
     assert all(row["q50"] == target[-1] for row in candidate["forecast"])
+
+
+def test_categorical_intervals_condition_on_well_observed_future_state():
+    generator = random.Random(818)
+    states = ["quiet" if index % 4 else "noisy" for index in range(96)]
+    target = [
+        50.0 + (10.0 if state == "noisy" else 0.0)
+        + generator.gauss(0, 12.0 if state == "noisy" else .5)
+        for state in states
+    ]
+    candidate = fit_categorical_state_candidate(
+        target, states, ["quiet"] * 4,
+        primary=[{"timestamp": _stamp(96 + index)} for index in range(4)],
+        claim_ids=["schedule"], hypothesis_id="state-calibration",
+        replay_origin_eligible=[True] * len(target))
+
+    calibration = candidate["validation"]["interval_calibration"]
+    assert calibration["state_conditioning_active"] is True
+    assert calibration["state_residual_scale_ratio"] >= 2
+    assert calibration["state_conditioned"] == ["noisy", "quiet"]
+    assert calibration["pooled_fallback_states"] == []
+    assert calibration["state_residual_points"]["quiet"] >= 8
+    assert all(row["q90"] - row["q10"] < 5
+               for row in candidate["forecast"])
 
 
 def test_categorical_retrospective_skill_is_not_vintage_admission():
