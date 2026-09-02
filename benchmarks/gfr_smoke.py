@@ -9,6 +9,7 @@ current DirectPrompt control does not retain comparable request/token usage.
 from __future__ import annotations
 
 import argparse
+import ast
 import hashlib
 import json
 import os
@@ -28,6 +29,10 @@ MATCHED_IDENTITY_FIELDS = (
 
 def _read(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _literal(path: Path) -> Any:
+    return ast.literal_eval(path.read_text(encoding="utf-8"))
 
 
 def _rows(path: Path) -> list[dict[str, Any]]:
@@ -125,6 +130,11 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
     task = str(diagnostic["task"]); seed = int(diagnostic["seed"])
     trace_path = treatment_dir / "mcp-traces" / f"{task}-seed{seed}.json"
     trace = _read(trace_path)
+    result_tail = Path("runs") / task / str(seed) / "extra_info"
+    control_extra_path = control_dir / result_tail
+    treatment_extra_path = treatment_dir / result_tail
+    control_extra = _literal(control_extra_path)
+    treatment_extra = _literal(treatment_extra_path)
     context_rows = _rows(context_dir / "observations.jsonl")
     useful = next((row for row in context_rows
                    if row.get("should_influence") is True
@@ -158,6 +168,22 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
     candidates = publication.get("candidate_portfolio") or []
     retained_prior = prior_classified_without_skill(candidates)
     constraint_raw = _constraint_observation()
+    control_usage = control_extra.get("llm_usage") or {}
+    treatment_usage = treatment_extra.get("llm_usage") or {}
+    usage_complete = all(
+        isinstance(usage.get(field), int) and usage[field] > 0
+        for usage in (control_usage, treatment_usage)
+        for field in ("requests", "prompt_tokens", "completion_tokens"))
+    efficiency_raw = ({
+        "control_requests": control_usage["requests"],
+        "treatment_requests": treatment_usage["requests"],
+        "control_tokens": (control_usage["prompt_tokens"]
+                           + control_usage["completion_tokens"]),
+        "treatment_tokens": (treatment_usage["prompt_tokens"]
+                             + treatment_usage["completion_tokens"]),
+        "control_latency_seconds": float(control_extra["total_time"]),
+        "treatment_latency_seconds": float(treatment_extra["total_time"]),
+    } if usage_complete else None)
 
     raw_by_capability: dict[str, tuple[str, dict[str, Any] | None]] = {
         "future_input_authority": ("answered", {
@@ -210,7 +236,8 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
             "automatic_model_switch": not bool(outcome_summary.get(
                 "gates", {}).get("no_automation_violations")),
         }),
-        "efficiency": ("failed", None),
+        "efficiency": (("answered", efficiency_raw)
+                       if efficiency_raw is not None else ("failed", None)),
     }
 
     source_paths = [
@@ -218,6 +245,7 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
         treatment_dir / "run_identity.json",
         treatment_dir / "gnomonbench.jsonl",
         treatment_dir / "selection-diagnostics.jsonl", trace_path,
+        control_extra_path, treatment_extra_path,
         context_dir / "observations.jsonl", context_dir / "summary.json",
         short_history, decision_contract, outcome, boundary,
         calibration_action,
@@ -233,9 +261,10 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
             "candidate_calibration": (
                 "one forecast instance cannot establish candidate-specific "
                 "coverage or WIS calibration"),
-            "efficiency": (
+            **({"efficiency": (
                 "the official DirectPrompt row does not retain comparable "
-                "provider request and token totals"),
+                "provider request and token totals")}
+               if efficiency_raw is None else {}),
         },
     }
     evidence_path = output_dir / "evidence.json"

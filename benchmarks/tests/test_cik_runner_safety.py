@@ -239,3 +239,23 @@ def test_direct_control_has_explicit_cache_identified_reasoning_mode():
     assert control.reasoning_effort == "none"
     assert control._client.reasoning_effort == "none"
     assert "reasoning=none" in control.cache_name
+
+
+def test_direct_control_retains_provider_usage(monkeypatch):
+    pytest.importorskip("cik_benchmark")
+    from cik_benchmark.baselines.direct_prompt import DirectPrompt
+
+    from benchmarks.cik.openrouter_direct_prompt import OpenRouterDirectPrompt
+
+    monkeypatch.setattr(
+        DirectPrompt, "__call__",
+        lambda self, task, samples: ("paths", {"total_time": 2.0}))
+    control = OpenRouterDirectPrompt.__new__(OpenRouterDirectPrompt)
+    control._client = SimpleNamespace(usage_summary={
+        "requests": 2, "prompt_tokens": 30, "completion_tokens": 40})
+
+    samples, extra = control(object(), 5)
+
+    assert samples == "paths"
+    assert extra["llm_usage"] == {
+        "requests": 2, "prompt_tokens": 30, "completion_tokens": 40}

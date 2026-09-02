@@ -95,6 +95,11 @@ class OpenRouterDirectPrompt(DirectPrompt):
     def usage_summary(self):
         return self._client.usage_summary
 
+    def __call__(self, task_instance, n_samples):
+        """Retain provider accounting omitted by the upstream result shape."""
+        samples, extra_info = super().__call__(task_instance, n_samples)
+        return samples, {**extra_info, "llm_usage": self.usage_summary}
+
     @property
     def cache_name(self) -> str:
         # Keep the official naming scheme, but base it on the full
