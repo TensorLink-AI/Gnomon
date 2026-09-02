@@ -97,6 +97,11 @@ CATALOG: dict[str, BenchmarkContract] = {
     "jointhorizonbench": BenchmarkContract(
         "policy", "production horizon-event and breach-decision executables",
         "Joint-event calibration, decision regret, and authority; not point-forecast superiority."),
+    "graduatedhorizonbench": BenchmarkContract(
+        "mixed", "production forecast and graduated-support boundary",
+        "Accuracy and tier integrity when a shorter evaluated prefix exists "
+        "inside a longer under-supported horizon; future outcomes remain "
+        "sealed and agent behavior is excluded."),
     "multivariatebench": BenchmarkContract(
         "engine", "production multivariate forecast path",
         "Held-out multivariate candidate admission and error; agent behavior excluded."),
