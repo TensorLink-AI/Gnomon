@@ -114,6 +114,36 @@ def _calibration_raw(diagnostic: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
+def calibration_family_observations(
+    summary: dict[str, Any],
+) -> dict[str, dict[str, float]]:
+    """Project sealed strict-calibrator families into frozen GFR cases."""
+    current = summary.get("strict_by_family") or {}
+    reference = summary.get("strict_reference_by_family") or {}
+    output: dict[str, dict[str, float]] = {}
+    for family in ("intermittent", "heteroskedastic"):
+        candidate = current.get(family)
+        prior = reference.get(family)
+        if not isinstance(candidate, dict) or not isinstance(prior, dict):
+            continue
+        values = {
+            "nominal_coverage": .8,
+            "empirical_coverage": candidate.get("coverage"),
+            "candidate_wis": candidate.get("mean_wis"),
+            "reference_wis": prior.get("mean_wis"),
+        }
+        if not all(
+            isinstance(value, (int, float)) and not isinstance(value, bool)
+            and math.isfinite(float(value))
+            for value in values.values()
+        ):
+            continue
+        output[f"calibration:{family}:seed1"] = {
+            key: float(value) for key, value in values.items()
+        }
+    return output
+
+
 def _selection_raw(diagnostic: dict[str, Any]) -> dict[str, Any] | None:
     candidates = diagnostic.get("candidates") or []
     eligible = [
@@ -188,7 +218,9 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
              control_dir: Path, treatment_dir: Path,
              output_dir: Path, context_standard_dir: Path | None = None,
              context_stress_dir: Path | None = None,
-             authority_path: Path | None = None) -> tuple[Path, Path]:
+             authority_path: Path | None = None,
+             calibration_evaluation_path: Path | None = None,
+             ) -> tuple[Path, Path]:
     root = root.resolve()
     protocol = load_protocol(protocol_path)
     base = _read(base_result)
@@ -233,6 +265,8 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
     context_safety_rows: list[dict[str, Any]] = []
     authority_cases: dict[str, dict[str, Any]] = {}
     authority_escalations = 0
+    calibration_cases: dict[str, dict[str, float]] = {}
+    calibration_safety_denominator = 0
     if (context_standard_dir is None) != (context_stress_dir is None):
         raise ValueError("both ContextBench shard directories are required")
     if context_standard_dir is not None and context_stress_dir is not None:
@@ -273,6 +307,29 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
         authority_escalations = sum(
             raw["authority_escalated"] for raw in authority_cases.values())
         sources.append(authority_path)
+    if calibration_evaluation_path is not None:
+        calibration_evaluation = _read(calibration_evaluation_path)
+        if calibration_evaluation.get("evaluated_commit") != revision:
+            raise ValueError(
+                "calibration evaluation and CiK evidence must share a revision")
+        if not calibration_evaluation.get("gates", {}).get(
+                "all_cases_complete"):
+            raise ValueError("calibration evaluation must be complete")
+        if not calibration_evaluation.get("gates", {}).get(
+                "point_forecasts_unchanged"):
+            raise ValueError("calibration evaluation changed point forecasts")
+        calibration_cases = calibration_family_observations(
+            calibration_evaluation)
+        if set(calibration_cases) != {
+            "calibration:intermittent:seed1",
+            "calibration:heteroskedastic:seed1",
+        }:
+            raise ValueError("calibration evaluation lacks frozen families")
+        calibration_safety_denominator = int(
+            calibration_evaluation.get("cases") or 0)
+        if calibration_safety_denominator <= 0:
+            raise ValueError("calibration evaluation has no sealed cases")
+        sources.append(calibration_evaluation_path)
     mutation_failures = automation_failures = oracle_failures = 0
     categorical_context: dict[str, Any] | None = None
     for task, seed in sorted(expected_keys):
@@ -339,6 +396,10 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
         extracted.append((
             "future_input_authority", case_id, "answered", raw,
         ))
+    for case_id, raw in calibration_cases.items():
+        extracted.append((
+            "candidate_calibration", case_id, "answered", raw,
+        ))
 
     evidence_payload = {
         "schema_version": "0.1", "producer": "benchmarks.gfr_full",
@@ -372,6 +433,8 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
                    for case_id in context_cases)
     replace.update(("future_input_authority", case_id)
                    for case_id in authority_cases)
+    replace.update(("candidate_calibration", case_id)
+                   for case_id in calibration_cases)
     observations = [item for item in base.get("observations") or []
                     if (item.get("capability"), item.get("case_id")) not in replace]
     for capability, case_id, status, raw in extracted:
@@ -406,6 +469,9 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
             context_safety_rows)
         safety["immutable_primary_mutation"]["failures"] += (
             context_mutation_failures)
+    if calibration_safety_denominator:
+        for name in ("temporal_leakage", "benchmark_oracle_exposure"):
+            safety[name]["denominator"] += calibration_safety_denominator
     result = {
         **base, "evaluated_commit": revision,
         "evidence": [*base["evidence"], {
@@ -431,6 +497,7 @@ def main() -> int:
     parser.add_argument("--context-standard-dir", type=Path)
     parser.add_argument("--context-stress-dir", type=Path)
     parser.add_argument("--authority", type=Path)
+    parser.add_argument("--calibration-evaluation", type=Path)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
     _, result = assemble(
@@ -439,7 +506,8 @@ def main() -> int:
         treatment_dir=args.treatment_dir, output_dir=args.output_dir,
         context_standard_dir=args.context_standard_dir,
         context_stress_dir=args.context_stress_dir,
-        authority_path=args.authority)
+        authority_path=args.authority,
+        calibration_evaluation_path=args.calibration_evaluation)
     print(result)
     return 0
 
