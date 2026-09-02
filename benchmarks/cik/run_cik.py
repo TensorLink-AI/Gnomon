@@ -343,7 +343,8 @@ def _load_checkpoint(output_dir: Path) -> dict[str, dict]:
     return {
         key: item for key, item in payload.items()
         if not any(marker.casefold() in str(
-            (item.get("row") or {}).get("error") or "").casefold()
+            (item.get("row") or {}).get("error") or "").casefold().replace(
+                "http error ", "http ")
                    for marker in retryable)
     }
 
