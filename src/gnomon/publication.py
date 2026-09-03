@@ -31,6 +31,7 @@ MODES = frozenset({"strict", "best_effort", "scenario"})
 ACTION_TIERS = frozenset({"advisory", "reversible_low_impact", "high_impact"})
 MAX_SCENARIOS = 8
 SELECTION_LABEL = "hypothesis_ranking"
+PRIOR_COMPROMISE_MIN_UNCERTAINTY_RATIO = 1.0 / 3.0
 
 
 def _finite_number(value: Any) -> bool:
@@ -2166,15 +2167,65 @@ def best_effort_prior_selection(
     *, scenarios: list[dict[str, Any]],
     dossiers: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any] | None:
-    """Return no automatic choice for an unvalidated sampled model prior.
+    """Apply only a predeclared, human-only risk-limiting prior policy.
 
     Repeated paths can establish transport and elicitation stability, but not
-    forecast skill. Such candidates remain sealed in the portfolio for an
-    explicit human decision and later outcome graduation; best-effort mode
-    cannot make them the default merely because the primary is weak.
+    forecast skill. Raw sampled candidates therefore remain sealed for an
+    explicit human decision and later outcome graduation. A separately sealed
+    equal-weight compromise may become the best-effort human recommendation
+    only after the primary-uncertainty gate has already been computed from the
+    host-bound history; it never upgrades support or automation authority.
     """
     if dominant_scenario_id(scenarios) is not None:
         return None
+    compromises = [item for item in scenarios
+                   if item.get("role") == "uncertainty_limited_prior"
+                   and item.get("human_selection_eligible") is True
+                   and item.get("automation_eligible") is False]
+    competing = [item for item in scenarios
+                 if item.get("role") not in {
+                     "immutable_primary", "model_authored",
+                     "governed_categorical_state_mapping",
+                     "governed_companion_mapping",
+                     "uncertainty_limited_prior"}
+                 and item.get("human_selection_eligible") is True]
+    if len(compromises) == 1 and not competing:
+        selected = compromises[0]
+        counter_hypotheses = list(dict.fromkeys(
+            str(hypothesis.get("hypothesis_id"))
+            for dossier in dossiers or []
+            for hypothesis in dossier.get("hypotheses") or []
+            if hypothesis.get("kind") == "unsupported"
+            and hypothesis.get("hypothesis_id")))
+        cited = list(dict.fromkeys(
+            str(item) for item in selected.get("claim_ids") or []))
+        if not cited and not counter_hypotheses:
+            return None
+        ranking = [selected["scenario_id"], *[
+            item["scenario_id"] for item in scenarios
+            if item["scenario_id"] != selected["scenario_id"]]]
+        selection = validate_scenario_selection({
+            "selected_scenario_id": selected["scenario_id"],
+            "ranking": ranking,
+            "cited_claim_ids": cited,
+            "counterevidence_claim_ids": [],
+            "counterevidence_hypothesis_ids": counter_hypotheses,
+            "confidence": .5,
+            "rationale": (
+                "The primary interval is materially broad relative to the "
+                "host-bound observed range. Best-effort uses a fixed "
+                "equal-weight compromise with one elicitation-sufficient "
+                "sampled prior; this is not historical skill evidence."),
+            "what_would_change_selection": (
+                "A narrower primary interval, failed elicitation sufficiency, "
+                "or resolved same-series outcome evidence would change this "
+                "human-only recommendation."),
+        }, scenarios=scenarios, dossiers=dossiers)
+        if selection is not None:
+            selection["channel"] = "uncertainty_limited_prior_policy"
+            selection["uncertainty_gate"] = ((selected.get("effect") or {}).get(
+                "uncertainty_gate"))
+        return selection
     # A failed structured mapping creates two genuinely competing
     # interpretations of the same panel.  Do not auto-promote its sampled
     # fallback: the bounded selector must compare it with the primary and cite
@@ -2337,6 +2388,109 @@ def _append_outcome_shrunk_prior(
                 "fit_to_outcomes": False,
             },
         }))
+
+
+def _append_uncertainty_limited_prior(
+        scenarios: list[dict[str, Any]], history_values: list[float], *,
+        primary_support: str) -> tuple[str, str] | None:
+    """Add a sealed human-only compromise when the primary is very broad.
+
+    This is a risk-limiting best-effort rule, not evidence that the sampled
+    prior forecasts well. It is available only for a degraded primary, a
+    host-observed sampled prior that cleared elicitation sufficiency, and a
+    primary interval whose median width spans at least one third of the
+    observed history range. The fixed equal weight is never fitted to an
+    outcome and can never authorize automation or upgrade support.
+    """
+    if len(scenarios) >= MAX_SCENARIOS or primary_support not in {
+            "degraded", "best_effort"}:
+        return None
+    if (not isinstance(history_values, list) or len(history_values) < 2
+            or any(not _finite_number(value) for value in history_values)):
+        raise ValueError(
+            "prior_compromise_history must contain at least two finite values")
+    history = [float(value) for value in history_values]
+    history_range = max(history) - min(history)
+    if history_range <= 0:
+        return None
+    primary = next((item for item in scenarios
+                    if item.get("role") == "immutable_primary"), None)
+    sources = []
+    for item in scenarios:
+        effect = item.get("effect") or {}
+        sufficiency = effect.get("elicitation_sufficiency") or {}
+        elicitation = effect.get("elicitation") or {}
+        if (item.get("role") == "model_authored"
+                and item.get("automation_eligible") is False
+                and elicitation.get("governed_fallback") ==
+                    "categorical_state_mapping_not_admitted"
+                and sufficiency.get(
+                    "eligible_for_human_recommendation") is True
+                and sufficiency.get("historical_skill_evidence") is False
+                and elicitation.get("host_observed") is True):
+            sources.append(item)
+    if primary is None or len(sources) != 1:
+        return None
+    widths = []
+    for row in primary.get("forecast") or []:
+        lower, upper = row.get("q10"), row.get("q90")
+        if not _finite_number(lower) or not _finite_number(upper) \
+                or float(lower) > float(upper):
+            return None
+        widths.append(float(upper) - float(lower))
+    if not widths:
+        return None
+    median_width = statistics.median(widths)
+    uncertainty_ratio = median_width / history_range
+    if uncertainty_ratio < PRIOR_COMPROMISE_MIN_UNCERTAINTY_RATIO:
+        return None
+    source = sources[0]
+    try:
+        forecast = conservative_prior_compromise(
+            primary.get("forecast") or [], source.get("forecast") or [])
+    except ValueError:
+        return None
+    identifier = "uncertainty-limited-prior"
+    scenarios.append(_scenario(
+        identifier, "uncertainty_limited_prior", forecast,
+        support="prior_assisted", automation_eligible=False,
+        selection_eligible=True, human_selection_eligible=True,
+        claim_ids=list(source.get("claim_ids") or []),
+        assumptions=[
+            "Fixed equal-weight compromise between the immutable primary and "
+            "one host-observed, elicitation-sufficient sampled prior.",
+            "The primary interval is broad relative to observed history; this "
+            "is uncertainty evidence, not historical skill evidence.",
+            "Support is unchanged and this path requires human review.",
+        ],
+        source_seal=str(source.get("scenario_seal_sha256") or
+                        source.get("source_seal_sha256") or ""),
+        effect={
+            "candidate_origin": "uncertainty_limited_prior",
+            "candidate_proposer": ((source.get("effect") or {}).get(
+                "candidate_proposer")),
+            "source_candidate_origin": ((source.get("effect") or {}).get(
+                "candidate_origin")),
+            "source_scenario_id": source.get("scenario_id"),
+            "historical_skill_evidence": False,
+            "uncertainty_gate": {
+                "status": "passed",
+                "primary_support": primary_support,
+                "history_points": len(history),
+                "history_range": history_range,
+                "median_primary_q80_width": median_width,
+                "width_to_history_range": uncertainty_ratio,
+                "minimum_ratio": PRIOR_COMPROMISE_MIN_UNCERTAINTY_RATIO,
+                "history_source": "host_bound_forecast_input",
+                "interpretation": "primary_uncertainty_not_candidate_skill",
+            },
+            "shrinkage": {
+                "method": "fixed_equal_weight_compromise",
+                "prior_weight": .5,
+                "fit_to_outcomes": False,
+            },
+        }))
+    return str(source["scenario_id"]), identifier
 
 
 def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
@@ -2654,6 +2808,7 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
                    automation_authority: bool = True,
                    calibration_evidence: dict[str, Any] | None = None,
                    candidate_outcome_evidence: list[dict[str, Any]] | None = None,
+                   prior_compromise_history: list[float] | None = None,
                    artifact_id: str | None = None) -> dict[str, Any]:
     """Return a compact, sealed human-facing projection over frozen paths."""
     if mode not in MODES:
@@ -2662,6 +2817,17 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
     if mode == "best_effort" and candidate_outcome_evidence:
         _append_outcome_shrunk_prior(
             scenarios, candidate_outcome_evidence)
+    uncertainty_link = None
+    if mode == "best_effort" and prior_compromise_history is not None:
+        uncertainty_link = _append_uncertainty_limited_prior(
+            scenarios, prior_compromise_history,
+            primary_support=str(result.get("support") or ""))
+        if uncertainty_link is not None:
+            source_id, derived_id = uncertainty_link
+            dispositions = [{**item, "scenario_ids": list(dict.fromkeys([
+                *list(item.get("scenario_ids") or []), derived_id]))}
+                if source_id in (item.get("scenario_ids") or []) else item
+                for item in dispositions]
     selection = validate_scenario_selection(
         scenario_selection, scenarios=scenarios, dossiers=dossiers)
     if selection is None and mode == "best_effort":
@@ -2819,9 +2985,12 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
         selection is not None
         and selection.get("channel") in {
             "best_effort_sampled_prior_policy",
-            "resolved_outcome_human_prior_policy"})
+            "resolved_outcome_human_prior_policy",
+            "uncertainty_limited_prior_policy"})
     if (selection or {}).get("channel") == "resolved_outcome_human_prior_policy":
         selection_method = "resolved_outcome_human_prior_policy"
+    elif (selection or {}).get("channel") == "uncertainty_limited_prior_policy":
+        selection_method = "uncertainty_limited_prior_policy"
     elif policy_selected:
         selection_method = "best_effort_sampled_prior_policy"
     elif selection is not None:
@@ -2847,7 +3016,8 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
             else "conditional_replay_best_effort")
     elif selected_role in {
             "model_authored", "model_authored_transformation",
-            "effect_composed", "outcome_shrunk_prior"}:
+            "effect_composed", "outcome_shrunk_prior",
+            "uncertainty_limited_prior"}:
         selection_method = (
             "default_prior_assisted_lane"
             if selected.get("support") == "prior_assisted"
@@ -2884,6 +3054,12 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
             "before this forecast cutoff. Support is unchanged and automation "
             "remains forbidden."
             if selection_method == "resolved_outcome_human_prior_policy" else
+            "The caller requested best_effort publication while the primary "
+            "interval spanned at least one third of the host-bound observed "
+            "range. A fixed equal-weight compromise limits reliance on one "
+            "elicitation-sufficient prior. This is not historical skill, "
+            "support is unchanged, and automation remains forbidden."
+            if selection_method == "uncertainty_limited_prior_policy" else
             "The caller explicitly requested best_effort publication. One "
             "host-aggregated prior distribution became the human-facing estimate "
             "under that policy; sampling stability is not historical skill, "

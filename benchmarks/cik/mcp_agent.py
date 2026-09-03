@@ -496,7 +496,11 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: comparable rows remain visible scenarios/counterevidence.
 #: Version 218: unresolved and atemporal dispositions expose claim_id as a
 #: first-class join key instead of requiring agents to parse context_id.
-MCP_CONTRACT_VERSION = 240
+#: Version 241: host-verified categorical state grids and their failed-mapping
+#: provenance survive the public MCP candidate boundary. A predeclared broad-
+#: primary gate may publish only a fixed human-review compromise; the immutable
+#: primary, support, and automation prohibition remain unchanged.
+MCP_CONTRACT_VERSION = 241
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -6272,6 +6276,9 @@ class _Run:
                         "source_spans": cited_spans,
                         "rationale": str(forecast_candidate.get("rationale")
                                          or "Governed model-authored prior."),
+                        **({"governed_fallback":
+                            "categorical_state_mapping_not_admitted"}
+                           if categorical_prior_needed else {}),
                         **({"sample_paths": model_candidate_sample_paths}
                            if model_candidate_sample_paths is not None else
                            {"quantiles": forecast_candidate.get("quantiles")}),

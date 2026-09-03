@@ -2844,6 +2844,8 @@ def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
     assert receipt["compiler"]["model_candidate_sampling"]["accepted"] == 5
     assert receipt["compiler"]["model_candidate_sampling"][
         "adaptive_sampling"]["stopped_early"] is True
+    assert receipt["public_model_candidate"]["governed_fallback"] == \
+        "categorical_state_mapping_not_admitted"
     model_candidate = receipt["dossiers"][1]["forecast_candidate"]
     assert model_candidate["sample_paths"] == [
         [16.0, 17.0, 18.0, 19.0]] * 5

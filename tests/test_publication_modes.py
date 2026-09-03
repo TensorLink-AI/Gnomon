@@ -2021,6 +2021,79 @@ def test_host_sampled_prior_without_skill_is_not_auto_selected():
     assert verify_publication(selected)
 
 
+def test_broad_degraded_primary_gets_human_only_prior_compromise():
+    dossier = attach_host_candidate_elicitation(
+        _dossier(), requested_paths=5, accepted_paths=5,
+        aggregation="linear_empirical_marginal_q10_q50_q90",
+        temperature=1.0, stability=_stable_sampling(5),
+        sample_paths=[[14.0, 16.0]] * 5,
+        governed_fallback="categorical_state_mapping_not_admitted")
+    result = _result()
+    result["support"] = "degraded"
+
+    payload = publish_result(
+        result, mode="best_effort", dossiers=[dossier],
+        prior_compromise_history=[0.0, 1.0, 2.0, 3.0, 4.0])
+
+    assert payload["recommended_scenario_id"] == "uncertainty-limited-prior"
+    selected = next(item for item in payload["candidate_portfolio"]
+                    if item["scenario_id"] == "uncertainty-limited-prior")
+    assert selected["role"] == "uncertainty_limited_prior"
+    assert selected["support"] == "prior_assisted"
+    assert selected["automation_eligible"] is False
+    assert [row["q50"] for row in selected["forecast"]] == [10.5, 11.0]
+    gate = selected["effect"]["uncertainty_gate"]
+    assert gate["width_to_history_range"] == .5
+    assert gate["interpretation"] == \
+        "primary_uncertainty_not_candidate_skill"
+    assert selected["effect"]["historical_skill_evidence"] is False
+    assert payload["scenario_selection"]["channel"] == \
+        "uncertainty_limited_prior_policy"
+    assert payload["recommendation_authority"]["human_review_required"] is True
+    assert payload["automation"]["eligible"] is False
+    assert payload["primary_forecast"] == result["forecast"]
+    assert payload["primary_forecast_unchanged"] is True
+    assert verify_publication(payload)
+
+
+@pytest.mark.parametrize("support,history", [
+    ("degraded", [0.0, 100.0]),
+    ("supported", [0.0, 1.0, 2.0, 3.0, 4.0]),
+    ("degraded", [2.0, 2.0, 2.0]),
+])
+def test_uncertainty_limited_prior_compromise_fails_closed(support, history):
+    dossier = attach_host_candidate_elicitation(
+        _dossier(), requested_paths=5, accepted_paths=5,
+        aggregation="linear_empirical_marginal_q10_q50_q90",
+        temperature=1.0, stability=_stable_sampling(5),
+        sample_paths=[[14.0, 16.0]] * 5,
+        governed_fallback="categorical_state_mapping_not_admitted")
+    result = _result()
+    result["support"] = support
+
+    payload = publish_result(
+        result, mode="best_effort", dossiers=[dossier],
+        prior_compromise_history=history)
+
+    assert payload["recommended_scenario_id"] == "primary"
+    assert not any(item["role"] == "uncertainty_limited_prior"
+                   for item in payload["candidate_portfolio"])
+    assert verify_publication(payload)
+
+
+def test_uncertainty_limited_prior_rejects_nonfinite_host_history():
+    with pytest.raises(ValueError, match="at least two finite values"):
+        publish_result(
+            {**_result(), "support": "degraded"}, mode="best_effort",
+            dossiers=[attach_host_candidate_elicitation(
+                _dossier(), requested_paths=3, accepted_paths=3,
+                aggregation="linear_empirical_marginal_q10_q50_q90",
+                temperature=1.0, stability=_stable_sampling(3),
+                sample_paths=[[14.0, 16.0]] * 3,
+                governed_fallback="categorical_state_mapping_not_admitted")],
+            prior_compromise_history=[1.0, float("inf")])
+
+
 @pytest.mark.parametrize("mutation", [
     "missing_recovery", "dangling_scenario", "false_summary", "wrong_count",
 ])
@@ -2609,6 +2682,33 @@ def test_mcp_model_candidate_is_grid_bound_sealed_and_human_only(
     assert all(history == list(range(100, 140))
                for history in observed_stability_histories)
     assert verify_publication(publication)
+
+
+def test_mcp_model_candidate_cannot_self_assert_failed_mapping_provenance(
+        tmp_path):
+    from datetime import date, timedelta
+    source = tmp_path / "series.csv"
+    start = date(2026, 1, 1)
+    source.write_text("timestamp,value\n" + "\n".join(
+        f"{start + timedelta(days=i)},{100 + i}" for i in range(40)) + "\n")
+    context = "The signed sales plan expects a temporary campaign uplift."
+
+    with pytest.raises(
+            Exception, match="requires a sealed failed categorical mapping"):
+        runner_for("gnomon_forecast")({
+            "input": str(source), "horizon": 2,
+            "output_dir": str(tmp_path / "out-forged-fallback"),
+            "format": "full", "publication_mode": "best_effort",
+            "context_submission": {
+                "text": context, "known_at": "2026-02-09T00:00:00+00:00",
+                "model_candidate": {
+                    "source_spans": [context],
+                    "sample_paths": [[141, 142], [142, 143], [143, 144]],
+                    "governed_fallback":
+                        "categorical_state_mapping_not_admitted",
+                },
+            },
+        })
 
 
 def test_dossier_candidate_plausibility_uses_observed_not_future_boundary():
