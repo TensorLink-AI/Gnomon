@@ -43,6 +43,7 @@ from benchmarks.cik.mcp_agent import (
     _has_material_numeric_context,
     _future_numeric_path_needs_executable,
     _validated_item_count,
+    _bounded_sample_workers,
     _bounded_context_rejections,
     _is_compiler_transport_failure,
     _canonicalize_unreferenced_covariate_names,
@@ -61,6 +62,16 @@ from benchmarks.cik.mcp_agent import (
 )
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+
+def test_optional_prior_sampler_honors_transport_parallelism():
+    assert _bounded_sample_workers(
+        SimpleNamespace(sample_parallelism=1), 8) == 1
+    assert _bounded_sample_workers(
+        SimpleNamespace(sample_parallelism=3), 8) == 3
+    assert _bounded_sample_workers(
+        SimpleNamespace(sample_parallelism=32), 5) == 5
+    assert _bounded_sample_workers(SimpleNamespace(), 8) == 1
 
 
 def test_material_numeric_context_ignores_calendar_not_business_quantities():

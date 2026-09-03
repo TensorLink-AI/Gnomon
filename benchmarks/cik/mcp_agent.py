@@ -1485,6 +1485,21 @@ def _validated_item_count(value: Any) -> int:
     return 0
 
 
+def _bounded_sample_workers(client: Any, requested: int) -> int:
+    """Honor the transport's declared inner-concurrency ceiling.
+
+    Task-level ``jobs=1`` cannot constrain the independent requests used to
+    elicit sampled priors.  The shared OpenRouter client already owns the
+    operator-selected ``sample_parallelism`` limit, so the Evidence host must
+    not silently replace it with its own eight-request fan-out.
+    """
+    configured = getattr(client, "sample_parallelism", 1)
+    if (isinstance(configured, bool)
+            or not isinstance(configured, int) or configured < 1):
+        configured = 1
+    return max(1, min(requested, configured))
+
+
 def _bounded_context_rejections(
         rejections: Any, *, limit: int = 16,
 ) -> tuple[list[Any], int]:
@@ -4317,7 +4332,8 @@ class _Run:
                         # recorded separately from semantic path validity.
                         return "", str(error)[:300]
 
-                with ThreadPoolExecutor(max_workers=min(n, 8)) as pool:
+                with ThreadPoolExecutor(max_workers=_bounded_sample_workers(
+                        self.forecaster.client, n)) as pool:
                     outcomes = list(pool.map(one_sample, range(n)))
                 failures = [error for _, error in outcomes if error]
                 if failures:
