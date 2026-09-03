@@ -211,6 +211,33 @@ def test_v2_no_distinct_requires_preservation_and_withholding() -> None:
     ) == 0
 
 
+def test_v2_gives_full_credit_to_correct_non_worse_baseline_retention() -> None:
+    raw = {
+        "expected_action": "retain_baseline",
+        "actual_action": "retain_baseline",
+        "baseline_loss": 4.0,
+        "selected_loss": 4.0,
+    }
+    assert score_observation(
+        "short_history_usefulness", raw
+    ) == pytest.approx(.75)
+    assert score_observation(
+        "short_history_usefulness", raw, scoring_version="0.2"
+    ) == pytest.approx(1)
+
+
+def test_v2_does_not_reward_worse_retained_baseline() -> None:
+    raw = {
+        "expected_action": "retain_baseline",
+        "actual_action": "retain_baseline",
+        "baseline_loss": 4.0,
+        "selected_loss": 4.1,
+    }
+    assert score_observation(
+        "short_history_usefulness", raw, scoring_version="0.2"
+    ) == pytest.approx(.5)
+
+
 def test_evidence_digest_is_verified(tmp_path: Path) -> None:
     payload = _payload(tmp_path)
     payload["evidence"][0]["sha256"] = "0" * 64

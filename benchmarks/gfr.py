@@ -147,8 +147,12 @@ def score_observation(
                            f"{field}.baseline_loss", minimum=0)
         candidate = _number(raw.get("selected_loss"),
                             f"{field}.selected_loss", minimum=0)
+        if scoring_version == "0.2" and actual == "retain_baseline":
+            quality = float(candidate <= baseline)
+        else:
+            quality = _loss_score(baseline, candidate)
         return (float(expected == actual) +
-                _loss_score(baseline, candidate)) / 2
+                quality) / 2
     if capability == "selection_discipline":
         admissible = _boolean(raw.get("selected_admissible"),
                               f"{field}.selected_admissible")
