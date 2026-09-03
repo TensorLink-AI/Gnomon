@@ -84,8 +84,67 @@ def pinned_revision(model_id: str) -> str:
         ) from None
 
 
+#: Adapters whose weights live on disk rather than on the Hub. A Hub commit
+#: cannot pin a local checkpoint, so these pin on content instead: the digest
+#: of the files the wrapper actually loads. The guarantee is the same one
+#: TSFM_REVISIONS provides -- two runs that report the same revision loaded
+#: the same weights -- which is what a content-addressed forecast_id needs.
+_LOCAL_CHECKPOINT_ENV: dict[str, str] = {
+    "cascade": "GNOMON_CASCADE_CHECKPOINT",
+}
+
+_LOCAL_PIN_CACHE: dict[str, str] = {}
+
+
+def local_checkpoint_dir(name: str) -> "Any":
+    """The configured checkpoint directory for a local adapter."""
+    import os
+    from pathlib import Path
+
+    env = _LOCAL_CHECKPOINT_ENV.get(name)
+    if env is None:
+        raise KeyError(f"{name} is not a local-checkpoint adapter")
+    raw = os.environ.get(env, "")
+    if not raw:
+        raise TSFMUnavailable(
+            f"{name} needs a checkpoint directory in ${env}. It is a locally "
+            f"trained model, so there is no default to fall back to."
+        )
+    path = Path(raw).expanduser()
+    if not (path / "config.json").exists():
+        raise TSFMUnavailable(f"${env}={raw} is not an exported checkpoint directory")
+    return path
+
+
+def local_pin(name: str) -> dict[str, str]:
+    """``{local:<dir>: sha256}`` over the files that determine the forecast."""
+    import hashlib
+
+    path = local_checkpoint_dir(name)
+    key = str(path.resolve())
+    cached = _LOCAL_PIN_CACHE.get(key)
+    if cached is None:
+        digest = hashlib.sha256()
+        # config and architecture are as load-bearing as the tensors: the same
+        # weights read under a different patch size are a different model.
+        for filename in ("config.json", "model.py", "weights.safetensors"):
+            candidate = path / filename
+            if not candidate.exists():
+                raise TSFMUnavailable(f"checkpoint at {path} is missing {filename}")
+            with candidate.open("rb") as handle:
+                for chunk in iter(lambda: handle.read(1 << 20), b""):
+                    digest.update(chunk)
+        cached = _LOCAL_PIN_CACHE[key] = digest.hexdigest()
+    return {f"local:{path.name}": cached}
+
+
 def resolved_weights(name: str) -> dict[str, str]:
     """``{model_id: revision}`` for an adapter, for ids and evidence."""
+    if name in _LOCAL_CHECKPOINT_ENV:
+        try:
+            return local_pin(name)
+        except TSFMUnavailable:
+            return {}
     model_ids = _ADAPTER_MODEL_IDS.get(name, ())
     return {
         model_id: TSFM_REVISIONS[model_id]
@@ -174,6 +233,18 @@ _CAPABILITIES: dict[str, TSFMCapabilities] = {
         tasks=("forecast", "detect_anomalies", "impute", "embed"),
         source="https://github.com/moment-timeseries-foundation-model/moment",
     ),
+    # Locally trained, not a public release. The horizon ceiling is the
+    # checkpoint's trained decode length, not a wrapper limitation: past it
+    # the model extrapolates outside anything it was fit on, so Gnomon should
+    # decline the candidate rather than quietly accept a worse forecast.
+    "cascade": TSFMCapabilities(
+        native_quantiles=True,
+        min_context_length=64,
+        max_context_length=4096,
+        max_horizon=64,
+        source="local checkpoint (cascade-model)",
+        verified_on="2026-09-03",
+    ),
 }
 
 _PARAMETER_COUNTS_M: dict[str, float] = {
@@ -185,6 +256,7 @@ _PARAMETER_COUNTS_M: dict[str, float] = {
     "ttm": 3.0,
     "moirai2_small": 14.0,
     "moment_small": 38.0,
+    "cascade": 17.7,
 }
 
 
@@ -371,6 +443,34 @@ def get_tsfm(name: str) -> TSFMAdapter:
     return _REGISTRY[name]()
 
 
+#: The optional import each built-in adapter needs. An adapter registered
+#: from outside this module is absent here, which is not the same thing as
+#: "its dependency is missing" -- see ``dependency_missing``.
+_ADAPTER_DEPENDENCIES: dict[str, str] = {
+    "chronos_bolt_mini": "chronos",
+    "chronos_bolt_small": "chronos",
+    "toto2_4m": "toto2",
+    "toto2_22m": "toto2",
+    "flowstate": "tsfm_public",
+    "ttm": "tsfm_public",
+    "moirai2_small": "uni2ts",
+    "moment_small": "momentfm",
+}
+
+
+def dependency_missing(name: str) -> bool:
+    """``True`` only when this adapter is *known* to be unusable here.
+
+    ``check_tsfm`` answers False both for "dependency missing" and for "not
+    one of ours", so it cannot filter a candidate pool: it would silently drop
+    every externally registered adapter. This answers the narrower question
+    and defaults to False for anything it does not know about.
+    """
+    if name in _LOCAL_CHECKPOINT_ENV or name in _ADAPTER_DEPENDENCIES:
+        return not check_tsfm(name)
+    return False
+
+
 def check_tsfm(name: str) -> bool:
     """Return ``True`` if the adapter's dependency is importable."""
     if name not in _REGISTRY:
@@ -381,17 +481,15 @@ def check_tsfm(name: str) -> bool:
     except ImportError:
         return False
     # Check the adapter's specific dependency
-    dep_map = {
-        "chronos_bolt_mini": "chronos",
-        "chronos_bolt_small": "chronos",
-        "toto2_4m": "toto2",
-        "toto2_22m": "toto2",
-        "flowstate": "tsfm_public",
-        "ttm": "tsfm_public",
-        "moirai2_small": "uni2ts",
-        "moment_small": "momentfm",
-    }
-    dep = dep_map.get(name)
+    if name in _LOCAL_CHECKPOINT_ENV:
+        # No optional package to probe: a local adapter is "installed" when a
+        # checkpoint is configured and readable.
+        try:
+            local_checkpoint_dir(name)
+            return True
+        except TSFMUnavailable:
+            return False
+    dep = _ADAPTER_DEPENDENCIES.get(name)
     if dep is None:
         return False
     try:
@@ -665,6 +763,112 @@ class Toto2Adapter:
 def _register_toto():
     register_tsfm("toto2_4m", lambda: Toto2Adapter("toto2_4m"))
     register_tsfm("toto2_22m", lambda: Toto2Adapter("toto2_22m"))
+
+
+# ---------------------------------------------------------------------------
+# Cascade (local checkpoint)
+# ---------------------------------------------------------------------------
+
+class CascadeAdapter:
+    """A locally trained cascade-model checkpoint, loaded from disk.
+
+    Unlike every other adapter here, this one wraps weights that were trained
+    in-house rather than published. That changes two things and nothing else:
+    the checkpoint directory comes from ``$GNOMON_CASCADE_CHECKPOINT``, and the
+    revision is a content digest rather than a Hub commit. It competes on the
+    same rolling-origin folds against the same mandatory baselines, and being
+    ours buys it no exemption -- if it cannot beat the strongest baseline by
+    the configured margin, Gnomon keeps the baseline. That is the point of
+    routing a house model through the candidate pool instead of calling it
+    directly: the evaluation is the thing that makes its output admissible.
+
+    The checkpoint ships a self-contained ``forecast_wrapper.py`` and its own
+    ``model.py``, so the adapter never imports the training package; a
+    checkpoint stays loadable after the trainer moves on.
+    """
+
+    name = "cascade"
+    backend = "local"
+    supports_quantiles = True
+    min_history = 64
+
+    def __init__(self, name: str = "cascade"):
+        self.name = name
+        # Deliberately does not require a checkpoint: adapters are constructed
+        # for metadata alone (parameter count, quantile support) in paths that
+        # never run inference. An unconfigured checkpoint keeps this adapter
+        # out of candidate pools through ``dependency_missing``, and raises
+        # from ``_ensure_loaded`` if something asks it to forecast anyway.
+        self.params_m = tsfm_parameter_count(name)
+        self.revision = ",".join(
+            f"{key}@{value}" for key, value in sorted(resolved_weights(name).items())
+        ) or None
+        self._wrapper = None
+        self._levels: list[float] = []
+
+    def _ensure_loaded(self):
+        if self._wrapper is not None:
+            return
+        import importlib.util
+
+        _import_torch()
+        path = local_checkpoint_dir(self.name)
+        local_pin(self.name)          # refuse to load unpinnable weights
+        try:
+            spec = importlib.util.spec_from_file_location(
+                f"gnomon_cascade_{path.name}", path / "forecast_wrapper.py")
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            self._wrapper = module.Wrapper(str(path), "cpu")
+            self._levels = [float(v) for v in self._wrapper.quantile_levels]
+        except TSFMUnavailable:
+            raise
+        except Exception as exc:
+            raise TSFMError(f"Failed to load cascade checkpoint at {path}: {exc}") from exc
+
+    def _quantile_array(self, history: list[float], horizon: int):
+        self._ensure_loaded()
+        try:
+            out = self._wrapper.forecast_quantiles(list(history), horizon)
+        except Exception as exc:
+            raise TSFMError(f"Cascade forecast failed: {exc}") from exc
+        # The wrapper returns a torch tensor on some checkpoints and a numpy
+        # array on others; both are accepted rather than pinned to one, so a
+        # re-exported checkpoint does not break the adapter.
+        if hasattr(out, "detach"):
+            out = out.detach().cpu().numpy()
+        # (1, horizon, num_quantiles) -> (horizon, num_quantiles)
+        return out.reshape(horizon, len(self._levels))
+
+    def predict(self, history: list[float], horizon: int, season: int) -> list[float]:
+        arr = self._quantile_array(history, horizon)
+        median = min(range(len(self._levels)), key=lambda i: abs(self._levels[i] - 0.5))
+        return [float(value) for value in arr[:, median]]
+
+    def predict_quantiles(
+        self,
+        history: list[float],
+        horizon: int,
+        season: int,
+        quantiles: tuple[float, ...] = (0.1, 0.5, 0.9),
+    ) -> list[dict[str, float]]:
+        arr = self._quantile_array(history, horizon)
+        rows = []
+        for step in range(arr.shape[0]):
+            # The head emits a fixed level grid, so a requested level is
+            # answered by its nearest trained neighbour rather than by
+            # interpolating between two levels the model never fit.
+            rows.append({
+                str(level): float(arr[step, min(
+                    range(len(self._levels)),
+                    key=lambda i: abs(self._levels[i] - level))])
+                for level in quantiles
+            })
+        return rows
+
+
+def _register_cascade():
+    register_tsfm("cascade", lambda: CascadeAdapter("cascade"))
 
 
 # ---------------------------------------------------------------------------
@@ -1161,6 +1365,7 @@ def _register_all():
     """Register all known adapters. Called at module import."""
     _register_chronos()
     _register_toto()
+    _register_cascade()
     _register_flowstate()
     _register_ttm()
     _register_moirai()
