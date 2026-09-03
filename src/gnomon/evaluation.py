@@ -12,6 +12,7 @@ from .models import BASELINES, MODELS, predict
 from .tsfm import TSFMError, TSFMUnavailable, tsfm_candidates
 from .forecast_adapter import (
     LegacyModelAdapter, StatisticalAdapter, predict_checked,
+    predict_quantiles_checked,
 )
 from .admission import (
     AdmissionDecision, AdmissionEvidence, ExternalModelPrior,
@@ -131,6 +132,14 @@ class Evaluation:
     # external pretrained-model prior.
     statistical_plugin_scores: dict[str, float | None] = field(default_factory=dict)
     adapter_receipts: dict[str, Any] = field(default_factory=dict)
+    #: Marginal uncertainty method selected without changing the winning
+    #: point model. Native quantiles must beat the conformal reference on the
+    #: reserved calibration fold; the final test fold only reports coverage.
+    probabilistic_method: str = "conformal_residuals"
+    probabilistic_assessment: dict[str, Any] = field(default_factory=dict)
+    conformal_coverage: float | None = None
+    native_quantile_adapter: Any = field(
+        default=None, compare=False, repr=False)
 
 
 def error_score(actual: list[float], predicted: list[float]) -> float | None:
@@ -2612,6 +2621,132 @@ def evaluate(
         return pooled, by_lead
 
     residuals, residuals_by_lead = _pool_residuals(selected, calibration_prediction)
+
+    # A native marginal distribution is a candidate uncertainty method, not
+    # an entitlement attached to a model name. Compare it with the conformal
+    # reference on the reserved calibration fold, using only earlier
+    # selection-origin residuals to construct that reference. The final test
+    # fold remains report-only and can never change this choice.
+    probabilistic_method = "conformal_residuals"
+    probabilistic_assessment: dict[str, Any] = {
+        "status": "not_available",
+        "selected_method": probabilistic_method,
+        "selection_partition": "reserved_calibration_fold",
+        "test_fold_changes_selection": False,
+    }
+    native_quantile_adapter = next(
+        (adapter for adapter in all_adapters
+         if adapter.name == selected
+         and bool(getattr(adapter, "supports_quantiles", False))),
+        None,
+    )
+    if native_quantile_adapter is not None and degraded:
+        probabilistic_assessment.update({
+            "status": "withheld",
+            "reason": (
+                "native quantiles require a separated calibration fold; "
+                "this run is degraded"),
+        })
+    elif native_quantile_adapter is not None and threshold_job:
+        probabilistic_assessment.update({
+            "status": "withheld",
+            "reason": (
+                "threshold-bearing runs require calibrated joint residual "
+                "trajectories; native marginal quantiles do not encode "
+                "cross-horizon dependence"),
+        })
+    elif (native_quantile_adapter is not None
+          and intermittent_predictive_quantiles(values) is not None):
+        probabilistic_assessment.update({
+            "status": "withheld",
+            "reason": (
+                "the observed zero atom requires Gnomon's zero-inflated "
+                "empirical distribution"),
+        })
+    if (native_quantile_adapter is not None and not degraded
+            and not threshold_job
+            and intermittent_predictive_quantiles(values) is None):
+        prior_residuals: list[float] = []
+        prior_by_lead: dict[int, list[float]] = {}
+        completed_origins = 0
+        for origin in residual_origins:
+            try:
+                prior_prediction = _predict_selected(
+                    selected, train_at(origin), origin)
+            except Exception:
+                continue
+            completed_origins += 1
+            for step, (observed, predicted) in enumerate(zip(
+                    values[origin:origin + horizon], prior_prediction), 1):
+                residual = observed - predicted
+                prior_residuals.append(residual)
+                prior_by_lead.setdefault(step, []).append(residual)
+        probabilistic_assessment["prior_origins"] = completed_origins
+        try:
+            native_calibration = predict_quantiles_checked(
+                native_quantile_adapter, train_at(calibration_origin),
+                horizon, season, QUANTILE_LEVELS)
+            reference_spreads = conformal_quantile_spreads(
+                prior_by_lead, horizon, prior_residuals)
+            reference_calibration = [
+                {level: calibration_prediction[step - 1] + offset
+                 for level, offset in reference_spreads[step].items()}
+                for step in range(1, horizon + 1)
+            ] if len(reference_spreads) == horizon else []
+            calibration_actual = values[
+                calibration_origin:calibration_origin + horizon]
+            native_loss = mean_pinball(
+                calibration_actual, native_calibration)
+            reference_loss = mean_pinball(
+                calibration_actual, reference_calibration)
+
+            def central_coverage(
+                actual: list[float], rows: list[dict[float, float]],
+            ) -> float | None:
+                covered = [
+                    float(row[.1] <= observed <= row[.9])
+                    for observed, row in zip(actual, rows)
+                    if .1 in row and .9 in row
+                ]
+                return mean(covered) if len(covered) == len(actual) else None
+
+            native_coverage = central_coverage(
+                calibration_actual, native_calibration)
+            reference_coverage = central_coverage(
+                calibration_actual, reference_calibration)
+            complete = all(value is not None for value in (
+                native_loss, reference_loss,
+                native_coverage, reference_coverage,
+            )) and completed_origins >= 2
+            admitted = bool(
+                complete
+                and float(native_loss) <= float(reference_loss)
+                and abs(float(native_coverage) - DEFAULT_TARGET_COVERAGE)
+                <= abs(float(reference_coverage) - DEFAULT_TARGET_COVERAGE)
+            )
+            probabilistic_assessment.update({
+                "status": "admitted" if admitted else "rejected",
+                "selected_method": (
+                    "native_quantiles" if admitted
+                    else "conformal_residuals"),
+                "native_mean_pinball": native_loss,
+                "conformal_mean_pinball": reference_loss,
+                "native_80_coverage": native_coverage,
+                "conformal_80_coverage": reference_coverage,
+                "nominal_coverage": DEFAULT_TARGET_COVERAGE,
+                "criteria": (
+                    "native mean pinball no worse and absolute coverage error "
+                    "no larger than the conformal reference"),
+            })
+            if admitted:
+                probabilistic_method = "native_quantiles"
+        except Exception as exc:
+            probabilistic_assessment.update({
+                "status": "unavailable",
+                "reason": f"{type(exc).__name__}: {exc}"[:300],
+            })
+    probabilistic_assessment["selected_method"] = probabilistic_method
+
     # Separate event-calibration trajectories.  These origins are excluded
     # from candidate selection whenever enough history exists; on shorter
     # histories the single calibration origin remains useful descriptively
@@ -2656,6 +2791,7 @@ def evaluate(
     # --- Test ---
     test_scores: dict[str, float | None] = {name: None for name in all_model_names}
     coverage: float | None = None
+    conformal_coverage: float | None = None
     if test_origin is not None:
         test_actual = values[test_origin : test_origin + horizon]
         for name in {selected, strongest_baseline}:
@@ -2684,9 +2820,31 @@ def evaluate(
             else:
                 low, _, high = interval_from_spread(prediction, spread)
             covered.append(1.0 if low <= actual <= high else 0.0)
-        coverage = mean(covered) if covered else None
+        conformal_coverage = mean(covered) if covered else None
+        coverage = conformal_coverage
+        if probabilistic_method == "native_quantiles" \
+                and native_quantile_adapter is not None:
+            try:
+                native_test = predict_quantiles_checked(
+                    native_quantile_adapter, train_at(test_origin), horizon,
+                    season, QUANTILE_LEVELS)
+                native_covered = [
+                    float(row[.1] <= actual <= row[.9])
+                    for actual, row in zip(test_actual, native_test)
+                ]
+                coverage = (mean(native_covered)
+                            if len(native_covered) == len(test_actual) else None)
+                probabilistic_assessment["report_only_test_80_coverage"] = coverage
+            except Exception as exc:
+                coverage = None
+                warnings.append(
+                    "Native quantiles were admitted on the calibration fold "
+                    "but failed on the report-only test fold; coverage is "
+                    f"unmeasured ({type(exc).__name__}: {exc}).")
         if coverage is not None and coverage < 0.7:
-            warnings.append(f"Final-test 80% interval coverage was {coverage:.1%}, below 70%.")
+            warnings.append(
+                f"Final-test 80% {probabilistic_method} interval coverage "
+                f"was {coverage:.1%}, below 70%.")
     else:
         warnings.append(
             "Limited evaluation: no held-out test fold remained, so interval "
@@ -2931,6 +3089,13 @@ def evaluate(
                       tsfm_scores=tsfm_scores,
                       statistical_plugin_scores=statistical_plugin_scores,
                       adapter_receipts={"statsforecast": statsforecast_receipt},
+                      probabilistic_method=probabilistic_method,
+                      probabilistic_assessment=probabilistic_assessment,
+                      conformal_coverage=conformal_coverage,
+                      native_quantile_adapter=(
+                          native_quantile_adapter
+                          if probabilistic_method == "native_quantiles"
+                          else None),
                       notes=notes,
                       residuals_by_lead=residuals_by_lead,
                       event_residuals_by_lead=event_residuals_by_lead,

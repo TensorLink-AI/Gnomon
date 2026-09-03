@@ -425,6 +425,9 @@ def _series_result(
         )
     if context_events:
         state.primary_points = list(state.points)
+        state.primary_native_quantiles = [
+            dict(row) for row in state.native_quantiles
+        ]
         state.primary_residuals = list(state.residuals)
         state.primary_residuals_by_lead = {
             step: list(values)
@@ -842,23 +845,37 @@ def _series_result(
         )
         primary_tier = achieved_tier(primary_assessment.status, True)
         intermittent = intermittent_predictive_quantiles(state.values)
+        native_primary = bool(
+            intermittent is None
+            and len(state.primary_native_quantiles) == len(state.primary_points)
+        )
         for step, (timestamp, point) in enumerate(
                 zip(state.future_timestamps, state.primary_points), 1):
             if step not in primary_spreads:
                 continue
-            q10, q50, q90 = interval_from_spread(
-                point, primary_spreads[step])
-            primary_row = {
-                "timestamp": timestamp.isoformat(), "point": point,
-                "q10": q10, "q50": q50, "q90": q90,
-                "point_bias_correction": q50 - point,
-                "tier": primary_tier,
-            }
-            primary_row.update({
-                key: value for key, value in quantiles_from_spread(
-                    point, primary_levels[step]).items()
-                if key not in primary_row
-            })
+            if native_primary:
+                native_row = state.primary_native_quantiles[step - 1]
+                primary_row = {
+                    "timestamp": timestamp.isoformat(), "point": point,
+                    **{quantile_key(level): float(native_row[level])
+                       for level in native_row},
+                    "point_bias_correction": float(native_row[.5]) - point,
+                    "tier": primary_tier,
+                }
+            else:
+                q10, q50, q90 = interval_from_spread(
+                    point, primary_spreads[step])
+                primary_row = {
+                    "timestamp": timestamp.isoformat(), "point": point,
+                    "q10": q10, "q50": q50, "q90": q90,
+                    "point_bias_correction": q50 - point,
+                    "tier": primary_tier,
+                }
+                primary_row.update({
+                    key: value for key, value in quantiles_from_spread(
+                        point, primary_levels[step]).items()
+                    if key not in primary_row
+                })
             if intermittent is not None:
                 primary_row.update({quantile_key(level): value
                                     for level, value in intermittent.items()})
@@ -954,6 +971,13 @@ def _series_result(
             "residuals_pooled_across_selection":
                 assessment.residuals_pooled_across_selection,
             "residual_fold_count": assessment.residual_fold_count,
+            **({
+                "probabilistic_method": state.probabilistic_method,
+                "probabilistic_assessment":
+                    assessment.probabilistic_assessment,
+            } if assessment.probabilistic_assessment.get("status") not in {
+                None, "not_available"
+            } else {}),
         }),
         Evidence(f"support:{series_name}", "support_assessment", series_name, {
             "support": support, "warnings": state.warnings,

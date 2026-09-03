@@ -3290,7 +3290,12 @@ TOOLS: list[dict[str, Any]] = [
                     "brief (default): q50, q10-q90 and disclosures; full "
                     "adds quantiles. The artifact is identical."
                 )},
-                "candidates": {"type": "array", "items": {"type": "string"}, "description": "Restrict candidates; mandatory baselines still compete."},
+                "candidates": {
+                    "type": "array", "items": {"type": "string"},
+                    "description": (
+                        "Exact allowlist; baselines compete and may win."
+                    ),
+                },
                 "model_admission": {"type": "string", "enum": ["strict", "evidence_weighted"], "description": "Default: strict."},
                 "model_evidence_registry": {"type": "string", "description": "Registry for evidence_weighted."},
                 "output_dir": {"type": "string", "description": (

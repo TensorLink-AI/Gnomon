@@ -14,6 +14,12 @@ candidates = ["statsforecast_autoets", "statsforecast_autoarima", "statsforecast
 [models.tsfm]
 candidates = []
 
+# Single-TSFM project recipe: set models.statistical.enabled = false above
+# and replace the empty list with, for example,
+# candidates = ["chronos_bolt_mini"]
+# This skips every other optional model. Mandatory baselines still compete;
+# the setting narrows the contest and does not force the TSFM to publish.
+
 # Strict is the default. Evidence-weighted admission requires a versioned JSON
 # registry compiled from independent pinned-revision outcomes. Relative paths
 # resolve beside this configuration file.

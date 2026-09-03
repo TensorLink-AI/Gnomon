@@ -311,6 +311,26 @@ slice on its own). Foundation models install from the surface too:
 `gnomon_capabilities` under `models.tsfm_available` and reports state
 (absent / installing / ready / failed) on each call — no shell needed.
 
+To evaluate exactly one optional TSFM, pass a one-item `candidates` allowlist
+on the forecast call:
+
+```json
+{
+  "input": "data.csv",
+  "time_column": "timestamp",
+  "target_column": "value",
+  "horizon": 24,
+  "candidates": ["chronos_bolt_mini"]
+}
+```
+
+This skips all other optional statistical models and TSFMs. It is not a
+force-selection switch: the mandatory `last_value`, `historical_mean`, and
+`seasonal_naive` controls still compete and may publish instead. Check
+`selected_model` before attributing the result to the requested TSFM. MCP
+calls do not inherit ambient project configuration, so pass `candidates` on
+each call where this restriction matters.
+
 Calendar-shaped data needs no upstream preprocessing: pass
 `regrid: "business_daily"` for Mon-Fri market data (weekends and
 holidays are forward-filled onto the continuous daily grid) or

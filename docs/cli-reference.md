@@ -357,6 +357,21 @@ adds a `moment_small_reconstruction` candidate to `gnomon detect`, graded
 like every other detector. Nothing is ever selected on reputation —
 uninstalled models are simply absent, and installed ones compete.
 
+Restrict a run to one optional TSFM with an exact candidate allowlist:
+
+```bash
+gnomon forecast data.csv --time timestamp --target value --horizon 24 \
+  --candidates chronos_bolt_mini
+```
+
+All other optional forecasters are skipped. The mandatory baselines still
+compete and may publish instead; `--candidates` narrows evaluation rather than
+forcing the named model. The artifact records the restriction and its
+`selected_model` identifies what actually published. For a persistent CLI or
+Python project configuration, set `models.statistical.enabled = false` and
+list the one model under `models.tsfm.candidates` as shown in
+`gnomon.toml.example`.
+
 **For agents:** `gnomon_capabilities` reports the state machine-readably —
 `models.tsfm_available` (installable), `models.tsfm_sandboxes` (installed),
 and `models.tsfm_capabilities` (verified per-model limits and tasks) —

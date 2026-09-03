@@ -227,6 +227,39 @@ def predict_checked(adapter: ForecastAdapter, history: list[float],
     return adapter.forecast(request).validate(request).points()
 
 
+def predict_quantiles_checked(
+    adapter: Any, history: list[float], horizon: int, season: int,
+    quantiles: tuple[float, ...],
+) -> list[dict[float, float]]:
+    """Request and validate a legacy adapter's native marginal quantiles.
+
+    This deliberately does not infer support from method presence: the
+    adapter must advertise ``supports_quantiles``. Admission is a separate
+    evaluation decision made by the caller after scoring sealed outcomes.
+    """
+    request = ForecastRequest.from_values(
+        history, horizon, season, quantiles=quantiles)
+    if not bool(getattr(adapter, "supports_quantiles", False)):
+        raise ForecastAdapterError(
+            f"adapter {getattr(adapter, 'name', '<unknown>')} does not "
+            "support native quantiles")
+    original = tuple(request.history)
+    raw = adapter.predict_quantiles(
+        list(request.history), request.horizon, request.season,
+        request.quantiles)
+    if request.history != original:
+        raise ForecastAdapterError(
+            "adapter mutated immutable request history")
+    if raw is None:
+        raise ForecastAdapterError("adapter returned no native quantiles")
+    rows = tuple({float(key): float(value) for key, value in row.items()}
+                 for row in raw)
+    validated = ForecastResult(
+        point=tuple(0.0 for _ in range(request.horizon)), quantiles=rows,
+    ).validate(request)
+    return [dict(row) for row in validated.quantiles or ()]
+
+
 def predict_paths_checked(
     adapter: Any, history: list[float], horizon: int, season: int,
     *, samples: int, admitted: bool = False,

@@ -24,7 +24,7 @@ from .contracts import (
 from .covariates import CovariateAssessment, CovariateDataset, assess_covariates
 from .data import Observation, load_observations
 from .evaluation import (
-    DEFAULT_TARGET_COVERAGE,
+    DEFAULT_TARGET_COVERAGE, QUANTILE_LEVELS,
     Evaluation,
     conformal_quantile,
     conformal_quantile_spreads,
@@ -117,6 +117,9 @@ class SeriesState:
     coverage: float | None = None
     warnings: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    probabilistic_method: str = "conformal_residuals"
+    native_quantiles: list[dict[float, float]] = field(default_factory=list)
+    native_quantile_points: list[float] = field(default_factory=list)
     context_public: dict[str, object] | None = None
     covariate_public: dict[str, object] | None = None
     context_assessment: ContextAssessment | None = None
@@ -136,6 +139,8 @@ class SeriesState:
     primary_residuals_by_lead: dict[int, list[float]] = field(default_factory=dict)
     primary_support: str | None = None
     primary_warnings: list[str] = field(default_factory=list)
+    primary_native_quantiles: list[dict[float, float]] = field(
+        default_factory=list)
     #: Typed, correct-but-surprising facts for the support assessment.
     #: Never affects support status — see SupportAssessment.disclosures.
     disclosures: list[SupportReason] = field(default_factory=list)
@@ -489,6 +494,7 @@ def evaluate_stage(
     state.coverage = assessment.coverage
     state.warnings = list(assessment.warnings)
     state.notes = list(assessment.notes)
+    state.probabilistic_method = assessment.probabilistic_method
     state.residuals = assessment.residuals
     state.residuals_by_lead = dict(assessment.residuals_by_lead)
     state.residual_source = assessment.selected_model
@@ -713,6 +719,26 @@ def predict_stage(
                     "prediction, and no fold-separated residuals exist for a "
                     "fallback; no forecast is published."
                 )
+
+    state.native_quantiles = []
+    state.native_quantile_points = []
+    native_adapter = getattr(assessment, "native_quantile_adapter", None)
+    if (state.points and state.selected_model == assessment.selected_model
+            and assessment.probabilistic_method == "native_quantiles"
+            and native_adapter is not None):
+        from .forecast_adapter import predict_quantiles_checked
+        try:
+            state.native_quantiles = predict_quantiles_checked(
+                native_adapter, values, horizon, season, QUANTILE_LEVELS)
+            state.native_quantile_points = list(state.points)
+            state.probabilistic_method = "native_quantiles"
+        except Exception as exc:
+            state.probabilistic_method = "conformal_residuals"
+            state.coverage = assessment.conformal_coverage
+            state.warnings.append(
+                "Native quantiles passed fold evaluation but failed during "
+                "the final fit; conformal residual quantiles were published "
+                f"instead ({type(exc).__name__}: {exc}).")
 
 
 def conditional_stage(
@@ -1651,6 +1677,24 @@ def _forecast_disclosures(
     from .evaluation import MIN_RESIDUALS_PER_LEAD, pooled_fallback_leads
 
     disclosures: list[SupportReason] = []
+    native = state.probabilistic_method == "native_quantiles"
+
+    if native:
+        gate = ((state.assessment.probabilistic_assessment
+                 if state.assessment is not None else {}) or {})
+        disclosures.append(SupportReason(
+            "native_quantiles_admitted",
+            "Marginal quantiles come from the selected model's native "
+            "distribution after it matched or beat the conformal reference "
+            "on the reserved calibration fold for both mean pinball loss "
+            "and 80% coverage error. The selected point path is unchanged; "
+            "threshold-bearing runs retain Gnomon's separately calibrated "
+            "residual distribution because marginal quantiles do not encode "
+            "cross-horizon dependence. "
+            f"Calibration mean pinball: native "
+            f"{gate.get('native_mean_pinball')}, conformal "
+            f"{gate.get('conformal_mean_pinball')}.",
+        ))
 
     # H2 / S1. `point` is the raw model output; the quantiles are recentred
     # on the median residual, so `point` is not the middle of its interval.
@@ -1659,10 +1703,15 @@ def _forecast_disclosures(
     widest = max(spans) if spans else 0.0
     if corrections and max(corrections) > 1e-9:
         share = (max(corrections) / widest) if widest > 1e-12 else 0.0
+        explanation = (
+            "`q50` is the selected model's native median"
+            if native else
+            "every quantile is recentred on the median backtest residual"
+        )
         disclosures.append(SupportReason(
             "point_is_not_the_median",
-            f"`point` is the selected model's raw output; every quantile is "
-            f"recentred on the median backtest residual, so `q50` differs "
+            f"`point` is the selected model's raw output; {explanation}, "
+            f"so `q50` differs "
             f"from `point` by up to {max(corrections):.4g} "
             f"({share:.0%} of the 80% interval width). Each row carries the "
             f"gap as `point_bias_correction`.",
@@ -1677,7 +1726,7 @@ def _forecast_disclosures(
     horizon = len(rows)
     borrowed = pooled_fallback_leads(state.residuals_by_lead, horizon)
     assessment = state.assessment
-    if assessment is not None and assessment.degraded:
+    if not native and assessment is not None and assessment.degraded:
         disclosures.append(SupportReason(
             "point_recentring_suppressed",
             "Quantiles are centred on the model's point path: the usual "
@@ -1687,7 +1736,7 @@ def _forecast_disclosures(
             "step-to-step moves, in an effectively random direction). "
             "`point_bias_correction` is 0 on every row.",
         ))
-    if horizon and len(borrowed) == horizon:
+    if not native and horizon and len(borrowed) == horizon:
         disclosures.append(SupportReason(
             "constant_interval_width",
             f"Interval width is constant across the horizon: no lead time "
@@ -1697,7 +1746,7 @@ def _forecast_disclosures(
             f"More folds — a longer history relative to the horizon — would "
             f"let each lead measure its own.",
         ))
-    elif borrowed:
+    elif not native and borrowed:
         disclosures.append(SupportReason(
             "partial_pooled_interval_width",
             f"{len(borrowed)} of {horizon} lead times borrow the pooled "
@@ -1717,7 +1766,8 @@ def _forecast_disclosures(
     # error on exactly those folds, so its residuals there are optimistic
     # and the published interval is correspondingly narrow.
     assessment = state.assessment
-    if assessment is not None and assessment.residuals_pooled_across_selection:
+    if (not native and assessment is not None
+            and assessment.residuals_pooled_across_selection):
         disclosures.append(SupportReason(
             "conformal_residuals_pooled_across_selection",
             f"Interval calibration pools residuals from "
@@ -1727,7 +1777,8 @@ def _forecast_disclosures(
             f"split conformal would give. Set `evaluation.pool_residuals: "
             f"false` to calibrate on the held-out fold alone.",
         ))
-    elif assessment is not None and assessment.residual_fold_count > 0:
+    elif (not native and assessment is not None
+          and assessment.residual_fold_count > 0):
         disclosures.append(SupportReason(
             "split_conformal_finite_sample_expansion",
             "Interval calibration uses only the held-out residual fold. "
@@ -1773,9 +1824,11 @@ def _forecast_disclosures(
         < len([key for key in row if _is_quantile(key)])
     )
     if collapsed and not unresolved_point_interval:
+        basis = ("the native model's available quantile grid"
+                 if native else "the residual sample")
         disclosures.append(SupportReason(
             "quantile_levels_collapsed",
-            f"Quantile levels are limited by the residual sample: at "
+            f"Quantile levels are limited by {basis}: at "
             f"{collapsed} of {len(rows)} lead times, adjacent levels share an "
             f"order statistic and report identical values. q10/q50/q90 are "
             f"unaffected in meaning.",
@@ -1932,20 +1985,38 @@ def interval_stage(
                 not assessment.residuals_pooled_across_selection),
         )
         intermittent = intermittent_predictive_quantiles(state.values)
+        native_active = bool(
+            intermittent is None
+            and state.probabilistic_method == "native_quantiles"
+            and len(state.native_quantiles) == len(state.points)
+            and state.native_quantile_points == state.points
+        )
+        if state.probabilistic_method == "native_quantiles" and not native_active:
+            state.probabilistic_method = "conformal_residuals"
+            state.coverage = assessment.conformal_coverage
         for step, (timestamp, point) in enumerate(zip(state.future_timestamps, state.points), 1):
-            q10, q50, q90 = interval_from_spread(point, spreads[step])
-            row = {
-                "timestamp": timestamp.isoformat(), "point": point,
-                "q10": q10, "q50": q50, "q90": q90,
-                # `point` is the model's raw output; every quantile is
-                # recentred on the median residual. Publishing the gap makes
-                # the relationship checkable instead of leaving `point` to
-                # be read as the middle of its own interval.
-                "point_bias_correction": q50 - point,
-            }
-            extra = quantiles_from_spread(point, level_spreads[step])
-            row.update({key: value for key, value in extra.items()
-                        if key not in row})
+            if native_active:
+                native_row = state.native_quantiles[step - 1]
+                row = {
+                    "timestamp": timestamp.isoformat(), "point": point,
+                    **{quantile_key(level): float(native_row[level])
+                       for level in QUANTILE_LEVELS},
+                    "point_bias_correction": float(native_row[.5]) - point,
+                }
+            else:
+                q10, q50, q90 = interval_from_spread(point, spreads[step])
+                row = {
+                    "timestamp": timestamp.isoformat(), "point": point,
+                    "q10": q10, "q50": q50, "q90": q90,
+                    # `point` is the model's raw output; every quantile is
+                    # recentred on the median residual. Publishing the gap makes
+                    # the relationship checkable instead of leaving `point` to
+                    # be read as the middle of its own interval.
+                    "point_bias_correction": q50 - point,
+                }
+                extra = quantiles_from_spread(point, level_spreads[step])
+                row.update({key: value for key, value in extra.items()
+                            if key not in row})
             if intermittent is not None:
                 row.update({quantile_key(level): value
                             for level, value in intermittent.items()})
