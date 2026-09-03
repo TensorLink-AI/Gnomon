@@ -97,11 +97,12 @@ def test_extractors_fail_closed_on_incomplete_measurements() -> None:
                        "completion_tokens": 3}, "total_time": .1},
         {"latency_seconds": 9.0}, {"latency_seconds": 4.0},
     )["control_latency_seconds"] == 9.0
-    assert _calibration_raw({"candidates": _candidates()}) == {
+    assert _calibration_raw({"candidates": _candidates()}, {}) == {
         "nominal_coverage": 0.8,
         "empirical_coverage": 0.75,
         "candidate_wis": 1.2,
         "reference_wis": 1.0,
+        "candidate_relationship": "evaluated_candidate",
     }
     assert _selection_raw({
         "selected_score": 3.0, "candidates": _candidates(),
@@ -164,6 +165,7 @@ def test_calibration_families_compare_current_to_prior_strict_protocol():
         "empirical_coverage": .81,
         "candidate_wis": 1.0,
         "reference_wis": 2.0,
+        "candidate_relationship": "evaluated_candidate",
     }
 
 

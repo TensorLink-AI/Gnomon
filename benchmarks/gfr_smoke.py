@@ -87,6 +87,23 @@ def conditional_calibration_candidate(candidates: Any) -> dict[str, Any] | None:
     return matches[0] if len(matches) == 1 else None
 
 
+def calibration_relationship_raw(publication: dict[str, Any]) -> dict[str, Any]:
+    """Project the typed numeric relationship into GFR v2 evidence."""
+    candidate = conditional_calibration_candidate(
+        publication.get("candidate_portfolio") or [])
+    distribution = ((candidate or {}).get("effect") or {}).get(
+        "distribution") or {}
+    if distribution.get("kind") == "under_evidence_no_distinct_numeric_path":
+        return {
+            "candidate_relationship": "no_distinct_numeric_path",
+            "primary_preserved": publication.get(
+                "primary_forecast_unchanged") is True,
+            "numeric_path_withheld": distribution.get(
+                "numeric_authority") == "withheld_no_distinct_path",
+        }
+    return {"candidate_relationship": "evaluated_candidate"}
+
+
 PRESERVATION_CASE_ROWS = {
     "preservation:conditional-scenario": "decision-04",
     "preservation:no-distinct-numeric-path": "decision-09",
@@ -362,6 +379,7 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
         "empirical_coverage": float(calibration_candidate["empirical_coverage"]),
         "candidate_wis": float(calibration_candidate["wis"]),
         "reference_wis": float(primary_candidate["wis"]),
+        **calibration_relationship_raw(trace.get("final_submission") or {}),
     } if calibration_complete else None)
     publication = trace.get("final_submission") or {}
     compilation = trace.get("context_compilation") or {}

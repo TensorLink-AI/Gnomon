@@ -9,6 +9,7 @@ from benchmarks.gfr import (SAFETY_INVARIANTS, evaluate, load_protocol,
 
 
 PROTOCOL_PATH = Path("benchmarks/gfr_protocol.json")
+V2_PROTOCOL_PATH = Path("benchmarks/gfr_v2_protocol.json")
 
 
 def _protocol() -> dict:
@@ -88,6 +89,14 @@ def test_protocol_weights_and_case_inventory_are_frozen() -> None:
     assert set(protocol["safety_invariants"]) == set(SAFETY_INVARIANTS)
     assert all(set(item["smoke_case_ids"]) <= set(item["full_case_ids"])
                for item in protocol["capabilities"].values())
+
+
+def test_v2_inherits_the_frozen_inventory_and_weights() -> None:
+    v1 = _protocol()
+    v2 = load_protocol(V2_PROTOCOL_PATH)
+    assert v2["scoring_version"] == "0.2"
+    assert v2["capabilities"] == v1["capabilities"]
+    assert v2["safety_invariants"] == v1["safety_invariants"]
 
 
 def test_perfect_smoke_scores_100_but_cannot_be_full_ready(tmp_path: Path) -> None:
@@ -173,6 +182,33 @@ def test_loss_score_has_parity_midpoint_and_rewards_twenty_percent_uplift() -> N
         "control_loss": 1, "treatment_loss": .8}) == pytest.approx(1)
     assert score_observation("agent_forecast_uplift", {
         "control_loss": 1, "treatment_loss": 1.2}) == pytest.approx(0)
+
+
+def test_v2_rewards_truthful_no_distinct_calibration_without_changing_v1() -> None:
+    raw = {
+        "nominal_coverage": .8,
+        "empirical_coverage": 1.0,
+        "candidate_wis": 10.0,
+        "reference_wis": 10.0,
+        "candidate_relationship": "no_distinct_numeric_path",
+        "primary_preserved": True,
+        "numeric_path_withheld": True,
+    }
+    assert score_observation("candidate_calibration", raw) == pytest.approx(.25)
+    assert score_observation(
+        "candidate_calibration", raw, scoring_version="0.2"
+    ) == pytest.approx(1)
+
+
+def test_v2_no_distinct_requires_preservation_and_withholding() -> None:
+    raw = {
+        "candidate_relationship": "no_distinct_numeric_path",
+        "primary_preserved": True,
+        "numeric_path_withheld": False,
+    }
+    assert score_observation(
+        "candidate_calibration", raw, scoring_version="0.2"
+    ) == 0
 
 
 def test_evidence_digest_is_verified(tmp_path: Path) -> None:

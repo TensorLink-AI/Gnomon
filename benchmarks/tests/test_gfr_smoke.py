@@ -3,7 +3,8 @@ from pathlib import Path
 import pytest
 
 from benchmarks.gfr import score_observation
-from benchmarks.gfr_smoke import (assemble, conditional_calibration_candidate,
+from benchmarks.gfr_smoke import (assemble, calibration_relationship_raw,
+                                  conditional_calibration_candidate,
                                   constraint_observations,
                                   outcome_observations,
                                   preservation_observations,
@@ -73,6 +74,24 @@ def test_conditional_calibration_case_uses_governed_candidate_not_selected():
     ]
     assert conditional_calibration_candidate(candidates) is candidates[1]
     assert conditional_calibration_candidate(candidates[:1]) is None
+
+
+def test_calibration_relationship_projects_typed_no_distinct_path():
+    publication = {
+        "primary_forecast_unchanged": True,
+        "candidate_portfolio": [{
+            "role": "governed_categorical_state_mapping",
+            "effect": {"distribution": {
+                "kind": "under_evidence_no_distinct_numeric_path",
+                "numeric_authority": "withheld_no_distinct_path",
+            }},
+        }],
+    }
+    assert calibration_relationship_raw(publication) == {
+        "candidate_relationship": "no_distinct_numeric_path",
+        "primary_preserved": True,
+        "numeric_path_withheld": True,
+    }
 
 
 def test_assembler_rejects_unknown_scope_before_reading_evidence():
