@@ -616,9 +616,11 @@ def load_run_extra_info(runs_dir: Path, task_name: str, seed) -> dict:
     """Parse the official per-run ``extra_info`` dump, if present.
 
     ``cik_benchmark.evaluation.evaluate_task`` writes each run's
-    ``extra_info`` with ``pprint``; both adapters put only literals in
-    it, so ``ast.literal_eval`` reads it back. Abstained and errored
-    runs never produce the file; anything unparseable yields ``{}``
+    ``extra_info`` with ``pprint``. Python renders non-finite diagnostic
+    floats as bare ``inf``/``nan`` names, which are not accepted by
+    ``ast.literal_eval``. Replace only those exact AST names with constants;
+    every other non-literal construct still fails closed. Abstained and
+    errored runs never produce the file; anything unparseable yields ``{}``
     rather than failing result collection.
     """
     import ast
@@ -627,7 +629,16 @@ def load_run_extra_info(runs_dir: Path, task_name: str, seed) -> dict:
     if not path.exists():
         return {}
     try:
-        parsed = ast.literal_eval(path.read_text(encoding="utf-8"))
+        tree = ast.parse(path.read_text(encoding="utf-8"), mode="eval")
+
+        class NonFiniteDiagnosticNames(ast.NodeTransformer):
+            def visit_Name(self, node):  # noqa: N802 - AST visitor protocol
+                values = {"inf": float("inf"), "nan": float("nan")}
+                if node.id in values:
+                    return ast.copy_location(ast.Constant(values[node.id]), node)
+                return node
+
+        parsed = ast.literal_eval(NonFiniteDiagnosticNames().visit(tree))
     except (ValueError, SyntaxError, MemoryError, RecursionError):
         return {}
     return parsed if isinstance(parsed, dict) else {}
