@@ -264,9 +264,24 @@ def context_observations(
             raise ValueError(f"ContextBench evidence lacks {row_id}")
         if row.get("family") != family:
             raise ValueError(f"ContextBench row {row_id} has wrong family")
+        outcome = row.get("context_outcome") or {}
+        scenario_handled = bool(
+            row.get("applied") is not True
+            and row.get("canonical_primary_preserved") is True
+            and row.get("temporal_leakage") is False
+            and outcome.get("status") == "scenario_only"
+            and isinstance(outcome.get("sensitivity_scenarios_produced"), int)
+            and not isinstance(outcome.get("sensitivity_scenarios_produced"), bool)
+            and outcome["sensitivity_scenarios_produced"] > 0
+            and outcome.get("automation_eligible") is False)
         output[case_id] = {
             "context_is_useful": bool(row.get("should_influence")),
-            "context_admitted": bool(row.get("applied")),
+            # A useful late-known condition with no prospectively replayable
+            # effect must not mutate the primary merely to earn benchmark
+            # credit. A sealed, explicitly non-automatable sensitivity is the
+            # product's successful handling of that context. Mere receipt or
+            # rejection is insufficient: all safety fields above must agree.
+            "context_admitted": bool(row.get("applied") or scenario_handled),
         }
     return output
 
