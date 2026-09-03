@@ -216,8 +216,10 @@ python -m benchmarks.anomllm.run_anomllm --help
 For repeated CiK comparisons, pass `--sample-cache-root <path>` to reuse only
 exact content-addressed model samples across output directories. The shared
 cache is condition-scoped; scoring, checkpoints, identities, and all retained
-evidence remain in each run's `--output-dir`. Keep `--no-cache` for a fully
-fresh provider sample.
+evidence remain in each run's `--output-dir`. Newly written samples retain
+their provider-return order so rejection sampling replays the same accepted
+set. Legacy caches remain usable but predate that ordering guarantee. Keep
+`--no-cache` for a fully fresh provider sample.
 
 ## Batch runs
 

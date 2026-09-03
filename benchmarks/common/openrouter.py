@@ -205,6 +205,7 @@ class OpenRouterClient:
         self._sample_cache_lock = threading.Lock()
         self._sample_cache_consumed: set[str] = set()
         self._sample_usage_consumed: set[str] = set()
+        self._sample_cache_next_sequence: dict[str, int] = {}
         self._rate_limit_lock = threading.Lock()
         self._rate_limit_not_before = 0.0
         self._rate_limit_next_start = 0.0
@@ -293,7 +294,8 @@ class OpenRouterClient:
         choices: list[Any] = []
         providers: list[str] = []
         with self._sample_cache_lock:
-            for path in sorted(directory.glob("choice-*.json")):
+            records = []
+            for path in directory.glob("choice-*.json"):
                 identity = str(path)
                 if identity in self._sample_cache_consumed:
                     continue
@@ -304,6 +306,19 @@ class OpenRouterClient:
                         continue
                 except (OSError, KeyError, json.JSONDecodeError):
                     continue
+                sequence = record.get("sequence")
+                if (isinstance(sequence, bool)
+                        or not isinstance(sequence, int) or sequence < 0):
+                    # Legacy caches predate durable provider-return order.
+                    # Keep their historical filename order ahead of any
+                    # later top-up. New caches use the exact live merge order.
+                    order = (0, path.name)
+                else:
+                    order = (1, sequence, path.name)
+                records.append((order, path, record, choice))
+            for _, path, record, choice in sorted(
+                    records, key=lambda item: item[0]):
+                identity = str(path)
                 self._sample_cache_consumed.add(identity)
                 choices.append(_to_namespace(choice))
                 providers.append(str(record.get("provider") or "cache"))
@@ -311,6 +326,29 @@ class OpenRouterClient:
                     break
             self.sample_cache_hits += len(choices)
         return choices, providers
+
+    def _reserve_sample_sequences(self, key: str, count: int) -> int:
+        """Reserve stable choice positions for one provider response."""
+        if count <= 0:
+            return 0
+        with self._sample_cache_lock:
+            if key not in self._sample_cache_next_sequence:
+                maximum = -1
+                directory = self.sample_cache_dir / key
+                for path in directory.glob("choice-*.json"):
+                    try:
+                        sequence = json.loads(path.read_text(
+                            encoding="utf-8")).get("sequence")
+                    except (OSError, json.JSONDecodeError):
+                        continue
+                    if (isinstance(sequence, int)
+                            and not isinstance(sequence, bool)
+                            and sequence >= 0):
+                        maximum = max(maximum, sequence)
+                self._sample_cache_next_sequence[key] = maximum + 1
+            start = self._sample_cache_next_sequence[key]
+            self._sample_cache_next_sequence[key] += count
+            return start
 
     def _restore_all_cached_usage(self) -> None:
         """Restore cumulative request economics for this case cache.
@@ -420,8 +458,8 @@ class OpenRouterClient:
             self._sample_usage_consumed.add(str(path))
         return request_id
 
-    def _store_cached_samples(self, key: str,
-                              response: SimpleNamespace) -> None:
+    def _store_cached_samples(self, key: str, response: SimpleNamespace,
+                              *, sequence_start: int) -> None:
         if self.sample_cache_dir is None:
             return
         directory = self.sample_cache_dir / key
@@ -436,9 +474,11 @@ class OpenRouterClient:
                 request_latency_seconds=float(getattr(
                     response, "_gnomon_request_latency_seconds", 0.0)),
             )
-        for choice in list(getattr(response, "choices", None) or []):
+        for offset, choice in enumerate(
+                list(getattr(response, "choices", None) or [])):
             record = {"choice": _to_plain(choice), "provider": provider,
-                      "request_id": request_id}
+                      "request_id": request_id,
+                      "sequence": sequence_start + offset}
             with self._sample_cache_lock:
                 directory.mkdir(parents=True, exist_ok=True)
                 suffix = uuid.uuid4().hex
@@ -465,6 +505,7 @@ class OpenRouterClient:
         transport_retries: int | None = None,
         _skip_sample_cache: bool = False,
         _sample_cache_key: str | None = None,
+        _sample_cache_sequence_start: int | None = None,
     ) -> SimpleNamespace:
         """Send one chat-completion request and return the parsed response.
 
@@ -506,6 +547,10 @@ class OpenRouterClient:
                 usage=SimpleNamespace(prompt_tokens=0, completion_tokens=0),
                 provider=(cached_providers[0] if cached_providers else "cache"),
             )
+        sequence_start = _sample_cache_sequence_start
+        if cache_key is not None and sequence_start is None:
+            sequence_start = self._reserve_sample_sequences(
+                cache_key, request_n)
         while True:
             response = self._request(
                 messages, n=request_n, temperature=temperature,
@@ -527,7 +572,8 @@ class OpenRouterClient:
                 # the discovery.
                 self.max_tokens = budget
         if cache_key is not None:
-            self._store_cached_samples(cache_key, response)
+            self._store_cached_samples(
+                cache_key, response, sequence_start=int(sequence_start or 0))
         missing = request_n - len(response.choices)
         if missing > 0:
             # OpenRouter providers may ignore ``n`` and return a single
@@ -541,7 +587,7 @@ class OpenRouterClient:
             # shortfall with explicit bounded concurrency and merge.
             from concurrent.futures import ThreadPoolExecutor
 
-            def one_more(_: int) -> Any:
+            def one_more(index: int) -> Any:
                 extra = self.chat(
                     messages, n=1, temperature=temperature,
                     max_tokens=max_tokens, tools=tools,
@@ -551,6 +597,9 @@ class OpenRouterClient:
                     transport_retries=transport_retries,
                     _skip_sample_cache=True,
                     _sample_cache_key=cache_key,
+                    _sample_cache_sequence_start=(
+                        int(sequence_start or 0)
+                        + len(response.choices) + index),
                 )
                 # Recursive chat() persists this successful sibling before
                 # returning. A later sibling may exhaust retries, or the case

@@ -250,8 +250,11 @@ def test_sample_cache_replays_without_new_requests(tmp_path, monkeypatch):
     monkeypatch.setattr(OpenRouterClient, "_request", unexpected_request)
     replayed = resumed.chat(MESSAGES, n=5)
 
-    assert sorted(choice.message.content for choice in replayed.choices) == \
-        sorted(choice.message.content for choice in original.choices)
+    assert [choice.message.content for choice in replayed.choices] == \
+        [choice.message.content for choice in original.choices]
+    records = [json.loads(path.read_text())
+               for path in tmp_path.glob("*/choice-*.json")]
+    assert sorted(record["sequence"] for record in records) == list(range(5))
     usage = resumed.usage_summary
     assert usage["requests"] == 5
     assert usage["restored_requests"] == 5
