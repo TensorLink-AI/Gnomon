@@ -34,11 +34,15 @@ from .evaluation import (
     interval_from_spread,
     quantile_key,
     quantiles_from_spread,
+    seasonal_phase_empirical_quantiles,
 )
 from .models import MODELS, predict
 from .multivariate import MULTIVARIATE_MODEL_NAME
 from .repair import RepairLog, repair_observations
-from .temporal import detect_season, next_timestamp, validate_and_group
+from .temporal import (
+    detect_season, next_timestamp, seasonal_structural_zero_phases,
+    validate_and_group,
+)
 from .temporal_store import InMemoryTemporalStore, Snapshot, TemporalStore
 
 if TYPE_CHECKING:
@@ -739,6 +743,22 @@ def predict_stage(
                 "Native quantiles passed fold evaluation but failed during "
                 "the final fit; conformal residual quantiles were published "
                 f"instead ({type(exc).__name__}: {exc}).")
+    elif (state.points and state.selected_model == assessment.selected_model
+          and assessment.probabilistic_method ==
+          "seasonal_phase_empirical"):
+        phase_quantiles = seasonal_phase_empirical_quantiles(
+            values, horizon, season)
+        if phase_quantiles is not None:
+            state.native_quantiles = phase_quantiles
+            state.native_quantile_points = list(state.points)
+            state.probabilistic_method = "seasonal_phase_empirical"
+        else:
+            state.probabilistic_method = "conformal_residuals"
+            state.coverage = assessment.conformal_coverage
+            state.warnings.append(
+                "Seasonal-phase empirical quantiles passed fold evaluation "
+                "but could not be reconstructed on the full history; "
+                "conformal residual quantiles were published instead.")
 
 
 def conditional_stage(
@@ -1666,6 +1686,8 @@ def _forecast_disclosures(
     state: SeriesState,
     rows: list[dict[str, object]],
     spreads: dict[int, tuple[float, float, float]],
+    *,
+    structural_zero_steps: frozenset[int] = frozenset(),
 ) -> list[SupportReason]:
     """Correct-but-surprising facts about how these rows were produced.
 
@@ -1678,6 +1700,8 @@ def _forecast_disclosures(
 
     disclosures: list[SupportReason] = []
     native = state.probabilistic_method == "native_quantiles"
+    phase_empirical = (
+        state.probabilistic_method == "seasonal_phase_empirical")
 
     if native:
         gate = ((state.assessment.probabilistic_assessment
@@ -1695,6 +1719,23 @@ def _forecast_disclosures(
             f"{gate.get('native_mean_pinball')}, conformal "
             f"{gate.get('conformal_mean_pinball')}.",
         ))
+    elif phase_empirical:
+        gate = ((state.assessment.probabilistic_assessment
+                 if state.assessment is not None else {}) or {})
+        disclosures.append(SupportReason(
+            "seasonal_phase_empirical_quantiles_admitted",
+            "Marginal quantiles use the empirical distribution of values at "
+            "the corresponding seasonal phase across complete visible "
+            "cycles. The selected point path remains visible and unchanged. "
+            "This distribution was admitted only after its mean pinball "
+            "loss was no worse and its 80% coverage error no larger than "
+            "the conformal reference on the reserved calibration fold. "
+            "Threshold-bearing runs retain calibrated joint residual "
+            "trajectories because marginal phase quantiles do not encode "
+            "cross-horizon dependence. Calibration mean pinball: phase "
+            f"{gate.get('candidate_mean_pinball')}, conformal "
+            f"{gate.get('conformal_mean_pinball')}.",
+        ))
 
     # H2 / S1. `point` is the raw model output; the quantiles are recentred
     # on the median residual, so `point` is not the middle of its interval.
@@ -1706,6 +1747,8 @@ def _forecast_disclosures(
         explanation = (
             "`q50` is the selected model's native median"
             if native else
+            "`q50` is the admitted seasonal-phase empirical median"
+            if phase_empirical else
             "every quantile is recentred on the median backtest residual"
         )
         disclosures.append(SupportReason(
@@ -1760,6 +1803,20 @@ def _forecast_disclosures(
             "modelled separately from observed positive demand sizes. The "
             "selected point forecast remains visible and unchanged.",
         ))
+    if structural_zero_steps:
+        phases = seasonal_structural_zero_phases(
+            state.values, state.season)
+        cycles = min(4, len(state.values) // state.season)
+        disclosures.append(SupportReason(
+            "seasonal_structural_zero_phases",
+            f"Quantiles collapse to the unchanged zero point at "
+            f"{len(structural_zero_steps)} of {len(rows)} lead times: the "
+            f"same contiguous {len(phases)}-of-{state.season} inactive "
+            f"phase block was exactly zero across {cycles} complete visible "
+            "cycles. Active-phase magnitudes are unchanged. This is a "
+            "seasonal recurrence assumption, not a causal schedule; provide "
+            "future context when the inactive window may change.",
+        ))
 
     # H4. Pooling the selection folds is not split conformal, and the
     # direction of the bias is known: the winner was chosen to minimise
@@ -1801,7 +1858,8 @@ def _forecast_disclosures(
     # L6 / S-. Adjacent levels sharing an order statistic is the sample's
     # resolution, not a defect. Promoted from free-text `notes` to a code.
     point_collapsed = sum(
-        1 for row in rows
+        1 for step, row in enumerate(rows, 1)
+        if step not in structural_zero_steps
         if row.get("q10") == row.get("q50") == row.get("q90")
     )
     unresolved_point_interval = bool(
@@ -1819,7 +1877,8 @@ def _forecast_disclosures(
         ))
 
     collapsed = sum(
-        1 for row in rows
+        1 for step, row in enumerate(rows, 1)
+        if step not in structural_zero_steps
         if len({row[key] for key in row if _is_quantile(key)})
         < len([key for key in row if _is_quantile(key)])
     )
@@ -1839,6 +1898,28 @@ def _forecast_disclosures(
 def _is_quantile(key: object) -> bool:
     text = str(key)
     return text.startswith("q") and text[1:].isdigit()
+
+
+def _apply_seasonal_structural_zeros(
+    state: SeriesState, rows: list[dict[str, object]],
+) -> frozenset[int]:
+    """Collapse only already-zero point rows at proven inactive phases."""
+    phases = seasonal_structural_zero_phases(state.values, state.season)
+    if not phases:
+        return frozenset()
+    changed = set()
+    for step, row in enumerate(rows, 1):
+        phase = (len(state.values) + step - 1) % state.season
+        point = row.get("point")
+        if (phase not in phases or not isinstance(point, (int, float))
+                or isinstance(point, bool) or float(point) != 0.0):
+            continue
+        for key in list(row):
+            if _is_quantile(key):
+                row[key] = 0.0
+        row["point_bias_correction"] = 0.0
+        changed.add(step)
+    return frozenset(changed)
 
 
 def assert_residual_provenance(state: SeriesState) -> None:
@@ -1985,17 +2066,20 @@ def interval_stage(
                 not assessment.residuals_pooled_across_selection),
         )
         intermittent = intermittent_predictive_quantiles(state.values)
-        native_active = bool(
+        direct_quantiles_active = bool(
             intermittent is None
-            and state.probabilistic_method == "native_quantiles"
+            and state.probabilistic_method in {
+                "native_quantiles", "seasonal_phase_empirical"}
             and len(state.native_quantiles) == len(state.points)
             and state.native_quantile_points == state.points
         )
-        if state.probabilistic_method == "native_quantiles" and not native_active:
+        if (state.probabilistic_method in {
+                "native_quantiles", "seasonal_phase_empirical"}
+                and not direct_quantiles_active):
             state.probabilistic_method = "conformal_residuals"
             state.coverage = assessment.conformal_coverage
         for step, (timestamp, point) in enumerate(zip(state.future_timestamps, state.points), 1):
-            if native_active:
+            if direct_quantiles_active:
                 native_row = state.native_quantiles[step - 1]
                 row = {
                     "timestamp": timestamp.isoformat(), "point": point,
@@ -2022,7 +2106,18 @@ def interval_stage(
                             for level, value in intermittent.items()})
                 row["point_bias_correction"] = float(row["q50"]) - point
             rows.append(row)
-        state.disclosures.extend(_forecast_disclosures(state, rows, spreads))
+        # This is a marginal-distribution refinement only. A threshold event
+        # needs a calibrated joint residual trajectory, so it deliberately
+        # keeps the unmodified distribution until that separate evidence
+        # exists.
+        structural_zero_steps = (
+            _apply_seasonal_structural_zeros(state, rows)
+            if threshold is None else frozenset()
+        )
+        state.disclosures.extend(_forecast_disclosures(
+            state, rows, spreads,
+            structural_zero_steps=structural_zero_steps,
+        ))
         # Feasibility bounds are projected onto the emitted quantiles here,
         # after the model has said what it believes and before anything reads
         # the rows, so the threshold analysis below sees the same numbers the

@@ -16,6 +16,7 @@ from .ids import SYSTEM_CLOCK, Clock, content_id
 from .models import BASELINES, MODELS
 from .pipeline import (
     LoadedDataset,
+    _apply_seasonal_structural_zeros,
     adjudicate_enrichments_stage,
     conditional_stage,
     context_stage,
@@ -882,6 +883,8 @@ def _series_result(
                 primary_row["point_bias_correction"] = (
                     float(primary_row["q50"]) - point)
             primary_forecast.append(primary_row)
+        if threshold is None:
+            _apply_seasonal_structural_zeros(state, primary_forecast)
     from .soft_context import context_outcome as project_context_outcome
     profile = temporal_profile(
         [float(item.value) for item in items], season=state.season,

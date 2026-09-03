@@ -19,6 +19,7 @@ from .admission import (
     decide_admission, local_evidence,
     output_diagnostics,
 )
+from .temporal import default_season, detect_season
 
 logger = logging.getLogger(__name__)
 
@@ -578,6 +579,42 @@ def intermittent_predictive_quantiles(
         output[level] = max(
             0.0, conformal_quantile(positives, positive_level))
     return output
+
+
+def seasonal_phase_empirical_quantiles(
+    history: list[float], horizon: int, season: int,
+    levels: tuple[float, ...] = QUANTILE_LEVELS, *, max_cycles: int = 8,
+) -> list[dict[float, float]] | None:
+    """Empirical predictive quantiles conditional on seasonal phase.
+
+    Global residual pooling mixes quiet and volatile phases.  When at least
+    four complete cycles are visible, this candidate instead treats the
+    values previously observed at each corresponding phase as that phase's
+    predictive distribution.  It is only a *candidate*: :func:`evaluate`
+    must still beat the conformal reference on the reserved calibration fold
+    before publication.  The trailing complete-cycle slice keeps phase
+    alignment valid when the full history starts part-way through a cycle.
+    """
+    if (season < 2 or horizon < 1 or max_cycles < 4
+            or len(history) < 4 * season
+            or any(not isinstance(value, (int, float))
+                   or isinstance(value, bool)
+                   or not math.isfinite(float(value)) for value in history)):
+        return None
+    cycles = min(max_cycles, len(history) // season)
+    start = len(history) - cycles * season
+    complete = [float(value) for value in history[start:]]
+    rows = [
+        complete[index * season:(index + 1) * season]
+        for index in range(cycles)
+    ]
+    return [
+        {
+            level: quantile([row[step % season] for row in rows], level)
+            for level in levels
+        }
+        for step in range(horizon)
+    ]
 
 
 def pinball_loss(actual: float, predicted: float, level: float) -> float:
@@ -2745,6 +2782,133 @@ def evaluate(
                 "status": "unavailable",
                 "reason": f"{type(exc).__name__}: {exc}"[:300],
             })
+    # A dependency-free distribution candidate for heteroskedastic seasonal
+    # data.  This is deliberately mutually exclusive with a selected model's
+    # native distribution, and with the zero-inflated lane: one calibration
+    # family competes, never an expanding menu.  Phase instability made a
+    # single lucky calibration window unsafe in an independent stress shard,
+    # so this candidate has a stricter contract than native model quantiles:
+    # it must beat conformal at both sequential validation origins.
+    _, _, detected_phase_basis = detect_season(
+        values, frequency)
+    phase_eligible = bool(
+        native_quantile_adapter is None and not degraded
+        and not threshold_job and confirmation_origin is not None
+        # Phase pooling assumes fixed calendar semantics (for example, the
+        # same hour of day), so a nearby autocorrelation estimate is not an
+        # admissible substitute for the frequency's canonical period.  Nor
+        # is a frequency fallback evidence that the phases actually repeat.
+        and season == default_season(frequency)
+        and detected_phase_basis == "autocorrelation"
+        and intermittent_predictive_quantiles(values) is None
+    )
+    if phase_eligible:
+        prior_residuals: list[float] = []
+        prior_by_lead: dict[int, list[float]] = {}
+        completed_origins = 0
+        for origin in residual_origins:
+            try:
+                prior_prediction = _predict_selected(
+                    selected, train_at(origin), origin)
+            except Exception:
+                continue
+            completed_origins += 1
+            for step, (observed, predicted) in enumerate(zip(
+                    values[origin:origin + horizon], prior_prediction), 1):
+                residual = observed - predicted
+                prior_residuals.append(residual)
+                prior_by_lead.setdefault(step, []).append(residual)
+        validations: list[dict[str, float | int]] = []
+        for origin in (confirmation_origin, calibration_origin):
+            candidate = seasonal_phase_empirical_quantiles(
+                train_at(origin), horizon, season)
+            reference_spreads = conformal_quantile_spreads(
+                prior_by_lead, horizon, prior_residuals)
+            try:
+                prediction = _predict_selected(
+                    selected, train_at(origin), origin)
+            except Exception:
+                prediction = []
+            reference = [
+                {level: prediction[step - 1] + offset
+                 for level, offset in reference_spreads[step].items()}
+                for step in range(1, horizon + 1)
+            ] if (candidate is not None and len(prediction) == horizon
+                  and len(reference_spreads) == horizon) else []
+            actual = values[origin:origin + horizon]
+            candidate_loss = (
+                mean_pinball(actual, candidate)
+                if candidate is not None else None)
+            reference_loss = mean_pinball(actual, reference)
+            candidate_hits = ([
+                float(row[.1] <= observed <= row[.9])
+                for observed, row in zip(actual, candidate)
+            ] if candidate is not None else [])
+            reference_hits = [
+                float(row[.1] <= observed <= row[.9])
+                for observed, row in zip(actual, reference)
+            ]
+            if (candidate_loss is not None and reference_loss is not None
+                    and len(candidate_hits) == len(actual)
+                    and len(reference_hits) == len(actual)):
+                validations.append({
+                    "origin": origin,
+                    "candidate_mean_pinball": candidate_loss,
+                    "conformal_mean_pinball": reference_loss,
+                    "candidate_80_coverage": mean(candidate_hits),
+                    "conformal_80_coverage": mean(reference_hits),
+                })
+            # The next validation may use this already-scored origin as
+            # conformal history; its outcome never changes an earlier result.
+            if len(prediction) == horizon:
+                for step, (observed, predicted) in enumerate(zip(
+                        actual, prediction), 1):
+                    residual = observed - predicted
+                    prior_residuals.append(residual)
+                    prior_by_lead.setdefault(step, []).append(residual)
+        phase_loss = (mean(float(item["candidate_mean_pinball"])
+                           for item in validations)
+                      if validations else None)
+        reference_loss = (mean(float(item["conformal_mean_pinball"])
+                               for item in validations)
+                          if validations else None)
+        phase_coverage = (mean(float(item["candidate_80_coverage"])
+                               for item in validations)
+                          if validations else None)
+        reference_coverage = (mean(float(item["conformal_80_coverage"])
+                                   for item in validations)
+                              if validations else None)
+        complete = len(validations) == 2 and completed_origins >= 2
+        admitted = bool(
+            complete
+            and all(
+                float(item["candidate_mean_pinball"])
+                <= float(item["conformal_mean_pinball"])
+                for item in validations)
+            and abs(float(phase_coverage) - DEFAULT_TARGET_COVERAGE)
+            <= abs(float(reference_coverage) - DEFAULT_TARGET_COVERAGE)
+        )
+        if admitted:
+            # A rejected internal candidate does not change the published
+            # answer, so keep the established compact evidence payload.  An
+            # admission is material and carries the complete gate receipt.
+            probabilistic_assessment.update({
+                "status": "admitted",
+                "candidate": "seasonal_phase_empirical",
+                "selected_method": "seasonal_phase_empirical",
+                "prior_origins": completed_origins,
+                "validation_origins": validations,
+                "candidate_mean_pinball": phase_loss,
+                "conformal_mean_pinball": reference_loss,
+                "candidate_80_coverage": phase_coverage,
+                "conformal_80_coverage": reference_coverage,
+                "nominal_coverage": DEFAULT_TARGET_COVERAGE,
+                "criteria": (
+                    "seasonal-phase empirical mean pinball no worse at both "
+                    "sequential validation origins and aggregate absolute "
+                    "coverage error no larger than the conformal reference"),
+            })
+            probabilistic_method = "seasonal_phase_empirical"
     probabilistic_assessment["selected_method"] = probabilistic_method
 
     # Separate event-calibration trajectories.  These origins are excluded
@@ -2841,6 +3005,23 @@ def evaluate(
                     "Native quantiles were admitted on the calibration fold "
                     "but failed on the report-only test fold; coverage is "
                     f"unmeasured ({type(exc).__name__}: {exc}).")
+        elif probabilistic_method == "seasonal_phase_empirical":
+            phase_test = seasonal_phase_empirical_quantiles(
+                train_at(test_origin), horizon, season)
+            if phase_test is None:
+                coverage = None
+                warnings.append(
+                    "Seasonal-phase empirical quantiles were admitted on the "
+                    "calibration fold but could not be reconstructed on the "
+                    "report-only test fold; coverage is unmeasured.")
+            else:
+                phase_covered = [
+                    float(row[.1] <= actual <= row[.9])
+                    for actual, row in zip(test_actual, phase_test)
+                ]
+                coverage = mean(phase_covered)
+                probabilistic_assessment[
+                    "report_only_test_80_coverage"] = coverage
         if coverage is not None and coverage < 0.7:
             warnings.append(
                 f"Final-test 80% {probabilistic_method} interval coverage "

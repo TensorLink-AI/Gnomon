@@ -380,6 +380,19 @@ def test_detect_season_measures_non_sinusoidal_two_cycle_repeat() -> None:
     assert fingerprint["season_strength"] > .75
 
 
+def test_two_cycle_inactive_phase_structure_resists_early_acf_peak() -> None:
+    """Noisy active magnitudes must not move a repeated daily zero window."""
+    from gnomon.temporal import detect_season
+
+    first = [0.0] * 6 + [2, 79, 3, 15, 102, 263, 206, 265, 289, 314, 605, 274] + [0.0] * 6
+    second = [0.0] * 7 + [250, 60, 819, 853, 867, 832, 815, 774, 698, 551, 210] + [0.0] * 6
+
+    season, strength, basis = detect_season(first + second, "h")
+
+    assert (season, basis) == (24, "autocorrelation")
+    assert strength > .3
+
+
 def test_frequency_prior_does_not_replace_a_measured_period_23() -> None:
     import math
 

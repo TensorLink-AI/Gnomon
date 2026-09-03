@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import calendar
+import math
 import re
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
@@ -131,6 +132,56 @@ _FREQUENCY_PRIOR_REPEATABILITY = 0.90
 _DETREND_RESIDUAL_ENERGY_FLOOR = 1e-12
 
 
+def seasonal_structural_zero_phases(
+    history: list[float], season: int, *, max_cycles: int = 4,
+) -> frozenset[int]:
+    """Find a repeated contiguous block of exactly-zero seasonal phases.
+
+    A whole seasonal candidate may be inadmissible because magnitudes vary
+    between cycles even though its inactive phases are perfectly stable
+    (opening hours and daylight are common examples). Preserve that weaker
+    fact separately across two to four complete visible cycles. Scattered
+    intermittent zeros do not become a calendar claim because the union of
+    non-zero phases must form one contiguous circular block.
+
+    The result is phase evidence only. Callers must not change a non-zero
+    point forecast with it, and threshold probabilities need their own joint
+    calibration rather than this marginal rule.
+    """
+    if (season < 4 or max_cycles < 2 or len(history) < 2 * season
+            or any(not isinstance(value, (int, float))
+                   or isinstance(value, bool)
+                   or not math.isfinite(float(value))
+                   or float(value) < 0.0
+                   for value in history)):
+        return frozenset()
+    cycles = min(max_cycles, len(history) // season)
+    start = len(history) - cycles * season
+    visible = [float(value) for value in history[start:]]
+    cycle_rows = [
+        visible[index * season:(index + 1) * season]
+        for index in range(cycles)
+    ]
+    if any(not any(value > 0.0 for value in row) for row in cycle_rows):
+        return frozenset()
+    active = [
+        any(row[phase] > 0.0 for row in cycle_rows)
+        for phase in range(season)
+    ]
+    active_count = sum(active)
+    inactive = frozenset(
+        phase for phase, is_active in enumerate(active) if not is_active)
+    transitions = sum(
+        active[phase] != active[(phase - 1) % season]
+        for phase in range(season)
+    )
+    if (transitions != 2
+            or active_count < max(2, math.ceil(.15 * season))
+            or len(inactive) < math.ceil(.4 * season)):
+        return frozenset()
+    return inactive
+
+
 def default_season(frequency: str) -> int:
     """The fallback seasonal period for any supported frequency code.
 
@@ -227,6 +278,16 @@ def detect_season(values: list[float], frequency: str) -> tuple[int, float, str]
         _lag_correlation(centred, fallback)
         if fallback >= 2 and fallback <= maximum else 0.0
     )
+    # At exactly two cycles, noisy active-phase magnitudes can create a weak
+    # local peak a step or two before the calendar period even when a long,
+    # contiguous inactive phase block repeats exactly.  The phase structure
+    # is independent evidence for the frequency prior; require that plus a
+    # material equal-overlap correlation before preferring it.  This does not
+    # displace a shorter period once more than two cycles are visible.
+    if (maximum == fallback
+            and seasonal_structural_zero_phases(values, fallback)
+            and fallback_repeatability >= threshold):
+        return fallback, fallback_repeatability, "autocorrelation"
     if fallback_repeatability >= _FREQUENCY_PRIOR_REPEATABILITY:
         if maximum == fallback and not peaks:
             return fallback, fallback_repeatability, "autocorrelation"
