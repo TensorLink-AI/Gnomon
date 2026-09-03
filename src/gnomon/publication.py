@@ -32,6 +32,7 @@ ACTION_TIERS = frozenset({"advisory", "reversible_low_impact", "high_impact"})
 MAX_SCENARIOS = 8
 SELECTION_LABEL = "hypothesis_ranking"
 PRIOR_COMPROMISE_MIN_UNCERTAINTY_RATIO = 1.0 / 3.0
+PRIOR_COMPROMISE_MIN_DIRECTION_AGREEMENT = 0.8
 
 
 def _finite_number(value: Any) -> bool:
@@ -2397,10 +2398,11 @@ def _append_uncertainty_limited_prior(
 
     This is a risk-limiting best-effort rule, not evidence that the sampled
     prior forecasts well. It is available only for a degraded primary, a
-    host-observed sampled prior that cleared elicitation sufficiency, and a
-    primary interval whose median width spans at least one third of the
-    observed history range. The fixed equal weight is never fitted to an
-    outcome and can never authorize automation or upgrade support.
+    host-observed sampled prior that cleared elicitation sufficiency and has
+    at least 80% mean direction agreement, and a primary interval whose median
+    width spans at least one third of the observed history range. The fixed
+    equal weight is never fitted to an outcome and can never authorize
+    automation or upgrade support.
     """
     if len(scenarios) >= MAX_SCENARIOS or primary_support not in {
             "degraded", "best_effort"}:
@@ -2420,6 +2422,8 @@ def _append_uncertainty_limited_prior(
         effect = item.get("effect") or {}
         sufficiency = effect.get("elicitation_sufficiency") or {}
         elicitation = effect.get("elicitation") or {}
+        stability = elicitation.get("stability") or {}
+        direction_agreement = stability.get("mean_direction_agreement")
         if (item.get("role") == "model_authored"
                 and item.get("automation_eligible") is False
                 and elicitation.get("governed_fallback") ==
@@ -2427,7 +2431,10 @@ def _append_uncertainty_limited_prior(
                 and sufficiency.get(
                     "eligible_for_human_recommendation") is True
                 and sufficiency.get("historical_skill_evidence") is False
-                and elicitation.get("host_observed") is True):
+                and elicitation.get("host_observed") is True
+                and _finite_number(direction_agreement)
+                and float(direction_agreement) >=
+                    PRIOR_COMPROMISE_MIN_DIRECTION_AGREEMENT):
             sources.append(item)
     if primary is None or len(sources) != 1:
         return None
@@ -2483,6 +2490,15 @@ def _append_uncertainty_limited_prior(
                 "minimum_ratio": PRIOR_COMPROMISE_MIN_UNCERTAINTY_RATIO,
                 "history_source": "host_bound_forecast_input",
                 "interpretation": "primary_uncertainty_not_candidate_skill",
+            },
+            "stability_gate": {
+                "status": "passed",
+                "mean_direction_agreement": float(
+                    ((source.get("effect") or {}).get("elicitation") or {})
+                    ["stability"]["mean_direction_agreement"]),
+                "minimum_direction_agreement": (
+                    PRIOR_COMPROMISE_MIN_DIRECTION_AGREEMENT),
+                "interpretation": "elicitation_stability_not_skill",
             },
             "shrinkage": {
                 "method": "fixed_equal_weight_compromise",

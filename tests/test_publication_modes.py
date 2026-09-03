@@ -2046,6 +2046,11 @@ def test_broad_degraded_primary_gets_human_only_prior_compromise():
     assert gate["width_to_history_range"] == .5
     assert gate["interpretation"] == \
         "primary_uncertainty_not_candidate_skill"
+    stability_gate = selected["effect"]["stability_gate"]
+    assert stability_gate["mean_direction_agreement"] == .9
+    assert stability_gate["minimum_direction_agreement"] == .8
+    assert stability_gate["interpretation"] == \
+        "elicitation_stability_not_skill"
     assert selected["effect"]["historical_skill_evidence"] is False
     assert payload["scenario_selection"]["channel"] == \
         "uncertainty_limited_prior_policy"
@@ -2092,6 +2097,27 @@ def test_uncertainty_limited_prior_rejects_nonfinite_host_history():
                 sample_paths=[[14.0, 16.0]] * 3,
                 governed_fallback="categorical_state_mapping_not_admitted")],
             prior_compromise_history=[1.0, float("inf")])
+
+
+def test_uncertainty_limited_prior_rejects_directionally_unstable_samples():
+    stability = _stable_sampling(5)
+    stability["mean_direction_agreement"] = .79
+    dossier = attach_host_candidate_elicitation(
+        _dossier(), requested_paths=5, accepted_paths=5,
+        aggregation="linear_empirical_marginal_q10_q50_q90",
+        temperature=1.0, stability=stability,
+        sample_paths=[[14.0, 16.0]] * 5,
+        governed_fallback="categorical_state_mapping_not_admitted")
+
+    payload = publish_result(
+        {**_result(), "support": "degraded"}, mode="best_effort",
+        dossiers=[dossier],
+        prior_compromise_history=[0.0, 1.0, 2.0, 3.0, 4.0])
+
+    assert payload["recommended_scenario_id"] == "primary"
+    assert not any(item["role"] == "uncertainty_limited_prior"
+                   for item in payload["candidate_portfolio"])
+    assert verify_publication(payload)
 
 
 @pytest.mark.parametrize("mutation", [
