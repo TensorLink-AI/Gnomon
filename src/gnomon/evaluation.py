@@ -1111,15 +1111,13 @@ def _admit_pretrained_lightweight(
     if not assessment.supported or not assessment.strongest_baseline:
         return assessment
     from .tsfm import eligible_tsfms, pinned_revision
-    from .tsfm_sandbox import sandbox_available_tsfms, sandbox_tsfm_candidates
+    from .tsfm_sandbox import select_tsfm_candidates
     eligible, _ = eligible_tsfms(
         history_length=len(values), horizon=horizon, frequency=frequency)
     requested = tsfm_names if tsfm_names is not None else eligible
     requested = [name for name in requested if name in eligible]
-    sandbox_names = sandbox_available_tsfms()
-    adapters = (sandbox_tsfm_candidates(requested=requested, frequency=frequency)
-                if sandbox_names and requested
-                else tsfm_candidates(requested=requested, frequency=frequency))
+    adapters = select_tsfm_candidates(requested=requested, frequency=frequency,
+                                      in_process=tsfm_candidates)
     if not adapters:
         return assessment
     priors = dict(external_priors or {})
@@ -1574,7 +1572,7 @@ def evaluate(
     # Prefer sandboxed adapters (isolated venvs) to avoid dependency conflicts.
     # Fall back to in-process adapters if no sandboxes are set up.
     from .tsfm import eligible_tsfms
-    from .tsfm_sandbox import sandbox_tsfm_candidates, sandbox_available_tsfms
+    from .tsfm_sandbox import select_tsfm_candidates
     tsfm_adapters: list[Any] = []
     eligible_names, capability_exclusions = eligible_tsfms(
         history_length=len(values), horizon=horizon, frequency=frequency,
@@ -1592,14 +1590,10 @@ def evaluate(
         for name, reasons in capability_exclusions.items()
         if tsfm_names is None or name in tsfm_names
     ]
-    sandbox_names = sandbox_available_tsfms()
-    if sandbox_names and requested_names:
-        tsfm_adapters = sandbox_tsfm_candidates(
-            requested=requested_names,
-            frequency=frequency,
-        )
-    elif requested_names:
-        tsfm_adapters = tsfm_candidates(requested=requested_names, frequency=frequency)
+    if requested_names:
+        tsfm_adapters = select_tsfm_candidates(
+            requested=requested_names, frequency=frequency,
+            in_process=tsfm_candidates)
     tsfm_model_names = [a.name for a in tsfm_adapters]
     all_model_names = list(pool.keys()) + tsfm_model_names
 
@@ -1680,7 +1674,8 @@ def evaluate(
     # TSFM sandboxes, so without this note the operator most likely to benefit
     # from a stronger candidate never learns one was eligible.
     from .tsfm import installed_tsfms
-    installed_names = set(sandbox_names) | set(installed_tsfms())
+    from .tsfm_sandbox import sandbox_available_tsfms
+    installed_names = set(sandbox_available_tsfms()) | set(installed_tsfms())
     notes: list[str] = list(capability_notes)
     if requested_names and not installed_names:
         notes.append(
