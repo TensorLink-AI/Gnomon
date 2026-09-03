@@ -93,7 +93,21 @@ _LOCAL_CHECKPOINT_ENV: dict[str, str] = {
     "cascade": "GNOMON_CASCADE_CHECKPOINT",
 }
 
-_LOCAL_PIN_CACHE: dict[str, str] = {}
+_LOCAL_CHECKPOINT_FILES: dict[str, tuple[str, ...]] = {
+    "cascade": (
+        "config.json",
+        "forecast_wrapper.py",
+        "model.py",
+        "weights.safetensors",
+    ),
+}
+
+# path/name -> (file metadata signature, content digest).  The metadata is
+# only a cache invalidator; the published identity remains the SHA-256 over
+# every byte the adapter executes or loads.
+_LOCAL_PIN_CACHE: dict[
+    tuple[str, str], tuple[tuple[tuple[str, int, int, int, int], ...], str]
+] = {}
 
 
 def local_checkpoint_dir(name: str) -> "Any":
@@ -121,21 +135,47 @@ def local_pin(name: str) -> dict[str, str]:
     import hashlib
 
     path = local_checkpoint_dir(name)
-    key = str(path.resolve())
+    filenames = _LOCAL_CHECKPOINT_FILES[name]
+    candidates = [(filename, path / filename) for filename in filenames]
+
+    def signature() -> tuple[tuple[str, int, int, int, int], ...]:
+        try:
+            return tuple(
+                (filename, stat.st_size, stat.st_mtime_ns,
+                 stat.st_ctime_ns, stat.st_ino)
+                for filename, candidate in candidates
+                for stat in (candidate.stat(),)
+            )
+        except FileNotFoundError as exc:
+            raise TSFMUnavailable(
+                f"checkpoint at {path} is missing {exc.filename}"
+            ) from None
+
+    before = signature()
+    key = (name, str(path.resolve()))
     cached = _LOCAL_PIN_CACHE.get(key)
-    if cached is None:
-        digest = hashlib.sha256()
-        # config and architecture are as load-bearing as the tensors: the same
-        # weights read under a different patch size are a different model.
-        for filename in ("config.json", "model.py", "weights.safetensors"):
-            candidate = path / filename
-            if not candidate.exists():
-                raise TSFMUnavailable(f"checkpoint at {path} is missing {filename}")
-            with candidate.open("rb") as handle:
-                for chunk in iter(lambda: handle.read(1 << 20), b""):
-                    digest.update(chunk)
-        cached = _LOCAL_PIN_CACHE[key] = digest.hexdigest()
-    return {f"local:{path.name}": cached}
+    if cached is not None and cached[0] == before:
+        return {f"local:{path.name}": cached[1]}
+
+    digest = hashlib.sha256()
+    # File names and boundaries are part of the identity: moving the same
+    # bytes between config, executable wrapper, architecture and tensors must
+    # not preserve a revision accidentally.
+    for filename, candidate in candidates:
+        label = filename.encode("utf-8")
+        digest.update(len(label).to_bytes(4, "big"))
+        digest.update(label)
+        with candidate.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1 << 20), b""):
+                digest.update(chunk)
+    after = signature()
+    if after != before:
+        raise TSFMUnavailable(
+            f"checkpoint at {path} changed while its identity was being computed"
+        )
+    revision = digest.hexdigest()
+    _LOCAL_PIN_CACHE[key] = (after, revision)
+    return {f"local:{path.name}": revision}
 
 
 def resolved_weights(name: str) -> dict[str, str]:
@@ -800,8 +840,9 @@ class CascadeAdapter:
         # out of candidate pools through ``dependency_missing``, and raises
         # from ``_ensure_loaded`` if something asks it to forecast anyway.
         self.params_m = tsfm_parameter_count(name)
+        self._pins = resolved_weights(name)
         self.revision = ",".join(
-            f"{key}@{value}" for key, value in sorted(resolved_weights(name).items())
+            f"{key}@{value}" for key, value in sorted(self._pins.items())
         ) or None
         self._wrapper = None
         self._levels: list[float] = []
@@ -813,7 +854,11 @@ class CascadeAdapter:
 
         _import_torch()
         path = local_checkpoint_dir(self.name)
-        local_pin(self.name)          # refuse to load unpinnable weights
+        if local_pin(self.name) != self._pins:
+            raise TSFMError(
+                f"{self.name} checkpoint changed after adapter construction; "
+                "create a fresh adapter so its revision matches the loaded files"
+            )
         try:
             spec = importlib.util.spec_from_file_location(
                 f"gnomon_cascade_{path.name}", path / "forecast_wrapper.py")

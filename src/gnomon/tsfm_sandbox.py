@@ -814,6 +814,7 @@ class SubprocessAdapter:
     ):
         self.name = name
         pins = resolved_weights(name)
+        self._pins = pins
         self.revision = ",".join(
             f"{model_id}@{revision}"
             for model_id, revision in sorted(pins.items())) or None
@@ -841,6 +842,11 @@ class SubprocessAdapter:
 
     def _start_worker(self) -> subprocess.Popen[str]:
         """Start one long-lived worker for this adapter instance."""
+        if resolved_weights(self.name) != self._pins:
+            raise TSFMError(
+                f"{self.name} weights changed after adapter construction; "
+                "create a fresh adapter so its revision matches the worker"
+            )
         try:
             sandbox_dir = ensure_sandbox(self.name)
         except TSFMUnavailable:
@@ -900,9 +906,7 @@ class SubprocessAdapter:
         # records the pinned revisions (`resolved_weights`), so the load
         # must be at exactly those commits or the id would attest weights
         # the run never used.
-        from .tsfm import resolved_weights
-
-        request["revisions"] = resolved_weights(self.name)
+        request["revisions"] = dict(self._pins)
 
         with self._process_lock:
             process = self._process
