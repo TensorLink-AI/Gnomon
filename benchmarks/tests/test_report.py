@@ -7,10 +7,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from benchmarks.common.manifest import (  # noqa: E402
+    code_revision,
     incompatibilities,
     read_manifest,
     write_manifest,
 )
+from benchmarks.common import manifest as manifest_module  # noqa: E402
 from benchmarks.report import (  # noqa: E402
     comparison_costs,
     compare,
@@ -60,6 +62,26 @@ def test_manifest_round_trips_and_flags_target_mismatch(tmp_path):
     assert read_manifest(left)["benchmark"] == "mtbench"
     problems = incompatibilities(read_manifest(left), read_manifest(right))
     assert problems and "target differs" in problems[0]
+
+
+def test_code_revision_marks_tracked_changes_but_ignores_untracked(
+        monkeypatch):
+    responses = iter([
+        manifest_module.subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="abc123\n", stderr=""),
+        manifest_module.subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=" M src/gnomon/core.py\n", stderr=""),
+    ])
+    calls = []
+
+    def run(*args, **kwargs):
+        calls.append(args[0])
+        return next(responses)
+
+    monkeypatch.setattr(manifest_module.subprocess, "run", run)
+
+    assert code_revision() == "abc123+dirty"
+    assert calls[1][-1] == "--untracked-files=no"
 
 
 def test_unknown_field_is_not_treated_as_agreement():
