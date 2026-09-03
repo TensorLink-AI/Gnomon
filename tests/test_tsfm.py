@@ -217,6 +217,28 @@ class TestSandbox:
         # (but we can't guarantee the test env is clean, so just check it's a list)
         assert isinstance(list_sandboxes(), list)
 
+    def test_orphaned_ready_sandbox_is_not_executable(self, tmp_path, monkeypatch):
+        import gnomon.tsfm_sandbox as sandbox
+
+        orphan = tmp_path / "retired_adapter"
+        orphan.mkdir()
+        (orphan / ".gnomon-sandbox-ready").write_text("ready\n")
+        monkeypatch.setattr(sandbox, "SANDBOX_ROOT", tmp_path)
+
+        assert sandbox.list_sandboxes() == ["retired_adapter"]
+        assert sandbox.sandbox_available_tsfms() == []
+        assert sandbox.orphaned_sandboxes() == ["retired_adapter"]
+        assert sandbox.sandbox_tsfm_candidates() == []
+
+    def test_unconfigured_local_sandbox_is_not_executable(self, monkeypatch):
+        import gnomon.tsfm_sandbox as sandbox
+
+        monkeypatch.setattr(sandbox, "list_sandboxes", lambda: ["cascade"])
+        monkeypatch.setattr(sandbox, "resolved_weights", lambda name: {})
+
+        assert sandbox.sandbox_available_tsfms() == []
+        assert sandbox.orphaned_sandboxes() == []
+
     def test_sandbox_exists_returns_bool(self):
         from gnomon.tsfm_sandbox import sandbox_exists
         assert isinstance(sandbox_exists("chronos_bolt_mini"), bool)
@@ -356,6 +378,7 @@ class TestSandbox:
         assert "available" in result
         assert "installed_in_process" in result
         assert "sandboxed" in result
+        assert "orphaned_sandboxes" in result
         assert "pip_specs" in result
 
     def test_evaluate_without_tsfms_works(self):

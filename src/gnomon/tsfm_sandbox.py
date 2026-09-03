@@ -347,7 +347,12 @@ def remove_sandbox(name: str) -> bool:
 
 
 def list_sandboxes() -> list[str]:
-    """Return names of TSFMs with existing sandboxes."""
+    """Return every ready sandbox directory present on disk.
+
+    This is the maintenance view, so it deliberately includes sandboxes for
+    adapters that a newer Gnomon version no longer registers.  Execution
+    paths must use :func:`sandbox_available_tsfms` instead.
+    """
     if not SANDBOX_ROOT.exists():
         return []
     return sorted(
@@ -1034,8 +1039,38 @@ class SubprocessAdapter:
 # ---------------------------------------------------------------------------
 
 def sandbox_available_tsfms() -> list[str]:
-    """Return names of TSFMs with ready sandboxes."""
-    return list_sandboxes()
+    """Return registered TSFMs with ready, executable sandboxes.
+
+    A cache survives package upgrades.  Its ready marker therefore proves
+    that a sandbox was once installed, not that the current runtime still
+    knows its adapter contract.  Keep orphaned directories observable to the
+    maintenance surface, but never construct an adapter for one.
+    """
+    available: list[str] = []
+    for name in list_sandboxes():
+        try:
+            tsfm_capabilities(name)
+        except KeyError:
+            continue
+        # Public adapters resolve to pinned Hub revisions.  Local adapters
+        # resolve only after their checkpoint is configured and its loaded
+        # files can be hashed.  A venv alone does not make an unconfigured
+        # local model executable or eligible for forecast selection.
+        if not resolved_weights(name):
+            continue
+        available.append(name)
+    return available
+
+
+def orphaned_sandboxes() -> list[str]:
+    """Return ready sandbox directories unknown to the current runtime."""
+    orphaned: list[str] = []
+    for name in list_sandboxes():
+        try:
+            tsfm_capabilities(name)
+        except KeyError:
+            orphaned.append(name)
+    return orphaned
 
 
 def sandbox_tsfm_candidates(
@@ -1047,7 +1082,7 @@ def sandbox_tsfm_candidates(
     Unlike ``tsfm_candidates`` in tsfm.py, this returns adapters that
     run in isolated venvs, avoiding dependency conflicts.
     """
-    ready = list_sandboxes()
+    ready = sandbox_available_tsfms()
     if requested:
         ready = [name for name in ready if name in requested]
     candidates: list[TSFMAdapter] = []

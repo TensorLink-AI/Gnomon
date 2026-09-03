@@ -107,11 +107,31 @@ class TestCapabilitiesTruthfulness:
     def test_sandbox_install_appears_under_models_tsfm(self, monkeypatch):
         import gnomon.runtime as runtime
 
+        monkeypatch.setattr("gnomon.tsfm_sandbox.sandbox_available_tsfms",
+                            lambda: ["chronos_bolt_mini"])
         monkeypatch.setattr("gnomon.tsfm_sandbox.list_sandboxes",
                             lambda: ["chronos_bolt_mini"])
+        monkeypatch.setattr("gnomon.tsfm_sandbox.orphaned_sandboxes", lambda: [])
         caps = runtime.capabilities()
         assert "chronos_bolt_mini" in caps["models"]["tsfm"]
         assert caps["models"]["tsfm_sandboxes"] == ["chronos_bolt_mini"]
+
+    def test_orphaned_sandbox_is_disclosed_but_not_advertised(self, monkeypatch):
+        import gnomon.runtime as runtime
+
+        monkeypatch.setattr(
+            "gnomon.tsfm_sandbox.sandbox_available_tsfms", lambda: []
+        )
+        monkeypatch.setattr(
+            "gnomon.tsfm_sandbox.list_sandboxes", lambda: ["retired_adapter"]
+        )
+        monkeypatch.setattr(
+            "gnomon.tsfm_sandbox.orphaned_sandboxes", lambda: ["retired_adapter"]
+        )
+        caps = runtime.capabilities()
+        assert "retired_adapter" not in caps["models"]["tsfm"]
+        assert caps["models"]["tsfm_sandboxes"] == ["retired_adapter"]
+        assert caps["models"]["tsfm_orphaned_sandboxes"] == ["retired_adapter"]
 
 
 class TestConfigCandidatesReachSelection:

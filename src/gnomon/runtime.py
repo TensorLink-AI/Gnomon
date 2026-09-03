@@ -1324,8 +1324,8 @@ def _default_worker_count(channels: int) -> int:
     if not getattr(sys, "_is_gil_enabled", lambda: True)():
         return cap
     try:
-        from .tsfm_sandbox import list_sandboxes
-        if list_sandboxes():
+        from .tsfm_sandbox import sandbox_available_tsfms
+        if sandbox_available_tsfms():
             return cap
     except Exception:
         pass
@@ -1666,7 +1666,9 @@ def capabilities() -> dict[str, object]:
     from .registry import registry_capabilities
     from .statsforecast_adapter import installation_status
     from .tsfm import available_tsfms, capability_matrix, installed_tsfms
-    from .tsfm_sandbox import list_sandboxes
+    from .tsfm_sandbox import (
+        list_sandboxes, orphaned_sandboxes, sandbox_available_tsfms,
+    )
     try:
         from .config import load_config
         _capabilities_config = load_config()
@@ -1774,9 +1776,15 @@ def capabilities() -> dict[str, object]:
             # reported [] after a successful `gnomon tsfm install`, because
             # it requires torch importable in the *main* process — which
             # the sandbox model exists to avoid.
-            "tsfm": sorted(set(installed_tsfms()) | set(list_sandboxes())),
+            "tsfm": sorted(
+                set(installed_tsfms()) | set(sandbox_available_tsfms())
+            ),
             "tsfm_available": available_tsfms(),
+            # The maintenance inventory is intentionally wider than `tsfm`:
+            # it retains unconfigured and retired caches so an operator can
+            # see and remove them without advertising them as executable.
             "tsfm_sandboxes": list_sandboxes(),
+            "tsfm_orphaned_sandboxes": orphaned_sandboxes(),
             "tsfm_capabilities": capability_matrix(),
             "tsfm_install_command": "gnomon tsfm install <name>",
             "tsfm_install_tool": "gnomon_install_tsfm",
