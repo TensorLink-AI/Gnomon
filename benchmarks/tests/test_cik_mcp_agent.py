@@ -2827,7 +2827,7 @@ def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
         "x/y", client=client,
         session_factory=lambda cwd: InProcessMcpSession(cwd),
         work_dir=str(tmp_path), profile="evidence",
-        output_role="llm_candidate_shadow")
+        output_role="llm_candidate_shadow", candidate_history_budget=8)
 
     samples, extra = forecaster(task, 3)
 
@@ -2868,6 +2868,14 @@ def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
     compact_prompt = " ".join(client.completion_prompts[0].split())
     assert "Factor in relevant background" in compact_prompt
     assert "mapping failed" not in compact_prompt
+    assert (
+        '<history_state_labels> '
+        '["open","open","open","open","closed","closed","closed","closed"] '
+        '</history_state_labels>' in compact_prompt)
+    assert (
+        '<future_state_labels> ["open","open","open","open"] '
+        '</future_state_labels>' in compact_prompt)
+    assert "labels are context, never target values" in compact_prompt
 
 
 @pytest.mark.parametrize(

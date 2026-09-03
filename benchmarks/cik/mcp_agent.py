@@ -5953,6 +5953,13 @@ class _Run:
                 timestamps=candidate_timestamps,
                 values=candidate_values,
                 future_timestamps=future_timestamps,
+                history_state_labels=(
+                    categorical_schedule["history_states"][
+                        -len(candidate_timestamps):]
+                    if categorical_schedule is not None else None),
+                future_state_labels=(
+                    categorical_schedule["future_states"]
+                    if categorical_schedule is not None else None),
                 temporal_facts=(candidate_temporal_facts(
                     self.timestamps,
                     (self.companion_histories[
