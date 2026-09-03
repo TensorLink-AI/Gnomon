@@ -847,14 +847,24 @@ class SubprocessAdapter:
                 f"{self.name} weights changed after adapter construction; "
                 "create a fresh adapter so its revision matches the worker"
             )
-        try:
-            sandbox_dir = ensure_sandbox(self.name)
-        except TSFMUnavailable:
-            raise
-        except TSFMError as exc:
-            raise TSFMError(f"Sandbox for {self.name} is not ready: {exc}") from exc
-
-        worker = _ensure_worker_script(sandbox_dir)
+        # A ready sandbox is an installed dependency environment, not a
+        # runtime-writable code directory.  Inference used to call
+        # ``ensure_sandbox`` and refresh ``worker.py`` here; that made a
+        # healthy model silently disappear from selection in read-only
+        # containers.  New installs still materialize a worker before their
+        # ready marker, while runtime executes this package revision's exact
+        # worker source under the pinned sandbox interpreter without writing
+        # into the install.
+        if sandbox_exists(self.name):
+            sandbox_dir = _sandbox_dir(self.name)
+        else:
+            try:
+                sandbox_dir = ensure_sandbox(self.name)
+            except TSFMUnavailable:
+                raise
+            except TSFMError as exc:
+                raise TSFMError(
+                    f"Sandbox for {self.name} is not ready: {exc}") from exc
         venv_python = sandbox_dir / "venv" / "bin" / "python"
 
         if not venv_python.exists():
@@ -864,7 +874,7 @@ class SubprocessAdapter:
 
         try:
             return subprocess.Popen(
-                [str(venv_python), str(worker)],
+                [str(venv_python), "-c", WORKER_SCRIPT],
                 stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                 # Model libraries can emit many warnings.  A persistent
                 # worker must not retain an unread stderr pipe: once its OS
