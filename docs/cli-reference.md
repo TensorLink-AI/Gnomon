@@ -151,6 +151,13 @@ Short histories use a single trailing holdout and return `degraded` forecasts
 by default. Pass `--strict-abstention` to retain empty-result abstention when
 separated rolling evaluation is unavailable.
 
+When fewer than two disjoint selection folds fit, the ordinary model
+tournament is disabled. Gnomon publishes `last_value` unless a narrow
+prefix-only screen establishes a stable linear trend or stationary level by
+winning one-step replay in both chronological halves while rejecting recent
+shifts and reversals. Those proxy origins are disclosed but never counted as
+additional full-horizon folds, and the result remains `degraded`.
+
 If that underpowered comparison retains the assumption-minimal `last_value`
 primary, inspect `results[*].model_assisted` before concluding that Gnomon saw
 no movement. This separate, non-automatable lane can carry a useful drift or

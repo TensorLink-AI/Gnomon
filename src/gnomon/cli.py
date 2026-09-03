@@ -1564,7 +1564,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "tsfm":
             from .tsfm import available_tsfms, installed_tsfms
             from .tsfm_sandbox import (
-                ensure_sandbox, remove_sandbox, list_sandboxes,
+                ensure_sandbox, orphaned_sandboxes, remove_sandbox,
+                list_sandboxes,
                 TSFM_PIP_SPECS,
             )
             from .tsfm import TSFMUnavailable, TSFMError
@@ -1574,6 +1575,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "available": available_tsfms(),
                     "installed_in_process": installed_tsfms(),
                     "sandboxed": list_sandboxes(),
+                    "orphaned_sandboxes": orphaned_sandboxes(),
                     "pip_specs": {
                         name: specs for name, specs in TSFM_PIP_SPECS.items()
                     },

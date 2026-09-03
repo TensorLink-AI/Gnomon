@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from benchmarks.common.manifest import code_revision
 from gnomon.agent_response import (
     build_agent_response_contract,
     verify_agent_decision_selection,
@@ -178,6 +179,7 @@ def run() -> dict[str, Any]:
     summary = {
         "benchmark": "decisioncontractbench",
         "schema_version": 1,
+        "evaluated_commit": code_revision(),
         "cases": len(rows),
         "contract_emitted": contract is not None,
         "decision_contracts": len(decisions),

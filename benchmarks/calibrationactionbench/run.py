@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from benchmarks.common.manifest import code_revision
 from gnomon.publication import publish_result, verify_publication
 
 
@@ -117,6 +118,7 @@ def run() -> dict[str, Any]:
             })
     summary = {
         "benchmark": "calibrationactionbench", "schema_version": 1,
+        "evaluated_commit": code_revision(),
         "cases": len(rows), "completed": sum(
             row["status"] == "complete" for row in rows),
         "exact": sum(row["exact"] for row in rows),

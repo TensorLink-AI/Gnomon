@@ -11,7 +11,11 @@ from pathlib import Path
 from typing import Any
 
 from gnomon.config import GnomonConfig
-from gnomon.evaluation import conformal_spreads, evaluate, interval_from_spread
+from gnomon.evaluation import (
+    conformal_spreads, evaluate, intermittent_predictive_quantiles,
+    interval_from_spread,
+)
+from benchmarks.common.manifest import code_revision
 
 
 FAMILIES = (
@@ -60,8 +64,17 @@ def _pinball(actual: float, estimate: float, quantile: float) -> float:
     return max(quantile * error, (quantile - 1.0) * error)
 
 
+def _wis(actual: float, low: float, middle: float, high: float) -> float:
+    """Proper WIS for a median and one central 80% interval."""
+    alpha = .2
+    return (.5 * abs(actual - middle)
+            + (alpha / 2.0) * _interval_score(actual, low, high)) / (
+                .5 + alpha / 2.0)
+
+
 def _arm(history: list[float], actual: list[float], horizon: int,
-         season: int, frequency: str, *, pooled: bool) -> dict[str, Any]:
+         season: int, frequency: str, *, pooled: bool,
+         current_calibrator: bool = True) -> dict[str, Any]:
     config = GnomonConfig()
     config.evaluation.pool_residuals = pooled
     assessment = evaluate(
@@ -83,9 +96,16 @@ def _arm(history: list[float], actual: list[float], horizon: int,
     spreads = conformal_spreads(
         assessment.residuals_by_lead, horizon, assessment.residuals,
         recentre=not assessment.degraded,
+        finite_sample_expansion=not pooled and current_calibrator,
     )
-    intervals = [interval_from_spread(points[index], spreads[index + 1])
-                 for index in range(horizon)]
+    intervals = []
+    intermittent = (intermittent_predictive_quantiles(
+        history, (0.1, 0.5, 0.9)) if current_calibrator else None)
+    for index in range(horizon):
+        intervals.append((
+            (intermittent[0.1], intermittent[0.5], intermittent[0.9])
+            if intermittent is not None else
+            interval_from_spread(points[index], spreads[index + 1])))
     covered = [low <= observed <= high
                for observed, (low, _, high) in zip(actual, intervals)]
     interval_scores = [_interval_score(observed, low, high)
@@ -95,6 +115,10 @@ def _arm(history: list[float], actual: list[float], horizon: int,
         _pinball(observed, middle, .5),
         _pinball(observed, high, .9),
     )) for observed, (low, middle, high) in zip(actual, intervals)]
+    weighted_interval_scores = [
+        _wis(observed, low, middle, high)
+        for observed, (low, middle, high) in zip(actual, intervals)
+    ]
     last = history[-1]
     final_low, _, final_high = intervals[-1]
     signal = ("increase" if final_low > last else
@@ -113,6 +137,7 @@ def _arm(history: list[float], actual: list[float], horizon: int,
         "covered_points": sum(covered), "interval_points": len(covered),
         "mean_interval_score": statistics.mean(interval_scores),
         "mean_pinball": statistics.mean(pinball),
+        "mean_wis": statistics.mean(weighted_interval_scores),
         "mean_width": statistics.mean(high - low
                                       for low, _, high in intervals),
         "measured_prior_coverage": prior_coverage,
@@ -161,6 +186,9 @@ def _aggregate(rows: list[dict[str, Any]], arm: str) -> dict[str, Any]:
         "mean_pinball": (statistics.mean(
             float(item["mean_pinball"]) for item in values)
             if values else None),
+        "mean_wis": (statistics.mean(
+            float(item["mean_wis"]) for item in values)
+            if values else None),
         "mean_width": (statistics.mean(float(item["mean_width"])
                                        for item in values)
                        if values else None),
@@ -176,26 +204,41 @@ def _aggregate(rows: list[dict[str, Any]], arm: str) -> dict[str, Any]:
 
 def summarize(rows: list[dict[str, Any]], expected: int) -> dict[str, Any]:
     pooled = _aggregate(rows, "pooled")
+    strict_reference = _aggregate(rows, "strict_reference")
     strict = _aggregate(rows, "strict")
     by_family = {
         family: _aggregate([row for row in rows if row["family"] == family],
                            "strict")
         for family in FAMILIES
     }
+    pooled_by_family = {
+        family: _aggregate([row for row in rows if row["family"] == family],
+                           "pooled")
+        for family in FAMILIES
+    }
+    reference_by_family = {
+        family: _aggregate([row for row in rows if row["family"] == family],
+                           "strict_reference")
+        for family in FAMILIES
+    }
     family_coverage = [item["coverage"] for item in by_family.values()
                        if item["coverage"] is not None]
     point_parity = all(
         row["pooled"].get("points") == row["strict"].get("points")
+        == row["strict_reference"].get("points")
         for row in rows if row["pooled"].get("complete")
-        and row["strict"].get("complete"))
+        and row["strict"].get("complete")
+        and row["strict_reference"].get("complete"))
     gates = {
         "all_cases_complete": len(rows) == expected and all(
             row[arm].get("executed") is True
-            for row in rows for arm in ("pooled", "strict")),
+            for row in rows
+            for arm in ("pooled", "strict_reference", "strict")),
         "point_forecasts_unchanged": point_parity,
         "strict_split_provenance": all(
-            row["strict"].get("residuals_pooled_across_selection") is False
-            for row in rows if row["strict"].get("complete")),
+            row[arm].get("residuals_pooled_across_selection") is False
+            for row in rows for arm in ("strict_reference", "strict")
+            if row[arm].get("complete")),
         "pooled_never_policy_eligible": pooled["policy_eligible_cases"] == 0,
         "overall_coverage_within_10_points": bool(
             strict["coverage"] is not None
@@ -214,6 +257,16 @@ def summarize(rows: list[dict[str, Any]], expected: int) -> dict[str, Any]:
             and pooled["mean_pinball"] is not None
             and float(strict["mean_pinball"])
             <= float(pooled["mean_pinball"]) + 1e-12),
+        "wis_nonworsening": bool(
+            strict["mean_wis"] is not None
+            and pooled["mean_wis"] is not None
+            and float(strict["mean_wis"])
+            <= float(pooled["mean_wis"]) + 1e-12),
+        "current_wis_improves_strict_reference": bool(
+            strict["mean_wis"] is not None
+            and strict_reference["mean_wis"] is not None
+            and float(strict["mean_wis"])
+            <= float(strict_reference["mean_wis"]) + 1e-12),
         "false_action_cost_nonincreasing": (
             strict["false_action_cost"] <= pooled["false_action_cost"]),
         "positive_selective_utility": strict["actions"] > 0
@@ -222,7 +275,10 @@ def summarize(rows: list[dict[str, Any]], expected: int) -> dict[str, Any]:
     return {
         "schema_version": 1, "benchmark": "calibration-action-evaluation",
         "cases": len(rows), "expected_cases": expected,
-        "arms": {"pooled": pooled, "strict": strict},
+        "arms": {"pooled": pooled, "strict_reference": strict_reference,
+                 "strict": strict},
+        "pooled_by_family": pooled_by_family,
+        "strict_reference_by_family": reference_by_family,
         "strict_by_family": by_family, "gates": gates,
         "all_promotion_gates_passed": all(gates.values()),
         "rows": rows,
@@ -233,6 +289,31 @@ def run(seed: int, cases_per_family: int, output_dir: Path,
         resume: bool) -> dict[str, Any]:
     output_dir.mkdir(parents=True, exist_ok=True)
     checkpoint = output_dir / "observations.jsonl"
+    identity_path = output_dir / "run-identity.json"
+    identity = {
+        "schema_version": 1,
+        "benchmark": "calibration-action-evaluation",
+        "evaluated_commit": code_revision(),
+        "seed": seed,
+        "cases_per_family": cases_per_family,
+        "families": list(FAMILIES),
+    }
+    if resume:
+        if not identity_path.is_file():
+            raise ValueError("resume requires a retained run-identity.json")
+        retained_identity = json.loads(identity_path.read_text(
+            encoding="utf-8"))
+        if retained_identity != identity:
+            raise ValueError(
+                "resume identity differs from the retained calibration run")
+    elif checkpoint.exists() or identity_path.exists():
+        raise ValueError(
+            "output directory already contains a run; pass --resume or use "
+            "a new directory")
+    else:
+        identity_path.write_text(
+            json.dumps(identity, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8")
     completed: dict[str, dict[str, Any]] = {}
     if resume and checkpoint.is_file():
         for line in checkpoint.read_text(encoding="utf-8").splitlines():
@@ -250,8 +331,11 @@ def run(seed: int, cases_per_family: int, output_dir: Path,
         row = {
             **case,
             "future_observations_used_by_forecaster": 0,
-            "pooled": _arm(history, actual, case["horizon"], case["season"],
+                "pooled": _arm(history, actual, case["horizon"], case["season"],
                            case["frequency"], pooled=True),
+            "strict_reference": _arm(
+                history, actual, case["horizon"], case["season"],
+                case["frequency"], pooled=False, current_calibrator=False),
             "strict": _arm(history, actual, case["horizon"], case["season"],
                            case["frequency"], pooled=False),
         }
@@ -261,6 +345,8 @@ def run(seed: int, cases_per_family: int, output_dir: Path,
         print(f"completed {index}/{len(cases)} {case['case_id']}", flush=True)
     rows = [completed[case["case_id"]] for case in cases]
     summary = summarize(rows, len(cases))
+    summary["evaluated_commit"] = identity["evaluated_commit"]
+    summary["run_identity"] = identity
     (output_dir / "summary.json").write_text(
         json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return summary

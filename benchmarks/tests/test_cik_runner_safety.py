@@ -5,9 +5,11 @@ from types import SimpleNamespace
 import pytest
 
 from benchmarks.cik.run_cik import (
-    _counterfactual_candidate_scores, _load_checkpoint,
+    _candidate_interval_diagnostics, _checkpoint_identity,
+    _counterfactual_candidate_scores,
+    _load_attempt_checkpoint, _load_checkpoint, _prepare_checkpoint_identity,
     _summarize_selection_diagnostics, _task_information_profile, build_parser,
-    select_tasks, write_outputs,
+    _write_attempt_checkpoint, select_tasks, write_outputs,
 )
 
 
@@ -55,6 +57,8 @@ def test_candidate_scores_are_post_forecast_diagnostics_only(monkeypatch):
         asarray=lambda values, dtype: Array(values)))
 
     class Task:
+        future_time = None
+
         def evaluate(self, samples):
             assert samples.shape == (5, 2, 1)
             return {"metric": float(samples.values[0][0])}
@@ -66,7 +70,20 @@ def test_candidate_scores_are_post_forecast_diagnostics_only(monkeypatch):
             {"timestamp": "t2", "q10": value, "q50": value + 1,
              "q90": value + 2},
         ]
-    scores = _counterfactual_candidate_scores(Task(), {"publication": {
+    class Series:
+        def tolist(self):
+            return [10.0, 11.0]
+
+    class Future:
+        columns = ["target"]
+
+        def __getitem__(self, name):
+            assert name == "target"
+            return Series()
+
+    task = Task()
+    task.future_time = Future()
+    scores = _counterfactual_candidate_scores(task, {"publication": {
         "recommended_scenario_id": "primary",
         "candidate_portfolio": [
             {"scenario_id": "primary", "role": "immutable_primary",
@@ -82,6 +99,23 @@ def test_candidate_scores_are_post_forecast_diagnostics_only(monkeypatch):
     assert all(item["passed_to_forecaster"] is False for item in scores)
     assert scores[0]["human_selection_eligible"] is True
     assert scores[1]["human_selection_eligible"] is False
+    assert scores[0]["nominal_coverage"] == .8
+    assert scores[0]["empirical_coverage"] == 1
+    assert abs(scores[0]["wis"] - 1 / 3) < 1e-12
+    assert scores[1]["wis"] > scores[0]["wis"]
+
+
+def test_candidate_interval_diagnostics_reject_crossed_quantiles():
+    class Future:
+        columns = ["target"]
+
+        def __getitem__(self, _name):
+            return [10.0]
+
+    with pytest.raises(ValueError, match="crossed"):
+        _candidate_interval_diagnostics(
+            SimpleNamespace(future_time=Future()),
+            [{"q10": 11, "q50": 10, "q90": 12}])
 
 
 def test_selection_summary_separates_uplift_from_hindsight_regret():
@@ -132,6 +166,7 @@ def test_write_outputs_retains_versioned_raw_selection_diagnostics(
         ],
         "primary_forecast_unchanged": True,
         "automation_eligible": False,
+        "total_time": 2.0,
     }
     monkeypatch.setattr(
         "benchmarks.cik.run_cik.load_run_extra_info",
@@ -142,7 +177,9 @@ def test_write_outputs_retains_versioned_raw_selection_diagnostics(
     method = SimpleNamespace(cache_name="method-contract-238")
 
     write_outputs(
-        {"Task": [{"seed": 7, "score": .4}]}, method, args, tmp_path)
+        {"Task": [{"seed": 7, "score": .4,
+                   "cumulative_active_seconds": 9.5}]},
+        method, args, tmp_path)
 
     rows = [json.loads(line) for line in (
         tmp_path / "selection-diagnostics.jsonl").read_text(
@@ -154,6 +191,25 @@ def test_write_outputs_retains_versioned_raw_selection_diagnostics(
     assert rows[0]["computed_after_forecast"] is True
     assert rows[0]["passed_to_forecaster"] is False
     assert rows[0]["candidates"][1]["scenario_id"] == "prior"
+    [run_row] = [json.loads(line) for line in (
+        tmp_path / "gnomonbench.jsonl").read_text(
+            encoding="utf-8").splitlines()]
+    assert run_row["latency_seconds"] == 9.5
+
+
+def test_attempt_checkpoint_retains_cumulative_active_work(tmp_path):
+    attempts = {
+        "Task::seed=7": [
+            {"active_seconds": 3.5, "completed": False,
+             "error": "case_timeout_after_3s", "peak_rss_mb": 700},
+            {"active_seconds": 1.25, "completed": True,
+             "error": None, "peak_rss_mb": 710},
+        ],
+    }
+
+    _write_attempt_checkpoint(tmp_path, attempts)
+
+    assert _load_attempt_checkpoint(tmp_path) == attempts
 
 
 def test_resume_retries_provider_and_process_failures_but_keeps_model_results(tmp_path):
@@ -161,6 +217,10 @@ def test_resume_retries_provider_and_process_failures_but_keeps_model_results(tm
         "valid": {"name": "Task", "row": {"seed": 1, "score": 0.2}},
         "provider": {"name": "Task", "row": {
             "seed": 2, "error": "OpenRouter returned HTTP 403: daily limit"}},
+        "provider_error_spelling": {"name": "Task", "row": {
+            "seed": 5, "error": (
+                "OpenRouter request failed after 6 attempts: "
+                "HTTP Error 429: Too Many Requests")}},
         "timeout": {"name": "Task", "row": {
             "seed": 3, "error": "case_timeout_after_900s"}},
         "model": {"name": "Task", "row": {
@@ -169,6 +229,46 @@ def test_resume_retries_provider_and_process_failures_but_keeps_model_results(tm
     (tmp_path / "case-checkpoint.json").write_text(json.dumps(payload))
     loaded = _load_checkpoint(tmp_path)
     assert set(loaded) == {"valid", "model"}
+
+
+def test_cik_checkpoint_identity_covers_request_and_corpus_scope(tmp_path):
+    class AlphaTask:
+        pass
+
+    args = build_parser().parse_args([
+        "--method", "gnomon-pure", "--seed-start", "6", "--seeds", "2",
+        "--output-dir", str(tmp_path),
+    ])
+    identity = _checkpoint_identity(args, [AlphaTask], 20, "abc")
+    _prepare_checkpoint_identity(tmp_path, identity, fresh=False)
+    changed = {**identity, "base_url": "https://different.test/v1"}
+    with pytest.raises(SystemExit, match="resume identity mismatch"):
+        _prepare_checkpoint_identity(tmp_path, changed, fresh=False)
+
+    changed = {**identity, "sample_parallelism": 2}
+    with pytest.raises(SystemExit, match="resume identity mismatch"):
+        _prepare_checkpoint_identity(tmp_path, changed, fresh=False)
+
+
+def test_cik_checkpoint_refuses_legacy_state_without_identity(tmp_path):
+    (tmp_path / "case-checkpoint.json").write_text("{}")
+    with pytest.raises(SystemExit, match="without run_identity"):
+        _prepare_checkpoint_identity(
+            tmp_path, {"schema_version": 1}, fresh=False)
+
+
+def test_fresh_cik_run_clears_only_its_sample_cache(tmp_path):
+    cache_file = tmp_path / "sample-cache" / "key" / "choice-old.json"
+    cache_file.parent.mkdir(parents=True)
+    cache_file.write_text("{}")
+    unrelated = tmp_path / "keep.txt"
+    unrelated.write_text("keep")
+
+    _prepare_checkpoint_identity(
+        tmp_path, {"schema_version": 1}, fresh=True)
+
+    assert not (tmp_path / "sample-cache").exists()
+    assert unrelated.read_text() == "keep"
 
 
 def test_held_out_seed_range_is_explicit_in_cli():
@@ -216,3 +316,24 @@ def test_direct_control_has_explicit_cache_identified_reasoning_mode():
     assert control.reasoning_effort == "none"
     assert control._client.reasoning_effort == "none"
     assert "reasoning=none" in control.cache_name
+    assert "sample_parallelism=4" in control.cache_name
+
+
+def test_direct_control_retains_provider_usage(monkeypatch):
+    pytest.importorskip("cik_benchmark")
+    from cik_benchmark.baselines.direct_prompt import DirectPrompt
+
+    from benchmarks.cik.openrouter_direct_prompt import OpenRouterDirectPrompt
+
+    monkeypatch.setattr(
+        DirectPrompt, "__call__",
+        lambda self, task, samples: ("paths", {"total_time": 2.0}))
+    control = OpenRouterDirectPrompt.__new__(OpenRouterDirectPrompt)
+    control._client = SimpleNamespace(usage_summary={
+        "requests": 2, "prompt_tokens": 30, "completion_tokens": 40})
+
+    samples, extra = control(object(), 5)
+
+    assert samples == "paths"
+    assert extra["llm_usage"] == {
+        "requests": 2, "prompt_tokens": 30, "completion_tokens": 40}

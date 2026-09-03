@@ -27,7 +27,7 @@ from benchmarks.temporalbench.mcp_agent import run_row  # noqa: E402
 from gnomon.artifacts import read_artifact  # noqa: E402
 
 from .generate import EPOCH as CONTEXT_EPOCH  # noqa: E402
-from .run_contextbench import frequency_step  # noqa: E402
+from .run_contextbench import frequency_step, isolate_context_store  # noqa: E402
 from .run_contextbench import smape, valid_disposition, wilson  # noqa: E402
 from .run_llm import compile_events  # noqa: E402
 from .schema import Case, Oracle, load_cases, load_oracles  # noqa: E402
@@ -512,13 +512,23 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
                 not consequence_projection.get("invalid")))
         primary_relationship = str(
             context_gate.get("relationship_to_primary") or "")
-        primary_relationship_preserved = preserves_primary_relationship(
-            agent_reasoning, primary_relationship)
+        relationship_projection = contextual.get(
+            "context_relationship_projection") or {}
+        primary_relationship_preserved = (
+            (not primary_relationship or (
+                relationship_projection.get("matched") ==
+                relationship_projection.get("expected") ==
+                [primary_relationship]
+                and not relationship_projection.get("invalid")))
+            and preserves_primary_relationship(
+                agent_reasoning, primary_relationship)
+        )
         source_projection = contextual.get("context_source_projection") or {}
         expected_sources = set(source_projection.get("expected") or [])
         source_evidence_preserved = (
             set(source_projection.get("matched") or []) == expected_sources
             and not source_projection.get("invalid")
+            and not source_projection.get("agent_invalid")
             and all(str(source).casefold() in explanation
                     for source in expected_sources)
         )
@@ -939,6 +949,7 @@ def main() -> int:
     resolved_base_url = OpenRouterClient(
         args.model, **client_kwargs).base_url
     output = Path(args.output_dir); output.mkdir(parents=True, exist_ok=True)
+    isolate_context_store(output)
     run_identity = {
         "schema_version": 1,
         "condition": "contextbench-surface",

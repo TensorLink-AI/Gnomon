@@ -479,6 +479,22 @@ def test_bare_future_prediction_cannot_gain_constraint_authority() -> None:
         "external_prediction_not_constraint"
 
 
+def test_assumed_value_cannot_gain_constraint_authority() -> None:
+    quote = "Assume output is exactly 340 units."
+    document = DocumentRef(
+        name="scenario.md", content=quote, source_type="scenario",
+        reference="/notes/scenario.md")
+    proposal = {
+        **CONSTRAINT_PROPOSAL,
+        "event_type": "override:output",
+        "evidence_quote": quote,
+    }
+    result = parse_context_response({"events": [proposal]}, [document])
+    assert result["events"] == []
+    assert result["rejected"][0]["reason_code"] == \
+        "scenario_assumption_not_constraint"
+
+
 def test_a_model_supplied_source_span_is_never_trusted() -> None:
     """`source_span` bypassing the verbatim check would let a model launder
     an invented number into the lane; it is discarded, and only the

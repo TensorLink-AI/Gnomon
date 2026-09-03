@@ -2,6 +2,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from benchmarks.gfr import score_observation
 from benchmarks.modelbench.run_short_history import run
 from benchmarks.modelbench.run_production_selector import run as run_production_selector
 
@@ -13,6 +14,21 @@ def test_short_history_benchmark_is_deterministic_and_retains_records():
     assert len(first["raw_records"]) == 72
     assert all(first["gates"].values())
     assert first["pooling"]["mixed_direction"]["admitted"] == 0
+    cases = first["gfr_cases"]
+    assert [item["case_id"] for item in cases] == [
+        "short:seasonal:one-cycle", "short:seasonal:two-cycles",
+        "short:trend:two-horizons", "short:level:two-horizons",
+        "short:intermittent:two-cycles", "short:noise:two-cycles",
+    ]
+    assert all(item["selection_input_ends_before_scored_horizon"] is True
+               for item in cases)
+    assert all(item["oracle_used_by_selector"] is False for item in cases)
+    assert all(0 <= score_observation("short_history_usefulness", {
+        "expected_action": item["expected_action"],
+        "actual_action": item["actual_action"],
+        "baseline_loss": item["baseline_loss"],
+        "selected_loss": item["selected_loss"],
+    }) <= 1 for item in cases)
 
 
 def test_short_history_runner_works_from_documented_direct_entrypoint(tmp_path):

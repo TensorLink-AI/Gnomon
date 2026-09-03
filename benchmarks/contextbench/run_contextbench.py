@@ -17,6 +17,8 @@ from statistics import mean
 import sys
 from typing import Any
 
+from benchmarks.common.manifest import code_revision
+
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
@@ -24,6 +26,19 @@ from .schema import Case, Oracle, load_cases, load_oracles
 
 EPOCH = datetime(2025, 1, 1, tzinfo=timezone.utc)
 STEP = timedelta(hours=1)
+
+
+def isolate_context_store(output: Path) -> Path:
+    """Bind benchmark cache state to one resumable output directory.
+
+    Context assessments are content-addressed production state. Benchmark
+    runs must not consume or mutate an ambient user's store, and a fresh
+    output must not inherit blobs produced by an older code revision.
+    """
+    store = (output / "context-store").resolve()
+    os.environ["GNOMON_CONTEXT_STORE"] = str(store)
+    os.environ["GNOMON_CONTEXT_NAMESPACE"] = "contextbench"
+    return store
 
 
 def frequency_step(frequency: str) -> timedelta:
@@ -371,7 +386,6 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
     empirical = [row for row in rows if (row.get("oracle_dimensions") or {}).get(
         "admission_warrant", "empirical") == "empirical"]
     empirical_influence = [row for row in empirical if row["should_influence"]]
-    irrelevant = by_family.get("irrelevant", [])
     prior = by_family.get("prior_only", [])
     applied = [row for row in rows if row["applied"]]
     empirical_applied = [row for row in empirical if row["applied"]]
@@ -685,11 +699,42 @@ def _append_checkpoint(path: Path, row: dict[str, Any]) -> None:
         os.fsync(handle.fileno())
 
 
+def select_cases(cases: list[Case], *, case_ids: list[str] | None,
+                 limit: int | None) -> list[Case]:
+    """Select an exact resumable shard or a balanced development subset."""
+    if case_ids and limit:
+        raise SystemExit("--case-id and --limit are mutually exclusive")
+    if case_ids:
+        if len(case_ids) != len(set(case_ids)):
+            raise SystemExit("--case-id values must be unique")
+        by_id = {case.case_id: case for case in cases}
+        missing = [case_id for case_id in case_ids if case_id not in by_id]
+        if missing:
+            raise SystemExit(f"unknown ContextBench case IDs: {missing}")
+        return [by_id[case_id] for case_id in case_ids]
+    if not limit:
+        return cases
+    # Round-robin family selection avoids a small run becoming one family.
+    grouped: dict[str, list[Case]] = defaultdict(list)
+    for case in cases:
+        grouped[case.family].append(case)
+    selected: list[Case] = []
+    while len(selected) < limit and any(grouped.values()):
+        for family in sorted(grouped):
+            if grouped[family] and len(selected) < limit:
+                selected.append(grouped[family].pop(0))
+    return selected
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--corpus-dir", required=True)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--limit", type=int)
+    parser.add_argument(
+        "--case-id", action="append",
+        help="run only this exact case ID; repeat for a small explicit shard",
+    )
     parser.add_argument("--resume", action="store_true",
                         help="continue a matching interrupted run")
     parser.add_argument("--allow-gate-failure", action="store_true")
@@ -706,23 +751,17 @@ def main() -> int:
         raise SystemExit("oracle.jsonl does not match its manifest hash")
     if len(cases) != int(manifest.get("cases", -1)):
         raise SystemExit("case count does not match the corpus manifest")
-    if args.limit:
-        # Round-robin family selection avoids a small run becoming one family.
-        grouped: dict[str, list[Case]] = defaultdict(list)
-        for case in cases:
-            grouped[case.family].append(case)
-        cases = []
-        while len(cases) < args.limit and any(grouped.values()):
-            for family in sorted(grouped):
-                if grouped[family] and len(cases) < args.limit:
-                    cases.append(grouped[family].pop(0))
+    cases = select_cases(cases, case_ids=args.case_id, limit=args.limit)
+    if args.limit or args.case_id:
         manifest = {**manifest, "cases": len(cases), "limited": True}
     missing = sorted(set(case.case_id for case in cases) - set(oracles))
     if missing:
         raise SystemExit(f"oracle is missing case IDs: {missing}")
     output = Path(args.output_dir); output.mkdir(parents=True, exist_ok=True)
+    isolate_context_store(output)
     corpus_identity = {
         "benchmark": "contextbench",
+        "code_revision": code_revision(),
         "cases_sha256": manifest.get("cases_sha256"),
         "oracle_sha256": manifest.get("oracle_sha256"),
         "selected_case_ids": [case.case_id for case in cases],

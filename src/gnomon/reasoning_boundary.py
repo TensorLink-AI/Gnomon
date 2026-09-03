@@ -7,6 +7,7 @@ to a field already present in the response or immutable receipt.
 
 from __future__ import annotations
 
+import json
 import re
 from typing import Any
 
@@ -135,6 +136,7 @@ def build_recovery_plan(payload: dict[str, Any]) -> list[dict[str, Any]]:
                        is not None else "/next_actions")
 
     plan: list[dict[str, Any]] = []
+    executable_routes: dict[str, int] = {}
     for index, raw in enumerate(actions):
         if not isinstance(raw, dict):
             raise BoundaryContractError(
@@ -169,9 +171,19 @@ def build_recovery_plan(payload: dict[str, Any]) -> list[dict[str, Any]]:
         }
         if tool is not None and patch is not None:
             execution.update({"tool": tool, "argument_patch": patch})
+            route = json.dumps(
+                {"tool": tool, "argument_patch": patch},
+                sort_keys=True, separators=(",", ":"))
+            if route in executable_routes:
+                existing = plan[executable_routes[route]]
+                existing.setdefault("equivalent_sources", []).append(
+                    f"{source_root}/{index}")
+                existing.setdefault("equivalent_codes", []).append(code)
+                continue
+            executable_routes[route] = len(plan)
         plan.append({
-            "rank": index + 1,
-            "recommended": index == 0,
+            "rank": len(plan) + 1,
+            "recommended": not plan,
             "code": code,
             # The source pointer retains the complete authored prose. Keep
             # this routing projection compact enough for brief responses.

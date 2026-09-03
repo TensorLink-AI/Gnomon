@@ -286,6 +286,20 @@ def test_timesage_usage_aggregation_preserves_requests_and_provenance():
     }
 
 
+def test_timesage_resume_identity_covers_corpus_and_request_contract(tmp_path):
+    _write_timesage_fixture(tmp_path)
+    from benchmarks.timesage_mt.run_timesage import task_request_identity
+
+    task = load_tasks(tmp_path)[0]
+    common = dict(
+        condition="gnomon-tools", model="deepseek", base_url="https://a/v1",
+        temperature=0.2, timeout=180.0, max_retries=2, revision="abc")
+    original = task_request_identity(task, **common)
+    assert task_request_identity(task, **{**common, "base_url": "https://b/v1"}) != original
+    task.visible_csv.write_text("date,ride_count\n2023-01-01,999\n")
+    assert task_request_identity(task, **common) != original
+
+
 def test_official_mape_fallback_masks_zeros():
     assert official_mape([0.0, 10.0], [5.0, 11.0]) == 10.0
     assert official_mape([2.0, 4.0], [2.0, 4.0]) == 0.0
@@ -353,6 +367,37 @@ def test_mtbench_json_view_preserves_existing_task_identity(tmp_path):
     assert [path.name for path in output.glob("*.json")] == [
         "canonical-task.json"
     ]
+
+
+def test_mtbench_sample_failure_is_recorded_without_crashing(tmp_path, monkeypatch):
+    from benchmarks.mtbench import gnomon_forecaster
+
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    (dataset / "sample.json").write_text(json.dumps({
+        "input_window": [1.0, 2.0],
+        "output_window": [3.0],
+        "text": "",
+    }))
+
+    def fail_sample(*args, **kwargs):
+        raise RuntimeError("bounded provider deadline")
+
+    monkeypatch.setattr(gnomon_forecaster, "forecast_sample", fail_sample)
+    output = tmp_path / "output"
+    summary = gnomon_forecaster.run(
+        dataset, output, mode="pure", openrouter_model=None,
+        mtbench_root=None,
+    )
+
+    assert summary["samples"] == 1
+    assert summary["errored"] == 1
+    assert summary["scored"] == 0
+    detail = json.loads((output / "output_details" / "sample.json").read_text())
+    assert detail["error_type"] == "RuntimeError"
+    record = json.loads((output / "gnomonbench.jsonl").read_text())
+    assert record["success"] is False
+    assert record["error"] == "bounded provider deadline"
 
 
 def _write_multi_tier_fixture(root: Path, counts: dict) -> None:

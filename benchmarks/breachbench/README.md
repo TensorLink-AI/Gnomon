@@ -32,7 +32,7 @@ the evidence block alone):
 | Arm | Receives |
 | --- | --- |
 | `control` | history, threshold, costs, question |
-| `gnomon` | the same plus **Gnomon's real production output for this exact call** — `forecast(threshold=…)`'s headline, support tier, per-step breach probabilities, interval path, warnings, and the model-assisted lane |
+| `gnomon` | the same plus a **bounded projection of Gnomon's real production response for this exact call** — `forecast(threshold=…)`'s production headline and tier floor, support tier, per-step breach probabilities, interval path, warnings, and the model-assisted lane; full forecast rows are read from the sealed artifact named by that response |
 
 The primary metric is **decision cost and regret** under a stated cost
 model (acting costs 2 and mitigates; a missed breach costs 10), because

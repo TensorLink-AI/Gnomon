@@ -76,6 +76,88 @@ CATALOG: dict[str, BenchmarkContract] = {
     "dossierbench": BenchmarkContract("reasoning_harness", "matched LLM receives the conclusion packet or the evidence dossier with the selection repair loop", "Packet-design uplift and the transcription margin against deterministic references; mechanism accuracy lives in discriminationbench."),
     "breachbench": BenchmarkContract("reasoning_harness", "matched LLM receives the production forecast/threshold output on real telemetry", "The client job priced in decision cost and regret against realized breaches; not choice accuracy, not the packet mechanism."),
     "recallbench": BenchmarkContract("reasoning_harness", "matched LLM forecasts identical real windows raw and affine-anonymized", "Separates memorized recall of public series from transferable forecasting skill (MASE, affine-invariant); the gate for any LLM-forecast candidate lane. Not choice accuracy."),
+    "calibrationactionbench": BenchmarkContract(
+        "policy", "production publication calibration gate",
+        "Calibration/action authority matrix only; not forecast accuracy."),
+    "claimbench": BenchmarkContract(
+        "safety_contract", "production forecast runtime and renderers",
+        "Claim, support, headline, and artifact coherence; not estimator uplift."),
+    "decisioncontractbench": BenchmarkContract(
+        "safety_contract", "production agent-response decision contract",
+        "Typed conclusion preservation and authority invariants; not answer accuracy."),
+    "decisioninputbench": BenchmarkContract(
+        "safety_contract", "production decision-input evaluator",
+        "Malformed/non-identifying input rejection and repair behavior only."),
+    "hierarchybench": BenchmarkContract(
+        "engine", "production bottom-up hierarchical forecast runtime",
+        "Hierarchy coherence, leaf immutability, and forecast error by tier; agent behavior excluded."),
+    "jitterbench": BenchmarkContract(
+        "safety_contract", "production timestamp loading and repair path",
+        "Bounded timestamp alignment, disclosure, and typed refusal only."),
+    "jointhorizonbench": BenchmarkContract(
+        "policy", "production horizon-event and breach-decision executables",
+        "Joint-event calibration, decision regret, and authority; not point-forecast superiority."),
+    "graduatedhorizonbench": BenchmarkContract(
+        "mixed", "production forecast and graduated-support boundary",
+        "Accuracy and tier integrity when a shorter evaluated prefix exists "
+        "inside a longer under-supported horizon; future outcomes remain "
+        "sealed and agent behavior is excluded."),
+    "multivariatebench": BenchmarkContract(
+        "engine", "production multivariate forecast path",
+        "Held-out multivariate candidate admission and error; agent behavior excluded."),
+    "recoverybench": BenchmarkContract(
+        "safety_contract", "production MCP response and recovery boundary",
+        "Executable recovery, canonical immutability, and bounded retry behavior only."),
+    "reliabilitybench": BenchmarkContract(
+        "safety_contract", "production artifact publication and MCP load path",
+        "Atomicity, integrity, concurrency, and local-load reliability only."),
+    "routingbench": BenchmarkContract(
+        "policy", "production adapter outcome ledger and promotion policy",
+        "Prequential promotion, drift response, and route authority; not model accuracy."),
+    "seasonalbench": BenchmarkContract(
+        "engine", "production season detection, evaluation, and support rendering",
+        "Seasonal-period admission, harmful departure, and support precision; agent behavior excluded."),
+    "authoritybench": BenchmarkContract(
+        "safety_contract", "production future-input authority classifier and MCP context boundary",
+        "Observed, predicted, assumed, and binding input authority plus target-scope isolation; not context usefulness or agent reasoning."),
+    "boundedcalibrationbench": BenchmarkContract(
+        "engine", "production forecast calibration and declared-bound path",
+        "Interval coverage, WIS, and bound preservation on sealed synthetic futures; agent behavior excluded."),
+    "categoricalcalibrationbench": BenchmarkContract(
+        "engine", "production categorical-state candidate calibration",
+        "State-conditional interval calibration, sparse-state fallback, and "
+        "authority invariants on sealed synthetic futures; agent behavior "
+        "excluded."),
+    "categoricaluncertaintybench": BenchmarkContract(
+        "safety_contract",
+        "production categorical-state publication uncertainty",
+        "Under-evidence envelopes, centre preservation, immutable-primary "
+        "integrity, and authority invariants on sealed synthetic futures; "
+        "agent behavior excluded."),
+    "categoricaladmissionbench": BenchmarkContract(
+        "policy", "production categorical-state recommendation gate",
+        "Recurrence, chronological consistency, forecast-state relevance, "
+        "and held-out selection regret for categorical candidates; agent "
+        "behavior excluded."),
+    "degradedadmissionbench": BenchmarkContract(
+        "policy", "production fold-starved model-admission policy",
+        "Prefix-only structural admission, useful-departure recall, and "
+        "harmful-departure control on sealed synthetic futures; not agent "
+        "reasoning or fully supported forecast accuracy."),
+    "windowsemanticsbench": BenchmarkContract(
+        "compiler", "production deterministic temporal-dossier compiler",
+        "Exact operational-window boundary and refusal semantics without "
+        "future outcomes or an LLM; not forecast accuracy."),
+    "sharedtrendbench": BenchmarkContract(
+        "policy", "production companion-relationship admission policy",
+        "Useful-driver admission and shared-trend false-admission control; not causal identification or agent reasoning."),
+    "capabilitybench": BenchmarkContract(
+        "engine", "production temporal capability registry executables",
+        "Capability classification, regression, and decomposition behavior; not agent reasoning."),
+    "gfr": BenchmarkContract(
+        "mixed", "frozen aggregation of retained benchmark evidence",
+        "Safety-gated product readiness across ten capabilities; preserves each "
+        "source benchmark's native metric and claim boundary."),
 }
 
 

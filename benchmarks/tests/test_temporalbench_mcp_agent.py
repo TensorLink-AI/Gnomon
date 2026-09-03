@@ -151,6 +151,33 @@ def test_failed_temporal_receipt_is_diagnostic_not_permanent_cache(
     assert (receipts / f"{row['id']}.retry.json").exists()
 
 
+def test_semantic_refusal_is_a_terminal_reusable_receipt(tmp_path) -> None:
+    row = _t3_row()
+    row["pack"] = [{
+        "question": "During fever episodes, is hr higher?",
+        "options": ["Higher", "Lower", "Uncertain"],
+        "label": "Uncertain",
+    }]
+    receipts = tmp_path / "receipts"
+    client = ScriptedClient([{"tool_calls": [
+        ("submit_temporal_intent", {
+            "status": "compiled", "questions": [{
+                "id": "q1", "verb": "compare", "property": "level",
+                "target": "hr"}]})]}])
+
+    first = mcp_agent.compile_row_temporal_questions(
+        row, client, ["hr"], str(receipts))
+    reused = mcp_agent.compile_row_temporal_questions(
+        row, ScriptedClient([]), ["hr"], str(receipts))
+
+    assert first["terminal_refusal"] is True
+    assert first["questions"] == []
+    assert reused["terminal_refusal"] is True
+    assert reused["receipt_reused"] is True
+    assert reused["compiler_called"] is False
+    assert not (receipts / f"{row['id']}.retry.json").exists()
+
+
 def test_t1_compiler_uses_public_question_names_and_seals_options(
         tmp_path) -> None:
     row = {
@@ -1129,7 +1156,7 @@ def test_context_contract_requires_bounded_typed_gate_citations():
     assert parameters["required"] == [
         "forecast", "reasoning", "cited_context_gate_codes",
         "context_automation_eligible", "canonical_primary_preserved",
-        "cited_scenario_consequences"]
+        "cited_scenario_consequences", "cited_context_relationships"]
     citations = parameters["properties"]["cited_context_gate_codes"]
     assert citations["maxItems"] == 8
     assert citations["items"] == {"type": "string"}
@@ -1141,8 +1168,9 @@ def test_context_contract_requires_bounded_typed_gate_citations():
         "description": (
             "Copy the engine's context/covariate publication "
             "automation_eligible fact exactly. False means context evidence "
-            "alone cannot authorize automation; do not weaken it to 'not "
-            "requested'."),
+            "alone cannot authorize automation; do not attribute it to "
+            "automation being 'not requested', even if you also state the "
+            "correct context-authority limitation."),
     }
     assert parameters["properties"]["canonical_primary_preserved"][
         "type"] == "boolean"
@@ -1152,6 +1180,76 @@ def test_context_contract_requires_bounded_typed_gate_citations():
     assert sources["maxItems"] == 8
     assert "source.reference" in sources["description"]
     assert "host projects omitted values" in sources["description"]
+    relationships = parameters["properties"]["cited_context_relationships"]
+    assert relationships["maxItems"] == 8
+    assert "relationship_to_primary" in relationships["description"]
+    assert "exact type" in relationships["description"]
+
+
+def test_context_relationship_requires_exact_human_visible_projection():
+    run = object.__new__(mcp_agent._Run)
+    run.row = {"_require_gnomon_execution": True,
+               "_require_context_explanation": True}
+    run.target_keys = ["value"]
+    run.horizon = 1
+    run.submission = None
+    run.mcp_calls = 1
+    run.trace = []
+    run.artifact_paths = set()
+    run.context_execution = {}
+    run._project_receipt_choices = lambda: {}
+    relationship = "no_distinct_numeric_path"
+
+    def artifact_rows(path, channel):
+        run._pending_support[channel] = "supported"
+        run.context_execution[channel] = {
+            "automation_eligible": False,
+            "canonical_primary_preserved": True,
+            "rejection_codes": [],
+            "relationship_to_primary": relationship,
+        }
+        return [10.0]
+
+    run._artifact_channel_rows = artifact_rows
+    base = {
+        "forecast": {"value": {"artifact_path": "/sealed/artifact.json"}},
+        "cited_context_gate_codes": [],
+        "context_automation_eligible": False,
+        "canonical_primary_preserved": True,
+        "cited_scenario_consequences": [],
+        "reasoning": ("The canonical primary remains preserved and context "
+                      "evidence cannot authorize automation."),
+    }
+    omitted = run._handle_submit({
+        **base, "cited_context_relationships": []})
+    assert omitted["accepted"] is False
+    assert any("context_relationship_invalid" in problem
+               for problem in omitted["problems"])
+
+    prose_omitted = run._handle_submit({
+        **base, "cited_context_relationships": [relationship]})
+    assert prose_omitted["accepted"] is False
+    assert any("context_relationship_not_human_visible" in problem
+               for problem in prose_omitted["problems"])
+
+    accepted = run._handle_submit({
+        **base,
+        "cited_context_relationships": [relationship],
+        "reasoning": (base["reasoning"] + " relationship_to_primary="
+                      f"{relationship}: the primary already represents the "
+                      "claimed structural change, so there is no separate "
+                      "numeric path."),
+    })
+    assert accepted["accepted"] is True
+    assert run.submission["context_relationship_projection"] == {
+        "expected": [relationship], "supplied": [relationship],
+        "matched": [relationship], "invalid": [],
+    }
+    run._mcp_info = lambda: {}
+    assert run._resolve_submission()["context_relationship_projection"] == {
+        "expected": [relationship], "supplied": [relationship],
+        "matched": [relationship], "invalid": [],
+    }
 
 
 def test_context_authority_omission_gets_one_artifact_reuse_repair():
@@ -1203,6 +1301,30 @@ def test_context_authority_omission_gets_one_artifact_reuse_repair():
     assert misattributed["accepted"] is False
     assert any("context_authority_misattributed" in problem
                for problem in misattributed["problems"])
+    assert run.submission is None
+
+    contradictory = run._handle_submit({
+        **base,
+        "reasoning": (
+            "The canonical primary remains preserved. The engine's "
+            "automation_eligible is false because automation was not "
+            "requested; context evidence alone cannot authorize automation."),
+    })
+    assert contradictory["accepted"] is False
+    assert any("context_authority_misattributed" in problem
+               for problem in contradictory["problems"])
+    assert run.submission is None
+
+    structured_contradiction = run._handle_submit({
+        **base,
+        "reasoning": (
+            "The canonical primary remains preserved. Context evidence alone "
+            "cannot authorize automation (automation_eligible: false, "
+            "reason: not_requested)."),
+    })
+    assert structured_contradiction["accepted"] is False
+    assert any("context_authority_misattributed" in problem
+               for problem in structured_contradiction["problems"])
     assert run.submission is None
 
     both_true = run._handle_submit({
@@ -1334,17 +1456,16 @@ def test_context_source_requires_exact_human_visible_projection():
                for problem in invented["problems"])
     assert run.submission is None
 
-    ignored_duplicate = run._handle_submit({
+    invented_duplicate = run._handle_submit({
         **base,
         "cited_context_sources": ["invented.md"],
         "reasoning": (base["reasoning"] + f" Source: {source_reference}."),
     })
-    assert ignored_duplicate["accepted"] is True
-    projection = run.submission["context_source_projection"]
-    assert projection["supplied"] == [source_reference]
-    assert projection["agent_invalid"] == ["invented.md"]
-    assert projection["host_projected"] is True
-    run.submission = None
+    assert invented_duplicate["accepted"] is False
+    assert any("context_source_invalid" in problem
+               and "invented.md" in problem
+               for problem in invented_duplicate["problems"])
+    assert run.submission is None
 
     accepted = run._handle_submit({
         **base,
@@ -1837,6 +1958,92 @@ def test_t3_answers_are_the_pack_list_in_order(tmp_path):
     assert score_t3(_t3_row(), outcome["answer"]["answers"])["correct"] == 2
 
 
+def _typed_choice(value: str, *, support: str = "supported",
+                  automation_eligible: bool = True) -> dict:
+    return {"source": "inline_describe", "answers": [{
+        "question": {"id": "q1"},
+        "best_estimate": {
+            "value": value, "display_value": value, "support": support,
+            "automation_eligible": automation_eligible,
+        },
+        "reasoning": {"primary_forecast_unchanged": True},
+    }]}
+
+
+def test_t1_supported_typed_answer_binds_final_agent_choice() -> None:
+    from benchmarks.temporalbench.mcp_agent import _McqRun
+
+    run = _McqRun.__new__(_McqRun)
+    run.submission = None
+    run.rejections = 0
+    run.is_pack = False
+    run.expected_fields = ["trend"]
+    run.choice_slots = [("trend", ["upward", "downward", "constant"])]
+    run.descriptive_answer_receipts = [_typed_choice("constant")]
+    run.trace = []
+
+    accepted = run._handle_submit({"answers": {"trend": "upward"}})
+
+    assert accepted["accepted"] is True
+    assert run.submission["answer"] == {"trend": "constant"}
+    assert run.submission["canonical_choices"] == {"trend": "constant"}
+    assert run.submission["synthesized_choices"] == {"trend": "upward"}
+    assert run.submission["choice_authority"] == {"trend": "binding"}
+
+
+def test_t1_weak_typed_answer_remains_advisory() -> None:
+    from benchmarks.temporalbench.mcp_agent import _McqRun
+
+    run = _McqRun.__new__(_McqRun)
+    run.submission = None
+    run.rejections = 0
+    run.is_pack = False
+    run.expected_fields = ["trend"]
+    run.choice_slots = [("trend", ["upward", "downward", "constant"])]
+    run.descriptive_answer_receipts = [
+        _typed_choice("constant", support="weak",
+                      automation_eligible=False)]
+    run.trace = []
+
+    run._handle_submit({"answers": {"trend": "upward"}})
+
+    assert run.submission["answer"] == {"trend": "upward"}
+    assert run.submission["choice_authority"] == {
+        "trend": "advisory_synthesis"}
+
+
+def test_t3_supported_typed_answer_uses_public_semantic_alias() -> None:
+    from benchmarks.temporalbench.mcp_agent import _McqRun
+
+    run = _McqRun.__new__(_McqRun)
+    run.submission = None
+    run.rejections = 0
+    run.is_pack = True
+    run.expected_count = 1
+    run.pack_options = [["Rising", "Falling", "Flat", "Uncertain"]]
+    run.choice_slots = [("q1", run.pack_options[0])]
+    run.descriptive_answer_receipts = [_typed_choice("constant")]
+    run.trace = []
+
+    run._handle_submit({"answers": ["Rising"]})
+
+    assert run.submission["answer"] == {"answers": ["Flat"]}
+    assert run.submission["canonical_choices"] == {"q1": "Flat"}
+    assert run.submission["synthesized_choices"] == {"q1": "Rising"}
+
+
+def test_t3_invalid_option_envelope_gets_one_bounded_repair(tmp_path):
+    outcome = _run_mcq(_t3_row(), [
+        {"tool_calls": [("submit_answer", {"answers": ["A", "B"]})]},
+        {"tool_calls": [("submit_answer", {
+            "answers": ["higher", "No"]})]},
+    ], tmp_path)
+
+    assert outcome["answer"] == {"answers": ["Higher", "No"]}
+    sequence = outcome["mcp"]["tool_sequence"]
+    assert "answers[0]" in sequence[0]["submit_rejected"][0]
+
+
 def test_evidence_t3_describe_uses_host_resolved_panel_binding(tmp_path):
     """The agent chooses the verb/questions, never the data schema."""
     row = _t3_row()
@@ -1897,6 +2104,39 @@ def test_evidence_t3_attaches_compiled_pack_questions_to_describe(tmp_path):
     assert receipts[0]["primary_forecast_unchanged"] is None
     assert len(receipts[0]["answers"]) == 2
     assert len(client.requests) == 3  # compiler, describe, forced submission
+
+
+def test_evidence_t3_empty_compilation_skips_unanswerable_tool_loop(tmp_path):
+    row = {
+        "id": "tb-mcp-t3-conditional", "tier": "T3",
+        "source_dataset": "MIMIC",
+        "prompt": ('Answer the pack. Input (JSON): {"hr": [70, 71, 72]}'
+                   '\nDuring fever episodes, is hr higher?'),
+        "pack": [{"question": "During fever episodes, is hr higher?",
+                  "options": ["Higher", "Lower", "Uncertain"],
+                  "label": "Uncertain"}],
+    }
+    client = ScriptedClient([
+        {"tool_calls": [("submit_temporal_intent", {
+            "status": "compiled", "questions": [{
+                "id": "q1", "verb": "compare", "property": "level",
+                "target": "hr"}]} )]},
+        {"tool_calls": [("submit_answer", {"answers": ["Uncertain"]})]},
+    ])
+
+    outcome = mcq_row(
+        row, client, session_factory=_factory(), work_dir=str(tmp_path),
+        profile="evidence", compile_questions=True,
+        question_receipts_dir=str(tmp_path / "question-receipts"))
+
+    assert outcome["answer"] == {"answers": ["Uncertain"]}
+    assert outcome["mcp"]["calls"] == 0
+    assert outcome["mcp"]["tool_sequence"][0] == {
+        "typed_question_refusal": True}
+    assert "synthesis only" in outcome["last_call"]
+    assert len(client.requests) == 2  # compiler, bounded submission
+    assert "conditional_subgroup" in client.requests[-1]["messages"][0][
+        "content"]
 
 
 def test_mcq_submit_schema_is_the_row_s_own_shape():

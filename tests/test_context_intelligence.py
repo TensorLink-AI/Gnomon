@@ -501,6 +501,123 @@ def test_categorical_phase_mapping_requires_two_complete_cycles():
             hypothesis_id="short", seasonal_period=8)
 
 
+def test_categorical_one_replay_cycle_cannot_govern_recommendation():
+    period = 8
+    baseline = [0.0, 2.0, 6.0, 10.0, 12.0, 10.0, 6.0, 2.0]
+    active_phases = {1, 2, 5, 6}
+    states = ["usual"] * period + [
+        "active" if phase in active_phases else "usual"
+        for phase in range(period)]
+    target = baseline + [
+        value + (20.0 if phase in active_phases else 0.0)
+        for phase, value in enumerate(baseline)]
+
+    candidate = fit_categorical_state_candidate(
+        target, states, ["usual"] * period,
+        primary=[{"timestamp": _stamp(16 + index)}
+                 for index in range(period)],
+        claim_ids=["schedule"], hypothesis_id="one-replay-cycle",
+        seasonal_period=period)
+
+    validation = candidate["validation"]
+    assert validation["skill"] > .1  # aggregate evidence looks persuasive
+    assert validation["validation_points"] == period
+    assert validation["required_validation_points"] == 2 * period
+    assert validation["replay_sufficient"] is False
+    assert validation["future_state_replay"]["usual"]["skill"] == 0
+    assert validation["future_state_evidence_sufficient"] is False
+    assert validation["beats_baseline"] is False
+    assert candidate["human_selection_eligible"] is False
+    assert candidate["selection_eligible"] is False
+    assert candidate["automation_eligible"] is False
+    assert candidate["primary_forecast_unchanged"] is True
+
+
+def test_categorical_recurring_future_state_effect_retains_human_lane():
+    period = 8
+    states = [
+        "a" if (phase + cycle) % 2 == 0 else "b"
+        for cycle in range(3) for phase in range(period)]
+    target = [
+        50.0 + 10.0 * math.sin(2 * math.pi * (index % period) / period)
+        + (8.0 if state == "a" else -8.0)
+        for index, state in enumerate(states)]
+    future_states = [
+        "a" if (phase + 3) % 2 == 0 else "b"
+        for phase in range(period)]
+
+    candidate = fit_categorical_state_candidate(
+        target, states, future_states,
+        primary=[{"timestamp": _stamp(24 + index)}
+                 for index in range(period)],
+        claim_ids=["schedule"], hypothesis_id="recurring-state-effect",
+        seasonal_period=period)
+
+    validation = candidate["validation"]
+    assert validation["replay_sufficient"] is True
+    assert validation["chronological_block_wins"] == 2
+    assert validation["future_state_evidence_sufficient"] is True
+    assert validation["beats_baseline"] is True
+    assert candidate["human_selection_eligible"] is True
+
+
+def test_categorical_intervals_use_replay_errors_not_collapsed_fit_mad():
+    target = [0.0, 0.0, 100.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    states = ["idle", "idle", "active", "idle"] + ["idle"] * 4
+    candidate = fit_categorical_state_candidate(
+        target, states, ["idle"] * 4,
+        primary=[{"timestamp": _stamp(8 + index)} for index in range(4)],
+        claim_ids=["schedule"], hypothesis_id="intermittent-state",
+        seasonal_period=4)
+
+    assert all(row["q10"] <= row["q50"] <= row["q90"]
+               for row in candidate["forecast"])
+    assert all(row["q90"] - row["q10"] >= 100
+               for row in candidate["forecast"])
+    assert candidate["validation"]["interval_calibration"] == {
+        "source": "state_conditioned_expanding_origin_replay_residuals",
+        "residual_points": 4,
+        "state_residual_points": {"idle": 4},
+        "minimum_state_residual_points": 8,
+        "state_residual_robust_scales": {},
+        "state_residual_scale_ratio": None,
+        "state_conditioning_minimum_scale_ratio": 2.0,
+        "state_conditioning_active": False,
+        "state_conditioned": [],
+        "pooled_fallback_states": ["idle"],
+        "quantile_method": "finite_sample_split_conformal",
+        "nominal_coverage": .8,
+    }
+    assert candidate["validation"]["skill"] == 0
+    assert candidate["validation"]["publication_evidence_weight"] == 0
+    assert candidate["validation"]["publication_shrunk_to_baseline"] is True
+    assert all(row["q50"] == target[-1] for row in candidate["forecast"])
+
+
+def test_categorical_intervals_condition_on_well_observed_future_state():
+    generator = random.Random(818)
+    states = ["quiet" if index % 4 else "noisy" for index in range(96)]
+    target = [
+        50.0 + (10.0 if state == "noisy" else 0.0)
+        + generator.gauss(0, 12.0 if state == "noisy" else .5)
+        for state in states
+    ]
+    candidate = fit_categorical_state_candidate(
+        target, states, ["quiet"] * 4,
+        primary=[{"timestamp": _stamp(96 + index)} for index in range(4)],
+        claim_ids=["schedule"], hypothesis_id="state-calibration",
+        replay_origin_eligible=[True] * len(target))
+
+    calibration = candidate["validation"]["interval_calibration"]
+    assert calibration["state_conditioning_active"] is True
+    assert calibration["state_residual_scale_ratio"] >= 2
+    assert calibration["state_conditioned"] == ["noisy", "quiet"]
+    assert calibration["pooled_fallback_states"] == []
+    assert calibration["state_residual_points"]["quiet"] >= 8
+    assert all(row["q90"] - row["q10"] < 5
+               for row in candidate["forecast"])
+
+
 def test_categorical_retrospective_skill_is_not_vintage_admission():
     states = ["open", "closed"] * 16
     target = [20.0 if state == "open" else 5.0 for state in states]

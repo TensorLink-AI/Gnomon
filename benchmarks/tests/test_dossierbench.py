@@ -21,10 +21,10 @@ from benchmarks.dossierbench.run_dossierbench import (  # noqa: E402
 
 
 def _args(tmp_path: Path, cases: int = 12,
-          source: str = "real") -> argparse.Namespace:
+          source: str = "real", resume: bool = False) -> argparse.Namespace:
     return argparse.Namespace(
         seed=20260825, cases=cases, source=source, data_dir=None,
-        output_dir=str(tmp_path / "out"), resume=False, concurrency=2,
+        output_dir=str(tmp_path / "out"), resume=resume, concurrency=2,
         model="scripted-test-model")
 
 
@@ -142,6 +142,10 @@ def test_a_matched_offline_run_produces_the_full_summary(tmp_path) -> None:
     rows = [json.loads(line) for line in
             (tmp_path / "out" / "rows.jsonl").read_text().splitlines()]
     assert len(rows) == 12 * len(ARMS)
+    assert all(len(row["request_sha256"]) == 64 for row in rows)
+    assert all(row["raw_responses"] for row in rows)
+    assert all(len(row["raw_responses"]) ==
+               len(row["raw_responses_sha256"]) for row in rows)
     repair = summary["metrics"]["dossier"]["repair_loop"]
     assert sum(repair.values()) == 12
 
@@ -151,6 +155,20 @@ def test_the_synthetic_mode_still_runs_end_to_end(tmp_path) -> None:
                   client=ScriptedClient())
     assert summary["source"] == "synthetic"
     assert summary["design"]["synthetic_generator"] is True
+
+
+def test_resume_rejects_rows_from_an_old_request_contract(tmp_path) -> None:
+    args = _args(tmp_path, cases=3)
+    run(args, client=ScriptedClient())
+    path = tmp_path / "out" / "rows.jsonl"
+    rows = [json.loads(line) for line in path.read_text().splitlines()]
+    for row in rows:
+        row["request_sha256"] = "stale"
+    path.write_text("".join(json.dumps(row) + "\n" for row in rows))
+    client = ScriptedClient()
+    run(_args(tmp_path, cases=3, resume=True), client=client)
+    assert client.calls >= 3 * len(ARMS)
+    assert len(path.read_text().splitlines()) == 2 * 3 * len(ARMS)
 
 
 def _non_binding_case():

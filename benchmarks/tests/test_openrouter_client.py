@@ -8,6 +8,8 @@ answer would record a wrong answer the model never gave.
 
 import json
 import sys
+import threading
+import time
 import urllib.error
 from pathlib import Path
 
@@ -163,6 +165,194 @@ def test_provider_ignoring_n_is_fanned_out_to_singles(monkeypatch):
     assert client.usage_summary["requests"] == 5
 
 
+def test_provider_top_up_respects_sample_parallelism(monkeypatch):
+    active = 0
+    peak = 0
+    calls = 0
+    lock = threading.Lock()
+
+    def request(client, messages, **kwargs):
+        nonlocal active, peak, calls
+        with lock:
+            call = calls
+            calls += 1
+            active += 1
+            peak = max(peak, active)
+        try:
+            # Every response deliberately contains one choice to exercise
+            # the provider-ignores-n top-up path.
+            time.sleep(.03 if call else .005)
+            payload = _response(f"sample-{call}")
+            client._account(payload)
+            from benchmarks.common.openrouter import _to_namespace
+            return _to_namespace(payload)
+        finally:
+            with lock:
+                active -= 1
+
+    client = OpenRouterClient(
+        "test/model", api_key="k", sample_parallelism=2)
+    monkeypatch.setattr(OpenRouterClient, "_request", request)
+
+    response = client.chat(MESSAGES, n=7)
+
+    assert peak == 2
+    assert len(response.choices) == 7
+    assert [choice.index for choice in response.choices] == list(range(7))
+    assert client.usage_summary["sample_parallelism"] == 2
+
+
+def test_sample_parallelism_must_be_positive():
+    with pytest.raises(ValueError, match="at least 1"):
+        OpenRouterClient("test/model", api_key="k", sample_parallelism=0)
+
+
+def test_shared_rate_limit_gate_cools_and_staggers_siblings(monkeypatch):
+    clock = [100.0]
+    sleeps = []
+
+    def sleep(seconds):
+        sleeps.append(seconds)
+        clock[0] += seconds
+
+    monkeypatch.setattr("time.monotonic", lambda: clock[0])
+    monkeypatch.setattr("time.sleep", sleep)
+    client = OpenRouterClient(
+        "test/model", api_key="k",
+        rate_limit_cooldown_seconds=60,
+        rate_limit_spacing_seconds=2,
+    )
+
+    client._register_rate_limit()
+    client._wait_for_provider_slot()
+    client._wait_for_provider_slot()
+
+    assert sleeps == [60.0, 2.0]
+    assert client.usage_summary["rate_limit_events"] == 1
+    assert client.usage_summary["rate_limit_wait_seconds"] == 62.0
+
+
+def test_sample_cache_replays_without_new_requests(tmp_path, monkeypatch):
+    client, _ = _client(
+        monkeypatch, [_response(f"sample-{i}") for i in range(5)],
+        max_tokens=8000, sample_parallelism=2,
+        sample_cache_dir=tmp_path,
+    )
+    original = client.chat(MESSAGES, n=5)
+
+    resumed = OpenRouterClient(
+        "test/model", api_key="k", max_tokens=8000,
+        sample_parallelism=2, sample_cache_dir=tmp_path)
+
+    def unexpected_request(*args, **kwargs):
+        raise AssertionError("a complete sample bank must not call the provider")
+
+    monkeypatch.setattr(OpenRouterClient, "_request", unexpected_request)
+    replayed = resumed.chat(MESSAGES, n=5)
+
+    assert sorted(choice.message.content for choice in replayed.choices) == \
+        sorted(choice.message.content for choice in original.choices)
+    usage = resumed.usage_summary
+    assert usage["requests"] == 5
+    assert usage["restored_requests"] == 5
+    assert usage["prompt_tokens"] == 50
+    assert usage["completion_tokens"] == 100
+    assert usage["cost_usd"] == pytest.approx(.005)
+    assert usage["sample_cache_hits"] == 5
+    assert usage["sample_cache_accounting_complete"] is True
+
+
+def test_legacy_choice_only_cache_is_replayed_but_economics_fail_closed(
+        tmp_path, monkeypatch):
+    producer, _ = _client(
+        monkeypatch, [_response("sample")], sample_cache_dir=tmp_path)
+    key = producer._sample_key(
+        MESSAGES, temperature=None, max_tokens=producer.max_tokens,
+        tools=None, tool_choice=None, reasoning_effort=None)
+    directory = tmp_path / key
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "choice-legacy.json").write_text(json.dumps({
+        "choice": _response("legacy")["choices"][0],
+        "provider": "legacy",
+    }))
+
+    resumed = OpenRouterClient(
+        "test/model", api_key="k", sample_cache_dir=tmp_path)
+    monkeypatch.setattr(
+        OpenRouterClient, "_request",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("legacy sample should remain resumable")),
+    )
+
+    assert resumed.completions(MESSAGES) == ["legacy"]
+    assert resumed.usage_summary["sample_cache_accounting_complete"] is False
+
+
+def test_cached_samples_are_consumed_once_per_process(tmp_path, monkeypatch):
+    producer, _ = _client(
+        monkeypatch, [_response(f"sample-{i}") for i in range(3)],
+        max_tokens=8000, sample_parallelism=2,
+        sample_cache_dir=tmp_path,
+    )
+    producer.chat(MESSAGES, n=3)
+
+    resumed = OpenRouterClient(
+        "test/model", api_key="k", max_tokens=8000,
+        sample_cache_dir=tmp_path)
+    monkeypatch.setattr(
+        OpenRouterClient, "_request",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("cached samples unexpectedly exhausted")),
+    )
+    first = resumed.chat(MESSAGES, n=2)
+    second = resumed.chat(MESSAGES, n=1)
+
+    first_contents = {choice.message.content for choice in first.choices}
+    second_contents = {choice.message.content for choice in second.choices}
+    assert not first_contents & second_contents
+    assert first_contents | second_contents == {
+        "sample-0", "sample-1", "sample-2"}
+
+
+def test_successful_siblings_survive_one_top_up_failure(
+        tmp_path, monkeypatch):
+    calls = 0
+    lock = threading.Lock()
+
+    def flaky(client, messages, **kwargs):
+        nonlocal calls
+        with lock:
+            call = calls
+            calls += 1
+        if call == 2:
+            raise OpenRouterError("one sibling failed")
+        payload = _response(f"sample-{call}")
+        client._account(payload)
+        from benchmarks.common.openrouter import _to_namespace
+        return _to_namespace(payload)
+
+    client = OpenRouterClient(
+        "test/model", api_key="k", sample_parallelism=4,
+        sample_cache_dir=tmp_path)
+    monkeypatch.setattr(OpenRouterClient, "_request", flaky)
+
+    with pytest.raises(OpenRouterError, match="one sibling failed"):
+        client.chat(MESSAGES, n=5)
+
+    assert len(list(tmp_path.glob("*/choice-*.json"))) == 4
+
+    resumed = OpenRouterClient(
+        "test/model", api_key="k", sample_cache_dir=tmp_path)
+    transport = _Transport([_response("replacement")])
+    monkeypatch.setattr(
+        OpenRouterClient, "_request",
+        lambda self, messages, **kwargs: transport(self, messages, **kwargs),
+    )
+    response = resumed.chat(MESSAGES, n=5)
+    assert len(response.choices) == 5
+    assert transport.calls and len(transport.calls) == 1
+
+
 def test_full_batch_from_provider_is_not_fanned_out(monkeypatch):
     batch = {
         "choices": [
@@ -207,7 +397,8 @@ def test_zero_retries_still_performs_the_initial_request(monkeypatch):
     assert client.usage_summary["transport_attempts"] == 1
 
 
-def test_retryable_error_inside_success_body_is_retried(monkeypatch):
+def test_retryable_error_inside_success_body_is_retried(
+        tmp_path, monkeypatch):
     replies = [
         {"error": {"message": "miner timeout or disconnect", "code": 504}},
         _response("recovered"),
@@ -228,15 +419,25 @@ def test_retryable_error_inside_success_body_is_retried(monkeypatch):
         lambda *args, **kwargs: Response(replies.pop(0)))
     monkeypatch.setattr("time.sleep", lambda _seconds: None)
     client = OpenRouterClient(
-        "test/model", api_key="k", max_retries=1, timeout=1)
+        "test/model", api_key="k", max_retries=1, timeout=1,
+        sample_cache_dir=tmp_path)
 
     response = client._request(
         MESSAGES, n=1, temperature=None, max_tokens=10,
-        tools=None, tool_choice=None)
+        tools=None, tool_choice=None, sample_cache_key="request-key")
 
     assert response.choices[0].message.content == "recovered"
     assert client.usage_summary["transport_attempts"] == 2
     assert client.usage_summary["requests"] == 1
+    resumed = OpenRouterClient(
+        "test/model", api_key="k", max_retries=1, timeout=1,
+        sample_cache_dir=tmp_path)
+    assert resumed.usage_summary["requests"] == 1
+    assert resumed.usage_summary["restored_requests"] == 1
+    assert resumed.usage_summary["transport_attempts"] == 2
+    assert resumed.usage_summary["prompt_tokens"] == 10
+    assert resumed.usage_summary["completion_tokens"] == 20
+    assert resumed.usage_summary["sample_cache_accounting_complete"] is True
 
 
 def test_reasoning_effort_is_sent_only_when_explicit(monkeypatch):

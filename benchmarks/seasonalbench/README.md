@@ -10,7 +10,7 @@ python -m benchmarks.seasonalbench.run \
   --output-dir results/v07-q1-seasonalbench
 ```
 
-The runner appends one JSONL row after every case and resumes completed case
-IDs. The aggregate summary keeps engine support, product completion, and
-fallback disclosure separate.
-
+The runner appends one JSONL row after every case. After an interruption, pass
+`--resume` to reuse completed case IDs; the stored run identity must still
+match the code revision and frozen corpus. The aggregate summary keeps engine
+support, product completion, and fallback disclosure separate.

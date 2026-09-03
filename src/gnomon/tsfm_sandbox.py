@@ -50,7 +50,7 @@ import sys
 import textwrap
 import threading
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from .tsfm import (
     TSFMAdapter,
@@ -125,6 +125,14 @@ TSFM_PIP_SPECS: dict[str, list[str]] = {
     "moment_small": [
         "momentfm==0.1.4",
         "torch==2.13.0",
+    ],
+    # A locally trained checkpoint, so there is no model package to install:
+    # the export ships its own model.py and forecast_wrapper.py and needs
+    # only the tensor stack to run them.
+    "cascade": [
+        "torch==2.13.0",
+        "numpy==2.5.2",
+        "safetensors==0.8.0",
     ],
 }
 
@@ -339,7 +347,12 @@ def remove_sandbox(name: str) -> bool:
 
 
 def list_sandboxes() -> list[str]:
-    """Return names of TSFMs with existing sandboxes."""
+    """Return every ready sandbox directory present on disk.
+
+    This is the maintenance view, so it deliberately includes sandboxes for
+    adapters that a newer Gnomon version no longer registers.  Execution
+    paths must use :func:`sandbox_available_tsfms` instead.
+    """
     if not SANDBOX_ROOT.exists():
         return []
     return sorted(
@@ -445,8 +458,44 @@ WORKER_SCRIPT = textwrap.dedent("""\
             return run_moirai(history, horizon, quantiles, want_quantiles)
         elif name == "moment_small":
             return run_moment(history, horizon, want_quantiles)
+        elif name == "cascade":
+            return run_cascade(history, horizon, quantiles, want_quantiles)
         else:
             raise ValueError(f"Unknown TSFM: {name}")
+
+
+    def run_cascade(history, horizon, quantiles, want_quantiles):
+        # Local checkpoint: the parent resolved and pinned the directory, and
+        # passes it through the environment the worker inherits.
+        import importlib.util
+        import os
+        from pathlib import Path
+
+        directory = os.environ.get("GNOMON_CASCADE_CHECKPOINT", "")
+        if not directory:
+            raise RuntimeError(
+                "cascade needs a checkpoint directory in $GNOMON_CASCADE_CHECKPOINT")
+        path = Path(directory).expanduser()
+        spec = importlib.util.spec_from_file_location(
+            "cascade_forecast_wrapper", path / "forecast_wrapper.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        wrapper = MODELS.get("cascade")
+        if wrapper is None:
+            wrapper = MODELS["cascade"] = module.Wrapper(str(path), "cpu")
+        levels = [float(v) for v in wrapper.quantile_levels]
+        out = wrapper.forecast_quantiles(list(history), horizon)
+        if hasattr(out, "detach"):
+            out = out.detach().cpu().numpy()
+        arr = out.reshape(horizon, len(levels))
+        nearest = lambda level: min(
+            range(len(levels)), key=lambda i: abs(levels[i] - level))
+        point = [float(arr[step, nearest(0.5)]) for step in range(horizon)]
+        if not want_quantiles:
+            return {"point": point}
+        return {"point": point, "quantiles": [
+            {str(level): float(arr[step, nearest(level)]) for level in quantiles}
+            for step in range(horizon)]}
 
 
     def run_chronos(name, history, horizon, quantiles, want_quantiles):
@@ -765,6 +814,7 @@ class SubprocessAdapter:
     ):
         self.name = name
         pins = resolved_weights(name)
+        self._pins = pins
         self.revision = ",".join(
             f"{model_id}@{revision}"
             for model_id, revision in sorted(pins.items())) or None
@@ -792,6 +842,11 @@ class SubprocessAdapter:
 
     def _start_worker(self) -> subprocess.Popen[str]:
         """Start one long-lived worker for this adapter instance."""
+        if resolved_weights(self.name) != self._pins:
+            raise TSFMError(
+                f"{self.name} weights changed after adapter construction; "
+                "create a fresh adapter so its revision matches the worker"
+            )
         try:
             sandbox_dir = ensure_sandbox(self.name)
         except TSFMUnavailable:
@@ -851,9 +906,7 @@ class SubprocessAdapter:
         # records the pinned revisions (`resolved_weights`), so the load
         # must be at exactly those commits or the id would attest weights
         # the run never used.
-        from .tsfm import resolved_weights
-
-        request["revisions"] = resolved_weights(self.name)
+        request["revisions"] = dict(self._pins)
 
         with self._process_lock:
             process = self._process
@@ -990,8 +1043,38 @@ class SubprocessAdapter:
 # ---------------------------------------------------------------------------
 
 def sandbox_available_tsfms() -> list[str]:
-    """Return names of TSFMs with ready sandboxes."""
-    return list_sandboxes()
+    """Return registered TSFMs with ready, executable sandboxes.
+
+    A cache survives package upgrades.  Its ready marker therefore proves
+    that a sandbox was once installed, not that the current runtime still
+    knows its adapter contract.  Keep orphaned directories observable to the
+    maintenance surface, but never construct an adapter for one.
+    """
+    available: list[str] = []
+    for name in list_sandboxes():
+        try:
+            tsfm_capabilities(name)
+        except KeyError:
+            continue
+        # Public adapters resolve to pinned Hub revisions.  Local adapters
+        # resolve only after their checkpoint is configured and its loaded
+        # files can be hashed.  A venv alone does not make an unconfigured
+        # local model executable or eligible for forecast selection.
+        if not resolved_weights(name):
+            continue
+        available.append(name)
+    return available
+
+
+def orphaned_sandboxes() -> list[str]:
+    """Return ready sandbox directories unknown to the current runtime."""
+    orphaned: list[str] = []
+    for name in list_sandboxes():
+        try:
+            tsfm_capabilities(name)
+        except KeyError:
+            orphaned.append(name)
+    return orphaned
 
 
 def sandbox_tsfm_candidates(
@@ -1003,7 +1086,7 @@ def sandbox_tsfm_candidates(
     Unlike ``tsfm_candidates`` in tsfm.py, this returns adapters that
     run in isolated venvs, avoiding dependency conflicts.
     """
-    ready = list_sandboxes()
+    ready = sandbox_available_tsfms()
     if requested:
         ready = [name for name in ready if name in requested]
     candidates: list[TSFMAdapter] = []
@@ -1024,6 +1107,54 @@ def sandbox_tsfm_candidates(
         except Exception:
             logger.debug("Failed to create SubprocessAdapter for %s", name, exc_info=True)
     return candidates
+
+
+def select_tsfm_candidates(
+    requested: list[str] | None = None,
+    frequency: str = "h",
+    in_process: "Callable[..., list[TSFMAdapter]] | None" = None,
+) -> list[TSFMAdapter]:
+    """Every requested adapter that can actually run, sandboxed where needed.
+
+    A sandbox is dependency isolation, not a licence to compete. Choosing
+    "sandboxes if any sandbox exists, else in-process" silently dropped every
+    adapter that needs no isolation -- a locally trained checkpoint whose only
+    dependency is torch would vanish from the candidate pool the moment an
+    unrelated model was installed into a venv, and the run would look like a
+    clean evaluation that the model simply lost.
+
+    So the two sources are unioned: a sandbox wins for any name that has one,
+    and the rest are loaded in-process. A name that can do neither is absent,
+    which is what the capability notes already report.
+
+    ``in_process`` is the loader for the non-sandboxed half. Callers pass
+    their own module-level ``tsfm_candidates`` so that the seam they already
+    substitute in tests stays the one this function uses.
+    """
+    ready = set(sandbox_available_tsfms())
+    names = list(requested) if requested is not None else None
+    sandboxed = sandbox_tsfm_candidates(
+        requested=[n for n in names if n in ready] if names is not None else None,
+        frequency=frequency,
+    )
+    covered = {adapter.name for adapter in sandboxed}
+    if names is None:
+        return sandboxed
+
+    from .tsfm import dependency_missing
+    from .tsfm import tsfm_candidates as _default_in_process
+
+    # Filtered, not merely constructed: several adapters construct happily
+    # without torch and only fail once a fold asks them to predict, which
+    # turns a missing dependency into a hundred scored-as-failed folds and a
+    # candidate that looks beaten rather than absent. The predicate is the
+    # narrow one, so an adapter registered from outside the package is kept.
+    remaining = [name for name in names
+                 if name not in covered and not dependency_missing(name)]
+    if not remaining:
+        return sandboxed
+    loader = in_process or _default_in_process
+    return sandboxed + loader(requested=remaining, frequency=frequency)
 
 
 def _close_adapter_pool() -> None:

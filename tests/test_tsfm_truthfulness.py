@@ -17,7 +17,30 @@ import os
 from pathlib import Path
 
 from gnomon import tsfm_sandbox
+from gnomon import tsfm
 from gnomon.tsfm import TSFM_REVISIONS, resolved_weights
+
+
+class TestLocalCheckpointPinning:
+    def test_executable_wrapper_changes_checkpoint_identity(
+        self, monkeypatch, tmp_path
+    ):
+        checkpoint = tmp_path / "cascade-checkpoint"
+        checkpoint.mkdir()
+        for filename in (
+            "config.json", "forecast_wrapper.py", "model.py", "weights.safetensors"
+        ):
+            (checkpoint / filename).write_text(filename, encoding="utf-8")
+        monkeypatch.setenv("GNOMON_CASCADE_CHECKPOINT", str(checkpoint))
+        tsfm._LOCAL_PIN_CACHE.clear()
+
+        first = tsfm.local_pin("cascade")
+        (checkpoint / "forecast_wrapper.py").write_text(
+            "changed executable wrapper", encoding="utf-8"
+        )
+        second = tsfm.local_pin("cascade")
+
+        assert first != second
 
 
 class TestSandboxRoot:
@@ -65,6 +88,10 @@ class TestWorkerRevisionPinning:
     def test_request_carries_the_pinned_revisions(self, monkeypatch, tmp_path):
         adapter = tsfm_sandbox.SubprocessAdapter("chronos_bolt_mini",
                                                  frequency="D")
+        expected = resolved_weights("chronos_bolt_mini")
+        monkeypatch.setattr(
+            tsfm, "resolved_weights", lambda name: {"changed-after-start": "bad"}
+        )
         sandbox = tmp_path / "chronos_bolt_mini"
         (sandbox / "venv" / "bin").mkdir(parents=True)
         (sandbox / "venv" / "bin" / "python").touch()
@@ -96,7 +123,6 @@ class TestWorkerRevisionPinning:
         monkeypatch.setattr(tsfm_sandbox.select, "select",
                             lambda *args: ([42], [], []))
         adapter.predict([1.0] * 30, 3, 7)
-        expected = resolved_weights("chronos_bolt_mini")
         assert expected  # the adapter has pinned weights to send
         assert captured["request"]["revisions"] == expected
         sha = TSFM_REVISIONS["amazon/chronos-bolt-mini"]
@@ -107,11 +133,31 @@ class TestCapabilitiesTruthfulness:
     def test_sandbox_install_appears_under_models_tsfm(self, monkeypatch):
         import gnomon.runtime as runtime
 
+        monkeypatch.setattr("gnomon.tsfm_sandbox.sandbox_available_tsfms",
+                            lambda: ["chronos_bolt_mini"])
         monkeypatch.setattr("gnomon.tsfm_sandbox.list_sandboxes",
                             lambda: ["chronos_bolt_mini"])
+        monkeypatch.setattr("gnomon.tsfm_sandbox.orphaned_sandboxes", lambda: [])
         caps = runtime.capabilities()
         assert "chronos_bolt_mini" in caps["models"]["tsfm"]
         assert caps["models"]["tsfm_sandboxes"] == ["chronos_bolt_mini"]
+
+    def test_orphaned_sandbox_is_disclosed_but_not_advertised(self, monkeypatch):
+        import gnomon.runtime as runtime
+
+        monkeypatch.setattr(
+            "gnomon.tsfm_sandbox.sandbox_available_tsfms", lambda: []
+        )
+        monkeypatch.setattr(
+            "gnomon.tsfm_sandbox.list_sandboxes", lambda: ["retired_adapter"]
+        )
+        monkeypatch.setattr(
+            "gnomon.tsfm_sandbox.orphaned_sandboxes", lambda: ["retired_adapter"]
+        )
+        caps = runtime.capabilities()
+        assert "retired_adapter" not in caps["models"]["tsfm"]
+        assert caps["models"]["tsfm_sandboxes"] == ["retired_adapter"]
+        assert caps["models"]["tsfm_orphaned_sandboxes"] == ["retired_adapter"]
 
 
 class TestConfigCandidatesReachSelection:

@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
 from benchmarks.common.envfile import load_env_file  # noqa: E402
+from benchmarks.common.manifest import code_revision  # noqa: E402
 from benchmarks.common.openrouter import (  # noqa: E402
     OpenRouterClient,
     OpenRouterError,
@@ -33,7 +34,9 @@ from gnomon.workflows import (  # noqa: E402
     normalise_context_response_containers, parse_context_response,
 )
 
-from .run_contextbench import EPOCH, frequency_step, run_case, smape  # noqa: E402
+from .run_contextbench import (  # noqa: E402
+    EPOCH, frequency_step, isolate_context_store, run_case, smape,
+)
 from .schema import Case, Oracle, load_cases, load_oracles  # noqa: E402
 
 
@@ -555,7 +558,9 @@ def main() -> int:
     parser.add_argument("--reasoning-effort", default=None,
                         choices=("none", "low", "medium", "high"))
     parser.add_argument("--limit", type=int)
-    parser.add_argument("--jobs", type=int, default=4)
+    parser.add_argument(
+        "--jobs", type=int, default=1,
+        help="Cases in flight; serial by default for crash safety.")
     parser.add_argument("--request-timeout", type=int, default=180)
     parser.add_argument("--max-retries", type=int, default=2)
     parser.add_argument("--resume", action="store_true",
@@ -597,8 +602,10 @@ def main() -> int:
         json.dumps([case.case_id for case in cases], separators=(",", ":"))
         .encode()).hexdigest()
     output = Path(args.output_dir); output.mkdir(parents=True, exist_ok=True)
+    isolate_context_store(output)
     run_identity = {
         "schema_version": 1,
+        "code_revision": code_revision(),
         "condition": args.condition,
         "model": args.model,
         "base_url": args.base_url,

@@ -2602,7 +2602,7 @@ def fit_categorical_state_candidate(
             return global_level
         return statistics.median(phase_values)
 
-    predictions, actuals, baselines = [], [], []
+    predictions, actuals, baselines, replay_states = [], [], [], []
     replay_start = max(4, minimum_overlap // 2,
                        seasonal_period or 0)
     for origin in range(replay_start, len(target)):
@@ -2614,6 +2614,7 @@ def fit_categorical_state_candidate(
             origin % seasonal_period if seasonal_period else 0)
         predictions.append(prediction)
         actuals.append(target[origin])
+        replay_states.append(states[origin])
         baselines.append(estimate_phase_only(
             target[:origin], origin % seasonal_period if seasonal_period else 0))
     candidate_mae = (statistics.mean(abs(a - b) for a, b in
@@ -2622,42 +2623,143 @@ def fit_categorical_state_candidate(
     baseline_mae = (statistics.mean(abs(a - b) for a, b in
                                     zip(actuals, baselines))
                     if actuals else math.inf)
-    skill = (1 - candidate_mae / max(baseline_mae, 1e-12)
-             if math.isfinite(candidate_mae) and math.isfinite(baseline_mae)
-             else -math.inf)
-    fitted = [estimate(target, states, state,
-                       index % seasonal_period if seasonal_period else 0)[0]
-              for index, state in enumerate(states)]
-    residuals = [actual - prediction for actual, prediction in zip(target, fitted)]
-    center = statistics.median(residuals)
-    mad = statistics.median(abs(value - center) for value in residuals)
+    def relative_skill(candidate_error: float, baseline_error: float) -> float:
+        if not (math.isfinite(candidate_error)
+                and math.isfinite(baseline_error)):
+            return -math.inf
+        if baseline_error <= 1e-12:
+            # Tying a perfect comparator is not an improvement; any positive
+            # error against it is strictly worse, never a huge ratio hidden by
+            # an epsilon denominator.
+            return 0.0 if candidate_error <= 1e-12 else -math.inf
+        return 1 - candidate_error / baseline_error
+
+    skill = relative_skill(candidate_mae, baseline_mae)
+    split = max(1, len(actuals) // 2)
+    replay_blocks = [(0, split), (split, len(actuals))]
+    chronological_block_wins = sum(
+        statistics.mean(abs(actuals[index] - predictions[index])
+                        for index in range(start, end))
+        < statistics.mean(abs(actuals[index] - baselines[index])
+                          for index in range(start, end))
+        for start, end in replay_blocks if end > start)
+    required_block_wins = 2
+
+    # Aggregate skill can come entirely from a state absent from the forecast
+    # window.  Such evidence does not justify displacing the primary for the
+    # states the caller will actually encounter.  Keep the per-state replay
+    # explicit so downstream users can distinguish a visible sensitivity from
+    # a recommendation with relevant historical evidence.
+    future_state_replay = {}
+    for state in sorted(set(future)):
+        indices = [index for index, replay_state in enumerate(replay_states)
+                   if replay_state == state]
+        state_candidate_mae = (statistics.mean(
+            abs(actuals[index] - predictions[index]) for index in indices)
+            if indices else math.inf)
+        state_baseline_mae = (statistics.mean(
+            abs(actuals[index] - baselines[index]) for index in indices)
+            if indices else math.inf)
+        state_skill = relative_skill(state_candidate_mae, state_baseline_mae)
+        future_state_replay[state] = {
+            "validation_points": len(indices),
+            "candidate_mae": state_candidate_mae,
+            "baseline_mae": state_baseline_mae,
+            "skill": state_skill,
+            "minimum_validation_points": 3,
+            "minimum_skill": .02,
+            "gate_passed": bool(len(indices) >= 3 and state_skill >= .02),
+        }
+    # A fitted residual can collapse to zero on intermittent state series even
+    # when the same estimator makes large expanding-origin errors. Quantiles
+    # therefore come from the already-separated replay above, never from the
+    # in-sample fit used to produce the point path.
+    from .evaluation import MIN_RESIDUALS_PER_LEAD, conformal_quantile
+
+    replay_residuals = [actual - prediction for actual, prediction in zip(
+        actuals, predictions)]
+    global_residual_quantiles = tuple(
+        conformal_quantile(replay_residuals, probability)
+        for probability in (.1, .5, .9))
+    residuals_by_state = {
+        state: [residual for residual, replay_state in zip(
+            replay_residuals, replay_states) if replay_state == state]
+        for state in sorted(set(replay_states))
+    }
+    eligible_state_residuals = {
+        state: residuals for state, residuals in residuals_by_state.items()
+        if len(residuals) >= MIN_RESIDUALS_PER_LEAD
+    }
+    residual_scale_floor = max(
+        statistics.median(abs(value) for value in target) * 1e-6, 1e-12)
+    state_residual_scales = {
+        state: statistics.median(abs(value - statistics.median(residuals))
+                                 for value in residuals)
+        for state, residuals in eligible_state_residuals.items()
+    }
+    residual_scale_ratio = (
+        max(state_residual_scales.values())
+        / max(min(state_residual_scales.values()), residual_scale_floor)
+        if len(state_residual_scales) >= 2 else None)
+    # Stratification costs effective sample size. Spend it only when replay
+    # demonstrates meaningfully different conditional noise scales; otherwise
+    # the pooled empirical distribution is both stabler and more efficient.
+    state_conditioning_active = bool(
+        residual_scale_ratio is not None and residual_scale_ratio >= 2.0)
+    state_residual_quantiles = {
+        state: tuple(conformal_quantile(residuals, probability)
+                     for probability in (.1, .5, .9))
+        for state, residuals in eligible_state_residuals.items()
+    } if state_conditioning_active else {}
     scale = max(statistics.median(abs(value) for value in target), 1.0)
-    base_width = max(1.2815515655446004 * 1.4826 * mad,
-                     scale * 1e-6)
+    width_floor = scale * 1e-6
     state_counts = {state: states.count(state) for state in set(states)}
     replay_points = len(actuals)
-    evidence_weight = min(1.0, replay_points / 8.0)
+    replay_evidence_weight = min(1.0, replay_points / 8.0)
+    # Replay volume is not evidence of usefulness by itself. A candidate that
+    # merely ties or loses to its comparator must remain at the baseline even
+    # in the human-review lane; positive skill gradually earns its numerical
+    # departure, reaching full weight at the same 2% admission threshold.
+    skill_evidence_weight = (
+        max(0.0, min(1.0, skill / .02)) if math.isfinite(skill) else 0.0)
+    evidence_weight = replay_evidence_weight * skill_evidence_weight
     baseline_point = target[-1]
     rows = []
     for offset, (source, state) in enumerate(zip(primary, future)):
+        residual_lower, residual_center, residual_upper = (
+            state_residual_quantiles.get(state, global_residual_quantiles))
         raw_point, count = estimate(
             target, states, state,
             (len(target) + offset) % seasonal_period
             if seasonal_period else 0)
-        point = baseline_point + evidence_weight * (raw_point - baseline_point)
-        sparse_penalty = scale if count == 0 else base_width * (1 + 2 / count)
-        half_width = max(base_width, sparse_penalty, abs(raw_point - point))
+        uncalibrated_point = (
+            baseline_point + evidence_weight * (raw_point - baseline_point))
+        point = uncalibrated_point + residual_center
+        sparse_penalty = scale if count == 0 else width_floor
+        half_width_floor = max(
+            width_floor, sparse_penalty, abs(raw_point - uncalibrated_point))
         rows.append({
             "timestamp": source.get("timestamp"), "point": point,
-            "q10": point - half_width, "q50": point,
-            "q90": point + half_width, "state": state,
+            "q10": min(uncalibrated_point + residual_lower,
+                       point - half_width_floor),
+            "q50": point,
+            "q90": max(uncalibrated_point + residual_upper,
+                       point + half_width_floor),
+            "state": state,
         })
     future_state_counts = {state: state_counts.get(state, 0)
                            for state in sorted(set(future))}
     states_supported = all(count >= 2 for count in future_state_counts.values())
     availability_proven = replay_origin_eligible is not None
+    required_replay_points = max(
+        8, 2 * seasonal_period if seasonal_period is not None else 8)
+    replay_sufficient = replay_points >= required_replay_points
+    future_state_evidence_sufficient = all(
+        item["gate_passed"] for item in future_state_replay.values())
     retrospective_beats_baseline = bool(
-        replay_points >= 3 and states_supported and skill >= .02)
+        replay_sufficient and states_supported and skill >= .02
+        and chronological_block_wins >= required_block_wins
+        and future_state_evidence_sufficient)
     retrospective_human_eligible = retrospective_beats_baseline
     eligible = bool(availability_proven and retrospective_beats_baseline)
     return {
@@ -2681,9 +2783,18 @@ def fit_categorical_state_candidate(
             "seasonal_period": seasonal_period,
             "overlap_points": len(target),
             "validation_points": replay_points,
+            "required_validation_points": required_replay_points,
+            "replay_sufficient": replay_sufficient,
             "candidate_mae": candidate_mae,
             "baseline_mae": baseline_mae,
             "skill": skill,
+            "chronological_block_wins": chronological_block_wins,
+            "required_block_wins": required_block_wins,
+            "chronologically_consistent": (
+                chronological_block_wins >= required_block_wins),
+            "future_state_replay": future_state_replay,
+            "future_state_evidence_sufficient": (
+                future_state_evidence_sufficient),
             "beats_baseline": retrospective_beats_baseline,
             "historically_admitted": eligible,
             "baseline": ("seasonal_phase_without_state"
@@ -2699,6 +2810,29 @@ def fit_categorical_state_candidate(
             "retrospective_skill_not_admission": not availability_proven,
             "publication_evidence_weight": evidence_weight,
             "publication_shrunk_to_baseline": evidence_weight < 1.0,
+            "publication_weight_basis": {
+                "replay_sufficiency": replay_evidence_weight,
+                "positive_skill": skill_evidence_weight,
+            },
+            "interval_calibration": {
+                "source": "state_conditioned_expanding_origin_replay_residuals",
+                "residual_points": len(replay_residuals),
+                "state_residual_points": {
+                    state: len(residuals)
+                    for state, residuals in residuals_by_state.items()
+                },
+                "minimum_state_residual_points": MIN_RESIDUALS_PER_LEAD,
+                "state_residual_robust_scales": state_residual_scales,
+                "state_residual_scale_ratio": residual_scale_ratio,
+                "state_conditioning_minimum_scale_ratio": 2.0,
+                "state_conditioning_active": state_conditioning_active,
+                "state_conditioned": sorted(state_residual_quantiles),
+                "pooled_fallback_states": sorted(
+                    state for state in set(future)
+                    if state not in state_residual_quantiles),
+                "quantile_method": "finite_sample_split_conformal",
+                "nominal_coverage": .8,
+            },
         },
         "support": "prior_assisted",
         "selection_eligible": eligible,

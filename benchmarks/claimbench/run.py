@@ -16,6 +16,7 @@ import subprocess
 import tempfile
 from typing import Any
 
+from benchmarks.common.checkpoint import prepare_run_identity
 from gnomon.ids import FixedClock
 from gnomon.runtime import forecast
 from gnomon.toolspec import brief_summary, forecast_summary
@@ -203,25 +204,39 @@ def _summarise(records: list[dict[str, Any]]) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
     checkpoint = args.output_dir / "cases.jsonl"
+    cases = _cases()
+    prepare_run_identity(
+        args.output_dir,
+        {
+            "schema_version": 1,
+            "benchmark": "forecast-claim-support-coherence",
+            "code_revision": _revision(),
+            "case_ids": [case["case_id"] for case in cases],
+            "protocol": "frozen-v0.7-q1",
+        },
+        resume=args.resume,
+        state_paths=[checkpoint, args.output_dir / "summary.json"],
+    )
     completed: dict[str, dict[str, Any]] = {}
-    if checkpoint.is_file():
+    if args.resume and checkpoint.is_file():
         for line in checkpoint.read_text(encoding="utf-8").splitlines():
             if line.strip():
                 row = json.loads(line)
                 completed[row["case_id"]] = row
     with tempfile.TemporaryDirectory(prefix="gnomon-claimbench-", dir="/tmp") as raw:
         work = Path(raw)
-        for case in _cases():
+        for case in cases:
             if case["case_id"] in completed:
                 continue
             row = _run_case(case, work)
             with checkpoint.open("a", encoding="utf-8") as handle:
                 handle.write(json.dumps(row, sort_keys=True) + "\n")
             completed[row["case_id"]] = row
-    records = [completed[case["case_id"]] for case in _cases()]
+    records = [completed[case["case_id"]] for case in cases]
     summary = _summarise(records)
     destination = args.output_dir / "summary.json"
     destination.write_text(
@@ -229,7 +244,7 @@ def main() -> int:
         encoding="utf-8",
     )
     print(json.dumps(summary, indent=2, sort_keys=True))
-    return 0
+    return 0 if summary["passed"] else 2
 
 
 if __name__ == "__main__":

@@ -702,6 +702,32 @@ def test_runner_retries_infrastructure_and_resume_keeps_success(tmp_path):
     assert "sentinel" not in rerun.metadata
 
 
+def test_workflow_resume_identity_rejects_changed_arm(tmp_path):
+    import argparse
+    from benchmarks.workflow.run_workflow import (
+        _prepare_run_identity, _run_identity,
+    )
+
+    cases = load_cases(DEFAULT_CASES)
+    args = argparse.Namespace(
+        submission=None, arm="evidence", arm_command="python arm.py",
+        timeout=120.0, jobs=1, infrastructure_retries=2)
+    identity = _run_identity(args, cases)
+    _prepare_run_identity(tmp_path, identity, resume=False)
+    (tmp_path / "observations.jsonl").write_text("{}\n")
+    changed = {**identity, "arm_command": "python other.py"}
+    with pytest.raises(SystemExit, match="resume identity mismatch"):
+        _prepare_run_identity(tmp_path, changed, resume=True)
+
+
+def test_workflow_resume_refuses_legacy_checkpoint_without_identity(tmp_path):
+    from benchmarks.workflow.run_workflow import _prepare_run_identity
+
+    (tmp_path / "observations.jsonl").write_text("{}\n")
+    with pytest.raises(SystemExit, match="without run_identity"):
+        _prepare_run_identity(tmp_path, {"schema_version": 1}, resume=True)
+
+
 def test_adapter_finds_triage_through_router_envelope():
     from benchmarks.workflow.agent_adapter import _extract_engine_facts, _find_triage
 

@@ -20,6 +20,7 @@ from .llm_dossier import (deterministic_events_from_claims,
                           validate_temporal_dossier,
                           verify_temporal_dossier_seal)
 from .effect_proposals import assess_composed_effect, compose_effect
+from .future_context import literal_input_authority
 from .temporal_state import build_temporal_state
 from .context_intelligence import candidate_evidence_score
 from .agent_context import sampled_prior_sufficiency
@@ -300,6 +301,12 @@ def _context_summary(
         evidence_authority = "historically_admitted"
     elif authority.get("retrospectively_validated") is True:
         evidence_authority = "retrospectively_validated"
+    elif authority.get("conditional_replay_admitted") is True:
+        # Conditional replay is empirical evidence for the fixed observation
+        # interpretation at the current receipt cutoff.  It is stronger than
+        # a hypothetical sensitivity, but it is not bitemporal historical
+        # admission and therefore cannot authorize publication or automation.
+        evidence_authority = "conditional_replay_evidence"
     elif authority.get("prior_assisted") is True:
         evidence_authority = "prior_assisted"
     elif context_changed_recommendation:
@@ -525,6 +532,7 @@ def dominant_scenario_id(scenarios: list[dict[str, Any]]) -> str | None:
                        and any(normalization.get("code") in {
                                    "EXACT_CITED_LEVEL_MULTIPLIER",
                                    "APPROXIMATE_CITED_LEVEL_MULTIPLIER",
+                                   "EXACT_CITED_ZERO_LEVEL",
                                }
                                for normalization in
                                (item.get("effect") or {}).get(
@@ -728,6 +736,37 @@ def _normalize_sampled_prior_uncertainty(
     }
 
 
+def _withhold_unadmitted_governed_numeric_path(
+    candidate: list[dict[str, Any]], primary: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Publish no distinct numeric path for an unadmitted state mapping.
+
+    A short or inconsistent categorical replay can remain a useful qualitative
+    sensitivity, but it has not earned a separate forecast. The source path
+    remains in the sealed dossier and its disagreement is summarized in the
+    publication metadata; the public numeric path stays exactly on the
+    immutable primary.
+    """
+    if not candidate or len(candidate) != len(primary):
+        return candidate, {"applied": False, "reason": "unaligned_paths"}
+    for candidate_row, primary_row in zip(candidate, primary):
+        if str(candidate_row.get("timestamp")) != str(
+                primary_row.get("timestamp")):
+            return candidate, {
+                "applied": False, "reason": "unaligned_timestamps"}
+    disagreement = _primary_disagreement(candidate, primary)
+    return _rows(primary), {
+        "applied": True,
+        "basis": "immutable_primary_for_unadmitted_governed_candidate",
+        "numeric_authority": "withheld_no_distinct_path",
+        "source_candidate_preserved_in_sealed_dossier": True,
+        "source_candidate_disagreement": disagreement,
+        "primary_forecast_unchanged": True,
+        "rows_replaced": len(candidate),
+        "interpretation": "qualitative_sensitivity_not_numeric_forecast",
+    }
+
+
 def _scope_candidate_to_windows(
     candidate: list[dict[str, Any]], fallback: list[dict[str, Any]],
     windows: list[dict[str, Any]], *, fallback_source: str,
@@ -857,6 +896,31 @@ def _context_recovery(disposition: dict[str, Any]) -> dict[str, Any]:
             "required_evidence": [
                 "external forecast source", "forecast issue time",
                 "forecast target and horizon",
+            ],
+            "automation_eligible": False,
+        }
+    if code == "scenario_assumption_not_constraint":
+        return {
+            "code": "retain_as_labelled_scenario",
+            "message": (
+                "Keep the immutable primary and represent the assumption as "
+                "a labelled scenario; an assumption cannot become a "
+                "deterministic constraint or authorize automation."),
+            "required_evidence": [
+                "explicit scenario label", "effective window",
+                "source-cited assumed value",
+            ],
+            "automation_eligible": False,
+        }
+    if code == "observed_value_not_future_constraint":
+        return {
+            "code": "retain_as_historical_evidence",
+            "message": (
+                "Keep the observation as historical evidence. Supply a "
+                "separate binding schedule or point-in-time future input if "
+                "it should affect the forecast horizon."),
+            "required_evidence": [
+                "binding future schedule or archived future-input vintage",
             ],
             "automation_eligible": False,
         }
@@ -1452,16 +1516,24 @@ def build_scenario_catalog(result: dict[str, Any], *,
             dossier, target_name=str(result.get("target_identity")
                                      or result.get("series") or ""),
             forecast_window=forecast_window)
+        assumed_claim_ids = {
+            str(claim.get("claim_id"))
+            for claim in claims
+            if literal_input_authority(
+                str(claim.get("source_span") or "")) == "assumed"
+        }
         deterministic_claim_ids = {
             str(event.get("derived_from_claim_id"))
             for event in deterministic_events
             if event.get("derived_from_claim_id")}
+        deterministic_claim_ids.difference_update(assumed_claim_ids)
         absolute_override_claim_ids = {
             str(event.get("derived_from_claim_id"))
             for event in deterministic_events
             if str(event.get("event_type") or "").startswith("override:")
             and event.get("derived_from_claim_id")
         }
+        absolute_override_claim_ids.difference_update(assumed_claim_ids)
         if proposal and deterministic_claim_ids.intersection(
                 str(item) for item in proposal.get("claim_ids") or []):
             # An exact absolute/range claim belongs to the deterministic
@@ -1676,20 +1748,20 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 not sampled_prior
                 or sampled_prior_assessment.get(
                     "eligible_for_human_recommendation") is True)
-            supported_primary_sampled_prior_withheld = bool(
+            unvalidated_sampled_prior_withheld = bool(
                 sampled_prior
-                and primary_path_support in {"supported", "context_trusted"}
                 and elicitation.get("host_observed") is True
                 and elicitation.get("historical_skill_evidence") is False)
-            if supported_primary_sampled_prior_withheld:
+            if unvalidated_sampled_prior_withheld:
                 # Repeated model samples measure elicitation stability, not
                 # forecast skill. Keep the sealed prior available for human
-                # inspection and later outcome scoring, but do not let that
-                # coherence alone displace an already supported primary.
+                # inspection and later outcome scoring, but never let that
+                # coherence alone displace the primary. A weak primary does
+                # not turn an unvalidated alternative into evidence.
                 selection_eligible = False
             human_selection_eligible = bool(
                 sampled_prior_sufficient
-                and not supported_primary_sampled_prior_withheld
+                and not unvalidated_sampled_prior_withheld
                 and (selection_eligible
                      or (candidate_origin.startswith("governed_")
                          and candidate_critique.get(
@@ -1733,6 +1805,11 @@ def build_scenario_catalog(result: dict[str, Any], *,
                         "kind") == "sampled_point_paths"):
                 candidate_rows, uncertainty_normalization = (
                     _normalize_sampled_prior_uncertainty(
+                        candidate_rows, primary))
+            elif (candidate_origin == "governed_categorical_state_mapping"
+                  and not human_selection_eligible):
+                candidate_rows, uncertainty_normalization = (
+                    _withhold_unadmitted_governed_numeric_path(
                         candidate_rows, primary))
             scenarios.append(_scenario(
                 identifier,
@@ -1778,8 +1855,14 @@ def build_scenario_catalog(result: dict[str, Any], *,
                       if supported_primary_stability_withheld else []),
                     *(["Sampled model-path agreement is elicitation stability, "
                         "not historical skill, so this prior cannot displace "
-                        "a fully supported primary recommendation."]
-                      if supported_primary_sampled_prior_withheld else [])],
+                        "the primary recommendation."]
+                      if unvalidated_sampled_prior_withheld else []),
+                    *(["The categorical replay did not earn a distinct numeric "
+                        "path. Its source sensitivity remains sealed for audit; "
+                        "the public scenario retains the immutable primary."]
+                      if (uncertainty_normalization or {}).get("applied") is True
+                      and candidate_origin ==
+                      "governed_categorical_state_mapping" else [])],
                 source_seal=str(dossier["seal_sha256"]),
                 effect={
                     "candidate_origin": candidate_origin,
@@ -1827,21 +1910,44 @@ def build_scenario_catalog(result: dict[str, Any], *,
                         "compact_human_summary": "recommended_forecast",
                         "automation_eligible": False,
                     } if candidate_origin == "model_authored" else {
-                        "kind": "sealed_governed_quantiles",
+                        "kind": (
+                            "under_evidence_no_distinct_numeric_path"
+                            if (uncertainty_normalization or {}).get(
+                                "applied") is True else
+                            "sealed_governed_quantiles"),
                         "candidate_origin": candidate_origin,
                         "horizon": len(candidate_rows),
                         "quantile_levels": [0.1, 0.5, 0.9],
-                        "source": "sealed_context_receipt",
-                        "probabilistic_consumers_should_use": "quantiles",
+                        "source": (
+                            "immutable_primary_plus_sealed_source_diagnostic"
+                            if (uncertainty_normalization or {}).get(
+                                "applied") is True else
+                            "sealed_context_receipt"),
+                        "probabilistic_consumers_should_use": (
+                            "primary_forecast"
+                            if (uncertainty_normalization or {}).get(
+                                "applied") is True else
+                            "quantiles"),
                         "historical_skill_evidence": bool(replay_admitted),
                         "validation_status": (
                             str(conditional_replay.get("status"))
                             if conditional_replay else "not_available"),
                         "compact_human_summary": "recommended_forecast",
                         "automation_eligible": False,
+                        **({"interval_interpretation":
+                            "immutable_primary_no_distinct_candidate_interval",
+                            "numeric_authority":
+                            "withheld_no_distinct_path"}
+                           if (uncertainty_normalization or {}).get(
+                               "applied") is True else {}),
                     }),
                     "primary_disagreement": _primary_disagreement(
                         candidate_rows, primary),
+                    **({"source_candidate_disagreement":
+                        uncertainty_normalization.get(
+                            "source_candidate_disagreement")}
+                       if (uncertainty_normalization or {}).get(
+                           "source_candidate_disagreement") else {}),
                     "elicitation_sufficiency": sampled_prior_assessment,
                     "uncertainty_normalization": uncertainty_normalization,
                     "governed_companion_evidence": governed_companion_evidence,
@@ -1857,14 +1963,14 @@ def build_scenario_catalog(result: dict[str, Any], *,
                         "candidate_preserved": True,
                     }} if supported_primary_stability_withheld else {}),
                     **({"recommendation_stability": {
-                        "status": "withheld_for_supported_primary",
+                        "status": "withheld_without_historical_skill",
                         "reason_code": (
                             "sampled_prior_has_no_historical_skill"),
                         "primary_support": primary_path_support,
                         "host_observed": True,
                         "historical_skill_evidence": False,
                         "candidate_preserved": True,
-                    }} if supported_primary_sampled_prior_withheld else {}),
+                    }} if unvalidated_sampled_prior_withheld else {}),
                     "calibration_replay": calibration_replay,
                     "validation": candidate.get("validation") or {},
                     "executable": candidate.get("executable") or {},
@@ -2060,13 +2166,12 @@ def best_effort_prior_selection(
     *, scenarios: list[dict[str, Any]],
     dossiers: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any] | None:
-    """Apply the explicit best-effort policy to one sampled model prior.
+    """Return no automatic choice for an unvalidated sampled model prior.
 
-    This is a publication policy, not an evidence upgrade. It applies only
-    when no historically/evidence-dominant path exists and exactly one
-    human-eligible model candidate carries a host-aggregated distribution from
-    at least three independently elicited paths. Strict and scenario publication
-    remain unchanged, and automation remains categorically unavailable.
+    Repeated paths can establish transport and elicitation stability, but not
+    forecast skill. Such candidates remain sealed in the portfolio for an
+    explicit human decision and later outcome graduation; best-effort mode
+    cannot make them the default merely because the primary is weak.
     """
     if dominant_scenario_id(scenarios) is not None:
         return None
@@ -2084,92 +2189,7 @@ def best_effort_prior_selection(
                 and item.get("human_selection_eligible") is not True
                 for item in scenarios)):
         return None
-    sampled = []
-    for item in scenarios:
-        effect = item.get("effect") or {}
-        elicitation = effect.get("elicitation") or {}
-        sufficiency = effect.get("elicitation_sufficiency") or {}
-        if (item.get("role") == "model_authored"
-                and item.get("human_selection_eligible") is True
-                and sufficiency.get(
-                    "eligible_for_human_recommendation") is True
-                and elicitation.get("host_observed") is True
-                and elicitation.get("historical_skill_evidence") is False
-                and elicitation.get("automation_eligible") is False
-                and isinstance(elicitation.get("accepted_paths"), int)):
-            sampled.append(item)
-    if len(sampled) != 1:
-        return None
-    selected = sampled[0]
-    # Agreement among sampled model paths is a coherence check, not evidence
-    # that this prior dominates another viable interpretation. Auto-selection
-    # is therefore reserved for the simple primary-versus-one-prior case. If
-    # another non-primary candidate is eligible, preserve the alternatives and
-    # route the genuine ambiguity through the bounded evidence selector.
-    if any(item is not selected
-           and item.get("scenario_id") != "primary"
-           and item.get("human_selection_eligible") is True
-           for item in scenarios):
-        return None
-    selected_claims = {str(item) for item in selected.get("claim_ids") or []}
-    if not selected_claims:
-        # RecallBench shows that a hosted model's apparent edge on named public
-        # numeric histories can disappear under affine anonymization. Sampled
-        # path agreement is therefore insufficient cold-start authority by
-        # itself. A model forecast with no verified, future-relevant context
-        # remains visible for outcome scoring but cannot become the default
-        # human recommendation until same-series outcomes graduate it.
-        return None
-    externally_matched = any(
-        str(claim.get("claim_id")) in selected_claims
-        and str(claim.get("mechanism") or "").endswith(
-            "without stated matching attributes")
-        for dossier in dossiers or [] if verify_temporal_dossier_seal(dossier)
-        for claim in dossier.get("claims") or [])
-    if externally_matched:
-        # Best-effort permits consideration of a prior; it does not prove that
-        # a peer chosen using outside model knowledge matches the target. Route
-        # that genuinely ambiguous pair through the bounded selector. If the
-        # selector is unavailable, publication retains the immutable primary.
-        return None
-    eligible = [item for item in scenarios
-                if item.get("human_selection_eligible") is True
-                and item is not selected]
-    ineligible = [item for item in scenarios
-                  if item.get("human_selection_eligible") is not True]
-    ranking = [selected["scenario_id"], *[
-        item["scenario_id"] for item in eligible], *[
-        item["scenario_id"] for item in ineligible]]
-    cited = list(dict.fromkeys(str(item) for item in
-                              selected.get("claim_ids") or []))
-    counter = list(dict.fromkeys(
-        str(hypothesis.get("hypothesis_id"))
-        for dossier in dossiers or []
-        for hypothesis in dossier.get("hypotheses") or []
-        if hypothesis.get("kind") == "unsupported"
-        and hypothesis.get("hypothesis_id")))
-    raw = {
-        "selected_scenario_id": selected["scenario_id"],
-        "ranking": ranking,
-        "cited_claim_ids": cited,
-        "counterevidence_claim_ids": [],
-        "counterevidence_hypothesis_ids": counter,
-        "confidence": .5,
-        "rationale": (
-            "The caller selected best_effort publication, and one bounded "
-            "host-sampled model prior passed the host's elicitation-sufficiency "
-            "gate and directly conditions on the supplied claims. Sampling "
-            "agreement is stability context, not historical skill; the "
-            "immutable primary and counterevidence remain visible."),
-        "what_would_change_selection": (
-            "Historical replay, resolved outcomes, or a supported executable "
-            "that contradicts this prior would change the recommendation."),
-    }
-    selection = validate_scenario_selection(
-        raw, scenarios=scenarios, dossiers=dossiers)
-    if selection is not None:
-        selection["channel"] = "best_effort_sampled_prior_policy"
-    return selection
+    return None
 
 
 def outcome_informed_prior_selection(

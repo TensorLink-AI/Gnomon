@@ -22,10 +22,13 @@ from __future__ import annotations
 
 import json
 import os
+import hashlib
 import threading
 import time
 import urllib.error
 import urllib.request
+import uuid
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
@@ -74,6 +77,10 @@ class OpenRouterError(RuntimeError):
 class _TransientProviderError(OpenRouterError):
     """A retryable error returned inside an otherwise successful HTTP body."""
 
+    def __init__(self, message: str, *, status_code: int | None = None):
+        super().__init__(message)
+        self.status_code = status_code
+
 
 def _provider_error_is_retryable(value: Any) -> bool:
     """Recognize OpenAI-wire transient errors without retrying semantics.
@@ -113,6 +120,17 @@ def _to_namespace(value: Any) -> Any:
     return value
 
 
+def _to_plain(value: Any) -> Any:
+    """Convert an OpenAI-shaped namespace back to JSON-safe values."""
+    if isinstance(value, SimpleNamespace):
+        return {key: _to_plain(item) for key, item in vars(value).items()}
+    if isinstance(value, list):
+        return [_to_plain(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _to_plain(item) for key, item in value.items()}
+    return value
+
+
 class OpenRouterClient:
     """Chat-completion client for any model hosted on OpenRouter.
 
@@ -129,6 +147,19 @@ class OpenRouterClient:
         own. Whatever it resolves to is reported in ``usage_summary``
         and the runners' manifests: the endpoint that served a model is
         part of what a score means.
+    sample_parallelism:
+        Maximum concurrent single-sample requests used when a provider
+        ignores ``n``. This is deliberately independent of a benchmark's
+        task-level parallelism and defaults to a conservative four.
+    sample_cache_dir:
+        Optional per-run crash-safe sample bank. Completed choices are
+        atomically retained and consumed only once per client process, so a
+        killed benchmark case resumes by requesting only its missing samples.
+    rate_limit_cooldown_seconds:
+        Shared cooldown applied after any HTTP 429 (default: 60 seconds).
+    rate_limit_spacing_seconds:
+        Minimum spacing between sibling request starts after a 429, preventing
+        deterministic retry backoff from creating another synchronized burst.
     """
 
     def __init__(
@@ -142,7 +173,13 @@ class OpenRouterClient:
         max_retries: int = 5,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
         reasoning_effort: str | None = None,
+        sample_parallelism: int = 4,
+        sample_cache_dir: str | Path | None = None,
+        rate_limit_cooldown_seconds: float = 60.0,
+        rate_limit_spacing_seconds: float = 2.0,
     ) -> None:
+        if int(sample_parallelism) < 1:
+            raise ValueError("sample_parallelism must be at least 1")
         self.model = model
         if not api_key and "OPENROUTER_API_KEY" not in os.environ:
             from benchmarks.common.envfile import load_env_file
@@ -155,15 +192,264 @@ class OpenRouterClient:
         self.max_retries = max_retries
         self.timeout = timeout
         self.reasoning_effort = reasoning_effort
+        self.sample_parallelism = int(sample_parallelism)
+        self.sample_cache_dir = (
+            Path(sample_cache_dir) if sample_cache_dir is not None else None)
+        self.rate_limit_cooldown_seconds = max(
+            0.0, float(rate_limit_cooldown_seconds))
+        self.rate_limit_spacing_seconds = max(
+            0.0, float(rate_limit_spacing_seconds))
         # chat() may fan out concurrent single-sample requests when a
         # provider ignores ``n``; accounting must not lose updates.
         self._usage_lock = threading.Lock()
+        self._sample_cache_lock = threading.Lock()
+        self._sample_cache_consumed: set[str] = set()
+        self._sample_usage_consumed: set[str] = set()
+        self._rate_limit_lock = threading.Lock()
+        self._rate_limit_not_before = 0.0
+        self._rate_limit_next_start = 0.0
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
         self.total_cost_usd = 0.0
         self.total_requests = 0
         self.total_transport_attempts = 0
+        self.total_request_latency_seconds = 0.0
+        self.restored_requests = 0
         self.truncation_escalations = 0
+        self.sample_cache_hits = 0
+        self.sample_cache_writes = 0
+        self.rate_limit_events = 0
+        self.rate_limit_wait_seconds = 0.0
+        self.sample_cache_accounting_complete = True
+        self._restore_all_cached_usage()
+
+    def _register_rate_limit(self, retry_after: float | None = None) -> None:
+        """Apply one shared cooldown to all sibling request workers."""
+        cooldown = self.rate_limit_cooldown_seconds
+        if retry_after is not None:
+            cooldown = max(cooldown, max(0.0, retry_after))
+        now = time.monotonic()
+        with self._rate_limit_lock:
+            self._rate_limit_not_before = max(
+                self._rate_limit_not_before, now + cooldown)
+            self._rate_limit_next_start = max(
+                self._rate_limit_next_start, self._rate_limit_not_before)
+        with self._usage_lock:
+            self.rate_limit_events += 1
+
+    def _wait_for_provider_slot(self) -> None:
+        """After any 429, stagger every sibling's next request start."""
+        while True:
+            with self._rate_limit_lock:
+                now = time.monotonic()
+                ready = max(
+                    self._rate_limit_not_before, self._rate_limit_next_start)
+                delay = ready - now
+                if delay <= 0:
+                    if self._rate_limit_next_start > 0:
+                        self._rate_limit_next_start = (
+                            now + self.rate_limit_spacing_seconds)
+                    return
+            time.sleep(delay)
+            with self._usage_lock:
+                self.rate_limit_wait_seconds += delay
+
+    def _sample_key(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        temperature: float | None,
+        max_tokens: int,
+        tools: list[dict[str, Any]] | None,
+        tool_choice: str | None,
+        reasoning_effort: str | None,
+    ) -> str:
+        """Identity of one exchangeable sample distribution."""
+        effective_reasoning = (self.reasoning_effort
+                               if reasoning_effort is None
+                               else reasoning_effort)
+        payload = {
+            "schema_version": 1,
+            "model": self.model,
+            "base_url": self.base_url,
+            "messages": messages,
+            "temperature": (self.temperature if temperature is None
+                            else temperature),
+            "max_tokens": max_tokens,
+            "tools": tools,
+            "tool_choice": tool_choice,
+            "reasoning_effort": effective_reasoning,
+        }
+        encoded = json.dumps(
+            payload, sort_keys=True, separators=(",", ":"),
+            ensure_ascii=False).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
+
+    def _claim_cached_samples(
+            self, key: str, count: int) -> tuple[list[Any], list[str]]:
+        if self.sample_cache_dir is None or count <= 0:
+            return [], []
+        directory = self.sample_cache_dir / key
+        choices: list[Any] = []
+        providers: list[str] = []
+        with self._sample_cache_lock:
+            for path in sorted(directory.glob("choice-*.json")):
+                identity = str(path)
+                if identity in self._sample_cache_consumed:
+                    continue
+                try:
+                    record = json.loads(path.read_text(encoding="utf-8"))
+                    choice = record["choice"]
+                    if not isinstance(choice, dict):
+                        continue
+                except (OSError, KeyError, json.JSONDecodeError):
+                    continue
+                self._sample_cache_consumed.add(identity)
+                choices.append(_to_namespace(choice))
+                providers.append(str(record.get("provider") or "cache"))
+                if len(choices) >= count:
+                    break
+            self.sample_cache_hits += len(choices)
+        return choices, providers
+
+    def _restore_all_cached_usage(self) -> None:
+        """Restore cumulative request economics for this case cache.
+
+        A resumed benchmark must not look cheaper merely because its earlier
+        completions came from disk. Request ledgers are written before their
+        choices, so every reusable sample has durable provider accounting.
+        Legacy choice-only caches remain usable for recovery, but are marked
+        incomplete so score assemblers can fail closed on their economics.
+        """
+        if self.sample_cache_dir is None or not self.sample_cache_dir.exists():
+            return
+        with self._sample_cache_lock:
+            request_paths = {
+                path.stem.removeprefix("request-"): path
+                for path in self.sample_cache_dir.glob("*/request-*.json")
+            }
+            for path in sorted(request_paths.values()):
+                identity = str(path)
+                if identity in self._sample_usage_consumed:
+                    continue
+                try:
+                    record = json.loads(path.read_text(encoding="utf-8"))
+                    successful = record["successful"]
+                    integer_fields = (
+                        record["requests"], record["transport_attempts"],
+                        record["prompt_tokens"], record["completion_tokens"],
+                    )
+                    if (not isinstance(successful, bool)
+                            or any(isinstance(value, bool)
+                                   or not isinstance(value, int)
+                                   for value in integer_fields)):
+                        raise ValueError("invalid request accounting types")
+                    (requests, transport_attempts, prompt_tokens,
+                     completion_tokens) = integer_fields
+                    cost_usd = float(record["cost_usd"])
+                    latency = float(record["request_latency_seconds"])
+                    if min(requests, transport_attempts, prompt_tokens,
+                           completion_tokens) < 0 or cost_usd < 0 or latency < 0:
+                        raise ValueError("negative request accounting")
+                    if requests != int(successful):
+                        raise ValueError("request success accounting mismatch")
+                except (OSError, KeyError, TypeError, ValueError,
+                        json.JSONDecodeError):
+                    self.sample_cache_accounting_complete = False
+                    continue
+                self._sample_usage_consumed.add(identity)
+                with self._usage_lock:
+                    self.total_requests += requests
+                    self.restored_requests += requests
+                    self.total_transport_attempts += transport_attempts
+                    self.total_prompt_tokens += prompt_tokens
+                    self.total_completion_tokens += completion_tokens
+                    self.total_cost_usd += cost_usd
+                    self.total_request_latency_seconds += latency
+            for path in self.sample_cache_dir.glob("*/choice-*.json"):
+                try:
+                    record = json.loads(path.read_text(encoding="utf-8"))
+                    request_id = str(record["request_id"])
+                except (OSError, KeyError, TypeError, json.JSONDecodeError):
+                    self.sample_cache_accounting_complete = False
+                    continue
+                if request_id not in request_paths:
+                    self.sample_cache_accounting_complete = False
+
+    def _persist_request_record(
+        self,
+        key: str | None,
+        *,
+        successful: bool,
+        usage: Any = None,
+        provider: str = "unknown",
+        transport_attempts: int = 1,
+        request_latency_seconds: float = 0.0,
+    ) -> str | None:
+        """Durably record one logical provider request before its choices."""
+        if self.sample_cache_dir is None or key is None:
+            return None
+        plain_usage = _to_plain(usage) if usage is not None else {}
+        if not isinstance(plain_usage, dict):
+            plain_usage = {}
+        request_id = uuid.uuid4().hex
+        record = {
+            "schema_version": 1,
+            "successful": bool(successful),
+            "requests": int(bool(successful)),
+            "transport_attempts": max(0, int(transport_attempts)),
+            "prompt_tokens": max(0, int(plain_usage.get("prompt_tokens") or 0)),
+            "completion_tokens": max(
+                0, int(plain_usage.get("completion_tokens") or 0)),
+            "cost_usd": max(0.0, float(plain_usage.get("cost") or 0.0)),
+            "request_latency_seconds": max(
+                0.0, float(request_latency_seconds)),
+            "provider": provider,
+        }
+        directory = self.sample_cache_dir / key
+        path = directory / f"request-{request_id}.json"
+        temporary = directory / f".request-{request_id}.tmp"
+        with self._sample_cache_lock:
+            directory.mkdir(parents=True, exist_ok=True)
+            temporary.write_text(
+                json.dumps(record, sort_keys=True) + "\n", encoding="utf-8")
+            temporary.replace(path)
+            # The live client already counted this request. Marking the ledger
+            # consumed prevents a later cache claim in the same process from
+            # counting it twice.
+            self._sample_usage_consumed.add(str(path))
+        return request_id
+
+    def _store_cached_samples(self, key: str,
+                              response: SimpleNamespace) -> None:
+        if self.sample_cache_dir is None:
+            return
+        directory = self.sample_cache_dir / key
+        provider = str(getattr(response, "provider", None) or "unknown")
+        request_id = getattr(response, "_gnomon_cache_request_id", None)
+        if request_id is None:
+            request_id = self._persist_request_record(
+                key, successful=True, usage=getattr(response, "usage", None),
+                provider=provider,
+                transport_attempts=int(getattr(
+                    response, "_gnomon_transport_attempts", 1)),
+                request_latency_seconds=float(getattr(
+                    response, "_gnomon_request_latency_seconds", 0.0)),
+            )
+        for choice in list(getattr(response, "choices", None) or []):
+            record = {"choice": _to_plain(choice), "provider": provider,
+                      "request_id": request_id}
+            with self._sample_cache_lock:
+                directory.mkdir(parents=True, exist_ok=True)
+                suffix = uuid.uuid4().hex
+                path = directory / f"choice-{suffix}.json"
+                temporary = directory / f".choice-{suffix}.tmp"
+                temporary.write_text(
+                    json.dumps(record, sort_keys=True) + "\n",
+                    encoding="utf-8")
+                temporary.replace(path)
+                self._sample_cache_consumed.add(str(path))
+                self.sample_cache_writes += 1
 
     def chat(
         self,
@@ -177,6 +463,8 @@ class OpenRouterClient:
         reasoning_effort: str | None = None,
         request_timeout: float | None = None,
         transport_retries: int | None = None,
+        _skip_sample_cache: bool = False,
+        _sample_cache_key: str | None = None,
     ) -> SimpleNamespace:
         """Send one chat-completion request and return the parsed response.
 
@@ -199,13 +487,34 @@ class OpenRouterClient:
             )
         caller_budget = max_tokens is not None
         budget = self.max_tokens if max_tokens is None else max_tokens
+        cache_key = _sample_cache_key
+        cached_choices: list[Any] = []
+        cached_providers: list[str] = []
+        if self.sample_cache_dir is not None and not _skip_sample_cache:
+            cache_key = self._sample_key(
+                messages, temperature=temperature, max_tokens=budget,
+                tools=tools, tool_choice=tool_choice,
+                reasoning_effort=reasoning_effort)
+            cached_choices, cached_providers = self._claim_cached_samples(
+                cache_key, n)
+        request_n = n - len(cached_choices)
+        if request_n <= 0:
+            for index, choice in enumerate(cached_choices):
+                choice.index = index
+            return SimpleNamespace(
+                choices=cached_choices,
+                usage=SimpleNamespace(prompt_tokens=0, completion_tokens=0),
+                provider=(cached_providers[0] if cached_providers else "cache"),
+            )
         while True:
             response = self._request(
-                messages, n=n, temperature=temperature, max_tokens=budget,
+                messages, n=request_n, temperature=temperature,
+                max_tokens=budget,
                 tools=tools, tool_choice=tool_choice,
                 reasoning_effort=reasoning_effort,
                 request_timeout=request_timeout,
                 transport_retries=transport_retries,
+                sample_cache_key=cache_key,
             )
             if not _truncated_empty(response) or budget >= MAX_TOKENS_CEILING:
                 break
@@ -217,7 +526,9 @@ class OpenRouterClient:
                 # keep the larger budget so only the first call pays for
                 # the discovery.
                 self.max_tokens = budget
-        missing = n - len(response.choices)
+        if cache_key is not None:
+            self._store_cached_samples(cache_key, response)
+        missing = request_n - len(response.choices)
         if missing > 0:
             # OpenRouter providers may ignore ``n`` and return a single
             # choice (measured: n=3 -> 1 choice on both BaseTen and
@@ -227,30 +538,43 @@ class OpenRouterClient:
             # that presents as endpoint degradation. Independent
             # single-sample requests at the same temperature are the
             # same sampling protocol as one n-sample request; issue the
-            # shortfall concurrently and merge.
+            # shortfall with explicit bounded concurrency and merge.
             from concurrent.futures import ThreadPoolExecutor
 
             def one_more(_: int) -> Any:
-                return self.chat(
+                extra = self.chat(
                     messages, n=1, temperature=temperature,
                     max_tokens=max_tokens, tools=tools,
                     tool_choice=tool_choice,
                     reasoning_effort=reasoning_effort,
                     request_timeout=request_timeout,
                     transport_retries=transport_retries,
+                    _skip_sample_cache=True,
+                    _sample_cache_key=cache_key,
                 )
+                # Recursive chat() persists this successful sibling before
+                # returning. A later sibling may exhaust retries, or the case
+                # supervisor may kill the worker at its deadline; neither
+                # discards samples that already completed.
+                return extra
 
-            # All singles at once: a wave of 24 multi-minute requests
-            # serialised 8 at a time triples the batch latency for no
-            # protection — 429s are retryable with backoff.
-            with ThreadPoolExecutor(max_workers=min(32, missing)) as pool:
+            # Task-level ``jobs=1`` does not constrain this inner fan-out.
+            # Keep it independently bounded: large bursts can trip provider
+            # limits or exhaust a machine even though the outer benchmark is
+            # nominally serial. ``pool.map`` preserves request order.
+            workers = min(self.sample_parallelism, missing)
+            with ThreadPoolExecutor(max_workers=workers) as pool:
                 extras = list(pool.map(one_more, range(missing)))
-            merged = list(response.choices)
+            merged = cached_choices + list(response.choices)
             for extra in extras:
                 merged.extend(extra.choices)
             for index, choice in enumerate(merged):
                 choice.index = index
             response.choices = merged
+        elif cached_choices:
+            response.choices = cached_choices + list(response.choices)
+            for index, choice in enumerate(response.choices):
+                choice.index = index
         return response
 
     def _request(
@@ -265,6 +589,7 @@ class OpenRouterClient:
         reasoning_effort: str | None = None,
         request_timeout: float | None = None,
         transport_retries: int | None = None,
+        sample_cache_key: str | None = None,
     ) -> SimpleNamespace:
         """Perform one request, retrying transient HTTP failures."""
         payload = {
@@ -291,7 +616,11 @@ class OpenRouterClient:
                     else max(0, int(transport_retries))) + 1
         effective_timeout = (self.timeout if request_timeout is None
                              else max(.001, float(request_timeout)))
+        request_started = time.monotonic()
+        attempts_used = 0
         for attempt in range(attempts):
+            attempts_used = attempt + 1
+            self._wait_for_provider_slot()
             with self._usage_lock:
                 self.total_transport_attempts += 1
             request = urllib.request.Request(
@@ -342,12 +671,25 @@ class OpenRouterClient:
                 if "error" in parsed and "choices" not in parsed:
                     error = parsed["error"]
                     if _provider_error_is_retryable(error):
-                        raise _TransientProviderError(str(error))
+                        raise _TransientProviderError(
+                            str(error), status_code=int(error["code"]))
                     raise OpenRouterError(str(error))
                 self._account(parsed)
                 response = _to_namespace(parsed)
                 if not getattr(response, "provider", None):
                     response.provider = "unknown"
+                request_latency = time.monotonic() - request_started
+                response._gnomon_request_latency_seconds = request_latency
+                response._gnomon_transport_attempts = attempts_used
+                response._gnomon_cache_request_id = self._persist_request_record(
+                    sample_cache_key, successful=True,
+                    usage=getattr(response, "usage", None),
+                    provider=str(response.provider),
+                    transport_attempts=attempts_used,
+                    request_latency_seconds=request_latency,
+                )
+                with self._usage_lock:
+                    self.total_request_latency_seconds += request_latency
                 return response
             except urllib.error.HTTPError as error:
                 last_error = error
@@ -356,12 +698,29 @@ class OpenRouterClient:
                     raise OpenRouterError(
                         f"OpenRouter returned HTTP {error.code}: {detail}"
                     ) from error
+                if error.code == 429:
+                    retry_after = None
+                    try:
+                        retry_after = float(error.headers.get("Retry-After"))
+                    except (AttributeError, TypeError, ValueError):
+                        pass
+                    self._register_rate_limit(retry_after)
             except _TransientProviderError as error:
                 last_error = error
+                if error.status_code == 429:
+                    self._register_rate_limit()
             except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as error:
                 last_error = error
             if attempt + 1 < attempts:
                 time.sleep(2**attempt)
+        request_latency = time.monotonic() - request_started
+        self._persist_request_record(
+            sample_cache_key, successful=False,
+            transport_attempts=attempts_used,
+            request_latency_seconds=request_latency,
+        )
+        with self._usage_lock:
+            self.total_request_latency_seconds += request_latency
         raise OpenRouterError(
             f"OpenRouter request failed after {attempts} attempts: {last_error}"
         )
@@ -402,11 +761,15 @@ class OpenRouterClient:
         # correct: accounting is per-process.
         state = self.__dict__.copy()
         del state["_usage_lock"]
+        del state["_sample_cache_lock"]
+        del state["_rate_limit_lock"]
         return state
 
     def __setstate__(self, state: dict[str, Any]) -> None:
         self.__dict__.update(state)
         self._usage_lock = threading.Lock()
+        self._sample_cache_lock = threading.Lock()
+        self._rate_limit_lock = threading.Lock()
 
     def _account(self, parsed: dict[str, Any]) -> None:
         usage = parsed.get("usage") or {}
@@ -426,11 +789,22 @@ class OpenRouterClient:
             # Provenance, not decoration: the same model id served from a
             # different endpoint is a different measurement.
             "base_url": self.base_url,
+            "sample_parallelism": self.sample_parallelism,
+            "sample_cache_hits": self.sample_cache_hits,
+            "sample_cache_writes": self.sample_cache_writes,
+            "rate_limit_events": self.rate_limit_events,
+            "rate_limit_wait_seconds": round(
+                self.rate_limit_wait_seconds, 3),
             "requests": self.total_requests,
+            "restored_requests": self.restored_requests,
             "transport_attempts": self.total_transport_attempts,
             "prompt_tokens": self.total_prompt_tokens,
             "completion_tokens": self.total_completion_tokens,
             "cost_usd": round(self.total_cost_usd, 6),
+            "request_latency_seconds": round(
+                self.total_request_latency_seconds, 6),
+            "sample_cache_accounting_complete": (
+                self.sample_cache_accounting_complete),
             # Disclosed, not hidden: requests that had to be re-sent with
             # a larger budget because the model reasoned past the first.
             "truncation_escalations": self.truncation_escalations,

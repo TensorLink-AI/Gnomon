@@ -10,6 +10,7 @@ import random
 from statistics import mean, median
 from typing import Any
 
+from benchmarks.common.checkpoint import prepare_run_identity
 from benchmarks.common.manifest import code_revision, write_manifest
 from gnomon.evaluation import Evaluation, evaluate
 from gnomon.models import (
@@ -357,23 +358,37 @@ def _summarise(rows: list[dict[str, Any]]) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
     checkpoint = args.output_dir / "cases.jsonl"
+    cases = _cases()
+    prepare_run_identity(
+        args.output_dir,
+        {
+            "schema_version": 1,
+            "benchmark": "seasonal-period-admission",
+            "code_revision": code_revision(),
+            "case_ids": [case["case_id"] for case in cases],
+            "protocol": "frozen-v0.7-q1",
+        },
+        resume=args.resume,
+        state_paths=[checkpoint, args.output_dir / "summary.json"],
+    )
     completed: dict[str, dict[str, Any]] = {}
-    if checkpoint.is_file():
+    if args.resume and checkpoint.is_file():
         for line in checkpoint.read_text(encoding="utf-8").splitlines():
             if line.strip():
                 row = json.loads(line)
                 completed[row["case_id"]] = row
-    for case in _cases():
+    for case in cases:
         if case["case_id"] in completed:
             continue
         row = _run_case(case)
         with checkpoint.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(row, sort_keys=True) + "\n")
         completed[row["case_id"]] = row
-    rows = [completed[case["case_id"]] for case in _cases()]
+    rows = [completed[case["case_id"]] for case in cases]
     result = _summarise(rows)
     (args.output_dir / "summary.json").write_text(
         json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -382,7 +397,11 @@ def main() -> int:
         condition="paired-period-and-fold-starvation",
         target="128 frozen history-prefix cases; horizon=6; true_period=6",
     )
-    print(json.dumps(result, indent=2, sort_keys=True))
+    print(json.dumps({
+        key: result[key] for key in (
+            "benchmark", "evaluated_commit", "scope", "overall", "gates",
+            "passed")
+    }, indent=2, sort_keys=True))
     return 0 if result["passed"] else 2
 
 

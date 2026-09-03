@@ -10,6 +10,7 @@ from pathlib import Path
 import random
 from typing import Any
 
+from benchmarks.common.checkpoint import prepare_run_identity
 from benchmarks.common.manifest import code_revision, write_manifest
 from gnomon.ids import FixedClock
 from gnomon.macros import detect_anomalies, investigate_change
@@ -356,17 +357,11 @@ def main() -> int:
         "protocol": "docs/v0.7-q6-anomaly-event-protocol.md",
         "machine_local_tsfm_disabled": True,
     }
-    identity_path = args.output_dir / "run_identity.json"
-    if identity_path.is_file():
-        if json.loads(identity_path.read_text(encoding="utf-8")) != identity:
-            raise SystemExit("resume identity mismatch; use a new output directory")
-        if not args.resume:
-            raise SystemExit("output exists; pass --resume or use a new directory")
-    else:
-        identity_path.write_text(
-            json.dumps(identity, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8")
     checkpoint = args.output_dir / "cases.jsonl"
+    prepare_run_identity(
+        args.output_dir, identity, resume=args.resume,
+        state_paths=[checkpoint, args.output_dir / "summary.json"],
+    )
     completed: dict[str, dict[str, Any]] = {}
     if args.resume and checkpoint.is_file():
         for line in checkpoint.read_text(encoding="utf-8").splitlines():

@@ -9,6 +9,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from benchmarks.common.manifest import code_revision
 from gnomon.reasoning_boundary import measure_redundant_calls, verify_fact_sources
 from gnomon.toolspec import apply_response_contract
 from gnomon.toolspec import _run_inspect
@@ -114,7 +115,8 @@ def run(seed: int, cases: int) -> dict[str, Any]:
         })),
     }
     gates["mutation_falsifiability"] = all(mutation_detection.values())
-    return {"schema_version": "0.1", "seed": seed, "cases": cases,
+    return {"schema_version": "0.1", "evaluated_commit": code_revision(),
+            "seed": seed, "cases": cases,
             "gates": gates, "mutation_detection": mutation_detection,
             "graduated": all(gates.values()), "rows": rows}
 

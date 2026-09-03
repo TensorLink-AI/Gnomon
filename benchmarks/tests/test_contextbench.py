@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -15,7 +16,8 @@ from benchmarks.contextbench.generate_stress import generate as generate_stress
 from benchmarks.contextbench import run_surfaces as surface_runner
 from benchmarks.contextbench.run_contextbench import (
     _append_checkpoint, _load_checkpoint, _raw_points, _structural_scenario,
-    run_case, smape, summarize, valid_disposition,
+    isolate_context_store, run_case, select_cases, smape, summarize,
+    valid_disposition,
 )
 from benchmarks.contextbench.run_contextbench import main as run_main
 from benchmarks.contextbench.run_llm import (
@@ -33,6 +35,18 @@ from benchmarks.contextbench.schema import Case, load_cases, load_oracles
 from gnomon.context_model import rolling_residuals
 from gnomon.workflows import normalise_context_response_containers
 from gnomon.workflows import extract_explicit_schedule_context, DocumentRef
+
+
+def test_contextbench_store_is_scoped_to_resumable_output(
+        tmp_path, monkeypatch):
+    monkeypatch.setenv("GNOMON_CONTEXT_STORE", "/ambient/store")
+    monkeypatch.setenv("GNOMON_CONTEXT_NAMESPACE", "ambient")
+
+    store = isolate_context_store(tmp_path / "run")
+
+    assert store == (tmp_path / "run" / "context-store").resolve()
+    assert os.environ["GNOMON_CONTEXT_STORE"] == str(store)
+    assert os.environ["GNOMON_CONTEXT_NAMESPACE"] == "contextbench"
 
 
 def test_generator_is_reproducible_seed_sensitive_and_balanced():
@@ -140,6 +154,8 @@ def test_documented_engine_runner_executes_from_clean_checkout(tmp_path):
     )
     assert resumed.returncode == 0, resumed.stderr
     assert len((output / "observations.jsonl").read_text().splitlines()) == 1
+    identity = json.loads((output / "run_identity.json").read_text())
+    assert identity["code_revision"]
 
 
 def test_contextbench_checkpoint_is_durable_and_strict(tmp_path):
@@ -154,6 +170,21 @@ def test_contextbench_checkpoint_is_durable_and_strict(tmp_path):
     _append_checkpoint(checkpoint, {"case_id": "a", "score": 3})
     with pytest.raises(SystemExit, match="repeats case"):
         _load_checkpoint(checkpoint, {"a", "b"})
+
+
+def test_contextbench_exact_case_selection_is_ordered_and_strict():
+    raw_cases, _ = generate(17, per_family=1)
+    cases = [Case.from_dict(raw) for raw in raw_cases]
+    requested = [cases[2].case_id, cases[0].case_id]
+
+    assert [case.case_id for case in select_cases(
+        cases, case_ids=requested, limit=None)] == requested
+    with pytest.raises(SystemExit, match="mutually exclusive"):
+        select_cases(cases, case_ids=requested, limit=1)
+    with pytest.raises(SystemExit, match="unique"):
+        select_cases(cases, case_ids=[requested[0], requested[0]], limit=None)
+    with pytest.raises(SystemExit, match="unknown"):
+        select_cases(cases, case_ids=["not-a-case"], limit=None)
 
 
 def test_stress_generator_is_reproducible_and_covers_production_strata():
@@ -488,6 +519,21 @@ def test_agent_relationship_measure_is_semantic_and_fail_closed():
     assert not preserves_primary_relationship(
         "Some explanation.", "future_unknown_relationship")
     assert preserves_primary_relationship("anything", "")
+
+
+def test_agent_relationship_measure_requires_exact_typed_projection():
+    relationship = "no_distinct_numeric_path"
+    reasoning = (
+        "relationship_to_primary=no_distinct_numeric_path: the emitted "
+        "primary already does not contain a stable continuation.")
+    projection = {
+        "expected": [relationship], "supplied": [relationship],
+        "matched": [relationship], "invalid": [],
+    }
+    assert projection["matched"] == projection["expected"]
+    assert preserves_primary_relationship(reasoning, relationship)
+    assert {**projection, "matched": []}["matched"] != \
+        projection["expected"]
 
 
 def test_surface_checkpoints_are_durable_and_resume_identity_is_strict(

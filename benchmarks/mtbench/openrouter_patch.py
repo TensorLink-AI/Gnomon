@@ -108,7 +108,9 @@ def build_send_functions(client: Any) -> dict[str, Any]:
 
 
 def install(mtbench_root: Path, openrouter_model: str,
-            temperature: float = 0.7) -> OpenRouterClient:
+            temperature: float = 0.7, *, api_key: str | None = None,
+            base_url: str | None = None, timeout: float = 180.0,
+            max_retries: int = 2) -> OpenRouterClient:
     """Import ``evaluation.api_call`` from the checkout and replace its
     send functions with OpenRouter-backed equivalents. Returns the shared
     client so callers can read usage totals."""
@@ -116,8 +118,10 @@ def install(mtbench_root: Path, openrouter_model: str,
     if root not in sys.path:
         sys.path.insert(0, root)
     _stub_vendor_sdks()
-    client = OpenRouterClient(openrouter_model, temperature=temperature,
-                              max_tokens=4096)
+    client = OpenRouterClient(
+        openrouter_model, api_key=api_key, base_url=base_url,
+        temperature=temperature, max_tokens=4096, timeout=timeout,
+        max_retries=max_retries)
     api_call = importlib.import_module("evaluation.api_call")
     for name, replacement in build_send_functions(client).items():
         if hasattr(api_call, name):
@@ -127,7 +131,11 @@ def install(mtbench_root: Path, openrouter_model: str,
 
 def run_official_script(mtbench_root: Path, script_relpath: str,
                         script_args: list[str], openrouter_model: str,
-                        temperature: float = 0.7) -> OpenRouterClient:
+                        temperature: float = 0.7, *,
+                        api_key: str | None = None,
+                        base_url: str | None = None,
+                        timeout: float = 180.0,
+                        max_retries: int = 2) -> OpenRouterClient:
     """Run one official evaluation script with patched LLM routing.
 
     Mirrors the official usage exactly: the script executes with its own
@@ -139,7 +147,9 @@ def run_official_script(mtbench_root: Path, script_relpath: str,
     script_path = (mtbench_root / script_relpath).resolve()
     if not script_path.exists():
         raise FileNotFoundError(f"No such official script: {script_path}")
-    client = install(mtbench_root, openrouter_model, temperature)
+    client = install(
+        mtbench_root, openrouter_model, temperature, api_key=api_key,
+        base_url=base_url, timeout=timeout, max_retries=max_retries)
 
     script_dir = str(script_path.parent)
     previous_cwd = os.getcwd()

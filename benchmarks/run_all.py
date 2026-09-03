@@ -89,11 +89,13 @@ REGISTRY: dict[str, dict[str, Any]] = {
         "module": "benchmarks.workflow.run_workflow",
         "accepts": {"output_dir"},
         "limit_flag": None,
+        "gate_key": "release_gate_pass",
     },
     "contextbench": {
         "module": "benchmarks.contextbench.run_contextbench",
         "accepts": {"output_dir"},
         "limit_flag": "--limit",
+        "gate_key": "decision_ready",
     },
     "modelbench": {
         "module": "benchmarks.modelbench.run_contextbench_models",
@@ -193,11 +195,10 @@ REGISTRY: dict[str, dict[str, Any]] = {
     },
 }
 
-if set(REGISTRY) != set(CATALOG):
+if not set(REGISTRY).issubset(CATALOG):
     raise RuntimeError(
-        "benchmark registry/catalog drift: "
-        f"registry_only={sorted(set(REGISTRY) - set(CATALOG))}, "
-        f"catalog_only={sorted(set(CATALOG) - set(REGISTRY))}"
+        "orchestrated benchmark missing from claim catalog: "
+        f"{sorted(set(REGISTRY) - set(CATALOG))}"
     )
 
 
@@ -277,6 +278,29 @@ def summary_path(run: dict[str, Any], config: dict[str, Any]) -> Path | None:
     return None
 
 
+def completed_gate_failure(
+        run: dict[str, Any], config: dict[str, Any], returncode: int) -> bool:
+    """Distinguish completed negative evidence from a CLI usage error.
+
+    Exit 2 is also argparse's conventional error status.  A harness therefore
+    earns ``scored-gate-failure`` only when its registry contract names a gate
+    and this invocation wrote a parseable summary with that gate explicitly
+    false.
+    """
+    if returncode != 2:
+        return False
+    spec = REGISTRY.get(str(run.get("benchmark"))) or {}
+    gate_key = spec.get("gate_key")
+    path = summary_path(run, config)
+    if not gate_key or path is None or not path.is_file():
+        return False
+    try:
+        summary = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    return summary.get(gate_key) is False
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__,
@@ -322,7 +346,8 @@ def main() -> int:
             continue
         print(f"[{name}] running: {printable}", flush=True)
         result = subprocess.run(command, cwd=repo_root)
-        scored_gate_failure = benchmark_of(run) == "workflow" and result.returncode == 2
+        scored_gate_failure = completed_gate_failure(
+            run, config, result.returncode)
         status = ("ok" if result.returncode == 0 else
                   "scored-gate-failure" if scored_gate_failure else
                   f"exit {result.returncode}")

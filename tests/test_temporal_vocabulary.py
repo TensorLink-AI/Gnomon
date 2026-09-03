@@ -17,6 +17,12 @@ def test_projection_maps_only_unambiguous_semantic_alias() -> None:
     assert project_temporal_choice(
         "continued", ["fixed", "shifting", "no", "Uncertain"]
     )["display_value"] == "fixed"
+    assert project_temporal_choice(
+        "upward", ["Rising", "Falling", "Flat", "Uncertain"]
+    )["display_value"] == "Rising"
+    assert project_temporal_choice(
+        "constant", ["Rising", "Falling", "Flat", "Uncertain"]
+    )["display_value"] == "Flat"
 
 
 def test_projection_refuses_ambiguous_or_support_state() -> None:

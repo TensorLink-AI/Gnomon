@@ -57,6 +57,7 @@ Examples
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import traceback
@@ -69,6 +70,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
+from benchmarks.common.checkpoint import prepare_run_identity  # noqa: E402
 from benchmarks.common.manifest import (  # noqa: E402
     code_revision, read_manifest, write_manifest,
 )
@@ -76,6 +78,8 @@ from benchmarks.common.openrouter import OpenRouterClient  # noqa: E402
 from benchmarks.common.records import RecordWriter, RunRecord  # noqa: E402
 from benchmarks.temporalbench import gnomon_runner, scoring  # noqa: E402
 from benchmarks.temporalbench.tasks import (  # noqa: E402
+    LABELED_FILE,
+    METRICS_FILE,
     TIERS,
     download,
     extract_json_object,
@@ -98,6 +102,12 @@ forecast values here can only introduce truncation or transcription error.
 """
 
 EVIDENCE_BUDGET = 40_000
+
+
+def _file_sha256(path: Path) -> str | None:
+    """Hash a real dataset component; permit dependency-isolated unit stubs."""
+    return hashlib.sha256(path.read_bytes()).hexdigest() \
+        if path.is_file() else None
 
 
 def load_resume_state(output_dir: Path, *, resume: bool) -> dict[str, Any]:
@@ -581,7 +591,6 @@ def main() -> int:
     current_revision = code_revision()
     prior_manifest = read_manifest(output_dir) if args.resume else {}
     details_dir = output_dir / "details"
-    details_dir.mkdir(parents=True, exist_ok=True)
     manifest_common = {
         "benchmark": "temporalbench",
         "condition": args.condition,
@@ -614,6 +623,47 @@ def main() -> int:
                                   if args.condition == "gnomon-mcp" else None),
         "model_evidence_registry": args.model_evidence_registry,
     }
+    run_identity = {
+        "schema_version": 1,
+        "benchmark": "temporalbench",
+        "code_revision": current_revision,
+        "condition": args.condition,
+        "model": args.model,
+        "base_url": client.base_url if client is not None else None,
+        "temperature": args.temperature,
+        "reasoning_effort": args.reasoning_effort,
+        "tiers": list(tiers or TIERS),
+        "datasets": list(datasets) if datasets else None,
+        "limit": args.limit,
+        "offset": args.offset,
+        "labeled_split_sha256": _file_sha256(data_dir / LABELED_FILE),
+        "official_metrics_sha256": _file_sha256(data_dir / METRICS_FILE),
+        "request_timeout_seconds": args.request_timeout,
+        "max_tokens": args.max_tokens,
+        "max_retries": args.max_retries,
+        "infrastructure_retries": args.infrastructure_retries,
+        "best_effort": args.best_effort,
+        "named_tsfm": args.named_tsfm,
+        "forecast_jobs": args.forecast_jobs,
+        "forecast_candidates": forecast_candidates,
+        "mcp_profile": args.mcp_profile,
+        "compile_context": args.compile_context,
+        "context_receipts_dir": args.context_receipts_dir,
+        "compile_questions": args.compile_questions,
+        "question_receipts_dir": args.question_receipts_dir,
+        "model_evidence_registry": args.model_evidence_registry,
+    }
+    prepare_run_identity(
+        output_dir, run_identity, resume=args.resume,
+        state_paths=[
+            output_dir / "summary.json",
+            output_dir / "usage.checkpoint.json",
+            output_dir / "gnomonbench.jsonl",
+            output_dir / "gnomonbench.partial.jsonl",
+            output_dir / "details",
+        ],
+    )
+    details_dir.mkdir(parents=True, exist_ok=True)
     # Publish provenance before the first paid request. An operator interrupt
     # must leave resumable rows attached to the exact arm and code that made
     # them, not an orphan partial file that a merger can only guess about.
@@ -663,6 +713,8 @@ def main() -> int:
     typed_engine_answers_officially_correct = 0
     typed_answers_comparable_to_submission = 0
     typed_answers_preserved_by_agent = 0
+    typed_synthesized_comparable = 0
+    typed_synthesized_preserved = 0
     canonical_choice_correct = canonical_choice_total = 0
     synthesized_choice_correct = synthesized_choice_total = 0
     hybrid_choice_correct = hybrid_choice_total = 0
@@ -717,6 +769,9 @@ def main() -> int:
                         "sensitivity_forecast") or {},
                     "canonical_mcq": saved.get("canonical_mcq") or {},
                     "synthesized_mcq": saved.get("synthesized_mcq") or {},
+                    "canonical_choices": saved.get("canonical_choices") or {},
+                    "synthesized_choices": saved.get(
+                        "synthesized_choices") or {},
                     "choice_authority": saved.get("choice_authority") or {},
                     "choice_basis": saved.get("choice_basis") or {},
                     "mcp": saved.get("mcp") or {},
@@ -783,27 +838,32 @@ def main() -> int:
         choice = verdict.get("choice") or {}
         canonical_mcq = outcome.get("canonical_mcq") or {}
         synthesized_mcq = outcome.get("synthesized_mcq") or {}
+        canonical_choices = (outcome.get("canonical_choices")
+                             or canonical_mcq)
+        synthesized_choices = (outcome.get("synthesized_choices")
+                                or synthesized_mcq)
         choice_authority = outcome.get("choice_authority") or {}
-        canonical_score = scoring.score_mcq(row, canonical_mcq)
-        synthesized_score = scoring.score_mcq(row, synthesized_mcq)
+        canonical_score = scoring.score_choice_map(row, canonical_choices)
+        synthesized_score = scoring.score_choice_map(
+            row, synthesized_choices)
         canonical_choice_correct += canonical_score["correct"]
-        canonical_choice_total += sum(key in canonical_mcq
-                                      for key in (row.get("mcq") or {}))
+        canonical_choice_total += canonical_score["total"]
         synthesized_choice_correct += synthesized_score["correct"]
-        synthesized_choice_total += sum(key in synthesized_mcq
-                                        for key in (row.get("mcq") or {}))
+        synthesized_choice_total += synthesized_score["total"]
+        choice_reference = scoring.choice_reference(row)
         for key, authority in choice_authority.items():
-            if authority != "advisory_override" or key not in synthesized_mcq \
-                    or key not in canonical_mcq:
+            if authority != "advisory_override" \
+                    or key not in synthesized_choices \
+                    or key not in canonical_choices:
                 continue
-            if str(synthesized_mcq[key]).strip().lower() == \
-                    str(canonical_mcq[key]).strip().lower():
+            if str(synthesized_choices[key]).strip().lower() == \
+                    str(canonical_choices[key]).strip().lower():
                 continue
             advisory_overrides += 1
-            expected = (((row.get("mcq") or {}).get(key) or {}).get("label"))
-            synth_ok = str(synthesized_mcq[key]).strip().lower() == \
+            expected = choice_reference.get(key)
+            synth_ok = str(synthesized_choices[key]).strip().lower() == \
                 str(expected).strip().lower()
-            canonical_ok = str(canonical_mcq[key]).strip().lower() == \
+            canonical_ok = str(canonical_choices[key]).strip().lower() == \
                 str(expected).strip().lower()
             advisory_overrides_helped += int(synth_ok and not canonical_ok)
             advisory_overrides_hurt += int(canonical_ok and not synth_ok)
@@ -943,50 +1003,69 @@ def main() -> int:
                         # Later receipts for the same immutable artifact do
                         # not multiply the evaluation denominator.
                         receipt_answers[question_id] = typed_answer
-            if tier == "T3":
-                # T3's persisted MCP record deliberately carries compiler
-                # counts, not raw benchmark question text. Inline describe
-                # receipts can therefore establish unique returned answers
-                # and coverage, but not a label/options projection.
+            for key, canonical in canonical_choices.items():
+                if key not in synthesized_choices:
+                    continue
+                typed_synthesized_comparable += 1
+                typed_synthesized_preserved += int(
+                    str(synthesized_choices[key]).strip().lower()
+                    == str(canonical).strip().lower())
+            if tier in {"T1", "T3"}:
                 requested_count = int(temporal_compilation.get("accepted", 0))
                 typed_questions_requested += requested_count
                 typed_questions_with_engine_answer += min(
                     requested_count, len(receipt_answers))
-                requested_order = []
+                final_choices = scoring.choice_answer_map(
+                    row, outcome.get("answer") or {})
+                expected_choices = scoring.choice_reference(row)
+                for key, canonical in canonical_choices.items():
+                    if key not in expected_choices:
+                        continue
+                    typed_engine_answers_officially_comparable += 1
+                    typed_engine_answers_officially_correct += int(
+                        str(canonical).strip().lower()
+                        == str(expected_choices[key]).strip().lower())
+                    if key in final_choices:
+                        typed_answers_comparable_to_submission += 1
+                        typed_answers_preserved_by_agent += int(
+                            str(final_choices[key]).strip().lower()
+                            == str(canonical).strip().lower())
             else:
                 requested_order = list((row.get("mcq") or {}).keys())
-            requested_keys = set(requested_order)
-            row_engine_answers = align_typed_answers(
-                requested_order, list(receipt_answers.values()))
-            typed_questions_requested += len(requested_order)
-            final_choices = (outcome.get("answer") or {}).get("mcq") or {}
-            per_question = choice.get("per_question") or {}
-            for question_id in requested_keys & set(row_engine_answers):
-                typed_questions_with_engine_answer += 1
-                best = row_engine_answers[question_id].get("best_estimate") or {}
-                candidates = {str(value).strip().lower() for value in (
-                    best.get("value"), best.get("display_value"))
-                    if value is not None}
-                # The host is allowed to perform only the same deterministic
-                # unambiguous vocabulary projection used at submission. Count
-                # that as preservation, not as an LLM paraphrase.
-                from gnomon.temporal_vocabulary import project_temporal_choice
-                options = (((row.get("mcq") or {}).get(question_id) or {})
-                           .get("options") or []) if tier != "T3" else []
-                projected = project_temporal_choice(best.get("value"), options)
-                if projected:
-                    typed_engine_answers_officially_comparable += 1
-                    candidates.add(str(projected["display_value"]).strip().lower())
-                    expected = (((row.get("mcq") or {}).get(question_id) or {})
-                                .get("label"))
-                    typed_engine_answers_officially_correct += int(
-                        str(projected["display_value"]).strip().lower()
-                        == str(expected).strip().lower())
-                if candidates:
-                    typed_answers_comparable_to_submission += 1
-                    typed_answers_preserved_by_agent += int(
-                        str(final_choices.get(question_id, "")).strip().lower()
-                        in candidates)
+                requested_keys = set(requested_order)
+                row_engine_answers = align_typed_answers(
+                    requested_order, list(receipt_answers.values()))
+                typed_questions_requested += len(requested_order)
+                final_choices = (outcome.get("answer") or {}).get("mcq") or {}
+                for question_id in requested_keys & set(row_engine_answers):
+                    typed_questions_with_engine_answer += 1
+                    best = row_engine_answers[question_id].get(
+                        "best_estimate") or {}
+                    candidates = {str(value).strip().lower() for value in (
+                        best.get("value"), best.get("display_value"))
+                        if value is not None}
+                    # The host is allowed to perform only the same deterministic
+                    # unambiguous vocabulary projection used at submission.
+                    from gnomon.temporal_vocabulary import project_temporal_choice
+                    options = (((row.get("mcq") or {}).get(question_id) or {})
+                               .get("options") or [])
+                    projected = project_temporal_choice(
+                        best.get("value"), options)
+                    if projected:
+                        typed_engine_answers_officially_comparable += 1
+                        candidates.add(str(projected[
+                            "display_value"]).strip().lower())
+                        expected = (((row.get("mcq") or {}).get(
+                            question_id) or {}).get("label"))
+                        typed_engine_answers_officially_correct += int(
+                            str(projected["display_value"]).strip().lower()
+                            == str(expected).strip().lower())
+                    if candidates:
+                        typed_answers_comparable_to_submission += 1
+                        typed_answers_preserved_by_agent += int(
+                            str(final_choices.get(
+                                question_id, "")).strip().lower()
+                            in candidates)
             compiled = mcp_info.get("compiled_context") or {}
             compiler_events += int(compiled.get("accepted_events", 0))
             compiler_hypotheses += int(compiled.get("accepted_hypotheses", 0))
@@ -1034,6 +1113,8 @@ def main() -> int:
                         "sensitivity_diagnostic": sensitivity_diagnostic,
                         "canonical_mcq": canonical_mcq or None,
                         "synthesized_mcq": synthesized_mcq or None,
+                        "canonical_choices": canonical_choices or None,
+                        "synthesized_choices": synthesized_choices or None,
                         "choice_authority": choice_authority or None,
                         "choice_basis": outcome.get("choice_basis") or None,
                         "mcp": outcome.get("mcp"),
@@ -1223,9 +1304,21 @@ def main() -> int:
                         typed_answers_preserved_by_agent
                         / typed_answers_comparable_to_submission, 4)
                         if typed_answers_comparable_to_submission else None,
+                    "model_synthesis_comparable_to_engine_answer":
+                        typed_synthesized_comparable,
+                    "model_synthesis_preserved_engine_answer":
+                        typed_synthesized_preserved,
+                    "model_synthesis_preservation_rate": round(
+                        typed_synthesized_preserved
+                        / typed_synthesized_comparable, 4)
+                        if typed_synthesized_comparable else None,
                     "note": ("Official accuracy measures the submitted task "
-                             "answer; preservation only compares exact canonical "
-                             "or explicitly projected display values."),
+                             "answer. model_synthesis_* measures the model's "
+                             "raw submitted choices before host binding; "
+                             "agent_preservation_rate measures the final "
+                             "accepted response after supported binding. Both "
+                             "compare only exact canonical or explicitly "
+                             "projected display values."),
                 }}
                if args.compile_questions else {}),
             **({

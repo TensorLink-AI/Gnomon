@@ -2621,6 +2621,36 @@ def test_dated_zero_window_front_door_uses_context_without_model_call(tmp_path):
     assert publication["automation"]["eligible"] is False
 
 
+def test_dated_zero_endpoint_window_uses_half_open_host_rows(tmp_path):
+    task = _task(horizon=12)
+    start = task.future_time[2].replace("T", " ").split("+", 1)[0]
+    end = task.future_time[5].replace("T", " ").split("+", 1)[0]
+    task.scenario = (
+        f"The service will be offline between {start} and {end}, resulting "
+        "in zero requests.")
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}])
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 1)
+
+    assert client.completion_prompts == []
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    assert receipt["compiler"]["contract"] == "explicit_dated_zero_window"
+    assert receipt["dossier"]["claims"][0]["effective_start"] == (
+        task.future_time[2])
+    assert receipt["dossier"]["claims"][0]["effective_end"] == (
+        task.future_time[4])
+    assert receipt["dossier"]["effect_proposal"]["duration_steps"] == 3
+    assert extra["publication"]["primary_forecast_unchanged"] is True
+    assert extra["publication"]["automation"]["eligible"] is False
+
+
 def test_additive_drift_front_door_survives_compiler_unavailability(tmp_path):
     from datetime import datetime, timedelta, timezone
 
@@ -2889,14 +2919,10 @@ def test_typed_interpretation_without_executable_gets_sealed_sampled_prior(
                  if item["role"] == "model_authored")
     primary = next(item for item in publication["candidate_portfolio"]
                    if item["role"] == "immutable_primary")
-    if primary["support"] in {"supported", "context_trusted"}:
-        assert publication["recommended_scenario_id"] == "primary"
-        assert prior["human_selection_eligible"] is False
-        assert prior["effect"]["recommendation_stability"][
-            "reason_code"] == "sampled_prior_has_no_historical_skill"
-    else:
-        assert publication["recommended_scenario_id"] == prior["scenario_id"]
-        assert prior["human_selection_eligible"] is True
+    assert publication["recommended_scenario_id"] == "primary"
+    assert prior["human_selection_eligible"] is False
+    assert prior["effect"]["recommendation_stability"][
+        "reason_code"] == "sampled_prior_has_no_historical_skill"
     assert publication["primary_forecast_unchanged"] is True
     assert publication["automation"]["eligible"] is False
     assert prior["effect"]["distribution"]["sample_count"] == expected_paths
@@ -3472,7 +3498,7 @@ def test_literal_zero_event_without_duplicate_claim_uses_override(tmp_path):
     task = _task()
     start, end = task.future_time[1], task.future_time[2]
     span = (
-        f"the meter will be offline for scheduled maintenance between {start} and "
+        f"the meter will be offline for scheduled maintenance from {start} to "
         f"{end}, which results in zero readings")
     task.scenario = span
     compiler_output = json.dumps({

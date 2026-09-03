@@ -56,7 +56,7 @@
       "interval_coverage": null,
       "warnings": [
         "Degraded forecast: model selection used a single trailing 1-observation holdout; rolling-origin calibration and final testing were unavailable. At least 20 observations (have 6) are needed for separated selection and calibration.",
-        "Selection under-powered: a single trailing holdout cannot rank incremental candidates. The admitted robust baseline (last_value) is published; candidate scores are reported as evidence, not a ranking."
+        "Selection under-powered: a single trailing holdout cannot rank incremental candidates. The assumption-minimal baseline (last_value) is published; candidate scores are reported as evidence, not a ranking."
       ],
       "forecast": [
         {
@@ -129,14 +129,17 @@
           },
           {
             "code": "warning",
-            "message": "Selection under-powered: a single trailing holdout cannot rank incremental candidates. The admitted robust baseline (last_value) is published; candidate scores are reported as evidence, not a ranking."
+            "message": "Selection under-powered: a single trailing holdout cannot rank incremental candidates. The assumption-minimal baseline (last_value) is published; candidate scores are reported as evidence, not a ranking."
           }
         ],
         "assumptions": [
           "known_time_assumed: the source provides no known-time column, so each observation is treated as known the moment it applies (known_time = valid_time). Revisions and publication lags are invisible to this run."
         ],
         "sensitivity": {
-          "selection_fold_count": 1
+          "selection_fold_count": 1,
+          "selection_stability": {
+            "fold_starved_structural": null
+          }
         },
         "recovery_actions": [
           {
@@ -216,7 +219,7 @@
         "support": "degraded",
         "warnings": [
           "Degraded forecast: model selection used a single trailing 1-observation holdout; rolling-origin calibration and final testing were unavailable. At least 20 observations (have 6) are needed for separated selection and calibration.",
-          "Selection under-powered: a single trailing holdout cannot rank incremental candidates. The admitted robust baseline (last_value) is published; candidate scores are reported as evidence, not a ranking."
+          "Selection under-powered: a single trailing holdout cannot rank incremental candidates. The assumption-minimal baseline (last_value) is published; candidate scores are reported as evidence, not a ranking."
         ],
         "row_tiers": {
           "best_effort": 3

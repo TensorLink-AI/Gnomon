@@ -176,10 +176,18 @@ runner measures resident memory across each entire process tree, terminates a
 case above `--case-memory-mb` (4 GiB by default), terminates it after
 `--case-timeout-seconds` (15 minutes), and refuses to start another case below
 `--min-free-memory-mb` (2 GiB). It writes `case-checkpoint.json` atomically
-after every task/seed and resumes it by default. A killed case is retained as
-an explicit error and receives the usual capped/imputed score; it cannot vanish
-from the aggregate. `--max-parallel` must remain `1`; shard across separate
-machines and output directories when parallel execution is required.
+after every task/seed and resumes it by default. Retryable provider, timeout,
+and process failures remain explicit in that invocation and are retried on the
+next resume; they can never disappear from a completed aggregate. A separate
+`case-attempts.json` retains cumulative active time across those attempts.
+Both the control and MCP treatment persist each completed model response under
+the task/seed's `sample-cache/`; request ledgers retain cumulative requests,
+tokens, transport attempts, cost, and active request latency before the choice
+is made reusable. Legacy choice-only caches can still recover work, but their
+economics are marked incomplete and cannot enter GFR efficiency scoring.
+`--sample-parallelism` bounds provider fan-out inside one DirectPrompt batch;
+`--max-parallel` must remain `1`. Shard across separate machines and output
+directories when task-level parallel execution is required.
 
 Outputs per run: `summary.json`, `scores.csv` (official
 per-task-per-seed scores), `runs/` (the official per-run artifacts:

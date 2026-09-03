@@ -1,0 +1,140 @@
+{
+  "schema_version": "0.1",
+  "protocol_id": "gfr-2026-09-02-v1",
+  "bootstrap_seed": 20260902,
+  "safety_invariants": [
+    "temporal_leakage",
+    "immutable_primary_mutation",
+    "unsupported_automation",
+    "authority_escalation",
+    "invalid_source_citation",
+    "declared_bound_violation",
+    "benchmark_oracle_exposure"
+  ],
+  "capabilities": {
+    "future_input_authority": {
+      "weight": 0.10,
+      "smoke_case_ids": ["authority:forecast:helpful"],
+      "full_case_ids": [
+        "authority:observed:helpful",
+        "authority:observed:irrelevant",
+        "authority:forecast:helpful",
+        "authority:forecast:irrelevant",
+        "authority:assumed:helpful",
+        "authority:assumed:irrelevant",
+        "authority:binding:helpful",
+        "authority:binding:irrelevant"
+      ]
+    },
+    "conditional_replay": {
+      "weight": 0.15,
+      "smoke_case_ids": ["context:useful:aperiodic-pulse"],
+      "full_case_ids": [
+        "context:useful:aperiodic-pulse",
+        "context:useful:categorical-state",
+        "context:useful:numeric-driver",
+        "context:useful:bounded-event",
+        "context:neutral:no-effect",
+        "context:neutral:wrong-entity",
+        "context:confounded:shared-trend",
+        "context:leakage:future-revision"
+      ]
+    },
+    "agent_forecast_uplift": {
+      "weight": 0.20,
+      "smoke_case_ids": ["cik:DNICloud:seed7"],
+      "full_case_ids": [
+        "cik:DNICloud:seed7",
+        "cik:DNICloud:seed8",
+        "cik:DNICloud:seed9",
+        "cik:SensorMaintenance:seed7",
+        "cik:SensorMaintenance:seed8",
+        "cik:SensorMaintenance:seed9"
+      ]
+    },
+    "candidate_calibration": {
+      "weight": 0.15,
+      "smoke_case_ids": ["calibration:conditional:seed7"],
+      "full_case_ids": [
+        "calibration:conditional:seed7",
+        "calibration:conditional:seed8",
+        "calibration:conditional:seed9",
+        "calibration:bounded:seed1",
+        "calibration:intermittent:seed1",
+        "calibration:heteroskedastic:seed1"
+      ]
+    },
+    "short_history_usefulness": {
+      "weight": 0.10,
+      "smoke_case_ids": ["short:seasonal:two-cycles"],
+      "full_case_ids": [
+        "short:seasonal:one-cycle",
+        "short:seasonal:two-cycles",
+        "short:trend:two-horizons",
+        "short:level:two-horizons",
+        "short:intermittent:two-cycles",
+        "short:noise:two-cycles"
+      ]
+    },
+    "selection_discipline": {
+      "weight": 0.10,
+      "smoke_case_ids": ["selection:DNICloud:seed7"],
+      "full_case_ids": [
+        "selection:DNICloud:seed7",
+        "selection:DNICloud:seed8",
+        "selection:DNICloud:seed9",
+        "selection:SensorMaintenance:seed7",
+        "selection:SensorMaintenance:seed8",
+        "selection:SensorMaintenance:seed9"
+      ]
+    },
+    "domain_constraints": {
+      "weight": 0.07,
+      "smoke_case_ids": ["constraint:declared-min"],
+      "full_case_ids": [
+        "constraint:declared-min",
+        "constraint:declared-max",
+        "constraint:declared-window",
+        "constraint:undeclared-min",
+        "constraint:contradicted-min",
+        "constraint:post-context-reassertion"
+      ]
+    },
+    "response_preservation": {
+      "weight": 0.05,
+      "smoke_case_ids": ["preservation:conditional-scenario"],
+      "full_case_ids": [
+        "preservation:conditional-scenario",
+        "preservation:no-distinct-numeric-path",
+        "preservation:best-effort",
+        "preservation:typed-choice",
+        "preservation:invalid-citation-repair",
+        "preservation:abstention"
+      ]
+    },
+    "outcome_graduation": {
+      "weight": 0.03,
+      "smoke_case_ids": ["outcome:promote-supported"],
+      "full_case_ids": [
+        "outcome:promote-supported",
+        "outcome:retain-insufficient",
+        "outcome:demote-harmful",
+        "outcome:drift-reset",
+        "outcome:no-auto-switch",
+        "outcome:proposer-isolation"
+      ]
+    },
+    "efficiency": {
+      "weight": 0.05,
+      "smoke_case_ids": ["efficiency:cik:DNICloud:seed7"],
+      "full_case_ids": [
+        "efficiency:cik:DNICloud:seed7",
+        "efficiency:cik:DNICloud:seed8",
+        "efficiency:cik:DNICloud:seed9",
+        "efficiency:context:useful",
+        "efficiency:context:neutral",
+        "efficiency:repair:one-retry"
+      ]
+    }
+  }
+}

@@ -83,6 +83,9 @@ def test_explicit_dated_zero_window_binds_exclusive_duration_to_grid():
     assert raw is not None
     assert raw["claims"][0]["effective_start"] == future[0]
     assert raw["claims"][0]["effective_end"] == future[9]
+    assert raw["effect_proposal"]["location"] == -1.0
+    assert raw["effect_proposal"]["delay_steps"] == 0
+    assert raw["effect_proposal"]["duration_steps"] == 10
     dossier, reasons = validate_temporal_dossier(
         raw, context_text=text, cutoff="2026-01-02T00:00:00+00:00",
         future_timestamps=future, history=[8, 9, 10],
@@ -93,6 +96,45 @@ def test_explicit_dated_zero_window_binds_exclusive_duration_to_grid():
     assert not reasons
     assert dossier["claims"][0]["mechanism"] == (
         "explicit dated zero-activity window")
+    assert dossier["effect_proposal"] is not None
+    assert any(item["code"] == "EXACT_CITED_ZERO_LEVEL"
+               for item in dossier["effect_proposal"][
+                   "semantic_normalizations"])
+
+
+@pytest.mark.parametrize(("connector", "expected"), [
+    ("between 2026-01-03 02:00:00 and", [2, 3]),
+    ("from 2026-01-03 02:00:00 until", [2, 3]),
+    ("from 2026-01-03 02:00:00 through", [2, 3, 4]),
+])
+def test_explicit_dated_zero_window_preserves_connector_boundaries(
+        connector, expected):
+    future = [f"2026-01-03T{hour:02d}:00:00+00:00" for hour in range(8)]
+    text = (
+        f"Readings will be zero {connector} 2026-01-03 04:00:00 while "
+        "the meter is offline.")
+
+    raw = deterministic_dated_zero_window_dossier(
+        text, cutoff="2026-01-02T23:00:00+00:00",
+        future_timestamps=future, target_name="readings")
+
+    assert raw is not None
+    assert raw["claims"][0]["effective_start"] == future[expected[0]]
+    assert raw["claims"][0]["effective_end"] == future[expected[-1]]
+    assert raw["effect_proposal"]["duration_steps"] == len(expected)
+
+
+@pytest.mark.parametrize("text", [
+    ("Readings will be zero from 2026-01-03 02:00:00 to "
+     "2026-01-03 04:00:00."),
+    ("Readings will be zero between approximately "
+     "2026-01-03 02:00:00 and 2026-01-03 04:00:00."),
+])
+def test_explicit_dated_zero_window_refuses_unclear_endpoint_semantics(text):
+    future = [f"2026-01-03T{hour:02d}:00:00+00:00" for hour in range(8)]
+    assert deterministic_dated_zero_window_dossier(
+        text, cutoff="2026-01-02T23:00:00+00:00",
+        future_timestamps=future, target_name="readings") is None
 
 
 @pytest.mark.parametrize("text", [
@@ -1446,6 +1488,41 @@ def test_absolute_zero_claim_cannot_create_additive_zero_scenario():
                       "superseded_by_deterministic_context_contract")
     assert superseded["disposition"] == "superseded"
     assert payload["context_summary"]["status"] == "scenario_only"
+
+
+def test_assumed_zero_window_remains_a_human_only_effect_scenario():
+    span = (
+        "Scenario: the meter has zero readings from 2026-01-03 00:00:00 "
+        "for 2 days.")
+    raw = deterministic_dated_zero_window_dossier(
+        span, cutoff="2026-01-02T00:00:00+00:00",
+        future_timestamps=TIMES, target_name="readings")
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=span, cutoff="2026-01-02T00:00:00+00:00",
+        future_timestamps=TIMES, history=[8, 9, 10],
+        compiler_model="deterministic")
+
+    assert reasons == []
+    payload = publish_result(
+        {"support": "supported", "forecast": PRIMARY},
+        mode="best_effort", dossiers=[dossier])
+
+    scenario = next(item for item in payload["candidate_portfolio"]
+                    if item["role"] == "effect_composed")
+    assert scenario["automation_eligible"] is False
+    assert scenario["human_selection_eligible"] is True
+    assert not any(item.get("reason_code") ==
+                   "superseded_by_deterministic_context_contract"
+                   for item in payload["context_dispositions"])
+
+    narrow_primary = [
+        {**row, "point": 100, "q10": 99.9, "q50": 100, "q90": 100.1}
+        for row in PRIMARY]
+    assessment = assess_composed_effect(
+        narrow_primary, dossier["effect_proposal"])
+    assert assessment["maximum_displacement_scales"] > 20
+    assert assessment["scale_guard_disposition"] == \
+        "exact_cited_scenario_allowed"
 
 
 def test_exact_context_use_is_not_downgraded_by_superseded_effect_lane():

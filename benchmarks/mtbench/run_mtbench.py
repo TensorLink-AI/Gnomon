@@ -29,6 +29,7 @@ from __future__ import annotations
 import argparse
 from contextlib import nullcontext
 import json
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -38,6 +39,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 
+from benchmarks.common.envfile import load_env_file  # noqa: E402
 from benchmarks.common.manifest import code_revision, write_manifest  # noqa: E402
 
 
@@ -149,6 +151,12 @@ def main() -> int:
     control.add_argument("--model", required=True,
                          help="OpenRouter model id serving the completions")
     control.add_argument("--temperature", type=float, default=0.7)
+    control.add_argument("--base-url", default=None)
+    control.add_argument("--api-key-env", default="OPENROUTER_API_KEY",
+                         choices=("OPENROUTER_API_KEY", "ENGY_API_KEY",
+                                  "CHUTES_API_KEY"))
+    control.add_argument("--request-timeout", type=float, default=180.0)
+    control.add_argument("--max-retries", type=int, default=2)
     control.add_argument("--limit", type=int, default=None,
                          help="Matched deterministic task prefix; applied by "
                               "materializing the official data as JSON")
@@ -169,9 +177,19 @@ def main() -> int:
     # Same default as the control arm: the ground rules require identical
     # temperature across the two conditions of a comparison.
     gnomon.add_argument("--temperature", type=float, default=0.7)
+    gnomon.add_argument("--base-url", default=None)
+    gnomon.add_argument("--api-key-env", default="OPENROUTER_API_KEY",
+                        choices=("OPENROUTER_API_KEY", "ENGY_API_KEY",
+                                 "CHUTES_API_KEY"))
+    gnomon.add_argument("--request-timeout", type=float, default=180.0)
+    gnomon.add_argument("--max-retries", type=int, default=2)
     gnomon.add_argument("--limit", type=int, default=None)
 
     args = parser.parse_args()
+    if args.max_retries < 0:
+        parser.error("--max-retries must be non-negative")
+    load_env_file()
+    api_key = os.environ.get(args.api_key_env)
     run_revision = code_revision()
     if args.command == "control":
         from benchmarks.mtbench.openrouter_patch import run_official_script
@@ -198,7 +216,8 @@ def main() -> int:
                 prepared_args = script_args
             client = run_official_script(
                 mtbench_root, args.script, prepared_args, args.model,
-                args.temperature)
+                args.temperature, api_key=api_key, base_url=args.base_url,
+                timeout=args.request_timeout, max_retries=args.max_retries)
         save_path = _script_argument(script_args, "save_path")
         if save_path:
             resolved_save = (script_dir / save_path).resolve() \
@@ -215,6 +234,9 @@ def main() -> int:
                 official_script=args.script,
                 indicator=_script_argument(script_args, "indicator"),
                 base_url=client.base_url,
+                api_key_env=args.api_key_env,
+                request_timeout=args.request_timeout,
+                max_retries=args.max_retries,
                 llm_usage=client.usage_summary,
                 command=" ".join([sys.executable, "-m",
                                   "benchmarks.mtbench.run_mtbench"] + sys.argv[1:]),
@@ -237,6 +259,10 @@ def main() -> int:
                       if args.mtbench_root else None),
         temperature=args.temperature,
         limit=args.limit,
+        api_key=api_key,
+        base_url=args.base_url,
+        request_timeout=args.request_timeout,
+        max_retries=args.max_retries,
     )
     print(json.dumps(summary, indent=2))
     return 0

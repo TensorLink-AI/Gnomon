@@ -67,6 +67,7 @@ from benchmarks.common.envfile import load_env_file  # noqa: E402
 from benchmarks.common.openrouter import extract_json_array  # noqa: E402
 
 GENERATOR_VERSION = "0.1"
+REQUEST_CONTRACT_VERSION = "recallbench-request-1"
 DATA_DIRS = (
     ROOT / "benchmarks" / "breachbench" / "data",
     ROOT / "benchmarks" / "dossierbench" / "data",
@@ -82,6 +83,22 @@ SEASONS = {"5min": 288, "h": 24, "D": 7, "W": 52, "MS": 12}
 _UNSUPPORTED_TOKENS = {"yearly", "annual", "quarterly"}
 SYSTEM = """You are a forecasting engine. Infer only from the supplied
 values. Answer with one JSON array of numbers and nothing else."""
+
+
+def request_identity(case: "Case", arm: str, args: Any) -> str:
+    payload = {
+        "contract": REQUEST_CONTRACT_VERSION,
+        "system": SYSTEM,
+        "user": prompt(case, arm),
+        "model": getattr(args, "model", None),
+        "base_url": getattr(args, "base_url", None),
+        "temperature": 0,
+        "initial_max_tokens": 600,
+        "reasoning_effort": getattr(args, "reasoning_effort", "none"),
+    }
+    return hashlib.sha256(json.dumps(
+        payload, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")).hexdigest()
 
 
 def _git_sha() -> str:
@@ -341,7 +358,8 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
         client = OpenRouterClient(
             args.model, api_key=os.environ.get(args.api_key_env),
             base_url=args.base_url, temperature=0, max_tokens=600,
-            max_retries=4,
+            max_retries=getattr(args, "max_retries", 2),
+            timeout=getattr(args, "request_timeout", 180),
             reasoning_effort=getattr(args, "reasoning_effort", "none"))
     cases, corpus_provenance, futures = generate_cases(
         args.seed, args.cases)
@@ -417,7 +435,11 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
                     and row.get("dataset") == dataset_identity
                     and row.get("model") == model_name
                     and row.get("reasoning_effort") == getattr(
-                        args, "reasoning_effort", "none")):
+                        args, "reasoning_effort", "none")
+                    and row.get("request_sha256") == request_identity(
+                        next(case for case in cases
+                             if case.case_id == row.get("case_id")),
+                        row.get("arm"), args)):
                 completed[(row["case_id"], row["arm"])] = row
             else:
                 stale += 1
@@ -436,6 +458,10 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
             "case_id": case.case_id, "arm": arm,
             "dataset": dataset_identity, "model": model_name,
             "reasoning_effort": getattr(args, "reasoning_effort", "none"),
+            "request_sha256": request_identity(case, arm, args),
+            "raw_response": text,
+            "raw_response_sha256": hashlib.sha256(
+                text.encode("utf-8")).hexdigest(),
             "origin": case.origin, "frequency": case.frequency,
             "valid": forecast is not None,
         }
@@ -540,6 +566,8 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
             "truth_is_realized_held_out_future": True,
             "held_out_future_absent_from_prompts_verified": True,
             "gnomon_reference_is_production_forecast": True,
+            "request_timeout_seconds": getattr(args, "request_timeout", 180),
+            "transport_retries": getattr(args, "max_retries", 2),
         },
     }
     if hasattr(client, "usage_summary"):
@@ -571,11 +599,17 @@ def main() -> int:
     parser.add_argument("--api-key-env", default="ENGY_API_KEY")
     parser.add_argument("--cases", type=int, default=120)
     parser.add_argument("--seed", type=int, default=20260827)
-    parser.add_argument("--concurrency", type=int, default=8)
+    parser.add_argument(
+        "--concurrency", type=int, default=1,
+        help="Matched model calls in flight; serial by default for crash safety.")
     parser.add_argument(
         "--reasoning-effort", default="none",
         choices=["none", "low", "medium", "high"],
         help="Hosted-model reasoning mode; part of resume identity.")
+    parser.add_argument("--request-timeout", type=int, default=180,
+                        help="Seconds per provider request.")
+    parser.add_argument("--max-retries", type=int, default=2,
+                        help="Bounded transport retries per provider request.")
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--resume", action="store_true")
     run(parser.parse_args())

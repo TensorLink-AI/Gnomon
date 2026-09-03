@@ -4,7 +4,7 @@ import json
 import logging
 import math
 from dataclasses import dataclass, field, replace
-from statistics import mean, median
+from statistics import NormalDist, mean, median
 from typing import Any, Callable
 
 from .contracts import GnomonError
@@ -191,15 +191,6 @@ def quantile(values: list[float], probability: float) -> float:
 #: below this the lead borrows the pooled spread (see `conformal_spreads`).
 MIN_RESIDUALS_PER_LEAD = 8
 
-#: The single-fold selection bar: below two disjoint selection folds, a
-#: candidate is selectable only by beating the strongest baseline's error
-#: by this fraction on the one fold. Chosen by measurement, not taste:
-#: zero of 50 near-martingale 30-point series produced a spurious win
-#: this large, while a plain linear trend clears it easily
-#: (results/short-history-guardrail/HYPOTHESIS.md, H-G7).
-SINGLE_FOLD_SELECTION_MARGIN = 0.75
-
-
 def conformal_quantile(values: list[float], probability: float) -> float:
     """Finite-sample (split-conformal) quantile.
 
@@ -313,6 +304,35 @@ def active_models(config: Any = None) -> dict[str, Any]:
 DEFAULT_TARGET_COVERAGE = 0.80
 
 
+def finite_sample_predictive_expansion(
+    sample_size: int, central_coverage: float = DEFAULT_TARGET_COVERAGE,
+) -> float:
+    """Return a predictive-width correction for tiny held-out samples.
+
+    Strict split calibration may have only one short trajectory. Empirical
+    order statistics then understate a labelled central interval (three
+    residuals cannot resolve a finite 80% interval). This Student-t tail plus
+    ``sqrt(1 + 1/n)`` correction estimates a future residual rather than only
+    the sampled mean. It is used solely by the explicit non-pooled mode.
+    """
+    if sample_size < 2 or not 0.0 < central_coverage < 1.0:
+        return 1.0
+    probability = (1.0 + central_coverage) / 2.0
+    z = NormalDist().inv_cdf(probability)
+    if z <= 0:
+        return 1.0
+    degrees = float(sample_size - 1)
+    # Dependency-free Cornish-Fisher expansion of the Student-t quantile.
+    z2 = z * z
+    t = z
+    t += (z * z2 + z) / (4.0 * degrees)
+    t += (5.0 * z * z2 * z2 + 16.0 * z * z2 + 3.0 * z) / (
+        96.0 * degrees * degrees)
+    t += (3.0 * z * z2 * z2 * z2 + 19.0 * z * z2 * z2
+          + 17.0 * z * z2 - 15.0 * z) / (384.0 * degrees ** 3)
+    return max(1.0, (t / z) * math.sqrt(1.0 + 1.0 / sample_size))
+
+
 def coverage_levels(target_coverage: float = DEFAULT_TARGET_COVERAGE) -> tuple[float, float, float]:
     """The (lower, median, upper) residual levels for a nominal coverage.
 
@@ -330,6 +350,7 @@ def conformal_spreads(
     pooled: list[float] | None = None,
     target_coverage: float = DEFAULT_TARGET_COVERAGE,
     recentre: bool = True,
+    finite_sample_expansion: bool = False,
 ) -> dict[int, tuple[float, float, float]]:
     """Split-conformal offsets (low, median, high) for each lead time.
 
@@ -386,6 +407,11 @@ def conformal_spreads(
 
     lows = _isotonic([max(0.0, value) for value in lows])
     highs = _isotonic([max(0.0, value) for value in highs])
+    if finite_sample_expansion:
+        expansion = finite_sample_predictive_expansion(
+            len(pooled), target_coverage)
+        lows = [value * expansion for value in lows]
+        highs = [value * expansion for value in highs]
     return {step + 1: (lows[step], medians[step], highs[step])
             for step in range(horizon)}
 
@@ -430,6 +456,7 @@ def conformal_quantile_spreads(
     pooled: list[float] | None = None,
     levels: tuple[float, ...] = QUANTILE_LEVELS,
     recentre: bool = True,
+    finite_sample_expansion: bool = False,
 ) -> dict[int, dict[float, float]]:
     """Split-conformal offset from the point forecast, per lead and level.
 
@@ -470,12 +497,18 @@ def conformal_quantile_spreads(
     fitted: dict[float, list[float]] = {}
     for level in levels:
         offsets = by_level[level]
+        central_coverage = abs(2.0 * level - 1.0)
+        expansion = (finite_sample_predictive_expansion(
+            len(pooled), central_coverage)
+            if finite_sample_expansion and level != 0.5 else 1.0)
         if level < 0.5:
             # Lower tail: fit the magnitude monotone, then re-sign.
-            widths = _isotonic([max(0.0, -value) for value in offsets])
+            widths = _isotonic([
+                max(0.0, -value) * expansion for value in offsets])
             fitted[level] = [-value for value in widths]
         elif level > 0.5:
-            fitted[level] = _isotonic([max(0.0, value) for value in offsets])
+            fitted[level] = _isotonic([
+                max(0.0, value) * expansion for value in offsets])
         else:
             fitted[level] = [0.0] * horizon
 
@@ -499,6 +532,43 @@ def quantiles_from_spread(
     """Named quantile columns at one lead time."""
     return {quantile_key(level): point + offset
             for level, offset in sorted(spread.items())}
+
+
+def intermittent_predictive_quantiles(
+    history: list[float],
+    levels: tuple[float, ...] = QUANTILE_LEVELS,
+) -> dict[float, float] | None:
+    """Return a zero-inflated empirical predictive distribution when visible.
+
+    Residual intervals around a positive mean forecast can exclude zero when
+    a held-out fold happens to contain demand. For genuinely intermittent,
+    non-negative histories that is the wrong distributional shape: zero is
+    still the median outcome. Estimate the zero atom and positive-size
+    distribution separately. The selected point path stays visible as its
+    own mean-like estimate; a weak point model cannot collapse the observed
+    positive-demand tail.
+    """
+    values = [float(value) for value in history
+              if isinstance(value, (int, float)) and not isinstance(value, bool)
+              and math.isfinite(float(value))]
+    if len(values) != len(history) or any(value < 0 for value in values):
+        return None
+    positives = [value for value in values if value > 0]
+    zeros = len(values) - len(positives)
+    if (len(values) < 16 or len(positives) < 4
+            or zeros / len(values) < 0.5):
+        return None
+    zero_probability = zeros / len(values)
+    output = {}
+    for level in levels:
+        if level <= zero_probability:
+            output[level] = 0.0
+            continue
+        positive_level = (level - zero_probability) / (
+            1.0 - zero_probability)
+        output[level] = max(
+            0.0, conformal_quantile(positives, positive_level))
+    return output
 
 
 def pinball_loss(actual: float, predicted: float, level: float) -> float:
@@ -578,6 +648,273 @@ def supportable_horizon(length: int, season: int) -> int | None:
     return None
 
 
+def _two_cycle_seasonal_recurrence(
+    values: list[float], horizon: int, season: int,
+    train_at: Callable[[int], list[float]],
+) -> dict[str, object] | None:
+    """Screen one complete recurrence without treating it as many folds.
+
+    Two cycles cannot support a candidate tournament.  They can establish a
+    narrowly defined structured-baseline fact when the second complete cycle
+    is an almost exact recurrence of the first: the waveform is dense, stable,
+    and materially unlike copying the last point.  The thresholds are fixed
+    and deliberately stringent because this is only one report-only cycle.
+    """
+    if (season < 6 or horizon > season
+            or len(values) < 2 * season or len(values) >= 3 * season):
+        return None
+    origin = len(values) - season
+    origin_train = train_at(origin)
+    if len(origin_train) < season:
+        return None
+    reference = [float(value) for value in origin_train[-season:]]
+    observed = [float(value) for value in values[origin:]]
+    if (len(observed) != season
+            or any(not math.isfinite(value)
+                   for value in [*reference, *observed])):
+        return None
+
+    reference_mean, observed_mean = mean(reference), mean(observed)
+    reference_scale = math.sqrt(mean(
+        (value - reference_mean) ** 2 for value in reference))
+    observed_scale = math.sqrt(mean(
+        (value - observed_mean) ** 2 for value in observed))
+    cycle_scale = min(reference_scale, observed_scale)
+    if cycle_scale <= 1e-12:
+        correlation = None
+    else:
+        covariance = mean(
+            (left - reference_mean) * (right - observed_mean)
+            for left, right in zip(reference, observed))
+        correlation = covariance / (reference_scale * observed_scale)
+    recurrence_loss = mean(abs(left - right)
+                           for left, right in zip(reference, observed))
+    last_value_loss = mean(abs(value - reference[-1]) for value in observed)
+    transition_floor = .05 * cycle_scale
+    transitions = min(sum(
+        abs(cycle[index] - cycle[index - 1]) > transition_floor
+        for index in range(1, season)) for cycle in (reference, observed))
+    plateau_points = max(max(sum(
+        abs(value - centre) <= transition_floor for value in cycle)
+        for centre in cycle) for cycle in (reference, observed))
+    typical_level = max(
+        median(abs(value) for value in [*reference, *observed]), 1e-12)
+    relative_cycle_scale = cycle_scale / typical_level
+    required_transitions = max(3, season // 3)
+    admitted = bool(
+        correlation is not None and correlation >= .985
+        and last_value_loss > 1e-12
+        and recurrence_loss <= .25 * last_value_loss
+        and recurrence_loss <= .25 * cycle_scale
+        and abs(reference_mean - observed_mean) <= .25 * cycle_scale
+        and transitions >= required_transitions
+        and plateau_points < season / 2
+        and relative_cycle_scale >= .05)
+    return {
+        "scheme": "single_complete_cycle_recurrence",
+        "probe_horizon": season,
+        "origins": 1,
+        "seasonal_naive_loss": recurrence_loss,
+        "last_value_loss": last_value_loss,
+        "relative_improvement": (
+            (last_value_loss - recurrence_loss) / last_value_loss
+            if last_value_loss > 0 else None),
+        "cycle_correlation": correlation,
+        "minimum_cycle_correlation": .985,
+        "recurrence_to_last_value_ratio": (
+            recurrence_loss / last_value_loss
+            if last_value_loss > 0 else None),
+        "maximum_recurrence_to_last_value_ratio": .25,
+        "recurrence_to_cycle_scale_ratio": (
+            recurrence_loss / cycle_scale if cycle_scale > 0 else None),
+        "maximum_recurrence_to_cycle_scale_ratio": .25,
+        "cycle_level_shift_to_scale_ratio": (
+            abs(reference_mean - observed_mean) / cycle_scale
+            if cycle_scale > 0 else None),
+        "maximum_cycle_level_shift_to_scale_ratio": .25,
+        "minimum_transitions": required_transitions,
+        "observed_transitions": transitions,
+        "maximum_plateau_fraction": .5,
+        "observed_plateau_fraction": plateau_points / season,
+        "minimum_cycle_scale_to_level_ratio": .05,
+        "observed_cycle_scale_to_level_ratio": relative_cycle_scale,
+        "evidence_scope": "one_complete_report_only_cycle",
+        "admitted": admitted,
+    }
+
+
+def _fold_starved_structural_evidence(
+    values: list[float], horizon: int, season: int,
+    train_at: Callable[[int], list[float]],
+) -> dict[str, object] | None:
+    """Admit one narrow structure when full-horizon folds are unavailable.
+
+    Dense one-step origins are not relabelled as independent selection folds.
+    They are only a high-specificity structural screen: a stable trend must
+    persist in both chronological halves, while a stable level must show no
+    material drift or recent shift.  Both candidates must also beat
+    last-value in each half of prefix-only replay.  The final horizon remains
+    unseen and the result remains degraded.
+    """
+    if len(values) < 12:
+        return None
+
+    def line(items: list[float]) -> tuple[float, float]:
+        count = len(items)
+        x_mean = (count - 1) / 2
+        y_mean = mean(items)
+        denominator = sum((index - x_mean) ** 2
+                          for index in range(count))
+        slope = sum((index - x_mean) * (value - y_mean)
+                    for index, value in enumerate(items)) / denominator
+        intercept = y_mean - slope * x_mean
+        residuals = [value - (intercept + slope * index)
+                     for index, value in enumerate(items)]
+        centre = median(residuals)
+        robust_scale = 1.4826 * median(
+            abs(value - centre) for value in residuals)
+        return slope, robust_scale
+
+    def replay(candidate: str) -> dict[str, object] | None:
+        candidate_errors: list[float] = []
+        baseline_errors: list[float] = []
+        for origin in range(6, len(values)):
+            train = train_at(origin)
+            if len(train) < 2:
+                continue
+            try:
+                estimate = _predict_statistical(candidate, train, 1, season)[0]
+            except (ValueError, ArithmeticError):
+                continue
+            actual = values[origin]
+            candidate_errors.append(abs(actual - estimate))
+            baseline_errors.append(abs(actual - train[-1]))
+        if len(candidate_errors) < 6:
+            return None
+        boundary = len(candidate_errors) // 2
+        blocks = []
+        for left, right in ((0, boundary),
+                            (boundary, len(candidate_errors))):
+            baseline_loss = mean(baseline_errors[left:right])
+            candidate_loss = mean(candidate_errors[left:right])
+            blocks.append({
+                "relative_gain": ((baseline_loss - candidate_loss)
+                                  / max(baseline_loss, 1e-12)),
+                "win_rate": sum(
+                    contender < baseline for contender, baseline in zip(
+                        candidate_errors[left:right],
+                        baseline_errors[left:right])) / (right - left),
+            })
+        baseline_loss = mean(baseline_errors)
+        candidate_loss = mean(candidate_errors)
+        return {
+            "origins": len(candidate_errors),
+            "relative_gain": ((baseline_loss - candidate_loss)
+                              / max(baseline_loss, 1e-12)),
+            "chronological_blocks": blocks,
+        }
+
+    full_slope, trend_scale = line(values)
+    boundary = len(values) // 2
+    first_slope, _ = line(values[:boundary])
+    second_slope, _ = line(values[boundary:])
+    trend_replay = replay("linear_trend")
+    slopes = (full_slope, first_slope, second_slope)
+    magnitudes = [abs(value) for value in slopes]
+    safe_trend_scale = max(trend_scale, 1e-9)
+    trend_admitted = bool(
+        trend_replay is not None
+        and full_slope * first_slope > 0
+        and full_slope * second_slope > 0
+        and min(magnitudes) > 1e-9
+        and max(magnitudes) / min(magnitudes) <= 2.5
+        and abs(full_slope) * horizon >= 2.0 * safe_trend_scale
+        and float(trend_replay["relative_gain"]) >= .35
+        and all(float(block["relative_gain"]) >= .15
+                and float(block["win_rate"]) >= .60
+                for block in trend_replay["chronological_blocks"])
+    )
+    if trend_admitted:
+        return {
+            "scheme": "stable_prefix_structure",
+            "candidate": "linear_trend",
+            "admitted": True,
+            "proxy_horizon": 1,
+            "full_horizon_fold_claimed": False,
+            "slope": full_slope,
+            "first_half_slope": first_slope,
+            "second_half_slope": second_slope,
+            "projected_change_to_robust_noise": (
+                abs(full_slope) * horizon / trend_scale
+                if trend_scale > 1e-12 else None),
+            "zero_residual_scale": trend_scale <= 1e-12,
+            "thresholds": {
+                "maximum_slope_ratio": 2.5,
+                "minimum_projected_change_to_noise": 2.0,
+                "minimum_replay_gain": .35,
+                "minimum_block_gain": .15,
+                "minimum_block_win_rate": .60,
+            },
+            "replay": trend_replay,
+        }
+
+    if season != 1:
+        return {
+            "scheme": "stable_prefix_structure",
+            "candidate": None,
+            "admitted": False,
+            "proxy_horizon": 1,
+            "full_horizon_fold_claimed": False,
+            "reason": "level_screen_requires_nonseasonal_series",
+            "slope": full_slope,
+            "first_half_slope": first_slope,
+            "second_half_slope": second_slope,
+            "replay": trend_replay,
+        }
+
+    level_replay = replay("historical_mean")
+    level_centre = median(values)
+    level_scale = max(1.4826 * median(
+        abs(value - level_centre) for value in values), 1e-9)
+    first_mean = mean(values[:boundary])
+    second_mean = mean(values[boundary:])
+    recent_mean = mean(values[-4:])
+    earlier_mean = mean(values[:-4])
+    level_admitted = bool(
+        level_replay is not None
+        and abs(full_slope) * (len(values) - 1) <= .90 * level_scale
+        and abs(first_mean - second_mean) <= .90 * level_scale
+        and abs(recent_mean - earlier_mean) <= 1.20 * level_scale
+        and float(level_replay["relative_gain"]) >= .10
+        and all(float(block["relative_gain"]) >= 0
+                and float(block["win_rate"]) >= .50
+                for block in level_replay["chronological_blocks"])
+    )
+    return {
+        "scheme": "stable_prefix_structure",
+        "candidate": "historical_mean" if level_admitted else None,
+        "admitted": level_admitted,
+        "proxy_horizon": 1,
+        "full_horizon_fold_claimed": False,
+        "slope": full_slope,
+        "projected_drift_to_level_scale": (
+            abs(full_slope) * (len(values) - 1) / level_scale),
+        "half_level_shift_to_scale": (
+            abs(first_mean - second_mean) / level_scale),
+        "recent_level_shift_to_scale": (
+            abs(recent_mean - earlier_mean) / level_scale),
+        "thresholds": {
+            "maximum_projected_drift_to_scale": .90,
+            "maximum_half_level_shift_to_scale": .90,
+            "maximum_recent_level_shift_to_scale": 1.20,
+            "minimum_replay_gain": .10,
+            "minimum_block_gain": 0.0,
+            "minimum_block_win_rate": .50,
+        },
+        "replay": level_replay,
+    }
+
+
 def select_model_lightweight(
     values: list[float], horizon: int, season: int,
     train_at: Callable[[int], list[float]] | None = None,
@@ -621,20 +958,29 @@ def select_model_lightweight(
     # score reported as evidence (see the guardrail in `evaluate`).
     non_baselines = [name for name in valid if name not in BASELINES]
     degraded_baseline_evidence = None
+    degraded_structural_evidence = None
     if "last_value" in baselines:
-        # One holdout cannot establish that a structured baseline generalises
-        # any more reliably than it can rank an incremental model.  Publish
-        # the assumption-minimal level baseline; seasonal/TSFM candidates can
-        # still enter through repeatable folds or separately labelled transfer
-        # evidence.  This rule is history-length based, never channel based.
+        # One holdout cannot ordinarily establish that a structured baseline
+        # generalises any more reliably than it can rank an incremental model.
+        # Publish the assumption-minimal level baseline unless a predeclared,
+        # high-specificity recurrence screen or repeatable seasonal blocks
+        # establish the structured baseline. This rule is history-length and
+        # shape based, never channel or benchmark-label based.
         selected = "last_value"
+        if season > 1 and "seasonal_naive" in baselines:
+            degraded_baseline_evidence = _two_cycle_seasonal_recurrence(
+                values, horizon, season, train_at)
+            if (degraded_baseline_evidence is not None
+                    and degraded_baseline_evidence["admitted"] is True):
+                selected = "seasonal_naive"
         # A long requested horizon can prevent separated full-horizon folds
         # even when the history contains repeatable seasonal evidence. Admit
         # only the single structured baseline against last-value on fixed,
         # non-overlapping seasonal blocks. This is not a candidate tournament:
         # two predeclared baselines, a 10% margin, and wins in two of three
         # chronological blocks are required.
-        if (season > 1 and "seasonal_naive" in baselines
+        if (selected == "last_value"
+                and season > 1 and "seasonal_naive" in baselines
                 and len(values) >= 3 * season):
             probe_horizon = min(season, horizon)
             first = max(season, len(values) - 8 * probe_horizon)
@@ -693,26 +1039,50 @@ def select_model_lightweight(
                 }
                 if admitted:
                     selected = "seasonal_naive"
+        if selected == "last_value" and season == 1:
+            degraded_structural_evidence = (
+                _fold_starved_structural_evidence(
+                    values, horizon, season, train_at))
+            if (degraded_structural_evidence is not None
+                    and degraded_structural_evidence["admitted"] is True):
+                selected = str(degraded_structural_evidence["candidate"])
     elif baselines:
         selected = min(baselines, key=baselines.get)  # type: ignore[arg-type]
     else:
         selected = min(valid, key=valid.get)  # type: ignore[arg-type]
-    strongest = selected if baselines else min(valid, key=valid.get)  # type: ignore[arg-type]
+    strongest = (selected if selected in baselines else "last_value") \
+        if baselines else min(valid, key=valid.get)  # type: ignore[arg-type]
     guardrail_applied = bool(baselines) and bool(non_baselines)
     warnings = [
         f"Degraded forecast: model selection used a single trailing {holdout}-observation holdout; rolling-origin calibration and final testing were unavailable. At least {max(2 * season, 2 * horizon, 8) + 2 * horizon} observations (have {len(values)}) are needed for separated selection and calibration."
     ]
     if guardrail_applied:
-        warnings.append(
-            f"Selection under-powered: a single trailing holdout cannot rank "
-            f"incremental candidates. The admitted robust baseline "
-            f"({strongest}) is published; "
-            f"candidate scores are reported as evidence, not a ranking."
-        )
+        if (degraded_structural_evidence is not None
+                and degraded_structural_evidence["admitted"] is True):
+            warnings.append(
+                f"Selection under-powered: a single trailing holdout cannot "
+                f"rank the candidate pool. The narrow prefix-stability "
+                f"screen admitted {selected} against {strongest}; all other "
+                f"candidate scores remain evidence, not a ranking."
+            )
+        else:
+            warnings.append(
+                f"Selection under-powered: a single trailing holdout cannot "
+                f"rank incremental candidates. The assumption-minimal "
+                f"baseline ({strongest}) is published; candidate scores are "
+                f"reported as evidence, not a ranking."
+            )
     if degraded_baseline_evidence is not None:
         warnings.append(
             "Degraded baseline admission: "
             + json.dumps(degraded_baseline_evidence, sort_keys=True))
+    if degraded_structural_evidence is not None:
+        warnings.append(
+            "Degraded structural admission: the prefix-only stability "
+            f"screen {'admitted ' + str(selected) if degraded_structural_evidence['admitted'] else 'did not admit a departure'}; "
+            "its replay and stability diagnostics are retained in "
+            "sensitivity.fold_starved_structural."
+        )
     residuals = [a - p for a, p in zip(actual, forecasts[selected])]
     return Evaluation(selected, strongest, scores, {name: None for name in MODELS}, None,
                       residuals, None, warnings, True, True,
@@ -720,7 +1090,10 @@ def select_model_lightweight(
                           int(degraded_baseline_evidence["origins"])
                           if degraded_baseline_evidence and
                           degraded_baseline_evidence["admitted"] else 1),
-                      selection_guardrail_applied=guardrail_applied)
+                      selection_guardrail_applied=guardrail_applied,
+                      selection_stability={
+                          "fold_starved_structural":
+                              degraded_structural_evidence})
 
 
 def _admit_pretrained_lightweight(
@@ -738,15 +1111,13 @@ def _admit_pretrained_lightweight(
     if not assessment.supported or not assessment.strongest_baseline:
         return assessment
     from .tsfm import eligible_tsfms, pinned_revision
-    from .tsfm_sandbox import sandbox_available_tsfms, sandbox_tsfm_candidates
+    from .tsfm_sandbox import select_tsfm_candidates
     eligible, _ = eligible_tsfms(
         history_length=len(values), horizon=horizon, frequency=frequency)
     requested = tsfm_names if tsfm_names is not None else eligible
     requested = [name for name in requested if name in eligible]
-    sandbox_names = sandbox_available_tsfms()
-    adapters = (sandbox_tsfm_candidates(requested=requested, frequency=frequency)
-                if sandbox_names and requested
-                else tsfm_candidates(requested=requested, frequency=frequency))
+    adapters = select_tsfm_candidates(requested=requested, frequency=frequency,
+                                      in_process=tsfm_candidates)
     if not adapters:
         return assessment
     priors = dict(external_priors or {})
@@ -1201,7 +1572,7 @@ def evaluate(
     # Prefer sandboxed adapters (isolated venvs) to avoid dependency conflicts.
     # Fall back to in-process adapters if no sandboxes are set up.
     from .tsfm import eligible_tsfms
-    from .tsfm_sandbox import sandbox_tsfm_candidates, sandbox_available_tsfms
+    from .tsfm_sandbox import select_tsfm_candidates
     tsfm_adapters: list[Any] = []
     eligible_names, capability_exclusions = eligible_tsfms(
         history_length=len(values), horizon=horizon, frequency=frequency,
@@ -1219,14 +1590,10 @@ def evaluate(
         for name, reasons in capability_exclusions.items()
         if tsfm_names is None or name in tsfm_names
     ]
-    sandbox_names = sandbox_available_tsfms()
-    if sandbox_names and requested_names:
-        tsfm_adapters = sandbox_tsfm_candidates(
-            requested=requested_names,
-            frequency=frequency,
-        )
-    elif requested_names:
-        tsfm_adapters = tsfm_candidates(requested=requested_names, frequency=frequency)
+    if requested_names:
+        tsfm_adapters = select_tsfm_candidates(
+            requested=requested_names, frequency=frequency,
+            in_process=tsfm_candidates)
     tsfm_model_names = [a.name for a in tsfm_adapters]
     all_model_names = list(pool.keys()) + tsfm_model_names
 
@@ -1307,7 +1674,8 @@ def evaluate(
     # TSFM sandboxes, so without this note the operator most likely to benefit
     # from a stronger candidate never learns one was eligible.
     from .tsfm import installed_tsfms
-    installed_names = set(sandbox_names) | set(installed_tsfms())
+    from .tsfm_sandbox import sandbox_available_tsfms
+    installed_names = set(sandbox_available_tsfms()) | set(installed_tsfms())
     notes: list[str] = list(capability_notes)
     if requested_names and not installed_names:
         notes.append(
@@ -1756,27 +2124,19 @@ def evaluate(
                 candidate_scores = {name: value for name, value in scored.items()
                                     if name not in BASELINES}
 
-    # A ranked contest needs at least two disjoint selection folds. On one
-    # fold an incremental winner is mostly noise: measured on 50
-    # near-martingale 30-point series, single-fold selection at the
-    # default margin picked a non-baseline on 39 and ran 2.9x the MSE of
-    # `last_value` (results/news-regime-explore/RESULTS.md, E1). So below
-    # two folds the margin scales up to SINGLE_FOLD_SELECTION_MARGIN:
-    # only overwhelming evidence — a candidate that cuts the baseline's
-    # error by more than three-quarters, the signature of a deterministic
-    # structure like a trend rather than of fold luck (zero of the 50
-    # near-martingale tasks cleared it; a plain linear trend clears it
-    # easily) — can select on one fold. Dense overlapping origins do not
-    # count: they lower comparison variance without adding independent
-    # evidence, so the gate reads the disjoint skeleton.
+    # A ranked contest needs at least two disjoint selection folds. Dense
+    # overlapping origins do not count: they lower comparison variance
+    # without adding independent evidence. A one-fold run is reset below to
+    # last-value and may depart only through the narrow prefix-structure
+    # screen; this ordinary tournament runs only when `single_fold` is false.
     single_fold = len(residual_origins) < 2
-    margin = max(minimum_improvement, SINGLE_FOLD_SELECTION_MARGIN) if single_fold else minimum_improvement
+    margin = minimum_improvement
     selection_stability: dict[str, object] = {
         "paired_folds": 0, "candidate_win_rate": None,
         "median_relative_gain": None, "scaled_error_improvement": None,
         "scaled_error_passed": False, "passed": True,
     }
-    if candidate_scores:
+    if candidate_scores and not single_fold:
         candidate = min(candidate_scores, key=candidate_scores.get)  # type: ignore[arg-type]
         candidate_score = candidate_scores[candidate]
         # Mean loss alone can promote a candidate on one spectacular fold
@@ -1877,26 +2237,44 @@ def evaluate(
                 f"repeatable improvement under both WAPE and fold-local MASE; "
                 f"{strongest_baseline} remains the published candidate."
             )
-    selection_guardrail_applied = (
-        bool(candidate_scores) and single_fold and selected == strongest_baseline
-    )
+    fold_starved_evidence = None
+    if single_fold:
+        # One full-horizon result is not a tournament, even when one model's
+        # margin looks spectacular.  Reset to the assumption-minimal baseline
+        # and allow only the predeclared prefix-stability screen to depart.
+        if scores.get("last_value") is not None:
+            strongest_baseline = "last_value"
+            baseline_score = float(scores["last_value"])
+            selected = strongest_baseline
+        fold_starved_evidence = _fold_starved_structural_evidence(
+            values, horizon, season, train_at)
+        if (fold_starved_evidence is not None
+                and fold_starved_evidence["admitted"] is True):
+            structural_candidate = str(fold_starved_evidence["candidate"])
+            if scores.get(structural_candidate) is not None:
+                selected = structural_candidate
+        selection_stability["fold_starved_structural"] = (
+            fold_starved_evidence)
+    selection_guardrail_applied = bool(
+        single_fold and (candidate_scores or len(baseline_scores) > 1)
+        and selected == strongest_baseline)
     if selection_guardrail_applied:
         warnings.append(
             f"Selection under-powered: only {len(residual_origins)} disjoint "
-            f"selection fold was available, too few to rank candidates. No "
-            f"candidate beat the strongest baseline ({strongest_baseline}) "
-            f"by the {SINGLE_FOLD_SELECTION_MARGIN:.0%} single-fold margin, "
-            f"so the baseline is published; candidate scores are reported "
-            f"as evidence, not a ranking. {minimum_train + 4 * horizon} "
+            f"selection fold was available, too few to rank candidates. The "
+            f"prefix-stability screen did not establish a safe structural "
+            f"departure, so {strongest_baseline} is published; candidate "
+            f"scores are reported as evidence, not a ranking. "
+            f"{minimum_train + 4 * horizon} "
             f"observations enable a ranked contest."
         )
     elif single_fold and selected != strongest_baseline:
         warnings.append(
-            f"Single-fold selection: {selected} beat the strongest baseline "
-            f"({strongest_baseline}) by more than "
-            f"{SINGLE_FOLD_SELECTION_MARGIN:.0%} on the one available fold "
-            f"— evidence strong enough to clear the raised short-history "
-            f"margin, but still a single comparison."
+            f"Single-fold selection: {selected} cleared the degraded "
+            f"prefix-stability screen against {strongest_baseline}. Dense "
+            f"one-step replay was not counted as additional full-horizon "
+            f"folds; the result remains degraded. Full diagnostics are "
+            f"retained in sensitivity.fold_starved_structural."
         )
 
     # A pretrained candidate may carry independent transfer evidence.  It is
@@ -2254,8 +2632,9 @@ def evaluate(
     # `conformal_spreads`); measuring test-fold coverage on the same
     # spreads keeps the measurement about the interval a reader actually
     # gets.
-    spreads = conformal_spreads(residuals_by_lead, horizon, residuals,
-                                recentre=not degraded)
+    spreads = conformal_spreads(
+        residuals_by_lead, horizon, residuals, recentre=not degraded,
+        finite_sample_expansion=not pool_residuals)
 
     # The `--ensemble` override can force the ensemble even when it did not win
     # selection. Calibrate it here, on the same folds, so the override never
@@ -2294,11 +2673,16 @@ def evaluate(
             test_prediction = _predict_statistical(
                 strongest_baseline, train_at(test_origin), horizon, season)
         covered = []
+        intermittent = intermittent_predictive_quantiles(
+            train_at(test_origin), (0.1, 0.5, 0.9))
         for step, (actual, prediction) in enumerate(zip(test_actual, test_prediction), 1):
             spread = spreads.get(step)
             if spread is None:
                 continue
-            low, _, high = interval_from_spread(prediction, spread)
+            if intermittent is not None:
+                low, high = intermittent[0.1], intermittent[0.9]
+            else:
+                low, _, high = interval_from_spread(prediction, spread)
             covered.append(1.0 if low <= actual <= high else 0.0)
         coverage = mean(covered) if covered else None
         if coverage is not None and coverage < 0.7:

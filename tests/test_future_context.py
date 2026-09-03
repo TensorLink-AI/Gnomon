@@ -240,6 +240,35 @@ def test_override_spans_parse_to_the_stated_value(span, value):
     assert parsed == value
 
 
+def test_direct_maintenance_outage_has_literal_authority_not_forecast_authority():
+    from gnomon.future_context import literal_authority, literal_input_authority
+
+    direct = (
+        "Consider that the meter will be offline for maintenance between "
+        "2026-02-28 04:00 and 2026-02-28 07:00, resulting in zero readings."
+    )
+    attributed = (
+        "The vendor predicts the meter will be offline for maintenance "
+        "between 2026-02-28 04:00 and 2026-02-28 07:00."
+    )
+
+    assert literal_authority(direct) == (True, True)
+    assert literal_authority(attributed) == (True, False)
+    assert literal_input_authority(direct) == "binding"
+    assert literal_input_authority(attributed) == "forecast"
+
+
+def test_literal_input_authority_keeps_assumptions_and_observations_nonbinding():
+    from gnomon.future_context import literal_input_authority
+
+    assert literal_input_authority(
+        "Assume throughput is exactly 500 tomorrow.") == "assumed"
+    assert literal_input_authority(
+        "Observed throughput was exactly 500 yesterday.") == "observed"
+    assert literal_input_authority(
+        "The capacity policy requires throughput not exceed 500.") == "binding"
+
+
 def test_an_explicit_number_wins_over_a_zero_word():
     parsed, _ = parse_override_span(
         "output reduced to 120 while the line is partially shut down"
@@ -581,6 +610,27 @@ def test_override_with_source_cited_exact_endpoints_sets_every_quantile():
         assert projected[index]["q10"] == 0.0
         assert projected[index]["q50"] == 0.0
         assert projected[index]["q90"] == 0.0
+    assert all(entry["boundary_step"] is False for entry in applications)
+
+
+def test_half_open_source_end_normalizes_to_exact_inclusive_host_window():
+    source_start = FUTURE[2].isoformat()
+    source_end = FUTURE[5].isoformat()
+    admitted = [FutureEvent(
+        "o1", "override", FUTURE[2].isoformat(), FUTURE[4].isoformat(),
+        f"output is zero between {source_start} and {source_end}",
+        value=0.0,
+    )]
+
+    projected, applications = apply_future_events(_rows(), admitted)
+
+    for index in (2, 3, 4):
+        assert projected[index]["point"] == 0.0
+        assert projected[index]["q10"] == 0.0
+        assert projected[index]["q50"] == 0.0
+        assert projected[index]["q90"] == 0.0
+    assert projected[1] == _rows()[1]
+    assert projected[5] == _rows()[5]
     assert all(entry["boundary_step"] is False for entry in applications)
 
 

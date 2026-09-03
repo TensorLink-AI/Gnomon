@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import hashlib
 import json
 import shlex
 import subprocess
@@ -18,12 +19,43 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-from benchmarks.common.manifest import write_manifest
+from benchmarks.common.checkpoint import prepare_run_identity
+from benchmarks.common.manifest import code_revision, write_manifest
 from benchmarks.workflow.schema import Case, Observation, load_cases, load_observations
 from benchmarks.workflow.scoring import score_run
 from benchmarks.workflow.provenance import atomic_write_text, corpus_sha256, write_observations
 
 DEFAULT_CASES = Path(__file__).with_name("cases") / "smoke.jsonl"
+
+
+def _run_identity(args: argparse.Namespace, cases: list[Case]) -> dict[str, Any]:
+    submission_sha = None
+    if args.submission:
+        submission_sha = hashlib.sha256(
+            Path(args.submission).read_bytes()).hexdigest()
+    return {
+        "schema_version": 1,
+        "benchmark": "gnomon-workflow",
+        "code_revision": code_revision(),
+        "corpus_sha256": corpus_sha256(cases),
+        "case_ids": [case.id for case in cases],
+        "arm": args.arm,
+        "arm_command": args.arm_command,
+        "submission_sha256": submission_sha,
+        "timeout_seconds": args.timeout,
+        "jobs": args.jobs,
+        "infrastructure_retries": args.infrastructure_retries,
+    }
+
+
+def _prepare_run_identity(output_dir: Path, identity: dict[str, Any],
+                          *, resume: bool) -> None:
+    """Prevent a checkpoint from being reused by a different arm or corpus."""
+    prepare_run_identity(
+        output_dir, identity, resume=resume,
+        state_paths=[output_dir / "observations.jsonl",
+                     output_dir / "summary.json"],
+    )
 
 
 def case_payload(case: Case) -> dict[str, Any]:
@@ -273,6 +305,9 @@ def main() -> int:
 
     cases = load_cases(args.cases)
     output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    identity = _run_identity(args, cases)
+    _prepare_run_identity(output_dir, identity, resume=args.resume)
     prior_path = output_dir / "observations.jsonl"
     prior = (load_observations(prior_path)
              if args.resume and prior_path.is_file() and not args.submission else None)
@@ -280,7 +315,6 @@ def main() -> int:
         run_command(cases, args.arm_command, args.timeout, args.jobs,
                     args.infrastructure_retries, prior, prior_path)
     result = score_run(cases, observations, arm=args.arm)
-    output_dir.mkdir(parents=True, exist_ok=True)
     atomic_write_text(output_dir / "summary.json",
                       json.dumps(result, indent=2, sort_keys=True) + "\n")
     write_observations(output_dir / "observations.jsonl", observations)
@@ -301,6 +335,7 @@ def main() -> int:
                            "corpus_sha256": corpus_sha256(cases)},
                    arm_command=args.arm_command, jobs=args.jobs, timeout=args.timeout,
                    infrastructure_retries=args.infrastructure_retries,
+                   run_identity=identity,
                    resumed_successful_cases=len([
                        row for row in (prior or [])
                        if row.status != "error"

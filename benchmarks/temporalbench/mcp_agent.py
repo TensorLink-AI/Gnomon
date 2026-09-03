@@ -577,7 +577,7 @@ def compile_row_temporal_questions(
             cached = json.loads(receipt_path.read_text(encoding="utf-8"))
             if cached.get("input_fingerprint") != fingerprint:
                 raise ValueError("cached temporal-intent receipt does not match input")
-            if cached.get("questions"):
+            if cached.get("questions") or cached.get("terminal_refusal"):
                 return {**cached, "attempted": True, "compiler_called": False,
                         "receipt_reused": True}
             # A failed proposal is an immutable diagnostic, not a reusable
@@ -598,7 +598,7 @@ def compile_row_temporal_questions(
                 if retry.get("input_fingerprint") != fingerprint:
                     raise ValueError(
                         "cached temporal-intent retry does not match input")
-                if retry.get("questions"):
+                if retry.get("questions") or retry.get("terminal_refusal"):
                     return {**retry, "attempted": True,
                             "compiler_called": False,
                             "receipt_reused": True,
@@ -630,6 +630,12 @@ def compile_row_temporal_questions(
                   "proposed": receipt["proposed"],
                   "questions": [item.to_dict() for item in receipt["accepted"]],
                   "rejected": receipt["rejected"], "compiler_called": True}
+        result["terminal_refusal"] = bool(
+            not result["questions"] and result["rejected"] and all(
+                isinstance(item, dict) and
+                ((item.get("details") or {}).get("unsupported_semantics"))
+                for item in result["rejected"]
+            ))
     except Exception as error:
         result = {"input_fingerprint": fingerprint, "questions": [],
                   "rejected": [{"type": type(error).__name__, "message": str(error),
@@ -654,18 +660,23 @@ def mcq_submit_tool(row: dict[str, Any]) -> tuple[dict[str, Any], str]:
     named properties, T3's pack as a fixed-length list in question order
     — so a correct answer cannot be lost to output formatting, which is
     a property of the harness, not of the model's temporal reasoning.
-    The option strings are not repeated into the schema: the official
-    prompt already carries them verbatim, and paraphrasing them here
-    would put this adapter between the benchmark and the model.
+    Public option strings are repeated only as an output vocabulary, never
+    with labels or evidence. This lets a host reject an unscorable ``A/B``
+    envelope without inserting itself into the answer.
     """
     if row.get("tier") == "T3":
         count = len(row.get("pack") or [])
+        vocabularies = [
+            ([str(option) for option in item.get("options") or []]
+             if isinstance(item, dict) else [])
+            for item in row.get("pack") or []]
         answers = {
             "type": "array", "items": {"type": "string"},
             "description": (
                 f"Exactly {count} answers, one per question of the task's "
                 f"pack, in the order the task lists them; each the option "
-                f"string that question offers."
+                f"string that question offers. Position-specific options: "
+                f"{json.dumps(vocabularies, separators=(',', ':'))}."
             ),
         }
         if count:
@@ -702,6 +713,92 @@ def mcq_submit_tool(row: dict[str, Any]) -> tuple[dict[str, Any], str]:
             },
         },
     }, rule)
+
+
+def _row_choice_slots(row: dict[str, Any]) -> list[tuple[str, list[str]]]:
+    """Return public answer slots and option vocabularies without labels.
+
+    T3 already stores its public options structurally.  T1 stores only field
+    names structurally, so parse the numbered question lines that are also
+    shown verbatim to the agent.  A parse mismatch yields no projection; it
+    must never guess a vocabulary from the hidden label values.
+    """
+    if row.get("tier") == "T3":
+        return [
+            (f"q{index + 1}", [str(option) for option in
+                               (item.get("options") or [])])
+            for index, item in enumerate(row.get("pack") or [])
+            if isinstance(item, dict)
+        ]
+    fields = list((row.get("labels") or {}).keys())
+    groups = re.findall(
+        r"(?m)^\s*\d+\)\s*[^:\n]+:\s*\{([^}\n]+)\}",
+        str(row.get("prompt") or ""),
+    )
+    vocabularies = [re.findall(r'"([^"]+)"', group) for group in groups]
+    if len(vocabularies) != len(fields) or any(not row for row in vocabularies):
+        return []
+    return list(zip(fields, vocabularies))
+
+
+def _project_temporal_answer_choices(
+    receipts: list[dict[str, Any]],
+    slots: list[tuple[str, list[str]]],
+) -> dict[str, dict[str, Any]]:
+    """Project engine-owned typed answers into caller-owned vocabularies.
+
+    The projection sees only the typed receipt and public options.  It never
+    sees benchmark labels or future values.  Supported automation-eligible
+    results may therefore bind a final choice; weaker results remain advisory.
+    """
+    from gnomon.temporal_vocabulary import project_temporal_choice
+
+    answers: dict[str, dict[str, Any]] = {}
+    for receipt in receipts:
+        for answer in receipt.get("answers") or []:
+            raw_id = str((answer.get("question") or {}).get("id") or "")
+            base_id = raw_id.split(":", 1)[0]
+            if base_id:
+                answers[base_id] = answer
+    projected: dict[str, dict[str, Any]] = {}
+    for index, (slot, options) in enumerate(slots):
+        answer = answers.get(slot) or answers.get(f"q{index + 1}")
+        if not answer:
+            continue
+        best = answer.get("best_estimate") or {}
+        choice = project_temporal_choice(best.get("value"), options)
+        if choice is None:
+            continue
+        reasoning = answer.get("reasoning") or \
+            (answer.get("answer") or {}).get("reasoning") or {}
+        adjudication = reasoning.get("adjudication") or {}
+        eligibility = adjudication.get("synthesis_eligibility") or {}
+        alternative = adjudication.get("alternative") or {}
+        alternative_choice = project_temporal_choice(
+            alternative.get("value"), options)
+        synthesis_eligible = bool(
+            adjudication.get("synthesis_eligible") is True
+            or eligibility.get("eligible") is True)
+        projected[slot] = {
+            **choice,
+            "canonical_value": best.get("value"),
+            "support": str(best.get("support") or "unknown"),
+            "automation_eligible": bool(
+                best.get("automation_eligible") is True),
+            "primary_forecast_unchanged": bool(
+                reasoning.get("primary_forecast_unchanged") is True),
+            "authority": (
+                "binding" if best.get("support") == "supported"
+                and best.get("automation_eligible") is True else "advisory"),
+            "has_computed_opposition": bool(
+                synthesis_eligible and alternative_choice is not None),
+            "computed_alternative": (
+                alternative_choice.get("display_value")
+                if alternative_choice else None),
+            "adjudication_relationship": adjudication.get(
+                "relationship", "unresolved"),
+        }
+    return projected
 
 
 def _write_wide_csv(channels: dict[str, list[float]], csv_path: Path,
@@ -1266,6 +1363,7 @@ class _RunBase:
                             "superseded", "coerced", "submit_rejected",
                             "last_call_repair", "submission_fallback",
                             "host_submission", "host_preexecution",
+                            "typed_question_refusal",
                             "typed_questions",
                             "compiled_questions", "engine_answers",
                             "host_data_binding")}
@@ -1948,7 +2046,9 @@ class _Run(_RunBase):
                         "Copy the engine's context/covariate publication "
                         "automation_eligible fact exactly. False means "
                         "context evidence alone cannot authorize automation; "
-                        "do not weaken it to 'not requested'."),
+                        "do not attribute it to automation being 'not "
+                        "requested', even if you also state the correct "
+                        "context-authority limitation."),
                 }
                 parameters["properties"]["canonical_primary_preserved"] = {
                     "type": "boolean",
@@ -1978,6 +2078,17 @@ class _Run(_RunBase):
                     "items": {"type": "string"},
                     "maxItems": 8,
                 }
+                parameters["properties"]["cited_context_relationships"] = {
+                    "type": "array",
+                    "description": (
+                        "Copy every non-empty relationship_to_primary value "
+                        "from Gnomon's agent_response_contract exactly; use "
+                        "an empty array when no relationship is emitted. "
+                        "Also name each exact type in the human-facing "
+                        "reasoning and explain its practical meaning."),
+                    "items": {"type": "string"},
+                    "maxItems": 8,
+                }
                 parameters["properties"]["reasoning"]["description"] = (
                     "Human-facing explanation of Gnomon's typed context "
                     "outcome. Scenario representation is not numeric "
@@ -1992,6 +2103,8 @@ class _Run(_RunBase):
                     "canonical_primary_preserved")
                 parameters["required"].append(
                     "cited_scenario_consequences")
+                parameters["required"].append(
+                    "cited_context_relationships")
             else:
                 parameters["properties"].pop("reasoning", None)
             if getattr(self, "temporal_compilation", {}).get("questions"):
@@ -2055,8 +2168,10 @@ class _Run(_RunBase):
                 "canonical_primary_preserved is true, say the canonical "
                 "primary remains preserved. If automation_eligible is false, "
                 "say context evidence alone cannot authorize automation; "
-                "'not requested' is not equivalent. The verifier rejects a "
-                "submission that hides either fact.\n")
+                "'not requested' is not equivalent and must not be stated as "
+                "the cause, even alongside the correct limitation. The "
+                "verifier rejects a submission that hides or contradicts "
+                "either fact.\n")
             text += (
                 "If Gnomon exposes a scenario consequence_summary, copy it "
                 "exactly into cited_scenario_consequences and communicate "
@@ -2092,6 +2207,12 @@ class _Run(_RunBase):
                 "cited_context_sources and name it in the human-facing "
                 "reasoning. Do not invent a source when source_evidence is "
                 "absent.\n")
+            text += (
+                "Copy every non-empty relationship_to_primary value exactly "
+                "into cited_context_relationships, name the exact type in "
+                "the human-facing reasoning, and explain its practical "
+                "meaning. Use an empty array only when Gnomon emits no "
+                "relationship type.\n")
         if self.row.get("_require_gnomon_execution"):
             text += ("\nThis product run delegates every published numeric "
                      "trajectory to Gnomon. Submit the forecast artifact "
@@ -2581,10 +2702,10 @@ class _Run(_RunBase):
             agent_supplied_sources = [str(value) for value in
                                       (arguments.get(
                                           "cited_context_sources") or [])[:8]]
-            # The artifact is authoritative. A model-provided duplicate is
-            # useful preservation evidence, but it must never replace the
-            # exact host-bound references or void an otherwise valid answer.
-            # Human-facing prose is checked independently below.
+            # The artifact is authoritative and supplies the accepted list.
+            # Keep the model's list separately so an invented citation cannot
+            # disappear behind host projection: the final human-facing answer
+            # must name every validated source and no unvalidated one.
             supplied_sources = expected_sources
             self.submission["context_source_projection"] = {
                 "expected": expected_sources,
@@ -2600,6 +2721,22 @@ class _Run(_RunBase):
                             if value not in expected_sources],
                 "host_projected": bool(
                     expected_sources != agent_supplied_sources),
+            }
+            expected_relationships = sorted({
+                str(outcome.get("relationship_to_primary"))
+                for outcome in self.context_execution.values()
+                if outcome.get("relationship_to_primary")
+            })
+            supplied_relationships = [str(value) for value in
+                                      (arguments.get(
+                                          "cited_context_relationships") or [])[:8]]
+            self.submission["context_relationship_projection"] = {
+                "expected": expected_relationships,
+                "supplied": supplied_relationships,
+                "matched": [value for value in supplied_relationships
+                            if value in expected_relationships],
+                "invalid": [value for value in supplied_relationships
+                            if value not in expected_relationships],
             }
             reasoning_text = str(arguments.get("reasoning") or "").lower()
             authority_problems: list[str] = []
@@ -2663,13 +2800,26 @@ class _Run(_RunBase):
                     token in reasoning_text for token in (
                         "cannot automate", "cannot authorize",
                         "does not authorize", "no automation authority"))))
+            request_status_made_causal = bool(re.search(
+                r"(?:\bautomation(?:_eligible)?\s+(?:is|was)\s+false\b|"
+                r"\bautomation\s+(?:is|was)\s+(?:ineligible|not\s+eligible|"
+                r"disabled)\b)[^.;]{0,80}\b(?:because|since|due\s+to)\b"
+                r"[^.;]{0,60}\bnot\s+requested\b|"
+                r"\b(?:because|since|due\s+to)\b[^.;]{0,60}"
+                r"\bautomation\s+(?:was|is)\s+not\s+requested\b[^.;]{0,80}"
+                r"\bautomation(?:_eligible)?\b|"
+                r"\breason\s*[:=]\s*not[_\s-]*requested\b",
+                reasoning_text,
+            ))
             if engine_automation == {False} and not context_authority_stated:
                 authority_problems.append(
                     "context_authority_omitted: state that context evidence "
                     "alone cannot authorize automation; 'not requested' is "
                     "not equivalent")
-            if (engine_automation == {False} and "not requested" in reasoning_text
-                    and not context_authority_stated):
+            if (engine_automation == {False} and (
+                    request_status_made_causal or (
+                        "not requested" in reasoning_text
+                        and not context_authority_stated))):
                 authority_problems.append(
                     "context_authority_misattributed: automation is ineligible "
                     "because context evidence lacks authority, not because "
@@ -2708,7 +2858,17 @@ class _Run(_RunBase):
                     "consequence_summary exactly and communicate its "
                     "conditional q50 endpoints without calling them primary")
             sources = self.submission["context_source_projection"]
+            if sources["agent_invalid"]:
+                authority_problems.append(
+                    "context_source_invalid: remove these unvalidated "
+                    "references from both cited_context_sources and the "
+                    "reasoning: " + ", ".join(sources["agent_invalid"]) +
+                    ". The complete accepted source list is: " +
+                    (", ".join(sources["expected"]) or "(none)"))
             if sources["invalid"] or (
+                    sources["agent_supplied"] and
+                    set(sources["agent_matched"]) !=
+                    set(sources["expected"])) or (
                     sources["expected"] and
                     set(sources["matched"]) != set(sources["expected"])):
                 authority_problems.append(
@@ -2724,6 +2884,25 @@ class _Run(_RunBase):
                     "context_source_not_human_visible: name these validated "
                     "context sources in the reasoning: "
                     + ", ".join(prose_missing_sources))
+            relationships = self.submission[
+                "context_relationship_projection"]
+            if relationships["invalid"] or (
+                    set(relationships["matched"]) !=
+                    set(relationships["expected"])):
+                authority_problems.append(
+                    "context_relationship_invalid: copy every exact "
+                    "relationship_to_primary type and no others: "
+                    + (", ".join(relationships["expected"]) or "(none)"))
+            prose_missing_relationships = [
+                relationship for relationship in relationships["expected"]
+                if relationship.casefold() not in reasoning_text
+            ]
+            if prose_missing_relationships:
+                authority_problems.append(
+                    "context_relationship_not_human_visible: name these "
+                    "exact relationship_to_primary types in the reasoning "
+                    "and explain their practical meaning: "
+                    + ", ".join(prose_missing_relationships))
             if authority_problems:
                 self.submission = None
                 return {"accepted": False, "authored_by": "harness",
@@ -2737,10 +2916,8 @@ class _Run(_RunBase):
 
     def _project_receipt_choices(self) -> dict[str, dict[str, Any]]:
         """Project immutable engine answers into explicit task vocabulary."""
-        from gnomon.temporal_vocabulary import project_temporal_choice
-
         question_keys = list((self.row.get("mcq") or {}).keys())
-        aligned: dict[str, dict[str, Any]] = {}
+        receipts: list[dict[str, Any]] = []
         for artifact_path in sorted(self.artifact_paths):
             receipt_path = Path(artifact_path) / "temporal_answers.json"
             if not receipt_path.is_file():
@@ -2749,56 +2926,14 @@ class _Run(_RunBase):
                 receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError):
                 continue
-            for answer in receipt.get("answers") or []:
-                raw_id = str((answer.get("question") or {}).get("id") or "")
-                base_id = raw_id.split(":", 1)[0]
-                key = base_id if base_id in question_keys else None
-                if key is None and base_id.startswith("q") and base_id[1:].isdigit():
-                    index = int(base_id[1:]) - 1
-                    if 0 <= index < len(question_keys):
-                        key = question_keys[index]
-                if key is not None:
-                    aligned[key] = answer
-        projected: dict[str, dict[str, str]] = {}
-        for key, answer in aligned.items():
-            best = answer.get("best_estimate") or {}
-            # Supported automation-eligible answers bind the published
-            # software answer. Weak estimates are advisory evidence for a
-            # separately labelled model synthesis. A genuine abstention has
-            # no projectable canonical value.
-            options = ((self.row.get("mcq") or {}).get(key) or {}).get(
-                "options") or []
-            choice = project_temporal_choice(best.get("value"), options)
-            if choice is not None:
-                reasoning = (answer.get("answer") or {}).get("reasoning") or {}
-                adjudication = reasoning.get("adjudication") or {}
-                synthesis = adjudication.get("synthesis_eligibility") or {}
-                alternative = adjudication.get("alternative") or {}
-                alternative_choice = project_temporal_choice(
-                    alternative.get("value"), options)
-                computed_alternative = (
-                    alternative_choice.get("display_value")
-                    if alternative_choice else None)
-                projected[key] = {
-                    **choice,
-                    "canonical_value": best.get("value"),
-                    "support": str(best.get("support") or "unknown"),
-                    "automation_eligible": bool(
-                        best.get("automation_eligible") is True),
-                    "primary_forecast_unchanged": bool(
-                        reasoning.get("primary_forecast_unchanged") is True),
-                    "authority": ("binding" if
-                                  best.get("support") == "supported"
-                                  and best.get("automation_eligible") is True
-                                  else "advisory"),
-                    "has_computed_opposition": bool(
-                        synthesis.get("eligible") is True
-                        and computed_alternative is not None),
-                    "computed_alternative": computed_alternative,
-                    "adjudication_relationship": adjudication.get(
-                        "relationship", "unresolved"),
-                }
-        return projected
+            receipts.append(receipt)
+        slots = [
+            (key, [str(option) for option in
+                   (((self.row.get("mcq") or {}).get(key) or {}).get(
+                       "options") or [])])
+            for key in question_keys
+        ]
+        return _project_temporal_answer_choices(receipts, slots)
 
     # -- result ------------------------------------------------------------
     def _resolve_submission(self) -> dict[str, Any]:
@@ -2838,6 +2973,10 @@ class _Run(_RunBase):
                 self.submission["context_source_projection"]}
                if self.submission.get(
                    "context_source_projection") is not None else {}),
+            **({"context_relationship_projection":
+                self.submission["context_relationship_projection"]}
+               if self.submission.get(
+                   "context_relationship_projection") is not None else {}),
             "canonical_mcq": self.submission.get("canonical_mcq", {}),
             "synthesized_mcq": self.submission.get("synthesized_mcq", {}),
             "choice_authority": self.submission.get("choice_authority", {}),
@@ -2871,6 +3010,11 @@ class _McqRun(_RunBase):
         self.expected_fields = list(row.get("labels") or {})
         self.expected_count = len(row.get("pack") or [])
         self.is_pack = row.get("tier") == "T3"
+        self.pack_options = [
+            ([str(option) for option in item.get("options") or []]
+             if isinstance(item, dict) else [])
+            for item in row.get("pack") or []]
+        self.choice_slots = _row_choice_slots(row)
         self.rejections = 0
         super().__init__(row, client, session_factory=session_factory,
                          work_dir=work_dir, profile=profile,
@@ -2900,6 +3044,27 @@ class _McqRun(_RunBase):
     def _submit_tool(self) -> dict[str, Any]:
         return self.tool
 
+    def drive(self) -> dict[str, Any]:
+        """Do not browse an engine that accepted no executable question."""
+        compilation = self.temporal_compilation or {}
+        if compilation.get("attempted") and not compilation.get("questions"):
+            self.session.initialize()
+            messages = [
+                {"role": "system", "content": self._system()},
+                {"role": "user", "content": self.row["prompt"]},
+                {"role": "user", "content": (
+                    "Gnomon's typed-intent boundary accepted no executable "
+                    "question from this task. Do not call a product tool or "
+                    "treat a simpler temporal property as equivalent. Answer "
+                    "from the original task data when justified; otherwise "
+                    "use the task's uncertainty option. Submit once.")},
+            ]
+            self.trace.append({"typed_question_refusal": True})
+            return self._last_call(
+                messages, self._submit_tool(),
+                "no semantically faithful typed question; synthesis only")
+        return super().drive()
+
     def _system(self) -> str:
         if self.csv_path is not None:
             data_rule = (
@@ -2927,6 +3092,32 @@ class _McqRun(_RunBase):
                      + json.dumps(compact_context_compilation_for_prompt(
                          self.context_compilation), separators=(",", ":"))
                      + "\n")
+        temporal = self.temporal_compilation or {}
+        if temporal.get("attempted"):
+            rejected = []
+            for item in temporal.get("rejected") or []:
+                details = item.get("details") or {}
+                semantic = details.get("unsupported_semantics") or []
+                rejected.append({
+                    "index": item.get("index"),
+                    "reasons": [reason for row in semantic
+                                for reason in row.get("reasons") or []],
+                    "message": item.get("message"),
+                })
+            text += (
+                "\nThe host's typed-question receipt is advisory about "
+                "executable coverage, not an answer. Accepted question IDs: "
+                + json.dumps([str(item.get("id")) for item in
+                              temporal.get("questions") or []])
+                + ". Rejected source questions: "
+                + json.dumps(rejected[:8], separators=(",", ":"))
+                + ". Never substitute an accepted sibling for a rejected "
+                "question.\n")
+            text += (
+                "A supported, automation-eligible Gnomon answer that maps "
+                "uniquely into the task's public option vocabulary is the "
+                "binding software answer. Weaker or unprojectable answers "
+                "remain advisory and do not replace your synthesis.\n")
         return text
 
     def _abstain_outcome(self, reason: str) -> dict[str, Any]:
@@ -2948,15 +3139,67 @@ class _McqRun(_RunBase):
             return {"accepted": False, "authored_by": "harness",
                     "problems": problems}
         if self.is_pack:
-            resolved: Any = {"answers": [str(item) for item in answers]
-                             if isinstance(answers, list) else []}
+            normalized = []
+            for index, item in enumerate(
+                    answers if isinstance(answers, list) else []):
+                value = str(item)
+                options = (self.pack_options[index]
+                           if index < len(self.pack_options) else [])
+                normalized.append(next((option for option in options
+                                        if option.casefold() == value.casefold()),
+                                       value))
+            resolved: Any = {"answers": normalized}
         else:
             resolved = {str(key): str(value)
                         for key, value in (answers or {}).items()} \
                 if isinstance(answers, dict) else {}
+        synthesized_by_slot = (
+            {f"q{index + 1}": value
+             for index, value in enumerate(resolved.get("answers") or [])}
+            if self.is_pack else dict(resolved))
+        projected = _project_temporal_answer_choices(
+            self.descriptive_answer_receipts, self.choice_slots)
+        canonical_by_slot = {
+            key: value["display_value"] for key, value in projected.items()}
+        for index, (slot, _options) in enumerate(self.choice_slots):
+            choice = projected.get(slot)
+            if not choice or choice["authority"] != "binding":
+                continue
+            if self.is_pack:
+                if index < len(resolved["answers"]):
+                    resolved["answers"][index] = choice["display_value"]
+            else:
+                resolved[slot] = choice["display_value"]
+        if projected:
+            self.trace.append({
+                "tool": "host_choice_projection",
+                "host_submission": "support_tiered_temporal_answer",
+                "projected": projected,
+            })
         self.submission = {"answer": resolved,
                            "reasoning": arguments.get("reasoning"),
-                           "problems": problems}
+                           "problems": problems,
+                           "canonical_choices": canonical_by_slot,
+                           "synthesized_choices": synthesized_by_slot,
+                           "choice_authority": {
+                               key: ("binding" if value["authority"] ==
+                                     "binding" else "advisory_synthesis")
+                               for key, value in projected.items()},
+                           "temporal_choice_contracts": {
+                               key: {
+                                   "canonical_value": value.get(
+                                       "canonical_value"),
+                                   "display_value": value.get(
+                                       "display_value"),
+                                   "support": value.get("support"),
+                                   "automation_eligible": value.get(
+                                       "automation_eligible"),
+                                   "primary_forecast_unchanged": value.get(
+                                       "primary_forecast_unchanged"),
+                                   "authority": value.get("authority"),
+                               }
+                               for key, value in projected.items()},
+                           }
         return {"accepted": True,
                 **({"noted": problems} if problems else {})}
 
@@ -2969,7 +3212,16 @@ class _McqRun(_RunBase):
                 return [f"answers must hold exactly {self.expected_count} "
                         f"entries, one per question of the pack, in the "
                         f"task's order; got {len(answers)}"]
-            return []
+            invalid = []
+            for index, answer in enumerate(answers):
+                options = (self.pack_options[index]
+                           if index < len(self.pack_options) else [])
+                if options and not any(str(answer).casefold() == option.casefold()
+                                       for option in options):
+                    invalid.append(
+                        f"answers[{index}] must be exactly one of "
+                        f"{options}; got {answer!r}")
+            return invalid
         if not isinstance(answers, dict):
             return ["answers must be an object with one entry per answer "
                     "field the task asks for: "
@@ -2990,6 +3242,14 @@ class _McqRun(_RunBase):
                if self.submission["problems"] else {}),
             **({"last_call": self.submission["last_call"]}
                if self.submission.get("last_call") else {}),
+            "canonical_choices": self.submission.get(
+                "canonical_choices", {}),
+            "synthesized_choices": self.submission.get(
+                "synthesized_choices", {}),
+            "choice_authority": self.submission.get(
+                "choice_authority", {}),
+            "temporal_choice_contracts": self.submission.get(
+                "temporal_choice_contracts", {}),
             "mcp": self._mcp_info(),
         }
 

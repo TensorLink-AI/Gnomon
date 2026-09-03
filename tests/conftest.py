@@ -9,6 +9,25 @@ def _explicit_full_profile_for_legacy_surface_tests(monkeypatch, tmp_path):
     # into a developer's real project cache or leave `.gnomon/` in the clone.
     monkeypatch.setenv("GNOMON_CONTEXT_STORE", str(tmp_path / "context-store"))
     monkeypatch.setenv("GNOMON_CONTEXT_NAMESPACE", "pytest")
+    # Store-backed tools must never read or write a developer's persistent
+    # default merely because a test omits ``store_path``.  The module-level
+    # default is resolved at import time, so patch both the environment for
+    # late imports and the loaded constant for order-independent isolation.
+    temporal_path = tmp_path / "temporal-store.db"
+    monkeypatch.setenv("GNOMON_TEMPORAL_STORE_PATH", str(temporal_path))
+    from gnomon import temporal_store
+    monkeypatch.setattr(
+        temporal_store, "DEFAULT_STORE_PATH", temporal_path)
+    # Optional model sandboxes are developer-local state.  Discovering a
+    # previously installed TSFM here changes candidate selection, artifact
+    # goldens, and tests whose contract explicitly starts without optional
+    # models.  Keep ordinary tests hermetic; sandbox-specific tests override
+    # this module attribute themselves.
+    sandbox_root = tmp_path / "tsfm-sandboxes"
+    monkeypatch.setenv("GNOMON_TSFM_SANDBOX_ROOT", str(sandbox_root))
+    from gnomon import tsfm_sandbox
+    monkeypatch.setattr(
+        tsfm_sandbox, "SANDBOX_ROOT", sandbox_root)
 
 
 def pytest_addoption(parser):

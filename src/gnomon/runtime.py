@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import statistics
 from dataclasses import asdict, is_dataclass
 from datetime import datetime
 from pathlib import Path
@@ -483,15 +484,17 @@ def _series_result(
         and minimum_support == "best_effort" and not strict_abstention)
     needs_fallback = support == "unsupported" and not rows
     # Preserve the existing unsupported-horizon split for every shape. The
-    # newly supported degraded-primary split is intentionally limited to a
-    # material, context-free, single-series threshold boundary: fragmenting a
-    # routine wide response exceeds the agent budget, while dropping context
-    # on a re-evaluated prefix would change the caller's question.
+    # A degraded flat path can also conceal a genuinely different forecast at
+    # the shorter horizon the history can evaluate. For an ordinary forecast,
+    # split only when that independently evaluated prefix changes the point
+    # path; replacing uncertainty around the same flat path adds no forecast
+    # information and can make a stable series less calibrated. Context-bearing
+    # runs remain excluded because re-evaluating without their enrichments
+    # would change the caller's question.
     meaningful_degraded_tail = bool(
         flat_degraded_primary
         and len(loaded.groups) == 1
         and not context_events and not covariates
-        and threshold is not None
         and reachable is not None and reachable < 0.75 * horizon)
     should_split = needs_fallback or meaningful_degraded_tail
     if can_split and should_split:
@@ -506,6 +509,24 @@ def _series_result(
             seasonal_period=seasonal_period,
             target_coverage=target_coverage,
         )
+        if split is not None and threshold is None:
+            _, candidate_rows, _ = split
+            comparison_rows = rows[:len(candidate_rows)]
+            scale = max(
+                statistics.median(abs(float(value)) for value in state.values),
+                1.0,
+            )
+            point_path_differs = (
+                len(candidate_rows) == len(comparison_rows)
+                and any(abs(
+                    float(candidate.get("q50", candidate["point"]))
+                    - float(original.get("q50", original["point"])))
+                    > scale * 1e-9
+                    for candidate, original in zip(
+                        candidate_rows, comparison_rows))
+            )
+            if not point_path_differs:
+                split = None
     if ((needs_fallback or split is not None)
             and state.values and minimum_support == "best_effort"
             and not strict_abstention):
@@ -791,17 +812,22 @@ def _series_result(
     if rows and state.primary_points and context_changed_output:
         from .evaluation import (
             conformal_quantile_spreads, conformal_spreads,
-            interval_from_spread, quantiles_from_spread,
+            intermittent_predictive_quantiles, interval_from_spread,
+            quantile_key, quantiles_from_spread,
         )
 
         primary_spreads = conformal_spreads(
             state.primary_residuals_by_lead, len(state.primary_points),
             state.primary_residuals, target_coverage,
             recentre=not assessment.degraded,
+            finite_sample_expansion=(
+                not assessment.residuals_pooled_across_selection),
         )
         primary_levels = conformal_quantile_spreads(
             state.primary_residuals_by_lead, len(state.primary_points),
             state.primary_residuals, recentre=not assessment.degraded,
+            finite_sample_expansion=(
+                not assessment.residuals_pooled_across_selection),
         )
         # The primary lane is immutable evidence, not merely immutable
         # points. An admitted context candidate can earn a different support
@@ -815,6 +841,7 @@ def _series_result(
             known_time_assumed=loaded.snapshot.assumed_known_time,
         )
         primary_tier = achieved_tier(primary_assessment.status, True)
+        intermittent = intermittent_predictive_quantiles(state.values)
         for step, (timestamp, point) in enumerate(
                 zip(state.future_timestamps, state.primary_points), 1):
             if step not in primary_spreads:
@@ -832,6 +859,11 @@ def _series_result(
                     point, primary_levels[step]).items()
                 if key not in primary_row
             })
+            if intermittent is not None:
+                primary_row.update({quantile_key(level): value
+                                    for level, value in intermittent.items()})
+                primary_row["point_bias_correction"] = (
+                    float(primary_row["q50"]) - point)
             primary_forecast.append(primary_row)
     from .soft_context import context_outcome as project_context_outcome
     profile = temporal_profile(
@@ -1292,8 +1324,8 @@ def _default_worker_count(channels: int) -> int:
     if not getattr(sys, "_is_gil_enabled", lambda: True)():
         return cap
     try:
-        from .tsfm_sandbox import list_sandboxes
-        if list_sandboxes():
+        from .tsfm_sandbox import sandbox_available_tsfms
+        if sandbox_available_tsfms():
             return cap
     except Exception:
         pass
@@ -1634,7 +1666,9 @@ def capabilities() -> dict[str, object]:
     from .registry import registry_capabilities
     from .statsforecast_adapter import installation_status
     from .tsfm import available_tsfms, capability_matrix, installed_tsfms
-    from .tsfm_sandbox import list_sandboxes
+    from .tsfm_sandbox import (
+        list_sandboxes, orphaned_sandboxes, sandbox_available_tsfms,
+    )
     try:
         from .config import load_config
         _capabilities_config = load_config()
@@ -1742,9 +1776,15 @@ def capabilities() -> dict[str, object]:
             # reported [] after a successful `gnomon tsfm install`, because
             # it requires torch importable in the *main* process — which
             # the sandbox model exists to avoid.
-            "tsfm": sorted(set(installed_tsfms()) | set(list_sandboxes())),
+            "tsfm": sorted(
+                set(installed_tsfms()) | set(sandbox_available_tsfms())
+            ),
             "tsfm_available": available_tsfms(),
+            # The maintenance inventory is intentionally wider than `tsfm`:
+            # it retains unconfigured and retired caches so an operator can
+            # see and remove them without advertising them as executable.
             "tsfm_sandboxes": list_sandboxes(),
+            "tsfm_orphaned_sandboxes": orphaned_sandboxes(),
             "tsfm_capabilities": capability_matrix(),
             "tsfm_install_command": "gnomon tsfm install <name>",
             "tsfm_install_tool": "gnomon_install_tsfm",
@@ -1766,13 +1806,11 @@ def capabilities() -> dict[str, object]:
             # trust contract is that under-powered evidence is not acted on
             # as if it ranked anything.
             "selection_guardrail": (
-                "below 2 disjoint selection folds the selection margin "
-                "rises to 75%: a candidate is selectable only by cutting "
-                "the strongest baseline's single-fold error by more than "
-                "three-quarters (deterministic structure, not fold luck); "
-                "otherwise the baseline is published with a "
+                "below 2 disjoint selection folds the ordinary candidate "
+                "tournament is disabled; last-value is published with a "
                 "'selection_underpowered' reason and selection_fold_count "
-                "in sensitivity"
+                "in sensitivity unless a narrow prefix-only stability "
+                "screen establishes a persistent trend or stationary level"
             ),
             "point_recentring": (
                 "on degraded runs, quantiles are centred on the model's "
@@ -1787,6 +1825,15 @@ def capabilities() -> dict[str, object]:
                 "only after at least six non-overlapping seasonal probes, "
                 "at least 10% mean improvement, and wins in two of three "
                 "chronological blocks; incremental candidates remain locked"
+            ),
+            "degraded_structural_admission": (
+                "for at least 12 observations, a stable linear trend may "
+                "replace last-value; on a nonseasonal series, a stable "
+                "historical mean may do so only when "
+                "prefix-only one-step replay wins in both chronological "
+                "halves and slope/level diagnostics reject recent shifts "
+                "and reversals; proxy origins are not reported as extra "
+                "full-horizon folds and support remains degraded"
             ),
         },
         # Where this process writes. Agents used to guess output_dir (and

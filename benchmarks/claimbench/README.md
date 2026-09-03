@@ -13,6 +13,8 @@ GNOMON_TSFM_SANDBOX_ROOT=/tmp/gnomon-empty-tsfm-root \
   python -m benchmarks.claimbench.run --output-dir results/claimbench-run
 ```
 
-The runner appends one JSONL checkpoint per completed case and resumes without
-rerunning those cases. `summary.json` contains the aggregate gates.
-
+The runner appends one JSONL checkpoint per completed case. After an
+interruption, pass `--resume` to reuse completed cases; the stored run identity
+must still match the code revision and frozen corpus. `summary.json` contains
+the aggregate gates, and a failed gate exits with status 2 as completed
+negative evidence.

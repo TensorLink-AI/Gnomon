@@ -94,6 +94,31 @@ def test_release_validator_rejects_sensitive_fields(tmp_path: Path) -> None:
         validate(tmp_path)
 
 
+def test_release_validator_cannot_graduate_a_retired_benchmark(
+        tmp_path: Path) -> None:
+    payload = {
+        "release_metadata": {
+            "scope": "full", "evaluated_commit": "a",
+            "harness_commit": "b", "dataset_identity": "c",
+            "configuration_identity": "d",
+        },
+        "summary": {"graduated": True, "gates": {"accuracy": True}},
+    }
+    summary = tmp_path / "summary.json"
+    summary.write_text(json.dumps(payload), encoding="utf-8")
+    digest = hashlib.sha256(summary.read_bytes()).hexdigest()
+    (tmp_path / "manifest.json").write_text(json.dumps({
+        "schema_version": "1.1",
+        "benchmarks": [{
+            "benchmark": "reasoningbench", "arm": None,
+            "file": "summary.json", "scope": "full",
+            "status": "graduated", "sha256": digest,
+        }],
+    }), encoding="utf-8")
+    with pytest.raises(ValueError, match="retired benchmark"):
+        validate(tmp_path)
+
+
 def test_release_validator_accepts_and_checks_checkpoint_manifest(
         tmp_path: Path) -> None:
     checkpoint = tmp_path / "checkpoint.json"

@@ -11,6 +11,7 @@ from pathlib import Path
 import time
 from typing import Any
 
+from benchmarks.common.checkpoint import prepare_run_identity
 from benchmarks.common.envfile import load_env_file
 from benchmarks.common.manifest import code_revision
 from benchmarks.common.openrouter import OpenRouterClient, OpenRouterError
@@ -261,18 +262,13 @@ def main() -> int:
     receipt_dir.mkdir(exist_ok=True)
     work_dir.mkdir(exist_ok=True)
     identity = _identity(args)
-    identity_path = args.output_dir / "run_identity.json"
-    if identity_path.is_file():
-        if json.loads(identity_path.read_text(encoding="utf-8")) != identity:
-            raise SystemExit("resume identity mismatch; use a new output directory")
-        if not args.resume:
-            raise SystemExit("output exists; pass --resume or use a new directory")
-    else:
-        identity_path.write_text(
-            json.dumps(identity, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8")
     cases = _selected_cases()
     checkpoint = args.output_dir / "observations.jsonl"
+    prepare_run_identity(
+        args.output_dir, identity, resume=args.resume,
+        state_paths=[checkpoint, args.output_dir / "summary.json",
+                     args.output_dir / "attempts.jsonl"],
+    )
     completed: dict[str, dict[str, Any]] = {}
     if args.resume and checkpoint.is_file():
         for line in checkpoint.read_text(encoding="utf-8").splitlines():

@@ -439,16 +439,19 @@ def triage_wide_response(payload: dict[str, Any], top_k: int = 3) -> dict[str, A
     }
 
 
-def compact_support_details(payload: dict[str, Any]) -> dict[str, Any]:
+def compact_support_details(
+    payload: dict[str, Any], *, force: bool = False,
+) -> dict[str, Any]:
     """Keep claim-bearing support fields inline; sensitivity lives in artifact."""
     rows = payload.get("results")
-    if not isinstance(rows, list) or len(rows) <= 3:
+    if not isinstance(rows, list) or (len(rows) <= 1 and not force):
         return payload
     compacted = []
     # The per-result support contract remains frozen for existing consumers.
     # Sensitivity is diagnostic bulk; the complete block remains in artifact.
-    keep = {"status", "reasons", "recovery_actions", "assumptions",
-            "disclosures", "legacy_support", "measured_coverage"}
+    keep = {"status", "reasons", "grouped_reason_codes",
+            "recovery_actions", "assumptions", "disclosures",
+            "legacy_support", "measured_coverage"}
     for row in rows:
         if not isinstance(row, dict) or not isinstance(row.get("support_assessment"), dict):
             compacted.append(row)
@@ -1822,10 +1825,9 @@ def _context_events_from(arguments: dict[str, Any]):
                     semantic_text = source_document[left:right]
                 else:
                     semantic_text = span
-                from .future_context import literal_authority
-                predictive_source, binding_source = literal_authority(
-                    semantic_text)
-                if predictive_source and not binding_source:
+                from .future_context import literal_input_authority
+                source_authority = literal_input_authority(semantic_text)
+                if source_authority == "forecast":
                     arguments.setdefault("context_rejections", []).append({
                         "context_id": str(item.get("event_id") or
                                           f"context-event-{index}"),
@@ -1833,6 +1835,28 @@ def _context_events_from(arguments: dict[str, Any]):
                         "reason": (
                             "The quoted source predicts a value; it does not "
                             "state a binding constraint or observed outcome."),
+                        "source_span": span,
+                    })
+                    continue
+                if source_authority == "assumed":
+                    arguments.setdefault("context_rejections", []).append({
+                        "context_id": str(item.get("event_id") or
+                                          f"context-event-{index}"),
+                        "reason_code": "scenario_assumption_not_constraint",
+                        "reason": (
+                            "The quoted value is a scenario assumption; it "
+                            "does not state a binding constraint or schedule."),
+                        "source_span": span,
+                    })
+                    continue
+                if source_authority == "observed":
+                    arguments.setdefault("context_rejections", []).append({
+                        "context_id": str(item.get("event_id") or
+                                          f"context-event-{index}"),
+                        "reason_code": "observed_value_not_future_constraint",
+                        "reason": (
+                            "The quoted value is an observation; it does not "
+                            "state a binding future constraint or schedule."),
                         "source_span": span,
                     })
                     continue
@@ -2709,9 +2733,7 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                     temperature = float(temperature)
                     stability = sample_path_stability(
                         model_candidate_paths,
-                        [float(row.get("q50", row.get("point"))) for row in
-                         (result.get("primary_forecast") or
-                          result.get("forecast") or [])])
+                        governed_history)
                     dossier = attach_host_candidate_elicitation(
                         dossier, requested_paths=len(sample_paths),
                         accepted_paths=len(model_candidate_paths),
@@ -4842,7 +4864,31 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
                                "verb": _name.removeprefix("gnomon_")}
                 contracted = apply_response_contract(
                     enforce_response_budget(payload, budget))
-                return enforce_profile_tool_calls(contracted)
+                profiled = enforce_profile_tool_calls(contracted)
+                # The reasoning/profile envelopes are intentionally added
+                # after the bulk pass so they can never be discarded.  A
+                # response that was in budget before those envelopes may no
+                # longer be in budget afterward, though, so move diagnostic
+                # sensitivity to the complete artifact when that is enough.
+                # Do not run the array trimmer a second time: brief horizons
+                # of at most FORECAST_PREVIEW_SMALL_HORIZON deliberately keep
+                # every row so an agent can see support-tier transitions.
+                if isinstance(profiled, dict) and not profiled.get("truncated"):
+                    try:
+                        final_size = len(json.dumps(profiled, default=str))
+                    except (TypeError, ValueError):
+                        final_size = 0
+                    if final_size > budget:
+                        compacted = compact_support_details(
+                            profiled, force=True)
+                        try:
+                            compacted_size = len(json.dumps(
+                                compacted, default=str))
+                        except (TypeError, ValueError):
+                            compacted_size = final_size
+                        if compacted_size <= budget:
+                            profiled = compacted
+                return profiled
 
             return wrapped
     return None

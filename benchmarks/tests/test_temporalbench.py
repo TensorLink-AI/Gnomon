@@ -17,6 +17,9 @@ from benchmarks.temporalbench.gnomon_runner import (
     uncertain_mcq,
 )
 from benchmarks.temporalbench.scoring import (
+    choice_answer_map,
+    choice_reference,
+    score_choice_map,
     score_forecast,
     score_mcq,
     score_t1,
@@ -32,6 +35,24 @@ from benchmarks.temporalbench.run_temporalbench import (
     primary_forecast_immutability,
     resume_revision_provenance,
 )
+from benchmarks.temporalbench.tasks import extract_json_object, prompt_input_arrays
+
+
+def test_choice_maps_cover_t1_and_t3_without_changing_native_shapes():
+    t1 = {"tier": "T1", "labels": {"trend": "constant"}}
+    assert choice_reference(t1) == {"trend": "constant"}
+    assert choice_answer_map(t1, {"trend": "Constant"}) == {
+        "trend": "Constant"}
+    assert score_choice_map(t1, {"trend": "Constant"}) == {
+        "per_question": {"trend": True}, "correct": 1, "total": 1}
+
+    t3 = {"tier": "T3", "pack": [
+        {"label": "Rising"}, {"label": "No"}]}
+    assert choice_reference(t3) == {"q1": "Rising", "q2": "No"}
+    assert choice_answer_map(t3, {"answers": ["rising", "Yes"]}) == {
+        "q1": "rising", "q2": "Yes"}
+    assert score_choice_map(t3, {"q1": "rising"}) == {
+        "per_question": {"q1": True}, "correct": 1, "total": 1}
 
 
 def test_channel_coverage_buckets_presence_and_scorability_independently():
@@ -55,9 +76,6 @@ def test_resume_state_prefers_completed_summary(tmp_path):
     summary = {"llm_usage": {"requests": 7}, "run_status": "complete"}
     (tmp_path / "summary.json").write_text(json.dumps(summary))
     assert load_resume_state(tmp_path, resume=True) == summary
-from benchmarks.temporalbench.tasks import extract_json_object, prompt_input_arrays
-
-
 def test_scaled_error_denominator_flags_near_constant_history():
     assert stable_scaled_error_denominator([10.0, 10.0, 10.0]) is False
     assert stable_scaled_error_denominator([10.0, 10.5, 9.5, 11.0]) is True

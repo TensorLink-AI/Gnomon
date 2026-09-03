@@ -50,6 +50,7 @@ import json
 import math
 import multiprocessing as mp
 import os
+import shutil
 import sys
 import time
 import traceback
@@ -158,6 +159,57 @@ def _task_information_profile(task) -> dict:
     }
 
 
+def _candidate_interval_diagnostics(task, rows: list[dict],
+                                    nominal_coverage: float = .8) -> dict:
+    """Measure one candidate's retained intervals against sealed outcomes.
+
+    This is post-forecast benchmark telemetry.  It deliberately consumes the
+    task's future target only after publication and returns no value that can
+    flow back into model or scenario selection.
+    """
+    future = task.future_time
+    columns = list(future.columns)
+    if not columns:
+        raise ValueError("future target has no columns")
+    series = future[columns[-1]]
+    values = series.tolist() if hasattr(series, "tolist") else list(series)
+    if len(values) != len(rows) or not values:
+        raise ValueError("future target and forecast horizon differ")
+    alpha = 1.0 - nominal_coverage
+    if not 0.0 < alpha < 1.0:
+        raise ValueError("nominal coverage must be strictly between zero and one")
+    covered = 0
+    weighted_interval_scores = []
+    for truth_raw, row in zip(values, rows):
+        truth = float(truth_raw)
+        lower = float(row["q10"])
+        median = float(row["q50"])
+        upper = float(row["q90"])
+        if not all(math.isfinite(value) for value in
+                   (truth, lower, median, upper)):
+            raise ValueError("interval diagnostic contains non-finite values")
+        if not lower <= median <= upper:
+            raise ValueError("interval quantiles are crossed")
+        covered += int(lower <= truth <= upper)
+        interval_score = upper - lower
+        if truth < lower:
+            interval_score += (2.0 / alpha) * (lower - truth)
+        elif truth > upper:
+            interval_score += (2.0 / alpha) * (truth - upper)
+        # Proper WIS with the median and one central (1-alpha) interval.
+        weighted_interval_scores.append(
+            (.5 * abs(truth - median) + (alpha / 2.0) * interval_score)
+            / (.5 + alpha / 2.0))
+    return {
+        "nominal_coverage": nominal_coverage,
+        "empirical_coverage": covered / len(values),
+        "wis": sum(weighted_interval_scores) / len(weighted_interval_scores),
+        "interval_points": len(values),
+        "computed_after_forecast": True,
+        "passed_to_forecaster": False,
+    }
+
+
 def _counterfactual_candidate_scores(task, extra_info: dict,
                                      n_samples: int) -> list[dict]:
     """Score sealed publication candidates after forecasting, for diagnosis.
@@ -192,7 +244,7 @@ def _counterfactual_candidate_scores(task, extra_info: dict,
             score = float(score)
             if not math.isfinite(score):
                 raise ValueError("non-finite counterfactual score")
-            output.append({
+            record = {
                 "scenario_id": scenario_id,
                 "role": str(item.get("role") or "unknown"),
                 "selected": scenario_id == selected,
@@ -201,7 +253,14 @@ def _counterfactual_candidate_scores(task, extra_info: dict,
                 "scoring_representation": "deterministic_quantile_reconstruction",
                 "computed_after_forecast": True,
                 "passed_to_forecaster": False,
-            })
+            }
+            try:
+                record.update(_candidate_interval_diagnostics(
+                    task, item["forecast"]))
+            except Exception as error:
+                record["calibration_error"] = (
+                    f"{type(error).__name__}: {error}"[:300])
+            output.append(record)
         except Exception as error:
             output.append({
                 "scenario_id": scenario_id,
@@ -224,6 +283,8 @@ def _isolated_case_worker(conn, task_name: str, seed: int, args_dict: dict,
         from cik_benchmark.evaluation import evaluate_task
 
         classes = {task.__name__: task for task in ALL_TASKS}
+        args_dict = {**args_dict,
+                     "_sample_cache_case": f"{task_name}-seed{seed}"}
         method = build_method(SimpleNamespace(**args_dict))
         # Upstream task instances do not retain the seed. Each disposable
         # worker owns exactly one case, so bind the runner's authoritative
@@ -263,6 +324,44 @@ def _checkpoint_path(output_dir: Path) -> Path:
     return output_dir / "case-checkpoint.json"
 
 
+def _attempt_checkpoint_path(output_dir: Path) -> Path:
+    return output_dir / "case-attempts.json"
+
+
+def _load_attempt_checkpoint(output_dir: Path) -> dict[str, list[dict]]:
+    path = _attempt_checkpoint_path(output_dir)
+    if not path.exists():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise SystemExit(f"invalid CiK attempt checkpoint: {error}") from error
+    if not isinstance(payload, dict):
+        raise SystemExit("invalid CiK attempt checkpoint: expected an object")
+    for key, records in payload.items():
+        if not isinstance(key, str) or not isinstance(records, list):
+            raise SystemExit("invalid CiK attempt checkpoint entry")
+        if any(
+            not isinstance(record, dict)
+            or isinstance(record.get("active_seconds"), bool)
+            or not isinstance(record.get("active_seconds"), (int, float))
+            or not math.isfinite(float(record["active_seconds"]))
+            or float(record["active_seconds"]) < 0
+            for record in records
+        ):
+            raise SystemExit(f"invalid CiK attempt history for {key}")
+    return payload
+
+
+def _write_attempt_checkpoint(
+        output_dir: Path, attempts: dict[str, list[dict]]) -> None:
+    path = _attempt_checkpoint_path(output_dir)
+    temporary = path.with_suffix(".tmp")
+    temporary.write_text(
+        json.dumps(attempts, indent=2, default=str) + "\n", encoding="utf-8")
+    os.replace(temporary, path)
+
+
 def _load_checkpoint(output_dir: Path) -> dict[str, dict]:
     path = _checkpoint_path(output_dir)
     if not path.exists():
@@ -285,7 +384,8 @@ def _load_checkpoint(output_dir: Path) -> dict[str, dict]:
     return {
         key: item for key, item in payload.items()
         if not any(marker.casefold() in str(
-            (item.get("row") or {}).get("error") or "").casefold()
+            (item.get("row") or {}).get("error") or "").casefold().replace(
+                "http error ", "http ")
                    for marker in retryable)
     }
 
@@ -295,6 +395,70 @@ def _write_checkpoint(output_dir: Path, completed: dict[str, dict]) -> None:
     temporary = path.with_suffix(".tmp")
     temporary.write_text(json.dumps(completed, indent=2, default=str) + "\n",
                          encoding="utf-8")
+    os.replace(temporary, path)
+
+
+def _checkpoint_identity(args, selected, n_samples: int,
+                         revision: str) -> dict[str, object]:
+    """Describe every input that can change a resumed CiK case result."""
+    return {
+        "schema_version": 1,
+        "benchmark": "context-is-key",
+        "code_revision": revision,
+        "method": args.method,
+        "model": args.model,
+        "base_url": args.base_url,
+        "api_key_env": args.api_key_env,
+        "temperature": args.temperature,
+        "selected_tasks": [task.__name__ for task in selected],
+        "seed_start": args.seed_start,
+        "seeds": args.seeds,
+        "n_samples": n_samples,
+        "fail_on_invalid": args.fail_on_invalid,
+        "future_context": args.future_context,
+        "structural_context": args.structural_context,
+        "mcp_profile": args.mcp_profile,
+        "mcp_output_role": args.mcp_output_role,
+        "mcp_candidate_paths": args.mcp_candidate_paths,
+        "mcp_candidate_history_rows": args.mcp_candidate_history_rows,
+        "mcp_candidate_temporal_facts": args.mcp_candidate_temporal_facts,
+        "no_cache": args.no_cache,
+        "case_timeout_seconds": args.case_timeout_seconds,
+        "case_memory_mb": args.case_memory_mb,
+        "min_free_memory_mb": args.min_free_memory_mb,
+        "max_parallel": args.max_parallel,
+        "sample_parallelism": args.sample_parallelism,
+    }
+
+
+def _prepare_checkpoint_identity(output_dir: Path,
+                                 identity: dict[str, object],
+                                 *, fresh: bool) -> None:
+    """Fail closed instead of mixing checkpoints from different runs."""
+    path = output_dir / "run_identity.json"
+    checkpoint = _checkpoint_path(output_dir)
+    if fresh:
+        # Clear the only resumable state before adopting the new identity.
+        # Otherwise an interrupt between writing identity and the first case
+        # could make old rows look as if they belonged to the fresh run.
+        _write_checkpoint(output_dir, {})
+        _write_attempt_checkpoint(output_dir, {})
+        shutil.rmtree(output_dir / "sample-cache", ignore_errors=True)
+    if not fresh and path.is_file():
+        existing = json.loads(path.read_text(encoding="utf-8"))
+        if existing != identity:
+            raise SystemExit(
+                "resume identity mismatch; use a new output directory or "
+                "pass --no-resume")
+        return
+    if not fresh and checkpoint.is_file():
+        raise SystemExit(
+            "cannot resume CiK checkpoint without run_identity.json; use a "
+            "new output directory or pass --no-resume")
+    temporary = path.with_suffix(".tmp")
+    temporary.write_text(
+        json.dumps(identity, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8")
     os.replace(temporary, path)
 
 
@@ -312,6 +476,7 @@ def _run_isolated_cases(selected, args, n_samples: int,
             f"but --min-free-memory-mb={args.min_free_memory_mb}")
 
     completed = {} if args.no_resume else _load_checkpoint(output_dir)
+    attempt_history = _load_attempt_checkpoint(output_dir)
     args_dict = vars(args).copy()
     ctx = mp.get_context("spawn")
     seed_values = range(args.seed_start, args.seed_start + args.seeds)
@@ -338,39 +503,65 @@ def _run_isolated_cases(selected, args, n_samples: int,
             )
             process.start()
             child.close()
-            deadline = time.monotonic() + args.case_timeout_seconds
+            case_started = time.monotonic()
+            deadline = case_started + args.case_timeout_seconds
             forced_error = None
             peak_rss_mb = 0
-            while process.is_alive() and time.monotonic() < deadline:
-                process.join(0.25)
-                rss_mb = _process_tree_rss_mb(process.pid)
-                peak_rss_mb = max(peak_rss_mb, rss_mb)
-                if args.case_memory_mb > 0 and rss_mb > args.case_memory_mb:
-                    forced_error = (
-                        f"case_rss_limit_exceeded: {rss_mb} MiB > "
-                        f"{args.case_memory_mb} MiB")
-                    break
-                available = _available_memory_mb()
-                if (available is not None
-                        and available < args.min_free_memory_mb):
-                    forced_error = (
-                        f"system_memory_guard: only {available} MiB available")
-                    break
-            if process.is_alive():
-                process.terminate()
-                process.join(10)
+            try:
+                while process.is_alive() and time.monotonic() < deadline:
+                    process.join(0.25)
+                    rss_mb = _process_tree_rss_mb(process.pid)
+                    peak_rss_mb = max(peak_rss_mb, rss_mb)
+                    if args.case_memory_mb > 0 and rss_mb > args.case_memory_mb:
+                        forced_error = (
+                            f"case_rss_limit_exceeded: {rss_mb} MiB > "
+                            f"{args.case_memory_mb} MiB")
+                        break
+                    available = _available_memory_mb()
+                    if (available is not None
+                            and available < args.min_free_memory_mb):
+                        forced_error = (
+                            f"system_memory_guard: only {available} MiB available")
+                        break
                 if process.is_alive():
-                    process.kill()
-                    process.join()
-                payload = {"ok": False, "error": forced_error or (
-                    f"case_timeout_after_{args.case_timeout_seconds}s")}
-            elif parent.poll():
-                payload = parent.recv()
-            else:
-                payload = {"ok": False, "error": (
-                    f"case_process_exit_{process.exitcode}; possible memory "
-                    "limit or native-library failure")}
+                    process.terminate()
+                    process.join(10)
+                    if process.is_alive():
+                        process.kill()
+                        process.join()
+                    payload = {"ok": False, "error": forced_error or (
+                        f"case_timeout_after_{args.case_timeout_seconds}s")}
+                elif parent.poll():
+                    payload = parent.recv()
+                else:
+                    payload = {"ok": False, "error": (
+                        f"case_process_exit_{process.exitcode}; possible memory "
+                        "limit or native-library failure")}
+            except BaseException as error:
+                if process.is_alive():
+                    process.terminate()
+                    process.join(10)
+                    if process.is_alive():
+                        process.kill()
+                        process.join()
+                attempt_history.setdefault(key, []).append({
+                    "active_seconds": round(
+                        time.monotonic() - case_started, 6),
+                    "completed": False,
+                    "error": f"interrupted:{type(error).__name__}",
+                    "peak_rss_mb": peak_rss_mb,
+                })
+                _write_attempt_checkpoint(output_dir, attempt_history)
+                parent.close()
+                raise
             parent.close()
+            attempt_history.setdefault(key, []).append({
+                "active_seconds": round(time.monotonic() - case_started, 6),
+                "completed": bool(payload.get("ok")),
+                "error": None if payload.get("ok") else payload.get("error"),
+                "peak_rss_mb": peak_rss_mb,
+            })
+            _write_attempt_checkpoint(output_dir, attempt_history)
             if payload.get("ok"):
                 name = payload["name"]
                 row = payload["row"]
@@ -384,6 +575,10 @@ def _run_isolated_cases(selected, args, n_samples: int,
                     error_dir.mkdir(parents=True, exist_ok=True)
                     (error_dir / f"{task_cls.__name__}-seed{seed}.txt").write_text(
                         trace, encoding="utf-8")
+            row["cumulative_active_seconds"] = round(sum(
+                float(attempt["active_seconds"])
+                for attempt in attempt_history[key]
+            ), 6)
             completed[key] = {"name": name, "row": row}
             _write_checkpoint(output_dir, completed)
             print(f"[{ordinal}/{total}] finish {key}: "
@@ -450,6 +645,10 @@ def build_method(args):
         if not api_key:
             raise SystemExit(f"{key_env} is not set")
         return getattr(args, "base_url", "https://api.engy.ai/v1"), api_key
+    sample_cache_dir = Path(args.output_dir) / "sample-cache"
+    sample_cache_case = getattr(args, "_sample_cache_case", None)
+    if sample_cache_case:
+        sample_cache_dir /= str(sample_cache_case)
     if args.method == "control":
         if not args.model:
             raise SystemExit("--model is required for the control condition")
@@ -461,6 +660,8 @@ def build_method(args):
             temperature=args.temperature,
             fail_on_invalid=args.fail_on_invalid,
             base_url=base_url, api_key=api_key,
+            sample_parallelism=args.sample_parallelism,
+            sample_cache_dir=sample_cache_dir,
         )
     if args.method == "gnomon-mcp":
         if not args.model:
@@ -483,6 +684,8 @@ def build_method(args):
             candidate_history_budget=args.mcp_candidate_history_rows,
             candidate_temporal_facts_enabled=args.mcp_candidate_temporal_facts,
             base_url=base_url, api_key=api_key,
+            sample_parallelism=args.sample_parallelism,
+            sample_cache_dir=sample_cache_dir,
         )
     conditional_arm = args.method == "gnomon-conditional"
     if conditional_arm:
@@ -543,6 +746,10 @@ def run(args) -> int:
 
     selected = select_tasks(
         ALL_TASKS, task_names=args.task_name, task_filter=args.task_filter)
+    run_identity = _checkpoint_identity(
+        args, selected, n_samples, run_revision)
+    _prepare_checkpoint_identity(
+        output_dir, run_identity, fresh=args.no_resume)
     if args.task_name:
         print(f"Running {len(selected)} exact task(s): " +
               ", ".join(args.task_name), flush=True)
@@ -557,7 +764,8 @@ def run(args) -> int:
         print(f"Running all {len(selected)} CiK tasks safely", flush=True)
         results = _run_isolated_cases(selected, args, n_samples, output_dir)
 
-    write_outputs(results, method, args, output_dir)
+    write_outputs(results, method, args, output_dir,
+                  run_identity=run_identity)
     write_manifest(
         output_dir,
         benchmark="cik",
@@ -574,11 +782,13 @@ def run(args) -> int:
         code_revision=run_revision,
         base_url=args.base_url,
         api_key_env=args.api_key_env,
+        sample_parallelism=args.sample_parallelism,
     )
     return 0
 
 
-def write_outputs(results: dict, method, args, output_dir: Path) -> None:
+def write_outputs(results: dict, method, args, output_dir: Path,
+                  *, run_identity: dict[str, object] | None = None) -> None:
     scores_path = output_dir / "scores.csv"
     records_path = output_dir / "gnomonbench.jsonl"
     selection_records_path = output_dir / "selection-diagnostics.jsonl"
@@ -681,7 +891,8 @@ def write_outputs(results: dict, method, args, output_dir: Path) -> None:
                     degenerate_same_constant_runs += 1
                     if finite and float(score) == 0.0:
                         perfect_scores_on_degenerate_runs += 1
-                latency = extra_info.get("total_time")
+                latency = row.get(
+                    "cumulative_active_seconds", extra_info.get("total_time"))
                 jsonl.write(RunRecord(
                     task_id=f"{task_name}-seed{seed}",
                     success=finite,
@@ -735,6 +946,7 @@ def write_outputs(results: dict, method, args, output_dir: Path) -> None:
         ),
         "selection_diagnostics": _summarize_selection_diagnostics(
             selection_diagnostics),
+        "run_identity": run_identity,
         "note": (
             "mean_rcrps_capped_imputed follows the official aggregation "
             "rule (cap per-run RCRPS at 5.0, impute every abstained or "
@@ -869,6 +1081,13 @@ def build_parser() -> argparse.ArgumentParser:
              "Experimental: results/structural-effects/HYPOTHESIS.md",
     )
     parser.add_argument("--max-parallel", type=int, default=1)
+    parser.add_argument(
+        "--sample-parallelism", type=int, default=4, choices=range(1, 33),
+        metavar="1..32",
+        help="Maximum concurrent provider requests used only when a provider "
+             "ignores n-sample batching (default: 4). Set 1 for fully "
+             "serial crash-safe orchestration; recorded in checkpoints.",
+    )
     parser.add_argument(
         "--case-memory-mb", type=int, default=4096,
         help="Per-case process-tree resident-memory ceiling in MiB "

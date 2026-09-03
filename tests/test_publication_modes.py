@@ -1023,6 +1023,12 @@ def test_replay_admitted_observation_counterfactual_has_truthful_authority():
     assert authority["conditional_replay_admitted"] is True
     assert authority["historically_admitted"] is False
     assert authority["human_review_required"] is True
+    summary = payload["context_summary"]
+    assert summary["context_evidence_authority"] == \
+        "conditional_replay_evidence"
+    assert summary["authoritative_for_publication"] is False
+    assert summary["context_can_authorize_automation"] is False
+    assert payload["primary_forecast_unchanged"] is True
     assert payload["automation"]["eligible"] is False
     assert verify_publication(payload)
     assert payload["selection_contract"]["selection_required"] is False
@@ -1414,6 +1420,41 @@ def test_unstable_sampled_prior_stays_visible_without_displacing_primary():
                for item in publication["candidate_portfolio"])
 
 
+def test_unanchored_sampled_prior_stays_visible_without_displacing_primary():
+    dossier = _dossier()
+    dossier["forecast_candidate"]["elicitation"] = {
+        "kind": "sampled_point_paths", "requested_paths": 3,
+        "accepted_paths": 3,
+        "aggregation": "linear_empirical_marginal_q10_q50_q90",
+        "temperature": 1.0, "host_observed": True,
+        "historical_skill_evidence": False, "automation_eligible": False,
+        "stability": {
+            **_stable_sampling(3),
+            "scale_basis": "level_floor",
+        },
+    }
+    import hashlib, json
+    body = {key: value for key, value in dossier.items()
+            if key != "seal_sha256"}
+    dossier["seal_sha256"] = hashlib.sha256(json.dumps(
+        body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+    scenarios, _ = build_scenario_catalog(_result(), dossiers=[dossier])
+    sampled = next(item for item in scenarios
+                   if item["scenario_id"] == "prior-assisted-1")
+
+    assert sampled["human_selection_eligible"] is False
+    assert sampled["effect"]["elicitation_sufficiency"]["reason_codes"] == [
+        "unanchored_stability_scale"]
+    assert best_effort_prior_selection(
+        scenarios=scenarios, dossiers=[dossier]) is None
+    publication = publish_result(
+        _result(), mode="best_effort", dossiers=[dossier])
+    assert publication["recommended_scenario_id"] == "primary"
+    assert any(item["scenario_id"] == "prior-assisted-1"
+               for item in publication["candidate_portfolio"])
+
+
 def test_sampled_outliers_remain_diagnostics_not_published_tail_width():
     dossier = _dossier()
     for row in dossier["forecast_candidate"]["quantiles"]:
@@ -1445,33 +1486,95 @@ def test_sampled_outliers_remain_diagnostics_not_published_tail_width():
         "immutable_primary_offsets_around_sampled_median")
     selection = best_effort_prior_selection(
         scenarios=scenarios, dossiers=[dossier])
-    assert selection is not None
-    assert selection["selected_scenario_id"] == "prior-assisted-1"
-    assert selection["channel"] == "best_effort_sampled_prior_policy"
+    assert selection is None
     best = publish_result(result, mode="best_effort", dossiers=[dossier])
     strict = publish_result(result, mode="strict", dossiers=[dossier])
-    assert best["recommended_scenario_id"] == "prior-assisted-1"
+    assert best["recommended_scenario_id"] == "primary"
     assert best["automation"]["eligible"] is False
     assert best["primary_forecast_unchanged"] is True
     assert best["recommendation_authority"]["selection_method"] == (
-        "best_effort_sampled_prior_policy")
-    assert "host-aggregated prior distribution" in best[
-        "recommendation_authority"]["reason"]
-    assert "consensus" not in best["recommendation_authority"]["reason"]
+        "immutable_primary_default")
     assert best["recommendation_authority"][
         "independent_selection_performed"] is False
-    selected_disposition = next(item for item in best[
-        "context_dispositions"] if item.get("disposition") == "used")
-    assert selected_disposition["selection_reason_code"] == \
-        "selected_human_facing_scenario"
-    assert selected_disposition["reason_code"]
-    assert "did not alter the selected numeric forecast" not in \
-        selected_disposition["reason"]
-    assert "grounds the separately sealed scenario" in \
-        selected_disposition["reason"]
-    assert "does not upgrade support" in selected_disposition[
-        "selection_reason"]
+    retained = next(item for item in best["candidate_portfolio"]
+                    if item["scenario_id"] == "prior-assisted-1")
+    assert retained["effect"]["recommendation_stability"]["reason_code"] == \
+        "sampled_prior_has_no_historical_skill"
     assert strict["recommended_scenario_id"] == "primary"
+
+
+def test_unadmitted_governed_categorical_has_no_distinct_numeric_path():
+    import hashlib
+    import json
+
+    dossier = _dossier()
+    dossier["candidate_critique"].update({
+        "candidate_origin": "governed_categorical_state_mapping",
+        "selection_eligible": False,
+        "human_selection_eligible": False,
+    })
+    body = {key: value for key, value in dossier.items()
+            if key != "seal_sha256"}
+    dossier["seal_sha256"] = hashlib.sha256(json.dumps(
+        body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+    payload = publish_result(
+        _result(), mode="best_effort", dossiers=[dossier])
+    scenario = next(
+        item for item in payload["candidate_portfolio"]
+        if item["role"] == "governed_categorical_state_mapping")
+
+    assert scenario["human_selection_eligible"] is False
+    assert scenario["forecast"] == _result()["forecast"]
+    normalization = scenario["effect"]["uncertainty_normalization"]
+    assert normalization["basis"] == (
+        "immutable_primary_for_unadmitted_governed_candidate")
+    assert normalization["numeric_authority"] == (
+        "withheld_no_distinct_path")
+    assert normalization["source_candidate_preserved_in_sealed_dossier"] is True
+    assert normalization["primary_forecast_unchanged"] is True
+    assert scenario["effect"]["distribution"]["kind"] == (
+        "under_evidence_no_distinct_numeric_path")
+    assert scenario["effect"]["distribution"][
+        "probabilistic_consumers_should_use"] == "primary_forecast"
+    assert scenario["effect"]["distribution"]["numeric_authority"] == (
+        "withheld_no_distinct_path")
+    assert scenario["effect"]["primary_disagreement"][
+        "median_absolute_difference_scaled"] == 0
+    assert scenario["effect"]["source_candidate_disagreement"][
+        "max_absolute_difference_scaled"] > 0
+    assert payload["primary_forecast"] == _result()["forecast"]
+    assert payload["recommended_scenario_id"] == "primary"
+    assert payload["automation"]["eligible"] is False
+    assert verify_publication(payload)
+
+
+def test_admitted_governed_categorical_quantiles_remain_untouched():
+    import hashlib
+    import json
+
+    dossier = _dossier()
+    original = deepcopy(dossier["forecast_candidate"]["quantiles"])
+    dossier["candidate_critique"].update({
+        "candidate_origin": "governed_categorical_state_mapping",
+        "selection_eligible": False,
+        "human_selection_eligible": True,
+    })
+    body = {key: value for key, value in dossier.items()
+            if key != "seal_sha256"}
+    dossier["seal_sha256"] = hashlib.sha256(json.dumps(
+        body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+    payload = publish_result(
+        _result(), mode="best_effort", dossiers=[dossier])
+    scenario = next(
+        item for item in payload["candidate_portfolio"]
+        if item["role"] == "governed_categorical_state_mapping")
+
+    assert scenario["human_selection_eligible"] is True
+    assert scenario["forecast"] == original
+    assert scenario["effect"]["uncertainty_normalization"] is None
+    assert verify_publication(payload)
 
 
 def test_sampled_prior_cannot_displace_fully_supported_primary():
@@ -1505,7 +1608,7 @@ def test_sampled_prior_cannot_displace_fully_supported_primary():
     assert candidate["selection_eligible"] is False
     assert candidate["human_selection_eligible"] is False
     assert candidate["effect"]["recommendation_stability"] == {
-        "status": "withheld_for_supported_primary",
+        "status": "withheld_without_historical_skill",
         "reason_code": "sampled_prior_has_no_historical_skill",
         "primary_support": "supported",
         "host_observed": True,
@@ -1586,9 +1689,8 @@ def test_selected_prior_marks_only_its_cited_claims_used():
 
     by_claim = {item.get("claim_id"): item
                 for item in payload["context_dispositions"]}
-    assert by_claim["claim-1"]["disposition"] == "used"
-    assert by_claim["claim-1"]["selection_reason_code"] == (
-        "selected_human_facing_scenario")
+    assert by_claim["claim-1"]["disposition"] == "scenario"
+    assert by_claim["claim-1"].get("selection_reason_code") is None
     assert by_claim["claim-2"]["disposition"] == "scenario"
     assert by_claim["claim-2"].get("selection_reason_code") is None
 
@@ -1887,7 +1989,7 @@ def test_unknown_citations_and_tampering_fail_loudly():
     assert not verify_publication(damaged)
 
 
-def test_host_sampled_prior_policy_is_not_mislabeled_as_model_selection():
+def test_host_sampled_prior_without_skill_is_not_auto_selected():
     dossier = _dossier()
     dossier["forecast_candidate"]["elicitation"] = {
         "kind": "sampled_point_paths", "host_observed": True,
@@ -1908,19 +2010,14 @@ def test_host_sampled_prior_policy_is_not_mislabeled_as_model_selection():
     payload = publish_result(result, mode="scenario", dossiers=[dossier])
     selection = best_effort_prior_selection(
         scenarios=payload["candidate_portfolio"], dossiers=[dossier])
-    assert selection is not None
-
-    selected = select_publication(
-        payload, selection,
-        selection_channel="best_effort_sampled_prior_policy")
-
-    authority = selected["recommendation_authority"]
-    assert authority["selection_method"] == \
-        "best_effort_sampled_prior_policy"
-    assert authority["selection_pass_performed"] is False
-    assert authority["selector_independence"] == "not_applicable"
-    assert selected["scenario_selection"]["channel"] == \
-        "best_effort_sampled_prior_policy"
+    assert selection is None
+    selected = publish_result(result, mode="best_effort", dossiers=[dossier])
+    assert selected["recommended_scenario_id"] == "primary"
+    candidate = next(item for item in selected["candidate_portfolio"]
+                     if item["role"] == "model_authored")
+    assert candidate["human_selection_eligible"] is False
+    assert candidate["effect"]["recommendation_stability"]["status"] == \
+        "withheld_without_historical_skill"
     assert verify_publication(selected)
 
 
@@ -2462,12 +2559,23 @@ def test_mcp_context_transformation_rejection_is_typed_and_primary_is_intact(tmp
     assert verify_publication(publication)
 
 
-def test_mcp_model_candidate_is_grid_bound_sealed_and_human_only(tmp_path):
+def test_mcp_model_candidate_is_grid_bound_sealed_and_human_only(
+        tmp_path, monkeypatch):
     from datetime import date, timedelta
+    from gnomon import agent_context
     source = tmp_path / "series.csv"
     start = date(2026, 1, 1)
     source.write_text("timestamp,value\n" + "\n".join(
         f"{start + timedelta(days=i)},{100 + i}" for i in range(40)) + "\n")
+    observed_stability_histories = []
+    original_stability = agent_context.sample_path_stability
+
+    def record_stability_history(paths, history_values):
+        observed_stability_histories.append(list(history_values))
+        return original_stability(paths, history_values)
+
+    monkeypatch.setattr(
+        agent_context, "sample_path_stability", record_stability_history)
     context = "The signed sales plan expects a temporary campaign uplift."
     payload = runner_for("gnomon_forecast")({
         "input": str(source), "horizon": 2,
@@ -2497,6 +2605,9 @@ def test_mcp_model_candidate_is_grid_bound_sealed_and_human_only(tmp_path):
         "reason_code"] == "sampled_prior_has_no_historical_skill"
     assert publication["primary_forecast_unchanged"] is True
     assert publication["automation"]["eligible"] is False
+    assert observed_stability_histories
+    assert all(history == list(range(100, 140))
+               for history in observed_stability_histories)
     assert verify_publication(publication)
 
 
