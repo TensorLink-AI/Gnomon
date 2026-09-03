@@ -1,5 +1,6 @@
 import json
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -8,7 +9,8 @@ from benchmarks.cik.run_cik import (
     _candidate_interval_diagnostics, _checkpoint_identity,
     _counterfactual_candidate_scores,
     _load_attempt_checkpoint, _load_checkpoint, _prepare_checkpoint_identity,
-    _summarize_selection_diagnostics, _task_information_profile, build_parser,
+    _sample_cache_dir, _summarize_selection_diagnostics,
+    _task_information_profile, build_parser,
     _write_attempt_checkpoint, select_tasks, write_outputs,
 )
 
@@ -248,6 +250,37 @@ def test_cik_checkpoint_identity_covers_request_and_corpus_scope(tmp_path):
     changed = {**identity, "sample_parallelism": 2}
     with pytest.raises(SystemExit, match="resume identity mismatch"):
         _prepare_checkpoint_identity(tmp_path, changed, fresh=False)
+
+
+def test_shared_sample_cache_is_condition_scoped_and_recorded(tmp_path):
+    shared = tmp_path / "shared"
+    retained = shared / "control" / "Task-seed7" / "choice.json"
+    retained.parent.mkdir(parents=True)
+    retained.write_text("{}")
+    args = build_parser().parse_args([
+        "--method", "control", "--model", "test/model",
+        "--sample-cache-root", str(shared),
+        "--output-dir", str(tmp_path / "run"),
+    ])
+    args._sample_cache_case = "Task-seed7"
+
+    assert _sample_cache_dir(args) == (
+        shared.resolve() / "control" / "Task-seed7")
+    identity = _checkpoint_identity(args, [], 20, "abc")
+    assert identity["sample_cache_root"] == str(shared.resolve())
+    Path(args.output_dir).mkdir()
+    _prepare_checkpoint_identity(
+        Path(args.output_dir), identity, fresh=True)
+    assert retained.read_text() == "{}"
+
+    treatment = build_parser().parse_args([
+        "--method", "gnomon-mcp", "--model", "test/model",
+        "--sample-cache-root", str(shared),
+        "--output-dir", str(tmp_path / "other"),
+    ])
+    treatment._sample_cache_case = "Task-seed7"
+    assert _sample_cache_dir(treatment) == (
+        shared.resolve() / "gnomon-mcp" / "Task-seed7")
 
 
 def test_cik_checkpoint_refuses_legacy_state_without_identity(tmp_path):

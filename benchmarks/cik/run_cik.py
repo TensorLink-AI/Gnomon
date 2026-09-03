@@ -423,6 +423,9 @@ def _checkpoint_identity(args, selected, n_samples: int,
         "mcp_candidate_history_rows": args.mcp_candidate_history_rows,
         "mcp_candidate_temporal_facts": args.mcp_candidate_temporal_facts,
         "no_cache": args.no_cache,
+        "sample_cache_root": (
+            str(Path(args.sample_cache_root).resolve())
+            if args.sample_cache_root else None),
         "case_timeout_seconds": args.case_timeout_seconds,
         "case_memory_mb": args.case_memory_mb,
         "min_free_memory_mb": args.min_free_memory_mb,
@@ -644,6 +647,24 @@ def load_run_extra_info(runs_dir: Path, task_name: str, seed) -> dict:
     return parsed if isinstance(parsed, dict) else {}
 
 
+def _sample_cache_dir(args) -> Path:
+    """Return a condition-scoped cache directory for one CiK case.
+
+    The default remains local to the output artifact.  An explicit shared
+    root is namespaced by condition so exact, content-addressed requests can
+    be reused across revisions without mixing control and treatment files.
+    """
+    shared_root = getattr(args, "sample_cache_root", None)
+    if shared_root:
+        sample_cache_dir = Path(shared_root).resolve() / str(args.method)
+    else:
+        sample_cache_dir = Path(args.output_dir) / "sample-cache"
+    sample_cache_case = getattr(args, "_sample_cache_case", None)
+    if sample_cache_case:
+        sample_cache_dir /= str(sample_cache_case)
+    return sample_cache_dir
+
+
 def build_method(args):
     def provider():
         import os
@@ -656,10 +677,7 @@ def build_method(args):
         if not api_key:
             raise SystemExit(f"{key_env} is not set")
         return getattr(args, "base_url", "https://api.engy.ai/v1"), api_key
-    sample_cache_dir = Path(args.output_dir) / "sample-cache"
-    sample_cache_case = getattr(args, "_sample_cache_case", None)
-    if sample_cache_case:
-        sample_cache_dir /= str(sample_cache_case)
+    sample_cache_dir = _sample_cache_dir(args)
     if args.method == "control":
         if not args.model:
             raise SystemExit("--model is required for the control condition")
@@ -1157,6 +1175,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--no-cache", action="store_true",
                         help="Disable the official result cache")
+    parser.add_argument(
+        "--sample-cache-root",
+        help="Optional persistent cache root. Exact content-addressed API "
+             "samples are reused across output directories under a separate "
+             "namespace for each benchmark condition; scores and checkpoints "
+             "remain local to --output-dir.",
+    )
     parser.add_argument("--output-dir", required=True)
     return parser
 
