@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from benchmarks.recoverybench.run import _normalise_identity, _plan_checks, cases
-from benchmarks.recoverybench.run_agent import summarize
+from benchmarks.recoverybench.run_agent import _control_patch, _relay, summarize
 
 
 def test_frozen_recovery_cases_have_expected_denominators(tmp_path) -> None:
@@ -77,3 +77,34 @@ def test_agent_efficiency_requires_matched_preserved_recovery() -> None:
         "treatment_tokens": 40.0,
         "treatment_latency_seconds": 1.0,
     }
+
+
+def test_agent_efficiency_requests_use_configured_transport_retries() -> None:
+    class Client:
+        def __init__(self, response: str) -> None:
+            self.response = response
+            self.transport_retries = []
+
+        def completions(self, *args, **kwargs):
+            self.transport_retries.append(kwargs.get("transport_retries"))
+            return [self.response]
+
+    case = {"tool": "gnomon_forecast", "arguments": {"horizon": 1}}
+    response = {
+        "tier_floor": "best_effort", "headline": "Recovered forecast",
+        "recovery_actions": [], "reasoning": {},
+    }
+    planner = Client(
+        '{"tool":"gnomon_forecast","argument_patch":{"horizon":1}}')
+    assert _control_patch(planner, case, response, 10) == {"horizon": 1}
+    assert planner.transport_retries == [None]
+
+    relay = Client(
+        '{"headline":"Recovered forecast","tier_floor":"best_effort",'
+        '"forecast_rows":1,"automation_eligible":false}')
+    recovered = {
+        "headline": "Recovered forecast", "tier_floor": "best_effort",
+        "results": [{"forecast_rows": 1}], "automation_eligible": False,
+    }
+    assert _relay(relay, recovered, 10)["forecast_rows"] == 1
+    assert relay.transport_retries == [None]
