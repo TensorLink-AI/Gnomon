@@ -10,6 +10,8 @@ These tests verify:
 
 import pytest
 import sys
+from contextlib import contextmanager
+from types import ModuleType
 
 sys.path.insert(0, "src")
 
@@ -176,6 +178,66 @@ class TestProtocolCompliance:
             [1.0] * 32, 1, 1, quantiles=(.1, .5, .9))
         assert rows == [{"0.1": 0.0, "0.5": 4.0, "0.9": 8.0}]
 
+    @pytest.mark.parametrize("method", ["predict", "predict_quantiles"])
+    def test_moirai_receives_complete_observed_history(self, monkeypatch, method):
+        """An adapter must not create a second holdout inside a fold."""
+        import gnomon.tsfm as tsfm
+
+        history = [float(value) for value in range(12)]
+        received = []
+
+        class _Frame(dict):
+            def __init__(self, data, index=None):
+                super().__init__(data)
+
+        class _PandasDataset:
+            def __init__(self, data):
+                self.data = data
+
+        class _Values(list):
+            def tolist(self):
+                return list(self)
+
+        class _Forecast:
+            mean = _Values([20.0, 21.0, 22.0])
+
+            def quantile(self, quantile):
+                return _Values([20.0 + quantile] * 3)
+
+        class _Predictor:
+            def predict(self, dataset):
+                received.append(list(dataset.data["target"]))
+                return iter([_Forecast()])
+
+        class _Model:
+            @contextmanager
+            def hparams_context(self, prediction_length):
+                assert prediction_length == 3
+                yield self
+
+            def create_predictor(self, batch_size):
+                assert batch_size == 1
+                return _Predictor()
+
+        pandas = ModuleType("pandas")
+        pandas.date_range = lambda **kwargs: list(range(kwargs["periods"]))
+        pandas.DataFrame = _Frame
+        gluonts = ModuleType("gluonts")
+        dataset = ModuleType("gluonts.dataset")
+        pandas_dataset = ModuleType("gluonts.dataset.pandas")
+        pandas_dataset.PandasDataset = _PandasDataset
+        monkeypatch.setitem(sys.modules, "pandas", pandas)
+        monkeypatch.setitem(sys.modules, "gluonts", gluonts)
+        monkeypatch.setitem(sys.modules, "gluonts.dataset", dataset)
+        monkeypatch.setitem(sys.modules, "gluonts.dataset.pandas", pandas_dataset)
+        monkeypatch.setattr(tsfm, "_import_torch", lambda: object())
+
+        adapter = tsfm.Moirai2Adapter()
+        adapter._model = _Model()
+        getattr(adapter, method)(history, horizon=3, season=1)
+
+        assert received == [history]
+
 
 class TestCapabilities:
     """Capabilities reports TSFM info."""
@@ -255,6 +317,15 @@ class TestSandbox:
         from gnomon.tsfm_sandbox import SubprocessAdapter
         adapter = SubprocessAdapter("ttm")
         assert adapter.supports_quantiles is False
+
+    def test_moirai_worker_uses_v2_api_and_complete_history(self):
+        from gnomon.tsfm_sandbox import WORKER_SCRIPT
+
+        block = WORKER_SCRIPT.split("def run_moirai", 1)[1].split(
+            "def run_moment", 1)[0]
+        assert "from uni2ts.model.moirai2 import" in block
+        assert "gluonts.dataset.split" not in block
+        assert "predict(ds)" in block
 
     def test_toto_4m_sandbox_identity(self):
         from gnomon.tsfm_sandbox import SubprocessAdapter

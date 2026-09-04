@@ -647,8 +647,7 @@ WORKER_SCRIPT = textwrap.dedent("""\
         import torch
         import pandas as pd
         from gluonts.dataset.pandas import PandasDataset
-        from gluonts.dataset.split import split
-        from uni2ts.model.moirai import Moirai2Forecast, Moirai2Module
+        from uni2ts.model.moirai2 import Moirai2Forecast, Moirai2Module
 
         module = Moirai2Module.from_pretrained(
             "Salesforce/moirai-2.0-R-small",
@@ -667,13 +666,10 @@ WORKER_SCRIPT = textwrap.dedent("""\
         df = pd.DataFrame({"target": history}, index=idx)
         ds = PandasDataset(dict(df))
 
-        _, test_template = split(ds, offset=-horizon)
-        test_data = test_template.generate_instances(
-            prediction_length=horizon, windows=1, distance=horizon,
-        )
-
         predictor = model.create_predictor(batch_size=1)
-        forecasts = predictor.predict(test_data.input)
+        # The request history is already cut at the forecast origin. Pass it
+        # intact: another holdout split would discard recent observations.
+        forecasts = predictor.predict(ds)
         forecast = next(iter(forecasts))
         point = forecast.mean.tolist()
 

@@ -1134,7 +1134,7 @@ class Moirai2Adapter:
         torch = _import_torch()
         _try_import("uni2ts")
         try:
-            from uni2ts.model.moirai import Moirai2Forecast, Moirai2Module
+            from uni2ts.model.moirai2 import Moirai2Forecast, Moirai2Module
             module = Moirai2Module.from_pretrained(
                 self._MODEL_ID, revision=pinned_revision(self._MODEL_ID),
             )
@@ -1159,7 +1159,6 @@ class Moirai2Adapter:
         try:
             import pandas as pd
             from gluonts.dataset.pandas import PandasDataset
-            from gluonts.dataset.split import split
 
             # Build a minimal DataFrame
             idx = pd.date_range(
@@ -1168,19 +1167,14 @@ class Moirai2Adapter:
             df = pd.DataFrame({"target": history}, index=idx)
             ds = PandasDataset(dict(df))
 
-            train, test_template = split(ds, offset=-horizon)
-            test_data = test_template.generate_instances(
-                prediction_length=horizon,
-                windows=1,
-                distance=horizon,
-            )
-
-            # Update prediction length
-            self._model.prediction_length = horizon
-            predictor = self._model.create_predictor(batch_size=1)
-            forecasts = predictor.predict(test_data.input)
-
-            forecast = next(iter(forecasts))
+            # Moirai stores this setting in Lightning hyperparameters; a plain
+            # attribute assignment does not update the predictor or network.
+            with self._model.hparams_context(prediction_length=horizon):
+                predictor = self._model.create_predictor(batch_size=1)
+                # ``history`` already contains only observations available at
+                # the forecast origin. Splitting it at ``-horizon`` would
+                # silently discard the newest observed horizon before inference.
+                forecast = next(iter(predictor.predict(ds)))
             # Mean as point forecast
             return forecast.mean.tolist()
         except TSFMUnavailable:
@@ -1200,7 +1194,6 @@ class Moirai2Adapter:
         try:
             import pandas as pd
             from gluonts.dataset.pandas import PandasDataset
-            from gluonts.dataset.split import split
 
             idx = pd.date_range(
                 start="2000-01-01", periods=len(history), freq="h"
@@ -1208,18 +1201,9 @@ class Moirai2Adapter:
             df = pd.DataFrame({"target": history}, index=idx)
             ds = PandasDataset(dict(df))
 
-            train, test_template = split(ds, offset=-horizon)
-            test_data = test_template.generate_instances(
-                prediction_length=horizon,
-                windows=1,
-                distance=horizon,
-            )
-
-            self._model.prediction_length = horizon
-            predictor = self._model.create_predictor(batch_size=1)
-            forecasts = predictor.predict(test_data.input)
-
-            forecast = next(iter(forecasts))
+            with self._model.hparams_context(prediction_length=horizon):
+                predictor = self._model.create_predictor(batch_size=1)
+                forecast = next(iter(predictor.predict(ds)))
             results = []
             for step in range(horizon):
                 row = {}
