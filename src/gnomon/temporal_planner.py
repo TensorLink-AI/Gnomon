@@ -244,9 +244,10 @@ def build_evidence_plan(question: TemporalQuestion,
     # reason toward a conclusion instead of paraphrasing one — observations,
     # temporal properties, evidence for and against every interpretation
     # still compatible with the data, sufficiency, and what would
-    # distinguish the alternatives. A supported canonical stays binding;
-    # anywhere weaker the model selects and verify_packet_selection is the
-    # gate its conclusion must pass.
+    # distinguish the alternatives. A supported canonical stays binding only
+    # when the requested inference requirements are present; otherwise the
+    # model selects and verify_packet_selection is the gate its conclusion
+    # must pass.
     if discrimination is not None:
         # The measured held-out discrimination between competing surrogates
         # (gnomon.discrimination) — evidence the model reasons from, kept in

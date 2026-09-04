@@ -10,12 +10,13 @@ evidence sufficiency, and what would distinguish the alternatives — and the
 deterministic check Gnomon runs over the model's selection afterwards.
 
 The packet organises receipts that already exist; it computes no new numbers
-and cannot rewrite the canonical answer.  Where the canonical answer is
-``supported`` it stays binding; anywhere weaker, the packet names the model
-as the selector and :func:`verify_packet_selection` is the gate its
-conclusion must pass: the selected interpretation must be one the packet
-admits as compatible, and every cited evidence source must exist and support
-it.
+and cannot rewrite the canonical answer.  A ``supported`` canonical stays
+binding only when the evidence requirements for the requested inference are
+met; a supported observed measurement cannot become a binding forecast.
+Otherwise the packet names the model as selector and
+:func:`verify_packet_selection` is the gate its conclusion must pass: the
+selected interpretation must be one the packet admits as compatible, and
+every cited evidence source must exist and support it.
 """
 
 from __future__ import annotations
