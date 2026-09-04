@@ -237,3 +237,12 @@ inference); a tool-only agent on a narrow profile should ask the operator to
 run it. Once the sandbox exists there is nothing else to wire: the model competes in the
 next evaluated run and is selected only if it wins the backtest or
 grader.
+
+Model choice is explicit when an operator wants a bounded contest. Pass a
+one-item allowlist such as `{"candidates": ["chronos_bolt_mini"]}` to
+`gnomon_forecast` to skip every other optional statistical model and TSFM.
+Mandatory baselines remain as controls and may win, so agents must inspect
+`selected_model` rather than assume the requested TSFM published. The
+restriction is recorded as `candidate_pool_restricted` in the support
+assessment. MCP calls do not inherit ambient `gnomon.toml`; provide the
+allowlist in the tool call.

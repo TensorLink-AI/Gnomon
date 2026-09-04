@@ -58,10 +58,11 @@ FORECAST_TOOL = {
 }
 
 # The bounded schema retains only seven source-grounded fields per event.
-# Eight rows stay comfortably below the 5k completion ceiling across tested
-# providers while halving round trips for long operational schedules. The
-# value is part of run identity so resume can never mix chunking treatments.
-_CONTEXT_CHUNK_EVENTS = 8
+# With host-bound document identity and knowledge time removed from each event,
+# sixteen rows stay comfortably below the 5k completion ceiling across tested
+# providers. The value is part of run identity so resume can never mix
+# chunking treatments.
+_CONTEXT_CHUNK_EVENTS = 16
 _ISO_IN_LINE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})")
 
 

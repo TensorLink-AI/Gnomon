@@ -10,6 +10,8 @@ These tests verify:
 
 import pytest
 import sys
+from contextlib import contextmanager
+from types import ModuleType
 
 sys.path.insert(0, "src")
 
@@ -48,6 +50,73 @@ class TestRegistry:
         assert ChronosBoltAdapter("chronos_bolt_small").name == "chronos_bolt_small"
         with pytest.raises(TSFMUnavailable):
             ChronosBoltAdapter("chronos_bolt_typo")
+
+    def test_chronos_uses_pinned_public_inference_contract(self, monkeypatch):
+        """Chronos 2.3 accepts ``inputs`` and returns horizon-major quantiles."""
+        import gnomon.tsfm as tsfm
+
+        calls = []
+
+        class _Array:
+            def __init__(self, values, ndim=3):
+                self.values = values
+                self.ndim = ndim
+                if ndim == 3:
+                    self.shape = (1, len(values), len(values[0]))
+                else:
+                    self.shape = (len(values), len(values[0]))
+
+            def __getitem__(self, key):
+                if self.ndim == 3:
+                    assert key == 0
+                    return _Array(self.values, ndim=2)
+                if isinstance(key, tuple):
+                    row, column = key
+                    return self.values[row][column]
+                return _Values(self.values[key])
+
+        class _Values(list):
+            def tolist(self):
+                return list(self)
+
+        class _Tensor:
+            def __init__(self, values):
+                self.values = values
+
+            def numpy(self):
+                return _Array(self.values)
+
+        class _Pipeline:
+            def predict(self, *, inputs, prediction_length):
+                calls.append(("point", inputs, prediction_length))
+                # Raw output is [batch, quantile, horizon].
+                return _Tensor([[10.0, 11.0], [20.0, 21.0], [30.0, 31.0]])
+
+            def predict_quantiles(
+                self, *, inputs, prediction_length, quantile_levels,
+            ):
+                calls.append((
+                    "quantiles", inputs, prediction_length, quantile_levels))
+                # Public output is [batch, horizon, requested quantile].
+                return (_Tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
+                        object())
+
+        monkeypatch.setattr(tsfm, "_import_torch", lambda: type(
+            "Torch", (), {"float32": "float32", "tensor": staticmethod(
+                lambda values, dtype: list(values))})())
+        adapter = ChronosBoltAdapter("chronos_bolt_mini")
+        adapter._pipeline = _Pipeline()
+        history = [1.0, 2.0, 3.0]
+
+        assert adapter.predict(history, 2, 1) == [20.0, 21.0]
+        assert adapter.predict_quantiles(history, 2, 1) == [
+            {"0.1": 1.0, "0.5": 2.0, "0.9": 3.0},
+            {"0.1": 4.0, "0.5": 5.0, "0.9": 6.0},
+        ]
+        assert calls == [
+            ("point", history, 2),
+            ("quantiles", history, 2, [0.1, 0.5, 0.9]),
+        ]
 
     def test_unknown_adapter_raises(self):
         with pytest.raises(KeyError):
@@ -176,6 +245,66 @@ class TestProtocolCompliance:
             [1.0] * 32, 1, 1, quantiles=(.1, .5, .9))
         assert rows == [{"0.1": 0.0, "0.5": 4.0, "0.9": 8.0}]
 
+    @pytest.mark.parametrize("method", ["predict", "predict_quantiles"])
+    def test_moirai_receives_complete_observed_history(self, monkeypatch, method):
+        """An adapter must not create a second holdout inside a fold."""
+        import gnomon.tsfm as tsfm
+
+        history = [float(value) for value in range(12)]
+        received = []
+
+        class _Frame(dict):
+            def __init__(self, data, index=None):
+                super().__init__(data)
+
+        class _PandasDataset:
+            def __init__(self, data):
+                self.data = data
+
+        class _Values(list):
+            def tolist(self):
+                return list(self)
+
+        class _Forecast:
+            mean = _Values([20.0, 21.0, 22.0])
+
+            def quantile(self, quantile):
+                return _Values([20.0 + quantile] * 3)
+
+        class _Predictor:
+            def predict(self, dataset):
+                received.append(list(dataset.data["target"]))
+                return iter([_Forecast()])
+
+        class _Model:
+            @contextmanager
+            def hparams_context(self, prediction_length):
+                assert prediction_length == 3
+                yield self
+
+            def create_predictor(self, batch_size):
+                assert batch_size == 1
+                return _Predictor()
+
+        pandas = ModuleType("pandas")
+        pandas.date_range = lambda **kwargs: list(range(kwargs["periods"]))
+        pandas.DataFrame = _Frame
+        gluonts = ModuleType("gluonts")
+        dataset = ModuleType("gluonts.dataset")
+        pandas_dataset = ModuleType("gluonts.dataset.pandas")
+        pandas_dataset.PandasDataset = _PandasDataset
+        monkeypatch.setitem(sys.modules, "pandas", pandas)
+        monkeypatch.setitem(sys.modules, "gluonts", gluonts)
+        monkeypatch.setitem(sys.modules, "gluonts.dataset", dataset)
+        monkeypatch.setitem(sys.modules, "gluonts.dataset.pandas", pandas_dataset)
+        monkeypatch.setattr(tsfm, "_import_torch", lambda: object())
+
+        adapter = tsfm.Moirai2Adapter()
+        adapter._model = _Model()
+        getattr(adapter, method)(history, horizon=3, season=1)
+
+        assert received == [history]
+
 
 class TestCapabilities:
     """Capabilities reports TSFM info."""
@@ -255,6 +384,44 @@ class TestSandbox:
         from gnomon.tsfm_sandbox import SubprocessAdapter
         adapter = SubprocessAdapter("ttm")
         assert adapter.supports_quantiles is False
+
+    def test_moirai_worker_uses_v2_api_and_complete_history(self):
+        from gnomon.tsfm_sandbox import WORKER_SCRIPT
+
+        block = WORKER_SCRIPT.split("def run_moirai", 1)[1].split(
+            "def run_moment", 1)[0]
+        assert "from uni2ts.model.moirai2 import" in block
+        assert "gluonts.dataset.split" not in block
+        assert "predict(ds)" in block
+
+    def test_chronos_worker_uses_current_public_inference_contract(self):
+        from gnomon.tsfm_sandbox import WORKER_SCRIPT
+
+        block = WORKER_SCRIPT.split("def run_chronos", 1)[1].split(
+            "def run_toto", 1)[0]
+        assert "predict_quantiles(" in block
+        assert "inputs=context" in block
+        assert "context=context" not in block
+
+    @pytest.mark.parametrize("function_name", [
+        "run_chronos", "run_moirai",
+    ])
+    def test_persistent_worker_reuses_loaded_models(self, function_name):
+        from gnomon.tsfm_sandbox import WORKER_SCRIPT
+
+        function_names = [
+            "run_chronos", "run_toto", "run_flowstate", "run_ttm",
+            "run_moirai", "run_moment", "_moment_window",
+            "run_reconstruct", "run_embed",
+        ]
+        start = WORKER_SCRIPT.index(f"def {function_name}")
+        later = [WORKER_SCRIPT.find(f"def {name}", start + 1)
+                 for name in function_names]
+        end = min((position for position in later if position >= 0),
+                  default=len(WORKER_SCRIPT))
+        block = WORKER_SCRIPT[start:end]
+        assert "MODELS.get(" in block
+        assert "MODELS[" in block
 
     def test_toto_4m_sandbox_identity(self):
         from gnomon.tsfm_sandbox import SubprocessAdapter

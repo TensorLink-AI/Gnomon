@@ -2032,11 +2032,11 @@ class _Run(_RunBase):
                 parameters["properties"]["cited_context_gate_codes"] = {
                     "type": "array",
                     "description": (
-                        "Exact failed_gate_codes and reason_code values only "
-                        "from context_dispositions whose disposition is "
-                        "rejected or scenario. Do not cite successful "
-                        "reason_code values such as applied; use an empty "
-                        "array when no admission/rejection gate failed."),
+                        "Exact failed_gate_codes only from Gnomon's "
+                        "agent_response_contract. Publication disposition "
+                        "reason codes are a separate vocabulary and do not "
+                        "belong here. Use an empty array when no admission "
+                        "or rejection gate failed."),
                     "items": {"type": "string"},
                     "maxItems": 8,
                 }

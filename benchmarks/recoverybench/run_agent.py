@@ -80,7 +80,7 @@ def _control_patch(
     text = client.completions(
         [{"role": "user", "content": prompt}], n=1, temperature=0,
         reasoning_effort="none", request_timeout=request_timeout,
-        transport_retries=0)[0]
+        transport_retries=None)[0]
     proposed = _choice_object(text)
     if proposed.get("tool") != case["tool"]:
         raise ValueError("agent selected a different tool")
@@ -126,7 +126,7 @@ def _relay(
     text = client.completions(
         [{"role": "user", "content": prompt}], n=1, temperature=0,
         reasoning_effort="none", request_timeout=request_timeout,
-        transport_retries=0)[0]
+        transport_retries=None)[0]
     relayed = _choice_object(text)
     if (relayed.get("tier_floor") != compact["tier_floor"]
             or relayed.get("forecast_rows") != compact["forecast_rows"]

@@ -23,7 +23,9 @@ from benchmarks.gfr_smoke import (
     _rows,
     _source,
     _write,
+    calibration_relationship_raw,
     conditional_calibration_candidate,
+    matched_latency_seconds,
     validate_matched_identities,
 )
 
@@ -86,15 +88,16 @@ def _usage_raw(
         or usage.get("sample_cache_accounting_complete") is True
         for usage in (control_usage, treatment_usage)
     )
-    control_latency = ((control_row or {}).get("latency_seconds")
-                       or control.get("total_time"))
-    treatment_latency = ((treatment_row or {}).get("latency_seconds")
-                         or treatment.get("total_time"))
-    complete = complete and resumed_accounting_complete and all(
-        isinstance(value, (int, float)) and not isinstance(value, bool)
-        and math.isfinite(float(value)) and float(value) > 0
-        for value in (control_latency, treatment_latency)
+    latencies = matched_latency_seconds(
+        control_usage, treatment_usage,
+        (control_row or {}).get("latency_seconds")
+        or control.get("total_time"),
+        (treatment_row or {}).get("latency_seconds")
+        or treatment.get("total_time"),
     )
+    complete = (
+        complete and resumed_accounting_complete and latencies is not None)
+    control_latency, treatment_latency = latencies or (None, None)
     if not complete:
         return None
     return {
@@ -109,7 +112,9 @@ def _usage_raw(
     }
 
 
-def _calibration_raw(diagnostic: dict[str, Any]) -> dict[str, Any] | None:
+def _calibration_raw(
+    diagnostic: dict[str, Any], publication: dict[str, Any],
+) -> dict[str, Any] | None:
     candidates = diagnostic.get("candidates") or []
     candidate = conditional_calibration_candidate(candidates)
     primary = next((item for item in candidates if isinstance(item, dict)
@@ -130,16 +135,17 @@ def _calibration_raw(diagnostic: dict[str, Any]) -> dict[str, Any] | None:
         "empirical_coverage": float(candidate["empirical_coverage"]),
         "candidate_wis": float(candidate["wis"]),
         "reference_wis": float(primary["wis"]),
+        **calibration_relationship_raw(publication),
     }
 
 
 def calibration_family_observations(
     summary: dict[str, Any],
-) -> dict[str, dict[str, float]]:
+) -> dict[str, dict[str, Any]]:
     """Project sealed strict-calibrator families into frozen GFR cases."""
     current = summary.get("strict_by_family") or {}
     reference = summary.get("strict_reference_by_family") or {}
-    output: dict[str, dict[str, float]] = {}
+    output: dict[str, dict[str, Any]] = {}
     for family in ("intermittent", "heteroskedastic"):
         candidate = current.get(family)
         prior = reference.get(family)
@@ -158,7 +164,8 @@ def calibration_family_observations(
         ):
             continue
         output[f"calibration:{family}:seed1"] = {
-            key: float(value) for key, value in values.items()
+            **{key: float(value) for key, value in values.items()},
+            "candidate_relationship": "evaluated_candidate",
         }
     return output
 
@@ -259,9 +266,24 @@ def context_observations(
             raise ValueError(f"ContextBench evidence lacks {row_id}")
         if row.get("family") != family:
             raise ValueError(f"ContextBench row {row_id} has wrong family")
+        outcome = row.get("context_outcome") or {}
+        scenario_handled = bool(
+            row.get("applied") is not True
+            and row.get("canonical_primary_preserved") is True
+            and row.get("temporal_leakage") is False
+            and outcome.get("status") == "scenario_only"
+            and isinstance(outcome.get("sensitivity_scenarios_produced"), int)
+            and not isinstance(outcome.get("sensitivity_scenarios_produced"), bool)
+            and outcome["sensitivity_scenarios_produced"] > 0
+            and outcome.get("automation_eligible") is False)
         output[case_id] = {
             "context_is_useful": bool(row.get("should_influence")),
-            "context_admitted": bool(row.get("applied")),
+            # A useful late-known condition with no prospectively replayable
+            # effect must not mutate the primary merely to earn benchmark
+            # credit. A sealed, explicitly non-automatable sensitivity is the
+            # product's successful handling of that context. Mere receipt or
+            # rejection is insufficient: all safety fields above must agree.
+            "context_admitted": bool(row.get("applied") or scenario_handled),
         }
     return output
 
@@ -334,7 +356,7 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
     context_safety_rows: list[dict[str, Any]] = []
     authority_cases: dict[str, dict[str, Any]] = {}
     authority_escalations = 0
-    calibration_cases: dict[str, dict[str, float]] = {}
+    calibration_cases: dict[str, dict[str, Any]] = {}
     calibration_safety_denominator = 0
     bounded_safety_denominator = 0
     shared_trend_safety_denominator = 0
@@ -424,6 +446,8 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
         calibration_cases["calibration:bounded:seed1"] = {
             key: float(value) for key, value in raw.items()
         }
+        calibration_cases["calibration:bounded:seed1"][
+            "candidate_relationship"] = "evaluated_candidate"
         bounded_safety_denominator = int(bounded.get("cases") or 0)
         if bounded_safety_denominator <= 0:
             raise ValueError("bounded calibration has no sealed cases")
@@ -541,7 +565,8 @@ def assemble(*, root: Path, protocol_path: Path, base_result: Path,
             selection,
         ))
         if task == "DirectNormalIrradianceFromCloudStatus":
-            calibration = _calibration_raw(diagnostic)
+            calibration = _calibration_raw(
+                diagnostic, trace.get("final_submission") or {})
             extracted.append((
                 "candidate_calibration", f"calibration:conditional:seed{seed}",
                 "answered" if calibration is not None else "failed", calibration))

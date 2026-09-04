@@ -507,30 +507,28 @@ WORKER_SCRIPT = textwrap.dedent("""\
             "chronos_bolt_small": "amazon/chronos-bolt-small",
         }[name]
 
-        pipeline = BaseChronosPipeline.from_pretrained(
-            model_id, revision=pinned(model_id), device_map="cpu",
-            torch_dtype=torch.float32,
-        )
+        pipeline = MODELS.get(model_id)
+        if pipeline is None:
+            pipeline = BaseChronosPipeline.from_pretrained(
+                model_id, revision=pinned(model_id), device_map="cpu",
+                torch_dtype=torch.float32,
+            )
+            MODELS[model_id] = pipeline
         context = torch.tensor(history, dtype=torch.float32)
-        forecast = pipeline.predict(
-            context=context,
+        forecast, mean = pipeline.predict_quantiles(
+            inputs=context,
             prediction_length=horizon,
             quantile_levels=list(quantiles),
         )
-        import numpy as np
-        arr = forecast.numpy()
-        if arr.ndim == 3:
-            arr = arr[0]
-        # arr shape: [num_quantiles, horizon]
-        median_idx = arr.shape[0] // 2
-        point = arr[median_idx].tolist()
+        arr = forecast.numpy()[0]
+        point = mean.numpy()[0].tolist()
 
         if not want_quantiles:
             return {"point": point}
 
         steps = []
-        for s in range(arr.shape[1]):
-            row = {str(q): float(arr[i, s]) for i, q in enumerate(quantiles)}
+        for s in range(arr.shape[0]):
+            row = {str(q): float(arr[s, i]) for i, q in enumerate(quantiles)}
             steps.append(row)
         return {"point": point, "quantiles": steps}
 
@@ -647,34 +645,33 @@ WORKER_SCRIPT = textwrap.dedent("""\
         import torch
         import pandas as pd
         from gluonts.dataset.pandas import PandasDataset
-        from gluonts.dataset.split import split
-        from uni2ts.model.moirai import Moirai2Forecast, Moirai2Module
+        from uni2ts.model.moirai2 import Moirai2Forecast, Moirai2Module
 
-        module = Moirai2Module.from_pretrained(
-            "Salesforce/moirai-2.0-R-small",
-            revision=pinned("Salesforce/moirai-2.0-R-small"),
-        )
-        model = Moirai2Forecast(
-            module=module,
-            prediction_length=horizon,
-            context_length=min(512, 1000),
-            target_dim=1,
-            feat_dynamic_real_dim=0,
-            past_feat_dynamic_real_dim=0,
-        ).to("cpu")
+        model_id = "Salesforce/moirai-2.0-R-small"
+        model = MODELS.get(model_id)
+        if model is None:
+            module = Moirai2Module.from_pretrained(
+                model_id, revision=pinned(model_id),
+            )
+            model = Moirai2Forecast(
+                module=module,
+                prediction_length=horizon,
+                context_length=min(512, 1000),
+                target_dim=1,
+                feat_dynamic_real_dim=0,
+                past_feat_dynamic_real_dim=0,
+            ).to("cpu")
+            MODELS[model_id] = model
 
         idx = pd.date_range(start="2000-01-01", periods=len(history), freq="h")
         df = pd.DataFrame({"target": history}, index=idx)
         ds = PandasDataset(dict(df))
 
-        _, test_template = split(ds, offset=-horizon)
-        test_data = test_template.generate_instances(
-            prediction_length=horizon, windows=1, distance=horizon,
-        )
-
-        predictor = model.create_predictor(batch_size=1)
-        forecasts = predictor.predict(test_data.input)
-        forecast = next(iter(forecasts))
+        with model.hparams_context(prediction_length=horizon):
+            predictor = model.create_predictor(batch_size=1)
+            # The request history is already cut at the forecast origin. Pass
+            # it intact: another holdout split would discard observations.
+            forecast = next(iter(predictor.predict(ds)))
         point = forecast.mean.tolist()
 
         if not want_quantiles:
@@ -847,14 +844,24 @@ class SubprocessAdapter:
                 f"{self.name} weights changed after adapter construction; "
                 "create a fresh adapter so its revision matches the worker"
             )
-        try:
-            sandbox_dir = ensure_sandbox(self.name)
-        except TSFMUnavailable:
-            raise
-        except TSFMError as exc:
-            raise TSFMError(f"Sandbox for {self.name} is not ready: {exc}") from exc
-
-        worker = _ensure_worker_script(sandbox_dir)
+        # A ready sandbox is an installed dependency environment, not a
+        # runtime-writable code directory.  Inference used to call
+        # ``ensure_sandbox`` and refresh ``worker.py`` here; that made a
+        # healthy model silently disappear from selection in read-only
+        # containers.  New installs still materialize a worker before their
+        # ready marker, while runtime executes this package revision's exact
+        # worker source under the pinned sandbox interpreter without writing
+        # into the install.
+        if sandbox_exists(self.name):
+            sandbox_dir = _sandbox_dir(self.name)
+        else:
+            try:
+                sandbox_dir = ensure_sandbox(self.name)
+            except TSFMUnavailable:
+                raise
+            except TSFMError as exc:
+                raise TSFMError(
+                    f"Sandbox for {self.name} is not ready: {exc}") from exc
         venv_python = sandbox_dir / "venv" / "bin" / "python"
 
         if not venv_python.exists():
@@ -864,7 +871,7 @@ class SubprocessAdapter:
 
         try:
             return subprocess.Popen(
-                [str(venv_python), str(worker)],
+                [str(venv_python), "-c", WORKER_SCRIPT],
                 stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                 # Model libraries can emit many warnings.  A persistent
                 # worker must not retain an unread stderr pipe: once its OS

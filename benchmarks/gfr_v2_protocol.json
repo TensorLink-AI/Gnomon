@@ -1,0 +1,6 @@
+{
+  "schema_version": "0.1",
+  "protocol_id": "gfr-2026-09-03-v2",
+  "scoring_version": "0.2",
+  "extends": "gfr_protocol.json"
+}

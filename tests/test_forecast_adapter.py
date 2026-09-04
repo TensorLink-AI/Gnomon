@@ -5,7 +5,7 @@ import pytest
 from gnomon.forecast_adapter import (
     AdapterCapabilities, ForecastAdapterError, ForecastRequest, ForecastResult,
     LegacyModelAdapter, StatisticalAdapter, conformance_report,
-    predict_paths_checked,
+    predict_paths_checked, predict_quantiles_checked,
 )
 from gnomon.models import predict
 from gnomon.api_inference import APIAdapter
@@ -58,6 +58,28 @@ def test_crossed_quantiles_fail_loudly() -> None:
         [1, 2, 3], 2, 1, quantiles=(.1, .5, .9))
     with pytest.raises(ForecastAdapterError, match="not monotone"):
         LegacyModelAdapter(_CrossedQuantiles()).forecast(request)
+
+
+def test_native_quantile_boundary_normalises_and_validates_rows() -> None:
+    class Native:
+        name = "native"
+        supports_quantiles = True
+
+        def predict_quantiles(self, history, horizon, season, quantiles):
+            return [
+                {str(level): history[-1] + step + level
+                 for level in quantiles}
+                for step in range(horizon)
+            ]
+
+    rows = predict_quantiles_checked(
+        Native(), [1, 2, 3], 2, 1, (.1, .5, .9))
+    assert rows == [
+        {.1: 3.1, .5: 3.5, .9: 3.9},
+        {.1: 4.1, .5: 4.5, .9: 4.9},
+    ]
+    with pytest.raises(ForecastAdapterError, match="does not support"):
+        predict_quantiles_checked(_Short(), [1, 2, 3], 2, 1, (.1, .5, .9))
 
 
 def test_request_rejects_invalid_history_and_quantiles() -> None:

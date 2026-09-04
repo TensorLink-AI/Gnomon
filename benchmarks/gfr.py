@@ -74,7 +74,9 @@ def _loss_score(control: float, treatment: float) -> float:
     return _clip(.5 + skill / .4)
 
 
-def score_observation(capability: str, raw: Any) -> float:
+def score_observation(
+    capability: str, raw: Any, *, scoring_version: str = "0.1",
+) -> float:
     """Derive one 0..1 score from typed raw measurements.
 
     Result producers supply measurements, never a favorable precomputed score.
@@ -102,6 +104,25 @@ def score_observation(capability: str, raw: Any) -> float:
                             f"{field}.treatment_loss", minimum=0)
         return _loss_score(control, treatment)
     if capability == "candidate_calibration":
+        if scoring_version == "0.2":
+            relationship = _text(
+                raw.get("candidate_relationship"),
+                f"{field}.candidate_relationship",
+            )
+            if relationship == "no_distinct_numeric_path":
+                primary_preserved = _boolean(
+                    raw.get("primary_preserved"),
+                    f"{field}.primary_preserved",
+                )
+                numeric_path_withheld = _boolean(
+                    raw.get("numeric_path_withheld"),
+                    f"{field}.numeric_path_withheld",
+                )
+                return float(primary_preserved and numeric_path_withheld)
+            if relationship != "evaluated_candidate":
+                raise ValueError(
+                    f"{field}.candidate_relationship is unsupported"
+                )
         nominal = _number(raw.get("nominal_coverage"),
                           f"{field}.nominal_coverage", minimum=0)
         empirical = _number(raw.get("empirical_coverage"),
@@ -126,8 +147,12 @@ def score_observation(capability: str, raw: Any) -> float:
                            f"{field}.baseline_loss", minimum=0)
         candidate = _number(raw.get("selected_loss"),
                             f"{field}.selected_loss", minimum=0)
+        if scoring_version == "0.2" and actual == "retain_baseline":
+            quality = float(candidate <= baseline)
+        else:
+            quality = _loss_score(baseline, candidate)
         return (float(expected == actual) +
-                _loss_score(baseline, candidate)) / 2
+                quality) / 2
     if capability == "selection_discipline":
         admissible = _boolean(raw.get("selected_admissible"),
                               f"{field}.selected_admissible")
@@ -180,10 +205,27 @@ def score_observation(capability: str, raw: Any) -> float:
     raise ValueError(f"unknown GFR capability: {capability}")
 
 
-def load_protocol(path: Path) -> dict[str, Any]:
+def load_protocol(
+    path: Path, _seen: frozenset[Path] = frozenset(),
+) -> dict[str, Any]:
+    path = path.resolve()
+    if path in _seen:
+        raise ValueError("GFR protocol inheritance contains a cycle")
     protocol = json.loads(path.read_text(encoding="utf-8"))
+    parent = protocol.pop("extends", None)
+    if parent is not None:
+        if not isinstance(parent, str) or not parent:
+            raise ValueError("protocol.extends must be a non-empty relative path")
+        parent_path = (path.parent / parent).resolve()
+        if not parent_path.is_relative_to(path.parent):
+            raise ValueError("protocol.extends must remain in the protocol directory")
+        base = load_protocol(parent_path, _seen | {path})
+        protocol = {**base, **protocol}
     if protocol.get("schema_version") != SCHEMA_VERSION:
         raise ValueError("unsupported GFR protocol schema")
+    scoring_version = protocol.get("scoring_version", "0.1")
+    if scoring_version not in {"0.1", "0.2"}:
+        raise ValueError("unsupported GFR scoring version")
     capabilities = protocol.get("capabilities")
     if not isinstance(capabilities, dict) or not capabilities:
         raise ValueError("protocol.capabilities must be a non-empty object")
@@ -285,6 +327,7 @@ def evaluate(payload: Any, *, protocol: dict[str, Any], root: Path,
     seen = set()
     by_capability: dict[str, dict[str, float]] = {
         name: {} for name in protocol["capabilities"]}
+    scoring_version = str(protocol.get("scoring_version", "0.1"))
     status_counts = {name: {status: 0 for status in STATUSES}
                      for name in by_capability}
     for index, item in enumerate(observations):
@@ -315,7 +358,10 @@ def evaluate(payload: Any, *, protocol: dict[str, Any], root: Path,
         seen.add(identity)
         status_counts[capability][status] += 1
         by_capability[capability][case_id] = (
-            score_observation(capability, item.get("raw"))
+            score_observation(
+                capability, item.get("raw"),
+                scoring_version=scoring_version,
+            )
             if status == "answered" else 0.0)
 
     weights = {name: float(item["weight"])

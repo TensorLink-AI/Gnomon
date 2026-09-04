@@ -337,6 +337,13 @@ calibration rule. The winning candidate specification is then fit on all visible
 observations and that fitted executable forecasts the future. Publication
 never rebuilds the winner from a model name.
 
+For a selected TSFM with native quantiles, Gnomon also compares those
+marginals with the conformal reference on the reserved calibration fold using
+pinball loss and 80% coverage error. Native quantiles publish only when they
+are no worse on both checks. Point-only TSFMs and statistical models continue
+to receive conformal quantiles, while joint threshold probabilities retain
+their separate residual-path calibration and conformal marginals.
+
 ## The harness around the verbs
 
 - **Bitemporal store** (`gnomon ingest`, `store:<dataset>` inputs): every
@@ -359,6 +366,11 @@ never rebuilds the winner from a model name.
   Local sandboxes are the default trust path. A CLI/Python project may opt
   into a configured TSFM API endpoint; that network path is off by default,
   explicit in `gnomon.toml`, and never inherited by MCP tool calls.
+  To evaluate one TSFM without screening the other optional models, pass
+  `--candidates chronos_bolt_mini` on the CLI or
+  `{"candidates":["chronos_bolt_mini"]}` over MCP. This is an exact optional-
+  model allowlist, not force-selection: mandatory baselines remain as controls
+  and `selected_model` says which forecast actually published.
 - **Five-state support assessments** with typed reasons and recovery
   actions; typed lineage and a deterministic claim verifier on every
   response.

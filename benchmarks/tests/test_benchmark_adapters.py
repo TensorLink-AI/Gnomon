@@ -380,6 +380,7 @@ def test_cik_corrupt_checkpoint_fails_closed_to_empty(tmp_path):
 
 
 def test_load_run_extra_info_reads_pprint_dumps(tmp_path):
+    import math
     from pprint import pformat
 
     run_dir = tmp_path / "DemoTask" / "1"
@@ -391,9 +392,22 @@ def test_load_run_extra_info_reads_pprint_dumps(tmp_path):
     assert load_run_extra_info(tmp_path, "DemoTask", 1) == {
         "total_time": 12.5, "llm_usage": {"cost_usd": 0.1},
     }
+    (run_dir / "extra_info").write_text(
+        pformat({"best": float("inf"), "worst": -float("inf"),
+                 "missing": float("nan"), "retained": {"score": 0.2}}),
+        encoding="utf-8",
+    )
+    loaded = load_run_extra_info(tmp_path, "DemoTask", 1)
+    assert loaded["best"] == float("inf")
+    assert loaded["worst"] == -float("inf")
+    assert math.isnan(loaded["missing"])
+    assert loaded["retained"] == {"score": 0.2}
     assert load_run_extra_info(tmp_path, "DemoTask", 2) == {}
     (run_dir / "extra_info").write_text("<not literal python>",
                                         encoding="utf-8")
+    assert load_run_extra_info(tmp_path, "DemoTask", 1) == {}
+    (run_dir / "extra_info").write_text(
+        "{'unsafe': __import__('os').getcwd()}", encoding="utf-8")
     assert load_run_extra_info(tmp_path, "DemoTask", 1) == {}
 
 

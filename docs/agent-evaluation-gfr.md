@@ -16,6 +16,19 @@ cases score zero. The digest binding makes provenance auditable; source
 benchmark runners and independent review remain responsible for verifying the
 measurement encoded from that evidence.
 
+The original v1 interpretation remains immutable for longitudinal comparison.
+The additive [v2 protocol](../benchmarks/gfr_v2_protocol.json) inherits the
+same weights, cases, safety gates, and denominators, but distinguishes an
+evaluated numeric candidate from a typed `no_distinct_numeric_path` outcome.
+In the latter case, it scores whether the immutable primary was preserved and
+the unsupported numeric path was withheld; treating that outcome as a numeric
+candidate with WIS parity would penalize the abstention the product requires.
+V2 likewise gives full quality credit when a short-history case correctly
+retains a baseline without worsening its measured loss; v1 required that
+baseline to outperform itself, making correct restraint score only 0.75.
+Use `--protocol benchmarks/gfr_v2_protocol.json` explicitly; v1 remains the
+CLI default.
+
 ## Capabilities
 
 GFR covers future-input authority, conditional replay, matched agent forecast

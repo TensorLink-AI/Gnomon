@@ -27,17 +27,24 @@ COMPARABLE_FIELDS = ("benchmark", "target")
 
 
 def code_revision() -> str | None:
-    """The commit the run was produced by, when the tree is a checkout."""
+    """The commit and tracked-tree state that produced a benchmark run."""
+    root = Path(__file__).resolve().parents[2]
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--short", "HEAD"],
             capture_output=True, text=True, timeout=5,
-            cwd=str(Path(__file__).resolve().parents[2]),
+            cwd=str(root),
+        )
+        tracked = subprocess.run(
+            ["git", "status", "--porcelain", "--untracked-files=no"],
+            capture_output=True, text=True, timeout=5, cwd=str(root),
         )
     except (OSError, subprocess.SubprocessError):
         return None
     revision = result.stdout.strip()
-    return revision or None
+    if not revision or result.returncode != 0 or tracked.returncode != 0:
+        return None
+    return revision + ("+dirty" if tracked.stdout.strip() else "")
 
 
 def write_manifest(output_dir: Path, **fields: Any) -> Path:

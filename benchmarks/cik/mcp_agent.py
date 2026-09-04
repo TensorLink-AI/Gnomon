@@ -496,7 +496,11 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: comparable rows remain visible scenarios/counterevidence.
 #: Version 218: unresolved and atemporal dispositions expose claim_id as a
 #: first-class join key instead of requiring agents to parse context_id.
-MCP_CONTRACT_VERSION = 240
+#: Version 241: host-verified categorical state grids and their failed-mapping
+#: provenance survive the public MCP candidate boundary. A predeclared broad-
+#: primary gate may publish only a fixed human-review compromise; the immutable
+#: primary, support, and automation prohibition remain unchanged.
+MCP_CONTRACT_VERSION = 241
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -1483,6 +1487,21 @@ def _validated_item_count(value: Any) -> int:
     if isinstance(value, (list, tuple, set, dict)):
         return len(value)
     return 0
+
+
+def _bounded_sample_workers(client: Any, requested: int) -> int:
+    """Honor the transport's declared inner-concurrency ceiling.
+
+    Task-level ``jobs=1`` cannot constrain the independent requests used to
+    elicit sampled priors.  The shared OpenRouter client already owns the
+    operator-selected ``sample_parallelism`` limit, so the Evidence host must
+    not silently replace it with its own eight-request fan-out.
+    """
+    configured = getattr(client, "sample_parallelism", 1)
+    if (isinstance(configured, bool)
+            or not isinstance(configured, int) or configured < 1):
+        configured = 1
+    return max(1, min(requested, configured))
 
 
 def _bounded_context_rejections(
@@ -4317,7 +4336,8 @@ class _Run:
                         # recorded separately from semantic path validity.
                         return "", str(error)[:300]
 
-                with ThreadPoolExecutor(max_workers=min(n, 8)) as pool:
+                with ThreadPoolExecutor(max_workers=_bounded_sample_workers(
+                        self.forecaster.client, n)) as pool:
                     outcomes = list(pool.map(one_sample, range(n)))
                 failures = [error for _, error in outcomes if error]
                 if failures:
@@ -5937,6 +5957,13 @@ class _Run:
                 timestamps=candidate_timestamps,
                 values=candidate_values,
                 future_timestamps=future_timestamps,
+                history_state_labels=(
+                    categorical_schedule["history_states"][
+                        -len(candidate_timestamps):]
+                    if categorical_schedule is not None else None),
+                future_state_labels=(
+                    categorical_schedule["future_states"]
+                    if categorical_schedule is not None else None),
                 temporal_facts=(candidate_temporal_facts(
                     self.timestamps,
                     (self.companion_histories[
@@ -6249,6 +6276,9 @@ class _Run:
                         "source_spans": cited_spans,
                         "rationale": str(forecast_candidate.get("rationale")
                                          or "Governed model-authored prior."),
+                        **({"governed_fallback":
+                            "categorical_state_mapping_not_admitted"}
+                           if categorical_prior_needed else {}),
                         **({"sample_paths": model_candidate_sample_paths}
                            if model_candidate_sample_paths is not None else
                            {"quantiles": forecast_candidate.get("quantiles")}),

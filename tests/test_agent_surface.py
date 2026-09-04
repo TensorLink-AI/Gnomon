@@ -45,6 +45,16 @@ def test_mcp_lists_macro_tools():
     assert "threshold" in schemas["gnomon_monitor"]["required"]
 
 
+def test_forecast_schema_explains_single_model_allowlist() -> None:
+    forecast_tool = next(tool for tool in TOOLS
+                         if tool["name"] == "gnomon_forecast")
+    description = forecast_tool["inputSchema"]["properties"][
+        "candidates"]["description"]
+    assert "Exact allowlist" in description
+    assert "baselines compete" in description
+    assert "may win" in description
+
+
 def test_macro_schemas_come_from_registry():
     from gnomon.registry import MACROS
     by_name = {tool["name"]: tool for tool in TOOLS}

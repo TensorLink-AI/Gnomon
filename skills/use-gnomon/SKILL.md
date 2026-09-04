@@ -1,6 +1,6 @@
 ---
 name: use-gnomon
-description: Answer forecasting, description, detection, decision, monitoring, and Gnomon follow-up questions with deterministic temporal evidence and minimal calls. Also handle explicit Gnomon feedback requests.
+description: Use Gnomon for temporal questions and feedback with deterministic evidence.
 ---
 
 # Use Gnomon
@@ -10,7 +10,7 @@ Gnomon owns computed facts; the host understands intent and explains them. Never
 ## Choose the shortest route
 
 1. Use `gnomon_describe` for level, trend, seasonality, changepoint, anomaly, or extreme questions.
-2. Use `gnomon_forecast` directly for what-happens-next questions. Let it infer an unambiguous schema; do not call capabilities, inspect, or get-artifact first.
+2. Use `gnomon_forecast` directly for what-happens-next questions. Let it infer an unambiguous schema; do not inspect first. If the user names a model, pass `candidates: [name]`, the exact optional-model allowlist. Baselines still compete; attribute output only when `selected_model` matches.
 3. Use `gnomon_inspect` only for genuine schema ambiguity or requested data quality.
 4. Use investigate, detect, decide, monitor, or tracking tools only when the corresponding tool is exposed and the user asks for that job.
 5. Reuse returned `data_ref` instead of resending data.

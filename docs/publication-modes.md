@@ -295,6 +295,16 @@ unqualified jump to the candidate; that weight is never fitted to outcomes or
 benchmark labels. With no qualified same-series history, publication follows
 the ordinary cold-start policy.
 
+An outcome-free model-prior compromise is never part of that default policy.
+It requires `context_submission.allow_prior_compromise: true`. The opt-in is
+still human-review-only and applies only when the primary is degraded or
+best-effort, the host observed at least three sampled paths, their mean
+direction agreement is at least 0.8, and the primary's median 80% interval
+width is at least one third of the observed history range. The compromise is
+a fixed 50/50 average with the immutable primary; none of these constants are
+fitted to outcomes. Without the opt-in, the sealed model prior remains visible
+as a separate scenario but cannot become the recommendation.
+
 The default MCP response carries a compact, seal-linked decision projection:
 the selection contract, recommendation and automation authority, context
 dispositions, temporal state, and the path and seal of the complete receipt.

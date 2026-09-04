@@ -128,6 +128,43 @@ class TestWorkerRevisionPinning:
         sha = TSFM_REVISIONS["amazon/chronos-bolt-mini"]
         assert captured["request"]["revisions"]["amazon/chronos-bolt-mini"] == sha
 
+    def test_ready_sandbox_inference_does_not_rewrite_install(
+        self, monkeypatch, tmp_path
+    ):
+        """Runtime code must work when an installed sandbox is read-only."""
+        sandbox = tmp_path / "chronos_bolt_mini"
+        python = sandbox / "venv" / "bin" / "python"
+        python.parent.mkdir(parents=True)
+        python.touch()
+        (sandbox / ".gnomon-sandbox-ready").write_text(
+            "tsfm=chronos_bolt_mini\n", encoding="utf-8")
+        stale = sandbox / "worker.py"
+        stale.write_text("# installed by an older package\n", encoding="utf-8")
+        monkeypatch.setattr(tsfm_sandbox, "SANDBOX_ROOT", tmp_path)
+
+        def no_runtime_write(*args, **kwargs):  # pragma: no cover - guard
+            raise AssertionError("inference must not rewrite the install")
+
+        monkeypatch.setattr(tsfm_sandbox, "_ensure_worker_script",
+                            no_runtime_write)
+        captured = {}
+
+        class FakeProcess:
+            pass
+
+        def fake_popen(command, **kwargs):
+            captured["command"] = command
+            return FakeProcess()
+
+        monkeypatch.setattr(tsfm_sandbox.subprocess, "Popen", fake_popen)
+        adapter = tsfm_sandbox.SubprocessAdapter("chronos_bolt_mini")
+
+        assert isinstance(adapter._start_worker(), FakeProcess)
+        assert captured["command"] == [
+            str(python), "-c", tsfm_sandbox.WORKER_SCRIPT]
+        assert stale.read_text(encoding="utf-8") == (
+            "# installed by an older package\n")
+
 
 class TestCapabilitiesTruthfulness:
     def test_sandbox_install_appears_under_models_tsfm(self, monkeypatch):

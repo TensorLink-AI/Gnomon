@@ -478,9 +478,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     forecast_parser.add_argument(
         "--candidates", action="append", dest="candidates", default=None,
-        help="Restrict the model pool: comma-separated or repeatable. Pass "
-             "`gnomon route`'s candidates to act on a routing decision; the "
-             "mandatory baselines always compete regardless.",
+        help="Exact allowlist of optional forecast models: comma-separated "
+             "or repeatable. One name evaluates only that model plus the "
+             "mandatory baselines; it never forces selection. Pass `gnomon "
+             "route`'s candidates to act on a routing decision.",
     )
     forecast_parser.add_argument(
         "--selection-strategy", choices=("best", "ensemble"), default="best",

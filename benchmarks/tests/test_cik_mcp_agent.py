@@ -43,6 +43,7 @@ from benchmarks.cik.mcp_agent import (
     _has_material_numeric_context,
     _future_numeric_path_needs_executable,
     _validated_item_count,
+    _bounded_sample_workers,
     _bounded_context_rejections,
     _is_compiler_transport_failure,
     _canonicalize_unreferenced_covariate_names,
@@ -61,6 +62,16 @@ from benchmarks.cik.mcp_agent import (
 )
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+
+def test_optional_prior_sampler_honors_transport_parallelism():
+    assert _bounded_sample_workers(
+        SimpleNamespace(sample_parallelism=1), 8) == 1
+    assert _bounded_sample_workers(
+        SimpleNamespace(sample_parallelism=3), 8) == 3
+    assert _bounded_sample_workers(
+        SimpleNamespace(sample_parallelism=32), 5) == 5
+    assert _bounded_sample_workers(SimpleNamespace(), 8) == 1
 
 
 def test_material_numeric_context_ignores_calendar_not_business_quantities():
@@ -2816,7 +2827,7 @@ def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
         "x/y", client=client,
         session_factory=lambda cwd: InProcessMcpSession(cwd),
         work_dir=str(tmp_path), profile="evidence",
-        output_role="llm_candidate_shadow")
+        output_role="llm_candidate_shadow", candidate_history_budget=8)
 
     samples, extra = forecaster(task, 3)
 
@@ -2833,6 +2844,8 @@ def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
     assert receipt["compiler"]["model_candidate_sampling"]["accepted"] == 5
     assert receipt["compiler"]["model_candidate_sampling"][
         "adaptive_sampling"]["stopped_early"] is True
+    assert receipt["public_model_candidate"]["governed_fallback"] == \
+        "categorical_state_mapping_not_admitted"
     model_candidate = receipt["dossiers"][1]["forecast_candidate"]
     assert model_candidate["sample_paths"] == [
         [16.0, 17.0, 18.0, 19.0]] * 5
@@ -2857,6 +2870,14 @@ def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
     compact_prompt = " ".join(client.completion_prompts[0].split())
     assert "Factor in relevant background" in compact_prompt
     assert "mapping failed" not in compact_prompt
+    assert (
+        '<history_state_labels> '
+        '["open","open","open","open","closed","closed","closed","closed"] '
+        '</history_state_labels>' in compact_prompt)
+    assert (
+        '<future_state_labels> ["open","open","open","open"] '
+        '</future_state_labels>' in compact_prompt)
+    assert "labels are context, never target values" in compact_prompt
 
 
 @pytest.mark.parametrize(

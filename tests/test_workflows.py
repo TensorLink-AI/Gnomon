@@ -47,6 +47,40 @@ def test_explicit_schedule_without_known_at_is_not_admitted():
     assert result["residual_lines"][0]["reason"].startswith(
         "document does not state")
 
+
+def test_single_host_bound_document_omits_redundant_event_identity_fields():
+    document = DocumentRef(
+        "schedule.txt",
+        "deploy affects api from 2026-02-01T01:00:00+00:00 through "
+        "2026-02-01T03:00:00+00:00.",
+        known_at="2026-01-01T00:00:00+00:00",
+    )
+    request = build_context_investigation_prompt([document], ["api"])
+    required = request["response_schema"]["properties"]["events"][
+        "items"]["required"]
+    assert "document_index" not in required
+    assert "known_at" not in required
+
+    result = parse_context_response({"events": [{
+        "event_type": "deploy",
+        "entity_scope": ["api"],
+        "effective_start": "2026-02-01T01:00:00+00:00",
+        "effective_end": "2026-02-01T03:00:00+00:00",
+        "evidence_quote": document.content,
+    }]}, [document])
+
+    assert result["rejected"] == []
+    assert result["events"][0]["known_at"] == document.known_at
+
+
+def test_multi_document_or_unbound_time_stays_model_required():
+    documents = [DocumentRef("a.txt", "a"), DocumentRef("b.txt", "b")]
+    required = build_context_investigation_prompt(
+        documents, ["api"]
+    )["response_schema"]["properties"]["events"]["items"]["required"]
+    assert "document_index" in required
+    assert "known_at" in required
+
 DOCUMENT = DocumentRef(
     name="launches.md",
     content=(

@@ -327,11 +327,14 @@ def test_selected_tsfm_publishes_through_the_evaluated_adapter(monkeypatch):
     import gnomon.tsfm_sandbox as sandbox_module
     from gnomon.config import GnomonConfig as Config
     from gnomon.evaluation import evaluate
-    from gnomon.pipeline import SeriesState, predict_stage
+    from datetime import datetime, timedelta, timezone
+
+    from gnomon.pipeline import SeriesState, interval_stage, predict_stage
 
     class _QuadraticAdapter:
         name = "quadratic_tsfm"
         _MODEL_ID = "stub/quadratic"
+        supports_quantiles = True
 
         def predict(self, history, horizon, season):
             first_delta = history[-1] - history[-2]
@@ -343,6 +346,11 @@ def test_selected_tsfm_publishes_through_the_evaluated_adapter(monkeypatch):
                 value += first_delta
                 points.append(value)
             return points
+
+        def predict_quantiles(self, history, horizon, season, quantiles):
+            points = self.predict(history, horizon, season)
+            return [{level: point for level in quantiles}
+                    for point in points]
 
     adapter = _QuadraticAdapter()
     monkeypatch.setattr(tsfm_module, "eligible_tsfms",
@@ -359,6 +367,27 @@ def test_selected_tsfm_publishes_through_the_evaluated_adapter(monkeypatch):
     assert assessment.selected_model == adapter.name
     assert assessment.final_candidate is not None
     assert assessment.final_candidate.identity.kind == "tsfm"
+    assert assessment.probabilistic_method == "native_quantiles"
+    assert assessment.probabilistic_assessment["status"] == "admitted"
+    original_quantiles = adapter.predict_quantiles
+    adapter.predict_quantiles = lambda history, horizon, season, quantiles: [
+        {level: point + 1000.0 for level in quantiles}
+        for point in adapter.predict(history, horizon, season)
+    ]
+    rejected = evaluate(
+        values, HORIZON, 7, 0.02, frequency="D",
+        tsfm_names=[adapter.name], config=config,
+    )
+    assert rejected.selected_model == adapter.name
+    assert rejected.probabilistic_method == "conformal_residuals"
+    assert rejected.probabilistic_assessment["status"] == "rejected"
+    adapter.predict_quantiles = original_quantiles
+    threshold_assessment = evaluate(
+        values, HORIZON, 7, 0.02, frequency="D",
+        tsfm_names=[adapter.name], config=config, threshold_job=True,
+    )
+    assert threshold_assessment.selected_model == adapter.name
+    assert threshold_assessment.probabilistic_method == "conformal_residuals"
 
     # If publication tries the old discovery path, these fail the test.
     monkeypatch.setattr(sandbox_module, "sandbox_available_tsfms",
@@ -367,14 +396,29 @@ def test_selected_tsfm_publishes_through_the_evaluated_adapter(monkeypatch):
                         lambda name: (_ for _ in ()).throw(AssertionError("rediscovered adapter")))
 
     state = SeriesState(
-        name="s", values=values, timestamps=[], future_timestamps=[],
+        name="s", values=values, timestamps=[],
+        future_timestamps=[
+            datetime(2026, 1, 1, tzinfo=timezone.utc) + timedelta(days=step)
+            for step in range(HORIZON)
+        ],
         season=7, assessment=assessment,
+        residuals=list(assessment.residuals),
+        residuals_by_lead=dict(assessment.residuals_by_lead),
+        residual_source=assessment.selected_model,
+        coverage=assessment.coverage,
     )
     predict_stage(state, horizon=HORIZON, frequency="D",
                   selection_strategy="best")
 
     assert state.selected_model == adapter.name
     assert state.points == adapter.predict(values, HORIZON, 7)
+    assert len(state.native_quantiles) == HORIZON
+    assert all(row[.5] == point for row, point in
+               zip(state.native_quantiles, state.points))
+    rows, _, _ = interval_stage(state, threshold=None)
+    assert all(row["q10"] == row["point"] == row["q90"] for row in rows)
+    assert any(item.code == "native_quantiles_admitted"
+               for item in state.disclosures)
     record = next(item for item in state.evidence
                   if item.kind == "final_candidate")
     assert record.payload["kind"] == "tsfm"

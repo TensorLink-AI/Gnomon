@@ -167,6 +167,18 @@ origin construct forecast quantiles. The final origin measures score and
 interval coverage without changing either choice. The selected method is then
 fit against all observations to forecast beyond the dataset.
 
+When the selected TSFM advertises native quantiles, those marginals enter a
+second, narrower contest without reopening point-model selection. On the
+reserved calibration fold they must have no worse mean pinball loss and no
+larger 80% coverage error than the conformal reference built from earlier
+origins. Only then are native quantiles published; otherwise the conformal
+distribution remains. The report-only test measures the chosen interval but
+cannot reverse the choice. Statistical and point-only TSFM candidates use the
+same conformal path. Joint threshold probabilities remain separately grounded
+in calibrated residual trajectories—and threshold-bearing runs retain
+conformal marginals—because native marginal quantiles do not encode
+cross-horizon dependence.
+
 This separation reduces selection and coverage optimism, although a single
 calibration and test horizon still provide limited evidence. That limitation is
 why warnings and support status matter.

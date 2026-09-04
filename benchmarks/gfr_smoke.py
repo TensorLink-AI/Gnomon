@@ -68,6 +68,38 @@ def validate_matched_identities(control: dict[str, Any],
         raise ValueError("GFR smoke requires the Evidence MCP profile")
 
 
+def matched_latency_seconds(
+    control_usage: dict[str, Any], treatment_usage: dict[str, Any],
+    control_wall_seconds: Any, treatment_wall_seconds: Any,
+) -> tuple[float, float] | None:
+    """Return a comparable latency pair for fresh or replayed LLM arms.
+
+    A sample-cache replay makes the current process wall clock a measure of
+    deserialisation, not inference. If either matched arm contains restored
+    samples, compare the retained provider-request latency for both arms.
+    Fresh pairs continue to use end-to-end active wall time.
+    """
+    usages = (control_usage, treatment_usage)
+    replayed = any(
+        isinstance(usage.get("sample_cache_hits"), int)
+        and not isinstance(usage.get("sample_cache_hits"), bool)
+        and usage["sample_cache_hits"] > 0
+        for usage in usages
+    )
+    values = (
+        tuple(usage.get("request_latency_seconds") for usage in usages)
+        if replayed else
+        (control_wall_seconds, treatment_wall_seconds)
+    )
+    if not all(
+        isinstance(value, (int, float)) and not isinstance(value, bool)
+        and math.isfinite(float(value)) and float(value) > 0
+        for value in values
+    ):
+        return None
+    return float(values[0]), float(values[1])
+
+
 def prior_classified_without_skill(candidates: Any) -> bool:
     """Recognize a retained prior even when the primary remains selected."""
     return isinstance(candidates, list) and any(
@@ -85,6 +117,23 @@ def conditional_calibration_candidate(candidates: Any) -> dict[str, Any] | None:
     matches = [item for item in candidates if isinstance(item, dict)
                and item.get("role") == "governed_categorical_state_mapping"]
     return matches[0] if len(matches) == 1 else None
+
+
+def calibration_relationship_raw(publication: dict[str, Any]) -> dict[str, Any]:
+    """Project the typed numeric relationship into GFR v2 evidence."""
+    candidate = conditional_calibration_candidate(
+        publication.get("candidate_portfolio") or [])
+    distribution = ((candidate or {}).get("effect") or {}).get(
+        "distribution") or {}
+    if distribution.get("kind") == "under_evidence_no_distinct_numeric_path":
+        return {
+            "candidate_relationship": "no_distinct_numeric_path",
+            "primary_preserved": publication.get(
+                "primary_forecast_unchanged") is True,
+            "numeric_path_withheld": distribution.get(
+                "numeric_authority") == "withheld_no_distinct_path",
+        }
+    return {"candidate_relationship": "evaluated_candidate"}
 
 
 PRESERVATION_CASE_ROWS = {
@@ -362,6 +411,7 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
         "empirical_coverage": float(calibration_candidate["empirical_coverage"]),
         "candidate_wis": float(calibration_candidate["wis"]),
         "reference_wis": float(primary_candidate["wis"]),
+        **calibration_relationship_raw(trace.get("final_submission") or {}),
     } if calibration_complete else None)
     publication = trace.get("final_submission") or {}
     compilation = trace.get("context_compilation") or {}
@@ -382,15 +432,14 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
         or usage.get("sample_cache_accounting_complete") is True
         for usage in (control_usage, treatment_usage)
     )
-    control_latency = (control_row.get("latency_seconds")
-                       or control_extra.get("total_time"))
-    treatment_latency = (treatment_row.get("latency_seconds")
-                         or treatment_extra.get("total_time"))
-    usage_complete = usage_complete and all(
-        isinstance(value, (int, float)) and not isinstance(value, bool)
-        and math.isfinite(float(value)) and float(value) > 0
-        for value in (control_latency, treatment_latency)
+    latencies = matched_latency_seconds(
+        control_usage, treatment_usage,
+        control_row.get("latency_seconds") or control_extra.get("total_time"),
+        treatment_row.get("latency_seconds")
+        or treatment_extra.get("total_time"),
     )
+    usage_complete = usage_complete and latencies is not None
+    control_latency, treatment_latency = latencies or (None, None)
     efficiency_raw = ({
         "control_requests": control_usage["requests"],
         "treatment_requests": treatment_usage["requests"],

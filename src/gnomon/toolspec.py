@@ -2545,13 +2545,34 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                 "INVALID_ARGUMENTS", "model_candidate must be an object")
         allowed = {
             "source_spans", "quantiles", "sample_paths", "rationale",
-            "temperature",
+            "temperature", "governed_fallback",
         }
         unknown = sorted(set(raw_model_candidate) - allowed)
         if unknown:
             raise GnomonError(
                 "INVALID_ARGUMENTS", "model_candidate has unknown fields",
                 {"unknown_fields": unknown})
+        governed_fallback = raw_model_candidate.get("governed_fallback")
+        if governed_fallback not in {
+                None, "categorical_state_mapping_not_admitted"}:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "model_candidate.governed_fallback is unsupported")
+        if governed_fallback is not None:
+            from .llm_dossier import verify_temporal_dossier_seal
+            fallback_proven = any(
+                verify_temporal_dossier_seal(item)
+                and (item.get("candidate_critique") or {}).get(
+                    "candidate_origin") ==
+                    "governed_categorical_state_mapping"
+                and (item.get("candidate_critique") or {}).get(
+                    "selection_eligible") is False
+                for item in dossiers if isinstance(item, dict))
+            if not fallback_proven:
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "model_candidate.governed_fallback requires a sealed "
+                    "failed categorical mapping dossier")
         context_text = str(submission.get("text") or "")
         known_at = str(submission.get("known_at") or "")
         spans = raw_model_candidate.get("source_spans")
@@ -2740,7 +2761,8 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                         aggregation="linear_empirical_marginal_q10_q50_q90",
                         temperature=temperature, stability=stability,
                         request_mode="batch_request",
-                        sample_paths=model_candidate_paths)
+                        sample_paths=model_candidate_paths,
+                        governed_fallback=governed_fallback)
                 except (TypeError, ValueError) as exc:
                     raise GnomonError("INVALID_ARGUMENTS", str(exc)) from exc
         dossiers = [*dossiers, dossier]
@@ -2869,6 +2891,10 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                     "_mcp_agent_boundary")),
                 calibration_evidence=calibration_evidence,
                 candidate_outcome_evidence=candidate_outcome_evidence,
+                prior_compromise_history=(
+                    governed_history if mode == "best_effort" else None),
+                allow_uncertainty_limited_prior=bool(
+                    submission.get("allow_prior_compromise", False)),
                 artifact_id=artifact.forecast_id)
     except ValueError as exc:
         raise GnomonError("INVALID_ARGUMENTS", str(exc)) from exc
@@ -3290,7 +3316,12 @@ TOOLS: list[dict[str, Any]] = [
                     "brief (default): q50, q10-q90 and disclosures; full "
                     "adds quantiles. The artifact is identical."
                 )},
-                "candidates": {"type": "array", "items": {"type": "string"}, "description": "Restrict candidates; mandatory baselines still compete."},
+                "candidates": {
+                    "type": "array", "items": {"type": "string"},
+                    "description": (
+                        "Exact allowlist; baselines compete and may win."
+                    ),
+                },
                 "model_admission": {"type": "string", "enum": ["strict", "evidence_weighted"], "description": "Default: strict."},
                 "model_evidence_registry": {"type": "string", "description": "Registry for evidence_weighted."},
                 "output_dir": {"type": "string", "description": (
@@ -3326,20 +3357,21 @@ TOOLS: list[dict[str, Any]] = [
                     "enum": ["strict", "best_effort", "scenario"],
                     "description": (
                         "strict=evidence-only; best_effort may recommend context; "
-                        "scenario returns alternatives. Primary stays fixed.")},
+                        "scenario lists alternatives.")},
                 "temporal_dossiers": {"type": "array", "items": {"type": "object"},
                     "description": "Sealed temporal dossiers."},
                 "context_submission": {
                     "type": "object", "additionalProperties": False,
                     "description": (
-                        "Context or a cited human-only forecast prior; never "
-                        "changes the primary or permits automation."),
+                        "Context or cited human-only prior; never changes "
+                        "primary or automation."),
                     "properties": {
                         "text": {"type": "string"},
                         "known_at": {"type": "string"},
                         "compiler": {"type": "string"},
                         "compile": {"type": "string",
                                     "enum": ["deterministic_linear"]},
+                        "allow_prior_compromise": {"type": "boolean"},
                         "proposal": {"type": "object"},
                         "transformations": {"type": "array",
                                             "items": {"type": "object"}},

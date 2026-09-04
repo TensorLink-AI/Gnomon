@@ -138,6 +138,31 @@ def test_provider_neutral_prior_prompt_keeps_host_owned_regular_grid_compact():
     assert "Do not echo timestamps" in prompt
 
 
+def test_provider_neutral_prior_prompt_preserves_host_verified_state_grids():
+    history = ["2026-01-01T00:00:00+00:00",
+               "2026-01-01T01:00:00+00:00"]
+    future = ["2026-01-01T02:00:00+00:00"]
+
+    prompt = build_sampled_context_prior_prompt(
+        timestamps=history, values=[1, 2], future_timestamps=future,
+        context="The service changes between open and closed.",
+        history_state_labels=["open", "closed"],
+        future_state_labels=["closed"])
+
+    assert '<history_state_labels>\n["open","closed"]' in prompt
+    assert '<future_state_labels>\n["closed"]' in prompt
+    assert "labels are context, never target values" in prompt
+
+
+def test_provider_neutral_prior_prompt_rejects_misaligned_state_grids():
+    with pytest.raises(ValueError, match="align with both host-owned grids"):
+        build_sampled_context_prior_prompt(
+            timestamps=["2026-01-01T00:00:00+00:00"], values=[1],
+            future_timestamps=["2026-01-01T01:00:00+00:00"],
+            context="state schedule", history_state_labels=[],
+            future_state_labels=["open"])
+
+
 def test_candidate_temporal_facts_pre_shape_full_past_without_future_data():
     timestamps = [
         (datetime(2026, 1, 1, tzinfo=timezone.utc) + timedelta(hours=index)

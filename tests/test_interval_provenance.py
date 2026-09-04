@@ -11,20 +11,26 @@ pooled calibration is optimistic by a known direction.
 """
 
 from datetime import date, datetime, timedelta, timezone
+import math
 from pathlib import Path
+import random
 
 import pytest
 
+from gnomon.context import ContextEvent
 from gnomon.contracts import GnomonError
 from gnomon.evaluation import (
     MIN_RESIDUALS_PER_LEAD,
+    evaluate,
     finite_sample_predictive_expansion,
     intermittent_predictive_quantiles,
     pooled_fallback_leads,
+    seasonal_phase_empirical_quantiles,
 )
 from gnomon.ids import FixedClock
 from gnomon.pipeline import SeriesState, assert_residual_provenance
 from gnomon.runtime import forecast
+from gnomon.temporal import seasonal_structural_zero_phases
 
 CLOCK = FixedClock(datetime(2026, 7, 1, tzinfo=timezone.utc))
 NOISE = [0.5, -0.3, 0.2, -0.4, 0.1, 0.3, -0.2, -0.1, 0.4, -0.5]
@@ -78,6 +84,173 @@ def test_zero_residual_interval_with_evaluation_is_not_foldless(tmp_path) -> Non
     )
     result = artifact.results[0]
     assert "interval_collapsed_to_point" not in _codes(result)
+
+
+def test_structural_zero_phases_require_one_contiguous_inactive_block() -> None:
+    scheduled = [0, 0, 3, 5, 2, 0] * 3
+    scattered = [0, 4, 0, 0, 5, 0, 0, 0, 6, 0, 0, 7]
+
+    assert seasonal_structural_zero_phases(scheduled, 6) == frozenset({0, 1, 5})
+    assert seasonal_structural_zero_phases(scattered, 6) == frozenset()
+    assert seasonal_structural_zero_phases(scheduled[:6], 6) == frozenset()
+
+
+def test_phase_empirical_quantiles_align_trailing_complete_cycles() -> None:
+    # The leading 999 is an incomplete-cycle value and cannot shift phase 0.
+    rows = seasonal_phase_empirical_quantiles(
+        [999.0] + [1, 10, 2, 20] * 4, 4, 4)
+
+    assert rows is not None
+    assert rows[0][.5] == 1.0
+    assert rows[1][.5] == 10.0
+    assert seasonal_phase_empirical_quantiles([1, 2, 3, 4] * 3, 4, 4) \
+        is None
+
+
+def test_phase_empirical_distribution_needs_reserved_fold_evidence(
+    tmp_path,
+) -> None:
+    source = tmp_path / "heteroskedastic-season.csv"
+    rng = random.Random(17)
+    start = datetime(2025, 1, 1, tzinfo=timezone.utc)
+    values = []
+    for _cycle in range(7):
+        for phase in range(24):
+            centre = 20 + 8 * math.sin(2 * math.pi * phase / 24)
+            scale = .05 if phase < 16 else 2.5
+            values.append(centre + rng.gauss(0, scale))
+    source.write_text(
+        "timestamp,value\n" + "\n".join(
+            f"{(start + timedelta(hours=index)).isoformat()},{value}"
+            for index, value in enumerate(values)
+        ) + "\n",
+        encoding="utf-8",
+    )
+
+    artifact, _ = forecast(
+        str(source), time_column="timestamp", target_column="value",
+        horizon=24, frequency="h", seasonal_period=24,
+        output=str(tmp_path / "phase"), clock=CLOCK,
+    )
+    result = artifact.results[0]
+    evaluation = next(item for item in artifact.evidence
+                      if item.kind == "rolling_evaluation")
+
+    assert evaluation.payload["probabilistic_method"] == \
+        "seasonal_phase_empirical"
+    gate = evaluation.payload["probabilistic_assessment"]
+    assert gate["status"] == "admitted"
+    assert gate["prior_origins"] >= 2
+    assert gate["candidate_mean_pinball"] <= gate["conformal_mean_pinball"]
+    assert any(row["q50"] != pytest.approx(row["point"])
+               for row in result.forecast)
+    assert "seasonal_phase_empirical_quantiles_admitted" in _codes(result)
+
+    thresholded, _ = forecast(
+        str(source), time_column="timestamp", target_column="value",
+        horizon=24, frequency="h", seasonal_period=24, threshold=30,
+        output=str(tmp_path / "threshold"), clock=CLOCK,
+    )
+    threshold_evaluation = next(
+        item for item in thresholded.evidence
+        if item.kind == "rolling_evaluation")
+    assert threshold_evaluation.payload.get("probabilistic_method") \
+        in {None, "conformal_residuals"}
+
+
+def test_phase_empirical_distribution_requires_calendar_period(tmp_path) -> None:
+    source = tmp_path / "neighbor-period.csv"
+    rng = random.Random(17)
+    start = datetime(2025, 1, 1, tzinfo=timezone.utc)
+    values = []
+    for _cycle in range(7):
+        for phase in range(24):
+            centre = 20 + 8 * math.sin(2 * math.pi * phase / 24)
+            scale = .05 if phase < 16 else 2.5
+            values.append(centre + rng.gauss(0, scale))
+    source.write_text(
+        "timestamp,value\n" + "\n".join(
+            f"{(start + timedelta(hours=index)).isoformat()},{value}"
+            for index, value in enumerate(values)
+        ) + "\n",
+        encoding="utf-8",
+    )
+
+    artifact, _ = forecast(
+        str(source), time_column="timestamp", target_column="value",
+        horizon=24, frequency="h", seasonal_period=23,
+        output=str(tmp_path / "neighbor"), clock=CLOCK,
+    )
+    evaluation = next(item for item in artifact.evidence
+                      if item.kind == "rolling_evaluation")
+
+    assert evaluation.payload.get("probabilistic_method") in {
+        None, "conformal_residuals",
+    }
+
+    noise_rng = random.Random(41)
+    noise = [noise_rng.gauss(30, 2) for _ in range(168)]
+    fallback = evaluate(
+        noise, 24, 24, .02, frequency="h", tsfm_names=[])
+    assert fallback.probabilistic_method == "conformal_residuals"
+
+
+def test_degraded_forecast_preserves_repeated_inactive_phase_distribution(
+    tmp_path,
+) -> None:
+    source = tmp_path / "scheduled.csv"
+    start = datetime(2026, 6, 1, tzinfo=timezone.utc)
+    cycle = (
+        [0.0] * 7
+        + [2.0, 5.0, 9.0, 12.0, 15.0, 12.0, 9.0, 5.0]
+        + [0.0] * 9
+    )
+    rows = [
+        f"{(start + timedelta(hours=index)).isoformat()},"
+        f"{cycle[index % 24]}"
+        for index in range(48)
+    ]
+    source.write_text(
+        "timestamp,value\n" + "\n".join(rows) + "\n", encoding="utf-8")
+
+    artifact, _ = forecast(
+        str(source), time_column="timestamp", target_column="value",
+        horizon=24, seasonal_period=24, output=str(tmp_path / "out"),
+        clock=CLOCK,
+    )
+    result = artifact.results[0]
+    inactive = set(range(7)) | set(range(15, 24))
+
+    assert result.support == "degraded"
+    assert all(
+        row["point"] == row["q10"] == row["q50"] == row["q90"] == 0.0
+        for step, row in enumerate(result.forecast)
+        if step in inactive
+    )
+    assert any(
+        row["q90"] > row["q50"]
+        for step, row in enumerate(result.forecast)
+        if step not in inactive
+    )
+    assert "seasonal_structural_zero_phases" in _codes(result)
+
+    bounded, _ = forecast(
+        str(source), time_column="timestamp", target_column="value",
+        horizon=24, seasonal_period=24,
+        context_events=[ContextEvent(
+            event_id="nonnegative", event_type="constraint:min",
+            entity_scope=("*",),
+            effective_start=start.isoformat(),
+            effective_end=(start + timedelta(days=10)).isoformat(),
+            known_at=(start - timedelta(days=1)).isoformat(),
+            attributes={"claim": {"kind": "min", "value": 0.0}},
+        )],
+        output=str(tmp_path / "bounded"), clock=CLOCK,
+    )
+    # A context-bearing run rebuilds the immutable history-only lane after
+    # the constraint stage. That reconstruction must preserve the same
+    # phase evidence as a context-free run, not silently widen zero phases.
+    assert bounded.results[0].primary_forecast == result.forecast
 
 
 # -- The invariant --------------------------------------------------------

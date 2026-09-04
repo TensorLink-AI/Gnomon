@@ -91,17 +91,28 @@ def test_extractors_fail_closed_on_incomplete_measurements() -> None:
     assert _usage_raw(
         {"llm_usage": {"requests": 2, "prompt_tokens": 4,
                        "completion_tokens": 6, "sample_cache_hits": 1,
+                       "sample_cache_accounting_complete": True,
+                       "request_latency_seconds": 12.0},
+         "total_time": .1},
+        {"llm_usage": {"requests": 1, "prompt_tokens": 2,
+                       "completion_tokens": 3,
+                       "request_latency_seconds": 3.0}, "total_time": .1},
+        {"latency_seconds": 9.0}, {"latency_seconds": 4.0},
+    )["control_latency_seconds"] == 12.0
+    assert _usage_raw(
+        {"llm_usage": {"requests": 2, "prompt_tokens": 4,
+                       "completion_tokens": 6, "sample_cache_hits": 1,
                        "sample_cache_accounting_complete": True},
          "total_time": .1},
         {"llm_usage": {"requests": 1, "prompt_tokens": 2,
                        "completion_tokens": 3}, "total_time": .1},
-        {"latency_seconds": 9.0}, {"latency_seconds": 4.0},
-    )["control_latency_seconds"] == 9.0
-    assert _calibration_raw({"candidates": _candidates()}) == {
+    ) is None
+    assert _calibration_raw({"candidates": _candidates()}, {}) == {
         "nominal_coverage": 0.8,
         "empirical_coverage": 0.75,
         "candidate_wis": 1.2,
         "reference_wis": 1.0,
+        "candidate_relationship": "evaluated_candidate",
     }
     assert _selection_raw({
         "selected_score": 3.0, "candidates": _candidates(),
@@ -147,6 +158,56 @@ def test_context_cases_are_bound_by_semantic_identity() -> None:
     }
 
 
+def test_context_sensitivity_counts_only_when_sealed_and_non_automatable():
+    standard = [
+        {"case_id": "ctx-repeated_event-0000", "family": "repeated_event",
+         "should_influence": True, "applied": True},
+        {"case_id": "ctx-future_covariate-0000", "family": "future_covariate",
+         "should_influence": True, "applied": True},
+        {"case_id": "ctx-irrelevant-0000", "family": "irrelevant",
+         "should_influence": False, "applied": False},
+    ]
+    bitemporal = {
+        "case_id": "stress-bitemporal-0000",
+        "family": "bitemporal_context",
+        "should_influence": True,
+        "applied": False,
+        "canonical_primary_preserved": True,
+        "temporal_leakage": False,
+        "context_outcome": {
+            "status": "scenario_only",
+            "sensitivity_scenarios_produced": 1,
+            "automation_eligible": False,
+        },
+    }
+    stress = [
+        {"case_id": "stress-constraint-true-0000",
+         "family": "numeric_claim", "should_influence": True,
+         "applied": True},
+        {"case_id": "stress-scope-0000", "family": "entity_scope",
+         "should_influence": False, "applied": False},
+        bitemporal,
+    ]
+
+    observed = context_observations(standard, stress)
+    assert observed["context:leakage:future-revision"] == {
+        "context_is_useful": True, "context_admitted": True,
+    }
+
+    for unsafe_patch in (
+        {"canonical_primary_preserved": False},
+        {"temporal_leakage": True},
+        {"context_outcome": {**bitemporal["context_outcome"],
+                             "automation_eligible": True}},
+        {"context_outcome": {**bitemporal["context_outcome"],
+                             "sensitivity_scenarios_produced": 0}},
+    ):
+        stress[-1] = {**bitemporal, **unsafe_patch}
+        rejected = context_observations(standard, stress)
+        assert rejected["context:leakage:future-revision"][
+            "context_admitted"] is False
+
+
 def test_calibration_families_compare_current_to_prior_strict_protocol():
     observed = calibration_family_observations({
         "strict_by_family": {
@@ -164,6 +225,7 @@ def test_calibration_families_compare_current_to_prior_strict_protocol():
         "empirical_coverage": .81,
         "candidate_wis": 1.0,
         "reference_wis": 2.0,
+        "candidate_relationship": "evaluated_candidate",
     }
 
 

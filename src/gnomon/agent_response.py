@@ -13,7 +13,7 @@ import json
 from typing import Any
 
 
-SCHEMA_VERSION = "0.2"
+SCHEMA_VERSION = "0.3"
 _MAX_ITEMS = 8
 
 
@@ -242,10 +242,17 @@ def build_agent_response_contract(payload: dict[str, Any]) -> dict[str, Any] | N
             if isinstance(source, dict) and source.get("reference"):
                 publication_sources.append(str(source["reference"]))
         context = result.get("context_outcome") or {}
+        # Gate failures and publication dispositions are different
+        # vocabularies.  Combining them made an agent faithfully copy a
+        # generic disposition such as ``rejected`` into a field that hosts
+        # validate against engine gate codes, forcing an otherwise valid
+        # submission through a repair turn.  Keep both facts, but keep their
+        # types distinct at the synthesis boundary.
         codes, codes_omitted = _unique([
-            *[str(value) for value in context.get("failed_gate_codes") or []],
-            *publication_codes,
+            str(value) for value in context.get("failed_gate_codes") or []
         ])
+        disposition_codes, disposition_codes_omitted = _unique(
+            publication_codes)
         sources, sources_omitted = _unique([
             *_source_references(context), *publication_sources,
         ])
@@ -274,6 +281,7 @@ def build_agent_response_contract(payload: dict[str, Any]) -> dict[str, Any] | N
             "canonical_primary_preserved": canonical_preserved,
             "context_automation_eligible": bool(context_automation),
             "failed_gate_codes": codes,
+            "disposition_reason_codes": disposition_codes,
             "source_references": sources,
             "scenario_consequence_count": consequence_count,
             "interval_disclosure_count": interval_count,
@@ -289,9 +297,13 @@ def build_agent_response_contract(payload: dict[str, Any]) -> dict[str, Any] | N
             **({"omitted": {
                 **({"failed_gate_codes": codes_omitted}
                    if codes_omitted else {}),
+                **({"disposition_reason_codes":
+                    disposition_codes_omitted}
+                   if disposition_codes_omitted else {}),
                 **({"source_references": sources_omitted}
                    if sources_omitted else {}),
-            }} if any((codes_omitted, sources_omitted)) else {}),
+            }} if any((codes_omitted, disposition_codes_omitted,
+                       sources_omitted)) else {}),
         }
         series_contracts.append(contract)
 

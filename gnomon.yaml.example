@@ -44,8 +44,12 @@ models:
   # Time Series Foundation Models — each runs in an isolated sandbox venv
   # or via API inference (see backends below).
   tsfm:
-    # Which TSFMs to try, in order of preference.
+    # Which TSFMs may compete; order does not control selection.
     # Only models with a working backend (sandbox venv or API) will actually run.
+    # To evaluate one TSFM and no other optional models, set
+    # statistical.enabled: false above and leave one name here. Mandatory
+    # baselines still compete, so this narrows the contest rather than
+    # forcing the TSFM to publish.
     candidates:
       - chronos_bolt_mini
       - toto2_22m

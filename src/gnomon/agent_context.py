@@ -814,11 +814,25 @@ def build_sampled_context_prior_prompt(
     *, timestamps: list[str], values: list[float],
     future_timestamps: list[str], context: str,
     temporal_facts: dict[str, Any] | None = None,
+    history_state_labels: list[str] | None = None,
+    future_state_labels: list[str] | None = None,
     claim_catalog: dict[str, str] | None = None,
     single_choice_claim_ids: set[str] | None = None,
     external_matching_assumption_required: bool = False,
 ) -> str:
     """Build a compact numeric prompt for a host's own model provider."""
+    state_labels_supplied = (
+        history_state_labels is not None or future_state_labels is not None)
+    if state_labels_supplied:
+        if (history_state_labels is None or future_state_labels is None
+                or len(history_state_labels) != len(timestamps)
+                or len(future_state_labels) != len(future_timestamps)
+                or any(not isinstance(label, str) or not label.strip()
+                       for label in [*history_state_labels,
+                                     *future_state_labels])):
+            raise ValueError(
+                "categorical state labels must be non-empty and align with "
+                "both host-owned grids")
     history_values = ",".join(f"{float(value):.12g}" for value in values)
 
     def grid_summary(grid: list[str]) -> str:
@@ -863,6 +877,17 @@ def build_sampled_context_prior_prompt(
             '{"forecast_path":{"values":[1.0,2.0],'
             '"claim_ids":["claim-1","claim-3"],'
             '"rationale":"brief analogue basis"}}')
+    categorical_states = ""
+    if state_labels_supplied:
+        categorical_states = (
+            "Host-verified categorical labels aligned one-for-one with the "
+            "two grids (labels are context, never target values):\n"
+            "<history_state_labels>\n"
+            + json.dumps(history_state_labels, separators=(",", ":"))
+            + "\n</history_state_labels>\n"
+            "<future_state_labels>\n"
+            + json.dumps(future_state_labels, separators=(",", ":"))
+            + "\n</future_state_labels>\n")
     return f"""\
 I have a time series forecasting task for you.
 
@@ -877,6 +902,8 @@ are in exact grid order:
 <history>
 [{history_values}]
 </history>
+
+{categorical_states}
 
 Deterministic past-only temporal reference (descriptive evidence, not proof of
 future skill):
