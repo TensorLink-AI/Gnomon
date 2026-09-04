@@ -8,6 +8,7 @@ from benchmarks.gfr_smoke import (assemble, calibration_relationship_raw,
                                   constraint_observations,
                                   outcome_observations,
                                   preservation_observations,
+                                  matched_latency_seconds,
                                   prior_classified_without_skill,
                                   validate_matched_identities)
 
@@ -45,6 +46,22 @@ def test_sample_parallelism_mismatch_is_rejected() -> None:
 
     with pytest.raises(ValueError, match="sample_parallelism"):
         validate_matched_identities(control, treatment)
+
+
+def test_matched_latency_uses_one_clock_for_cached_arms() -> None:
+    control = {"sample_cache_hits": 55, "request_latency_seconds": 477.0}
+    treatment = {"sample_cache_hits": 0, "request_latency_seconds": 25.0}
+
+    assert matched_latency_seconds(control, treatment, .007, .17) == (
+        477.0, 25.0)
+    assert matched_latency_seconds(
+        {"sample_cache_hits": 0}, {"sample_cache_hits": 0}, 9.0, 4.0,
+    ) == (9.0, 4.0)
+    assert matched_latency_seconds(control, treatment, .007, None) == (
+        477.0, 25.0)
+    assert matched_latency_seconds(
+        {"sample_cache_hits": 1}, {"sample_cache_hits": 0}, .1, .1,
+    ) is None
 
 
 def test_wide_mcp_profile_is_rejected() -> None:

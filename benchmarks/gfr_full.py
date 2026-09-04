@@ -25,6 +25,7 @@ from benchmarks.gfr_smoke import (
     _write,
     calibration_relationship_raw,
     conditional_calibration_candidate,
+    matched_latency_seconds,
     validate_matched_identities,
 )
 
@@ -87,15 +88,16 @@ def _usage_raw(
         or usage.get("sample_cache_accounting_complete") is True
         for usage in (control_usage, treatment_usage)
     )
-    control_latency = ((control_row or {}).get("latency_seconds")
-                       or control.get("total_time"))
-    treatment_latency = ((treatment_row or {}).get("latency_seconds")
-                         or treatment.get("total_time"))
-    complete = complete and resumed_accounting_complete and all(
-        isinstance(value, (int, float)) and not isinstance(value, bool)
-        and math.isfinite(float(value)) and float(value) > 0
-        for value in (control_latency, treatment_latency)
+    latencies = matched_latency_seconds(
+        control_usage, treatment_usage,
+        (control_row or {}).get("latency_seconds")
+        or control.get("total_time"),
+        (treatment_row or {}).get("latency_seconds")
+        or treatment.get("total_time"),
     )
+    complete = (
+        complete and resumed_accounting_complete and latencies is not None)
+    control_latency, treatment_latency = latencies or (None, None)
     if not complete:
         return None
     return {

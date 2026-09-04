@@ -68,6 +68,38 @@ def validate_matched_identities(control: dict[str, Any],
         raise ValueError("GFR smoke requires the Evidence MCP profile")
 
 
+def matched_latency_seconds(
+    control_usage: dict[str, Any], treatment_usage: dict[str, Any],
+    control_wall_seconds: Any, treatment_wall_seconds: Any,
+) -> tuple[float, float] | None:
+    """Return a comparable latency pair for fresh or replayed LLM arms.
+
+    A sample-cache replay makes the current process wall clock a measure of
+    deserialisation, not inference. If either matched arm contains restored
+    samples, compare the retained provider-request latency for both arms.
+    Fresh pairs continue to use end-to-end active wall time.
+    """
+    usages = (control_usage, treatment_usage)
+    replayed = any(
+        isinstance(usage.get("sample_cache_hits"), int)
+        and not isinstance(usage.get("sample_cache_hits"), bool)
+        and usage["sample_cache_hits"] > 0
+        for usage in usages
+    )
+    values = (
+        tuple(usage.get("request_latency_seconds") for usage in usages)
+        if replayed else
+        (control_wall_seconds, treatment_wall_seconds)
+    )
+    if not all(
+        isinstance(value, (int, float)) and not isinstance(value, bool)
+        and math.isfinite(float(value)) and float(value) > 0
+        for value in values
+    ):
+        return None
+    return float(values[0]), float(values[1])
+
+
 def prior_classified_without_skill(candidates: Any) -> bool:
     """Recognize a retained prior even when the primary remains selected."""
     return isinstance(candidates, list) and any(
@@ -400,15 +432,14 @@ def assemble(*, root: Path, protocol_path: Path, control_dir: Path,
         or usage.get("sample_cache_accounting_complete") is True
         for usage in (control_usage, treatment_usage)
     )
-    control_latency = (control_row.get("latency_seconds")
-                       or control_extra.get("total_time"))
-    treatment_latency = (treatment_row.get("latency_seconds")
-                         or treatment_extra.get("total_time"))
-    usage_complete = usage_complete and all(
-        isinstance(value, (int, float)) and not isinstance(value, bool)
-        and math.isfinite(float(value)) and float(value) > 0
-        for value in (control_latency, treatment_latency)
+    latencies = matched_latency_seconds(
+        control_usage, treatment_usage,
+        control_row.get("latency_seconds") or control_extra.get("total_time"),
+        treatment_row.get("latency_seconds")
+        or treatment_extra.get("total_time"),
     )
+    usage_complete = usage_complete and latencies is not None
+    control_latency, treatment_latency = latencies or (None, None)
     efficiency_raw = ({
         "control_requests": control_usage["requests"],
         "treatment_requests": treatment_usage["requests"],

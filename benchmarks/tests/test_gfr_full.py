@@ -91,12 +91,22 @@ def test_extractors_fail_closed_on_incomplete_measurements() -> None:
     assert _usage_raw(
         {"llm_usage": {"requests": 2, "prompt_tokens": 4,
                        "completion_tokens": 6, "sample_cache_hits": 1,
+                       "sample_cache_accounting_complete": True,
+                       "request_latency_seconds": 12.0},
+         "total_time": .1},
+        {"llm_usage": {"requests": 1, "prompt_tokens": 2,
+                       "completion_tokens": 3,
+                       "request_latency_seconds": 3.0}, "total_time": .1},
+        {"latency_seconds": 9.0}, {"latency_seconds": 4.0},
+    )["control_latency_seconds"] == 12.0
+    assert _usage_raw(
+        {"llm_usage": {"requests": 2, "prompt_tokens": 4,
+                       "completion_tokens": 6, "sample_cache_hits": 1,
                        "sample_cache_accounting_complete": True},
          "total_time": .1},
         {"llm_usage": {"requests": 1, "prompt_tokens": 2,
                        "completion_tokens": 3}, "total_time": .1},
-        {"latency_seconds": 9.0}, {"latency_seconds": 4.0},
-    )["control_latency_seconds"] == 9.0
+    ) is None
     assert _calibration_raw({"candidates": _candidates()}, {}) == {
         "nominal_coverage": 0.8,
         "empirical_coverage": 0.75,
