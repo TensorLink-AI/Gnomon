@@ -133,8 +133,21 @@ def _decision_contract(answer: dict[str, Any], *,
     sufficiency = packet.get("evidence_sufficiency") or {}
     selector = (selection.get("selector") or packet.get("selector")
                 or ("gnomon_canonical" if support == "supported" else "model"))
+    inference_authority = selection.get("inference_authority") or {}
+    requirements_satisfied = inference_authority.get(
+        "requirements_satisfied", packet.get("requirements_satisfied"))
+    canonical_contract = selection.get("canonical") or {}
+    canonical_role = canonical_contract.get("role")
+    if canonical_role is not None:
+        binding = canonical_role == "binding"
+    elif requirements_satisfied is False:
+        binding = False
+    else:
+        # Backward-compatible fallback for compact or older packets that did
+        # not carry the explicit inference-authority contract.
+        binding = support == "supported" and selector == "gnomon_canonical"
     interpretations, interpretations_omitted = _decision_interpretations(packet)
-    authority = ("binding" if support == "supported" else
+    authority = ("binding" if binding else
                  "abstained" if support == "abstained" else "advisory")
     value_status = ("abstention" if support == "abstained"
                     or conclusion is None else "value")
@@ -163,12 +176,16 @@ def _decision_contract(answer: dict[str, Any], *,
     contract = {
         "question_id": str(question_id),
         "property": str(question.get("property") or "unknown"),
-        "inference_mode": str(question.get("verb") or "unknown"),
+        "inference_mode": str(
+            inference_authority.get("mode") or question.get("verb")
+            or "unknown"),
         "conclusion": conclusion,
         "value_status": value_status,
         "support": support,
         "authority": authority,
         "selector": str(selector),
+        **({"inference_requirements_satisfied": requirements_satisfied}
+           if isinstance(requirements_satisfied, bool) else {}),
         "evidence_sufficiency": str(
             sufficiency.get("level") or packet.get("sufficiency") or "unknown"),
         "interpretations": interpretations,

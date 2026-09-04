@@ -232,3 +232,35 @@ def test_decision_verifier_preserves_binding_and_abstention():
     assert verify_agent_decision_selection(
         abstained, "trend", {"value": "upward"}
     )[0]["code"] == "DECISION_OVERRIDES_ABSTENTION"
+
+
+def test_inference_scoped_nonbinding_authority_survives_projection():
+    payload = _decision_payload(support="supported")
+    reasoning = payload["answers"][0]["answer"]["reasoning"]
+    packet = reasoning["packet"]
+    packet.pop("selector")
+    packet["selection_contract"] = {
+        "selector": "model",
+        "canonical": {
+            "value": "upward", "support": "supported",
+            "role": "default_not_command",
+        },
+        "inference_authority": {
+            "mode": "predictive",
+            "requirements_satisfied": False,
+            "missing_evidence": ["rolling_origin_property_fit"],
+        },
+    }
+
+    contract = build_agent_response_contract(payload)
+    decision = contract["decisions"][0]
+    assert decision["support"] == "supported"
+    assert decision["authority"] == "advisory"
+    assert decision["selector"] == "model"
+    assert decision["inference_mode"] == "predictive"
+    assert decision["inference_requirements_satisfied"] is False
+    assert verify_agent_decision_selection(
+        contract, "trend", {
+            "value": "downward",
+            "cited_evidence": ["observed_transition"],
+        }) == []
