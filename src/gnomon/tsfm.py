@@ -627,7 +627,7 @@ class ChronosBoltAdapter:
         try:
             context = torch.tensor(history, dtype=torch.float32)
             forecast = self._pipeline.predict(
-                context=context,
+                inputs=context,
                 prediction_length=horizon,
             )
             # Chronos-Bolt returns quantile forecasts: shape [num_quantiles, prediction_length]
@@ -655,20 +655,20 @@ class ChronosBoltAdapter:
         torch = _import_torch()
         try:
             context = torch.tensor(history, dtype=torch.float32)
-            forecast = self._pipeline.predict(
-                context=context,
+            forecast, _ = self._pipeline.predict_quantiles(
+                inputs=context,
                 prediction_length=horizon,
                 quantile_levels=list(quantiles),
             )
             arr = forecast.numpy()
             if arr.ndim == 3:
                 arr = arr[0]
-            # arr shape: [num_quantiles, horizon]
+            # ``predict_quantiles`` returns [batch, horizon, quantiles].
             results = []
-            for step in range(arr.shape[1]):
+            for step in range(arr.shape[0]):
                 row = {}
                 for i, q in enumerate(quantiles):
-                    row[str(q)] = float(arr[i, step])
+                    row[str(q)] = float(arr[step, i])
                 results.append(row)
             return results
         except TSFMUnavailable:
