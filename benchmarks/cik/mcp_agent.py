@@ -3534,6 +3534,7 @@ class McpAgentForecaster:
         candidate_sample_budget: int | None = None,
         candidate_history_budget: int | None = None,
         candidate_temporal_facts_enabled: bool = True,
+        allow_prior_compromise: bool = False,
         base_url: str | None = None,
         api_key: str | None = None,
         sample_parallelism: int = 4,
@@ -3573,6 +3574,15 @@ class McpAgentForecaster:
         if not isinstance(candidate_temporal_facts_enabled, bool):
             raise ValueError("candidate_temporal_facts_enabled must be boolean")
         self.candidate_temporal_facts_enabled = candidate_temporal_facts_enabled
+        if not isinstance(allow_prior_compromise, bool):
+            raise ValueError("allow_prior_compromise must be boolean")
+        if allow_prior_compromise and not (
+                self.profile == "evidence"
+                and output_role == "publication_best_effort"):
+            raise ValueError(
+                "allow_prior_compromise requires Evidence "
+                "publication_best_effort output")
+        self.allow_prior_compromise = allow_prior_compromise
         # functools.partial remains pickleable when the official CiK runner
         # fans task-seeds out to worker processes; a closure does not.
         self.session_factory = session_factory or partial(
@@ -3592,6 +3602,7 @@ class McpAgentForecaster:
                 f"_candidate_paths={self.candidate_sample_budget or 'auto'}"
                 f"_candidate_history={self.candidate_history_budget or 'auto'}"
                 f"_candidate_facts={int(self.candidate_temporal_facts_enabled)}"
+                f"_prior_compromise={int(self.allow_prior_compromise)}"
                 f"_endpoint={hashlib.sha256(str(getattr(self.client, 'base_url', 'injected-client')).encode()).hexdigest()[:10]}"
                 f"_contract={MCP_CONTRACT_VERSION}")
 
@@ -6697,6 +6708,8 @@ class _Run:
                     "context_submission": {
                         "text": source_text,
                         "known_at": self.timestamps[-1],
+                        "allow_prior_compromise": (
+                            self.forecaster.allow_prior_compromise),
                         "transformations": receipt.get("transformations") or [],
                         "rejections": wire_rejections,
                         **({"model_candidate": public_model_candidate}

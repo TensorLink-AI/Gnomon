@@ -290,7 +290,8 @@ def computed_evidence(case: Case) -> dict[str, Any]:
     canonical_support = str(multi.get("support") or "abstained")
     question = TemporalQuestion(
         case.case_id, "predict" if case.horizon else "detect", "series",
-        case.property, horizon=case.horizon)
+        case.property, horizon=case.horizon,
+        answer_vocabulary={value: value for value in OPTIONS[case.property]})
     result = {
         "best_estimate": {"value": canonical_value,
                           "support": canonical_support},

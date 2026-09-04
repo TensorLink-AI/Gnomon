@@ -10,19 +10,20 @@ evidence sufficiency, and what would distinguish the alternatives — and the
 deterministic check Gnomon runs over the model's selection afterwards.
 
 The packet organises receipts that already exist; it computes no new numbers
-and cannot rewrite the canonical answer.  Where the canonical answer is
-``supported`` it stays binding; anywhere weaker, the packet names the model
-as the selector and :func:`verify_packet_selection` is the gate its
-conclusion must pass: the selected interpretation must be one the packet
-admits as compatible, and every cited evidence source must exist and support
-it.
+and cannot rewrite the canonical answer.  A ``supported`` canonical stays
+binding only when the evidence requirements for the requested inference are
+met; a supported observed measurement cannot become a binding forecast.
+Otherwise the packet names the model as selector and
+:func:`verify_packet_selection` is the gate its conclusion must pass: the
+selected interpretation must be one the packet admits as compatible, and
+every cited evidence source must exist and support it.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-PACKET_VERSION = "0.1"
+PACKET_VERSION = "0.2"
 
 #: Directions that are support states or absences, not selectable answers.
 _NON_ANSWERS = {None, "", "uncertain", "unknown", "abstained", "weak"}
@@ -31,6 +32,7 @@ _NON_ANSWERS = {None, "", "uncertain", "unknown", "abstained", "weak"}
 def _interpretations(
     canonical: str | None, canonical_support: str,
     adjudication: dict[str, Any], vocabulary: dict[str, Any] | None,
+    *, evidence_authoritative: bool = True,
 ) -> list[dict[str, Any]]:
     """Every interpretation the receipts mention, plus the caller's own
     vocabulary, each with its evidence for and against."""
@@ -46,11 +48,12 @@ def _interpretations(
     if canonical not in _NON_ANSWERS and str(canonical) not in values:
         values.insert(0, str(canonical))
 
-    supported_values = {
+    supported_values = ({
         value for value, row in candidates.items()
         if str(row.get("support")) == "supported"
-    }
-    if canonical_support == "supported" and canonical not in _NON_ANSWERS:
+    } if evidence_authoritative else set())
+    if (evidence_authoritative and canonical_support == "supported"
+            and canonical not in _NON_ANSWERS):
         supported_values.add(str(canonical))
     rows: list[dict[str, Any]] = []
     for value in values:
@@ -130,9 +133,16 @@ def build_reasoning_packet(
     canonical = best.get("value")
     canonical_support = str(best.get("support") or "abstained")
     answer = result.get("answer") or {}
+    # A supported measurement binds only the inference it actually earned.
+    # For example, a supported observed trend is not a supported forecast of
+    # the next window when rolling-origin predictive evidence is missing.
+    # Keep the measurement and its support visible, but do not let that label
+    # silently acquire authority across the observation/forecast boundary.
+    binding = canonical_support == "supported" and not missing
     interpretations = _interpretations(
         canonical if canonical is None else str(canonical),
-        canonical_support, adjudication, vocabulary)
+        canonical_support, adjudication, vocabulary,
+        evidence_authoritative=not missing)
     observations = {
         "direction": answer.get("direction"),
         "estimate": answer.get("estimate"),
@@ -167,6 +177,11 @@ def build_reasoning_packet(
                 "supporting": ["held_out_hypothesis_fit"],
                 "conflicting": [],
                 "compatible": True,
+                "conditional_only": False,
+                # This is a selectable interpretation in the model lane,
+                # not an authority upgrade. A binding canonical is still
+                # enforced independently by verify_packet_selection.
+                "decision_eligible": True,
             })
         for row in interpretations:
             hypothesis = by_value.get(row["value"])
@@ -189,7 +204,6 @@ def build_reasoning_packet(
             "ran": False,
             "reason": discrimination.get("reason"),
         }
-    binding = canonical_support == "supported"
     return {
         "version": PACKET_VERSION,
         "observations": observations,
@@ -210,6 +224,11 @@ def build_reasoning_packet(
             "canonical": {"value": canonical, "support": canonical_support,
                           "role": "binding" if binding else
                           "default_not_command"},
+            "inference_authority": {
+                "mode": mode,
+                "requirements_satisfied": not missing,
+                "missing_evidence": list(missing)[:3],
+            },
             "verification": "verify_packet_selection",
             "selection_must_cite_evidence": not binding,
             "primary_forecast_unchanged": True,

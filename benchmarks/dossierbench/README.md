@@ -44,6 +44,12 @@ prompts differing by the evidence block alone):
 | `conclusion` | the series plus the computed canonical value and support — the "here is the conclusion" packet style |
 | `dossier` | the series plus the full reasoning packet (interpretations, measured held-out discrimination, sufficiency, selection contract), gated by `repair_selection` with one repair round and the labelled canonical fallback |
 
+For future-outcome questions, a supported observed-window measurement remains
+visible but is never binding unless the packet also contains the required
+forecast-valid evidence. The selection contract records the requested
+inference mode, whether its requirements were satisfied, and the missing
+evidence; descriptive confidence cannot silently become predictive authority.
+
 Three deterministic references are scored beside them at zero API cost:
 `chance`, `copy_conclusion`, and `copy_discriminator`. The summary's
 `verdicts` block separates the claims that matter:

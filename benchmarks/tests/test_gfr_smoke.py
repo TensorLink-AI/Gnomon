@@ -72,6 +72,14 @@ def test_wide_mcp_profile_is_rejected() -> None:
         validate_matched_identities(_identity("control"), treatment)
 
 
+def test_outcome_free_prior_compromise_is_not_gfr_evidence() -> None:
+    treatment = _identity("gnomon-mcp")
+    treatment["mcp_allow_prior_compromise"] = True
+
+    with pytest.raises(ValueError, match="does not certify"):
+        validate_matched_identities(_identity("control"), treatment)
+
+
 def test_retained_unskilled_prior_is_still_authority_classified() -> None:
     assert prior_classified_without_skill([{
         "support": "prior_assisted",

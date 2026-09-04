@@ -60,6 +60,57 @@ def test_a_supported_canonical_stays_binding() -> None:
     assert verify_packet_selection(packet, {"value": "upward"}) == []
 
 
+def test_supported_observation_does_not_bind_a_predictive_answer() -> None:
+    question = TemporalQuestion(
+        "q", "predict", "x", "trend", horizon=10,
+        answer_vocabulary={
+            "upward": "Up", "downward": "Down", "constant": "Flat"})
+    result = _result("upward", "supported")
+    result["answer"]["executable"] = {
+        "kind": "observed_multi_resolution_windows"}
+    packet = build_evidence_plan(question, result)["packet"]
+
+    assert packet["selection_contract"]["selector"] == "model"
+    assert packet["selection_contract"]["canonical"] == {
+        "value": "upward", "support": "supported",
+        "role": "default_not_command"}
+    assert packet["selection_contract"]["inference_authority"] == {
+        "mode": "predictive",
+        "requirements_satisfied": False,
+        "missing_evidence": ["rolling_origin_property_fit"],
+    }
+    interpretations = {
+        row["value"]: row for row in packet["interpretations"]}
+    assert all(row["compatible"] for row in interpretations.values())
+    assert not any(
+        item["code"] == "SELECTION_OVERRIDES_BINDING"
+        for item in verify_packet_selection(
+            packet, {"value": "downward", "cited_evidence": []}))
+
+
+def test_discrimination_only_interpretation_is_selectable_in_model_lane() -> None:
+    question = TemporalQuestion("q", "predict", "x", "trend", horizon=10)
+    packet = build_evidence_plan(
+        question, _result("uncertain", "abstained"),
+        discrimination={
+            "identifiable": True,
+            "best": "downward",
+            "separation": "clear",
+            "holdout_steps": 12,
+            "hypotheses": [{"value": "downward", "relative_weight": .9}],
+        })["packet"]
+
+    row = next(item for item in packet["interpretations"]
+               if item["value"] == "downward")
+    assert row["decision_eligible"] is True
+    assert packet["selection_contract"]["canonical"]["role"] == \
+        "default_not_command"
+    assert verify_packet_selection(packet, {
+        "value": "downward",
+        "cited_evidence": ["held_out_hypothesis_fit"],
+    }) == []
+
+
 def test_a_selection_outside_the_packet_is_rejected() -> None:
     packet = _plan()["packet"]
     violations = verify_packet_selection(
@@ -69,7 +120,16 @@ def test_a_selection_outside_the_packet_is_rejected() -> None:
 
 def test_an_interpretation_excluded_by_supported_evidence_is_incompatible() -> None:
     vocabulary = {"upward": "Up", "downward": "Down", "constant": "Flat"}
-    packet = _plan(vocabulary=vocabulary)["packet"]
+    question = TemporalQuestion(
+        "q", "describe", "x", "trend", answer_vocabulary=vocabulary)
+    observed = {
+        "direction": "downward", "support": "supported",
+        "identifiable": True, "estimate": -2.0,
+        "diagnostics": {"window_steps": 24},
+    }
+    packet = build_evidence_plan(
+        question, _result("upward", "weak"),
+        observed_evidence=observed)["packet"]
     values = {row["value"]: row for row in packet["interpretations"]}
     assert values["constant"]["compatible"] is False
     violations = verify_packet_selection(
@@ -120,6 +180,7 @@ def test_compact_projection_carries_the_dossier_within_bounds() -> None:
     assert packet["selection_must_cite_evidence"] is True
     assert packet["sufficiency"] == "mixed"
     assert packet["selector"] == "model"
+    assert packet["requirements_satisfied"] is False
     assert packet["discriminator"] is not None
 
 

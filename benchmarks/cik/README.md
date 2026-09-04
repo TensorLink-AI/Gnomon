@@ -148,6 +148,14 @@ python -m benchmarks.cik.run_cik --method gnomon-mcp \
     --model deepseek-v4-flash-0731 \
     --output-dir results/cik-deepseek-best-effort
 
+# Explicit policy probe only: consent to the outcome-free, human-only prior
+# compromise that production keeps off by default. The consent bit is part of
+# cache and checkpoint identity, and this arm is ineligible for GFR evidence.
+python -m benchmarks.cik.run_cik --method gnomon-mcp \
+    --mcp-profile evidence --mcp-output-role publication_best_effort \
+    --mcp-allow-prior-compromise --model deepseek-v4-flash-0731 \
+    --output-dir results/cik-deepseek-prior-compromise
+
 # Controlled candidate-compute/evidence ablations. These change only the
 # host's prior-assisted, non-automatable candidate lane; the immutable primary
 # and support contract are unchanged. Defaults are 4-5 paths, 64 raw rows,

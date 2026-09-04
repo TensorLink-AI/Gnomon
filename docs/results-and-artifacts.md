@@ -292,12 +292,19 @@ measured relative fit per interpretation (`held_out_fit`), the winner, and a
 `separation` grade — fit evidence over the surrogate set, never
 probabilities. Its
 `selection_contract` states who concludes: a `supported` canonical answer is
-binding; anything weaker is the default the model may argue past, and
+binding only when the evidence requirements for the requested inference are
+satisfied. For example, a supported observed-window trend remains a valid
+measurement but is not a binding forecast when rolling-origin predictive
+evidence is missing. In that case `inference_authority` records the missing
+evidence, the canonical is `default_not_command`, and the final agent decision
+contract remains advisory. Anything weaker is likewise a default the model
+may argue past, and
 `gnomon.reasoning_packet.verify_packet_selection` is the deterministic gate a
 model conclusion must pass — the selected interpretation must be one the
 packet admits as compatible, and every cited evidence kind must exist in the
 packet and support the selection. The compact projection carries the live
-interpretations, the sufficiency level, the selector, and one discriminator.
+interpretations, the sufficiency level, the selector, whether the inference
+requirements were satisfied, and one discriminator.
 
 Every MCP response also carries a top-level compact `reasoning` boundary. Its
 `facts` entries point to the single response field an agent may quote,

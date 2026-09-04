@@ -251,6 +251,30 @@ def test_cik_checkpoint_identity_covers_request_and_corpus_scope(tmp_path):
     with pytest.raises(SystemExit, match="resume identity mismatch"):
         _prepare_checkpoint_identity(tmp_path, changed, fresh=False)
 
+    changed = {**identity, "mcp_allow_prior_compromise": True}
+    with pytest.raises(SystemExit, match="resume identity mismatch"):
+        _prepare_checkpoint_identity(tmp_path, changed, fresh=False)
+
+
+def test_prior_compromise_consent_is_explicit_and_defaults_off():
+    parser = build_parser()
+    default = parser.parse_args([
+        "--method", "gnomon-mcp", "--model", "test/model",
+        "--output-dir", "/tmp/cik-default",
+    ])
+    consented = parser.parse_args([
+        "--method", "gnomon-mcp", "--model", "test/model",
+        "--mcp-profile", "evidence",
+        "--mcp-output-role", "publication_best_effort",
+        "--mcp-allow-prior-compromise",
+        "--output-dir", "/tmp/cik-consented",
+    ])
+
+    assert default.mcp_allow_prior_compromise is False
+    assert consented.mcp_allow_prior_compromise is True
+    identity = _checkpoint_identity(consented, [], 20, "abc")
+    assert identity["mcp_allow_prior_compromise"] is True
+
 
 def test_shared_sample_cache_is_condition_scoped_and_recorded(tmp_path):
     shared = tmp_path / "shared"

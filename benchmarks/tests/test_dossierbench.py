@@ -110,6 +110,25 @@ def test_the_held_out_future_never_reaches_a_prompt() -> None:
     verify_no_future_leakage(cases, futures, computed)
 
 
+def test_observed_history_evidence_never_binds_a_future_answer() -> None:
+    cases, _, _ = generate_real_cases(11, 12)
+    for case in cases:
+        contract = computed_evidence(case)["packet"]["selection_contract"]
+        assert contract["selector"] == "model"
+        assert contract["canonical"]["role"] == "default_not_command"
+        assert contract["inference_authority"]["mode"] == "predictive"
+        assert contract["inference_authority"][
+            "requirements_satisfied"] is False
+
+
+def test_future_packet_contains_every_declared_answer_option() -> None:
+    cases, _, _ = generate_real_cases(11, 12)
+    for case in cases:
+        packet = computed_evidence(case)["packet"]
+        values = {row["value"] for row in packet["interpretations"]}
+        assert values == set(OPTIONS[case.property])
+
+
 def test_synthetic_cases_remain_available_as_a_diagnostic_mode() -> None:
     cases = generate_cases(7, 20)
     assert cases == generate_cases(7, 20)
