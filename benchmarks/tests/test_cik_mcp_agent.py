@@ -4624,6 +4624,23 @@ def test_cache_name_carries_temperature_and_contract_version():
     assert hotter.cache_name != forecaster.cache_name
 
 
+def test_cache_name_and_scope_bind_prior_compromise_consent():
+    default = McpAgentForecaster(
+        "org/model", client=object(), profile="evidence",
+        output_role="publication_best_effort")
+    consented = McpAgentForecaster(
+        "org/model", client=object(), profile="evidence",
+        output_role="publication_best_effort", allow_prior_compromise=True)
+
+    assert "prior_compromise=0" in default.cache_name
+    assert "prior_compromise=1" in consented.cache_name
+    assert default.cache_name != consented.cache_name
+    with pytest.raises(ValueError, match="requires Evidence"):
+        McpAgentForecaster(
+            "org/model", client=object(), profile="full",
+            allow_prior_compromise=True)
+
+
 def test_cache_name_separates_provider_endpoints():
     engy = McpAgentForecaster("x/y", client=ScriptedClient([]), profile="evidence")
     other_client = ScriptedClient([])

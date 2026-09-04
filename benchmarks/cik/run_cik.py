@@ -422,6 +422,7 @@ def _checkpoint_identity(args, selected, n_samples: int,
         "mcp_candidate_paths": args.mcp_candidate_paths,
         "mcp_candidate_history_rows": args.mcp_candidate_history_rows,
         "mcp_candidate_temporal_facts": args.mcp_candidate_temporal_facts,
+        "mcp_allow_prior_compromise": args.mcp_allow_prior_compromise,
         "no_cache": args.no_cache,
         "sample_cache_root": (
             str(Path(args.sample_cache_root).resolve())
@@ -712,6 +713,7 @@ def build_method(args):
             candidate_sample_budget=args.mcp_candidate_paths,
             candidate_history_budget=args.mcp_candidate_history_rows,
             candidate_temporal_facts_enabled=args.mcp_candidate_temporal_facts,
+            allow_prior_compromise=args.mcp_allow_prior_compromise,
             base_url=base_url, api_key=api_key,
             sample_parallelism=args.sample_parallelism,
             sample_cache_dir=sample_cache_dir,
@@ -1172,6 +1174,13 @@ def build_parser() -> argparse.ArgumentParser:
         action=argparse.BooleanOptionalAction, default=True,
         help="Include compact deterministic full-history temporal facts in "
              "the Evidence candidate prompt (default: enabled).",
+    )
+    parser.add_argument(
+        "--mcp-allow-prior-compromise",
+        action=argparse.BooleanOptionalAction, default=False,
+        help="Explicitly consent to Gnomon's human-only, outcome-free prior "
+             "compromise policy in Evidence publication runs. Off by default; "
+             "the value is bound into run and cache identity.",
     )
     parser.add_argument("--no-cache", action="store_true",
                         help="Disable the official result cache")

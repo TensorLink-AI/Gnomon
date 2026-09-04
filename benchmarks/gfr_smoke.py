@@ -66,6 +66,9 @@ def validate_matched_identities(control: dict[str, Any],
         raise ValueError("CiK treatment must use the gnomon-mcp method")
     if treatment.get("mcp_profile") != "evidence":
         raise ValueError("GFR smoke requires the Evidence MCP profile")
+    if treatment.get("mcp_allow_prior_compromise") is True:
+        raise ValueError(
+            "GFR does not certify the outcome-free prior compromise policy")
 
 
 def matched_latency_seconds(
