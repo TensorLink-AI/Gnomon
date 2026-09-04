@@ -1160,8 +1160,9 @@ def test_context_contract_requires_bounded_typed_gate_citations():
     citations = parameters["properties"]["cited_context_gate_codes"]
     assert citations["maxItems"] == 8
     assert citations["items"] == {"type": "string"}
-    assert "disposition is rejected or scenario" in citations["description"]
-    assert "Do not cite successful" in citations["description"]
+    assert "Exact failed_gate_codes only" in citations["description"]
+    assert "separate vocabulary" in citations["description"]
+    assert "do not belong here" in citations["description"]
     assert parameters["properties"]["reasoning"]["maxLength"] == 600
     assert parameters["properties"]["context_automation_eligible"] == {
         "type": "boolean",

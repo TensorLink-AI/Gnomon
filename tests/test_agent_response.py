@@ -167,6 +167,37 @@ def test_agent_response_contract_exposes_weakest_row_tier():
     assert contract["series"][0]["tier_floor"] == "best_effort"
 
 
+def test_agent_response_contract_separates_gates_from_dispositions():
+    payload = {
+        "results": [{
+            "series": "api",
+            "support": "weakly_supported",
+            "forecast": [{"tier": "conditionally_supported"}],
+            "context_outcome": {
+                "status": "rejected",
+                "failed_gate_codes": [
+                    "emitted_trend_is_directionally_stable"],
+                "canonical_primary_preserved": True,
+                "automation_eligible": False,
+            },
+        }],
+        "publication": {
+            "context_dispositions": [{
+                "disposition": "rejected",
+                "reason_code": "rejected",
+            }],
+        },
+    }
+
+    contract = build_agent_response_contract(payload)
+
+    assert contract is not None
+    [series] = contract["series"]
+    assert series["failed_gate_codes"] == [
+        "emitted_trend_is_directionally_stable"]
+    assert series["disposition_reason_codes"] == ["rejected"]
+
+
 def test_decision_verifier_requires_support_for_a_weak_override():
     contract = build_agent_response_contract(_decision_payload())
     assert verify_agent_decision_selection(
