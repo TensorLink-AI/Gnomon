@@ -2031,9 +2031,19 @@ def test_broad_degraded_primary_gets_human_only_prior_compromise():
     result = _result()
     result["support"] = "degraded"
 
-    payload = publish_result(
+    default = publish_result(
         result, mode="best_effort", dossiers=[dossier],
         prior_compromise_history=[0.0, 1.0, 2.0, 3.0, 4.0])
+    assert default["recommended_scenario_id"] == "primary"
+    assert any(item["role"] == "model_authored"
+               for item in default["candidate_portfolio"])
+    assert not any(item["role"] == "uncertainty_limited_prior"
+                   for item in default["candidate_portfolio"])
+
+    payload = publish_result(
+        result, mode="best_effort", dossiers=[dossier],
+        prior_compromise_history=[0.0, 1.0, 2.0, 3.0, 4.0],
+        allow_uncertainty_limited_prior=True)
 
     assert payload["recommended_scenario_id"] == "uncertainty-limited-prior"
     selected = next(item for item in payload["candidate_portfolio"]
@@ -2078,7 +2088,8 @@ def test_uncertainty_limited_prior_compromise_fails_closed(support, history):
 
     payload = publish_result(
         result, mode="best_effort", dossiers=[dossier],
-        prior_compromise_history=history)
+        prior_compromise_history=history,
+        allow_uncertainty_limited_prior=True)
 
     assert payload["recommended_scenario_id"] == "primary"
     assert not any(item["role"] == "uncertainty_limited_prior"
@@ -2096,7 +2107,8 @@ def test_uncertainty_limited_prior_rejects_nonfinite_host_history():
                 temperature=1.0, stability=_stable_sampling(3),
                 sample_paths=[[14.0, 16.0]] * 3,
                 governed_fallback="categorical_state_mapping_not_admitted")],
-            prior_compromise_history=[1.0, float("inf")])
+            prior_compromise_history=[1.0, float("inf")],
+            allow_uncertainty_limited_prior=True)
 
 
 def test_uncertainty_limited_prior_rejects_directionally_unstable_samples():
@@ -2112,7 +2124,8 @@ def test_uncertainty_limited_prior_rejects_directionally_unstable_samples():
     payload = publish_result(
         {**_result(), "support": "degraded"}, mode="best_effort",
         dossiers=[dossier],
-        prior_compromise_history=[0.0, 1.0, 2.0, 3.0, 4.0])
+        prior_compromise_history=[0.0, 1.0, 2.0, 3.0, 4.0],
+        allow_uncertainty_limited_prior=True)
 
     assert payload["recommended_scenario_id"] == "primary"
     assert not any(item["role"] == "uncertainty_limited_prior"

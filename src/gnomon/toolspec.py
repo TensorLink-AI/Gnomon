@@ -2893,6 +2893,8 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                 candidate_outcome_evidence=candidate_outcome_evidence,
                 prior_compromise_history=(
                     governed_history if mode == "best_effort" else None),
+                allow_uncertainty_limited_prior=bool(
+                    submission.get("allow_prior_compromise", False)),
                 artifact_id=artifact.forecast_id)
     except ValueError as exc:
         raise GnomonError("INVALID_ARGUMENTS", str(exc)) from exc
@@ -3355,20 +3357,21 @@ TOOLS: list[dict[str, Any]] = [
                     "enum": ["strict", "best_effort", "scenario"],
                     "description": (
                         "strict=evidence-only; best_effort may recommend context; "
-                        "scenario returns alternatives. Primary stays fixed.")},
+                        "scenario lists alternatives.")},
                 "temporal_dossiers": {"type": "array", "items": {"type": "object"},
                     "description": "Sealed temporal dossiers."},
                 "context_submission": {
                     "type": "object", "additionalProperties": False,
                     "description": (
-                        "Context or a cited human-only forecast prior; never "
-                        "changes the primary or permits automation."),
+                        "Context or cited human-only prior; never changes "
+                        "primary or automation."),
                     "properties": {
                         "text": {"type": "string"},
                         "known_at": {"type": "string"},
                         "compiler": {"type": "string"},
                         "compile": {"type": "string",
                                     "enum": ["deterministic_linear"]},
+                        "allow_prior_compromise": {"type": "boolean"},
                         "proposal": {"type": "object"},
                         "transformations": {"type": "array",
                                             "items": {"type": "object"}},

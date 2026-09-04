@@ -2825,6 +2825,7 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
                    calibration_evidence: dict[str, Any] | None = None,
                    candidate_outcome_evidence: list[dict[str, Any]] | None = None,
                    prior_compromise_history: list[float] | None = None,
+                   allow_uncertainty_limited_prior: bool = False,
                    artifact_id: str | None = None) -> dict[str, Any]:
     """Return a compact, sealed human-facing projection over frozen paths."""
     if mode not in MODES:
@@ -2834,7 +2835,8 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
         _append_outcome_shrunk_prior(
             scenarios, candidate_outcome_evidence)
     uncertainty_link = None
-    if mode == "best_effort" and prior_compromise_history is not None:
+    if (mode == "best_effort" and allow_uncertainty_limited_prior
+            and prior_compromise_history is not None):
         uncertainty_link = _append_uncertainty_limited_prior(
             scenarios, prior_compromise_history,
             primary_support=str(result.get("support") or ""))
