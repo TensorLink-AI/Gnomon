@@ -308,6 +308,10 @@ def compact_evidence_plan(plan: dict[str, Any]) -> dict[str, Any]:
                 iter(packet.get("discriminators") or []), None),
             "selector": (packet.get("selection_contract") or {}).get(
                 "selector"),
+            "requirements_satisfied": (
+                (packet.get("selection_contract") or {}).get(
+                    "inference_authority") or {}).get(
+                        "requirements_satisfied"),
             "selection_must_cite_evidence": (
                 packet.get("selection_contract") or {}).get(
                     "selection_must_cite_evidence"),
