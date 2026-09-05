@@ -12,6 +12,7 @@ from __future__ import annotations
 import csv
 import json
 from pathlib import Path
+import shlex
 
 from gnomon.cli import main
 
@@ -86,11 +87,14 @@ def test_capabilities_report_the_new_surface():
     assert surface["brief_output"]["cli"] == "--brief"
 
 
-def test_readme_leads_the_forecast_example_with_the_minimal_form():
+def test_readme_leads_with_a_working_offline_forecast(capsys):
     readme = (REPO / "README.md").read_text(encoding="utf-8")
-    minimal = readme.index("gnomon infer --provider last_value --request")
-    configured = readme.index("[providers.remote]")
-    assert minimal < configured, "the README must start with an offline provider"
+    command = next(line for line in readme.splitlines() if line.startswith("gnomon "))
+    assert readme.index(command) < readme.index("Ephemeris")
+    assert main(shlex.split(command)[1:]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["provider"] == "last_value"
+    assert result["result"]["point"] == [11.0, 11.0]
     assert "docs/cli-reference.md" in readme
 
 
