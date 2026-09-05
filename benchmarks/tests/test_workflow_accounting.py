@@ -192,26 +192,6 @@ def test_journal_rejects_other_databases_and_conflicting_receipts(tmp_path):
         journal.close()
 
 
-def test_cached_provider_history_is_not_double_charged_by_arm_normalization(tmp_path):
-    import time
-    from benchmarks.common.openrouter import OpenRouterClient
-    from benchmarks.workflow.agent_adapter import _normalize
-    from benchmarks.workflow.run_workflow import case_payload
-    original = OpenRouterClient("test/model", api_key="unused", sample_cache_dir=tmp_path)
-    original._persist_request_record("case", successful=True,
-        usage={"prompt_tokens": 60, "completion_tokens": 40, "cost": 2}, transport_attempts=1)
-    resumed = OpenRouterClient("test/model", api_key="unused", sample_cache_dir=tmp_path)
-    resumed.total_transport_attempts += 1
-    resumed._account({"usage": {"prompt_tokens": 6, "completion_tokens": 4, "cost": 0.2}})
-    case = load_cases(DEFAULT_CASES)[0]
-    normalized = _normalize(case_payload(case), {"status": "answered"}, calls=1,
-                            client=resumed, started=time.time(), tool_names=[])
-    assert resumed.total_prompt_tokens + resumed.total_completion_tokens == 110
-    assert normalized["cumulative_tokens"] == 10
-    assert normalized["cost_usd"] == 0.2
-    assert normalized["metadata"]["cached_history_not_matched_to_attempt_journal"] is True
-    assert "cumulative_tokens" not in normalized["metadata"]["resource_fields"]
-    assert "cost_usd" not in normalized["metadata"]["resource_fields"]
 
 
 @pytest.mark.parametrize("earlier,expected", [(True, True), (None, None), (False, False)])

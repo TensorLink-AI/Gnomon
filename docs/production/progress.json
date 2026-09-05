@@ -2,7 +2,7 @@
   "schema_version": 1,
   "objective": "Production-ready Gnomon within the scope and release gates in PLAN.md",
   "baseline_revision": "0d3d72e",
-  "iteration": 20,
+  "iteration": 21,
   "score_policy": "Sum weights of verified checks only. Missing evidence earns zero. No elapsed-time or lines-of-code credit. Regressions reopen checks. 100 requires every check including live service verification.",
   "workstreams": [
     {
@@ -14,28 +14,37 @@
           "weight": 2,
           "acceptance": "Trace active code, benchmark dependencies, and existing worktree state.",
           "status": "verified",
-          "evidence": ["docs/production/AUDIT.md: runtime/tool/benchmark/storage/API call paths and dispositions traced at 0d3d72e"]
+          "evidence": [
+            "Core execution, session, ledger, HTTP transport and evaluation paths traced; prior detailed audit retained at Git checkpoint 2cba20e."
+          ]
         },
         {
           "id": "cull",
           "weight": 2,
-          "acceptance": "Recoverably remove retired or duplicate active benchmark machinery; document exact dispositions.",
+          "acceptance": "Recoverably remove superseded benchmark/design machinery while retaining independent production regressions and one current evaluation harness.",
           "status": "verified",
-          "evidence": ["ReasoningBench and historical tests moved to archive/benchmarks; active orchestrator rejects retired catalogue entries", "pytest benchmarks/tests/test_run_all.py benchmarks/tests/test_release.py archive/benchmarks/reasoningbench/test_historical.py: 34 passed"]
+          "evidence": [
+            "User-requested cleanup removes 95 obsolete docs/spec/archive files, 292 benchmark files and 345 tracked historical result files; all recoverable at checkpoint 2cba20e. Effect-model regression support retained under tests/support, source CSVs moved unchanged into workflow/data."
+          ]
         },
         {
           "id": "suite",
           "weight": 2,
-          "acceptance": "Separate production regression gates from optional historical/paid experiments.",
+          "acceptance": "Separate production regressions from the retained matched-evaluation harness; no automatic paid runs.",
           "status": "verified",
-          "evidence": ["CI production matrix executes pytest tests; separate historical adapter job executes pytest benchmarks/tests and dry-run config validation without paid calls", "Independent local invocations: production2302 passed/7 skipped/78.06s; historical868 passed/6 skipped/221.46s; four shipped batch configs validate", "test_regression_boundaries.py verifies retained gates and platform declarations; historical direct/subprocess adapters explicitly select retained legacy profiles, not the changed product default"]
+          "evidence": [
+            "CI keeps Python3.11/3.12/3.13 production matrix, current evaluation-harness regressions and isolated software/service checks. Superseded benchmark jobs and schedules removed."
+          ]
         },
         {
           "id": "baseline",
           "weight": 2,
           "acceptance": "Record full baseline test and lint results, including pre-existing failures.",
           "status": "verified",
-          "evidence": ["Baseline pytest: 2991 passed, 13 skipped, 329.61s at 0d3d72e", "Baseline ruff check src/gnomon: passed"]
+          "evidence": [
+            "Baseline pytest: 2991 passed, 13 skipped, 329.61s at 0d3d72e",
+            "Baseline ruff check src/gnomon: passed"
+          ]
         }
       ]
     },
@@ -48,28 +57,40 @@
           "weight": 4,
           "acceptance": "Execute exact mean/median/latest/minimum/maximum semantics through public tools.",
           "status": "verified",
-          "evidence": ["106 focused tests pass across quantities, intent, questions, planner, reasoning, tracking, responses and front doors; source lint passes", "Public average/mean/median/latest/min/max/sum regressions execute exact quantities and reject conflicting aliases"]
+          "evidence": [
+            "106 focused tests pass across quantities, intent, questions, planner, reasoning, tracking, responses and front doors; source lint passes",
+            "Public average/mean/median/latest/min/max/sum regressions execute exact quantities and reject conflicting aliases"
+          ]
         },
         {
           "id": "time",
           "weight": 4,
           "acceptance": "Preserve valid time, source availability, local recording time and snapshot provenance.",
           "status": "verified",
-          "evidence": ["tests/test_recorded_time.py: source versus recorded replay, legacy NULL recording-time migration, immutable first-seen time and content-fingerprint tests pass", "Snapshot provenance includes replay mode, unknown recording-time count and visible-vintage fingerprint; seven golden tests pass after reviewing provenance-only additions"]
+          "evidence": [
+            "tests/test_recorded_time.py: source versus recorded replay, legacy NULL recording-time migration, immutable first-seen time and content-fingerprint tests pass",
+            "Snapshot provenance includes replay mode, unknown recording-time count and visible-vintage fingerprint; seven golden tests pass after reviewing provenance-only additions"
+          ]
         },
         {
           "id": "scope",
           "weight": 4,
           "acceptance": "Execute explicit windows, units and aggregation or reject unsupported semantics.",
           "status": "verified",
-          "evidence": ["test_data_refs.py verifies exact inclusive windows, declared units, explicit panel selection, frozen source/store revisions and rejection of incompatible or ignored scope", "Legacy question compiler rejects unknown fields/custom comparison windows/validation and duplicate aggregation members; existing explicit aggregate/method capability tests still pass", "Iteration 4 full pytest: 3122 passed, 13 skipped; focused cross-surface/scope/authority checks: 131 passed"]
+          "evidence": [
+            "test_data_refs.py verifies exact inclusive windows, declared units, explicit panel selection, frozen source/store revisions and rejection of incompatible or ignored scope",
+            "Iteration 4 full pytest: 3122 passed, 13 skipped; focused cross-surface/scope/authority checks: 131 passed"
+          ]
         },
         {
           "id": "authority",
           "weight": 2,
           "acceptance": "Descriptive correctness never implies calibrated prediction or action authorization.",
           "status": "verified",
-          "evidence": ["Observed questions cannot inherit a parent forecast horizon; explicit horizon contradictions are rejected and explicit future fallback intent is predictive", "Generic supported envelopes set automation_eligible=false/action_authorized=false and make no blanket calibration claim; fitted numeric policy qualification remains separate and explicitly grants no action permission", "test_quantity_semantics.py, test_temporal_intent.py, test_temporal_distribution.py and retained tool/publication regression coverage pass"]
+          "evidence": [
+            "Observed questions cannot inherit a parent forecast horizon; explicit horizon contradictions are rejected and explicit future fallback intent is predictive",
+            "test_quantity_semantics.py, test_temporal_intent.py, test_temporal_distribution.py and retained tool/publication regression coverage pass"
+          ]
         }
       ]
     },
@@ -82,28 +103,36 @@
           "weight": 4,
           "acceptance": "Register and execute user callables without editing Gnomon or model catalogues.",
           "status": "verified",
-          "evidence": ["InferenceEngine exported from gnomon; test_inference.py executes arbitrary user names without catalogue edits or implicit backtests"]
+          "evidence": [
+            "InferenceEngine exported from gnomon; test_inference.py executes arbitrary user names without catalogue edits or implicit backtests"
+          ]
         },
         {
           "id": "contracts",
           "weight": 4,
           "acceptance": "Validated timestamp/series-aligned request/results including supported uncertainty outputs.",
           "status": "verified",
-          "evidence": ["test_inference.py covers strict integer horizons, timestamp ordering/cutoffs/timezones, result series/unit alignment, requested quantiles and paths, and malformed extra uncertainty"]
+          "evidence": [
+            "test_inference.py covers strict integer horizons, timestamp ordering/cutoffs/timezones, result series/unit alignment, requested quantiles and paths, and malformed extra uncertainty"
+          ]
         },
         {
           "id": "capabilities",
           "weight": 3,
           "acceptance": "Capability discovery and conformance checks reject dropped/unsupported inputs.",
           "status": "verified",
-          "evidence": ["Engine discovery exposes capabilities/lifecycle/revision/batching; tests reject unsupported inputs before execution and prevent legacy bridges from dropping claimed covariates"]
+          "evidence": [
+            "Engine discovery exposes capabilities/lifecycle/revision/batching; tests reject unsupported inputs before execution and prevent legacy bridges from dropping claimed covariates"
+          ]
         },
         {
           "id": "lifecycle",
           "weight": 3,
           "acceptance": "Explicit pretrained/fitted lifecycle and optional batching preserve fold isolation.",
           "status": "verified",
-          "evidence": ["test_inference.py verifies fresh per-request factory state, closing, ordered native batching and whole-batch preflight; retained pretrained lifecycle is explicit"]
+          "evidence": [
+            "test_inference.py verifies fresh per-request factory state, closing, ordered native batching and whole-batch preflight; retained pretrained lifecycle is explicit"
+          ]
         }
       ]
     },
@@ -116,28 +145,37 @@
           "weight": 4,
           "acceptance": "Immutable per-execution records bind exact request, snapshot, output and model identity.",
           "status": "verified",
-          "evidence": ["test_ledger.py verifies unique cached execution IDs, atomically stored content-addressed request/result payloads, persisted model/snapshot identity, integrity checks and append-only SQL guards"]
+          "evidence": [
+            "test_ledger.py verifies unique cached execution IDs, atomically stored content-addressed request/result payloads, persisted model/snapshot identity, integrity checks and append-only SQL guards"
+          ]
         },
         {
           "id": "actuals",
           "weight": 4,
           "acceptance": "Append actual revisions with source availability and local recorded times; replay both modes.",
           "status": "verified",
-          "evidence": ["test_ledger.py verifies revision-preserving actuals, source versus system-recorded replay, unit matching, exact-ingest idempotency and concurrent append numbering"]
+          "evidence": [
+            "test_ledger.py verifies revision-preserving actuals, source versus system-recorded replay, unit matching, exact-ingest idempotency and concurrent append numbering"
+          ]
         },
         {
           "id": "evaluations",
           "weight": 4,
           "acceptance": "Append versioned complete/partial evaluations referencing exact actual vintages; preserve rescoring history.",
           "status": "verified",
-          "evidence": ["test_ledger.py verifies pending/partial/complete/revised metric-versioned scores with exact actual IDs, historical score queries and unchanged original predictions"]
+          "evidence": [
+            "test_ledger.py verifies pending/partial/complete/revised metric-versioned scores with exact actual IDs, historical score queries and unchanged original predictions"
+          ]
         },
         {
           "id": "decisions",
           "weight": 4,
           "acceptance": "Record decision inputs/outcomes and expose pending, comparison and replay queries with migrations.",
           "status": "verified",
-          "evidence": ["test_artifact_import.py covers cutoff-aware decision/outcome replay, transactional ledger v1-to-v2 migration, idempotent artifact import and read-only legacy registry migration", "Unknown legacy histories/timezones stay unknown; old mutable scores are retained in their original registry, not misrepresented as vintage-aware evaluations"]
+          "evidence": [
+            "test_artifact_import.py covers cutoff-aware decision/outcome replay, transactional ledger v1-to-v2 migration, idempotent artifact import and read-only legacy registry migration",
+            "Unknown legacy histories/timezones stay unknown; old mutable scores are retained in their original registry, not misrepresented as vintage-aware evaluations"
+          ]
         }
       ]
     },
@@ -150,21 +188,28 @@
           "weight": 4,
           "acceptance": "Remote models discovered/configured independently of local TSFM installation/catalogue.",
           "status": "verified",
-          "evidence": ["Paracast schema/service/Chutes routes traced at f5d3f53b17e56d8c7ed0cbae61e043b8667f236a; test_ephemeris.py discovers a remote-only model and forecasts with two observations over local HTTP"]
+          "evidence": [
+            "Paracast schema/service/Chutes routes traced at f5d3f53b17e56d8c7ed0cbae61e043b8667f236a; test_ephemeris.py discovers a remote-only model and forecasts with two observations over local HTTP"
+          ]
         },
         {
           "id": "transport",
           "weight": 4,
           "acceptance": "Bounded robust HTTP transport, explicit versions/errors and secret-safe configuration.",
           "status": "verified",
-          "evidence": ["Shared JSONTransport used by Paracast and legacy HTTP adapter; tests cover bounded bytes/GET retries, no POST retry, redirect refusal, credential-safe errors, auth and URL validation"]
+          "evidence": [
+            "Shared JSONTransport used by Paracast and legacy HTTP adapter; tests cover bounded bytes/GET retries, no POST retry, redirect refusal, credential-safe errors, auth and URL validation"
+          ]
         },
         {
           "id": "integration",
           "weight": 4,
           "acceptance": "Public forecasting executes API and callable providers including short histories; cache/batch behavior verified.",
           "status": "verified",
-          "evidence": ["test_session.py launches real CLI and MCP stdio subprocesses against a local Paracast HTTP server using operator TOML and remote-only model discovery", "Python/CLI/MCP share typed requests, provider identity and ledger writes; test_inference.py/test_ephemeris.py cover native batching and cache behavior. Live verification remains a separate unearned gate"]
+          "evidence": [
+            "test_session.py launches real CLI and MCP stdio subprocesses against a local Paracast HTTP server using operator TOML and remote-only model discovery",
+            "Python/CLI/MCP share typed requests, provider identity and ledger writes; test_inference.py/test_ephemeris.py cover native batching and cache behavior. Live verification remains a separate unearned gate"
+          ]
         }
       ]
     },
@@ -177,28 +222,39 @@
           "weight": 2,
           "acceptance": "Inference is usable independently of evidence sufficient for model selection.",
           "status": "verified",
-          "evidence": ["Direct InferenceEngine works on short histories without model selection or hidden folds; outputs explicitly state inference_only and action_authorized=false"]
+          "evidence": [
+            "Direct InferenceEngine works on short histories without model selection or hidden folds; outputs explicitly state inference_only and action_authorized=false"
+          ]
         },
         {
           "id": "budget",
           "weight": 3,
           "acceptance": "Candidate/fold/call budgets are enforced with disclosed limits and safe cancellation/fallback.",
           "status": "verified",
-          "evidence": ["test_backtesting.py verifies provider/fold ceilings, charged baseline/failure attempts, zero/partial budgets, cancellation, wall-limit overruns and fresh per-fold factories", "Session tool budgets cannot raise operator limits; real Paracast HTTP test distinguishes provider attempts from unknown internal model fan-out", "Iteration 5 full pytest: 3150 passed, 13 skipped in 288.84s; 183 focused evaluation/session/ledger/migration/contracts/docs checks passed"]
+          "evidence": [
+            "test_backtesting.py verifies provider/fold ceilings, charged baseline/failure attempts, zero/partial budgets, cancellation, wall-limit overruns and fresh per-fold factories",
+            "Iteration 5 full pytest: 3150 passed, 13 skipped in 288.84s; 183 focused evaluation/session/ledger/migration/contracts/docs checks passed"
+          ]
         },
         {
           "id": "routing",
           "weight": 3,
           "acceptance": "All routing evidence obeys historical cutoff and uses relevant recorded cohorts.",
           "status": "verified",
-          "evidence": ["test_study_routing.py verifies source/recorded cutoffs, immutable execution matching, exact task/version/lifecycle identity, historical input replay, actual revisions, baseline fallback and unversioned/pretrained evidence refusal", "Mutable TrackingStore and overwritten shadow-outcome routing priors disabled; historical source retained under archive/legacy and tests prove mutable summaries cannot select a model", "Routing creates new immutable rescoring studies with zero provider calls and no action authorization; Python/CLI/MCP match, and fresh installed-wheel routing/retrieval passes", "Iteration 6 full pytest: 3166 passed, 13 skipped in 288.13s; 193 focused checks and 31 final routing/adapter checks pass"]
+          "evidence": [
+            "test_study_routing.py verifies source/recorded cutoffs, immutable execution matching, exact task/version/lifecycle identity, historical input replay, actual revisions, baseline fallback and unversioned/pretrained evidence refusal",
+            "Iteration 6 full pytest: 3166 passed, 13 skipped in 288.13s; 193 focused checks and 31 final routing/adapter checks pass"
+          ]
         },
         {
           "id": "matched",
           "weight": 2,
           "acceptance": "Evaluation compares exact matched task/model/version cohorts and explicit baselines.",
           "status": "verified",
-          "evidence": ["Provider comparisons share exact fold requests, actual vintages, units, horizons and declared revision/lifecycle identities; missing provider revisions remain unknown, never attested", "Source and recorded replay tests exclude late revisions independently, refuse unavailable history and data-dependent repairs, and preserve factory isolation", "Point metrics use the all-provider matched-fold intersection with explicit baseline and complete failure/budget denominators; immutable schema-3 studies preserve original requests, outputs and truth without importing online actuals", "Python/CLI/live local MCP produce identical cohort IDs and scores; full studies are retrievable from compact tool responses"]
+          "evidence": [
+            "Provider comparisons share exact fold requests, actual vintages, units, horizons and declared revision/lifecycle identities; missing provider revisions remain unknown, never attested",
+            "Python/CLI/live local MCP produce identical cohort IDs and scores; full studies are retrievable from compact tool responses"
+          ]
         }
       ]
     },
@@ -211,28 +267,40 @@
           "weight": 3,
           "acceptance": "One compact result/evidence projection preserves exact quantities and retrieves full artifacts.",
           "status": "verified",
-          "evidence": ["result_refs.py applies one bounded default projection with exact canonical JSON pages/pointers, private integrity-checked session storage, per-result/total/count limits and explicit LRU expiry; partial summaries are not complete forecasts", "test_result_refs.py verifies Unicode/digest round trips, pointer escaping, no provider reruns, retention-limit completed-work receipts, error budgets, eviction/integrity/cleanup and real stdio malformed-UTF8 recovery", "CLI and explicit full Python mode return unabridged results, including complete initial evaluation studies, not unusable references from closed sessions; installed-wheel large forecast pointer retrieval passes", "Iteration8 final production2316 passed/7 skipped/67.00s; historical868 passed/6 skipped/228.69s; final56 session/result/evaluation and26 error/reliability/recovery checks pass. Source lint and skill validator pass"]
+          "evidence": [
+            "result_refs.py applies one bounded default projection with exact canonical JSON pages/pointers, private integrity-checked session storage, per-result/total/count limits and explicit LRU expiry; partial summaries are not complete forecasts",
+            "Iteration8 final production2316 passed/7 skipped/67.00s; historical868 passed/6 skipped/228.69s; final56 session/result/evaluation and26 error/reliability/recovery checks pass. Source lint and skill validator pass"
+          ]
         },
         {
           "id": "boundaries",
           "weight": 3,
           "acceptance": "Thin tool registration delegates execution; redundant experimental surfaces removed or isolated.",
           "status": "verified",
-          "evidence": ["Ordinary CLI/MCP startup now uses owned GnomonSession; test_default_surface.py verifies connection-lifetime frozen reference reuse/cleanup and fresh-process absence of advanced imports", "Retired duplicate describe and experimental mega profiles;311 lines removed from active toolspec, original source archived and unregistered diagnostic helpers isolated in legacy_experiments.py", "Default five tools/seven with ledger share session schemas and dispatch; explicit advanced core/evidence/decision/data/full compatibility remains documented and tested", "Current README/quickstart/compatibility/packaged skill match actual defaults; skill validator and installed default plus explicit legacy journeys pass. Bounded result projection remains a separate pending check"]
+          "evidence": [
+            "Ordinary CLI/MCP startup now uses owned GnomonSession; test_default_surface.py verifies connection-lifetime frozen reference reuse/cleanup and fresh-process absence of advanced imports",
+            "Current README/quickstart/compatibility/packaged skill match actual defaults; skill validator and installed default plus explicit legacy journeys pass. Bounded result projection remains a separate pending check"
+          ]
         },
         {
           "id": "entrypoints",
           "weight": 2,
           "acceptance": "Python, CLI and MCP share requests/provider configuration and honest output schemas.",
           "status": "verified",
-          "evidence": ["test_session.py verifies identical cross-surface request fingerprints/provider outputs with unique executions, explicit operator-only configuration, outcome permissions and secret-safe MCP errors", "MCP output schema no longer incorrectly rejects valid status strings from legacy tools"]
+          "evidence": [
+            "test_session.py verifies identical cross-surface request fingerprints/provider outputs with unique executions, explicit operator-only configuration, outcome permissions and secret-safe MCP errors",
+            "MCP output schema no longer incorrectly rejects valid status strings from legacy tools"
+          ]
         },
         {
           "id": "tracking",
           "weight": 2,
           "acceptance": "Agent tools record/query executions, actual revisions, evaluations and pending work.",
           "status": "verified",
-          "evidence": ["Execution-profile gnomon_ledger shares closed query/write operations with Python and CLI; tests exercise execution retrieval, actuals, evaluation, pending work, imports and startup permission denial", "New history.json snapshots fix original-input rereads; test_artifact_import.py verifies mutated-file/store-as-of registration and scoring without optional forecast.csv"]
+          "evidence": [
+            "Execution-profile gnomon_ledger shares closed query/write operations with Python and CLI; tests exercise execution retrieval, actuals, evaluation, pending work, imports and startup permission denial",
+            "New history.json snapshots fix original-input rereads; test_artifact_import.py verifies mutated-file/store-as-of registration and scoring without optional forecast.csv"
+          ]
         }
       ]
     },
@@ -245,14 +313,19 @@
           "weight": 3,
           "acceptance": "Advanced context/dossier/scenario machinery is optional and does not burden ordinary inference.",
           "status": "verified",
-          "evidence": ["test_session.py fresh-process check executes CLI inference and MCP discovery/forecast without importing toolspec/runtime/evaluation/publication/llm_dossier/context_intelligence; legacy Python APIs remain lazily available"]
+          "evidence": [
+            "test_session.py fresh-process check executes CLI inference and MCP discovery/forecast without importing toolspec/runtime/evaluation/publication/llm_dossier/context_intelligence; legacy Python APIs remain lazily available"
+          ]
         },
         {
           "id": "temporal",
           "weight": 3,
           "acceptance": "Explicit event/interval/date primitives support bounded general temporal operations with independent tests.",
           "status": "verified",
-          "evidence": ["test_temporal_ops.py:83 independent checks cover explicit UTC arithmetic, DST folds/gaps including half-hour and skipped-day transitions, calendar month ends, exact duration strings, all 13 interval relations, stable event ties and bounded retrieval", "Default discovery does not import temporal_ops; startup-only optional tool and Python/CLI/real MCP parity verified without providers. Production2399 passed/7 skipped; installed wheel temporal journeys pass. No LLM-reasoning uplift is claimed"]
+          "evidence": [
+            "test_temporal_ops.py:83 independent checks cover explicit UTC arithmetic, DST folds/gaps including half-hour and skipped-day transitions, calendar month ends, exact duration strings, all 13 interval relations, stable event ties and bounded retrieval",
+            "Default discovery does not import temporal_ops; startup-only optional tool and Python/CLI/real MCP parity verified without providers. Production2399 passed/7 skipped; installed wheel temporal journeys pass. No LLM-reasoning uplift is claimed"
+          ]
         }
       ]
     },
@@ -265,14 +338,19 @@
           "weight": 3,
           "acceptance": "Completion, errors, budgets, abstention, accuracy, calibration and cost are reported without survivor bias.",
           "status": "verified",
-          "evidence": ["agent_eval schema0.2 implements all-task delivered success, explicit completion bounds, exact paired safety coverage, complete/partial resource totals and descriptive probability calibration; independent failure/cost/parser tests pass", "Iteration11 Workflow Bench append-only attempt journal preserves retry, stage and resume usage, committed unfinished starts, original error/leakage observations and unknown spend.21 independent accounting tests include real subprocess timeouts, parallel workers, crash-before-checkpoint and normalized CLI export", "Shared LLM client distinguishes absent/invalid usage, historical cache uncertainty and new-process counters; outer journals do not double-charge cached usage. Budget/safety gates refuse incomplete measurements and old scalar totals are labelled lower bounds", "Final122 focused checks pass; production2437 passed/7 skips and historical897 passed/6 skips. No measured agent superiority or billing attestation is inferred from scripted accounting fixtures"]
+          "evidence": [
+            "agent_eval schema0.2 implements all-task delivered success, explicit completion bounds, exact paired safety coverage, complete/partial resource totals and descriptive probability calibration; independent failure/cost/parser tests pass",
+            "Final122 focused checks pass; production2437 passed/7 skips and historical897 passed/6 skips. No measured agent superiority or billing attestation is inferred from scripted accounting fixtures"
+          ]
         },
         {
           "id": "ablation",
           "weight": 2,
           "acceptance": "Matched ordinary/lean/full evaluation workflow produces reproducible evidence with declared limitations.",
           "status": "pending",
-          "evidence": ["Iteration12 partial: matched.py and run_workflow --experiment pin a common driver/settings/corpus plus concrete code bytes; reject uncontrolled differences, changed resume inputs and stale scored artifacts.26 independent controls checks pass with real scripted subprocesses on Python3.11/3.12/3.13;121 focused workflow/report checks pass. Final production2440 passed/7 skips and historical923 passed/6 skips","Historical promotion and generic report consumers refuse matched experiments instead of bypassing their controls/artifact checks. Historical forced-tool adapter and host-compiled outcome stages are not relabelled as new-default evidence; see benchmarks/workflow/MATCHED.md","Iteration14 partial: shared bounded_agent loop discovers actual tools, preserves agent choices/arguments/answer numbers, counts failed/malformed calls, and discloses unknown usage and observed token/time overruns. New opt-in single-attempt LLM calls prohibit hidden retry/truncation/top-up requests and bound strict response JSON. Budget-cap receipts survive resume and normalized export.161 focused checks pass on Python3.12;110 focused checks each on3.11/3.13. Scripted tests include actual Python/MCP Gnomon calls, not measured agent uplift","Not yet a completed surface ablation: bind the loop to the shared pinned command/model/config and a strong ordinary software backend versus current lean and explicitly scoped full backends; complete suitable forecast/decision/temporal tasks and genuine staged agent state/reveals. Host subprocess descendant cancellation/output limits and total experiment spending controls remain unproven. No paid experiment was run and no acceptance points awarded for the partial driver","Iteration15 partial: executable driver.py binds pinned model/config/prompt/generation and selected operator backend factory, refuses missing named credentials and redirects, and requires explicit remote-model opt-in. POSIX process.py bounds stdin/stdout/stderr while reading and kills the owned process group, including descendants, on timeout/output limit/completion.182 focused checks pass on3.12;106 each on3.11/3.13. Final production2451 passed/7 skips and historical980 passed/6 skips;3431 passed/13 skipped combined. Real shared-command fixtures call current Gnomon forecasts with scripted local HTTP, not real surface-uplift evidence. Actual strong backends/tasks/staged agent state and total spending controls remain pending; see HANDOFF.md iteration15","Iteration16 partial: ordinary Python backend now executes actual StatsForecast SeasonalNaive/AutoARIMA/AutoETS and general Python in a separately built hash-locked image, without a Gnomon adapter. No host mounts/credentials/network; non-root agent, protected finite-lifetime PID1, fixed resource limits and exact-owner cleanup tested. Optional backend provenance retains actual image/software/data identity.51 software/loop/driver checks pass on each3.11/3.12/3.13 host; final production2451 passed/7 skips and historical992 passed/6 skips with real container tests enabled.3443 passed/13 skipped combined;119 boundary/docs/progress checks pass. Dedicated CI job added; no remote CI run claimed. Actual lean/full combinations, staged tasks, total spending controls and real agent comparison remain pending.","Iteration17 partial: actual isolated lean/full MCP combinations now retain the same ordinary software, original schemas and explicit profile/compute differences. Installed package contents/resources match checkout; versions/public files and persistent MCP calls verified. Optional lean ledger/temporal switches preserve saved forecast[7] while scoring operator-supplied actual as MAE1, without agent outcome-write authority.70 combined checks pass on each3.11/3.12/3.13 with real containers; final production2451 passed/7 skips, historical1011 passed/6 skips, combined3462 passed/13 skips.119 boundary/docs/progress checks pass; all handles terminal and no test containers remain. No paid agent-quality experiment or staged-agent protocol is inferred; corpus, genuine stage behavior, total spending controls and actual model comparison still pending.","Iteration18 partial: genuine committed agent episodes now keep one client/transcript/backend/budget across delayed reveals. Append-only schema2 attempt checkpoints preserve raw submissions, crash usage lower bounds and prior forecasts; retries/resume cannot replay after a possible reveal. Actual ordinary/full Python files and lean ledger persist through operator actual ingestion and agent-requested scoring. Three synthetic smoke cases cover forecast revisions, permissions and bitemporal replay; no actual model uplift is inferred.21 episode checks pass with real containers;111 focused checks pass each on Python3.11/3.13. Final combined production/historical suite3483 passed,13 skipped in340.81s;119 documentation/boundary/progress checks pass. Shipped core/images unchanged. Real matched agent evidence and deployed Paracast remain pending.","Iteration19 partial: optional per-arm max_reported_cost_usd now uses the existing attempt journal to stop after accumulated reported service cost, including failures/resume/unfinished work. Built-in driver, serial execution, zero retries and durable journal are required. Remaining allowance is private; loop checks between requests/tools/phases, stops on unknown charges and discloses overshoot. This is not a provider-enforced dollar ceiling; three arms have independent equal allocations and external hard bill limits remain operator-owned.33 new spending tests pass;144 focused checks pass each on Python3.11/3.13 with actual containers. Final production/historical3516 passed,13 skipped in360.63s;119 documentation/boundary/progress checks pass. Operator-filled templates pin actual ordinary/lean/full backends without enabling paid requests. No new production dependency/storage service. Existing22 context cases were traced as legacy-specific, not a tool-neutral cohort. Actual held-out agent comparison and deployed Paracast remain pending.","Iteration20 partial:11-task matched-retrospective cohort now has4 pinned observational forecast windows,4 tool-neutral utility tasks and3 committed episodes. Free forecasts use complete-horizon MAE against a fixed last-value baseline, plus MAE/RMSE/nonseasonal MASE and explicit missing/conditional coverage; no exact-target matching or zero loss for missing horizons. Initially selected Statsmodels data were rejected because full source datasets were bundled in the agent image. Final tracked BreachBench CSVs match pinned Prophet examples (temperature after12 nonfinite exclusions); selected windows have verified cadence, with historical-training contamination explicitly unproven.25 cohort checks pass with real Naive/AutoETS containers;169 focused checks pass on each3.11/3.13. Final production/historical3541 passed,13 skipped in355.49s;119 documentation/boundary/progress checks pass. Corpus hash067fe3fef54284c8eef8acc56b852d7857df3c268c7bc15c7e7471ad4858dbe7. No actual agent model comparison or uplift claim; that gate remains pending."]
+          "evidence": [
+            "Current matched runner, original agent answers, locked isolated backends, cumulative attempt/cost accounting and committed episodes are implemented; 11-task retrospective corpus is scoped and not decontaminated. No actual matched agent model run or uplift result exists."
+          ]
         }
       ]
     },
@@ -285,30 +363,40 @@
           "weight": 1,
           "acceptance": "Current onboarding, plugin/provider examples, ledger migration and operating instructions are executable.",
           "status": "verified",
-          "evidence": ["examples/provider_plugin is a separately installable callable/factory package with operator TOML, request and executable walkthrough. Real installed Python/CLI/MCP journeys preserve predictions, pending/partial/complete/revised/historical scores and backup/restore without agent outcome-write permission", "11 independent onboarding checks cover repeated fresh fitting, operator/agent permission distinction, refusal to overwrite existing directories/files/symlinks, committed WAL backup, read-only preupgrade backup and candidate-only migration, and execution of the documented legacy-import snippet without changing its source registry", "Local pip source install, bash install.sh --local, isolated uv tool install and the actual Dockerfile build/run pass; Docker execution also passes with no network/read-only root. Current operations/offline/provider guides match executed paths and explicitly distinguish unreleased checkout APIs, synthetic fixtures, unknown revisions and actual deployment verification"]
+          "evidence": [
+            "Current README, Python/CLI/MCP, installation, provider/ledger and operations guidance; 39 current documentation tests pass after replacing tests specific to deleted design documents."
+          ]
         },
         {
           "id": "checks",
           "weight": 2,
           "acceptance": "Required regression, lint, concurrency, migration and supported-platform checks pass.",
           "status": "verified",
-          "evidence": ["Iteration13 final Linux production matrix:2451 passed/7 skipped each on Python3.11.14(84.28s),3.12(83.41s),3.13.11(81.60s); compileall src/tests/examples/smoke passes on all three. Historical923 passed/6 skipped/231.06s; four runnable YAML configs validated in iteration11 without paid calls", "test_ledger.py covers independent spawned-process initialization/revision/deduplication, failed-write orphan prevention and fault-injected migration rollback/retry; existing replay, v1/v2 upgrades and read-only legacy imports pass. New executable backup tests include committed WAL and preupgrade source preservation", "Ruff source/changed example/script tests, ShellCheck0.11.0 and whitespace checks pass. Fresh sdist/wheel and sub-5MB/packaged-skill boundaries pass; installed plugin/core journeys pass on all supported Python versions and Docker network-none. Local equivalents of required jobs were executed, not a claim of remotely published CI results"]
+          "evidence": [
+            "Iteration21: final cleaned suite 2666 passed,7 skipped in128.19s, including actual software/service containers;224 focused checks pass each on Python3.11/3.13. Ruff, compilation and whitespace pass. Golden changes are version-derived identities only."
+          ]
         },
         {
           "id": "package",
           "weight": 1,
           "acceptance": "Clean distribution install and CLI/MCP smoke pass outside checkout.",
           "status": "verified",
-          "evidence": ["Iteration13 isolated sdist/wheel build passed; /tmp/gnomon-operator-build-41nNwV/gnomon_forecast-0.7.0-py3-none-any.whl,865109 bytes,SHA256 db04d06a8dc67837c4bb01ef3bf0e6aff13c345cc4cdc2a37553243cb5e81780. The example plugin is a separate1754-byte wheel, not a core dependency", "scripts/offline_wheel_smoke.py passes the existing installed default/legacy/provider/evaluation/temporal/result/comparison journeys plus --example-wheel callable/factory/ledger/backup/restore Python/CLI/MCP journeys. Fresh no-index/no-deps installs pass on Python3.11/3.12/3.13 and Docker network-none; ambient checkout import paths/profiles are removed from child environments. CI builds the example separately and requires this journey. Revalidate after later public-surface changes"]
+          "evidence": [
+            "0.8.0rc1 wheel/sdist rebuilt after public Ephemeris naming, version and docs changes. Final metadata checks and clean installed CLI/MCP/provider/ledger/plugin walkthrough pass. Local wheel SHA256191fcd80c1076f005db1b19039930a3b6d433a08b052ace87d272fb014280bae;sdist036cbfa1a73d5d42e2c527e0b8c04f516940e214aeae0da4611786119a25bd14. PyPI publication is a separately requested operation, not completion of the pending live-service gate."
+          ]
         },
         {
           "id": "live",
           "weight": 1,
           "acceptance": "Actual configured TSFM service contract and model/version behavior verified; no mocked substitute claimed live.",
           "status": "pending",
-          "evidence": ["Iteration20: scoped GitHub source search found an operator deployment candidate (address omitted from public evidence) in Paracast's API reference at f5d3f53b17e56d8c7ed0cbae61e043b8667f236a. chute.py independently exposes /forecast, /models and /health. Two unauthenticated GET probes returned401; this proves only an authentication gateway response, not model readiness or a live forecast contract. The reference documents a billable cold start and chute.py defaults idle shutdown to1800s. No credentials, authenticated request or forecast POST used. User confirmation, token environment-variable name and spending approval requested; no reply yet."]
+          "evidence": [
+            "Iteration20: scoped GitHub source search found an operator deployment candidate (address omitted from public evidence) in Paracast's API reference at f5d3f53b17e56d8c7ed0cbae61e043b8667f236a. chute.py independently exposes /forecast, /models and /health. Two unauthenticated GET probes returned401; this proves only an authentication gateway response, not model readiness or a live forecast contract. The reference documents a billable cold start and chute.py defaults idle shutdown to1800s. No credentials, authenticated request or forecast POST used. User confirmation, token environment-variable name and spending approval requested; no reply yet."
+          ]
         }
       ]
     }
-  ]
+  ],
+  "history_checkpoint": "2cba20e",
+  "revision_note": "User-authorized 0.8.0rc1 docs/benchmark cleanup and publication preparation. Removed historical runners/reports are recovered from Git, not required active release gates. Live service and actual agent comparison remain mandatory for 100."
 }

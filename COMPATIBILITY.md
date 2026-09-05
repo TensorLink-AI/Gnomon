@@ -20,7 +20,7 @@ The original v0.2 `gnomon_forecast` input schema remains a legacy-profile
 registry-derivation exception. It is not the default provider request schema.
 Additive response fields may still appear.
 
-## Execution-default migration (unreleased)
+## Execution-default migration (0.8.0rc1)
 
 Ordinary `gnomon mcp serve` now owns one GnomonSession. Inspect files into frozen
 data references; describe names an exact statistic; forecast names a provider and
@@ -34,7 +34,7 @@ Python users of the ordinary path use GnomonSession; internal toolspec.runner_fo
 does not manufacture sessions or retain global default data references.
 
 The duplicate `describe` profile and experimental `mega` profile/run/track tool
-registrations are retired. Exact source is archived under `archive/legacy`.
+registrations are retired. Pre-cull source is recoverable at Git commit `2cba20e`.
 Existing artifacts and tracking data are not deleted. Mutable legacy performance
 scores no longer nominate models; use explicit cutoff-bound ledger studies.
 
@@ -67,9 +67,18 @@ flags:
 | `gnomon_resolve_decision` | `gnomon_resolve_outcome` |
 | `gnomon_proposer_skill` | No public replacement; this internal telemetry did not justify an agent tool |
 
-`gnomon_validate_covariates` and `gnomon_submit_actuals` remain current tools.
-The `mega` MCP profile also remains available as an experimental measurement
-arm; it is not the default surface.
+`gnomon_validate_covariates` and `gnomon_submit_actuals` remain available in
+explicit legacy profiles. Neither belongs to the default execution surface.
+The `mega` profile is removed, not an alternative measurement arm.
+
+Ephemeris is the public provider name: `EphemerisProvider`, kind `ephemeris`,
+and deployment-specific `EPHEMERIS_*` example variables. Paracast remains the
+backend name. The unreleased `ParacastProvider` draft was not a published API;
+no compatibility alias is installed. Existing ledger records are not renamed.
+
+Old benchmark modules, runner commands and design documents are removed from the
+active tree. Git history retains them. Production APIs and existing user data are
+not deleted as part of this repository cleanup.
 
 ## Rule for future surfaces
 

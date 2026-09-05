@@ -1,84 +1,43 @@
-# Development and testing
-
-## Repository layout
-
-```text
-src/gnomon/            Runtime, CLI, and MCP server source
-tests/               Unit, end-to-end, and golden tests
-tests/goldens/       Byte-pinned artifacts; refresh with --update-goldens
-docs/                User and developer documentation
-examples/            Small runnable datasets, including deliberately messy ones
-benchmarks/          Internal suites and published-benchmark adapters
-.github/workflows/   CI, PyPI release, and container automation
-Dockerfile           Production CLI container image
-install.sh           Isolated one-command installer
-pyproject.toml       Package metadata and test configuration
-```
-
-## Run from source
+# Development
 
 ```bash
-cd Gnomon
-PYTHONPATH=src python3 -m gnomon capabilities
+python -m pip install -e '.[dev]'
+ruff check src/gnomon
+pytest -q tests
+pytest -q benchmarks/tests
+python -m compileall -q src tests
+python scripts/check_production_progress.py
 ```
 
-## Run tests
+Use Python 3.11–3.13. Production regressions and current evaluation-harness tests
+are separate gates. Neither authorizes paid model requests. Container tests skip
+without operator-supplied image IDs; see [benchmarks](../benchmarks/README.md).
 
-```bash
-cd Gnomon
-PYTHONPATH=src pytest -q
-```
+## Layout
 
-The tests cover schema inspection, model selection on a known trend, artifact
-persistence, unsupported short series, duplicate timestamp errors, capability
-truthfulness, and CLI structured errors. Three suites are worth knowing about
-before you change behaviour:
+- `src/gnomon`: shipped toolkit. `session.py` joins Python/CLI/MCP;
+  `inference.py` and `forecast_adapter.py` define provider execution;
+  `ephemeris.py` handles the service; `ledger.py` preserves evidence.
+- `tests`: production regressions, including retained legacy runtime compatibility.
+- `examples/provider_plugin`: independently installable provider walkthrough.
+- `benchmarks/workflow`: current matched evaluation, not a runtime dependency.
+- `docs`: current usage, reference and operations.
+- `docs/production`: detailed contracts and the scoped delivery checkpoint.
 
-- **Goldens** (`tests/goldens/`) pin whole artifacts byte-exact under a fixed
-  clock. A diff there means a published number moved. If the move is
-  intended, refresh with `PYTHONPATH=src pytest --update-goldens` and read
-  the diff before committing it.
-- **Leakage lint** (`tests/test_leakage_lint.py`) is an AST check over
-  `GUARDED_MODULES`. It fails on code that reads observations outside a
-  snapshot, which is how the structural leakage guarantee stays structural.
-- **Doc drift** (`tests/test_docs_current.py`) asserts that the counts and
-  command lists in `README.md` and `docs/` still match the shipped surface.
+Removed benchmarks, duplicate source archives and design proposals are recoverable
+from checkpoint commit `2cba20e`. Use Git history instead of restoring competing
+docs or importing retired benchmark modules into the runtime.
 
-## Build distributable packages
+## Safe changes
 
-```bash
-uv build
-```
+Validate request/result semantics and add regressions for malformed data,
+unsupported capabilities, leakage and failure accounting. Keep fit-per-request
+models fresh during evaluation. Successful execution is not evidence of provider
+accuracy, calibrated uncertainty or action authority.
 
-This creates a source distribution and wheel under `dist/`. To verify the wheel
-without changing your normal environment:
+Build with `python -m build`, then run
+`python scripts/offline_wheel_smoke.py dist/*.whl`. The smoke script accepts
+`--example-wheel` for the separate plugin package. Rebuild the benchmark service
+image whenever package bytes change: its fingerprint rejects stale installed code.
 
-```bash
-uv venv /tmp/gnomon-wheel-verify
-uv pip install \
-  --python /tmp/gnomon-wheel-verify/bin/python \
-  dist/gnomon_forecast-*-py3-none-any.whl
-/tmp/gnomon-wheel-verify/bin/gnomon capabilities
-```
-
-## Design constraints for contributions
-
-- The numerical runtime owns every number and support decision.
-- All candidate methods compete against mandatory baselines.
-- Evaluation operations must preserve temporal order.
-- Public capability discovery must reflect tested functionality.
-- Unsupported analysis is distinct from invalid input.
-- Source data is read-only; outputs go into new run directories.
-- Avoid adding a documented command before its end-to-end path works.
-
-For the reasoning behind these constraints, read
-[Concepts](concepts.md) — it documents the partitioning, the
-baseline rule, and why abstention is a result rather than an error.
-
-The [product specification](../Gnomon_MVP_Product_Specification.md) and
-[system design](../Gnomon_System_Design.md) are v0.1 direction documents and
-describe features that were never built; check `gnomon capabilities` before
-relying on either.
-
-Release maintainers should also read [CI/CD and release operations](ci-cd.md)
-and [Containers](containers.md).
+See [releases](ci-cd.md) and [validation limits](agent-evaluation.md).

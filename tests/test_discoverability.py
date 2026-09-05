@@ -88,11 +88,10 @@ def test_capabilities_report_the_new_surface():
 
 def test_readme_leads_the_forecast_example_with_the_minimal_form():
     readme = (REPO / "README.md").read_text(encoding="utf-8")
-    minimal = readme.index("gnomon forecast examples/daily_requests.csv --horizon 3")
-    explicit = readme.index("--time timestamp --target requests \\")
-    assert minimal < explicit, "the README teaches the long path first"
-    assert "--target auto" in readme
-    assert "--brief" in readme
+    minimal = readme.index("gnomon infer --provider last_value --request")
+    configured = readme.index("[providers.remote]")
+    assert minimal < configured, "the README must start with an offline provider"
+    assert "docs/cli-reference.md" in readme
 
 
 def test_cli_reference_states_what_is_inferred_and_when_inference_refuses():

@@ -1,10 +1,9 @@
-# Matched ordinary/lean/full controls — in progress
+# Matched ordinary/lean/full evaluation
 
-The existing `agent_adapter.py` is a **historical integration instrument**. It
-forces a preferred legacy tool, compiles some arguments and harvests engine facts.
-Its `core/evidence/full` results do not measure autonomous use of the current
-execution-default surface. In particular, its legacy evaluated forecast is not
-the same computation as direct provider inference.
+The former forced-tool `agent_adapter.py` has been removed. Its historical results
+do not measure autonomous use of the current execution-default surface. The
+retained driver preserves original agent choices, arguments and answers. Actual
+matched model runs remain pending; harness tests alone establish no agent uplift.
 
 `run_workflow --experiment PATH` now adds a matched-controls contract to the
 existing external-command runner. It does not add another agent or model client.

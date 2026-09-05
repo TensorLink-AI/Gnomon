@@ -214,7 +214,7 @@ def test_backend_factory_failure_still_closes_the_created_client():
 
 @pytest.mark.parametrize("profile", ["execution", "full"])
 def test_same_loop_discovers_and_calls_real_mcp_profiles(monkeypatch, tmp_path, profile):
-    from benchmarks.cik.mcp_agent import StdioMcpSession
+    from benchmarks.common.mcp import StdioMcpSession
     class Mcp(Backend):
         def __init__(self):
             super().__init__()

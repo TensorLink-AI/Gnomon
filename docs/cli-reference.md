@@ -8,7 +8,12 @@ Every command below is implemented and reachable in this build. Commands
 that exist only in design documents are listed under [Not currently
 available](#not-currently-available) at the end.
 
-## The five verbs
+For ordinary direct inference start with `gnomon infer`, `gnomon temporal`, or
+`gnomon mcp serve` and the [provider/session contract](production/INFERENCE.md).
+The evaluated verbs below are retained advanced workflows, not aliases for direct
+inference. Their legacy MCP counterparts require an explicit legacy profile.
+
+## Advanced evaluated verbs
 
 | Command | Question | Section |
 | --- | --- | --- |

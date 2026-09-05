@@ -1,108 +1,44 @@
-# Installation options
+# Installation
 
-For the unreleased execution-default changes in this checkout, use a reviewed
-local wheel or install the checkout itself. A package-index release or GitHub
-`main` is not proof that it contains your local changes. The
-[installable provider walkthrough](../examples/provider_plugin/README.md) verifies
-the extension boundary in its own environment.
+Use Python 3.11–3.13. The distribution is `gnomon-forecast`; the Python import and
+CLI command are `gnomon`. The core requires no third-party packages.
 
-For a controlled network or air-gapped environment, use the
-[offline wheel procedure](offline-installation.md). It verifies a pinned
-artifact and never asks an installer to resolve from PyPI or GitHub inside the
-boundary.
-
-## One-command Bash installer
-
-From a cloned checkout:
+## Release candidate
 
 ```bash
+python -m pip install --pre 'gnomon-forecast==0.8.0rc1'
+gnomon --version
+```
+
+A prerelease is explicitly selected: plain `pip install gnomon-forecast` may
+continue to choose the previous stable release. Before this candidate is published,
+install the reviewed checkout instead.
+
+## Checkout
+
+```bash
+python -m pip install -e '.[dev]'
+# Or install the checkout into the installer's isolated environment:
 bash install.sh --local
 ```
 
-`--local` installs the checkout containing the script. Without it, the installer
-fetches the configured GitHub repository/ref (default: `main`), not your local
-changes. Use a locally built wheel for an offline installation.
+Without `--local`, the Bash installer fetches the configured repository/ref,
+not your working changes. It creates an isolated environment and retains older
+installs. Use `bash install.sh --help` for paths and version pinning.
+Do not execute a mutable remote installer without reviewing/trusting its source.
 
-Directly from GitHub:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/TensorLink-AI/Gnomon/main/install.sh | bash
-```
-
-The direct `curl` form requires the repository to be public. While it is
-private, clone it with an authenticated GitHub account and run `bash install.sh --local`.
-The installer detects an authenticated `gh` CLI and uses it to download private
-source archives without placing the token in a URL or subprocess argument.
-
-The installer requires Python 3.11 or newer. It creates an isolated virtual
-environment under `~/.local/share/gnomon/releases/` and links the executable
-to `~/.local/bin/gnomon`. It does not use `sudo` or modify system Python.
-
-If `~/.local/bin` is not on `PATH`, add it in your shell configuration:
+## Isolated command
 
 ```bash
-export PATH="$HOME/.local/bin:$PATH"
-```
-
-### Pin an installer and release
-
-Executing a mutable `main` script is convenient but less suitable for controlled
-environments. After release tags exist, pin both the downloaded installer and
-the installed source:
-
-```bash
-curl -fsSL \
-  https://raw.githubusercontent.com/TensorLink-AI/Gnomon/v0.1.0/install.sh \
-  | bash -s -- --version v0.1.0
-```
-
-For higher assurance, download the script first, inspect it, and verify a known
-checksum before running it.
-
-Supported installer overrides:
-
-```bash
-bash install.sh --help
-bash install.sh --version main
-bash install.sh --install-root /opt/gnomon --bin-dir /usr/local/bin
-```
-
-Writing to system paths may require appropriate permissions. Re-running the
-installer creates a new isolated release and atomically repoints the command;
-older release environments are retained for manual rollback or removal.
-
-## Install with uv
-
-From a checkout:
-
-```bash
+uv tool install 'gnomon-forecast==0.8.0rc1'
+# From the checkout:
 uv tool install .
 ```
 
-From GitHub:
+Optional readers use the `parquet` or `excel` extras. Your own forecasting library
+belongs in the environment containing your callable/factory. Gnomon's legacy
+`statsforecast` extra is separate from the generic provider boundary.
 
-```bash
-uv tool install 'git+https://github.com/TensorLink-AI/Gnomon.git@main'
-```
-
-## Install from PyPI
-
-The distribution name is `gnomon-forecast`; released versions install the
-`gnomon` command:
-
-```bash
-pipx install gnomon-forecast
-# or
-uv tool install gnomon-forecast
-```
-
-Pin `gnomon-forecast==<version>` in controlled environments. Use the checkout
-or GitHub methods above when testing unreleased changes.
-
-## Install Parquet support
-
-The default Bash installer installs CSV support only. With uv or pip, request:
-
-```bash
-uv tool install 'gnomon-forecast[parquet]'
-```
+For restricted environments, use [offline wheels](offline-installation.md).
+Continue with [first run](getting-started.md), [MCP](quickstart-mcp.md), or the
+[installable provider walkthrough](../examples/provider_plugin/README.md).

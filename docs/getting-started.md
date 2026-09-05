@@ -1,111 +1,57 @@
-# Installation and quick start
+# First run
 
-## Requirements
-
-- Python 3.11 or newer
-- `uv` for the recommended installation, or a Python environment with `pip`
-- A regular time series stored in CSV; Parquet is optional
-
-No account, network service, LLM, or API key is required to forecast.
-
-## Install the published package
+Install Python 3.11–3.13 and Gnomon:
 
 ```bash
-uv tool install gnomon-forecast
-gnomon --version
-gnomon capabilities
+python -m pip install --pre 'gnomon-forecast==0.8.0rc1'
+gnomon infer --provider last_value --request '{"history":[10,12,11],"horizon":2}'
 ```
 
-The distribution is named `gnomon-forecast`; the installed command is
-`gnomon`. No account or API key is required.
+Before publication, install the checkout with `python -m pip install -e '.[dev]'`.
+The isolated Bash installer also supports the checkout: `bash install.sh --local`.
+The distribution is `gnomon-forecast`; the import and command are `gnomon`.
 
-## Install from this checkout
+The command returns two last-value predictions. It demonstrates execution, not
+accuracy. Built-in `last_value`, `seasonal_naive` and `historical_mean` providers
+run offline without credentials, downloads or implicit model selection.
 
-```bash
-cd Gnomon
-bash install.sh --local
-gnomon --version
-gnomon capabilities
+## Python
+
+```python
+from gnomon import GnomonSession
+
+with GnomonSession.from_config() as session:
+    result = session.call("gnomon_forecast", {
+        "provider": "last_value",
+        "request": {"history": [10, 12, 11], "horizon": 2},
+    })
+    print(result["result"]["point"])
 ```
 
-`--local` installs the checkout you are standing in. Without it,
-`install.sh` fetches the repository's default branch from GitHub — which is
-right for a first install from a URL, and wrong when you are testing local
-changes.
+For timestamped files, use `gnomon_inspect` in the session. Its frozen data
+reference is usable by describe, forecast and evaluate operations. Result references
+are paged with `gnomon_read`; they are session-local, not persistent ledger entries.
+See [the session contract](production/INFERENCE.md).
 
-See [Installation options](installation.md) for PyPI, uv, direct GitHub,
-pinned-release, and optional-extra installation methods.
+## Connect a model or agent
 
-To reinstall after changing the source:
+Register a callable returning `ForecastResult`, or a factory that creates a fresh
+forecaster per fit. Your application owns library-specific setup. Follow the
+[Python API](python-api.md) or [installable provider walkthrough](../examples/provider_plugin/README.md).
+For remote TSFMs, configure [Ephemeris](production/INFERENCE.md#ephemeris).
+For an agent host, follow [the MCP quickstart](quickstart-mcp.md).
 
-```bash
-uv tool install --force .
-```
+## Save and evaluate
 
-For development without a tool installation:
+Set `ledger_path = "ledger.db"` in an explicit provider configuration and pass
+`--providers-config` at startup. The ledger retains forecasts, actual revisions and
+score versions. Actual ingestion requires separate operator permission: an agent
+cannot enable it through a forecast argument. See [operations](production/OPERATIONS.md).
 
-```bash
-cd Gnomon
-PYTHONPATH=src python3 -m gnomon capabilities
-```
+Use `gnomon_evaluate` for bounded backtests, not to place real-world orders.
 
-## Run the included example
+## Existing evaluated workflows
 
-Inspect the input before spending time on a forecast:
-
-```bash
-gnomon inspect examples/daily_requests.csv \
-  --time timestamp \
-  --target requests \
-  --frequency D
-```
-
-A successful inspection reports the resolved schema, source fingerprint,
-frequency, date range, and number of observations.
-
-Run a three-day forecast:
-
-```bash
-gnomon forecast examples/daily_requests.csv \
-  --time timestamp \
-  --target requests \
-  --horizon 3 \
-  --frequency D \
-  --output ./gnomon-output
-```
-
-The command prints JSON containing the forecast ID, support result, selected
-model, warnings, and artifact directory. Each run receives a new directory:
-
-```text
-gnomon-output/forecast_<id>/
-├── artifact.json
-├── evidence.jsonl
-├── forecast.csv
-└── summary.md
-```
-
-Start with `summary.md`, use `forecast.csv` for charts or downstream work, and
-retain `artifact.json` when reproducibility or auditability matters.
-
-## Forecast multiple series
-
-If one file contains several independent series, identify the grouping column:
-
-```bash
-gnomon forecast panel.csv \
-  --time timestamp \
-  --target requests \
-  --series service_id \
-  --horizon 7 \
-  --frequency D
-```
-
-Every series is validated, evaluated, selected, and supported independently.
-All series must currently share one regular frequency.
-
-## Next steps
-
-- Read [Preparing data](data-format.md) before using production data.
-- Read [Understanding results](results-and-artifacts.md) before acting on a forecast.
-- Use [Troubleshooting](troubleshooting.md) for structured errors or abstention.
+`gnomon forecast`, `investigate`, `detect`, `decide` and `monitor` retain the
+advanced evaluated-artifact workflow. They differ from direct `gnomon infer`.
+See [CLI reference](cli-reference.md) and [compatibility](../COMPATIBILITY.md).

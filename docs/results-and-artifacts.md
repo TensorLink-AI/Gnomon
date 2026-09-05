@@ -1,5 +1,15 @@
 # Understanding results and artifacts
 
+Direct inference returns a `ForecastExecution`: execution/provider identity,
+validated result, revision, evidence and recording status. It does not assign a
+backtest-derived support tier. The optional ledger preserves executions and score
+versions; session result references are temporary and paged with `gnomon_read`.
+See [inference and ledger contracts](production/INFERENCE.md).
+
+The support tiers and artifact directories below belong to the retained advanced
+evaluated workflow (`gnomon forecast` and explicit legacy MCP profiles), not to
+every direct provider request.
+
 ## Support status
 
 Every series receives one of seven statuses. `best_effort` is the default

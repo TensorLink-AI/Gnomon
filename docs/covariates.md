@@ -1,5 +1,10 @@
 # Covariate enrichment
 
+For direct provider inference, supply named past/future covariates through the
+[provider request contract](production/INFERENCE.md); the provider must declare
+support. The admission/backtest workflow below is the retained advanced evaluated
+path, not an automatic step in every inference request.
+
 Gnomon can evaluate externally sourced, future-known variables such as published
 holiday calendars, scheduled prices, or archived weather-forecast vintages.
 The agent decides what might matter and fetches it. Gnomon owns the temporal data

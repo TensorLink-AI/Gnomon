@@ -1,1 +1,0 @@
-"""Reasoning-boundary contract benchmark."""

@@ -18,7 +18,7 @@
   "sources": [
     {
       "case_id": "retrospective_forecast_1",
-      "source_file": "benchmarks/breachbench/data/wiki_traffic_daily_log.csv",
+      "source_file": "benchmarks/workflow/data/wiki_traffic_daily_log.csv",
       "source_sha256": "7ee685b87a4685ed484563d2d09a430aa2d886b6f0a6eeb6a6e86aac474a3dbc",
       "rows": 2905,
       "history_start": 2837,
@@ -41,7 +41,7 @@
     },
     {
       "case_id": "retrospective_forecast_2",
-      "source_file": "benchmarks/breachbench/data/sensor_temps_5min.csv",
+      "source_file": "benchmarks/workflow/data/sensor_temps_5min.csv",
       "source_sha256": "cdeab8b7cdeade5ef6a04b2bbd2b2a4d1393a0dc90d7c4201b8a823a02f87387",
       "rows": 18709,
       "history_start": 18641,
@@ -64,7 +64,7 @@
     },
     {
       "case_id": "retrospective_forecast_3",
-      "source_file": "benchmarks/breachbench/data/pedestrian_counts_daily.csv",
+      "source_file": "benchmarks/workflow/data/pedestrian_counts_daily.csv",
       "source_sha256": "a53d1d3e98c323be36ac52f35a7a06d91ba3a3a7ca61d99330ca0f670236f7f7",
       "rows": 1490,
       "history_start": 1422,
@@ -87,7 +87,7 @@
     },
     {
       "case_id": "retrospective_forecast_4",
-      "source_file": "benchmarks/breachbench/data/retail_sales_monthly.csv",
+      "source_file": "benchmarks/workflow/data/retail_sales_monthly.csv",
       "source_sha256": "1d524c08bdf2c4bd6b75c9c629e9949ebc10fa2f268ed373b02709b8d41c4815",
       "rows": 293,
       "history_start": 225,

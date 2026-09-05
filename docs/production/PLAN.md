@@ -26,7 +26,7 @@ The weighted acceptance checks in [progress.json](progress.json) total exactly 1
 
 ## Execution sequence
 
-1. Audit the code and dependency graph; establish the full test baseline. Archive retired experiments and remove their active execution routes. Preserve independent regression coverage and citable historical evidence.
+1. Audit the code and dependency graph; establish the full test baseline. Remove retired experiments and obsolete designs from the active tree. Preserve independent production regressions and recoverable Git history. The user explicitly authorized the broader docs/benchmark/output cull on2026-09-06; checkpoint2cba20e retains the removed evidence and implementations.
 2. Fix exact quantity, time and scope semantics. Keep valid time, source availability and local recording time distinct. Remove automatic-action claims from mere descriptive correctness.
 3. Extend the existing forecasting protocol into the public callable/provider boundary. Add the minimal immutable execution and outcome ledger alongside it.
 4. Route the actual inference API through the same boundary; remove local-catalogue assumptions. Separate inference from optional budgeted evaluation.

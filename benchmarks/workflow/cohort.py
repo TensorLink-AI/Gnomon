@@ -33,7 +33,7 @@ UPSTREAM = {
 
 
 def build(data_dir=None):
-    data_dir = data_dir or ROOT / "benchmarks/breachbench/data"
+    data_dir = data_dir or ROOT / "benchmarks/workflow/data"
     cases, sources = [], []
     for index, (name, digest, multiplier, offset, cadence) in enumerate(SOURCES, 1):
         path = data_dir / (name + ".csv")

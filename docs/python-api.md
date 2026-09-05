@@ -1,163 +1,84 @@
 # Python API
 
-The Python API calls the same runtime used by the CLI.
-
-## Inspect a dataset
+## Execute a user-owned model
 
 ```python
-from gnomon import inspect_dataset
+from gnomon import ForecastRequest, ForecastResult, InferenceEngine
 
-inspection = inspect_dataset(
-    "observations.csv",
-    time_column="timestamp",
-    target_column="requests",
-    series_column="service_id",
-    frequency="D",
-)
-
-print(inspection["schema"])
-print(inspection["series"])
-```
-
-`inspect_dataset` returns a JSON-compatible dictionary and does not write an
-artifact directory.
-
-## Create a forecast
-
-```python
-from gnomon import forecast
-
-artifact, artifact_path = forecast(
-    "observations.csv",
-    time_column="timestamp",
-    target_column="requests",
-    series_column="service_id",
-    frequency="D",
-    horizon=7,
-    output="gnomon-output",
-    minimum_baseline_improvement=0.02,
-)
-
-for result in artifact.results:
-    print(result.series, result.support, result.selected_model)
-print(artifact_path)
-```
-
-### Forecast with covariates
-
-```python
-from gnomon import forecast, load_covariates, validate_covariate_file
-
-validation = validate_covariate_file(
-    "observations.csv",
-    "covariates.csv",
-    "is_holiday:binary:future_known",
-    time_column="timestamp",
-    target_column="requests",
-    horizon=7,
-    frequency="D",
-)
-if not validation["valid"]:
-    raise ValueError(validation["validation"])
-
-covariates = load_covariates(
-    "covariates.csv", "is_holiday:binary:future_known"
-)
-artifact, artifact_path = forecast(
-    "observations.csv",
-    time_column="timestamp",
-    target_column="requests",
-    horizon=7,
-    frequency="D",
-    covariates=covariates,
-)
-```
-
-The mapping requires explicit `future_known` availability. Gnomon uses
-`known_at` to replay the value available at each historical fold cutoff.
-
-The returned `ForecastArtifact` is a dataclass. Use `artifact.to_dict()` for a
-JSON-compatible representation. Calling `forecast` also persists the standard
-artifact files — see [Results and artifacts](results-and-artifacts.md) for the
-canonical list and what each one carries.
-
-## Use the other governed views
-
-The Python package exports the same five top-level views advertised by the CLI
-and agent surfaces. The four non-forecast views return `(payload,
-artifact_path)`; the payload is JSON-compatible and the artifact owns its
-numbers and evidence.
-
-```python
-from gnomon import decide, detect_anomalies, investigate_change, monitor
-
-common = {
-    "time_column": "timestamp",
-    "target_column": "requests",
-    "frequency": "D",
-    "output": "gnomon-output",
-}
-
-investigation, investigation_path = investigate_change(
-    "observations.csv", **common
-)
-
-detection, detection_path = detect_anomalies(
-    "observations.csv", threshold=3.5, **common
-)
-
-decision, decision_path = decide(
-    "observations.csv",
-    horizon=7,
-    threshold=340,
-    actions=[{"name": "scale_up"}, {"name": "wait"}],
-    utilities={
-        "scale_up": {"exceed": 8, "no_exceed": -2},
-        "wait": {"exceed": -20, "no_exceed": 0},
-    },
-    **common,
-)
-
-monitoring, monitoring_path = monitor(
-    "observations.csv",
-    horizon=7,
-    threshold=340,
-    alert_cost=1,
-    miss_cost=20,
-    **common,
-)
-```
-
-`investigate_change` ranks associational explanations, never causes.
-`detect_anomalies` discloses how competing detectors were graded. `decide`
-degrades to a feasible-action comparison when utilities are absent, and
-`monitor` marks an uncosted default rule when alert and miss costs are absent.
-Inspect each payload's support assessment and limitations before acting.
-
-## Handle structured errors
-
-```python
-from gnomon import inspect_dataset
-from gnomon.contracts import GnomonError
-
-try:
-    inspect_dataset(
-        "observations.csv",
-        time_column="timestamp",
-        target_column="requests",
+def forecast(request):
+    return ForecastResult(
+        (request.history[-1],) * request.horizon,
+        timestamps=request.future_timestamps,
+        series_id=request.series_id,
+        unit=request.unit,
     )
-except GnomonError as error:
-    print(error.code)
-    print(error.message)
-    print(error.details)
+
+engine = InferenceEngine()
+engine.register("preferred", forecast)
+run = engine.forecast("preferred", ForecastRequest((10, 12, 11), 2))
+assert run.result.point == (11.0, 11.0)
 ```
 
-`GnomonError.to_dict()` returns the same structured error envelope emitted by
-the CLI. An `unsupported` series is not an exception: inspect
-`artifact.results[*].support` and its warnings.
+`ForecastRequest` carries history, horizon, timestamps/frequency, identity, units,
+covariates and uncertainty requirements. `ForecastResult` carries aligned points
+and uncertainty. Gnomon validates both. `ForecastExecution` records execution
+identity, provider, revision, evidence and whether a ledger recorded the result.
 
-## API stability
+Register a function, an object implementing `forecast(request)`, or a fresh
+per-request factory with `engine.register_factory(...)`. Factories own fitting
+and prevent state reuse between evaluation folds. Optional `forecast_batch`
+supports native batches. Declare `AdapterCapabilities` honestly; support is not
+inferred from a library name. See [the full protocol](production/INFERENCE.md).
 
-The artifact schema is versioned as `0.1`, but the Python API is still an MVP.
-Pin the package version and consume persisted artifacts when long-term
-compatibility is important.
+StatsForecast, NeuralForecast and Darts objects stay in user code. Gnomon does not
+install them when you register a callable. The [provider example](../examples/provider_plugin/README.md)
+demonstrates a separate package, CLI/MCP setup, actual revisions and backup.
+
+## Ephemeris
+
+```python
+import os
+from gnomon import EphemerisProvider, ForecastRequest, InferenceEngine
+
+provider = EphemerisProvider(
+    os.environ["EPHEMERIS_BASE_URL"], token_env="EPHEMERIS_API_TOKEN",
+)
+engine = InferenceEngine()
+engine.register("remote", provider, lifecycle="pretrained")
+# This is a remote request and may incur service charges:
+run = engine.forecast("remote", ForecastRequest((10, 12, 11), 2))
+```
+
+Ephemeris is the public service; the current wire protocol comes from the Paracast
+backend. The URL is configurable. Unknown served model revisions remain unknown.
+Forecast POSTs are not automatically retried.
+See [transport/service limits](production/INFERENCE.md#ephemeris).
+
+## Share the agent contract
+
+```python
+from gnomon import GnomonSession
+
+with GnomonSession.from_config() as session:
+    print(session.call("gnomon_capabilities", {}))
+```
+
+`from_config("providers.toml")` adds operator-configured providers and an optional
+ledger. `session.tools()` returns actual schemas; `session.call` uses the same
+dispatcher as CLI/MCP. Start with [the first-run guide](getting-started.md).
+
+## Temporal and persistent evidence
+
+`TemporalLedger` preserves executions, revised actuals, scores and decisions.
+It is a local append-only store, not a distributed or tamper-proof database.
+See [operations](production/OPERATIONS.md) for cutoffs, backup and migration.
+`temporal_operation` exposes date/interval/event calculations independently of
+forecasting; see [the temporal contract](production/TEMPORAL.md).
+
+## Advanced compatibility API
+
+`gnomon.forecast`, `detect_anomalies`, `investigate_change`, `decide` and
+`monitor` remain lazily imported advanced evaluated workflows, not aliases for
+direct inference. Existing artifact, tracking and temporal-store APIs remain.
+See [CLI reference](cli-reference.md), [results and artifacts](results-and-artifacts.md)
+and [compatibility](../COMPATIBILITY.md).

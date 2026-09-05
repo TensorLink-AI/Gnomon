@@ -2,8 +2,8 @@ import sys
 
 sys.path.insert(0, ".")
 
-from benchmarks.effectbench.generate import generate
-from benchmarks.effectbench.run import run
+from support.effect_generate import generate
+from support.effect_run import run
 
 
 def test_effectbench_has_required_denominators_and_passes_reference_system(tmp_path):

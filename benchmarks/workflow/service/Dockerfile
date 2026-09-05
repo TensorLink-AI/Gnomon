@@ -4,8 +4,8 @@ COPY --from=ordinary-lock requirements.txt /opt/ordinary-requirements.txt
 RUN python -m pip install --no-cache-dir --require-hashes --only-binary=:all: \
     --index-url https://pypi.org/simple -r /opt/ordinary-requirements.txt \
     && python -m pip check
-COPY --from=core-wheel gnomon_forecast-0.7.0-py3-none-any.whl /opt/gnomon_forecast-0.7.0-py3-none-any.whl
-RUN python -m pip install --no-cache-dir --no-index --no-deps /opt/gnomon_forecast-0.7.0-py3-none-any.whl \
+COPY --from=core-wheel gnomon_forecast-*.whl /opt/core-wheel/
+RUN python -m pip install --no-cache-dir --no-index --no-deps /opt/core-wheel/gnomon_forecast-*.whl \
     && python -m pip check
 ENV OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 NUMBA_NUM_THREADS=1 \
     NUMBA_CACHE_DIR=/tmp/numba PYTHONDONTWRITEBYTECODE=1

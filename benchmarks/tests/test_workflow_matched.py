@@ -243,14 +243,8 @@ def test_source_bytes_are_included_even_when_revision_labels_are_unchanged(exper
 def test_historical_consumers_cannot_bypass_matched_controls(experiment, monkeypatch, tmp_path):
     from benchmarks.common.manifest import incompatibilities
     from benchmarks.workflow.compare import compare as historical_compare
-    from benchmarks.report import compare as historical_report
     summaries = run_arms(experiment, monkeypatch, tmp_path)
     with pytest.raises(ValueError, match="matched experiments require"):
         historical_compare(list(summaries.values()), "ordinary")
     manifest = json.loads((tmp_path / "lean" / "manifest.json").read_text())
     assert incompatibilities(manifest, manifest)
-    base = {"name": "ordinary", "manifest": manifest, "tasks": {}}
-    treatment = {"name": "lean", "manifest": manifest, "tasks": {}}
-    report = historical_report(base, treatment)
-    assert report["comparable"] is False
-    assert "matched experiments require" in report["reason"]

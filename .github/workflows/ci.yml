@@ -36,8 +36,8 @@ jobs:
       - name: Compile source
         run: python -m compileall -q src tests
 
-  benchmark-compatibility:
-    name: Historical benchmark adapter compatibility (no paid runs)
+  evaluation-harness:
+    name: Current evaluation harness (no paid runs)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -45,21 +45,10 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - name: Install adapter test dependencies
+      - name: Install harness test dependencies
         run: python -m pip install --upgrade pip ".[dev]"
-      - name: Check retained historical instruments
+      - name: Check matched runner and scoring contracts
         run: pytest -q benchmarks/tests
-      - name: Validate benchmark configs
-        # Validate command construction only: no datasets, API keys or LLM calls.
-        run: |
-          python -m pip install pyyaml
-          for config in benchmarks/configs/*.yaml; do
-            # Skip reference data (published_reference.yaml) — only
-            # configs that declare runs describe a batch to validate.
-            grep -q '^runs:' "$config" || continue
-            echo "== $config"
-            python -m benchmarks.run_all --config "$config" --dry-run
-          done
 
   ordinary-software:
     name: Ordinary agent software isolation (no paid model calls)

@@ -1782,7 +1782,7 @@ def capabilities() -> dict[str, object]:
                     "history-only counterfactual, admitted events in "
                     "the artifact ID payload"
                 ),
-                "experimental": "results/structural-effects/HYPOTHESIS.md",
+                "experimental": "https://github.com/TensorLink-AI/Gnomon/blob/2cba20e/results/structural-effects/HYPOTHESIS.md",
             },
         },
         "models": {

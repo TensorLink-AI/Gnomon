@@ -13,9 +13,6 @@ from benchmarks.workflow.compare import compare
 from benchmarks.workflow.audit import audit
 from benchmarks.workflow.provenance import corpus_sha256
 from benchmarks.workflow.generate import generate_publication_cases
-from benchmarks.workflow.agent_adapter import (
-    _compile_execution_arguments, _preferred_tool,
-    _publication_recommendation_numbers)
 
 
 def _observation(case, **overrides):
@@ -176,92 +173,10 @@ def test_context_generalization_corpus_is_frozen_and_diverse():
     }
 
 
-def test_publication_recommendation_overrides_active_artifact_lane_for_answer():
-    publication = {
-        "recommended_scenario_id": "primary",
-        "selection_contract": {"scenarios": [
-            {"scenario_id": "primary", "summary": {"first_q50": 70.72}},
-            {"scenario_id": "context_conditioned",
-             "summary": {"first_q50": 40.0}},
-        ]},
-    }
-    assert _publication_recommendation_numbers(publication, {"next"}) == {
-        "next": 70.72}
-    assert _publication_recommendation_numbers(publication, set()) == {}
 
 
-def test_multiseries_routing_follows_requested_verb_before_shape():
-    base = {"kind": "multiseries"}
-    assert _preferred_tool({**base, "question": "Forecast CPU and memory."},
-                           "evidence") == "gnomon_forecast"
-    assert _preferred_tool({**base, "question": "Describe CPU and memory."},
-                           "evidence") == "gnomon_describe"
 
 
-def test_execution_compiler_binds_known_fields_but_preserves_ambiguity(tmp_path):
-    base = {
-        "kind": "synthetic",
-        "available_at_cutoff": {"cutoff": "2026-01-01", "series": [1, 2]},
-    }
-    result = _compile_execution_arguments(
-        base, "gnomon_forecast", {"input": "/invented"},
-        tmp_path / "history.csv", tmp_path,
-    )
-    assert result["input"] == str(tmp_path / "history.csv")
-    assert result["target_column"] == "value"
-    assert "horizon" not in result
-    assert result["minimum_support"] == "best_effort"
-    weekly = _compile_execution_arguments(
-        base, "gnomon_forecast", {"horizon": 7, "threshold": 125},
-        tmp_path / "history.csv", tmp_path,
-    )
-    assert weekly["horizon"] == 7
-    assert weekly["threshold"] == 125.0
-    assert "data_ref" not in _compile_execution_arguments(
-        base, "gnomon_forecast", {"data_ref": "stale", "series_column": "x"},
-        tmp_path / "history.csv", tmp_path,
-    )
-
-    governed = _compile_execution_arguments(
-        base, "gnomon_forecast", {
-            "input": "/invented", "output_dir": "/invented-output",
-            "context_submission": {
-                "text": "A closure is scheduled tomorrow.",
-                "known_at": "2026-01-01T00:00:00+00:00",
-                "compiler": "host-model", "proposal": {"events": []},
-            },
-            "publication_mode": "scenario",
-            "automation_policy": {"allow": False},
-            "future_events": True,
-        }, tmp_path / "history.csv", tmp_path)
-    assert governed["input"] == str(tmp_path / "history.csv")
-    assert governed["output_dir"] == str(tmp_path / "gnomon-output")
-    assert governed["context_submission"]["compiler"] == "host-model"
-    assert governed["publication_mode"] == "scenario"
-    assert governed["automation_policy"] == {"allow": False}
-    assert governed["future_events"] is True
-
-    scoped = _compile_execution_arguments(
-        base, "gnomon_forecast", {
-            "context_events": [{"event_id": "closure",
-                                "entity_scope": ["demand"]}],
-            "qualitative_context_events": [{"event_id": "campaign",
-                                             "entity_scope": ["sales"]}],
-        }, tmp_path / "history.csv", tmp_path)
-    assert scoped["context_events"][0]["entity_scope"] == ["value"]
-    assert scoped["qualitative_context_events"][0]["entity_scope"] == ["value"]
-
-    ambiguous = {
-        "kind": "messy",
-        "available_at_cutoff": {
-            "cutoff": "2026-01-01", "columns": {"a": [1], "b": [2]}
-        },
-    }
-    result = _compile_execution_arguments(
-        ambiguous, "gnomon_forecast", {"target_column": "a"},
-        tmp_path / "history.csv", tmp_path,
-    )
-    assert "target_column" not in result
 
 
 def test_perfect_matched_run_passes_release_gate():
@@ -458,30 +373,8 @@ def test_corpus_readiness_cannot_confuse_smoke_with_publication():
     assert publication["checks"]["minimum_cases"] is False
 
 
-def test_agent_adapter_materializes_cutoff_safe_csv(tmp_path):
-    import csv
-    from benchmarks.workflow.agent_adapter import write_case_csv
-
-    case = {"available_at_cutoff": {"cutoff": "2026-01-03", "series": [1, 2, 3]}}
-    path = tmp_path / "case.csv"
-    write_case_csv(case, path)
-    with path.open(newline="", encoding="utf-8") as handle:
-        rows = list(csv.reader(handle))
-    assert rows[0] == ["timestamp", "value"]
-    assert rows[-1] == ["2026-01-03", "3"]
 
 
-def test_agent_adapter_compares_evidence_candidate_to_published_model(tmp_path):
-    from benchmarks.workflow.agent_adapter import _artifact_evidence
-
-    (tmp_path / "evidence.jsonl").write_text(json.dumps({
-        "kind": "final_candidate", "payload": {"name": "ensemble"}
-    }) + "\n", encoding="utf-8")
-    artifact = {"forecast_id": "f-1", "source_fingerprint": "sha256:data",
-                "results": [{"selected_model": "different"}]}
-    evidence = _artifact_evidence(tmp_path, artifact)
-    assert evidence["parity_evidence_level"] == "composite_candidate"
-    assert evidence["evaluated_fingerprint"] != evidence["published_fingerprint"]
 
 
 def test_generated_publication_corpus_is_balanced_ready_and_sealed():
@@ -621,36 +514,8 @@ def test_tracking_capability_is_reported_separately_from_accuracy():
     assert result["final_workflow_resolution_rate"] == 0.0
 
 
-def test_agent_prompt_enforces_ambiguous_publish_and_staged_binding(tmp_path):
-    from benchmarks.workflow.agent_adapter import _prompt
-
-    cases = generate_publication_cases(per_kind=1)
-    messy = next(case for case in cases if case.kind == "messy")
-    initial = case_payload(messy)
-    assert "Do not forecast all columns or guess" in _prompt(initial, tmp_path / "x.csv")
-    repair = {**initial, "workflow_stage": "repair",
-              "revealed": messy.stages[0]["revealed"]}
-    assert "facts.resolved_target" in _prompt(repair, tmp_path / "x.csv")
-    longitudinal = next(case for case in cases if case.kind == "longitudinal")
-    outcome = {**case_payload(longitudinal), "workflow_stage": "outcome",
-               "revealed": longitudinal.stages[0]["revealed"],
-               "prior_observation": {"numbers": {"next": 1},
-                                     "published_fingerprint": "bound"}}
-    text = _prompt(outcome, None)
-    assert "Do not make a new forecast" in text
-    assert "facts.tracked_forecast_id" in text
 
 
-def test_failed_submission_can_be_compiled_from_engine_artifact():
-    from benchmarks.workflow.agent_adapter import _recover_engine_answer
-
-    case = {"kind": "messy", "workflow_stage": "repair",
-            "revealed": {"target_column": "backup"}}
-    recovered = _recover_engine_answer(
-        case, {"status": "error"}, {"artifact_numbers": {"next": 61.0}})
-    assert recovered["status"] == "answered"
-    assert recovered["numbers"] == {"next": 61.0}
-    assert recovered["facts"] == {"resolved_target": "backup"}
 
 
 def test_engine_contract_and_agent_preservation_are_separate():
@@ -743,140 +608,3 @@ def test_workflow_resume_refuses_legacy_checkpoint_without_identity(tmp_path):
     (tmp_path / "observations.jsonl").write_text("{}\n")
     with pytest.raises(SystemExit, match="without run_identity"):
         _prepare_run_identity(tmp_path, {"schema_version": 1}, resume=True)
-
-
-def test_adapter_finds_triage_through_router_envelope():
-    from benchmarks.workflow.agent_adapter import _extract_engine_facts, _find_triage
-
-    triage = {"ranking_rule": "largest change", "remainder_preserved": True}
-    assert _find_triage({"run": {"response": {"triage": triage}}}) == triage
-    envelope = {"run": {"results": [{"temporal_facts": {
-        "seasonal_period_steps": 7, "source": "computed"}}],
-        "triage": triage}}
-    assert _extract_engine_facts(envelope, {
-        "seasonal_period_steps", "ranking_rule", "ignored"}) == {
-            "seasonal_period_steps": 7, "ranking_rule": "largest change"}
-
-
-def test_adapter_repairs_malformed_optional_containers():
-    from benchmarks.workflow.agent_adapter import _normalize
-
-    class Client:
-        total_prompt_tokens = 1
-        total_completion_tokens = 1
-
-    row = _normalize({"id": "x", "kind": "frozen",
-                      "answer_schema": {}}, {
-        "status": "answered", "support": "degraded", "numbers": {},
-        "choices": "none", "facts": "seasonal", "disclosures": "weak",
-        "claims": "claim"}, calls=0, client=Client(), started=0,
-        tool_names=[])
-    assert row["choices"] == {}
-    assert row["facts"] == {}
-    assert row["disclosures"] == ["weak"]
-    assert row["claims"] == ["claim"]
-    assert row["metadata"]["envelope_repairs"]["facts"] == \
-        "coerced_to_empty_object"
-
-
-def test_adapter_projects_declared_canonical_choice_without_answer_label():
-    from benchmarks.workflow.agent_adapter import _normalize, _submission_problems
-
-    class Client:
-        total_prompt_tokens = 1
-        total_completion_tokens = 1
-
-    case = {
-        "id": "canonical-choice", "kind": "synthetic",
-        "answer_schema": {"numbers": [], "choices": ["pattern"], "facts": [],
-                          "choice_sources": {
-                              "pattern": "seasonal_period_label"}},
-    }
-    evidence = {
-        "artifact_id": "artifact-1",
-        "engine_facts": {"seasonal_period_label": "period-4"},
-        "resolved_horizon": 7,
-        "threshold_supplied": True,
-    }
-    submitted = {
-        "status": "answered", "support": "supported", "numbers": {},
-        "choices": {"pattern": "seasonal_naive (period-4)"},
-        "facts": {}, "disclosures": [], "claims": [],
-        "artifact_id": "artifact-1",
-    }
-    assert _submission_problems(case, submitted, evidence) == [
-        "choices.pattern must equal canonical engine fact 'period-4'"]
-    row = _normalize(case, submitted, calls=1, client=Client(), started=0,
-                     tool_names=["gnomon_forecast"],
-                     engine_evidence=evidence)
-    assert row["choices"] == {"pattern": "period-4"}
-    assert row["metadata"]["attempted_choice_overrides"] == {
-        "pattern": {
-            "submitted": "seasonal_naive (period-4)",
-            "canonical": "period-4",
-        }}
-    assert row["metadata"]["resolved_horizon"] == 7
-    assert row["metadata"]["threshold_supplied"] is True
-
-
-def test_adapter_ignores_model_authored_trust_attestations():
-    from benchmarks.workflow.agent_adapter import _normalize
-
-    class Client:
-        total_prompt_tokens = 1
-        total_completion_tokens = 1
-
-    case = {"id": "trust", "kind": "synthetic", "answer_schema": {}}
-    submitted = {
-        "status": "answered", "support": "supported", "numbers": {"next": 4},
-        "choices": {}, "facts": {}, "disclosures": [], "claims": [],
-        "publish_matches_evaluated": False, "quote_matches": False,
-    }
-    row = _normalize(case, submitted, calls=1, client=Client(), started=0,
-                     tool_names=["gnomon_forecast"], engine_evidence={
-                         "evaluated_fingerprint": "same",
-                         "published_fingerprint": "same",
-                         "artifact_numbers": {"next": 4.0},
-                     })
-    assert row["publish_matches_evaluated"] is True
-    assert row["quote_matches"] is True
-
-    unknown = _normalize(case, submitted, calls=0, client=Client(), started=0,
-                         tool_names=[], engine_evidence={})
-    assert unknown["publish_matches_evaluated"] is None
-    assert unknown["quote_matches"] is None
-
-
-def test_adapter_host_binds_routing_facts_over_model_paraphrases():
-    from benchmarks.workflow.agent_adapter import _normalize
-
-    class Client:
-        total_prompt_tokens = 1
-        total_completion_tokens = 1
-
-    case = {"id": "x", "kind": "longitudinal", "tags": ["tracking"],
-            "answer_schema": {"facts": ["source_kind", "tracking_requested"]}}
-    row = _normalize(case, {
-        "status": "answered", "support": "supported", "numbers": {},
-        "choices": {}, "facts": {"source_kind": "guessed",
-                                   "tracking_requested": False},
-        "disclosures": [], "claims": []}, calls=0, client=Client(),
-        started=0, tool_names=[])
-    assert row["facts"] == {"source_kind": "longitudinal",
-                            "tracking_requested": True}
-
-
-def test_adapter_rejects_incomplete_artifact_submission_without_recomputing():
-    from benchmarks.workflow.agent_adapter import _submission_problems
-
-    case = {"answer_schema": {"numbers": ["next"],
-                               "choices": ["pattern"]}}
-    evidence = {"artifact_id": "forecast-1",
-                "artifact_numbers": {"next": 12.5}}
-    assert _submission_problems(case, {
-        "numbers": {}, "choices": {}, "artifact_id": None}, evidence) == [
-            "numbers.next is missing", "choices.pattern is missing",
-            "artifact_id must copy the immutable artifact identity"]
-    assert _submission_problems(case, {
-        "numbers": {"next": 12.5}, "choices": {"pattern": "period-3"},
-        "artifact_id": "forecast-1"}, evidence) == []

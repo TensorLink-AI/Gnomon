@@ -2,8 +2,8 @@
 
 This is the implemented extension boundary, shared by Python `GnomonSession`,
 `gnomon infer`, and the default MCP execution profile. The existing evaluated
-`gnomon.forecast(...)` workflow remains available. Advanced analysis,
-remaining release gates remain in progress.
+`gnomon.forecast(...)` workflow remains available as an explicit advanced path.
+Live-service and actual agent-comparison acceptance remain pending.
 See [progress.json](progress.json), not this page, for release status.
 
 For a complete runnable starting point, use the
@@ -328,7 +328,7 @@ recording time is now, never backdated to the queried historical instant.
 Legacy positional `gnomon route` now makes structural suggestions only. Its mutable
 TrackingStore leaderboard prior was removed. The old shadow-outcome route also
 retains its champion: replaceable source-time-only errors cannot establish a
-historical challenger. Their pre-cull source is retained in `archive/legacy`.
+historical challenger. Pre-cull source is recoverable at Git commit `2cba20e`.
 
 ## Ephemeris
 

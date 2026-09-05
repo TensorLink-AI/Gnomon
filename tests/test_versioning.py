@@ -175,7 +175,8 @@ def test_different_runtime_versions_mint_different_forecast_ids(tmp_path, monkey
         horizon=3, output=str(tmp_path / "then"), clock=CLOCK,
     )
     assert current.forecast_id != previous.forecast_id
-    assert current.runtime_version == "0.7.0"
+    from gnomon import __version__
+    assert current.runtime_version == __version__
 
 
 def test_artifact_json_carries_the_runtime_stamp(tmp_path):

@@ -23,10 +23,16 @@ jobs:
         run: |
           PACKAGE_VERSION="$(PYTHONPATH=src python -c 'from gnomon.product_contract import __version__; print(__version__)')"
           test "$RELEASE_TAG" = "v$PACKAGE_VERSION"
+      - name: Verify production and evaluation-harness regressions
+        run: |
+          python -m pip install --upgrade ".[dev]" twine
+          ruff check src/gnomon
+          pytest -q tests benchmarks/tests
       - name: Build distributions
         run: |
           python -m pip install --upgrade build
           python -m build
+          python -m twine check dist/*
           python - <<'PY'
           import pathlib, zipfile
           files = list(pathlib.Path("dist").iterdir())
@@ -90,10 +96,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
+          release_flags=()
+          if ! [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            release_flags+=(--prerelease --latest=false)
+          fi
           gh release create "$RELEASE_TAG" dist/* \
             --title "$RELEASE_TAG" \
             --notes-file release-notes.md \
-            --verify-tag
+            --verify-tag "${release_flags[@]}"
 
   publish:
     name: Publish to PyPI

@@ -8,11 +8,11 @@ versions, default profiles, or evidence claims on different surfaces.
 
 from __future__ import annotations
 
-__version__ = "0.7.0"
+__version__ = "0.8.0rc1"
 
 DEFAULT_MCP_PROFILE = "execution"
 LEGACY_MCP_PROFILES = ("core", "data", "decision", "evidence", "full")
-CURRENT_EVIDENCE_RELEASE = "2026-08-30-v06-external-validation"
+CURRENT_EVIDENCE_RELEASE = None  # No completed evaluation of this release's default surface.
 
 
 def resolve_mcp_profile(profile: str | None = None) -> str:
