@@ -14,10 +14,11 @@ LINK = re.compile(r"\[[^\]]+\]\(([^)#]+)(?:#[^)]*)?\)")
 def test_names_and_public_provider_match_code():
     from gnomon import EphemerisProvider
     assert EphemerisProvider("https://example.invalid").name == "ephemeris/route"
-    assert "Ephemeris" in README and "Paracast" in README
+    assert "Ephemeris" in README
+    assert "Ephemeris" not in README.split("## Quick start", 1)[0]
+    assert "## Optional connectors" in README
     assert "sundial" in README
     assert not any(word in README for word in ("personification", "Greek god", "deity"))
-    assert not (REPO / "src/gnomon/paracast.py").exists()
 
 
 def test_package_version_has_one_source_and_install_docs_pin_it():

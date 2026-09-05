@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.0rc2 — 2026-09-06
+
+- Lead with Gnomon's provider-neutral toolkit; present Ephemeris as one optional
+  connector and remove implementation-specific naming throughout the active tree.
+- Generate container tags for PEP 440 prereleases without promoting them to latest.
+- Supersede the already-published first candidate; the live evidence gates below
+  remain pending.
+
 ## 0.8.0rc1 — 2026-09-06
 
 ### Changed
@@ -9,7 +17,7 @@
 - Add typed callable/factory providers, bounded data/result references and
   explicit budgeted backtesting. User-selected libraries need no Gnomon adapter.
 - Name the inference integration Ephemeris (`EphemerisProvider`, provider kind
-  `ephemeris`). Paracast is its backend; the deployment URL is configurable.
+  `ephemeris`). The deployment URL is configurable.
 - Preserve forecast executions, actual revisions, evaluations and cutoff-bound
   routing evidence in the optional append-only SQLite ledger.
 - Retain advanced evaluated workflows as explicit legacy profiles; remove

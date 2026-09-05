@@ -3,7 +3,7 @@
 Install Python 3.11–3.13 and Gnomon:
 
 ```bash
-python -m pip install --pre 'gnomon-forecast==0.8.0rc1'
+python -m pip install --pre 'gnomon-forecast==0.8.0rc2'
 gnomon infer --provider last_value --request '{"history":[10,12,11],"horizon":2}'
 ```
 

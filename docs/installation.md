@@ -6,7 +6,7 @@ CLI command are `gnomon`. The core requires no third-party packages.
 ## Release candidate
 
 ```bash
-python -m pip install --pre 'gnomon-forecast==0.8.0rc1'
+python -m pip install --pre 'gnomon-forecast==0.8.0rc2'
 gnomon --version
 ```
 
@@ -30,7 +30,7 @@ Do not execute a mutable remote installer without reviewing/trusting its source.
 ## Isolated command
 
 ```bash
-uv tool install 'gnomon-forecast==0.8.0rc1'
+uv tool install 'gnomon-forecast==0.8.0rc2'
 # From the checkout:
 uv tool install .
 ```

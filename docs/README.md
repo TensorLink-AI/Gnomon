@@ -1,8 +1,8 @@
 # Gnomon documentation
 
 Gnomon provides explicit time-series calculations, provider-neutral forecasting and
-revision-aware evidence. Ephemeris is the remote inference service; Paracast is its
-backend. Start with an offline baseline, plug in your model, and add a ledger only
+revision-aware evidence. Start with an offline baseline, plug in your model or an
+optional remote connector, and add a ledger only
 when you need persistent history and scoring.
 
 ## Start here

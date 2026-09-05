@@ -332,8 +332,8 @@ historical challenger. Pre-cull source is recoverable at Git commit `2cba20e`.
 
 ## Ephemeris
 
-Gnomon is the toolkit; Ephemeris is the public inference service, backed by
-Paracast. The backend name does not determine the deployment's base URL.
+Ephemeris is one optional remote inference connector. Its deployment base URL
+is configured by the operator, not determined by the provider name.
 
 ```python
 import os
@@ -358,7 +358,7 @@ HTTP. Credentials may not be sent over non-loopback HTTP. Redirects are refused,
 payload sizes/socket timeouts are bounded, and forecast POSTs are not retried.
 The legacy generic HTTP backend now uses this same transport.
 
-The client was implemented against the source at Paracast commit
+The client was implemented against the service source at revision
 `f5d3f53b17e56d8c7ed0cbae61e043b8667f236a`, including the deployed Chutes routes.
 It requests the median to produce the point forecast and records that definition.
 Ephemeris chooses models in `route` mode; Gnomon does not silently run another

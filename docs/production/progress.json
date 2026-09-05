@@ -2,7 +2,7 @@
   "schema_version": 1,
   "objective": "Production-ready Gnomon within the scope and release gates in PLAN.md",
   "baseline_revision": "0d3d72e",
-  "iteration": 21,
+  "iteration": 22,
   "score_policy": "Sum weights of verified checks only. Missing evidence earns zero. No elapsed-time or lines-of-code credit. Regressions reopen checks. 100 requires every check including live service verification.",
   "workstreams": [
     {
@@ -189,7 +189,7 @@
           "acceptance": "Remote models discovered/configured independently of local TSFM installation/catalogue.",
           "status": "verified",
           "evidence": [
-            "Paracast schema/service/Chutes routes traced at f5d3f53b17e56d8c7ed0cbae61e043b8667f236a; test_ephemeris.py discovers a remote-only model and forecasts with two observations over local HTTP"
+            "Ephemeris schema/service/Chutes routes traced at f5d3f53b17e56d8c7ed0cbae61e043b8667f236a; test_ephemeris.py discovers a remote-only model and forecasts with two observations over local HTTP"
           ]
         },
         {
@@ -198,7 +198,7 @@
           "acceptance": "Bounded robust HTTP transport, explicit versions/errors and secret-safe configuration.",
           "status": "verified",
           "evidence": [
-            "Shared JSONTransport used by Paracast and legacy HTTP adapter; tests cover bounded bytes/GET retries, no POST retry, redirect refusal, credential-safe errors, auth and URL validation"
+            "Shared JSONTransport used by Ephemeris and legacy HTTP adapter; tests cover bounded bytes/GET retries, no POST retry, redirect refusal, credential-safe errors, auth and URL validation"
           ]
         },
         {
@@ -207,7 +207,7 @@
           "acceptance": "Public forecasting executes API and callable providers including short histories; cache/batch behavior verified.",
           "status": "verified",
           "evidence": [
-            "test_session.py launches real CLI and MCP stdio subprocesses against a local Paracast HTTP server using operator TOML and remote-only model discovery",
+            "test_session.py launches real CLI and MCP stdio subprocesses against a local Ephemeris HTTP server using operator TOML and remote-only model discovery",
             "Python/CLI/MCP share typed requests, provider identity and ledger writes; test_inference.py/test_ephemeris.py cover native batching and cache behavior. Live verification remains a separate unearned gate"
           ]
         }
@@ -391,12 +391,12 @@
           "acceptance": "Actual configured TSFM service contract and model/version behavior verified; no mocked substitute claimed live.",
           "status": "pending",
           "evidence": [
-            "Iteration20: scoped GitHub source search found an operator deployment candidate (address omitted from public evidence) in Paracast's API reference at f5d3f53b17e56d8c7ed0cbae61e043b8667f236a. chute.py independently exposes /forecast, /models and /health. Two unauthenticated GET probes returned401; this proves only an authentication gateway response, not model readiness or a live forecast contract. The reference documents a billable cold start and chute.py defaults idle shutdown to1800s. No credentials, authenticated request or forecast POST used. User confirmation, token environment-variable name and spending approval requested; no reply yet."
+            "Iteration20: scoped GitHub source search found an operator deployment candidate (address omitted from public evidence) in the inference service's API reference at f5d3f53b17e56d8c7ed0cbae61e043b8667f236a. chute.py independently exposes /forecast, /models and /health. Two unauthenticated GET probes returned401; this proves only an authentication gateway response, not model readiness or a live forecast contract. The reference documents a billable cold start and chute.py defaults idle shutdown to1800s. No credentials, authenticated request or forecast POST used. User confirmation, token environment-variable name and spending approval requested; no reply yet."
           ]
         }
       ]
     }
   ],
   "history_checkpoint": "2cba20e",
-  "revision_note": "User-authorized 0.8.0rc1 docs/benchmark cleanup and publication preparation. Removed historical runners/reports are recovered from Git, not required active release gates. Live service and actual agent comparison remain mandatory for 100."
+  "revision_note": "Iteration22: 0.8.0rc1 published before the naming correction arrived; prepare 0.8.0rc2 with provider-neutral positioning, only public connector naming and a PEP 440 container-tag fix. Prior user-authorized 0.8.0rc1 docs/benchmark cleanup and publication preparation. Removed historical runners/reports are recovered from Git, not required active release gates. Live service and actual agent comparison remain mandatory for 100."
 }

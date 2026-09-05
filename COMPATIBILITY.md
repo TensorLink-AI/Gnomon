@@ -72,9 +72,9 @@ explicit legacy profiles. Neither belongs to the default execution surface.
 The `mega` profile is removed, not an alternative measurement arm.
 
 Ephemeris is the public provider name: `EphemerisProvider`, kind `ephemeris`,
-and deployment-specific `EPHEMERIS_*` example variables. Paracast remains the
-backend name. The unreleased `ParacastProvider` draft was not a published API;
-no compatibility alias is installed. Existing ledger records are not renamed.
+and deployment-specific `EPHEMERIS_*` example variables. This optional connector
+uses the same execution contracts as other providers. Existing ledger records
+are not renamed.
 
 Old benchmark modules, runner commands and design documents are removed from the
 active tree. Git history retains them. Production APIs and existing user data are

@@ -49,8 +49,8 @@ engine.register("remote", provider, lifecycle="pretrained")
 run = engine.forecast("remote", ForecastRequest((10, 12, 11), 2))
 ```
 
-Ephemeris is the public service; the current wire protocol comes from the Paracast
-backend. The URL is configurable. Unknown served model revisions remain unknown.
+Ephemeris is one optional remote inference connector. The URL is configurable.
+Unknown served model revisions remain unknown.
 Forecast POSTs are not automatically retried.
 See [transport/service limits](production/INFERENCE.md#ephemeris).
 

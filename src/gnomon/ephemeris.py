@@ -1,8 +1,8 @@
-"""Ephemeris inference over the Paracast backend quantile wire protocol.
+"""Optional Ephemeris inference connector using its quantile wire protocol.
 
-Contract traced at TensorLink-AI/paracast f5d3f53b17e56d8c7ed0cbae61e043b8667f236a:
-paracast_common/schema.py, router/service.py and chute.py. The deployment URL
-is not fixed. This client does not import Paracast, torch or a model catalogue.
+Contract traced through service schema, router and deployed inference routes
+at revision f5d3f53b17e56d8c7ed0cbae61e043b8667f236a. The deployment URL
+is not fixed. This client does not import service code, torch or a model catalogue.
 """
 
 from __future__ import annotations

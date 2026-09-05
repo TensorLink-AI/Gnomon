@@ -29,3 +29,13 @@ def test_release_requires_verified_build_and_marks_prereleases():
     assert jobs["publish"]["permissions"] == {"id-token": "write"}
     release = "\n".join(step.get("run", "") for step in jobs["github-release"]["steps"])
     assert "--prerelease --latest=false" in release
+
+
+def test_container_metadata_has_a_tag_fallback_for_pep440_prereleases():
+    root = Path(__file__).resolve().parents[1]
+    workflow = yaml.safe_load((root / ".github/workflows/container.yml").read_text())
+    metadata = next(step for step in workflow["jobs"]["build"]["steps"]
+                    if step.get("id") == "meta")
+    assert "type=ref,event=tag" in metadata["with"]["tags"].splitlines()
+    assert metadata["with"]["flavor"] == "latest=false"
+    assert "type=raw,value=latest,enable={{is_default_branch}}" in metadata["with"]["tags"]
