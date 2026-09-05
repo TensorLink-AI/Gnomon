@@ -83,5 +83,12 @@ wheel SHA256 ba94b70ddf4cea5fb6e8223f61f73371280e92246d5635a7cd0cc1fa8ac02361;
 sdist SHA256 e173f91355e3636e2b40fef550cf833cf2bf693faf4b336fa8ff99abf8c906cf.
 [Final-candidate CI](https://github.com/TensorLink-AI/Gnomon/actions/runs/33994373155)
 passed. [Publication](https://github.com/TensorLink-AI/Gnomon/actions/runs/33994482217)
-was started after those checks; verify its terminal result and actual PyPI hashes
-before claiming publication. Final delivery status is also recorded on PR #99.
+and the release container workflow both completed successfully. PyPI's wheel and
+source-archive hashes match those above, and its rendered README source has the
+new introduction. Final delivery status is also recorded on PR #99.
+
+A follow-up CI run exposed a test-only process probe race: a killed child's
+`/proc/<pid>/stat` disappeared between the existence check and read. The probe now
+handles a missing stat file and checks PID liveness directly; deterministic tests
+cover both dead and still-live PIDs. Nine process tests pass. This post-tag change
+does not alter the published runtime or skill.

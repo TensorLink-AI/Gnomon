@@ -34,13 +34,32 @@ def test_input_limit_precedes_process_creation():
 def _running(pid):
     # Linux may retain a killed, unreaped orphan zombie; it cannot do more work.
     status = Path(f"/proc/{pid}/stat")
-    if status.exists():
+    try:
         return status.read_text().split(")", 1)[1].split()[0] != "Z"
+    except FileNotFoundError:
+        # The process can be reaped while /proc is being read. Check its PID
+        # directly too, preserving the fallback on platforms without /proc.
+        pass
     try:
         os.kill(pid, 0)
         return True
     except ProcessLookupError:
         return False
+
+
+@pytest.mark.parametrize("alive", [False, True])
+def test_process_probe_handles_stat_disappearing(monkeypatch, alive):
+    def missing_stat(_path):
+        raise FileNotFoundError
+
+    def probe(pid, signal):
+        assert (pid, signal) == (12345, 0)
+        if not alive:
+            raise ProcessLookupError
+
+    monkeypatch.setattr(Path, "read_text", missing_stat)
+    monkeypatch.setattr(os, "kill", probe)
+    assert _running(12345) is alive
 
 
 @pytest.mark.parametrize("parent_exit", [False, True])
