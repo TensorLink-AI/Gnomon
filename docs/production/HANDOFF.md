@@ -55,8 +55,17 @@ tag generation for PEP 440 prereleases without promoting them to latest.
 Corrected-candidate checks: 74 focused tests pass on each Python 3.11, 3.12 and
 3.13. Wheel/sdist metadata and naming scans pass, as does the clean installed
 CLI/MCP/provider/ledger/plugin walkthrough. Ruff, compilation and whitespace checks
-pass. The full suite with the rebuilt isolated service image is being reverified.
+pass. The full suite with the rebuilt isolated service image passed: 2667 tests,
+7 skipped in 134.34s. All PR CI jobs passed on commit `6ddfa8f`.
 The corrected local wheel SHA256 is
 32fd32a797a0bac4a9197fd901fd3d879a0abf4b9297f211299ba730a4119cd7.
-Complete the full suite and CI, then publish a new immutable tag.
+Version 0.8.0rc2 published successfully: release run 33993727253 and container run
+33993727297 both passed. The CI wheel and source archive match the local builds.
 Publication still does not complete either live-evidence gate.
+
+Iteration 23 incorporates the user's final plain-English README and agent-skill
+request in 0.8.0rc3. The skill's tool-call example executes against the real offline
+session; guidance distinguishes local models from optional connectors, retrieval
+from repeated inference, and recorded decisions from action permission. UI metadata
+no longer overclaims trusted answers. Skill validation and 50 targeted checks pass
+before the version bump. Rebuild and verify the final packaged skill before release.

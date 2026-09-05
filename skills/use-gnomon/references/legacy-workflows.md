@@ -3,9 +3,9 @@
 Read this only for an explicitly selected legacy profile whose schemas expose
 these fields. This is not the default provider-session contract.
 
-# Use Gnomon
-
-Gnomon owns computed facts; the host understands intent and explains them. Never replace, recompute, or strengthen its numbers.
+Preserve Gnomon's computed values and evidence labels when explaining its output.
+If the user requests an independent calculation, keep it separate and identify
+any disagreement; do not silently replace or strengthen the original result.
 
 ## Choose the shortest route
 
@@ -71,13 +71,4 @@ why and copy the recovery action; retry only when it preserves user intent.
 
 ## Handle feedback with consent
 
-Record feedback only after explicit agreement. With local execution:
-
-1. Create a structured local receipt with `gnomon-feedback create`. Include only the minimum task metadata needed to reproduce the behavior.
-2. Put sensitive detail in `--private-note`; it never enters a shareable payload. Put text in `--public-summary` only when the user approves sharing that exact text.
-3. Run `gnomon-feedback preview <receipt-id>` and show the preview before any export or submission.
-4. Export or submit only after separate explicit consent. Never add `--consent` on the user's behalf.
-
-Never record raw series, prompts, messages, credentials, paths, or full tool
-arguments. Never reward call volume. Shared reports require independent
-verification and duplicate checking.
+Use the same [feedback consent rules](../SKILL.md#feedback) as the default session.

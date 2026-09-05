@@ -48,7 +48,7 @@ gnomon-supervision = "gnomon.supervision:main"
 
 [project.urls]
 Homepage = "https://github.com/TensorLink-AI/Gnomon"
-Documentation = "https://github.com/TensorLink-AI/Gnomon/tree/v0.8.0rc2/docs"
+Documentation = "https://github.com/TensorLink-AI/Gnomon/tree/v0.8.0rc3/docs"
 Repository = "https://github.com/TensorLink-AI/Gnomon"
 Issues = "https://github.com/TensorLink-AI/Gnomon/issues"
 

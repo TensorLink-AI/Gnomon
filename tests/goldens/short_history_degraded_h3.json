@@ -1,6 +1,6 @@
 {
   "schema_version": "0.1",
-  "forecast_id": "forecast_7f8e705f2414a0de",
+  "forecast_id": "forecast_e08e200645f74d75",
   "created_at": "2026-07-01T00:00:00+00:00",
   "status": "complete",
   "task": {
@@ -236,7 +236,7 @@
         "recorded_as_of": null,
         "replay_mode": "source_available",
         "unknown_recorded_times": 6,
-        "snapshot_id": "snapshot_fec3004abd2a3658",
+        "snapshot_id": "snapshot_2c497c904b164f5c",
         "known_time_assumed": true,
         "known_time_provenance": "assumed",
         "source_ref": "sha256:b1dc29983a337e52c8f3745843e15e1833ce3edfa2afc92a9029040a6272b350",
@@ -251,5 +251,5 @@
       }
     }
   ],
-  "runtime_version": "0.8.0rc2"
+  "runtime_version": "0.8.0rc3"
 }

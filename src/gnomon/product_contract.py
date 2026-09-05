@@ -8,7 +8,7 @@ versions, default profiles, or evidence claims on different surfaces.
 
 from __future__ import annotations
 
-__version__ = "0.8.0rc2"
+__version__ = "0.8.0rc3"
 
 DEFAULT_MCP_PROFILE = "execution"
 LEGACY_MCP_PROFILES = ("core", "data", "decision", "evidence", "full")

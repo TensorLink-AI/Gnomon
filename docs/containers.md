@@ -34,7 +34,7 @@ that user. Without `--user`, the image defaults to its unprivileged internal
 ## GitHub Container Registry
 
 The container workflow builds pull requests without publishing. Pushes to
-`main` publish branch and `latest` tags; version tags such as `v0.8.0rc2` publish
+`main` publish branch and `latest` tags; version tags such as `v0.8.0rc3` publish
 semantic-version tags to:
 
 ```text

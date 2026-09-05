@@ -15,8 +15,8 @@ Download the wheel for the exact approved version and record its checksum:
 
 ```bash
 python -m pip download --only-binary=:all: --no-deps \
-  gnomon-forecast==0.8.0rc2 --dest wheelhouse
-sha256sum wheelhouse/gnomon_forecast-0.8.0rc2-py3-none-any.whl \
+  gnomon-forecast==0.8.0rc3 --dest wheelhouse
+sha256sum wheelhouse/gnomon_forecast-0.8.0rc3-py3-none-any.whl \
   > wheelhouse/SHA256SUMS
 ```
 
@@ -33,7 +33,7 @@ cd wheelhouse
 sha256sum --check SHA256SUMS
 python3 -m venv /opt/gnomon/venv
 /opt/gnomon/venv/bin/python -m pip install \
-  --no-index --no-deps ./gnomon_forecast-0.8.0rc2-py3-none-any.whl
+  --no-index --no-deps ./gnomon_forecast-0.8.0rc3-py3-none-any.whl
 /opt/gnomon/venv/bin/gnomon --version
 /opt/gnomon/venv/bin/gnomon capabilities
 /opt/gnomon/venv/bin/gnomon self-check leakage --cases 8 --seed 7

@@ -86,6 +86,7 @@ def test_readme_python_example_runs_without_optional_models():
 @pytest.mark.parametrize("source",
     [REPO / "README.md"] + sorted(DOCS.rglob("*.md")) +
     sorted((REPO / "benchmarks").rglob("*.md")) +
+    sorted((REPO / "skills/use-gnomon").rglob("*.md")) +
     sorted((REPO / "examples/provider_plugin").rglob("*.md")),
     ids=lambda p: str(p.relative_to(REPO)))
 def test_relative_links_resolve(source):

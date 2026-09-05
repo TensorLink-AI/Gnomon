@@ -6,7 +6,7 @@ Install the reviewed wheel or use the package launcher:
 
 ```bash
 gnomon mcp serve
-# Or: uvx --from 'gnomon-forecast==0.8.0rc2' gnomon mcp serve
+# Or: uvx --from 'gnomon-forecast==0.8.0rc3' gnomon mcp serve
 ```
 
 For an offline installation, follow [the wheel procedure](offline-installation.md).

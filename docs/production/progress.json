@@ -2,7 +2,7 @@
   "schema_version": 1,
   "objective": "Production-ready Gnomon within the scope and release gates in PLAN.md",
   "baseline_revision": "0d3d72e",
-  "iteration": 22,
+  "iteration": 23,
   "score_policy": "Sum weights of verified checks only. Missing evidence earns zero. No elapsed-time or lines-of-code credit. Regressions reopen checks. 100 requires every check including live service verification.",
   "workstreams": [
     {
@@ -398,5 +398,5 @@
     }
   ],
   "history_checkpoint": "2cba20e",
-  "revision_note": "Iteration22: 0.8.0rc1 published before the naming correction arrived; prepare 0.8.0rc2 with provider-neutral positioning, only public connector naming and a PEP 440 container-tag fix. Prior user-authorized 0.8.0rc1 docs/benchmark cleanup and publication preparation. Removed historical runners/reports are recovered from Git, not required active release gates. Live service and actual agent comparison remain mandatory for 100."
+  "revision_note": "Iteration23: 0.8.0rc2 publication and container workflows passed; all PR checks and 2667 local tests passed, 7 skipped. User then requested a concise plain-English README and refreshed packaged agent skill. Prepare 0.8.0rc3 with executable skill-example coverage and updated UI/legacy guidance. Live service and actual agent comparison remain mandatory for 100. Removed historical source and reports remain recoverable from Git."
 }

@@ -1,6 +1,6 @@
 ---
 name: use-gnomon
-description: Use Gnomon's available tools to inspect time series, compute exact statistics, forecast with registered providers, and evaluate explicit historical evidence.
+description: Use Gnomon to inspect time-series data, run a chosen forecasting model, compare models on past data, or retrieve forecast history. Also covers optional date and time calculations when exposed by the session.
 ---
 
 # Use Gnomon
@@ -8,6 +8,8 @@ description: Use Gnomon's available tools to inspect time series, compute exact 
 Use the schemas actually exposed by the current session. The default execution
 profile and explicit legacy profiles have different contracts; do not mix arguments.
 Discover capabilities when provider names, supported inputs or storage are unknown.
+Gnomon is provider-neutral. Use the user's chosen software or configured service;
+Ephemeris is one optional connector, not a required or preferred forecasting path.
 
 ## Default execution session
 
@@ -28,6 +30,16 @@ Discover capabilities when provider names, supported inputs or storage are unkno
 - Provider URLs, imports, authentication and ledger paths are operator startup
   configuration, not tool arguments. Never put secrets in prompts.
 
+For a supplied numeric history, no inspection call is needed. This example uses
+the built-in `last_value` baseline; identify it as a baseline in the answer:
+
+```json
+{"name":"gnomon_forecast","arguments":{"provider":"last_value","request":{"history":[10,12,11],"horizon":2}}}
+```
+
+`horizon` counts forecast steps, not days unless the data is daily. A registered
+remote model may incur charges; an available connector is not spending approval.
+
 Inference alone does not prove accuracy, calibrated uncertainty or action authority.
 Preserve provider/revision identity, uncertainty, snapshot and execution identifiers;
 unknown model weights or training cutoffs stay unknown. A rejected capability is not
@@ -37,7 +49,9 @@ permission to drop an input silently.
 
 Use `gnomon_evaluate` when comparison is needed: name candidates, an explicit
 baseline, horizon and suitable fold/budget settings. It can incur provider calls;
-respect task scope and operator ceilings. Its compact study ID retrieves full evidence.
+respect task scope and operator ceilings. Retrieve an existing study with
+`gnomon_evaluate` and only `{"study_id":"<returned study_id>"}`; this does not
+run the models again. Without a ledger, study retention is session-local and bounded.
 Count incomplete folds and failures, not only successful forecasts.
 
 If a response has `partial: true` and `result_ref`, use `gnomon_read`; do not treat
@@ -55,6 +69,7 @@ Rescoring appends a new study without changing original predictions.
 Use `gnomon_ledger` only when exposed. Queries and score creation differ from
 outcome/import writes, which require operator authorization and user task scope.
 Keep valid time, source availability and local recording time distinct.
+Recording a decision documents it; it does not execute or authorize an action.
 
 ## Optional explicit temporal calculations
 
@@ -79,5 +94,6 @@ need an appropriate exposed tool, not an invented extension to exact describe.
 Record feedback only after explicit agreement. Use `gnomon-feedback create` for
 minimal metadata; private notes stay local. Preview the exact shareable receipt
 with `gnomon-feedback preview` before asking for separate export/submission consent.
-Never add `--consent` on the user's behalf. Do not record raw series, prompts,
+`--consent` records the user's explicit approval; it cannot substitute for approval.
+Do not record raw series, prompts,
 credentials or full arguments. Do not reward call volume.

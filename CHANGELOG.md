@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.0rc3 — 2026-09-06
+
+- Shorten the README around a plain-English introduction, runnable quick start
+  and optional integrations.
+- Refresh the packaged agent skill, its UI metadata and legacy guidance against
+  the current session. Add an executable offline skill-example regression.
+- Retain the first candidates' validation limits; live-service verification and
+  the real-agent comparison remain pending.
+
 ## 0.8.0rc2 — 2026-09-06
 
 - Lead with Gnomon's provider-neutral toolkit; present Ephemeris as one optional

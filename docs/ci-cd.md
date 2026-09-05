@@ -23,8 +23,8 @@ The publisher is bound to repository `TensorLink-AI/Gnomon`, workflow
 Environment approval may still be required. Do not fall back to extracting a key
 or publishing from a different account.
 
-For release candidates, use a PEP 440 version such as `0.8.0rc2` and tag
-`v0.8.0rc2`. GitHub must mark it as a prerelease, not latest stable.
+For release candidates, use a PEP 440 version such as `0.8.0rc3` and tag
+`v0.8.0rc3`. GitHub must mark it as a prerelease, not latest stable.
 Publication is irreversible in the sense that a PyPI version/file cannot simply
 be overwritten; use a new version for corrections.
 

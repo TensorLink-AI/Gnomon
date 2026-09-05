@@ -3,9 +3,10 @@
 Gnomon ships a thin agent workflow in [`skills/use-gnomon`](../skills/use-gnomon/).
 It teaches an agent how to use the 6-tool default `execution` surface efficiently,
 when explicit advanced profiles are needed, how to preserve
-provenance and inference/evaluation distinctions, and how to recover from refusal. It contains no
-forecasting logic: Gnomon remains the only component that computes governed
-primary temporal facts.
+provenance, separate inference from evaluation, and retrieve existing results.
+It contains no forecasting logic and does not choose a model for the user.
+Models stay in user software or an optional remote connector; Gnomon validates
+requests/results and records evidence. Date and time calculations are optional.
 
 ## Local feedback by default
 
