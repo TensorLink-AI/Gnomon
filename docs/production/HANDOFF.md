@@ -67,8 +67,21 @@ Iteration 23 incorporates the user's final plain-English README and agent-skill
 request in 0.8.0rc3. The skill's tool-call example executes against the real offline
 session; guidance distinguishes local models from optional connectors, retrieval
 from repeated inference, and recorded decisions from action permission. UI metadata
-no longer overclaims trusted answers. Skill validation and 50 targeted checks pass
-before the version bump. Rebuild and verify the final packaged skill before release.
-CI caught the expanded skill exceeding its existing 5,000-byte limit. The skill was
-shortened to 4,912 bytes without raising the limit; reverify the current harness and
-packaged walkthrough against these final bytes before tagging.
+no longer overclaims trusted answers. The initial expanded skill exceeded its
+existing 5,000-byte limit; it was shortened to 4,912 bytes without raising that limit.
+An old README test required inline connector configuration; its replacement executes
+the first documented forecast and verifies an offline baseline before connectors.
+
+Final candidate verification: 2647 local tests passed, 30 skipped (including opt-in
+container tests). All six CI jobs passed on `ddd9c0a`, including real software/service
+isolation and full production regressions on Python 3.11–3.13. Skill validation,
+archive naming scans and the clean installed CLI/MCP/provider/ledger/plugin
+walkthrough pass. The packaged skill exactly matches the compact checkout file.
+
+Tag `v0.8.0rc3` points to `ddd9c0a`. CI and local distributions match byte-for-byte:
+wheel SHA256 ba94b70ddf4cea5fb6e8223f61f73371280e92246d5635a7cd0cc1fa8ac02361;
+sdist SHA256 e173f91355e3636e2b40fef550cf833cf2bf693faf4b336fa8ff99abf8c906cf.
+[Final-candidate CI](https://github.com/TensorLink-AI/Gnomon/actions/runs/33994373155)
+passed. [Publication](https://github.com/TensorLink-AI/Gnomon/actions/runs/33994482217)
+was started after those checks; verify its terminal result and actual PyPI hashes
+before claiming publication. Final delivery status is also recorded on PR #99.

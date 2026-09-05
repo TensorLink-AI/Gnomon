@@ -398,5 +398,5 @@
     }
   ],
   "history_checkpoint": "2cba20e",
-  "revision_note": "Iteration23: 0.8.0rc2 publication and container workflows passed; all PR checks and 2667 local tests passed, 7 skipped. User then requested a concise plain-English README and refreshed packaged agent skill. Prepare 0.8.0rc3 with executable skill-example coverage and updated UI/legacy guidance. Live service and actual agent comparison remain mandatory for 100. Removed historical source and reports remain recoverable from Git."
+  "revision_note": "Iteration23: Final 0.8.0rc3 README is 22% shorter and the refreshed skill is within its existing 5000-byte limit. Executable README and skill examples pass. Local suite: 2647 passed, 30 skipped; all CI jobs passed on ddd9c0a, including opt-in container tests and Python 3.11-3.13. CI/local wheel and sdist match; installed package/plugin smoke and skill/naming scans pass. Tagged publication run 33994482217 started after validation; final remote delivery status is recorded on PR99. Prior 0.8.0rc2 publication passed. Live service and actual agent comparison remain mandatory for 100. Removed historical source and reports remain recoverable from Git."
 }
