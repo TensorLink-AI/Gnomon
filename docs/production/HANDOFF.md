@@ -69,3 +69,6 @@ session; guidance distinguishes local models from optional connectors, retrieval
 from repeated inference, and recorded decisions from action permission. UI metadata
 no longer overclaims trusted answers. Skill validation and 50 targeted checks pass
 before the version bump. Rebuild and verify the final packaged skill before release.
+CI caught the expanded skill exceeding its existing 5,000-byte limit. The skill was
+shortened to 4,912 bytes without raising the limit; reverify the current harness and
+packaged walkthrough against these final bytes before tagging.
