@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, fields
 import json
 from typing import Any, Iterable
 
@@ -21,6 +21,7 @@ MEASURES = frozenset({
     "point", "slope", "period", "residual_scale", "marginal_variability",
     "change", "maximum", "minimum", "correlation", "test_statistic",
     "components", "coefficients", "validation_error",
+    "mean", "median", "latest", "sum",
 })
 CONTEXT_POLICIES = frozenset({"ignore", "measure", "scenario"})
 AGGREGATIONS = {
@@ -30,6 +31,8 @@ AGGREGATIONS = {
 
 _PROPERTY_ALIASES = {
     "average": "level", "mean": "level", "value": "level",
+    "median": "level", "latest": "level", "sum": "level",
+    "minimum": "level", "maximum": "level",
     "direction": "trend", "growth": "trend",
     "seasonal": "seasonality", "cycle": "seasonality",
     "variance": "volatility", "variability": "volatility",
@@ -39,6 +42,9 @@ _PROPERTY_ALIASES = {
     "peak": "extreme",
     "relationship": "dependence", "correlation": "dependence",
 }
+
+LEVEL_STATISTICS = frozenset({"mean", "median", "latest", "minimum", "maximum", "sum"})
+_QUANTITY_ALIASES = {"average": "mean", **{name: name for name in LEVEL_STATISTICS}}
 
 
 @dataclass(frozen=True)
@@ -116,8 +122,13 @@ def compile_temporal_question(
     target_raw = raw.get("target", "")
     scope, members, aggregation = "series", (), None
     if isinstance(target_raw, dict):
+        unknown_target = set(target_raw) - {"kind", "members", "aggregation"}
+        raw_members = target_raw.get("members", [])
+        if unknown_target or not isinstance(raw_members, list) or any(
+                not isinstance(item, str) or not item.strip() for item in raw_members):
+            raise GnomonError("INVALID_TEMPORAL_QUESTION", "Target scope contains unsupported fields or invalid members.")
         scope = str(target_raw.get("kind", "")).strip().lower()
-        members = tuple(str(item) for item in target_raw.get("members", []))
+        members = tuple(raw_members)
         aggregation = target_raw.get("aggregation")
         # Each aggregatable property has exactly one public cross-unit
         # meaning. Canonicalising an omitted name is semantic normalization,
@@ -151,6 +162,12 @@ def compile_temporal_question(
             failures["target.members"] = "pair scope requires exactly two members"
         if scope == "pair" and len(set(members)) != len(members):
             failures["target.members"] = "pair scope requires two distinct members"
+        elif len(set(members)) != len(members):
+            failures["target.members"] = "scope requires distinct members, not duplicate weighting"
+        if scope == "series" and len(members) != 1:
+            failures["target.members"] = "series scope requires exactly one member"
+        if scope != "aggregate" and aggregation is not None:
+            failures["target.aggregation"] = "aggregation requires aggregate scope"
         if scope == "pair" and prop != "dependence":
             failures["target.kind"] = (
                 "pair scope is defined only for cross-series dependence")
@@ -160,6 +177,10 @@ def compile_temporal_question(
     else:
         target = str(target_raw).strip()
         failures: dict[str, Any] = {}
+    allowed_fields = {field.name for field in fields(TemporalQuestion)} - {"scope", "members", "aggregation"}
+    unknown = set(raw) - allowed_fields
+    if unknown:
+        failures["unknown_fields"] = sorted(unknown)
     if not target and len(targets) == 1:
         target = targets[0]
     if verb not in VERBS:
@@ -170,14 +191,26 @@ def compile_temporal_question(
     if scope == "series" and target not in targets:
         failures["target"] = {"received": target, "allowed": targets}
     measure = raw.get("measure")
+    alias_measure = _QUANTITY_ALIASES.get(prop_raw)
+    if alias_measure is not None:
+        if measure is not None and measure != alias_measure:
+            failures["measure"] = (
+                f"property {prop_raw!r} means {alias_measure!r}; "
+                f"it conflicts with measure {measure!r}")
+        else:
+            measure = alias_measure
     if measure is not None and str(measure) not in MEASURES:
         failures["measure"] = {"received": measure,
                                "allowed": sorted(MEASURES)}
+    if str(measure) in {"mean", "median", "latest", "sum"} and prop != "level":
+        failures["measure"] = "this statistic requires property='level'"
     policy = str(raw.get("context_policy", "ignore"))
     if policy not in CONTEXT_POLICIES:
         failures["context_policy"] = {
             "received": policy, "allowed": sorted(CONTEXT_POLICIES)}
-    horizon_raw = raw.get("horizon", default_horizon)
+    # A forecast operation's default horizon must not turn an explicitly
+    # observed sub-question into a prediction.
+    horizon_raw = raw.get("horizon", default_horizon if verb in {"predict", "compare", "decide"} else None)
     horizon: int | None = None
     if horizon_raw is not None:
         if isinstance(horizon_raw, bool) or not isinstance(horizon_raw, int) \
@@ -185,9 +218,15 @@ def compile_temporal_question(
             failures["horizon"] = "must be a positive integer number of periods"
         else:
             horizon = horizon_raw
+    if horizon is not None and verb in {"describe", "detect", "test", "decompose", "regress"}:
+        failures["horizon"] = "observed questions cannot request a future horizon; use predict or compare"
     comparison = raw.get("comparison")
     if comparison is not None and not isinstance(comparison, dict):
         failures["comparison"] = "must be an object"
+    elif comparison:
+        failures["comparison"] = (
+            "custom comparison windows are not implemented on this legacy question surface; "
+            "use the execution session's explicit start/end descriptive windows")
     vocabulary = raw.get("answer_vocabulary")
     if vocabulary is not None and (not isinstance(vocabulary, dict) or any(
             not isinstance(key, str) or not isinstance(value, str)
@@ -237,6 +276,16 @@ def compile_temporal_question(
     validation = raw.get("validation")
     if validation is not None and not isinstance(validation, dict):
         failures["validation"] = "must be an object"
+    elif validation:
+        failures["validation"] = "custom validation settings are not implemented by this executable"
+    if method is not None and prop not in {"stationarity", "decomposition", "regression"}:
+        failures["method"] = "method selection is implemented only for stationarity, decomposition and regression"
+    if period is not None and prop != "decomposition":
+        failures["period"] = "period is implemented only for fixed-period decomposition"
+    if explanatory and prop != "regression":
+        failures["explanatory_variables"] = "explanatory variables require regression"
+    if (differencing or seasonal_period is not None) and prop != "stationarity":
+        failures["differencing"] = "differencing options require stationarity"
     decision_policy = raw.get("decision_policy")
     if decision_policy is not None:
         try:

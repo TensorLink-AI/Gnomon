@@ -68,7 +68,8 @@ def test_status_sections_preserve_current_tracking_reads(monkeypatch, tmp_path) 
 
 
 def test_effect_prior_and_robust_decision_are_agent_callable(monkeypatch, tmp_path) -> None:
-    from gnomon.toolspec import _run_status, _run_unified
+    from gnomon.toolspec import _run_status
+    from gnomon.legacy_experiments import _run_unified
     from gnomon.tracking import TrackingStore
 
     monkeypatch.setenv("GNOMON_REGISTRY_PATH", str(tmp_path / "registry.db"))
@@ -145,7 +146,8 @@ def test_profiles_select_documented_subsets(monkeypatch) -> None:
     from gnomon.toolspec import PROFILES, visible_tools
 
     monkeypatch.delenv("GNOMON_MCP_PROFILE", raising=False)
-    assert {tool["name"] for tool in visible_tools()} == PROFILES["core"]
+    assert {tool["name"] for tool in visible_tools()} == {
+        "gnomon_capabilities", "gnomon_inspect", "gnomon_describe", "gnomon_forecast", "gnomon_evaluate", "gnomon_read"}
     monkeypatch.setenv("GNOMON_MCP_PROFILE", "full")
     full = {tool["name"] for tool in visible_tools()}
 
@@ -181,15 +183,13 @@ def test_capabilities_report_the_active_profile(monkeypatch) -> None:
 
     monkeypatch.delenv("GNOMON_MCP_PROFILE", raising=False)
     payload = capabilities()["mcp_profile"]
-    assert payload["active"] == "core"
+    assert payload["active"] == "execution"
     assert set(payload["visible_tools"]) == {
         "gnomon_capabilities", "gnomon_inspect", "gnomon_describe",
-        "gnomon_forecast", "gnomon_monitor", "gnomon_investigate_change",
-        "gnomon_detect_anomalies", "gnomon_decide", "gnomon_route",
-        "gnomon_explain_run",
+        "gnomon_forecast", "gnomon_evaluate", "gnomon_read",
     }
     assert payload["available"] == [
-        "core", "data", "decision", "describe", "evidence", "mega", "full"]
+        "execution", "core", "data", "decision", "evidence", "full"]
 
     monkeypatch.setenv("GNOMON_MCP_PROFILE", "core")
     payload = capabilities()["mcp_profile"]
@@ -1509,7 +1509,7 @@ def test_inspect_defaults_to_every_candidate_instead_of_refusing(
 def test_describe_answers_wide_data_without_a_backtest(tmp_path, monkeypatch) -> None:
     from gnomon.toolspec import runner_for
 
-    monkeypatch.setenv("GNOMON_MCP_PROFILE", "describe")
+    monkeypatch.setenv("GNOMON_MCP_PROFILE", "core")
     path = _wide_csv(tmp_path, columns=("cpu", "mem"), days=40)
     payload = runner_for("gnomon_describe")({"input": str(path)})
     assert payload["status"] == "valid"
@@ -1630,7 +1630,7 @@ def test_describe_spike_response_is_json_serializable(tmp_path, monkeypatch):
     import json
     from gnomon.toolspec import runner_for
 
-    monkeypatch.setenv("GNOMON_MCP_PROFILE", "describe")
+    monkeypatch.setenv("GNOMON_MCP_PROFILE", "core")
     path = _wide_csv(tmp_path, columns=("api", "worker", "db"), days=12)
     payload = runner_for("gnomon_describe")({"input": str(path)})
     assert json.loads(json.dumps(payload))["triage"]["remainder_preserved"] is True
@@ -1694,7 +1694,8 @@ def test_typed_question_returns_compact_answer_without_changing_primary(
     assert set(asked["answers"][0]) == {
         "question", "best_estimate", "synthesis_policy", "decision_rule",
         "answer", "headline", "limitations", "artifact_id", "support",
-        "calibration_status"}
+        "calibration_status", "action_authorized"}
+    assert asked["answers"][0]["action_authorized"] is False
     decision = asked["agent_response_contract"]["decisions"][0]
     assert decision["question_id"] == "v1"
     assert decision["property"] == "volatility"
@@ -1913,34 +1914,17 @@ def test_describe_brief_projects_typed_answers_within_agent_budget(
     assert len(json.dumps(payload, sort_keys=True)) < 12_000
 
 
-def test_mega_profile_is_three_tools_and_runs_a_descriptive_question(
-        tmp_path, monkeypatch) -> None:
-    from gnomon.toolspec import runner_for, visible_tools
+def test_retired_experimental_profiles_and_tools_are_unavailable(monkeypatch):
+    from gnomon.toolspec import TOOLS, runner_for, visible_tools
 
-    monkeypatch.setenv("GNOMON_MCP_PROFILE", "mega")
-    assert {tool["name"] for tool in visible_tools()} == {
-        "gnomon_inspect", "gnomon_run", "gnomon_track"}
-    path = _wide_csv(tmp_path, columns=("cpu",), days=40)
-    inspected = runner_for("gnomon_inspect")({"input": str(path)})
-    described = runner_for("gnomon_run")({
-        "data_ref": inspected["data_ref"],
-        "question": {"kind": "describe"},
-    })
-    assert described["reports"]["cpu"]["trend"]["direction"] == "up"
-    # Lenient discriminant form seen in real agent transcripts.
-    described_short = runner_for("gnomon_run")({
-        "data_ref": inspected["data_ref"], "question": "describe",
-    })
-    assert described_short["reports"]["cpu"]["trend"]["direction"] == "up"
-    forecast = runner_for("gnomon_run")({
-        "data_ref": inspected["data_ref"],
-        "question": {"kind": "forecast"},
-        "horizon": 3,
-        "output_dir": str(tmp_path / "mega-output"),
-    })
-    assert forecast["status"] == "complete"
-    assert forecast["data_ref"] == inspected["data_ref"]
-    assert forecast["results"][0]["forecast_rows"] == 3
+    assert not {"gnomon_run", "gnomon_track"} & {t["name"] for t in TOOLS}
+    for profile in ("mega", "describe"):
+        monkeypatch.setenv("GNOMON_MCP_PROFILE", profile)
+        with pytest.raises(ValueError, match="retired"):
+            visible_tools()
+    monkeypatch.setenv("GNOMON_MCP_PROFILE", "full")
+    assert runner_for("gnomon_run") is None
+    assert runner_for("gnomon_track") is None
 
 
 def test_data_ref_reuses_resolved_data_and_schema_across_verbs(tmp_path) -> None:

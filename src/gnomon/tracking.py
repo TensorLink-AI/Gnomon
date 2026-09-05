@@ -1535,10 +1535,6 @@ class TrackingStore:
                 continue
             # Load forecast from artifact
             artifact_path = Path(record.artifact_path) / "forecast.csv"
-            if not artifact_path.exists():
-                logger.warning("Artifact not found for %s: %s", record.forecast_id, artifact_path)
-                continue
-
             # Parse forecast.csv
             forecast_data = [
                 row for row in self._load_forecast_csv(artifact_path)
@@ -2904,13 +2900,21 @@ class TrackingStore:
 
     def _load_forecast_csv(self, path: Path) -> list[dict[str, Any]]:
         """Load forecast.csv and return rows as dicts."""
-        if not path.exists():
-            return []
         # Tracking is an artifact read just as surely as get_artifact is.
         # Refuse to score doctored points or intervals when the producing
         # release sealed them; legacy unsealed artifacts remain compatible.
         from .artifacts import verify_artifact_integrity
         verify_artifact_integrity(path.parent)
+        if not path.exists():
+            artifact = path.parent / "artifact.json"
+            if not artifact.is_file():
+                return []
+            # forecast.csv is an optional rendering. The canonical predictions
+            # remain scoreable from the immutable artifact when CSV is disabled.
+            payload = json.loads(artifact.read_text(encoding="utf-8"))
+            return [{"series": result["series"], **row}
+                    for result in payload.get("results", [])
+                    for row in result.get("forecast", [])]
         with open(path, encoding="utf-8-sig", newline="") as f:
             reader = csv.DictReader(f)
             rows = []
@@ -3070,23 +3074,32 @@ def register_artifact(artifact: Any, project: str, artifact_path: str,
     them: each becomes a ledger row in ``event_proposals`` /
     ``event_admissions``, joined to the gate verdicts the artifact already
     recorded, so proposals can be scored when actuals arrive."""
-    from .data import load_observations
+    from .artifacts import verify_artifact_integrity
+    from .contracts import GnomonError
     from .temporal import default_season
 
     schema = artifact.task.schema
-    observations, _, _ = load_observations(
-        artifact.task.input_path, schema.time_column, schema.target_column,
-        schema.series_column,
-    )
+    manifest = verify_artifact_integrity(artifact_path)
+    history_path = Path(artifact_path) / "history.json"
+    if not history_path.is_file() or not manifest or "history.json" not in manifest["files"]:
+        raise GnomonError("HISTORY_NOT_PRESERVED", "Registration requires the run's sealed history.json; do not reread the original input.")
+    frozen = json.loads(history_path.read_text(encoding="utf-8"))
     histories: dict[str, list[float]] = {}
     cutoffs: dict[str, str] = {}
-    for observation in observations:
-        histories.setdefault(observation.series, []).append(observation.value)
-        cutoffs[observation.series] = observation.timestamp.isoformat()
+    for name, observations in frozen["series"].items():
+        histories[name] = [row["value"] for row in observations]
+        if observations:
+            cutoffs[name] = observations[-1]["timestamp"]
     store = TrackingStore()
     registered: list[str] = []
     for result in artifact.results:
-        values = histories[result.series]
+        values = histories.get(result.series)
+        if not values:
+            # A wholly refused channel in a multi-target artifact has no input
+            # snapshot and no prediction to track.
+            if not result.forecast:
+                continue
+            raise GnomonError("HISTORY_NOT_PRESERVED", "Forecast series has no frozen input history.")
         season = default_season(schema.frequency)
         lag = season if len(values) > season else 1
         errors = [abs(values[index] - values[index - lag])

@@ -2187,8 +2187,9 @@ class StdioMcpSession:
         inherited_path = child_env.get("PYTHONPATH")
         child_env["PYTHONPATH"] = os.pathsep.join(
             [*source_paths, *([inherited_path] if inherited_path else [])])
-        if profile:
-            child_env["GNOMON_MCP_PROFILE"] = profile
+        # Historical adapters consume evaluated legacy artifacts, not the
+        # provider-session protocol. Never inherit a changed product default.
+        child_env["GNOMON_MCP_PROFILE"] = profile or "full"
         self._proc = subprocess.Popen(
             command or [sys.executable, "-m", "gnomon", "mcp", "serve"],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -2255,14 +2256,24 @@ class InProcessMcpSession:
     smoke runs); the path jail is enforced by the harness either way.
     """
 
-    def __init__(self, cwd: str | Path | None = None):
+    def __init__(self, cwd: str | Path | None = None, *, profile: str = "full"):
         self.cwd = cwd  # unused; documents interface parity
+        self.profile = profile
         self.calls: list[tuple[str, dict[str, Any]]] = []
 
     def _handle(self, method: str, params: dict[str, Any]) -> dict[str, Any]:
         from gnomon.mcp_server import _handle
 
-        result = _handle({"method": method, "params": params})
+        # This serial historical test harness must select its own surface.
+        previous = os.environ.get("GNOMON_MCP_PROFILE")
+        os.environ["GNOMON_MCP_PROFILE"] = self.profile
+        try:
+            result = _handle({"method": method, "params": params})
+        finally:
+            if previous is None:
+                os.environ.pop("GNOMON_MCP_PROFILE", None)
+            else:
+                os.environ["GNOMON_MCP_PROFILE"] = previous
         if result is None:
             raise RuntimeError(f"MCP method not handled: {method}")
         return result

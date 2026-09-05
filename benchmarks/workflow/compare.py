@@ -27,7 +27,11 @@ def paired_interval(baseline: dict[str, Any], treatment: dict[str, Any],
                     *, seed: int = 7, samples: int = 5000) -> dict[str, float]:
     left = {row["case_id"]: row for row in baseline["rows"]}
     right = {row["case_id"]: row for row in treatment["rows"]}
-    ids = sorted(set(left) & set(right))
+    if len(left) != len(baseline["rows"]) or len(right) != len(treatment["rows"]):
+        raise ValueError("duplicate workflow case IDs")
+    if set(left) != set(right) or any(run.get("missing") for run in (baseline, treatment)):
+        raise ValueError("paired workflow quality requires identical complete case sets; inspect all-case summaries for noncompletion")
+    ids = sorted(left)
     if not ids:
         raise ValueError("arms have no matched scored cases")
     deltas = [right[key]["correctness"] - left[key]["correctness"] for key in ids]
@@ -42,7 +46,11 @@ def _aggregate(runs: list[dict[str, Any]]) -> dict[str, Any]:
     """Average stochastic replicates by case before comparing arms."""
     if not runs:
         raise ValueError("cannot aggregate zero runs")
+    if any(run.get("missing") or len(run["rows"]) != run["cases"] for run in runs):
+        raise ValueError("cannot promote incomplete workflow runs; inspect all-case summaries and missing IDs")
     row_sets = [{row["case_id"] for row in run["rows"]} for run in runs]
+    if any(len(ids) != len(run["rows"]) for ids, run in zip(row_sets, runs)):
+        raise ValueError("duplicate workflow case IDs")
     if any(ids != row_sets[0] for ids in row_sets[1:]):
         raise ValueError(f"replicates for arm {runs[0]['arm']!r} have different case ids")
     rows = []
@@ -150,7 +158,8 @@ def _aggregate(runs: list[dict[str, Any]]) -> dict[str, Any]:
             for key in ("required_cases", "identity_produced", "identity_matched",
                         "agent_preserved_identity")
         },
-        "economics": economics, "by_kind": by_kind,
+        "economics": {**economics, "basis": "observed_lower_bounds_when_accounting_incomplete"}, "by_kind": by_kind,
+        "resource_accounting_complete": all(run.get("resource_accounting", {}).get("budget_accounting_complete") is True for run in runs),
     }
 
 
@@ -195,6 +204,8 @@ def compare(summaries: list[dict[str, Any]], baseline_arm: str,
             accuracy_comparisons: dict[str, dict[str, Any]] | None = None,
             minimum_replicates: int = 3,
             heldout_manifest: dict[str, Any] | None = None) -> dict[str, Any]:
+    if any("matched_experiment" in summary for summary in summaries):
+        raise ValueError("matched experiments require benchmarks.workflow.matched, not historical promotion policy")
     if minimum_replicates < 1:
         raise ValueError("minimum_replicates must be at least 1")
     hashes = {summary.get("corpus_sha256") for summary in summaries}
@@ -225,6 +236,7 @@ def compare(summaries: list[dict[str, Any]], baseline_arm: str,
         # Pre-committed surface objectives. Accuracy uses the conservative
         # lower paired confidence bound rather than the point estimate.
         gates = {
+            "resource_accounting_complete": summary["resource_accounting_complete"],
             "provider_complete": bool(summary["completeness_gate_pass"]),
             "workflow_leak_free": bool(summary["leakage_safety_gate_pass"]),
             "final_resolution_at_least_80pct": (

@@ -1,0 +1,10 @@
+{
+  "history": [10, 14],
+  "horizon": 2,
+  "series_id": "synthetic-shop/widgets",
+  "unit": "widgets",
+  "frequency": "D",
+  "cutoff": "2025-01-02T00:00:00Z",
+  "timestamps": ["2025-01-01T00:00:00Z", "2025-01-02T00:00:00Z"],
+  "future_timestamps": ["2025-01-03T00:00:00Z", "2025-01-04T00:00:00Z"]
+}

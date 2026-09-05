@@ -20,8 +20,10 @@ import re
 
 def _all_defined_tool_names() -> set[str]:
     from gnomon.toolspec import TOOLS
+    from gnomon.session import GnomonSession
 
-    return {tool["name"] for tool in TOOLS}
+    with GnomonSession.from_config() as session:
+        return {tool["name"] for tool in [*TOOLS, *session.tools()]}
 
 
 def _default_surface(monkeypatch) -> set[str]:

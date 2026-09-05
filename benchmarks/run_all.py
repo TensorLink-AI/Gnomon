@@ -148,11 +148,6 @@ REGISTRY: dict[str, dict[str, Any]] = {
         "accepts": {"output_dir"},
         "limit_flag": None,
     },
-    "reasoningbench": {
-        "module": "benchmarks.reasoningbench.run_reasoningbench",
-        "accepts": {"model", "output_dir"},
-        "limit_flag": "--cases",
-    },
     "adjudicationbench": {
         "module": "benchmarks.adjudicationbench.run_adjudicationbench",
         "accepts": {"output_dir"},
@@ -224,6 +219,11 @@ def load_config(path: Path) -> dict[str, Any]:
 def build_command(run: dict[str, Any], config: dict[str, Any]) -> list[str]:
     """Translate one run entry into a python -m invocation."""
     benchmark = run.get("benchmark")
+    if benchmark in CATALOG and CATALOG[benchmark].retired:
+        raise ValueError(
+            f"retired benchmark {benchmark!r} is historical evidence only; "
+            "see archive/benchmarks for reproduction instructions"
+        )
     if benchmark not in REGISTRY:
         raise ValueError(
             f"unknown benchmark {benchmark!r}; known: {sorted(REGISTRY)}"

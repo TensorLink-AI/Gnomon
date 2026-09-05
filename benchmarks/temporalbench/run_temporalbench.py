@@ -469,7 +469,7 @@ def main() -> int:
               "instead of replaying their abstention record."))
     parser.add_argument("--output-dir", default=None)
     parser.add_argument(
-        "--mcp-profile", choices=["full", "core", "describe", "evidence", "mega", "decision", "data"],
+        "--mcp-profile", choices=["full", "core", "evidence", "decision", "data"],
         default="evidence",
         help="Tool profile offered by the gnomon-mcp condition. Compare "
              "profiles only through matched runs over the same rows, model, "

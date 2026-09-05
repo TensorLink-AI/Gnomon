@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import math
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -14,13 +13,13 @@ STATUSES = {"answered", "abstained", "error"}
 SUPPORT = {"supported", "degraded", "best_effort", "abstained"}
 STAGE_FIELDS = {"name", "revealed", "answer_schema", "oracle"}
 CASE_FIELDS = {"schema_version", "id", "kind", "domain", "question",
-               "available_at_cutoff", "answer_schema", "oracle", "tags", "stages"}
+               "available_at_cutoff", "answer_schema", "oracle", "tags", "stages", "episode"}
 ORACLE_FIELDS = {"numbers", "tolerances", "choices", "required_disclosures",
                  "forbidden_claims", "allowed_support", "should_abstain",
                  "requires_repair", "requires_tracking",
                  "requires_publish_parity", "requires_quote_match",
                  "required_facts", "engine_required_facts", "choice_aliases",
-                 "context_behavior"}
+                 "context_behavior", "forecast"}
 CONTEXT_BEHAVIOR_FIELDS = {
     "status", "required_argument", "primary_forecast_unchanged",
     "automation_eligible", "minimum_scenario_count", "publication_mode",
@@ -38,7 +37,7 @@ OBSERVATION_FIELDS = {"case_id", "status", "support", "numbers", "choices",
                       "metadata", "facts", "evaluated_fingerprint",
                       "published_fingerprint", "headline_numbers",
                       "artifact_numbers", "stage_results"}
-OBSERVATION_FIELDS |= {"engine_facts"}
+OBSERVATION_FIELDS |= {"engine_facts", "cost_usd"}
 
 
 def _require(condition: bool, message: str) -> None:
@@ -74,6 +73,7 @@ class Oracle:
     engine_required_facts: dict[str, Any] = field(default_factory=dict)
     choice_aliases: dict[str, tuple[str, ...]] = field(default_factory=dict)
     context_behavior: dict[str, Any] = field(default_factory=dict)
+    forecast: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "Oracle":
@@ -85,6 +85,22 @@ class Oracle:
         tolerances = {str(k): float(v) for k, v in (value.get("tolerances") or {}).items()}
         _require(all(math.isfinite(v) for v in numbers.values()), "oracle numbers must be finite")
         _require(all(v >= 0 for v in tolerances.values()), "tolerances must be non-negative")
+        forecast = value.get("forecast", {})
+        _require(isinstance(forecast, dict), "forecast oracle must be an object")
+        if forecast:
+            _require(set(forecast) == {"keys", "scale", "max_mae"}, "forecast oracle requires keys/scale/max_mae")
+            keys = forecast["keys"]
+            _require(isinstance(keys, (list, tuple)) and 0 < len(keys) <= 512
+                     and all(isinstance(key, str) and key in numbers for key in keys)
+                     and len(set(keys)) == len(keys), "forecast keys must be unique numeric oracle keys")
+            for key in ("scale", "max_mae"):
+                item = forecast[key]
+                try:
+                    valid = type(item) in (int, float) and math.isfinite(item) and item >= 0
+                except OverflowError:
+                    valid = False
+                _require(valid and (key != "scale" or item > 0), "forecast scale must be positive and max_mae nonnegative, both finite")
+            forecast = {**forecast, "keys": list(keys)}
         allowed = tuple(value.get("allowed_support") or ("supported", "degraded", "best_effort"))
         _require(set(allowed) <= SUPPORT, f"unknown allowed_support: {allowed}")
         return cls(
@@ -105,6 +121,7 @@ class Oracle:
                             for key, aliases in
                             (value.get("choice_aliases") or {}).items()},
             context_behavior=context_behavior,
+            forecast=forecast,
         )
 
 
@@ -120,6 +137,7 @@ class Case:
     tags: tuple[str, ...] = ()
     stages: tuple[dict[str, Any], ...] = ()
     schema_version: int = SCHEMA_VERSION
+    episode: tuple[dict[str, Any], ...] = ()
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "Case":
@@ -184,12 +202,32 @@ class Case:
                  f"case {case_id}: repair oracle requires a repair stage")
         _require(not oracle.requires_tracking or any(s["name"] == "outcome" for s in stages),
                  f"case {case_id}: tracking oracle requires an outcome stage")
+        episode = value.get("episode", ())
+        _require(isinstance(episode, (list, tuple)), "episode must be an ordered phase list")
+        if episode:
+            _require(not stages and 2 <= len(episode) <= 8, "episode requires2..8 phases and no historical stages")
+            names = []
+            for phase in episode:
+                _require(isinstance(phase, dict) and set(phase) == STAGE_FIELDS, "episode phase requires name/revealed/answer_schema/oracle")
+                name = phase["name"]
+                _require(isinstance(name, str) and 0 < len(name) <= 64 and name not in names, "episode phase names must be unique bounded strings")
+                names.append(name)
+                _require(isinstance(phase["revealed"], dict), "phase revealed input must be an object")
+                # Reuse real answer/oracle validation without treating these as
+                # historical host-compiled repair/outcome stages.
+                cls.from_dict({"id": case_id, "kind": kind, "question": question,
+                               "available_at_cutoff": {}, "answer_schema": phase["answer_schema"],
+                               "oracle": phase["oracle"]})
+            _require(episode[0]["revealed"] == {}, "initial episode data belongs in available_at_cutoff")
+            _require(Oracle.from_dict(episode[-1]["oracle"]) == oracle,
+                     "case oracle must equal final episode oracle")
         return cls(
             id=case_id, kind=kind, domain=str(value.get("domain", "unknown")),
             question=question, available_at_cutoff=available,
             answer_schema=answer_schema, oracle=oracle,
             tags=tuple(str(x) for x in value.get("tags", ())), stages=stages,
             schema_version=version,
+            episode=tuple(dict(phase) for phase in episode),
         )
 
 
@@ -211,6 +249,7 @@ class Observation:
     cumulative_tokens: int = 0
     response_tokens: int = 0
     latency_seconds: float = 0.0
+    cost_usd: float | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
     facts: dict[str, Any] = field(default_factory=dict)
     # Deterministically harvested from the tool response.  Keep separate from
@@ -240,6 +279,25 @@ class Observation:
                  f"case {case_id}: numbers must be finite")
         temporal_leakage = _optional_bool(value.get("temporal_leakage"),
                                           "temporal_leakage", case_id)
+        from .accounting import FIELDS
+        metadata = dict(value.get("metadata") or {})
+        known = metadata.get("resource_fields", [key for key in FIELDS if value.get(key) is not None])
+        _require(isinstance(known, list) and all(isinstance(key, str) and key in FIELDS for key in known),
+                 "resource_fields must list known resource names")
+        resources = {}
+        for key in FIELDS:
+            item = value.get(key)
+            if item is not None:
+                try:
+                    valid = type(item) in (int, float) and math.isfinite(item) and item >= 0
+                except OverflowError:
+                    valid = False
+                _require(valid,
+                         f"{key} must be a finite nonnegative number")
+                if key in FIELDS[:3]:
+                    _require(type(item) is int, f"{key} must be an integer")
+            resources[key] = item if item is not None else (None if key == "cost_usd" else 0)
+        metadata["resource_fields"] = sorted(key for key in known if value.get(key) is not None)
         return cls(
             case_id=case_id, status=status, support=support,
             numbers=raw_numbers,
@@ -251,11 +309,8 @@ class Observation:
             repair_completed=_optional_bool(value.get("repair_completed"), "repair_completed", case_id),
             tracking_completed=_optional_bool(value.get("tracking_completed"), "tracking_completed", case_id),
             quote_matches=_optional_bool(value.get("quote_matches"), "quote_matches", case_id),
-            tool_calls=max(0, int(value.get("tool_calls", 0))),
-            cumulative_tokens=max(0, int(value.get("cumulative_tokens", 0))),
-            response_tokens=max(0, int(value.get("response_tokens", 0))),
-            latency_seconds=max(0.0, float(value.get("latency_seconds", 0.0))),
-            metadata=dict(value.get("metadata") or {}),
+            **resources,
+            metadata=metadata,
             facts=dict(value.get("facts") or {}),
             engine_facts=dict(value.get("engine_facts") or {}),
             evaluated_fingerprint=(str(value["evaluated_fingerprint"])
@@ -271,13 +326,8 @@ class Observation:
 
 
 def _read_jsonl(path: Path) -> Iterable[dict[str, Any]]:
-    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-        if not line.strip():
-            continue
-        try:
-            yield json.loads(line)
-        except json.JSONDecodeError as error:
-            raise ValueError(f"{path}:{line_number}: invalid JSON: {error}") from error
+    from gnomon.agent_eval import _read_records
+    yield from _read_records(path)
 
 
 def load_cases(path: str | Path) -> list[Case]:
@@ -289,7 +339,12 @@ def load_cases(path: str | Path) -> list[Case]:
 
 
 def load_observations(path: str | Path) -> list[Observation]:
-    observations = [Observation.from_dict(row) for row in _read_jsonl(Path(path))]
+    observations = []
+    for row in _read_jsonl(Path(path)):
+        # Old serialized defaults do not prove measured zero or complete history.
+        metadata = dict(row.get("metadata") or {})
+        metadata.setdefault("resource_fields", [])
+        observations.append(Observation.from_dict({**row, "metadata": metadata}))
     ids = [row.case_id for row in observations]
     _require(len(ids) == len(set(ids)), "duplicate observation case_ids")
     return observations

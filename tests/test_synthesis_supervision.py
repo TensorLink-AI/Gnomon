@@ -4,7 +4,7 @@ import pytest
 
 from gnomon.supervision import build_export, export_supervision
 from gnomon.tracking import TrackingStore
-from gnomon.toolspec import _run_track
+from gnomon.legacy_experiments import _run_track
 
 
 def _answer():

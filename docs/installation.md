@@ -1,5 +1,11 @@
 # Installation options
 
+For the unreleased execution-default changes in this checkout, use a reviewed
+local wheel or install the checkout itself. A package-index release or GitHub
+`main` is not proof that it contains your local changes. The
+[installable provider walkthrough](../examples/provider_plugin/README.md) verifies
+the extension boundary in its own environment.
+
 For a controlled network or air-gapped environment, use the
 [offline wheel procedure](offline-installation.md). It verifies a pinned
 artifact and never asks an installer to resolve from PyPI or GitHub inside the
@@ -10,8 +16,12 @@ boundary.
 From a cloned checkout:
 
 ```bash
-bash install.sh
+bash install.sh --local
 ```
+
+`--local` installs the checkout containing the script. Without it, the installer
+fetches the configured GitHub repository/ref (default: `main`), not your local
+changes. Use a locally built wheel for an offline installation.
 
 Directly from GitHub:
 
@@ -20,7 +30,7 @@ curl -fsSL https://raw.githubusercontent.com/TensorLink-AI/Gnomon/main/install.s
 ```
 
 The direct `curl` form requires the repository to be public. While it is
-private, clone it with an authenticated GitHub account and run `bash install.sh`.
+private, clone it with an authenticated GitHub account and run `bash install.sh --local`.
 The installer detects an authenticated `gh` CLI and uses it to download private
 source archives without placing the token in a URL or subprocess argument.
 
@@ -77,8 +87,8 @@ uv tool install 'git+https://github.com/TensorLink-AI/Gnomon.git@main'
 
 ## Install from PyPI
 
-The published distribution is `gnomon-forecast`; it installs the `gnomon`
-command:
+The distribution name is `gnomon-forecast`; released versions install the
+`gnomon` command:
 
 ```bash
 pipx install gnomon-forecast

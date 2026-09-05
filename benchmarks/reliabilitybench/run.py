@@ -236,7 +236,7 @@ def _mcp_internal(_run_dir: Path) -> dict[str, Any]:
 
 def _serial_load(run_dir: Path) -> dict[str, Any]:
     from gnomon.artifacts import verify_artifact_integrity
-    from gnomon.toolspec import runner_for
+    from benchmarks.common.legacy_surface import runner_for
 
     runner = runner_for("gnomon_forecast")
     if runner is None:

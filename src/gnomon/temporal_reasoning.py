@@ -18,7 +18,7 @@ from .temporal_evidence import (
 )
 
 
-TEMPORAL_ANSWER_CONTRACT_VERSION = "0.9"
+TEMPORAL_ANSWER_CONTRACT_VERSION = "0.11"
 
 
 def _demean_fixed_effects(
@@ -224,8 +224,15 @@ def _envelope(question: TemporalQuestion, *, direction: str | None,
               support: str, headline: str,
               limitations: list[str] | None = None,
               executable: dict[str, Any] | None = None) -> dict[str, Any]:
+    observed = question.verb in {"describe", "detect", "test", "decompose", "regress"} and question.horizon is None
+    canonical = (estimate if observed and direction is None
+                 and isinstance(estimate, (int, float)) else direction)
     display_value = ((question.answer_vocabulary or {}).get(direction, direction)
-                     if direction is not None else None)
+                    if direction is not None else canonical)
+    # A generic supported computation is not a calibrated decision receipt.
+    # Numeric policy qualification, where available, remains in the explicit
+    # fitted decision object; neither surface grants permission to act.
+    automation_eligible = False
     decision_rule = None
     if executable:
         decision_rule = {
@@ -234,22 +241,24 @@ def _envelope(question: TemporalQuestion, *, direction: str | None,
                 "version") if key in executable
         }
     best_estimate = {
-        "value": direction,
+        "value": canonical,
         "display_value": display_value,
         "support": support,
-        "automation_eligible": support == "supported",
+        "automation_eligible": automation_eligible,
     }
     return {
         "question": question.to_dict(),
+        "action_authorized": False,
         # This scalar is the canonical answer for agents and humans to quote.
         # Detailed estimates remain evidence; consumers must not synthesize a
         # competing answer from child rows.
         "best_estimate": best_estimate,
         "support": {
             "state": support,
-            "automation_eligible": support == "supported",
+            "automation_eligible": automation_eligible,
             "meaning": (
-                "calibrated evidence supports automatic use"
+                "observed computation; does not authorize an action"
+                if observed else "supported computation; calibration and action permission are separate"
                 if support == "supported" else
                 "best available estimate; human or agent qualification required"
                 if support == "weak" else
@@ -272,7 +281,7 @@ def _envelope(question: TemporalQuestion, *, direction: str | None,
         "answer": {
             "direction": direction, "estimate": estimate,
             "interval": interval, "support": support,
-            "automation_eligible": support == "supported",
+            "automation_eligible": automation_eligible,
             **({"executable": executable} if executable else {}),
         },
         "headline": headline,
@@ -281,12 +290,49 @@ def _envelope(question: TemporalQuestion, *, direction: str | None,
     }
 
 
+def _level_statistic(values: list[float], measure: str) -> float:
+    functions = {
+        "mean": statistics.mean, "median": statistics.median,
+        "latest": lambda items: items[-1], "minimum": min,
+        "maximum": max, "sum": math.fsum,
+    }
+    if not values or measure not in functions:
+        from .contracts import GnomonError
+        raise GnomonError("INVALID_TEMPORAL_QUESTION",
+                          "A level statistic needs non-empty observations and an exact measure.")
+    return float(functions[measure](values))
+
+
 def answer_descriptive_question(
     question: TemporalQuestion, *, report: dict[str, Any],
     values: list[float], season: int,
     forecast_values: list[float] | None = None,
 ) -> dict[str, Any]:
     prop = question.property
+    if prop == "level" and question.verb in {"describe", "detect"}:
+        measure = question.measure or "latest"
+        if measure == "point":
+            measure = "latest"
+        if measure not in {"mean", "median", "latest", "minimum", "maximum", "sum"}:
+            return _envelope(
+                question, direction=None, estimate=None, interval=None,
+                support="abstained", headline="An observed level comparison requires explicit comparison windows.",
+                limitations=["No alternate statistic or comparison window was substituted."],
+                executable={"kind": "observed_statistic", "measure": measure, "computed": False},
+            )
+        estimate = _level_statistic(values, measure)
+        return _envelope(
+            question, direction=None, estimate=estimate, interval=None,
+            support="supported", headline=f"{measure} for {question.target}: {estimate:.6g}.",
+            executable={"kind": "observed_statistic", "property": "level",
+                        "measure": measure, "observations": len(values), "version": "0.1"})
+    from .temporal_question import LEVEL_STATISTICS
+    if (prop == "level" and question.measure in LEVEL_STATISTICS
+            and question.verb in {"predict", "compare"} and not forecast_values):
+        return _envelope(
+            question, direction=None, estimate=None, interval=None,
+            support="abstained", headline="The requested statistic needs an explicit forecast path.",
+            limitations=["Run forecast with this question to compute its exact requested statistic."])
     if prop == "trend" and question.verb in {"describe", "detect"}:
         observed_trend = _observed_trend(values, report, season)
         n = observed_trend["observations"]
@@ -519,8 +565,9 @@ def answer_descriptive_question(
         return result
     if prop == "level" and question.verb in {"compare", "predict"} \
             and forecast_values:
-        history_median = statistics.median(values)
-        forecast_median = statistics.median(forecast_values)
+        measure = question.measure if question.measure in LEVEL_STATISTICS else "median"
+        history_median = _level_statistic(values, measure)
+        forecast_median = _level_statistic(forecast_values, measure)
         delta = forecast_median - history_median
         changes = [values[index] - values[index - 1]
                    for index in range(1, len(values))]
@@ -533,8 +580,8 @@ def answer_descriptive_question(
                      else "lower" if normalized_change < -.25
                      else "similar")
         estimate = {
-            "history_median": history_median,
-            "forecast_median": forecast_median,
+            f"history_{measure}": history_median,
+            f"forecast_{measure}": forecast_median,
             "absolute_change": delta,
             "relative_change": (delta / abs(history_median)
                                 if history_median else None),
@@ -542,8 +589,8 @@ def answer_descriptive_question(
         return _envelope(
             question, direction=direction, estimate=estimate, interval=None,
             support="weak",
-            headline=(f"Published forecast median for {question.target} is "
-                      f"{forecast_median:.6g} versus history median "
+            headline=(f"Published forecast {measure} for {question.target} is "
+                      f"{forecast_median:.6g} versus history {measure} "
                       f"{history_median:.6g}."),
             limitations=[
                 "Direction uses Gnomon's documented 0.25 innovation-scale "
@@ -584,10 +631,7 @@ def answer_descriptive_question(
         })
         result["calibration"] = fitted["diagnostics"]
         return result
-    if prop == "level":
-        estimate = report["level"]["latest"]
-        direction = None
-    elif prop == "trend":
+    if prop == "trend":
         estimate = report["trend"]["slope_per_step"]
         direction = report["trend"]["direction"]
     elif prop == "seasonality":
@@ -863,6 +907,11 @@ def answer_scoped_question(
     result = _execute_scoped_question(
         question, reports=reports, execution_inputs=execution_inputs,
         forecast_values=forecast_values)
+    if (result.get("answer", {}).get("executable", {}).get("kind")
+            == "observed_statistic"):
+        # A mean or latest value is fully specified arithmetic. Hypothesis
+        # adjudication adds competing answers to a question already computed.
+        return result
     if question.context_policy in {"measure", "scenario"}:
         effect = (conditional_effects or {}).get(question.target)
         if effect:

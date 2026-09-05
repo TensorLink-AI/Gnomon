@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "cohort": "matched-retrospective-v1",
+  "case_ids": [
+    "retrospective_forecast_1",
+    "retrospective_forecast_2",
+    "retrospective_forecast_3",
+    "retrospective_forecast_4",
+    "weighted_energy",
+    "inventory_expected_cost",
+    "dst_elapsed_time",
+    "missing_target",
+    "episode_forecast_revision",
+    "episode_decision_permission",
+    "episode_bitemporal_replay"
+  ],
+  "corpus_sha256": "067fe3fef54284c8eef8acc56b852d7857df3c268c7bc15c7e7471ad4858dbe7",
+  "sources": [
+    {
+      "case_id": "retrospective_forecast_1",
+      "source_file": "benchmarks/breachbench/data/wiki_traffic_daily_log.csv",
+      "source_sha256": "7ee685b87a4685ed484563d2d09a430aa2d886b6f0a6eeb6a6e86aac474a3dbc",
+      "rows": 2905,
+      "history_start": 2837,
+      "cutoff_exclusive": 2901,
+      "horizon": 4,
+      "affine_multiplier": 0.01,
+      "affine_offset": 17,
+      "round_decimals": 8,
+      "cadence": "daily",
+      "upstream": {
+        "file": "example_wp_log_peyton_manning.csv",
+        "sha256": "6b1383a6f458e317c5da0488abaf2cadccd7e80c84c7a543d084e1159d5bfa56",
+        "rows": 2905,
+        "history_start": "2015-11-14",
+        "last_history": "2016-01-16",
+        "last_target": "2016-01-20",
+        "url": "https://raw.githubusercontent.com/facebook/prophet/79ef5ecbe85179a3a2afa3b62f0d2a6b223cc7db/examples/example_wp_log_peyton_manning.csv",
+        "extraction": "finite y values only; selected final68 rows have no missing value or cadence gap"
+      }
+    },
+    {
+      "case_id": "retrospective_forecast_2",
+      "source_file": "benchmarks/breachbench/data/sensor_temps_5min.csv",
+      "source_sha256": "cdeab8b7cdeade5ef6a04b2bbd2b2a4d1393a0dc90d7c4201b8a823a02f87387",
+      "rows": 18709,
+      "history_start": 18641,
+      "cutoff_exclusive": 18705,
+      "horizon": 4,
+      "affine_multiplier": 0.25,
+      "affine_offset": 8,
+      "round_decimals": 8,
+      "cadence": "five-minute",
+      "upstream": {
+        "file": "example_yosemite_temps.csv",
+        "sha256": "c0ec9f2cb4bbf0bc53f7bfd2e39f88ae21e43b7b8912b2d1eb8185055f9510e2",
+        "rows": 18721,
+        "history_start": "2017-07-04T18:25:00",
+        "last_history": "2017-07-04T23:40:00",
+        "last_target": "2017-07-05T00:00:00",
+        "url": "https://raw.githubusercontent.com/facebook/prophet/79ef5ecbe85179a3a2afa3b62f0d2a6b223cc7db/examples/example_yosemite_temps.csv",
+        "extraction": "finite y values only; selected final68 rows have no missing value or cadence gap"
+      }
+    },
+    {
+      "case_id": "retrospective_forecast_3",
+      "source_file": "benchmarks/breachbench/data/pedestrian_counts_daily.csv",
+      "source_sha256": "a53d1d3e98c323be36ac52f35a7a06d91ba3a3a7ca61d99330ca0f670236f7f7",
+      "rows": 1490,
+      "history_start": 1422,
+      "cutoff_exclusive": 1486,
+      "horizon": 4,
+      "affine_multiplier": 3,
+      "affine_offset": 41,
+      "round_decimals": 8,
+      "cadence": "daily",
+      "upstream": {
+        "file": "example_pedestrians_covid.csv",
+        "sha256": "e8971ec69aba730809d185ea2e0a24a56281f1a67b3a74ead01f0463c939ba20",
+        "rows": 1490,
+        "history_start": "2021-04-24",
+        "last_history": "2021-06-26",
+        "last_target": "2021-06-30",
+        "url": "https://raw.githubusercontent.com/facebook/prophet/79ef5ecbe85179a3a2afa3b62f0d2a6b223cc7db/examples/example_pedestrians_covid.csv",
+        "extraction": "finite y values only; selected final68 rows have no missing value or cadence gap"
+      }
+    },
+    {
+      "case_id": "retrospective_forecast_4",
+      "source_file": "benchmarks/breachbench/data/retail_sales_monthly.csv",
+      "source_sha256": "1d524c08bdf2c4bd6b75c9c629e9949ebc10fa2f268ed373b02709b8d41c4815",
+      "rows": 293,
+      "history_start": 225,
+      "cutoff_exclusive": 289,
+      "horizon": 4,
+      "affine_multiplier": 0.001,
+      "affine_offset": -6,
+      "round_decimals": 8,
+      "cadence": "monthly",
+      "upstream": {
+        "file": "example_retail_sales.csv",
+        "sha256": "6556f0683b78362c4bc4390b8feb66870beecd7189cc052e650ccac9b21cd65c",
+        "rows": 293,
+        "history_start": "2010-10-01",
+        "last_history": "2016-01-01",
+        "last_target": "2016-05-01",
+        "url": "https://raw.githubusercontent.com/facebook/prophet/79ef5ecbe85179a3a2afa3b62f0d2a6b223cc7db/examples/example_retail_sales.csv",
+        "extraction": "finite y values only; selected final68 rows have no missing value or cadence gap"
+      }
+    }
+  ],
+  "episode_source_sha256": "e2610373c0d380f76f75c367852ab607b4e575932a6d8614844bd6f38bb96cac",
+  "limitations": [
+    "Retrospective historical holdouts, not certified unseen model-training data.",
+    "Affine transformation does not establish decontamination or independent tasks.",
+    "Four source windows and synthetic utility/episode tasks are a small scoped comparison, not SOTA evidence.",
+    "Forecast success means complete MAE no worse than repeat-last-value; continuous losses and missing forecasts are reported separately.",
+    "MASE scale is nonseasonal one-step training change, not a seasonal or official TemporalBench metric."
+  ]
+}

@@ -42,7 +42,7 @@ def _case(root: Path, index: int) -> tuple[Path, list[dict]]:
 
 
 def run(*, cases: int, output_dir: Path, replays_per_case: int = 10) -> dict:
-    from gnomon.toolspec import runner_for
+    from benchmarks.common.legacy_surface import runner_for
     from gnomon.context_store import cache_metrics, reset_cache_metrics
 
     output_dir.mkdir(parents=True, exist_ok=True)

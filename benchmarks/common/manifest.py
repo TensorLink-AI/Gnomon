@@ -74,6 +74,9 @@ def read_manifest(run_dir: Path) -> dict[str, Any]:
 def incompatibilities(left: dict[str, Any], right: dict[str, Any]) -> list[str]:
     """Why these two runs cannot be compared; empty when they can."""
     problems = []
+    if any(isinstance(run.get("run_identity"), dict)
+           and "matched_experiment" in run["run_identity"] for run in (left, right)):
+        problems.append("matched experiments require benchmarks.workflow.matched; historical reporting does not verify their controls/artifacts")
     for field in COMPARABLE_FIELDS:
         left_value, right_value = left.get(field), right.get(field)
         if left_value is None or right_value is None:

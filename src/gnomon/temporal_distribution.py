@@ -112,6 +112,8 @@ class TemporalPropertyDistribution:
             "support": "supported" if eligible else
                        "weak" if self.support != "abstained" else "abstained",
             "automation_eligible": eligible,
+            "action_authorized": False,
+            "eligibility_basis": "numeric_policy_thresholds_only",
             "policy": {
                 "minimum_probability": policy.minimum_probability,
                 "minimum_folds": policy.minimum_folds,

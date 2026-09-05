@@ -1,5 +1,11 @@
 # ReasoningBench — retired historical instrument
 
+Archived on 2026-09-05. It is excluded from the active benchmark registry
+and default tests. Historical reproduction uses
+`python -m archive.benchmarks.reasoningbench.run_reasoningbench` with the
+explicit retirement acknowledgement. Commands below retain their historical
+spelling and are not current product instructions.
+
 > **Withdrawn and off by default.** The original treatment exposed
 > answer-bearing fields, so its published uplift measured transcription rather
 > than temporal reasoning. It must not support product claims. The code is

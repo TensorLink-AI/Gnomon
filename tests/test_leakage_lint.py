@@ -23,7 +23,7 @@ SRC = Path(__file__).resolve().parent.parent / "src" / "gnomon"
 # convention honoured at each call site.
 GUARDED_MODULES = [
     "pipeline.py", "adjudication.py", "operators.py", "macros.py",
-    "covariates.py",
+    "covariates.py", "datasets.py",
 ]
 
 # Functions allowed to perform raw input reads. Each entry is a deliberate
@@ -32,6 +32,8 @@ ALLOWED_FUNCTIONS = {
     # Materialises the target series' snapshot; the only entry point for
     # target data.
     "load_stage",
+    # The wide-file loader also freezes observations before downstream use.
+    "load_stage_multi",
     # Materialises the covariate rows that `CovariateDataset._snapshot`
     # then wraps. Reads the file and nothing else — no cutoff logic lives
     # here, so it cannot leak past one.
@@ -44,7 +46,7 @@ ALLOWED_FUNCTIONS = {
 
 FORBIDDEN_CALLS = {
     "open", "load_observations", "read_text", "read_bytes",
-    "DictReader", "read_table", "read_csv",
+    "DictReader", "read_table", "read_csv", "read_input_rows",
 }
 
 

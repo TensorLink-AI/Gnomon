@@ -8,6 +8,7 @@ not reimplemented, so they are not tested here either.
 """
 
 import json
+import pytest
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -129,7 +130,8 @@ def test_temporalbench_validates_complete_multiseries_artifact_not_brief_preview
 
 def test_temporalbench_precommits_forecast_verb_only_for_execution_arms():
     assert preferred_execution_tool("evidence", True) == "gnomon_forecast"
-    assert preferred_execution_tool("mega", True) == "gnomon_run"
+    with pytest.raises(ValueError, match="historical benchmark"):
+        preferred_execution_tool("mega", True)
     assert preferred_execution_tool("full", True) is None
     assert preferred_execution_tool("evidence", False) is None
 

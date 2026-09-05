@@ -1,8 +1,7 @@
-"""Canonical machine-facing tool specifications.
+"""Explicit legacy/advanced tool specifications.
 
-One definition of Gnomon's agent-facing tools — names, JSON Schemas, and
-in-process runners over the runtime — consumed by the MCP server. This is
-the single source of truth for the public agent contract.
+Ordinary tools are defined and executed by GnomonSession. This registry retains
+advanced evaluated/context workflows only when an operator selects a legacy profile.
 """
 
 from __future__ import annotations
@@ -13,7 +12,7 @@ from typing import Any, Callable
 
 from .context import load_events_file
 from .contracts import ForecastArtifact, GnomonError, REPAIR_OPTIONS
-from .product_contract import DEFAULT_MCP_PROFILE
+from .product_contract import resolve_mcp_profile
 from .response_budget import (
     CAPABILITIES_RESPONSE_BUDGET_BYTES as CAPABILITIES_RESPONSE_BUDGET_BYTES,
     DESCRIBE_RESPONSE_BUDGET_BYTES,
@@ -3889,196 +3888,6 @@ def _run_get_artifact(arguments: dict[str, Any]) -> dict[str, Any]:
     return payload
 
 
-def _run_unified(arguments: dict[str, Any]) -> dict[str, Any]:
-    """Experimental single execution verb; complexity stays measurable."""
-    from .contracts import GnomonError
-
-    question = arguments.get("question") or {}
-    # Models commonly send the discriminant directly (``"forecast"``)
-    # despite the advertised object schema. Accept that unambiguous natural
-    # form instead of throwing AttributeError inside the tool server.
-    if isinstance(question, str):
-        kind, question_fields = question, {}
-    elif isinstance(question, dict):
-        kind = question.get("kind")
-        question_fields = {key: value for key, value in question.items()
-                           if key != "kind"}
-    else:
-        raise GnomonError("INVALID_ARGUMENTS",
-                          "question must be an object or a kind string.",
-                          {"allowed": ["describe", "forecast", "investigate",
-                                       "detect", "decide", "monitor"]})
-    merged = {**arguments, **question_fields}
-    merged.pop("question", None)
-    if kind == "robust_decision":
-        from datetime import datetime, timezone
-        from .decision_model import robust_scenario_decision
-        from .tracking import TrackingStore
-
-        required = ("decision_id", "project", "forecast_id", "actions",
-                    "utilities", "scenario_ids")
-        missing = [name for name in required if not merged.get(name)]
-        if missing:
-            raise GnomonError(
-                "INVALID_ARGUMENTS",
-                "robust_decision needs a complete stated utility matrix.",
-                {"missing": missing},
-            )
-        try:
-            artifact = robust_scenario_decision(
-                decision_id=str(merged["decision_id"]),
-                project=str(merged["project"]),
-                forecast_id=str(merged["forecast_id"]),
-                actions=list(merged["actions"]),
-                utilities=dict(merged["utilities"]),
-                scenario_ids=list(merged["scenario_ids"]),
-                created_at=datetime.now(timezone.utc).isoformat(),
-            )
-        except (TypeError, ValueError) as exc:
-            raise GnomonError("INVALID_ARGUMENTS", str(exc)) from exc
-        TrackingStore().save_decision_artifact(artifact)
-        return {"schema_version": "0.1", "decision": artifact.to_dict()}
-    runners = {
-        "describe": _run_describe,
-        "forecast": _run_forecast,
-        "investigate": _run_investigate_change,
-        "detect": _run_detect_anomalies,
-        "decide": _run_decide,
-        "monitor": _run_monitor,
-    }
-    runner = runners.get(str(kind))
-    if runner is None:
-        raise GnomonError("INVALID_ARGUMENTS", "question.kind is required.",
-                          {"allowed": sorted(runners)})
-    if kind == "forecast" and merged.get("horizon") is None:
-        merged["horizon"] = _default_forecast_horizon(merged)
-    return runner(merged)
-
-
-def _run_track(arguments: dict[str, Any]) -> dict[str, Any]:
-    from .contracts import GnomonError
-
-    action = arguments.get("action")
-    if action == "status":
-        return _run_status(arguments)
-    if action == "submit_actuals":
-        return _run_submit_actuals(arguments)
-    if action == "resolve_outcome":
-        return _run_resolve_outcome(arguments)
-    if action == "record_adapter_shadow":
-        from .tracking import TrackingStore
-        return TrackingStore().record_adapter_shadow_outcome(
-            project=str(arguments["project"]),
-            outcome_id=str(arguments["outcome_id"]),
-            candidate=str(arguments["candidate"]),
-            revision=arguments.get("revision"),
-            baseline=str(arguments["baseline"]),
-            candidate_error=float(arguments["candidate_error"]),
-            baseline_error=float(arguments["baseline_error"]),
-            known_at=str(arguments["known_at"]),
-            regime={str(key): str(value) for key, value in
-                    dict(arguments.get("regime") or {}).items()} or None,
-        )
-    if action == "assess_adapter_shadow":
-        from .tracking import TrackingStore
-        return TrackingStore().assess_adapter_shadow(
-            project=str(arguments["project"]),
-            candidate=str(arguments["candidate"]),
-            revision=arguments.get("revision"),
-            baseline=str(arguments["baseline"]),
-            as_of=arguments.get("as_of"),
-            min_outcomes=int(arguments.get("min_outcomes", 30)),
-            min_improvement=float(arguments.get("min_improvement", .05)),
-            min_win_rate=float(arguments.get("min_win_rate", .60)),
-        )
-    if action == "route_adapter_shadow":
-        from .tracking import TrackingStore
-        return TrackingStore().route_adapter_shadow(
-            project=str(arguments["project"]),
-            candidate=str(arguments["candidate"]),
-            revision=arguments.get("revision"),
-            champion=str(arguments["baseline"]),
-            regime={str(key): str(value) for key, value in
-                    dict(arguments.get("regime") or {}).items()},
-            as_of=str(arguments["as_of"]),
-        )
-    if action == "record_synthesis":
-        from .tracking import TrackingStore
-        TrackingStore().record_temporal_synthesis(
-            project=str(arguments["project"]),
-            forecast_id=str(arguments["forecast_id"]),
-            series=str(arguments["series"]),
-            question_id=str(arguments["question_id"]),
-            synthesis_id=str(arguments["synthesis_id"]),
-            canonical=dict(arguments["canonical"]),
-            synthesis=dict(arguments["synthesis"]),
-            evidence_refs=[str(item) for item in arguments["evidence_refs"]],
-        )
-        return {"status": "recorded", "synthesis_id": arguments["synthesis_id"],
-                "primary_forecast_unchanged": True}
-    if action == "resolve_synthesis":
-        from .tracking import TrackingStore
-        score = TrackingStore().resolve_temporal_synthesis(
-            project=str(arguments["project"]),
-            forecast_id=str(arguments["forecast_id"]),
-            series=str(arguments["series"]),
-            question_id=str(arguments["question_id"]),
-            synthesis_id=str(arguments["synthesis_id"]),
-            outcome=dict(arguments["outcome"]),
-            resolved_at=arguments.get("resolved_at"),
-        )
-        return {"status": "resolved", "synthesis_id": arguments["synthesis_id"],
-                "score": score, "primary_forecast_unchanged": True}
-    if action == "synthesis_status":
-        from .tracking import TrackingStore
-        rows = TrackingStore().temporal_synthesis_receipts(
-            str(arguments["project"]), resolved=arguments.get("resolved"),
-            series=arguments.get("series"),
-            resolved_before=arguments.get("as_of"))
-        return {"status": "ok", "project": arguments["project"],
-                "syntheses": rows}
-    if action == "candidate_outcomes":
-        from .tracking import TrackingStore
-        rows = TrackingStore().candidate_outcome_summary(
-            str(arguments["project"]),
-            minimum_resolved=int(arguments.get("min_outcomes", 8)),
-            series=arguments.get("series"),
-            resolved_before=arguments.get("as_of"))
-        return {
-            "status": "ok", "project": arguments["project"],
-            "series": arguments.get("series"),
-            "as_of": arguments.get("as_of"),
-            "candidate_outcomes": rows,
-            "authority": {
-                "human_prior_only": True,
-                "support_upgrade_allowed": False,
-                "automation_upgrade_allowed": False,
-            },
-        }
-    if action == "decision_skill":
-        from .tracking import TrackingStore
-        rows = TrackingStore().decision_synthesis_skill(
-            str(arguments["project"]),
-            proposer_id=arguments.get("proposer_id"),
-            minimum_resolved=int(arguments.get("min_outcomes", 20)))
-        return {
-            "status": "ok", "project": arguments["project"],
-            "decision_skill": rows,
-            "authority": {
-                "human_prior_only": True,
-                "support_upgrade_allowed": False,
-                "automation_upgrade_allowed": False,
-            },
-        }
-    raise GnomonError("INVALID_ARGUMENTS", "action is required.",
-                      {"allowed": ["status", "submit_actuals", "resolve_outcome",
-                                   "record_adapter_shadow",
-                                   "assess_adapter_shadow",
-                                   "route_adapter_shadow", "record_synthesis",
-                                   "resolve_synthesis", "synthesis_status",
-                                   "candidate_outcomes", "decision_skill"]})
-
-
 def _run_explain_run(arguments: dict[str, Any]) -> dict[str, Any]:
     """Compact explanation of a stored run: claims, support, warnings.
     Statements come verbatim from the verified lineage — nothing is composed."""
@@ -4265,120 +4074,6 @@ TOOLS.extend([
         "runner": _run_select_scenario,
     },
     {
-        "name": "gnomon_run",
-        "description": (
-            "Experimental unified temporal execution verb. Set question.kind "
-            "to describe, forecast, investigate, detect, decide, monitor, or "
-            "robust_decision. Robust decisions use caller-supplied utilities "
-            "without inventing scenario probabilities."
-        ),
-        "inputSchema": {"type": "object", "properties": {
-            **_INPUT_PROPERTIES, **_REPLAY_PROPERTIES,
-            **_CONTEXT_EVENTS_PROPERTY,
-            "context_events_file": {"type": "string", "description": (
-                "Validated context-events JSON produced by the host context compiler.")},
-            "future_events": {"type": "boolean", "description": (
-                "Admit future constraint/override events only after verbatim-source validation.")},
-            "structural_events": {"type": "boolean", "description": (
-                "Enable the separately gated structural-event lane.")},
-            "question": {"type": "object", "properties": {
-                "kind": {"type": "string", "enum": [
-                    "describe", "forecast", "investigate", "detect", "decide", "monitor",
-                    "robust_decision"]},
-                "suspected_cause": {"type": "string"},
-            }, "required": ["kind"]},
-            "horizon": {"type": "integer", "minimum": 1},
-            "threshold": {"type": "number"},
-            "actions": {"type": "array", "items": {"oneOf": [
-                {"type": "string"},
-                {"type": "object", "properties": {
-                    "name": {"type": "string"},
-                    "feasible": {"type": "boolean"},
-                    "constraint_results": {"type": "object"},
-                }, "required": ["name"]},
-            ]}},
-            "utilities": {
-                "type": "object",
-                "description": "Exact action-to-scenario payoff matrix. Every feasible action needs finite numeric payoffs for exceed and no_exceed; unknown action or scenario keys are rejected.",
-                "additionalProperties": {
-                    "type": "object",
-                    "additionalProperties": {"type": "number"}
-                }
-            },
-            "decision_id": {"type": "string"},
-            "forecast_id": {"type": "string"},
-            "scenario_ids": {"type": "array", "items": {"type": "string"}},
-            "alert_cost": {"type": "number"},
-            "action_cost": {"type": "number"},
-            "miss_cost": {"type": "number"},
-            "mitigation_effectiveness": {"type": "number", "minimum": 0,
-                                           "maximum": 1},
-            "output_dir": {"type": "string"},
-            "project": {"type": "string"},
-            "minimum_support": {"type": "string", "enum": [
-                "supported", "conditionally_supported", "best_effort"]},
-            "format": {"type": "string", "enum": ["brief", "full"]},
-        }, "required": ["question"]},
-        "runner": _run_unified,
-    },
-    {
-        "name": "gnomon_track",
-        "description": (
-            "Experimental tracking verb. action selects status, "
-            "outcome submission/resolution, adapter shadow evidence, or "
-            "separately labelled synthesis receipts and resolved candidate "
-            "uplift. Candidate evidence can inform a human prior but never "
-            "upgrades support or automation authority."
-        ),
-        "inputSchema": {"type": "object", "properties": {
-            "action": {"type": "string", "enum": [
-                "status", "submit_actuals", "resolve_outcome",
-                "record_adapter_shadow", "assess_adapter_shadow",
-                "route_adapter_shadow",
-                "record_synthesis", "resolve_synthesis", "synthesis_status",
-                "candidate_outcomes", "decision_skill"]},
-            "project": {"type": "string"},
-            "section": {"type": "string", "enum": [
-                "open_forecasts", "performance", "decisions", "all"]},
-            "actuals": {"type": "array", "items": {"type": "object"}},
-            "actuals_file": {"type": "string"},
-            "actuals_time": {"type": "string"},
-            "actuals_target": {"type": "string"},
-            "actuals_series": {"type": "string"},
-            "decision_id": {"type": "string"},
-            "realised_scenario": {"type": "string"},
-            "realised_utilities": {"type": "object"},
-            "constraint_violations": {"type": "array", "items": {"type": "string"}},
-            "note": {"type": "string"},
-            "outcome_id": {"type": "string"},
-            "candidate": {"type": "string"},
-            "revision": {"type": "string"},
-            "baseline": {"type": "string"},
-            "candidate_error": {"type": "number", "minimum": 0},
-            "baseline_error": {"type": "number", "minimum": 0},
-            "known_at": {"type": "string"},
-            "as_of": {"type": "string"},
-            "regime": {"type": "object", "additionalProperties": {
-                "type": "string"}, "description": (
-                "Exact low-cardinality temporal cohort used for paired "
-                "shadow recording or routing; cohorts are never pooled.")},
-            "min_outcomes": {"type": "integer", "minimum": 1},
-            "min_improvement": {"type": "number"},
-            "min_win_rate": {"type": "number", "minimum": 0, "maximum": 1},
-            "series": {"type": "string"},
-            "question_id": {"type": "string"},
-            "synthesis_id": {"type": "string"},
-            "canonical": {"type": "object"},
-            "synthesis": {"type": "object"},
-            "evidence_refs": {"type": "array", "items": {"type": "string"}},
-            "outcome": {"type": "object"},
-            "resolved_at": {"type": "string"},
-            "resolved": {"type": "boolean"},
-            "proposer_id": {"type": "string"},
-        }, "required": ["action"]},
-        "runner": _run_track,
-    },
-    {
         "name": "gnomon_get_artifact",
         "description": (
             "Read a stored artifact directory: full artifact.json and, "
@@ -4478,9 +4173,9 @@ TOOLS.extend([
         "name": "gnomon_route",
         "description": (
             "Which method for this task on this data? A disclosed, advisory "
-            "routing decision: verified capability filter, then a realised-"
-            "performance prior from the tracking store when enough scored "
-            "history exists (never claimed cold), with the series fingerprint "
+            "structural starting point with a verified capability filter. "
+            "Mutable tracking scores are not historical routing evidence. "
+            "The execution profile supports cutoff-bound ledger studies. Includes the series fingerprint "
             "and every exclusion reason in the output. Feed `candidates` (or "
             "`recommendation`) to `gnomon_forecast`'s `candidates` parameter to "
             "act on the answer. Evaluated runs still backtest whatever pool "
@@ -4498,8 +4193,8 @@ TOOLS.extend([
                      "description": "Task to route (default forecast)."},
             "horizon": {"type": "integer", "description": "Forecast horizon (default 1)."},
             "project": {"type": "string", "description": (
-                "Tracking project: consults the realised-performance prior and "
-                "records the routing decision for replay."
+                "Tracking project: records the structural recommendation; "
+                "mutable scores never select a model."
             )},
         }, "required": []},
         "runner": _run_route,
@@ -4556,10 +4251,8 @@ _CORE_PROFILE = frozenset({
 })
 PROFILES: dict[str, frozenset[str]] = {
     "core": _CORE_PROFILE,
-    "describe": _CORE_PROFILE | {"gnomon_describe"},
     "evidence": frozenset({
         "gnomon_describe", "gnomon_forecast", "gnomon_select_scenario"}),
-    "mega": frozenset({"gnomon_inspect", "gnomon_run", "gnomon_track"}),
     "decision": _CORE_PROFILE | {
         "gnomon_decide", "gnomon_monitor", "gnomon_route",
         "gnomon_status", "gnomon_resolve_outcome",
@@ -4574,24 +4267,17 @@ _SURFACE_EXPERIMENT_TOOLS = frozenset({
 
 
 def active_profile() -> str:
-    import os
-    # The general product surface is the safe operational core. The
-    # three-tool evidence profile remains available for tightly bounded
-    # evaluation sessions, but making it the product default hid Gnomon's
-    # strongest operational verbs from ordinary agents.
-    name = os.environ.get("GNOMON_MCP_PROFILE", DEFAULT_MCP_PROFILE)
-    if name != "full" and name not in PROFILES:
-        raise ValueError(
-            f"Unknown GNOMON_MCP_PROFILE {name!r}; expected one of "
-            f"{sorted(PROFILES)} or 'full'."
-        )
-    return name
+    return resolve_mcp_profile()
 
 
 def visible_tools() -> list[dict[str, Any]]:
     """The canonical tool surface filtered by the active profile."""
     tools = TOOLS
     profile = active_profile()
+    if profile == "execution":
+        from .session import GnomonSession
+        with GnomonSession.from_config() as session:
+            return session.tools()
     if profile == "full":
         return [tool for tool in tools
                 if tool["name"] not in _SURFACE_EXPERIMENT_TOOLS]
@@ -4748,6 +4434,9 @@ def _materialise_observations(arguments: dict[str, Any]) -> dict[str, Any]:
 
 
 def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
+    if active_profile() == "execution":
+        # Stateful execution belongs to an explicitly owned GnomonSession.
+        return None
     for tool in visible_tools():
         if tool["name"] == name:
             runner = tool["runner"]

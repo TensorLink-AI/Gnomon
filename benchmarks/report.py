@@ -1,4 +1,4 @@
-"""Compare benchmark arms on the tasks they both answered.
+"""Compare observed shared tasks, retaining noncompletion in success and cost.
 
 Every comparison in this suite was, until now, assembled by hand: load
 two result files, decide which rows correspond, pick a statistic, run a
@@ -70,13 +70,7 @@ def metric_direction(name: str) -> tuple[bool, bool]:
 
 
 def is_voided(record: dict[str, Any]) -> bool:
-    """Whether the harness, not the system under test, ended this row.
-
-    Adapters mark a row the harness voided (a breached cap, a run that
-    never submitted) with ``row_abstained``. Such a row did not answer
-    the task wrongly — it did not answer it — so it must not enter a
-    success comparison as a model failure.
-    """
+    """Harness noncompletion, distinct from wrong answers but not delivered success."""
     return bool(record.get("row_abstained") or record.get("voided"))
 
 
@@ -103,18 +97,16 @@ def _load_gnomonbench(run_dir: Path) -> dict[str, dict[str, Any]]:
     path = run_dir / "gnomonbench.jsonl"
     if not path.exists():
         return {}
+    from gnomon.agent_eval import _read_records
     rows = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
-        try:
-            record = json.loads(line)
-        except json.JSONDecodeError:
-            continue
+    for record in _read_records(path):
         task_id = record.get("task_id")
-        if task_id is None:
-            continue
-        rows[normalise_task_id(task_id)] = record
+        if not isinstance(task_id, str) or not task_id:
+            raise ValueError("benchmark record requires a nonempty string task_id")
+        normalized = normalise_task_id(task_id)
+        if normalized in rows:
+            raise ValueError("duplicate normalized benchmark task_id")
+        rows[normalized] = record
     return rows
 
 
@@ -126,13 +118,16 @@ def _load_mtbench_official(run_dir: Path) -> dict[str, dict[str, Any]]:
     details = run_dir / "output_details"
     if not details.is_dir():
         return {}
+    from gnomon.agent_eval import _decode_record
     rows = {}
     for path in sorted(details.iterdir()):
-        try:
-            record = json.loads(path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError, IsADirectoryError):
+        if not path.is_file() or path.suffix != ".json":
             continue
-        rows[normalise_task_id(path.name)] = record
+        record = _decode_record(path.read_bytes())
+        normalized = normalise_task_id(path.name)
+        if normalized in rows:
+            raise ValueError("duplicate normalized official benchmark task_id")
+        rows[normalized] = record
     return rows
 
 
@@ -207,7 +202,7 @@ def metric_value(record: dict[str, Any], metric: str) -> float | None:
 #: (`no_leak_ceiling`, `leak_advantage`), and run accounting — burying the
 #: real metric under lines of all-tie noise.
 NON_COMPARABLE_FIELDS = frozenset({
-    "latency_seconds", "cost_usd", "tool_calls", "run_tokens",
+    "latency_seconds", "cost_usd", "tool_calls", "run_tokens", "success_probability",
     # LeakTrap bookkeeping: the trap's own parameters and the grading
     # intermediates. `score` is the metric; `leak_advantage` is derived
     # from it against a per-task ceiling and has no cross-arm direction.
@@ -291,8 +286,8 @@ def penalized_mean(baseline_values: dict[str, float],
     treatment did not is charged to the treatment at the baseline's own
     result — the outcome a caller falls back to when Gnomon declines.
 
-    This is a *lower* bound on the cost of abstention: a real fallback
-    (seasonal-naive on the same task) may do worse than the baseline did.
+    This is hypothetical sensitivity analysis, not observed fallback performance
+    or a guaranteed bound. A real fallback may be better or worse and cost more.
     """
     missing = sorted(answered_by_baseline - set(treatment_values))
     if not missing:
@@ -308,6 +303,7 @@ def penalized_mean(baseline_values: dict[str, float],
         "baseline_mean": round(statistics.mean(baseline_values[t] for t in common), 6),
         "treatment_mean": round(statistics.mean(imputed[t] for t in common), 6),
         "basis": "abstentions charged at the baseline's score on the same task",
+        "evidence": "hypothetical_baseline_score_imputation_not_observed_fallback",
     }
 
 
@@ -342,60 +338,42 @@ def compare(baseline: dict[str, Any], treatment: dict[str, Any],
             + ": comparability could not be verified, only assumed"
         )
 
-    # Binary success, when the adapters record it. Rows the harness voided
-    # (row_abstained: a breached cap, a run that never submitted) are
-    # excluded pairwise and counted: scoring them as failures reported a
-    # harness cap as a model failure — in either arm, on exactly the rows
-    # where the harness lost the answer.
-    if all("success" in run["tasks"][shared[0]] for run in (baseline, treatment)):
-        voided_pairs = [k for k in shared
-                        if is_voided(baseline["tasks"][k])
-                        or is_voided(treatment["tasks"][k])]
-        graded = [k for k in shared if k not in set(voided_pairs)]
-        if voided_pairs:
-            result["success_voided_excluded"] = {
-                "pairs": len(voided_pairs),
-                "baseline_voided": sum(
-                    1 for k in voided_pairs if is_voided(baseline["tasks"][k])),
-                "treatment_voided": sum(
-                    1 for k in voided_pairs if is_voided(treatment["tasks"][k])),
-                "basis": "rows the harness ended without an answer are not "
-                         "wrong answers; they are excluded from the success "
-                         "test and counted here",
-            }
-        if graded:
-            base_success = {k: bool(baseline["tasks"][k].get("success"))
-                            for k in graded}
-            treat_success = {k: bool(treatment["tasks"][k].get("success"))
-                             for k in graded}
-            result["success_rate"] = {
-                "baseline": round(sum(base_success.values()) / len(graded), 4),
-                "treatment": round(sum(treat_success.values()) / len(graded), 4),
-            }
-            result["success_test"] = mcnemar(base_success, treat_success)
-            # `success` does not mean one thing across adapters (TemporalBench
-            # T2/T4 records completion, T1/T3 all-choices-correct). Where rows
-            # declare their basis, a pooled rate over mixed bases is a blend,
-            # so the per-basis split is reported beside it.
-            bases: dict[str, list[str]] = {}
-            for k in graded:
-                basis = (baseline["tasks"][k].get("success_basis")
-                         or treatment["tasks"][k].get("success_basis"))
-                if basis:
-                    bases.setdefault(str(basis), []).append(k)
-            if len(bases) > 1:
-                result["success_by_basis"] = {
-                    basis: {
-                        "n": len(keys),
-                        "baseline": round(
-                            sum(base_success[k] for k in keys) / len(keys), 4),
-                        "treatment": round(
-                            sum(treat_success[k] for k in keys) / len(keys), 4),
-                    }
-                    for basis, keys in sorted(bases.items())
-                }
+    # Retain unfinished/capped tasks in delivered-success denominators and costs.
+    # This legacy importer may have only an intersection, not the scheduled cohort.
+    success_known = all(type(run["tasks"][key].get("success")) is bool
+                        for run in (baseline, treatment) for key in shared)
+    if success_known:
+        from gnomon.agent_eval import compare_rows, _success
+        base_rows = [{**baseline["tasks"][key], "task_id": key} for key in shared]
+        treat_rows = [{**treatment["tasks"][key], "task_id": key} for key in shared]
+        try:
+            evaluation = compare_rows(base_rows, treat_rows)
+        except ValueError as exc:
+            return {**result, "comparable": False, "reason": str(exc)}
+        result["matched_task_evaluation"] = evaluation
+        result["success_rate"] = {arm: evaluation[arm]["task_success"] for arm in ("baseline", "treatment")}
+        result["success_test"] = evaluation["success_test"]
+        result["success_cohort"] = {
+            "task_ids": shared, "basis": "all_observed_shared_tasks_including_noncompletion",
+            "scheduled_cohort_verified": False,
+            "baseline_only_ids": sorted(set(baseline["tasks"]) - set(shared)),
+            "treatment_only_ids": sorted(set(treatment["tasks"]) - set(shared)),
+        }
+        bases = {}
+        for key in shared:
+            basis = (baseline["tasks"][key].get("success_basis")
+                     or treatment["tasks"][key].get("success_basis") or "undeclared")
+            bases.setdefault(basis, []).append(key)
+        if len(bases) > 1:
+            result["success_by_basis"] = {
+                basis: {"n": len(keys),
+                    "baseline": sum(_success(baseline["tasks"][key]) for key in keys) / len(keys),
+                    "treatment": sum(_success(treatment["tasks"][key]) for key in keys) / len(keys)}
+                for basis, keys in sorted(bases.items())}
+    else:
+        result["success_note"] = "Not measured on every shared task; no missing grade is imputed as false."
 
-    # A continuous metric, when one is present in both arms.
+    # Continuous quality is conditional on both arms supplying an actual score.
     candidates = ([metric] if metric else
                   [m for m in available_metrics(baseline["tasks"])
                    if m in available_metrics(treatment["tasks"])])
@@ -425,6 +403,8 @@ def compare(baseline: dict[str, Any], treatment: dict[str, Any],
             continue
         entry: dict[str, Any] = {
             "scored_by_both": len(paired),
+            "task_ids": sorted(paired),
+            "quality_basis": "conditional_on_both_scores_not_all_task_performance",
             "lower_is_better": lower,
             "direction_recognised": direction_recognised,
         }
@@ -477,14 +457,11 @@ def format_comparison(result: dict[str, Any]) -> str:
                    f" treatment-only {result['treatment_only']})"]
     if result.get("warning"):
         lines.append(f"  warning: {result['warning']}")
-    if result.get("success_voided_excluded"):
-        voided = result["success_voided_excluded"]
-        lines.append(
-            f"  harness-voided rows excluded from the success test: "
-            f"{voided['pairs']} pair(s) "
-            f"(baseline {voided['baseline_voided']}, "
-            f"treatment {voided['treatment_voided']})"
-        )
+    if result.get("matched_task_evaluation"):
+        evaluation = result["matched_task_evaluation"]
+        lines.append(f"  unfinished/capped tasks retained in success and cost: {evaluation['tasks_voided_by_harness']} pair(s)")
+    if result.get("success_note"):
+        lines.append("  " + result["success_note"])
     if "success_rate" in result:
         test = result["success_test"]
         lines.append(
@@ -593,8 +570,10 @@ def main() -> int:
     for result in results:
         print(format_comparison(result))
         print()
-    total = sum(cost_of(run)["cost_usd"] or 0.0 for run in runs.values())
-    print(f"total LLM cost across {len(runs)} runs: ${total:.2f}")
+    costs = [cost_of(run)["cost_usd"] for run in runs.values()]
+    known = [cost for cost in costs if cost is not None]
+    label = "total" if len(known) == len(costs) else "observed partial"
+    print(f"{label} LLM cost across {len(runs)} runs: ${sum(known):.2f}; unmeasured runs: {len(costs) - len(known)}")
     if not pairs:
         print("no comparable pairs found; name arms *-control / *-direct "
               "and their treatments consistently, or pass --compare")

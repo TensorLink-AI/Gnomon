@@ -418,10 +418,10 @@ def preferred_execution_tool(
     and Full on ``auto`` measured tool-navigation noise rather than product
     capability and caused avoidable non-submissions.
     """
+    if profile in {"mega", "describe", "execution"}:
+        raise ValueError("This historical benchmark requires an explicit retained legacy profile")
     if not has_forecast_targets:
         return None
-    if profile == "mega":
-        return "gnomon_run"
     if profile == "evidence" or host_compiled:
         return "gnomon_forecast"
     return None

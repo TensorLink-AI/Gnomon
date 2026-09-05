@@ -11,9 +11,10 @@ from .contracts import GnomonError
 from .product_contract import __version__
 
 
-def _common_input(parser: argparse.ArgumentParser) -> None:
+def _common_input(parser: argparse.ArgumentParser, *, optional: bool = False) -> None:
     parser.add_argument(
         "input",
+        **({"nargs": "?"} if optional else {}),
         help="Path to a CSV/TSV/JSON/JSONL/Parquet/Excel file, or "
              "store:<dataset>, '-' for CSV on stdin, or a CLI-only "
              "prom+https://.../api/v1/query_range?... range source",
@@ -333,6 +334,34 @@ def build_parser() -> argparse.ArgumentParser:
 
     capability_parser = subcommands.add_parser("capabilities", help="Report implemented capabilities")
     capability_parser.add_argument("--output", choices=["json"], default="json")
+    capability_parser.add_argument("--providers-config", help="Operator session TOML; selects execution capabilities")
+
+    temporal_parser = subcommands.add_parser("temporal", help="Calculate explicit dates, instants, intervals and event order")
+    temporal_parser.add_argument("--arguments", required=True, help="Temporal operation JSON object or @file.json")
+
+    infer_parser = subcommands.add_parser("infer", help="Execute a provider without implicit backtesting")
+    infer_parser.add_argument("--provider", required=True, help="Name registered in operator configuration")
+    infer_source = infer_parser.add_mutually_exclusive_group(required=True)
+    infer_source.add_argument("--request", help="ForecastRequest JSON object or @file.json")
+    infer_source.add_argument("--input", help="File or store:<dataset> to freeze before inference")
+    infer_parser.add_argument("--horizon", type=int, help="Required with --input; number of future periods")
+    infer_parser.add_argument("--time-column", default="timestamp")
+    infer_parser.add_argument("--target-column", default="value")
+    infer_parser.add_argument("--series-column")
+    infer_parser.add_argument("--series-id", help="Select exactly one series from a panel input")
+    infer_parser.add_argument("--frequency")
+    infer_parser.add_argument("--as-of")
+    infer_parser.add_argument("--recorded-as-of")
+    infer_parser.add_argument("--store-path")
+    infer_parser.add_argument("--unit", help="Explicit unit label; no automatic conversion")
+    infer_parser.add_argument("--providers-config", help="Explicit operator TOML; may load Python plugins")
+    infer_parser.add_argument("--no-cache", action="store_true", help="Force a fresh provider invocation")
+    ledger_parser = subcommands.add_parser("ledger", help="Query or append immutable execution/outcome records")
+    ledger_parser.add_argument("--arguments", required=True, help="Ledger operation JSON object or @file.json")
+    ledger_parser.add_argument("--providers-config", required=True, help="Explicit operator TOML with ledger_path")
+    evaluate_parser = subcommands.add_parser("evaluate", help="Budgeted matched backtest, independent of inference")
+    evaluate_parser.add_argument("--arguments", required=True, help="JSON/@file with data inspection arguments and evaluation options")
+    evaluate_parser.add_argument("--providers-config", help="Explicit operator TOML for providers, ledger and evaluation limits")
 
     self_check_parser = subcommands.add_parser(
         "self-check", help="Run installed-package structural trust checks")
@@ -622,13 +651,14 @@ def build_parser() -> argparse.ArgumentParser:
     route_parser = subcommands.add_parser(
         "route", help="Which method for this task on this data? Disclosed, advisory, recorded"
     )
-    _common_input(route_parser)
+    _common_input(route_parser, optional=True)
+    route_parser.add_argument("--arguments", help="Typed ledger-study routing JSON/@file, instead of legacy positional input")
+    route_parser.add_argument("--providers-config", help="Explicit operator TOML for ledger-study routing")
     route_parser.add_argument("--task", default="forecast",
                               choices=["forecast", "detect_anomalies"])
     route_parser.add_argument("--horizon", type=int, default=1)
     route_parser.add_argument("--project",
-                              help="Tracking project: consults the realised-performance "
-                                   "prior and records the decision")
+                              help="Legacy tracking project: records the structural recommendation; mutable scores are not routing priors")
     route_parser.add_argument("--as-of", dest="as_of")
     route_parser.add_argument("--store-path", dest="store_path")
 
@@ -739,17 +769,14 @@ def build_parser() -> argparse.ArgumentParser:
         "serve", help="Serve Gnomon tools over stdio MCP"
     )
     mcp_serve.add_argument(
-        "--profile", choices=("core", "describe", "evidence", "mega", "decision", "data", "full"),
+        "--profile", choices=("execution", "core", "evidence", "decision", "data", "full"),
         default=None,
-        help="Tool subset to expose (default core, 10 tools): core = "
-             "capabilities, inspect, describe, forecast, investigate, detect, "
-             "decide, monitor, route, and explain; evidence exposes the "
-             "compact describe/forecast/scenario surface; describe and mega "
-             "are retained compatibility/experimental surface arms; "
-             "decision adds status and outcome resolution; "
-             "data adds ingest/list_datasets/submit_actuals. "
-             "`gnomon capabilities` reports the active profile.",
+        help="Default execution: six session tools, eight with a ledger. "
+             "Explicit core/evidence/decision/data/full profiles retain legacy advanced workflows. "
+             "Experimental mega and duplicate describe profiles are retired.",
     )
+
+    mcp_serve.add_argument("--providers-config", help="Operator TOML for the execution session; selects execution profile")
 
     tsfm_parser = subcommands.add_parser(
         "tsfm", help="Manage TSFM sandbox environments (isolated venvs per model)"
@@ -873,7 +900,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     track_shadow_route = track_commands.add_parser(
         "shadow-route",
-        help="Point-in-time paired-outcome candidate-pool recommendation")
+        help="Legacy shadow diagnostics; retains champion because recorded vintages are unavailable")
     for flag in ("project", "candidate", "baseline", "as-of", "regime-json"):
         track_shadow_route.add_argument(f"--{flag}", required=True)
     track_shadow_route.add_argument("--revision")
@@ -1319,8 +1346,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
     schema_assumptions: list[str] = []
     multi_targets: list[str] | None = None
+    execution_route = args.command == "route" and args.arguments is not None
     try:
-        if hasattr(args, "input"):
+        if args.command == "temporal":
+            from .session import GnomonSession
+            with GnomonSession(enable_temporal=True) as session:
+                payload = session.call("gnomon_temporal", _json_argument(args.arguments), compact=False)
+            print(json.dumps(payload, indent=2, allow_nan=False))
+            return 0
+        if args.command == "route":
+            if execution_route:
+                if args.input is not None or args.task != "forecast" or args.horizon != 1 or any(
+                        getattr(args, key) is not None for key in (
+                            "time_column", "target_column", "series_column", "frequency", "regrid", "project", "as_of", "store_path")):
+                    raise GnomonError("INVALID_ARGUMENTS", "Typed --arguments cannot be mixed with legacy route input/options.")
+            elif args.input is None or args.providers_config:
+                raise GnomonError("INVALID_ARGUMENTS", "Use positional input for structural routing or --arguments for configured ledger-study routing.")
+        if hasattr(args, "input") and args.command != "infer" and not execution_route:
             from .sources import materialize_cli_source
             args.input, source_kind = materialize_cli_source(str(args.input))
             args.input_provenance = source_kind
@@ -1356,7 +1398,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.target_column = targets[0]
             else:
                 multi_targets = targets
-        if hasattr(args, "time_column"):
+        if hasattr(args, "time_column") and args.command != "infer" and not execution_route:
             if multi_targets:
                 # Only the time column may still need inference; the target
                 # spec is already resolved. Borrow the first target so the
@@ -1369,7 +1411,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.target_column = original
             else:
                 schema_assumptions = _resolve_schema(args) + schema_assumptions
-        if getattr(args, "horizon", "absent") is None:
+        if getattr(args, "horizon", "absent") is None and args.command != "infer" and not execution_route:
             # One season ahead is the smallest horizon that can show a
             # seasonal pattern, and it is derivable from the data. Disclosed
             # like any other inference.
@@ -1388,6 +1430,40 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(exc.to_dict(), indent=2), file=sys.stderr)
         return 2
     try:
+        if args.command in {"infer", "ledger", "evaluate"} or execution_route:
+            from .session import GnomonSession, read_json_argument
+            with GnomonSession.from_config(args.providers_config) as session:
+                if args.command == "infer":
+                    if args.input:
+                        if args.horizon is None:
+                            raise GnomonError("INVALID_ARGUMENTS", "--input requires --horizon.")
+                        inspected = session.call("gnomon_inspect", {key: getattr(args, key) for key in (
+                            "input", "time_column", "target_column", "series_column", "frequency", "as_of",
+                            "recorded_as_of", "store_path", "unit") if getattr(args, key) is not None}, compact=False)
+                        task = {"data_ref": inspected["data_ref"], "horizon": args.horizon}
+                        if args.series_id is not None:
+                            task["series_id"] = args.series_id
+                    else:
+                        if any(getattr(args, key) is not None for key in (
+                                "horizon", "series_column", "series_id", "frequency", "as_of", "recorded_as_of", "store_path", "unit")) \
+                                or args.time_column != "timestamp" or args.target_column != "value":
+                            raise GnomonError("INVALID_ARGUMENTS", "File/schema flags apply only with --input, not --request.")
+                        task = {"request": read_json_argument(args.request)}
+                    payload = session.call("gnomon_forecast", {"provider": args.provider, **task, "use_cache": not args.no_cache}, compact=False)
+                    if args.input:
+                        payload["input"] = inspected
+                elif args.command == "evaluate" or execution_route:
+                    arguments = read_json_argument(args.arguments)
+                    if "data" in arguments:
+                        if "data_ref" in arguments or ("study_id" in arguments and not execution_route):
+                            raise GnomonError("INVALID_ARGUMENTS", "data cannot be combined with data_ref/study_id.")
+                        inspected = session.call("gnomon_inspect", arguments.pop("data"), compact=False)
+                        arguments["data_ref"] = inspected["data_ref"]
+                    payload = session.call("gnomon_route" if execution_route else "gnomon_evaluate", arguments, compact=False)
+                else:
+                    payload = session.call("gnomon_ledger", read_json_argument(args.arguments), compact=False)
+            print(json.dumps(payload, indent=2, allow_nan=False))
+            return 0
         if args.command == "self-check":
             from .selfcheck import leakage_self_check
             payload = leakage_self_check(args.cases, args.seed)
@@ -1555,7 +1631,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         if args.command == "mcp":
             from .mcp_server import serve
-
+            from .product_contract import resolve_mcp_profile
+            profile = resolve_mcp_profile(args.profile or ("execution" if args.providers_config else None))
+            if args.providers_config or profile == "execution":
+                if args.profile not in {None, "execution"}:
+                    raise GnomonError("INVALID_ARGUMENTS", "Provider configuration requires the execution profile.")
+                from .session import GnomonSession
+                with GnomonSession.from_config(args.providers_config) as session:
+                    return serve(session=session)
             if getattr(args, "profile", None):
                 # The env var is the single source the gates read, so the
                 # flag and a pre-set variable cannot disagree silently.
@@ -2111,9 +2194,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
         if args.command == "capabilities":
-            from .runtime import capabilities
-
-            payload = capabilities()
+            from .product_contract import resolve_mcp_profile
+            if args.providers_config or resolve_mcp_profile() == "execution":
+                from .session import GnomonSession
+                with GnomonSession.from_config(args.providers_config) as session:
+                    payload = session.capabilities()
+                print(json.dumps(payload, indent=2, allow_nan=False))
+                return 0
+            else:
+                from .runtime import capabilities
+                payload = capabilities()
         elif args.command == "describe":
             from .toolspec import _run_describe
 

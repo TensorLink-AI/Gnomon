@@ -1679,7 +1679,7 @@ def _mcp_profile() -> dict[str, object]:
     from .toolspec import PROFILES, active_profile, visible_tools
     return {
         "active": active_profile(),
-        "available": sorted(PROFILES) + ["full"],
+        "available": ["execution", *sorted(PROFILES), "full"],
         "visible_tools": [tool["name"] for tool in visible_tools()],
     }
 

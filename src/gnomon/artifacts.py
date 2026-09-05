@@ -142,6 +142,15 @@ def write_artifact(
         with (temporary / "artifact.json").open("w", encoding="utf-8") as handle:
             json.dump(payload, handle, indent=2, allow_nan=False)
             handle.write("\n")
+        if history is not None:
+            # The inputs that produced the forecast, not a mutable source path.
+            # Keep this independent of optional CSV/report output switches.
+            snapshot = next((item.payload for item in artifact.evidence
+                             if item.kind == "snapshot_access"), {})
+            with (temporary / "history.json").open("w", encoding="utf-8") as handle:
+                json.dump({"schema_version": "1", "series": history, "snapshot": snapshot},
+                          handle, allow_nan=False)
+                handle.write("\n")
         if write_evidence:
             with (temporary / "evidence.jsonl").open("w", encoding="utf-8") as handle:
                 for record in artifact.evidence:

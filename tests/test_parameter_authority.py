@@ -14,11 +14,8 @@ behaviours the table promises.
 from __future__ import annotations
 
 import argparse
-import json
 from datetime import datetime, timezone
 from pathlib import Path
-
-import pytest
 
 from gnomon.contracts import (
     DEFAULT_MINIMUM_BASELINE_IMPROVEMENT,
@@ -62,18 +59,30 @@ def _cli_parameters() -> set[str]:
     return names
 
 
-def _mcp_parameters() -> set[str]:
+def _mcp_parameters(tmp_path) -> set[str]:
     from gnomon.toolspec import TOOLS
+    from gnomon import GnomonSession, TemporalLedger
 
     names: set[str] = set()
     for tool in TOOLS:
         names |= set((tool.get("inputSchema", {}).get("properties") or {}).keys())
+    # The session uses discriminated unions and typed request properties;
+    # checking only top-level properties would silently skip that surface.
+    def walk(schema):
+        names.update(schema.get("properties", {}))
+        for child in schema.get("properties", {}).values():
+            walk(child)
+        for variant in schema.get("oneOf", []):
+            walk(variant)
+    session = GnomonSession(ledger=TemporalLedger(tmp_path / "ledger.db"), allow_outcome_writes=True)
+    for tool in session.tools():
+        walk(tool["inputSchema"])
     return names
 
 
-def test_every_front_door_parameter_is_classified():
+def test_every_front_door_parameter_is_classified(tmp_path):
     unclassified = sorted(
-        (_cli_parameters() | _mcp_parameters()) - set(PARAMETER_AUTHORITY)
+        (_cli_parameters() | _mcp_parameters(tmp_path)) - set(PARAMETER_AUTHORITY)
     )
     assert not unclassified, (
         f"Parameters reached a front door without an authority "

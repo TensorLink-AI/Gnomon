@@ -47,7 +47,7 @@ an online package resolver:
   "mcpServers": {
     "gnomon": {
       "command": "/opt/gnomon/venv/bin/gnomon",
-      "args": ["mcp", "serve", "--profile", "core"]
+      "args": ["mcp", "serve"]
     }
   }
 }
@@ -56,6 +56,10 @@ an online package resolver:
 `gnomon capabilities` reports the installed runtime version, active MCP
 profile, optional backends actually present, and the public product-claim
 boundary. Retain that output with deployment approval evidence.
+
+This uses the execution default. Add `--providers-config` with an explicit local
+TOML to register installed user callables/factories and an optional ledger.
+Use `--profile core` only for clients that require the legacy evaluated schema.
 
 ## Optional components
 
@@ -85,3 +89,6 @@ semantics have passed local acceptance checks.
 The repository's `scripts/offline_wheel_smoke.py` performs this clean-wheel
 journey. Pull-request and release CI run it inside a network-disabled container
 so offline operability is a build gate rather than a documentation promise.
+CI also builds the [user-provider example](../examples/provider_plugin/README.md)
+as a separate wheel and runs its installed Python/CLI/MCP and backup/restore
+walkthrough with `--example-wheel`. The example is not a core runtime dependency.

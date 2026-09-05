@@ -7,6 +7,7 @@ answer would record a wrong answer the model never gave.
 """
 
 import json
+import io
 import sys
 import threading
 import time
@@ -22,6 +23,71 @@ from benchmarks.common.openrouter import (  # noqa: E402
     OpenRouterClient,
     OpenRouterError,
 )
+
+
+def test_single_attempt_disables_truncation_and_missing_choice_retries(monkeypatch):
+    requests = []
+    replies = [{"choices": [], "usage": {"prompt_tokens": 1, "completion_tokens": 2, "cost": 0.1}},
+               {"choices": [{"message": {"content": ""}, "finish_reason": "length"}],
+                "usage": {"prompt_tokens": 1, "completion_tokens": 2, "cost": 0.1}}]
+    def http(request, **kwargs):
+        requests.append(json.loads(request.data))
+        return io.BytesIO(json.dumps(replies.pop(0)).encode())
+    monkeypatch.setattr("urllib.request.urlopen", http)
+    client = OpenRouterClient("test", api_key="unused", max_retries=5)
+    assert client.chat([], max_tokens=3, single_attempt=True).choices == []
+    assert client.chat([], max_tokens=3, single_attempt=True).choices[0].finish_reason == "length"
+    assert [request["max_tokens"] for request in requests] == [3, 3]
+    assert client.total_transport_attempts == 2 and client.truncation_escalations == 0
+
+
+def test_single_attempt_never_retries_transient_http_failure(monkeypatch):
+    requests = []
+    def http(request, **kwargs):
+        requests.append(request)
+        raise urllib.error.HTTPError("https://example.invalid", 503, "unavailable", {}, io.BytesIO(b"unavailable"))
+    monkeypatch.setattr("urllib.request.urlopen", http)
+    client = OpenRouterClient("test", api_key="unused", max_retries=5)
+    with pytest.raises(OpenRouterError):
+        client.chat([], single_attempt=True)
+    assert len(requests) == client.total_transport_attempts == 1
+    assert client.usage_summary["resource_fields_complete"]["cost"] is False
+
+
+def test_single_attempt_bypasses_existing_cache_without_writing_new_samples(monkeypatch, tmp_path):
+    requests = []
+    def http(request, **kwargs):
+        requests.append(request)
+        return io.BytesIO(json.dumps(_response(str(len(requests)))).encode())
+    monkeypatch.setattr("urllib.request.urlopen", http)
+    client = OpenRouterClient("test", api_key="unused", sample_cache_dir=tmp_path)
+    assert client.chat([]).choices[0].message.content == "1"
+    writes = client.sample_cache_writes
+    assert client.chat([], single_attempt=True).choices[0].message.content == "2"
+    assert client.sample_cache_writes == writes and client.sample_cache_hits == 0
+
+
+def test_single_attempt_rejects_multiple_samples_and_bounds_response_bytes(monkeypatch):
+    client = OpenRouterClient("test", api_key="unused")
+    with pytest.raises(ValueError, match="n=1"):
+        client.chat([], n=2, single_attempt=True)
+    requests = []
+    def http(request, **kwargs):
+        requests.append(request)
+        return io.BytesIO(b" " * 8_388_609)
+    monkeypatch.setattr("urllib.request.urlopen", http)
+    with pytest.raises(OpenRouterError, match="byte limit"):
+        client.chat([], single_attempt=True)
+    assert len(requests) == 1
+
+
+@pytest.mark.parametrize("body", [b'{"choices":[],"usage":{},"usage":{}}', b'{"choices":[],"cost":NaN}', b'[]'])
+def test_single_attempt_refuses_ambiguous_or_nonfinite_response_json(monkeypatch, body):
+    monkeypatch.setattr("urllib.request.urlopen", lambda *_a, **_k: io.BytesIO(body))
+    client = OpenRouterClient("test", api_key="unused")
+    with pytest.raises(OpenRouterError, match="strict JSON"):
+        client.chat([], single_attempt=True)
+    assert client.total_transport_attempts == 1
 
 
 def _response(content, finish_reason="stop"):
@@ -63,6 +129,65 @@ def _client(monkeypatch, replies, **kwargs):
 
 
 MESSAGES = [{"role": "user", "content": "forecast"}]
+
+
+def test_missing_usage_is_unknown_not_zero_and_extra_transports_invalidate_totals():
+    client = OpenRouterClient("test/model", api_key="unused")
+    client.total_transport_attempts = 1
+    client._account({"usage": {"prompt_tokens": 10}})
+    summary = client.usage_summary
+    assert summary["resource_fields_complete"]["prompt_tokens"] is True
+    assert summary["resource_fields_complete"]["completion_tokens"] is False
+    assert summary["cost_usd"] is None
+    assert summary["observed_cost_usd"] == 0
+    client.total_transport_attempts = 2  # A failed transport may have consumed resources.
+    assert client.usage_summary["resource_fields_complete"]["prompt_tokens"] is False
+
+
+def test_known_usage_and_cache_completeness_survive_restart(tmp_path):
+    client = OpenRouterClient("test/model", api_key="unused", sample_cache_dir=tmp_path)
+    usage = {"prompt_tokens": 10, "completion_tokens": 20, "cost": 0.2}
+    client.total_transport_attempts = 1
+    client._account({"usage": usage})
+    client._persist_request_record("case", successful=True, usage=usage, transport_attempts=1)
+    resumed = OpenRouterClient("test/model", api_key="unused", sample_cache_dir=tmp_path)
+    assert resumed.usage_summary["resource_fields_complete"] == {key: True for key in usage}
+    assert resumed.usage_summary["cost_usd"] == 0.2
+    path = next(tmp_path.glob("*/request-*.json"))
+    raw = json.loads(path.read_text())
+    del raw["known_usage_fields"]  # Historical records did not distinguish missing usage from zero.
+    path.write_text(json.dumps(raw))
+    legacy = OpenRouterClient("test/model", api_key="unused", sample_cache_dir=tmp_path)
+    assert not any(legacy.usage_summary["resource_fields_complete"].values())
+    assert legacy.usage_summary["cost_usd"] is None
+    assert legacy.usage_summary["observed_cost_usd"] == 0.2
+
+
+def test_invalid_usage_values_do_not_reduce_or_poison_observed_totals():
+    client = OpenRouterClient("test/model", api_key="unused")
+    client.total_transport_attempts = 1
+    client._account({"usage": {"prompt_tokens": -1, "completion_tokens": True, "cost": float("nan")}})
+    assert client.total_prompt_tokens == client.total_completion_tokens == 0
+    assert client.total_cost_usd == 0
+    assert not any(client.usage_summary["resource_fields_complete"].values())
+    json.dumps(client.usage_summary, allow_nan=False)
+
+
+def test_small_known_costs_are_not_rounded_to_free():
+    client = OpenRouterClient("test/model", api_key="unused")
+    client.total_transport_attempts = 1
+    client._account({"usage": {"prompt_tokens": 1, "completion_tokens": 1, "cost": 1e-8}})
+    assert client.usage_summary["cost_usd"] == 1e-8
+
+
+def test_overflowed_cost_totals_are_explicitly_unknown_not_nonfinite_json():
+    client = OpenRouterClient("test/model", api_key="unused")
+    client.total_transport_attempts = 2
+    for _ in range(2):
+        client._account({"usage": {"prompt_tokens": 1, "completion_tokens": 1, "cost": 1e308}})
+    assert client.usage_summary["cost_usd"] is None
+    assert client.usage_summary["cost_total_overflow"] is True
+    json.dumps(client.usage_summary, allow_nan=False)
 
 
 def test_complete_response_is_returned_without_escalation(monkeypatch):

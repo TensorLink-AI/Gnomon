@@ -3,6 +3,7 @@
 import json
 import sys
 from pathlib import Path
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -38,6 +39,31 @@ def _write_run(root, name, rows, manifest=None):
 def test_task_ids_normalise_across_layouts():
     assert normalise_task_id("shard#0007") == "shard_0007"
     assert normalise_task_id("shard_0007.json") == "shard_0007"
+
+
+def test_importer_never_drops_malformed_or_duplicate_rows(tmp_path):
+    run_dir = _write_run(tmp_path, "duplicate", [{"task_id": "a", "success": True}, {"task_id": "a", "success": False}])
+    with pytest.raises(ValueError, match="duplicate"):
+        load_run(run_dir)
+    path = run_dir / "gnomonbench.jsonl"
+    path.write_text('{"task_id":"a","success":true}\nnot json\n')
+    with pytest.raises(ValueError):
+        load_run(run_dir)
+    path.write_text('{"success":false}\n')
+    with pytest.raises(ValueError, match="task_id"):
+        load_run(run_dir)
+
+
+def test_legacy_report_retains_failed_attempt_cost_and_discloses_missing_grades(tmp_path):
+    _write_run(tmp_path, "a", [{"task_id": "x", "success": True, "cost_usd": 1}])
+    _write_run(tmp_path, "b", [{"task_id": "x", "success": False, "row_abstained": "cap:tokens", "cost_usd": 12}])
+    compared = compare(load_run(tmp_path / "a"), load_run(tmp_path / "b"))
+    assert compared["matched_task_evaluation"]["treatment"]["resources"]["cost_usd"]["total"] == 12
+    assert compared["success_cohort"]["scheduled_cohort_verified"] is False
+    (tmp_path / "b" / "gnomonbench.jsonl").write_text('{"task_id":"x","cost_usd":12}\n')
+    compared = compare(load_run(tmp_path / "a"), load_run(tmp_path / "b"))
+    assert "success_rate" not in compared
+    assert "Not measured" in compared["success_note"]
     assert normalise_task_id("shard#0007") == normalise_task_id("shard_0007.json")
 
 
@@ -223,10 +249,8 @@ def test_unrecognised_metric_direction_is_flagged_not_assumed_silently(tmp_path)
     assert "inverted" in entry["direction_warning"]
 
 
-def test_harness_voided_rows_stay_out_of_the_success_test(tmp_path):
-    # Task b was voided by the harness in the treatment arm (a breached
-    # cap). Counting it as a failure reported a harness cap as a model
-    # failure; it is excluded pairwise and counted instead.
+def test_harness_voided_rows_remain_in_delivered_success_test(tmp_path):
+    # A cap is a distinct operational failure, but the task was not delivered.
     _write_run(tmp_path, "ctrl",
                [{"task_id": "a", "success": True},
                 {"task_id": "b", "success": True}],
@@ -237,12 +261,9 @@ def test_harness_voided_rows_stay_out_of_the_success_test(tmp_path):
                  "row_abstained": "cap:tokens exceeded"}],
                {"benchmark": "x", "target": "y"})
     result = compare(load_run(tmp_path / "ctrl"), load_run(tmp_path / "treat"))
-    assert result["success_voided_excluded"] == {
-        "pairs": 1, "baseline_voided": 0, "treatment_voided": 1,
-        "basis": result["success_voided_excluded"]["basis"],
-    }
-    assert result["success_rate"] == {"baseline": 1.0, "treatment": 1.0}
-    assert result["success_test"]["n"] == 1
+    assert result["matched_task_evaluation"]["tasks_voided_by_harness"] == 1
+    assert result["success_rate"] == {"baseline": 1.0, "treatment": 0.5}
+    assert result["success_test"]["n"] == 2
 
 
 def test_success_rate_is_split_by_basis_when_bases_mix(tmp_path):

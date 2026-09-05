@@ -22,7 +22,7 @@ from typing import Any
 from benchmarks.common.manifest import code_revision
 from gnomon.evaluation import supportable_horizon
 from gnomon.temporal import detect_season
-from gnomon.toolspec import runner_for
+from benchmarks.common.legacy_surface import runner_for
 
 
 FAMILIES = ("trend", "seasonal", "level", "random_walk")

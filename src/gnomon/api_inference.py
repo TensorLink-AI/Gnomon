@@ -31,11 +31,7 @@ whatever the TSFM library expects.
 
 from __future__ import annotations
 
-import json
-import logging
-import os
-import urllib.error
-import urllib.request
+from urllib.parse import urlsplit, urlunsplit
 from typing import Any
 
 from .config import APIProviderConfig
@@ -49,8 +45,7 @@ from .forecast_adapter import (
     PROTOCOL_VERSION, AdapterCapabilities, ForecastAdapterError,
     ForecastRequest, ForecastResult,
 )
-
-logger = logging.getLogger(__name__)
+from .http_transport import InferenceHTTPError, JSONTransport
 
 
 class APIAdapter:
@@ -72,8 +67,8 @@ class APIAdapter:
         self.name = name
         self._provider = provider
         self.revision = provider.revision or None
-        self._timeout = provider.timeout or timeout
-        self._retry = provider.retry or retry
+        self._timeout = provider.timeout if provider.timeout is not None else timeout
+        self._retry = provider.retry if provider.retry is not None else retry
 
         self._params_m = tsfm_parameter_count(name)
         self._supports_quantiles = tsfm_supports_quantiles(name)
@@ -109,76 +104,32 @@ class APIAdapter:
         return payload
 
     def _call_api(self, payload: dict[str, Any]) -> dict[str, Any]:
-        """Make the HTTP request with retry logic."""
+        """Compatibility wire format, shared bounded transport; no POST replay."""
         url = self._provider.url
         if not url:
             raise TSFMUnavailable(f"No API URL configured for TSFM {self.name}")
-
-        # Build auth headers
-        headers = {"Content-Type": "application/json"}
         auth = self._provider.auth
-        if auth.type == "bearer":
-            token = os.environ.get(auth.token_env, "")
-            if not token:
-                raise TSFMUnavailable(
-                    f"API token env var '{auth.token_env}' not set for {self.name}"
-                )
-            headers["Authorization"] = f"Bearer {token}"
-        elif auth.type == "header":
-            token = os.environ.get(auth.token_env, "")
-            if not token:
-                raise TSFMUnavailable(
-                    f"API token env var '{auth.token_env}' not set for {self.name}"
-                )
-            headers[auth.header] = token
-
-        body = json.dumps(payload).encode("utf-8")
-        last_error: str = ""
-
-        for attempt in range(self._retry + 1):
-            try:
-                req = urllib.request.Request(
-                    url, data=body, headers=headers, method="POST"
-                )
-                with urllib.request.urlopen(req, timeout=self._timeout) as resp:
-                    response_data = json.loads(resp.read().decode("utf-8"))
-                    if "error" in response_data:
-                        raise TSFMError(
-                            f"API for {self.name} returned error: {response_data['error']}"
-                        )
-                    return response_data
-
-            except urllib.error.HTTPError as e:
-                last_error = f"HTTP {e.code}: {e.reason}"
-                if e.code in (401, 403):
-                    raise TSFMUnavailable(
-                        f"Auth failed for {self.name} API: {last_error}"
-                    ) from e
-                if e.code == 404:
-                    raise TSFMUnavailable(
-                        f"API endpoint not found for {self.name}: {url}"
-                    ) from e
-                # 5xx — retry
-                logger.warning(
-                    "API call for %s failed (attempt %d): %s",
-                    self.name, attempt + 1, last_error,
-                )
-
-            except urllib.error.URLError as e:
-                last_error = f"Connection error: {e.reason}"
-                logger.warning(
-                    "API call for %s failed (attempt %d): %s",
-                    self.name, attempt + 1, last_error,
-                )
-
-            except json.JSONDecodeError as e:
-                raise TSFMError(
-                    f"API for {self.name} returned invalid JSON: {e}"
-                ) from e
-
-        raise TSFMError(
-            f"API for {self.name} failed after {self._retry + 1} attempts: {last_error}"
-        )
+        if auth.type not in {"none", "bearer", "header"}:
+            raise TSFMUnavailable("unsupported API authentication type")
+        parsed = urlsplit(url)
+        try:
+            transport = JSONTransport(
+                urlunsplit((parsed.scheme, parsed.netloc, "", parsed.query, parsed.fragment)),
+                token_env=auth.token_env if auth.type != "none" else None,
+                auth_header=auth.header if auth.type == "header" else "Authorization",
+                auth_prefix="" if auth.type == "header" else "Bearer ",
+                timeout=self._timeout,
+            )
+            response = transport.call(parsed.path or "/", payload)
+        except InferenceHTTPError as exc:
+            if exc.status in {401, 403, 404}:
+                raise TSFMUnavailable(str(exc)) from None
+            raise TSFMError(str(exc)) from None
+        except ForecastAdapterError as exc:
+            raise TSFMUnavailable(str(exc)) from None
+        if "error" in response:
+            raise TSFMError("inference service returned an error object")
+        return response
 
     def predict(self, history: list[float], horizon: int, season: int) -> list[float]:
         payload = self._build_request(history, horizon, want_quantiles=False)

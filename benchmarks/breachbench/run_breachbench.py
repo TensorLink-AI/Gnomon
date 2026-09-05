@@ -295,7 +295,7 @@ def _grid_timestamps(frequency: str, count: int) -> list[str]:
 
 
 def product_packet(case: Case) -> dict[str, Any]:
-    """Bound Gnomon's production response for this exact client call.
+    """Bound Gnomon's retained legacy evaluated response for this client call.
 
     Trust-boundary fields come from the shared MCP/CLI runner; full forecast
     rows come from the sealed artifact named by that response.  The packet is
@@ -305,7 +305,7 @@ def product_packet(case: Case) -> dict[str, Any]:
 
     from gnomon.artifacts import read_artifact
     from gnomon.contracts import GnomonError
-    from gnomon.toolspec import runner_for
+    from benchmarks.common.legacy_surface import runner_for
 
     run_dir = Path(tempfile.mkdtemp(prefix="breachbench-"))
     try:

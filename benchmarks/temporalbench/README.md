@@ -92,13 +92,13 @@ Add `--compile-context` to measure the complete host integration rather
 than numeric MCP execution alone. On T3/T4 the host runs Gnomon's owned
 context-investigation prompt and schema first, excludes the large Input JSON
 from the source document, verifies proposed quotes verbatim, and passes only
-accepted events into `gnomon_forecast` or `gnomon_run`. The agent receives the
+accepted events into the legacy `gnomon_forecast`. The agent receives the
 accepted/rejected receipt. T1/T2 do not pay a compiler call. Summary economics
 report compiler calls and proposal counts separately from engine calls, and
 report the numeric engine's later considered/admitted/rejected/applied counts
 separately. Compiler acceptance proves that text was grounded; it does **not**
 claim that the event was eligible to alter a forecast. Use
-the same flag with `core`, `describe`, `evidence`, `mega`, and `full`: context
+the same flag with explicit legacy `core`, `evidence`, and `full`: context
 compilation is shared host infrastructure, so the experiment varies the tool
 surface rather than whether text was connected to the product.
 
@@ -114,7 +114,7 @@ the standardized sensitivity carried information without turning hindsight
 into a deployment selection policy.
 
 ```bash
-for profile in core describe evidence mega full; do
+for profile in core evidence full; do
   python -m benchmarks.temporalbench.run_temporalbench \
     --data-dir ~/temporalbench --condition gnomon-mcp \
     --mcp-profile "$profile" --compile-context \

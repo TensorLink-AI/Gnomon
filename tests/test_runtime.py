@@ -64,6 +64,7 @@ def test_forecast_selects_drift_and_writes_complete_artifact(tmp_path: Path) -> 
     assert set(path.name for path in directory.iterdir()) == {
         "artifact.json", "forecast.csv", "evidence.jsonl", "summary.md",
         "lineage.json", "report.html", "integrity.json",
+        "history.json",
     }
     report = (directory / "report.html").read_text(encoding="utf-8")
     assert "<svg" in report

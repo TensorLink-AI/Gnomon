@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "agent",
+  "command": ["__PYTHON__", "__REPO_ROOT__/benchmarks/workflow/driver.py"],
+  "driver_files": ["__REPO_ROOT__/benchmarks/workflow/driver.py"],
+  "common": {
+    "model": {"id": "__MODEL_ID__", "revision": null},
+    "generation": {"temperature": 0, "max_output_tokens": 2048},
+    "prompt_file": "prompt.txt",
+    "provider_config_file": "providers.json",
+    "budget": {
+      "timeout_seconds": 120,
+      "jobs": 1,
+      "infrastructure_retries": 0,
+      "max_tool_calls": 12,
+      "max_rounds": 12,
+      "max_tokens": 60000,
+      "max_reported_cost_usd": "__CHOOSE_PER_ARM_STOP_AS_JSON_NUMBER__"
+    }
+  },
+  "arms": {
+    "ordinary": {
+      "description": "Ordinary Python with NumPy, pandas, SciPy and StatsForecast; no Gnomon import.",
+      "tool_contract": "One Python tool in the isolated software image. Local files persist within a task.",
+      "guidance": "Choose any available tool. Submit only your own supported answer; preserve earlier commitments."
+    },
+    "lean": {
+      "description": "The same ordinary software plus current Gnomon execution tools, optional ledger and temporal operations enabled.",
+      "tool_contract": "Python plus persistent execution-profile MCP in a separate container; no agent outcome-write permission.",
+      "guidance": "Choose any available tool. Submit only your own supported answer; preserve earlier commitments."
+    },
+    "full": {
+      "description": "The same ordinary software plus the retained legacy full Gnomon profile, not an alias of direct inference.",
+      "tool_contract": "Python plus persistent legacy full-profile MCP in a separate container; schemas and model-selection behavior differ from lean.",
+      "guidance": "Choose any available tool. Submit only your own supported answer; preserve earlier commitments."
+    }
+  }
+}

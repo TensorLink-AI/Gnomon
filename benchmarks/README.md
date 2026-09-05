@@ -1,5 +1,21 @@
 # Benchmarks
 
+Production regression gates run `pytest -q tests`; retained historical benchmark
+adapter checks run separately with `pytest -q benchmarks/tests`. CI runs both as
+separate jobs. Neither command authorizes paid models or downloads benchmark data.
+End-to-end experiments remain explicitly selected workflows, not release evidence
+merely because their adapter unit tests pass.
+
+Historical evaluated-tool instruments explicitly select retained legacy profiles.
+Their results do not measure the new default provider session unless an instrument
+declares and actually executes that session. Duplicate describe and experimental
+mega profiles are retired; historical result files remain readable.
+
+The active restructuring plan and acceptance gates are in
+[the production plan](../docs/production/PLAN.md). Retired instruments live
+under `archive/benchmarks/` and cannot run through the active orchestrator.
+Their published negative findings remain in the evidence archive.
+
 Setup (two interpreters, per-benchmark datasets and dependencies, and
 what each arm costs before you start): **[SETUP.md](SETUP.md)**.
 Comparing arms afterwards: `python -m benchmarks.report --root <results dir>`,

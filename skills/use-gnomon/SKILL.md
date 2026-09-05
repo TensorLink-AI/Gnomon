@@ -1,83 +1,83 @@
 ---
 name: use-gnomon
-description: Use Gnomon for temporal questions and feedback with deterministic evidence.
+description: Use Gnomon's available tools to inspect time series, compute exact statistics, forecast with registered providers, and evaluate explicit historical evidence.
 ---
 
 # Use Gnomon
 
-Gnomon owns computed facts; the host understands intent and explains them. Never replace, recompute, or strengthen its numbers.
+Use the schemas actually exposed by the current session. The default execution
+profile and explicit legacy profiles have different contracts; do not mix arguments.
+Discover capabilities when provider names, supported inputs or storage are unknown.
 
-## Choose the shortest route
+## Default execution session
 
-1. Use `gnomon_describe` for level, trend, seasonality, changepoint, anomaly, or extreme questions.
-2. Use `gnomon_forecast` directly for what-happens-next questions. Let it infer an unambiguous schema; do not inspect first. If the user names a model, pass `candidates: [name]`, the exact optional-model allowlist. Baselines still compete; attribute output only when `selected_model` matches.
-3. Use `gnomon_inspect` only for genuine schema ambiguity or requested data quality.
-4. Use investigate, detect, decide, monitor, or tracking tools only when the corresponding tool is exposed and the user asks for that job.
-5. Reuse returned `data_ref` instead of resending data.
+- Inspect file/store data with `gnomon_inspect`, specifying known column names.
+  Reuse its frozen `data_ref`; for panels select a returned series explicitly.
+  Disclose knowledge-time assumptions, declared units and repairs.
+- For an observed quantity, call `gnomon_describe` with the exact statistic:
+  mean, median, latest, minimum, maximum or sum. Optional start/end timestamps
+  select an inclusive window. Do not substitute latest for average.
+- For a forecast, name an explicit registered `provider` and supply either a
+  typed `request` or a `data_ref` plus positive `horizon`. Respect the user's
+  preferred model; never substitute a reference baseline without disclosure.
+  If no provider is specified, clarify when the choice matters or explicitly
+  identify a baseline result as a reference forecast.
+- Map an explicit duration onto the disclosed grid (daily next week: seven steps).
+  Missing frequency/timezone semantics require clarification or explicit assumptions,
+  not invented dates. Known covariates must obey request capability and time cutoffs.
+- Provider URLs, imports, authentication and ledger paths are operator startup
+  configuration, not tool arguments. Never put secrets in prompts.
 
-Prefer one sufficient call. Fetch an artifact only when the user requests deeper evidence or the brief response says required content was truncated.
-Map windows to grid periods (`next week`: daily 7, hourly 168). Use 1 only for
-an explicit next-value question; otherwise omit it and keep the disclosed
-seasonal default. For breach questions pass `threshold` and `horizon`; never
-infer the decision by eyeballing forecast rows.
+Inference alone does not prove accuracy, calibrated uncertainty or action authority.
+Preserve provider/revision identity, uncertainty, snapshot and execution identifiers;
+unknown model weights or training cutoffs stay unknown. A rejected capability is not
+permission to drop an input silently.
 
-## Use supplied context explicitly
+## Evaluation and retained evidence
 
-Never drop supplied context or mix it into the primary forecast. Put literal,
-dated numeric claims in `context_events` with `claim_kind: min|max|exact`, ISO
-times, `known_at`, verbatim `source_span`, and source reference. Omit scope for
-one target; for multiple targets name it unless the quote uniquely names one.
-Do not invent `event_type` or `attributes`; Gnomon re-parses quoted numbers.
-Pass the source message as `context_source_text` to verify its quotes and
-semantics.
-Use `qualitative_context_events` for dated direction/shape with unknown
-magnitude; it has no magnitude field and produces only a labelled sensitivity.
-Use `context_submission` for other claims, hypotheses, transformations, or
-model-authored conditional paths. Every item must be used, rejected with a
-typed reason, or retained as a labelled scenario.
+Use `gnomon_evaluate` when comparison is needed: name candidates, an explicit
+baseline, horizon and suitable fold/budget settings. It can incur provider calls;
+respect task scope and operator ceilings. Its compact study ID retrieves full evidence.
+Count incomplete folds and failures, not only successful forecasts.
 
-Send ungroundable facts to `context_rejections` with verbatim `source_span` and
-a specific reason: ambiguous timing, post-cutoff knowledge, no temporal
-mechanism, or somebody else's numeric forecast. Never invent dates or encode a
-prediction as a constraint. A qualitative event's start date must appear in
-its quote.
+If a response has `partial: true` and `result_ref`, use `gnomon_read`; do not treat
+the scalar summary as the full result. A JSON pointer selects an exact needed field.
+Otherwise concatenate returned `text` pages at `next_offset` until null before
+parsing JSON. References expire with session closure or retention eviction.
+`RESULT_RETENTION_LIMIT` can mean execution already completed; inspect its receipt
+and durable ledger identifiers before considering a retry that may repeat work.
 
-Choose publication mode from the user's intent:
+With a configured ledger, `gnomon_route` requires one original study, matching
+providers and explicit source-availability and local-recording cutoffs. An explicit
+baseline fallback means the evidence was insufficient, not that the baseline won.
+Rescoring appends a new study without changing original predictions.
 
-- `strict` for automation or when only historically admitted effects may lead;
-- `best_effort` when a human wants the best bounded recommendation despite
-  weak evidence; the immutable primary remains visible in this mode, so a
-  request to retain or disclose it does not by itself imply `scenario`; and
-- `scenario` when the user wants the immutable primary beside several explicit
-  what-if paths.
+Use `gnomon_ledger` only when exposed. Queries and score creation differ from
+outcome/import writes, which require operator authorization and user task scope.
+Keep valid time, source availability and local recording time distinct.
 
-If the host independently samples its model, submit Gnomon's sealed sampled
-prior rather than averaging in prose. Fewer than three valid paths are
-scenario-only; agreement is not historical skill. `gnomon_select_scenario`
-may rank sealed IDs with cited claims, never edit numbers/support or authorize
-automation.
+## Optional explicit temporal calculations
 
-## Preserve the answer contract
+When `gnomon_temporal` is exposed, use it for date shifts, instant normalization,
+elapsed duration, half-open interval relations or event ordering. Do not invent an
+implicit current time. Calendar days and elapsed 24-hour periods differ at clock
+changes; select the intended mode. Local timestamps require a named timezone;
+ambiguous times require an explicit fold, and nonexistent times are rejected.
+Dates are not midnight instants. Tied event timestamps do not establish causality
+or source availability. This tool calculates supplied facts; it does not verify them.
 
-- Relay `headline` verbatim when possible.
-- Preserve point `tier` and response `tier_floor`, including `triage.remainder_tiers`; never infer from visible series. State limitations, staleness, and repairs.
-- Preserve provenance and `artifact_id` when the answer relies on an artifact.
-- For multi-series answers, preserve `ranking_rule`, notable series, and `remainder_preserved` instead of inventing a new ranking.
-- Distinguish the immutable primary forecast from conditional context scenarios. Never present a context-conditioned scenario as though it replaced the primary answer.
-- Explain deterministic choice projections; do not override them with model intuition.
+## Advanced legacy sessions
 
-`best_effort` is not confidence. Preserve its warning. On abstention, explain
-why and copy the recovery action; retry only when it preserves user intent.
+Only when an explicit core/evidence/decision/data/full profile exposes the older
+evaluated/context tools, read [advanced guidance](references/legacy-workflows.md).
+Do not send legacy `candidates`, `threshold`, `context_events` or publication
+arguments to the default forecast tool. Unsupported trend/anomaly/decision operations
+need an appropriate exposed tool, not an invented extension to exact describe.
 
-## Handle feedback with consent
+## Feedback
 
-Record feedback only after explicit agreement. With local execution:
-
-1. Create a structured local receipt with `gnomon-feedback create`. Include only the minimum task metadata needed to reproduce the behavior.
-2. Put sensitive detail in `--private-note`; it never enters a shareable payload. Put text in `--public-summary` only when the user approves sharing that exact text.
-3. Run `gnomon-feedback preview <receipt-id>` and show the preview before any export or submission.
-4. Export or submit only after separate explicit consent. Never add `--consent` on the user's behalf.
-
-Never record raw series, prompts, messages, credentials, paths, or full tool
-arguments. Never reward call volume. Shared reports require independent
-verification and duplicate checking.
+Record feedback only after explicit agreement. Use `gnomon-feedback create` for
+minimal metadata; private notes stay local. Preview the exact shareable receipt
+with `gnomon-feedback preview` before asking for separate export/submission consent.
+Never add `--consent` on the user's behalf. Do not record raw series, prompts,
+credentials or full arguments. Do not reward call volume.

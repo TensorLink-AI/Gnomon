@@ -1,9 +1,9 @@
 # Agent skill and feedback receipts
 
 Gnomon ships a thin agent workflow in [`skills/use-gnomon`](../skills/use-gnomon/).
-It teaches an agent how to use the 10-tool default `core` surface efficiently,
-when the compact three-tool `evidence` profile is sufficient, how to preserve
-support and provenance, and how to recover from an abstention. It contains no
+It teaches an agent how to use the 6-tool default `execution` surface efficiently,
+when explicit advanced profiles are needed, how to preserve
+provenance and inference/evaluation distinctions, and how to recover from refusal. It contains no
 forecasting logic: Gnomon remains the only component that computes governed
 primary temporal facts.
 

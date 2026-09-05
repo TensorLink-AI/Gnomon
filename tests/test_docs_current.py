@@ -97,7 +97,7 @@ def test_current_product_claims_match_the_public_surfaces(monkeypatch):
 
     monkeypatch.delenv("GNOMON_MCP_PROFILE", raising=False)
     claims = product_claims()
-    assert active_profile() == DEFAULT_MCP_PROFILE == "core"
+    assert active_profile() == DEFAULT_MCP_PROFILE == "execution"
     assert capabilities()["product_contract"] == claims
     assert claims["forecast_superiority"] == "not_established"
     assert claims["agent_choice_lift"] == "not_established"
@@ -233,7 +233,7 @@ def test_current_docs_name_the_default_core_surface_and_active_loop(monkeypatch)
     monkeypatch.delenv("GNOMON_MCP_PROFILE", raising=False)
     skill_doc = _doc("agent-skill-and-feedback.md")
     index = _doc("README.md")
-    assert f"{len(visible_tools())}-tool default `core` surface" in skill_doc
+    assert f"{len(visible_tools())}-tool default `execution` surface" in skill_doc
     assert "[v0.8 improvement loop](v0.8-agent-forecasting-loop.md)" in index
     assert "[v0.6 improvement loop](v0.6-improvement-loop.md)" not in index
 

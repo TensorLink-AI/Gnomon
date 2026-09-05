@@ -18,8 +18,8 @@ It reports four independent dimensions:
   and quote fidelity;
 - usability: answer yield, correct repair, artifact-bound outcome tracking,
   and quote fidelity;
-- economics: cumulative/response tokens, calls, and latency, both end-to-end
-  and split into initial, repair, and outcome stages.
+- economics: cumulative/response tokens, calls and reported latency across retained
+  attempts, with explicit measurement completeness and per-stage diagnostics.
 
 Staged reporting does not call a correct abstention an unanswered workflow.
 `initial_answer_yield` describes the first response;
@@ -43,6 +43,10 @@ cannot hide that tradeoff.
 
 ## Arm protocol
 
+For the current ordinary/lean/full work, see the separate
+[matched-controls contract and remaining requirements](MATCHED.md). Historical
+profile smoke results must not be relabelled as results for the execution default.
+
 The runner sends one JSON case per process on stdin. The oracle is never sent.
 The command returns one JSON observation on stdout:
 
@@ -60,10 +64,46 @@ python -m benchmarks.workflow.run_workflow \
 
 Infrastructure retries are bounded and recorded per observation. Add
 `--resume` to retain successful observations already in the output directory
-and rerun only missing/error case IDs. Exit `0` means execution and release
+and rerun only missing/error case IDs. New committed `episode` cases are an
+exception: any prior attempt start prevents replay after a possible reveal; see
+[committed agent episodes](MATCHED.md#committed-agent-episodes).
+Exit `0` means execution and release
 gates passed; exit `2` means execution completed but a scored gate failed;
 other non-zero exits indicate a harness failure. The suite orchestrator treats
 exit `2` as a completed run and continues the matrix.
+
+### Attempt accounting
+
+The checkpoint directory contains an append-only `observations.attempts.sqlite3`
+journal (SQLite application ID GNAT, schema2; schema1 upgrades preserve rows).
+A committed start precedes each
+external arm invocation; completion appends usage and outcome without replacing
+the start. Interrupted starts remain unfinished with unknown spend. Retry, repair
+stage and resume usage are included exactly once by receipt ID. Keep this journal
+with the observations and run identity when moving or resuming an experiment.
+Use one orchestrator per output directory; `--jobs` is supported within it.
+
+`resource_accounting.resources` contains `observed_total`, nullable `total`,
+`complete` and `unmeasured_attempts` for calls, cumulative/response tokens, reported
+latency and optional USD cost. Compatibility scalar economics are observed lower
+bounds, not full totals when measurement is missing. Workflow comparison requires
+complete call/token accounting for its budget gates. `gnomonbench.jsonl` exports
+null for unknown totals instead of inventing free execution. Receipts count arm
+invocations/aggregate records, not necessarily provider-internal model calls.
+
+The arm should provide finite nonnegative resource fields; calls/tokens are integer
+counts. Omitted fields remain unmeasured. New observations preserve the explicit
+`metadata.resource_fields` measurement mask through serialization. For externally
+submitted aggregate observations, include this mask only for resources known to
+cover all attempts. Old files without it remain readable but cannot attest zero or
+complete history. A timeout has measured harness wall duration but unknown provider
+tokens/cost unless independently available. Summed producer latency is not total
+orchestrator wall time. The journal is not a sandbox or a provider billing audit.
+
+Provider-cache usage restored from earlier requests is excluded from newly reported
+subprocess spend, avoiding double charging. Aggregate cached history whose request
+identities cannot be matched to outer attempt receipts is flagged incomplete rather
+than claimed free or fully accounted. Historical lost usage cannot be reconstructed.
 
 Or score observations captured by another harness:
 

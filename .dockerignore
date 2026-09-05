@@ -1,12 +1,16 @@
-.git
-.github
-.pytest_cache
-.venv
-__pycache__
-*.py[cod]
-dist
-gnomon-output
-tests
-docs
-examples
-
+# The image needs only its build recipe and shipped package inputs. Do not send
+# credentials, private agent state, benchmark corpora or unrelated checkout files.
+*
+!Dockerfile
+!.dockerignore
+!pyproject.toml
+!README.md
+!LICENSE
+!src/
+!src/**
+!skills/
+!skills/**
+**/__pycache__/
+**/*.py[cod]
+**/.env
+**/.env.*

@@ -52,7 +52,7 @@ class PromotionDecision:
 
 @dataclass(frozen=True)
 class ShadowRoutingDecision:
-    """Point-in-time candidate-pool advice; never forecast authority."""
+    """Legacy shadow diagnostics; not a revision-safe routing prior."""
 
     project: str
     candidate: str
@@ -73,19 +73,16 @@ class ShadowRoutingDecision:
     receipt_id: str
 
     def to_dict(self) -> dict[str, object]:
-        candidate_selected = self.recommendation == self.candidate
         return {
             **asdict(self),
             "recommended_pool": list(self.recommended_pool),
             "reasons": list(self.reasons),
-            "action": (
-                "consider_challenger_with_local_admission"
-                if candidate_selected else "keep_or_rollback_to_champion"
-            ),
+            "action": "retain_explicit_champion_without_legacy_prior",
+            "action_authorized": False,
             "automatic_promotion": False,
             "automation_eligible": False,
             "job_local_admission_required": True,
-            "routing_authority": "candidate_pool_only",
+            "routing_authority": "none_legacy_diagnostics",
             "rollback_condition": (
                 f"Use {self.champion!r} when the last {ROUTE_RECENT_WINDOW} "
                 "paired outcomes have non-positive mean relative improvement "
@@ -191,11 +188,10 @@ class AdapterOutcomeLedger:
         self, *, project: str, candidate: str, revision: str | None,
         champion: str, regime: dict[str, str], as_of: str,
     ) -> ShadowRoutingDecision:
-        """Recommend a candidate pool from paired outcomes known by ``as_of``.
+        """Report legacy paired-error diagnostics, retaining the champion.
 
-        This can nominate a pinned challenger for the next contest, but the
-        next forecast still owns the numeric path and must admit that
-        challenger against its mandatory baselines.
+        Replaceable source-time-only records cannot nominate a historical
+        challenger. Use an immutable temporal-ledger study for routing.
         """
         if not regime:
             raise ValueError("regime must be a non-empty exact cohort")
@@ -236,7 +232,9 @@ class AdapterOutcomeLedger:
         recent_mean = (statistics.mean(recent_improvements)
                        if recent_improvements else None)
         recent_win_rate = statistics.mean(recent_wins) if recent_wins else None
-        reasons: list[str] = []
+        # These records can be replaced and have no local recording time.
+        # Source-only filtering does not make them an immutable past prior.
+        reasons: list[str] = ["legacy_outcomes_lack_immutable_recorded_vintages"]
         if revision is None:
             reasons.append("candidate_revision_is_unpinned")
         if count < MIN_ROUTE_OUTCOMES:

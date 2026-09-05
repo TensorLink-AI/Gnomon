@@ -223,12 +223,10 @@ def test_t1_binding_excludes_coordinate_arrays_from_series() -> None:
 def test_every_forecast_profile_has_a_host_compiled_first_tool():
     assert {
         profile: preferred_execution_tool(profile, True, host_compiled=True)
-        for profile in ("core", "describe", "evidence", "mega", "full")
+        for profile in ("core", "evidence", "full")
     } == {
         "core": "gnomon_forecast",
-        "describe": "gnomon_forecast",
         "evidence": "gnomon_forecast",
-        "mega": "gnomon_run",
         "full": "gnomon_forecast",
     }
 
@@ -237,7 +235,8 @@ def test_forecast_host_instruction_preserves_typed_abstention() -> None:
     assert "support: abstained" in mcp_agent.SYSTEM
     assert "choosing `Uncertain`" in mcp_agent.SYSTEM
     assert preferred_execution_tool("core", True) is None
-    assert preferred_execution_tool("describe", True) is None
+    with pytest.raises(ValueError, match="historical benchmark"):
+        preferred_execution_tool("describe", True)
     assert preferred_execution_tool("full", True) is None
     assert preferred_execution_tool("full", False) is None
 

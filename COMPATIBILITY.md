@@ -1,21 +1,47 @@
 # Compatibility policy
 
-Gnomon is pre-1.0. It maintains one agent contract—the MCP registry—and does
-not carry permanent compatibility aliases for unused experimental surfaces.
+Gnomon is pre-1.0. The default agent contract is the provider-neutral execution
+session. Explicit legacy profiles retain advanced evaluated workflows; they are
+not interchangeable schemas. Unused experimental surfaces have no permanent aliases.
 Breaking changes are called out in the changelog and release notes.
 
 ## Supported public surfaces
 
-- **MCP:** `src/gnomon/toolspec.py` is the source of truth. Use `tools/list`
-  or `gnomon capabilities` to discover the installed profile.
+- **MCP:** `src/gnomon/session.py` defines default tools; `toolspec.py` retains
+  explicit advanced profiles. Use `tools/list` or `gnomon capabilities` to discover
+  the actual session, including operator-configured providers and ledger permissions.
 - **CLI:** the commands documented in `docs/cli-reference.md` are the human,
   operator, and audit surface.
 - **Python:** compatibility is promised for the documented entry points used
   by MCP, not for every internal module.
 - **Docker:** packages the CLI; it is not an independent API surface.
 
-The original v0.2 `gnomon_forecast` input schema remains frozen as the sole
-registry-derivation exception. Additive response fields may still appear.
+The original v0.2 `gnomon_forecast` input schema remains a legacy-profile
+registry-derivation exception. It is not the default provider request schema.
+Additive response fields may still appear.
+
+## Execution-default migration (unreleased)
+
+Ordinary `gnomon mcp serve` now owns one GnomonSession. Inspect files into frozen
+data references; describe names an exact statistic; forecast names a provider and
+supplies a typed request or a reference plus horizon. Configure callables, factories,
+Ephemeris and an optional ledger at startup with `--providers-config`.
+
+Existing clients using evaluated forecast arguments (`input`, `candidates`, context,
+publication modes) must explicitly select `--profile core` or another retained
+legacy profile. They cannot send those arguments to the default forecast tool.
+Python users of the ordinary path use GnomonSession; internal toolspec.runner_for
+does not manufacture sessions or retain global default data references.
+
+The duplicate `describe` profile and experimental `mega` profile/run/track tool
+registrations are retired. Exact source is archived under `archive/legacy`.
+Existing artifacts and tracking data are not deleted. Mutable legacy performance
+scores no longer nominate models; use explicit cutoff-bound ledger studies.
+
+Default MCP and Python session.call compact large results into temporary result
+references. Use gnomon_read for exact JSON pages or pointers; a partial projection
+is not a complete result. CLI commands and explicit compact=False Python calls
+return full JSON instead of references that would expire when their session closes.
 
 ## Removed surfaces
 

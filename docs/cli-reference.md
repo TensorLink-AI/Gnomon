@@ -21,12 +21,81 @@ available](#not-currently-available) at the end.
 
 ## Everything else
 
+`gnomon infer` · `gnomon evaluate` · `gnomon ledger` · `gnomon temporal` ·
 `gnomon capabilities` · `gnomon self-check leakage` · `gnomon inspect` · `gnomon route` · `gnomon ingest` ·
 `gnomon store list` · `gnomon status` · `gnomon context prompt|validate` ·
 `gnomon covariates guide|validate` · `gnomon mcp serve` ·
 `gnomon tsfm list|install|install-all|remove` ·
 `gnomon track actuals|compare|coverage|decision|decision-skill|due|export|leaderboard|list|outcome|performance|relocate|score` ·
 `gnomon eval compare|episodes`
+
+## `gnomon infer`
+
+Direct inference is separate from evaluated model selection. It accepts the same
+typed request and registered provider name as a Python `GnomonSession` or the
+MCP execution profile. It does not silently run backtests or authorize actions.
+
+```bash
+gnomon infer --provider last_value --request '{"history":[1,2,3],"horizon":2}'
+gnomon infer --providers-config providers.toml --provider remote --request @request.json
+gnomon infer --provider last_value --input data.csv --horizon 7
+gnomon mcp serve --profile execution --providers-config providers.toml
+```
+
+Use either `--request` (typed JSON) or `--input` (file/store data), not both.
+File inference requires `--horizon`; schema defaults are `--time-column timestamp`
+and `--target-column value`. Optional `--series-column` and `--series-id` select
+one panel series; `--frequency`, `--unit`, `--as-of`, `--recorded-as-of` and
+`--store-path` preserve explicit input semantics. These flags are rejected with
+`--request`. File inference freezes a snapshot and includes its provenance in
+the response. Recorded-time replay requires a store, not a single-vintage file.
+
+Only this explicit operator TOML can load callable entrypoints, resolve service
+URLs/authentication, enable outcome writes and select a ledger. No ambient
+working-directory configuration is loaded. See [provider/session configuration](production/INFERENCE.md).
+
+## `gnomon temporal`
+
+Calculate explicit temporal facts without providers, network calls or ledger writes:
+
+```bash
+gnomon temporal --arguments '{"operation":"shift","value":"2024-01-31","amount":1,"unit":"months","mode":"calendar","invalid_date":"clamp"}'
+```
+
+`--arguments @file.json` also works. Operations are `normalize`, `duration`, `shift`,
+`interval` and `order_events`; [full semantics and bounds](production/TEMPORAL.md).
+Python uses `gnomon.temporal_operation`; MCP requires operator startup
+`enable_temporal=true`. Dates, elapsed periods and calendar shifts are distinct.
+
+## `gnomon evaluate`
+
+Optional matched rolling-origin evaluation, separate from direct inference:
+
+```bash
+gnomon evaluate --arguments '{"data":{"input":"data.csv"},"candidates":["historical_mean"],"baseline":"last_value","horizon":2,"folds":4,"budget":{"max_calls":8}}'
+gnomon evaluate --providers-config providers.toml --arguments @study.json
+```
+
+The `data` object uses execution-session inspection arguments. Provider names,
+baseline, horizon and budget use the same contract as Python/MCP. The response is
+compact; with a configured ledger, retrieve the full immutable study using
+`gnomon ledger --providers-config providers.toml --arguments '{"operation":"study","study_id":"<id>"}'`.
+There is no implicit actual-outcome import or action authorization. See
+[evaluation semantics and limits](production/INFERENCE.md#optional-budgeted-evaluation).
+
+## `gnomon ledger`
+
+The same closed ledger operations are available through Python and MCP. Queries
+do not change forecasts; evaluation appends a score. Outcome writes and historical
+imports require `allow_outcome_writes=true` at startup.
+
+```bash
+gnomon ledger --providers-config providers.toml --arguments '{"operation":"pending"}'
+gnomon ledger --providers-config providers.toml --arguments '{"operation":"execution","execution_id":"<id>"}'
+```
+
+Imports preserve unknown historical inputs and recording times as unknown. They
+do not reconstruct overwritten scores or run a model again.
 
 ## Global options
 
@@ -326,13 +395,16 @@ decision-outcome tools over stdio MCP for any MCP-capable host. Discover the
 installed list with `tools/list`; logs go to stderr and the protocol owns
 stdout.
 
-`--profile core|describe|evidence|mega|decision|data|full` selects the exposed
-surface. `core` is the analytical verbs plus inspection and artifact reads;
+`--profile execution|core|evidence|decision|data|full` selects the exposed
+surface. `execution` is the default: inspect/freeze data, exact describe, explicit
+provider forecast, optional evaluation, capabilities and exact retained-result read. An operator ledger adds
+route and ledger operations. `--providers-config` configures this shared session.
+`core` explicitly retains legacy analytical verbs plus inspection and artifact reads;
 `decision` adds the decide/monitor/route/status/resolve_outcome lifecycle;
-`data` adds the bitemporal store and actuals scoring. `describe` and `mega`
-remain explicit surface-experiment arms rather than production defaults;
-`evidence` is the measured default after the fresh workflow experiment.
-`gnomon capabilities` reports the active profile under `mcp_profile`.
+`data` adds the bitemporal store and actuals scoring. `describe` and `mega` are retired.
+`evidence` remains an explicit historical three-tool profile, not a measured default.
+`gnomon capabilities` reports the active profile under `mcp_profile`; supply
+`--providers-config providers.toml` to inspect a configured execution session.
 
 ## `gnomon tsfm`
 
@@ -421,23 +493,23 @@ MASE uses the naive scaling error saved from the training series when the
 forecast is registered. It is reported as unavailable for constant histories
 whose scale is zero. The leaderboard is descriptive historical telemetry: it
 does not prove that one model caused better outcomes, and it does not change
-future model selection automatically — `gnomon route` consults it as a
-disclosed, advisory prior, and evaluated runs still backtest every candidate.
+future model selection. Mutable leaderboard scores are no longer accepted as
+routing priors; use an immutable ledger study for a cutoff-bound recommendation.
 
 Each registered run also records its task (`forecast` by default) and a
 deterministic series fingerprint (trend, noise ratio, intermittency,
-direction-change rate, season), which `--task` filtering and the router's
-fingerprint-weighted prior are built on.
+direction-change rate, season), useful for descriptive `--task` filtering and
+structural starting-point suggestions, not proof of historical model superiority.
 
 The default registry is `~/.local/share/gnomon/registry.db`. Override it with
 `GNOMON_REGISTRY_PATH` for isolated projects, tests, or containers.
 
 For pinned adapters with paired shadow outcomes, `gnomon track shadow-route`
 accepts `--project`, `--candidate`, `--revision`, `--baseline`, `--as-of`, and
-an exact `--regime-json` object. It recommends either the challenger/champion
-candidate pool or a rollback to the champion. The route is point-in-time and
-drift-aware, but remains candidate-pool advice: it never promotes a deployment
-or bypasses the next forecast's local admission.
+an exact `--regime-json` object. It now returns diagnostics and retains the explicit
+champion: replaceable shadow errors lack local recording-time vintages and cannot
+nominate a historical challenger. No deployment is promoted. Use ledger-study
+routing below for immutable, replay-checked model evidence.
 
 ## `gnomon eval compare`
 
@@ -510,10 +582,20 @@ not been tested on anomaly kinds outside that list.
 
 ## `gnomon route`
 
-Which method for this task on this data? A disclosed, advisory routing
-decision: verified capability filter, then a fingerprint-weighted
-realised-performance prior from the tracking store — claimed only when
-enough scored history exists, never cold:
+Choose a provider from one immutable matched study using explicit source and
+recorded cutoffs. This is advisory, performs no model calls, and appends a new
+score receipt if evidence is usable:
+
+```bash
+gnomon route --providers-config providers.toml --arguments @route.json
+```
+
+`route.json` contains `data` inspection arguments, `study_id`, `candidates`,
+`baseline`, `horizon`, `source_as_of` and `recorded_as_of`. Optional `min_folds`
+(at least3) and `min_improvement` (default0.02) make the selection policy explicit.
+The data must be inspected at compatible cutoffs. See [routing semantics](production/INFERENCE.md#cutoff-bound-study-routing).
+
+The older positional form remains a structural starting-point suggestion only:
 
 ```bash
 gnomon route data.csv --time timestamp --target value --task forecast \
@@ -521,9 +603,10 @@ gnomon route data.csv --time timestamp --target value --task forecast \
 gnomon route data.csv --time timestamp --target value --task detect_anomalies
 ```
 
-With `--project`, the prior is consulted and the decision recorded to the
-tracking store for replay. Evaluated runs still backtest every candidate;
-an explicit model choice always wins.
+With `--project`, the structural suggestion is recorded to tracking. Mutable
+leaderboards never influence it. Evaluated runs still backtest candidates;
+an explicit model choice always wins. Do not mix positional/legacy flags with
+the typed `--arguments` form.
 
 ## `gnomon decide`
 

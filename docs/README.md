@@ -1,16 +1,14 @@
 # Gnomon documentation
 
-Gnomon is the trusted temporal execution boundary for agents. It turns a
-temporal question into one evidence-linked answer the caller can quote,
-inspect, and later score. An agent frames the question; Gnomon validates the
-data, evaluates the candidates, computes the governed primary numbers, and
-preserves the evidence tier and receipts. Externally proposed conditional
-paths remain attributed and cannot silently replace the primary. The
-executable that wins evaluation is the executable that publishes. Its first
-deployment wedge is security-sensitive and regulated agent work; the first
-concrete workflow is operational threshold risk—what may breach, when, and
-whether intervention is justified. The runtime exposes
-five governed views: *what happens next?*
+Gnomon gives agents exact time-series operations and a provider-neutral forecasting
+boundary. The default session freezes data, computes explicit statistics and
+executes a chosen provider. Backtesting is optional and budgeted; a configured ledger
+preserves original forecasts, actual revisions and cutoff-bound scoring evidence.
+Inference does not imply calibrated uncertainty or permission to act. See the
+[implemented contracts](production/INFERENCE.md) and [remaining release gates](production/PLAN.md).
+
+Explicit advanced/legacy workflows additionally expose five evaluated views:
+*what happens next?*
 (`forecast`), *what changed?* (`investigate`), *what is abnormal?*
 (`detect`), *what should we do?* (`decide`), and *when should we
 intervene?* (`monitor`).
@@ -27,8 +25,10 @@ build can do.** Prefer it to any prose here, including this file.
 
 1. [Hook Gnomon to an agent](quickstart-mcp.md) — install to first grounded
    answer in a minute.
-2. [Install and run the example](getting-started.md) — the same path from a
-   shell.
+2. [Provider configuration and Python/CLI examples](production/INFERENCE.md).
+   The [installable provider walkthrough](../examples/provider_plugin/README.md)
+   and [ledger operations guide](production/OPERATIONS.md) are executable starting points.
+   The [advanced evaluated CLI example](getting-started.md) is a separate workflow.
 3. [Prepare your data](data-format.md).
 4. [Understand support, scores, intervals, and artifacts](results-and-artifacts.md).
 
@@ -63,7 +63,7 @@ build can do.** Prefer it to any prose here, including this file.
   `monitor` — plus supporting and administrative commands such as `describe`,
   `route`, `inspect`, `capabilities`, and `status`.
 - Three front doors: CLI, Python API, and a local stdio MCP server
-  (`gnomon mcp serve`, 10 tools in the default `core` profile). Docker
+  (`gnomon mcp serve`, 6 tools in the default `execution` profile; 8 with a ledger). Docker
   packages the CLI rather than adding another contract surface.
 
 **Temporal core**

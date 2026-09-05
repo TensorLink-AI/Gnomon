@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 import os
 import hashlib
+import math
 import threading
 import time
 import urllib.error
@@ -41,6 +42,21 @@ from typing import Any
 #: the resolved base URL in its manifest, because "model X scored Y"
 #: means something different when X was served from somewhere else.
 DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
+
+
+def _measured_usage(usage):
+    result = {}
+    for key in ("prompt_tokens", "completion_tokens", "cost"):
+        value = usage.get(key) if isinstance(usage, dict) else None
+        try:
+            valid = type(value) in (int, float) and math.isfinite(value) and value >= 0
+        except OverflowError:
+            valid = False
+        if key != "cost":
+            valid = valid and type(value) is int
+        if valid:
+            result[key] = value
+    return result
 
 
 def resolved_base_url(base_url: str | None = None) -> str:
@@ -177,10 +193,12 @@ class OpenRouterClient:
         sample_cache_dir: str | Path | None = None,
         rate_limit_cooldown_seconds: float = 60.0,
         rate_limit_spacing_seconds: float = 2.0,
+        request_opener: Any = None,
     ) -> None:
         if int(sample_parallelism) < 1:
             raise ValueError("sample_parallelism must be at least 1")
         self.model = model
+        self.request_opener = request_opener
         if not api_key and "OPENROUTER_API_KEY" not in os.environ:
             from benchmarks.common.envfile import load_env_file
 
@@ -212,10 +230,17 @@ class OpenRouterClient:
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
         self.total_cost_usd = 0.0
+        self.current_prompt_tokens = 0
+        self.current_completion_tokens = 0
+        self.current_cost_usd = 0.0
+        self.unmeasured_usage_fields: set[str] = set()
         self.total_requests = 0
         self.total_transport_attempts = 0
         self.total_request_latency_seconds = 0.0
         self.restored_requests = 0
+        self.restored_prompt_tokens = 0
+        self.restored_completion_tokens = 0
+        self.restored_cost_usd = 0.0
         self.truncation_escalations = 0
         self.sample_cache_hits = 0
         self.sample_cache_writes = 0
@@ -386,19 +411,28 @@ class OpenRouterClient:
                      completion_tokens) = integer_fields
                     cost_usd = float(record["cost_usd"])
                     latency = float(record["request_latency_seconds"])
+                    if not math.isfinite(cost_usd) or not math.isfinite(latency):
+                        raise ValueError("nonfinite request accounting")
                     if min(requests, transport_attempts, prompt_tokens,
                            completion_tokens) < 0 or cost_usd < 0 or latency < 0:
                         raise ValueError("negative request accounting")
                     if requests != int(successful):
                         raise ValueError("request success accounting mismatch")
+                    known = record.get("known_usage_fields", [])
+                    if not isinstance(known, list) or any(key not in ("prompt_tokens", "completion_tokens", "cost") for key in known):
+                        raise ValueError("invalid usage completeness fields")
                 except (OSError, KeyError, TypeError, ValueError,
                         json.JSONDecodeError):
                     self.sample_cache_accounting_complete = False
                     continue
                 self._sample_usage_consumed.add(identity)
                 with self._usage_lock:
+                    self.unmeasured_usage_fields.update({"prompt_tokens", "completion_tokens", "cost"} - set(known))
                     self.total_requests += requests
                     self.restored_requests += requests
+                    self.restored_prompt_tokens += prompt_tokens
+                    self.restored_completion_tokens += completion_tokens
+                    self.restored_cost_usd += cost_usd
                     self.total_transport_attempts += transport_attempts
                     self.total_prompt_tokens += prompt_tokens
                     self.total_completion_tokens += completion_tokens
@@ -431,15 +465,16 @@ class OpenRouterClient:
         if not isinstance(plain_usage, dict):
             plain_usage = {}
         request_id = uuid.uuid4().hex
+        measured = _measured_usage(plain_usage)
         record = {
             "schema_version": 1,
             "successful": bool(successful),
             "requests": int(bool(successful)),
             "transport_attempts": max(0, int(transport_attempts)),
-            "prompt_tokens": max(0, int(plain_usage.get("prompt_tokens") or 0)),
-            "completion_tokens": max(
-                0, int(plain_usage.get("completion_tokens") or 0)),
-            "cost_usd": max(0.0, float(plain_usage.get("cost") or 0.0)),
+            "prompt_tokens": measured.get("prompt_tokens", 0),
+            "completion_tokens": measured.get("completion_tokens", 0),
+            "cost_usd": measured.get("cost", 0.0),
+            "known_usage_fields": sorted(measured) if successful and transport_attempts == 1 else [],
             "request_latency_seconds": max(
                 0.0, float(request_latency_seconds)),
             "provider": provider,
@@ -503,6 +538,7 @@ class OpenRouterClient:
         reasoning_effort: str | None = None,
         request_timeout: float | None = None,
         transport_retries: int | None = None,
+        single_attempt: bool = False,
         _skip_sample_cache: bool = False,
         _sample_cache_key: str | None = None,
         _sample_cache_sequence_start: int | None = None,
@@ -519,7 +555,19 @@ class OpenRouterClient:
         reasoning returns empty content with ``finish_reason:
         "length"``; that request is retried with a budget escalated up
         to :data:`MAX_TOKENS_CEILING` before the response is returned.
+        ``single_attempt=True`` instead requires n=1, bypasses sample caches,
+        disables transport/truncation/missing-choice retries and bounds response
+        bytes. Its returned token/cost usage can still be unknown or over budget.
         """
+        if type(single_attempt) is not bool:
+            raise ValueError("single_attempt must be boolean")
+        if single_attempt:
+            if type(n) is not int or n != 1:
+                raise ValueError("single_attempt requires n=1")
+            transport_retries = 0
+            _skip_sample_cache = True
+            _sample_cache_key = None
+            _sample_cache_sequence_start = None
         if not self.api_key:
             raise OpenRouterError(
                 "OPENROUTER_API_KEY is not set. Export it, or put it in a "
@@ -560,8 +608,9 @@ class OpenRouterClient:
                 request_timeout=request_timeout,
                 transport_retries=transport_retries,
                 sample_cache_key=cache_key,
+                **({"max_response_bytes": 1_048_576} if single_attempt else {}),
             )
-            if not _truncated_empty(response) or budget >= MAX_TOKENS_CEILING:
+            if single_attempt or not _truncated_empty(response) or budget >= MAX_TOKENS_CEILING:
                 break
             budget = min(budget * TRUNCATION_ESCALATION_FACTOR,
                          MAX_TOKENS_CEILING)
@@ -575,7 +624,7 @@ class OpenRouterClient:
             self._store_cached_samples(
                 cache_key, response, sequence_start=int(sequence_start or 0))
         missing = request_n - len(response.choices)
-        if missing > 0:
+        if missing > 0 and not single_attempt:
             # OpenRouter providers may ignore ``n`` and return a single
             # choice (measured: n=3 -> 1 choice on both BaseTen and
             # DeepInfra for deepseek-v4-flash). DirectPrompt's rejection
@@ -639,6 +688,7 @@ class OpenRouterClient:
         request_timeout: float | None = None,
         transport_retries: int | None = None,
         sample_cache_key: str | None = None,
+        max_response_bytes: int | None = None,
     ) -> SimpleNamespace:
         """Perform one request, retrying transient HTTP failures."""
         payload = {
@@ -694,10 +744,22 @@ class OpenRouterClient:
 
                 def transport() -> None:
                     try:
-                        with urllib.request.urlopen(
+                        open_request = (self.request_opener.open if getattr(self, "request_opener", None) is not None
+                                        else urllib.request.urlopen)
+                        with open_request(
                                 request, timeout=effective_timeout) as raw:
-                            result.append(json.loads(
-                                raw.read().decode("utf-8")))
+                            body = raw.read() if max_response_bytes is None else raw.read(max_response_bytes + 1)
+                            if max_response_bytes is not None and len(body) > max_response_bytes:
+                                raise OpenRouterError("LLM response exceeded the single-attempt byte limit")
+                            if max_response_bytes is None:
+                                parsed_body = json.loads(body.decode("utf-8"))
+                            else:
+                                from gnomon.agent_eval import _decode_record
+                                try:
+                                    parsed_body = _decode_record(body.decode("utf-8"))
+                                except (ValueError, UnicodeError) as error:
+                                    raise OpenRouterError("LLM response is not a bounded strict JSON object") from error
+                            result.append(parsed_body)
                     except BaseException as error:  # handed back to caller
                         result.append(error)
 
@@ -743,7 +805,8 @@ class OpenRouterClient:
             except urllib.error.HTTPError as error:
                 last_error = error
                 if error.code not in RETRYABLE_STATUS:
-                    detail = error.read().decode("utf-8", errors="replace")[:500]
+                    error_body = error.read() if max_response_bytes is None else error.read(501)
+                    detail = error_body.decode("utf-8", errors="replace")[:500]
                     raise OpenRouterError(
                         f"OpenRouter returned HTTP {error.code}: {detail}"
                     ) from error
@@ -816,24 +879,45 @@ class OpenRouterClient:
 
     def __setstate__(self, state: dict[str, Any]) -> None:
         self.__dict__.update(state)
+        if not hasattr(self, "unmeasured_usage_fields"):
+            self.unmeasured_usage_fields = {"prompt_tokens", "completion_tokens", "cost"}
+        for name in ("restored_prompt_tokens", "restored_completion_tokens", "restored_cost_usd",
+                     "current_prompt_tokens", "current_completion_tokens", "current_cost_usd"):
+            if not hasattr(self, name):
+                setattr(self, name, 0)
         self._usage_lock = threading.Lock()
         self._sample_cache_lock = threading.Lock()
         self._rate_limit_lock = threading.Lock()
 
     def _account(self, parsed: dict[str, Any]) -> None:
         usage = parsed.get("usage") or {}
+        measured = _measured_usage(usage)
         with self._usage_lock:
-            self.total_prompt_tokens += int(usage.get("prompt_tokens") or 0)
-            self.total_completion_tokens += int(
-                usage.get("completion_tokens") or 0)
-            cost = usage.get("cost")
-            if isinstance(cost, (int, float)):
-                self.total_cost_usd += float(cost)
+            self.unmeasured_usage_fields.update({"prompt_tokens", "completion_tokens", "cost"} - set(measured))
+            self.total_prompt_tokens += measured.get("prompt_tokens", 0)
+            self.total_completion_tokens += measured.get("completion_tokens", 0)
+            self.total_cost_usd += measured.get("cost", 0.0)
+            self.current_prompt_tokens += measured.get("prompt_tokens", 0)
+            self.current_completion_tokens += measured.get("completion_tokens", 0)
+            self.current_cost_usd += measured.get("cost", 0.0)
             self.total_requests += 1
 
     @property
     def usage_summary(self) -> dict[str, Any]:
+        complete = {key: key not in self.unmeasured_usage_fields
+                    and self.total_requests == self.total_transport_attempts
+                    and self.sample_cache_accounting_complete
+                    for key in ("prompt_tokens", "completion_tokens", "cost")}
+        cost_finite = math.isfinite(self.total_cost_usd) and math.isfinite(self.current_cost_usd)
+        complete["cost"] = complete["cost"] and cost_finite
         return {
+            "resource_fields_complete": complete,
+            "resource_accounting_basis": "counters_are_observed_lower_bounds_when_incomplete",
+            "observed_cost_usd": self.total_cost_usd if cost_finite else None,
+            "cost_total_overflow": not cost_finite,
+            "current_process_usage": {"prompt_tokens": self.current_prompt_tokens,
+                                      "completion_tokens": self.current_completion_tokens,
+                                      "observed_cost_usd": self.current_cost_usd if math.isfinite(self.current_cost_usd) else None},
             "model": self.model,
             # Provenance, not decoration: the same model id served from a
             # different endpoint is a different measurement.
@@ -846,12 +930,15 @@ class OpenRouterClient:
                 self.rate_limit_wait_seconds, 3),
             "requests": self.total_requests,
             "restored_requests": self.restored_requests,
+            "restored_prompt_tokens": self.restored_prompt_tokens,
+            "restored_completion_tokens": self.restored_completion_tokens,
+            "restored_cost_usd": self.restored_cost_usd if math.isfinite(self.restored_cost_usd) else None,
             "transport_attempts": self.total_transport_attempts,
             "prompt_tokens": self.total_prompt_tokens,
             "completion_tokens": self.total_completion_tokens,
-            "cost_usd": round(self.total_cost_usd, 6),
-            "request_latency_seconds": round(
-                self.total_request_latency_seconds, 6),
+            "cost_usd": self.total_cost_usd if complete["cost"] else None,
+            "request_latency_seconds": (round(self.total_request_latency_seconds, 6)
+                                        if math.isfinite(self.total_request_latency_seconds) else None),
             "sample_cache_accounting_complete": (
                 self.sample_cache_accounting_complete),
             # Disclosed, not hidden: requests that had to be re-sent with

@@ -66,7 +66,7 @@ def test_descriptive_trend_removes_multiplicative_seasonality() -> None:
 
     assert answer["best_estimate"] == {
         "value": "upward", "display_value": "upward",
-        "support": "supported", "automation_eligible": True,
+        "support": "supported", "automation_eligible": False,
     }
     estimate = answer["answer"]["estimate"]
     assert abs(estimate["slope_per_step"] - 2.4) < .1

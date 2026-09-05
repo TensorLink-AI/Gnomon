@@ -97,12 +97,16 @@ def test_installed_agent_skill_is_compact_without_hiding_safety_contracts():
     path = Path(__file__).parents[2] / "skills" / "use-gnomon" / "SKILL.md"
     text = path.read_text(encoding="utf-8")
     assert len(text.encode("utf-8")) <= 5_000
+    assert "references/legacy-workflows.md" in text
+    for required in ("provider", "statistic", "data_ref", "source-availability", "local-recording"):
+        assert required in text
+    legacy = (path.parent / "references" / "legacy-workflows.md").read_text(encoding="utf-8")
     for required in (
         "immutable primary", "context_events", "qualitative_context_events",
         "context_rejections", "strict", "best_effort", "scenario",
         "automation", "artifact_id", "data_ref",
     ):
-        assert required in text
+        assert required in legacy
 
 
 def test_context_recovery_preservation_is_measured_separately():
@@ -288,7 +292,7 @@ def test_missing_cases_are_in_all_case_denominator():
     assert result["correctness_mean_all_cases"] == pytest.approx(0.2)
     assert result["release_gate_pass"] is False
     assert result["completeness_gate_pass"] is False
-    assert result["leakage_safety_gate_pass"] is True
+    assert result["leakage_safety_gate_pass"] is False
 
 
 def test_correctness_and_trust_components_are_reported_separately():
@@ -359,6 +363,19 @@ def test_comparison_aggregates_replicates_by_case():
     by_arm = {row["arm"]: row for row in result["arms"]}
     assert by_arm["base"]["replicates"] == 2
     assert by_arm["evidence"]["replicates"] == 1
+
+
+def test_incomplete_workflow_rows_cannot_enter_promotion_on_successful_subset():
+    cases = load_cases(DEFAULT_CASES)
+    complete = score_run(cases, [_observation(case) for case in cases], "base")
+    partial = score_run(cases, [_observation(cases[0])], "candidate")
+    assert partial["correctness_mean_all_cases"] < 1
+    with pytest.raises(ValueError, match="incomplete"):
+        compare([complete, partial], "base")
+    complete["rows"].append(complete["rows"][0])
+    complete["cases"] += 1
+    with pytest.raises(ValueError, match="duplicate"):
+        compare([complete], "base")
 
 
 def test_comparison_averages_stage_economics_across_replicates():

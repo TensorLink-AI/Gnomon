@@ -25,7 +25,7 @@ from benchmarks.common.openrouter import OpenRouterClient
 from benchmarks.temporalbench.mcp_agent import openai_tool_specs
 from benchmarks.temporalbench.tasks import extract_json_object
 
-PROFILES = {"core", "describe", "evidence", "mega", "full"}
+PROFILES = {"core", "evidence", "full"}
 MAX_ROUNDS = 6
 MAX_TOOL_CALLS = 4
 
@@ -372,6 +372,25 @@ def _normalize(case: dict[str, Any], value: dict[str, Any], *, calls: int,
         all(key in numbers and numbers[key] == item
             for key, item in artifact_numbers.items())
         if artifact_numbers else None)
+    usage = getattr(client, "usage_summary", {})
+    complete = usage.get("resource_fields_complete", {})
+    # The attempt journal owns retries/resume. Replayed provider-cache usage is
+    # not newly billed by this subprocess and must not be charged twice.
+    cached_history = bool(usage.get("restored_requests") or usage.get("sample_cache_hits"))
+    if cached_history:
+        # Aggregate cache records cannot prove identity with earlier arm receipts.
+        complete = {}
+    current = usage.get("current_process_usage", {})
+    invocation_prompt = current.get("prompt_tokens", client.total_prompt_tokens - usage.get("restored_prompt_tokens", 0))
+    invocation_completion = current.get("completion_tokens", client.total_completion_tokens - usage.get("restored_completion_tokens", 0))
+    invocation_cost = current.get("observed_cost_usd")
+    resource_fields = ["tool_calls", "latency_seconds"]
+    if complete.get("prompt_tokens") and complete.get("completion_tokens"):
+        resource_fields.append("cumulative_tokens")
+    if complete.get("completion_tokens"):
+        resource_fields.append("response_tokens")
+    if complete.get("cost"):
+        resource_fields.append("cost_usd")
     return {
         "case_id": case["id"], "status": status, "support": support,
         "numbers": numbers, "choices": choices,
@@ -392,10 +411,12 @@ def _normalize(case: dict[str, Any], value: dict[str, Any], *, calls: int,
         "artifact_numbers": artifact_numbers,
         "headline_numbers": {key: numbers[key] for key in artifact_numbers if key in numbers},
         "tool_calls": calls,
-        "cumulative_tokens": client.total_prompt_tokens + client.total_completion_tokens,
-        "response_tokens": client.total_completion_tokens,
+        "cumulative_tokens": invocation_prompt + invocation_completion,
+        "response_tokens": invocation_completion,
         "latency_seconds": time.time() - started,
-        "metadata": {"tool_sequence": tool_names,
+        "cost_usd": invocation_cost,
+        "metadata": {"tool_sequence": tool_names, "resource_fields": resource_fields,
+                     "cached_history_not_matched_to_attempt_journal": cached_history,
                      "leakage_measurement": "cutoff_projection_v1",
                      "cutoff_projection_sha256": engine_evidence.get(
                          "cutoff_projection_sha256"),
@@ -514,12 +535,12 @@ def _preferred_tool(case: dict[str, Any], profile: str) -> str:
     A wide forecast remains a forecast; routing every multiseries input to
     describe silently drops publication and context semantics.
     """
-    if profile == "mega":
-        return "gnomon_run"
+    if profile not in PROFILES:
+        raise ValueError("Historical workflow adapter requires a retained legacy profile")
     forecast_intent = str(case.get("question") or "").lstrip().lower().startswith(
         "forecast")
     if case.get("kind") == "multiseries" and not forecast_intent:
-        return ("gnomon_describe" if profile in {"describe", "evidence", "full"}
+        return ("gnomon_describe" if profile in {"evidence", "full"}
                 else "gnomon_inspect")
     return "gnomon_forecast"
 

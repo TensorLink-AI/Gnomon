@@ -1,0 +1,4926 @@
+"""Canonical machine-facing tool specifications.
+
+One definition of Gnomon's agent-facing tools — names, JSON Schemas, and
+in-process runners over the runtime — consumed by the MCP server. This is
+the single source of truth for the public agent contract.
+"""
+
+from __future__ import annotations
+
+import json
+
+from typing import Any, Callable
+
+from .context import load_events_file
+from .contracts import ForecastArtifact, GnomonError, REPAIR_OPTIONS
+from .product_contract import DEFAULT_MCP_PROFILE
+from .response_budget import (
+    CAPABILITIES_RESPONSE_BUDGET_BYTES as CAPABILITIES_RESPONSE_BUDGET_BYTES,
+    DESCRIBE_RESPONSE_BUDGET_BYTES,
+    RESPONSE_BUDGET_BYTES,
+    enforce_response_budget,
+)
+from .runtime import capabilities, forecast, inspect_dataset
+from .tool_schema import (
+    CONTEXT_EVENTS_PROPERTY as _CONTEXT_EVENTS_PROPERTY,
+    COVARIATE_MAPPING_PROPERTY as _COVARIATE_MAPPING_PROPERTY,
+    COVARIATES_PROPERTY as _COVARIATES_PROPERTY,
+    INPUT_PROPERTIES as _INPUT_PROPERTIES,
+    OBSERVATIONS_PROPERTY as _OBSERVATIONS_PROPERTY,
+    REPLAY_PROPERTIES as _REPLAY_PROPERTIES,
+    TEMPORAL_QUESTIONS_PROPERTY as _TEMPORAL_QUESTIONS_PROPERTY,
+)
+
+FORECAST_PREVIEW_ROWS = 12
+FORECAST_PREVIEW_SMALL_HORIZON = 16
+
+
+def _bounded_forecast_preview(rows: list[Any]) -> tuple[list[Any], int]:
+    """Keep both decision-near and horizon-end rows in a brief response."""
+    # Avoid hiding a support-tier transition to save only a handful of rows;
+    # short split-horizon answers are more useful intact.
+    if len(rows) <= FORECAST_PREVIEW_SMALL_HORIZON:
+        return list(rows), 0
+    head = FORECAST_PREVIEW_ROWS // 2
+    tail = FORECAST_PREVIEW_ROWS - head
+    return [*rows[:head], *rows[-tail:]], len(rows) - FORECAST_PREVIEW_ROWS
+
+def apply_response_contract(payload: dict[str, Any]) -> dict[str, Any]:
+    """Add the compact agent-facing envelope without rewriting artifacts.
+
+    Existing verb payloads remain authoritative and byte-compatible on disk;
+    this projection adds stable routing fields to MCP responses. Repeated
+    warning text is grouped with a count instead of asking an agent to infer
+    prevalence from prose. The complete per-series warnings remain in the
+    artifact and in each result.
+    """
+    if payload.get("status") == "error" or "error" in payload:
+        from .reasoning_boundary import apply_reasoning_boundary
+        return apply_reasoning_boundary(payload)
+    result = dict(payload)
+
+    if "artifact_id" not in result:
+        for key in ("forecast_id", "investigation_id", "anomaly_id",
+                    "decision_id", "monitor_id", "route_id"):
+            if result.get(key):
+                result["artifact_id"] = result[key]
+                break
+
+    entries = [item for item in result.get("results", [])
+               if isinstance(item, dict)]
+    triggers = [item for item in result.get("triggers", [])
+                if isinstance(item, dict)]
+    warning_series: dict[str, set[str]] = {}
+    warning_examples: dict[str, list[str]] = {}
+    recoveries: list[dict[str, Any]] = []
+
+    def add_recoveries(assessment: object) -> None:
+        if not isinstance(assessment, dict):
+            return
+        actions = assessment.get("recovery_actions") or []
+        if not isinstance(actions, list):
+            return
+        for action in actions:
+            if isinstance(action, dict) and action not in recoveries:
+                recoveries.append(action)
+
+    root_recoveries = result.get("recovery_actions") or []
+    if isinstance(root_recoveries, list):
+        for action in root_recoveries:
+            if isinstance(action, dict) and action not in recoveries:
+                recoveries.append(action)
+    add_recoveries(result.get("support_assessment"))
+    from .support import payload_support_tier
+    for entry in entries:
+        assessment = entry.get("support_assessment") or {}
+        series = str(entry.get("series") or "__default__")
+        for warning in entry.get("warnings") or []:
+            text = str(warning)
+            warning_series.setdefault(text, set()).add(series)
+            examples = warning_examples.setdefault(text, [])
+            if series not in examples and len(examples) < 3:
+                examples.append(series)
+        add_recoveries(assessment)
+    for trigger in triggers:
+        add_recoveries(trigger.get("support_assessment"))
+
+    tier_floor = payload_support_tier(result)
+    if tier_floor is not None:
+        # Recompute rather than trusting a pre-existing summary. A bounded
+        # response may carry a floor calculated before its weakest series was
+        # moved into triage.remainder_tiers.
+        result["tier_floor"] = tier_floor
+    if warning_series and "limitation_groups" not in result:
+        result["limitation_groups"] = [
+            {
+                "code": "RUNTIME_WARNING",
+                "message": message,
+                "affected_series_count": len(warning_series[message]),
+                "examples": warning_examples[message],
+            }
+            for message in sorted(warning_series)
+        ]
+    bounded_threshold_brief = any(
+        isinstance(entry.get("threshold"), dict)
+        and bool(entry["threshold"].get("bounded_assessment"))
+        for entry in entries)
+    if (result.get("format") == "brief" and result.get("limitation_groups")
+            and bounded_threshold_brief):
+        # The grouped form above retains every distinct warning verbatim plus
+        # affected-series counts/examples. Repeating those same strings under
+        # every result makes wide and fold-starved threshold answers expensive
+        # without adding evidence. The sealed artifact remains the per-series
+        # source.
+        for entry in entries:
+            warnings = {str(value) for value in entry.get("warnings") or []}
+            assessment = entry.get("support_assessment") or {}
+            if isinstance(assessment, dict):
+                compact = dict(assessment)
+                reasons = [dict(value) for value in
+                           compact.get("reasons") or []]
+                grouped_reason_codes = {
+                    "warning", "degraded_evaluation",
+                    "selection_underpowered",
+                } if warnings else set()
+                filtered_reasons = [
+                    value for value in reasons
+                    if value.get("code") not in grouped_reason_codes
+                ]
+                if len(filtered_reasons) != len(reasons):
+                    compact["reasons"] = filtered_reasons
+                    compact["grouped_reason_codes"] = sorted({
+                        str(value.get("code")) for value in reasons
+                        if value.get("code") in grouped_reason_codes})
+                disclosures = [dict(value) for value in
+                               compact.get("disclosures") or []]
+                if entry.get("model_assisted"):
+                    filtered_disclosures = [
+                        value for value in disclosures
+                        if value.get("code") != "model_assisted_lane"]
+                    if len(filtered_disclosures) != len(disclosures):
+                        compact["disclosures"] = filtered_disclosures
+                entry["support_assessment"] = compact
+            threshold = entry.get("threshold") or {}
+            if isinstance(threshold, dict) and threshold.get(
+                    "bounded_assessment"):
+                # The structured threshold block carries probability status,
+                # range relation, conflict, and automation eligibility. Drop
+                # only the note that restates those same fields in prose.
+                notes = [
+                    note for note in entry.get("notes") or []
+                    if not (str(note).startswith("threshold ")
+                            and "no crossing probability" in str(note))
+                ]
+                if notes:
+                    entry["notes"] = notes
+                else:
+                    entry.pop("notes", None)
+            if entry.get("warnings"):
+                entry.pop("warnings", None)
+        # artifact_path already names the complete result; this prose merely
+        # restated the same pointer and consumed every subsequent agent turn.
+        result.pop("note", None)
+    if recoveries:
+        result["recovery_actions"] = recoveries
+    from .reasoning_boundary import apply_reasoning_boundary
+    bounded = apply_reasoning_boundary(result)
+    if (bounded.get("format") == "brief"
+            and bounded.get("agent_response_contract")
+            and isinstance(bounded.get("reasoning"), dict)):
+        # The sealed response contract supersedes the generic reasoning
+        # frame's duplicate pointers. Keep the terminal/sufficiency fields
+        # hosts already consume, while full responses retain the complete
+        # reasoning receipt.
+        reasoning = bounded["reasoning"]
+        compact_reasoning: dict[str, Any] = {}
+        resolution = reasoning.get("resolution")
+        if isinstance(resolution, dict) and resolution.get("kind"):
+            compact_reasoning["resolution"] = {
+                "kind": resolution["kind"]}
+        bounded["reasoning"] = compact_reasoning
+    return bounded
+
+
+def compact_publication_for_wire(payload: dict[str, Any]) -> dict[str, Any]:
+    """Project a signed publication without repeating its forecast arrays.
+
+    The complete, verifiable receipt remains at ``publication_path``.  Agents
+    get the decision contract and authority fields needed to reason or invoke
+    ``gnomon_select_scenario``; requesting ``format=full`` bypasses this
+    projection at the runner boundary.
+    """
+    publication = payload.get("publication")
+    path = payload.get("publication_path")
+    if not isinstance(publication, dict) or not path:
+        return payload
+    keys = (
+        "schema_version", "artifact_id", "mode", "recommended_scenario_id",
+        "recommended_support", "primary_scenario_id",
+        "primary_forecast_unchanged", "scenario_count",
+        "context_dispositions", "context_summary", "temporal_state",
+        "scenario_selection",
+        "recommendation_authority", "automation", "calibration_lineage",
+        "selection_contract",
+        "candidate_admission", "publication_seal_sha256",
+    )
+    projection = {key: publication[key] for key in keys if key in publication}
+    dispositions = list(projection.get("context_dispositions") or [])
+    if dispositions and isinstance(projection.get("context_summary"), dict):
+        # Global automation may truthfully say "not requested", but that is
+        # not the context-authority answer an agent needs.  Put the two
+        # context-specific facts beside the disposition so the model never
+        # has to infer them from unrelated publication policy fields.
+        projection["context_summary"] = {
+            **projection["context_summary"],
+            "canonical_primary_preserved": bool(
+                publication.get("primary_forecast_unchanged", True)),
+            "context_evidence_automation_eligible": False,
+        }
+    if len(dispositions) > 4:
+        counts: dict[str, int] = {}
+        for disposition in dispositions:
+            label = str(disposition.get("disposition") or "unknown")
+            counts[label] = counts.get(label, 0) + 1
+        grouped: dict[str, dict[str, Any]] = {}
+        for disposition in dispositions:
+            evidence = disposition.get("source_evidence") or {}
+            source = evidence.get("source") or {}
+            signature = json.dumps({
+                "disposition": disposition.get("disposition"),
+                "reason_code": disposition.get("reason_code"),
+                "reason": disposition.get("reason"),
+                "source_type": source.get("type"),
+                "source_reference": source.get("reference"),
+                "known_at": evidence.get("known_at"),
+                "receipt_id": evidence.get("receipt_id"),
+            }, sort_keys=True, separators=(",", ":"))
+            if signature not in grouped:
+                grouped[signature] = {
+                    **disposition,
+                    "representative_context_id": disposition.get(
+                        "context_id"),
+                    "count": 0,
+                }
+            grouped[signature]["count"] += 1
+        visible_dispositions = list(grouped.values())[:4]
+        projection["context_dispositions"] = visible_dispositions
+        projection["context_disposition_counts"] = counts
+        projection["context_dispositions_omitted"] = (
+            len(dispositions) - len(visible_dispositions))
+        projection["context_dispositions_location"] = (
+            "receipt.context_dispositions")
+    contract = projection.get("selection_contract")
+    if isinstance(contract, dict):
+        claims = [item for item in contract.get("claims") or []
+                  if isinstance(item, dict)]
+        claim_groups: dict[str, dict[str, Any]] = {}
+        for claim in claims:
+            shared = {key: value for key, value in claim.items()
+                      if key != "claim_id"}
+            signature = json.dumps(
+                shared, sort_keys=True, separators=(",", ":"))
+            if signature not in claim_groups:
+                claim_groups[signature] = {
+                    **claim,
+                    "representative_claim_id": claim.get("claim_id"),
+                    "count": 0,
+                }
+            claim_groups[signature]["count"] += 1
+        compact_contract = {key: contract.get(key) for key in (
+            "selection_required", "deterministic_scenario_id",
+            "selection_basis")}
+        if contract.get("selection_required") is True:
+            compact_contract.update({
+                "instruction": (
+                    "Rank eligible scenario_ids using cited claims and "
+                    "counterevidence; give confidence, rationale, and what "
+                    "would change the selection. Do not alter numbers, "
+                    "support, or automation."),
+                "scenarios": [{
+                    key: ((list(scenario.get(key) or [])[:4])
+                          if key == "claim_ids" else scenario.get(key))
+                    for key in (
+                        "scenario_id", "role", "support", "claim_ids",
+                        "human_selection_eligible", "forecast_seal", "summary")
+                    if scenario.get(key) is not None
+                } | ({
+                    "claim_count": len(scenario.get("claim_ids") or []),
+                    "claim_ids_omitted": max(
+                        0, len(scenario.get("claim_ids") or []) - 4),
+                    "claim_ids_location": "receipt.selection_contract.scenarios",
+                } if len(scenario.get("claim_ids") or []) > 4 else {}) | ({"evidence": {
+                    key: value for key, value in
+                    (scenario.get("derivation") or {}).items()
+                    if value not in (None, False, [], {}, "not_applicable")
+                }} if any(value not in (None, False, [], {}, "not_applicable")
+                          for value in (scenario.get("derivation") or {}).values())
+                     else {})
+                    for scenario in contract.get("scenarios") or []
+                    if isinstance(scenario, dict)],
+                "claims": list(claim_groups.values())[:4],
+                **({
+                    "claim_count": len(claims),
+                    "claims_omitted": len(claims) - min(
+                        4, len(claim_groups)),
+                    "claims_location": "receipt.selection_contract.claims",
+                } if len(claims) > min(4, len(claim_groups)) else {}),
+                "observation_evidence": contract.get(
+                    "observation_evidence") or [],
+            })
+        projection["selection_contract"] = compact_contract
+    projection.update({
+        "projection": "compact",
+        "receipt_path": str(path),
+        "receipt_is_complete_and_sealed": True,
+    })
+    return {**payload, "publication": projection}
+
+
+def apply_temporal_grounding(payload: dict[str, Any]) -> dict[str, Any]:
+    """Echo the data boundary and wall clock on every data-bearing response."""
+    from datetime import datetime, timezone
+
+    result = dict(payload)
+    now = datetime.now(timezone.utc)
+    result["wall_clock_now"] = now.isoformat()
+    series_end = result.get("series_end")
+    frequency = result.get("frequency")
+    if series_end is None:
+        series = result.get("series") or []
+        ends = [row.get("end") for row in series if isinstance(row, dict) and row.get("end")]
+        if ends:
+            series_end = max(ends)
+        frequency = (result.get("schema") or {}).get("frequency")
+    if series_end is None:
+        rows = result.get("results") or []
+        first = next((row.get("forecast", [])[0].get("timestamp")
+                      for row in rows if isinstance(row, dict) and row.get("forecast")), None)
+        frequency = frequency or ((result.get("task") or {}).get("schema") or {}).get("frequency")
+        if first and frequency:
+            from .temporal import frequency_step
+            step = frequency_step(str(frequency))
+            if step is not None:
+                parsed = datetime.fromisoformat(str(first).replace("Z", "+00:00"))
+                series_end = (parsed - step).isoformat()
+    if series_end is not None:
+        result["series_end"] = str(series_end)
+        try:
+            parsed_end = datetime.fromisoformat(str(series_end).replace("Z", "+00:00"))
+            if parsed_end.tzinfo is None:
+                parsed_end = parsed_end.replace(tzinfo=timezone.utc)
+            gap = now - parsed_end.astimezone(timezone.utc)
+            from .temporal import frequency_step
+            step = frequency_step(str(frequency)) if frequency else None
+            if step is not None and gap > step:
+                result["staleness"] = (
+                    f"The latest observation is {gap.days} days behind the wall clock "
+                    f"({series_end} versus {result['wall_clock_now']})."
+                )
+        except (TypeError, ValueError):
+            pass
+    return result
+
+
+def _triage_artifact_identity(payload: dict[str, Any]) -> dict[str, Any]:
+    """Artifact identity fields the triage block carries verbatim.
+
+    Ranking rules, preserved remainders, and artifact identity are canonical
+    response fields copied deterministically — never facts an LLM must
+    remember to restate from elsewhere in the payload.
+    """
+    identity = {key: payload.get(key) for key in ("forecast_id", "artifact_path")
+                if payload.get(key) is not None}
+    return {"artifact": identity} if identity else {}
+
+
+def triage_wide_response(payload: dict[str, Any], top_k: int = 3) -> dict[str, Any]:
+    """Bound a wide response while leaving the immutable artifact complete.
+
+    The bounded view refreshes the one canonical ``triage`` block instead of
+    attaching a second, differently-shaped summary: the ranking rule, the
+    most notable series, the preserved remainder, and the artifact identity
+    stay deterministic fields with one name each, whichever surface bounded
+    the response.
+    """
+    rows = payload.get("results")
+    if not isinstance(rows, list) or len(rows) <= top_k:
+        return payload
+    ranked = sorted(rows, key=lambda row: (
+        -float(row.get("notability", 0.0)), str(row.get("series", ""))))
+    remainder = ranked[top_k:]
+    tier_counts: dict[str, int] = {}
+    from .support import result_support_tier
+    for row in remainder:
+        tier = str(result_support_tier(row) or "unknown")
+        tier_counts[tier] = tier_counts.get(tier, 0) + 1
+    existing = (payload.get("triage")
+                if isinstance(payload.get("triage"), dict) else {})
+    return {
+        **payload,
+        "results": ranked[:top_k],
+        "triage": {
+            **existing,
+            "series_count": len(rows), "returned": top_k,
+            "ranking_rule": existing.get(
+                "ranking_rule",
+                "threshold crossing, then relative forecast movement"),
+            "most_notable": (str(ranked[0].get("series"))
+                             if isinstance(ranked[0], dict)
+                             and ranked[0].get("series") is not None else
+                             existing.get("most_notable")),
+            "remainder_count": len(remainder),
+            "remainder_tiers": dict(sorted(tier_counts.items())),
+            "remainder_preserved": True,
+            **_triage_artifact_identity(payload),
+            "full_results": existing.get("full_results") or (
+                "Use gnomon_get_artifact with series/fields/where/"
+                "order_by/limit selectors on artifact_path."),
+        },
+    }
+
+
+def compact_support_details(
+    payload: dict[str, Any], *, force: bool = False,
+) -> dict[str, Any]:
+    """Keep claim-bearing support fields inline; sensitivity lives in artifact."""
+    rows = payload.get("results")
+    if not isinstance(rows, list) or (len(rows) <= 1 and not force):
+        return payload
+    compacted = []
+    # The per-result support contract remains frozen for existing consumers.
+    # Sensitivity is diagnostic bulk; the complete block remains in artifact.
+    keep = {"status", "reasons", "grouped_reason_codes",
+            "recovery_actions", "assumptions", "disclosures",
+            "legacy_support", "measured_coverage"}
+    for row in rows:
+        if not isinstance(row, dict) or not isinstance(row.get("support_assessment"), dict):
+            compacted.append(row)
+            continue
+        assessment = row["support_assessment"]
+        projected = {key: value for key, value in assessment.items()
+                     if key in keep and value not in (None, [], {})}
+        compacted.append({**row, "support_assessment": projected})
+    return {**payload, "results": compacted}
+
+#: Tools whose missing time_column/target_column are inferred from the file
+#: when it leaves no choice — the same set of verbs the CLI infers for.
+#: gnomon_ingest is deliberately absent: a write to the store under guessed
+#: columns would persist the guess.
+_SCHEMA_INFERENCE_TOOLS: frozenset[str] = frozenset({
+    "gnomon_inspect", "gnomon_describe", "gnomon_forecast",
+    "gnomon_validate_covariates",
+    "gnomon_preflight_context", "gnomon_route",
+    "gnomon_investigate_change", "gnomon_detect_anomalies",
+    "gnomon_decide", "gnomon_monitor", "gnomon_run",
+})
+
+
+def disclose_assumptions(payload: Any, assumptions: list[str]) -> Any:
+    """Attach caller-level inferences to every result's support assessment.
+
+    An inference the caller is not told about is a guess. These ride in the
+    same `assumptions` list as `known_time_assumed`, so an agent reading the
+    envelope finds them where it already looks. Payloads without a results
+    list carry them at the top level instead.
+    """
+    if not assumptions or not isinstance(payload, dict):
+        return payload
+    results = payload.get("results")
+    if not isinstance(results, list) or not results:
+        return {**payload, "assumptions": assumptions}
+    decorated = []
+    for result in results:
+        if not isinstance(result, dict):
+            decorated.append(result)
+            continue
+        assessment = dict(result.get("support_assessment") or {})
+        assessment["assumptions"] = list(assessment.get("assumptions", [])) + assumptions
+        decorated.append({**result, "support_assessment": assessment})
+    return {**payload, "results": decorated}
+
+
+def _resolve_schema_arguments(
+    arguments: dict[str, Any], tool_name: str,
+) -> tuple[dict[str, Any], list[str]]:
+    """Fill ``time_column``/``target_column`` from the file, or say why not.
+
+    The CLI learned this in v0.4 because a bare missing-argument failure on
+    an obvious two-column file was the most common first-run failure there
+    is; the tool surface had kept the old behaviour. Same rules as the CLI:
+    strict inference (exactly one column qualifies), every inference
+    disclosed as an assumption, ambiguity refused with the candidates named
+    — in tool-parameter vocabulary, not CLI flags."""
+    if arguments.get("time_column") and arguments.get("target_column"):
+        return arguments, []
+    from .contracts import GnomonError
+
+    source = str(arguments.get("input") or "")
+    missing = [name for name in ("time_column", "target_column")
+               if not arguments.get(name)]
+    if source.startswith("store:"):
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "time_column and target_column are required for store:<dataset> "
+            "inputs; a stored dataset has no file header to infer from.",
+            {"input": source, "missing_parameters": missing},
+            repair_options=[{
+                "action": "supply_arguments",
+                "description": "Pass time_column and target_column "
+                               "explicitly; gnomon_list_datasets shows each "
+                               "dataset's variables.",
+                "arguments": missing,
+            }],
+        )
+    from .data import infer_schema_columns
+
+    inferred = infer_schema_columns(source)
+    resolved = dict(arguments)
+    assumptions: list[str] = []
+    for parameter, key, candidates_key in (
+        ("time_column", "time", "time_candidates"),
+        ("target_column", "target", "target_candidates"),
+    ):
+        if resolved.get(parameter):
+            continue
+        chosen = inferred[key]
+        if chosen is None:
+            candidates = list(inferred[candidates_key])
+            if parameter == "target_column" and candidates \
+                    and tool_name in {"gnomon_inspect", "gnomon_describe"}:
+                # Inspection is read-only and cheap, and a caller who
+                # names no target on a wide file is asking about the
+                # file: inspect every qualifying column rather than
+                # refuse. Not a guess — nothing is chosen over anything
+                # else, and the expansion is disclosed. Forecasting
+                # still refuses loudly: acting on one guessed column
+                # (or paying for all of them) is a real choice.
+                resolved[parameter] = ",".join(candidates)
+                assumptions.append(
+                    f"target_column was not supplied and "
+                    f"{len(candidates)} columns qualify "
+                    f"({', '.join(candidates)}); all of them were "
+                    f"inspected. Pass target_column to narrow."
+                )
+                continue
+            repairs: list[dict[str, Any]] = [{
+                "action": "supply_arguments",
+                "description": f"Pass {parameter} explicitly."
+                               + (f" Candidates: {', '.join(candidates)}."
+                                  if candidates else ""),
+                "arguments": [parameter],
+            }]
+            if candidates:
+                repairs = [
+                    {
+                        "action": "supply_arguments",
+                        "description": f"Retry with {parameter}={candidate!r}.",
+                        "tool_call": {
+                            "name": tool_name,
+                            "arguments": {**resolved, parameter: candidate},
+                        },
+                    }
+                    for candidate in candidates
+                ]
+            if parameter == "target_column" and tool_name == "gnomon_forecast":
+                repairs.append({
+                    "action": "forecast_all_candidates",
+                    "description": "Or batch every numeric column in one "
+                                   "run: pass target_column \"auto\".",
+                    "tool_call": {
+                        "name": tool_name,
+                        "arguments": {**resolved, parameter: "auto"},
+                    },
+                })
+            raise GnomonError(
+                "AMBIGUOUS_SCHEMA",
+                f"{parameter} was not supplied and cannot be inferred: "
+                + (f"{len(candidates)} columns qualify "
+                   f"({', '.join(candidates)})."
+                   if candidates else "no column qualifies.")
+                + f" Pass {parameter} explicitly; every other parameter is "
+                  f"inferred from the file.",
+                {"parameter": parameter, "candidates": candidates,
+                 "columns_examined": list(inferred["columns"])},
+                repair_options=repairs,
+            )
+        resolved[parameter] = chosen
+        assumptions.append(
+            f"{parameter} was not supplied; inferred as {chosen!r}, the only "
+            f"column in the input that qualifies."
+        )
+    return resolved, assumptions
+
+
+def _default_forecast_horizon(arguments: dict[str, Any]) -> int:
+    """One seasonal period of the input's own grid — the CLI's default."""
+    from .pipeline import load_stage
+    from .temporal import detect_season
+
+    target_spec = str(arguments["target_column"])
+    if "," in target_spec or target_spec.strip().lower() == "auto":
+        # Borrow one concrete column so the loader sees a real name; the
+        # grid and season are shared across a wide file's channels.
+        from .data import resolve_target_spec
+
+        target_spec = resolve_target_spec(
+            str(arguments["input"]), target_spec,
+            time_column=arguments.get("time_column"),
+            series_column=arguments.get("series_column"),
+        )[0]
+    loaded = load_stage(
+        arguments["input"],
+        time_column=arguments["time_column"],
+        target_column=target_spec,
+        series_column=arguments.get("series_column"),
+        frequency=arguments.get("frequency"),
+        as_of=_parse_as_of(arguments.get("as_of")),
+        store_path=arguments.get("store_path"),
+        repair=str(arguments.get("repair", "safe")),
+        regrid=arguments.get("regrid"),
+    )
+    longest = max(loaded.groups.values(), key=len, default=[])
+    season, _, _ = detect_season([item.value for item in longest], loaded.frequency)
+    return max(1, int(season))
+
+
+def _result_authority_projection(item: Any) -> dict[str, Any]:
+    """Disambiguate path support only when another claim is weaker."""
+    from .support import forecast_path_support_tier, result_support_tier
+
+    path_tier = forecast_path_support_tier(item)
+    result_tier = result_support_tier(item)
+    if result_tier is None or result_tier == path_tier:
+        return {}
+    return {"support_scope": "forecast_path", "tier_floor": result_tier}
+
+
+def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
+    """The compact forecast payload shared by the CLI and every adapter.
+
+    The first forecast rows are inlined so an agent can quote numbers without
+    a second read; the full series always lives in forecast.csv."""
+    from .support import (
+        artifact_headline, forecast_notability, payload_support_tier,
+    )
+    from .temporal_profile import compact_temporal_profile
+
+    def response_facts(item: Any) -> dict[str, Any] | None:
+        if not item.temporal_facts:
+            return None
+        facts = dict(item.temporal_facts)
+        if facts.get("temporal_profile") and item.support not in {
+                "best_effort", "unsupported", "invalid", "inconclusive"}:
+            facts["temporal_profile"] = compact_temporal_profile(
+                facts["temporal_profile"])
+        else:
+            facts.pop("temporal_profile", None)
+        return facts
+
+    payload = {
+        "schema_version": "0.1",
+        "status": "complete",
+        "forecast_id": artifact.forecast_id,
+        "artifact_path": str(path),
+        # One deterministic sentence, template-generated from the
+        # assessment, naming the weakest tier present — the sentence an
+        # agent may relay verbatim. Required in every format.
+        "headline": artifact_headline(artifact.results),
+        **_forecast_temporal_boundary(artifact),
+        "results": [
+            {
+                "series": item.series, "support": item.support,
+                **_result_authority_projection(item),
+                "support_assessment": item.support_assessment,
+                "selected_model": item.selected_model,
+                "interval_coverage": item.interval_coverage,
+                "warnings": item.warnings,
+                # Epistemic disclosures ride in every format: brief already
+                # carried notes; full dropping them meant the verbose mode
+                # disclosed less than the compact one.
+                "notes": item.notes,
+                "forecast_preview": item.forecast[:FORECAST_PREVIEW_ROWS],
+                "forecast_rows": len(item.forecast),
+                **({
+                    "primary_forecast_preview":
+                        item.primary_forecast[:FORECAST_PREVIEW_ROWS],
+                    "primary_forecast_rows": len(item.primary_forecast),
+                    "forecast_role": "context_conditioned_projection",
+                    "primary_forecast_location":
+                        "artifact.results[].primary_forecast",
+                } if item.primary_forecast else {
+                    "forecast_role": "primary_forecast",
+                }),
+                "threshold": item.threshold,
+                "context": item.context,
+                "context_outcome": item.context_outcome,
+                **({"sensitivity_scenarios": [{
+                    "events": scenario.get("events", []),
+                    "support": scenario.get("support"),
+                    "primary_forecast_changed": False,
+                    "assumed_effect": scenario.get("assumed_effect"),
+                    "assumed_effect_unit": scenario.get("assumed_effect_unit"),
+                    "assumptions": scenario.get("assumptions", []),
+                    "forecast_rows": len(scenario.get("forecast", [])),
+                    "location": "artifact.results[].sensitivity_scenarios",
+                } for scenario in item.sensitivity_scenarios]}
+                   if item.sensitivity_scenarios else {}),
+                "covariates": item.covariates,
+                "notability": forecast_notability(item),
+                "execution_identity": _execution_identity(artifact, item),
+                **({"temporal_facts": response_facts(item)}
+                   if item.temporal_facts else {}),
+                **_model_assisted_summary(item),
+            }
+            for item in artifact.results
+        ],
+    }
+    _attach_tsfm_on_ramp(payload, artifact)
+    payload = _attach_multiseries_triage(payload)
+    payload["tier_floor"] = payload_support_tier(payload)
+    return payload
+
+
+def _model_assisted_summary(item: Any) -> dict[str, Any]:
+    """The lane's bounded response form: label, model, validation, and a
+    points preview — the full points array stays in the artifact. Absent
+    entirely when the series earned no lane, so untouched responses stay
+    byte-identical."""
+    lane = getattr(item, "model_assisted", None)
+    if not lane:
+        return {}
+    points = list(lane.get("points") or [])
+    return {"model_assisted": {
+        "support": lane.get("support"),
+        "selected_model": lane.get("selected_model"),
+        "points_preview": points[:FORECAST_PREVIEW_ROWS],
+        "points_total": len(points),
+        "timestamps_match_primary_forecast": True,
+        "validation": lane.get("validation"),
+        "automation_eligible": False,
+        "primary_forecast_unchanged": True,
+        "location": "artifact.results[].model_assisted",
+    }}
+
+
+def _attach_tsfm_on_ramp(payload: dict[str, Any],
+                         artifact: ForecastArtifact) -> None:
+    """Turn the eligible-but-absent disclosure into an exact one-command path."""
+    absent = [note for result in artifact.results for note in result.notes
+              if note.startswith("No foundation-model candidate competed:")]
+    if not absent:
+        return
+    preferred = "toto2_4m" if any("toto2_4m" in note for note in absent) \
+        else None
+    if preferred is None:
+        return
+    payload["tsfm_on_ramp"] = {
+        "candidate": preferred,
+        "reason": "eligible for at least one series but not installed",
+        "command": f"gnomon tsfm install {preferred}",
+        "mcp_tool_call": {
+            "name": "gnomon_install_tsfm",
+            "arguments": {"name": preferred},
+        },
+        "mcp_profile_required": "full",
+        "admission": (
+            "After installation the candidate enters the same out-of-sample "
+            "contest; installation does not guarantee publication."
+        ),
+    }
+
+
+def _compact_sensitivity_projection(items: list[dict[str, Any]]) \
+        -> list[dict[str, Any]]:
+    """Group numerically identical scenarios for a bounded wire response."""
+    def compact_effect(effect: Any) -> dict[str, Any] | None:
+        if not isinstance(effect, dict):
+            return None
+        distribution = effect.get("distribution") or {}
+        provenance = effect.get("provenance") or {}
+        return {
+            "shape": effect.get("shape"),
+            "distribution": {
+                key: distribution.get(key) for key in (
+                    "distribution", "location", "lower", "upper", "unit")
+                if distribution.get(key) is not None
+            },
+            "provenance": {
+                key: provenance.get(key) for key in (
+                    "provenance_class", "observed", "known_at")
+                if provenance.get(key) is not None
+            },
+        }
+
+    grouped: dict[str, dict[str, Any]] = {}
+    for scenario in items:
+        assumptions = [str(value) for value in scenario.get("assumptions", [])
+                       if not str(value).startswith("assumes ")]
+        key = json.dumps({
+            "support": scenario.get("support"),
+            "assumed_effect": scenario.get("assumed_effect"),
+            "assumed_effect_unit": scenario.get("assumed_effect_unit"),
+            "assumptions": assumptions,
+            "effect": scenario.get("effect"),
+            "forecast": scenario.get("forecast") or [],
+        }, sort_keys=True, default=str, separators=(",", ":"))
+        events = [str(value) for value in scenario.get("events", [])]
+        if key not in grouped:
+            grouped[key] = {
+                "events": [], "support": scenario.get("support"),
+                "primary_forecast_changed": False,
+                **({"assumed_effect": scenario.get("assumed_effect")}
+                   if scenario.get("assumed_effect") is not None else {}),
+                **({"assumed_effect_unit": scenario.get(
+                    "assumed_effect_unit")}
+                   if scenario.get("assumed_effect_unit") is not None else {}),
+                "assumptions": assumptions,
+                **({"effect": compact_effect(scenario.get("effect")),
+                    "consequence": scenario.get("consequence"),
+                    "consequence_summary": scenario.get(
+                        "consequence_summary")}
+                   if (scenario.get("effect") and scenario.get("support") ==
+                       "prior_assisted_structural") else {}),
+                "automation_eligible": bool(
+                    scenario.get("automation_eligible", False)),
+                "selection_eligible": bool(
+                    scenario.get("selection_eligible", True)),
+                **({"intervals_available": False}
+                   if scenario.get("intervals_available") is False else {}),
+                "forecast_rows": len(scenario.get("forecast", [])),
+                "location": "artifact.results[].sensitivity_scenarios",
+            }
+        grouped[key]["events"].extend(events)
+    projected = []
+    for scenario in grouped.values():
+        events = sorted(set(scenario["events"]))
+        scenario["event_count"] = len(events)
+        scenario["events"] = events[:4]
+        if len(events) > 4:
+            scenario["events_omitted"] = len(events) - 4
+        projected.append(scenario)
+    return projected
+
+
+def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
+    """The compact forecast payload: q50 path, one q10–q90 interval, the
+    selection, and every disclosure — roughly summary.md as JSON.
+
+    What it drops is bulk only: the extra quantile levels, the raw
+    `point` path beside its bias correction, and the context/covariate
+    gate detail (all still in the artifact on disk, which is written
+    unchanged). What it may never drop is epistemics: the support state,
+    every warning, every abstention reason, every recovery action, and
+    every disclosure ride along verbatim — an abstention serialises the
+    same structured support assessment full mode carries. Hiding
+    disclosures is the one thing this codebase exists to not do.
+    """
+    from .support import forecast_notability, payload_support_tier
+    from .temporal_profile import compact_temporal_profile
+
+    def context_outcome_projection(item: Any) -> dict[str, Any] | None:
+        if not item.context_outcome:
+            return None
+        projected = dict(item.context_outcome)
+        changed = projected.pop("primary_forecast_changed", None)
+        if changed is not None:
+            # The persisted v0.2 field means that the selected conditional
+            # projection differs from the history-only primary. Its old name
+            # is easily misread as mutation, so the public brief names the
+            # distinction while the frozen artifact remains byte-compatible.
+            projected["selected_projection_differs_from_primary"] = bool(changed)
+            projected["canonical_primary_preserved"] = bool(
+                projected.get("canonical_primary_preserved", True))
+        canonical_preserved = bool(
+            projected.get("canonical_primary_preserved", True))
+        projection_differs = bool(
+            projected.get("selected_projection_differs_from_primary", False))
+        automation_eligible = projected.get("automation_eligible") is True
+        projected["authority_summary"] = (
+            ("Context changed the selected conditional projection; "
+             "the canonical primary forecast remains preserved. "
+             if projection_differs else
+             "Context did not change the canonical primary forecast. ") +
+            ("An explicit automation policy is still required."
+             if automation_eligible else
+             "Context evidence alone cannot authorize automation.")
+        )
+        projected["canonical_primary_preserved"] = canonical_preserved
+        # Repeated operational events can number in the hundreds.  Their
+        # individual receipts remain in the immutable artifact; the agent
+        # response carries the decision-relevant aggregate and a bounded
+        # preview so context does not crowd the forecast out of its budget.
+        events = list(projected.get("events") or [])
+        if len(events) > 4:
+            projected["event_count"] = len(events)
+            projected["events"] = events[:4]
+            projected["events_omitted"] = len(events) - 4
+            projected["events_location"] = (
+                "artifact.results[].context_outcome.events")
+        context_evidence = list(projected.get("context_evidence") or [])
+        if len(context_evidence) > 4:
+            evidence_groups: dict[str, dict[str, Any]] = {}
+            for evidence in context_evidence:
+                source = evidence.get("source") or {}
+                # Missing provenance remains distinct; only exact validated
+                # source identities are safe to collapse for the wire.
+                signature_values = {
+                    "source_type": source.get("type"),
+                    "source_reference": source.get("reference"),
+                    "known_at": evidence.get("known_at"),
+                    "receipt_id": evidence.get("receipt_id"),
+                }
+                if not source.get("reference"):
+                    signature_values["context_id"] = evidence.get(
+                        "context_id")
+                signature = json.dumps(
+                    signature_values, sort_keys=True, separators=(",", ":"))
+                if signature not in evidence_groups:
+                    evidence_groups[signature] = {
+                        **evidence,
+                        "representative_context_id": evidence.get(
+                            "context_id"),
+                        "count": 0,
+                    }
+                evidence_groups[signature]["count"] += 1
+            evidence_preview = list(evidence_groups.values())[:4]
+            projected["context_evidence_count"] = len(context_evidence)
+            projected["context_evidence"] = evidence_preview
+            projected["context_evidence_omitted"] = \
+                len(context_evidence) - len(evidence_preview)
+            projected["context_evidence_location"] = (
+                "artifact.results[].context_outcome.context_evidence")
+        dispositions = list(projected.get("dispositions") or [])
+        if len(dispositions) > 4:
+            counts: dict[str, int] = {}
+            for disposition in dispositions:
+                label = str(disposition.get("disposition") or "unknown")
+                counts[label] = counts.get(label, 0) + 1
+            projected["disposition_counts"] = counts
+            projected["dispositions"] = dispositions[:4]
+            projected["dispositions_omitted"] = len(dispositions) - 4
+            projected["dispositions_location"] = (
+                "artifact.results[].context_outcome.dispositions")
+        hypotheses = list(projected.get("hypotheses") or [])
+        if hypotheses:
+            signatures: dict[str, dict[str, Any]] = {}
+            for hypothesis in hypotheses:
+                signature_fields = {
+                    key: hypothesis.get(key) for key in (
+                        "direction", "duration", "duration_steps",
+                        "effect_family", "entity_kind", "entity_scope",
+                        "grounding_status", "numeric_status",
+                        "may_affect_numbers", "may_affect_primary_forecast",
+                    ) if (key in hypothesis and hypothesis.get(key) is not None
+                          and hypothesis.get(key) != "unknown")
+                }
+                signature = json.dumps(
+                    signature_fields, sort_keys=True, separators=(",", ":"))
+                if signature not in signatures:
+                    signatures[signature] = {
+                        **signature_fields, "count": 0,
+                        "representative_event_id": hypothesis.get("event_id"),
+                    }
+                signatures[signature]["count"] += 1
+            projected["hypothesis_count"] = len(hypotheses)
+            projected["hypotheses"] = list(signatures.values())
+            projected["hypotheses_location"] = (
+                "artifact.results[].context_outcome.hypotheses")
+        if projected.get("conditional_forecasts_produced") == 0:
+            projected.pop("conditional_forecasts_produced", None)
+        excluded = list(projected.get("excluded") or [])
+        if len(excluded) > 4:
+            reason_counts: dict[str, int] = {}
+            reason_examples: dict[str, dict[str, Any]] = {}
+            for exclusion in excluded:
+                reason = str(exclusion.get("reason") or "unspecified")
+                reason_counts[reason] = reason_counts.get(reason, 0) + 1
+                reason_examples.setdefault(reason, exclusion)
+            projected["excluded"] = list(reason_examples.values())[:4]
+            projected["excluded_count"] = len(excluded)
+            projected["excluded_reason_counts"] = reason_counts
+            projected["excluded_omitted"] = len(excluded) - 4
+            projected["excluded_location"] = (
+                "artifact.results[].context_outcome.excluded")
+        return projected
+
+    def response_facts(item: Any) -> dict[str, Any] | None:
+        if not item.temporal_facts:
+            return None
+        facts = dict(item.temporal_facts)
+        if facts.get("temporal_profile") and item.support not in {
+                "best_effort", "unsupported", "invalid", "inconclusive"}:
+            facts["temporal_profile"] = compact_temporal_profile(
+                facts["temporal_profile"])
+        else:
+            facts.pop("temporal_profile", None)
+        return facts
+    results = []
+    for item in artifact.results:
+        preview, omitted_middle = _bounded_forecast_preview(item.forecast)
+        results.append({
+            "series": item.series,
+            "support": item.support,
+            **_result_authority_projection(item),
+            "selected_model": item.selected_model,
+            "interval_coverage": item.interval_coverage,
+            # Verbatim, never summarised: the same objects full mode carries.
+            "warnings": item.warnings,
+            "support_assessment": item.support_assessment,
+            "notes": item.notes,
+            "forecast": [
+                {"timestamp": row["timestamp"], "q50": row["q50"],
+                 "q10": row["q10"], "q90": row["q90"],
+                 # The unstrippable label rides on every row in every
+                 # format; brief may drop quantile levels, never the tier.
+                 **({"tier": row["tier"]} if "tier" in row else {})}
+                for row in preview
+            ],
+            # The row count survives even when the budget trims the rows.
+            "forecast_rows": len(item.forecast),
+            **({"forecast_preview": {
+                "strategy": "first_and_last",
+                "returned_rows": len(preview),
+                "omitted_middle_rows": omitted_middle,
+                "full_path": "artifact.results[].forecast",
+            }} if omitted_middle else {}),
+            **({
+                "primary_forecast_preview": [
+                    {"timestamp": row["timestamp"], "q50": row["q50"],
+                     "q10": row["q10"], "q90": row["q90"],
+                     **({"tier": row["tier"]} if "tier" in row else {})}
+                    for row in item.primary_forecast[:FORECAST_PREVIEW_ROWS]
+                ],
+                "primary_forecast_rows": len(item.primary_forecast),
+                "forecast_role": "context_conditioned_projection",
+                "primary_forecast_location":
+                    "artifact.results[].primary_forecast",
+            } if item.primary_forecast else {
+                "forecast_role": "primary_forecast",
+            }),
+            "notability": forecast_notability(item),
+            "execution_identity": _execution_identity(artifact, item),
+            **({"temporal_facts": response_facts(item)}
+               if item.temporal_facts else {}),
+            **({"threshold": item.threshold} if item.threshold else {}),
+            **({"context_outcome": context_outcome_projection(item)}
+               if item.context_outcome else {}),
+            **({"sensitivity_scenarios": _compact_sensitivity_projection(
+                item.sensitivity_scenarios)}
+               if item.sensitivity_scenarios else {}),
+            **_model_assisted_summary(item),
+        })
+    from .support import artifact_headline
+    payload = {
+        "schema_version": "0.1",
+        "status": "complete",
+        "format": "brief",
+        "forecast_id": artifact.forecast_id,
+        "artifact_path": str(path),
+        "headline": artifact_headline(artifact.results),
+        **_forecast_temporal_boundary(artifact),
+        "note": (
+            "Brief output: q50 with the q10-q90 interval per step. The full "
+            "artifact (all quantile levels, evidence, lineage) is on disk at "
+            "artifact_path, unchanged."
+        ),
+        "results": results,
+    }
+    _attach_tsfm_on_ramp(payload, artifact)
+    payload = _attach_multiseries_triage(payload)
+    payload["tier_floor"] = payload_support_tier(payload)
+    return payload
+
+
+def _execution_identity(artifact: ForecastArtifact, item: Any) -> dict[str, Any]:
+    """Expose the persisted evaluation/publication seam in the first response."""
+    candidate = next((evidence.payload for evidence in artifact.evidence
+                      if evidence.kind == "final_candidate"
+                      and evidence.series == item.series), None)
+    evaluated = dict(candidate) if candidate else {
+        "kind": "builtin", "name": item.selected_model,
+        "data_fingerprint": artifact.source_fingerprint,
+    }
+    published = {"name": item.selected_model,
+                 "data_fingerprint": artifact.source_fingerprint}
+    return {
+        "evaluated": evaluated,
+        "published": published,
+        "publish_matches_evaluated": (
+            evaluated.get("name") == published["name"]),
+        "runtime_version": artifact.runtime_version or None,
+    }
+
+
+def _attach_multiseries_triage(payload: dict[str, Any]) -> dict[str, Any]:
+    """Bounded, typed summary for wide forecasts; the artifact keeps all rows."""
+    results = [item for item in payload.get("results", [])
+               if isinstance(item, dict)]
+    if len(results) <= 3:
+        return payload
+    ranked = sorted(results, key=lambda item: (
+        -float(item.get("notability") or 0.0), str(item.get("series") or "")))
+    notable = [{"series": item.get("series"),
+                "notability": item.get("notability"),
+                "support": item.get("support")}
+               for item in ranked[:3]]
+    return {**payload, "triage": {
+        "series_count": len(results),
+        "ranking_rule": "threshold crossing, then relative path movement",
+        "most_notable": notable[0]["series"] if notable else None,
+        "notable": notable,
+        "remainder_count": len(results) - len(notable),
+        # A bounded response is not data loss: every omitted series remains
+        # addressable in the immutable artifact named below.
+        "remainder_preserved": True,
+        **_triage_artifact_identity(payload),
+        "full_results": {
+            "tool_call": {"name": "gnomon_get_artifact", "arguments": {
+                "artifact_path": payload.get("artifact_path"),
+                "order_by": "notability", "limit": len(results),
+            }},
+        },
+    }}
+
+
+def _forecast_temporal_boundary(artifact: ForecastArtifact) -> dict[str, Any]:
+    """Derive the last observed instant from the first forecast grid point."""
+    from datetime import datetime
+    from .temporal import frequency_step
+
+    first = next((item.forecast[0].get("timestamp") for item in artifact.results
+                  if item.forecast), None)
+    step = frequency_step(artifact.task.schema.frequency)
+    if first is None or step is None:
+        return {"frequency": artifact.task.schema.frequency}
+    parsed = datetime.fromisoformat(str(first).replace("Z", "+00:00"))
+    return {"series_end": (parsed - step).isoformat(),
+            "frequency": artifact.task.schema.frequency}
+
+
+#: Prose longer than this is elided from the brief capabilities view.
+#: Machine-readable facts (names, flags, enums, parameter spellings) are
+#: all shorter; what crosses the line is explanatory prose, which the
+#: full view and the per-section view carry verbatim.
+_CAPABILITIES_PROSE_LIMIT = 100
+
+
+def _brief_capabilities(full: dict[str, Any]) -> dict[str, Any]:
+    """The default capabilities view, sized to the response budget.
+
+    Every top-level section of the full payload is present and every
+    capability *name* (tools, models, operators, macros, features,
+    frequencies, flags) survives verbatim — a brief view that hid a
+    capability would make the command lie about the build. What is
+    elided, and said to be elided, is prose: long explanatory strings
+    and the per-operator / per-TSFM metadata blocks, all of which the
+    caller gets verbatim with ``format: "full"`` or ``sections``.
+    """
+    elided: list[str] = []
+
+    def compact(node: Any, path: str) -> Any:
+        if isinstance(node, dict):
+            out = {}
+            for key, value in node.items():
+                where = f"{path}.{key}" if path else str(key)
+                if isinstance(value, str) and len(value) > _CAPABILITIES_PROSE_LIMIT:
+                    elided.append(where)
+                    continue
+                out[key] = compact(value, where)
+            return out
+        if isinstance(node, list):
+            return [compact(item, path) for item in node]
+        return node
+
+    brief: dict[str, Any] = {}
+    for key, value in full.items():
+        if key in ("operators", "macros") and isinstance(value, dict):
+            # The names are the capability; the per-entry contracts
+            # (summary, minimum data, abstention policy) are detail.
+            brief[key] = {"available": sorted(value)}
+            elided.append(f"{key}.<details>")
+        elif key == "models" and isinstance(value, dict):
+            models = dict(value)
+            matrix = models.get("tsfm_capabilities")
+            if isinstance(matrix, dict):
+                models["tsfm_capabilities"] = {"models": sorted(matrix)}
+                elided.append("models.tsfm_capabilities.<details>")
+            statsforecast = models.get("statsforecast")
+            if isinstance(statsforecast, dict):
+                # Retain every machine-actionable availability and model
+                # name; move explanatory install/admission prose to the full
+                # or named-section view so one optional plugin cannot break
+                # the bounded default response.
+                # In brief form the model names are the capability. Install
+                # state, version range, activation, and admission policy stay
+                # verbatim in the full/named models view.
+                prefix = "statsforecast_"
+                names = sorted(statsforecast.get("models") or [])
+                models["statsforecast"] = {
+                    "prefix": prefix,
+                    "models": [name.removeprefix(prefix) for name in names],
+                }
+                elided.append("models.statsforecast.<details>")
+            brief[key] = compact(models, "models")
+        elif key == "workspace" and isinstance(value, dict):
+            # Absolute checkout paths are environment detail, not a
+            # capability. Repeating cwd inside default_output_dir made the
+            # supposedly bounded brief depend on the host path length (and
+            # overflow in CI). The relative default is directly executable;
+            # exact absolute paths remain available from the full or named
+            # workspace section.
+            brief[key] = {"default_output_dir": "./gnomon-output"}
+            elided.append("workspace.<absolute_paths>")
+        elif key == "general_frequencies" and isinstance(value, dict):
+            # The regex is the executable capability; its prose restatement
+            # is detail available in the named/full view.
+            brief[key] = {"pattern": value.get("pattern")}
+            elided.append("general_frequencies.<details>")
+        elif key == "product_contract" and isinstance(value, dict):
+            # Keep the deployment identity and every withheld public claim in
+            # the ambient view; positioning prose stays in the explicit
+            # section. This remains actionable while fitting even the broad
+            # full-profile tool list inside the fixed response budget.
+            brief[key] = {
+                "default_mcp_profile": value.get("default_mcp_profile"),
+                "offline_builtin_runtime": value.get("offline_builtin_runtime"),
+                "current_evidence_release": value.get("current_evidence_release"),
+                "withheld_claims": sorted(
+                    name for name in (
+                        "forecast_superiority", "agent_choice_lift",
+                        "regulatory_certification",
+                    ) if value.get(name) in {"not_established", "not_claimed"}
+                ),
+            }
+            elided.append("product_contract.<positioning_details>")
+        elif key == "features" and isinstance(value, dict):
+            # A boolean map repeats JSON punctuation and ``true`` for every
+            # feature. Preserve every name and state in two lists; callers
+            # requesting the section or full view still receive the exact
+            # map. This recovered enough budget for the product claim
+            # contract without hiding capabilities.
+            brief[key] = {
+                "enabled": sorted(name for name, enabled in value.items()
+                                  if enabled is True),
+                "disabled": sorted(name for name, enabled in value.items()
+                                   if enabled is False),
+            }
+            elided.append("features.<boolean_map>")
+        else:
+            brief[key] = compact(value, key)
+    brief["view"] = {
+        "format": "brief",
+        "sections_available": sorted(full),
+        "elided": sorted({path.split(".", 1)[0] for path in elided}),
+        "note": "full or sections",
+    }
+    return brief
+
+
+def _run_capabilities(arguments: dict[str, Any]) -> dict[str, Any]:
+    full = capabilities()
+    requested = arguments.get("sections")
+    if requested:
+        from .contracts import GnomonError
+
+        if not isinstance(requested, list) or not all(
+                isinstance(name, str) for name in requested):
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "sections must be an array of section names; "
+                f"available: {', '.join(sorted(full))}.",
+            )
+        unknown = [name for name in requested if name not in full]
+        if unknown:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                f"Unknown capabilities section(s) "
+                f"{', '.join(sorted(unknown))}; available: "
+                f"{', '.join(sorted(full))}.",
+                {"unknown_sections": sorted(unknown),
+                 "sections_available": sorted(full)},
+                repair_options=[{
+                    "action": "supply_arguments",
+                    "description": "Pass section names from "
+                                   "sections_available.",
+                    "arguments": ["sections"],
+                }],
+            )
+        return {
+            "schema_version": full["schema_version"],
+            "runtime_version": full["runtime_version"],
+            **{name: full[name] for name in requested},
+            "view": {"format": "sections",
+                     "sections_available": sorted(full)},
+        }
+    if arguments.get("format") == "full":
+        return full
+    return _brief_capabilities(full)
+
+
+def _run_inspect(arguments: dict[str, Any]) -> dict[str, Any]:
+    target_spec = str(arguments["target_column"])
+    if "," in target_spec or target_spec.strip().lower() == "auto":
+        return _run_inspect_multi(arguments, target_spec)
+    return inspect_dataset(
+        arguments["input"],
+        time_column=arguments["time_column"],
+        target_column=arguments["target_column"],
+        series_column=arguments.get("series_column"),
+        frequency=arguments.get("frequency"),
+        as_of=_parse_as_of(arguments.get("as_of")),
+        store_path=arguments.get("store_path"),
+        regrid=arguments.get("regrid"),
+    )
+
+
+def _run_inspect_multi(arguments: dict[str, Any], target_spec: str) -> dict[str, Any]:
+    """The multi-target branch of gnomon_inspect: a comma list or `auto`
+    in target_column inspects several columns of a wide file in one call
+    — the same expansion gnomon_forecast batches with, so the natural
+    first call on a multi-channel file is one inspect, not one per
+    column (or, before this branch existed, an AMBIGUOUS_SCHEMA round).
+
+    One report per target, keyed by column name (a mapping, not a list,
+    so the response budget's array trim can never drop a channel's
+    report). A column that fails to load carries its error envelope in
+    place — its failure is that column's diagnosis, and it must not
+    block the others any more than an abstaining channel blocks a
+    batched forecast."""
+    from .contracts import GnomonError
+    from .data import resolve_target_spec
+
+    targets = resolve_target_spec(
+        str(arguments["input"]), target_spec,
+        time_column=arguments.get("time_column"),
+        series_column=arguments.get("series_column"),
+    )
+    if len(targets) == 1:
+        return _run_inspect({**arguments, "target_column": targets[0]})
+    shared: dict[str, Any] = {}
+    reports: dict[str, dict[str, Any]] = {}
+    errors: dict[str, GnomonError] = {}
+    for name in targets:
+        try:
+            report = _run_inspect({**arguments, "target_column": name})
+        except GnomonError as error:
+            errors[name] = error
+            reports[name] = {"status": "error", "error": {
+                "code": error.code, "message": error.message,
+                **({"details": error.details} if error.details else {}),
+                **({"repair_options": error.repair_options}
+                   if error.repair_options else {}),
+            }}
+            continue
+        if not shared:
+            shared = {key: report[key] for key in
+                      ("input_path", "source_fingerprint", "columns",
+                       "schema")}
+            shared["schema"] = {**report["schema"],
+                                "target_column": ",".join(targets)}
+        series = report["series"]
+        if len(series) == 1 and series[0].get("name") == "__default__":
+            # The loader names a single unscoped group "__default__"; in
+            # the combined view the column is the honest label.
+            series = [{**series[0], "name": name}]
+        reports[name] = {"status": report["status"], "series": series,
+                         "data_quality": report["data_quality"]}
+    if not reports or len(errors) == len(targets):
+        # Every column failed: the first failure is the file's diagnosis.
+        raise next(iter(errors.values()))
+    valid = [name for name in targets if name not in errors]
+    ranked = sorted(valid, key=lambda name: (
+        -float((reports[name].get("series") or [{}])[0]
+               .get("change", {}).get("absolute_final_step", 0.0)), name))
+    return {
+        "schema_version": "0.1",
+        "status": "valid" if not errors else "partial",
+        **shared,
+        "targets": reports,
+        "triage": {
+            "series_count": len(ranked),
+            "ranking_rule": "largest absolute final-step change",
+            "most_notable": ranked[0] if ranked else None,
+            "notable": ranked[:3],
+            "remainder_count": max(0, len(ranked) - 3),
+            "remainder_preserved": True,
+        },
+        "suggested_next": (
+            f"gnomon_forecast with target_column "
+            f"\"{','.join(valid)}\" batches every inspected channel "
+            f"into one run and one artifact."
+        ),
+    }
+
+
+def _run_describe(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Fast descriptive evidence: no model selection and no backtest toll."""
+    from statistics import mean, median
+
+    from .data import resolve_target_spec
+    from .operators import anomaly_score, regime_detection, seasonality_analysis
+    from .pipeline import load_stage
+    from .temporal_profile import compact_temporal_profile, temporal_profile
+
+    target_spec = str(arguments["target_column"])
+    targets = (resolve_target_spec(
+        str(arguments["input"]), target_spec,
+        time_column=arguments.get("time_column"),
+        series_column=arguments.get("series_column"),
+    ) if "," in target_spec or target_spec.lower() == "auto" else [target_spec])
+    reports: dict[str, Any] = {}
+    execution_inputs: dict[str, tuple[list[float], int]] = {}
+    # A typed question attached to a forecast must execute against the same
+    # seasonal contract as that immutable primary.  Descriptive inspection
+    # still detects seasonality independently, but recomputing the period here
+    # can disagree with the period already used by the forecast runtime (most
+    # visibly when a frequency default is admitted before two cycles exist).
+    execution_seasons = arguments.get("_execution_seasons") or {}
+    for target in targets:
+        loaded = load_stage(
+            arguments["input"], time_column=arguments["time_column"],
+            target_column=target, series_column=arguments.get("series_column"),
+            frequency=arguments.get("frequency"),
+            as_of=_parse_as_of(arguments.get("as_of")),
+            store_path=arguments.get("store_path"), regrid=arguments.get("regrid"),
+            repair=arguments.get("repair", "safe"),
+        )
+        for group_name, observations in sorted(loaded.groups.items()):
+            values = [item.value for item in observations]
+            timestamps = [item.timestamp for item in observations]
+            x_mean = (len(values) - 1) / 2
+            denominator = sum((index - x_mean) ** 2 for index in range(len(values)))
+            slope = (sum((index - x_mean) * (value - mean(values))
+                         for index, value in enumerate(values)) / denominator
+                     if denominator else 0.0)
+            seasonality = seasonality_analysis(values, loaded.frequency)
+            changes = regime_detection(timestamps, values)
+            anomalies = anomaly_score(
+                timestamps, values, season=int(seasonality.get("period") or 1))
+            notable_anomalies = sorted(
+                anomalies.get("anomalies", []),
+                key=lambda row: -abs(float(row["score"])),
+            )[:5]
+            # A long-form panel has one value column and a separate public
+            # series identity.  The loader's ``target:group`` name remains
+            # useful inside forecast artifacts, but exposing ``value:cpu``
+            # to question authors makes an implementation detail part of the
+            # reasoning API.  Describe and typed questions therefore use the
+            # group identity at this boundary.
+            name = (group_name if arguments.get("series_column")
+                    and group_name != "__default__"
+                    else target if group_name == "__default__"
+                    else f"{target}:{group_name}")
+            execution_season = int(
+                execution_seasons.get(name)
+                or seasonality.get("period")
+                or 1)
+            profile = temporal_profile(
+                values, season=int(seasonality.get("period") or 1))
+            execution_inputs[name] = (
+                [float(value) for value in values],
+                execution_season,
+            )
+            reports[name] = {
+                "observations": len(values), "series_start": timestamps[0].isoformat(),
+                "series_end": timestamps[-1].isoformat(), "frequency": loaded.frequency,
+                "level": {"latest": values[-1], "mean": mean(values),
+                          "median": median(values), "minimum": min(values),
+                          "maximum": max(values)},
+                "trend": {"slope_per_step": slope,
+                          "direction": "up" if slope > 0 else "down" if slope < 0 else "flat"},
+                "change": {
+                    "final_step": values[-1] - values[-2] if len(values) > 1 else 0.0,
+                    "absolute_final_step": abs(values[-1] - values[-2])
+                    if len(values) > 1 else 0.0,
+                },
+                "seasonality": seasonality,
+                "changepoints": changes,
+                "anomalies": {"count": len(anomalies.get("anomalies", [])),
+                              "most_extreme": notable_anomalies,
+                              "support": anomalies.get("support")},
+                "temporal_profile": compact_temporal_profile(profile),
+            }
+    ranked = sorted(reports, key=lambda name: (
+        -float(reports[name]["change"]["absolute_final_step"]), name))
+    from .temporal_contracts import classify_dataset_contract
+    dataset_contract = classify_dataset_contract(
+        list(reports),
+        observations={name: int(report["observations"])
+                      for name, report in reports.items()},
+        frequency=next((str(report.get("frequency")) for report in reports.values()
+                        if report.get("frequency")), None),
+        time_column=arguments.get("time_column"),
+        series_column=arguments.get("series_column"),
+        label_column=arguments.get("label_column"),
+        truncated=bool(arguments.get("_input_truncated", False)),
+    )
+    temporal_answers: list[dict[str, Any]] = []
+    if arguments.get("questions") is not None:
+        from .temporal_question import compile_temporal_questions
+        from .temporal_reasoning import answer_scoped_question
+
+        questions = compile_temporal_questions(
+            arguments["questions"], available_targets=reports,
+            default_verb="describe")
+        for question in questions:
+            temporal_answers.append(answer_scoped_question(
+                question, reports=reports, execution_inputs=execution_inputs,
+                forecast_values=arguments.get("_forecast_values"),
+                conditional_effects=arguments.get("_conditional_effects")))
+    payload = _json_temporal_values({
+        "schema_version": "0.1", "status": "valid",
+        "headline": f"Described {len(reports)} series through "
+                    f"{max(report['series_end'] for report in reports.values())}.",
+        "dataset_contract": dataset_contract.to_dict(),
+        "reports": reports,
+        **({"answers": temporal_answers} if temporal_answers else {}),
+        "triage": {
+            "series_count": len(ranked),
+            "ranking_rule": "largest absolute final-step change",
+            "most_notable": ranked[0] if ranked else None,
+            "notable": ranked[:3],
+            "remainder_count": max(0, len(ranked) - 3),
+            "remainder_preserved": True,
+        },
+        "series_end": max(report["series_end"] for report in reports.values()),
+        # Description is a complete answer, not a compulsory funnel into an
+        # expensive backtest. Hosts may offer forecasting separately when the
+        # user actually asks what happens next.
+        "suggested_next": [],
+    })
+    if arguments.get("format") == "brief" and temporal_answers:
+        from .temporal_planner import compact_evidence_plan
+
+        compact_answers = []
+        for item in temporal_answers:
+            answer = dict(item.get("answer") or {})
+            reasoning = answer.get("reasoning")
+            compact_reasoning = (compact_evidence_plan(reasoning)
+                                 if isinstance(reasoning, dict) else None)
+            if compact_reasoning:
+                adjudication = dict(
+                    compact_reasoning.get("adjudication") or {})
+                adjudication.pop("ranked_hypotheses", None)
+                adjudication.pop("weight_meaning", None)
+                compact_reasoning["adjudication"] = adjudication
+            question = dict(item.get("question") or {})
+            compact_answers.append({
+                key: value for key, value in {
+                    "question": {key: question.get(key) for key in (
+                        "id", "verb", "target", "property", "horizon")
+                        if question.get(key) is not None},
+                    "headline": item.get("headline"),
+                    "best_estimate": item.get("best_estimate"),
+                    "reasoning": compact_reasoning,
+                    "limitations": item.get("limitations"),
+                }.items() if value is not None
+            })
+        payload["answers"] = compact_answers
+        payload.pop("reports", None)
+        payload["view"] = {
+            "format": "brief",
+            "full_available": True,
+            "note": ("Compact typed answers and per-series diagnostics; "
+                     "use format='full' for complete reasoning receipts."),
+        }
+    return payload
+
+
+def _json_temporal_values(value: Any) -> Any:
+    """Normalize operator timestamps before MCP's strict JSON boundary."""
+    from datetime import date, datetime
+
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {key: _json_temporal_values(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_temporal_values(item) for item in value]
+    return value
+
+
+def _run_ingest(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Append a file's observations to the bitemporal store as vintages."""
+    from .ids import SYSTEM_CLOCK
+    from .temporal_store import TemporalStore
+
+    store = TemporalStore(arguments.get("store_path"))
+    report = store.ingest_csv(
+        str(arguments["input"]),
+        dataset=str(arguments["dataset"]),
+        time_column=str(arguments["time_column"]),
+        target_column=str(arguments["target_column"]),
+        series_column=arguments.get("series_column"),
+        known_at_column=arguments.get("known_at_column"),
+        variable=arguments.get("variable"),
+        clock=SYSTEM_CLOCK,
+    )
+    return report.to_dict()
+
+
+def _run_list_datasets(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .temporal_store import TemporalStore
+
+    store = TemporalStore(arguments.get("store_path"))
+    datasets = store.list_datasets()
+    return {
+        "schema_version": "0.1",
+        "status": "ok",
+        "datasets": [
+            {**item,
+             "input_ref": f"store:{item['dataset']}",
+             "known_time_provenance": store.known_time_provenance(str(item["dataset"]))}
+            for item in datasets
+        ],
+    }
+
+
+def _covariates_from(arguments: dict[str, Any]):
+    """The covariate dataset from the file channel or the inline channel.
+
+    Mutually exclusive rather than concatenated (unlike context events):
+    two covariate datasets have no defined merge, and silently preferring
+    one would hide the other from the admission record.
+    """
+    from .contracts import GnomonError
+
+    file_path = arguments.get("covariates_file")
+    inline = arguments.get("covariates")
+    if not file_path and inline is None:
+        if arguments.get("covariate_mapping"):
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "covariate_mapping was given without covariate rows: supply "
+                "covariates (inline array) or covariates_file.",
+            )
+        return None
+    if file_path and inline is not None:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "Provide covariates_file or inline covariates, not both.",
+        )
+    mapping = arguments.get("covariate_mapping")
+    if not mapping:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "covariate_mapping (name:type:future_known entries) is required "
+            "with covariates or covariates_file.",
+        )
+    from .covariates import covariates_from_rows, load_covariates
+
+    kwargs = {
+        "time_column": arguments.get("covariate_time_column", "timestamp"),
+        "known_at_column": arguments.get("covariate_known_at_column", "known_at"),
+        "series_column": arguments.get("covariate_series_column"),
+    }
+    if file_path:
+        return load_covariates(file_path, mapping, **kwargs)
+    if not isinstance(inline, list):
+        raise GnomonError(
+            "INVALID_ARGUMENTS", "covariates must be an array of row objects.",
+        )
+    return covariates_from_rows(inline, mapping, **kwargs)
+
+
+def _run_validate_covariates(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .contracts import GnomonError
+    from .covariates import validate_covariate_file
+
+    inline = arguments.get("covariates")
+    if not arguments.get("covariates_file") and inline is None:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "Supply covariates to validate: covariates (inline rows) or "
+            "covariates_file.",
+        )
+    if arguments.get("covariates_file") and inline is not None:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "Provide covariates_file or inline covariates, not both.",
+        )
+    return validate_covariate_file(
+        arguments["input"], arguments.get("covariates_file"),
+        arguments["covariate_mapping"],
+        time_column=arguments["time_column"], target_column=arguments["target_column"],
+        horizon=int(arguments["horizon"]), series_column=arguments.get("series_column"),
+        frequency=arguments.get("frequency"),
+        covariate_time_column=arguments.get("covariate_time_column", "timestamp"),
+        covariate_known_at_column=arguments.get("covariate_known_at_column", "known_at"),
+        covariate_series_column=arguments.get("covariate_series_column"),
+        covariate_rows=inline,
+    )
+
+
+def _context_events_from(arguments: dict[str, Any]):
+    """Events from file, strict inline, and qualitative inline channels.
+
+    The inline channel exists because an MCP client holds no
+    filesystem: with a file-only parameter the admission lanes were
+    unreachable from the published tool surface — a model could be
+    told about future_events and still have no way to supply an event.
+    All channels validate loudly through the same contract check. Qualitative
+    events are structurally unable to enter numeric admission: they can only
+    create labelled, non-automatable sensitivity scenarios.
+    """
+    import re
+
+    from .context import events_from_list
+    from .contracts import GnomonError
+
+    def normalize_daily_times(item: dict[str, Any]) -> list[dict[str, str]]:
+        """Resolve unambiguous date-only fields on a daily grid."""
+        if str(arguments.get("frequency") or "") != "D":
+            return []
+        normalizations = []
+        for field in ("effective_start", "effective_end", "known_at"):
+            value = item.get(field)
+            if not isinstance(value, str):
+                continue
+            try:
+                from datetime import datetime
+                parsed = datetime.fromisoformat(value)
+            except ValueError:
+                continue
+            if parsed.tzinfo is not None:
+                continue
+            if len(value) == 10:
+                suffix = "T23:59:59+00:00" if field == "effective_end" \
+                    else "T00:00:00+00:00"
+                item[field] = value + suffix
+            else:
+                item[field] = value + "+00:00"
+            normalizations.append({
+                "field": field, "from": value, "to": item[field],
+                "basis": "daily_grid_calendar_boundary",
+            })
+        return normalizations
+
+    events = None
+    if arguments.get("context_events_file"):
+        events = load_events_file(arguments["context_events_file"])
+    inline = arguments.get("context_events")
+    if inline is not None:
+        if not isinstance(inline, list):
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "context_events must be an array of event objects",
+            )
+        normalized_inline = []
+        for index, raw in enumerate(inline, 1):
+            if not isinstance(raw, dict):
+                raise GnomonError(
+                    "INVALID_ARGUMENTS", "context_events items must be objects",
+                    {"item_index": index})
+            item = dict(raw)
+            time_normalizations = normalize_daily_times(item)
+            claim_kind = item.pop("claim_kind", None)
+            if claim_kind is not None:
+                legacy_type = str(item.pop("event_type", "") or "")
+                item.pop("attributes", None)
+                expected_prefix = ("override:" if claim_kind == "exact"
+                                   else "constraint:")
+                if legacy_type and not legacy_type.startswith(expected_prefix):
+                    raise GnomonError(
+                        "INVALID_ARGUMENTS",
+                        "compact claim_kind conflicts with legacy event_type",
+                        {"item_index": index, "claim_kind": claim_kind})
+                if claim_kind not in {"min", "max", "exact"}:
+                    raise GnomonError(
+                        "INVALID_ARGUMENTS", "unknown context claim_kind",
+                        {"item_index": index, "claim_kind": claim_kind})
+                span = str(item.pop("source_span", "") or "").strip()
+                if not span:
+                    raise GnomonError(
+                        "INVALID_ARGUMENTS",
+                        "compact literal context requires verbatim source_span",
+                        {"item_index": index})
+                reference = str(item.pop("source_reference", "inline") or "inline")
+                source_document = str(arguments.get(
+                    "_trusted_context_source_text") or arguments.get(
+                        "context_source_text") or "").strip()
+                document_folded = source_document.casefold()
+                span_offset = document_folded.find(span.casefold()) \
+                    if source_document else -1
+                if source_document and span_offset < 0:
+                    arguments.setdefault("context_rejections", []).append({
+                        "context_id": str(item.get("event_id") or
+                                          f"context-event-{index}"),
+                        "reason_code": "source_span_not_in_context_document",
+                        "reason": (
+                            "The claimed verbatim span is not present in the "
+                            "host-bound source document."),
+                        "source_span": span,
+                    })
+                    continue
+                if span_offset >= 0:
+                    # Classify the sentence that owns the quote, not an
+                    # unrelated task instruction elsewhere in the message.
+                    left = max(source_document.rfind(mark, 0, span_offset)
+                               for mark in ".!?\n") + 1
+                    span_end = span_offset + len(span)
+                    endings = [source_document.find(mark, span_end)
+                               for mark in ".!?\n"]
+                    right = min((end for end in endings if end >= 0),
+                                default=len(source_document))
+                    semantic_text = source_document[left:right]
+                else:
+                    semantic_text = span
+                from .future_context import literal_input_authority
+                source_authority = literal_input_authority(semantic_text)
+                if source_authority == "forecast":
+                    arguments.setdefault("context_rejections", []).append({
+                        "context_id": str(item.get("event_id") or
+                                          f"context-event-{index}"),
+                        "reason_code": "external_prediction_not_constraint",
+                        "reason": (
+                            "The quoted source predicts a value; it does not "
+                            "state a binding constraint or observed outcome."),
+                        "source_span": span,
+                    })
+                    continue
+                if source_authority == "assumed":
+                    arguments.setdefault("context_rejections", []).append({
+                        "context_id": str(item.get("event_id") or
+                                          f"context-event-{index}"),
+                        "reason_code": "scenario_assumption_not_constraint",
+                        "reason": (
+                            "The quoted value is a scenario assumption; it "
+                            "does not state a binding constraint or schedule."),
+                        "source_span": span,
+                    })
+                    continue
+                if source_authority == "observed":
+                    arguments.setdefault("context_rejections", []).append({
+                        "context_id": str(item.get("event_id") or
+                                          f"context-event-{index}"),
+                        "reason_code": "observed_value_not_future_constraint",
+                        "reason": (
+                            "The quoted value is an observation; it does not "
+                            "state a binding future constraint or schedule."),
+                        "source_span": span,
+                    })
+                    continue
+                if not item.get("entity_scope"):
+                    target = str(arguments.get("target_column") or "").strip()
+                    candidates = [name.strip() for name in target.split(",")
+                                  if name.strip() and name.strip().lower() != "auto"]
+                    matches = [name for name in candidates if re.search(
+                        rf"(?<![\w-]){re.escape(name)}(?![\w-])", span,
+                        re.IGNORECASE)]
+                    if len(candidates) == 1:
+                        item["entity_scope"] = candidates
+                    elif len(matches) == 1:
+                        item["entity_scope"] = matches
+                    else:
+                        raise GnomonError(
+                            "INVALID_ARGUMENTS",
+                            "compact literal context requires entity_scope "
+                            "unless its quote names exactly one requested target",
+                            {"item_index": index,
+                             "requested_targets": candidates,
+                             "targets_named_in_source_span": matches})
+                from .future_context import parse_bound_span, parse_override_span
+                parsed_bound, _ = parse_bound_span(span)
+                parsed_override, _ = parse_override_span(span)
+                explicit_bound = bool(re.search(
+                    r"\b(?:caps?|capped|ceiling|floor|maximum|minimum|"
+                    r"at\s+most|no\s+more\s+than|not\s+exceed|at\s+least|"
+                    r"no\s+less\s+than)\b", span, re.IGNORECASE))
+                source_class = (
+                    "constraint" if parsed_bound is not None
+                    and (parsed_override is None or explicit_bound) else
+                    "override" if parsed_override is not None
+                    and parsed_bound is None else
+                    "override" if claim_kind == "exact" else "constraint"
+                )
+                requested_class = ("override" if claim_kind == "exact"
+                                   else "constraint")
+                class_normalization = (None if source_class == requested_class else {
+                    "code": "literal_claim_reclassified_from_source",
+                    "from": requested_class, "to": source_class,
+                    "reason": "the quoted text, not the model label, determines semantics",
+                })
+                item.update({
+                    "event_type": f"{source_class}:literal_{claim_kind}",
+                    "attributes": {
+                        "source_span": span,
+                        **({"compiler_normalizations": [
+                            *time_normalizations,
+                            *([class_normalization] if class_normalization else []),
+                        ]} if time_normalizations or class_normalization else {}),
+                    },
+                    "source": {"type": "user_supplied", "reference": reference},
+                    "created_by": "llm",
+                })
+            elif not item.get("event_type"):
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "context_events requires claim_kind or event_type",
+                    {"item_index": index})
+            normalized_inline.append(item)
+        events = (events or []) + events_from_list(normalized_inline)
+    qualitative = arguments.get("qualitative_context_events")
+    if qualitative is not None:
+        if not isinstance(qualitative, list):
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "qualitative_context_events must be an array of event objects",
+            )
+        normalized = []
+        for raw_item in qualitative:
+            item = dict(raw_item) if isinstance(raw_item, dict) else raw_item
+            if not isinstance(item, dict):
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "qualitative_context_events items must be objects",
+                )
+            time_normalizations = normalize_daily_times(item)
+            allowed_fields = {
+                "event_id", "entity_scope", "effective_start",
+                "effective_end", "known_at", "direction", "effect_family",
+                "duration", "source_span", "source_reference",
+            }
+            unknown_fields = sorted(set(item) - allowed_fields)
+            if unknown_fields:
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "qualitative_context_events contains unsupported fields",
+                    {"unknown_fields": unknown_fields},
+                )
+            required_fields = {
+                "event_id", "effective_start", "effective_end", "known_at",
+                "direction", "effect_family", "duration", "source_span",
+            }
+            missing_fields = sorted(field for field in required_fields
+                                    if item.get(field) in (None, ""))
+            if missing_fields:
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "qualitative_context_events is missing required fields",
+                    {"missing_fields": missing_fields},
+                )
+            source_span = str(item.get("source_span") or "").strip()
+            if not source_span:
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "qualitative_context_events.source_span is required",
+                )
+            effective_day = str(item.get("effective_start") or "")[:10]
+            if len(effective_day) != 10 or effective_day not in source_span:
+                arguments.setdefault("context_rejections", []).append({
+                    "context_id": str(item.get("event_id")),
+                    "reason_code": "ambiguous_timing",
+                    "reason": (
+                        "The source does not state the exact effective date "
+                        "proposed by the qualitative event."),
+                    "source_span": source_span,
+                })
+                continue
+            normalized.append({
+                "event_id": item.get("event_id"),
+                # A non-reserved namespace makes numeric future-context
+                # admission structurally unreachable for this lane.
+                "event_type": "qualitative:" + str(item.get("event_id")),
+                "entity_scope": item.get("entity_scope") or ["*"],
+                "effective_start": item.get("effective_start"),
+                "effective_end": item.get("effective_end"),
+                "known_at": item.get("known_at"),
+                "status": "confirmed",
+                "confidence": 1.0,
+                "attributes": {
+                    "source_span": source_span,
+                    **({"compiler_normalizations": time_normalizations}
+                       if time_normalizations else {}),
+                    "soft_context": {
+                        "effect_family": item.get("effect_family"),
+                        "direction": item.get("direction"),
+                        "duration": item.get("duration"),
+                        "entity_kind": "unknown",
+                    },
+                },
+                "source": {
+                    "type": "user_supplied",
+                    "reference": str(item.get("source_reference") or "inline"),
+                },
+                "created_by": "llm",
+            })
+        events = (events or []) + events_from_list(normalized)
+    return events
+
+
+def _materialized_or_public_events(arguments: dict[str, Any]):
+    """Consume trusted internal events or validate the public channels."""
+    events = arguments.pop("_materialized_context_events", None)
+    return events if events is not None else _context_events_from(arguments)
+
+
+def _align_single_target_context_scope(events: list[Any] | None,
+                                       arguments: dict[str, Any]) -> list[Any] | None:
+    """Map the public target name onto the engine's singleton identity.
+
+    A single-column run is represented internally as ``__default__`` while
+    callers only know the requested target column. Treating ``[target]`` as a
+    non-match silently discards correctly scoped context. Other names remain
+    untouched, so this does not broaden an unrelated event to all series.
+    """
+    if not events or arguments.get("series_column"):
+        return events
+    target = str(arguments.get("target_column") or "").strip()
+    if not target or "," in target or target.lower() == "auto":
+        return events
+    from dataclasses import replace
+
+    aligned = []
+    for event in events:
+        scope = tuple("*" if name == target else name
+                      for name in event.entity_scope)
+        aligned.append(replace(event, entity_scope=scope)
+                       if scope != event.entity_scope else event)
+    return aligned
+
+
+def _materialise_context(
+    arguments: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    """Resolve or register immutable typed context before numeric execution."""
+    if "_materialized_context_events" in arguments:
+        # Private transport used only after this function has validated the
+        # public channels. A direct runner caller must not be able to inject
+        # pre-trusted objects through it.
+        raise GnomonError(
+            "INVALID_ARGUMENTS", "reserved internal context field supplied")
+    carries_context = any(arguments.get(key) is not None for key in (
+        "context_ref", "context_events", "context_events_file",
+        "qualitative_context_events"))
+    if not carries_context:
+        return arguments, None
+    from .context import event_to_dict
+    from .context_store import ContextReceiptStore
+    from .soft_context import make_context_receipt
+
+    supplied = [key for key in ("context_ref", "context_events",
+                                "context_events_file",
+                                "qualitative_context_events")
+                if arguments.get(key) is not None]
+    if "context_ref" in supplied and len(supplied) > 1:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "context_ref replaces all inline/file context event channels; "
+            "do not supply both.",
+            {"conflicts": supplied},
+        )
+    store = ContextReceiptStore.default()
+    if arguments.get("context_ref"):
+        reference = str(arguments["context_ref"])
+        try:
+            receipt = store.get(reference)
+        except KeyError as error:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "context_ref is unknown in this project namespace.",
+                {"context_ref": reference},
+                repair_options=[{
+                    "action": "resupply_context",
+                    "description": (
+                        "Send context_events, qualitative_context_events, or "
+                        "context_events_file again to receive a fresh context_ref."),
+                }],
+            ) from error
+        events = []
+        for raw in receipt.get("events") or []:
+            item = dict(raw)
+            item["attributes"] = {
+                **dict(item.get("attributes") or {}),
+                "context_receipt_id": receipt["receipt_id"],
+            }
+            events.append(item)
+        # The immutable store preserves whether the original channel was a
+        # trusted file or an unverified inline claim. Rehydrate that recorded
+        # creator exactly; do not demote a file event or promote an inline one.
+        from .context import events_from_list
+        materialized = events_from_list(
+            events, trust_declared_creator=True)
+        return ({**{key: value for key, value in arguments.items()
+                    if key not in {"context_ref", "context_events_file",
+                                   "context_events",
+                                   "qualitative_context_events"}},
+                 "_materialized_context_events": materialized,
+                 "_context_was_supplied": True}, {
+            "status": "hit", "context_ref": reference,
+            "receipt_id": receipt["receipt_id"], "compiler_reused": True,
+            "store_schema_version": "0.1",
+        })
+
+    parsed = _context_events_from(arguments) or []
+    event_ids = {str(event.event_id) for event in parsed}
+    rejection_ids = {
+        str(item.get("context_id") or item.get("event_id") or "").strip()
+        for item in arguments.get("context_rejections") or []
+        if isinstance(item, dict)
+    }
+    disposition_conflicts = sorted(event_ids & (rejection_ids - {""}))
+    if disposition_conflicts:
+        raise GnomonError(
+            "CONTEXT_DISPOSITION_CONFLICT",
+            "A context claim cannot be both executable and rejected in the "
+            "same request.",
+            {"context_ids": disposition_conflicts},
+            repair_options=[{
+                "action": "choose_context_disposition",
+                "description": (
+                    "For each listed context_id, keep either its executable "
+                    "event or its typed rejection, never both."),
+            }],
+        )
+    raw_events = [event_to_dict(event) for event in parsed]
+    receipt = make_context_receipt(
+        documents=[], events=raw_events, hypotheses=[], rejected=[],
+        rejected_hypotheses=[],
+        proposer={"kind": "validated_typed_context", "version": "0.1"},
+    )
+    reference = store.put(receipt)
+    bound_events = []
+    for raw in raw_events:
+        item = dict(raw)
+        item["attributes"] = {
+            **dict(item.get("attributes") or {}),
+            "context_receipt_id": receipt["receipt_id"],
+        }
+        bound_events.append(item)
+    # Carry already-validated typed objects to the numeric runner. Serialising
+    # and reparsing them through the public inline channel would erase the
+    # operator-controlled file boundary and incorrectly make them
+    # scenario-only.
+    from dataclasses import replace
+
+    materialized = []
+    for event, raw in zip(parsed, bound_events):
+        materialized.append(replace(
+            event, attributes=dict(raw.get("attributes") or {})))
+    return ({**{key: value for key, value in arguments.items()
+                if key not in {"context_events_file", "context_events",
+                               "qualitative_context_events"}},
+             "_materialized_context_events": materialized,
+             "_context_was_supplied": True}, {
+        "status": "stored", "context_ref": reference,
+        "receipt_id": receipt["receipt_id"], "compiler_reused": False,
+        "store_schema_version": "0.1",
+    })
+
+
+def _attach_temporal_answers(payload: dict[str, Any], artifact: ForecastArtifact,
+                             path: Any, arguments: dict[str, Any]) -> None:
+    """Attach opt-in diagnostics without touching the primary artifact."""
+    if arguments.get("questions") is None:
+        return
+    from .context_store import ContextReceiptStore, temporal_answer_cache_key
+    from .temporal_question import compile_temporal_questions
+    from .temporal_reasoning import TEMPORAL_ANSWER_CONTRACT_VERSION
+
+    target_spec = str(arguments.get("target_column") or "")
+    panel_prefix = f"{target_spec}:" if arguments.get("series_column") else ""
+
+    def public_name(name: Any) -> str:
+        value = str(name)
+        return (value[len(panel_prefix):]
+                if panel_prefix and value.startswith(panel_prefix) else value)
+
+    result_names = [public_name(result.series) for result in artifact.results
+                    if str(result.series) != "__default__"]
+    explicit_names = [item.strip() for item in target_spec.split(",")
+                      if item.strip() and item.strip().lower() != "auto"]
+    available_targets = (result_names if arguments.get("series_column")
+                         else explicit_names or result_names)
+    if len(artifact.results) == 1 and explicit_names \
+            and not arguments.get("series_column"):
+        available_targets = explicit_names[:1]
+    questions = compile_temporal_questions(
+        arguments["questions"], available_targets=available_targets,
+        default_verb="describe")
+    store = ContextReceiptStore.default()
+    answer_keys = [temporal_answer_cache_key(
+        artifact_id=artifact.forecast_id, question=question.to_dict(),
+        as_of=arguments.get("as_of"),
+        answer_contract_version=TEMPORAL_ANSWER_CONTRACT_VERSION,
+    ) for question in questions]
+    cached = [store.get_temporal_answer(key) for key in answer_keys]
+    cache_hits = sum(answer is not None for answer in cached)
+
+    forecast_values = {
+        public_name(result.series): [float(row["point"]) for row in result.forecast]
+        for result in artifact.results
+    }
+    execution_seasons = {
+        public_name(result.series): int(
+            ((result.temporal_facts or {}).get("seasonal_period_steps") or 1))
+        for result in artifact.results
+    }
+    if len(artifact.results) == 1:
+        forecast_values[str(arguments["target_column"])] = next(iter(
+            forecast_values.values()))
+        execution_seasons[str(arguments["target_column"])] = next(iter(
+            execution_seasons.values()))
+    conditional_effects: dict[str, dict[str, Any]] = {}
+    for result in artifact.results:
+        public = public_name(result.series)
+        effect = (result.context or {}).get("effect") if result.context else None
+        if effect or result.context_outcome or result.conditional_forecasts \
+                or result.sensitivity_scenarios:
+            conditional_effects[public] = {
+                **({"measured_effect": effect} if effect else {}),
+                **({"outcome": result.context_outcome}
+                   if result.context_outcome else {}),
+                "conditional_forecast_count": len(result.conditional_forecasts),
+                "sensitivity_scenario_count": len(result.sensitivity_scenarios),
+                "provenance": "artifact_context_contract",
+            }
+    if len(artifact.results) == 1 and conditional_effects:
+        conditional_effects[str(arguments["target_column"])] = next(iter(
+            conditional_effects.values()))
+    if cache_hits == len(answer_keys):
+        full_answers = [dict(answer) for answer in cached if answer is not None]
+        for question, answer in zip(questions, full_answers):
+            if answer.get("artifact_id") != artifact.forecast_id \
+                    or answer.get("question") != question.to_dict():
+                raise GnomonError(
+                    "TEMPORAL_ANSWER_CACHE_INTEGRITY",
+                    "Cached temporal answer does not match its primary or question.")
+        cache_status = "hit"
+    else:
+        describe_arguments = {
+            key: arguments.get(key) for key in (
+                "input", "time_column", "target_column", "series_column",
+                "frequency", "as_of", "store_path", "regrid", "repair",
+                "questions")
+        }
+        describe_arguments["_forecast_values"] = forecast_values
+        describe_arguments["_execution_seasons"] = execution_seasons
+        describe_arguments["_conditional_effects"] = conditional_effects
+        described = _run_describe(describe_arguments)
+        full_answers = [
+            {**answer, "artifact_id": artifact.forecast_id}
+            for answer in described.get("answers", [])
+        ]
+        if len(full_answers) != len(answer_keys):
+            raise GnomonError(
+                "TEMPORAL_ANSWER_CACHE_INTEGRITY",
+                "Temporal execution did not return one answer per question.")
+        for key, answer in zip(answer_keys, full_answers):
+            store.put_temporal_answer(key, answer)
+        cache_status = "stored" if cache_hits == 0 else "refreshed"
+    # Keep the inline contract quotable. Constituent executions remain in the
+    # immutable receipt; repeating every child through each agent turn harms
+    # both token economics and preservation of the scalar decision.
+    payload["answers"] = []
+    for answer in full_answers:
+        compact = {key: value for key, value in answer.items()
+                   if key not in {"per_series", "calibration"}}
+        calibration = answer.get("calibration")
+        if isinstance(calibration, dict):
+            folds = int(calibration.get("folds") or
+                        calibration.get("calibration_ratios") or 0)
+            compact["calibration_status"] = {
+                "available": folds > 0,
+                "applicable": folds > 0,
+                "folds": folds,
+                **({"requested_horizon": calibration["requested_horizon"]}
+                   if calibration.get("requested_horizon") is not None else {}),
+                **({"reason": "no_applicable_calibration"}
+                   if folds == 0 else {}),
+            }
+        else:
+            compact["calibration_status"] = {
+                "available": False, "applicable": False,
+                "reason": "not_reported",
+            }
+        reasoning = ((answer.get("answer") or {}).get("reasoning"))
+        if isinstance(reasoning, dict):
+            from .temporal_planner import compact_evidence_plan
+            compact_answer = dict(compact.get("answer") or {})
+            compact_answer["reasoning"] = compact_evidence_plan(reasoning)
+            compact["answer"] = compact_answer
+        children = answer.get("per_series") or []
+        if children:
+            compact["constituent_summary"] = {
+                "count": len(children),
+                "support": {
+                    label: sum((child.get("answer") or {}).get("support") == label
+                               for child in children)
+                    for label in ("supported", "weak", "abstained")
+                },
+                "details_in_answer_receipt": True,
+            }
+        payload["answers"].append(compact)
+    import json as _json
+    answer_receipt = path / "temporal_answers.json"
+    answer_receipt.write_text(_json.dumps({
+        "schema_version": "0.2", "artifact_id": artifact.forecast_id,
+        "primary_forecast_unchanged": True, "answers": full_answers,
+    }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    payload["answer_receipt"] = str(answer_receipt)
+    payload["answer_cache"] = {
+        "status": cache_status, "hits": cache_hits,
+        "questions": len(answer_keys),
+        "answer_contract_version": TEMPORAL_ANSWER_CONTRACT_VERSION,
+        "primary_forecast_unchanged": True,
+    }
+
+
+def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
+    target_spec = str(arguments["target_column"])
+    if "," in target_spec or target_spec.strip().lower() == "auto":
+        return _run_forecast_multi(arguments, target_spec)
+    events = _align_single_target_context_scope(
+        _materialized_or_public_events(arguments), arguments)
+    typed_future_context = any(
+        event.event_type.startswith(("constraint:literal_", "override:literal_"))
+        for event in events or [])
+    typed_structural_context = any(
+        event.event_type.startswith("structural:") for event in events or [])
+    config = None
+    if (arguments.get("future_events") or typed_future_context
+            or arguments.get("structural_events") or typed_structural_context
+            or arguments.get("model_admission") == "evidence_weighted"):
+        # MCP tool calls do not read ambient project config — deliberately,
+        # so the admission lanes must be reachable as explicit
+        # per-call parameters or they are unreachable from the agent
+        # surface entirely (the same gap best_effort had).
+        from .config import GnomonConfig
+
+        config = GnomonConfig()
+        config.context.future_events = bool(
+            arguments.get("future_events") or typed_future_context)
+        config.context.structural_events = bool(
+            arguments.get("structural_events") or typed_structural_context)
+        if arguments.get("model_admission") == "evidence_weighted":
+            registry = arguments.get("model_evidence_registry")
+            if not registry:
+                raise GnomonError(
+                    "MISSING_MODEL_EVIDENCE_REGISTRY",
+                    "model_admission=evidence_weighted requires "
+                    "model_evidence_registry; a model name is not evidence.",
+                    {"required": ["model_evidence_registry"]},
+                )
+            config.models.admission_policy = "evidence_weighted"
+            config.models.evidence_registry_path = str(registry)
+    covariates = _covariates_from(arguments)
+    artifact, path = forecast(
+        arguments["input"],
+        time_column=arguments["time_column"],
+        target_column=arguments["target_column"],
+        series_column=arguments.get("series_column"),
+        frequency=arguments.get("frequency"),
+        horizon=int(arguments["horizon"]),
+        as_of=_parse_as_of(arguments.get("as_of")),
+        store_path=arguments.get("store_path"),
+        output=arguments.get("output_dir") or "gnomon-output",
+        minimum_baseline_improvement=float(arguments.get("minimum_baseline_improvement", 0.02)),
+        context_events=events,
+        covariates=covariates,
+        threshold=float(arguments["threshold"]) if arguments.get("threshold") is not None else None,
+        repair=arguments.get("repair", "safe"),
+        regrid=arguments.get("regrid"),
+        candidates=arguments.get("candidates"),
+        best_effort=bool(arguments.get("best_effort", False)),
+        minimum_support=str(arguments.get("minimum_support")
+                            or "best_effort"),
+        config=config,
+        input_provenance=arguments.get("input_provenance"),
+    )
+    # Brief is the default: the full multi-quantile payload is opt-in
+    # (format="full"), and the artifact on disk is identical either way.
+    payload = (forecast_summary(artifact, path)
+               if arguments.get("format") == "full"
+               else brief_summary(artifact, path))
+    _attach_publication(payload, artifact, path, arguments)
+    _attach_temporal_answers(payload, artifact, path, arguments)
+    from .agent_response import build_agent_response_contract
+    response_contract = build_agent_response_contract(payload)
+    if response_contract is not None:
+        payload["agent_response_contract"] = response_contract
+    if arguments.get("project"):
+        from .tracking import register_artifact
+        payload["tracking_ids"] = register_artifact(
+            artifact, str(arguments["project"]), str(path),
+            context_events=events,
+        )
+        payload["project"] = str(arguments["project"])
+        if payload.get("publication"):
+            from .publication import record_publication
+            from .tracking import TrackingStore
+            payload["publication_synthesis_id"] = record_publication(
+                TrackingStore(), project=str(arguments["project"]),
+                forecast_id=artifact.forecast_id,
+                series=artifact.results[0].series,
+                payload=payload["publication"])
+    return payload
+
+
+def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
+                        path: Any, arguments: dict[str, Any], *,
+                        result_index: int = 0) -> None:
+    """MCP projection boundary; forecast artifacts remain byte-immutable."""
+    mode = str(arguments.get("publication_mode") or "strict")
+    dossiers = arguments.get("temporal_dossiers") or []
+    submission = arguments.get("context_submission") or {}
+    if not isinstance(submission, dict):
+        raise GnomonError("INVALID_ARGUMENTS", "context_submission must be an object")
+    submission = dict(submission)
+    direct_rejections = arguments.get("context_rejections")
+    if direct_rejections is not None:
+        if not isinstance(direct_rejections, list):
+            raise GnomonError(
+                "INVALID_ARGUMENTS", "context_rejections must be an array")
+        allowed_rejection_fields = {
+            "context_id", "event_id", "reason_code", "reason", "source_span"}
+        required_rejection_fields = {
+            "context_id", "reason_code", "reason", "source_span"}
+        normalized_rejections = []
+        trusted_source = str(arguments.get(
+            "_trusted_context_source_text") or "").strip()
+        for index, item in enumerate(direct_rejections, 1):
+            if not isinstance(item, dict):
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "context_rejections items must be objects",
+                    {"item_index": index})
+            unknown = sorted(set(item) - allowed_rejection_fields)
+            normalized = dict(item)
+            event_alias = str(normalized.pop("event_id", "") or "").strip()
+            context_id = str(normalized.get("context_id") or "").strip()
+            if event_alias and context_id and event_alias != context_id:
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "context_rejections event_id alias conflicts with context_id",
+                    {"item_index": index})
+            if event_alias:
+                normalized["context_id"] = event_alias
+            if trusted_source:
+                normalized.setdefault("context_id", f"context-rejection-{index}")
+                normalized.setdefault("reason_code", "context_unresolved")
+                normalized.setdefault(
+                    "reason", "Context was rejected by the agent compiler; "
+                    "see the typed reason code and host-bound source.")
+                normalized.setdefault("source_span", trusted_source)
+            missing = sorted(key for key in required_rejection_fields
+                             if not str(normalized.get(key) or "").strip())
+            if unknown or missing:
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "context_rejections require context_id, reason_code, "
+                    "reason, and verbatim source_span",
+                    {"item_index": index, "unknown_fields": unknown,
+                     "missing_fields": missing})
+            normalized_rejections.append(normalized)
+        submission["rejections"] = [
+            *(submission.get("rejections") or []), *normalized_rejections]
+    raw_proposal = submission.get("proposal")
+    raw_model_candidate = submission.get("model_candidate")
+    deterministic_compile = submission.get("compile")
+    if deterministic_compile not in (None, "deterministic_linear"):
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "context_submission.compile supports only deterministic_linear")
+    if raw_model_candidate is not None and raw_proposal is not None:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "context_submission accepts proposal or model_candidate, not both")
+    if deterministic_compile and (raw_proposal is not None
+                                  or raw_model_candidate is not None
+                                  or submission.get("transformations")):
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "deterministic context compilation cannot be combined with an "
+            "agent proposal or caller-authored transformations")
+    selection = arguments.get("scenario_selection")
+    policy = arguments.get("automation_policy")
+    if mode == "strict" and not (dossiers or raw_proposal
+                                  or deterministic_compile
+                                  or submission.get("transformations")
+                                  or submission.get("rejections")
+                                  or arguments.get("_context_was_supplied")
+                                  or selection or policy):
+        return
+    if result_index < 0 or result_index >= len(artifact.results):
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "Publication result index is outside the artifact.")
+    from .publication import (compile_dossier_for_result, publish_result,
+                              write_publication)
+    artifact_payload = artifact.to_dict()
+    result = artifact_payload["results"][result_index]
+    # Ungrouped artifacts use ``__default__`` as their storage series key.
+    # Preserve the semantic target supplied by the caller for claim-ownership
+    # checks at the publication boundary; this metadata never changes points.
+    result["target_identity"] = str(arguments.get("target_column") or "")
+    # Candidate plausibility is defined at the last *observed* boundary.  Load
+    # that boundary through the exact same repair/as-of/store seam as the
+    # immutable forecast.  Using the primary's future q50 path here makes a
+    # candidate's validity depend on a competing forecast and can reject a
+    # perfectly plausible conditional path.
+    from .pipeline import load_stage
+    publication_input = load_stage(
+        arguments["input"], time_column=arguments["time_column"],
+        target_column=arguments["target_column"],
+        series_column=arguments.get("series_column"),
+        frequency=arguments.get("frequency"),
+        as_of=_parse_as_of(arguments.get("as_of")),
+        store_path=arguments.get("store_path"),
+        repair=arguments.get("repair", "safe"),
+        regrid=arguments.get("regrid"))
+    result_series = artifact.results[result_index].series
+    observations = publication_input.groups.get(result_series)
+    if observations is None and len(publication_input.groups) == 1:
+        observations = next(iter(publication_input.groups.values()))
+    if not observations:
+        raise GnomonError(
+            "EMPTY_SNAPSHOT",
+            "Publication validation could not resolve the forecast's observed history.")
+    governed_history = [float(item.value) for item in observations]
+    model_candidate_paths: list[list[float]] | None = None
+    model_candidate_diagnostics: dict[str, Any] | None = None
+    if raw_model_candidate is not None:
+        if not isinstance(raw_model_candidate, dict):
+            raise GnomonError(
+                "INVALID_ARGUMENTS", "model_candidate must be an object")
+        allowed = {
+            "source_spans", "quantiles", "sample_paths", "rationale",
+            "temperature", "governed_fallback",
+        }
+        unknown = sorted(set(raw_model_candidate) - allowed)
+        if unknown:
+            raise GnomonError(
+                "INVALID_ARGUMENTS", "model_candidate has unknown fields",
+                {"unknown_fields": unknown})
+        governed_fallback = raw_model_candidate.get("governed_fallback")
+        if governed_fallback not in {
+                None, "categorical_state_mapping_not_admitted"}:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "model_candidate.governed_fallback is unsupported")
+        if governed_fallback is not None:
+            from .llm_dossier import verify_temporal_dossier_seal
+            fallback_proven = any(
+                verify_temporal_dossier_seal(item)
+                and (item.get("candidate_critique") or {}).get(
+                    "candidate_origin") ==
+                    "governed_categorical_state_mapping"
+                and (item.get("candidate_critique") or {}).get(
+                    "selection_eligible") is False
+                for item in dossiers if isinstance(item, dict))
+            if not fallback_proven:
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "model_candidate.governed_fallback requires a sealed "
+                    "failed categorical mapping dossier")
+        context_text = str(submission.get("text") or "")
+        known_at = str(submission.get("known_at") or "")
+        spans = raw_model_candidate.get("source_spans")
+        if (not context_text or not known_at or not isinstance(spans, list)
+                or not 1 <= len(spans) <= 8
+                or any(not isinstance(span, str) or not span.strip()
+                       or span not in context_text for span in spans)):
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "model_candidate requires text, known_at, and 1-8 exact "
+                "source_spans copied from text")
+        quantiles = raw_model_candidate.get("quantiles")
+        sample_paths = raw_model_candidate.get("sample_paths")
+        if (quantiles is None) == (sample_paths is None):
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "model_candidate requires exactly one of quantiles or sample_paths")
+        forecast_rows = result.get("primary_forecast") or result.get("forecast") or []
+        future_timestamps = [str(row.get("timestamp")) for row in forecast_rows]
+        claim_ids = [f"claim-{index}" for index in range(1, len(spans) + 1)]
+        if sample_paths is not None:
+            if (not isinstance(sample_paths, list)
+                    or not 3 <= len(sample_paths) <= 16):
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "model_candidate.sample_paths requires 3-16 paths")
+            from .agent_context import candidate_from_sampled_paths
+            serialized = [json.dumps({"forecast_path": {
+                "values": path,
+                "rationale": str(raw_model_candidate.get("rationale") or ""),
+            }}) for path in sample_paths]
+            candidate, model_candidate_diagnostics = (
+                candidate_from_sampled_paths(
+                    serialized, future_timestamps,
+                    history_values=governed_history))
+            if candidate is None:
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "model_candidate.sample_paths did not contain a valid "
+                    "host-grid-bound path",
+                    {"diagnostics": model_candidate_diagnostics})
+            model_candidate_paths = candidate.pop("_validated_sample_paths")
+            candidate.pop("_selected_claim_ids", None)
+        else:
+            candidate = {
+                "quantiles": quantiles,
+                "rationale": str(raw_model_candidate.get("rationale") or
+                                 "Caller-supplied model forecast candidate."),
+            }
+        candidate["claim_ids"] = claim_ids
+        raw_proposal = {
+            "events": [],
+            "claims": [{
+                "source_span": span,
+                "relation": "unknown",
+                "effective_start": None,
+                "effective_end": None,
+                "timing_status": "atemporal_context",
+                "mechanism": "model-authored forecast prior",
+                "confidence": 0.5,
+            } for span in spans],
+            "hypotheses": [],
+            "effect_proposal": None,
+            "forecast_candidate": candidate,
+            "covariate_tables": [],
+            "transformations": [],
+            "observation_interpretations": [],
+        }
+    raw_context_rejections = submission.get("rejections") or []
+    if not isinstance(raw_context_rejections, list):
+        raise GnomonError(
+            "INVALID_ARGUMENTS", "context_submission.rejections must be a list")
+    if len(raw_context_rejections) > 16:
+        raise GnomonError(
+            "INVALID_ARGUMENTS", "context_submission.rejections is limited to 16 items")
+    result["context_rejections"] = []
+    for index, item in enumerate(raw_context_rejections, 1):
+        if isinstance(item, str):
+            code, separator, reason = item.partition(":")
+            result["context_rejections"].append({
+                "context_id": f"context-submission-{index}",
+                "reason_code": code.strip() if separator else "context_unresolved",
+                "reason": reason.strip() if separator else item.strip(),
+            })
+        elif isinstance(item, dict):
+            result["context_rejections"].append({
+                "context_id": str(item.get("context_id") or
+                                  f"context-submission-{index}"),
+                "reason_code": str(item.get("reason_code") or
+                                   "context_unresolved"),
+                "reason": str(item.get("reason") or
+                              "Supplied context could not be grounded or executed."),
+                **({"source_span": str(item["source_span"])}
+                   if item.get("source_span") else {}),
+            })
+        else:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "context_submission.rejections items must be strings or objects")
+
+    def recurrence_observations_for(target: str) -> list[Any]:
+        from .pipeline import load_stage
+        loaded = load_stage(
+            arguments["input"], time_column=arguments["time_column"],
+            target_column=target, series_column=arguments.get("series_column"),
+            frequency=arguments.get("frequency"),
+            as_of=_parse_as_of(arguments.get("as_of")),
+            store_path=arguments.get("store_path"),
+            regrid=arguments.get("regrid"),
+            repair=arguments.get("repair", "safe"))
+        if len(loaded.groups) != 1:
+            raise GnomonError(
+                "AMBIGUOUS_RECURSIVE_HISTORY",
+                "Recursive context execution requires exactly one series per target.")
+        return list(next(iter(loaded.groups.values())))
+    if deterministic_compile:
+        context_text = str(submission.get("text") or "")
+        known_at = str(submission.get("known_at") or "")
+        if not context_text or not known_at:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "deterministic context compilation requires text and known_at")
+        forecast_timestamps = [str(row["timestamp"])
+                               for row in result.get("forecast") or []
+                               if isinstance(row, dict) and row.get("timestamp")]
+        from .relationship_text import compile_linear_relationship_text
+        compiled_relationship = compile_linear_relationship_text(
+            context_text,
+            target_name=str(arguments.get("target_column") or ""),
+            cutoff=known_at, future_timestamps=forecast_timestamps)
+        if compiled_relationship is None:
+            result["context_rejections"].append({
+                "context_id": "deterministic-linear-compiler",
+                "reason_code": "DETERMINISTIC_RELATIONSHIP_UNRESOLVED",
+                "reason": (
+                    "The cited text was not a complete, mechanically "
+                    "checkable linear lag specification with a full future "
+                    "driver schedule. No partial arithmetic was executed."),
+                "source_span": context_text,
+            })
+        else:
+            raw_proposal, compilation_kind = compiled_relationship
+            submission["transformations"] = list(
+                raw_proposal.get("transformations") or [])
+            submission["compiler"] = (
+                "gnomon:deterministic_linear:" + compilation_kind)
+    if raw_proposal is not None:
+        context_text = str(submission.get("text") or "")
+        known_at = str(submission.get("known_at") or "")
+        if not context_text or not known_at:
+            raise GnomonError("INVALID_ARGUMENTS",
+                              "context_proposal requires context_text and context_known_at")
+        dossier, dossier_rejections = compile_dossier_for_result(
+            raw_proposal, context_text=context_text, known_at=known_at,
+            result=result,
+            compiler_model=str(submission.get("compiler") or "agent"),
+            history=governed_history,
+            prefer_explicit_forecast_candidate=(
+                raw_model_candidate is not None))
+        if model_candidate_paths is not None:
+            if not isinstance(dossier.get("forecast_candidate"), dict):
+                # An optional interpretation candidate must not erase a
+                # successfully computed immutable primary. Preserve the
+                # validator's reasons as a typed disposition so an agent can
+                # repair the candidate or simply use the primary.
+                result["context_rejections"].append({
+                    "context_id": "model-authored-forecast-candidate",
+                    "reason_code": "model_candidate_validation_failed",
+                    "reason": "The supplied model-authored candidate did not "
+                              "pass the governed forecast-candidate contract.",
+                    "violations": dossier_rejections[:8],
+                    "sampling_diagnostics": model_candidate_diagnostics,
+                })
+            else:
+                from .agent_context import sample_path_stability
+                from .llm_dossier import attach_host_candidate_elicitation
+                temperature = raw_model_candidate.get("temperature", 1.0)
+                try:
+                    temperature = float(temperature)
+                    stability = sample_path_stability(
+                        model_candidate_paths,
+                        governed_history)
+                    dossier = attach_host_candidate_elicitation(
+                        dossier, requested_paths=len(sample_paths),
+                        accepted_paths=len(model_candidate_paths),
+                        aggregation="linear_empirical_marginal_q10_q50_q90",
+                        temperature=temperature, stability=stability,
+                        request_mode="batch_request",
+                        sample_paths=model_candidate_paths,
+                        governed_fallback=governed_fallback)
+                except (TypeError, ValueError) as exc:
+                    raise GnomonError("INVALID_ARGUMENTS", str(exc)) from exc
+        dossiers = [*dossiers, dossier]
+    transformations = submission.get("transformations") or []
+    if transformations:
+        from .context_intelligence import (
+            compile_transformation,
+            execute_transformation,
+            load_recurrence_history,
+        )
+        claims = [claim for dossier in dossiers
+                  for claim in dossier.get("claims") or []]
+        claim_ids = [str(claim.get("claim_id")) for claim in claims
+                     if claim.get("claim_id")]
+        claim_spans = {str(claim.get("claim_id")): str(
+            claim.get("source_span") or "") for claim in claims}
+        cutoff = str(submission.get("known_at") or "")
+        if not cutoff:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "context transformations require context_submission.known_at")
+        result["transformation_candidates"] = []
+        result["transformation_rejections"] = []
+        if len(transformations) > 6:
+            result["transformation_rejections"].append({
+                "transformation_id": "transformation-overflow",
+                "reason_code": "bounded_transformation_overflow",
+                "reason": "Only the first six transformations were evaluated.",
+            })
+        for index, item in enumerate(transformations[:6], 1):
+            wrapper = item if isinstance(item, dict) else {}
+            compiled, critique = compile_transformation(
+                wrapper.get("transformation", wrapper),
+                series=list((wrapper.get("series_values") or {}).keys()),
+                claim_ids=claim_ids, cutoff=cutoff,
+                units=wrapper.get("units"), repair=wrapper.get("repair"),
+                claim_spans=claim_spans)
+            if compiled is None:
+                result["transformation_rejections"].append({
+                    "transformation_id": f"transformation-{index}",
+                    "reason_code": "transformation_validation_failed",
+                    "reason": "Declarative transformation was rejected.",
+                    "violations": critique["violations"],
+                })
+                continue
+            try:
+                target_history, driver_history = load_recurrence_history(
+                    compiled.get("expression"),
+                    wrapper.get("historical_series_segments"),
+                    target_name=str(arguments["target_column"]),
+                    observations_for=recurrence_observations_for,
+                    verified_claim_ids=claim_ids,
+                    verified_claim_spans=claim_spans)
+                candidate = execute_transformation(
+                    compiled,
+                    primary=(result.get("primary_forecast") or
+                             result.get("forecast") or []),
+                    series_values=wrapper.get("series_values"),
+                    historical_validation=wrapper.get("historical_validation"),
+                    claim_spans=claim_spans,
+                    history_values=target_history,
+                    history_series=driver_history)
+                if wrapper.get("historical_series_segments"):
+                    candidate["validation"]["recurrence_history_source"] = (
+                        "document_cited_segments")
+                    candidate["validation"]["document_history_series"] = sorted(
+                        wrapper["historical_series_segments"])
+            except (ValueError, GnomonError) as exc:
+                result["transformation_rejections"].append({
+                    "transformation_id": compiled["transformation_id"],
+                    "reason_code": getattr(exc, "code", "transformation_execution_failed"),
+                    "reason": str(exc),
+                    "violations": [getattr(exc, "as_dict", lambda: {})()],
+                })
+                continue
+            result["transformation_candidates"].append(candidate)
+    candidate_outcome_evidence = None
+    if mode == "best_effort" and arguments.get("project"):
+        from .tracking import TrackingStore
+        cutoff = (arguments.get("as_of") or artifact.task.as_of
+                  or artifact.created_at)
+        if cutoff is not None:
+            series_name = artifact.results[result_index].series
+            candidate_outcome_evidence = TrackingStore().candidate_outcome_summary(
+                str(arguments["project"]), series=str(series_name),
+                resolved_before=str(cutoff))
+    calibration_evidence = None
+    if isinstance(policy, dict) and policy.get("action_tier") is not None:
+        series_name = artifact.results[result_index].series
+        rolling = next((
+            item for item in artifact_payload.get("evidence") or []
+            if item.get("kind") == "rolling_evaluation"
+            and item.get("series") == series_name
+            and not str(item.get("evidence_id") or "").endswith(":prefix")
+        ), None)
+        if rolling is not None:
+            evidence_payload = rolling.get("payload") or {}
+            quantiles = tuple(artifact.task.quantiles)
+            calibration_evidence = {
+                "artifact_id": artifact.forecast_id,
+                "series": series_name,
+                "selected_model": result.get("selected_model"),
+                "horizon": artifact.task.horizon,
+                "nominal_coverage": (
+                    float(max(quantiles) - min(quantiles))
+                    if quantiles else None),
+                "measured_interval_coverage": evidence_payload.get(
+                    "measured_interval_coverage"),
+                "coverage_points": artifact.task.horizon,
+                "residual_fold_count": evidence_payload.get(
+                    "residual_fold_count"),
+                "residuals_pooled_across_selection": evidence_payload.get(
+                    "residuals_pooled_across_selection"),
+                "cutoff_status": (
+                    "explicit_as_of" if artifact.task.as_of
+                    else "artifact_snapshot"),
+                "prospective_validation_status": evidence_payload.get(
+                    "prospective_validation_status"),
+            }
+    try:
+            publication = publish_result(
+                result, mode=mode,
+                dossiers=list(dossiers), scenario_selection=selection,
+                automation_policy=policy,
+                automation_authority=not bool(arguments.get(
+                    "_mcp_agent_boundary")),
+                calibration_evidence=calibration_evidence,
+                candidate_outcome_evidence=candidate_outcome_evidence,
+                prior_compromise_history=(
+                    governed_history if mode == "best_effort" else None),
+                allow_uncertainty_limited_prior=bool(
+                    submission.get("allow_prior_compromise", False)),
+                artifact_id=artifact.forecast_id)
+    except ValueError as exc:
+        raise GnomonError("INVALID_ARGUMENTS", str(exc)) from exc
+    payload["publication"] = publication
+    payload["publication_path"] = str(write_publication(path, publication))
+
+
+def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str, Any]:
+    """The multi-target branch of gnomon_forecast: a comma list or `auto`
+    in target_column batches several columns into one run and one
+    combined artifact — same numbers per channel as separate calls."""
+    from .contracts import GnomonError
+    if (arguments.get("temporal_dossiers")
+            or arguments.get("context_submission")
+            or arguments.get("scenario_selection")):
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "Cross-series dossier or scenario ranking requires one target; "
+            "plain strict, best_effort, and scenario publication modes are "
+            "supported in one batched call.")
+    from .data import resolve_target_spec
+    from .runtime import forecast_multi
+
+    targets = resolve_target_spec(
+        str(arguments["input"]), target_spec,
+        time_column=arguments.get("time_column"),
+        series_column=arguments.get("series_column"),
+    )
+    if len(targets) == 1:
+        return _run_forecast({**arguments, "target_column": targets[0]})
+    unsupported = [
+        name for name in (
+            "series_column", "project",
+        ) if arguments.get(name)
+    ]
+    if unsupported:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            f"{', '.join(unsupported)} cannot be combined with a "
+            f"multi-target target_column yet; run those channels one "
+            f"target at a time.",
+            {"unsupported_with_multi_target": unsupported, "targets": targets},
+        )
+    events = _materialized_or_public_events(arguments)
+    covariates = _covariates_from(arguments)
+    config = None
+    typed_future_context = any(
+        event.event_type.startswith(("constraint:literal_", "override:literal_"))
+        for event in events or [])
+    if (arguments.get("future_events") or typed_future_context
+            or arguments.get("structural_events")
+            or arguments.get("model_admission") == "evidence_weighted"):
+        from .config import GnomonConfig
+
+        config = GnomonConfig()
+        config.context.future_events = bool(
+            arguments.get("future_events") or typed_future_context)
+        config.context.structural_events = bool(arguments.get("structural_events"))
+        if arguments.get("model_admission") == "evidence_weighted":
+            registry = arguments.get("model_evidence_registry")
+            if not registry:
+                raise GnomonError(
+                    "MISSING_MODEL_EVIDENCE_REGISTRY",
+                    "model_admission=evidence_weighted requires "
+                    "model_evidence_registry; a model name is not evidence.",
+                    {"required": ["model_evidence_registry"]},
+                )
+            config.models.admission_policy = "evidence_weighted"
+            config.models.evidence_registry_path = str(registry)
+    artifact, path = forecast_multi(
+        str(arguments["input"]),
+        time_column=arguments["time_column"],
+        target_columns=targets,
+        frequency=arguments.get("frequency"),
+        horizon=int(arguments["horizon"]),
+        as_of=_parse_as_of(arguments.get("as_of")),
+        output=arguments.get("output_dir") or "gnomon-output",
+        minimum_baseline_improvement=float(arguments.get("minimum_baseline_improvement", 0.02)),
+        context_events=events,
+        covariates=covariates,
+        threshold=float(arguments["threshold"]) if arguments.get("threshold") is not None else None,
+        repair=arguments.get("repair", "safe"),
+        regrid=arguments.get("regrid"),
+        candidates=arguments.get("candidates"),
+        best_effort=bool(arguments.get("best_effort", False)),
+        minimum_support=str(arguments.get("minimum_support")
+                            or "best_effort"),
+        input_provenance=arguments.get("input_provenance"),
+        config=config,
+    )
+    payload = (forecast_summary(artifact, path)
+               if arguments.get("format") == "full"
+               else brief_summary(artifact, path))
+    if (arguments.get("publication_mode") is not None
+            or arguments.get("automation_policy")
+            or arguments.get("_context_was_supplied")):
+        publications = []
+        for index, result in enumerate(artifact.results):
+            child: dict[str, Any] = {}
+            _attach_publication(
+                child, artifact, path,
+                {**arguments, "target_column": result.series},
+                result_index=index)
+            publication = child.get("publication")
+            if not publication:
+                continue
+            publications.append({
+                "series": result.series,
+                "mode": publication.get("mode"),
+                "recommended_scenario_id": publication.get(
+                    "recommended_scenario_id"),
+                "recommended_support": publication.get("recommended_support"),
+                "primary_forecast_unchanged": publication.get(
+                    "primary_forecast_unchanged"),
+                "scenario_count": publication.get("scenario_count"),
+                "context_summary": publication.get("context_summary"),
+                "context_dispositions": publication.get(
+                    "context_dispositions") or [],
+                "automation": publication.get("automation"),
+                "publication_seal_sha256": publication.get(
+                    "publication_seal_sha256"),
+                "publication_path": child.get("publication_path"),
+            })
+        payload["publications"] = publications
+        payload["publication_summary"] = {
+            "mode": str(arguments.get("publication_mode") or "strict"),
+            "series_count": len(publications),
+            "primary_forecast_unchanged": all(
+                item.get("primary_forecast_unchanged") is True
+                for item in publications),
+            "automation_eligible": bool(publications) and all(
+                (item.get("automation") or {}).get("eligible") is True
+                for item in publications),
+            "scenario_count": sum(int(item.get("scenario_count") or 0)
+                                  for item in publications),
+        }
+    _attach_temporal_answers(payload, artifact, path, arguments)
+    from .agent_response import build_agent_response_contract
+    response_contract = build_agent_response_contract(payload)
+    if response_contract is not None:
+        payload["agent_response_contract"] = response_contract
+    return payload
+
+
+def _run_preflight_context(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .contracts import GnomonError
+    from .preflight import preflight_context_events
+
+    events = _materialized_or_public_events(arguments)
+    if not events:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "Supply events to preflight: context_events (inline array) or "
+            "context_events_file.",
+        )
+    return preflight_context_events(
+        str(arguments["input"]),
+        time_column=arguments["time_column"],
+        target_column=arguments["target_column"],
+        horizon=int(arguments["horizon"]),
+        context_events=events,
+        series_column=arguments.get("series_column"),
+        frequency=arguments.get("frequency"),
+        repair=arguments.get("repair", "safe"),
+    )
+
+
+def _actual_tuples(raw_rows: Any) -> list[tuple]:
+    """Inline actuals rows -> the (series?, timestamp, value) tuples the
+    tracking store scores. Loud on malformed rows: a silently dropped
+    actual would surface as 'nothing was due', which is the exact
+    ambiguity the store's diagnosis machinery exists to prevent."""
+    import math
+
+    from .contracts import GnomonError
+
+    if not isinstance(raw_rows, list) or not raw_rows:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "actuals must be a non-empty array of {timestamp, value, series?} objects.",
+        )
+    tuples: list[tuple] = []
+    for index, row in enumerate(raw_rows, 1):
+        if not isinstance(row, dict) or not row.get("timestamp"):
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                f"actuals[{index}] must be an object with a timestamp.",
+            )
+        try:
+            value = float(row["value"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                f"actuals[{index}].value must be a finite number.",
+            ) from exc
+        if not math.isfinite(value):
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                f"actuals[{index}].value must be a finite number.",
+            )
+        timestamp = str(row["timestamp"])
+        known_at = str(row["known_at"]) if row.get("known_at") else None
+        series = str(row["series"]) if row.get("series") else None
+        if known_at is not None:
+            # Knowledge-time backfill: 4-tuple form, series may be None.
+            tuples.append((series, timestamp, value, known_at))
+        elif series is not None:
+            tuples.append((series, timestamp, value))
+        else:
+            tuples.append((timestamp, value))
+    return tuples
+
+
+def _run_submit_actuals(arguments: dict[str, Any]) -> dict[str, Any]:
+    import csv as csv_module
+
+    from .contracts import GnomonError
+    from .tracking import TrackingStore
+    store = TrackingStore()
+    project = str(arguments["project"])
+    raw_occurrences = list(arguments.get("effect_occurrences") or [])
+
+    def record_occurrences() -> list[dict[str, Any]]:
+        recorded = []
+        for index, item in enumerate(raw_occurrences, 1):
+            if not isinstance(item, dict):
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    f"effect_occurrences[{index}] must be an object.",
+                )
+            recorded.append(store.record_effect_occurrence(
+                str(item.get("effect_id", "")), str(item.get("status", "")),
+                known_at=str(item.get("known_at", "")), note=item.get("note"),
+            ))
+        return recorded
+    inline = arguments.get("actuals")
+    if inline is not None and arguments.get("actuals_file"):
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "Provide actuals_file or inline actuals, not both.",
+        )
+    if inline is not None:
+        tuples = _actual_tuples(inline)
+        results = store.submit_actuals(project, tuples)
+        if not results:
+            return {
+                "schema_version": "0.1", "status": "ok", "project": project,
+                "effect_occurrences": record_occurrences(),
+                **store.explain_unscored(
+                    project, [item[-2] for item in tuples]),
+            }
+        return {"schema_version": "0.1", "status": "ok",
+                "scored": len(results),
+                "results": [item.__dict__ for item in results],
+                "effect_occurrences": record_occurrences()}
+    if not arguments.get("actuals_file"):
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "Supply actuals to score: actuals (inline array) or actuals_file.",
+        )
+    path = str(arguments["actuals_file"])
+    time_column = arguments.get("time_column")
+    target_column = arguments.get("target_column")
+    series_column = arguments.get("series_column")
+    results = store.submit_actuals_csv(
+        project, path, time_column=time_column,
+        target_column=target_column, series_column=series_column,
+    )
+    if not results:
+        # A bare `scored: 0` reads as "nothing was due" whether or not
+        # anything was due. Return the diagnosis instead.
+        with open(path, encoding="utf-8-sig", newline="") as handle:
+            reader = csv_module.DictReader(handle)
+            columns = reader.fieldnames or []
+            rows = list(reader)
+        resolved_time, _, _ = store._resolve_actuals_columns(
+            columns, time_column, target_column, series_column,
+        )
+        return {
+            "schema_version": "0.1", "status": "ok", "project": project,
+            "effect_occurrences": record_occurrences(),
+            **store.explain_unscored(project, [row[resolved_time] for row in rows]),
+        }
+    return {"schema_version": "0.1", "status": "ok", "scored": len(results),
+            "results": [item.__dict__ for item in results],
+            "effect_occurrences": record_occurrences()}
+
+
+def _run_open_forecasts(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .tracking import TrackingStore
+    rows = TrackingStore().due_forecasts(arguments.get("project"))
+    return {"status": "ok", "forecasts": rows}
+
+
+def _run_model_performance(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .tracking import TrackingStore
+    store = TrackingStore()
+    if arguments.get("model"):
+        rows: Any = store.model_performance(
+            str(arguments["project"]), str(arguments["model"]),
+        )
+    else:
+        rows = [item.__dict__ for item in store.leaderboard(str(arguments["project"]))]
+    return {"status": "ok", "performance": rows,
+            "warning": "Historical telemetry is observational, not causal."}
+
+
+TOOLS: list[dict[str, Any]] = [
+    {
+        "name": "gnomon_capabilities",
+        "description": (
+            "Report what the installed Gnomon runtime supports. Use only for "
+            "explicit feature discovery, never as a prerequisite to forecast, "
+            "describe, or inspect. The "
+            "default view is brief (every section and capability name, long "
+            "prose elided); pass format 'full' or sections for the verbatim "
+            "detail."
+        ),
+        "inputSchema": {"type": "object", "properties": {
+            "format": {"type": "string", "enum": ["brief", "full"],
+                       "description": (
+                "brief (default): every section with long prose elided, "
+                "within the response budget; full: the complete payload "
+                "verbatim."
+            )},
+            "sections": {"type": "array", "items": {"type": "string"},
+                         "description": (
+                "Return only these top-level sections, verbatim. Any "
+                "response's view.sections_available lists the names."
+            )},
+        }, "required": []},
+        "runner": _run_capabilities,
+    },
+    {
+        "name": "gnomon_inspect",
+        "description": (
+            "Validate a temporal dataset before forecasting: schema mapping, "
+            "frequency, duplicates, missing periods. Prefer this before "
+            "gnomon_forecast when mappings or data quality are uncertain. "
+            "target_column takes a comma list or \"auto\" to inspect every "
+            "channel of a wide file in one call (the default when several "
+            "columns qualify)."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                **_INPUT_PROPERTIES,
+                "target_column": {"type": "string", "description": (
+                    "Numeric column to inspect, a comma list "
+                    "(`\"cpu,mem\"`), or `\"auto\"` (every numeric "
+                    "non-time column) — one report per channel. Omit to "
+                    "infer: a lone qualifying column is chosen, several "
+                    "are all inspected; either is disclosed as an "
+                    "assumption. Required for store:<dataset> inputs."
+                )},
+                **_REPLAY_PROPERTIES,
+            },
+            "required": [],
+            "anyOf": [
+                {"required": ["input"]},
+                {"required": ["observations"]},
+                {"required": ["data_ref"]},
+            ],
+        },
+        "runner": _run_inspect,
+    },
+    {
+        "name": "gnomon_describe",
+        "description": (
+            "Answer typed temporal questions without changing a primary: "
+            "description, stationarity, fixed-period decomposition, or "
+            "exogenous regression. Unsupported methods fail typed; semantic "
+            "substitution is forbidden."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                **_INPUT_PROPERTIES,
+                "target_column": {"type": "string", "description": (
+                    "Numeric column, comma list, or auto for every numeric channel."
+                )},
+                **_REPLAY_PROPERTIES,
+                **_TEMPORAL_QUESTIONS_PROPERTY,
+                "format": {"type": "string", "enum": ["brief", "full"],
+                           "description": ("brief returns compact typed "
+                               "answers and per-series diagnostics; full "
+                               "returns complete reasoning receipts.")},
+            },
+            "required": [],
+            "anyOf": [
+                {"required": ["input"]},
+                {"required": ["observations"]},
+                {"required": ["data_ref"]},
+            ],
+        },
+        "runner": _run_describe,
+    },
+    {
+        "name": "gnomon_forecast",
+        "description": (
+            "Forecast columns (`\"cpu,mem,requests\"` or `\"auto\"`). "
+            "Infer schema; backtest candidates; disclose weak support."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                **_INPUT_PROPERTIES,
+                **_REPLAY_PROPERTIES,
+                "target_column": {"type": "string", "description": (
+                    "Column, `\"cpu,mem,requests\"`, or `\"auto\"`; omit only "
+                    "when unambiguous."
+                )},
+                "horizon": {"type": "integer", "description": (
+                    "Future periods, in units of the data frequency. "
+                    "Default: one seasonal period, disclosed as an "
+                    "assumption."
+                )},
+                "format": {"type": "string", "enum": ["full", "brief"], "description": (
+                    "brief (default): q50, q10-q90 and disclosures; full "
+                    "adds quantiles. The artifact is identical."
+                )},
+                "candidates": {
+                    "type": "array", "items": {"type": "string"},
+                    "description": (
+                        "Exact allowlist; baselines compete and may win."
+                    ),
+                },
+                "model_admission": {"type": "string", "enum": ["strict", "evidence_weighted"], "description": "Default: strict."},
+                "model_evidence_registry": {"type": "string", "description": "Registry for evidence_weighted."},
+                "output_dir": {"type": "string", "description": (
+                    "Artifact directory; default from gnomon_capabilities."
+                )},
+                "minimum_baseline_improvement": {"type": "number", "minimum": 0, "description": "Required relative gain over baseline (default 0.02)."},
+                "context_events_file": {"type": "string", "description": "Validated context-events JSON."},
+                **_CONTEXT_EVENTS_PROPERTY,
+                "threshold": {"type": "number", "description": "Optional decision threshold: the result reports when and how likely the forecast crosses this value."},
+                "project": {"type": "string", "description": "Optional tracking project. When set, register the forecast for realised scoring."},
+                "covariates_file": {"type": "string", "description": (
+                    "Point-in-time CSV keyed by timestamp and known_at; "
+                    "folds cannot see later vintages."
+                )},
+                **_COVARIATES_PROPERTY,
+                **_COVARIATE_MAPPING_PROPERTY,
+                "covariate_time_column": {"type": "string", "description": "Valid-at column (default timestamp)."},
+                "covariate_known_at_column": {"type": "string", "description": "Availability timestamp column (default known_at)."},
+                **_TEMPORAL_QUESTIONS_PROPERTY,
+                "covariate_series_column": {"type": "string", "description": "Optional series column in the covariate CSV."},
+                "repair": {"type": "string", "enum": ["off", "safe", "aggressive"], "description": "Repair: off strict; safe aligns bounded jitter; aggressive also fills gaps/conflicts. All disclosed."},
+                "best_effort": {"type": "boolean", "description": (
+                    "Deprecated alias for minimum_support=best_effort."
+                )},
+                "minimum_support": {"type": "string",
+                                    "enum": ["supported",
+                                             "conditionally_supported",
+                                             "best_effort"],
+                                    "description": (
+                    "Floor (default best_effort); supported refuses weaker results."
+                )},
+                "publication_mode": {"type": "string",
+                    "enum": ["strict", "best_effort", "scenario"],
+                    "description": (
+                        "strict=evidence-only; best_effort may recommend context; "
+                        "scenario lists alternatives.")},
+                "temporal_dossiers": {"type": "array", "items": {"type": "object"},
+                    "description": "Sealed temporal dossiers."},
+                "context_submission": {
+                    "type": "object", "additionalProperties": False,
+                    "description": (
+                        "Context or cited human-only prior; never changes "
+                        "primary or automation."),
+                    "properties": {
+                        "text": {"type": "string"},
+                        "known_at": {"type": "string"},
+                        "compiler": {"type": "string"},
+                        "compile": {"type": "string",
+                                    "enum": ["deterministic_linear"]},
+                        "allow_prior_compromise": {"type": "boolean"},
+                        "proposal": {"type": "object"},
+                        "transformations": {"type": "array",
+                                            "items": {"type": "object"}},
+                        "rejections": {"type": "array"},
+                        "model_candidate": {
+                            "type": "object", "additionalProperties": False,
+                            "description": (
+                                "Cited prior: source_spans plus quantiles xor "
+                                "3-16 full-grid sample_paths."),
+                            "properties": {
+                                "source_spans": {"type": "array", "minItems": 1,
+                                    "maxItems": 8,
+                                    "items": {"type": "string"}},
+                                "quantiles": {"type": "array",
+                                    "items": {"type": "object"}},
+                                "sample_paths": {"type": "array", "minItems": 3,
+                                    "maxItems": 16,
+                                    "items": {"type": "array",
+                                              "items": {"type": "number"}}},
+                                "rationale": {"type": "string"},
+                                "temperature": {"type": "number", "minimum": 0},
+                            },
+                            "required": ["source_spans"],
+                        },
+                    },
+                },
+                "scenario_selection": {"type": "object",
+                    "description": "Number-free governed ranking of scenario ids."},
+                "automation_policy": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "authorize": {"type": "boolean", "description": (
+                            "Request automation; omission stays advisory.")},
+                        "policy_id": {"type": "string", "minLength": 1,
+                            "description": "Caller policy id."},
+                        "minimum_support": {"type": "string",
+                            "enum": ["supported", "context_trusted"],
+                            "description": "Required evidence tier."},
+                        "action_tier": {"type": "string", "enum": [
+                            "advisory", "reversible_low_impact", "high_impact"],
+                            "description": (
+                                "Impact boundary. Advisory and high-impact "
+                                "never actuate; reversible low-impact also "
+                                "requires exact artifact-local calibration.")},
+                    },
+                    "required": ["authorize", "policy_id", "minimum_support"],
+                    "description": (
+                        "Explicit automation policy; recommendations alone grant no authority.")},
+                "future_events": {"type": "boolean", "description": (
+                    "Admit verified future constraints (default false); "
+                    "retains a history-only counterfactual."
+                )},
+                "structural_events": {"type": "boolean", "description": (
+                    "Recognize typed closed-menu structural events. Quantities "
+                    "stay engine-derived; unvalidated effects remain scenarios."
+                )},
+            },
+            "required": [],
+            "anyOf": [
+                {"required": ["input"]},
+                {"required": ["observations"]},
+                {"required": ["data_ref"]},
+            ],
+        },
+        "runner": _run_forecast,
+    },
+    {
+        "name": "gnomon_validate_covariates",
+        "description": (
+            "Validate covariate vintages for format, coverage, and "
+            "availability at every selection cutoff. Format: one row per "
+            "(timestamp, known_at); a fold only uses rows known at or "
+            "before its cutoff. Mapping grammar: name:type:future_known "
+            "entries. Failures name the empty cutoffs; pass the same "
+            "arguments to gnomon_forecast for the leakage-safe ablation."
+        ),
+        "inputSchema": {"type": "object", "properties": {
+            **_INPUT_PROPERTIES,
+            "horizon": {"type": "integer"},
+            "covariates_file": {"type": "string"},
+            **_COVARIATES_PROPERTY,
+            **_COVARIATE_MAPPING_PROPERTY,
+            "covariate_time_column": {"type": "string"},
+            "covariate_known_at_column": {"type": "string"},
+            "covariate_series_column": {"type": "string"},
+        }, "required": ["horizon", "covariate_mapping"]},
+        "runner": _run_validate_covariates,
+    },
+    {
+        "name": "gnomon_submit_actuals",
+        "description": "Score all due forecasts in a project from complete realised actuals. Panel actuals must include series,timestamp,value. A forecast scores only when every period in its horizon has an actual; when nothing scores, the result explains which window was missing rather than returning a bare zero.",
+        "inputSchema": {"type": "object", "properties": {
+            "project": {"type": "string"},
+            "actuals_file": {"type": "string", "description": "CSV of realised values. Callers without a filesystem pass `actuals` inline instead."},
+            "actuals": {"type": "array", "items": {"type": "object"}, "description": (
+                "Realised values supplied inline: objects of "
+                "{timestamp, value, series?, known_at?}. `known_at` (ISO) "
+                "backfills when the outcome became knowable; rows without "
+                "it became knowable at this submission. Mutually exclusive "
+                "with actuals_file (which accepts a known_at column)."
+            )},
+            "time_column": {"type": "string", "description": "Timestamp column in the actuals file. Inferred from a conventional name or a two-column layout when omitted."},
+            "target_column": {"type": "string", "description": "Realised value column. Inferred when unambiguous."},
+            "series_column": {"type": "string", "description": "Series column, required for multi-series projects."},
+            "effect_occurrences": {"type": "array", "description": (
+                "Optional confirmations for tracked context scenarios. Actual "
+                "values do not prove an event happened; each item supplies "
+                "effect_id, status (confirmed/cancelled/revised), known_at, "
+                "and optional note."
+            ), "items": {"type": "object", "properties": {
+                "effect_id": {"type": "string"},
+                "status": {"type": "string", "enum": [
+                    "confirmed", "cancelled", "revised"]},
+                "known_at": {"type": "string"},
+                "note": {"type": "string"},
+            }, "required": ["effect_id", "status", "known_at"]}},
+        }, "required": ["project"]},
+        "runner": _run_submit_actuals,
+    },
+    {
+        "name": "gnomon_ingest",
+        "description": (
+            "Append a file's observations to the bitemporal store as vintages. "
+            "Supply known_at_column when the source records when each value "
+            "became knowable — that is what makes `as_of` replay meaningful. "
+            "Without it Gnomon records known_time = valid_time and says so, "
+            "which asserts every value was knowable the moment it applied. "
+            "Re-ingesting a corrected file appends revisions; it never "
+            "overwrites, so the vintage history accumulates."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "input": {"type": "string", "description": "Path to the CSV to ingest. Callers without a filesystem pass `observations` inline instead."},
+                **_OBSERVATIONS_PROPERTY,
+                "dataset": {"type": "string", "description": "Dataset name; read it back as `store:<dataset>`."},
+                "time_column": {"type": "string", "description": "Valid-time column: when the value applies."},
+                "target_column": {"type": "string", "description": "Numeric value column."},
+                "known_at_column": {"type": "string", "description": "Known-time column: when the value became knowable. Omit only if the source genuinely has no publication lag."},
+                "series_column": {"type": "string", "description": "Optional column identifying independent series."},
+                "variable": {"type": "string", "description": "Name to store the measure under (defaults to target_column)."},
+                "store_path": {"type": "string", "description": "Override the temporal-store path."},
+            },
+            "required": ["dataset", "time_column", "target_column"],
+        },
+        "runner": _run_ingest,
+    },
+    {
+        "name": "gnomon_list_datasets",
+        "description": (
+            "List datasets in the bitemporal store with their observation and "
+            "revision counts, their valid- and known-time ranges, and whether "
+            "their known times were recorded or assumed. Each carries the "
+            "`store:<dataset>` reference to pass as an input."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "store_path": {"type": "string", "description": "Override the temporal-store path."},
+            },
+            "required": [],
+        },
+        "runner": _run_list_datasets,
+    },
+    {
+        "name": "gnomon_preflight_context",
+        "description": (
+            "Dry-run the admission checks for proposed context events "
+            "against the actual data, before spending a forecast. Returns "
+            "one verdict per event — would_influence, rejected (with the "
+            "typed reason), or ablation_gated (fold admission is measured, "
+            "not predictable) — plus the span grammar the parser accepts, "
+            "so a rejected proposal can be repaired and resubmitted in one "
+            "step. Deterministic verdicts here are the verdicts the "
+            "forecast will reach on the same data; nothing is written."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                **_INPUT_PROPERTIES,
+                "horizon": {"type": "integer", "description": "Future periods the events would apply to, in units of the data frequency."},
+                "context_events_file": {"type": "string", "description": "Context-events JSON file to preflight (the output of `gnomon context validate`, or the same shape)."},
+                **_CONTEXT_EVENTS_PROPERTY,
+                "repair": {"type": "string", "enum": ["off", "safe", "aggressive"], "description": "Messy-data handling, matched to what the forecast will use (default safe)."},
+            },
+            "required": ["horizon"],
+        },
+        "runner": _run_preflight_context,
+    },
+]
+
+
+def _parse_as_of(raw: Any):
+    if not raw:
+        return None
+    from .data import _parse_timestamp
+    return _parse_timestamp(str(raw), 0)
+
+
+def _run_investigate_change(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .macros import investigate_change
+    events = _materialized_or_public_events(arguments)
+    payload, path = investigate_change(
+        arguments["input"],
+        time_column=arguments["time_column"],
+        target_column=arguments["target_column"],
+        series_column=arguments.get("series_column"),
+        frequency=arguments.get("frequency"),
+        as_of=_parse_as_of(arguments.get("as_of")),
+        context_events=events,
+        suspected_cause=arguments.get("suspected_cause"),
+        output=arguments.get("output_dir") or "gnomon-output",
+        input_provenance=arguments.get("input_provenance"),
+        regrid=arguments.get("regrid"),
+    )
+    return {**payload, "artifact_path": str(path)}
+
+
+def _run_route(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .pipeline import load_stage
+    from .router import route
+    from .tracking import TrackingStore
+    loaded = load_stage(
+        arguments["input"],
+        time_column=arguments["time_column"],
+        target_column=arguments["target_column"],
+        series_column=arguments.get("series_column"),
+        frequency=arguments.get("frequency"),
+        as_of=_parse_as_of(arguments.get("as_of")),
+    )
+    project = arguments.get("project")
+    store = TrackingStore() if project else None
+    decisions = [
+        route(arguments.get("task") or "forecast",
+              [item.value for item in items], loaded.frequency,
+              horizon=int(arguments.get("horizon") or 1),
+              series=name, project=project, store=store)
+        for name, items in sorted(loaded.groups.items())
+    ]
+    return {"schema_version": "0.1", "decisions": decisions}
+
+
+def _run_detect_anomalies(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .macros import detect_anomalies
+    payload, path = detect_anomalies(
+        arguments["input"],
+        time_column=arguments["time_column"],
+        target_column=arguments["target_column"],
+        series_column=arguments.get("series_column"),
+        frequency=arguments.get("frequency"),
+        as_of=_parse_as_of(arguments.get("as_of")),
+        threshold=(float(arguments["threshold"])
+                   if arguments.get("threshold") is not None else None),
+        labels=arguments.get("labels"),
+        output=arguments.get("output_dir") or "gnomon-output",
+        input_provenance=arguments.get("input_provenance"),
+        regrid=arguments.get("regrid"),
+    )
+    return {**payload, "artifact_path": str(path)}
+
+
+def _run_decide(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .macros import decide
+    from .operators import validate_action_utilities
+    actions = arguments.get("actions")
+    problems: list[str] = []
+    if not isinstance(actions, list):
+        problems.append(f"actions is {type(actions).__name__}, not a list")
+    else:
+        for index, action in enumerate(actions):
+            if not isinstance(action, dict):
+                problems.append(
+                    f"item {index} is {type(action).__name__}, not an object "
+                    "with a 'name'")
+            elif not isinstance(action.get("name"), str) or not action["name"].strip():
+                problems.append(f"item {index} has no non-empty 'name'")
+            elif "feasible" in action and not isinstance(action["feasible"], bool):
+                problems.append(f"item {index}: 'feasible' must be true or false")
+            elif "residual_risk" in action:
+                try:
+                    float(action["residual_risk"])
+                except (TypeError, ValueError):
+                    problems.append(
+                        f"item {index}: 'residual_risk' must be a number")
+    if problems:
+        raise GnomonError(
+            "INVALID_ACTIONS",
+            "actions does not match the expected shape: "
+            + "; ".join(problems) + ".",
+            {"example": [
+                {"name": "scale_up", "feasible": True,
+                 "residual_risk": 0.1},
+                {"name": "do_nothing"},
+            ], "problems": problems},
+        )
+    feasible_names = set()
+    for action in actions:
+        feasible = bool(action.get("feasible", True))
+        if (feasible and arguments.get("max_acceptable_risk") is not None
+                and "residual_risk" in action):
+            feasible = (float(action["residual_risk"])
+                        <= float(arguments["max_acceptable_risk"]))
+        if feasible:
+            feasible_names.add(str(action["name"]))
+    utilities = validate_action_utilities(
+        list(actions), ("exceed", "no_exceed"), arguments.get("utilities"),
+        feasible_names=feasible_names,
+    )
+    payload, path = decide(
+        arguments["input"],
+        time_column=arguments["time_column"],
+        target_column=arguments["target_column"],
+        horizon=int(arguments["horizon"]),
+        threshold=float(arguments["threshold"]),
+        actions=list(actions),
+        utilities=utilities,
+        max_acceptable_risk=(
+            float(arguments["max_acceptable_risk"])
+            if arguments.get("max_acceptable_risk") is not None else None
+        ),
+        series_column=arguments.get("series_column"),
+        series_name=arguments.get("series_name"),
+        frequency=arguments.get("frequency"),
+        as_of=_parse_as_of(arguments.get("as_of")),
+        project=arguments.get("project"),
+        output=arguments.get("output_dir") or "gnomon-output",
+        input_provenance=arguments.get("input_provenance"),
+        regrid=arguments.get("regrid"),
+        questions=arguments.get("questions"),
+    )
+    return {**payload, "artifact_path": str(path)}
+
+
+def _run_status(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .tracking import TrackingStore
+
+    section = str(arguments.get("section") or "all")
+    if section == "open_forecasts":
+        # Preserve the established open-forecast projection.
+        return _run_open_forecasts(arguments)
+    if section == "performance":
+        # Preserve the established performance projection and project
+        # requirement.
+        if not arguments.get("project"):
+            from .contracts import GnomonError
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "section='performance' needs a project: realised "
+                "performance is recorded per tracking project.",
+            )
+        return _run_model_performance(arguments)
+    if section == "effects":
+        if not arguments.get("project"):
+            from .contracts import GnomonError
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "section='effects' needs a project: effect memory is scoped "
+                "to a tracking project.",
+            )
+        effects = TrackingStore().event_effects(
+            str(arguments["project"]),
+            event_type=arguments.get("event_type"),
+            series=arguments.get("series"),
+            include_unresolved=not bool(arguments.get("resolved_only")),
+        )
+        return {"schema_version": "0.1", "project": arguments["project"],
+                "effects": effects}
+    if section == "effect_prior":
+        from .contracts import GnomonError
+        from .effect_registry import prior_from_dict
+        from .effect_resolution import resolve_effect_evidence
+
+        required = ("project", "event_type", "series", "as_of")
+        missing = [name for name in required if not arguments.get(name)]
+        if missing:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "section='effect_prior' needs project, event_type, series, and as_of.",
+                {"missing": missing},
+            )
+        try:
+            priors = [prior_from_dict(raw)
+                      for raw in (arguments.get("external_priors") or [])]
+            resolved = resolve_effect_evidence(
+                TrackingStore(), project=str(arguments["project"]),
+                event_type=str(arguments["event_type"]),
+                series=str(arguments["series"]), as_of=str(arguments["as_of"]),
+                external_priors=priors,
+                target=str(arguments.get("target") or "*"),
+                domain=str(arguments.get("domain") or "*"),
+                population=str(arguments.get("population") or "*"),
+                unit=str(arguments.get("unit") or "*"),
+                human_assumption=arguments.get("human_assumption"),
+            )
+        except (TypeError, ValueError) as exc:
+            raise GnomonError("INVALID_ARGUMENTS", str(exc)) from exc
+        return {"schema_version": "0.1", "project": arguments["project"],
+                "event_type": arguments["event_type"],
+                "series": arguments["series"], "as_of": arguments["as_of"],
+                "resolution": resolved}
+    status = TrackingStore().status(arguments.get("project"))
+    if section == "decisions":
+        return {
+            "schema_version": status["schema_version"],
+            "project": status["project"],
+            "unresolved_decisions": status["unresolved_decisions"],
+            "decision_summary": status["decision_summary"],
+        }
+    return status
+
+
+def _run_resolve_outcome(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .tracking import TrackingStore
+    artifact = TrackingStore().resolve_decision_outcome(
+        str(arguments["decision_id"]),
+        realised_scenario=arguments.get("realised_scenario"),
+        realised_utilities=arguments.get("realised_utilities"),
+        constraint_violations=arguments.get("constraint_violations"),
+        note=arguments.get("note"),
+    )
+    return {"status": "ok", "decision": artifact.to_dict()}
+
+
+def _run_monitor(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .macros import monitor
+    from .monitoring import default_state_path, record_monitor_evaluation
+    output = arguments.get("output_dir") or "gnomon-output"
+    payload, path = monitor(
+        arguments["input"],
+        time_column=arguments["time_column"],
+        target_column=arguments["target_column"],
+        horizon=int(arguments["horizon"]),
+        threshold=float(arguments["threshold"]),
+        alert_cost=float(arguments["alert_cost"]) if arguments.get("alert_cost") is not None else None,
+        miss_cost=float(arguments["miss_cost"]) if arguments.get("miss_cost") is not None else None,
+        action_cost=float(arguments["action_cost"]) if arguments.get("action_cost") is not None else None,
+        mitigation_effectiveness=float(arguments.get("mitigation_effectiveness", 1.0)),
+        series_column=arguments.get("series_column"),
+        frequency=arguments.get("frequency"),
+        as_of=_parse_as_of(arguments.get("as_of")),
+        project=arguments.get("project"),
+        output=output,
+        input_provenance=arguments.get("input_provenance"),
+        regrid=arguments.get("regrid"),
+        questions=arguments.get("questions"),
+    )
+    payload["firing_rate"] = record_monitor_evaluation(
+        payload, state_path=default_state_path(output),
+    )
+    return {**payload, "artifact_path": str(path)}
+
+
+def _run_get_artifact(arguments: dict[str, Any]) -> dict[str, Any]:
+    from pathlib import Path
+    from .artifacts import read_artifact
+    from .versioning import RUNTIME_VERSION
+    directory = Path(arguments["artifact_path"])
+    artifact = read_artifact(directory)
+    rows = artifact.get("results")
+    selection: dict[str, Any] | None = None
+    if isinstance(rows, list) and any(arguments.get(key) is not None for key in
+                                      ("series", "fields", "where", "order_by", "limit")):
+        selected = list(rows)
+        names = arguments.get("series")
+        if isinstance(names, str):
+            names = [names]
+        if names:
+            wanted = {str(name) for name in names}
+            selected = [row for row in selected if str(row.get("series")) in wanted]
+        where = arguments.get("where") or {}
+        if where:
+            selected = [row for row in selected if all(row.get(key) == value
+                                                        for key, value in where.items())]
+        order_by = arguments.get("order_by")
+        if order_by == "notability":
+            from .support import forecast_notability
+            for row in selected:
+                row.setdefault("notability", forecast_notability(row))
+            selected.sort(key=lambda row: (-float(row.get("notability", 0.0)),
+                                           str(row.get("series", ""))))
+        elif order_by == "series":
+            selected.sort(key=lambda row: str(row.get("series", "")))
+        total = len(selected)
+        if arguments.get("limit") is not None:
+            selected = selected[:int(arguments["limit"])]
+        fields = arguments.get("fields")
+        if fields:
+            keep = {str(field) for field in fields} | {"series"}
+            selected = [{key: value for key, value in row.items() if key in keep}
+                        for row in selected]
+        artifact = {**artifact, "results": selected}
+        selection = {"matched": total, "returned": len(selected),
+                     "order_by": order_by, "fields": fields}
+    payload: dict[str, Any] = {
+        "schema_version": "0.1",
+        "artifact": artifact,
+        **({"selection": selection} if selection else {}),
+    }
+    stored = artifact.get("runtime_version")
+    if stored != RUNTIME_VERSION:
+        # The agent is told to quote artifacts verbatim, so an artifact
+        # computed by another build must say so where the quoting happens.
+        payload["runtime_note"] = (
+            f"This artifact was produced by runtime "
+            f"{stored or 'pre-0.5.0 (unstamped)'}; the running build is "
+            f"{RUNTIME_VERSION}. Ids cover the runtime version, so "
+            f"re-running the task will produce a fresh artifact under a "
+            f"new id rather than updating this one."
+        )
+    lineage_path = directory / "lineage.json"
+    if arguments.get("include_lineage") and lineage_path.is_file():
+        import json as _json
+        payload["lineage"] = _json.loads(lineage_path.read_text(encoding="utf-8"))
+    return payload
+
+
+def _run_unified(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Experimental single execution verb; complexity stays measurable."""
+    from .contracts import GnomonError
+
+    question = arguments.get("question") or {}
+    # Models commonly send the discriminant directly (``"forecast"``)
+    # despite the advertised object schema. Accept that unambiguous natural
+    # form instead of throwing AttributeError inside the tool server.
+    if isinstance(question, str):
+        kind, question_fields = question, {}
+    elif isinstance(question, dict):
+        kind = question.get("kind")
+        question_fields = {key: value for key, value in question.items()
+                           if key != "kind"}
+    else:
+        raise GnomonError("INVALID_ARGUMENTS",
+                          "question must be an object or a kind string.",
+                          {"allowed": ["describe", "forecast", "investigate",
+                                       "detect", "decide", "monitor"]})
+    merged = {**arguments, **question_fields}
+    merged.pop("question", None)
+    if kind == "robust_decision":
+        from datetime import datetime, timezone
+        from .decision_model import robust_scenario_decision
+        from .tracking import TrackingStore
+
+        required = ("decision_id", "project", "forecast_id", "actions",
+                    "utilities", "scenario_ids")
+        missing = [name for name in required if not merged.get(name)]
+        if missing:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "robust_decision needs a complete stated utility matrix.",
+                {"missing": missing},
+            )
+        try:
+            artifact = robust_scenario_decision(
+                decision_id=str(merged["decision_id"]),
+                project=str(merged["project"]),
+                forecast_id=str(merged["forecast_id"]),
+                actions=list(merged["actions"]),
+                utilities=dict(merged["utilities"]),
+                scenario_ids=list(merged["scenario_ids"]),
+                created_at=datetime.now(timezone.utc).isoformat(),
+            )
+        except (TypeError, ValueError) as exc:
+            raise GnomonError("INVALID_ARGUMENTS", str(exc)) from exc
+        TrackingStore().save_decision_artifact(artifact)
+        return {"schema_version": "0.1", "decision": artifact.to_dict()}
+    runners = {
+        "describe": _run_describe,
+        "forecast": _run_forecast,
+        "investigate": _run_investigate_change,
+        "detect": _run_detect_anomalies,
+        "decide": _run_decide,
+        "monitor": _run_monitor,
+    }
+    runner = runners.get(str(kind))
+    if runner is None:
+        raise GnomonError("INVALID_ARGUMENTS", "question.kind is required.",
+                          {"allowed": sorted(runners)})
+    if kind == "forecast" and merged.get("horizon") is None:
+        merged["horizon"] = _default_forecast_horizon(merged)
+    return runner(merged)
+
+
+def _run_track(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .contracts import GnomonError
+
+    action = arguments.get("action")
+    if action == "status":
+        return _run_status(arguments)
+    if action == "submit_actuals":
+        return _run_submit_actuals(arguments)
+    if action == "resolve_outcome":
+        return _run_resolve_outcome(arguments)
+    if action == "record_adapter_shadow":
+        from .tracking import TrackingStore
+        return TrackingStore().record_adapter_shadow_outcome(
+            project=str(arguments["project"]),
+            outcome_id=str(arguments["outcome_id"]),
+            candidate=str(arguments["candidate"]),
+            revision=arguments.get("revision"),
+            baseline=str(arguments["baseline"]),
+            candidate_error=float(arguments["candidate_error"]),
+            baseline_error=float(arguments["baseline_error"]),
+            known_at=str(arguments["known_at"]),
+            regime={str(key): str(value) for key, value in
+                    dict(arguments.get("regime") or {}).items()} or None,
+        )
+    if action == "assess_adapter_shadow":
+        from .tracking import TrackingStore
+        return TrackingStore().assess_adapter_shadow(
+            project=str(arguments["project"]),
+            candidate=str(arguments["candidate"]),
+            revision=arguments.get("revision"),
+            baseline=str(arguments["baseline"]),
+            as_of=arguments.get("as_of"),
+            min_outcomes=int(arguments.get("min_outcomes", 30)),
+            min_improvement=float(arguments.get("min_improvement", .05)),
+            min_win_rate=float(arguments.get("min_win_rate", .60)),
+        )
+    if action == "route_adapter_shadow":
+        from .tracking import TrackingStore
+        return TrackingStore().route_adapter_shadow(
+            project=str(arguments["project"]),
+            candidate=str(arguments["candidate"]),
+            revision=arguments.get("revision"),
+            champion=str(arguments["baseline"]),
+            regime={str(key): str(value) for key, value in
+                    dict(arguments.get("regime") or {}).items()},
+            as_of=str(arguments["as_of"]),
+        )
+    if action == "record_synthesis":
+        from .tracking import TrackingStore
+        TrackingStore().record_temporal_synthesis(
+            project=str(arguments["project"]),
+            forecast_id=str(arguments["forecast_id"]),
+            series=str(arguments["series"]),
+            question_id=str(arguments["question_id"]),
+            synthesis_id=str(arguments["synthesis_id"]),
+            canonical=dict(arguments["canonical"]),
+            synthesis=dict(arguments["synthesis"]),
+            evidence_refs=[str(item) for item in arguments["evidence_refs"]],
+        )
+        return {"status": "recorded", "synthesis_id": arguments["synthesis_id"],
+                "primary_forecast_unchanged": True}
+    if action == "resolve_synthesis":
+        from .tracking import TrackingStore
+        score = TrackingStore().resolve_temporal_synthesis(
+            project=str(arguments["project"]),
+            forecast_id=str(arguments["forecast_id"]),
+            series=str(arguments["series"]),
+            question_id=str(arguments["question_id"]),
+            synthesis_id=str(arguments["synthesis_id"]),
+            outcome=dict(arguments["outcome"]),
+            resolved_at=arguments.get("resolved_at"),
+        )
+        return {"status": "resolved", "synthesis_id": arguments["synthesis_id"],
+                "score": score, "primary_forecast_unchanged": True}
+    if action == "synthesis_status":
+        from .tracking import TrackingStore
+        rows = TrackingStore().temporal_synthesis_receipts(
+            str(arguments["project"]), resolved=arguments.get("resolved"),
+            series=arguments.get("series"),
+            resolved_before=arguments.get("as_of"))
+        return {"status": "ok", "project": arguments["project"],
+                "syntheses": rows}
+    if action == "candidate_outcomes":
+        from .tracking import TrackingStore
+        rows = TrackingStore().candidate_outcome_summary(
+            str(arguments["project"]),
+            minimum_resolved=int(arguments.get("min_outcomes", 8)),
+            series=arguments.get("series"),
+            resolved_before=arguments.get("as_of"))
+        return {
+            "status": "ok", "project": arguments["project"],
+            "series": arguments.get("series"),
+            "as_of": arguments.get("as_of"),
+            "candidate_outcomes": rows,
+            "authority": {
+                "human_prior_only": True,
+                "support_upgrade_allowed": False,
+                "automation_upgrade_allowed": False,
+            },
+        }
+    if action == "decision_skill":
+        from .tracking import TrackingStore
+        rows = TrackingStore().decision_synthesis_skill(
+            str(arguments["project"]),
+            proposer_id=arguments.get("proposer_id"),
+            minimum_resolved=int(arguments.get("min_outcomes", 20)))
+        return {
+            "status": "ok", "project": arguments["project"],
+            "decision_skill": rows,
+            "authority": {
+                "human_prior_only": True,
+                "support_upgrade_allowed": False,
+                "automation_upgrade_allowed": False,
+            },
+        }
+    raise GnomonError("INVALID_ARGUMENTS", "action is required.",
+                      {"allowed": ["status", "submit_actuals", "resolve_outcome",
+                                   "record_adapter_shadow",
+                                   "assess_adapter_shadow",
+                                   "route_adapter_shadow", "record_synthesis",
+                                   "resolve_synthesis", "synthesis_status",
+                                   "candidate_outcomes", "decision_skill"]})
+
+
+def _run_explain_run(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Compact explanation of a stored run: claims, support, warnings.
+    Statements come verbatim from the verified lineage — nothing is composed."""
+    import json as _json
+    from pathlib import Path
+    from .artifacts import read_artifact
+    directory = Path(arguments["artifact_path"])
+    artifact = read_artifact(directory)
+    explanation: dict[str, Any] = {
+        "schema_version": "0.1",
+        "artifact_id": (
+            artifact.get("investigation_id") or artifact.get("decision_id")
+            or artifact.get("monitor_id") or artifact.get("forecast_id")
+        ),
+        "created_at": artifact.get("created_at"),
+        "support_assessments": {},
+        "warnings": {},
+        "claims": [],
+    }
+    for result in artifact.get("results", []):
+        name = result.get("series", "__default__")
+        if result.get("support_assessment") is not None:
+            explanation["support_assessments"][name] = result["support_assessment"]
+        if result.get("warnings"):
+            explanation["warnings"][name] = result["warnings"]
+    if artifact.get("support_assessment") is not None:
+        explanation["support_assessments"]["__task__"] = artifact["support_assessment"]
+    for trigger in artifact.get("triggers", []):
+        explanation["support_assessments"][trigger.get("series", "__default__")] = (
+            trigger.get("support_assessment")
+        )
+    lineage_path = directory / "lineage.json"
+    if lineage_path.is_file():
+        lineage = _json.loads(lineage_path.read_text(encoding="utf-8"))
+        explanation["claims"] = [
+            {"claim_id": claim["claim_id"], "claim_class": claim["claim_class"],
+             "statement": claim["statement"], "evidence_ids": claim["evidence_ids"]}
+            for claim in lineage.get("claims", [])
+        ]
+    summary = directory / "summary.md"
+    if summary.is_file():
+        explanation["summary_md"] = summary.read_text(encoding="utf-8")
+    return explanation
+
+
+def _run_select_scenario(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Rerank sealed paths without rerunning or rewriting a forecast."""
+    import json as _json
+    from pathlib import Path
+
+    from .contracts import GnomonError
+    from .publication import (select_publication,
+                              write_selected_publication)
+
+    source = Path(str(arguments["publication_path"]))
+    if not source.is_file():
+        raise GnomonError(
+            "INVALID_ARGUMENTS", "publication_path must name an existing file")
+    try:
+        publication = _json.loads(source.read_text(encoding="utf-8"))
+        selected = select_publication(
+            publication, dict(arguments["scenario_selection"]))
+        selected_path = write_selected_publication(source, selected)
+    except (OSError, ValueError, TypeError, _json.JSONDecodeError) as exc:
+        raise GnomonError("INVALID_ARGUMENTS", str(exc)) from exc
+    scenario_id = selected["recommended_scenario_id"]
+    return {
+        "schema_version": "0.1", "status": "ok", "verb": "select_scenario",
+        "headline": (
+            f"Selected {scenario_id} as the human-facing recommendation. "
+            "The governed primary forecast is unchanged and this selection "
+            "does not authorize automation."
+        ),
+        "artifact_id": selected.get("artifact_id"),
+        "publication_path": str(selected_path),
+        "supersedes_publication_seal_sha256": selected[
+            "supersedes_publication_seal_sha256"],
+        "publication_seal_sha256": selected["publication_seal_sha256"],
+        "recommended_scenario_id": scenario_id,
+        "recommended_forecast": selected["recommended_forecast"],
+        "recommended_support": selected["recommended_support"],
+        "support": selected["recommended_support"],
+        "primary_forecast_unchanged": True,
+        "scenario_selection": selected["scenario_selection"],
+        "recommendation_authority": selected["recommendation_authority"],
+        "automation": selected["automation"],
+    }
+
+
+def _run_install_tsfm(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .contracts import GnomonError
+    from .tsfm import TSFMUnavailable, available_tsfms
+    from .tsfm_sandbox import TSFM_PIP_SPECS, install_status, start_install
+
+    name = str(arguments["name"])
+    if name not in TSFM_PIP_SPECS:
+        raise GnomonError(
+            "UNKNOWN_TSFM",
+            f"Unknown TSFM: {name!r}. Installable names are listed in "
+            f"details.available.",
+            {"available": sorted(TSFM_PIP_SPECS),
+             "eligible_adapters": available_tsfms()},
+        )
+    try:
+        status = (install_status(name) if arguments.get("status_only")
+                  else start_install(name))
+    except TSFMUnavailable as exc:
+        raise GnomonError("SANDBOX_UNAVAILABLE", str(exc), {"tsfm": name})
+    notes = {
+        "installing": (
+            "Installation runs as a detached process and can take minutes "
+            "on first install (torch dominates). Poll with "
+            "status_only=true; state=ready means the sandbox is usable."
+        ),
+        "ready": (
+            "Sandbox ready. Pass the name in gnomon_forecast's "
+            "`candidates` to enter it in the evaluated competition — "
+            "TSFMs compete against the baselines on identical folds, "
+            "never win by default."
+        ),
+        "failed": (
+            "The last install attempt died; log_tail holds the evidence. "
+            "Calling again without status_only retries from scratch."
+        ),
+        "absent": (
+            "No sandbox and no install running. Call without status_only "
+            "to start one."
+        ),
+    }
+    return {"schema_version": "0.1", "tsfm": name,
+            "pip_specs": TSFM_PIP_SPECS[name], **status,
+            "note": notes[status["state"]]}
+
+
+def _registry_tools() -> list[dict[str, Any]]:
+    """Agent tools generated from the macro registry — one source of truth
+    for schemas across CLI, Python API, and MCP."""
+    from .registry import MACROS
+    runners = {
+        "gnomon_investigate_change": _run_investigate_change,
+        "gnomon_detect_anomalies": _run_detect_anomalies,
+        "gnomon_decide": _run_decide,
+        "gnomon_monitor": _run_monitor,
+    }
+    tools = []
+    for spec in MACROS.values():
+        if spec.tool_name not in runners:
+            continue  # gnomon_forecast keeps its frozen v0.2 definition above
+        tools.append({
+            "name": spec.tool_name,
+            "description": spec.summary,
+            "inputSchema": spec.input_schema,
+            "runner": runners[spec.tool_name],
+        })
+    return tools
+
+
+TOOLS.extend(_registry_tools())
+TOOLS.extend([
+    {
+        "name": "gnomon_select_scenario",
+        "description": (
+            "Choose sealed path. Cannot change numbers, support, primary, "
+            "automation."
+        ),
+        "inputSchema": {"type": "object", "properties": {
+            "publication_path": {"type": "string", "description": (
+                "publication_path returned by gnomon_forecast.")},
+            "scenario_selection": {"type": "object", "properties": {
+                "selected_scenario_id": {"type": "string"},
+                "ranking": {"type": "array", "items": {"type": "string"}},
+                "cited_claim_ids": {"type": "array", "items": {"type": "string"}},
+                "counterevidence_claim_ids": {"type": "array", "items": {"type": "string"}},
+                "counterevidence_hypothesis_ids": {"type": "array", "items": {"type": "string"}},
+                "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                "rationale": {"type": "string"},
+                "what_would_change_selection": {"type": "string"},
+            }, "required": [
+                "selected_scenario_id", "ranking", "cited_claim_ids",
+                "counterevidence_claim_ids", "confidence", "rationale",
+                "what_would_change_selection",
+            ]},
+        }, "required": ["publication_path", "scenario_selection"]},
+        "runner": _run_select_scenario,
+    },
+    {
+        "name": "gnomon_run",
+        "description": (
+            "Experimental unified temporal execution verb. Set question.kind "
+            "to describe, forecast, investigate, detect, decide, monitor, or "
+            "robust_decision. Robust decisions use caller-supplied utilities "
+            "without inventing scenario probabilities."
+        ),
+        "inputSchema": {"type": "object", "properties": {
+            **_INPUT_PROPERTIES, **_REPLAY_PROPERTIES,
+            **_CONTEXT_EVENTS_PROPERTY,
+            "context_events_file": {"type": "string", "description": (
+                "Validated context-events JSON produced by the host context compiler.")},
+            "future_events": {"type": "boolean", "description": (
+                "Admit future constraint/override events only after verbatim-source validation.")},
+            "structural_events": {"type": "boolean", "description": (
+                "Enable the separately gated structural-event lane.")},
+            "question": {"type": "object", "properties": {
+                "kind": {"type": "string", "enum": [
+                    "describe", "forecast", "investigate", "detect", "decide", "monitor",
+                    "robust_decision"]},
+                "suspected_cause": {"type": "string"},
+            }, "required": ["kind"]},
+            "horizon": {"type": "integer", "minimum": 1},
+            "threshold": {"type": "number"},
+            "actions": {"type": "array", "items": {"oneOf": [
+                {"type": "string"},
+                {"type": "object", "properties": {
+                    "name": {"type": "string"},
+                    "feasible": {"type": "boolean"},
+                    "constraint_results": {"type": "object"},
+                }, "required": ["name"]},
+            ]}},
+            "utilities": {
+                "type": "object",
+                "description": "Exact action-to-scenario payoff matrix. Every feasible action needs finite numeric payoffs for exceed and no_exceed; unknown action or scenario keys are rejected.",
+                "additionalProperties": {
+                    "type": "object",
+                    "additionalProperties": {"type": "number"}
+                }
+            },
+            "decision_id": {"type": "string"},
+            "forecast_id": {"type": "string"},
+            "scenario_ids": {"type": "array", "items": {"type": "string"}},
+            "alert_cost": {"type": "number"},
+            "action_cost": {"type": "number"},
+            "miss_cost": {"type": "number"},
+            "mitigation_effectiveness": {"type": "number", "minimum": 0,
+                                           "maximum": 1},
+            "output_dir": {"type": "string"},
+            "project": {"type": "string"},
+            "minimum_support": {"type": "string", "enum": [
+                "supported", "conditionally_supported", "best_effort"]},
+            "format": {"type": "string", "enum": ["brief", "full"]},
+        }, "required": ["question"]},
+        "runner": _run_unified,
+    },
+    {
+        "name": "gnomon_track",
+        "description": (
+            "Experimental tracking verb. action selects status, "
+            "outcome submission/resolution, adapter shadow evidence, or "
+            "separately labelled synthesis receipts and resolved candidate "
+            "uplift. Candidate evidence can inform a human prior but never "
+            "upgrades support or automation authority."
+        ),
+        "inputSchema": {"type": "object", "properties": {
+            "action": {"type": "string", "enum": [
+                "status", "submit_actuals", "resolve_outcome",
+                "record_adapter_shadow", "assess_adapter_shadow",
+                "route_adapter_shadow",
+                "record_synthesis", "resolve_synthesis", "synthesis_status",
+                "candidate_outcomes", "decision_skill"]},
+            "project": {"type": "string"},
+            "section": {"type": "string", "enum": [
+                "open_forecasts", "performance", "decisions", "all"]},
+            "actuals": {"type": "array", "items": {"type": "object"}},
+            "actuals_file": {"type": "string"},
+            "actuals_time": {"type": "string"},
+            "actuals_target": {"type": "string"},
+            "actuals_series": {"type": "string"},
+            "decision_id": {"type": "string"},
+            "realised_scenario": {"type": "string"},
+            "realised_utilities": {"type": "object"},
+            "constraint_violations": {"type": "array", "items": {"type": "string"}},
+            "note": {"type": "string"},
+            "outcome_id": {"type": "string"},
+            "candidate": {"type": "string"},
+            "revision": {"type": "string"},
+            "baseline": {"type": "string"},
+            "candidate_error": {"type": "number", "minimum": 0},
+            "baseline_error": {"type": "number", "minimum": 0},
+            "known_at": {"type": "string"},
+            "as_of": {"type": "string"},
+            "regime": {"type": "object", "additionalProperties": {
+                "type": "string"}, "description": (
+                "Exact low-cardinality temporal cohort used for paired "
+                "shadow recording or routing; cohorts are never pooled.")},
+            "min_outcomes": {"type": "integer", "minimum": 1},
+            "min_improvement": {"type": "number"},
+            "min_win_rate": {"type": "number", "minimum": 0, "maximum": 1},
+            "series": {"type": "string"},
+            "question_id": {"type": "string"},
+            "synthesis_id": {"type": "string"},
+            "canonical": {"type": "object"},
+            "synthesis": {"type": "object"},
+            "evidence_refs": {"type": "array", "items": {"type": "string"}},
+            "outcome": {"type": "object"},
+            "resolved_at": {"type": "string"},
+            "resolved": {"type": "boolean"},
+            "proposer_id": {"type": "string"},
+        }, "required": ["action"]},
+        "runner": _run_track,
+    },
+    {
+        "name": "gnomon_get_artifact",
+        "description": (
+            "Read a stored artifact directory: full artifact.json and, "
+            "optionally, the typed lineage. All numbers live here; quote them "
+            "verbatim."
+        ),
+        "inputSchema": {"type": "object", "properties": {
+            "artifact_path": {"type": "string", "description": "Artifact directory returned by a macro."},
+            "include_lineage": {"type": "boolean", "description": "Include lineage.json (artifacts/evidence/claims)."},
+            "series": {"type": ["string", "array"], "description": "Series name or names to return from artifact results."},
+            "fields": {"type": "array", "items": {"type": "string"}, "description": "Result fields to return; series is always retained."},
+            "where": {"type": "object", "description": "Exact-match filters over result fields."},
+            "order_by": {"type": "string", "enum": ["notability", "series"], "description": "Deterministic result ordering."},
+            "limit": {"type": "integer", "minimum": 1, "description": "Maximum selected results to return."},
+        }, "required": ["artifact_path"]},
+        "runner": _run_get_artifact,
+    },
+    {
+        "name": "gnomon_status",
+        "description": (
+            "The one tracking read: open forecasts, due horizons, "
+            "unresolved decisions, and realised-performance summaries. "
+            "Narrow with `section` (open_forecasts / performance / "
+            "decisions / effects / effect_prior) to get exactly the tracking evidence "
+            "returned. Descriptive evidence an agent can cite — never "
+            "causal; do not treat observational rankings as causal "
+            "evidence."
+        ),
+        "inputSchema": {"type": "object", "properties": {
+            "project": {"type": "string", "description": (
+                "Optional project filter; required for "
+                "section='performance'."
+            )},
+            "section": {"type": "string",
+                        "enum": ["open_forecasts", "performance",
+                                 "decisions", "effects", "effect_prior", "all"],
+                        "description": (
+                            "Slice to return (default all). open_forecasts: "
+                            "unscored forecasts with due horizons; "
+                            "performance: realised per-model performance "
+                            "for a project; decisions: unresolved decisions "
+                            "and the resolution summary; effects: frozen "
+                            "context scenarios and realised effect estimates; "
+                            "effect_prior: resolve the governed evidence ladder."
+                        )},
+            "model": {"type": "string", "description": (
+                "With section='performance': narrow to one model's "
+                "realised runs."
+            )},
+            "event_type": {"type": "string", "description": (
+                "With section='effects': restrict to one event type."
+            )},
+            "series": {"type": "string", "description": (
+                "With section='effects': restrict to one series."
+            )},
+            "resolved_only": {"type": "boolean", "description": (
+                "With section='effects': omit scenarios awaiting outcomes."
+            )},
+            "as_of": {"type": "string", "description": (
+                "With section='effect_prior': timezone-aware knowledge cutoff."
+            )},
+            "target": {"type": "string"},
+            "domain": {"type": "string"},
+            "population": {"type": "string"},
+            "unit": {"type": "string"},
+            "external_priors": {"type": "array", "items": {"type": "object"},
+                                "description": (
+                                    "Versioned external effect priors; each needs known_at."
+                                )},
+            "human_assumption": {"type": "object", "description": (
+                "Explicit sensitivity assumption with location and known_at; "
+                "never treated as learned probabilistic evidence."
+            )},
+        }, "required": []},
+        "runner": _run_status,
+    },
+    {
+        "name": "gnomon_resolve_outcome",
+        "description": (
+            "Resolve DecisionArtifacts produced by `gnomon_decide` with what "
+            "actually happened: "
+            "realised scenario and/or per-action realised utilities. Returns "
+            "realised utility, regret vs the best feasible action in "
+            "hindsight, ex-ante optimality, and risk calibration — bare "
+            "'correct' is retired."
+        ),
+        "inputSchema": {"type": "object", "properties": {
+            "decision_id": {"type": "string"},
+            "realised_scenario": {"type": "string", "description": "e.g. exceed / no_exceed."},
+            "realised_utilities": {"type": "object", "description": "Optional per-action realised payoff."},
+            "constraint_violations": {"type": "array", "items": {"type": "string"}},
+            "note": {"type": "string"},
+        }, "required": ["decision_id"]},
+        "runner": _run_resolve_outcome,
+    },
+    {
+        "name": "gnomon_route",
+        "description": (
+            "Which method for this task on this data? A disclosed, advisory "
+            "structural starting point with a verified capability filter. "
+            "Mutable tracking scores are not historical routing evidence. "
+            "The execution profile supports cutoff-bound ledger studies. Includes the series fingerprint "
+            "and every exclusion reason in the output. Feed `candidates` (or "
+            "`recommendation`) to `gnomon_forecast`'s `candidates` parameter to "
+            "act on the answer. Evaluated runs still backtest whatever pool "
+            "they are given against the mandatory baselines, so routing "
+            "narrows the contest but never decides it."
+        ),
+        "inputSchema": {"type": "object", "properties": {
+            "input": {"type": "string", "description": "Path to a CSV/Parquet file or store:<dataset>. Callers without a filesystem pass `observations` inline instead."},
+            **_OBSERVATIONS_PROPERTY,
+            "time_column": {"type": "string"},
+            "target_column": {"type": "string"},
+            "series_column": {"type": "string"},
+            "frequency": {"type": "string"},
+            "task": {"type": "string", "enum": ["forecast", "detect_anomalies"],
+                     "description": "Task to route (default forecast)."},
+            "horizon": {"type": "integer", "description": "Forecast horizon (default 1)."},
+            "project": {"type": "string", "description": (
+                "Tracking project: records the structural recommendation; "
+                "mutable scores never select a model."
+            )},
+        }, "required": []},
+        "runner": _run_route,
+    },
+    {
+        "name": "gnomon_explain_run",
+        "description": (
+            "Compact explanation of a stored run: verified claim statements, "
+            "per-series support assessments, and warnings. Statements come "
+            "from the verified lineage; never paraphrase abstentions away."
+        ),
+        "inputSchema": {"type": "object", "properties": {
+            "artifact_path": {"type": "string", "description": "Artifact directory returned by a macro."},
+        }, "required": ["artifact_path"]},
+        "runner": _run_explain_run,
+    },
+    {
+        "name": "gnomon_install_tsfm",
+        "description": (
+            "Install a time-series foundation model into its isolated "
+            "sandbox venv, without blocking: the install runs as a "
+            "detached process and each call reports the current state "
+            "(absent / installing / ready / failed). Eligible names are "
+            "in gnomon_capabilities under models.tsfm_available; when "
+            "state is ready, pass the name in gnomon_forecast's "
+            "`candidates`. Packages come from the pinned per-model spec "
+            "via uv — expect minutes on first install. TSFMs remain "
+            "candidates: they compete against the baselines on identical "
+            "folds and never win by default."
+        ),
+        "inputSchema": {"type": "object", "properties": {
+            "name": {"type": "string", "description": (
+                "TSFM adapter name (e.g. chronos_bolt_mini); the "
+                "installable set is in gnomon_capabilities under "
+                "models.tsfm_available."
+            )},
+            "status_only": {"type": "boolean", "description": (
+                "Report the sandbox state without starting an install."
+            )},
+        }, "required": ["name"]},
+        "runner": _run_install_tsfm,
+    },
+])
+
+
+#: Task profiles: named subsets of the canonical surface for hosts that know
+#: what kind of session they are running. Selected by `gnomon mcp serve
+#: --profile` or the GNOMON_MCP_PROFILE env var.
+_CORE_PROFILE = frozenset({
+    "gnomon_capabilities", "gnomon_inspect", "gnomon_describe",
+    "gnomon_forecast", "gnomon_monitor",
+    "gnomon_investigate_change", "gnomon_detect_anomalies",
+    "gnomon_decide", "gnomon_route", "gnomon_explain_run",
+})
+PROFILES: dict[str, frozenset[str]] = {
+    "core": _CORE_PROFILE,
+    "describe": _CORE_PROFILE | {"gnomon_describe"},
+    "evidence": frozenset({
+        "gnomon_describe", "gnomon_forecast", "gnomon_select_scenario"}),
+    "mega": frozenset({"gnomon_inspect", "gnomon_run", "gnomon_track"}),
+    "decision": _CORE_PROFILE | {
+        "gnomon_decide", "gnomon_monitor", "gnomon_route",
+        "gnomon_status", "gnomon_resolve_outcome",
+    },
+    "data": _CORE_PROFILE | {
+        "gnomon_ingest", "gnomon_list_datasets", "gnomon_submit_actuals",
+    },
+}
+_SURFACE_EXPERIMENT_TOOLS = frozenset({
+    "gnomon_run", "gnomon_track",
+})
+
+
+def active_profile() -> str:
+    import os
+    # The general product surface is the safe operational core. The
+    # three-tool evidence profile remains available for tightly bounded
+    # evaluation sessions, but making it the product default hid Gnomon's
+    # strongest operational verbs from ordinary agents.
+    name = os.environ.get("GNOMON_MCP_PROFILE", DEFAULT_MCP_PROFILE)
+    if name != "full" and name not in PROFILES:
+        raise ValueError(
+            f"Unknown GNOMON_MCP_PROFILE {name!r}; expected one of "
+            f"{sorted(PROFILES)} or 'full'."
+        )
+    return name
+
+
+def visible_tools() -> list[dict[str, Any]]:
+    """The canonical tool surface filtered by the active profile."""
+    tools = TOOLS
+    profile = active_profile()
+    if profile == "full":
+        return [tool for tool in tools
+                if tool["name"] not in _SURFACE_EXPERIMENT_TOOLS]
+    allowed = PROFILES[profile]
+    return [tool for tool in tools if tool["name"] in allowed]
+
+
+def profiles_for_tool(name: str) -> list[str]:
+    """Named profiles that can expose ``name``, including virtual ``full``."""
+    profiles = sorted(
+        profile for profile, names in PROFILES.items() if name in names
+    )
+    known = any(tool["name"] == name for tool in TOOLS)
+    if known and name not in _SURFACE_EXPERIMENT_TOOLS:
+        profiles.append("full")
+    return profiles
+
+
+def enforce_profile_tool_calls(value: Any) -> Any:
+    """Never hand an agent a ready call that this server will refuse."""
+    visible = {tool["name"] for tool in visible_tools()}
+
+    def visit(item: Any) -> Any:
+        if isinstance(item, list):
+            return [visit(entry) for entry in item]
+        if not isinstance(item, dict):
+            return item
+        result: dict[str, Any] = {}
+        for key, nested in item.items():
+            if key == "tool_call" and isinstance(nested, dict):
+                name = str(nested.get("name") or "")
+                if name and name not in visible:
+                    result["tool_unavailable_in_profile"] = {
+                        "tool": name,
+                        "active_profile": active_profile(),
+                        "profiles": profiles_for_tool(name),
+                        "note": (
+                            "The referenced data remains available at the "
+                            "response's artifact path; this server profile "
+                            "does not expose the suggested follow-up tool."
+                        ),
+                    }
+                    continue
+            result[key] = visit(nested)
+        return result
+
+    return visit(value)
+
+
+_SESSION_DATA_REFS: dict[str, dict[str, Any]] = {}
+_MAX_SESSION_DATA_REFS = 128
+_DATA_BINDING_KEYS = frozenset({
+    "input", "input_provenance", "time_column", "target_column",
+    "series_column", "frequency", "regrid", "as_of", "store_path", "repair",
+})
+
+
+def _resolve_data_ref(arguments: dict[str, Any]) -> dict[str, Any]:
+    token = arguments.get("data_ref")
+    if not token:
+        return arguments
+    from .contracts import GnomonError
+    bound = _SESSION_DATA_REFS.get(str(token))
+    if bound is None:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "data_ref is unknown or expired in this MCP session.",
+            {"data_ref": str(token)},
+            repair_options=[{
+                "action": "resupply_data",
+                "description": "Send input or observations again to receive a fresh data_ref.",
+            }],
+        )
+    conflicts = sorted(
+        key for key in _DATA_BINDING_KEYS
+        if key in arguments and key in bound and arguments[key] != bound[key]
+    )
+    if conflicts:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "data_ref already binds the data and schema; do not override "
+            + ", ".join(conflicts) + ".",
+            {"data_ref": str(token), "conflicts": conflicts},
+        )
+    return {**bound, **{key: value for key, value in arguments.items()
+                       if key != "data_ref"}, "_data_ref": str(token)}
+
+
+def _register_data_ref(arguments: dict[str, Any]) -> tuple[dict[str, Any], str]:
+    import secrets
+    token = "data_" + secrets.token_urlsafe(18)
+    bound = {key: arguments[key] for key in _DATA_BINDING_KEYS
+             if key in arguments and arguments[key] is not None}
+    _SESSION_DATA_REFS[token] = bound
+    while len(_SESSION_DATA_REFS) > _MAX_SESSION_DATA_REFS:
+        # Insertion-ordered dict: discard the oldest session binding. The
+        # caller gets the same typed expired-reference recovery as a restart.
+        _SESSION_DATA_REFS.pop(next(iter(_SESSION_DATA_REFS)))
+    return {**arguments, "_data_ref": token}, token
+
+
+def _materialise_observations(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Turn the inline ``observations`` array into a temp-file ``input``.
+
+    The rows become a CSV in a fresh temp directory and the call
+    proceeds exactly as a file-based one — same loaders, same repair
+    ladder, same fingerprinting — so the inline channel can never
+    develop separate semantics from the file channel.
+    """
+    arguments = _resolve_data_ref(arguments)
+    rows = arguments.get("observations")
+    if rows is None:
+        return arguments
+    from .contracts import GnomonError
+
+    if arguments.get("input"):
+        raise GnomonError(
+            "INVALID_ARGUMENTS", "Provide input or observations, not both.",
+        )
+    if (not isinstance(rows, list) or not rows
+            or not all(isinstance(row, dict) and row for row in rows)):
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "observations must be a non-empty array of row objects keyed "
+            "by column name.",
+        )
+    if len(rows) > 500:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "observations accepts at most 500 inline rows; use a file, "
+            "store:<dataset>, or a data_ref returned by an earlier call.",
+            {"observations": len(rows), "maximum": 500},
+        )
+    import csv
+    import tempfile
+    from pathlib import Path
+
+    columns: list[str] = []
+    for row in rows:
+        for key in row:
+            if key not in columns:
+                columns.append(str(key))
+    path = Path(tempfile.mkdtemp(prefix="gnomon-inline-")) / "observations.csv"
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=columns, restval="")
+        writer.writeheader()
+        writer.writerows(rows)
+    passed = {key: value for key, value in arguments.items()
+              if key != "observations"}
+    # The temp file erases the channel; this is the last place that knows
+    # the rows were typed by the caller rather than read from their disk,
+    # and the artifact's task block wants the fact (`provenance: inline`).
+    return {**passed, "input": str(path), "input_provenance": "inline"}
+
+
+def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
+    for tool in visible_tools():
+        if tool["name"] == name:
+            runner = tool["runner"]
+            takes_data = "observations" in (
+                tool.get("inputSchema", {}).get("properties") or {})
+
+            def wrapped(arguments: dict[str, Any], _runner=runner,
+                        _takes_data=takes_data, _name=name) -> dict[str, Any]:
+                if _takes_data and not arguments.get("input") \
+                        and arguments.get("observations") is None \
+                        and not arguments.get("data_ref"):
+                    raise GnomonError(
+                        "INVALID_ARGUMENTS",
+                        "Supply the data: input (a file path or "
+                        "store:<dataset>) or observations (inline rows).",
+                    )
+                # Which channels carried caller-typed *measurements*, noted
+                # before materialisation erases the distinction. Inline data
+                # is a first-class channel — validated, fingerprinted,
+                # repaired exactly like a file — but a file at least existed
+                # outside this conversation; rows the model typed did not,
+                # and a reader weighing the numbers is owed that fact.
+                # Context events are deliberately absent: they are claims,
+                # not measurements — always caller-authored, whatever the
+                # channel — and their trust story is the source field and
+                # the admission gate, not the file/inline distinction.
+                inline_channels = [
+                    label for key, label in (
+                        ("observations", "observations"),
+                        ("covariates", "covariate vintages"),
+                        ("actuals", "actuals"),
+                    ) if isinstance(arguments.get(key), list)
+                ]
+                source_kind = None
+                source = arguments.get("input")
+                if isinstance(source, str) and source.startswith(
+                        ("prom://", "prom+http://", "prom+https://")):
+                    from .sources import materialize_agent_source
+                    resolved, source_kind = materialize_agent_source(source)
+                    arguments = {
+                        **arguments,
+                        "input": resolved,
+                        "input_provenance": source_kind,
+                        "time_column": arguments.get("time_column") or "timestamp",
+                        "target_column": arguments.get("target_column") or "value",
+                        "series_column": arguments.get("series_column") or "series",
+                    }
+                arguments, context_cache = _materialise_context(arguments)
+                arguments = _materialise_observations(arguments)
+                assumptions: list[str] = []
+                if source_kind == "prometheus":
+                    assumptions.append(
+                        "Input was retrieved through the governed read-only "
+                        "Prometheus connector. The host was allowlisted, the "
+                        "response was bounded and fingerprinted, and sample "
+                        "timestamps are treated as their availability times."
+                    )
+                if inline_channels:
+                    assumptions.append(
+                        f"{' and '.join(inline_channels)} were supplied "
+                        f"inline by the caller; Gnomon validated their shape "
+                        f"and fingerprinted their content, but cannot attest "
+                        f"their origin."
+                    )
+                if _name in _SCHEMA_INFERENCE_TOOLS:
+                    arguments, inferred = _resolve_schema_arguments(
+                        arguments, _name)
+                    assumptions.extend(inferred)
+                data_ref = arguments.pop("_data_ref", None)
+                if _takes_data and data_ref is None:
+                    arguments, data_ref = _register_data_ref(arguments)
+                    arguments.pop("_data_ref", None)
+                if _name == "gnomon_forecast" \
+                        and arguments.get("horizon") is None:
+                    # One season ahead is the smallest horizon that can show
+                    # a seasonal pattern, and it is derivable from the data.
+                    horizon = _default_forecast_horizon(arguments)
+                    arguments = {**arguments, "horizon": horizon}
+                    assumptions.append(
+                        f"horizon was not supplied; defaulted to {horizon}, "
+                        f"one seasonal period of the inferred grid."
+                    )
+                try:
+                    computed = _runner(arguments)
+                except GnomonError as error:
+                    if error.code == "IRREGULAR_TIME_GRID":
+                        retry_arguments = {**arguments, "repair": "aggressive"}
+                        if data_ref:
+                            retry_arguments = {
+                                key: value for key, value in retry_arguments.items()
+                                if key not in _DATA_BINDING_KEYS
+                            }
+                            retry_arguments.update({
+                                "data_ref": data_ref, "repair": "aggressive"})
+                        error.repair_options = [{
+                            "action": "retry_with_aggressive_repair",
+                            "description": (
+                                "Retry once with capped interpolation; bounded "
+                                "timestamp jitter is already handled by safe "
+                                "repair, and every repair is disclosed."),
+                            "tool_call": {"name": _name,
+                                          "arguments": retry_arguments},
+                        }, *(error.repair_options
+                             if error.repair_options is not None else
+                             REPAIR_OPTIONS.get(error.code, []))]
+                    raise
+                payload = disclose_assumptions(computed, assumptions)
+                if context_cache and isinstance(payload, dict):
+                    payload = {
+                        **payload,
+                        "context_ref": context_cache["context_ref"],
+                        "context_cache": context_cache,
+                    }
+                if data_ref and isinstance(payload, dict):
+                    payload = {**payload, "data_ref": data_ref}
+                    # Runners cannot know the token until the shared wrapper
+                    # registers it. Resolve ready-to-issue follow-ups here.
+                    for action in payload.get("suggested_next") or []:
+                        call = action.get("tool_call") if isinstance(action, dict) else None
+                        call_args = call.get("arguments") if isinstance(call, dict) else None
+                        if isinstance(call_args, dict) and call_args.get("data_ref") == "<data_ref>":
+                            call_args["data_ref"] = data_ref
+                if _name == "gnomon_capabilities":
+                    # The budget trimmer cuts long arrays, and in a
+                    # capabilities payload every array is a capability
+                    # list — cutting one would misreport the build. The
+                    # runner's own brief default is its budget mechanism;
+                    # format 'full' and sections are the caller's explicit
+                    # ask for the verbatim payload.
+                    return payload
+                if _takes_data and isinstance(payload, dict):
+                    payload = apply_temporal_grounding(payload)
+                # Preserve the established bulk budget decision, then add the
+                # small protected routing envelope. Otherwise the envelope
+                # itself can push a previously in-budget forecast over the
+                # trim threshold and unexpectedly remove rows.
+                budget = (DESCRIBE_RESPONSE_BUDGET_BYTES
+                          if _name == "gnomon_describe"
+                          else RESPONSE_BUDGET_BYTES)
+                if arguments.get("format") != "full":
+                    payload = compact_publication_for_wire(payload)
+                payload = triage_wide_response(payload)
+                payload = compact_support_details(payload)
+                if isinstance(payload, dict) and "verb" not in payload:
+                    payload = {**payload,
+                               "verb": _name.removeprefix("gnomon_")}
+                contracted = apply_response_contract(
+                    enforce_response_budget(payload, budget))
+                profiled = enforce_profile_tool_calls(contracted)
+                # The reasoning/profile envelopes are intentionally added
+                # after the bulk pass so they can never be discarded.  A
+                # response that was in budget before those envelopes may no
+                # longer be in budget afterward, though, so move diagnostic
+                # sensitivity to the complete artifact when that is enough.
+                # Do not run the array trimmer a second time: brief horizons
+                # of at most FORECAST_PREVIEW_SMALL_HORIZON deliberately keep
+                # every row so an agent can see support-tier transitions.
+                if isinstance(profiled, dict) and not profiled.get("truncated"):
+                    try:
+                        final_size = len(json.dumps(profiled, default=str))
+                    except (TypeError, ValueError):
+                        final_size = 0
+                    if final_size > budget:
+                        compacted = compact_support_details(
+                            profiled, force=True)
+                        try:
+                            compacted_size = len(json.dumps(
+                                compacted, default=str))
+                        except (TypeError, ValueError):
+                            compacted_size = final_size
+                        if compacted_size <= budget:
+                            profiled = compacted
+                return profiled
+
+            return wrapped
+    return None

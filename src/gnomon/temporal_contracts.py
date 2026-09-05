@@ -227,6 +227,7 @@ def unsupported_answer(question: TemporalQuestion, plan: ExecutionPlan
     """One terminal, useful response for unsupported operations."""
     return {
         "question": question.to_dict(),
+        "action_authorized": False,
         "best_estimate": {"value": None, "support": "abstained",
                           "automation_eligible": False},
         "support": {"state": "abstained", "automation_eligible": False,

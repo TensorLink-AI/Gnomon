@@ -148,13 +148,14 @@ def test_shadow_route_requires_paired_uncertainly_bounded_evidence(tmp_path):
         revision="sha256:route-v1", champion="last_value",
         regime=regime, as_of="2026-01-09T00:00:00Z")
     payload = routed.to_dict()
-    assert routed.recommendation == "challenger"
+    assert routed.recommendation == "last_value"
+    assert "legacy_outcomes_lack_immutable_recorded_vintages" in routed.reasons
     assert routed.win_rate_wilson_95_lower > .5
-    assert payload["recommended_pool"] == ["challenger", "last_value"]
+    assert payload["recommended_pool"] == ["last_value"]
     assert payload["automatic_promotion"] is False
     assert payload["automation_eligible"] is False
     assert payload["job_local_admission_required"] is True
-    assert payload["routing_authority"] == "candidate_pool_only"
+    assert payload["routing_authority"] == "none_legacy_diagnostics"
     assert "last_value" in payload["rollback_condition"]
 
 
@@ -184,7 +185,7 @@ def test_shadow_route_is_exact_regime_and_point_in_time_safe(tmp_path):
     good = ledger.route(**kwargs, regime=subdaily)
     bad = ledger.route(**kwargs, regime=daily)
     assert good.paired_outcomes == bad.paired_outcomes == 8
-    assert good.recommendation == "challenger"
+    assert good.recommendation == "last_value"
     assert bad.recommendation == "last_value"
 
     before = good.to_dict()
@@ -225,7 +226,7 @@ def test_shadow_route_requires_an_explicit_cohort(tmp_path):
 
 def test_track_tool_preserves_routing_authority_and_regime(tmp_path, monkeypatch):
     monkeypatch.setenv("GNOMON_REGISTRY_PATH", str(tmp_path / "tracking.sqlite"))
-    from gnomon.toolspec import _run_track
+    from gnomon.legacy_experiments import _run_track
 
     regime = {"frequency_class": "subdaily"}
     for index in range(8):
@@ -244,8 +245,9 @@ def test_track_tool_preserves_routing_authority_and_regime(tmp_path, monkeypatch
         "baseline": "last_value", "regime": regime,
         "as_of": "2026-01-09T00:00:00Z",
     })
-    assert routed["recommendation"] == "challenger"
+    assert routed["recommendation"] == "last_value"
     assert routed["regime"] == regime
-    assert routed["routing_authority"] == "candidate_pool_only"
+    assert routed["routing_authority"] == "none_legacy_diagnostics"
+    assert "legacy_outcomes_lack_immutable_recorded_vintages" in routed["reasons"]
     assert routed["automation_eligible"] is False
     assert routed["job_local_admission_required"] is True

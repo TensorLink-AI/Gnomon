@@ -41,7 +41,8 @@ class _Adversarial:
 def run() -> dict[str, object]:
     valid = {name: conformance_report(StatisticalAdapter(name, predict))
              for name in sorted(MODELS)}
-    adversarial = {name: conformance_report(_Adversarial(name))
+    adversarial = {name: conformance_report(
+        _Adversarial(name), require_deterministic=True)
                    for name in ("short_horizon", "nonfinite", "nondeterministic")}
     installed = {
         f"in_process:{name}": conformance_report(

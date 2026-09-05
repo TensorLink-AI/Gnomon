@@ -1,6 +1,6 @@
 from argparse import Namespace
 
-from benchmarks.reasoningbench.run_reasoningbench import (
+from archive.benchmarks.reasoningbench.run_reasoningbench import (
     DECISION_SEEDS,
     GENERATOR_VERSION, compact_packet, exact_sign_p, expected, generate_cases, parse_answer,
     packet_exposes_answer,

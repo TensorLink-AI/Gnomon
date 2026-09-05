@@ -90,7 +90,8 @@ def _prepare(case: dict[str, Any]) -> None:
 
 def _call(case: dict[str, Any]) -> tuple[dict[str, Any], str | None]:
     from gnomon.contracts import GnomonError
-    from gnomon.toolspec import apply_response_contract, runner_for
+    from gnomon.toolspec import apply_response_contract
+    from benchmarks.common.legacy_surface import runner_for
 
     runner = runner_for(case["tool"])
     if runner is None:

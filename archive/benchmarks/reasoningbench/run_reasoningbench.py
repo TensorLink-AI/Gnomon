@@ -1,4 +1,4 @@
-"""Matched base-LLM versus Gnomon-evidence temporal reasoning benchmark.
+"""Archived matched base-LLM versus Gnomon-evidence experiment.
 
 Cases are generated from held-out seeds and expose the same history and
 context to both arms.  The treatment receives only Gnomon's compact computed
@@ -26,7 +26,7 @@ import sys
 import threading
 from typing import Any
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 

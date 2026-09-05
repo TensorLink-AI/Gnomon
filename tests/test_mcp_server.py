@@ -94,7 +94,7 @@ def test_known_tool_hidden_by_profile_names_reachable_profiles(monkeypatch) -> N
     assert error["code"] == "TOOL_NOT_IN_PROFILE"
     assert error["details"] == {
         "tool": "gnomon_monitor",
-        "profiles": ["core", "data", "decision", "describe", "full"],
+        "profiles": ["core", "data", "decision", "full"],
         "active_profile": "evidence",
     }
     assert error["repair_options"][0]["action"] == "select_profile"

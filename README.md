@@ -1,22 +1,36 @@
 # Gnomon
 
-**Temporal evidence and governance for people and AI agents.**
+Gnomon is the agent toolkit. **Ephemeris** is its remote inference service
+integration; Paracast is the service's backend implementation, not the public
+provider name. Configure the deployment URL explicitly.
 
-Give Gnomon timestamped data and a practical question. It validates the data,
-tests competing methods against honest historical baselines, and returns an
-answer with its uncertainty, strength of evidence, limitations, and a
-reproducible artifact. If the data only supports a weak answer, Gnomon labels
-it weak. If it cannot compute an honest answer, it abstains and says what is
-needed next.
+Implementation revision underway: [delivery plan and verified progress](docs/production/PLAN.md).
+The new [callable/Ephemeris inference boundary and append-only ledger](docs/production/INFERENCE.md)
+are shared by Python, `gnomon infer`, and the default MCP session. Budgeted evaluation
+and cutoff-bound routing are implemented; remaining production gates are tracked in the plan.
 
-You do not need to choose a forecasting model or write a backtest. Gnomon can
-run locally with its built-in models, optionally evaluate governed
-StatsForecast candidates or sandboxed time-series foundation models, and
-expose the same deterministic runtime through the CLI, Python, or MCP.
+**Time-series tools for people and AI agents.**
 
-## What Gnomon does
+Inspect and freeze timestamped data, compute exact statistics, and forecast using
+your chosen provider. Register a callable or fresh model factory from your preferred
+library, or configure Ephemeris. No per-library Gnomon adapter is required. Capability
+validation rejects unsupported inputs rather than silently dropping them.
 
-Gnomon answers five kinds of question about a time series:
+Inference does not secretly run a backtest. Optional budgeted evaluation compares
+an explicit baseline on matched historical folds. An optional append-only ledger
+preserves executions, actual revisions and rescoring history; recommendations
+require cutoff-bound evidence and never grant permission to act. Built-in reference
+forecasters work offline. Provider uncertainty alone does not establish calibration.
+
+[Optional temporal calculations](docs/production/TEMPORAL.md) handle explicit dates,
+timezones, interval relations and event ordering without calling a forecast model.
+They remain in this package, lazily loaded; `enable_temporal=true` adds one MCP tool.
+This is executable assistance with temporal reasoning, not evidence of improved LLM reasoning.
+
+## Advanced evaluated workflows
+
+The retained advanced CLI and explicit legacy MCP profiles also support these
+evaluated workflows. They are not the default provider-session protocol:
 
 | Verb | Question | What you get |
 | --- | --- | --- |
@@ -26,18 +40,9 @@ Gnomon answers five kinds of question about a time series:
 | `gnomon decide` | What should we do? | Exceedance scenarios, feasibility and constraint checks, expected utility — degraded honestly when utilities are missing |
 | `gnomon monitor` | When should we intervene? | Sequential exceedance risk and a cost-optimal alert rule |
 
-These are the five governed outcome views. The default 10-tool agent surface
-also includes supporting tools for capabilities, inspection, description,
-routing, and run explanation; those tools prepare or explain an outcome rather
-than creating additional product promises.
-
-Its first deployment wedge is security-sensitive and regulated agent
-workflows, where offline execution, point-in-time replay, and sealed evidence
-matter as much as the estimate. Its first concrete job inside that boundary is
-operational threshold risk:
-
-> Which service metric may breach a meaningful limit, when, and does the
-> evidence justify intervening?
+These advanced views retain their own evidence requirements and artifact formats.
+Choose them explicitly when their assumptions match your task; ordinary inference
+does not import their context, dossier or publication machinery.
 
 The same runtime also works on demand, capacity, finance, health, sensor, and
 other timestamped data. Gnomon is not an autonomous operator: it produces and
@@ -52,17 +57,15 @@ answers are used.
 | AI agent | Calls the local MCP server with the data and question | JSON-schema tools, computed numbers, support tiers, quotable headlines, provenance, and machine-readable recovery actions |
 | Application | Calls the documented Python API | The same validated runtime and artifacts embedded in a larger workflow |
 
-For a human, Gnomon replaces the fragile chain of cleaning a file, choosing a
-model, inventing a backtest, and explaining the result by hand. For an agent,
-it creates a hard boundary: the model may frame the question and explain the
-answer, but Gnomon owns timestamps, evaluation, model selection, intervals,
-support status, and publication authority. Primary forecast values are
-computed by the governed runtime. Externally proposed conditional paths remain
+In the default session, Gnomon validates temporal inputs and provider outputs;
+the caller selects the provider and decides whether additional evaluation is needed.
+In the advanced evaluated workflows, Gnomon also owns model selection, support
+status and publication rules. Externally proposed conditional paths remain
 attributed, labelled, non-primary, and non-automatable unless independent
 historical evidence later admits them. The LLM cannot silently edit or invent
 Gnomon's primary numbers.
 
-Depending on the question, a governed result includes:
+Depending on the question, an advanced evaluated result includes:
 
 - a deterministic headline and the key numbers;
 - a support tier that says how much confidence the evidence earned;
@@ -131,24 +134,21 @@ uvx --from gnomon-forecast gnomon mcp serve
 For repository development, run `uvx --from . gnomon mcp serve` from a
 checkout instead.
 
-Then ask your agent one complete operational question:
+Then ask your agent for a self-contained reference calculation:
 
-> Forecast `examples/messy_requests.csv` (column `requests`) 14 days ahead.
-> What changed in it, and when should we alert if crossing 340 costs us 20x
-> a false alarm?
+> Inspect `examples/messy_requests.csv` (column `requests`), report its observed
+> mean, and make a seven-step `last_value` reference forecast. Disclose repairs
+> and explain what this baseline does not establish.
 
-The agent gets 10 tools on the default `core` profile: capabilities and
-inspection, `describe`, evaluated `forecast`, anomaly detection, change
-investigation, monitoring, decision, routing, and run explanation. Tracking,
-ingestion, scenario-selection, and administrative tools remain available
-through explicit profiles, and every number it
-quotes comes from an evidence-linked, verified artifact. It cannot invent
-values for an unsupported series; it can only report Gnomon's abstention and
-its recovery options. Data-reading calls return a session-scoped `data_ref`,
-so follow-up verbs reuse the resolved data and schema without resending the
-observations. Context-aware calls return a persistent, project-scoped
-`context_ref`; later calls reuse the validated interpretation while Gnomon
-rechecks knowledge timing and numerical admission. See the
+The agent gets 6 tools on the default `execution` profile: capabilities, inspect,
+describe, forecast, evaluate and read. Configuring a ledger adds route and ledger queries.
+Large results return bounded references; read retrieves exact JSON pages or fields.
+Inspection returns a frozen session-scoped `data_ref`; later calls reuse it.
+Forecast requires an explicit registered provider; describe requires an exact statistic.
+Configure providers with `--providers-config providers.toml` at server startup.
+Advanced anomaly, change, monitoring, decision and context workflows remain available
+through explicit `--profile core` or `--profile full` compatibility sessions. The
+duplicate `describe` and experimental `mega` profiles are retired. See the
 [MCP quickstart](docs/quickstart-mcp.md) for
 client configs, the vintage workflow, and the full tool surface.
 The PyPI distribution is named `gnomon-forecast`; the installed command and
@@ -481,6 +481,7 @@ Every completed run receives a content-addressed, integrity-sealed directory:
 ```text
 gnomon-output/forecast_<id>/
 ├── artifact.json    complete task, schema, scores, support, and forecast
+├── history.json     frozen input observations and snapshot provenance
 ├── evidence.jsonl   machine-readable evaluation and support evidence
 ├── forecast.csv     future timestamps, point values, and quantiles
 ├── lineage.json     typed artifacts, evidence, and verified claims
@@ -548,6 +549,8 @@ as explicit tool arguments rather than reading ambient project config.
 | [MCP quickstart](docs/quickstart-mcp.md) | Hook Gnomon to an agent and get a grounded answer in a minute |
 | [Getting started](docs/getting-started.md) | Complete first run |
 | [Installation](docs/installation.md) | Bash, uv, GitHub, Docker, and PyPI options |
+| [User-owned provider example](examples/provider_plugin/README.md) | Install a callable/factory and replay ledger scores |
+| [Ledger operations](docs/production/OPERATIONS.md) | Permissions, backups, migration and historical imports |
 | [Preparing data](docs/data-format.md) | Input schema and temporal requirements |
 | [CLI reference](docs/cli-reference.md) | Commands, options, output, and exit codes |
 | [Python API](docs/python-api.md) | Runtime integration from Python |

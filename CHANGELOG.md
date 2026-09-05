@@ -4,9 +4,20 @@
 
 ### Changed
 
-- Make the 10-tool `core` MCP profile the default so agents can reach all five
-  governed outcome views plus inspection, description, routing, capabilities,
-  and run explanation without opting into administrative tools.
+- Agent comparison schema0.2 retains capped/unfinished tasks in delivered-success
+  and cost denominators, reports unknown measurement coverage explicitly, and keeps
+  conditional accuracy and probability-calibration diagnostics separate.
+- Add optional explicit temporal calculations: date arithmetic, timezone resolution,
+  interval relations and event ordering. Calendar/elapsed semantics and clock
+  ambiguity are explicit; default tools and provider behavior remain unchanged.
+- Make the provider-neutral `execution` session the default (six tools, eight
+  with a ledger). Retain core/evidence/decision/data/full as explicit legacy
+  workflows; retire duplicate describe and experimental mega registrations.
+- Bound default result payloads with exact paginated session receipts and one read
+  tool; preserve full CLI/Python output and recover from malformed MCP framing.
+- Add frozen data references, exact scalar statistics, callable/factory/Ephemeris
+  providers, budgeted matched evaluation and cutoff-bound immutable ledger routing.
+  Disable mutable historical routing priors and preserve their source for recovery.
 - Correct seasonal trend descriptions and the exact two-cycle seasonal-period
   boundary without changing mature-series selection.
 - Return a disclosed structural starting point from cold-start routing and a

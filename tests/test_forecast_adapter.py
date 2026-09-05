@@ -22,6 +22,38 @@ def test_statistical_models_cross_the_same_validated_protocol() -> None:
     assert adapter.forecast(request).points() == [3, 3, 3]
 
 
+def test_stochastic_outputs_are_conformant_unless_repeatability_is_required():
+    class Stochastic:
+        name, kind = "stochastic", "callable"
+        count = 0
+        def forecast(self, request):
+            self.count += 1
+            return ForecastResult((float(self.count),) * request.horizon)
+    report = conformance_report(Stochastic())
+    assert report["conformant"] and report["checks"]["deterministic_replay"] is False
+    assert conformance_report(Stochastic(), require_deterministic=True)["conformant"] is False
+
+
+def test_request_ids_do_not_make_deterministic_forecasts_stochastic():
+    class Provider:
+        name, kind = "request-ids", "api"
+        count = 0
+        def forecast(self, request):
+            self.count += 1
+            return ForecastResult((1.0,) * request.horizon, metadata={"request_id": str(self.count)})
+    assert conformance_report(Provider(), require_deterministic=True)["conformant"] is True
+
+
+def test_conformance_checks_actual_request_mutation_not_an_unused_source_list():
+    class Mutating:
+        name, kind = "mutating", "callable"
+        def forecast(self, request):
+            object.__setattr__(request, "history", (999.0,))
+            return ForecastResult((1.0,) * request.horizon)
+    report = conformance_report(Mutating())
+    assert not report["conformant"] and not report["checks"]["input_immutable"]
+
+
 class _Short:
     name = "short"
     supports_quantiles = False

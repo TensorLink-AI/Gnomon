@@ -25,7 +25,8 @@ def test_compare_runs_reports_agent_uplift(tmp_path):
 
     assert result["absolute_success_uplift"] == 0.5
     assert result["relative_error_reduction"] == 1.0
-    assert result["safety_delta"]["invented_number"] == -0.5
+    assert result["safety_delta"]["invented_number"] is None
+    assert result["safety_pairs"]["invented_number"]["measured_pairs"] == 0
 
 
 def test_compare_runs_requires_same_tasks(tmp_path):
@@ -38,10 +39,8 @@ def test_compare_runs_requires_same_tasks(tmp_path):
         compare_runs(str(baseline), str(treatment))
 
 
-def test_harness_voided_rows_are_excluded_pairwise(tmp_path):
-    # Task "capped" was ended by the harness in the treatment arm
-    # (row_abstained). It is not a wrong answer, so it must leave both
-    # arms' rates — including the baseline's success on the same task.
+def test_harness_voided_rows_remain_in_all_task_denominator(tmp_path):
+    # A capped task is not delivered. Dropping it would manufacture uplift.
     baseline = tmp_path / "baseline.jsonl"
     treatment = tmp_path / "treatment.jsonl"
     _write(baseline, [
@@ -60,9 +59,11 @@ def test_harness_voided_rows_are_excluded_pairwise(tmp_path):
 
     assert result["tasks_total"] == 3
     assert result["tasks_voided_by_harness"] == 1
-    assert result["baseline"]["task_success"] == 0.5
-    assert result["treatment"]["task_success"] == 1.0
-    assert result["absolute_success_uplift"] == 0.5
+    assert result["baseline"]["task_success"] == 2 / 3
+    assert result["treatment"]["task_success"] == 2 / 3
+    assert result["absolute_success_uplift"] == 0
+    assert result["success_test"]["n"] == 3
+    assert result["success_test"]["treatment_broke"] == 1
 
 
 def test_all_tasks_voided_yields_no_uplift_claim(tmp_path):
@@ -75,8 +76,8 @@ def test_all_tasks_voided_yields_no_uplift_claim(tmp_path):
     result = compare_runs(str(baseline), str(treatment))
 
     assert result["tasks_voided_by_harness"] == 1
-    assert result["absolute_success_uplift"] is None
-    assert "voided" in result["interpretation"]
+    assert result["absolute_success_uplift"] == -1
+    assert result["conditional_completed_pairs"]["count"] == 0
 
 
 def test_duplicate_task_ids_are_rejected(tmp_path):
@@ -105,7 +106,7 @@ def test_unmeasured_safety_fields_are_none_not_zero(tmp_path):
     assert result["baseline"]["temporal_leakage"] is None
     assert result["safety_delta"]["invented_number"] is None
     assert "unmeasured" in result["safety_note"]
-    assert "temporal_leakage" in result["safety_note"]
+    assert result["baseline"]["measurement_coverage"]["temporal_leakage"]["unmeasured"] == 1
 
 
 def test_noise_level_uplift_is_not_declared_an_improvement(tmp_path):

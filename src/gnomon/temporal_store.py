@@ -20,6 +20,7 @@ import os
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
+import math
 from pathlib import Path
 from typing import Iterator
 
@@ -50,6 +51,7 @@ class TemporalObservation:
     value: float
     revision: int = 0
     source_ref: str = ""
+    recorded_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -83,6 +85,7 @@ class Snapshot:
         source_ref: str = "",
         assumed_known_time: bool = False,
         known_time_provenance: str | None = None,
+        recorded_as_of: datetime | None = None,
     ):
         if as_of is not None:
             # Every observation, not just the first: a dataset whose
@@ -91,6 +94,12 @@ class Snapshot:
             for item in observations:
                 _comparable(item.known_time, as_of, what="as_of versus the dataset")
         self.as_of = as_of
+        self.recorded_as_of = recorded_as_of
+        if recorded_as_of is not None:
+            for item in observations:
+                if item.recorded_at is not None:
+                    _comparable(item.recorded_at, recorded_as_of, what="recorded_as_of versus the dataset")
+        self.unknown_recorded_times = sum(item.recorded_at is None for item in observations)
         self.source_ref = source_ref
         self.assumed_known_time = assumed_known_time
         self.known_time_provenance = known_time_provenance or (
@@ -99,10 +108,36 @@ class Snapshot:
         self._observations = [
             item for item in observations
             if as_of is None or item.known_time <= as_of
+            if recorded_as_of is None or (item.recorded_at is not None and item.recorded_at <= recorded_as_of)
         ]
         self._log: list[AccessRecord] = []
 
     # -- reads ------------------------------------------------------------
+
+    @property
+    def observation_count(self) -> int:
+        """Number of retained vintages, including superseded visible rows."""
+        return len(self._observations)
+
+    def narrow(self, *, as_of: datetime, recorded_as_of: datetime | None = None) -> "Snapshot":
+        """Freeze a stricter replay handle without reopening its source.
+
+        None preserves the parent's recorded boundary; no child can widen an
+        existing source or recording boundary. Historical evaluators explicitly
+        pass the fold instant for both clocks when replaying locally seen data.
+        """
+        if self.as_of is not None:
+            _comparable(as_of, self.as_of, what="child versus parent as_of")
+            as_of = min(as_of, self.as_of)
+        if self.recorded_as_of is not None:
+            if recorded_as_of is None:
+                recorded_as_of = self.recorded_as_of
+            else:
+                _comparable(recorded_as_of, self.recorded_as_of, what="child versus parent recorded_as_of")
+                recorded_as_of = min(recorded_as_of, self.recorded_as_of)
+        return Snapshot(self._observations, as_of, recorded_as_of=recorded_as_of,
+                        source_ref=self.source_ref, assumed_known_time=self.assumed_known_time,
+                        known_time_provenance=self.known_time_provenance)
 
     def _visible(
         self, entity: str, variable: str, cutoff: datetime | None
@@ -177,11 +212,26 @@ class Snapshot:
                     entry["max_known_time"] = record.max_known_time
         return {
             "as_of": self.as_of.isoformat() if self.as_of else "latest",
+            "recorded_as_of": self.recorded_as_of.isoformat() if self.recorded_as_of else None,
+            "replay_mode": "recorded" if self.recorded_as_of else "source_available",
+            "unknown_recorded_times": self.unknown_recorded_times,
+            "snapshot_id": self.snapshot_id,
             "known_time_assumed": self.assumed_known_time,
             "known_time_provenance": self.known_time_provenance,
             "source_ref": self.source_ref,
             "accesses": [by_key[key] for key in sorted(by_key)],
         }
+
+    @property
+    def snapshot_id(self) -> str:
+        """Identity of the frozen visible vintages, not a mutable input path."""
+        return content_id("snapshot", {
+            "as_of": self.as_of, "recorded_as_of": self.recorded_as_of,
+            "rows": sorted((r.entity, r.variable, r.valid_time.isoformat(),
+                            r.known_time.isoformat(), r.value, r.revision,
+                            r.recorded_at.isoformat() if r.recorded_at else "")
+                           for r in self._observations),
+        })
 
 
 def join_as_of(
@@ -244,10 +294,11 @@ class InMemoryTemporalStore:
         ]
         return cls(rows, source_ref=source_ref, assumed_known_time=True), [KNOWN_TIME_ASSUMED_WARNING]
 
-    def snapshot(self, as_of: datetime | None = None) -> Snapshot:
+    def snapshot(self, as_of: datetime | None = None, *, recorded_as_of: datetime | None = None) -> Snapshot:
         return Snapshot(
             self.observations, as_of,
             source_ref=self.source_ref, assumed_known_time=self.assumed_known_time,
+            recorded_as_of=recorded_as_of,
         )
 
 
@@ -325,6 +376,11 @@ class TemporalStore:
                                    ("assumed_known_time", "INTEGER NOT NULL DEFAULT 1")):
                 if name not in existing:
                     conn.execute(f"ALTER TABLE ingests ADD COLUMN {name} {sql_type}")
+            columns = {row["name"] for row in conn.execute("PRAGMA table_info(observations)")}
+            if "recorded_at" not in columns:
+                # Historical ingests were replaceable; their current timestamp
+                # cannot prove when an old observation was first recorded.
+                conn.execute("ALTER TABLE observations ADD COLUMN recorded_at TEXT")
 
     @contextmanager
     def _connect(self) -> Iterator[sqlite3.Connection]:
@@ -348,6 +404,9 @@ class TemporalStore:
         clock: Clock | None = None,
     ) -> IngestReport:
         clock = clock or SYSTEM_CLOCK
+        recorded_at = clock.now().isoformat()
+        if any(not math.isfinite(row.value) for row in rows):
+            raise GnomonError("INVALID_TARGET", "Temporal observations must be finite.")
         ingest_id = content_id("ingest", {
             "dataset": dataset,
             "source": source_fingerprint,
@@ -361,6 +420,7 @@ class TemporalStore:
         if assumed_known_time:
             report.warnings.append(KNOWN_TIME_ASSUMED_WARNING)
         with self._connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
             for row in rows:
                 existing = conn.execute(
                     "SELECT known_time, value, revision FROM observations "
@@ -388,20 +448,20 @@ class TemporalStore:
                 revision = existing[-1]["revision"] + 1 if existing else 0
                 conn.execute(
                     "INSERT INTO observations "
-                    "(dataset, entity, variable, valid_time, known_time, value, revision, source_ref) "
-                    "VALUES (?,?,?,?,?,?,?,?)",
+                    "(dataset, entity, variable, valid_time, known_time, value, revision, source_ref, recorded_at) "
+                    "VALUES (?,?,?,?,?,?,?,?,?)",
                     (dataset, row.entity, row.variable, row.valid_time.isoformat(),
-                     row.known_time.isoformat(), row.value, revision, ingest_id),
+                     row.known_time.isoformat(), row.value, revision, ingest_id, recorded_at),
                 )
                 report.rows_added += 1
                 if revision > 0:
                     report.revisions_created += 1
             conn.execute(
-                "INSERT OR REPLACE INTO ingests "
+                "INSERT OR IGNORE INTO ingests "
                 "(ingest_id, dataset, source_fingerprint, ingested_at, rows_added, "
                 " revisions_created, duplicates_skipped, reverts_recorded, "
                 " assumed_known_time) VALUES (?,?,?,?,?,?,?,?,?)",
-                (ingest_id, dataset, source_fingerprint, clock.now().isoformat(),
+                (ingest_id, dataset, source_fingerprint, recorded_at,
                  report.rows_added, report.revisions_created, report.duplicates_skipped,
                  report.reverts_recorded, int(assumed_known_time)),
             )
@@ -476,7 +536,7 @@ class TemporalStore:
     def _load_dataset(self, dataset: str) -> list[TemporalObservation]:
         with self._connect() as conn:
             rows = conn.execute(
-                "SELECT entity, variable, valid_time, known_time, value, revision, source_ref "
+                "SELECT entity, variable, valid_time, known_time, value, revision, source_ref, recorded_at "
                 "FROM observations WHERE dataset=? ORDER BY entity, variable, valid_time, revision",
                 (dataset,),
             ).fetchall()
@@ -493,11 +553,12 @@ class TemporalStore:
                 known_time=datetime.fromisoformat(row["known_time"]),
                 value=row["value"], revision=row["revision"],
                 source_ref=row["source_ref"],
+                recorded_at=datetime.fromisoformat(row["recorded_at"]) if row["recorded_at"] else None,
             )
             for row in rows
         ]
 
-    def snapshot(self, dataset: str, as_of: datetime | None = None) -> Snapshot:
+    def snapshot(self, dataset: str, as_of: datetime | None = None, *, recorded_as_of: datetime | None = None) -> Snapshot:
         observations = self._load_dataset(dataset)
         provenance = self.known_time_provenance(dataset)
         return Snapshot(
@@ -505,6 +566,7 @@ class TemporalStore:
             source_ref=self.dataset_fingerprint(dataset),
             assumed_known_time=provenance != "recorded",
             known_time_provenance=provenance,
+            recorded_as_of=recorded_as_of,
         )
 
     def known_time_provenance(self, dataset: str) -> str:
@@ -538,13 +600,13 @@ class TemporalStore:
     def dataset_fingerprint(self, dataset: str) -> str:
         """Content address of the dataset's full current vintage history."""
         with self._connect() as conn:
-            row = conn.execute(
-                "SELECT COUNT(*) AS n, MAX(known_time) AS latest, MAX(rowid) AS last "
-                "FROM observations WHERE dataset=?",
+            rows = conn.execute(
+                "SELECT entity, variable, valid_time, known_time, value, revision "
+                "FROM observations WHERE dataset=? ORDER BY entity, variable, valid_time, revision",
                 (dataset,),
-            ).fetchone()
+            ).fetchall()
         return content_id("dataset", {
-            "dataset": dataset, "rows": row["n"], "latest": row["latest"], "last": row["last"],
+            "dataset": dataset, "rows": [tuple(row) for row in rows],
         })
 
     def list_datasets(self) -> list[dict[str, object]]:

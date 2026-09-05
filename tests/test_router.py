@@ -8,7 +8,7 @@ import math
 import pytest
 
 from gnomon.fingerprint import fingerprint_distance, fingerprint_json, series_fingerprint
-from gnomon.router import MIN_PRIOR_RECORDS, route
+from gnomon.router import route
 from gnomon.tracking import TrackingStore
 
 
@@ -106,10 +106,10 @@ class TestRouter:
         assert store.list_routes("proj")[0]["basis"] == \
             "structural_starting_point_backtest_required"
 
-    def test_prior_engages_with_history(self, tmp_path):
+    def test_mutable_history_cannot_engage_as_a_routing_prior(self, tmp_path):
         store = TrackingStore(tmp_path / "t.db")
         fingerprint = fingerprint_json(_series(), "D")
-        for index in range(MIN_PRIOR_RECORDS):
+        for index in range(10):
             model = "theta" if index % 2 == 0 else "ets"
             store.register(f"f{index}", "proj", task="forecast",
                            selected_model=model, naive_error=1.0,
@@ -119,11 +119,11 @@ class TestRouter:
             store.score_forecast(f"f{index}", actual, predicted)
         decision = route("forecast", _series(), "D", horizon=7,
                          project="proj", store=store)
-        assert decision["basis"] == "tracking_prior"
-        assert decision["recommendation"] == "theta"
-        assert decision["prior"]["source"] == "tracking"
-        ranking = decision["prior"]["ranking"]
-        assert ranking[0]["fingerprint_weighted_mase"] <= ranking[1]["fingerprint_weighted_mase"]
+        assert decision["basis"] == "structural_starting_point_backtest_required"
+        assert decision["recommendation"] == "ets"  # unchanged by theta's apparently better mutable scores
+        assert decision["prior"]["source"] is None
+        assert "cutoffs" in decision["prior"]["reason"]
+        assert decision["action_authorized"] is False
 
     def test_anomaly_task_candidates(self):
         decision = route("detect_anomalies", _series(), "D")

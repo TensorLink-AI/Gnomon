@@ -213,10 +213,11 @@ def test_explicit_noisier_request_cannot_drift_to_level() -> None:
             "status": "compiled", "questions": [{
                 "id": "q1", "verb": "predict", "property": "level",
                 "target": "error_rate", "measure": "point",
-            }]}))
+                }]}))
 
     assert result[0].property == "volatility"
     assert result[0].target == "error_rate"
+    assert result[0].verb == "predict"
     assert result[0].horizon == 6
     assert result[0].measure is None
 

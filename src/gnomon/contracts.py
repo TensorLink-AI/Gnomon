@@ -320,6 +320,39 @@ class ForecastArtifact:
 # next without human help. This layer is what lets hosts self-correct — it
 # appreciates as models improve, because better models act on it better.
 REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
+    "EXECUTION_FAILED": [
+        {"action": "check_provider", "description": "Ask the operator to check the configured provider or ledger; do not retry a potentially charged request blindly."},
+    ],
+    "SESSION_CLOSED": [
+        {"action": "open_session", "description": "Open an operator-configured session. Old temporary references do not transfer; use durable ledger identifiers where available."},
+    ],
+    "RESULT_NOT_RETAINED": [
+        {"action": "use_durable_receipt", "description": "Use an execution or study identifier in the configured ledger, or obtain a still-retained reference from the original session. Recomputing may repeat inference."},
+    ],
+    "RESULT_INTEGRITY": [
+        {"action": "check_result_storage", "description": "Do not use the damaged temporary result. Verify independent ledger evidence and ask the operator to inspect local result storage; do not silently rerun the provider."},
+    ],
+    "RESULT_POINTER_NOT_FOUND": [
+        {"action": "inspect_result_structure", "description": "Read the root JSON to inspect its actual keys. Use slash-prefixed pointers, escape tilde/slash as ~0/~1, and use zero-based array indices."},
+    ],
+    "RESULT_PAGE_LIMIT": [
+        {"action": "shorten_pointer", "description": "Read a shorter parent pointer or the root result in pages. A long pointer itself can exhaust the response envelope; do not increase model calls."},
+    ],
+    "RESULT_RETENTION_LIMIT": [
+        {"action": "inspect_completed_work", "description": "The operation already completed. Query disclosed durable execution/study identifiers first; otherwise ask the operator about retention limits or full-output mode before repeating work."},
+    ],
+    "ERROR_DETAIL_LIMIT": [
+        {"action": "review_request_and_limits", "description": "Inspect the request structure and operator result limits. Error details could not be retained; do not assume a provider retry is safe or necessary."},
+    ],
+    "HISTORY_NOT_PRESERVED": [
+        {"action": "use_snapshot", "description": "Register a newly produced artifact with sealed history.json, or explicitly import the legacy forecast with its provenance gaps. Do not substitute current source data for the original snapshot."},
+    ],
+    "LEDGER_NOT_CONFIGURED": [
+        {"action": "configure_ledger", "description": "Ask the operator to supply ledger_path in the explicit startup provider configuration."},
+    ],
+    "OUTCOME_WRITES_DISABLED": [
+        {"action": "request_operator_authorization", "description": "Outcome writes/imports require operator startup authorization; a tool-call argument cannot enable them."},
+    ],
     "CONTEXT_DISPOSITION_CONFLICT": [
         {"action": "choose_context_disposition", "description": "For each context id named in details, keep either its executable event or its typed rejection, never both."},
     ],
@@ -722,6 +755,10 @@ class GnomonError(Exception):
 # design review.
 
 PARAMETER_AUTHORITY: dict[str, str] = {
+    # Direct inference selects a provider, not an evidence-admission policy.
+    # Startup configuration is operator-only; requests cannot load code or URLs.
+    "provider": "intent", "providers_config": "intent", "no_cache": "intent",
+    "request": "data", "arguments": "data",
     # -- intent ------------------------------------------------------------
     "horizon": "intent", "threshold": "intent", "alert_cost": "intent",
     "action_cost": "intent", "mitigation_effectiveness": "intent",
@@ -765,15 +802,30 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "context_compile": "intent",
     "month": "intent", "state": "intent", "webhook": "intent",
     "auto_score": "intent",
+    "operation": "intent", "use_cache": "intent", "statistic": "intent",
+    "execution_id": "intent", "execution_ids": "intent", "authorization_ref": "intent",
+    "policy": "intent", "quantiles": "intent", "samples": "intent",
+    "budget": "intent", "max_calls": "intent", "max_folds": "intent", "max_providers": "intent",
+    "max_seconds": "intent", "study_id": "intent",
     "webhook_secret_env": "intent", "prometheus_rule_output": "intent",
     "prometheus_expression": "data",
     # -- data --------------------------------------------------------------
     "input": "data", "observations": "data", "data_ref": "data",
+    "result_ref": "data", "pointer": "intent", "offset": "intent", "max_chars": "intent",
     "file": "data", "files": "data",
     "dataset": "data", "time_column": "data", "target_column": "data",
     "series_column": "data", "frequency": "data", "timezone": "data",
     "known_at": "data", "known_at_column": "data", "seasonal_period": "data",
     "series": "data", "series_name": "data", "series_names": "data",
+    "series_id": "data", "recorded_as_of": "data",
+    "cutoff": "data", "known_time_cutoff": "data", "recorded_time_cutoff": "data",
+    "source_as_of": "data", "source_available_at": "data", "source_ref": "data",
+    "valid_time": "data", "value": "data", "history": "data", "timestamps": "data",
+    "future_timestamps": "data", "snapshot_id": "data", "season": "data",
+    "past_covariates": "data", "future_covariates": "data", "related_series": "data",
+    "past_covariate_names": "data", "future_covariate_names": "data",
+    "start": "data", "end": "data", "inputs": "data", "naive_timezone": "data", "registry_path": "data",
+    "replay": "data",
     "variable": "data", "labels": "data",
     "covariates": "data", "covariates_file": "data",
     "covariate_time": "data", "covariate_series": "data",
@@ -820,12 +872,22 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "regime": "epistemic", "regime_json": "epistemic",
     "model_admission": "epistemic",
     "publication_mode": "epistemic",
+    "allow_partial": "epistemic",
+    "folds": "epistemic", "min_history": "epistemic", "stride": "epistemic",
+    "min_folds": "epistemic",
 }
 
 #: The trace each epistemic parameter leaves when moved off its default.
 #: An entry here is a promise the artifact keeps; the completeness test
 #: only checks the promise exists, the named tests check it is kept.
 EPISTEMIC_TRACES: dict[str, str] = {
+    "min_folds": "study routing refuses fewer than three replayable matched folds; a stricter requested floor and excluded folds are recorded in the recommendation",
+    "folds": "study usage records requested/planned/matched folds; incomplete folds never enter a complete-cohort ranking",
+    "min_history": "study fold requests preserve exact training vectors and cutoffs; unavailable history is disclosed without a prefix fallback",
+    "stride": "study fold origins and horizon are preserved; metrics use only the exact shared fold intersection",
+    "allow_partial": (
+        "ledger scores record pending/partial/complete status, matched steps and exact actual IDs; "
+        "allow_partial=false refuses incomplete scoring instead of implying full-horizon accuracy"),
     "minimum_baseline_improvement": (
         "negative values refused (INVALID_MINIMUM_IMPROVEMENT); below-default "
         "values disclosed as a `nonstandard_evaluation` reason and support "

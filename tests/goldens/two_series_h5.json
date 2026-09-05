@@ -465,6 +465,10 @@
       "series": "__all__",
       "payload": {
         "as_of": "latest",
+        "recorded_as_of": null,
+        "replay_mode": "source_available",
+        "unknown_recorded_times": 120,
+        "snapshot_id": "snapshot_57e398e1fa68ecfe",
         "known_time_assumed": true,
         "known_time_provenance": "assumed",
         "source_ref": "sha256:9d358fb08d56b94b37e4b54ab5a8e08b23cad01b88cd54df6c7051b527d9d392",

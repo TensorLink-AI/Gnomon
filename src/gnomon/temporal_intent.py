@@ -12,7 +12,7 @@ from .temporal_question import (
     compile_temporal_questions,
 )
 
-INTENT_COMPILER_VERSION = "0.7"
+INTENT_COMPILER_VERSION = "0.9"
 # A structured intent is tiny, but reasoning providers may spend substantially
 # more tokens deciding it before emitting the tool call. Measured 700-token
 # caps produced syntactically valid `compiled` envelopes with no questions.
@@ -50,7 +50,7 @@ INTENT_SCHEMA: dict[str, Any] = {
                 "measure": {"type": "string", "enum": [
                     "point", "slope", "period", "residual_scale",
                     "marginal_variability", "change", "maximum", "minimum",
-                    "correlation"]},
+                    "correlation", "mean", "median", "latest", "sum"]},
                 "context_policy": {"type": "string", "enum": [
                     "ignore", "measure", "scenario"]},
                 "method": {"type": "string"},
@@ -126,11 +126,16 @@ def _named_targets(segment: str, available_targets: list[str]) -> list[str]:
 
 def _canonical_measure(prop: str, segment: str) -> str | None:
     lowered = segment.lower()
+    if prop == "level":
+        quantities = {canonical for word, canonical in (
+            ("mean", "mean"), ("average", "mean"), ("median", "median"),
+            ("latest", "latest"), ("sum", "sum"),
+        ) if re.search(rf"\b{word}\b", lowered)}
+        if len(quantities) == 1:
+            return quantities.pop()
     if prop == "seasonality" and "alignment" in lowered:
         return "change"
     if any(word in lowered for word in ("change", "higher", "lower", "future")):
-        return "change"
-    if prop == "level" and any(word in lowered for word in ("median", "mean", "average")):
         return "change"
     return None
 
@@ -186,7 +191,9 @@ def _recover_explicit_questions(
         horizon = _explicit_horizon(segment)
         if horizon is not None:
             question["horizon"] = horizon
-        elif default_horizon is not None:
+            if question["verb"] in {"describe", "detect"} and re.search(r"\b(next|will|future|forecast)\b", segment, re.I):
+                question["verb"] = "predict"
+        elif default_horizon is not None and question["verb"] in {"predict", "compare", "decide"}:
             question["horizon"] = default_horizon
         measure = _canonical_measure(prop, segment)
         if measure:
@@ -239,7 +246,10 @@ def _route_explicit_questions(
         horizon = _explicit_horizon(segment)
         if horizon is not None:
             proposed["horizon"] = horizon
-        elif default_horizon is not None and proposed.get("horizon") is None:
+            if proposed["verb"] in {"describe", "detect"} and re.search(r"\b(next|will|future|forecast)\b", segment, re.I):
+                proposed["verb"] = "predict"
+        elif default_horizon is not None and proposed.get("horizon") is None \
+                and proposed["verb"] in {"predict", "compare", "decide"}:
             proposed["horizon"] = default_horizon
         measure = _canonical_measure(prop, segment)
         if measure:
@@ -435,7 +445,9 @@ def compile_temporal_text(
            "use that value. " if default_horizon is not None else "") +
         "Allowed properties: level, trend, seasonality, volatility, regime, "
         "extreme, disturbance, dependence, stationarity, decomposition, "
-        "regression. Use disturbance for observed outliers, spikes, or the "
+        "regression. For level, preserve the exact requested measure: mean "
+        "(average), median, latest, minimum, maximum, or sum. They are not "
+        "synonyms. Use disturbance for observed outliers, spikes, or the "
         "distinction between a transient anomaly and persistent level shift; "
         "extreme is a future tail-risk or maximum/minimum question. "
         "Use test/stationarity for ADF or KPSS, decompose/decomposition for "
