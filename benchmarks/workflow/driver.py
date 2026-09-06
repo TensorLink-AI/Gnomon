@@ -98,12 +98,12 @@ def run(case, *, allow_model_requests=False):
     token = os.environ.get(token_env)
     if not token or any(ord(char) < 33 or ord(char) > 126 for char in token):
         raise ValueError("named model credential is absent or invalid")
-    # Never let OpenRouterClient fall back to .env, another key or a default URL.
+    # Bind the request to the experiment's explicit credentials and endpoint.
     # No proxy environment or redirects: credentials go only to the explicit origin.
     opener = request.build_opener(request.ProxyHandler({}), NoRedirect())
     def client_factory():
         return OpenRouterClient(common["model"]["id"], api_key=token, base_url=url,
-                                timeout=common["budget"]["timeout_seconds"], max_retries=0,
+                                timeout=common["budget"]["timeout_seconds"],
                                 request_opener=opener)
     private_episode = case.get("_private_episode")
     journal_spec = case.get("_episode_journal")

@@ -1,7 +1,7 @@
 """Append-only attempt receipts for benchmark retries, stages and checkpoint resume.
 
 Not a forecasting ledger. Started-but-unfinished work has unknown usage. Numeric
-Observation scalars remain compatibility lower bounds; only these totals indicate
+Observation scalars are observed lower bounds; only these totals indicate
 complete accounting. Provider-reported usage is supplied evidence, not a billing audit.
 """
 
@@ -34,9 +34,9 @@ def reported_cost_limit(budget):
     return value
 
 
-def receipt(observation, stage="submitted", *, historical=False):
+def receipt(observation, stage="submitted"):
     known = set(observation.metadata.get("resource_fields", ()))
-    if historical or observation.metadata.get("retries_used", 0):
+    if observation.metadata.get("retries_used", 0):
         known.clear()
     values = {key: (getattr(observation, key, None) if key in known or getattr(observation, key, 0) else None)
               for key in FIELDS}
@@ -44,16 +44,16 @@ def receipt(observation, stage="submitted", *, historical=False):
     budget = observation.metadata.get("budget_exceeded")
     if budget is not None and type(budget) is not bool:
         raise ValueError("attempt budget measurement must be boolean or unknown")
-    if historical or observation.metadata.get("retries_used", 0):
+    if observation.metadata.get("retries_used", 0):
         budget = True if budget is True else None
     return {"attempt_id": "submitted_" + digest, "case_id": observation.case_id, "stage": stage,
             "status": observation.status, "resources": values, "complete_fields": sorted(known),
             "budget_exceeded": budget,
             "temporal_leakage": (True if observation.temporal_leakage is True else None
-                                 if historical or observation.metadata.get("retries_used", 0) else observation.temporal_leakage),
+                                 if observation.metadata.get("retries_used", 0) else observation.temporal_leakage),
             "error_code": (str(observation.metadata.get("error") or "unspecified")[:128]
                            if observation.status == "error" else None),
-            "provenance": "historical_partial" if historical else "supplied_usage_not_billing_attestation"}
+            "provenance": "supplied_usage_not_billing_attestation"}
 
 
 def receipts(observation):
@@ -128,7 +128,7 @@ def attach(observation, items):
         raise ValueError("attempt receipt belongs to a different case")
     by_id = {item["attempt_id"]: item for item in items}
     accounting = summarize(items)
-    # Preserve scalar compatibility, but explicitly identify unknown totals below.
+    # Retain observed lower bounds, but explicitly identify unknown totals below.
     values = {key: accounting["resources"][key]["observed_total"] or 0 for key in FIELDS[:4]}
     values["cost_usd"] = accounting["resources"]["cost_usd"]["total"]
     leakage = (True if accounting["leaking_attempts"] else None
@@ -152,7 +152,7 @@ class AttemptJournal:
             tables = self.db.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
             if app != APP_ID and (app != 0 or tables):
                 raise ValueError("not a Workflow Bench attempt journal")
-            if version not in (0, 1, 2):
+            if version not in (0, 2):
                 raise ValueError("unsupported attempt journal version")
             self.db.execute("PRAGMA synchronous=FULL")
             self.db.execute(f"PRAGMA application_id={APP_ID}")

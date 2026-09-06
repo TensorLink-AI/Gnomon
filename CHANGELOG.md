@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Remove obsolete benchmark promotion/audit/generation runners, smoke cases,
+  publication grading, host-generated follow-up answers, response caches and
+  hidden model retries/sample fan-out. Keep one matched agent workflow and
+  independent accuracy, failure, cost and cutoff regressions. Case schema v2
+  requires fresh runs; old benchmark code is recoverable at `1642cb2`.
+
 - 0.9 development removes the old evaluated runtime, legacy profiles, context/
   publication/effect-learning stack, model catalogues/installers and per-library
   adapters. One provider-neutral session remains. This is a breaking change;

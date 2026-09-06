@@ -1,4 +1,4 @@
-"""Matched experiment controls, distinct from historical profile smoke tests.
+"""Pinned controls and paired comparisons for the current agent evaluation.
 
 This pins requested settings and local code, not remote weights or an arbitrary
 agent driver's honesty. Deliberate surface differences are part of the experiment
@@ -70,8 +70,6 @@ def prepare(path, cases, *, command, arm, timeout, jobs, retries):
     path = Path(path).resolve()
     if not cases or len({case.id for case in cases}) != len(cases):
         raise ValueError("matched experiment requires nonempty unique cases")
-    if any(case.stages for case in cases):
-        raise ValueError("matched mode does not use historical host-compiled stages; supply single-stage tasks or committed episodes")
     spec = _decode_record(path.read_text(encoding="utf-8"))
     _keys(spec, {"schema_version", "evidence_kind", "command", "driver_files",
                  "common", "arms"}, "matched experiment")
@@ -189,6 +187,8 @@ def compare(summaries):
     _keys(summaries, ARMS, "comparison arms")
     contracts = []
     for arm, summary in summaries.items():
+        if type(summary.get("schema_version")) is not int or summary["schema_version"] != 2:
+            raise ValueError("comparison requires current score schema v2; use fresh runs")
         contract = summary.get("matched_experiment")
         if not isinstance(contract, dict) or set(contract) != {"experiment_id", "arm", "pinned"}:
             raise ValueError("missing matched experiment contract")

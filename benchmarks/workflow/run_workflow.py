@@ -1,10 +1,10 @@
-"""Run or score Gnomon Workflow Bench.
+"""Run or score the current agent evaluation.
 
 An arm is either an existing JSONL submission (``--submission``) or an
 executable (``--arm-command``) that receives one case JSON object on stdin and
 returns one observation JSON object on stdout.  This tiny protocol keeps the
-benchmark neutral: raw LLM, evidence injection, MCP profiles, and deterministic
-Gnomon can all be adapters without the scorer knowing their implementation.
+scorer independent of the arm implementation. Matched comparisons additionally
+require shared controls, bound artifacts and explicit experiment configuration.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ from benchmarks.workflow.accounting import AttemptJournal, attach, receipt, rece
 from benchmarks.workflow.matched import prepare as prepare_experiment, public_context, normalized_rows, artifact_hashes
 from benchmarks.workflow.process import ProcessLimit, run_process
 
-DEFAULT_CASES = Path(__file__).with_name("cases") / "smoke.jsonl"
+DEFAULT_CASES = Path(__file__).with_name("cases") / "matched-retrospective.jsonl"
 
 
 def _run_identity(args: argparse.Namespace, cases: list[Case]) -> dict[str, Any]:
@@ -199,125 +199,7 @@ def _run_one(case: Case, argv: list[str], timeout: float, retries: int = 0,
         payload["_private_episode"] = [{key: value for key, value in phase.items() if key != "oracle"}
                                         for phase in case.episode]
     initial = _invoke(payload, case.id, argv, timeout, retries, "initial", journal)
-    if case.episode:
-        return attach(initial, journal.for_case(case.id))
-    if initial.status == "error":
-        return attach(initial, journal.for_case(case.id))
-    stage_results = dict(initial.stage_results)
-    required_calls = int(initial.metadata.get("surface_required_calls", 0))
-    total_retries = int(initial.metadata.get("retries_used", 0))
-    stage_infrastructure_failures: list[dict[str, Any]] = []
-    total_calls, total_tokens = initial.tool_calls, initial.cumulative_tokens
-    total_response, total_latency = initial.response_tokens, initial.latency_seconds
-    for stage in case.stages:
-        name = stage["name"]
-        if name == "repair" and not case.oracle.requires_repair:
-            continue
-        if name == "outcome" and not case.oracle.requires_tracking:
-            continue
-        public = case_payload(case)
-        public["workflow_stage"] = name
-        public["revealed"] = stage.get("revealed") or {}
-        public["answer_schema"] = stage.get("answer_schema") or {
-            "numbers": [], "choices": [], "facts": []}
-        public["prior_observation"] = {
-            "status": initial.status, "support": initial.support,
-            "numbers": initial.numbers, "choices": initial.choices,
-            "published_fingerprint": initial.published_fingerprint,
-            "artifact_id": initial.metadata.get("artifact_id"),
-        }
-        public["question"] = (
-            "The target ambiguity is now resolved. Complete the original request."
-            if name == "repair" else
-            "The outcome is now revealed. Compare it with the saved prediction and record tracking."
-        )
-        if name == "outcome":
-            # Outcome tracking is deterministic bookkeeping over the immutable
-            # initial answer, not another forecasting task. Compiling it here
-            # prevents a fresh agent process from losing the prior artifact or
-            # inventing different arithmetic. Absence of a published identity
-            # remains a real tracking failure (notably for the raw control).
-            actual = (stage.get("revealed") or {}).get("actual")
-            predicted = initial.numbers.get("next")
-            absolute_error = (abs(float(actual) - predicted)
-                              if actual is not None and predicted is not None else None)
-            followup = Observation(
-                case_id=case.id,
-                status="answered" if absolute_error is not None else "error",
-                support="supported" if absolute_error is not None else "abstained",
-                numbers=({"absolute_error": absolute_error}
-                         if absolute_error is not None else {}),
-                facts=({"tracked_forecast_id": initial.published_fingerprint}
-                       if initial.published_fingerprint is not None else {}),
-                temporal_leakage=False,
-                metadata={"compiled_stage": "outcome"},
-            )
-        else:
-            followup = _invoke(public, case.id, argv, timeout, retries, name, journal)
-        total_calls += followup.tool_calls
-        total_tokens += followup.cumulative_tokens
-        total_response += followup.response_tokens
-        total_latency += followup.latency_seconds
-        required_calls += int(followup.metadata.get("surface_required_calls", 0))
-        total_retries += int(followup.metadata.get("retries_used", 0))
-        if followup.status == "error" and followup.metadata.get("error") in {
-            "timeout", "subprocess_failure", "empty_stdout", "provider_timeout",
-            "provider_error", "model_error", "model_submission_error",
-        }:
-            failure = {
-                "stage": name, "error": followup.metadata.get("error")}
-            if followup.metadata.get("returncode") is not None:
-                failure["returncode"] = followup.metadata["returncode"]
-            stderr = str(followup.metadata.get("stderr") or "").strip()
-            if stderr:
-                # Keep the actionable final traceback/provider line without
-                # copying a whole subprocess transcript into every score row.
-                failure["diagnostic"] = stderr.splitlines()[-1][:300]
-            stage_infrastructure_failures.append(failure)
-        if name == "repair":
-            stage_results[name] = {
-                "completed": initial.status == "abstained" and followup.status == "answered",
-                "followup_status": followup.status,
-                "numbers": followup.numbers, "choices": followup.choices,
-                "facts": followup.facts,
-                "support": followup.support,
-                "published_fingerprint": followup.published_fingerprint,
-            }
-        else:
-            actual = (stage.get("revealed") or {}).get("actual")
-            predicted = initial.numbers.get("next")
-            bound_id = initial.published_fingerprint
-            stage_results[name] = {
-                "tracked": (followup.status == "answered" and predicted is not None
-                            and bound_id is not None
-                            and followup.facts.get("tracked_forecast_id")
-                            == bound_id),
-                "actual": actual, "prediction": predicted,
-                "absolute_error": (abs(float(actual) - predicted)
-                                   if actual is not None and predicted is not None else None),
-                "reported_absolute_error": followup.numbers.get("absolute_error"),
-            }
-        stage_results[name]["economics"] = {
-            "tool_calls": followup.tool_calls,
-            "cumulative_tokens": followup.cumulative_tokens,
-            "response_tokens": followup.response_tokens,
-            "latency_seconds": followup.latency_seconds,
-            "resource_accounting": followup.metadata.get("resource_accounting"),
-        }
-    stage_results["initial"] = {"economics": {
-        "tool_calls": initial.tool_calls, "cumulative_tokens": initial.cumulative_tokens,
-        "response_tokens": initial.response_tokens,
-        "latency_seconds": initial.latency_seconds,
-        "resource_accounting": initial.metadata.get("resource_accounting"),
-    }}
-    return attach(replace(initial, stage_results=stage_results, tool_calls=total_calls,
-                   cumulative_tokens=total_tokens, response_tokens=total_response,
-                   latency_seconds=total_latency,
-                   metadata={**initial.metadata,
-                             "surface_required_calls": required_calls,
-                             "retries_used": total_retries,
-                             "stage_infrastructure_failures":
-                                 stage_infrastructure_failures}), journal.for_case(case.id))
+    return attach(initial, journal.for_case(case.id))
 
 
 def run_command(cases: list[Case], command: str, timeout: float,
@@ -332,7 +214,7 @@ def run_command(cases: list[Case], command: str, timeout: float,
                 for item in receipts(observation):
                     journal.import_receipt(item)
             elif not journal.for_case(observation.case_id):
-                journal.import_receipt(receipt(observation, "legacy_resume", historical=True))
+                raise ValueError("resume requires current attempt receipts; use a new output directory")
         return _run_command(cases, command, timeout, jobs, retries, prior, checkpoint_path, journal, experiment)
     finally:
         journal.close()
@@ -352,7 +234,6 @@ def _run_command(cases, command, timeout, jobs, retries, prior, checkpoint_path,
     retained = {
         row.case_id: row for row in (prior or [])
         if row.status != "error"
-        and not row.metadata.get("stage_infrastructure_failures")
     }
     previous = {row.case_id: row for row in prior or []}
     for case in cases:
@@ -413,6 +294,8 @@ def main() -> int:
         parser.error("matched experiments require an executed arm command, not an unbound submission")
 
     cases = load_cases(args.cases)
+    if any(case.episode for case in cases) and not args.experiment:
+        parser.error("episode cases require --experiment and the matched shared driver")
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     identity = _run_identity(args, cases)
@@ -439,22 +322,20 @@ def main() -> int:
     normalized = [json.dumps(row, sort_keys=True) + "\n" for row in normalized_rows(result)]
     atomic_write_text(output_dir / "gnomonbench.jsonl", "".join(normalized))
     write_manifest(output_dir, benchmark="gnomon-workflow", condition=args.arm,
-                   target={"case_ids": [case.id for case in cases], "schema_version": 1,
+                   target={"case_ids": [case.id for case in cases], "schema_version": cases[0].schema_version,
                            "corpus_sha256": corpus_sha256(cases)},
                    arm_command=args.arm_command, jobs=args.jobs, timeout=args.timeout,
                    infrastructure_retries=args.infrastructure_retries,
                    run_identity=identity,
                    resumed_successful_cases=len([
                        row for row in (prior or [])
-                       if row.status != "error"
-                       and not row.metadata.get(
-                           "stage_infrastructure_failures")]))
+                       if row.status != "error"]))
     console_summary = {key: value for key, value in result.items() if key != "rows"}
     if "matched_experiment" in console_summary:
         console_summary["matched_experiment"] = {
             key: identity["matched_experiment"][key] for key in ("experiment_id", "arm")}
     print(json.dumps(console_summary, indent=2))
-    return 0 if result["release_gate_pass"] else 2
+    return 0 if (result["completeness_gate_pass"] and result["leakage_safety_gate_pass"]) else 2
 
 
 if __name__ == "__main__":

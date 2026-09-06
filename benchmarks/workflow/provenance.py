@@ -14,11 +14,6 @@ from .schema import Case, Observation
 
 def corpus_sha256(cases: list[Case]) -> str:
     values = [asdict(case) for case in cases]
-    for value in values:
-        if not value["episode"]:
-            value.pop("episode")  # Preserve historical empty-episode corpus identity.
-        if not value["oracle"]["forecast"]:
-            value["oracle"].pop("forecast")
     payload = json.dumps(values, sort_keys=True,
                          separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()

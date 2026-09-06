@@ -26,6 +26,12 @@ The weighted acceptance checks in [progress.json](progress.json) total exactly 1
 
 ## Execution sequence
 
+Benchmark scope: one matched ordinary/lean/full evaluation. Remove obsolete
+promotion/audit/generation runners, smoke policies, host-generated follow-up
+answers, response caches and old-format migrations (recovery `1642cb2`).
+Retain independently graded forecasts, agent-committed episodes, bounded single
+model requests, conservative attempt accounting and isolation regressions.
+
 1. Trace code and callers, then remove the old evaluated runtime, context/publication/effect stack, model installers/catalogues, per-library adapters and legacy front doors. Keep independent tests of retained semantics. Checkpoint333ed2c preserves this cull's baseline;2cba20e preserves earlier removed designs and benchmarks.
 2. Fix exact quantity, time and scope semantics. Keep valid time, source availability and local recording time distinct. Remove automatic-action claims from mere descriptive correctness.
 3. Extend the existing forecasting protocol into the public callable/provider boundary. Add the minimal immutable execution and outcome ledger alongside it.

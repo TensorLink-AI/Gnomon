@@ -74,6 +74,12 @@ def test_arms_share_controls_and_concrete_code_not_dirty_marker(experiment):
     assert pinned["python_binary_sha256"] and pinned["dependencies"]
 
 
+@pytest.mark.parametrize("version", [None, 1, True, 2.0])
+def test_retired_or_ambiguous_score_schema_is_not_reinterpreted(version):
+    with pytest.raises(ValueError, match="current score schema v2"):
+        compare({arm: {"schema_version": version} for arm in ARMS})
+
+
 @pytest.mark.parametrize("field", ["prompt_file", "provider_config_file", "driver"])
 def test_concrete_input_edits_change_identity_even_without_a_git_commit(experiment, field):
     before = contract(experiment)
@@ -105,13 +111,6 @@ def test_closed_experiment_schema_rejects_hidden_overrides(experiment, mutation)
     path.write_text(json.dumps(spec))
     with pytest.raises(ValueError):
         contract(experiment)
-
-
-def test_staged_legacy_host_compilation_is_not_mislabelled_an_agent_experiment(experiment):
-    path, spec, _, cases = experiment
-    with pytest.raises(ValueError, match="host-compiled"):
-        prepare(path, [replace(cases[0], stages=({"name": "outcome"},))],
-                command=shlex.join(spec["command"]), arm="lean", timeout=5, jobs=1, retries=0)
 
 
 def run_arms(experiment, monkeypatch, tmp_path):
@@ -238,13 +237,3 @@ def test_source_bytes_are_included_even_when_revision_labels_are_unchanged(exper
     before = contract(experiment)
     source.write_text("value = 2\n")
     assert contract(experiment)["experiment_id"] != before["experiment_id"]
-
-
-def test_historical_consumers_cannot_bypass_matched_controls(experiment, monkeypatch, tmp_path):
-    from benchmarks.common.manifest import incompatibilities
-    from benchmarks.workflow.compare import compare as historical_compare
-    summaries = run_arms(experiment, monkeypatch, tmp_path)
-    with pytest.raises(ValueError, match="matched experiments require"):
-        historical_compare(list(summaries.values()), "ordinary")
-    manifest = json.loads((tmp_path / "lean" / "manifest.json").read_text())
-    assert incompatibilities(manifest, manifest)

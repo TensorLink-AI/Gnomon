@@ -1,78 +1,65 @@
-# Delivery checkpoint — iteration 25
+# Delivery checkpoint — iteration 26
 
-Updated 2026-09-06. The user explicitly requested removing features outside the new
-goal. This supersedes the earlier legacy-compatibility constraint. Recovery:
-`333ed2c`. Do not restore retired code merely to satisfy its old tests.
+Updated 2026-09-06. The user requested removing obsolete benchmark machinery,
+following the breaking runtime cull. Do not restore retired features for their tests.
 
-## Current scope and implementation
+## Current scope
 
-One provider-neutral execution session with exact input/time semantics, explicit
-budgeted evaluation, optional durable evidence and optional temporal arithmetic.
-Local models are operator-owned callables/factories; Ephemeris is one connector.
+One provider-neutral execution session with explicit input/time semantics, budgeted
+evaluation, optional temporal ledger and optional time arithmetic. Ephemeris is one
+connector; local models and user libraries use operator-owned callables/factories.
+Runtime remains 26 modules/5,801 lines, down from 118 modules/67,013 lines.
 
-Runtime: 118 modules/67,013 lines before this cull → 26 modules/5,801 lines now
-(about 91% fewer lines). Removed the old runtime/registry, context/scenario/publication/
-effect stack, model catalogues/installers/adapters, monitoring and feedback.
-No second legacy package or compatibility dispatch remains.
+One matched ordinary/lean/full agent evaluation remains. Benchmark implementation
+(`workflow/*.py` plus `common/*.py`) is 3,351 lines, down from 5,289 (about37%).
+Removed promotion/audit/generation runners, old smoke cases, publication grading,
+host-generated repair/outcome answers, response caches, sample fan-out, hidden
+transport retries/token escalation and old journal migration. Model transport is
+188 lines instead of1,020. Dead report fields no longer label tool calls redundant.
 
-Python/CLI/MCP, README, concise current docs and packaged agent skill now match the
-retained contract. Legacy commands/profiles fail explicitly. Repair, frequency,
-migration and nonfinite-input tests now exercise retained code directly. Historical
-imports use frozen fixtures, not the old writer; manifest escape/tamper is refused.
+Keep independent numerical, cutoff, failure, unknown-cost, isolation and committed
+episode regressions. Case and score schemas are now v2; current attempt receipts
+are required for resume. Old formats fail explicitly. Use fresh run directories.
+The retained cohort's inputs, oracle answers and reveals were checked unchanged
+against1642cb2; only retired fields and version differ. Manifest hashes regenerated.
 
-Context-engine benchmark cases/graders are gone. Agent metrics live only in the
-benchmark harness. Full now means the same execution contract with ledger/time
-tools enabled. Old full-arm results are not current evidence. Removing the empty
-context oracle field changes the retrospective corpus hash, not its data or answers.
+## Verification
 
-## Verification and next step
+- Full local suite:742 passed,29 opt-in skips in31.11s.
+- Real software/service containers:76 passed in33.12s, no paid model calls.
+- Ruff, compilation and whitespace pass.
+- Current service image rebuilt from the prior final0.9 wheel:
+  `sha256:1f67cc447f1aa37ac7e2ed64755346381c9a6842b80f2a8f2b43a39564b3c509`.
+- Baseline1642cb2 had all7checks green: CI34004767226 and Container34004767228.
+  The benchmark-cull update must pass its own PR checks; do not substitute baseline CI.
+- No runtime, provider plugin or packaged skill behavior changed this iteration.
 
-Current complete local suite: 760 passed, 29 opt-in skips in 29.96s. Separate pre-stdin-follow-up
-software/service container suite: 77 passed in 29.53s.
-Ruff, compilation, skill validation and whitespace checks pass.
-Wheel/sdist and example plugin build; metadata and clean installed Python/CLI/MCP/
-provider/ledger/plugin journeys pass against the final reformatted package.
-
-Cull commit `aceeaf1` and bounded-stdin fix `091b29b` are pushed to draft
-[PR99](https://github.com/TensorLink-AI/Gnomon/pull/99). The initial package job
-caught a lost piped-CSV path; piping serves the new goal and was restored with
-an 8 MiB bound and four current CLI regressions. No legacy engine was restored.
-
-At `091b29b`, [CI34004658580](https://github.com/TensorLink-AI/Gnomon/actions/runs/34004658580)
-passed all six jobs: Python 3.11/3.12/3.13, harness, real containers and installed
-package/plugin smoke. [Container34004658552](https://github.com/TensorLink-AI/Gnomon/actions/runs/34004658552)
-also passed. The earlier failure is fixed, not waived.
-Do not commit or change source while matched-harness tests pin their identity.
-Current score is 97/100; only the two external-evidence gates below remain unearned.
-No further implementation is required for this cleanup iteration. This checkpoint
-update is documentation only; do not call another release upload part of the cull.
-[progress.json](progress.json) tracks exactly100 possible points, not a guarantee
-beyond the acceptance contract in [PLAN.md](PLAN.md).
+Do not commit or edit source while matched-harness tests pin their identity.
+[progress.json](progress.json) remains97/100; fewer lines earn no extra points.
 
 ## Remaining external evidence
 
 - Real matched agent comparison: confirmed model/endpoint, credential environment
   variable and spending approval.
-- Live Ephemeris: confirmed base URL, credential environment variable and budget
-  for potentially billable wake-up/inference.
+- Live Ephemeris: confirmed deployment URL, credential environment variable and
+  budget for potentially billable wake-up/inference.
 
-No paid agent experiment or authenticated service inference has been performed.
-Local HTTP fixtures, scripted agents and previous unauthenticated401 responses do
-not satisfy these gates. Do not extract credentials or repeat probes to avoid this
-authorization boundary.
+No paid comparison or authenticated inference has been performed. Local HTTP
+fixtures and scripted agents do not satisfy these gates. Do not extract credentials
+or repeat unauthenticated probes to bypass this authorization boundary.
 
 ## Distribution and recovery
 
-Source is `0.9.0.dev0`: breaking, unreleased, not automatically uploaded to PyPI.
-Published `0.8.0rc3` and its tag remain immutable. No input data, user database or
-saved forecast was deleted. Old implementation/tests/docs remain in Git at333ed2c;
-earlier design/benchmark archives remain at2cba20e.
+Source is0.9.0.dev0, breaking and unreleased. Published0.8.0rc3 and its tag remain
+immutable; this cleanup does not upload to PyPI. No user database, saved forecast
+or user input data was deleted. Removed benchmark source/tests/fixtures are
+recoverable at1642cb2; runtime cull recovery333ed2c; earlier archives2cba20e.
 
-Branch: `codex/gnomon-ephemeris-ledger`; PR base remains
-`claude/enterprisebench-multi-domain-n4xyjf`. Do not silently change the base.
-Unrelated untracked root scratch files remain untouched and must not be staged:
+Branch: `codex/gnomon-ephemeris-ledger`; draft
+[PR99](https://github.com/TensorLink-AI/Gnomon/pull/99).
+Base remains `claude/enterprisebench-multi-domain-n4xyjf`; do not change it silently.
+Unrelated root scratch files remain untouched and must not be staged:
 `-`, `Continue`, `Current`, `Immediate`, `Use`, `accelerate`, `actual`,
 `cases.`, `optimizing`, `that`.
 
-No manual compaction operation is available. Continue from this checkpoint and the
-progress file after automatic compaction; do not restart completed work.
+Continue from this checkpoint after automatic compaction; do not restart the cull.

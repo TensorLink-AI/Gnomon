@@ -39,4 +39,7 @@ service-operator responsibilities.
 Old benchmarks and reports remain at Git checkpoint `2cba20e`. Their older
 surfaces do not establish gains for the new default. Removing obsolete instruments
 does not turn negative or missing evidence into success.
+The follow-up benchmark cull (recovery `1642cb2`) removes promotion/audit runners,
+host-generated answers and response caches. The retained workflow uses case schema
+v2 and current journal receipts; old formats are not silently migrated.
 The [weighted delivery record](production/PLAN.md) is separate from publication.

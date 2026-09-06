@@ -9,10 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from benchmarks.workflow.run_workflow import DEFAULT_CASES, case_payload
 from benchmarks.workflow.schema import Case, Observation, load_cases
 from benchmarks.workflow.scoring import score_run
-from benchmarks.workflow.compare import compare
-from benchmarks.workflow.audit import audit
 from benchmarks.workflow.provenance import corpus_sha256
-from benchmarks.workflow.generate import generate_publication_cases
 
 
 def _observation(case, **overrides):
@@ -20,18 +17,9 @@ def _observation(case, **overrides):
         "case_id": case.id, "status": "answered", "support": "supported",
         "numbers": case.oracle.numbers, "choices": case.oracle.choices,
         "disclosures": list(case.oracle.required_disclosures),
-        "publish_matches_evaluated": True,
         "temporal_leakage": False,
-        "evaluated_fingerprint": "same", "published_fingerprint": "same",
-        "artifact_numbers": case.oracle.numbers,
-        "headline_numbers": case.oracle.numbers,
         "facts": case.oracle.required_facts,
-        "stage_results": {
-            "repair": {"completed": True, "followup_status": "answered"},
-            "outcome": {"tracked": True, "absolute_error": 0.0,
-                        "reported_absolute_error": 0.0}},
-        "repair_completed": True, "tracking_completed": True,
-        "quote_matches": True, "tool_calls": 1, "cumulative_tokens": 100,
+        "tool_calls": 1, "cumulative_tokens": 100,
         "metadata": {"leakage_measurement": "cutoff_projection_v1",
                      "cutoff_projection_sha256": "a" * 64},
     }
@@ -43,12 +31,54 @@ def _observation(case, **overrides):
     return Observation.from_dict(values)
 
 
-def test_smoke_corpus_covers_all_case_kinds_and_hides_oracle():
-    cases = load_cases(DEFAULT_CASES)
-    assert {case.kind for case in cases} == {
-        "synthetic", "frozen", "messy", "longitudinal", "multiseries"
-    }
+def test_current_single_phase_cases_hide_the_oracle():
+    cases = [case for case in load_cases(DEFAULT_CASES) if not case.episode]
+    assert {case.kind for case in cases} == {"synthetic", "frozen"}
     assert all("oracle" not in case_payload(case) for case in cases)
+
+
+@pytest.mark.parametrize("field", ["stages"])
+def test_retired_case_fields_are_rejected(field):
+    from dataclasses import asdict
+    value = asdict(load_cases(DEFAULT_CASES)[0])
+    value[field] = []
+    with pytest.raises(ValueError, match="unknown"):
+        Case.from_dict(value)
+
+
+@pytest.mark.parametrize("field", [
+    "requires_repair", "requires_tracking", "requires_publish_parity",
+    "requires_quote_match", "engine_required_facts",
+])
+def test_retired_oracle_fields_are_rejected(field):
+    from dataclasses import asdict
+    value = asdict(load_cases(DEFAULT_CASES)[0])
+    value["oracle"][field] = False
+    with pytest.raises(ValueError, match="unknown"):
+        Case.from_dict(value)
+
+
+@pytest.mark.parametrize("field", [
+    "stage_results", "engine_facts", "published_fingerprint", "repair_completed",
+    "publish_matches_evaluated", "tracking_completed", "quote_matches",
+    "evaluated_fingerprint", "headline_numbers", "artifact_numbers",
+])
+def test_retired_observation_fields_are_rejected(field):
+    with pytest.raises(ValueError, match="unknown"):
+        Observation.from_dict({"case_id": "retired", field: None})
+
+
+def test_old_case_schema_is_rejected_and_retired_runners_are_absent():
+    from dataclasses import asdict
+    value = asdict(load_cases(DEFAULT_CASES)[0])
+    assert value["schema_version"] == 2
+    value["schema_version"] = 1
+    with pytest.raises(ValueError, match="schema"):
+        Case.from_dict(value)
+    root = Path(__file__).parents[1]
+    for relative in ("workflow/compare.py", "workflow/audit.py", "workflow/generate.py",
+                     "workflow/cases/smoke.jsonl", "common/envfile.py"):
+        assert not (root / relative).exists()
 
 
 def test_installed_agent_skill_is_compact_without_hiding_safety_contracts():
@@ -61,47 +91,46 @@ def test_installed_agent_skill_is_compact_without_hiding_safety_contracts():
     assert "permission" in text and "ledger" in text
 
 
-def test_perfect_matched_run_passes_release_gate():
-    cases = load_cases(DEFAULT_CASES)
+def test_perfect_single_phase_run_passes_measurement_gates():
+    cases = [case for case in load_cases(DEFAULT_CASES) if not case.episode]
     result = score_run(cases, [_observation(case) for case in cases], "fixture")
     assert result["correctness_mean_all_cases"] == 1.0
     assert result["trust_pass_rate_all_cases"] == 1.0
     assert result["usability_pass_rate_all_cases"] == 1.0
-    assert result["release_gate_pass"] is True
+    assert result["leakage_safety_gate_pass"] is True and result["completeness_gate_pass"] is True
     assert result["economics"]["calls_median"] == 1
 
 
 def test_leak_is_a_hard_gate_and_abstention_cannot_inflate_accuracy():
-    cases = load_cases(DEFAULT_CASES)
+    cases = [case for case in load_cases(DEFAULT_CASES) if not case.episode]
     observations = [_observation(case) for case in cases]
     observations[0] = _observation(cases[0], temporal_leakage=True)
     observations[1] = _observation(cases[1], status="abstained", support="abstained")
     result = score_run(cases, observations, "bad")
     assert result["temporal_leaks"] == 1
-    assert result["release_gate_pass"] is False
+    assert result["leakage_safety_gate_pass"] is False
     assert result["correctness_mean_all_cases"] < 1.0
 
 
 def test_missing_cases_are_in_all_case_denominator():
-    cases = load_cases(DEFAULT_CASES)
+    cases = [case for case in load_cases(DEFAULT_CASES) if not case.episode]
     result = score_run(cases, [_observation(cases[0])], "partial")
-    assert len(result["missing"]) == 4
-    assert result["correctness_mean_all_cases"] == pytest.approx(0.2)
-    assert result["release_gate_pass"] is False
+    assert len(result["missing"]) == len(cases) - 1
+    assert result["correctness_mean_all_cases"] == pytest.approx(1 / len(cases))
     assert result["completeness_gate_pass"] is False
     assert result["leakage_safety_gate_pass"] is False
 
 
 def test_correctness_and_trust_components_are_reported_separately():
-    cases = load_cases(DEFAULT_CASES)
+    cases = [case for case in load_cases(DEFAULT_CASES) if not case.episode]
     observations = [_observation(case) for case in cases]
-    observations[0] = _observation(cases[0], choices={"pattern": "wrong"})
+    observations[5] = _observation(cases[5], choices={"action": "wrong"})
     result = score_run(cases, observations, "component-report")
     assert result["correctness_components"]["numeric"] == 1.0
     assert result["correctness_components"]["semantic"] < 1.0
     assert set(result["trust_component_pass_rates"]) == {
         "leakage_measured_safe", "disclosures", "forbidden_claims",
-        "support", "publish_parity", "quote_fidelity",
+        "support",
     }
 
 
@@ -128,111 +157,13 @@ def test_jsonl_case_validation_reports_duplicate_ids(tmp_path):
 
 
 def test_corpus_hash_is_stable_and_oracle_sensitive():
-    cases = load_cases(DEFAULT_CASES)
-    assert corpus_sha256(cases) == corpus_sha256(load_cases(DEFAULT_CASES))
+    cases = [case for case in load_cases(DEFAULT_CASES) if not case.episode]
+    assert corpus_sha256(cases) == corpus_sha256([case for case in load_cases(DEFAULT_CASES) if not case.episode])
     changed = list(cases)
     source = json.loads(DEFAULT_CASES.read_text().splitlines()[0])
-    source["oracle"]["numbers"]["next"] = 11
+    source["oracle"]["numbers"]["h1"] += 11
     changed[0] = Case.from_dict(source)
     assert corpus_sha256(changed) != corpus_sha256(cases)
-
-
-def test_comparison_requires_matched_corpus_and_uses_conservative_gate():
-    cases = load_cases(DEFAULT_CASES)
-    base = score_run(cases, [_observation(case) for case in cases], "base")
-    treatment = score_run(cases, [
-        _observation(case, cumulative_tokens=1000, tool_calls=1)
-        for case in cases
-    ], "core")
-    result = compare([base, treatment], "base")
-    assert result["eligible_arms"] == ["base", "core"]
-    treatment["corpus_sha256"] = "different"
-    with pytest.raises(ValueError, match="corpus_sha256"):
-        compare([base, treatment], "base")
-
-
-def test_comparison_aggregates_replicates_by_case():
-    cases = load_cases(DEFAULT_CASES)
-    run1 = score_run(cases, [_observation(case) for case in cases], "base")
-    run2 = score_run(cases, [_observation(case) for case in cases], "base")
-    treatment = score_run(cases, [_observation(case) for case in cases], "evidence")
-    result = compare([run1, run2, treatment], "base")
-    by_arm = {row["arm"]: row for row in result["arms"]}
-    assert by_arm["base"]["replicates"] == 2
-    assert by_arm["evidence"]["replicates"] == 1
-
-
-def test_incomplete_workflow_rows_cannot_enter_promotion_on_successful_subset():
-    cases = load_cases(DEFAULT_CASES)
-    complete = score_run(cases, [_observation(case) for case in cases], "base")
-    partial = score_run(cases, [_observation(cases[0])], "candidate")
-    assert partial["correctness_mean_all_cases"] < 1
-    with pytest.raises(ValueError, match="incomplete"):
-        compare([complete, partial], "base")
-    complete["rows"].append(complete["rows"][0])
-    complete["cases"] += 1
-    with pytest.raises(ValueError, match="duplicate"):
-        compare([complete], "base")
-
-
-def test_comparison_averages_stage_economics_across_replicates():
-    cases = load_cases(DEFAULT_CASES)
-    first = score_run(cases, [_observation(case, stage_results={
-        "initial": {"economics": {"tool_calls": 1, "cumulative_tokens": 10,
-                                  "response_tokens": 2, "latency_seconds": 1}}})
-                              for case in cases], "base")
-    second = score_run(cases, [_observation(case, stage_results={
-        "initial": {"economics": {"tool_calls": 3, "cumulative_tokens": 30,
-                                  "response_tokens": 4, "latency_seconds": 3}}})
-                               for case in cases], "base")
-    arm = compare([first, second], "base")["arms"][0]
-    assert arm["initial_calls_median"] == 2
-
-
-def test_decision_readiness_requires_a_real_leaktrap_gate():
-    cases = load_cases(DEFAULT_CASES)
-    base = score_run(cases, [_observation(case) for case in cases], "base")
-    assert compare([base], "base")["decision_ready_arms"] == []
-    leaktrap = {"benchmark": "leakage-trap", "condition": "gnomon",
-                "tasks": 40, "tasks_flagged_as_leaking": 0,
-                "tasks_transcribing_the_future": 0,
-                "structural_claim_proven": 40}
-    assert compare([base], "base", leaktrap=leaktrap)["decision_ready_arms"] == []
-    candidate = score_run(cases, [_observation(case) for case in cases], "mega")
-    accuracy = {"mega": {"comparable": True, "benchmark": "temporalbench",
-                         "matched_tasks": 40,
-                         "metrics": {"SMAPE": {"lower_is_better": True,
-                                                "baseline_mean": 10.0,
-                                                "treatment_mean": 10.1}}}}
-    heldout = {"generator": "workflow-synthetic-v2", "fresh_seed": True,
-               "seed": 123, "corpus_sha256": base["corpus_sha256"]}
-    # One stochastic sample is never enough to select a surface.
-    assert compare([base, candidate], "base", leaktrap=leaktrap,
-                   accuracy_comparisons=accuracy,
-                   heldout_manifest=heldout)["decision_ready_arms"] == []
-    assert compare([base] * 3 + [candidate] * 3, "base", leaktrap=leaktrap,
-                   accuracy_comparisons=accuracy,
-                   heldout_manifest=heldout)["decision_ready_arms"] == ["mega"]
-
-
-def test_decision_readiness_rejects_reused_or_mismatched_corpus_manifest():
-    cases = load_cases(DEFAULT_CASES)
-    base = score_run(cases, [_observation(case) for case in cases], "base")
-    candidate = score_run(cases, [_observation(case) for case in cases], "mega")
-    leaktrap = {"benchmark": "leakage-trap", "condition": "gnomon", "tasks": 40,
-                "tasks_flagged_as_leaking": 0, "tasks_transcribing_the_future": 0,
-                "structural_claim_proven": 40}
-    accuracy = {"mega": {"comparable": True, "benchmark": "temporalbench",
-                         "matched_tasks": 40,
-                         "metrics": {"SMAPE": {"lower_is_better": True,
-                                                "baseline_mean": 10,
-                                                "treatment_mean": 10}}}}
-    reused = {"generator": "workflow-synthetic-v2", "fresh_seed": False,
-              "seed": 1, "corpus_sha256": base["corpus_sha256"]}
-    result = compare([base] * 3 + [candidate] * 3, "base", leaktrap=leaktrap,
-                     accuracy_comparisons=accuracy, heldout_manifest=reused)
-    assert result["fresh_heldout_gate_pass"] is False
-    assert result["decision_ready_arms"] == []
 
 
 def test_malformed_arm_output_is_a_scored_error(tmp_path):
@@ -247,113 +178,6 @@ def test_malformed_arm_output_is_a_scored_error(tmp_path):
     assert observation.metadata["error"] == "invalid_observation"
 
 
-def test_corpus_readiness_cannot_confuse_smoke_with_publication():
-    cases = load_cases(DEFAULT_CASES)
-    assert audit(cases, "smoke")["ready"] is True
-    publication = audit(cases, "publication")
-    assert publication["ready"] is False
-    assert publication["checks"]["minimum_cases"] is False
-
-
-def test_generated_publication_corpus_is_balanced_ready_and_sealed():
-    cases = generate_publication_cases()
-    assert len(cases) == 100
-    result = audit(cases, "publication")
-    assert result["ready"] is True
-    assert set(result["domains"]) == {
-        "infrastructure", "demand", "health", "environment", "finance"
-    }
-    assert set(result["kinds"].values()) == {20}
-    for case in cases:
-        public = case_payload(case)
-        assert "stages" not in public
-        assert "oracle" not in public
-
-
-def test_synthetic_generator_is_reproducible_but_seed_sensitive():
-    first = generate_publication_cases(seed=123)
-    replay = generate_publication_cases(seed=123)
-    holdout = generate_publication_cases(seed=456)
-    assert corpus_sha256(first) == corpus_sha256(replay)
-    assert corpus_sha256(first) != corpus_sha256(holdout)
-    assert {json.dumps(case.available_at_cutoff, sort_keys=True) for case in first} != {
-        json.dumps(case.available_at_cutoff, sort_keys=True) for case in holdout}
-
-
-def test_runner_reveals_repair_and_outcome_only_after_initial_answer(tmp_path):
-    import sys
-    from benchmarks.workflow.run_workflow import run_command
-
-    script = tmp_path / "staged.py"
-    script.write_text(
-        "import json,sys\n"
-        "x=json.loads(sys.stdin.readline())\n"
-        "stage=x.get('workflow_stage')\n"
-        "status='answered' if stage or x['kind']!='messy' else 'abstained'\n"
-        "prior=x.get('prior_observation',{})\n"
-        "numbers={'absolute_error':abs(x['revealed']['actual']-prior['numbers']['next'])} if stage=='outcome' else ({'next':50} if stage=='repair' else ({'next':50} if x['kind']=='longitudinal' else {}))\n"
-        "facts={'tracked_forecast_id':prior.get('published_fingerprint')} if stage=='outcome' else ({'resolved_target':'east'} if stage=='repair' else {})\n"
-        "print(json.dumps({'case_id':x['id'],'status':status,'support':'abstained' if status=='abstained' else 'degraded','numbers':numbers,'choices':{},'facts':facts,'disclosures':[],'claims':[],'temporal_leakage':False,'evaluated_fingerprint':'forecast-x','published_fingerprint':'forecast-x'}))\n",
-        encoding="utf-8",
-    )
-    cases = generate_publication_cases(per_kind=1)
-    selected = [case for case in cases if case.kind in {"messy", "longitudinal"}]
-    rows = run_command(selected, f"{sys.executable} {script}", timeout=2)
-    by_kind = {case.kind: row for case, row in zip(selected, rows)}
-    assert by_kind["messy"].stage_results["repair"]["completed"] is True
-    assert by_kind["longitudinal"].stage_results["outcome"]["tracked"] is True
-
-
-def test_repair_requires_a_correct_followup_not_just_a_second_answer():
-    case = next(case for case in generate_publication_cases(per_kind=1)
-                if case.kind == "messy")
-    wrong = _observation(case, stage_results={
-        "repair": {"completed": True, "followup_status": "answered",
-                   "numbers": {"next": -999}, "facts": {"resolved_target": "east"}}
-    })
-    row = score_run([case], [wrong], "fixture")["rows"][0]
-    assert row["repair_pass"] is False
-    assert row["correctness"] == 0.0
-
-
-@pytest.mark.parametrize("outcome", [
-    {"tracked": False, "absolute_error": 1.0, "reported_absolute_error": 1.0},
-    {"tracked": True, "absolute_error": 1.0, "reported_absolute_error": 2.0},
-])
-def test_tracking_requires_artifact_binding_and_correct_error(outcome):
-    case = next(case for case in generate_publication_cases(per_kind=1)
-                if case.kind == "longitudinal")
-    row = score_run([case], [_observation(case, stage_results={"outcome": outcome})],
-                    "fixture")["rows"][0]
-    assert row["tracking_pass"] is False
-    assert row["usable"] is False
-
-
-def test_publish_parity_is_derived_from_fingerprints_not_model_claim():
-    case = next(case for case in generate_publication_cases(per_kind=1)
-                if case.oracle.requires_publish_parity)
-    obs = _observation(case, publish_matches_evaluated=True,
-                       evaluated_fingerprint="evaluated",
-                       published_fingerprint="different")
-    row = score_run([case], [obs], "fixture")["rows"][0]
-    assert row["publish_parity_pass"] is False
-    assert row["trust_pass"] is False
-    assert 0.0 < row["trust_score"] < 1.0
-
-
-def test_stage_economics_are_reported_separately():
-    case = load_cases(DEFAULT_CASES)[0]
-    obs = _observation(case, stage_results={
-        "initial": {"economics": {"tool_calls": 2, "cumulative_tokens": 80,
-                                  "response_tokens": 10, "latency_seconds": 0.5}},
-        "repair": {"economics": {"tool_calls": 1, "cumulative_tokens": 20,
-                                 "response_tokens": 5, "latency_seconds": 0.2}},
-    })
-    economics = score_run([case], [obs], "fixture")["economics"]["by_stage"]
-    assert economics["initial"]["calls_median"] == 2
-    assert economics["repair"]["mean_tokens"] == 20
-
-
 def test_unmeasured_leakage_is_not_reported_as_a_detected_leak():
     case = load_cases(DEFAULT_CASES)[0]
     result = score_run([case], [_observation(case, temporal_leakage=None)], "fixture")
@@ -364,47 +188,6 @@ def test_unmeasured_leakage_is_not_reported_as_a_detected_leak():
     assert row["leakage_measurement_pass"] is False
     assert result["trust_measurement_coverage"] == 0.0
     assert result["trust_pass_rate_measured_cases"] is None
-
-
-def test_successful_repair_counts_as_final_resolution_not_initial_answer():
-    case = next(case for case in generate_publication_cases(per_kind=1)
-                if case.kind == "messy")
-    stage = case.stages[0]
-    obs = _observation(case, stage_results={"repair": {
-        "completed": True, "followup_status": "answered",
-        "numbers": stage["oracle"]["numbers"],
-        "facts": stage["oracle"]["required_facts"]}})
-    result = score_run([case], [obs], "fixture")
-    assert result["initial_answer_yield"] == 0.0
-    assert result["final_workflow_resolution_rate"] == 1.0
-
-
-def test_tracking_capability_is_reported_separately_from_accuracy():
-    case = next(case for case in generate_publication_cases(per_kind=1)
-                if case.kind == "longitudinal")
-    obs = _observation(case, evaluated_fingerprint=None, published_fingerprint=None,
-                       stage_results={"outcome": {"tracked": False,
-                                                  "absolute_error": 0.0,
-                                                  "reported_absolute_error": 0.0}})
-    result = score_run([case], [obs], "control")
-    assert result["rows"][0]["correctness"] == 1.0
-    assert result["capability_coverage"]["required_tracking"] == 0.0
-    assert result["final_workflow_resolution_rate"] == 0.0
-
-
-def test_engine_contract_and_agent_preservation_are_separate():
-    case = next(case for case in generate_publication_cases(per_kind=1)
-                if case.kind == "multiseries")
-    obs = _observation(
-        case, facts={}, engine_facts=case.oracle.required_facts,
-        metadata={"surface_required_calls": 1}, tool_calls=2)
-    result = score_run([case], [obs], "core")
-    assert result["engine_contract"] == {
-        "required_cases": 1, "complete_cases": 1, "completeness_rate": 1.0}
-    assert result["agent_fact_preservation_rate"] == 0.0
-    assert result["trust_pass_rate_all_cases"] == 0.0
-    assert result["economics"]["surface_required_calls_mean"] == 1.0
-    assert result["economics"]["redundant_calls_mean"] == 1.0
 
 
 def test_alias_only_credit_is_visible():
@@ -442,20 +225,11 @@ def test_runner_retries_infrastructure_and_resume_keeps_success(tmp_path):
     assert row.metadata["attempts"] == 2
     from benchmarks.workflow.schema import load_observations
     assert load_observations(checkpoint)[0].status == "answered"
-    retained = _observation(case, metadata={"sentinel": True})
+    from dataclasses import replace
+    retained = replace(row, metadata={**row.metadata, "sentinel": True})
     resumed, = run_command([case], f"{sys.executable} {script}", 2,
                            retries=1, prior=[retained])
     assert resumed.metadata["sentinel"] is True
-
-    stage_failed = _observation(case, metadata={
-        "sentinel": True,
-        "stage_infrastructure_failures": [{
-            "stage": "repair", "error": "subprocess_failure"}],
-    })
-    rerun, = run_command([case], f"{sys.executable} {script}", 2,
-                         retries=1, prior=[stage_failed])
-    assert rerun.status == "answered"
-    assert "sentinel" not in rerun.metadata
 
 
 def test_workflow_resume_identity_rejects_changed_arm(tmp_path):
@@ -464,7 +238,7 @@ def test_workflow_resume_identity_rejects_changed_arm(tmp_path):
         _prepare_run_identity, _run_identity,
     )
 
-    cases = load_cases(DEFAULT_CASES)
+    cases = [case for case in load_cases(DEFAULT_CASES) if not case.episode]
     args = argparse.Namespace(
         submission=None, arm="evidence", arm_command="python arm.py",
         timeout=120.0, jobs=1, infrastructure_retries=2)

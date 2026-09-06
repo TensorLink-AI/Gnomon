@@ -11,7 +11,6 @@ from benchmarks.workflow.accounting import AttemptJournal, FIELDS, receipt, summ
 from benchmarks.workflow.run_workflow import _invoke, run_command, DEFAULT_CASES
 from benchmarks.workflow.schema import Observation, load_cases, load_observations
 from benchmarks.workflow.scoring import score_run
-from benchmarks.workflow.compare import compare
 
 
 def observation(case_id, *, status="answered", calls=1, tokens=10, cost=1):
@@ -45,7 +44,7 @@ def test_retry_preserves_every_attempt_and_never_changes_first_receipt(monkeypat
 
 
 def test_resume_preserves_prior_attempts_without_duplicate_charging(monkeypatch, tmp_path):
-    case = replace(load_cases(DEFAULT_CASES)[0], stages=())
+    case = load_cases(DEFAULT_CASES)[0]
     checkpoint = tmp_path / "observations.jsonl"
     monkeypatch.setattr("benchmarks.workflow.run_workflow._invoke_once", lambda *args:
                         observation(case.id, status="error", calls=3, tokens=100, cost=2))
@@ -62,7 +61,7 @@ def test_resume_preserves_prior_attempts_without_duplicate_charging(monkeypatch,
 
 
 def test_durable_start_survives_interruption_before_any_checkpoint(monkeypatch, tmp_path):
-    case = replace(load_cases(DEFAULT_CASES)[0], stages=())
+    case = load_cases(DEFAULT_CASES)[0]
     checkpoint = tmp_path / "observations.jsonl"
 
     def interrupted(*args):
@@ -84,29 +83,12 @@ def test_durable_start_survives_interruption_before_any_checkpoint(monkeypatch, 
     assert recovered.metadata["resource_accounting"]["unfinished"] == 1
 
 
-def test_stage_failure_usage_survives_resume_of_the_whole_case(monkeypatch, tmp_path):
-    source = load_cases(DEFAULT_CASES)[0]
-    case = replace(source, oracle=replace(source.oracle, requires_repair=True), stages=({"name": "repair"},))
-    checkpoint = tmp_path / "observations.jsonl"
-    responses = iter([observation(case.id), observation(case.id, status="error", calls=3, tokens=100)])
-    monkeypatch.setattr("benchmarks.workflow.run_workflow._invoke_once", lambda *args: next(responses))
-    first = run_command([case], "unused", 1, checkpoint_path=checkpoint)
-    assert first[0].cumulative_tokens == 110
-    assert first[0].metadata["stage_infrastructure_failures"]
-    responses = iter([observation(case.id), observation(case.id)])
-    second = run_command([case], "unused", 1, prior=load_observations(checkpoint), checkpoint_path=checkpoint)[0]
-    assert second.cumulative_tokens == 130 and second.tool_calls == 6
-    assert [item["stage"] for item in second.metadata["attempt_receipts"]] == ["initial", "repair", "initial", "repair"]
-    assert not second.metadata["stage_infrastructure_failures"]
-
-
-def test_legacy_resume_keeps_observed_usage_without_attesting_lost_costs(monkeypatch, tmp_path):
-    case = replace(load_cases(DEFAULT_CASES)[0], stages=())
+def test_unjournaled_resume_is_refused_before_dispatch(monkeypatch, tmp_path):
+    case = load_cases(DEFAULT_CASES)[0]
     old = observation(case.id, status="error", calls=3, tokens=100)
     monkeypatch.setattr("benchmarks.workflow.run_workflow._invoke_once", lambda *args: observation(case.id))
-    recovered = run_command([case], "unused", 1, prior=[old], checkpoint_path=tmp_path / "observations.jsonl")[0]
-    assert recovered.cumulative_tokens == 110
-    assert recovered.metadata["resource_accounting"]["resources"]["cumulative_tokens"]["total"] is None
+    with pytest.raises(ValueError, match="requires current attempt receipts"):
+        run_command([case], "unused", 1, prior=[old], checkpoint_path=tmp_path / "observations.jsonl")
 
 
 def test_real_process_timeout_retains_unknown_spend_and_measured_wall_time():
@@ -119,7 +101,7 @@ def test_real_process_timeout_retains_unknown_spend_and_measured_wall_time():
 
 
 def test_parallel_real_process_journal_and_normalized_totals(tmp_path):
-    cases = [replace(case, stages=()) for case in load_cases(DEFAULT_CASES)[:3]]
+    cases = load_cases(DEFAULT_CASES)[:3]
     code = "import json,sys; p=json.loads(sys.stdin.readline()); print(json.dumps(dict(case_id=p['id'],status='answered',support='supported',tool_calls=1,cumulative_tokens=10,response_tokens=2,latency_seconds=0.1,cost_usd=0.5)))"
     results = run_command(cases, shlex.join([sys.executable, "-c", code]), 10, jobs=3,
                           checkpoint_path=tmp_path / "observations.jsonl")
@@ -153,13 +135,16 @@ def test_unknown_resources_cannot_pass_workflow_budget_gate():
     cases = load_cases(DEFAULT_CASES)
     values = [Observation.from_dict({"case_id": case.id, "status": "answered", "support": "supported"}) for case in cases]
     scored = score_run(cases, values, "unknown")
-    assert compare([scored], "unknown")["arms"][0]["gates"]["resource_accounting_complete"] is False
+    assert scored["resource_accounting"]["budget_accounting_complete"] is False
 
 
 def test_real_cli_export_does_not_turn_missing_measurements_into_free_runs(tmp_path):
+    from dataclasses import asdict
+    cases_path = tmp_path / "cases.jsonl"
+    cases_path.write_text(json.dumps(asdict(load_cases(DEFAULT_CASES)[0])) + "\n")
     code = "import json,sys; p=json.loads(sys.stdin.readline()); print(json.dumps(dict(case_id=p['id'],status='answered',support='supported')))"
     completed = subprocess.run([sys.executable, "-m", "benchmarks.workflow.run_workflow",
-        "--arm", "unmeasured", "--output-dir", str(tmp_path), "--infrastructure-retries", "0",
+        "--cases", str(cases_path), "--arm", "unmeasured", "--output-dir", str(tmp_path), "--infrastructure-retries", "0",
         "--arm-command", shlex.join([sys.executable, "-c", code])], capture_output=True, text=True, timeout=30)
     assert completed.returncode in (0, 2), completed.stderr
     rows = [json.loads(line) for line in (tmp_path / "gnomonbench.jsonl").read_text().splitlines()]
@@ -192,8 +177,6 @@ def test_journal_rejects_other_databases_and_conflicting_receipts(tmp_path):
         journal.close()
 
 
-
-
 @pytest.mark.parametrize("earlier,expected", [(True, True), (None, None), (False, False)])
 def test_recovery_cannot_erase_a_prior_leak_or_unmeasured_safety(monkeypatch, earlier, expected):
     responses = iter([replace(observation("a", status="error"), temporal_leakage=earlier),
@@ -206,7 +189,7 @@ def test_recovery_cannot_erase_a_prior_leak_or_unmeasured_safety(monkeypatch, ea
 @pytest.mark.parametrize("earlier,expected", [(True, True), (None, None), (False, False)])
 def test_budget_outcomes_survive_resume_and_normalized_export(monkeypatch, tmp_path, earlier, expected):
     from benchmarks.workflow.matched import normalized_rows
-    case = replace(load_cases(DEFAULT_CASES)[0], stages=())
+    case = load_cases(DEFAULT_CASES)[0]
     checkpoint = tmp_path / "observations.jsonl"
     failed = observation(case.id, status="error")
     failed = replace(failed, metadata={**failed.metadata, "budget_exceeded": earlier})
@@ -221,14 +204,11 @@ def test_budget_outcomes_survive_resume_and_normalized_export(monkeypatch, tmp_p
     assert rows[0]["resource_accounting"]["attempts"] == 2
 
 
-def test_budget_receipts_preserve_historical_uncertainty_and_reject_nonbooleans():
+def test_budget_receipts_preserve_unknown_measurements_and_reject_nonbooleans():
     value = observation("a")
     item = receipt(value)
     item.pop("budget_exceeded")  # Pre-field persisted receipt remains readable, not false.
     assert summarize([item])["budget_exceeded"] is None
-    for flag in (True, False):
-        candidate = replace(value, metadata={**value.metadata, "budget_exceeded": flag})
-        assert receipt(candidate, historical=True)["budget_exceeded"] is (True if flag else None)
     with pytest.raises(ValueError, match="budget measurement"):
         summarize([{**item, "budget_exceeded": 0}])
     with pytest.raises(ValueError, match="budget measurement"):

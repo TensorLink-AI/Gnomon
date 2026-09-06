@@ -7,28 +7,22 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 CASE_KINDS = {"synthetic", "frozen", "messy", "longitudinal", "multiseries"}
 STATUSES = {"answered", "abstained", "error"}
 SUPPORT = {"supported", "degraded", "best_effort", "abstained"}
-STAGE_FIELDS = {"name", "revealed", "answer_schema", "oracle"}
+EPISODE_FIELDS = {"name", "revealed", "answer_schema", "oracle"}
 CASE_FIELDS = {"schema_version", "id", "kind", "domain", "question",
-               "available_at_cutoff", "answer_schema", "oracle", "tags", "stages", "episode"}
+               "available_at_cutoff", "answer_schema", "oracle", "tags", "episode"}
 ORACLE_FIELDS = {"numbers", "tolerances", "choices", "required_disclosures",
                  "forbidden_claims", "allowed_support", "should_abstain",
-                 "requires_repair", "requires_tracking",
-                 "requires_publish_parity", "requires_quote_match",
-                 "required_facts", "engine_required_facts", "choice_aliases",
+                 "required_facts", "choice_aliases",
                  "forecast"}
 OBSERVATION_FIELDS = {"case_id", "status", "support", "numbers", "choices",
                       "disclosures", "claims", "temporal_leakage",
-                      "publish_matches_evaluated", "repair_completed",
-                      "tracking_completed", "quote_matches", "tool_calls",
+                      "tool_calls",
                       "cumulative_tokens", "response_tokens", "latency_seconds",
-                      "metadata", "facts", "evaluated_fingerprint",
-                      "published_fingerprint", "headline_numbers",
-                      "artifact_numbers", "stage_results"}
-OBSERVATION_FIELDS |= {"engine_facts", "cost_usd"}
+                      "metadata", "facts", "cost_usd"}
 
 
 def _require(condition: bool, message: str) -> None:
@@ -56,12 +50,7 @@ class Oracle:
     forbidden_claims: tuple[str, ...] = ()
     allowed_support: tuple[str, ...] = ("supported", "degraded", "best_effort")
     should_abstain: bool = False
-    requires_repair: bool = False
-    requires_tracking: bool = False
-    requires_publish_parity: bool = False
-    requires_quote_match: bool = False
     required_facts: dict[str, Any] = field(default_factory=dict)
-    engine_required_facts: dict[str, Any] = field(default_factory=dict)
     choice_aliases: dict[str, tuple[str, ...]] = field(default_factory=dict)
     forecast: dict[str, Any] = field(default_factory=dict)
 
@@ -98,12 +87,7 @@ class Oracle:
             forbidden_claims=tuple(str(x) for x in value.get("forbidden_claims", ())),
             allowed_support=allowed,
             should_abstain=bool(value.get("should_abstain", False)),
-            requires_repair=bool(value.get("requires_repair", False)),
-            requires_tracking=bool(value.get("requires_tracking", False)),
-            requires_publish_parity=bool(value.get("requires_publish_parity", False)),
-            requires_quote_match=bool(value.get("requires_quote_match", False)),
             required_facts=dict(value.get("required_facts") or {}),
-            engine_required_facts=dict(value.get("engine_required_facts") or {}),
             choice_aliases={str(key): tuple(str(item) for item in aliases)
                             for key, aliases in
                             (value.get("choice_aliases") or {}).items()},
@@ -121,7 +105,6 @@ class Case:
     answer_schema: dict[str, Any]
     oracle: Oracle
     tags: tuple[str, ...] = ()
-    stages: tuple[dict[str, Any], ...] = ()
     schema_version: int = SCHEMA_VERSION
     episode: tuple[dict[str, Any], ...] = ()
 
@@ -164,43 +147,18 @@ class Case:
                  f"case {case_id}: canonical choice source keys missing from answer_schema")
         _require(set(oracle.required_facts) <= set(answer_schema["facts"]),
                  f"case {case_id}: required fact keys missing from answer_schema")
-        _require(set(oracle.engine_required_facts) <= set(answer_schema["facts"]),
-                 f"case {case_id}: engine fact keys missing from answer_schema")
-        stages = tuple(dict(stage) for stage in value.get("stages", ()))
-        for stage in stages:
-            _reject_unknown(stage, STAGE_FIELDS, f"case {case_id} stage")
-        _require(all(stage.get("name") in {"repair", "outcome"} for stage in stages),
-                 f"case {case_id}: stages must be named repair or outcome")
-        _require(len({stage["name"] for stage in stages}) == len(stages),
-                 f"case {case_id}: duplicate stage names")
-        for stage in stages:
-            stage_schema = stage.get("answer_schema") or {}
-            _reject_unknown(stage_schema, {"numbers", "choices", "facts"},
-                            f"case {case_id} {stage['name']} answer_schema")
-            stage_oracle = Oracle.from_dict(stage.get("oracle") or {})
-            _require(set(stage_oracle.numbers) <= set(stage_schema.get("numbers", ())),
-                     f"case {case_id}: stage numeric oracle keys missing from answer_schema")
-            _require(set(stage_oracle.choices) <= set(stage_schema.get("choices", ())),
-                     f"case {case_id}: stage choice oracle keys missing from answer_schema")
-            _require(set(stage_oracle.required_facts) <= set(stage_schema.get("facts", ())),
-                     f"case {case_id}: stage fact oracle keys missing from answer_schema")
-        _require(not oracle.requires_repair or any(s["name"] == "repair" for s in stages),
-                 f"case {case_id}: repair oracle requires a repair stage")
-        _require(not oracle.requires_tracking or any(s["name"] == "outcome" for s in stages),
-                 f"case {case_id}: tracking oracle requires an outcome stage")
         episode = value.get("episode", ())
         _require(isinstance(episode, (list, tuple)), "episode must be an ordered phase list")
         if episode:
-            _require(not stages and 2 <= len(episode) <= 8, "episode requires2..8 phases and no historical stages")
+            _require(2 <= len(episode) <= 8, "episode requires2..8 phases")
             names = []
             for phase in episode:
-                _require(isinstance(phase, dict) and set(phase) == STAGE_FIELDS, "episode phase requires name/revealed/answer_schema/oracle")
+                _require(isinstance(phase, dict) and set(phase) == EPISODE_FIELDS, "episode phase requires name/revealed/answer_schema/oracle")
                 name = phase["name"]
                 _require(isinstance(name, str) and 0 < len(name) <= 64 and name not in names, "episode phase names must be unique bounded strings")
                 names.append(name)
                 _require(isinstance(phase["revealed"], dict), "phase revealed input must be an object")
-                # Reuse real answer/oracle validation without treating these as
-                # historical host-compiled repair/outcome stages.
+                # Reuse the same answer/oracle validation for every phase.
                 cls.from_dict({"id": case_id, "kind": kind, "question": question,
                                "available_at_cutoff": {}, "answer_schema": phase["answer_schema"],
                                "oracle": phase["oracle"]})
@@ -211,7 +169,7 @@ class Case:
             id=case_id, kind=kind, domain=str(value.get("domain", "unknown")),
             question=question, available_at_cutoff=available,
             answer_schema=answer_schema, oracle=oracle,
-            tags=tuple(str(x) for x in value.get("tags", ())), stages=stages,
+            tags=tuple(str(x) for x in value.get("tags", ())),
             schema_version=version,
             episode=tuple(dict(phase) for phase in episode),
         )
@@ -227,10 +185,6 @@ class Observation:
     disclosures: tuple[str, ...] = ()
     claims: tuple[str, ...] = ()
     temporal_leakage: bool | None = None
-    publish_matches_evaluated: bool | None = None
-    repair_completed: bool | None = None
-    tracking_completed: bool | None = None
-    quote_matches: bool | None = None
     tool_calls: int = 0
     cumulative_tokens: int = 0
     response_tokens: int = 0
@@ -238,15 +192,6 @@ class Observation:
     cost_usd: float | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
     facts: dict[str, Any] = field(default_factory=dict)
-    # Deterministically harvested from the tool response.  Keep separate from
-    # ``facts`` (the agent's final envelope) so engine-contract completeness
-    # and agent preservation cannot be conflated.
-    engine_facts: dict[str, Any] = field(default_factory=dict)
-    evaluated_fingerprint: str | None = None
-    published_fingerprint: str | None = None
-    headline_numbers: dict[str, float] = field(default_factory=dict)
-    artifact_numbers: dict[str, float] = field(default_factory=dict)
-    stage_results: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "Observation":
@@ -291,23 +236,9 @@ class Observation:
             disclosures=tuple(str(x) for x in value.get("disclosures", ())),
             claims=tuple(str(x) for x in value.get("claims", ())),
             temporal_leakage=temporal_leakage,
-            publish_matches_evaluated=_optional_bool(value.get("publish_matches_evaluated"), "publish_matches_evaluated", case_id),
-            repair_completed=_optional_bool(value.get("repair_completed"), "repair_completed", case_id),
-            tracking_completed=_optional_bool(value.get("tracking_completed"), "tracking_completed", case_id),
-            quote_matches=_optional_bool(value.get("quote_matches"), "quote_matches", case_id),
             **resources,
             metadata=metadata,
             facts=dict(value.get("facts") or {}),
-            engine_facts=dict(value.get("engine_facts") or {}),
-            evaluated_fingerprint=(str(value["evaluated_fingerprint"])
-                                   if value.get("evaluated_fingerprint") is not None else None),
-            published_fingerprint=(str(value["published_fingerprint"])
-                                   if value.get("published_fingerprint") is not None else None),
-            headline_numbers={str(k): float(v) for k, v in
-                              (value.get("headline_numbers") or {}).items()},
-            artifact_numbers={str(k): float(v) for k, v in
-                              (value.get("artifact_numbers") or {}).items()},
-            stage_results=dict(value.get("stage_results") or {}),
         )
 
 
@@ -327,7 +258,7 @@ def load_cases(path: str | Path) -> list[Case]:
 def load_observations(path: str | Path) -> list[Observation]:
     observations = []
     for row in _read_jsonl(Path(path)):
-        # Old serialized defaults do not prove measured zero or complete history.
+        # Serialized defaults alone do not prove measured zero or complete history.
         metadata = dict(row.get("metadata") or {})
         metadata.setdefault("resource_fields", [])
         observations.append(Observation.from_dict({**row, "metadata": metadata}))

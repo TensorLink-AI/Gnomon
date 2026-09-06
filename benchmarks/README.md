@@ -1,32 +1,27 @@
-# Current evaluation harness
+# Agent evaluation
 
-One retained workflow compares the same agent model using ordinary software,
-Gnomon's lean session and the same session with optional ledger/temporal tools.
+One workflow compares the same agent model using ordinary software, Gnomon's
+lean session, and that session with optional ledger and temporal tools.
 
-Start with [matched controls](workflow/MATCHED.md), the
-[operator configuration](workflow/experiment/README.md) and the
-[retrospective cohort](workflow/cases/MATCHED_RETROSPECTIVE.md).
+Start with [matched controls](workflow/MATCHED.md),
+[operator configuration](workflow/experiment/README.md), and the
+[11-task retrospective cohort](workflow/cases/MATCHED_RETROSPECTIVE.md).
 
 ```bash
 pytest -q benchmarks/tests
 ```
 
-These are harness regressions, not evidence that an LLM improves. Real container
-checks require explicit locally built software/service image IDs; see
-[software isolation](workflow/software/README.md) and
-[service isolation](workflow/service/README.md). Model calls require separate
-configuration and spending approval. The repository has no scheduled paid run.
+These tests verify the harness, not improved agent performance. Real container
+checks need locally built image IDs; see [software](workflow/software/README.md)
+and [service isolation](workflow/service/README.md). Model calls need explicit
+configuration and spending approval. CI makes no paid model calls.
 
-The active benchmark code is `workflow/`, with shared transport/provenance helpers
-in `common/`. Fixtures for older summary/schema compatibility remain tests, not
-alternative recommended experiments. The forecast data under `workflow/data/`
-retains source hashes and provenance.
+`workflow/` contains the runner, agent loop, scoring, isolation and attempt journal.
+`common/` contains transport, checkpoint and provenance helpers.
+Frozen forecast inputs retain their source hashes and attribution.
+Production accuracy, cutoff and ledger regressions live separately in `tests/`.
 
-Superseded benchmark families, their runners and copied archives were removed.
-They and older results are recoverable at Git commit `2cba20e`; they are not
-evidence for the new default session. Production numeric/cutoff regressions remain
-in `tests/`.
-
-The 0.9 cleanup also removes context-engine cases and grading branches (recovery:
-`333ed2c`). Old full-arm results describe a different runtime and cannot establish
-the value of today's optional tools.
+The old promotion/audit/generation runners, smoke corpus, host-generated follow-up
+answers and response-cache machinery are removed. Recovery: Git commit
+`1642cb2` (earlier benchmark archives: `2cba20e`). Case schema v2 and current
+attempt receipts are required; old results are not comparable with this workflow.

@@ -16,7 +16,6 @@ from benchmarks.workflow.accounting import AttemptJournal, receipt
 from benchmarks.workflow.bounded_agent import run_agent
 from benchmarks.workflow.episodes import Episode
 from benchmarks.workflow.matched import normalized_rows
-from benchmarks.workflow.provenance import corpus_sha256
 from benchmarks.workflow.run_workflow import case_payload, run_command
 from benchmarks.workflow.schema import Case, Observation
 from benchmarks.workflow.scoring import score_run
@@ -232,16 +231,6 @@ def test_crash_retains_commit_lower_bounds_and_resume_does_not_forecast_again(mo
     assert resources["cumulative_tokens"]["total"] is None
 
 
-def test_empty_episode_preserves_existing_corpus_hash():
-    import hashlib
-    value = replace(case(), episode=())
-    old = asdict(value)
-    old.pop("episode")
-    old["oracle"].pop("forecast")
-    expected = hashlib.sha256(json.dumps([old], sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
-    assert corpus_sha256([value]) == expected
-
-
 def test_direct_invocation_refuses_episode_retries_before_start(tmp_path):
     from benchmarks.workflow.run_workflow import _invoke
     journal = AttemptJournal(tmp_path / "attempts.db")
@@ -253,7 +242,7 @@ def test_direct_invocation_refuses_episode_retries_before_start(tmp_path):
         journal.close()
 
 
-def test_v1_journal_upgrade_preserves_existing_attempt_bytes(tmp_path):
+def test_retired_journal_version_is_refused_without_modification(tmp_path):
     from benchmarks.workflow.accounting import APP_ID
     path = tmp_path / "v1.db"
     with sqlite3.connect(path) as db:
@@ -261,15 +250,10 @@ def test_v1_journal_upgrade_preserves_existing_attempt_bytes(tmp_path):
         db.execute("PRAGMA user_version=1")
         db.execute("CREATE TABLE attempts (id TEXT NOT NULL, phase TEXT NOT NULL, case_id TEXT NOT NULL, stage TEXT NOT NULL, payload TEXT NOT NULL, PRIMARY KEY(id,phase))")
         db.execute("INSERT INTO attempts VALUES ('old','started','legacy','initial','{}')")
-        old = db.execute("SELECT * FROM attempts").fetchall()
-    journal = AttemptJournal(path)
-    try:
-        assert journal.db.execute("PRAGMA user_version").fetchone()[0] == 2
-        assert journal.db.execute("SELECT * FROM attempts").fetchall() == old
-        assert journal.checkpoints("old") == []
-        assert journal.for_case("legacy")[0]["status"] == "unfinished"
-    finally:
-        journal.close()
+    before = path.read_bytes()
+    with pytest.raises(ValueError, match="unsupported attempt journal version"):
+        AttemptJournal(path)
+    assert path.read_bytes() == before
 
 
 @pytest.mark.parametrize("change", ["one_phase", "duplicate", "initial_reveal", "wrong_final_oracle"])

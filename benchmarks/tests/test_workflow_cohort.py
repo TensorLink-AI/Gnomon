@@ -117,8 +117,7 @@ def test_frozen_cohort_rebuilds_exactly_and_source_cutoffs_are_independent_of_an
         changed = deepcopy(asdict(case))
         changed["oracle"]["numbers"]["h1"] += 1000
         assert case_payload(Case.from_dict(changed)) == case_payload(case)
-    assert not any(case.stages or case.oracle.engine_required_facts
-                   or case.oracle.requires_publish_parity or case.oracle.requires_quote_match for case in cases)
+    assert not any("stages" in asdict(case) for case in cases)
 
 
 def test_changed_source_bytes_are_rejected_before_building_a_new_identity(tmp_path):
@@ -146,13 +145,10 @@ def test_utility_oracles_have_independent_physical_probability_and_time_checks()
     assert missing.oracle.should_abstain
 
 
-def test_empty_forecast_contract_preserves_prior_corpus_hash():
+def test_corpus_hash_covers_the_entire_current_contract():
     import hashlib
     case = replace(forecast_case(), oracle=Oracle(numbers={"h1": 4}))
-    old = asdict(case)
-    old.pop("episode")
-    old["oracle"].pop("forecast")
-    encoded = json.dumps([old], sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+    encoded = json.dumps([asdict(case)], sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
     assert corpus_sha256([case]) == hashlib.sha256(encoded).hexdigest()
 
 

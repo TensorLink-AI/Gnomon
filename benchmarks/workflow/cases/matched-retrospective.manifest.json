@@ -14,7 +14,7 @@
     "episode_decision_permission",
     "episode_bitemporal_replay"
   ],
-  "corpus_sha256": "dee251c33d33fe0b642be07dc897c090db2f1b2fe4c16500f6b2f7d917e7a828",
+  "corpus_sha256": "2d2ae1ec5b59d0a121b6e6787c975f267e5428e091dea50f8bc82a55f1ead0a7",
   "sources": [
     {
       "case_id": "retrospective_forecast_1",
@@ -109,7 +109,7 @@
       }
     }
   ],
-  "episode_source_sha256": "e2610373c0d380f76f75c367852ab607b4e575932a6d8614844bd6f38bb96cac",
+  "episode_source_sha256": "0dc490b4f0a3cec77d375929082f3d0432ba0defdf502e87c8a443e772d872dd",
   "limitations": [
     "Retrospective historical holdouts, not certified unseen model-training data.",
     "Affine transformation does not establish decontamination or independent tasks.",

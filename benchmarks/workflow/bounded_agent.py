@@ -163,7 +163,7 @@ def run_agent(case, *, prompt, budget, client_factory, backend_factory, generati
             tools = [*specs.values(), submit_tool] if calls < limits["max_tool_calls"] else [submit_tool]
             _encode({"messages": messages, "tools": tools}, CONTEXT_BYTES)
             rounds += 1
-            response = client.chat(messages, n=1, tools=tools, tool_choice="auto", single_attempt=True,
+            response = client.chat(messages, tools=tools, tool_choice="auto",
                                    max_tokens=min(output_limit, limits["max_tokens"] - tokens),
                                    request_timeout=remaining(), **generation)
             tokens, response_tokens, tokens_known, llm_cost = _usage(client)

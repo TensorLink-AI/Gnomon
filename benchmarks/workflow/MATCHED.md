@@ -79,8 +79,7 @@ not deliberately escaped sessions, containers or remote requests. Unsupported
 platforms fail before dispatch. Captured-output limits are not a global sandbox
 memory limit. Tool/token/round limits must also be enforced and reported by the
 driver. One orchestrator owns each directory.
-Historical promotion and generic report commands refuse matched experiments;
-they cannot silently bypass the new checks with their older comparison policy.
+There is no separate promotion or publication-audit runner.
 
 ## Shared agent loop (building block, not an experiment)
 
@@ -90,10 +89,10 @@ factories. It does not choose a model, endpoint, ordinary environment or full
 surface for you. Supplying the factories explicitly authorizes their execution.
 
 - `client_factory()` returns a fresh `OpenRouterClient`-compatible client with
-  complete/unknown usage accounting and no sample cache. The opt-in
-  `chat(single_attempt=True, n=1)` path disables hidden transport retries,
-  truncation escalations and missing-choice top-ups. It bounds and strictly parses
-  the HTTP JSON response; historical callers retain their existing behavior.
+  complete/unknown usage accounting. Each `chat()` makes exactly one transport
+  attempt with a bounded, strictly parsed HTTP JSON response and an absolute
+  deadline. There are no caches, sample top-ups, hidden retries or token-budget
+  increases. Credentials and endpoint selection are explicit.
 - `backend_factory()` returns a backend with `tools()`,
   `call(name, arguments, timeout=seconds)` and `close()`. `tools()` returns its
   actual MCP tool specifications, not names inferred from an arm label. `call()`
@@ -237,7 +236,7 @@ forecast revisions, approval-dependent decisions, and source-time versus
 recorded-time replay. It checks workflow mechanics, not forecasting SOTA or broad
 agent quality. Use a suitable held-out task cohort for the actual comparison.
 
-A case may declare `episode` instead of historical `stages`. It contains 2–8
+Case schema v2 may declare `episode`. It contains 2–8
 ordered phases, each with `name`, `revealed`, `answer_schema` and private `oracle`.
 The first reveal must be empty; initial data belongs in `available_at_cutoff`.
 The top-level oracle equals the final phase oracle. The runner requires the built-in

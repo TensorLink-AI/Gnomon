@@ -1,4 +1,4 @@
-"""Agent-owned ordered commitments, separate from historical compiled stages."""
+"""Agent-owned ordered commitments before any subsequent data reveal."""
 
 import json
 from dataclasses import asdict, replace
@@ -59,7 +59,7 @@ def grade_episode(case, observation):
             ordered = False
         valid = valid and ordered
         if valid:
-            child = _case_score(replace(case, episode=(), stages=(), oracle=Oracle.from_dict(phase["oracle"])), answer)
+            child = _case_score(replace(case, episode=(), oracle=Oracle.from_dict(phase["oracle"])), answer)
             accuracy = child["correctness"] if (child["disclosures_pass"] and child["support_pass"]
                                                 and child["trust_components"]["forbidden_claims"]) else 0.0
         else:

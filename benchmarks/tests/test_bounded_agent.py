@@ -63,7 +63,7 @@ def execute(monkeypatch, replies, backend=None, **options):
         return io.BytesIO(json.dumps(value).encode())
 
     monkeypatch.setattr("urllib.request.urlopen", http)
-    client = OpenRouterClient("scripted/model", api_key="unused", max_retries=5)
+    client = OpenRouterClient("scripted/model", api_key="unused")
     backend = backend or Backend()
     result = run_agent(CASE, prompt="Answer only from the supplied case.", budget={**BUDGET, **options.pop("budget", {})},
                        client_factory=lambda: client, backend_factory=lambda: backend, **options)
