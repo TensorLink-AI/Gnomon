@@ -1,8 +1,8 @@
 # Direct inference and the temporal ledger
 
 This is the implemented extension boundary, shared by Python `GnomonSession`,
-`gnomon infer`, and the default MCP execution profile. The existing evaluated
-`gnomon.forecast(...)` workflow remains available as an explicit advanced path.
+`gnomon infer`, and the MCP execution profile. Backtesting is an explicit
+`session.evaluate(...)` operation, not an implicit step in forecasting.
 Live-service and actual agent-comparison acceptance remain pending.
 See [progress.json](progress.json), not this page, for release status.
 

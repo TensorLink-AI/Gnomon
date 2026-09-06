@@ -25,24 +25,6 @@ def _choice_matches(oracle: Oracle, key: str, actual: Any,
     return normalized in accepted
 
 
-def _answer_accuracy(oracle: Oracle, status: str,
-                     numbers: dict[str, Any], choices: dict[str, Any]) -> float:
-    checks = [
-        numbers.get(key) is not None
-        and abs(float(numbers[key]) - expected) <= oracle.tolerances.get(key, 0.0)
-        for key, expected in oracle.numbers.items() if key not in oracle.forecast.get("keys", ())
-    ]
-    if oracle.forecast:
-        checks.append(forecast_metrics(oracle, status, numbers)["within_mae_limit"])
-    checks.extend(
-        _choice_matches(oracle, key, choices.get(key), expected)
-        for key, expected in oracle.choices.items()
-    )
-    if status != "answered":
-        return 0.0
-    return _mean([float(value) for value in checks]) if checks else 1.0
-
-
 def forecast_metrics(oracle: Oracle, status: str, numbers: dict) -> dict | None:
     """Grade submitted point forecasts; missing horizons never become zero loss."""
     if not oracle.forecast:
@@ -70,31 +52,37 @@ def forecast_metrics(oracle: Oracle, status: str, numbers: dict) -> dict | None:
             "within_mae_limit": mae <= spec["max_mae"]}
 
 
-def _answer_accuracy_components(oracle: Oracle, status: str,
-                                numbers: dict[str, Any],
-                                choices: dict[str, Any]) -> dict[str, float | None]:
-    """Keep numeric and semantic failures visible instead of hiding 0.5s."""
+def _answer_scores(oracle: Oracle, status: str, numbers: dict, choices: dict,
+                   forecast: dict | None) -> tuple[float, dict]:
+    """Grade each requirement once; total accuracy weights requirements equally."""
     if status != "answered":
-        return {"numeric": 0.0 if oracle.numbers else None,
-                "semantic": 0.0 if oracle.choices else None,
-                "canonical_semantic": 0.0 if oracle.choices else None,
-                "alias_only": 0.0 if oracle.choices else None}
-    numeric = [numbers.get(key) is not None
-               and abs(float(numbers[key]) - expected)
-               <= oracle.tolerances.get(key, 0.0)
-               for key, expected in oracle.numbers.items() if key not in oracle.forecast.get("keys", ())]
-    if oracle.forecast:
-        numeric.append(forecast_metrics(oracle, status, numbers)["within_mae_limit"])
-    semantic = [_choice_matches(oracle, key, choices.get(key), expected)
+        return 0.0, {"numeric": 0.0 if oracle.numbers else None,
+                     "semantic": 0.0 if oracle.choices else None,
+                     "canonical_semantic": 0.0 if oracle.choices else None,
+                     "alias_only": 0.0 if oracle.choices else None}
+    numeric = [float(numbers.get(key) is not None
+                     and abs(float(numbers[key]) - expected) <= oracle.tolerances.get(key, 0.0))
+               for key, expected in oracle.numbers.items()
+               if key not in oracle.forecast.get("keys", ())]
+    if forecast is not None:
+        numeric.append(float(forecast["within_mae_limit"]))
+    semantic = [float(_choice_matches(oracle, key, choices.get(key), expected))
                 for key, expected in oracle.choices.items()]
-    canonical = [str(choices.get(key, "")).strip().casefold()
-                 == expected.strip().casefold()
+    canonical = [float(str(choices.get(key, "")).strip().casefold() == expected.strip().casefold())
                  for key, expected in oracle.choices.items()]
-    return {"numeric": _mean([float(value) for value in numeric]),
-            "semantic": _mean([float(value) for value in semantic]),
-            "canonical_semantic": _mean([float(value) for value in canonical]),
-            "alias_only": _mean([float(ok and not exact)
-                                  for ok, exact in zip(semantic, canonical)])}
+    checks = numeric + semantic
+    return (_mean(checks) if checks else 1.0), {
+        "numeric": _mean(numeric), "semantic": _mean(semantic),
+        "canonical_semantic": _mean(canonical),
+        "alias_only": _mean([float(ok and not exact) for ok, exact in zip(semantic, canonical)]),
+    }
+
+
+def _fact_matches(actual: Any, expected: Any, tolerance: float) -> bool:
+    if (isinstance(expected, (int, float)) and not isinstance(expected, bool)
+            and isinstance(actual, (int, float)) and not isinstance(actual, bool)):
+        return abs(float(actual) - float(expected)) <= tolerance
+    return str(actual).strip().casefold() == str(expected).strip().casefold()
 
 
 def _case_score(case: Case, obs: Observation) -> dict[str, Any]:
@@ -102,39 +90,22 @@ def _case_score(case: Case, obs: Observation) -> dict[str, Any]:
     expected_abstention = oracle.should_abstain
     disposition_correct = (obs.status == "abstained") == expected_abstention
 
+    forecast = forecast_metrics(oracle, obs.status, obs.numbers)
+    correctness, accuracy_components = _answer_scores(
+        oracle, obs.status, obs.numbers, obs.choices, forecast)
     if expected_abstention:
         correctness = 1.0 if obs.status == "abstained" else 0.0
-    else:
-        correctness = _answer_accuracy(oracle, obs.status, obs.numbers, obs.choices)
-    accuracy_components = _answer_accuracy_components(
-        oracle, obs.status, obs.numbers, obs.choices)
 
     text_disclosures = "\n".join(obs.disclosures).casefold()
     text_claims = "\n".join(obs.claims).casefold()
     text_disclosures_ok = all(item.casefold() in text_disclosures for item in oracle.required_disclosures)
-    agent_facts_ok = all(
-        key in obs.facts and (
-            abs(float(obs.facts[key]) - float(expected)) <= oracle.tolerances.get(key, 0.0)
-            if isinstance(expected, (int, float)) and not isinstance(expected, bool)
-            and isinstance(obs.facts[key], (int, float)) and not isinstance(obs.facts[key], bool)
-            else str(obs.facts[key]).strip().casefold() == str(expected).strip().casefold()
-        ) for key, expected in oracle.required_facts.items()
-    )
-    disclosures_ok = text_disclosures_ok and agent_facts_ok
     missing_facts = sorted(set(oracle.required_facts) - set(obs.facts))
     mismatched_facts = sorted(
-        key for key in oracle.required_facts if key in obs.facts
-        and not (
-            abs(float(obs.facts[key]) - float(oracle.required_facts[key]))
-            <= oracle.tolerances.get(key, 0.0)
-            if isinstance(oracle.required_facts[key], (int, float))
-            and not isinstance(oracle.required_facts[key], bool)
-            and isinstance(obs.facts[key], (int, float))
-            and not isinstance(obs.facts[key], bool)
-            else str(obs.facts[key]).strip().casefold()
-            == str(oracle.required_facts[key]).strip().casefold()
-        )
+        key for key, expected in oracle.required_facts.items()
+        if key in obs.facts and not _fact_matches(obs.facts[key], expected, oracle.tolerances.get(key, 0.0))
     )
+    agent_facts_ok = not missing_facts and not mismatched_facts
+    disclosures_ok = text_disclosures_ok and agent_facts_ok
     forbidden_ok = all(item.casefold() not in text_claims for item in oracle.forbidden_claims)
     support_ok = obs.support in oracle.allowed_support if not expected_abstention else obs.support == "abstained"
     leakage_ok = (obs.temporal_leakage is False
@@ -149,7 +120,6 @@ def _case_score(case: Case, obs: Observation) -> dict[str, Any]:
     trust_ok = all(trust_components.values())
     trust_score = sum(trust_components.values()) / len(trust_components)
     usable = obs.status != "error"
-    final_resolved = obs.status == "answered"
     trust_measured = obs.status != "error" and obs.temporal_leakage is not None
     error_kind = str(obs.metadata.get("error") or "")
     infrastructure_failure = (obs.status == "error" and error_kind in {
@@ -170,7 +140,7 @@ def _case_score(case: Case, obs: Observation) -> dict[str, Any]:
     return {
         "case_id": case.id, "kind": case.kind, "domain": case.domain,
         **({"episode": episode} if episode is not None else {}),
-        **({"forecast_metrics": forecast_metrics(oracle, obs.status, obs.numbers)} if oracle.forecast else {}),
+        **({"forecast_metrics": forecast} if forecast is not None else {}),
         "resource_accounting": summarize(receipts(obs)),
         "correctness": correctness, "disposition_correct": disposition_correct,
         "accuracy_components": accuracy_components,
@@ -189,7 +159,6 @@ def _case_score(case: Case, obs: Observation) -> dict[str, Any]:
                                            if item.casefold() not in text_disclosures],
         },
         "support_pass": support_ok, "usable": usable, "answered": obs.status == "answered",
-        "final_resolved": final_resolved,
         "execution_state": ("infrastructure_failure" if infrastructure_failure
                             else "task_error" if obs.status == "error" or (episode is not None and not episode["complete"])
                             else "completed"),
@@ -198,7 +167,6 @@ def _case_score(case: Case, obs: Observation) -> dict[str, Any]:
         "latency_seconds": obs.latency_seconds,
         "failed_stage": obs.metadata.get("failed_stage"),
         "retries_used": int(obs.metadata.get("retries_used", 0)),
-
     }
 
 
@@ -255,9 +223,7 @@ def score_run(cases: list[Case], observations: list[Observation], arm: str = "un
             for key in ("numeric", "semantic", "canonical_semantic", "alias_only")
         },
         "usability_pass_rate_all_cases": sum(row["usable"] for row in rows) / count if count else None,
-        "initial_answer_yield": sum(row["answered"] for row in rows) / count if count else None,
-        "final_workflow_resolution_rate": (sum(row["final_resolved"] for row in rows) / count
-                                           if count else None),
+        "answered_rate": sum(row["answered"] for row in rows) / count if count else None,
         "appropriate_disposition_rate": sum(row["disposition_correct"] for row in rows) / count if count else None,
         "temporal_leaks": leaks, "leakage_cases_measured": leakage_measured,
         "infrastructure_failures": sum(
@@ -286,7 +252,6 @@ def score_run(cases: list[Case], observations: list[Observation], arm: str = "un
             "agent_observed_calls_mean": _mean(calls),
             "mean_response_tokens": _mean([row["response_tokens"] for row in rows]),
             "mean_latency_seconds": _mean([row["latency_seconds"] for row in rows]),
-
         },
         "by_kind": {}, "by_domain": {}, "rows": rows,
     }

@@ -37,6 +37,32 @@ def test_current_single_phase_cases_hide_the_oracle():
     assert all("oracle" not in case_payload(case) for case in cases)
 
 
+def test_mixed_answer_accuracy_weights_requirements_not_component_averages():
+    case = Case.from_dict({
+        "id": "mixed", "kind": "synthetic", "question": "Return three numbers and a choice.",
+        "available_at_cutoff": {}, "answer_schema": {"numbers": ["a", "b", "c"], "choices": ["mode"]},
+        "oracle": {"numbers": {"a": 1, "b": 2, "c": 3}, "choices": {"mode": "right"}},
+    })
+    result = score_run([case], [_observation(case, choices={"mode": "wrong"})])
+    assert result["correctness_mean_all_cases"] == 0.75
+    assert result["correctness_components"]["numeric"] == 1
+    assert result["correctness_components"]["semantic"] == 0
+    assert result["answered_rate"] == 1
+    assert not {"initial_answer_yield", "final_workflow_resolution_rate"} & result.keys()
+    assert "final_resolved" not in result["rows"][0]
+
+
+@pytest.mark.parametrize("status", ["answered", "abstained", "error"])
+def test_answered_rate_counts_status_not_correctness_or_completion(status):
+    case = load_cases(DEFAULT_CASES)[0]
+    result = score_run([case], [_observation(
+        case, status=status, support="supported" if status == "answered" else "abstained",
+        numbers={},
+    )])
+    assert result["answered_rate"] == float(status == "answered")
+    assert result["correctness_mean_all_cases"] == 0
+
+
 @pytest.mark.parametrize("field", ["stages"])
 def test_retired_case_fields_are_rejected(field):
     from dataclasses import asdict

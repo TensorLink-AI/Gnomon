@@ -69,6 +69,16 @@ def test_retired_runtime_is_physically_absent():
         assert importlib.util.find_spec(f"gnomon.{name}") is None, name
 
 
+def test_current_contract_docs_do_not_advertise_removed_workflows():
+    from gnomon import forecast_adapter
+    from gnomon.repair import RepairLog
+    guide = (DOCS / "production/INFERENCE.md").read_text()
+    assert "workflow remains available as an explicit advanced path" not in guide
+    assert "session.evaluate(...)" in guide
+    assert "bridge" not in forecast_adapter.__doc__
+    assert not any(hasattr(RepairLog, name) for name in ("clone", "has_actions", "warnings_for"))
+
+
 def test_cli_reference_documents_every_command():
     from gnomon.cli import build_parser
     parser = build_parser()

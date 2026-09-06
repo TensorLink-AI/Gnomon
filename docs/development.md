@@ -15,6 +15,9 @@ Ledger and artifact_import own durable evidence and read-only migration.
 Backtesting and study_routing consume that evidence; temporal_ops is opt-in.
 
 There is no retained legacy runtime, registry, publication stack or model installer.
+Project dependencies are declared in `pyproject.toml`; the stale root `uv.lock`
+was removed. The ordinary benchmark environment has its own hash-locked
+`benchmarks/workflow/software/requirements.txt`, separate from the core package.
 Do not add per-library adapters: users own callable/factory integrations.
 Git checkpoint `333ed2c` preserves the removed implementation and its tests.
 Unrelated user data and scratch files are not part of the cull.

@@ -7,9 +7,8 @@ is honesty, not fragility: repairs are allowed, but only under three rules.
 1. **Repairs fire only where the strict path would fail.** A file that
    parses cleanly today is untouched — byte-identical output, same IDs.
 2. **Every repair is disclosed.** Each fix is a typed :class:`RepairAction`
-   collected in a :class:`RepairLog`; the forecast artifact carries them as
-   a ``data_repair`` evidence record, and assumptive repairs additionally
-   become series warnings so support degrades honestly.
+   collected in a :class:`RepairLog`; inspection reports the actions, including
+   whether each repair made assumptions.
 3. **Messiness has a ceiling.** Assumptive repairs are capped; past the cap
    the honest answer is ``EXCESSIVE_REPAIR``, not a forecast built on a
    dataset Gnomon mostly invented.
@@ -115,23 +114,6 @@ class RepairLog:
         if example is not None and isinstance(examples, list) and len(examples) < 3:
             examples.append(example)
 
-    def clone(self) -> "RepairLog":
-        """An independent copy. A multi-target run records the shared
-        file-level reads once, then forks a log per target so each
-        column's repairs are disclosed on that column alone."""
-        copy = RepairLog()
-        for key, entry in self._entries.items():
-            metrics = entry.get("metrics")
-            copy._entries[key] = {
-                **entry,
-                "examples": list(entry["examples"]),
-                "metrics": dict(metrics) if isinstance(metrics, dict) else None,
-            }
-        return copy
-
-    def has_actions(self) -> bool:
-        return bool(self._entries)
-
     def actions(self) -> list[RepairAction]:
         return [
             RepairAction(code, series, int(entry["count"]), bool(entry["assumptive"]),
@@ -141,15 +123,6 @@ class RepairLog:
             for (code, series), entry in sorted(
                 self._entries.items(), key=lambda item: (item[0][0], item[0][1] or "")
             )
-        ]
-
-    def warnings_for(self, series: str) -> list[str]:
-        """Assumptive repairs become warnings on the series they touched;
-        file-level assumptive repairs warn on every series."""
-        return [
-            f"repaired_data: {action.code} x{action.count} — {action.detail}"
-            for action in self.actions()
-            if action.assumptive and action.series in (None, series)
         ]
 
     def summary(self) -> dict[str, object]:

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Remove the stale 0.7 dependency lock and unused repair-log helpers. Consolidate
+  benchmark token/cost counters and answer grading, replacing duplicate yield
+  fields with `answered_rate`. Correct stale descriptions of removed workflows.
+
 - Remove obsolete benchmark promotion/audit/generation runners, smoke cases,
   publication grading, host-generated follow-up answers, response caches and
   hidden model retries/sample fan-out. Keep one matched agent workflow and

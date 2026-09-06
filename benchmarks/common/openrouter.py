@@ -67,8 +67,7 @@ class OpenRouterClient:
         self._usage_lock = threading.Lock()
         self.unmeasured_usage_fields: set[str] = set()
         self.total_prompt_tokens = self.total_completion_tokens = 0
-        self.current_prompt_tokens = self.current_completion_tokens = 0
-        self.total_cost_usd = self.current_cost_usd = 0.0
+        self.total_cost_usd = 0.0
         self.total_requests = self.total_transport_attempts = 0
         self.total_request_latency_seconds = 0.0
 
@@ -154,9 +153,6 @@ class OpenRouterClient:
             self.total_prompt_tokens += measured.get("prompt_tokens", 0)
             self.total_completion_tokens += measured.get("completion_tokens", 0)
             self.total_cost_usd += measured.get("cost", 0.0)
-            self.current_prompt_tokens += measured.get("prompt_tokens", 0)
-            self.current_completion_tokens += measured.get("completion_tokens", 0)
-            self.current_cost_usd += measured.get("cost", 0.0)
             self.total_requests += 1
 
     @property
@@ -164,16 +160,13 @@ class OpenRouterClient:
         complete = {key: key not in self.unmeasured_usage_fields
                     and self.total_requests == self.total_transport_attempts
                     for key in ("prompt_tokens", "completion_tokens", "cost")}
-        cost_finite = math.isfinite(self.total_cost_usd) and math.isfinite(self.current_cost_usd)
+        cost_finite = math.isfinite(self.total_cost_usd)
         complete["cost"] = complete["cost"] and cost_finite
         return {
             "resource_fields_complete": complete,
             "resource_accounting_basis": "counters_are_observed_lower_bounds_when_incomplete",
             "observed_cost_usd": self.total_cost_usd if cost_finite else None,
             "cost_total_overflow": not cost_finite,
-            "current_process_usage": {"prompt_tokens": self.current_prompt_tokens,
-                                      "completion_tokens": self.current_completion_tokens,
-                                      "observed_cost_usd": self.current_cost_usd if math.isfinite(self.current_cost_usd) else None},
             "model": self.model,
             # Provenance, not decoration: the same model id served from a
             # different endpoint is a different measurement.

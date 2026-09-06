@@ -1,8 +1,8 @@
 """Model-neutral forecasting protocol and conformance checks.
 
 Statistical functions, local foundation models, subprocess sandboxes, and
-remote inference APIs all cross this boundary before evaluation may score or
-publish their values. Existing TSFM adapters remain valid through a bridge.
+remote inference APIs all cross this boundary before results are recorded or
+scored. Providers implement the same request/result contract.
 """
 
 from __future__ import annotations

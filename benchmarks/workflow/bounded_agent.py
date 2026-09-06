@@ -57,12 +57,12 @@ def _charge(value):
 
 def _usage(client):
     usage = client.usage_summary
-    current, complete = usage["current_process_usage"], usage["resource_fields_complete"]
-    counts = [current[key] for key in ("prompt_tokens", "completion_tokens")]
+    complete = usage["resource_fields_complete"]
+    counts = [usage[key] for key in ("prompt_tokens", "completion_tokens")]
     if any(type(value) is not int or value < 0 for value in counts):
         raise ValueError("invalid client token counters")
     known = all(complete.get(key) is True for key in ("prompt_tokens", "completion_tokens"))
-    cost = _charge(current["observed_cost_usd"]) if complete.get("cost") is True else None
+    cost = _charge(usage["observed_cost_usd"]) if complete.get("cost") is True else None
     return sum(counts), counts[1], known, cost
 
 

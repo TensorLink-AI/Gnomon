@@ -22,6 +22,8 @@ Each model call makes one bounded transport attempt. Failed work, missing answer
 and unknown costs remain visible; current journal receipts are required for resume.
 
 Case schema v2 has no host-generated repair/outcome stages or publication grading.
+The score report uses one `answered_rate` for answered statuses; correctness and
+episode completion are separate measurements.
 Use fresh output directories for the new format. Old formats are rejected rather
 than migrated or silently reinterpreted.
 

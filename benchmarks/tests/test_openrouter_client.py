@@ -90,6 +90,19 @@ def test_small_known_costs_are_not_rounded_to_free():
     assert client.usage_summary["cost_usd"] == 1e-8
 
 
+def test_usage_has_one_set_of_counters_across_multiple_responses():
+    client = OpenRouterClient("test/model", api_key="unused")
+    for _ in range(3):
+        client.total_transport_attempts += 1
+        client._account({"usage": {"prompt_tokens": 2, "completion_tokens": 3, "cost": 0.125}})
+    usage = client.usage_summary
+    assert usage["prompt_tokens"] == 6 and usage["completion_tokens"] == 9
+    assert usage["cost_usd"] == usage["observed_cost_usd"] == 0.375
+    assert all(usage["resource_fields_complete"].values())
+    assert "current_process_usage" not in usage
+    assert not any(key.startswith("current_") for key in vars(client))
+
+
 def test_overflowed_cost_totals_are_explicitly_unknown_not_nonfinite_json():
     client = OpenRouterClient("test/model", api_key="unused")
     client.total_transport_attempts = 2

@@ -70,6 +70,23 @@ def test_forecast_contract_does_not_weaken_other_numeric_requirements():
     assert score_run([case], [obs])["rows"][0]["correctness"] == 0.5
 
 
+def test_forecast_metrics_are_computed_once_and_shared_by_reports(monkeypatch):
+    from benchmarks.workflow import scoring
+    measured = []
+    original = scoring.forecast_metrics
+    def capture(*args):
+        result = original(*args)
+        measured.append(result)
+        return result
+    monkeypatch.setattr(scoring, "forecast_metrics", capture)
+    case = forecast_case()
+    obs = Observation(case_id=case.id, status="answered", support="supported",
+                      numbers={"h1": 4, "h2": 8})
+    row = scoring.score_run([case], [obs])["rows"][0]
+    assert len(measured) == 1 and row["forecast_metrics"] is measured[0]
+    assert row["correctness"] == row["accuracy_components"]["numeric"] == 1
+
+
 def test_forecast_coverage_and_common_complete_cohort_are_not_survivor_uplift():
     metric = forecast_metrics(forecast_case().oracle, "answered", {"h1": 4, "h2": 10})
     missing = forecast_metrics(forecast_case().oracle, "error", {})
