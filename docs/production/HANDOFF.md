@@ -45,6 +45,15 @@ real software/service isolation and clean package/plugin smoke. Container run
 distinguishes it from the immutable published candidate. This checkpoint update
 changes documentation only; subsequent check status is available on PR99.
 
+The checkpoint CI (`34002169833`) exposed a second test-probe exit race:
+`Path.read_text()` on `/proc/<pid>/stat` can raise `ProcessLookupError`, not just
+`FileNotFoundError`. All other jobs passed. The test helper now handles both
+disappearance errors and still probes PID liveness; deterministic coverage tests
+both errors with both live and dead PIDs. All 11 process tests pass. No packaged
+runtime change is involved. The full harness rerun passed: 266 tests, 23 opt-in
+skips in 17.08s. Corrected-commit CI is tracked on PR99; the failing checkpoint
+run is not waived or presented as green.
+
 Next: obtain the endpoint/model/credential-variable choices and spending approval
 for the two pending evidence gates below. No runtime regression or running cleanup
 job remains at `152a489`. Do not generate more code or repeat unauthenticated probes

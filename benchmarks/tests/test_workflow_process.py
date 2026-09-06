@@ -36,7 +36,7 @@ def _running(pid):
     status = Path(f"/proc/{pid}/stat")
     try:
         return status.read_text().split(")", 1)[1].split()[0] != "Z"
-    except FileNotFoundError:
+    except (FileNotFoundError, ProcessLookupError):
         # The process can be reaped while /proc is being read. Check its PID
         # directly too, preserving the fallback on platforms without /proc.
         pass
@@ -48,9 +48,10 @@ def _running(pid):
 
 
 @pytest.mark.parametrize("alive", [False, True])
-def test_process_probe_handles_stat_disappearing(monkeypatch, alive):
+@pytest.mark.parametrize("error", [FileNotFoundError, ProcessLookupError])
+def test_process_probe_handles_stat_disappearing(monkeypatch, alive, error):
     def missing_stat(_path):
-        raise FileNotFoundError
+        raise error
 
     def probe(pid, signal):
         assert (pid, signal) == (12345, 0)
