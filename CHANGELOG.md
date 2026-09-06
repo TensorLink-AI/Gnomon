@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.9.0rc1 — 2026-09-06
+
+Breaking release candidate: use the provider-neutral execution interface and
+review COMPATIBILITY.md before upgrading. Live-service verification and real-agent
+performance evidence remain pending; this is not a stable-production claim.
+
+- Repair the publishing workflow to verify current CLI commands and the separately
+  installed provider example. Publish matching wheel/sdist and prerelease metadata.
+
 - Validate production comparison grids and lead times; keep fallback sample counts
   consistent with per-origin evidence. Preserve full missing-step lists in
   `pending()` and allow unknown/null units in the ledger tool schema. Reject

@@ -14,12 +14,12 @@ when you need one.
 Python 3.11–3.13. No required third-party dependencies.
 
 ```bash
-python -m pip install .
+python -m pip install 'gnomon-forecast==0.9.0rc1'
 gnomon infer --provider last_value --request '{"history":[10,12,11],"horizon":2}'
 ```
 
-This checkout is the unreleased 0.9 development line; the published 0.8 candidate
-still includes the retired legacy runtime. That command runs an offline baseline.
+This is the 0.9 release candidate. From a checkout, use `python -m pip install .`.
+The forecast command runs an offline baseline.
 To use your own model:
 
 ```python
@@ -74,7 +74,7 @@ order. They calculate supplied facts; they do not claim to improve an LLM's reas
 
 ## Status and guides
 
-This is an unreleased development version. Live-service verification and a real-agent comparison
+This is a prerelease. Live-service verification and a real-agent comparison
 remain pending. A forecast is not permission to act; model quantiles are not proof
 of calibrated uncertainty. See [validation and limits](docs/agent-evaluation.md).
 

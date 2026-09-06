@@ -53,7 +53,7 @@ historical inputs, recording times and overwritten scores remain unknown.
 
 Git commit `333ed2c` preserves the pre-cull implementation, tests and docs.
 The published `0.8.0rc3` artifacts and tag are immutable and unchanged.
-This cleanup is `0.9.0.dev0` in source only; it has not been published to PyPI.
+The replacement is the `0.9.0rc1` release candidate. It does not restore retired APIs.
 
 [Provider/session contract](docs/production/INFERENCE.md) ·
 [Historical imports](docs/production/OPERATIONS.md)

@@ -21,7 +21,7 @@ def test_names_and_public_provider_match_code():
     assert not any(word in README for word in ("personification", "Greek god", "deity"))
 
 
-def test_package_version_has_one_source_and_unreleased_install_is_explicit():
+def test_package_version_has_one_source_and_install_instructions_match():
     from gnomon import __version__
     from gnomon.ids import GNOMON_VERSION
     from gnomon.mcp_server import SERVER_INFO
@@ -35,7 +35,23 @@ def test_package_version_has_one_source_and_unreleased_install_is_explicit():
     assert 'path = "src/gnomon/product_contract.py"' in project
     for path in (REPO / "README.md", DOCS / "installation.md"):
         assert "pip install ." in path.read_text()
-    assert "development checkout](installation.md)" in (DOCS / "getting-started.md").read_text()
+        if ".dev" not in __version__:
+            assert f"gnomon-forecast=={__version__}" in path.read_text()
+    assert "](installation.md)" in (DOCS / "getting-started.md").read_text()
+
+
+def test_release_smoke_commands_are_supported_by_the_current_cli():
+    import shlex
+    import yaml
+    from gnomon.cli import build_parser
+    workflow = yaml.safe_load((REPO / ".github/workflows/release.yml").read_text())
+    step = next(s for s in workflow["jobs"]["build"]["steps"] if s.get("name") == "Verify wheel installation")
+    commands = [shlex.split(line.strip()) for line in step["run"].splitlines() if line.strip().startswith("gnomon ")]
+    assert commands
+    for command in commands:
+        if command[1:] == ["--version"]:
+            continue
+        build_parser().parse_args(command[1:])
 
 
 def test_default_tool_count_and_claims_are_honest(monkeypatch):

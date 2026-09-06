@@ -1,5 +1,8 @@
 # Delivery checkpoint — iteration 28
 
+Historical checkpoint for the pre-release cleanup, not the current release status.
+See the [changelog](../../CHANGELOG.md) for subsequent ledger work and releases.
+
 Updated 2026-09-06. The user requested fixing the final review findings and checking
 for bugs. Implementation, local verification and all seven PR CI checks passed.
 

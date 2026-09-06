@@ -34,7 +34,7 @@ gnomon = "gnomon.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/TensorLink-AI/Gnomon"
-Documentation = "https://github.com/TensorLink-AI/Gnomon/tree/codex/gnomon-ephemeris-ledger/docs"
+Documentation = "https://github.com/TensorLink-AI/Gnomon/tree/main/docs"
 Repository = "https://github.com/TensorLink-AI/Gnomon"
 Issues = "https://github.com/TensorLink-AI/Gnomon/issues"
 
