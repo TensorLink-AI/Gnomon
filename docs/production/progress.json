@@ -359,7 +359,7 @@
           "status": "verified",
           "evidence": [
             "Final local suite:760 passed,29 opt-in skips in29.96s. At091b29b, CI34004658580 passed all six jobs: production on Python3.11/3.12/3.13, harness, actual software/service containers and installed package/plugin smoke (including restored bounded CSV piping). Container34004658552 passed. Ruff, compile, whitespace and skill validation pass. The earlier package failure ataceeaf1 was fixed, not waived.",
-            "Iteration26 local742 passed/29 skipped and real-container76 passed; Ruff, compilation and whitespace pass. Prior baseline1642cb2 CI34004767226 and Container34004767228 green; benchmark-cull CI will run on this PR update."
+            "Iteration26 local742 passed/29 skipped and real-container76 passed; Ruff, compilation and whitespace pass. Cleanup03f77e8 passed all7checks: CI34007034278 (Python3.11/3.12/3.13, harness, real containers and clean package/plugin install), Container34007034253."
           ]
         },
         {
@@ -384,5 +384,5 @@
     }
   ],
   "history_checkpoint": "333ed2c",
-  "revision_note": "Iteration26: benchmark-specific cull complete locally,5289 to3351 implementation lines (about37% smaller). Case/score schema2 and current journal receipts required; current cohort data/oracles unchanged. Local742 passed/29 skipped, actual containers76 passed. PR99 update pending CI. Score97; live Ephemeris and real matched-agent evidence still mandatory for100. Published0.8.0rc3 unchanged; no new PyPI upload. Recovery1642cb2."
+  "revision_note": "Iteration26 complete: benchmark implementation5289 to3351 lines (about37% smaller). Case/score schema2 and current journal receipts required; current cohort data/oracles unchanged. Local742 passed/29 skipped, actual containers76 passed. Cleanup03f77e8 pushed to PR99; all7CI checks passed. Score97; live Ephemeris and real matched-agent evidence still mandatory for100. Published0.8.0rc3 unchanged; no new PyPI upload. Recovery1642cb2."
 }

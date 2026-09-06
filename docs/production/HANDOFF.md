@@ -30,8 +30,11 @@ against1642cb2; only retired fields and version differ. Manifest hashes regenera
 - Ruff, compilation and whitespace pass.
 - Current service image rebuilt from the prior final0.9 wheel:
   `sha256:1f67cc447f1aa37ac7e2ed64755346381c9a6842b80f2a8f2b43a39564b3c509`.
-- Baseline1642cb2 had all7checks green: CI34004767226 and Container34004767228.
-  The benchmark-cull update must pass its own PR checks; do not substitute baseline CI.
+- Cleanup commit `03f77e8` is pushed to PR99 and all7checks passed:
+  [CI34007034278](https://github.com/TensorLink-AI/Gnomon/actions/runs/34007034278)
+  (Python3.11/3.12/3.13, harness, real containers, installed package/plugin smoke)
+  and [Container34007034253](https://github.com/TensorLink-AI/Gnomon/actions/runs/34007034253).
+  This follow-up checkpoint records those results without changing implementation.
 - No runtime, provider plugin or packaged skill behavior changed this iteration.
 
 Do not commit or edit source while matched-harness tests pin their identity.
