@@ -38,8 +38,18 @@ full-suite process handle vanished after 93%; no final result is claimed for tha
 run. The confirmed rerun above replaces it. No test or source changes occurred
 during matched-harness verification.
 
-Next: commit and update PR99, then verify its current CI. Do not commit while
-matched-harness tests are running: they deliberately pin Git identity.
+Cleanup commit `152a489` is pushed to PR99. CI run `34001997126` passed all six
+jobs: full production regressions on Python 3.11/3.12/3.13, current harness,
+real software/service isolation and clean package/plugin smoke. Container run
+`34001997129` also passed. The PR description records the unreleased cleanup and
+distinguishes it from the immutable published candidate. This checkpoint update
+changes documentation only; subsequent check status is available on PR99.
+
+Next: obtain the endpoint/model/credential-variable choices and spending approval
+for the two pending evidence gates below. No runtime regression or running cleanup
+job remains at `152a489`. Do not generate more code or repeat unauthenticated probes
+solely to avoid the authorization boundary. Do not commit while matched-harness
+tests are running: they deliberately pin Git identity.
 Do not publish another candidate automatically as part of this structural follow-up.
 Unrelated root scratch files remain untouched. Prior delivery evidence follows.
 
