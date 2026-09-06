@@ -355,9 +355,9 @@
           "id": "checks",
           "weight": 2,
           "acceptance": "Required regression, lint, concurrency, migration and supported-platform checks pass.",
-          "status": "in_progress",
+          "status": "verified",
           "evidence": [
-            "Final local suite:760 passed,29 opt-in skips in29.96s; separate real-container suite77 passed in29.53s. Ruff, compile, whitespace and skill validator pass. Final service image sha256:3741536074d9426e32d5456ac097b059644d25fca04c540338ada27fe1b80ae9. Supported-Python CI remains to be revalidated after push."
+            "Final local suite:760 passed,29 opt-in skips in29.96s. At091b29b, CI34004658580 passed all six jobs: production on Python3.11/3.12/3.13, harness, actual software/service containers and installed package/plugin smoke (including restored bounded CSV piping). Container34004658552 passed. Ruff, compile, whitespace and skill validation pass. The earlier package failure ataceeaf1 was fixed, not waived."
           ]
         },
         {
@@ -382,5 +382,5 @@
     }
   ],
   "history_checkpoint": "333ed2c",
-  "revision_note": "Iteration25: runtime118 modules/67,013 lines to26 modules/5,801 lines. Breaking0.9 cleanup, not a release upload. All retained local gates revalidated; score95 while supported-Python CI remains pending. Live service and actual matched-agent evidence remain mandatory for100. Detailed previous evidence is recoverable at333ed2c."
+  "revision_note": "Iteration25 complete: runtime118 modules/67,013 lines to26 modules/5,801 lines. Breaking0.9 cleanup is pushed to PR99 (aceeaf1, followed by bounded-stdin fix091b29b). All retained local and CI gates revalidated; score97. Live service and actual matched-agent evidence remain mandatory for100. Published0.8.0rc3 unchanged; no new PyPI upload. Detailed previous evidence is recoverable at333ed2c."
 }

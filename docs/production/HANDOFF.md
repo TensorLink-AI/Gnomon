@@ -33,16 +33,19 @@ Ruff, compilation, skill validation and whitespace checks pass.
 Wheel/sdist and example plugin build; metadata and clean installed Python/CLI/MCP/
 provider/ledger/plugin journeys pass against the final reformatted package.
 
-Cull commit `aceeaf1` is pushed to draft
-[PR99](https://github.com/TensorLink-AI/Gnomon/pull/99). CI34004475000 passed the
-Python3.11/3.12/3.13, harness and real-container jobs; Container34004475029 passed.
-The package job exposed a lost piped-CSV path in the reduced CLI. Piping serves
-the new goal: restored it with an8 MiB bound and four current CLI regressions.
-All760 local tests pass after the fix; rebuilt package/install checks pass.
-Push the stdin follow-up and verify all current CI checks before crediting the gate.
+Cull commit `aceeaf1` and bounded-stdin fix `091b29b` are pushed to draft
+[PR99](https://github.com/TensorLink-AI/Gnomon/pull/99). The initial package job
+caught a lost piped-CSV path; piping serves the new goal and was restored with
+an 8 MiB bound and four current CLI regressions. No legacy engine was restored.
+
+At `091b29b`, [CI34004658580](https://github.com/TensorLink-AI/Gnomon/actions/runs/34004658580)
+passed all six jobs: Python 3.11/3.12/3.13, harness, real containers and installed
+package/plugin smoke. [Container34004658552](https://github.com/TensorLink-AI/Gnomon/actions/runs/34004658552)
+also passed. The earlier failure is fixed, not waived.
 Do not commit or change source while matched-harness tests pin their identity.
-Supported-Python CI must pass before recrediting the release-check gate; current
-score is 95/100, with that gate and the two external-evidence gates still unearned.
+Current score is 97/100; only the two external-evidence gates below remain unearned.
+No further implementation is required for this cleanup iteration. This checkpoint
+update is documentation only; do not call another release upload part of the cull.
 [progress.json](progress.json) tracks exactly100 possible points, not a guarantee
 beyond the acceptance contract in [PLAN.md](PLAN.md).
 
