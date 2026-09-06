@@ -62,8 +62,11 @@ Final-fix recovery0826117; residue-pass recovery53482fc; benchmark-cull recovery
 earlier benchmark/design archives2cba20e.
 
 Branch `codex/gnomon-ephemeris-ledger`, [PR99](https://github.com/TensorLink-AI/Gnomon/pull/99).
-It is now ready for review rather than draft; do not change that status. Base remains
-`claude/enterprisebench-multi-domain-n4xyjf`; do not silently retarget or merge.
+It is ready for review rather than draft. At the user's request, PR99 now targets
+`main`, not `claude/enterprisebench-multi-domain-n4xyjf`. Main is an ancestor of
+the current source; the combined diff includes all31 implementation/cleanup commits
+and the old enterprisebench implementation is absent. This checkpoint triggers
+fresh PR checks against main. Do not merge without the user's instruction.
 Unrelated root scratch files are untouched and must not be staged:
 `-`, `Continue`, `Current`, `Immediate`, `Use`, `accelerate`, `actual`,
 `cases.`, `optimizing`, `that`.
