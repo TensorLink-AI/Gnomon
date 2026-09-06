@@ -1,7 +1,7 @@
 # Delivery checkpoint — iteration 28
 
 Updated 2026-09-06. The user requested fixing the final review findings and checking
-for bugs. Completed local implementation and verification; PR CI is next.
+for bugs. Implementation, local verification and all seven PR CI checks passed.
 
 ## Current scope
 
@@ -34,8 +34,11 @@ access summaries, saved forecasts, migration support and explicit repairs remain
   `sha256:6beb711ee4bdeb80d20ba3b2d15750ddaa8655bee2c3550c53164d5d322a009d`.
 - Initial full-suite/package checks caught a missed study-routing import after
   metric consolidation; fixed it and rebuilt/reran successfully, not waived.
-- Previous baseline0826117 passed all seven PR checks. Current fixes still need
-  push and fresh CI; do not reuse baseline CI as evidence for new source.
+- Fix commit107a3e3 is pushed to PR99; all seven checks passed:
+  [CI34010085711](https://github.com/TensorLink-AI/Gnomon/actions/runs/34010085711)
+  (Python3.11/3.12/3.13, harness, real containers and installed package/plugin)
+  and [Container34010085713](https://github.com/TensorLink-AI/Gnomon/actions/runs/34010085713).
+  This documentation-only follow-up records those results.
   Do not edit source or commit during identity-pinned harness tests.
 
 ## Remaining external evidence
