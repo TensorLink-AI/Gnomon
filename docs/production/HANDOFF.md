@@ -32,8 +32,12 @@ Fixed stale documentation advertising the removed forecast workflow/adapter brid
   journeys pass. Artifacts: `/tmp/gnomon-cull27-dist.FFGwuz`.
 - Current rebuilt service image:
   `sha256:d201f169172bb64aa75daeb3ebb95a082522f89daadb63d450065c715c5a8619`.
-- PR99 follow-up must pass its own CI; prior iteration green checks are not a
-  substitute. Do not edit source or commit during identity-pinned harness tests.
+- Cleanup `e056823` is pushed to PR99; all seven checks passed:
+  [CI34007584412](https://github.com/TensorLink-AI/Gnomon/actions/runs/34007584412)
+  (Python3.11/3.12/3.13, harness, real containers and installed package/plugin)
+  and [Container34007584434](https://github.com/TensorLink-AI/Gnomon/actions/runs/34007584434).
+  This follow-up records results only. Do not edit source or commit during
+  identity-pinned harness tests.
 
 ## Remaining external evidence
 

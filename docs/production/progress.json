@@ -361,7 +361,7 @@
           "evidence": [
             "Final local suite:760 passed,29 opt-in skips in29.96s. At091b29b, CI34004658580 passed all six jobs: production on Python3.11/3.12/3.13, harness, actual software/service containers and installed package/plugin smoke (including restored bounded CSV piping). Container34004658552 passed. Ruff, compile, whitespace and skill validation pass. The earlier package failure ataceeaf1 was fixed, not waived.",
             "Iteration26 local742 passed/29 skipped and real-container76 passed; Ruff, compilation and whitespace pass. Cleanup03f77e8 passed all7checks: CI34007034278 (Python3.11/3.12/3.13, harness, real containers and clean package/plugin install), Container34007034253.",
-            "Iteration27 local749 passed/29 skipped; rebuilt service container suite77 passed. Ruff, compilation and whitespace pass. PR update must pass current CI."
+            "Iteration27 local749 passed/29 skipped; rebuilt service container suite77 passed. Ruff, compilation and whitespace pass. Cleanup e056823 passed all seven checks: CI34007584412 (Python3.11/3.12/3.13, harness, real containers and installed package/plugin), Container34007584434."
           ]
         },
         {
@@ -386,5 +386,5 @@
     }
   ],
   "history_checkpoint": "333ed2c",
-  "revision_note": "Iteration27 residue cleanup verified locally: unused repair helpers and stale lock removed; duplicate usage/scoring consolidated; old workflow descriptions corrected. Runtime5774 lines; benchmark3309. Local749 passed/29 skipped; containers77 passed;1200 differential scorecards unchanged aside from removed duplicate fields. PR99 update awaiting CI; score97 because live Ephemeris and real matched-agent evidence remain mandatory. Recovery53482fc. No PyPI upload."
+  "revision_note": "Iteration27 complete: unused repair helpers and stale lock removed; duplicate usage/scoring consolidated; old workflow descriptions corrected. Runtime5774 lines; benchmark3309. Local749 passed/29 skipped; containers77 passed;1200 differential scorecards unchanged aside from removed duplicate fields. Cleanup e056823 pushed to PR99; all seven CI checks passed. Score97 because live Ephemeris and real matched-agent evidence remain mandatory. Recovery53482fc. No PyPI upload."
 }
