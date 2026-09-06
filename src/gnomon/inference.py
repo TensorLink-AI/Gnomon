@@ -53,6 +53,7 @@ class ForecastExecution:
     cache_hit: bool = False
     evidence: str = "inference_only"
     action_authorized: bool = False
+    provider_identity: dict | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -148,7 +149,8 @@ class InferenceEngine:
             raise ForecastAdapterError("provider must return ForecastResult")
         result = _copy_result(result).validate(request)
         execution = ForecastExecution(str(uuid4()), fingerprint, name, provider.revision,
-                                      request, result, cache_hit)
+                                      request, result, cache_hit, provider_identity={
+                                          "lifecycle": provider.lifecycle, "capabilities": asdict(provider.capabilities)})
         # Recording failure is not silently ignored; callers should not claim
         # that an unrecorded invocation is auditable.
         if self._ledger is not None:

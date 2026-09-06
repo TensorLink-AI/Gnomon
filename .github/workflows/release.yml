@@ -32,6 +32,7 @@ jobs:
         run: |
           python -m pip install --upgrade build
           python -m build
+          python -m build --wheel --outdir example-dist examples/provider_plugin
           python -m twine check dist/*
           python - <<'PY'
           import pathlib, zipfile
@@ -46,18 +47,15 @@ jobs:
         run: |
           docker run --rm --network none \
             --volume "$PWD:/work:ro" --workdir /work python:3.12-slim \
-            python scripts/offline_wheel_smoke.py dist/*.whl
+            python scripts/offline_wheel_smoke.py dist/*.whl --example-wheel example-dist/*.whl
       - name: Verify wheel installation
-        env:
-          GNOMON_REGISTRY_PATH: ${{ runner.temp }}/gnomon-release-registry.sqlite
         run: |
-          python -m pip install dist/*.whl
+          python -m pip install --force-reinstall --no-deps dist/*.whl
+          cd "$(mktemp -d)"
           gnomon capabilities
-          TMPDIR="$(mktemp -d)"
-          cd "$TMPDIR"
-          gnomon track report --project release-smoke --output report
-          test -s report/report.md
-          test -s report/report.html
+          gnomon --version
+          gnomon self-check leakage --cases 8
+          gnomon infer --provider last_value --request '{"history":[10,12,11],"horizon":2}'
       - uses: actions/upload-artifact@v4
         with:
           name: python-distributions

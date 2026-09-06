@@ -62,6 +62,17 @@ writes have different permissions; writes require operator authorization and use
 task scope. Keep valid time, source availability and recording time distinct.
 Recording a decision neither executes nor authorizes an action.
 
+Use ledger `search` across sessions; follow `next_cursor` with unchanged filters,
+even after empty pages. `ready` needs scoring, `stale` rescoring, `waiting` actuals.
+Authorized `append_actual` accepts up to 1,000 `actuals`; ledger `evaluate` accepts
+100 `execution_ids`. Batches are atomic; exact scoring retries reuse scores.
+
+Ledger `compare_history` needs a series, unit, horizon, provider revisions and both
+cutoffs. Its date window selects origins; search dates select recording times.
+Report matched counts and exclusions. Overlapping horizons are not independent;
+never cherry-pick a window. Missing models need separately budgeted evaluation.
+Reads make no model calls. `next_step` grants no data-fetch, spending or action authority.
+
 ## Optional temporal calculations
 
 When exposed, `gnomon_temporal` handles date shifts, instant normalization, elapsed
@@ -72,7 +83,5 @@ fold; nonexistent times are rejected. Dates are not midnight instants. Timestamp
 ties establish neither causality nor source availability. Calculations do not
 verify the supplied facts.
 
-For other analyses, use the user's chosen software or host tools. Do not invent
-extra Gnomon operations, reinterpret an exact statistic, or imply that a recorded
-decision was executed. Legacy context/publication profiles and model installers
-are retired; local models are loaded and owned by the operator's provider callable.
+For other analyses, use the user's chosen software. Do not invent Gnomon operations.
+Local models are loaded and owned by the operator's provider callable.

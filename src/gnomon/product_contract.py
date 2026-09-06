@@ -8,7 +8,7 @@ versions, default profiles, or evidence claims on different surfaces.
 
 from __future__ import annotations
 
-__version__ = "0.9.0.dev0"
+__version__ = "0.9.0rc1"
 
 DEFAULT_MCP_PROFILE = "execution"
 CURRENT_EVIDENCE_RELEASE = None  # No completed evaluation of this release's default surface.

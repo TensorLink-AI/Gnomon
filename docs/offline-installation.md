@@ -12,12 +12,12 @@ Record its commit and SHA-256, transfer it through your normal approval process,
 verify the hash, then install in the target Python 3.11–3.13 environment:
 
 ```bash
-python -m pip install --no-index --no-deps wheelhouse/gnomon_forecast-0.9.0.dev0-py3-none-any.whl
+python -m pip install --no-index --no-deps wheelhouse/gnomon_forecast-0.9.0rc1-py3-none-any.whl
 gnomon capabilities
 gnomon self-check leakage --cases 8
 ```
 
-This is an unreleased development build, not an approved production release.
+This is a release candidate, not an approved production release.
 For repeatable deployment, retain the exact wheel and checksum.
 
 The core and three reference baselines need no network service. Your chosen

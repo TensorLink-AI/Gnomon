@@ -86,6 +86,8 @@ READ_SCHEMA = {"type": "object", "additionalProperties": False, "required": ["re
                               "max_chars": {"type": "integer", "minimum": 1, "maximum": 4096}}}
 
 _LEDGER_PARAMETERS = {
+    "search": ("series_id", "horizon", "provider", "unit", "start", "end", "status", "source_as_of", "recorded_as_of", "limit", "cursor"),
+    "compare_history": ("series_id", "horizon", "providers", "unit", "start", "end", "source_as_of", "recorded_as_of"),
     "study": ("study_id", "recorded_as_of"),
     "execution": ("execution_id",),
     "actuals_as_of": ("series_id", "source_as_of", "recorded_as_of", "unit"),
@@ -95,19 +97,21 @@ _LEDGER_PARAMETERS = {
     "decision": ("decision_id", "source_as_of", "recorded_as_of"),
     "import_artifact": ("artifact_path", "project", "naive_timezone"),
     "import_tracking": ("registry_path", "project", "naive_timezone"),
-    "append_actual": ("series_id", "valid_time", "value", "source_available_at", "unit", "source_ref"),
-    "evaluate": ("execution_id", "source_as_of", "recorded_as_of", "allow_partial"),
+    "append_actual": ("series_id", "valid_time", "value", "source_available_at", "unit", "source_ref", "actuals"),
+    "evaluate": ("execution_id", "execution_ids", "source_as_of", "recorded_as_of", "allow_partial"),
     "record_decision": ("execution_ids", "policy", "inputs", "action", "authorization_ref"),
     "append_decision_outcome": ("decision_id", "outcome", "source_available_at"),
 }
 _LEDGER_REQUIRED = {
+    "search": (),
+    "compare_history": ("series_id", "horizon", "providers", "start", "end", "source_as_of", "recorded_as_of"),
     "study": ("study_id",),
     "execution": ("execution_id",), "actuals_as_of": ("series_id",),
     "evaluations": ("execution_id",), "pending": (), "compare": ("execution_ids",),
     "decision": ("decision_id",),
     "import_artifact": ("artifact_path",), "import_tracking": ("registry_path",),
-    "append_actual": ("series_id", "valid_time", "value", "source_available_at"),
-    "evaluate": ("execution_id",),
+    "append_actual": (),
+    "evaluate": (),
     "record_decision": ("execution_ids", "policy", "inputs", "action"),
     "append_decision_outcome": ("decision_id", "outcome", "source_available_at"),
 }
@@ -372,12 +376,34 @@ class GnomonSession:
                 properties = {"operation": {"const": operation}}
                 for p in parameters:
                     properties[p] = ({"type": "number"} if p == "value" else
+                                     {"type": ["string", "null"], "minLength": 1} if p == "unit" else
                                      {"type": "boolean"} if p == "allow_partial" else
+                                     {"type": "integer", "minimum": 1, "maximum": 100 if p == "limit" else 1_000_000} if p in {"limit", "horizon"} else
+                                     {"enum": ["waiting", "ready", "scored", "stale", "unscorable"]} if p == "status" else
+                                     {"type": "object", "minProperties": 2, "maxProperties": 8,
+                                      "additionalProperties": {"type": "string", "minLength": 1}} if p == "providers" else
                                      {"type": "object"} if p in {"policy", "inputs", "action", "outcome"} else
-                                     _STRING_ARRAY if p == "execution_ids" else {"type": "string"})
+                                     {**_STRING_ARRAY, "minItems": 1, "maxItems": 100, "uniqueItems": True} if p == "execution_ids" else
+                                     {"type": "string"})
+                if operation == "append_actual":
+                    scalar = {k: v for k, v in properties.items() if k != "actuals"}
+                    required = ["series_id", "valid_time", "value", "source_available_at"]
+                    variants.append({"type": "object", "properties": scalar, "additionalProperties": False,
+                                     "required": ["operation", *required]})
+                    variants.append({"type": "object", "additionalProperties": False, "required": ["operation", "actuals"],
+                                     "properties": {"operation": properties["operation"], "actuals": {
+                                         "type": "array", "minItems": 1, "maxItems": 1000, "items": {
+                                             "type": "object", "additionalProperties": False, "required": required,
+                                             "properties": {k: v for k, v in scalar.items() if k != "operation"}}}}})
+                    continue
+                if operation == "evaluate":
+                    for field, other in (("execution_id", "execution_ids"), ("execution_ids", "execution_id")):
+                        variants.append({"type": "object", "additionalProperties": False, "required": ["operation", field],
+                                         "properties": {k: v for k, v in properties.items() if k != other}})
+                    continue
                 variants.append({"type": "object", "properties": properties, "additionalProperties": False,
                                  "required": ["operation", *_LEDGER_REQUIRED[operation]]})
-            tools.append({"name": "gnomon_ledger", "description": "Query immutable runs, outcomes and matched scores; evaluate appends a new score.",
+            tools.append({"name": "gnomon_ledger", "description": "Find forecasts and feedback status, compare matched production history, score named runs or record authorized actuals. Reads never run models; exact scoring retries reuse evidence.",
                           "inputSchema": {"type": "object", "oneOf": variants}})
         return tools
 

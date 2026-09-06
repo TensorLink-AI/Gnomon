@@ -45,6 +45,7 @@ def test_study_not_yet_recorded_cannot_influence_a_historical_recommendation(tmp
     answer = session.call("gnomon_route", {**task(session, ref, study), "recorded_as_of": at(34).isoformat()})
     assert answer["recommendation"] == "last_value"
     assert answer["reason"] == "study_unavailable_at_recorded_cutoff"
+    assert answer["next_step"] == "search_for_a_study_visible_at_the_requested_cutoff"
 
 
 def test_actual_revisions_rescore_without_overwriting_previous_comparisons(tmp_path):
