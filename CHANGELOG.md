@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Validate production comparison grids and lead times; keep fallback sample counts
+  consistent with per-origin evidence. Preserve full missing-step lists in
+  `pending()` and allow unknown/null units in the ledger tool schema. Reject
+  oversized cursors and unrepresentable actuals with structured argument errors;
+  avoid intermediate overflow when averaging extreme finite per-origin losses.
+
+- Add bounded ledger discovery with derived feedback status, atomic actual/score
+  batches and retry-safe scoring. Compare matched production forecasts across an
+  explicit origin window without model calls or automatic routing. Preserve provider
+  lifecycle/capabilities in new executions; return actionable evidence diagnostics.
+  Refresh the agent skill for cross-session discovery and outcome feedback.
+
 - Reject invalid repair/regrid policies before input reads and nonboolean
   partial-scoring flags before ledger writes. Use shared overflow-resistant point
   losses for backtests and ledger scores. Remove unused snapshot accessors and

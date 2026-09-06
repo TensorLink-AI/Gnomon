@@ -66,7 +66,8 @@ See [connector setup](docs/production/INFERENCE.md#ephemeris).
 
 The optional SQLite ledger saves forecasts, revised actuals, scores and decisions.
 Later corrections do not overwrite earlier predictions. You can ask what was known
-at a particular time and compare models using that evidence.
+at a particular time, find forecasts that need scoring, and compare models on
+matched past results. No automatic retraining or model calls are involved.
 
 Optional date and time tools handle timezones, calendar shifts, intervals and event
 order. They calculate supplied facts; they do not claim to improve an LLM's reasoning.

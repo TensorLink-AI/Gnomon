@@ -66,7 +66,17 @@ def route_study(engine, references, data_ref: str, *, study_id: str, candidates:
               "known_time_assumed": parent.assumed_known_time, "scores": {}, "matched_folds": 0}
 
     def fallback(reason):
-        return {**answer, "reason": reason}
+        next_step = {
+            "provider_identity_changed": "run_new_evaluation_with_explicit_budget",
+            "provider_revision_unknown": "register_an_explicit_provider_revision",
+            "study_unavailable_at_recorded_cutoff": "search_for_a_study_visible_at_the_requested_cutoff",
+            "select_an_original_backtest_study": "select_an_original_backtest_study",
+            "task_identity_mismatch": "search_for_a_matching_task_study",
+            "provider_cohort_mismatch": "select_a_study_with_the_requested_providers",
+            "study_exceeds_operator_fold_limit": "select_a_study_within_operator_limits",
+            "study_integrity_unverifiable": "verify_ledger_integrity_before_reuse",
+        }.get(reason, "inspect_excluded_folds_before_collecting_more_evidence")
+        return {**answer, "reason": reason, "next_step": next_step}
 
     try:
         report = engine.ledger.study(study_id, recorded_as_of=recorded_as_of)
