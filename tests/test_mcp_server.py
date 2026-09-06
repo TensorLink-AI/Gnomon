@@ -44,6 +44,29 @@ def test_initialize_list_and_call() -> None:
     assert call["isError"] is False
     payload = json.loads(call["content"][0]["text"])
     assert payload["interfaces"]["mcp"] is True
+    for tool in by_id[2]["result"]["tools"]:
+        assert not {"support_assessment", "artifact_path"} & tool["outputSchema"]["properties"].keys()
+
+
+def test_invalid_repair_settings_are_tool_errors_and_do_not_poison_session(tmp_path):
+    path = tmp_path / "currency.csv"
+    source = "timestamp,value\n2026-01-01,$10\n2026-01-02,$11\n2026-01-03,$12\n"
+    path.write_text(source)
+    levels = ["typo", False, None, "off", "safe"]
+    responses = _talk([
+        {"jsonrpc": "2.0", "id": index, "method": "tools/call",
+         "params": {"name": "gnomon_inspect", "arguments": {
+             "input": str(path), "frequency": "D", "repair": level}}}
+        for index, level in enumerate(levels, 1)
+    ] + [{"jsonrpc": "2.0", "id": 6, "method": "ping"}])
+    by_id = {response["id"]: response for response in responses}
+    for index in (1, 2, 3):
+        assert by_id[index]["result"]["isError"] is True
+        assert by_id[index]["result"]["structuredContent"]["error"]["code"] == "INVALID_ARGUMENTS"
+    assert by_id[4]["result"]["structuredContent"]["error"]["code"] == "INVALID_TARGET"
+    assert by_id[5]["result"]["isError"] is False
+    assert [item["code"] for item in by_id[5]["result"]["structuredContent"]["repairs"]] == ["numeric_format_normalised"]
+    assert by_id[6]["result"] == {} and path.read_text() == source
 
 
 def test_tool_error_is_structured_not_fatal() -> None:

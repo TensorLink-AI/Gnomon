@@ -44,8 +44,6 @@ ENVELOPE_SCHEMA: dict[str, Any] = {
             },
             "required": ["code", "message"],
         },
-        "support_assessment": {"type": "object"},
-        "artifact_path": {"type": "string"},
     },
 }
 

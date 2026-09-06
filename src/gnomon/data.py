@@ -93,8 +93,8 @@ def _read_text(path: Path, gzipped: bool, repair: str, log: "RepairLog") -> str:
             raise GnomonError(
                 "INVALID_ENCODING",
                 "The file is not valid UTF-8.",
-                {"hint": "Re-export as UTF-8, or rely on the default repair "
-                         "level which assumes Windows-1252."},
+                {"hint": "Re-export as UTF-8, or explicitly select repair=safe "
+                         "to allow a disclosed Windows-1252 assumption."},
             ) from exc
         log.record("encoding_assumed",
                    "File is not UTF-8; the Windows-1252 encoding was assumed.",
@@ -296,10 +296,11 @@ def load_observations(
     input_path: str, time_column: str, target_column: str, series_column: str | None,
     *, repair: str = "off", repair_log: "RepairLog | None" = None,
 ) -> tuple[list[Observation], str, list[str]]:
+    from .repair import RepairLog, validate_repair_level
+    validate_repair_level(repair)
     path = Path(input_path).expanduser().resolve()
     if not path.is_file():
         raise GnomonError("INPUT_NOT_FOUND", f"Input file does not exist: {path}")
-    from .repair import RepairLog
     log = repair_log if repair_log is not None else RepairLog()
     rows, columns = _read_rows(path, time_column, target_column, repair, log)
     observations = observations_from_rows(
@@ -320,10 +321,9 @@ def observations_from_rows(
     repair_log: "RepairLog | None" = None,
     default_series: str = "__default__",
 ) -> list[Observation]:
-    """Extract one target column's observations from already-read rows —
-    the tail of :func:`load_observations`, shared so a multi-target run
-    reads the file once and parses each column through identical code."""
-    from .repair import RepairLog
+    """Extract one target column from rows using an explicit repair policy."""
+    from .repair import RepairLog, validate_repair_level
+    validate_repair_level(repair)
     log = repair_log if repair_log is not None else RepairLog()
     required = [time_column, target_column] + ([series_column] if series_column else [])
     missing = [column for column in required if column not in columns]

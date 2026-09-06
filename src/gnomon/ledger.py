@@ -17,7 +17,7 @@ from pathlib import Path
 import sqlite3
 from uuid import uuid4
 
-from .forecast_adapter import ForecastAdapterError
+from .forecast_adapter import ForecastAdapterError, point_error_metrics
 from .ids import SYSTEM_CLOCK
 
 
@@ -258,6 +258,8 @@ class TemporalLedger:
 
     def evaluate(self, execution_id: str, *, source_as_of: str | None = None,
                  recorded_as_of: str | None = None, allow_partial: bool = True) -> dict:
+        if type(allow_partial) is not bool:
+            raise ForecastAdapterError("allow_partial must be a boolean")
         execution = self.execution(execution_id)
         req = execution["request"]
         if not req["series_id"] or not req["future_timestamps"]:
@@ -268,17 +270,14 @@ class TemporalLedger:
         pairs = [(i, actuals[t]) for i, t in enumerate(times) if t in actuals]
         if not allow_partial and len(pairs) != len(times):
             raise ForecastAdapterError("complete actual horizon is not yet available")
-        errors = [execution["result"]["point"][i] - row["value"] for i, row in pairs]
+        metrics = point_error_metrics([(execution["result"]["point"][i], row["value"]) for i, row in pairs])
         status = "complete" if len(pairs) == len(times) else "partial" if pairs else "pending"
         record = {"evaluation_id": str(uuid4()), "execution_id": execution_id,
                   "recorded_at": self._now(), "source_as_of": _time(source_as_of) if source_as_of else None,
                   "recorded_as_of": _time(recorded_as_of) if recorded_as_of else None,
                   "metric_version": "point-errors/1", "status": status,
                   "matched_steps": [i for i, _ in pairs], "actual_ids": [r["actual_id"] for _, r in pairs],
-                  "n": len(pairs), "horizon": len(times),
-                  "mae": sum(abs(e) for e in errors) / len(errors) if errors else None,
-                  "rmse": math.sqrt(sum(e * e for e in errors) / len(errors)) if errors else None,
-                  "bias": sum(errors) / len(errors) if errors else None}
+                  "horizon": len(times), **metrics}
         with self._connect() as conn:
             conn.execute("INSERT INTO evaluations VALUES (?,?,?,?)",
                          (record["evaluation_id"], execution_id, record["recorded_at"], _json(record)))
@@ -343,7 +342,7 @@ class TemporalLedger:
                 "snapshot_id": req["snapshot_id"],
                 "actual_ids": [a["actual_id"] for _, a in pairs], "matched_steps": [i for i, _ in pairs],
                 "models": [{"execution_id": run["execution_id"], "provider": run["provider"], "revision": run["revision"],
-                            "mae": sum(abs(run["result"]["point"][i] - a["value"]) for i, a in pairs) / len(pairs) if pairs else None}
+                            "mae": point_error_metrics([(run["result"]["point"][i], a["value"]) for i, a in pairs])["mae"]}
                            for run in runs]}
 
     def record_decision(self, *, execution_ids: list[str], policy: dict,

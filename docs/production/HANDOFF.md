@@ -1,43 +1,42 @@
-# Delivery checkpoint — iteration 27
+# Delivery checkpoint — iteration 28
 
-Updated 2026-09-06. The user requested clearing the remaining identified residue.
-Completed the focused follow-up; do not restore retired features for their tests.
+Updated 2026-09-06. The user requested fixing the final review findings and checking
+for bugs. Completed local implementation and verification; PR CI is next.
 
 ## Current scope
 
 One provider-neutral Python/CLI/MCP execution session, explicit evaluation,
 optional observation vintages/forecast ledger and temporal arithmetic.
 Ephemeris is one connector; users own model libraries and callable/factory providers.
-Runtime:26 modules/5,774 lines (original118 modules/67,013 lines).
+Runtime:26 modules/5,778 lines (original118 modules/67,013 lines).
 One matched ordinary/lean/full agent workflow:3,309 implementation lines
 (`workflow/*.py` plus `common/*.py`; before benchmark cull5,289).
 
-Iteration27 removes the obsolete0.7 root dependency lock and uncalled RepairLog
-clone/has_actions/warnings_for helpers. Dependencies remain in pyproject.toml;
-the current ordinary-software benchmark's hash-locked requirements are unchanged.
-Model transport now owns one set of token/cost counters. Answer and typed-fact
-checks are computed once; forecast metrics are shared by the report. One
-`answered_rate` replaces duplicate initial/final yield fields. Correctness,
-missing answers, episode completion and resource completeness remain separate.
-Fixed stale documentation advertising the removed forecast workflow/adapter bridge.
+Iteration28 rejects invalid repair/regrid values before reading files or opening
+a store, and nonboolean partial-scoring flags before appending evaluations.
+Ledger evaluation/comparison, backtesting and study routing share finite point
+losses that avoid intermediate overflow. Unrepresentable errors fail before writes.
+Removed unused repair constants, Snapshot.variables/access_log and obsolete MCP
+envelope fields. Corrected repair defaults and encoding guidance. Actual snapshot
+access summaries, saved forecasts, migration support and explicit repairs remain.
 
 ## Verification
 
-- Full suite:749 passed,29 opt-in skips in30.23s; no tests removed this iteration.
-- Actual ordinary/service container suite:77 passed in34.63s.
-- 1,200 deterministic before/after scorecard comparisons: all retained fields
-  identical, excluding explicitly removed duplicate fields.
+- Full suite:819 passed,29 opt-in skips in30.42s;70 new cases, no tests removed.
+- Actual ordinary/service container suite:77 passed in34.74s.
+- New regressions cover invalid policy types/values through Python and real MCP,
+  unchanged inputs/no database creation, strict partial flags, large finite losses
+  and refusal without appending when errors are unrepresentable.
 - Ruff, compilation and whitespace pass.
 - Rebuilt wheel/sdist; clean installed CLI/MCP/provider/ledger/example-plugin
-  journeys pass. Artifacts: `/tmp/gnomon-cull27-dist.FFGwuz`.
+  journeys pass. Artifacts: `/tmp/gnomon-fix28-final-dist.vVrj9k`.
 - Current rebuilt service image:
-  `sha256:d201f169172bb64aa75daeb3ebb95a082522f89daadb63d450065c715c5a8619`.
-- Cleanup `e056823` is pushed to PR99; all seven checks passed:
-  [CI34007584412](https://github.com/TensorLink-AI/Gnomon/actions/runs/34007584412)
-  (Python3.11/3.12/3.13, harness, real containers and installed package/plugin)
-  and [Container34007584434](https://github.com/TensorLink-AI/Gnomon/actions/runs/34007584434).
-  This follow-up records results only. Do not edit source or commit during
-  identity-pinned harness tests.
+  `sha256:6beb711ee4bdeb80d20ba3b2d15750ddaa8655bee2c3550c53164d5d322a009d`.
+- Initial full-suite/package checks caught a missed study-routing import after
+  metric consolidation; fixed it and rebuilt/reran successfully, not waived.
+- Previous baseline0826117 passed all seven PR checks. Current fixes still need
+  push and fresh CI; do not reuse baseline CI as evidence for new source.
+  Do not edit source or commit during identity-pinned harness tests.
 
 ## Remaining external evidence
 
@@ -56,7 +55,7 @@ or repeat unauthenticated probes to bypass the authorization boundary.
 
 Source0.9.0.dev0 is breaking and unreleased. Published0.8.0rc3 remains immutable;
 no PyPI upload. No user database, saved forecast or user input was deleted.
-Residue-pass recovery53482fc; benchmark-cull recovery1642cb2; runtime recovery333ed2c;
+Final-fix recovery0826117; residue-pass recovery53482fc; benchmark-cull recovery1642cb2; runtime recovery333ed2c;
 earlier benchmark/design archives2cba20e.
 
 Branch `codex/gnomon-ephemeris-ledger`, [PR99](https://github.com/TensorLink-AI/Gnomon/pull/99).

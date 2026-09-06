@@ -188,14 +188,7 @@ class Snapshot:
     def entities(self) -> list[str]:
         return sorted({item.entity for item in self._observations})
 
-    def variables(self, entity: str) -> list[str]:
-        return sorted({item.variable for item in self._observations if item.entity == entity})
-
     # -- provenance -------------------------------------------------------
-
-    @property
-    def access_log(self) -> list[AccessRecord]:
-        return list(self._log)
 
     def access_summary(self) -> dict[str, object]:
         """Aggregated, artifact-ready view of everything this snapshot served."""

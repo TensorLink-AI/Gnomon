@@ -91,6 +91,48 @@ def test_partial_complete_and_revised_scores_append_without_losing_old_results(s
     assert ledger.execution(run.execution_id)["result"]["point"] == [2, 2]
 
 
+@pytest.mark.parametrize("value", ["false", "true", None, 0, 1, [], {}])
+def test_invalid_partial_scoring_flag_is_rejected_without_appending(setup, value):
+    from gnomon import GnomonSession
+    from gnomon.contracts import GnomonError
+    ledger, engine, req = setup
+    run = engine.forecast("user", req)
+    actual(ledger)
+    with pytest.raises(ForecastAdapterError, match="allow_partial must be"):
+        ledger.evaluate(run.execution_id, allow_partial=value)
+    with GnomonSession(engine, ledger=ledger) as session, pytest.raises(GnomonError) as caught:
+        session.call("gnomon_ledger", {"operation": "evaluate", "execution_id": run.execution_id,
+                                      "allow_partial": value})
+    assert caught.value.code == "INVALID_ARGUMENTS"
+    assert ledger.evaluations(run.execution_id) == []
+
+
+@pytest.mark.parametrize("magnitude", [1e200, 1e308])
+def test_large_finite_errors_score_without_intermediate_overflow(setup, magnitude):
+    ledger, engine, req = setup
+    a, b = engine.forecast("user", req), engine.forecast("user", req)
+    actual(ledger, value=magnitude)
+    actual(ledger, value=magnitude, day=4, available_day=4)
+    score = ledger.evaluate(a.execution_id, allow_partial=False)
+    assert score["mae"] == pytest.approx(magnitude)
+    assert score["rmse"] == pytest.approx(magnitude)
+    assert score["bias"] == pytest.approx(-magnitude)
+    assert all(row["mae"] == pytest.approx(magnitude)
+               for row in ledger.compare([a.execution_id, b.execution_id])["models"])
+    assert ledger.evaluations(a.execution_id)[0] == score
+
+
+def test_unrepresentable_error_is_refused_without_appending(setup):
+    ledger, engine, req = setup
+    engine.register("large", lambda r: ForecastResult((1e308,) * r.horizon,
+                    timestamps=r.future_timestamps, series_id=r.series_id, unit=r.unit))
+    run = engine.forecast("large", req)
+    actual(ledger, value=-1e308)
+    with pytest.raises(ForecastAdapterError, match="finite numeric range"):
+        ledger.evaluate(run.execution_id)
+    assert ledger.evaluations(run.execution_id) == []
+
+
 def test_matched_comparison_freezes_vintages_and_rejects_different_inputs(setup):
     ledger, engine, req = setup
     a, b = engine.forecast("user", req), engine.forecast("user", req)

@@ -14,8 +14,7 @@ import json
 from uuid import uuid4
 from time import monotonic
 
-from .backtesting import _metrics
-from .forecast_adapter import AdapterCapabilities, ForecastAdapterError, validate_capabilities
+from .forecast_adapter import AdapterCapabilities, ForecastAdapterError, point_error_metrics, validate_capabilities
 from .ids import content_id
 from .ledger import _time
 
@@ -137,7 +136,7 @@ def route_study(engine, references, data_ref: str, *, study_id: str, candidates:
     answer["excluded_folds"] = excluded
     if len(selected) < min_folds:
         return fallback("insufficient_replayable_matched_folds")
-    scores = {p: _metrics((point, actual["value"]) for f in selected
+    scores = {p: point_error_metrics((point, actual["value"]) for f in selected
                          for point, actual in zip(f["runs"][p]["point"], f["actuals"])) for p in providers}
     ranked = sorted(providers, key=lambda p: (scores[p]["mae"], providers.index(p)))
     best, baseline_mae = ranked[0], scores[baseline]["mae"]

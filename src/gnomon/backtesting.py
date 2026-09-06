@@ -16,7 +16,7 @@ from uuid import uuid4
 
 from .data import Observation
 from .contracts import GnomonError
-from .forecast_adapter import AdapterCapabilities, ForecastAdapterError, ForecastRequest, validate_capabilities
+from .forecast_adapter import AdapterCapabilities, ForecastAdapterError, ForecastRequest, point_error_metrics, validate_capabilities
 from .ids import content_id
 from .temporal import validate_and_group
 
@@ -47,18 +47,6 @@ class EvaluationBudget:
 def _positive(value, name):
     if type(value) is not int or value < 1:
         raise ForecastAdapterError(f"{name} must be a positive integer")
-
-
-def _metrics(pairs):
-    errors = [point - actual for point, actual in pairs]
-    if not errors:
-        return {"n": 0, "mae": None, "rmse": None, "bias": None}
-    if not all(math.isfinite(e) for e in errors):
-        raise ForecastAdapterError("forecast error exceeds finite numeric range")
-    n = len(errors)
-    return {"n": n, "mae": math.fsum(abs(e) / n for e in errors),
-            "rmse": math.hypot(*(e / math.sqrt(n) for e in errors)),
-            "bias": math.fsum(e / n for e in errors)}
 
 
 def evaluate_reference(engine, references, data_ref: str, *, candidates: list[str], baseline: str,
@@ -154,7 +142,7 @@ def evaluate_reference(engine, references, data_ref: str, *, candidates: list[st
             execution = None
             try:
                 execution = engine.forecast(provider, ForecastRequest.from_dict(fold["request"]), use_cache=False)
-                _metrics(zip(execution.result.point, (r["value"] for r in fold["actuals"])))
+                point_error_metrics(zip(execution.result.point, (r["value"] for r in fold["actuals"])))
                 fold["runs"][provider] = {"status": "ok", "execution_id": execution.execution_id,
                                            "fingerprint": execution.fingerprint, "revision": execution.revision,
                                            "point": list(execution.result.point), "metadata": execution.result.metadata}
@@ -180,7 +168,7 @@ def evaluate_reference(engine, references, data_ref: str, *, candidates: list[st
     diagnostics = {p: {"attempted": sum(p in f["runs"] for f in planned),
                        "succeeded": sum(f["runs"].get(p, {}).get("status") == "ok" for f in planned),
                        "failed": sum(f["runs"].get(p, {}).get("status") == "error" for f in planned)} for p in providers}
-    scores = {p: _metrics((point, row["value"]) for f in matched
+    scores = {p: point_error_metrics((point, row["value"]) for f in matched
                          for point, row in zip(f["runs"][p]["point"], f["actuals"])) for p in providers}
     complete = len(matched) == folds
     cohort = {"folds": [{k: f[k] for k in ("origin", "request", "actuals")} for f in planned],

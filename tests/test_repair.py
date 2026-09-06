@@ -118,6 +118,36 @@ def test_repairs_are_explicit_off_by_default_and_disclosed(tmp_path):
     assert not any(action["assumptive"] for action in inspected["repairs"])
 
 
+@pytest.mark.parametrize("level", ["typo", None, False, True, 0, 1, [], {}, "Safe", ""])
+@pytest.mark.parametrize("entrypoint", ["file", "rows", "grid", "store", "session"])
+def test_invalid_repair_policy_is_refused_before_io_or_mutation(tmp_path, level, entrypoint):
+    from gnomon import GnomonSession
+    from gnomon.data import load_observations, observations_from_rows
+    from gnomon.datasets import load_stage
+    from gnomon.repair import RepairLog, repair_observations
+    path = tmp_path / "must-not-be-created"
+    rows = [{"timestamp": "2026-01-01", "value": "$10"}]
+    log = RepairLog()
+    with pytest.raises(GnomonError) as caught:
+        if entrypoint == "file":
+            load_observations(str(path), "timestamp", "value", None, repair=level, repair_log=log)
+        elif entrypoint == "rows":
+            observations_from_rows(rows, ["timestamp", "value"], "timestamp", "value", None,
+                                   repair=level, repair_log=log)
+        elif entrypoint == "grid":
+            repair_observations([], None, level, log)
+        elif entrypoint == "store":
+            load_stage("store:data", time_column="timestamp", target_column="value",
+                       series_column=None, frequency=None, store_path=str(path), repair=level)
+        else:
+            with GnomonSession() as session:
+                session.call("gnomon_inspect", {"input": str(path), "repair": level})
+    assert caught.value.code == "INVALID_ARGUMENTS"
+    assert "repair must be" in str(caught.value)
+    assert rows == [{"timestamp": "2026-01-01", "value": "$10"}]
+    assert log.actions() == [] and not path.exists()
+
+
 def test_only_aggressive_repairs_fill_gaps_and_mark_assumptions(tmp_path):
     rows = daily_rows()
     del rows[12]
@@ -128,6 +158,16 @@ def test_only_aggressive_repairs_fill_gaps_and_mark_assumptions(tmp_path):
     assert request.history[12] == 112 and len(request.history) == 30
     filled = next(action for action in inspected["repairs"] if action["code"] == "gap_filled")
     assert filled["count"] == 1 and filled["assumptive"]
+
+
+@pytest.mark.parametrize("policy", [False, True, 0, 1, "", [], {}, "typo"])
+def test_invalid_regrid_policy_is_not_silently_ignored(tmp_path, policy):
+    from gnomon import GnomonSession
+    path = tmp_path / "must-not-be-created"
+    with GnomonSession() as session, pytest.raises(GnomonError) as caught:
+        session.call("gnomon_inspect", {"input": str(path), "regrid": policy})
+    assert caught.value.code == "INVALID_ARGUMENTS"
+    assert "regrid must be" in str(caught.value) and not path.exists()
 
 
 def test_aggressive_duplicate_resolution_preserves_file_order(tmp_path):

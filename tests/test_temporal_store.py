@@ -61,6 +61,7 @@ def test_join_as_of_returns_vintages_not_final_values():
 
 def test_access_log_records_reads():
     snapshot = Snapshot([_obs(1, 1, 10.0)], as_of=None)
+    assert not hasattr(snapshot, "variables") and not hasattr(snapshot, "access_log")
     snapshot.series("alpha", "sales")
     summary = snapshot.access_summary()
     assert summary["accesses"][0]["entity"] == "alpha"

@@ -17,6 +17,17 @@ def test_statistical_models_cross_the_same_validated_protocol() -> None:
     assert adapter.forecast(request).points() == [3, 3, 3]
 
 
+def test_point_metrics_handle_missing_values_large_values_and_cancellation():
+    from gnomon.forecast_adapter import point_error_metrics
+    assert point_error_metrics([]) == {"n": 0, "mae": None, "rmse": None, "bias": None}
+    score = point_error_metrics([(1e308, 0), (-1e308, 0)])
+    assert score["mae"] == 1e308 and score["bias"] == 0
+    assert score["rmse"] == pytest.approx(1e308)
+    assert point_error_metrics([(2, 3), (2, 4)]) == {
+        "n": 2, "mae": 1.5, "rmse": pytest.approx(2.5 ** 0.5), "bias": -1.5,
+    }
+
+
 def test_stochastic_outputs_are_conformant_unless_repeatability_is_required():
     class Stochastic:
         name, kind = "stochastic", "callable"

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Reject invalid repair/regrid policies before input reads and nonboolean
+  partial-scoring flags before ledger writes. Use shared overflow-resistant point
+  losses for backtests and ledger scores. Remove unused snapshot accessors and
+  obsolete MCP output fields; correct repair defaults and encoding guidance.
+
 - Remove the stale 0.7 dependency lock and unused repair-log helpers. Consolidate
   benchmark token/cost counters and answer grading, replacing duplicate yield
   fields with `answered_rate`. Correct stale descriptions of removed workflows.

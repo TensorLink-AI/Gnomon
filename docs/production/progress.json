@@ -2,7 +2,7 @@
   "schema_version": 1,
   "objective": "Production-ready provider-neutral Gnomon 0.9 within PLAN.md; retired features are not release requirements.",
   "baseline_revision": "333ed2c",
-  "iteration": 27,
+  "iteration": 28,
   "score_policy": "Sum weights of verified checks only. Missing evidence earns zero. No elapsed-time or lines-of-code credit. Regressions reopen checks. 100 requires every check including live service verification.",
   "workstreams": [
     {
@@ -26,7 +26,8 @@
           "evidence": [
             "Deleted92 runtime modules and obsolete feature tests/docs/examples; no compatibility shim or second shipped legacy package. Removed context-engine benchmark cases and grading. Recovery333ed2c.",
             "Iteration26: removed obsolete benchmark promotion/audit/generation runners, smoke corpus, host-generated followups, publication grading, client cache/fanout/retry machinery and old journal migrations. Benchmark implementation5289 to3351 lines. Recovery1642cb2; current cohort input/answer/reveal equality checked against baseline.",
-            "Iteration27: removed stale0.7 root uv.lock and three uncalled RepairLog helpers; unified model-usage counters, answer/fact grading and answered_rate; corrected retired-workflow documentation. Runtime5774 lines, benchmark implementation3309 lines. Recovery53482fc."
+            "Iteration27: removed stale0.7 root uv.lock and three uncalled RepairLog helpers; unified model-usage counters, answer/fact grading and answered_rate; corrected retired-workflow documentation. Runtime5774 lines, benchmark implementation3309 lines. Recovery53482fc.",
+            "Iteration28: removed unused repair constants, snapshot accessors and obsolete MCP output fields. Retained live access summaries and migration support. Runtime5778 lines, benchmark3309 unchanged. Recovery0826117."
           ]
         },
         {
@@ -35,7 +36,7 @@
           "acceptance": "Separate production regressions from the retained matched-evaluation harness; no automatic paid runs.",
           "status": "verified",
           "evidence": [
-            "Iteration27:749 passed/29 opt-in skips in30.23s; actual software/service containers77 passed in34.63s. Independent 1200-case before/after comparison preserves all retained scorecard fields. Current regressions cover unequal answer-component weighting, one forecast-metrics calculation, answer status and unified usage accounting."
+            "Iteration28:819 passed/29 opt-in skips in30.42s; actual software/service containers77 passed in34.74s.70 new regression cases cover strict repair/regrid and partial-scoring policies, real MCP errors/session recovery, nonmutation and finite loss arithmetic. No tests removed this iteration. Iteration27 independent1200-case comparison preserved all retained scorecard fields."
           ]
         },
         {
@@ -161,7 +162,7 @@
           "acceptance": "Append versioned complete/partial evaluations referencing exact actual vintages; preserve rescoring history.",
           "status": "verified",
           "evidence": [
-            "test_ledger.py: pending/partial/complete/revised versioned metrics, exact actual IDs and unchanged predictions."
+            "test_ledger.py: pending/partial/complete/revised versioned metrics, exact actual IDs and unchanged predictions. Iteration28 adds strict boolean partial-scoring validation, overflow-resistant shared losses and refusal before writes for unrepresentable errors; backtesting and routing use the same calculation."
           ]
         },
         {
@@ -361,7 +362,8 @@
           "evidence": [
             "Final local suite:760 passed,29 opt-in skips in29.96s. At091b29b, CI34004658580 passed all six jobs: production on Python3.11/3.12/3.13, harness, actual software/service containers and installed package/plugin smoke (including restored bounded CSV piping). Container34004658552 passed. Ruff, compile, whitespace and skill validation pass. The earlier package failure ataceeaf1 was fixed, not waived.",
             "Iteration26 local742 passed/29 skipped and real-container76 passed; Ruff, compilation and whitespace pass. Cleanup03f77e8 passed all7checks: CI34007034278 (Python3.11/3.12/3.13, harness, real containers and clean package/plugin install), Container34007034253.",
-            "Iteration27 local749 passed/29 skipped; rebuilt service container suite77 passed. Ruff, compilation and whitespace pass. Cleanup e056823 passed all seven checks: CI34007584412 (Python3.11/3.12/3.13, harness, real containers and installed package/plugin), Container34007584434."
+            "Iteration27 local749 passed/29 skipped; rebuilt service container suite77 passed. Ruff, compilation and whitespace pass. Cleanup e056823 passed all seven checks: CI34007584412 (Python3.11/3.12/3.13, harness, real containers and installed package/plugin), Container34007584434.",
+            "Iteration28 local819 passed/29 skipped; rebuilt service container suite77 passed. Ruff, compilation and whitespace pass. A missed study-routing import caught by full-suite and installed-package checks was corrected and both reran successfully. Current source CI pending push; baseline0826117's seven green checks are not current-source evidence."
           ]
         },
         {
@@ -370,7 +372,7 @@
           "acceptance": "Clean distribution install and CLI/MCP smoke pass outside checkout.",
           "status": "verified",
           "evidence": [
-            "Iteration27 rebuilt0.9.0.dev0 wheel/sdist; clean installed Python/CLI/MCP/provider/ledger and unchanged example-plugin smoke pass. Wheel SHA25674b14dd20b43aa0fa436d2d05f9e4ff42393b393dc1cfdf6871f226a3eba969b; sdist f62f0fd66acae41e614ce1f26f386e2ee1f70eece67d1cda94e2b1ae68af48cb. No PyPI upload."
+            "Iteration28 rebuilt0.9.0.dev0 wheel/sdist; clean installed Python/CLI/MCP/provider/ledger and unchanged example-plugin smoke pass. Wheel SHA2569a6a5e37eb329f5bb63ac898d55cd62daba85bbf9ade91399b2bb2f20e0de945; sdist e05a2ee3aeedb64c92dc6382feaa6268ff6270a8e380b3a8fc8cfb22cf362f5c. No PyPI upload."
           ]
         },
         {
@@ -386,5 +388,5 @@
     }
   ],
   "history_checkpoint": "333ed2c",
-  "revision_note": "Iteration27 complete: unused repair helpers and stale lock removed; duplicate usage/scoring consolidated; old workflow descriptions corrected. Runtime5774 lines; benchmark3309. Local749 passed/29 skipped; containers77 passed;1200 differential scorecards unchanged aside from removed duplicate fields. Cleanup e056823 pushed to PR99; all seven CI checks passed. Score97 because live Ephemeris and real matched-agent evidence remain mandatory. Recovery53482fc. No PyPI upload."
+  "revision_note": "Iteration28 locally verified: strict repair/regrid/partial-scoring policies, shared finite point losses, unused snapshot/constants/MCP schema cleanup and accurate repair guidance. Runtime5778 lines; benchmark3309. Local819 passed/29 skipped; containers77 passed; rebuilt installed package/plugin smoke passed. Push and fresh PR99 CI pending. Score97 because live Ephemeris and real matched-agent evidence remain mandatory. Recovery0826117. No PyPI upload."
 }

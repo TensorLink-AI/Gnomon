@@ -7,7 +7,7 @@ from datetime import datetime
 
 from .contracts import DataSchema, GnomonError
 from .data import Observation, load_observations
-from .repair import RepairLog, repair_observations
+from .repair import REGRID_POLICIES, RepairLog, repair_observations, validate_repair_level
 from .temporal import validate_and_group
 from .temporal_store import InMemoryTemporalStore, Snapshot, TemporalStore
 
@@ -88,6 +88,9 @@ def load_stage(
     persistent bitemporal store; plain files are wrapped in an ephemeral
     store with ``known_time = valid_time`` so the snapshot guarantee is
     uniform across both."""
+    validate_repair_level(repair)
+    if regrid is not None and (type(regrid) is not str or regrid not in REGRID_POLICIES):
+        raise GnomonError("INVALID_ARGUMENTS", "regrid must be business_daily, month_start or null.")
     variable = target_column
     if input_path.startswith(STORE_SCHEME):
         if regrid:

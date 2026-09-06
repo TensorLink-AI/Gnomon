@@ -20,6 +20,25 @@ class ForecastAdapterError(ValueError):
     """An adapter violated the model-neutral forecast contract."""
 
 
+def point_error_metrics(pairs) -> dict:
+    """Finite point losses shared by backtests and durable ledger scoring."""
+    errors = [point - actual for point, actual in pairs]
+    if not errors:
+        return {"n": 0, "mae": None, "rmse": None, "bias": None}
+    if not all(math.isfinite(error) for error in errors):
+        raise ForecastAdapterError("forecast error exceeds finite numeric range")
+    n = len(errors)
+    try:
+        metrics = {"mae": math.fsum(abs(error) / n for error in errors),
+                   "rmse": math.hypot(*(error / math.sqrt(n) for error in errors)),
+                   "bias": math.fsum(error / n for error in errors)}
+        if not all(math.isfinite(value) for value in metrics.values()):
+            raise OverflowError
+    except (OverflowError, ValueError):
+        raise ForecastAdapterError("forecast metrics exceed finite numeric range") from None
+    return {"n": n, **metrics}
+
+
 @dataclass(frozen=True)
 class AdapterCapabilities:
     """Features an adapter explicitly promises to honor."""
