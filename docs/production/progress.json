@@ -33,7 +33,7 @@
           "acceptance": "Separate production regressions from the retained matched-evaluation harness; no automatic paid runs.",
           "status": "verified",
           "evidence": [
-            "Current local suite:756 passed,29 opt-in skips (31.69s). Production and matched-harness regressions remain separate; metrics moved out of installed runtime."
+            "Current local suite:760 passed,29 opt-in skips (31.69s). Production and matched-harness regressions remain separate; metrics moved out of installed runtime."
           ]
         },
         {
@@ -357,7 +357,7 @@
           "acceptance": "Required regression, lint, concurrency, migration and supported-platform checks pass.",
           "status": "in_progress",
           "evidence": [
-            "Final local suite:756 passed,29 opt-in skips in30.16s; separate real-container suite77 passed in29.53s. Ruff, compile, whitespace and skill validator pass. Final service image sha256:3741536074d9426e32d5456ac097b059644d25fca04c540338ada27fe1b80ae9. Supported-Python CI remains to be revalidated after push."
+            "Final local suite:760 passed,29 opt-in skips in29.96s; separate real-container suite77 passed in29.53s. Ruff, compile, whitespace and skill validator pass. Final service image sha256:3741536074d9426e32d5456ac097b059644d25fca04c540338ada27fe1b80ae9. Supported-Python CI remains to be revalidated after push."
           ]
         },
         {
@@ -366,7 +366,7 @@
           "acceptance": "Clean distribution install and CLI/MCP smoke pass outside checkout.",
           "status": "verified",
           "evidence": [
-            "Final 0.9.0.dev0 wheel/sdist and independent example plugin build; Twine and clean installed Python/CLI/MCP/provider/ledger/plugin walkthrough pass. Wheel SHA256383a695bd5bbb3dd6a6591c858d6c01bc5834bb512ab98d445deb467d9fa26c1; sdist ca364526e4d9a270f7689e0b856845f32d2cc9e3a28449ddecfecf542ccc9eaf. No PyPI upload."
+            "Final 0.9.0.dev0 wheel/sdist and independent example plugin build; Twine and clean installed Python/CLI/MCP/provider/ledger/plugin walkthrough pass. Wheel SHA256766a4f12dec7891adb36c9e7fbac476559307480c8d6f4759936606a5f81d084; sdist 7fa472cf5ac76c601d8dd38dffdf3ead6c44091456b41c99eb5148175440e2ca. No PyPI upload."
           ]
         },
         {
@@ -382,5 +382,5 @@
     }
   ],
   "history_checkpoint": "333ed2c",
-  "revision_note": "Iteration25: runtime118 modules/67,013 lines to26 modules/5,789 lines. Breaking0.9 cleanup, not a release upload. All retained local gates revalidated; score95 while supported-Python CI remains pending. Live service and actual matched-agent evidence remain mandatory for100. Detailed previous evidence is recoverable at333ed2c."
+  "revision_note": "Iteration25: runtime118 modules/67,013 lines to26 modules/5,801 lines. Breaking0.9 cleanup, not a release upload. All retained local gates revalidated; score95 while supported-Python CI remains pending. Live service and actual matched-agent evidence remain mandatory for100. Detailed previous evidence is recoverable at333ed2c."
 }

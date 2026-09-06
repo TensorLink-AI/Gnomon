@@ -10,7 +10,7 @@ One provider-neutral execution session with exact input/time semantics, explicit
 budgeted evaluation, optional durable evidence and optional temporal arithmetic.
 Local models are operator-owned callables/factories; Ephemeris is one connector.
 
-Runtime: 118 modules/67,013 lines before this cull → 26 modules/5,789 lines now
+Runtime: 118 modules/67,013 lines before this cull → 26 modules/5,801 lines now
 (about 91% fewer lines). Removed the old runtime/registry, context/scenario/publication/
 effect stack, model catalogues/installers/adapters, monitoring and feedback.
 No second legacy package or compatibility dispatch remains.
@@ -27,14 +27,19 @@ context oracle field changes the retrospective corpus hash, not its data or answ
 
 ## Verification and next step
 
-Current complete local suite: 756 passed, 29 opt-in skips in 30.16s. Separate final
+Current complete local suite: 760 passed, 29 opt-in skips in 29.96s. Separate pre-stdin-follow-up
 software/service container suite: 77 passed in 29.53s.
 Ruff, compilation, skill validation and whitespace checks pass.
 Wheel/sdist and example plugin build; metadata and clean installed Python/CLI/MCP/
 provider/ledger/plugin journeys pass against the final reformatted package.
 
-Commit this verified cull to the existing branch and update draft
-[PR99](https://github.com/TensorLink-AI/Gnomon/pull/99), then monitor current CI.
+Cull commit `aceeaf1` is pushed to draft
+[PR99](https://github.com/TensorLink-AI/Gnomon/pull/99). CI34004475000 passed the
+Python3.11/3.12/3.13, harness and real-container jobs; Container34004475029 passed.
+The package job exposed a lost piped-CSV path in the reduced CLI. Piping serves
+the new goal: restored it with an8 MiB bound and four current CLI regressions.
+All760 local tests pass after the fix; rebuilt package/install checks pass.
+Push the stdin follow-up and verify all current CI checks before crediting the gate.
 Do not commit or change source while matched-harness tests pin their identity.
 Supported-Python CI must pass before recrediting the release-check gate; current
 score is 95/100, with that gate and the two external-evidence gates still unearned.

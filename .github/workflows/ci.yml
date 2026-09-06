@@ -123,7 +123,7 @@ jobs:
           cd "$(mktemp -d)"
           gnomon capabilities
           gnomon --version
-          printf 'timestamp,value\n2026-01-01,1\n2026-01-02,2\n' | gnomon inspect - --time timestamp --target value --frequency D
+          printf 'timestamp,value\n2026-01-01,1\n2026-01-02,2\n' | gnomon inspect - --time-column timestamp --target-column value --frequency D
       - uses: actions/upload-artifact@v4
         with:
           name: python-distributions

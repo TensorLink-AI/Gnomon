@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
 import sys
+from tempfile import TemporaryDirectory
 from typing import Sequence
 
 from .contracts import GnomonError
@@ -73,11 +75,21 @@ def build_parser() -> argparse.ArgumentParser:
 
 _INPUT_KEYS = ("input", "time_column", "target_column", "series_column", "frequency",
                "as_of", "recorded_as_of", "store_path", "unit", "repair", "regrid")
+MAX_STDIN_BYTES = 8 * 1024 * 1024
 
 
 def _inspect(session, args):
-    return session.call("gnomon_inspect", {key: getattr(args, key) for key in _INPUT_KEYS
-                                         if getattr(args, key) is not None}, compact=False)
+    arguments = {key: getattr(args, key) for key in _INPUT_KEYS if getattr(args, key) is not None}
+    if args.input != "-":
+        return session.call("gnomon_inspect", arguments, compact=False)
+    raw = sys.stdin.buffer.read(MAX_STDIN_BYTES + 1)
+    if len(raw) > MAX_STDIN_BYTES:
+        raise GnomonError("INPUT_TOO_LARGE", "Piped CSV input exceeds the 8 MiB limit; use a file.")
+    # Inspection freezes the rows before this temporary source is removed.
+    with TemporaryDirectory(prefix="gnomon-stdin-") as directory:
+        source = Path(directory) / "stdin.csv"
+        source.write_bytes(raw)
+        return session.call("gnomon_inspect", {**arguments, "input": str(source)}, compact=False)
 
 
 def _execute(session, args):

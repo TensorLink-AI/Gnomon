@@ -42,6 +42,7 @@ they do not silently reinterpret old arguments.
 CLI inspect/describe now use the execution contract: explicit column mappings,
 repairs off by default, one selected panel series, exact observed statistic.
 Full CLI results contain provenance but their temporary references expire at exit.
+Piped CSV input remains supported with `-` (bounded to 8 MiB).
 MCP/Python sessions can reuse references and page large retained results.
 
 ## Existing data and recovery
