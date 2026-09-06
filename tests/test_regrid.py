@@ -58,18 +58,17 @@ def _month_ends(path: Path, months: int) -> Path:
 def test_business_daily_regrid_forecasts_end_to_end(tmp_path: Path) -> None:
     """Mon-Fri data lands on the continuous daily grid with every fill
     disclosed — the workflow the evaluator had to hand-build upstream."""
-    from gnomon.toolspec import runner_for
 
     source = _business_days(tmp_path / "yields.csv", weeks=30)
-    payload = runner_for("gnomon_forecast")({
+    payload = forecast_source({
         "input": str(source), "horizon": 7, "regrid": "business_daily",
         "output_dir": str(tmp_path / "out"),
     })
-    assert payload["status"] == "complete"
-    warnings = payload["results"][0]["warnings"]
-    assert any("regrid_business_daily" in warning for warning in warnings), warnings
+    assert payload["status"] == "ok"
+    repairs = payload["input"]["repairs"]
+    assert any(r["code"] == "regrid_business_daily" for r in repairs)
     # 30 weeks of weekdays gain 29 weekends of fills.
-    assert any("x58" in warning for warning in warnings), warnings
+    assert next(r["count"] for r in repairs if r["code"] == "regrid_business_daily") == 58
 
 
 def test_business_daily_scale_beyond_the_repair_ceiling(tmp_path: Path) -> None:
@@ -77,42 +76,39 @@ def test_business_daily_scale_beyond_the_repair_ceiling(tmp_path: Path) -> None:
     exceed MAX_ASSUMPTIVE_FRACTION, so repair=aggressive could never do
     this — regrid must."""
     from gnomon.repair import MAX_ASSUMPTIVE_FRACTION
-    from gnomon.toolspec import runner_for
 
     source = _business_days(tmp_path / "long.csv", weeks=520)  # ten years
-    payload = runner_for("gnomon_inspect")({
+    payload = inspect_source({
         "input": str(source), "regrid": "business_daily",
     })
-    assert payload["status"] == "valid"
+    assert payload["status"] == "ok"
     fills = 519 * 2
     grid = 520 * 5 + fills
     assert fills / grid > MAX_ASSUMPTIVE_FRACTION - 0.02  # near/above the cap
 
 
 def test_month_start_regrid_accepts_month_end_stamps(tmp_path: Path) -> None:
-    from gnomon.toolspec import runner_for
 
     source = _month_ends(tmp_path / "cpi.csv", months=48)
-    payload = runner_for("gnomon_forecast")({
+    payload = forecast_source({
         "input": str(source), "horizon": 6, "regrid": "month_start",
         "output_dir": str(tmp_path / "out"),
     })
-    assert payload["status"] == "complete"
-    first = payload["results"][0]["forecast"][0]["timestamp"]
+    assert payload["status"] == "ok"
+    first = payload["result"]["timestamps"][0]
     assert first.endswith("-01T00:00:00"), first
-    warnings = payload["results"][0]["warnings"]
-    assert any("regrid_month_start" in warning for warning in warnings), warnings
+    repairs = payload["input"]["repairs"]
+    assert any(r["code"] == "regrid_month_start" for r in repairs)
 
 
 def test_month_start_collision_refuses_loudly(tmp_path: Path) -> None:
-    from gnomon.toolspec import runner_for
 
     source = _write_csv(tmp_path / "dup.csv", [
         ("2020-01-15", 1.0), ("2020-01-31", 2.0), ("2020-02-29", 3.0),
         ("2020-03-31", 4.0),
     ])
     with pytest.raises(GnomonError) as raised:
-        runner_for("gnomon_forecast")({
+        forecast_source({
             "input": str(source), "horizon": 2, "regrid": "month_start",
             "output_dir": str(tmp_path / "out"),
         })
@@ -126,10 +122,9 @@ def test_sparse_data_declared_business_daily_refuses(tmp_path: Path) -> None:
     rows = [((date(2020, 1, 6) + timedelta(weeks=index)).isoformat(),
              float(index)) for index in range(30)]
     source = _write_csv(tmp_path / "weekly.csv", rows)
-    from gnomon.toolspec import runner_for
 
     with pytest.raises(GnomonError) as raised:
-        runner_for("gnomon_inspect")({
+        inspect_source({
             "input": str(source), "regrid": "business_daily",
         })
     assert raised.value.code == "REGRID_IMPLAUSIBLE"
@@ -138,10 +133,9 @@ def test_sparse_data_declared_business_daily_refuses(tmp_path: Path) -> None:
 
 def test_regrid_conflicting_frequency_refuses(tmp_path: Path) -> None:
     source = _business_days(tmp_path / "b.csv", weeks=8)
-    from gnomon.toolspec import runner_for
 
     with pytest.raises(GnomonError) as raised:
-        runner_for("gnomon_inspect")({
+        inspect_source({
             "input": str(source), "regrid": "business_daily",
             "frequency": "W",
         })
@@ -150,7 +144,7 @@ def test_regrid_conflicting_frequency_refuses(tmp_path: Path) -> None:
 
 
 def test_regrid_on_store_inputs_refuses(tmp_path: Path) -> None:
-    from gnomon.pipeline import load_stage
+    from gnomon.datasets import load_stage
 
     with pytest.raises(GnomonError) as raised:
         load_stage("store:whatever", time_column="t", target_column="v",
@@ -177,33 +171,12 @@ def test_regrid_fills_are_not_charged_against_the_repair_ceiling(
             count += 1
         day += timedelta(days=1)
     source = _write_csv(tmp_path / "mixed.csv", rows)
-    from gnomon.toolspec import runner_for
 
-    payload = runner_for("gnomon_forecast")({
+    payload = forecast_source({
         "input": str(source), "horizon": 5, "regrid": "business_daily",
         "repair": "aggressive", "output_dir": str(tmp_path / "out"),
     })
-    assert payload["status"] == "complete"
-
-
-def test_macros_accept_regrid(tmp_path: Path) -> None:
-    """The evaluator's business-day pain hit investigate too; every
-    data-reading macro takes the declaration."""
-    from gnomon.toolspec import runner_for
-
-    source = _business_days(tmp_path / "macro.csv", weeks=30)
-    investigation = runner_for("gnomon_investigate_change")({
-        "input": str(source), "time_column": "timestamp",
-        "target_column": "value", "regrid": "business_daily",
-        "output_dir": str(tmp_path / "inv"),
-    })
-    assert investigation["status"] in ("complete", "ok")
-    anomalies = runner_for("gnomon_detect_anomalies")({
-        "input": str(source), "time_column": "timestamp",
-        "target_column": "value", "regrid": "business_daily",
-        "output_dir": str(tmp_path / "anom"),
-    })
-    assert anomalies["status"] in ("complete", "ok")
+    assert payload["status"] == "ok"
 
 
 def test_outage_longer_than_any_market_closure_refuses(tmp_path: Path) -> None:
@@ -221,10 +194,9 @@ def test_outage_longer_than_any_market_closure_refuses(tmp_path: Path) -> None:
             count += 1
         day += timedelta(days=1)
     source = _write_csv(tmp_path / "outage.csv", rows)
-    from gnomon.toolspec import runner_for
 
     with pytest.raises(GnomonError) as raised:
-        runner_for("gnomon_inspect")({
+        inspect_source({
             "input": str(source), "regrid": "business_daily",
         })
     assert raised.value.code == "REGRID_IMPLAUSIBLE"
@@ -246,12 +218,11 @@ def test_long_holiday_cluster_is_still_plausible(tmp_path: Path) -> None:
             count += 1
         day += timedelta(days=1)
     source = _write_csv(tmp_path / "ashares.csv", rows)
-    from gnomon.toolspec import runner_for
 
-    payload = runner_for("gnomon_inspect")({
+    payload = inspect_source({
         "input": str(source), "regrid": "business_daily",
     })
-    assert payload["status"] == "valid"
+    assert payload["status"] == "ok"
 
 
 def test_business_daily_survives_a_dst_transition(tmp_path: Path) -> None:
@@ -272,18 +243,24 @@ def test_business_daily_survives_a_dst_transition(tmp_path: Path) -> None:
             count += 1
         day += timedelta(days=1)
     source = _write_csv(tmp_path / "dst.csv", rows)
-    from gnomon.toolspec import runner_for
 
-    payload = runner_for("gnomon_inspect")({
+    payload = inspect_source({
         "input": str(source), "regrid": "business_daily",
     })
-    assert payload["status"] == "valid"
+    assert payload["status"] == "ok"
 
 
-def test_capabilities_advertise_the_regrid_and_fit_window() -> None:
-    from gnomon.runtime import capabilities
+def inspect_source(arguments):
+    from gnomon import GnomonSession
+    with GnomonSession.from_config() as session:
+        return session.call("gnomon_inspect", arguments, compact=False)
 
-    features = capabilities()["features"]
-    assert features["structural_regrid"] is True
-    assert features["long_series_fit_window"] is True
-    assert features["tsfm_install"] is True
+
+def forecast_source(arguments):
+    from gnomon import GnomonSession
+    data = {key: value for key, value in arguments.items() if key not in {"horizon", "output_dir"}}
+    with GnomonSession.from_config() as session:
+        inspected = session.call("gnomon_inspect", data, compact=False)
+        forecast = session.call("gnomon_forecast", {"data_ref": inspected["data_ref"],
+            "provider": "last_value", "horizon": arguments["horizon"]}, compact=False)
+        return {**forecast, "input": inspected}

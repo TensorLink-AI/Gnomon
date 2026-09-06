@@ -41,11 +41,10 @@ to `gnomon.mcp_server.serve(session=session)`.
 
 The execution profile exposes capabilities, inspect, describe, forecast, evaluate, read and optional
 ledger operations. With a ledger it also exposes cutoff-bound study routing.
-This is the ordinary default. Advanced legacy workflows require an explicit
-core/evidence/decision/data/full profile; retired describe/mega profiles fail at startup.
+This is the only execution profile. Legacy profiles and workflows are removed.
 Forecast calls supply registered provider names and typed data or frozen references;
 service URLs, import entrypoints, credentials and ledger paths are startup configuration.
-Inspection can read caller-selected file/store paths, as on the legacy data surface.
+Inspection reads caller-selected file/store paths.
 Built-in last_value, seasonal_naive and historical_mean references are registered
 by `from_config`, including when no file is supplied.
 
@@ -91,11 +90,10 @@ start/end timestamp window (or all frozen observations if omitted). It reports t
 actual window and count. Units are caller-declared labels, never inferred conversions;
 no cross-unit aggregation is performed. Timestamp windows must match the data's
 timezone awareness. Unknown window, unit or aggregation arguments are rejected.
-The legacy structured-question compiler rejects custom windows/validation settings
-it cannot execute; a forecast default horizon cannot turn an observed sub-question
-into a prediction. Supported arithmetic is neither calibration nor action permission.
+Supported arithmetic is neither calibration nor action permission. Other analyses
+belong in the user's chosen software, not invented describe operations.
 
-Inspection uses the same loader as evaluated forecasts. `as_of` bounds source
+Inspection and backtesting use one loader. `as_of` bounds source
 availability before any file repair; `recorded_as_of` additionally bounds locally
 recorded vintages for `store:<dataset>` inputs. Plain files cannot reconstruct
 recording-time history and reject that option. Repair is off unless explicitly
@@ -261,7 +259,7 @@ Operator TOML may set `[result_limits]`: `max_response_bytes=8192`,
 `max_result_bytes=16777216`, `max_retained_bytes=67108864`, `max_results=16`.
 The response limit applies to compact UTF-8 structured payloads; MCP repeats them
 in text/structured forms, adding bounded serialization overhead. Discovery schemas,
-legacy profiles and explicit full output are not governed by this payload budget.
+and explicit full output are not governed by this payload budget.
 The limits bound encoded retention, not trusted provider execution or parser peak
 memory. Reading a pointer can parse the retained result up to its individual limit.
 LRU eviction and session closure remove temporary receipts, not ledger history.
@@ -356,7 +354,6 @@ authentication header, supply a configured `gnomon.http_transport.JSONTransport`
 HTTPS is required outside loopback unless explicitly opting into unauthenticated
 HTTP. Credentials may not be sent over non-loopback HTTP. Redirects are refused,
 payload sizes/socket timeouts are bounded, and forecast POSTs are not retried.
-The legacy generic HTTP backend now uses this same transport.
 
 The client was implemented against the service source at revision
 `f5d3f53b17e56d8c7ed0cbae61e043b8667f236a`, including the deployed Chutes routes.

@@ -5,7 +5,7 @@ import sys
 import pytest
 
 from gnomon import AdapterCapabilities, ForecastRequest, ForecastResult, InferenceEngine
-from gnomon.forecast_adapter import ForecastAdapterError, LegacyModelAdapter
+from gnomon.forecast_adapter import ForecastAdapterError
 
 
 def echo(request):
@@ -166,16 +166,6 @@ def test_snapshot_identity_and_cutoffs_partition_cache():
     assert len({a.fingerprint, b.fingerprint, c.fingerprint}) == 3
 
 
-def test_legacy_bridge_cannot_claim_then_drop_covariates():
-    class Legacy:
-        name = "legacy"
-        supports_past_covariates = True
-        def predict(self, *args):
-            pytest.fail("must not drop covariates")
-    with pytest.raises(ForecastAdapterError, match="cannot forward"):
-        LegacyModelAdapter(Legacy()).forecast(ForecastRequest((1, 2), 1, past_covariates=((3,), (4,))))
-
-
 def test_direct_inference_does_not_load_optional_context_or_evaluation_stack():
     result = subprocess.run([sys.executable, "-c", """
 import sys
@@ -185,8 +175,9 @@ engine.register('user', lambda r: ForecastResult((2,)))
 engine.forecast('user', ForecastRequest((1, 2), 1))
 for module in ('runtime', 'evaluation', 'publication', 'context_intelligence', 'llm_dossier'):
     assert 'gnomon.' + module not in sys.modules, module
-from gnomon import forecast, TemporalStore
-assert callable(forecast)
+from gnomon import TemporalStore
+import gnomon
+assert not hasattr(gnomon, 'forecast')
 assert TemporalStore.__name__ == 'TemporalStore'
 """], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr

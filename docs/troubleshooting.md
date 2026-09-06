@@ -1,102 +1,17 @@
-# Troubleshooting and error reference
+# Troubleshooting
 
-## Start with inspection
+- Unknown provider: check `gnomon capabilities --providers-config providers.toml`.
+  Install/load the model in your own software and register its callable or factory.
+- Unsupported request: check provider capabilities, exact shapes, frequency and
+  cutoff fields. Unsupported covariates/quantiles are errors, not silently dropped.
+- Invalid input: select columns explicitly and inspect repairs before forecasting.
+  Mixed naive/aware timestamps and ambiguous revisions need explicit semantics.
+- Expired reference: inspect again, or retrieve durable evidence from the ledger.
+- Result retention limit: execution may already have happened. Check the receipt
+  before retrying paid work.
+- Retired command/profile: follow [migration](../COMPATIBILITY.md); it is not an
+  alias for the new contract.
+- No routing winner: retain the baseline fallback; missing comparable evidence is
+  not proof that a model is worse.
 
-Run the same mapping and frequency options through `inspect` first:
-
-```bash
-gnomon inspect data.csv --time timestamp --target value --frequency D
-```
-
-Successful responses go to standard output. Structured errors go to standard
-error and return exit code `2`.
-
-## Common structured errors
-
-| Code | Cause | Resolution |
-| --- | --- | --- |
-| `INPUT_NOT_FOUND` | The path is absent or is not a file. | Check the working directory and path. |
-| `UNSUPPORTED_INPUT` | Extension is not a supported format. | Use `.csv`, `.tsv`, `.json`, `.jsonl` (optionally `.gz`), `.parquet`/`.pq`, or `.xlsx`. |
-| `MISSING_OPTIONAL_DEPENDENCY` | Parquet or Excel input without its extra. | Install the extra named in `details.install`. |
-| `MISSING_COLUMNS` | A mapped column is not present. | Inspect the reported available columns and correct the option. |
-| `EMPTY_DATASET` | The file has headers but no observations. | Supply at least one data row. |
-| `INVALID_ENCODING` | The file is not valid UTF-8 (strict mode only). | Re-export as UTF-8, or use the default repair level (Windows-1252 assumed, disclosed). |
-| `INVALID_TIMESTAMP` | A timestamp has no accepted reading. | Normalize the indicated row, or `--repair aggressive` to drop unparseable rows (capped). |
-| `INVALID_TARGET` | A target value has no numeric reading. | Fix the indicated row, or `--repair aggressive` to drop such rows (capped). |
-| `AMBIGUOUS_DATE_ORDER` | Slash dates could be day-first or month-first and no row proves the order. | Use ISO dates, or `--repair aggressive` to assume month-first (disclosed). |
-| `MIXED_TIMEZONES` | Aware and naive timestamps are mixed. | Normalize the column, or `--repair aggressive` to assume naive rows are UTC (disclosed). |
-| `AMBIGUOUS_FREQUENCY` | Too few timestamps or no supported interval dominates. | Supply more regular data or an explicit supported frequency. |
-| `UNSUPPORTED_FREQUENCY` | The requested code is unsupported. | Use a code from `gnomon capabilities` (e.g. `min`, `h`, `D`, `W`, `MS`). |
-| `DUPLICATE_TIMESTAMPS` | Conflicting values share a timestamp (identical rows collapse under the default repair). | Resolve upstream, ingest as revisions, or `--repair aggressive` (last row wins, disclosed). |
-| `IRREGULAR_TIME_GRID` | A period is missing or spacing is irregular. | Default safe repair already aligns bounded jitter; fill/reindex upstream, or use `--repair aggressive` only for small interior gaps (capped and disclosed). |
-| `TIMESTAMP_ALIGNMENT_CONFLICT` | Bounded alignment would merge or reorder observations. | Aggregate or resample the conflicting points upstream; Gnomon will not choose a value. |
-| `FREQUENCY_MISMATCH` | Requested and inferred frequencies disagree. | Correct the frequency or input timestamps. |
-| `INVALID_HORIZON` | Horizon is less than one. | Use a positive integer. |
-| `EXCESSIVE_REPAIR` | Repair would invent or choose too many values (~30%, or >5% dropped rows). | Fix the export at the source; forecasting a mostly invented series is refused. Bounded timestamp alignment is disclosed separately. |
-| `INVALID_REPAIR_LEVEL` | Unknown `--repair` value. | Use `off`, `safe`, or `aggressive`. |
-
-The JSON error's `details` field often includes the row, value, expected next
-timestamp, available columns, or detected frequencies, and every error carries
-machine-readable `repair_options` naming the next actions.
-
-## The run is `unsupported`
-
-Unsupported is not a command failure. Read `results[*].warnings`. The usual
-cause is insufficient history for separated selection, calibration, and test
-windows. The warning reports the minimum observation count for that series.
-
-Possible remedies:
-
-- provide more history;
-- shorten the horizon;
-- choose a frequency that truthfully matches the decision; or
-- accept that a defensible evaluated forecast is not available.
-
-Do not duplicate observations or invent finer-grained values merely to pass the
-history requirement.
-
-### The primary forecast is flat despite an obvious trend
-
-Check `selected_model` and `results[*].model_assisted`. On a short history,
-Gnomon may retain `last_value` as the governed primary because the candidate
-comparison lacks separated calibration and test folds. That is an evidence
-boundary, not a claim that the observed series is constant. When a persistent
-drift wins enough non-overlapping short-horizon checks, Gnomon publishes it in
-the labelled `model_assisted` lane with `automation_eligible: false`.
-
-Read `model_assisted.validation.maximum_locally_evaluated_lead` and
-`extrapolated_tail_steps` together. The former is the longest lead tested at
-each local origin; the latter is an explicitly weaker extrapolation, not a
-backtest result. If no assisted lane appears, the candidate did not pass the
-available evidence and plausibility checks. Supply more history or shorten the
-decision horizon rather than treating the flat primary as hidden confidence.
-
-## Parquet still reports unavailable
-
-`uv tool` installations are isolated. Installing `pyarrow` into an unrelated
-environment will not add it to the Gnomon tool. Install with the extra in the
-same environment, then check `gnomon capabilities` and confirm that
-`inputs.parquet` is `true`.
-
-## Artifact write failures
-
-Check that the `--output` parent is writable and that a file does not occupy the
-requested directory path. Incomplete work uses a hidden temporary directory and
-is never exposed as a completed forecast directory.
-
-
-## Filing a good bug report
-
-Use the repository's issue templates (bug report / beta feedback). Three
-things make an Gnomon report reproducible, and agents can gather all of
-them automatically:
-
-1. the exact command or tool call;
-2. the full JSON error envelope (it already contains `code`, `details`,
-   and `repair_options`) or, for a wrong result, the run's `artifact.json`;
-3. the output of `gnomon capabilities`, which pins the runtime version and
-   installed extras.
-
-If the input can't be shared, include the `data_quality` section from
-`gnomon inspect` — it describes the file's shape and problems without the
-values.
+[Provider and evaluation limits](production/INFERENCE.md).

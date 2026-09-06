@@ -16,7 +16,7 @@ import stat
 import time
 import uuid
 
-from gnomon.agent_eval import _decode_record
+from benchmarks.workflow.agent_metrics import _decode_record
 from .bounded_agent import ToolReply
 from .process import run_process
 

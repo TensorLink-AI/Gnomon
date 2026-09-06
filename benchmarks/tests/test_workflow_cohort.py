@@ -117,7 +117,7 @@ def test_frozen_cohort_rebuilds_exactly_and_source_cutoffs_are_independent_of_an
         changed = deepcopy(asdict(case))
         changed["oracle"]["numbers"]["h1"] += 1000
         assert case_payload(Case.from_dict(changed)) == case_payload(case)
-    assert not any(case.stages or case.oracle.context_behavior or case.oracle.engine_required_facts
+    assert not any(case.stages or case.oracle.engine_required_facts
                    or case.oracle.requires_publish_parity or case.oracle.requires_quote_match for case in cases)
 
 

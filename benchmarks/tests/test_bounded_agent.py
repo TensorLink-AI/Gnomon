@@ -212,13 +212,12 @@ def test_backend_factory_failure_still_closes_the_created_client():
     assert closed == [True] and result.status == "error" and result.cost_usd is None
 
 
-@pytest.mark.parametrize("profile", ["execution", "full"])
-def test_same_loop_discovers_and_calls_real_mcp_profiles(monkeypatch, tmp_path, profile):
+def test_same_loop_discovers_and_calls_real_mcp_session(monkeypatch, tmp_path):
     from benchmarks.common.mcp import StdioMcpSession
     class Mcp(Backend):
         def __init__(self):
             super().__init__()
-            self.session = StdioMcpSession(tmp_path, profile=profile, call_timeout=5)
+            self.session = StdioMcpSession(tmp_path, profile="execution", call_timeout=5)
             self.session.initialize()
         def tools(self):
             return self.session.list_tools()
@@ -231,8 +230,9 @@ def test_same_loop_discovers_and_calls_real_mcp_profiles(monkeypatch, tmp_path, 
     result, requests, _ = execute(monkeypatch, [response(call("gnomon_capabilities")), response(submit())], Mcp())
     assert result.status == "answered" and result.metadata["trace"][0]["status"] == "returned"
     forecast = next(tool for tool in result.metadata["tool_inventory"] if tool["name"] == "gnomon_forecast")
-    # Preserve different contracts; do not alias the legacy evaluated forecast.
-    assert ("input" in forecast["inputSchema"].get("properties", {})) == (profile == "full")
+    variants = forecast["inputSchema"]["oneOf"]
+    assert all("provider" in variant["required"] for variant in variants)
+    assert all("input" not in variant["properties"] for variant in variants)
     assert "oracle" not in requests[0]["messages"][1]["content"]
 
 

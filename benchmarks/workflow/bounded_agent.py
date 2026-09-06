@@ -12,7 +12,7 @@ import json
 import math
 import time
 
-from gnomon.agent_eval import _decode_record
+from benchmarks.workflow.agent_metrics import _decode_record
 from .matched import fingerprint
 from .schema import Observation
 from .accounting import reported_cost_limit

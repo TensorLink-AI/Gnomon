@@ -36,27 +36,10 @@ def test_initialize_list_and_call() -> None:
     by_id = {response["id"]: response for response in responses}
     assert by_id[1]["result"]["serverInfo"]["name"] == "gnomon"
     tool_names = [tool["name"] for tool in by_id[2]["result"]["tools"]]
-    # The frozen v0.2 tools come first, unchanged; registry-generated macro
-    # and artifact tools follow.
-    assert tool_names[:6] == [
-            "gnomon_capabilities", "gnomon_inspect", "gnomon_describe",
-            "gnomon_forecast", "gnomon_validate_covariates",
-        "gnomon_submit_actuals",
-    ]
-    assert set(tool_names[6:]) == {
-        "gnomon_investigate_change", "gnomon_detect_anomalies", "gnomon_decide", "gnomon_monitor",
-        "gnomon_get_artifact", "gnomon_explain_run",
-        "gnomon_status", "gnomon_resolve_outcome", "gnomon_route",
-        # The bitemporal store, previously reachable only from the CLI.
-        "gnomon_ingest", "gnomon_list_datasets",
-        # Admission dry-run: rejection as a repair loop, not a post-mortem.
-        "gnomon_preflight_context",
-        # Detached sandbox install with polling — TSFMs were disclosed by
-        # capabilities but installable only from a shell.
-            "gnomon_install_tsfm",
-            # Number-free reranking over an existing sealed publication.
-            "gnomon_select_scenario",
-        }
+    assert set(tool_names) == {
+        "gnomon_capabilities", "gnomon_inspect", "gnomon_describe",
+        "gnomon_forecast", "gnomon_evaluate", "gnomon_read",
+    }
     call = by_id[3]["result"]
     assert call["isError"] is False
     payload = json.loads(call["content"][0]["text"])
@@ -83,28 +66,10 @@ def test_unknown_method_returns_jsonrpc_error() -> None:
     assert responses[0]["error"]["code"] == -32601
 
 
-def test_known_tool_hidden_by_profile_names_reachable_profiles(monkeypatch) -> None:
-    monkeypatch.setenv("GNOMON_MCP_PROFILE", "evidence")
-    result = _handle({
-        "method": "tools/call",
-        "params": {"name": "gnomon_monitor", "arguments": {}},
-    })
-    assert result is not None and result["isError"] is True
-    error = result["structuredContent"]["error"]
-    assert error["code"] == "TOOL_NOT_IN_PROFILE"
-    assert error["details"] == {
-        "tool": "gnomon_monitor",
-        "profiles": ["core", "data", "decision", "full"],
-        "active_profile": "evidence",
-    }
-    assert error["repair_options"][0]["action"] == "select_profile"
-
-
-def test_truly_unknown_tool_remains_unknown(monkeypatch) -> None:
-    monkeypatch.setenv("GNOMON_MCP_PROFILE", "core")
-    result = _handle({
-        "method": "tools/call",
-        "params": {"name": "gnomon_time_machine", "arguments": {}},
-    })
-    assert result is not None
-    assert result["structuredContent"]["error"]["code"] == "UNKNOWN_TOOL"
+def test_unknown_and_retired_tools_are_structured_errors():
+    from gnomon import GnomonSession
+    with GnomonSession.from_config() as session:
+        for name in ("gnomon_install_tsfm", "gnomon_monitor", "not_a_tool"):
+            result = _handle({"method": "tools/call", "params": {"name": name}}, session=session)
+            assert result["isError"]
+            assert result["structuredContent"]["error"]["code"] == "UNKNOWN_TOOL"

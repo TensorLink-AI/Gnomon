@@ -169,14 +169,3 @@ def test_every_input_format_repairs_non_finite_under_aggressive(tmp_path, suffix
     assert any(action.code in ("unparseable_row_dropped",
                               "missing_value_dropped")
                for action in log.actions())
-
-
-def test_error_score_returns_none_for_nonfinite_predictions():
-    # TSFM adapter outputs never pass the loader: a NaN prediction must
-    # make the fold unscoreable (None), not a NaN score.
-    from gnomon.evaluation import error_score
-
-    assert error_score([100.0, 101.0], [float("nan"), 101.0]) is None
-    assert error_score([100.0, 101.0], [float("inf"), 101.0]) is None
-    assert error_score([float("nan"), 101.0], [100.0, 101.0]) is None
-    assert error_score([100.0, 101.0], [99.0, 102.0]) is not None

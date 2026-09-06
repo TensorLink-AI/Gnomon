@@ -3,8 +3,8 @@ import math
 
 import pytest
 
-from gnomon.agent_eval import compare_rows, load_runs, summarize_rows, _two_sided_binomial
-from gnomon.cli import main
+from benchmarks.workflow.agent_metrics import compare_rows, load_runs, summarize_rows, _two_sided_binomial
+from benchmarks.workflow.agent_metrics import compare_runs
 
 
 def row(task_id, success=False, **fields):
@@ -150,7 +150,7 @@ def test_incompatible_grading_basis_is_refused():
 
 
 def test_jsonl_row_limit_is_enforced_and_null_before_deep_metadata_cannot_bypass_depth(tmp_path, monkeypatch):
-    from gnomon import agent_eval
+    from benchmarks.workflow import agent_metrics as agent_eval
     path = tmp_path / "records.jsonl"
     path.write_text(json.dumps(row("a")) + "\n" + json.dumps(row("b")) + "\n")
     monkeypatch.setattr(agent_eval, "MAX_RUNS", 1)
@@ -161,11 +161,10 @@ def test_jsonl_row_limit_is_enforced_and_null_before_deep_metadata_cannot_bypass
         load_runs(str(path))
 
 
-def test_real_cli_outputs_all_task_metrics(tmp_path, capsys):
+def test_file_comparison_outputs_all_task_metrics(tmp_path):
     baseline, treatment = tmp_path / "baseline.jsonl", tmp_path / "treatment.jsonl"
     baseline.write_text(json.dumps(row("a", True, cost_usd=1)) + "\n")
     treatment.write_text(json.dumps(row("a", row_abstained="cap:tokens", cost_usd=8)) + "\n")
-    assert main(["eval", "compare", "--baseline", str(baseline), "--treatment", str(treatment)]) == 0
-    comparison = json.loads(capsys.readouterr().out)
+    comparison = compare_runs(str(baseline), str(treatment))
     assert comparison["absolute_success_uplift"] == -1
     assert comparison["treatment"]["resources"]["cost_usd"]["total"] == 8

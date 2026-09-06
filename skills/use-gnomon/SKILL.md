@@ -5,8 +5,7 @@ description: Use Gnomon to inspect time series, forecast with chosen models, com
 
 # Use Gnomon
 
-Follow the current session's schemas. Default execution and explicit legacy
-profiles have different contracts; never mix their arguments. Discover capabilities
+Follow the current session's schemas. Discover capabilities
 when provider names, supported inputs or storage are unknown. Respect the user's
 chosen model. Ephemeris is one optional connector, not the default forecasting path.
 
@@ -73,18 +72,7 @@ fold; nonexistent times are rejected. Dates are not midnight instants. Timestamp
 ties establish neither causality nor source availability. Calculations do not
 verify the supplied facts.
 
-## Advanced legacy sessions
-
-Read [advanced guidance](references/legacy-workflows.md) only when an explicit
-core/evidence/decision/data/full profile exposes those tools. Do not send legacy
-`candidates`, `threshold`, `context_events` or publication arguments to the default
-forecast tool. Trend, anomaly and decision requests need an appropriate exposed
-tool, not invented extensions to exact describe.
-
-## Feedback
-
-Record feedback only with explicit agreement. `gnomon-feedback create` keeps private
-notes local. Preview the shareable receipt with `gnomon-feedback preview` before
-seeking separate export/submission approval. `--consent` records that approval;
-it does not replace it. Never record raw series, prompts, credentials or full
-arguments, or reward call volume.
+For other analyses, use the user's chosen software or host tools. Do not invent
+extra Gnomon operations, reinterpret an exact statistic, or imply that a recorded
+decision was executed. Legacy context/publication profiles and model installers
+are retired; local models are loaded and owned by the operator's provider callable.

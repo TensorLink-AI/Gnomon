@@ -9,7 +9,6 @@ from gnomon import GnomonSession
 from gnomon.cli import main
 from gnomon.contracts import GnomonError
 from gnomon.data_refs import DataReferences
-from gnomon.datasets import load_stage
 from gnomon.forecast_adapter import ForecastAdapterError
 from gnomon.ids import FixedClock
 from gnomon.temporal_store import TemporalObservation, TemporalStore
@@ -23,11 +22,6 @@ def csv(tmp_path, values=(1, 2, 100), name="data.csv"):
     path = tmp_path / name
     path.write_text("timestamp,value\n" + "".join(f"{at(i+1).isoformat()},{v}\n" for i, v in enumerate(values)))
     return path
-
-
-def test_loader_is_shared_with_legacy_pipeline():
-    from gnomon.pipeline import load_stage as legacy_load
-    assert legacy_load is load_stage
 
 
 def test_reference_does_not_reopen_mutated_source(tmp_path):

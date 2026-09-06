@@ -71,6 +71,6 @@ their prior scoring and corpus hashes.
 
 Use the [operator-filled experiment templates](../experiment/README.md), declare
 the cohort and execution order before results, and preserve the failed rows.
-The lean/full arms have additional service compute, and legacy full performs model
-selection absent from direct lean inference. This is a declared product-profile
+The lean/full arms have additional service compute, and full enables optional
+ledger and temporal tools. Both use explicit providers. This is a declared feature
 comparison, not an isolated causal test of tool count.

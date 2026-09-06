@@ -1,94 +1,33 @@
-# Offline and air-gapped installation
+# Offline installation
 
-Gnomon's built-in runtime has no required third-party Python dependencies and
-does not need an account, API key, model service, or network connection while
-running. A controlled deployment can therefore install one reviewed wheel and
-serve the CLI, Python API, and MCP interface entirely inside the boundary.
-
-This is an offline-operability claim, not a regulatory certification. Your
-organization still owns artifact retention, access control, change approval,
-host hardening, and any controls required by a named standard.
-
-## Prepare the transfer on a connected machine
-
-Download the wheel for the exact approved version and record its checksum:
+Build a reviewed wheel on a connected machine:
 
 ```bash
-python -m pip download --only-binary=:all: --no-deps \
-  gnomon-forecast==0.8.0rc3 --dest wheelhouse
-sha256sum wheelhouse/gnomon_forecast-0.8.0rc3-py3-none-any.whl \
-  > wheelhouse/SHA256SUMS
+python -m pip install build
+python -m build --wheel --outdir wheelhouse
+sha256sum wheelhouse/*.whl
 ```
 
-Transfer the wheel and `SHA256SUMS` through your normal reviewed media or
-artifact-promotion process. Do not transfer a mutable `main` checkout when the
-deployment requires a reproducible release.
-
-## Verify and install inside the boundary
-
-Python 3.11 or newer must already be available. No package index is needed:
+Record its commit and SHA-256, transfer it through your normal approval process,
+verify the hash, then install in the target Python 3.11–3.13 environment:
 
 ```bash
-cd wheelhouse
-sha256sum --check SHA256SUMS
-python3 -m venv /opt/gnomon/venv
-/opt/gnomon/venv/bin/python -m pip install \
-  --no-index --no-deps ./gnomon_forecast-0.8.0rc3-py3-none-any.whl
-/opt/gnomon/venv/bin/gnomon --version
-/opt/gnomon/venv/bin/gnomon capabilities
-/opt/gnomon/venv/bin/gnomon self-check leakage --cases 8 --seed 7
+python -m pip install --no-index --no-deps wheelhouse/gnomon_forecast-0.9.0.dev0-py3-none-any.whl
+gnomon capabilities
+gnomon self-check leakage --cases 8
 ```
 
-Use the absolute executable path in an MCP client so the host does not invoke
-an online package resolver:
+This is an unreleased development build, not an approved production release.
+For repeatable deployment, retain the exact wheel and checksum.
 
-```json
-{
-  "mcpServers": {
-    "gnomon": {
-      "command": "/opt/gnomon/venv/bin/gnomon",
-      "args": ["mcp", "serve"]
-    }
-  }
-}
-```
+The core and three reference baselines need no network service. Your chosen
+model software, weights and optional Parquet/Excel readers must be provisioned
+separately with their full dependency set. Gnomon does not download or manage them.
 
-`gnomon capabilities` reports the installed runtime version, active MCP
-profile, optional backends actually present, and the public product-claim
-boundary. Retain that output with deployment approval evidence.
+Configure the agent host with the installed executable's absolute path and
+`mcp serve`. Add explicit operator TOML for local providers and a ledger.
+Do not use an online resolver in an offline host.
 
-This uses the execution default. Add `--providers-config` with an explicit local
-TOML to register installed user callables/factories and an optional ledger.
-Use `--profile core` only for clients that require the legacy evaluated schema.
-
-## Optional components
-
-The built-in classical runtime is the supported zero-dependency offline path.
-Parquet, Excel, StatsForecast, and TSFM adapters are optional:
-
-- Build a reviewed wheelhouse containing every transitive dependency before
-  transferring an optional Python extra. Install it with `--no-index` and
-  `--find-links`, never by relaxing the boundary temporarily.
-- TSFM sandboxes and model weights normally download on installation or first
-  inference. They are not available in an air-gapped deployment unless their
-  pinned packages and weights have been separately mirrored and validated.
-- `uvx --from gnomon-forecast ...`, the Bash URL installer, and direct GitHub
-  installs are connected-install conveniences. Do not use them offline.
-
-Missing optional components are reported by `gnomon capabilities`; they do
-not make the built-in runtime fail or silently substitute a remote service.
-
-## Upgrade and rollback
-
-Treat each wheel as a separate release. Verify its checksum, install it into a
-new virtual environment, run the structural self-check and a representative
-local-data forecast, then atomically update the MCP command or executable
-symlink. Keep the previous environment until the new artifact and tier
-semantics have passed local acceptance checks.
-
-The repository's `scripts/offline_wheel_smoke.py` performs this clean-wheel
-journey. Pull-request and release CI run it inside a network-disabled container
-so offline operability is a build gate rather than a documentation promise.
-CI also builds the [user-provider example](../examples/provider_plugin/README.md)
-as a separate wheel and runs its installed Python/CLI/MCP and backup/restore
-walkthrough with `--example-wheel`. The example is not a core runtime dependency.
+`scripts/offline_wheel_smoke.py` validates an installed wheel outside the checkout.
+CI also runs it in a network-disabled container with a separately built
+[user-provider example](../examples/provider_plugin/README.md).

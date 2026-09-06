@@ -21,7 +21,7 @@ from .forecast_adapter import AdapterCapabilities, ForecastAdapterError, Forecas
 from .inference import InferenceEngine
 from .ledger import TemporalLedger
 from .ephemeris import EphemerisProvider
-from .product_contract import __version__, product_claims, LEGACY_MCP_PROFILES
+from .product_contract import __version__, product_claims
 
 _NUMBER_ARRAY = {"type": "array", "items": {"type": "number"}}
 _STRING_ARRAY = {"type": "array", "items": {"type": "string"}}
@@ -224,7 +224,7 @@ class GnomonSession:
         return {"schema_version": "1", "status": "ok", "runtime_version": __version__,
                 "product_contract": product_claims(),
                 "interfaces": {"python": True, "cli": True, "mcp": True},
-                "mcp_profile": {"active": "execution", "available": ["execution", *LEGACY_MCP_PROFILES],
+                "mcp_profile": {"active": "execution", "available": ["execution"],
                                 "visible_tools": [tool["name"] for tool in self.tools()]},
                 "providers": self.engine.capabilities(),
                 "ledger": {"enabled": self.ledger is not None, "outcome_writes": self.allow_outcome_writes},

@@ -30,8 +30,8 @@
       "guidance": "Choose any available tool. Submit only your own supported answer; preserve earlier commitments."
     },
     "full": {
-      "description": "The same ordinary software plus the retained legacy full Gnomon profile, not an alias of direct inference.",
-      "tool_contract": "Python plus persistent legacy full-profile MCP in a separate container; schemas and model-selection behavior differ from lean.",
+      "description": "The same ordinary software and execution session, with optional ledger and temporal tools enabled.",
+      "tool_contract": "Python plus persistent execution MCP in a separate container; same provider contract as lean, with ledger and temporal discovery enabled at startup.",
       "guidance": "Choose any available tool. Submit only your own supported answer; preserve earlier commitments."
     }
   }

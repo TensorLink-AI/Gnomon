@@ -51,132 +51,14 @@ def test_smoke_corpus_covers_all_case_kinds_and_hides_oracle():
     assert all("oracle" not in case_payload(case) for case in cases)
 
 
-def test_context_interface_corpus_scores_the_engine_contract_separately():
-    path = Path(__file__).parents[1] / "workflow" / "cases" / \
-        "context-interface.jsonl"
-    cases = load_cases(path)
-    assert len(cases) == 4
-    observations = []
-    for case in cases:
-        expected = case.oracle.context_behavior
-        mode = (expected.get("publication_mode")
-                or (expected.get("allowed_publication_modes") or [None])[0])
-        status = (expected.get("status")
-                  or (expected.get("allowed_statuses") or [None])[0])
-        recommended = (expected.get("recommended_scenario_id")
-                       or (expected.get("recommended_scenario_by_mode") or {}).get(
-                           mode))
-        observations.append(_observation(case, metadata={
-            "leakage_measurement": "cutoff_projection_v1",
-            "cutoff_projection_sha256": "a" * 64,
-            "surface_required_calls": 1,
-            "context_arguments": [expected["required_argument"],
-                                  "publication_mode"],
-            "context_behavior": {
-                "publication_mode": mode, "status": status,
-                "recommended_scenario_id": recommended,
-                "primary_forecast_unchanged": expected[
-                    "primary_forecast_unchanged"],
-                "automation_eligible": expected["automation_eligible"],
-                "scenario_count": expected["minimum_scenario_count"],
-            },
-        }))
-    result = score_run(cases, observations, "fixture")
-    assert result["context_contract"] == {
-        "required_cases": 4, "passed_cases": 4, "pass_rate": 1.0,
-        "agent_disposition_preservation_rate": None,
-        "agent_recovery_preservation_rate": None,
-    }
-    assert all(row["context_contract"]["pass"] for row in result["rows"])
-
-
 def test_installed_agent_skill_is_compact_without_hiding_safety_contracts():
     path = Path(__file__).parents[2] / "skills" / "use-gnomon" / "SKILL.md"
     text = path.read_text(encoding="utf-8")
     assert len(text.encode("utf-8")) <= 5_000
-    assert "references/legacy-workflows.md" in text
+    assert not (path.parent / "references" / "legacy-workflows.md").exists()
     for required in ("provider", "statistic", "data_ref", "source-availability", "local-recording"):
         assert required in text
-    legacy = (path.parent / "references" / "legacy-workflows.md").read_text(encoding="utf-8")
-    for required in (
-        "immutable primary", "context_events", "qualitative_context_events",
-        "context_rejections", "strict", "best_effort", "scenario",
-        "automation", "artifact_id", "data_ref",
-    ):
-        assert required in legacy
-
-
-def test_context_recovery_preservation_is_measured_separately():
-    case = load_cases(Path(__file__).parents[1] / "workflow" / "cases" /
-                      "context-automation-pressure.jsonl")[2]
-    observation = _observation(case, claims=[
-        "conflicting_authoritative_claims; correct_rejected_context"],
-        metadata={
-            "leakage_measurement": "cutoff_projection_v1",
-            "cutoff_projection_sha256": "a" * 64,
-            "context_arguments": ["context_rejections"],
-            "context_behavior": {
-                "publication_mode": "strict", "status": "rejected",
-                "primary_forecast_unchanged": True,
-                "automation_eligible": False,
-                "automation_requested": False,
-                "automation_reason_code": "not_requested",
-                "scenario_count": 1,
-                "dispositions": [{
-                    "context_id": "conflict", "disposition": "rejected",
-                    "reason_code": "conflicting_authoritative_claims",
-                    "recovery_code": "correct_rejected_context",
-                }],
-            },
-        })
-    row = score_run([case], [observation], "fixture")["rows"][0]
-    assert row["context_contract"]["agent_disposition_preservation"] is True
-    assert row["context_contract"]["agent_recovery_preservation"] is True
-
-
-def test_adversarial_context_corpus_has_explicit_safe_dispositions():
-    path = Path(__file__).parents[1] / "workflow" / "cases" / \
-        "context-adversarial.jsonl"
-    cases = load_cases(path)
-    assert len(cases) == 4
-    assert all("rejected" in case.oracle.context_behavior["allowed_statuses"]
-               for case in cases)
-    assert all(case.oracle.context_behavior["primary_forecast_unchanged"]
-               is True for case in cases)
-    assert all(case.oracle.context_behavior["automation_eligible"] is False
-               for case in cases)
-    assert all("context-interface" in case.tags for case in cases)
-
-
-def test_mixed_context_corpus_requires_multiple_disposition_channels():
-    path = Path(__file__).parents[1] / "workflow" / "cases" / \
-        "context-mixed.jsonl"
-    cases = load_cases(path)
-    assert len(cases) == 3
-    assert all(len(case.oracle.context_behavior["required_arguments"]) == 2
-               for case in cases)
-    assert {case.oracle.context_behavior["allowed_statuses"][0]
-            for case in cases} == {
-        "used", "partially_used", "partially_represented"}
-
-
-def test_context_generalization_corpus_is_frozen_and_diverse():
-    path = Path(__file__).parents[1] / "workflow" / "cases" / \
-        "context-generalization.jsonl"
-    cases = load_cases(path)
-    assert len(cases) == 8
-    assert len({case.domain for case in cases}) >= 6
-    assert {tag for case in cases for tag in case.tags} >= {
-        "literal-floor", "literal-ceiling", "zero-state",
-        "conflicting-context", "strict-mode", "scenario-mode",
-        "multi-series", "qualitative", "irrelevant",
-    }
-
-
-
-
-
-
+    assert "permission" in text and "ledger" in text
 
 
 def test_perfect_matched_run_passes_release_gate():
@@ -373,10 +255,6 @@ def test_corpus_readiness_cannot_confuse_smoke_with_publication():
     assert publication["checks"]["minimum_cases"] is False
 
 
-
-
-
-
 def test_generated_publication_corpus_is_balanced_ready_and_sealed():
     cases = generate_publication_cases()
     assert len(cases) == 100
@@ -512,10 +390,6 @@ def test_tracking_capability_is_reported_separately_from_accuracy():
     assert result["rows"][0]["correctness"] == 1.0
     assert result["capability_coverage"]["required_tracking"] == 0.0
     assert result["final_workflow_resolution_rate"] == 0.0
-
-
-
-
 
 
 def test_engine_contract_and_agent_preservation_are_separate():

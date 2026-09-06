@@ -16,7 +16,7 @@ import shlex
 import sys
 import statistics
 
-from gnomon.agent_eval import _decode_record, compare_rows
+from benchmarks.workflow.agent_metrics import _decode_record, compare_rows
 from .provenance import corpus_sha256
 from .accounting import reported_cost_limit
 

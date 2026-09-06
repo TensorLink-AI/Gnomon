@@ -1,44 +1,23 @@
 # Installation
 
-Use Python 3.11–3.13. The distribution is `gnomon-forecast`; the Python import and
-CLI command are `gnomon`. The core requires no third-party packages.
+Python 3.11–3.13. The core has no required third-party dependencies.
 
-## Release candidate
+This checkout is the unreleased 0.9 development line. Install it from source:
 
 ```bash
-python -m pip install --pre 'gnomon-forecast==0.8.0rc3'
+python -m pip install .
 gnomon --version
+gnomon infer --provider last_value --request '{"history":[1,2,3],"horizon":2}'
 ```
 
-A prerelease is explicitly selected: plain `pip install gnomon-forecast` may
-continue to choose the previous stable release. Before this candidate is published,
-install the reviewed checkout instead.
+For development use `python -m pip install -e '.[dev]'`.
+Optional file readers are `.[parquet]` and `.[excel]`.
+Install your model software in your own environment and register a callable or
+factory; Gnomon has no per-library installer or built-in TSFM catalogue.
 
-## Checkout
+The published `gnomon-forecast==0.8.0rc3` is the previous candidate and still
+contains the retired legacy workflows. It is not the code documented here.
+No 0.9 package has been published by this cleanup.
 
-```bash
-python -m pip install -e '.[dev]'
-# Or install the checkout into the installer's isolated environment:
-bash install.sh --local
-```
-
-Without `--local`, the Bash installer fetches the configured repository/ref,
-not your working changes. It creates an isolated environment and retains older
-installs. Use `bash install.sh --help` for paths and version pinning.
-Do not execute a mutable remote installer without reviewing/trusting its source.
-
-## Isolated command
-
-```bash
-uv tool install 'gnomon-forecast==0.8.0rc3'
-# From the checkout:
-uv tool install .
-```
-
-Optional readers use the `parquet` or `excel` extras. Your own forecasting library
-belongs in the environment containing your callable/factory. Gnomon's legacy
-`statsforecast` extra is separate from the generic provider boundary.
-
-For restricted environments, use [offline wheels](offline-installation.md).
-Continue with [first run](getting-started.md), [MCP](quickstart-mcp.md), or the
-[installable provider walkthrough](../examples/provider_plugin/README.md).
+See [offline installation](offline-installation.md) and
+[provider configuration](production/INFERENCE.md).

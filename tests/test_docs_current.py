@@ -21,19 +21,21 @@ def test_names_and_public_provider_match_code():
     assert not any(word in README for word in ("personification", "Greek god", "deity"))
 
 
-def test_package_version_has_one_source_and_install_docs_pin_it():
+def test_package_version_has_one_source_and_unreleased_install_is_explicit():
     from gnomon import __version__
     from gnomon.ids import GNOMON_VERSION
     from gnomon.mcp_server import SERVER_INFO
     from gnomon.product_contract import __version__ as contract_version
-    from gnomon.runtime import capabilities
+    from gnomon import GnomonSession
     assert contract_version == GNOMON_VERSION == SERVER_INFO["version"] == __version__
-    assert capabilities()["runtime_version"] == __version__
+    with GnomonSession() as session:
+        assert session.capabilities()["runtime_version"] == __version__
     project = (REPO / "pyproject.toml").read_text()
     assert 'dynamic = ["version"]' in project
     assert 'path = "src/gnomon/product_contract.py"' in project
-    for path in (REPO / "README.md", DOCS / "installation.md", DOCS / "getting-started.md"):
-        assert f"gnomon-forecast=={__version__}" in path.read_text()
+    for path in (REPO / "README.md", DOCS / "installation.md"):
+        assert "pip install ." in path.read_text()
+    assert "development checkout](installation.md)" in (DOCS / "getting-started.md").read_text()
 
 
 def test_default_tool_count_and_claims_are_honest(monkeypatch):
@@ -60,10 +62,11 @@ def test_obsolete_designs_and_benchmark_entrypoints_are_absent():
     assert not list(DOCS.glob("v0.*.md"))
 
 
-def test_retained_tsfm_weights_remain_pinned_to_full_commit_revisions():
-    from gnomon.tsfm import TSFM_REVISIONS
-    assert TSFM_REVISIONS
-    assert all(re.fullmatch(r"[0-9a-f]{40}", revision) for revision in TSFM_REVISIONS.values())
+def test_retired_runtime_is_physically_absent():
+    import importlib.util
+    for name in ("runtime", "toolspec", "registry", "tsfm", "context", "publication",
+                 "tracking", "pipeline", "macros", "statsforecast_adapter", "agent_eval"):
+        assert importlib.util.find_spec(f"gnomon.{name}") is None, name
 
 
 def test_cli_reference_documents_every_command():

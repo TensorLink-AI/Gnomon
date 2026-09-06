@@ -14,7 +14,8 @@ They do not test a live TSFM.
 ## Current agent comparison
 
 The [matched workflow](../benchmarks/workflow/MATCHED.md) compares ordinary agent
-software, the lean Gnomon session and explicit full/legacy tools. It pins common
+software, the lean Gnomon session and that same session with optional ledger/time
+tools enabled. It pins common
 model/settings, code, corpus and software identities. Agent choices and answers
 remain unmodified. Failures, missing answers and costs stay in the denominators.
 Episodes commit answers before later observations arrive.

@@ -14,11 +14,13 @@ when you need one.
 Python 3.11–3.13. No required third-party dependencies.
 
 ```bash
-python -m pip install --pre 'gnomon-forecast==0.8.0rc3'
+python -m pip install .
 gnomon infer --provider last_value --request '{"history":[10,12,11],"horizon":2}'
 ```
 
-That runs an offline baseline. To use your own model:
+This checkout is the unreleased 0.9 development line; the published 0.8 candidate
+still includes the retired legacy runtime. That command runs an offline baseline.
+To use your own model:
 
 ```python
 from gnomon import ForecastRequest, ForecastResult, InferenceEngine
@@ -36,7 +38,7 @@ print(execution.result.point)  # (11.0, 11.0)
 StatsForecast, NeuralForecast, Darts or your own code: wrap the call and return a
 `ForecastResult`. Use `register_factory` for a fresh model on each evaluation fold.
 Gnomon checks inputs and outputs; you choose and install the model software.
-See [provider integration](https://github.com/TensorLink-AI/Gnomon/blob/v0.8.0rc3/docs/production/INFERENCE.md).
+See [provider integration](docs/production/INFERENCE.md).
 
 ## Connect an agent
 
@@ -50,15 +52,15 @@ Run `gnomon mcp serve` in your agent host. The agent gets 6 tools by default:
 - `gnomon_read`: retrieve saved results without running the model again.
 
 Python, CLI and MCP share the same interface.
-Start with the [MCP quickstart](https://github.com/TensorLink-AI/Gnomon/blob/v0.8.0rc3/docs/quickstart-mcp.md)
-and [agent skill](https://github.com/TensorLink-AI/Gnomon/blob/v0.8.0rc3/skills/use-gnomon/SKILL.md).
+Start with the [MCP quickstart](docs/quickstart-mcp.md)
+and [agent skill](skills/use-gnomon/SKILL.md).
 
 ## Optional connectors
 
 Ephemeris is one connector for remote time-series inference. Set its deployment
 URL and credentials in operator configuration; they are never agent tool arguments.
 Local models work without it.
-See [connector setup](https://github.com/TensorLink-AI/Gnomon/blob/v0.8.0rc3/docs/production/INFERENCE.md#ephemeris).
+See [connector setup](docs/production/INFERENCE.md#ephemeris).
 
 ## Keep the history straight
 
@@ -71,12 +73,12 @@ order. They calculate supplied facts; they do not claim to improve an LLM's reas
 
 ## Status and guides
 
-This is a release candidate. Live-service verification and a real-agent comparison
+This is an unreleased development version. Live-service verification and a real-agent comparison
 remain pending. A forecast is not permission to act; model quantiles are not proof
-of calibrated uncertainty. See [validation and limits](https://github.com/TensorLink-AI/Gnomon/blob/v0.8.0rc3/docs/agent-evaluation.md).
+of calibrated uncertainty. See [validation and limits](docs/agent-evaluation.md).
 
-- [First run](https://github.com/TensorLink-AI/Gnomon/blob/v0.8.0rc3/docs/getting-started.md) · [Python API](https://github.com/TensorLink-AI/Gnomon/blob/v0.8.0rc3/docs/python-api.md) · [CLI](https://github.com/TensorLink-AI/Gnomon/blob/v0.8.0rc3/docs/cli-reference.md)
-- [Ledger](https://github.com/TensorLink-AI/Gnomon/blob/v0.8.0rc3/docs/production/OPERATIONS.md) · [Time calculations](https://github.com/TensorLink-AI/Gnomon/blob/v0.8.0rc3/docs/production/TEMPORAL.md) · [All docs](https://github.com/TensorLink-AI/Gnomon/blob/v0.8.0rc3/docs/README.md)
-- [Upgrading and legacy profiles](https://github.com/TensorLink-AI/Gnomon/blob/v0.8.0rc3/COMPATIBILITY.md) · [Changelog](https://github.com/TensorLink-AI/Gnomon/blob/v0.8.0rc3/CHANGELOG.md)
+- [First run](docs/getting-started.md) · [Python API](docs/python-api.md) · [CLI](docs/cli-reference.md)
+- [Ledger](docs/production/OPERATIONS.md) · [Time calculations](docs/production/TEMPORAL.md) · [All docs](docs/README.md)
+- [Migration from legacy workflows](COMPATIBILITY.md) · [Changelog](CHANGELOG.md)
 
 *A gnomon is the part of a sundial that casts the shadow.*

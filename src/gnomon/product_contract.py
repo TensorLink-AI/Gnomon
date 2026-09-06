@@ -8,10 +8,9 @@ versions, default profiles, or evidence claims on different surfaces.
 
 from __future__ import annotations
 
-__version__ = "0.8.0rc3"
+__version__ = "0.9.0.dev0"
 
 DEFAULT_MCP_PROFILE = "execution"
-LEGACY_MCP_PROFILES = ("core", "data", "decision", "evidence", "full")
 CURRENT_EVIDENCE_RELEASE = None  # No completed evaluation of this release's default surface.
 
 
@@ -19,8 +18,8 @@ def resolve_mcp_profile(profile: str | None = None) -> str:
     """Resolve startup selection without importing any tool implementations."""
     import os
     selected = profile if profile is not None else os.environ.get("GNOMON_MCP_PROFILE", DEFAULT_MCP_PROFILE)
-    if selected not in (DEFAULT_MCP_PROFILE, *LEGACY_MCP_PROFILES):
-        raise ValueError(f"Unknown or retired MCP profile {selected!r}; choose execution or an explicit legacy profile: {', '.join(LEGACY_MCP_PROFILES)}")
+    if selected != DEFAULT_MCP_PROFILE:
+        raise ValueError(f"Retired or unknown MCP profile {selected!r}; use execution and explicit session options.")
     return selected
 
 

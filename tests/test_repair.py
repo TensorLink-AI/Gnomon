@@ -1,18 +1,15 @@
 """The disclosed-repair layer: messy files parse under safe/aggressive
-repair, every fix is logged, assumptive fixes downgrade support, and
+repair, every fix is logged, assumptive fixes are disclosed, and
 excessive messiness is an honest refusal rather than an invented series."""
 
 from __future__ import annotations
 
-import csv
-import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
 
 from gnomon.contracts import GnomonError
-from gnomon.ids import FixedClock
 from gnomon.repair import (
     AmbiguousDateOrder,
     parse_number,
@@ -20,9 +17,7 @@ from gnomon.repair import (
     scan_day_first,
     scan_numeric_evidence,
 )
-from gnomon.runtime import forecast, inspect_dataset
 
-CLOCK = FixedClock(datetime(2026, 7, 1, tzinfo=timezone.utc))
 REPO = Path(__file__).resolve().parent.parent
 
 
@@ -95,361 +90,94 @@ def test_ambiguous_dates_need_evidence() -> None:
     assert caught.value.code == "AMBIGUOUS_DATE_ORDER"
 
 
-# --- integration helpers ----------------------------------------------------
 
-def write_rows(path: Path, rows: list[tuple[str, str]]) -> None:
-    with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.writer(handle)
-        writer.writerow(["timestamp", "value"])
-        writer.writerows(rows)
-
-
-def daily_rows(count: int, start: datetime = datetime(2026, 1, 1)) -> list[tuple[str, str]]:
-    return [
-        ((start + timedelta(days=index)).date().isoformat(), str(100 + index))
-        for index in range(count)
-    ]
+def inspect_rows(tmp_path, rows, **options):
+    from gnomon import GnomonSession
+    path = tmp_path / "data.csv"
+    path.write_text("timestamp,value\n" + "\n".join(f"{stamp},{value}" for stamp, value in rows))
+    with GnomonSession() as session:
+        inspected = session.data.inspect(str(path), **options)
+        request = session.data.request(inspected["data_ref"], horizon=1)
+        return inspected, request
 
 
-def run(path: Path, tmp_path: Path, **kwargs):
-    return forecast(
-        str(path), time_column="timestamp", target_column="value", horizon=3,
-        output=str(tmp_path / "out"), clock=CLOCK, **kwargs,
-    )
+def daily_rows(count=30):
+    return [((datetime(2026, 1, 1) + timedelta(days=i)).isoformat(), str(100+i)) for i in range(count)]
 
 
-def repair_evidence(artifact) -> dict | None:
-    for item in artifact.evidence:
-        if item.kind == "data_repair":
-            return item.payload
-    return None
-
-
-# --- integration: safe (the default) ----------------------------------------
-
-def test_safe_normalises_text_and_discloses(tmp_path: Path) -> None:
-    rows = daily_rows(30)
+def test_repairs_are_explicit_off_by_default_and_disclosed(tmp_path):
+    rows = daily_rows()
     rows[5] = (rows[5][0], "$105")
-    rows.append(("", ""))                # trailing blank line
-    rows.append(rows[10])                # byte-identical duplicate
-    source = tmp_path / "messy.csv"
-    write_rows(source, rows)
-    artifact, _ = run(source, tmp_path)
-    payload = repair_evidence(artifact)
-    assert payload is not None and payload["level"] == "safe"
-    codes = {action["code"] for action in payload["actions"]}
-    assert {"numeric_format_normalised", "blank_row_skipped", "duplicate_row_collapsed"} <= codes
-    # Text normalisation is not an assumption: support is untouched.
-    assert artifact.results[0].support == "supported"
-    assert not any("repaired_data" in warning for warning in artifact.results[0].warnings)
-
-
-def test_clean_file_has_no_repair_trace(tmp_path: Path) -> None:
-    source = tmp_path / "clean.csv"
-    write_rows(source, daily_rows(30))
-    artifact, _ = run(source, tmp_path)
-    assert repair_evidence(artifact) is None
-
-
-def test_safe_never_fills_gaps(tmp_path: Path) -> None:
-    rows = daily_rows(30)
-    rows[12] = (rows[12][0], "N/A")      # interior sentinel leaves a hole
-    source = tmp_path / "gap.csv"
-    write_rows(source, rows)
     with pytest.raises(GnomonError) as caught:
-        run(source, tmp_path)
-    assert caught.value.code == "IRREGULAR_TIME_GRID"
-
-
-def test_off_preserves_strict_errors(tmp_path: Path) -> None:
-    rows = daily_rows(30)
-    rows[5] = (rows[5][0], "$105")
-    source = tmp_path / "messy.csv"
-    write_rows(source, rows)
-    with pytest.raises(GnomonError) as caught:
-        run(source, tmp_path, repair="off")
+        inspect_rows(tmp_path, rows)
     assert caught.value.code == "INVALID_TARGET"
+    inspected, request = inspect_rows(tmp_path, rows + [rows[10]], repair="safe")
+    assert request.history == tuple(float(100+i) for i in range(30))
+    codes = {action["code"] for action in inspected["repairs"]}
+    assert {"numeric_format_normalised", "duplicate_row_collapsed"} <= codes
+    assert not any(action["assumptive"] for action in inspected["repairs"])
 
 
-def test_safe_ambiguous_date_order_is_an_error(tmp_path: Path) -> None:
-    rows = [(f"0{1 + index}/03/2026", str(100 + index)) for index in range(9)]
-    source = tmp_path / "ambiguous.csv"
-    write_rows(source, rows)
+def test_only_aggressive_repairs_fill_gaps_and_mark_assumptions(tmp_path):
+    rows = daily_rows()
+    del rows[12]
     with pytest.raises(GnomonError) as caught:
-        inspect_dataset(str(source), time_column="timestamp", target_column="value")
-    assert caught.value.code == "AMBIGUOUS_DATE_ORDER"
+        inspect_rows(tmp_path, rows, repair="safe", frequency="D")
+    assert caught.value.code == "IRREGULAR_TIME_GRID"
+    inspected, request = inspect_rows(tmp_path, rows, repair="aggressive", frequency="D")
+    assert request.history[12] == 112 and len(request.history) == 30
+    filled = next(action for action in inspected["repairs"] if action["code"] == "gap_filled")
+    assert filled["count"] == 1 and filled["assumptive"]
 
 
-# --- integration: aggressive -------------------------------------------------
-
-def test_aggressive_fills_gaps_and_downgrades_support(tmp_path: Path) -> None:
-    rows = daily_rows(30)
-    del rows[12]                          # a real missing day
-    source = tmp_path / "gap.csv"
-    write_rows(source, rows)
-    artifact, _ = run(source, tmp_path, repair="aggressive")
-    payload = repair_evidence(artifact)
-    filled = [action for action in payload["actions"] if action["code"] == "gap_filled"]
-    assert filled and filled[0]["count"] == 1 and filled[0]["assumptive"] is True
-    result = artifact.results[0]
-    assert any("gap_filled" in warning for warning in result.warnings)
-    assert result.support == "weakly_supported"
-    assert result.support_assessment["status"] == "conditionally_supported"
-    # The interpolated value is the midpoint of its neighbours (111, 113).
-    values = [item.value for item in _series_values(source, tmp_path)]
-    assert values[12] == pytest.approx(112.0)
-
-
-def _series_values(source: Path, tmp_path: Path):
-    from gnomon.pipeline import load_stage
-    loaded = load_stage(
-        str(source), time_column="timestamp", target_column="value",
-        series_column=None, frequency=None, repair="aggressive",
-    )
-    return loaded.groups["__default__"]
-
-
-def test_aggressive_resolves_conflicts_last_wins(tmp_path: Path) -> None:
-    rows = daily_rows(30)
-    rows.insert(6, (rows[5][0], "999"))  # earlier conflicting value; later row wins
-    rows[5], rows[6] = rows[6], rows[5]
-    source = tmp_path / "conflict.csv"
-    write_rows(source, rows)
+def test_aggressive_duplicate_resolution_preserves_file_order(tmp_path):
+    rows = daily_rows()
+    rows.insert(5, (rows[5][0], "999"))
     with pytest.raises(GnomonError):
-        run(source, tmp_path)             # safe refuses to choose
-    artifact, _ = run(source, tmp_path, repair="aggressive")
-    values = [item.value for item in _series_values(source, tmp_path)]
-    assert values[5] == 105.0             # the last row in file order
-    assert any(a["code"] == "conflicting_duplicate_resolved"
-               for a in repair_evidence(artifact)["actions"])
+        inspect_rows(tmp_path, rows, repair="safe")
+    inspected, request = inspect_rows(tmp_path, rows, repair="aggressive")
+    assert request.history[5] == 105
+    assert any(action["code"] == "conflicting_duplicate_resolved" for action in inspected["repairs"])
 
 
-def test_safe_aligns_bounded_jitter_without_charging_invention_ceiling(
-        tmp_path: Path) -> None:
+def test_safe_jitter_alignment_preserves_values_and_discloses_tolerance(tmp_path):
     start = datetime(2026, 1, 1, 0, 7)
-    rows = []
-    for index in range(36):
-        stamp = start + timedelta(minutes=20 * index)
-        stamp += timedelta(seconds=(-1, 1, 0)[index % 3])
-        rows.append((stamp.isoformat(), str(100 + index)))
-    source = tmp_path / "jitter.csv"
-    write_rows(source, rows)
-    with pytest.raises(GnomonError) as strict:
-        run(source, tmp_path, repair="off")
-    assert strict.value.code == "AMBIGUOUS_FREQUENCY"
-
-    artifact, _ = run(source, tmp_path)
-    actions = repair_evidence(artifact)["actions"]
-    aligned = [a for a in actions if a["code"] == "timestamp_jitter_aligned"]
-    assert aligned and aligned[0]["count"] == 24  # > the old 30% ceiling
-    assert aligned[0]["metrics"] == {
-        "cadence": "20min",
-        "grid_phase": "2026-01-01T00:07:00",
-        "maximum_displacement_seconds": 1.0,
-        "tolerance_seconds": 12.0,
-    }
-    loaded = _series_values(source, tmp_path)
-    assert [item.value for item in loaded] == [float(100 + index)
-                                               for index in range(36)]
-    assert [item.timestamp for item in loaded] == [
-        start + timedelta(minutes=20 * index) for index in range(36)]
-    assert any("timestamp_jitter_aligned" in warning
-               for warning in artifact.results[0].warnings)
+    rows = [((start + timedelta(minutes=20*i, seconds=(-1, 1, 0)[i%3])).isoformat(), str(i)) for i in range(36)]
+    with pytest.raises(GnomonError):
+        inspect_rows(tmp_path, rows)
+    inspected, request = inspect_rows(tmp_path, rows, repair="safe")
+    aligned = next(action for action in inspected["repairs"] if action["code"] == "timestamp_jitter_aligned")
+    assert aligned["count"] == 24 and aligned["metrics"]["tolerance_seconds"] == 12
+    assert request.history == tuple(range(36))
+    assert request.timestamps == tuple((start + timedelta(minutes=20*i)).isoformat() for i in range(36))
 
 
-def test_bounded_alignment_refuses_collision_in_safe_and_aggressive(
-        tmp_path: Path) -> None:
+@pytest.mark.parametrize("level", ["safe", "aggressive"])
+def test_alignment_cannot_collapse_distinct_readings(tmp_path, level):
     start = datetime(2026, 1, 1, 0, 7)
-    rows = [
-        ((start + timedelta(minutes=20 * index)).isoformat(), str(index))
-        for index in range(30)
-    ]
+    rows = [((start + timedelta(minutes=20*i)).isoformat(), str(i)) for i in range(30)]
     rows.insert(11, ((start + timedelta(minutes=200, seconds=5)).isoformat(), "999"))
-    source = tmp_path / "collision.csv"
-    write_rows(source, rows)
-    for level in ("safe", "aggressive"):
-        with pytest.raises(GnomonError) as caught:
-            run(source, tmp_path, repair=level, frequency="20min")
-        assert caught.value.code == "TIMESTAMP_ALIGNMENT_CONFLICT"
-        assert caught.value.to_dict()["error"]["repair_options"]
-
-
-def test_jitter_outside_cadence_bound_remains_typed_refusal(
-        tmp_path: Path) -> None:
-    start = datetime(2026, 1, 1, 0, 7)
-    rows = []
-    for index in range(30):
-        stamp = start + timedelta(minutes=20 * index)
-        if index == 12:
-            stamp += timedelta(seconds=12, microseconds=1000)
-        rows.append((stamp.isoformat(), str(index)))
-    source = tmp_path / "outside.csv"
-    write_rows(source, rows)
-    for level in ("safe", "aggressive"):
-        with pytest.raises(GnomonError) as caught:
-            run(source, tmp_path, repair=level)
-        assert caught.value.code == "AMBIGUOUS_FREQUENCY"
-
-
-def test_reordered_jitter_is_disclosed_separately(tmp_path: Path) -> None:
-    start = datetime(2026, 1, 1, 0, 7)
-    rows = [
-        ((start + timedelta(minutes=20 * index,
-                            seconds=(-1, 1, 0)[index % 3])).isoformat(),
-         str(index))
-        for index in range(30)
-    ]
-    rows[8], rows[9] = rows[9], rows[8]
-    source = tmp_path / "reordered-jitter.csv"
-    write_rows(source, rows)
-    artifact, _ = run(source, tmp_path)
-    actions = repair_evidence(artifact)["actions"]
-    assert {action["code"] for action in actions} >= {
-        "timestamp_jitter_aligned", "timestamps_reordered"}
-
-
-def test_aggressive_coerces_mixed_timezones(tmp_path: Path) -> None:
-    rows = daily_rows(30)
-    rows[3] = (rows[3][0] + "T00:00:00+00:00", rows[3][1])
-    source = tmp_path / "mixed_tz.csv"
-    write_rows(source, rows)
     with pytest.raises(GnomonError) as caught:
-        run(source, tmp_path)
-    assert caught.value.code == "MIXED_TIMEZONES"
-    artifact, _ = run(source, tmp_path, repair="aggressive")
-    assert any(a["code"] == "timezone_coerced" for a in repair_evidence(artifact)["actions"])
+        inspect_rows(tmp_path, rows, repair=level, frequency="20min")
+    assert caught.value.code == "TIMESTAMP_ALIGNMENT_CONFLICT"
 
 
-def test_excessive_repair_is_refused(tmp_path: Path) -> None:
-    rows = daily_rows(40)
-    # Remove every fourth row: a third of the series would be invented.
-    rows = [row for index, row in enumerate(rows) if index % 4 != 1]
-    source = tmp_path / "swiss_cheese.csv"
-    write_rows(source, rows)
+def test_excessive_invention_is_refused(tmp_path):
+    rows = [row for i, row in enumerate(daily_rows(40)) if i % 4 != 1]
     with pytest.raises(GnomonError) as caught:
-        run(source, tmp_path, repair="aggressive")
+        inspect_rows(tmp_path, rows, repair="aggressive")
     assert caught.value.code == "EXCESSIVE_REPAIR"
-    assert caught.value.to_dict()["error"]["repair_options"]
 
 
-def test_invalid_repair_level_is_typed(tmp_path: Path) -> None:
-    source = tmp_path / "clean.csv"
-    write_rows(source, daily_rows(10))
-    with pytest.raises(GnomonError) as caught:
-        run(source, tmp_path, repair="yolo")
-    assert caught.value.code == "INVALID_REPAIR_LEVEL"
-
-
-def test_bounded_jitter_is_visible_through_inspect_mcp_forecast_and_cli(
-        tmp_path: Path, capsys) -> None:
-    from gnomon.cli import main
-    from gnomon.toolspec import runner_for
-
-    start = datetime(2026, 1, 1, 0, 7)
-    rows = [
-        ((start + timedelta(minutes=20 * index,
-                            seconds=(-1, 1, 0)[index % 3])).isoformat(),
-         str(100 + index))
-        for index in range(36)
-    ]
-    source = tmp_path / "surface-jitter.csv"
-    write_rows(source, rows)
-
-    inspected = inspect_dataset(
-        str(source), time_column="timestamp", target_column="value")
-    assert inspected["data_quality"]["status"] == "repaired_safe"
-    assert inspected["data_quality"]["repairs"][0]["metrics"][
-        "tolerance_seconds"] == 12.0
-
-    mcp_inspected = runner_for("gnomon_inspect")({
-        "input": str(source), "time_column": "timestamp",
-        "target_column": "value",
-    })
-    assert mcp_inspected["data_quality"]["status"] == "repaired_safe"
-
-    mcp_forecast = runner_for("gnomon_forecast")({
-        "input": str(source), "time_column": "timestamp",
-        "target_column": "value", "horizon": 3,
-        "output_dir": str(tmp_path / "mcp-output"),
-    })
-    assert mcp_forecast["status"] == "complete"
-    assert any("timestamp_jitter_aligned" in warning
-               for warning in mcp_forecast["results"][0]["warnings"])
-
-    assert main([
-        "inspect", str(source), "--time", "timestamp", "--target", "value",
-    ]) == 0
-    cli_inspected = json.loads(capsys.readouterr().out)
-    assert cli_inspected["data_quality"]["status"] == "repaired_safe"
-
-    assert main([
-        "forecast", str(source), "--time", "timestamp", "--target", "value",
-        "--horizon", "3", "--output", str(tmp_path / "cli-output"),
-    ]) == 0
-    cli_forecast = json.loads(capsys.readouterr().out)
-    assert any("timestamp_jitter_aligned" in warning
-               for warning in cli_forecast["results"][0]["warnings"])
-
-
-# --- inspect: the guided last mile ------------------------------------------
-
-def test_inspect_reports_data_quality_ladder(tmp_path: Path) -> None:
-    clean = tmp_path / "clean.csv"
-    write_rows(clean, daily_rows(20))
-    assert inspect_dataset(str(clean), time_column="timestamp", target_column="value")[
-        "data_quality"]["status"] == "clean"
-
-    safe = tmp_path / "safe.csv"
-    rows = daily_rows(20)
-    rows[3] = (rows[3][0], "$103")
-    write_rows(safe, rows)
-    payload = inspect_dataset(str(safe), time_column="timestamp", target_column="value")
-    assert payload["data_quality"]["status"] == "repaired_safe"
-    assert "--repair aggressive" not in payload["suggested_next"]
-
-    aggressive = tmp_path / "aggressive.csv"
-    rows = daily_rows(20)
-    del rows[8]
-    write_rows(aggressive, rows)
-    payload = inspect_dataset(str(aggressive), time_column="timestamp", target_column="value")
-    assert payload["data_quality"]["status"] == "repaired_aggressive"
-    assert "--repair aggressive" in payload["suggested_next"]
-    assert any(a["code"] == "gap_filled" for a in payload["data_quality"]["repairs"])
-
-
-# --- the bundled filthy example ----------------------------------------------
-
-def test_filthy_example_end_to_end(tmp_path: Path) -> None:
-    source = REPO / "examples" / "filthy_requests.csv"
-    payload = inspect_dataset(str(source), time_column="timestamp", target_column="requests")
-    assert payload["data_quality"]["status"] == "repaired_aggressive"
-    artifact, artifact_dir = forecast(
-        str(source), time_column="timestamp", target_column="requests",
-        horizon=7, output=str(tmp_path), clock=CLOCK, repair="aggressive",
-    )
-    payload = repair_evidence(artifact)
-    codes = {action["code"] for action in payload["actions"]}
-    assert {"numeric_format_normalised", "timestamp_format_normalised",
-            "missing_value_dropped", "duplicate_row_collapsed",
-            "conflicting_duplicate_resolved", "gap_filled",
-            "blank_row_skipped"} <= codes
-    result = artifact.results[0]
-    assert result.support in ("supported", "weakly_supported", "supported_ensemble")
-    assert any("repaired_data" in warning for warning in result.warnings)
-    written = json.loads((artifact_dir / "artifact.json").read_text(encoding="utf-8"))
-    assert any(item["kind"] == "data_repair" for item in written["evidence"])
-
-
-def test_cli_default_horizon_uses_the_requested_repair_policy(
-        tmp_path: Path, capsys) -> None:
-    """Horizon inference must inspect the same repaired data as publication."""
-    from gnomon.cli import main
-
-    source = REPO / "examples" / "filthy_requests.csv"
-    assert main([
-        "forecast", str(source), "--time", "timestamp", "--target", "requests",
-        "--repair", "aggressive", "--output", str(tmp_path / "out"),
-    ]) == 0
-    payload = json.loads(capsys.readouterr().out)
-    assert payload["status"] == "complete"
-    assert payload["results"][0]["forecast_rows"] >= 1
+def test_filthy_example_runs_with_disclosed_repairs(tmp_path):
+    from gnomon import GnomonSession
+    with GnomonSession.from_config() as session:
+        inspected = session.call("gnomon_inspect", {"input": str(REPO / "examples/filthy_requests.csv"),
+                                                   "target_column": "requests", "repair": "aggressive"})
+        codes = {action["code"] for action in inspected["repairs"]}
+        assert {"numeric_format_normalised", "timestamp_format_normalised", "gap_filled",
+                "missing_value_dropped", "conflicting_duplicate_resolved"} <= codes
+        result = session.call("gnomon_forecast", {"provider": "last_value",
+            "data_ref": inspected["data_ref"], "horizon": 7})
+        assert len(result["result"]["point"]) == 7
+        assert result["evidence"] == "inference_only" and not result["action_authorized"]

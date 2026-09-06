@@ -754,7 +754,7 @@ class OpenRouterClient:
                             if max_response_bytes is None:
                                 parsed_body = json.loads(body.decode("utf-8"))
                             else:
-                                from gnomon.agent_eval import _decode_record
+                                from benchmarks.workflow.agent_metrics import _decode_record
                                 try:
                                     parsed_body = _decode_record(body.decode("utf-8"))
                                 except (ValueError, UnicodeError) as error:

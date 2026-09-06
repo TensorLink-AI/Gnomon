@@ -58,17 +58,16 @@ dependency's source, remote weights or the operator's honesty.
 
 - Ordinary exposes `python` in its software-only container. Lean adds the actual
   current `execution` profile:6 Gnomon tools by default,7 tools total.
-- Full adds the actual retained legacy `full` profile:20 Gnomon tools,21 total.
-  Its forecast accepts a file input and performs legacy evaluated model selection;
-  lean forecast accepts the current direct-inference request/provider contract.
-  Names/schemas/results are not aliased, arguments are not repaired, and answers
-  are not filled from tool output. This is a profile comparison, **not only a
-  tool-count intervention** or proof of causal tool-count effects.
+- Full uses the same execution contract with ledger and temporal tools enabled:
+  9 Gnomon tools,10 total. Both arms require an explicit provider; neither performs
+  hidden model selection. Arguments are not repaired and answers are not filled
+  from tool output. This compares feature availability, not just tool count.
+  Results from the retired legacy-full arm are not evidence for this comparison.
 - Lean optionally accepts `execution_options: {"ledger": true, "temporal": true}`
   in its options, adding route/ledger/temporal discovery (10 tools including Python).
-  These are explicit pinned startup differences. Full rejects these options rather
-  than pretending its old tracking tools implement the new ledger contract.
-- Lean operator configuration is a root-owned read-only file; agent outcome writes
+  These are explicit pinned startup differences. Full enables both by default;
+  overrides must be recorded and change the experiment's interpretation.
+- Service operator configuration is a root-owned read-only file; agent outcome writes
   remain disabled. Forecasts can be saved/retrieved/scored through the ledger,
   but actuals must come from an operator-controlled path. Tests use a synthetic
   operator append to verify preserved forecasts and scoring, not agent-written
@@ -84,7 +83,8 @@ input remains byte-bounded. No path traversal, absolute path or host file import
 is accepted. These are supplied task files, not a host conversion of observations
 or rewritten tool arguments. The copies are independent: Python-generated files
 are not automatically shared with the service, and vice versa. No future-stage
-observations are preloaded. The staged reveal/checkpoint protocol is still pending.
+observations are preloaded. Multi-phase episodes reveal updates only after the
+prior phase's answer; see the experiment protocol.
 
 ## Limits and checks
 
@@ -108,7 +108,7 @@ python -m pytest -q benchmarks/tests/test_software_backend.py benchmarks/tests/t
 ```
 
 The dedicated CI job explicitly builds both images and runs these checks. Local
-tests cover current and legacy forecasts, exact discovery/contracts, persistent
+tests cover lean and ledger-enabled forecasts, exact discovery/contracts, persistent
 data references, tool-error recovery, source mismatch, lifecycle cleanup and the
 optional ledger's saved prediction/actual-write permission/score path. No model
 superiority or agent-quality claim is inferred from those checks. A suitable

@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from gnomon.agent_eval import compare_runs
+from benchmarks.workflow.agent_metrics import compare_runs
 
 
 def _write(path, rows):

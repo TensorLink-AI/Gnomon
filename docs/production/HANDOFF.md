@@ -1,156 +1,70 @@
-# Current delivery checkpoint
+# Delivery checkpoint — iteration 25
 
-## Iteration 24: reduce legacy internals
+Updated 2026-09-06. The user explicitly requested removing features outside the new
+goal. This supersedes the earlier legacy-compatibility constraint. Recovery:
+`333ed2c`. Do not restore retired code merely to satisfy its old tests.
 
-The user requested substantive simplification of the roughly 4,600-line legacy
-registry and asked whether to compact first. Baseline is `fa67fbe`; runtime/skill
-release `v0.8.0rc3` remains immutable. Save checkpoints; no manual conversation
-compaction tool is available. No subagents are authorized.
+## Current scope and implementation
 
-Scope: trace callers, remove genuinely unreachable code and redundant definitions,
-separate legacy responsibilities, break registry/runtime reverse dependencies, and
-preserve documented default and explicit legacy behaviour. Moving code alone is
-not enough: report net code removal and dependency improvements as well as sizes.
-Do not remove user-facing legacy APIs solely to meet a line-count target.
+One provider-neutral execution session with exact input/time semantics, explicit
+budgeted evaluation, optional durable evidence and optional temporal arithmetic.
+Local models are operator-owned callables/factories; Ephemeris is one connector.
 
-Implemented: `toolspec.py` is 461 lines, down from 4,615. Schema/profile metadata,
-input/context preparation, operations, publication and response formatting now have
-separate owners documented in development.md. CLI formatting and runtime capability
-discovery no longer depend on dispatch. Fresh-process tests enforce the new import
-boundaries; the default session's existing legacy isolation remains intact.
+Runtime: 118 modules/67,013 lines before this cull → 26 modules/5,789 lines now
+(about 91% fewer lines). Removed the old runtime/registry, context/scenario/publication/
+effect stack, model catalogues/installers/adapters, monitoring and feedback.
+No second legacy package or compatibility dispatch remains.
 
-Removed the unregistered 202-line `legacy_experiments.py` and its dead registry
-filters; decision/tracking APIs remain covered directly. Consolidated single/batch
-model-admission configuration without changing their activation differences.
-The old registry plus retired module totalled 4,817 lines; the new registry and
-seven owner modules total 4,749: 68 net lines removed, not a 90% package reduction.
-58 function/class bodies moved unchanged. Active legacy functionality remains;
-publication and response projection are still substantial complexity, not solved
-by changing their filenames. The 20-tool schema/description/order/profile digest
-is unchanged: 6cf70fd294125dd7d17e5b31016ff45dde587678b322c0d4366988f8045006d1.
+Python/CLI/MCP, README, concise current docs and packaged agent skill now match the
+retained contract. Legacy commands/profiles fail explicitly. Repair, frequency,
+migration and nonfinite-input tests now exercise retained code directly. Historical
+imports use frozen fixtures, not the old writer; manifest escape/tamper is refused.
 
-Verification: 2,656 passed, 30 skipped in 91.08s; the separate real-container suite
-passed all 77 checks in 34.48s using the rebuilt service image. Before an environment
-reset, 120 focused regressions passed on each Python 3.11/3.13; build/Twine/plugin
-smoke passed. After the reset, wheel/sdist build and clean installed Python/CLI/MCP/
-callable/ledger smoke passed again. Ruff and whitespace checks pass. The first
-full-suite process handle vanished after 93%; no final result is claimed for that
-run. The confirmed rerun above replaces it. No test or source changes occurred
-during matched-harness verification.
+Context-engine benchmark cases/graders are gone. Agent metrics live only in the
+benchmark harness. Full now means the same execution contract with ledger/time
+tools enabled. Old full-arm results are not current evidence. Removing the empty
+context oracle field changes the retrospective corpus hash, not its data or answers.
 
-Cleanup commit `152a489` is pushed to PR99. CI run `34001997126` passed all six
-jobs: full production regressions on Python 3.11/3.12/3.13, current harness,
-real software/service isolation and clean package/plugin smoke. Container run
-`34001997129` also passed. The PR description records the unreleased cleanup and
-distinguishes it from the immutable published candidate. This checkpoint update
-changes documentation only; subsequent check status is available on PR99.
+## Verification and next step
 
-The checkpoint CI (`34002169833`) exposed a second test-probe exit race:
-`Path.read_text()` on `/proc/<pid>/stat` can raise `ProcessLookupError`, not just
-`FileNotFoundError`. All other jobs passed. The test helper now handles both
-disappearance errors and still probes PID liveness; deterministic coverage tests
-both errors with both live and dead PIDs. All 11 process tests pass. No packaged
-runtime change is involved. The full harness rerun passed: 266 tests, 23 opt-in
-skips in 17.08s. Corrected-commit CI is tracked on PR99; the failing checkpoint
-run is not waived or presented as green.
+Current complete local suite: 756 passed, 29 opt-in skips in 30.16s. Separate final
+software/service container suite: 77 passed in 29.53s.
+Ruff, compilation, skill validation and whitespace checks pass.
+Wheel/sdist and example plugin build; metadata and clean installed Python/CLI/MCP/
+provider/ledger/plugin journeys pass against the final reformatted package.
 
-Next: obtain the endpoint/model/credential-variable choices and spending approval
-for the two pending evidence gates below. No runtime regression or running cleanup
-job remains at `152a489`. Do not generate more code or repeat unauthenticated probes
-solely to avoid the authorization boundary. Do not commit while matched-harness
-tests are running: they deliberately pin Git identity.
-Do not publish another candidate automatically as part of this structural follow-up.
-Unrelated root scratch files remain untouched. Prior delivery evidence follows.
+Commit this verified cull to the existing branch and update draft
+[PR99](https://github.com/TensorLink-AI/Gnomon/pull/99), then monitor current CI.
+Do not commit or change source while matched-harness tests pin their identity.
+Supported-Python CI must pass before recrediting the release-check gate; current
+score is 95/100, with that gate and the two external-evidence gates still unearned.
+[progress.json](progress.json) tracks exactly100 possible points, not a guarantee
+beyond the acceptance contract in [PLAN.md](PLAN.md).
 
-Updated 2026-09-06. Gnomon is the provider-neutral toolkit; Ephemeris is one optional
-inference connector. The user explicitly requested PR creation, PyPI
-publication and removal of obsolete documentation/benchmarks.
+## Remaining external evidence
 
-## Implemented
+- Real matched agent comparison: confirmed model/endpoint, credential environment
+  variable and spending approval.
+- Live Ephemeris: confirmed base URL, credential environment variable and budget
+  for potentially billable wake-up/inference.
 
-Typed provider-neutral inference, callables/fresh factories, Ephemeris HTTP mapping,
-shared Python/CLI/MCP session, bounded data/result references, append-only ledger,
-budgeted backtests, cutoff-bound routing, optional temporal calculations and a
-matched ordinary/lean/full evaluation harness.
+No paid agent experiment or authenticated service inference has been performed.
+Local HTTP fixtures, scripted agents and previous unauthenticated401 responses do
+not satisfy these gates. Do not extract credentials or repeat probes to avoid this
+authorization boundary.
 
-The cleaned release candidate is reverified at 97/100. Publication does not earn
-the missing live-evidence points.
-See [PLAN.md](PLAN.md) and [progress.json](progress.json).
+## Distribution and recovery
 
-## Pending external evidence
+Source is `0.9.0.dev0`: breaking, unreleased, not automatically uploaded to PyPI.
+Published `0.8.0rc3` and its tag remain immutable. No input data, user database or
+saved forecast was deleted. Old implementation/tests/docs remain in Git at333ed2c;
+earlier design/benchmark archives remain at2cba20e.
 
-1. Actual agent comparison: model, endpoint, credential environment-variable name
-   and spending approval.
-2. Live Ephemeris: confirmed base URL, credential environment-variable name and
-   permission/budget for billable wake-up and inference.
+Branch: `codex/gnomon-ephemeris-ledger`; PR base remains
+`claude/enterprisebench-multi-domain-n4xyjf`. Do not silently change the base.
+Unrelated untracked root scratch files remain untouched and must not be staged:
+`-`, `Continue`, `Current`, `Immediate`, `Use`, `accelerate`, `actual`,
+`cases.`, `optimizing`, `that`.
 
-No authenticated service inference, paid agent comparison or automatic action has
-been performed. Do not extract keys from repository instructions or treat HTTP401,
-scripted agents or local fixtures as completion of these gates.
-
-## Cleanup and recovery
-
-Commit `2cba20e` preserves the pre-cull implementation, obsolete docs, old
-benchmarks and detailed audit/handoff logs. Unrelated root scratch files are
-neither removed nor included in the PR.
-
-First-candidate local verification: 2666 passed, 7 skipped in128.19s with actual isolated
-software/service tests.224 focused tests pass on each Python3.11/3.13;54 final
-documentation/progress/discoverability checks pass. Final wheel/sdist metadata,
-clean installed CLI/MCP/provider/ledger and separately rebuilt plugin smoke pass.
-An initial stale-image mismatch and the plugin's old version range were corrected
-and reverified, not waived. Numeric goldens changed only version-derived identities.
-
-The active docs now contain24 files and the benchmark tree39 Python files.
-Tracked historical result files were removed; untracked user files are untouched.
-The CI retains production, current harness and isolated-container gates.
-
-Draft [PR #99](https://github.com/TensorLink-AI/Gnomon/pull/99) is open against the
-original checkout branch. Its first-candidate CI passed across Python 3.11–3.13.
-Version 0.8.0rc1 published successfully through trusted publishing before the latest
-naming correction reached the workflow; cancellation found it already completed.
-Its immutable tag and artifacts are not overwritten.
-
-Iteration 22 prepares 0.8.0rc2: remove implementation-specific naming from active
-source and docs, introduce Gnomon independently of connectors, and fix container
-tag generation for PEP 440 prereleases without promoting them to latest.
-Corrected-candidate checks: 74 focused tests pass on each Python 3.11, 3.12 and
-3.13. Wheel/sdist metadata and naming scans pass, as does the clean installed
-CLI/MCP/provider/ledger/plugin walkthrough. Ruff, compilation and whitespace checks
-pass. The full suite with the rebuilt isolated service image passed: 2667 tests,
-7 skipped in 134.34s. All PR CI jobs passed on commit `6ddfa8f`.
-The corrected local wheel SHA256 is
-32fd32a797a0bac4a9197fd901fd3d879a0abf4b9297f211299ba730a4119cd7.
-Version 0.8.0rc2 published successfully: release run 33993727253 and container run
-33993727297 both passed. The CI wheel and source archive match the local builds.
-Publication still does not complete either live-evidence gate.
-
-Iteration 23 incorporates the user's final plain-English README and agent-skill
-request in 0.8.0rc3. The skill's tool-call example executes against the real offline
-session; guidance distinguishes local models from optional connectors, retrieval
-from repeated inference, and recorded decisions from action permission. UI metadata
-no longer overclaims trusted answers. The initial expanded skill exceeded its
-existing 5,000-byte limit; it was shortened to 4,912 bytes without raising that limit.
-An old README test required inline connector configuration; its replacement executes
-the first documented forecast and verifies an offline baseline before connectors.
-
-Final candidate verification: 2647 local tests passed, 30 skipped (including opt-in
-container tests). All six CI jobs passed on `ddd9c0a`, including real software/service
-isolation and full production regressions on Python 3.11–3.13. Skill validation,
-archive naming scans and the clean installed CLI/MCP/provider/ledger/plugin
-walkthrough pass. The packaged skill exactly matches the compact checkout file.
-
-Tag `v0.8.0rc3` points to `ddd9c0a`. CI and local distributions match byte-for-byte:
-wheel SHA256 ba94b70ddf4cea5fb6e8223f61f73371280e92246d5635a7cd0cc1fa8ac02361;
-sdist SHA256 e173f91355e3636e2b40fef550cf833cf2bf693faf4b336fa8ff99abf8c906cf.
-[Final-candidate CI](https://github.com/TensorLink-AI/Gnomon/actions/runs/33994373155)
-passed. [Publication](https://github.com/TensorLink-AI/Gnomon/actions/runs/33994482217)
-and the release container workflow both completed successfully. PyPI's wheel and
-source-archive hashes match those above, and its rendered README source has the
-new introduction. Final delivery status is also recorded on PR #99.
-
-A follow-up CI run exposed a test-only process probe race: a killed child's
-`/proc/<pid>/stat` disappeared between the existence check and read. The probe now
-handles a missing stat file and checks PID liveness directly; deterministic tests
-cover both dead and still-live PIDs. Nine process tests pass. This post-tag change
-does not alter the published runtime or skill.
+No manual compaction operation is available. Continue from this checkpoint and the
+progress file after automatic compaction; do not restart completed work.

@@ -1,6 +1,6 @@
 # Gnomon production delivery plan
 
-Gnomon helps agents analyse time series, execute models from user-selected libraries or providers, and make decisions using explicit evidence. The user authorized implementation and a ruthless, recoverable cull on 2026-09-05.
+Gnomon helps agents analyse time series, execute models from user-selected libraries or providers, and make decisions using explicit evidence. The user explicitly clarified on 2026-09-06: remove features that do not serve this goal, including previously preserved legacy APIs. This is the breaking0.9 development plan.
 
 ## Completion contract
 
@@ -26,13 +26,13 @@ The weighted acceptance checks in [progress.json](progress.json) total exactly 1
 
 ## Execution sequence
 
-1. Audit the code and dependency graph; establish the full test baseline. Remove retired experiments and obsolete designs from the active tree. Preserve independent production regressions and recoverable Git history. The user explicitly authorized the broader docs/benchmark/output cull on2026-09-06; checkpoint2cba20e retains the removed evidence and implementations.
+1. Trace code and callers, then remove the old evaluated runtime, context/publication/effect stack, model installers/catalogues, per-library adapters and legacy front doors. Keep independent tests of retained semantics. Checkpoint333ed2c preserves this cull's baseline;2cba20e preserves earlier removed designs and benchmarks.
 2. Fix exact quantity, time and scope semantics. Keep valid time, source availability and local recording time distinct. Remove automatic-action claims from mere descriptive correctness.
 3. Extend the existing forecasting protocol into the public callable/provider boundary. Add the minimal immutable execution and outcome ledger alongside it.
 4. Route the actual inference API through the same boundary; remove local-catalogue assumptions. Separate inference from optional budgeted evaluation.
 5. Make historical routing and evaluation consume revision-aware, cutoff-bound ledger records.
-6. Simplify Python/CLI/MCP results and tool registration; isolate advanced context and bounded general-temporal functionality.
-7. Measure the lean/full tool configurations against matched ordinary-agent tasks. Complete migration, distribution, operating documentation and live-service release checks.
+6. Keep one small Python/CLI/MCP session. Temporal arithmetic is opt-in; natural-language question compilation, scenario generation and action policy engines are out of scope.
+7. Measure ordinary software versus six-tool lean execution versus execution with optional ledger/temporal tools. The old legacy-full arm is retired; its results are not interchangeable. Complete read-only migration, distribution, operating documentation and live-service release checks.
 
 ## Iteration and context handoff
 
@@ -46,5 +46,5 @@ The available agent tools do not expose a manual conversation-compaction operati
 - Separate unique execution identity from content/cache fingerprints.
 - Append observation revisions and evaluations; preserve original predictions and metric definitions.
 - Keep one package initially. User callables own library-specific objects/configuration. Remote-service credentials are operator configuration.
-- Forecast, anomaly, imputation and transformation outputs need separate task semantics; shared infrastructure must not silently drop capabilities.
+- Forecasting is the implemented task. Add anomaly, imputation or transformation contracts only with a concrete use case and independent semantics/tests; do not preserve speculative engines for them.
 - Retain baseline and temporal-integrity checks. Keep model inference, measured accuracy, scenario assumptions and permission to act distinct.

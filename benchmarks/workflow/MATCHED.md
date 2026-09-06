@@ -216,7 +216,8 @@ are now executable and independently tested, with actual inventories and explici
 contract/compute differences. The remaining work includes a suitable matched
 task set covering the intended forecast/decision/temporal use cases. The ordinary
 arm must not be an artificially weak substitute for the software available to the
-agent. Full legacy model selection must not masquerade as lean direct inference.
+agent. Full enables optional ledger/temporal tools on the same execution contract;
+old legacy-full results describe a different product and cannot be pooled.
 
 An initial [11-task retrospective cohort](cases/MATCHED_RETROSPECTIVE.md) now
 combines four frozen observational forecast windows with tool-neutral quantities,

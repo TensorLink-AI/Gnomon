@@ -23,9 +23,7 @@ class StdioMcpSession:
     treat transport death as a disclosed harness failure.
     """
 
-    #: Generous per-call ceiling: a real gnomon_forecast over a large file
-    #: (TSFM sandboxes included) finishes well inside this; only a hung
-    #: server does not.
+    #: Regression tests override this ceiling with their own deadline.
     DEFAULT_CALL_TIMEOUT_SECONDS = 600.0
 
     def __init__(self, cwd: str | Path, command: list[str] | None = None,
@@ -42,8 +40,7 @@ class StdioMcpSession:
         inherited_path = child_env.get("PYTHONPATH")
         child_env["PYTHONPATH"] = os.pathsep.join(
             [*source_paths, *([inherited_path] if inherited_path else [])])
-        # Historical adapters consume evaluated legacy artifacts, not the
-        # provider-session protocol. Never inherit a changed product default.
+        # Pin the execution contract instead of inheriting operator defaults.
         child_env["GNOMON_MCP_PROFILE"] = profile or "execution"
         self._proc = subprocess.Popen(
             command or [sys.executable, "-m", "gnomon", "mcp", "serve"],

@@ -2,13 +2,13 @@
 
 ## Unreleased
 
-- Separate legacy dispatch from schema metadata, context preparation, execution
-  and response formatting. CLI formatting and runtime discovery no longer load
-  the legacy dispatcher; existing tool schemas and profiles are unchanged.
-- Remove the already-unregistered experimental run/track dispatchers and their
-  dead filters. Retain the underlying decision and tracking APIs.
-- Consolidate duplicated model-admission configuration and add import-boundary
-  and legacy-contract regressions.
+- 0.9 development removes the old evaluated runtime, legacy profiles, context/
+  publication/effect-learning stack, model catalogues/installers and per-library
+  adapters. One provider-neutral session remains. This is a breaking change;
+  see COMPATIBILITY.md. Historical records remain importable read-only.
+- Reduce the CLI to session operations. Move agent-comparison metrics into the
+  benchmark harness; full now means the same session with optional ledger/time
+  tools, not the retired runtime. Old-arm evidence is not current-product evidence.
 
 ## 0.8.0rc3 — 2026-09-06
 

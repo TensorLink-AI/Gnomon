@@ -199,56 +199,6 @@ def _case_score(case: Case, obs: Observation) -> dict[str, Any]:
         "model_submission_error", "provider_error", "provider_timeout",
         "model_error", "timeout", "subprocess_failure", "empty_stdout",
     }) or bool(obs.metadata.get("stage_infrastructure_failures"))
-    expected_context = oracle.context_behavior
-    observed_context = obs.metadata.get("context_behavior") or {}
-    observed_arguments = set(obs.metadata.get("context_arguments") or [])
-    context_checks: dict[str, bool] = {}
-    for key, expected in expected_context.items():
-        if key == "required_argument":
-            context_checks[key] = str(expected) in observed_arguments
-        elif key == "required_arguments":
-            context_checks[key] = {
-                str(item) for item in expected} <= observed_arguments
-        elif key == "allowed_arguments":
-            context_checks[key] = bool(observed_arguments & {
-                str(item) for item in expected})
-        elif key == "allowed_statuses":
-            context_checks[key] = observed_context.get("status") in expected
-        elif key == "allowed_publication_modes":
-            context_checks[key] = observed_context.get(
-                "publication_mode") in expected
-        elif key == "recommended_scenario_by_mode":
-            mode = observed_context.get("publication_mode")
-            context_checks[key] = (
-                mode in expected
-                and observed_context.get("recommended_scenario_id")
-                == expected[mode])
-        elif key == "minimum_scenario_count":
-            context_checks[key] = int(observed_context.get(
-                "scenario_count") or 0) >= int(expected)
-        else:
-            context_checks[key] = observed_context.get(key) == expected
-    context_contract_pass = (all(context_checks.values())
-                             if context_checks else None)
-    disposition_codes = sorted({
-        str(item.get("reason_code")) for item in
-        observed_context.get("dispositions") or []
-        if isinstance(item, dict) and item.get("reason_code")
-        # Exact rejection diagnoses are material recovery facts. Successful
-        # routing codes such as ``applied`` need not leak into human prose.
-        and item.get("disposition") == "rejected"})
-    answer_text = "\n".join([*obs.claims, *obs.disclosures])
-    disposition_preservation = (
-        all(code in answer_text for code in disposition_codes)
-        if disposition_codes else None)
-    recovery_codes = sorted({
-        str(item.get("recovery_code")) for item in
-        observed_context.get("dispositions") or []
-        if isinstance(item, dict) and item.get("recovery_code")
-        and item.get("disposition") in {"rejected", "scenario"}})
-    recovery_preservation = (
-        all(code in answer_text for code in recovery_codes)
-        if recovery_codes else None)
     episode = None
     if case.episode:
         from .episodes import grade_episode
@@ -276,18 +226,6 @@ def _case_score(case: Case, obs: Observation) -> dict[str, Any]:
         },
         "agent_facts_required": bool(oracle.required_facts),
         "agent_fact_preservation": agent_facts_ok,
-        "context_contract": {
-            "applicable": bool(expected_context),
-            "pass": context_contract_pass,
-            "checks": context_checks,
-            "expected": expected_context,
-            "observed": observed_context,
-            "arguments": sorted(observed_arguments),
-            "disposition_codes": disposition_codes,
-            "agent_disposition_preservation": disposition_preservation,
-            "recovery_codes": recovery_codes,
-            "agent_recovery_preservation": recovery_preservation,
-        },
         "temporal_leakage": obs.temporal_leakage,
         "leakage_measurement_pass": leakage_ok,
         "disclosures_pass": disclosures_ok, "forbidden_claims_pass": forbidden_ok,
@@ -400,26 +338,6 @@ def score_run(cases: list[Case], observations: list[Observation], arm: str = "un
             float(row["agent_fact_preservation"]) for row in rows
             if row["agent_facts_required"]
         ]),
-        "context_contract": {
-            "required_cases": sum(
-                row["context_contract"]["applicable"] for row in rows),
-            "passed_cases": sum(
-                row["context_contract"]["pass"] is True for row in rows),
-            "pass_rate": _mean([
-                float(row["context_contract"]["pass"]) for row in rows
-                if row["context_contract"]["applicable"]
-            ]),
-            "agent_disposition_preservation_rate": _mean([
-                float(row["context_contract"]["agent_disposition_preservation"])
-                for row in rows
-                if row["context_contract"]["agent_disposition_preservation"]
-                is not None]),
-            "agent_recovery_preservation_rate": _mean([
-                float(row["context_contract"]["agent_recovery_preservation"])
-                for row in rows
-                if row["context_contract"]["agent_recovery_preservation"]
-                is not None]),
-        },
         "correctness_components": {
             key: _mean([float(row["accuracy_components"][key]) for row in rows
                         if row["accuracy_components"][key] is not None])

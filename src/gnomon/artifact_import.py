@@ -9,11 +9,11 @@ from pathlib import Path
 from urllib.parse import quote
 from uuid import uuid4
 
+from .contracts import GnomonError
 from .forecast_adapter import ForecastAdapterError, ForecastRequest
 
 
 def read_forecast_import(path: str, *, project: str | None = None, naive_timezone: str | None = None):
-    from .artifacts import verify_artifact_integrity
     if naive_timezone not in (None, "UTC"):
         raise ForecastAdapterError("legacy naive timestamps require an explicit UTC binding or remain unresolved")
     directory = Path(path).expanduser().resolve()
@@ -99,3 +99,47 @@ def read_forecast_import(path: str, *, project: str | None = None, naive_timezon
             "cache_hit": False, "evidence": "imported_forecast", "action_authorized": False,
         })
     return source_id, records
+
+
+# Historical-file verification is read-only and does not load the retired runtime.
+INTEGRITY_FILE = "integrity.json"
+
+def _file_digest(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return "sha256:" + digest.hexdigest()
+
+
+def verify_artifact_integrity(artifact_dir: str | Path) -> dict | None:
+    """Verify every sealed output; legacy unsealed artifacts remain readable."""
+    directory = Path(artifact_dir).expanduser().resolve()
+    manifest_path = directory / INTEGRITY_FILE
+    if not manifest_path.is_file():
+        return None
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        files = manifest["files"]
+    except (json.JSONDecodeError, KeyError, TypeError) as exc:
+        raise GnomonError(
+            "ARTIFACT_INTEGRITY_ERROR",
+            f"Artifact integrity manifest is malformed under {directory}.",
+        ) from exc
+    if manifest.get("algorithm") != "sha256" or not isinstance(files, dict):
+        raise GnomonError(
+            "ARTIFACT_INTEGRITY_ERROR",
+            f"Artifact integrity manifest is unsupported under {directory}.",
+        )
+    for name, expected in files.items():
+        path = directory / name
+        if (Path(name).is_absolute() or ".." in Path(name).parts
+                or not path.resolve().is_relative_to(directory)):
+            raise GnomonError("ARTIFACT_INTEGRITY_ERROR", "Artifact manifest file escapes its directory.")
+        if not path.is_file() or _file_digest(path) != expected:
+            raise GnomonError(
+                "ARTIFACT_INTEGRITY_ERROR",
+                f"Stored artifact output failed integrity verification: {name}.",
+                {"artifact_path": str(directory), "file": str(name)},
+            )
+    return manifest

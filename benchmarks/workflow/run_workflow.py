@@ -157,7 +157,7 @@ def _invoke_once(payload: dict[str, Any], case_id: str, argv: list[str],
         return Observation(case_id=case_id, status="error", support="abstained",
                            metadata={"error": "empty_stdout", "failed_stage": stage})
     try:
-        from gnomon.agent_eval import _decode_record
+        from benchmarks.workflow.agent_metrics import _decode_record
         payload = _decode_record(lines[-1].decode("utf-8"))
         payload.setdefault("case_id", case_id)
         if payload["case_id"] != case_id:

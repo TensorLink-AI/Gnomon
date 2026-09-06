@@ -70,117 +70,30 @@ def _tool_result(payload: dict[str, Any], is_error: bool) -> dict[str, Any]:
     }
 
 
-def runner_for(name):
-    # Legacy tools remain lazy so an execution session does not import the
-    # optional publication/context machinery merely to serve inference.
-    from .toolspec import runner_for as legacy_runner
-    return legacy_runner(name)
-
-
 def _handle(message: dict[str, Any], *, session=None) -> dict[str, Any] | None:
     method = message.get("method")
     if method == "initialize":
-        return {
-            "protocolVersion": PROTOCOL_VERSION,
-            "capabilities": {"tools": {}},
-            "serverInfo": SERVER_INFO,
-        }
+        return {"protocolVersion": PROTOCOL_VERSION,
+                "capabilities": {"tools": {}}, "serverInfo": SERVER_INFO}
     if method == "ping":
         return {}
     if method == "tools/list":
-        if session is None:
-            from .toolspec import visible_tools
-            listed = visible_tools()
-        else:
-            listed = session.tools()
-        return {
-            "tools": [
-                {
-                    "name": tool["name"],
-                    "description": tool["description"],
-                    "inputSchema": tool["inputSchema"],
-                    # Published so a client can validate `structuredContent`
-                    # rather than trusting it.
-                    "outputSchema": tool.get("outputSchema", ENVELOPE_SCHEMA),
-                }
-                for tool in listed
-            ]
-        }
+        return {"tools": [{**tool, "outputSchema": tool.get("outputSchema", ENVELOPE_SCHEMA)}
+                          for tool in session.tools()]}
     if method == "tools/call":
         params = message.get("params") or {}
         name = str(params.get("name"))
-        if session is not None:
-            try:
-                return _tool_result(session.call(name, params.get("arguments", {})), False)
-            except GnomonError as exc:
-                try:
-                    return _tool_result(session.results.project(exc.to_dict()), True)
-                except GnomonError:
-                    return _tool_result(GnomonError("ERROR_DETAIL_LIMIT", "Error details exceed the result limit.").to_dict(), True)
-            except Exception:
-                # Provider exceptions can contain sensitive service details.
-                # Do not send arbitrary exception strings back to the agent.
-                logger.error("Execution session failed in tool %s", name)
-                return _tool_result(GnomonError("EXECUTION_FAILED", "Provider or ledger execution failed.").to_dict(), True)
-        from .toolspec import TOOLS, active_profile, profiles_for_tool
-        runner = runner_for(name)
-        if runner is None:
-            known = next((tool for tool in TOOLS if tool["name"] == name), None)
-            if known is not None:
-                return _tool_result(
-                    GnomonError(
-                        "TOOL_NOT_IN_PROFILE",
-                        f"Tool {name!r} is not exposed by the active "
-                        f"{active_profile()!r} profile.",
-                        {"tool": name, "profiles": profiles_for_tool(name),
-                         "active_profile": active_profile()},
-                    ).to_dict(),
-                    True,
-                )
-            return _tool_result(
-                GnomonError("UNKNOWN_TOOL", f"No such tool: {name!r}").to_dict(),
-                True,
-            )
-        arguments = {**(params.get("arguments") or {}),
-                     "_mcp_agent_boundary": True}
         try:
-            return _tool_result(runner(arguments), False)
+            return _tool_result(session.call(name, params.get("arguments", {})), False)
         except GnomonError as exc:
-            return _tool_result(exc.to_dict(), True)
-        except KeyError as exc:
-            missing = str(exc.args[0])
-            return _tool_result(
-                GnomonError(
-                    "INVALID_ARGUMENTS",
-                    f"Missing required argument: {missing}",
-                    {"missing_arguments": [missing], "tool": name},
-                ).to_dict(),
-                True,
-            )
-        except FileNotFoundError as exc:
-            return _tool_result(
-                GnomonError("INPUT_NOT_FOUND", str(exc)).to_dict(), True,
-            )
-        except ValueError as exc:
-            return _tool_result(
-                GnomonError("INVALID_ARGUMENTS", str(exc)).to_dict(), True,
-            )
-        except Exception as exc:
-            # A bug in a tool must reach the model as a repairable result,
-            # never as a transport error. Anything uncaught used to escape
-            # to the outer handler and become JSON-RPC -32603, which gives
-            # an agent no payload, no repair_options, and no way to
-            # self-correct — a protocol failure standing in for a tool
-            # failure.
-            logger.exception("Unhandled error in tool %s", params.get("name"))
-            return _tool_result(
-                GnomonError(
-                    "INTERNAL_ERROR",
-                    f"{type(exc).__name__}: {exc}",
-                    {"tool": params.get("name")},
-                ).to_dict(),
-                True,
-            )
+            try:
+                return _tool_result(session.results.project(exc.to_dict()), True)
+            except GnomonError:
+                return _tool_result(GnomonError("ERROR_DETAIL_LIMIT", "Error details exceed the result limit.").to_dict(), True)
+        except Exception:
+            # Provider exceptions can contain credentials and private endpoint details.
+            logger.error("Execution session failed in tool %s", name)
+            return _tool_result(GnomonError("EXECUTION_FAILED", "Provider or ledger execution failed.").to_dict(), True)
     return None
 
 
@@ -215,10 +128,10 @@ def _bounded_lines(stream):
 def serve(stdin: TextIO | None = None, stdout: TextIO | None = None, *, session=None) -> int:
     if session is None:
         from .product_contract import resolve_mcp_profile
-        if resolve_mcp_profile() == "execution":
-            from .session import GnomonSession
-            with GnomonSession.from_config() as owned:
-                return serve(stdin, stdout, session=owned)
+        resolve_mcp_profile()
+        from .session import GnomonSession
+        with GnomonSession.from_config() as owned:
+            return serve(stdin, stdout, session=owned)
     stdin = stdin or sys.stdin
     stdout = stdout or sys.stdout
     print("gnomon mcp server listening on stdio", file=sys.stderr)

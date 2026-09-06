@@ -5,13 +5,9 @@ import sqlite3
 import pytest
 
 from gnomon import TemporalLedger
-from gnomon.config import GnomonConfig
 from gnomon.contracts import GnomonError
 from gnomon.forecast_adapter import ForecastAdapterError
 from gnomon.ids import FixedClock
-from gnomon.runtime import forecast
-from gnomon.temporal_store import TemporalObservation, TemporalStore
-from gnomon.tracking import TrackingStore, register_artifact
 
 
 def legacy_artifact(tmp_path):
@@ -53,9 +49,11 @@ def test_legacy_import_preserves_forecast_but_does_not_invent_history_or_executi
 def test_read_only_tracking_migration_keeps_legacy_scores_in_original_registry(tmp_path):
     directory = legacy_artifact(tmp_path)
     registry = tmp_path / "registry.db"
-    tracker = TrackingStore(registry)
-    tracker.register("old", "project", series="shop", artifact_path=str(directory))
-    tracker.register("missing", "project", series="other", artifact_path=str(tmp_path / "missing"))
+    # Freeze the historical table contract; migration must not need its old writer.
+    with sqlite3.connect(registry) as conn:
+        conn.execute("CREATE TABLE forecasts (forecast_id TEXT, project TEXT, artifact_path TEXT)")
+        conn.executemany("INSERT INTO forecasts VALUES (?,?,?)",
+                         [("old", "project", str(directory)), ("missing", "project", str(tmp_path / "missing"))])
     before = registry.read_bytes()
     ledger = TemporalLedger(tmp_path / "ledger.db")
     report = ledger.import_tracking(str(registry), project="project", naive_timezone="UTC")
@@ -81,51 +79,6 @@ def test_schema_one_upgrade_preserves_existing_records(tmp_path):
     assert upgraded.import_artifact(str(legacy_artifact(tmp_path)))
 
 
-def test_registration_uses_sealed_history_after_source_changes(tmp_path, monkeypatch):
-    import gnomon.tracking as tracking
-    monkeypatch.setenv("GNOMON_REGISTRY_PATH", str(tmp_path / "registry.db"))
-    source = tmp_path / "input.csv"
-    source.write_text("timestamp,value\n2025-01-01,1\n2025-01-02,2\n2025-01-03,4\n")
-    artifact, path = forecast(str(source), time_column="timestamp", target_column="value", horizon=1,
-                              frequency="D", output=str(tmp_path / "out"))
-    source.write_text("timestamp,value\n2030-01-01,10000\n2030-01-02,90000\n")
-    [tracking_id] = register_artifact(artifact, "project", str(path))
-    record = tracking.TrackingStore().get_forecast(tracking_id, "project")
-    assert record.cutoff_time == "2025-01-03T00:00:00"
-    assert record.naive_error == 1.5
-    ledger = TemporalLedger(tmp_path / "ledger.db")
-    [execution_id] = ledger.import_artifact(str(path), naive_timezone="UTC")
-    assert ledger.execution(execution_id)["request"]["history"] == [1, 2, 4]
-    assert ledger.execution(execution_id)["result"]["metadata"]["integrity"] == "verified"
-
-
-def test_store_snapshots_register_without_reopening_store_uri_as_file(tmp_path, monkeypatch):
-    monkeypatch.setenv("GNOMON_REGISTRY_PATH", str(tmp_path / "registry.db"))
-    temporal = TemporalStore(tmp_path / "temporal.db")
-    rows = [TemporalObservation("shop", "sales", datetime(2025, 1, day), datetime(2025, 1, day), day)
-            for day in range(1, 8)]
-    temporal.ingest_rows("sales", rows, source_fingerprint="test")
-    artifact, path = forecast("store:sales", time_column="timestamp", target_column="sales", horizon=1,
-                              store_path=str(temporal.path), as_of=datetime(2025, 1, 5), output=str(tmp_path / "out"))
-    [tracking_id] = register_artifact(artifact, "project", str(path))
-    assert TrackingStore().get_forecast(tracking_id, "project").cutoff_time == "2025-01-05T00:00:00"
-
-
-def test_scoring_works_when_optional_forecast_csv_is_disabled(tmp_path, monkeypatch):
-    monkeypatch.setenv("GNOMON_REGISTRY_PATH", str(tmp_path / "registry.db"))
-    source = tmp_path / "input.csv"
-    source.write_text("timestamp,value\n2025-01-01,1\n2025-01-02,2\n2025-01-03,4\n")
-    config = GnomonConfig()
-    config.output.write_forecast_csv = False
-    artifact, path = forecast(str(source), time_column="timestamp", target_column="value", horizon=1,
-                              frequency="D", output=str(tmp_path / "out"), config=config)
-    register_artifact(artifact, "project", str(path))
-    assert not (path / "forecast.csv").exists()
-    row = artifact.results[0].forecast[0]
-    scores = TrackingStore().submit_actuals("project", [(row["timestamp"], row["point"])])
-    assert len(scores) == 1 and scores[0].wape == 0
-
-
 def test_decision_replay_filters_source_availability_and_local_recording(tmp_path):
     clock = FixedClock(datetime(2025, 1, 3, tzinfo=timezone.utc))
     ledger = TemporalLedger(tmp_path / "ledger.db", clock=clock)
@@ -137,14 +90,49 @@ def test_decision_replay_filters_source_availability_and_local_recording(tmp_pat
     assert len(ledger.decision(decision_id, source_as_of="2025-01-05T00:00:00Z", recorded_as_of="2025-01-05T00:00:00Z")["outcomes"]) == 1
 
 
-def test_tampered_frozen_history_is_rejected_before_registration_or_import(tmp_path, monkeypatch):
-    monkeypatch.setenv("GNOMON_REGISTRY_PATH", str(tmp_path / "registry.db"))
-    source = tmp_path / "input.csv"
-    source.write_text("timestamp,value\n2025-01-01,1\n2025-01-02,2\n2025-01-03,4\n")
-    artifact, path = forecast(str(source), time_column="timestamp", target_column="value", horizon=1,
-                              frequency="D", output=str(tmp_path / "out"))
-    (path / "history.json").write_text('{}')
+def sealed_history(tmp_path):
+    import hashlib
+    directory = legacy_artifact(tmp_path)
+    history = {"series": {"shop": [{"timestamp": f"2025-01-0{day}T00:00:00", "value": value}
+                                 for day, value in enumerate([1, 2, 4], 1)]}}
+    (directory / "history.json").write_text(json.dumps(history))
+    files = {name: "sha256:" + hashlib.sha256((directory / name).read_bytes()).hexdigest()
+             for name in ("artifact.json", "history.json")}
+    (directory / "integrity.json").write_text(json.dumps({"algorithm": "sha256", "files": files}))
+    return directory
+
+
+def test_import_reads_sealed_history_without_the_original_source(tmp_path):
+    directory = sealed_history(tmp_path)
+    ledger = TemporalLedger(tmp_path / "ledger.db")
+    [execution_id] = ledger.import_artifact(str(directory), naive_timezone="UTC")
+    record = ledger.execution(execution_id)
+    assert record["request"]["history"] == [1, 2, 4]
+    assert record["result"]["metadata"]["integrity"] == "verified"
+    assert record["result"]["point"] == [3]
+    assert record["action_authorized"] is False
+
+
+def test_tampered_frozen_history_is_rejected_before_import(tmp_path):
+    directory = sealed_history(tmp_path)
+    (directory / "history.json").write_text("{}")
     with pytest.raises(GnomonError, match="integrity"):
-        register_artifact(artifact, "project", str(path))
-    with pytest.raises(GnomonError, match="integrity"):
-        TemporalLedger(tmp_path / "ledger.db").import_artifact(str(path))
+        TemporalLedger(tmp_path / "ledger.db").import_artifact(str(directory))
+
+
+@pytest.mark.parametrize("kind", ["parent", "absolute", "symlink"])
+def test_manifest_cannot_hash_files_outside_the_import_directory(tmp_path, kind, monkeypatch):
+    from gnomon import artifact_import
+    directory = sealed_history(tmp_path)
+    outside = tmp_path / "outside.json"
+    outside.write_text("{}")
+    name = "../outside.json" if kind == "parent" else str(outside)
+    if kind == "symlink":
+        (directory / "link.json").symlink_to(outside)
+        name = "link.json"
+    (directory / "integrity.json").write_text(json.dumps({"algorithm": "sha256", "files": {name: "ignored"}}))
+    def forbidden_read(path):
+        pytest.fail("outside file must not be opened")
+    monkeypatch.setattr(artifact_import, "_file_digest", forbidden_read)
+    with pytest.raises(GnomonError, match="escapes"):
+        artifact_import.read_forecast_import(str(directory))

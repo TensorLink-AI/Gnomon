@@ -26,8 +26,8 @@ Before running, choose and freeze:
    [small retrospective cohort](../cases/MATCHED_RETROSPECTIVE.md) supplies 11
    forecasting, decision and temporal tasks with checked oracles and explicit
    historical-data limitations; it is not certified unseen model-training data.
-   The legacy full profile performs
-   model selection that lean direct inference does not; report this distinction.
+   Full enables optional ledger and temporal tools on the same execution contract;
+   lean uses the six default tools. Record any startup-option overrides.
    The service arms also have a second container's compute allocation.
 
 Store the model token in the named environment variable through your normal secret

@@ -73,7 +73,7 @@ def main() -> int:
             str(wheel),
         ])
         assert environment.joinpath("share/gnomon/skills/use-gnomon/SKILL.md").is_file()
-        assert environment.joinpath("share/gnomon/skills/use-gnomon/references/legacy-workflows.md").is_file()
+        assert not environment.joinpath("share/gnomon/skills/use-gnomon/references/legacy-workflows.md").exists()
 
         if example_wheel is not None:
             run([str(python), "-m", "pip", "install", "--no-index", "--no-deps", str(example_wheel)])
@@ -137,15 +137,6 @@ assert EphemerisProvider('https://example.invalid').name == 'ephemeris/route'
         capabilities = json.loads(run([str(gnomon), "capabilities"], cwd=root))
         assert capabilities["product_contract"]["offline_builtin_runtime"] is True
         assert capabilities["product_contract"]["default_mcp_profile"] == "execution"
-        control_runs, treatment_runs = root / "control.jsonl", root / "treatment.jsonl"
-        control_runs.write_text(json.dumps({"task_id": "task", "success": True, "cost_usd": 1}) + "\n", encoding="utf-8")
-        treatment_runs.write_text(json.dumps({"task_id": "task", "success": False,
-            "row_abstained": "cap:tokens", "cost_usd": 8}) + "\n", encoding="utf-8")
-        compared = json.loads(run([str(gnomon), "eval", "compare", "--baseline", str(control_runs),
-                                   "--treatment", str(treatment_runs)], cwd=root))
-        assert compared["schema_version"] == "0.2"
-        assert compared["absolute_success_uplift"] == -1
-        assert compared["treatment"]["resources"]["cost_usd"]["total"] == 8
         assert capabilities["temporal"]["enabled"] is False
         temporal_args = {"operation": "shift", "value": "2024-01-31", "amount": 1,
                          "unit": "months", "mode": "calendar", "invalid_date": "clamp"}
@@ -178,10 +169,10 @@ assert EphemerisProvider('https://example.invalid').name == 'ephemeris/route'
             encoding="utf-8",
         )
         inspected = json.loads(run([
-            str(gnomon), "inspect", str(source), "--time", "timestamp",
-            "--target", "value", "--frequency", "D",
+            str(gnomon), "inspect", str(source), "--time-column", "timestamp",
+            "--target-column", "value", "--frequency", "D",
         ], cwd=root))
-        assert inspected["status"] == "valid"
+        assert inspected["status"] == "ok"
         direct = json.loads(run([str(gnomon), "infer", "--input", str(source),
                                  "--provider", "last_value", "--horizon", "2"], cwd=root))
         assert direct["result"]["point"] == [161, 161]
@@ -233,47 +224,6 @@ with GnomonSession.from_config() as session:
 for module in ('pipeline', 'evaluation', 'context', 'toolspec'):
     assert 'gnomon.' + module not in sys.modules, module
 """, str(source)], cwd=root)
-        forecast = json.loads(run([
-            str(gnomon), "forecast", str(source), "--time", "timestamp",
-            "--target", "value", "--frequency", "D", "--horizon", "7",
-            "--output", str(root / "artifacts"),
-        ], cwd=root))
-        artifact = Path(forecast["artifact_path"])
-        assert artifact.joinpath("artifact.json").is_file()
-        assert artifact.joinpath("history.json").is_file()
-        assert artifact.joinpath("summary.md").is_file()
-        assert artifact.joinpath("report.html").is_file()
-        assert forecast["tier_floor"] in {
-            "supported", "conditionally_supported", "best_effort",
-        }
-        summary = artifact.joinpath("summary.md").read_text(encoding="utf-8")
-        report = artifact.joinpath("report.html").read_text(encoding="utf-8")
-        assert f"- Support: {forecast['tier_floor']}" in summary
-        assert f"<dt>Support</dt><dd>{forecast['tier_floor']}</dd>" in report
-
-        short_source = root / "short-series.csv"
-        short_source.write_text(
-            "timestamp,value\n" + "\n".join(
-                f"{start + timedelta(days=index)},{100 + index}"
-                for index in range(12)
-            ) + "\n",
-            encoding="utf-8",
-        )
-        weak = json.loads(run([
-            str(gnomon), "forecast", str(short_source), "--time", "timestamp",
-            "--target", "value", "--frequency", "D", "--horizon", "14",
-            "--output", str(root / "weak-artifacts"),
-        ], cwd=root))
-        assert weak["tier_floor"] == "best_effort"
-        assert "High-confidence" not in weak["headline"]
-        weak_artifact = Path(weak["artifact_path"])
-        weak_summary = weak_artifact.joinpath("summary.md").read_text(
-            encoding="utf-8")
-        weak_report = weak_artifact.joinpath("report.html").read_text(
-            encoding="utf-8")
-        assert "- Support: best_effort" in weak_summary
-        assert "<dt>Support</dt><dd>best_effort</dd>" in weak_report
-
         default_mcp = mcp_exchange(gnomon, [
             {"id": 1, "method": "tools/list"},
             {"id": 2, "method": "tools/call", "params": {"name": "gnomon_forecast",
@@ -302,46 +252,12 @@ finally:
         process.kill()
         process.wait(timeout=10)
 """, str(gnomon)], cwd=root)
-        mcp = mcp_exchange(gnomon, [
-            {
-                "jsonrpc": "2.0", "id": 1, "method": "initialize",
-                "params": {"protocolVersion": "2025-06-18", "capabilities": {}},
-            },
-            {"jsonrpc": "2.0", "method": "notifications/initialized"},
-            {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
-            {
-                "jsonrpc": "2.0", "id": 3, "method": "tools/call",
-                "params": {
-                    "name": "gnomon_forecast",
-                    "arguments": {
-                        "input": str(short_source), "time_column": "timestamp",
-                        "target_column": "value", "frequency": "D",
-                        "horizon": 14, "output_dir": str(root / "mcp-artifacts"),
-                    },
-                },
-            },
-        ], cwd=root, profile="core")
-        assert mcp[1]["result"]["serverInfo"]["version"] == \
-            capabilities["runtime_version"]
-        tools = mcp[2]["result"]["tools"]
-        assert len(tools) == 10
-        assert {tool["name"] for tool in tools} >= {
-            "gnomon_forecast", "gnomon_monitor", "gnomon_explain_run",
-        }
-        tool_result = mcp[3]["result"]
-        assert tool_result["isError"] is False
-        structured = tool_result["structuredContent"]
-        assert structured["tier_floor"] == "best_effort"
-        assert "High-confidence" not in structured["headline"]
-        assert structured["artifact_id"] == structured["forecast_id"]
-
         print(json.dumps({
             "status": "passed",
             "runtime_version": capabilities["runtime_version"],
             "default_mcp_profile": capabilities["mcp_profile"]["active"],
             "structural_leakage_check": "passed",
-            "forecast_tier_floor": forecast["tier_floor"],
-            "weakest_tier_preservation": "passed",
+            "inference_not_action_authority": "passed",
             "packaged_mcp_journey": "passed",
             "packaged_callable_and_ledger": "passed",
             "packaged_execution_session": "passed",

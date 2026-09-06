@@ -1,7 +1,7 @@
 # Current evaluation harness
 
 One retained workflow compares the same agent model using ordinary software,
-Gnomon's lean session and the explicit full/legacy tools.
+Gnomon's lean session and the same session with optional ledger/temporal tools.
 
 Start with [matched controls](workflow/MATCHED.md), the
 [operator configuration](workflow/experiment/README.md) and the
@@ -26,3 +26,7 @@ Superseded benchmark families, their runners and copied archives were removed.
 They and older results are recoverable at Git commit `2cba20e`; they are not
 evidence for the new default session. Production numeric/cutoff regressions remain
 in `tests/`.
+
+The 0.9 cleanup also removes context-engine cases and grading branches (recovery:
+`333ed2c`). Old full-arm results describe a different runtime and cannot establish
+the value of today's optional tools.

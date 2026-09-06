@@ -1,6 +1,6 @@
-"""Actual lean/legacy-full MCP services alongside identical ordinary software.
+"""Current execution services alongside identical ordinary software.
 
-Profiles are not aliases: full retains its legacy evaluated forecast contract.
+The full arm enables the optional ledger and temporal tools, not a legacy runtime.
 Each agent filesystem is confined to explicitly owned no-network containers.
 """
 
@@ -15,7 +15,7 @@ import signal
 import subprocess
 import time
 
-from gnomon.agent_eval import _decode_record
+from benchmarks.workflow.agent_metrics import _decode_record
 from .bounded_agent import ToolReply
 from .matched import fingerprint
 from .software_backend import SoftwareBackend, REQUIRED
@@ -30,13 +30,12 @@ def source_fingerprint(root=None):
 
 def _execution_options(profile, value):
     if profile not in {"execution", "full"}:
-        raise ValueError("service backend requires execution or explicit legacy full profile")
+        raise ValueError("service backend requires execution or the full feature arm")
     if value is not None and not isinstance(value, dict):
         raise ValueError("execution_options must be an object")
-    value = dict(value or {})
-    if (set(value) - {"ledger", "temporal"} or any(type(item) is not bool for item in value.values())
-            or (profile != "execution" and value)):
-        raise ValueError("ledger/temporal boolean startup options apply only to execution")
+    value = {**({"ledger": True, "temporal": True} if profile == "full" else {}), **(value or {})}
+    if set(value) - {"ledger", "temporal"} or any(type(item) is not bool for item in value.values()):
+        raise ValueError("ledger/temporal startup options must be boolean")
     return value
 
 
@@ -60,7 +59,7 @@ class McpBackend(SoftwareBackend):
                 extra = ["--providers-config", "/tmp/gnomon-operator.toml"]
             self.process = subprocess.Popen([
                 *self.argv, "exec", "--user=65534:65534", "-i", self.container,
-                "python", "-I", "-m", "gnomon", "mcp", "serve", "--profile", profile, *extra],
+                "python", "-I", "-m", "gnomon", "mcp", "serve", "--profile", "execution", *extra],
                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                 start_new_session=True, env={"PATH": "/usr/local/bin:/usr/bin:/bin", "LANG": "C.UTF-8"})
             for stream in (self.process.stdin, self.process.stdout):
@@ -73,7 +72,7 @@ class McpBackend(SoftwareBackend):
             self.inventory = self._rpc("tools/list", {}, timeout=timeout)["tools"]
             if not isinstance(self.inventory, list):
                 raise ValueError("invalid service tool inventory")
-            self.provenance.update(profile=profile, execution_options=execution_options,
+            self.provenance.update(profile="execution", feature_arm=profile, execution_options=execution_options,
                                    server_info=initialized.get("serverInfo"),
                                    tool_inventory_sha256=fingerprint(self.inventory))
         except BaseException:

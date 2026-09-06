@@ -30,7 +30,7 @@ from benchmarks.common.openrouter import OpenRouterClient
 from benchmarks.workflow.bounded_agent import run_agent, WIRE_BYTES
 from benchmarks.workflow.matched import ARMS, _keys
 from benchmarks.workflow.accounting import AttemptJournal, reported_cost_limit
-from gnomon.agent_eval import _decode_record
+from benchmarks.workflow.agent_metrics import _decode_record
 
 
 class NoRedirect(request.HTTPRedirectHandler):

@@ -36,9 +36,12 @@ def test_actual_tools_keep_original_schema_and_identical_ordinary_access(backend
     assert tools[0]["name"] == "python"
     assert len({tool["name"] for tool in tools}) == len(tools)
     forecast = next(tool for tool in tools if tool["name"] == "gnomon_forecast")
-    legacy = backend.service.provenance["profile"] == "full"
-    assert ("input" in forecast["inputSchema"].get("properties", {})) == legacy
-    assert len(tools) == (21 if legacy else 7)
+    full = backend.service.provenance["feature_arm"] == "full"
+    variants = forecast["inputSchema"]["oneOf"]
+    assert all("provider" in variant["required"] for variant in variants)
+    assert all("input" not in variant["properties"] for variant in variants)
+    assert backend.service.provenance["profile"] == "execution"
+    assert len(tools) == (10 if full else 7)
     reply = backend.call("python", {"code": "import json; from pathlib import Path; print(json.loads(Path('/tmp/case.json').read_text())['available_at_cutoff']['series'])"}, timeout=5)
     assert reply.value["stdout"].strip() == "[3, 7]"
     capabilities = backend.call("gnomon_capabilities", {}, timeout=5).value
@@ -86,17 +89,24 @@ def test_service_deadline_removes_both_containers_on_close(tmp_path, options):
     assert backend.software.closed
 
 
-def test_legacy_full_forecast_uses_public_file_without_contract_alias(tmp_path, options):
+def test_full_forecast_uses_same_contract_and_records_evidence(tmp_path, options):
     start = datetime(2025, 1, 1, tzinfo=timezone.utc)
     csv = "timestamp,value\n" + "".join(f"{(start + timedelta(days=i)).isoformat()},{10+i%7}\n" for i in range(28))
     case = {**CASE, "available_at_cutoff": {"files": {"history.csv": csv}}}
     backend = service_backend.full(case=case, options=options, workspace=tmp_path, timeout=45)
     try:
-        result = backend.call("gnomon_forecast", {"input": "/tmp/data/history.csv", "horizon": 2,
-                                                 "frequency": "D"}, timeout=30).value
+        inspected = backend.call("gnomon_inspect", {"input": "/tmp/data/history.csv",
+                                                   "frequency": "D"}, timeout=5).value
+        assert not inspected["isError"], inspected
+        result = backend.call("gnomon_forecast", {"provider": "last_value",
+            "data_ref": inspected["structuredContent"]["data_ref"], "horizon": 2}, timeout=30).value
         assert not result["isError"], result
         assert result["structuredContent"]
-        assert backend.service.provenance["profile"] == "full"
+        identifier = result["structuredContent"]["execution_id"]
+        saved = backend.call("gnomon_ledger", {"operation": "execution", "execution_id": identifier}, timeout=5).value
+        assert not saved["isError"]
+        assert saved["structuredContent"]["result"]["result"]["point"] == [16, 16]
+        assert backend.service.provenance["execution_options"] == {"ledger": True, "temporal": True}
     finally:
         backend.close()
 
@@ -138,7 +148,7 @@ def test_package_identity_covers_nonpython_resources(tmp_path):
     assert source_fingerprint(tmp_path) == second
 
 
-@pytest.mark.parametrize("profile,value", [("full", {"ledger": True}), ("execution", False),
+@pytest.mark.parametrize("profile,value", [("retired", {"ledger": True}), ("execution", False),
     ("execution", {"ledger": "true"}), ("execution", {"allow_outcome_writes": True})])
 def test_unsupported_startup_options_fail_before_container_work(profile, value):
     with pytest.raises(ValueError):
