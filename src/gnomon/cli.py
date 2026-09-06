@@ -1169,7 +1169,7 @@ def _read_documents(paths: list[str]):
 def _disclose_assumptions(payload, assumptions: list[str]):
     """CLI-level inferences ride in the support assessment; one definition,
     shared with the tool surface, which infers the same way."""
-    from .toolspec import disclose_assumptions
+    from .tool_response import disclose_assumptions
 
     return disclose_assumptions(payload, assumptions)
 
@@ -2205,7 +2205,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 from .runtime import capabilities
                 payload = capabilities()
         elif args.command == "describe":
-            from .toolspec import _run_describe
+            from .tool_operations import _run_describe
 
             payload = _run_describe({
                 "input": args.input,
@@ -2289,7 +2289,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         elif args.command == "forecast" and multi_targets:
             from .config import load_config
             from .runtime import forecast_multi
-            from .toolspec import forecast_summary
+            from .tool_response import forecast_summary
 
             unsupported = [
                 (flag, present) for flag, present in (
@@ -2335,14 +2335,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                     getattr(args, "candidates", None)),
                 input_provenance=getattr(args, "input_provenance", None),
             )
-            from .toolspec import brief_summary
+            from .tool_response import brief_summary
             payload = (brief_summary(artifact, path) if args.brief
                        else forecast_summary(artifact, path))
             _attach_publication(payload, artifact, path, args)
         else:
             from .context import load_events_file
             from .runtime import forecast
-            from .toolspec import forecast_summary
+            from .tool_response import forecast_summary
             from .config import load_config
 
             if args.context_file and args.context_ref:
@@ -2425,7 +2425,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 input_provenance=getattr(args, "input_provenance", None),
             )
             if getattr(args, "brief", False):
-                from .toolspec import brief_summary
+                from .tool_response import brief_summary
                 payload = brief_summary(artifact, path)
             else:
                 payload = forecast_summary(artifact, path)

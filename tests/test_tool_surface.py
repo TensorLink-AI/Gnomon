@@ -67,9 +67,9 @@ def test_status_sections_preserve_current_tracking_reads(monkeypatch, tmp_path) 
                        "effects": []}
 
 
-def test_effect_prior_and_robust_decision_are_agent_callable(monkeypatch, tmp_path) -> None:
+def test_effect_prior_tool_and_robust_decision_api(monkeypatch, tmp_path) -> None:
     from gnomon.toolspec import _run_status
-    from gnomon.legacy_experiments import _run_unified
+    from gnomon.decision_model import robust_scenario_decision
     from gnomon.tracking import TrackingStore
 
     monkeypatch.setenv("GNOMON_REGISTRY_PATH", str(tmp_path / "registry.db"))
@@ -89,8 +89,7 @@ def test_effect_prior_and_robust_decision_are_agent_callable(monkeypatch, tmp_pa
     assert resolved["resolution"]["selected_lane"] == "external_prior"
     assert resolved["resolution"]["may_affect_primary_forecast"] is False
 
-    result = _run_unified({
-        "question": {"kind": "robust_decision"},
+    artifact = robust_scenario_decision(**{
         "decision_id": "decision-1", "project": "shop", "forecast_id": "forecast-1",
         "scenario_ids": ["promotion"],
         "actions": [{"name": "wait"}, {"name": "stock"}],
@@ -98,9 +97,11 @@ def test_effect_prior_and_robust_decision_are_agent_callable(monkeypatch, tmp_pa
             "wait": {"primary": 2.0, "promotion": 1.0},
             "stock": {"primary": 0.0, "promotion": 5.0},
         },
+        "created_at": "2026-02-01T00:00:00+00:00",
     })
-    assert result["decision"]["selected_action"] == "wait"
-    assert result["decision"]["scenario_probabilities"] is None
+    TrackingStore().save_decision_artifact(artifact)
+    assert artifact.to_dict()["selected_action"] == "wait"
+    assert artifact.to_dict()["scenario_probabilities"] is None
     assert TrackingStore().get_decision_artifact("decision-1") is not None
 
 

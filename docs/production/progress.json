@@ -2,7 +2,7 @@
   "schema_version": 1,
   "objective": "Production-ready Gnomon within the scope and release gates in PLAN.md",
   "baseline_revision": "0d3d72e",
-  "iteration": 23,
+  "iteration": 24,
   "score_policy": "Sum weights of verified checks only. Missing evidence earns zero. No elapsed-time or lines-of-code credit. Regressions reopen checks. 100 requires every check including live service verification.",
   "workstreams": [
     {
@@ -398,5 +398,5 @@
     }
   ],
   "history_checkpoint": "2cba20e",
-  "revision_note": "Iteration23: Final 0.8.0rc3 README is 22% shorter and the refreshed skill is within its existing 5000-byte limit. Executable README and skill examples pass. Local suite: 2647 passed, 30 skipped; all CI jobs passed on ddd9c0a, including opt-in container tests and Python 3.11-3.13. Installed package/plugin smoke and skill/naming scans pass. Tagged publication run 33994482217 and container publication succeeded; actual PyPI wheel/sdist hashes match CI/local builds. Follow-up CI exposed a test-only process-probe race, corrected with coverage for disappearing stat files and live PID fallback. Final remote status is recorded on PR99. Live service and actual agent comparison remain mandatory for 100. Removed historical source and reports remain recoverable from Git."
+  "revision_note": "Iteration24: Legacy registry 4615 to 461 lines; seven ownership modules remove CLI/runtime reverse dependencies. Retired 202-line experiment dispatcher deleted, live decision/tracking APIs retained, duplicated model-admission configuration consolidated. Registry plus retired module versus new owners: 4817 to 4749 lines (68 net removed); most active legacy behavior remains. All 20 legacy tool schemas/descriptions/order/profiles retain their baseline fingerprint. Confirmed full local suite: 2656 passed, 30 skipped; separate real-container suite: 77 passed. 120 focused regressions passed on each Python 3.11/3.13 before environment reset. Rebuilt wheel/sdist and clean installed CLI/MCP/callable/ledger smoke pass. Ruff and whitespace pass. PR99 remote CI is the next check. Published 0.8.0rc3 remains immutable; this structural follow-up is unreleased. Score remains97: live service and actual agent comparison still mandatory for100. Recovery and prior release evidence are in HANDOFF.md and Git."
 }

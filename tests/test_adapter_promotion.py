@@ -224,14 +224,14 @@ def test_shadow_route_requires_an_explicit_cohort(tmp_path):
             as_of="2026-01-01T00:00:00Z")
 
 
-def test_track_tool_preserves_routing_authority_and_regime(tmp_path, monkeypatch):
-    monkeypatch.setenv("GNOMON_REGISTRY_PATH", str(tmp_path / "tracking.sqlite"))
-    from gnomon.legacy_experiments import _run_track
+def test_tracking_api_preserves_routing_authority_and_regime(tmp_path):
+    from gnomon.tracking import TrackingStore
+    store = TrackingStore(tmp_path / "tracking.sqlite")
 
     regime = {"frequency_class": "subdaily"}
     for index in range(8):
-        recorded = _run_track({
-            "action": "record_adapter_shadow", "project": "tool-route",
+        recorded = store.record_adapter_shadow_outcome(**{
+            "project": "tool-route",
             "outcome_id": str(index), "candidate": "challenger",
             "revision": "sha256:route-v1", "baseline": "last_value",
             "candidate_error": .7, "baseline_error": 1.0,
@@ -239,10 +239,10 @@ def test_track_tool_preserves_routing_authority_and_regime(tmp_path, monkeypatch
             "regime": regime,
         })
         assert recorded["regime"] == regime
-    routed = _run_track({
-        "action": "route_adapter_shadow", "project": "tool-route",
+    routed = store.route_adapter_shadow(**{
+        "project": "tool-route",
         "candidate": "challenger", "revision": "sha256:route-v1",
-        "baseline": "last_value", "regime": regime,
+        "champion": "last_value", "regime": regime,
         "as_of": "2026-01-09T00:00:00Z",
     })
     assert routed["recommendation"] == "last_value"

@@ -45,6 +45,11 @@ return full JSON instead of references that would expire when their session clos
 
 ## Removed surfaces
 
+The internal `legacy_experiments` module is removed in the unreleased cleanup.
+Its run/track tools were already unregistered; this does not remove another MCP
+tool. Use the retained decision and tracking APIs where needed. The 20 retained
+legacy tool schemas, descriptions, ordering and profile membership are unchanged.
+
 The following unused surfaces were removed rather than kept behind feature
 flags:
 

@@ -4,7 +4,6 @@ import pytest
 
 from gnomon.supervision import build_export, export_supervision
 from gnomon.tracking import TrackingStore
-from gnomon.legacy_experiments import _run_track
 
 
 def _answer():
@@ -95,11 +94,6 @@ def test_decision_skill_graduates_helpful_not_harmful_proposer(
     assert harmful["losses_vs_canonical"] == 24
     assert harmful["graduated_for_human_prior"] is False
     monkeypatch.setenv("GNOMON_REGISTRY_PATH", str(path))
-    exposed = _run_track({
-        "action": "decision_skill", "project": "p",
-        "proposer_id": "helpful", "min_outcomes": 20})
-    assert exposed["decision_skill"][0]["graduated_for_human_prior"] is True
-    assert exposed["authority"]["automation_upgrade_allowed"] is False
     with pytest.raises(ValueError):
         store.record_temporal_synthesis(
             project="private-project", forecast_id="f1", series="secret-series",
@@ -130,35 +124,23 @@ def test_supervision_export_is_opt_in_resolved_and_deidentified(tmp_path: Path):
     assert destination.exists()
 
 
-def test_tracking_tool_records_and_resolves_synthesis(monkeypatch, tmp_path: Path):
-    monkeypatch.setenv("GNOMON_REGISTRY_PATH", str(tmp_path / "tool.db"))
-    recorded = _run_track({
-        "action": "record_synthesis", "project": "p", "forecast_id": "f",
+def test_tracking_api_records_and_resolves_synthesis(tmp_path: Path):
+    store = TrackingStore(tmp_path / "tool.db")
+    store.record_temporal_synthesis(**{
+        "project": "p", "forecast_id": "f",
         "series": "x", "question_id": "q", "synthesis_id": "s",
         "canonical": {"value": "up"},
         "synthesis": {"label": "conditional_answer", "value": "down",
                       "primary_forecast_unchanged": True},
         "evidence_refs": ["e1"],
     })
-    assert recorded["primary_forecast_unchanged"] is True
-    resolved = _run_track({
-        "action": "resolve_synthesis", "project": "p", "forecast_id": "f",
+    resolved = store.resolve_temporal_synthesis(**{
+        "project": "p", "forecast_id": "f",
         "series": "x", "question_id": "q", "synthesis_id": "s",
         "outcome": {"direction": "down"},
     })
-    assert resolved["score"]["synthesis_delta"] == 1
-    status = _run_track({"action": "synthesis_status", "project": "p",
-                         "resolved": True})
-    assert len(status["syntheses"]) == 1
-    candidates = _run_track({
-        "action": "candidate_outcomes", "project": "p",
-        "series": "x", "as_of": "2026-12-31T00:00:00Z",
-        "min_outcomes": 8})
-    assert candidates["candidate_outcomes"] == []
-    assert candidates["series"] == "x"
-    assert candidates["as_of"] == "2026-12-31T00:00:00Z"
-    assert candidates["authority"] == {
-        "human_prior_only": True,
-        "support_upgrade_allowed": False,
-        "automation_upgrade_allowed": False,
-    }
+    assert resolved["synthesis_delta"] == 1
+    assert len(store.temporal_synthesis_receipts("p", resolved=True)) == 1
+    assert store.candidate_outcome_summary(
+        "p", series="x", resolved_before="2026-12-31T00:00:00Z",
+        minimum_resolved=8) == []

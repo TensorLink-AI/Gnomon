@@ -1664,8 +1664,7 @@ def _has_module(name: str) -> bool:
 
 
 def _response_budget_bytes() -> int:
-    # Local import: toolspec imports runtime, so the reverse edge is lazy.
-    from .toolspec import RESPONSE_BUDGET_BYTES
+    from .response_budget import RESPONSE_BUDGET_BYTES
     return RESPONSE_BUDGET_BYTES
 
 
@@ -1675,12 +1674,12 @@ def _default_minimum_support() -> str:
 
 
 def _mcp_profile() -> dict[str, object]:
-    # Local import: toolspec imports runtime, so the reverse edge is lazy.
-    from .toolspec import PROFILES, active_profile, visible_tools
+    from .product_contract import resolve_mcp_profile
+    from .tool_profiles import PROFILES, visible_tool_names
     return {
-        "active": active_profile(),
+        "active": resolve_mcp_profile(),
         "available": ["execution", *sorted(PROFILES), "full"],
-        "visible_tools": [tool["name"] for tool in visible_tools()],
+        "visible_tools": visible_tool_names(),
     }
 
 

@@ -1,5 +1,48 @@
 # Current delivery checkpoint
 
+## Iteration 24: reduce legacy internals
+
+The user requested substantive simplification of the roughly 4,600-line legacy
+registry and asked whether to compact first. Baseline is `fa67fbe`; runtime/skill
+release `v0.8.0rc3` remains immutable. Save checkpoints; no manual conversation
+compaction tool is available. No subagents are authorized.
+
+Scope: trace callers, remove genuinely unreachable code and redundant definitions,
+separate legacy responsibilities, break registry/runtime reverse dependencies, and
+preserve documented default and explicit legacy behaviour. Moving code alone is
+not enough: report net code removal and dependency improvements as well as sizes.
+Do not remove user-facing legacy APIs solely to meet a line-count target.
+
+Implemented: `toolspec.py` is 461 lines, down from 4,615. Schema/profile metadata,
+input/context preparation, operations, publication and response formatting now have
+separate owners documented in development.md. CLI formatting and runtime capability
+discovery no longer depend on dispatch. Fresh-process tests enforce the new import
+boundaries; the default session's existing legacy isolation remains intact.
+
+Removed the unregistered 202-line `legacy_experiments.py` and its dead registry
+filters; decision/tracking APIs remain covered directly. Consolidated single/batch
+model-admission configuration without changing their activation differences.
+The old registry plus retired module totalled 4,817 lines; the new registry and
+seven owner modules total 4,749: 68 net lines removed, not a 90% package reduction.
+58 function/class bodies moved unchanged. Active legacy functionality remains;
+publication and response projection are still substantial complexity, not solved
+by changing their filenames. The 20-tool schema/description/order/profile digest
+is unchanged: 6cf70fd294125dd7d17e5b31016ff45dde587678b322c0d4366988f8045006d1.
+
+Verification: 2,656 passed, 30 skipped in 91.08s; the separate real-container suite
+passed all 77 checks in 34.48s using the rebuilt service image. Before an environment
+reset, 120 focused regressions passed on each Python 3.11/3.13; build/Twine/plugin
+smoke passed. After the reset, wheel/sdist build and clean installed Python/CLI/MCP/
+callable/ledger smoke passed again. Ruff and whitespace checks pass. The first
+full-suite process handle vanished after 93%; no final result is claimed for that
+run. The confirmed rerun above replaces it. No test or source changes occurred
+during matched-harness verification.
+
+Next: commit and update PR99, then verify its current CI. Do not commit while
+matched-harness tests are running: they deliberately pin Git identity.
+Do not publish another candidate automatically as part of this structural follow-up.
+Unrelated root scratch files remain untouched. Prior delivery evidence follows.
+
 Updated 2026-09-06. Gnomon is the provider-neutral toolkit; Ephemeris is one optional
 inference connector. The user explicitly requested PR creation, PyPI
 publication and removal of obsolete documentation/benchmarks.

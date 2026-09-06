@@ -28,6 +28,25 @@ Removed benchmarks, duplicate source archives and design proposals are recoverab
 from checkpoint commit `2cba20e`. Use Git history instead of restoring competing
 docs or importing retired benchmark modules into the runtime.
 
+## Legacy implementation boundaries
+
+The default execution session does not load the legacy registry. For retained
+advanced profiles, use these owners instead of adding more logic to `toolspec.py`:
+
+| Module | Responsibility |
+| --- | --- |
+| `tool_catalog.py`, `tool_profiles.py` | Schema and profile metadata; no runner imports |
+| `tool_input.py`, `tool_context.py` | Schema/horizon resolution and context/covariate preparation |
+| `tool_operations.py` | Execute retained legacy operations |
+| `tool_publication.py` | Project and record publication evidence without changing forecasts |
+| `tool_response.py` | CLI/MCP response formatting; no registry or runtime imports |
+| `toolspec.py` | Legacy MCP dispatch and compatibility exports |
+
+Runtime capability reporting consumes metadata, not dispatch. CLI formatting imports
+response functions directly. The unregistered experimental dispatchers are removed;
+their underlying decision and tracking APIs remain tested directly. Compatibility
+tests pin legacy schemas/profiles and verify these import boundaries in fresh processes.
+
 ## Safe changes
 
 Validate request/result semantics and add regressions for malformed data,
