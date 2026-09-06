@@ -17,9 +17,11 @@ def leakage_self_check(cases: int = 8, seed: int = 7) -> dict[str, Any]:
     It ships so an installed wheel can reproduce the product guarantee
     without network access or benchmark fixtures.
     """
-    from .runtime import forecast
+    from .session import GnomonSession
     from .temporal_store import TemporalStore
 
+    if type(cases) is not int or not 1 <= cases <= 1000:
+        raise ValueError("cases must be an integer from 1 to 1000")
     rng = random.Random(seed)
     rows = []
     with tempfile.TemporaryDirectory(prefix="gnomon-leakage-check-") as directory:
@@ -47,14 +49,17 @@ def leakage_self_check(cases: int = 8, seed: int = 7) -> dict[str, Any]:
                 str(source), dataset=dataset, time_column="timestamp",
                 target_column="value", known_at_column="published",
             )
-            artifact, _ = forecast(
-                f"store:{dataset}", time_column="timestamp", target_column="value",
-                horizon=horizon, as_of=cutoff, store_path=str(store_path),
-                output=str(root / "output"),
-            )
-            accesses = [access for evidence in artifact.evidence
-                        if evidence.kind == "snapshot_access"
-                        for access in evidence.payload.get("accesses", [])]
+            with GnomonSession.from_config() as session:
+                inspected = session.data.inspect(f"store:{dataset}",
+                    as_of=cutoff.isoformat(), store_path=str(store_path))
+                request = session.data.request(inspected["data_ref"], horizon=horizon)
+                execution = session.engine.forecast("last_value", request)
+                assert execution.result.point == (request.history[-1],) * horizon
+                expected = tuple(float(record[1]) for record in records
+                    if datetime.fromisoformat(record[0]) <= cutoff
+                    and datetime.fromisoformat(record[2]) <= cutoff)
+                assert request.history == expected
+            accesses = inspected["snapshot"].get("accesses", [])
             known = [datetime.fromisoformat(item["max_known_time"])
                      for item in accesses if item.get("max_known_time")]
             holds = bool(known) and max(known) <= cutoff

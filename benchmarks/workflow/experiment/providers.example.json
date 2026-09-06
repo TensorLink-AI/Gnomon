@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "llm": {
+    "base_url": "https://model-service.invalid/v1",
+    "token_env": "GNOMON_AGENT_MODEL_TOKEN"
+  },
+  "backends": {
+    "ordinary": {
+      "factory": "benchmarks.workflow.software_backend:SoftwareBackend",
+      "options": {
+        "image": "sha256:__ORDINARY_IMAGE_HEX__",
+        "docker_host": "unix:///var/run/docker.sock"
+      }
+    },
+    "lean": {
+      "factory": "benchmarks.workflow.service_backend:lean",
+      "options": {
+        "software_image": "sha256:__ORDINARY_IMAGE_HEX__",
+        "service_image": "sha256:__SERVICE_IMAGE_HEX__",
+        "docker_host": "unix:///var/run/docker.sock",
+        "execution_options": {"ledger": true, "temporal": true}
+      }
+    },
+    "full": {
+      "factory": "benchmarks.workflow.service_backend:full",
+      "options": {
+        "software_image": "sha256:__ORDINARY_IMAGE_HEX__",
+        "service_image": "sha256:__SERVICE_IMAGE_HEX__",
+        "docker_host": "unix:///var/run/docker.sock"
+      }
+    }
+  }
+}

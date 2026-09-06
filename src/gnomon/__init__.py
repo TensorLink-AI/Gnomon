@@ -1,35 +1,24 @@
-"""Gnomon trusted temporal execution runtime for agents.
+"""Provider-neutral time-series execution and optional temporal evidence."""
 
-The Python API is one of three front doors, beside the CLI and the MCP
-server, and it reaches the same product: all five verbs, the bitemporal
-store, and the covariate helpers. Each macro returns ``(payload, path)`` —
-the payload for reading, the path to the immutable artifact directory that
-owns the numbers.
-"""
-
-from .covariates import covariate_guide, load_covariates, validate_covariate_file
-from .macros import decide, detect_anomalies, investigate_change, monitor
-from .runtime import capabilities, forecast, inspect_dataset
+from .forecast_adapter import AdapterCapabilities, ForecastRequest, ForecastResult
+from .inference import ForecastExecution, InferenceEngine
+from .ephemeris import EphemerisProvider
+from .ledger import TemporalLedger
+from .session import GnomonSession
+from .backtesting import EvaluationBudget, evaluate_reference
 from .temporal_store import TemporalStore
-from .tracking import TrackingStore
+from .product_contract import __version__
 
 __all__ = [
-    # The five verbs.
-    "forecast",
-    "investigate_change",
-    "decide",
-    "monitor",
-    "detect_anomalies",
-    # Inspection and capability disclosure.
-    "inspect_dataset",
-    "capabilities",
-    # Point-in-time covariates.
-    "covariate_guide",
-    "load_covariates",
-    "validate_covariate_file",
-    # Persistent state: the bitemporal store and the tracking registry.
-    "TemporalStore",
-    "TrackingStore",
-    "__version__",
+    "AdapterCapabilities", "ForecastRequest", "ForecastResult",
+    "ForecastExecution", "InferenceEngine", "EphemerisProvider",
+    "TemporalLedger", "GnomonSession", "EvaluationBudget", "evaluate_reference",
+    "TemporalStore", "temporal_operation", "__version__",
 ]
-from .versioning import RUNTIME_VERSION as __version__  # noqa: E402
+
+
+def __getattr__(name):
+    if name == "temporal_operation":
+        from .temporal_ops import temporal_operation
+        return temporal_operation
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

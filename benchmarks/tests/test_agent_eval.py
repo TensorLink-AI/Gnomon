@@ -1,0 +1,152 @@
+import json
+
+import pytest
+
+from benchmarks.workflow.agent_metrics import compare_runs
+
+
+def _write(path, rows):
+    path.write_text("".join(json.dumps(row) + "\n" for row in rows))
+
+
+def test_compare_runs_reports_agent_uplift(tmp_path):
+    baseline = tmp_path / "baseline.jsonl"
+    treatment = tmp_path / "treatment.jsonl"
+    _write(baseline, [
+        {"task_id": "inventory", "success": False, "invented_number": True},
+        {"task_id": "capacity", "success": True},
+    ])
+    _write(treatment, [
+        {"task_id": "inventory", "success": True},
+        {"task_id": "capacity", "success": True},
+    ])
+
+    result = compare_runs(str(baseline), str(treatment))
+
+    assert result["absolute_success_uplift"] == 0.5
+    assert result["relative_error_reduction"] == 1.0
+    assert result["safety_delta"]["invented_number"] is None
+    assert result["safety_pairs"]["invented_number"]["measured_pairs"] == 0
+
+
+def test_compare_runs_requires_same_tasks(tmp_path):
+    baseline = tmp_path / "baseline.jsonl"
+    treatment = tmp_path / "treatment.jsonl"
+    _write(baseline, [{"task_id": "a", "success": True}])
+    _write(treatment, [{"task_id": "b", "success": True}])
+
+    with pytest.raises(ValueError, match="identical task_id"):
+        compare_runs(str(baseline), str(treatment))
+
+
+def test_harness_voided_rows_remain_in_all_task_denominator(tmp_path):
+    # A capped task is not delivered. Dropping it would manufacture uplift.
+    baseline = tmp_path / "baseline.jsonl"
+    treatment = tmp_path / "treatment.jsonl"
+    _write(baseline, [
+        {"task_id": "a", "success": False},
+        {"task_id": "b", "success": True},
+        {"task_id": "capped", "success": True},
+    ])
+    _write(treatment, [
+        {"task_id": "a", "success": True},
+        {"task_id": "b", "success": True},
+        {"task_id": "capped", "success": False,
+         "row_abstained": "cap:tokens exceeded"},
+    ])
+
+    result = compare_runs(str(baseline), str(treatment))
+
+    assert result["tasks_total"] == 3
+    assert result["tasks_voided_by_harness"] == 1
+    assert result["baseline"]["task_success"] == 2 / 3
+    assert result["treatment"]["task_success"] == 2 / 3
+    assert result["absolute_success_uplift"] == 0
+    assert result["success_test"]["n"] == 3
+    assert result["success_test"]["treatment_broke"] == 1
+
+
+def test_all_tasks_voided_yields_no_uplift_claim(tmp_path):
+    baseline = tmp_path / "baseline.jsonl"
+    treatment = tmp_path / "treatment.jsonl"
+    _write(baseline, [{"task_id": "a", "success": True}])
+    _write(treatment, [{"task_id": "a", "success": False,
+                        "row_abstained": "cap:rounds"}])
+
+    result = compare_runs(str(baseline), str(treatment))
+
+    assert result["tasks_voided_by_harness"] == 1
+    assert result["absolute_success_uplift"] == -1
+    assert result["conditional_completed_pairs"]["count"] == 0
+
+
+def test_duplicate_task_ids_are_rejected(tmp_path):
+    baseline = tmp_path / "baseline.jsonl"
+    treatment = tmp_path / "treatment.jsonl"
+    _write(baseline, [
+        {"task_id": "a", "success": True},
+        {"task_id": "a", "success": False},
+    ])
+    _write(treatment, [{"task_id": "a", "success": True}])
+
+    with pytest.raises(ValueError, match="duplicate task_id"):
+        compare_runs(str(baseline), str(treatment))
+
+
+def test_unmeasured_safety_fields_are_none_not_zero(tmp_path):
+    # No row in either file carries a safety field: the deltas must be
+    # unmeasured, not a reassuring 0.0.
+    baseline = tmp_path / "baseline.jsonl"
+    treatment = tmp_path / "treatment.jsonl"
+    _write(baseline, [{"task_id": "a", "success": False}])
+    _write(treatment, [{"task_id": "a", "success": True}])
+
+    result = compare_runs(str(baseline), str(treatment))
+
+    assert result["baseline"]["temporal_leakage"] is None
+    assert result["safety_delta"]["invented_number"] is None
+    assert "unmeasured" in result["safety_note"]
+    assert result["baseline"]["measurement_coverage"]["temporal_leakage"]["unmeasured"] == 1
+
+
+def test_noise_level_uplift_is_not_declared_an_improvement(tmp_path):
+    # One discordant pair out of four: uplift +0.25, exact McNemar p=1.0.
+    baseline = tmp_path / "baseline.jsonl"
+    treatment = tmp_path / "treatment.jsonl"
+    _write(baseline, [
+        {"task_id": "a", "success": False},
+        {"task_id": "b", "success": True},
+        {"task_id": "c", "success": True},
+        {"task_id": "d", "success": True},
+    ])
+    _write(treatment, [
+        {"task_id": "a", "success": True},
+        {"task_id": "b", "success": True},
+        {"task_id": "c", "success": True},
+        {"task_id": "d", "success": True},
+    ])
+
+    result = compare_runs(str(baseline), str(treatment))
+
+    assert result["absolute_success_uplift"] == 0.25
+    assert result["success_test"]["p_value"] == 1.0
+    assert "not statistically distinguishable" in result["interpretation"]
+
+
+def test_rows_missing_latency_do_not_average_in_as_zero(tmp_path):
+    baseline = tmp_path / "baseline.jsonl"
+    treatment = tmp_path / "treatment.jsonl"
+    _write(baseline, [
+        {"task_id": "a", "success": True, "latency_seconds": 4.0},
+        {"task_id": "b", "success": True},
+    ])
+    _write(treatment, [
+        {"task_id": "a", "success": True, "latency_seconds": 2.0},
+        {"task_id": "b", "success": True, "latency_seconds": 2.0},
+    ])
+
+    result = compare_runs(str(baseline), str(treatment))
+
+    assert result["baseline"]["average_latency_seconds"] == 4.0
+    assert result["treatment"]["average_latency_seconds"] == 2.0
+    assert result["baseline"]["average_cost_usd"] is None

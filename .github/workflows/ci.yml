@@ -31,24 +31,51 @@ jobs:
         run: python -m pip install --upgrade pip ".[dev]"
       - name: Check proven code-hygiene defects
         run: ruff check src/gnomon
-      - name: Run tests
-        run: pytest -q
+      - name: Run production regressions
+        run: pytest -q tests
       - name: Compile source
         run: python -m compileall -q src tests
-      - name: Validate benchmark configs
-        # The adapters' own tests run above (testpaths includes
-        # benchmarks/tests); this additionally proves every shipped config
-        # still expands to a runnable command line, which is where the
-        # suite silently rots — no datasets, no API keys, no LLM calls.
+
+  evaluation-harness:
+    name: Current evaluation harness (no paid runs)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install harness test dependencies
+        run: python -m pip install --upgrade pip ".[dev]"
+      - name: Check matched runner and scoring contracts
+        run: pytest -q benchmarks/tests
+
+  ordinary-software:
+    name: Ordinary agent software isolation (no paid model calls)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install harness test dependencies
+        run: python -m pip install --upgrade pip ".[dev]"
+      - name: Build the separate hash-locked software environment
+        run: docker build --pull=false -t gnomon-bench-software:ci benchmarks/workflow/software
+      - name: Build the isolated current Gnomon MCP service
         run: |
-          python -m pip install pyyaml
-          for config in benchmarks/configs/*.yaml; do
-            # Skip reference data (published_reference.yaml) — only
-            # configs that declare runs describe a batch to validate.
-            grep -q '^runs:' "$config" || continue
-            echo "== $config"
-            python -m benchmarks.run_all --config "$config" --dry-run
-          done
+          python -m pip install build
+          python -m build --wheel --outdir service-wheel
+          docker build --pull=false --build-context ordinary-lock=benchmarks/workflow/software \
+            --build-context core-wheel=service-wheel -t gnomon-bench-service:ci benchmarks/workflow/service
+      - name: Execute software and isolation checks with the immutable local image
+        run: |
+          GNOMON_TEST_SOFTWARE_IMAGE=$(docker image inspect gnomon-bench-software:ci --format '{{.Id}}')
+          export GNOMON_TEST_SOFTWARE_IMAGE
+          GNOMON_TEST_SERVICE_IMAGE=$(docker image inspect gnomon-bench-service:ci --format '{{.Id}}')
+          export GNOMON_TEST_SERVICE_IMAGE
+          pytest -q benchmarks/tests/test_software_backend.py benchmarks/tests/test_service_backend.py benchmarks/tests/test_workflow_episodes.py benchmarks/tests/test_workflow_cohort.py
 
   package:
     name: Build and smoke-test package
@@ -65,6 +92,8 @@ jobs:
         run: shellcheck install.sh
       - name: Build distributions
         run: python -m build
+      - name: Build the user-owned provider example separately
+        run: python -m build --wheel --outdir example-dist examples/provider_plugin
       - name: Enforce distribution boundary
         run: |
           python - <<'PY'
@@ -80,7 +109,7 @@ jobs:
         run: |
           docker run --rm --network none \
             --volume "$PWD:/work:ro" --workdir /work python:3.12-slim \
-            python scripts/offline_wheel_smoke.py dist/*.whl
+            python scripts/offline_wheel_smoke.py dist/*.whl --example-wheel example-dist/*.whl
       - name: Install wheel
         run: |
           START=$SECONDS
@@ -94,7 +123,7 @@ jobs:
           cd "$(mktemp -d)"
           gnomon capabilities
           gnomon --version
-          printf 'timestamp,value\n2026-01-01,1\n2026-01-02,2\n' | gnomon inspect - --time timestamp --target value --frequency D
+          printf 'timestamp,value\n2026-01-01,1\n2026-01-02,2\n' | gnomon inspect - --time-column timestamp --target-column value --frequency D
       - uses: actions/upload-artifact@v4
         with:
           name: python-distributions

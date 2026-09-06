@@ -1,57 +1,47 @@
-# CI/CD and release operations
+# CI and releases
 
-## Continuous integration
+## Validation
 
-`.github/workflows/ci.yml` runs on pushes to `main`, pull requests, and manual
-dispatch. It:
+`.github/workflows/ci.yml` runs production tests on Python 3.11, 3.12 and 3.13,
+plus current evaluation-harness tests. A separate job builds locked ordinary
+software and the actual Gnomon service image and checks their isolation/contracts.
+No CI test authorizes paid agent or inference-service calls.
 
-- tests Python 3.11, 3.12, and 3.13;
-- compiles source and tests;
-- builds the source distribution and wheel;
-- installs the wheel in the runner;
-- smoke-tests the installed CLI; and
-- uploads distributions as a workflow artifact.
+The source of version truth is `src/gnomon/product_contract.py::__version__`.
+The builder, CLI, MCP and artifacts consume it. Do not set a second static
+`project.version`.
 
-Enable branch protection for `main` and require the CI jobs before merging.
+## PyPI publishing
 
-## PyPI releases
+`.github/workflows/release.yml` runs on a matching `v*` tag. It checks the version,
+runs regressions, builds wheel/sdist, checks package metadata and proves
+installed-wheel operation before uploading through PyPI Trusted Publishing.
 
-`.github/workflows/release.yml` runs only for `v*` tags. It verifies that the tag
-matches `project.version`, builds and smoke-tests distributions, publishes
-through PyPI Trusted Publishing, and creates the GitHub Release automatically —
-notes are extracted from the tag's `## <version>` section of `CHANGELOG.md`
-and the built distributions are attached. No long-lived PyPI token is stored
-in GitHub. The full staging flow is therefore: merge the release PR, push the
-matching tag, and everything downstream (PyPI, GHCR image, GitHub Release) is
-automatic.
+The publisher is bound to repository `TensorLink-AI/Gnomon`, workflow
+`release.yml` and GitHub environment `pypi`. Only the publishing job receives
+`id-token: write`; GitHub release creation separately receives `contents: write`.
+Environment approval may still be required. Do not fall back to extracting a key
+or publishing from a different account.
 
-One-time configuration is still required:
+For release candidates, use a PEP 440 version such as `0.8.0rc3` and tag
+`v0.8.0rc3`. GitHub must mark it as a prerelease, not latest stable.
+Publication is irreversible in the sense that a PyPI version/file cannot simply
+be overwritten; use a new version for corrections.
 
-1. Create or reserve the `gnomon-forecast` project on PyPI.
-2. Add a GitHub Actions trusted publisher with owner `TensorLink-AI`, repository
-   `Gnomon`, workflow `release.yml`, and environment `pypi`.
-3. Create a GitHub environment named `pypi`; adding required reviewers is
-   recommended.
-4. Update `project.version`, merge it, and create a matching tag such as
-   `v0.1.0`.
+## Checklist
 
-The publishing job alone receives `id-token: write`; all other jobs use
-read-only repository permissions.
+1. Review the PR, migration notes and documented limitations.
+2. Verify production/harness tests, a fresh wheel and clean installed examples.
+3. Push the exact version tag only with explicit release authorization.
+4. Wait for build, publisher and any environment approval.
+5. Verify the version and file hashes on PyPI and install that exact version.
 
-## Container delivery
+Normally release from reviewed main. An explicitly authorized prerelease may
+come from the review branch; that does not imply the PR was merged or that
+pending live-evidence gates passed.
 
-`.github/workflows/container.yml` builds the Dockerfile for pull requests and
-publishes images to GitHub Container Registry on `main` and version tags. It
-uses Docker Buildx caching, provenance, and SBOM generation.
+## Containers
 
-GitHub's `GITHUB_TOKEN` supplies short-lived registry authentication. The
-repository or organization must allow Actions to write packages.
-
-## Release checklist
-
-1. Update the package version and release notes.
-2. Open a pull request and wait for CI and container builds.
-3. Merge to protected `main`.
-4. Create and push the matching signed or annotated version tag.
-5. Approve the `pypi` environment deployment if required.
-6. Verify the PyPI files, attestations, installed CLI, and GHCR image.
+`container.yml` builds PR images and publishes on main/version tags. Registry
+publication is separate from PyPI. See [containers](containers.md) and never
+describe a successful build as a successful registry or package-index upload.

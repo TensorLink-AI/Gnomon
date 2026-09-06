@@ -1,0 +1,15 @@
+schema_version = 1
+ledger_path = "ledger.db" # relative to this file, not the current directory
+allow_outcome_writes = false # operator Python writes below do not grant agents permission
+
+[providers.example-last]
+kind = "callable"
+entrypoint = "gnomon_example_provider:last_value"
+revision = "example-last/0.0.0"
+deterministic = true
+
+[providers.example-mean]
+kind = "factory"
+entrypoint = "gnomon_example_provider:fresh_mean"
+revision = "example-mean/0.0.0"
+deterministic = true

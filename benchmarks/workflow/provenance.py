@@ -8,13 +8,13 @@ import os
 import tempfile
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any
 
 from .schema import Case, Observation
 
 
 def corpus_sha256(cases: list[Case]) -> str:
-    payload = json.dumps([asdict(case) for case in cases], sort_keys=True,
+    values = [asdict(case) for case in cases]
+    payload = json.dumps(values, sort_keys=True,
                          separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 

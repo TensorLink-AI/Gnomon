@@ -1,163 +1,34 @@
 # Python API
 
-The Python API calls the same runtime used by the CLI.
-
-## Inspect a dataset
-
-```python
-from gnomon import inspect_dataset
-
-inspection = inspect_dataset(
-    "observations.csv",
-    time_column="timestamp",
-    target_column="requests",
-    series_column="service_id",
-    frequency="D",
-)
-
-print(inspection["schema"])
-print(inspection["series"])
-```
-
-`inspect_dataset` returns a JSON-compatible dictionary and does not write an
-artifact directory.
-
-## Create a forecast
+Use a callable for a loaded model, or a factory for a fresh fit per evaluation fold.
+Gnomon does not install model libraries or manage GPU memory.
 
 ```python
-from gnomon import forecast
+from gnomon import ForecastRequest, ForecastResult, InferenceEngine
 
-artifact, artifact_path = forecast(
-    "observations.csv",
-    time_column="timestamp",
-    target_column="requests",
-    series_column="service_id",
-    frequency="D",
-    horizon=7,
-    output="gnomon-output",
-    minimum_baseline_improvement=0.02,
-)
+def predict(request):
+    return ForecastResult((request.history[-1],) * request.horizon)
 
-for result in artifact.results:
-    print(result.series, result.support, result.selected_model)
-print(artifact_path)
+with InferenceEngine() as engine:
+    engine.register("my-model", predict, revision="my-config-v1")
+    run = engine.forecast("my-model", ForecastRequest((1, 2, 3), 2))
+    assert run.result.point == (3, 3)
 ```
 
-### Forecast with covariates
+For data inspection, tools and evaluation, use `GnomonSession.from_config()`.
+It registers three reference baselines without optional dependencies.
+`session.call(name, arguments)` is the MCP tool contract; `compact=False`
+returns the full value. `session.forecast`, `session.evaluate` and
+`session.route` expose the same underlying operations.
 
-```python
-from gnomon import forecast, load_covariates, validate_covariate_file
+`TemporalStore` holds observation vintages. `TemporalLedger` holds immutable
+executions, actual revisions, scores and decisions. They serve different purposes;
+neither turns a forecast or recorded decision into permission to act.
 
-validation = validate_covariate_file(
-    "observations.csv",
-    "covariates.csv",
-    "is_holiday:binary:future_known",
-    time_column="timestamp",
-    target_column="requests",
-    horizon=7,
-    frequency="D",
-)
-if not validation["valid"]:
-    raise ValueError(validation["validation"])
+Full contracts and runnable examples:
+[providers/session](production/INFERENCE.md), [ledger](production/OPERATIONS.md),
+[temporal calculations](production/TEMPORAL.md),
+[separate provider package](../examples/provider_plugin/README.md).
 
-covariates = load_covariates(
-    "covariates.csv", "is_holiday:binary:future_known"
-)
-artifact, artifact_path = forecast(
-    "observations.csv",
-    time_column="timestamp",
-    target_column="requests",
-    horizon=7,
-    frequency="D",
-    covariates=covariates,
-)
-```
-
-The mapping requires explicit `future_known` availability. Gnomon uses
-`known_at` to replay the value available at each historical fold cutoff.
-
-The returned `ForecastArtifact` is a dataclass. Use `artifact.to_dict()` for a
-JSON-compatible representation. Calling `forecast` also persists the standard
-artifact files — see [Results and artifacts](results-and-artifacts.md) for the
-canonical list and what each one carries.
-
-## Use the other governed views
-
-The Python package exports the same five top-level views advertised by the CLI
-and agent surfaces. The four non-forecast views return `(payload,
-artifact_path)`; the payload is JSON-compatible and the artifact owns its
-numbers and evidence.
-
-```python
-from gnomon import decide, detect_anomalies, investigate_change, monitor
-
-common = {
-    "time_column": "timestamp",
-    "target_column": "requests",
-    "frequency": "D",
-    "output": "gnomon-output",
-}
-
-investigation, investigation_path = investigate_change(
-    "observations.csv", **common
-)
-
-detection, detection_path = detect_anomalies(
-    "observations.csv", threshold=3.5, **common
-)
-
-decision, decision_path = decide(
-    "observations.csv",
-    horizon=7,
-    threshold=340,
-    actions=[{"name": "scale_up"}, {"name": "wait"}],
-    utilities={
-        "scale_up": {"exceed": 8, "no_exceed": -2},
-        "wait": {"exceed": -20, "no_exceed": 0},
-    },
-    **common,
-)
-
-monitoring, monitoring_path = monitor(
-    "observations.csv",
-    horizon=7,
-    threshold=340,
-    alert_cost=1,
-    miss_cost=20,
-    **common,
-)
-```
-
-`investigate_change` ranks associational explanations, never causes.
-`detect_anomalies` discloses how competing detectors were graded. `decide`
-degrades to a feasible-action comparison when utilities are absent, and
-`monitor` marks an uncosted default rule when alert and miss costs are absent.
-Inspect each payload's support assessment and limitations before acting.
-
-## Handle structured errors
-
-```python
-from gnomon import inspect_dataset
-from gnomon.contracts import GnomonError
-
-try:
-    inspect_dataset(
-        "observations.csv",
-        time_column="timestamp",
-        target_column="requests",
-    )
-except GnomonError as error:
-    print(error.code)
-    print(error.message)
-    print(error.details)
-```
-
-`GnomonError.to_dict()` returns the same structured error envelope emitted by
-the CLI. An `unsupported` series is not an exception: inspect
-`artifact.results[*].support` and its warnings.
-
-## API stability
-
-The artifact schema is versioned as `0.1`, but the Python API is still an MVP.
-Pin the package version and consume persisted artifacts when long-term
-compatibility is important.
+The old top-level forecast/macros and TrackingStore writer are removed.
+Historical imports are read-only ledger operations; see [migration](../COMPATIBILITY.md).

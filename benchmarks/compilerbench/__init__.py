@@ -1,1 +1,0 @@
-"""Temporal intent compiler evaluation."""

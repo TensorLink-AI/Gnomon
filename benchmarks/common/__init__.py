@@ -1,2 +1,1 @@
-"""Shared infrastructure for benchmark adapters: OpenRouter access and
-GnomonBench-compatible run records."""
+"""Transport, checkpoints and provenance for the current agent evaluation."""

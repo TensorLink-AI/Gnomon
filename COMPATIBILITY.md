@@ -1,51 +1,59 @@
-# Compatibility policy
+# Compatibility and migration
 
-Gnomon is pre-1.0. It maintains one agent contract—the MCP registry—and does
-not carry permanent compatibility aliases for unused experimental surfaces.
-Breaking changes are called out in the changelog and release notes.
+## 0.9 development: one execution model
 
-## Supported public surfaces
+This is a deliberate breaking simplification. The new goal is provider-neutral
+time-series execution, explicit data/time semantics, optional durable evidence
+and budgeted evaluation. Features that only served the older opinionated runtime
+are removed, not hidden behind flags or moved into another shipped package.
 
-- **MCP:** `src/gnomon/toolspec.py` is the source of truth. Use `tools/list`
-  or `gnomon capabilities` to discover the installed profile.
-- **CLI:** the commands documented in `docs/cli-reference.md` are the human,
-  operator, and audit surface.
-- **Python:** compatibility is promised for the documented entry points used
-  by MCP, not for every internal module.
-- **Docker:** packages the CLI; it is not an independent API surface.
+Removed:
 
-The original v0.2 `gnomon_forecast` input schema remains frozen as the sole
-registry-derivation exception. Additive response fields may still appear.
+- The evaluated forecasting/macros runtime and its top-level Python `forecast`,
+  `investigate_change`, `detect_anomalies`, `decide` and `monitor` exports.
+- Legacy MCP profiles core, data, decision, evidence and full; their tool registry
+  and context/publication/sensitivity/effect-learning machinery.
+- Built-in TSFM catalogues, sandbox installers, per-library StatsForecast adapters,
+  generic legacy HTTP adapters and automatic model-admission/routing policies.
+- TrackingStore writers, feedback/supervision commands, report generation and
+  Prometheus/webhook monitoring. Host applications own these workflows.
+- CLI forecast/investigate/detect/decide/monitor/track/tsfm/context/covariates/report/eval.
 
-## Removed surfaces
+Retained:
 
-The following unused surfaces were removed rather than kept behind feature
-flags:
+- `ForecastRequest → ForecastResult`, `InferenceEngine`, callables and fresh factories.
+- `GnomonSession` shared by Python, CLI and MCP; optional Ephemeris connector.
+- Three reference baselines: last_value, historical_mean and seasonal_naive.
+- Explicit snapshot-backed file/store inspection, exact descriptive statistics,
+  revision-aware `TemporalStore`, optional `TemporalLedger`.
+- Budgeted backtesting and cutoff-bound study routing.
+- Optional explicit date/instant/interval/event calculations.
+- Read-only import of old sealed/unsealed artifacts and tracking registries.
 
-- The packaged Hermes plugin and its hand-copied schemas. Hermes and other
-  agent hosts use the MCP server directly.
-- The experimental plan compiler/executor: `gnomon plan`,
-  `gnomon_compile_task`, `gnomon_validate_plan`, `gnomon_execute_plan`, and
-  `gnomon_get_run`. The five governed verbs and their current MCP views are
-  the execution contract.
-- The v0.2 compatibility tools listed below. `GNOMON_V02_COMPAT` and
-  `GNOMON_EXPERIMENTAL_PLANNER` no longer restore anything.
+Use `gnomon infer` or `session.forecast` to run a named provider.
+Use `gnomon evaluate` or `session.evaluate` for a separate comparison.
+Choose and load model libraries in your own callable; use a factory when fitting
+must be fresh per fold. Unsupported request features fail instead of disappearing.
 
-| Removed MCP tool | Current path |
-| --- | --- |
-| `gnomon_covariate_guide` | `gnomon covariates guide` for humans; MCP callers pass covariates to `gnomon_forecast` |
-| `gnomon_propose_covariates` | The host proposes data; `gnomon_validate_covariates` validates and `gnomon_forecast` admits it |
-| `gnomon_list_open_forecasts` | `gnomon_status` with the due section |
-| `gnomon_model_performance` | `gnomon_status` with the performance section |
-| `gnomon_record_decision` | `gnomon_decide` creates the governed decision artifact |
-| `gnomon_resolve_decision` | `gnomon_resolve_outcome` |
-| `gnomon_proposer_skill` | No public replacement; this internal telemetry did not justify an agent tool |
+There is only one MCP profile: execution. Enable ledger/temporal tools with
+operator configuration, not agent arguments. Legacy commands and profiles fail;
+they do not silently reinterpret old arguments.
 
-`gnomon_validate_covariates` and `gnomon_submit_actuals` remain current tools.
-The `mega` MCP profile also remains available as an experimental measurement
-arm; it is not the default surface.
+CLI inspect/describe now use the execution contract: explicit column mappings,
+repairs off by default, one selected panel series, exact observed statistic.
+Full CLI results contain provenance but their temporary references expire at exit.
+Piped CSV input remains supported with `-` (bounded to 8 MiB).
+MCP/Python sessions can reuse references and page large retained results.
 
-## Rule for future surfaces
+## Existing data and recovery
 
-A surface ships only when it serves an audience no existing surface can and
-derives its contract from the MCP registry instead of hand-copying it.
+No user database, saved forecast or input file is deleted. Keep old artifacts
+and registries read-only; import into a separate ledger when needed. Missing
+historical inputs, recording times and overwritten scores remain unknown.
+
+Git commit `333ed2c` preserves the pre-cull implementation, tests and docs.
+The published `0.8.0rc3` artifacts and tag are immutable and unchanged.
+This cleanup is `0.9.0.dev0` in source only; it has not been published to PyPI.
+
+[Provider/session contract](docs/production/INFERENCE.md) ·
+[Historical imports](docs/production/OPERATIONS.md)

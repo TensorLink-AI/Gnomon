@@ -1,2 +1,0 @@
-"""Decision-input integrity benchmark."""
-

@@ -14,10 +14,7 @@ say which case was hit.
 
 from __future__ import annotations
 
-import csv
-import re
 from datetime import datetime, timedelta
-from pathlib import Path
 
 import pytest
 
@@ -25,9 +22,7 @@ from gnomon.contracts import GnomonError
 from gnomon.temporal import (
     FREQUENCIES,
     FREQUENCY_DESCRIPTIONS,
-    SEASONS,
     canonical_code,
-    default_season,
     frequency_step,
     infer_frequency,
     normalise_frequency,
@@ -220,24 +215,9 @@ def test_intraday_ambiguity_does_not_offer_month_end_restamping() -> None:
     assert raised.value.details["observed_step"] == "0:20:00"
 
 
-def test_every_frequency_has_a_season_and_a_description() -> None:
+def test_every_frequency_has_a_description() -> None:
     expected = set(FREQUENCIES) | {"MS"}
-    assert set(SEASONS) == expected
     assert set(FREQUENCY_DESCRIPTIONS) == expected
-
-
-def test_default_seasons_follow_the_curated_rule() -> None:
-    """One rule reproduces the whole curated table (daily cycle when it
-    fits in 288 lags, else hourly, else a minute cycle) and extends it to
-    general codes."""
-    for code in FREQUENCIES:
-        assert default_season(code) == SEASONS[code]
-    assert default_season("2h") == 12       # daily cycle
-    assert default_season("20min") == 72    # daily cycle
-    assert default_season("7min") == 206    # ~daily cycle, rounded
-    assert default_season("2min") == 30     # hourly: daily would be 720 lags
-    assert default_season("10s") == 6       # minute: hourly would be 360 lags
-    assert default_season("12h") == 2
 
 
 def test_frequency_step_round_trips_canonical_codes() -> None:
@@ -247,181 +227,3 @@ def test_frequency_step_round_trips_canonical_codes() -> None:
     assert frequency_step("MS") is None
     assert frequency_step("90s") == timedelta(seconds=90)
     assert canonical_code(timedelta(seconds=90)) == "90s"
-
-
-def test_schema_patterns_carry_the_whole_grid() -> None:
-    """The tool schemas advertise the grid to agents; a code their pattern
-    rejects is a code agents can never pass."""
-    from gnomon.registry import _COMMON_INPUT
-    from gnomon.toolspec import _INPUT_PROPERTIES
-
-    for properties in (_COMMON_INPUT, _INPUT_PROPERTIES):
-        pattern = re.compile(properties["frequency"]["pattern"])
-        for code in SEASONS:
-            assert pattern.match(code), code
-        for code in ("7min", "90s", "2h", "10s"):
-            assert pattern.match(code), code
-        for junk in ("0s", "monthly-ish", "1.5min", "48hh"):
-            assert not pattern.match(junk), junk
-
-
-def _write_regular(path: Path, step: timedelta, count: int) -> None:
-    with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=["timestamp", "value"])
-        writer.writeheader()
-        for index, stamp in enumerate(_stamps(step, count)):
-            writer.writerow({"timestamp": stamp.isoformat(),
-                             "value": 100 + 0.5 * index})
-
-
-def test_ten_minute_data_forecasts_end_to_end(tmp_path: Path) -> None:
-    from gnomon.runtime import forecast
-
-    source = tmp_path / "solar.csv"
-    _write_regular(source, timedelta(minutes=10), 60)
-    artifact, _ = forecast(
-        str(source), time_column="timestamp", target_column="value",
-        horizon=6, output=str(tmp_path / "output"),
-    )
-    assert artifact.task.schema.frequency == "10min"
-    assert len(artifact.results[0].forecast) == 6
-
-
-def test_one_second_data_forecasts_end_to_end(tmp_path: Path) -> None:
-    from gnomon.runtime import forecast
-
-    source = tmp_path / "pressure.csv"
-    _write_regular(source, timedelta(seconds=1), 60)
-    artifact, _ = forecast(
-        str(source), time_column="timestamp", target_column="value",
-        horizon=6, output=str(tmp_path / "output"),
-    )
-    assert artifact.task.schema.frequency == "s"
-    assert len(artifact.results[0].forecast) == 6
-
-
-def test_general_step_data_forecasts_end_to_end(tmp_path: Path) -> None:
-    """A 7-minute grid — in no one's named list — loads, infers, validates,
-    and forecasts, with the future timestamps on the same 7-minute grid."""
-    from gnomon.runtime import forecast
-
-    source = tmp_path / "telemetry.csv"
-    _write_regular(source, timedelta(minutes=7), 60)
-    artifact, _ = forecast(
-        str(source), time_column="timestamp", target_column="value",
-        horizon=4, output=str(tmp_path / "output"),
-    )
-    assert artifact.task.schema.frequency == "7min"
-    rows = artifact.results[0].forecast
-    assert len(rows) == 4
-    stamps = [datetime.fromisoformat(str(row["timestamp"])) for row in rows]
-    deltas = {right - left for left, right in zip(stamps, stamps[1:])}
-    assert deltas == {timedelta(minutes=7)}
-
-
-def test_detect_season_finds_a_period_beyond_the_frequency_default() -> None:
-    """An hourly axis defaults to season 24, but a 50-step oscillation is
-    real data (AnomLLM's synthetic sines run at period 33-50). The search
-    must reach past twice the calendar default, or every season-aware
-    consumer — per-phase z-scores, rolling windows, seasonal naive —
-    runs on the wrong period; measured as mass false-positive anomaly
-    flags on sine series."""
-    import math
-
-    from gnomon.temporal import detect_season
-
-    values = [math.sin(2 * math.pi * 0.02 * index) for index in range(400)]
-    season, strength, basis = detect_season(values, "h")
-    assert basis == "autocorrelation"
-    assert season == 50
-    assert strength > 0.5
-
-
-def test_detect_season_considers_period_at_two_cycle_boundary() -> None:
-    """Exactly two cycles still provide a measured, correctly typed period."""
-    import math
-
-    from gnomon.temporal import detect_season
-
-    for phase in (0.0, 0.2, 1.1):
-        values = [
-            100 + 5 * math.sin(2 * math.pi * index / 24 + phase)
-            for index in range(48)
-        ]
-        season, strength, basis = detect_season(values, "h")
-        assert (season, basis) == (24, "autocorrelation")
-        assert strength > .3
-
-
-def test_detect_season_does_not_round_hourly_period_down_to_23() -> None:
-    """Unequal overlap lengths must not make 23 beat a perfect 24-hour cycle."""
-    import math
-
-    from gnomon.temporal import detect_season
-
-    values = [math.sin(2 * math.pi * index / 24) for index in range(50)]
-    season, strength, basis = detect_season(values, "h")
-    assert (season, basis) == (24, "autocorrelation")
-    assert strength > .75
-
-
-def test_detect_season_measures_non_sinusoidal_two_cycle_repeat() -> None:
-    """A clean repeated daily shape is evidence, not a zero-strength default."""
-    from gnomon.fingerprint import series_fingerprint
-    from gnomon.temporal import detect_season
-
-    values = [float(index % 24) for index in range(48)]
-    season, strength, basis = detect_season(values, "h")
-    assert (season, basis) == (24, "autocorrelation")
-    assert strength > .75
-    fingerprint = series_fingerprint(values, "h")
-    assert fingerprint["season_period"] == 24
-    assert fingerprint["season_source"] == "autocorrelation"
-    assert fingerprint["season_strength"] > .75
-
-
-def test_two_cycle_inactive_phase_structure_resists_early_acf_peak() -> None:
-    """Noisy active magnitudes must not move a repeated daily zero window."""
-    from gnomon.temporal import detect_season
-
-    first = [0.0] * 6 + [2, 79, 3, 15, 102, 263, 206, 265, 289, 314, 605, 274] + [0.0] * 6
-    second = [0.0] * 7 + [250, 60, 819, 853, 867, 832, 815, 774, 698, 551, 210] + [0.0] * 6
-
-    season, strength, basis = detect_season(first + second, "h")
-
-    assert (season, basis) == (24, "autocorrelation")
-    assert strength > .3
-
-
-def test_frequency_prior_does_not_replace_a_measured_period_23() -> None:
-    import math
-
-    from gnomon.temporal import detect_season
-
-    values = [math.sin(2 * math.pi * index / 23) for index in range(69)]
-    season, strength, basis = detect_season(values, "h")
-    assert (season, basis) == (23, "autocorrelation")
-    assert strength > .3
-
-
-def test_export_rounding_dust_does_not_become_a_short_season() -> None:
-    """A rounded linear cron counter has trend, not a nine-step cycle."""
-    from gnomon.temporal import detect_season
-
-    values = [round(1060 + 325 * index / 74, 6) for index in range(75)]
-    assert detect_season(values, "20min") == (
-        72, 0.0, "frequency_default")
-
-
-def test_small_real_cycle_survives_relative_residual_energy_floor() -> None:
-    import math
-
-    from gnomon.temporal import detect_season
-
-    values = [
-        1060 + 325 * index / 74 + .01 * math.sin(2 * math.pi * index / 9)
-        for index in range(75)
-    ]
-    season, strength, basis = detect_season(values, "20min")
-    assert (season, basis) == (9, "autocorrelation")
-    assert strength > .5

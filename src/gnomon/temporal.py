@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import calendar
-import math
 import re
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
@@ -21,12 +20,6 @@ FREQUENCIES: dict[str, timedelta] = {
     "D": timedelta(days=1),
     "W": timedelta(weeks=1),
 }
-# Dominant cycle per frequency: a minute cycle for 1-second data and an
-# hourly cycle for 1-minute data (a daily cycle of 86400 or 1440 would
-# demand days of history), daily for the coarser intraday steps.
-SEASONS = {"s": 60, "min": 60, "5min": 288, "10min": 144, "15min": 96,
-           "30min": 48, "h": 24, "D": 7, "W": 52, "MS": 12}
-
 FREQUENCY_DESCRIPTIONS = {
     "s": "1 second", "min": "1 minute", "5min": "5 minutes",
     "10min": "10 minutes", "15min": "15 minutes", "30min": "30 minutes",
@@ -44,7 +37,7 @@ _DAY_SECONDS = 86400
 
 
 def _supported_frequency_values() -> list[str]:
-    return [*sorted(SEASONS), "<N>s", "<N>min", "<N>h"]
+    return [*sorted(FREQUENCY_DESCRIPTIONS), "<N>s", "<N>min", "<N>h"]
 
 
 def _frequency_repairs(*, month_end: bool = False) -> list[dict[str, str]]:
@@ -101,208 +94,6 @@ def frequency_step(frequency: str) -> timedelta | None:
     return None
 
 
-#: Natural cycles a general step's default season is derived from, in the
-#: preference order the curated SEASONS table encodes: the daily cycle when
-#: it fits (5min -> 288), else hourly (min -> 60, because 1440 daily lags
-#: would demand days of history), else a minute cycle (s -> 60). The cap is
-#: the largest curated value; a cycle needing more lags falls through to
-#: the next shorter one.
-_SEASON_CYCLES = (_DAY_SECONDS, 3600, 60)
-_MAX_DEFAULT_SEASON = 288
-
-#: How far the autocorrelation season search looks when the frequency's
-#: default would stop it short. 366 keeps weekly-in-hourly (168) and
-#: yearly-in-daily (365) periods findable, and any arbitrary period a
-#: synthetic or sensor series carries, while bounding the O(n * lags)
-#: scan. A longer true period still needs len(values) // 2 >= period —
-#: two full observed cycles — before it can be chosen at all.
-_SEASON_SEARCH_CAP = 366
-
-#: At the two-cycle boundary, a full-window autocorrelation denominator
-#: penalises the expected period more than its shorter neighbour. Require a
-#: strong overlap correlation before the frequency prior may correct that
-#: finite-window bias; this is deliberately too high for weak seasonality.
-_FREQUENCY_PRIOR_REPEATABILITY = 0.90
-
-#: Detrending an exactly linear series can leave representation or export-
-#: rounding dust. Normalising that dust by its own tiny energy creates large,
-#: apparently meaningful autocorrelations at arbitrary lags. Treat residual
-#: energy below this fraction of the observed variation as numerical, not as
-#: evidence of seasonality.
-_DETREND_RESIDUAL_ENERGY_FLOOR = 1e-12
-
-
-def seasonal_structural_zero_phases(
-    history: list[float], season: int, *, max_cycles: int = 4,
-) -> frozenset[int]:
-    """Find a repeated contiguous block of exactly-zero seasonal phases.
-
-    A whole seasonal candidate may be inadmissible because magnitudes vary
-    between cycles even though its inactive phases are perfectly stable
-    (opening hours and daylight are common examples). Preserve that weaker
-    fact separately across two to four complete visible cycles. Scattered
-    intermittent zeros do not become a calendar claim because the union of
-    non-zero phases must form one contiguous circular block.
-
-    The result is phase evidence only. Callers must not change a non-zero
-    point forecast with it, and threshold probabilities need their own joint
-    calibration rather than this marginal rule.
-    """
-    if (season < 4 or max_cycles < 2 or len(history) < 2 * season
-            or any(not isinstance(value, (int, float))
-                   or isinstance(value, bool)
-                   or not math.isfinite(float(value))
-                   or float(value) < 0.0
-                   for value in history)):
-        return frozenset()
-    cycles = min(max_cycles, len(history) // season)
-    start = len(history) - cycles * season
-    visible = [float(value) for value in history[start:]]
-    cycle_rows = [
-        visible[index * season:(index + 1) * season]
-        for index in range(cycles)
-    ]
-    if any(not any(value > 0.0 for value in row) for row in cycle_rows):
-        return frozenset()
-    active = [
-        any(row[phase] > 0.0 for row in cycle_rows)
-        for phase in range(season)
-    ]
-    active_count = sum(active)
-    inactive = frozenset(
-        phase for phase, is_active in enumerate(active) if not is_active)
-    transitions = sum(
-        active[phase] != active[(phase - 1) % season]
-        for phase in range(season)
-    )
-    if (transitions != 2
-            or active_count < max(2, math.ceil(.15 * season))
-            or len(inactive) < math.ceil(.4 * season)):
-        return frozenset()
-    return inactive
-
-
-def default_season(frequency: str) -> int:
-    """The fallback seasonal period for any supported frequency code.
-
-    Curated codes read the SEASONS table; general codes apply the rule the
-    table itself follows. A step that fits no natural cycle (nothing between
-    2 and 288 lags) gets 1 — no seasonality assumed — and season detection
-    then rests on measured autocorrelation alone.
-    """
-    if frequency in SEASONS:
-        return SEASONS[frequency]
-    step = frequency_step(frequency)
-    if step is not None:
-        for cycle in _SEASON_CYCLES:
-            ratio = round(cycle / step.total_seconds())
-            if 2 <= ratio <= _MAX_DEFAULT_SEASON:
-                return ratio
-    return 1
-
-
-def _lag_correlation(values: list[float], lag: int) -> float:
-    """Pearson correlation of the two overlapping windows at ``lag``."""
-    if lag < 1 or len(values) <= lag:
-        return 0.0
-    current = values[lag:]
-    prior = values[:-lag]
-    current_mean = sum(current) / len(current)
-    prior_mean = sum(prior) / len(prior)
-    covariance = sum(
-        (left - current_mean) * (right - prior_mean)
-        for left, right in zip(current, prior)
-    )
-    current_scale = sum((value - current_mean) ** 2 for value in current)
-    prior_scale = sum((value - prior_mean) ** 2 for value in prior)
-    denominator = (current_scale * prior_scale) ** 0.5
-    if denominator <= 1e-12:
-        return 0.0
-    return max(-1.0, min(1.0, covariance / denominator))
-
-
-def detect_season(values: list[float], frequency: str) -> tuple[int, float, str]:
-    """Detect a repeat period from autocorrelation, falling back to frequency.
-
-    Peaks must be both locally maximal and materially correlated.  Restricting
-    the search to at least two observed cycles avoids choosing unsupported
-    long lags, while lag 1 is excluded because trend commonly dominates it.
-    """
-    fallback = default_season(frequency)
-    if len(values) < 8:
-        return fallback, 0.0, "frequency_default"
-    # Remove a least-squares line first: otherwise a trend creates large,
-    # slowly decaying autocorrelation that masquerades as seasonality.
-    x_mean = (len(values) - 1) / 2
-    y_mean = sum(values) / len(values)
-    x_var = sum((i - x_mean) ** 2 for i in range(len(values)))
-    slope = sum((i - x_mean) * (value - y_mean) for i, value in enumerate(values)) / x_var
-    centred = [value - (y_mean + slope * (i - x_mean)) for i, value in enumerate(values)]
-    denominator = sum(value * value for value in centred)
-    observed_energy = sum((value - y_mean) ** 2 for value in values)
-    if denominator <= max(
-            1e-12, observed_energy * _DETREND_RESIDUAL_ENERGY_FLOOR):
-        return fallback, 0.0, "frequency_default"
-    # The search must reach beyond the calendar default: a true period the
-    # frequency never anticipated (a 50-step oscillation on an hourly axis,
-    # a yearly cycle in daily data) is invisible if the scan stops at twice
-    # the default, and every season-aware detector downstream then runs on
-    # the wrong period. The cap bounds the O(n * lags) scan; len // 2
-    # still requires two full observed cycles for any period chosen.
-    maximum = min(len(values) // 2, max(fallback * 2, _SEASON_SEARCH_CAP))
-    acf = [0.0]
-    for lag in range(1, maximum + 1):
-        acf.append(sum(centred[i] * centred[i - lag] for i in range(lag, len(values))) / denominator)
-    threshold = max(0.3, 2.0 / len(values) ** 0.5)
-    peaks = [lag for lag in range(2, maximum)
-             if acf[lag] >= threshold and acf[lag] > acf[lag - 1]
-             and acf[lag] >= acf[lag + 1]]
-    # With exactly two observed cycles the true period is the upper search
-    # boundary.  It has no right neighbour, so the old strict-local-maximum
-    # loop could never select it: a clean hourly cycle returned the default
-    # with zero strength, or lag 23 when phase truncation made that adjacent
-    # correlation fractionally larger.  Admit the bounded endpoint as a
-    # candidate. When that endpoint is also the frequency prior, prefer it
-    # over a one-step neighbour: with only two cycles the finite-window ACF
-    # cannot reliably distinguish 23 from the known hourly period 24.
-    if maximum == fallback and maximum >= 2 and acf[maximum] >= threshold:
-        peaks.append(maximum)
-    # The biased ACF above is intentionally conservative across a wide lag
-    # search, but near two cycles it compares different overlap lengths: lag
-    # 23 receives one more product than lag 24 and can win by that product
-    # alone. A strong correlation on the equal-length overlap is admissible
-    # only for the frequency prior. It can validate the exact upper boundary
-    # or correct a one-step-left result when its repeatability is stronger;
-    # it cannot displace an independently detected shorter period.
-    fallback_repeatability = (
-        _lag_correlation(centred, fallback)
-        if fallback >= 2 and fallback <= maximum else 0.0
-    )
-    # At exactly two cycles, noisy active-phase magnitudes can create a weak
-    # local peak a step or two before the calendar period even when a long,
-    # contiguous inactive phase block repeats exactly.  The phase structure
-    # is independent evidence for the frequency prior; require that plus a
-    # material equal-overlap correlation before preferring it.  This does not
-    # displace a shorter period once more than two cycles are visible.
-    if (maximum == fallback
-            and seasonal_structural_zero_phases(values, fallback)
-            and fallback_repeatability >= threshold):
-        return fallback, fallback_repeatability, "autocorrelation"
-    if fallback_repeatability >= _FREQUENCY_PRIOR_REPEATABILITY:
-        if maximum == fallback and not peaks:
-            return fallback, fallback_repeatability, "autocorrelation"
-        if (peaks and peaks[0] == fallback - 1
-                and fallback_repeatability
-                > _lag_correlation(centred, fallback - 1)):
-            return fallback, fallback_repeatability, "autocorrelation"
-    if not peaks:
-        return fallback, 0.0, "frequency_default"
-    peaks = sorted(set(peaks))
-    lag = (fallback if maximum == fallback and fallback in peaks
-           else peaks[0])
-    return lag, acf[lag], "autocorrelation"
-
-
 def normalise_frequency(value: str) -> str:
     aliases = {"H": "h", "hour": "h", "hourly": "h", "1h": "h",
                "day": "D", "daily": "D", "1d": "D", "1D": "D",
@@ -315,7 +106,7 @@ def normalise_frequency(value: str) -> str:
                "15T": "15min", "15m": "15min",
                "30T": "30min", "30m": "30min"}
     result = aliases.get(value, value)
-    if result in SEASONS:
+    if result in FREQUENCY_DESCRIPTIONS:
         return result
     step = frequency_step(result)
     if step is not None:
@@ -325,7 +116,7 @@ def normalise_frequency(value: str) -> str:
     raise GnomonError(
         "UNSUPPORTED_FREQUENCY",
         f"Unsupported frequency: {value}. Supported: "
-        + ", ".join(f"{code} ({FREQUENCY_DESCRIPTIONS[code]})" for code in SEASONS)
+        + ", ".join(f"{code} ({FREQUENCY_DESCRIPTIONS[code]})" for code in FREQUENCY_DESCRIPTIONS)
         + "; or any regular sub-daily step as <N>s, <N>min, or <N>h "
           "(e.g. 90s, 7min, 2h).",
         {"supported": _supported_frequency_values(),

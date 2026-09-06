@@ -7,16 +7,15 @@ is honesty, not fragility: repairs are allowed, but only under three rules.
 1. **Repairs fire only where the strict path would fail.** A file that
    parses cleanly today is untouched — byte-identical output, same IDs.
 2. **Every repair is disclosed.** Each fix is a typed :class:`RepairAction`
-   collected in a :class:`RepairLog`; the forecast artifact carries them as
-   a ``data_repair`` evidence record, and assumptive repairs additionally
-   become series warnings so support degrades honestly.
+   collected in a :class:`RepairLog`; inspection reports the actions, including
+   whether each repair made assumptions.
 3. **Messiness has a ceiling.** Assumptive repairs are capped; past the cap
    the honest answer is ``EXCESSIVE_REPAIR``, not a forecast built on a
    dataset Gnomon mostly invented.
 
-Two levels above ``off``:
+Repair is off by default. Two explicitly selected levels are available:
 
-- ``safe`` (the default): reinterprets cell *text* and aligns bounded
+- ``safe``: reinterprets cell *text* and aligns bounded
   scheduler/scrape jitter — date formats, currency/thousands separators,
   percent signs, sentinel missing values, fully blank rows, byte-identical
   duplicate rows, and timestamps within 1% of a deterministic grid (capped
@@ -45,9 +44,13 @@ if TYPE_CHECKING:  # pragma: no cover - import cycle guard (data imports repair)
     from .data import Observation
 
 REPAIR_OFF = "off"
-REPAIR_SAFE = "safe"
 REPAIR_AGGRESSIVE = "aggressive"
-REPAIR_LEVELS = (REPAIR_OFF, REPAIR_SAFE, REPAIR_AGGRESSIVE)
+
+
+def validate_repair_level(level: str) -> None:
+    """Reject invalid policy values before reading or transforming observations."""
+    if type(level) is not str or level not in ("off", "safe", "aggressive"):
+        raise GnomonError("INVALID_ARGUMENTS", "repair must be off, safe or aggressive.")
 
 # Fraction of a series whose *values* assumptive repair may invent or choose
 # (fills and conflict resolutions) before the honest answer is "fix the
@@ -115,23 +118,6 @@ class RepairLog:
         if example is not None and isinstance(examples, list) and len(examples) < 3:
             examples.append(example)
 
-    def clone(self) -> "RepairLog":
-        """An independent copy. A multi-target run records the shared
-        file-level reads once, then forks a log per target so each
-        column's repairs are disclosed on that column alone."""
-        copy = RepairLog()
-        for key, entry in self._entries.items():
-            metrics = entry.get("metrics")
-            copy._entries[key] = {
-                **entry,
-                "examples": list(entry["examples"]),
-                "metrics": dict(metrics) if isinstance(metrics, dict) else None,
-            }
-        return copy
-
-    def has_actions(self) -> bool:
-        return bool(self._entries)
-
     def actions(self) -> list[RepairAction]:
         return [
             RepairAction(code, series, int(entry["count"]), bool(entry["assumptive"]),
@@ -141,15 +127,6 @@ class RepairLog:
             for (code, series), entry in sorted(
                 self._entries.items(), key=lambda item: (item[0][0], item[0][1] or "")
             )
-        ]
-
-    def warnings_for(self, series: str) -> list[str]:
-        """Assumptive repairs become warnings on the series they touched;
-        file-level assumptive repairs warn on every series."""
-        return [
-            f"repaired_data: {action.code} x{action.count} — {action.detail}"
-            for action in self.actions()
-            if action.assumptive and action.series in (None, series)
         ]
 
     def summary(self) -> dict[str, object]:
@@ -501,6 +478,7 @@ def repair_observations(
     duplicates (last row in file order wins) and linearly interpolates
     interior gaps. Every action is disclosed; only invented or selected
     values consume the assumptive-repair ceiling."""
+    validate_repair_level(level)
     if level == REPAIR_OFF or not observations:
         return observations
     from collections import defaultdict

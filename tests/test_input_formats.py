@@ -13,7 +13,7 @@ import pytest
 
 from gnomon.contracts import GnomonError
 from gnomon.ids import FixedClock
-from gnomon.runtime import capabilities, forecast
+from gnomon import GnomonSession
 
 CLOCK = FixedClock(datetime(2026, 7, 1, tzinfo=timezone.utc))
 
@@ -27,17 +27,13 @@ def daily(count: int) -> list[tuple[str, float]]:
 
 
 def run(path: Path, tmp_path: Path, **kwargs):
-    return forecast(
-        str(path), time_column="timestamp", target_column="value", horizon=3,
-        output=str(tmp_path / "out"), clock=CLOCK, **kwargs,
-    )
+    with GnomonSession.from_config() as session:
+        inspected = session.data.inspect(str(path), **{"repair": "safe", **kwargs})
+        return inspected, None
 
 
 def repair_codes(artifact) -> set[str]:
-    for item in artifact.evidence:
-        if item.kind == "data_repair":
-            return {action["code"] for action in item.payload["actions"]}
-    return set()
+    return {action["code"] for action in artifact["repairs"]}
 
 
 def test_semicolon_csv_with_comma_decimals(tmp_path: Path) -> None:
@@ -46,7 +42,7 @@ def test_semicolon_csv_with_comma_decimals(tmp_path: Path) -> None:
     source.write_text("\n".join(lines), encoding="utf-8")
     artifact, _ = run(source, tmp_path)
     assert "delimiter_detected" in repair_codes(artifact)
-    assert artifact.results[0].support == "supported"
+    assert artifact["series"][0]["count"] == 30
     # Strict mode keeps the old behaviour: one giant column, missing mapping.
     with pytest.raises(GnomonError) as caught:
         run(source, tmp_path, repair="off")
@@ -80,7 +76,7 @@ def test_cp1252_fallback_is_assumptive(tmp_path: Path) -> None:
     assert caught.value.code == "INVALID_ENCODING"
     artifact, _ = run(source, tmp_path)
     assert "encoding_assumed" in repair_codes(artifact)
-    assert any("encoding_assumed" in warning for warning in artifact.results[0].warnings)
+    assert next(r["assumptive"] for r in artifact["repairs"] if r["code"] == "encoding_assumed")
 
 
 def test_gzipped_csv(tmp_path: Path) -> None:
@@ -88,7 +84,7 @@ def test_gzipped_csv(tmp_path: Path) -> None:
     lines = ["timestamp,value"] + [f"{stamp},{value}" for stamp, value in daily(20)]
     source.write_bytes(gzip.compress("\n".join(lines).encode("utf-8")))
     artifact, _ = run(source, tmp_path, repair="off")
-    assert artifact.results[0].support in ("supported", "weakly_supported", "degraded")
+    assert artifact["series"][0]["count"] == 20
 
 
 def test_json_array(tmp_path: Path) -> None:
@@ -97,7 +93,7 @@ def test_json_array(tmp_path: Path) -> None:
         {"timestamp": stamp, "value": value} for stamp, value in daily(20)
     ]), encoding="utf-8")
     artifact, _ = run(source, tmp_path, repair="off")
-    assert artifact.results[0].series == "__default__"
+    assert artifact["series"][0]["series_id"] == "__default__"
 
 
 def test_json_must_be_array_of_objects(tmp_path: Path) -> None:
@@ -114,7 +110,7 @@ def test_jsonl(tmp_path: Path) -> None:
         json.dumps({"timestamp": stamp, "value": value}) for stamp, value in daily(20)
     ), encoding="utf-8")
     artifact, _ = run(source, tmp_path, repair="off")
-    assert len(artifact.results) == 1
+    assert len(artifact["series"]) == 1
 
 
 def test_unsupported_suffix_lists_formats(tmp_path: Path) -> None:
@@ -145,10 +141,4 @@ def test_excel_requires_extra_or_works(tmp_path: Path) -> None:
         sheet.append([start + timedelta(days=index), 100.0 + index])
     workbook.save(source)
     artifact, _ = run(source, tmp_path)
-    assert artifact.results[0].series == "__default__"
-
-
-def test_capabilities_report_inputs() -> None:
-    inputs = capabilities()["inputs"]
-    assert inputs["csv"] and inputs["tsv"] and inputs["json"] and inputs["jsonl"] and inputs["gzip"]
-    assert isinstance(inputs["excel"], bool)
+    assert artifact["series"][0]["series_id"] == "__default__"
