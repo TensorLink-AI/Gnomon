@@ -21,6 +21,10 @@ def model_factory():
     return preferred
 
 
+def secret_failure(request):
+    raise RuntimeError("token=supersecret")
+
+
 def config(tmp_path, text=""):
     path = tmp_path / "providers.toml"
     path.write_text('schema_version=1\nledger_path="ledger.db"\n' + text)
@@ -145,6 +149,43 @@ for name in ('toolspec', 'runtime', 'evaluation', 'publication', 'llm_dossier', 
 """
     result = subprocess.run([sys.executable, "-c", source], cwd=tmp_path, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
+
+
+def test_cli_provider_load_failure_names_the_safe_root_cause(tmp_path, capsys):
+    path = config(tmp_path, '[providers.custom]\nkind="callable"\nentrypoint="missing_forecast_package:model"\n')
+    assert main(["capabilities", "--providers-config", str(path)]) == 2
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert captured.err == ""
+    assert payload["error"]["code"] == "PROVIDER_LOAD_FAILED"
+    assert payload["error"]["details"] == {
+        "provider": "custom", "entrypoint": "missing_forecast_package:model",
+        "stage": "import_module", "missing_module": "missing_forecast_package",
+    }
+    assert payload["error"]["repair_options"][0]["action"] == "install_provider_dependency"
+
+
+def test_cli_provider_attribute_failure_is_actionable(tmp_path, capsys):
+    path = config(tmp_path, '[providers.custom]\nkind="callable"\nentrypoint="json:not_a_real_provider"\n')
+    assert main(["capabilities", "--providers-config", str(path)]) == 2
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert captured.err == ""
+    assert payload["error"]["code"] == "PROVIDER_LOAD_FAILED"
+    assert payload["error"]["details"]["stage"] == "resolve_attribute"
+
+
+def test_cli_unexpected_provider_failure_keeps_secrets_redacted(tmp_path, capsys):
+    path = config(tmp_path, f'[providers.bad]\nkind="callable"\nentrypoint="{__name__}:secret_failure"\n')
+    assert main(["infer", "--providers-config", str(path), "--provider", "bad",
+                 "--request", json.dumps(request())]) == 2
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert captured.err == "" and "supersecret" not in captured.out
+    assert payload["error"]["code"] == "EXECUTION_FAILED"
+    assert payload["error"]["details"] == {
+        "command": "infer", "stage": "provider_execution", "provider": "bad",
+    }
 
 
 def test_unexpected_provider_exceptions_are_secret_safe_at_mcp_boundary():

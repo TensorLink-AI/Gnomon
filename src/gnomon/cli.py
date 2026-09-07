@@ -131,6 +131,7 @@ def _execute(session, args):
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    args = None
     try:
         args = build_parser().parse_args(argv)
         if args.command == "self-check":
@@ -154,12 +155,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     except ValueError as exc:
         error = GnomonError("INVALID_ARGUMENTS", str(exc))
     except KeyboardInterrupt:
-        print(json.dumps(GnomonError("INTERRUPTED", "Operation interrupted.", retryable=True).to_dict()), file=sys.stderr)
+        print(json.dumps(GnomonError("INTERRUPTED", "Operation interrupted.", retryable=True).to_dict()))
         return 130
     except Exception:
         # Provider failures must not expose credentials or private endpoints.
-        error = GnomonError("EXECUTION_FAILED", "Provider or ledger execution failed.")
-    print(json.dumps(error.to_dict(), indent=2), file=sys.stderr)
+        details = {"command": getattr(args, "command", "unknown")}
+        if details["command"] == "infer" and args is not None:
+            details.update({"stage": "provider_execution", "provider": args.provider})
+        error = GnomonError("EXECUTION_FAILED", "Provider or ledger execution failed.", details=details)
+    # The CLI is a JSON interface: stdout always carries its one structured
+    # response. The exit status distinguishes success from failure; stderr is
+    # reserved for unstructured diagnostics emitted outside this boundary.
+    print(json.dumps(error.to_dict(), indent=2))
     return 2
 
 

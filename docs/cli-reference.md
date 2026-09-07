@@ -4,9 +4,10 @@ Use `-` as the input for piped CSV (up to 8 MiB); larger inputs need a file.
 This works with inspect/describe and `infer --input -`. The CLI freezes input
 before computing results and removes its temporary file when inspection finishes.
 
-One CLI uses the same execution session as Python and MCP. Success is JSON on
-stdout with exit code 0. Errors are structured JSON on stderr with exit code 2;
-interruption exits 130. Run `gnomon --help` or a command's `--help`.
+One CLI uses the same execution session as Python and MCP. Its single structured
+JSON response always goes to stdout: success exits 0, errors exit 2 and interruption
+exits 130. stderr is reserved for unstructured process diagnostics. Run
+`gnomon --help` or a command's `--help`.
 
 | Command | Purpose |
 | --- | --- |

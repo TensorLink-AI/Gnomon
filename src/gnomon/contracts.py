@@ -22,6 +22,7 @@ REPAIR_OPTIONS = {
     "INVALID_ARGUMENTS": [{"action": "supply_arguments", "description": "Use the tool's declared schema and provide valid arguments."}],
     "INTERNAL_ERROR": [{"action": "report_bug", "description": "Report the failing operation without credentials."}],
     "INPUT_NOT_FOUND": [{"action": "supply_input", "description": "Supply an existing input path."}],
+    "EXECUTION_FAILED": [{"action": "check_provider_environment", "description": "Verify the provider configuration and run Gnomon in the same Python environment as the provider and its dependencies."}],
 }
 
 class GnomonError(Exception):

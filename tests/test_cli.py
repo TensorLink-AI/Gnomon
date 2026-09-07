@@ -21,12 +21,24 @@ def test_observed_mean_and_forecast_use_same_input(tmp_path, capsys):
 
 def test_unknown_command_is_a_structured_error(capsys):
     assert main(["not-a-command"]) == 2
-    assert json.loads(capsys.readouterr().err)["error"]["code"] == "INVALID_ARGUMENTS"
+    captured = capsys.readouterr()
+    assert json.loads(captured.out)["error"]["code"] == "INVALID_ARGUMENTS"
+    assert captured.err == ""
+
+
+def test_subprocess_errors_are_parseable_from_the_same_channel_as_successes():
+    result = subprocess.run([sys.executable, "-m", "gnomon", "not-a-command"],
+                            capture_output=True, text=True)
+    assert result.returncode == 2
+    assert json.loads(result.stdout)["error"]["code"] == "INVALID_ARGUMENTS"
+    assert result.stderr == ""
 
 
 def test_missing_input_is_structured(tmp_path, capsys):
     assert main(["inspect", str(tmp_path / "missing.csv")]) == 2
-    assert json.loads(capsys.readouterr().err)["error"]["code"] == "INPUT_NOT_FOUND"
+    captured = capsys.readouterr()
+    assert json.loads(captured.out)["error"]["code"] == "INPUT_NOT_FOUND"
+    assert captured.err == ""
 
 
 def test_temporal_calendar_shift(tmp_path, capsys):
@@ -39,7 +51,9 @@ def test_temporal_calendar_shift(tmp_path, capsys):
 
 def test_invalid_self_check_does_not_claim_success(capsys):
     assert main(["self-check", "leakage", "--cases", "0"]) == 2
-    assert json.loads(capsys.readouterr().err)["error"]["code"] == "INVALID_ARGUMENTS"
+    captured = capsys.readouterr()
+    assert json.loads(captured.out)["error"]["code"] == "INVALID_ARGUMENTS"
+    assert captured.err == ""
 @pytest.mark.parametrize("arguments", [
     ["inspect", "-"], ["describe", "-", "--statistic", "mean"],
     ["infer", "--input", "-", "--provider", "last_value", "--horizon", "2"],
@@ -64,4 +78,6 @@ def test_stdin_limit_is_enforced_before_materializing_a_snapshot(monkeypatch, ca
     monkeypatch.setattr(cli, "MAX_STDIN_BYTES", 16)
     monkeypatch.setattr(sys, "stdin", SimpleNamespace(buffer=io.BytesIO(b"x" * 17)))
     assert cli.main(["inspect", "-"]) == 2
-    assert json.loads(capsys.readouterr().err)["error"]["code"] == "INPUT_TOO_LARGE"
+    captured = capsys.readouterr()
+    assert json.loads(captured.out)["error"]["code"] == "INPUT_TOO_LARGE"
+    assert captured.err == ""
