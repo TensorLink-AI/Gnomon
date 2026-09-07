@@ -1,14 +1,14 @@
 # Direct inference and the temporal ledger
 
 This is the implemented extension boundary, shared by Python `GnomonSession`,
-`gnomon infer`, and the MCP execution profile. Backtesting is an explicit
+`gnomon infer`, and MCP. Backtesting is an explicit
 `session.evaluate(...)` operation, not an implicit step in forecasting.
 Live-service and actual agent-comparison acceptance remain pending.
 See [progress.json](progress.json), not this page, for release status.
 
 For a complete runnable starting point, use the
 [installable provider/ledger example](../../examples/provider_plugin/README.md).
-[Operating instructions](OPERATIONS.md) cover backup, migration and permissions.
+[Operating instructions](OPERATIONS.md) cover backup and permissions.
 
 ## Shared session configuration
 
@@ -34,16 +34,15 @@ revision = "my-project-config-v1"
 
 Python: `GnomonSession.from_config("providers.toml")`. CLI:
 `gnomon infer --providers-config providers.toml --provider remote --request @request.json`.
-MCP: `gnomon mcp serve --profile execution --providers-config providers.toml`.
+MCP: `gnomon mcp serve --providers-config providers.toml`.
 There is no automatic working-directory configuration search. Python applications
 can instead pass an already-configured engine to `GnomonSession(engine)` and then
 to `gnomon.mcp_server.serve(session=session)`.
 
-The execution profile exposes capabilities, inspect, describe, forecast, evaluate, read and optional
+The MCP server exposes capabilities, inspect, describe, forecast, evaluate, read and optional
 ledger operations. With a ledger it also exposes cutoff-bound study routing.
-This is the only execution profile. Legacy profiles and workflows are removed.
 Forecast calls supply registered provider names and typed data or frozen references;
-service URLs, import entrypoints, credentials and ledger paths are startup configuration.
+service URLs, provider entrypoints, credentials and ledger paths are startup configuration.
 Inspection reads caller-selected file/store paths.
 Built-in last_value, seasonal_naive and historical_mean references are registered
 by `from_config`, including when no file is supplied.
@@ -55,7 +54,7 @@ See [the temporal calculation contract](TEMPORAL.md) for exact operations and li
 
 Set `kind="factory"` with a zero-argument entrypoint for fresh fitting state.
 Optional `[providers.preferred.capabilities]` fields use AdapterCapabilities.
-Outcome submissions, decision/outcome writes and historical imports require
+Outcome submissions and decision/outcome writes require
 `allow_outcome_writes=true`; tool arguments cannot enable this permission.
 Scoring is allowed with a configured ledger and appends immutable evaluations.
 
@@ -229,9 +228,8 @@ The baseline wins exact error ties. Fewer available folds remain disclosed even
 when every available fold succeeds.
 
 With a ledger, every successful execution and full study is immutable. Study truth
-vintages are stored within its content-addressed payload, not silently imported as
-online actuals. Schema 3 transactionally migrates earlier ledger versions to add
-studies and execution references. Retrieval can enforce the study's recording-time
+vintages are stored within its content-addressed payload, not silently treated as
+online actuals. Retrieval can enforce the study's recording-time
 cutoff. Rescoring/repeating a study creates a new ID and does not overwrite results.
 
 Python `session.evaluate` returns the full report. MCP `gnomon_evaluate` returns a
@@ -313,7 +311,7 @@ Outcomes are realigned to the query's source/recorded vintage. Revised store
 outcomes yield a new immutable rescore with original execution references; the
 original study and forecasts never change. Plain-file availability remains an
 explicit assumption; changed file outcomes with unknown revision timing cannot
-be substituted. No new model calls or implicit online actual imports occur.
+be substituted. No new model calls or implicit online actual ingestion occurs.
 
 At least three replayable matched folds are required; `min_folds` may raise that
 floor. The candidate with lowest matched MAE is recommended only if it strictly
@@ -322,11 +320,6 @@ the baseline. Missing/incompatible evidence returns an explained baseline fallba
 Recommendations are advisory and never grant action/deployment permission. A
 successful route appends a rescore study, retrievable through the ledger; its
 recording time is now, never backdated to the queried historical instant.
-
-Legacy positional `gnomon route` now makes structural suggestions only. Its mutable
-TrackingStore leaderboard prior was removed. The old shadow-outcome route also
-retains its champion: replaceable source-time-only errors cannot establish a
-historical challenger. Pre-cull source is recoverable at Git commit `2cba20e`.
 
 ## Ephemeris
 
@@ -413,47 +406,19 @@ vintages. It is a descriptive comparison, not sufficient evidence for routing.
 
 `record_decision` records explicit policy/inputs/actions and optional authorization
 reference; it does not execute or authorize that action. Decision outcome revisions
-are appended separately. Existing legacy TrackingStore records are not silently
-imported into this new schema or represented as having immutable score history.
+are appended separately.
 
 The ledger uses a separate SQLite file, foreign keys, transactional inserts,
 content hashes and update/delete guards. Small request/result payloads are stored
 atomically with execution metadata; large existing report artifacts stay in files.
-It detects incompatible schema versions and rejects an unrelated existing database.
-Schema v2 adds idempotent import references; v3 adds immutable studies and their
-execution links. Opening a v1 or v2 ledger migrates it transactionally without
-changing existing records. Failed upgrades roll back and can be retried. Independent
+It detects incompatible schema versions and rejects an unrelated existing database
+without modifying it. Independent
 processes use separate SQLite connections with serialized writes and a 30-second
 lock timeout; this is local-file coordination, not distributed database support.
 It is not a tamper-proof audit system against someone able to edit the database
 schema or replace the file. Back up the file using SQLite's backup facilities.
 
-Historical migration is explicit and read-only with respect to the source:
-`ledger.import_artifact(path, project="sales")` or
-`ledger.import_tracking(registry_path, project="sales")`. Re-importing the same
-artifact under the same namespace/timezone binding returns the same import IDs.
-Imports are labelled `imported_forecast`, not fresh model invocations. Original
-creation time remains separate from the time this ledger recorded the import.
-Sealed files are checked; unsealed legacy artifacts are labelled as such.
-
-Missing histories remain `null`, not a reread of today's source or a fabricated
-training series. Without original complete request provenance, imported forecasts
-cannot enter a matched-input comparison. Existing mutable score summaries remain
-in the old registry; overwritten score vintages cannot be reconstructed. Missing
-artifacts are listed as skipped, and the source registry is unchanged.
-
-Naive historical timestamps remain unresolved for calendar scoring unless the
-caller explicitly supplies `naive_timezone="UTC"`; this binding is recorded as
-an assumption, not discovered source metadata. Imports with unresolved timestamps
-appear as unscorable in `pending` and cannot be silently matched to UTC actuals.
-
-New evaluated forecast artifacts now include a sealed `history.json`. Legacy
-`register_artifact` derives cutoffs and baseline scales from that snapshot, never
-from the original file or store URI. Forecast scoring reads canonical artifact
-JSON when optional `forecast.csv` output is disabled.
-
 The existing `TemporalStore.snapshot(..., as_of=..., recorded_as_of=...)` supports
-the same two replay questions. Migration preserves old observation rows but leaves
-unproven historical recording times unknown. Those rows remain visible in source
-replay and are excluded from strict recorded-time replay, with the count disclosed.
-Plain CSV snapshots also disclose that historical source/recording times are unknown.
+the same two replay questions. Every stored observation records when this runtime
+ingested it. Plain CSV snapshots disclose that historical source/recording times
+are unknown rather than inventing them.

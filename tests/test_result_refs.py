@@ -132,8 +132,7 @@ def test_bad_tool_arguments_are_not_coerced_to_empty_and_version_is_supported():
 
 
 def test_real_stdio_retrieves_large_results_and_survives_invalid_utf8(tmp_path):
-    env = {**os.environ, "GNOMON_MCP_PROFILE": "execution",
-           "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src")}
+    env = {**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src")}
     process = subprocess.Popen([sys.executable, "-m", "gnomon", "mcp", "serve"],
         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=tmp_path, env=env)
     def exchange(message):

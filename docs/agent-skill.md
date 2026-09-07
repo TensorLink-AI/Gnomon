@@ -6,4 +6,4 @@ installs it under `share/gnomon/skills/use-gnomon` in its environment prefix.
 Make that skill directory available through your agent host's skill mechanism.
 
 The skill does not install models, select credentials, grant spending permission
-or execute recorded decisions. It contains no retired legacy workflow guide.
+or execute recorded decisions.

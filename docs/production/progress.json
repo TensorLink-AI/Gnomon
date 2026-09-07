@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "objective": "Production-ready provider-neutral Gnomon 0.9 within PLAN.md; retired features are not release requirements.",
+  "objective": "Production-ready provider-neutral Gnomon 1.0 within PLAN.md; pre-1.0 compatibility surfaces are not release requirements.",
   "baseline_revision": "333ed2c",
-  "iteration": 28,
+  "iteration": 29,
   "score_policy": "Sum weights of verified checks only. Missing evidence earns zero. No elapsed-time or lines-of-code credit. Regressions reopen checks. 100 requires every check including live service verification.",
   "workstreams": [
     {
@@ -27,7 +27,8 @@
             "Deleted92 runtime modules and obsolete feature tests/docs/examples; no compatibility shim or second shipped legacy package. Removed context-engine benchmark cases and grading. Recovery333ed2c.",
             "Iteration26: removed obsolete benchmark promotion/audit/generation runners, smoke corpus, host-generated followups, publication grading, client cache/fanout/retry machinery and old journal migrations. Benchmark implementation5289 to3351 lines. Recovery1642cb2; current cohort input/answer/reveal equality checked against baseline.",
             "Iteration27: removed stale0.7 root uv.lock and three uncalled RepairLog helpers; unified model-usage counters, answer/fact grading and answered_rate; corrected retired-workflow documentation. Runtime5774 lines, benchmark implementation3309 lines. Recovery53482fc.",
-            "Iteration28: removed unused repair constants, snapshot accessors and obsolete MCP output fields. Retained live access summaries and migration support. Runtime5778 lines, benchmark3309 unchanged. Recovery0826117."
+            "Iteration28: removed unused repair constants, snapshot accessors and obsolete MCP output fields. Runtime5778 lines, benchmark3309 unchanged. Recovery0826117.",
+            "Iteration29: removed unused pre-1.0 artifact/TrackingStore imports, schema upgrades and the MCP profile selector. Fresh ledger/store files carry explicit identities; incompatible databases fail without mutation."
           ]
         },
         {
@@ -69,7 +70,7 @@
           "acceptance": "Preserve valid time, source availability, local recording time and snapshot provenance.",
           "status": "verified",
           "evidence": [
-            "tests/test_temporal_store.py and test_recorded_time.py: source availability versus local recording, revisions, snapshot provenance and NULL-time migration."
+            "tests/test_temporal_store.py and test_recorded_time.py: source availability versus local recording, revisions, snapshot provenance, database identity and non-mutating incompatible-store refusal."
           ]
         },
         {
@@ -168,10 +169,10 @@
         {
           "id": "decisions",
           "weight": 4,
-          "acceptance": "Record decision inputs/outcomes and expose pending, comparison and replay queries with migrations.",
+          "acceptance": "Record decision inputs/outcomes and expose pending, comparison and replay queries.",
           "status": "verified",
           "evidence": [
-            "test_artifact_import.py: decision/outcome cutoffs, v1 migration, frozen historical artifact fixtures, read-only registry import and manifest escape/tamper refusal. Old records are not deleted or rewritten."
+            "test_ledger.py, test_ledger_feedback.py and test_session.py: decision/outcome cutoffs, immutable records, bounded discovery, matched comparisons and shared Python/CLI/MCP operations."
           ]
         }
       ]
@@ -348,22 +349,23 @@
         {
           "id": "docs",
           "weight": 1,
-          "acceptance": "Current onboarding, plugin/provider examples, ledger migration and operating instructions are executable.",
+          "acceptance": "Current onboarding, plugin/provider examples and operating instructions are executable.",
           "status": "verified",
           "evidence": [
-            "Executable README and packaged skill, current CLI command inventory, relative links and migration examples pass test_docs_current.py/test_agent_skill.py; skill validator passes."
+            "Executable README and packaged skill, current CLI command inventory and relative links pass test_docs_current.py/test_agent_skill.py. Pre-1.0 compatibility documentation is absent."
           ]
         },
         {
           "id": "checks",
           "weight": 2,
-          "acceptance": "Required regression, lint, concurrency, migration and supported-platform checks pass.",
+          "acceptance": "Required regression, lint, concurrency, schema-identity and supported-platform checks pass.",
           "status": "verified",
           "evidence": [
             "Final local suite:760 passed,29 opt-in skips in29.96s. At091b29b, CI34004658580 passed all six jobs: production on Python3.11/3.12/3.13, harness, actual software/service containers and installed package/plugin smoke (including restored bounded CSV piping). Container34004658552 passed. Ruff, compile, whitespace and skill validation pass. The earlier package failure ataceeaf1 was fixed, not waived.",
             "Iteration26 local742 passed/29 skipped and real-container76 passed; Ruff, compilation and whitespace pass. Cleanup03f77e8 passed all7checks: CI34007034278 (Python3.11/3.12/3.13, harness, real containers and clean package/plugin install), Container34007034253.",
             "Iteration27 local749 passed/29 skipped; rebuilt service container suite77 passed. Ruff, compilation and whitespace pass. Cleanup e056823 passed all seven checks: CI34007584412 (Python3.11/3.12/3.13, harness, real containers and installed package/plugin), Container34007584434.",
-            "Iteration28 local819 passed/29 skipped; rebuilt service container suite77 passed. Ruff, compilation and whitespace pass. A missed study-routing import caught by full-suite and installed-package checks was corrected and both reran successfully. Fix107a3e3 passed all seven checks: CI34010085711 (Python3.11/3.12/3.13, harness, real containers and installed package/plugin), Container34010085713."
+            "Iteration28 local819 passed/29 skipped; rebuilt service container suite77 passed. Ruff, compilation and whitespace pass. A missed study-routing import caught by full-suite and installed-package checks was corrected and both reran successfully. Fix107a3e3 passed all seven checks: CI34010085711 (Python3.11/3.12/3.13, harness, real containers and installed package/plugin), Container34010085713.",
+            "Iteration29 v1.0.0 local856 passed/29 opt-in skips; focused agent/docs/session/schema checks and ledger-history regressions pass. Ruff, compilation and whitespace checks pass."
           ]
         },
         {
@@ -372,7 +374,7 @@
           "acceptance": "Clean distribution install and CLI/MCP smoke pass outside checkout.",
           "status": "verified",
           "evidence": [
-            "Iteration28 rebuilt0.9.0.dev0 wheel/sdist; clean installed Python/CLI/MCP/provider/ledger and unchanged example-plugin smoke pass. Wheel SHA2569a6a5e37eb329f5bb63ac898d55cd62daba85bbf9ade91399b2bb2f20e0de945; sdist e05a2ee3aeedb64c92dc6382feaa6268ff6270a8e380b3a8fc8cfb22cf362f5c. No PyPI upload."
+            "Iteration29 rebuilt1.0.0 wheel/sdist and example-provider wheel. Twine metadata checks and clean offline Python/CLI/MCP/provider/ledger/plugin smoke pass; the installed agent skill is present and compatibility files/modules are absent."
           ]
         },
         {

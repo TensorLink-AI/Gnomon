@@ -23,7 +23,7 @@ chosen model. Ephemeris is one optional connector, not the default forecasting p
 - Horizon counts grid steps: seven days means seven steps only on daily data.
   Clarify missing frequency/timezone semantics or disclose assumptions; do not
   invent dates. Covariates must meet provider capabilities and time cutoffs.
-- URLs, imports, credentials and ledger paths belong in operator startup
+- URLs, provider entrypoints, credentials and ledger paths belong in operator startup
   configuration, not tool arguments. Availability is not spending approval:
   remote inference and evaluation may incur charges.
 
@@ -57,7 +57,7 @@ explicit source-availability and local-recording cutoffs. A baseline fallback me
 insufficient evidence, not a demonstrated win. Rescoring appends a new study;
 original predictions stay unchanged.
 
-Use `gnomon_ledger` only when exposed. Reads, score creation and outcome/import
+Use `gnomon_ledger` only when exposed. Reads, score creation and outcome
 writes have different permissions; writes require operator authorization and user
 task scope. Keep valid time, source availability and recording time distinct.
 Recording a decision neither executes nor authorizes an action.

@@ -10,7 +10,7 @@ from tempfile import TemporaryDirectory
 from typing import Sequence
 
 from .contracts import GnomonError
-from .product_contract import __version__, resolve_mcp_profile
+from .product_contract import __version__
 from .session import GnomonSession, read_json_argument
 
 
@@ -68,7 +68,6 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("--seed", type=int, default=7)
     mcp = commands.add_parser("mcp", help="Serve the execution session to an agent")
     serve = mcp.add_subparsers(dest="mcp_command", required=True).add_parser("serve")
-    serve.add_argument("--profile", help="Only execution is supported; legacy profiles are retired")
     serve.add_argument("--providers-config")
     return parser
 
@@ -141,7 +140,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             with GnomonSession(enable_temporal=True) as session:
                 result = _execute(session, args)
         else:
-            resolve_mcp_profile(getattr(args, "profile", None))
             with GnomonSession.from_config(getattr(args, "providers_config", None)) as session:
                 if args.command == "mcp":
                     from .mcp_server import serve

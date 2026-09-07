@@ -29,6 +29,3 @@ Full contracts and runnable examples:
 [providers/session](production/INFERENCE.md), [ledger](production/OPERATIONS.md),
 [temporal calculations](production/TEMPORAL.md),
 [separate provider package](../examples/provider_plugin/README.md).
-
-The old top-level forecast/macros and TrackingStore writer are removed.
-Historical imports are read-only ledger operations; see [migration](../COMPATIBILITY.md).

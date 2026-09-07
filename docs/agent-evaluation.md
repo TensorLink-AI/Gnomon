@@ -6,7 +6,7 @@ superiority, improved LLM reasoning or permission to act.
 ## Tested behavior
 
 Production tests cover request/result alignment, unsupported inputs, cutoffs,
-immutable ledger revisions, migrations, bounded evaluation, Python/CLI/MCP,
+immutable ledger revisions, schema identity, bounded evaluation, Python/CLI/MCP,
 numerical regressions and installed-wheel operation. Local HTTP tests exercise
 Ephemeris wire mapping, credentials, response validation and no-retry POSTs.
 They do not test a live TSFM.
@@ -36,10 +36,6 @@ spending approval. A reachable authentication gateway is not a live forecast che
 Reported-cost stopping can overshoot by one operation; hard billing limits are
 service-operator responsibilities.
 
-Old benchmarks and reports remain at Git checkpoint `2cba20e`. Their older
-surfaces do not establish gains for the new default. Removing obsolete instruments
-does not turn negative or missing evidence into success.
-The follow-up benchmark cull (recovery `1642cb2`) removes promotion/audit runners,
-host-generated answers and response caches. The retained workflow uses case schema
-v2 and current journal receipts; old formats are not silently migrated.
+Historical benchmark results do not establish gains for the current default.
+The retained workflow uses case schema v2 and current journal receipts.
 The [weighted delivery record](production/PLAN.md) is separate from publication.

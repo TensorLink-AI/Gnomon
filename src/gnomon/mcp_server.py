@@ -125,8 +125,6 @@ def _bounded_lines(stream):
 
 def serve(stdin: TextIO | None = None, stdout: TextIO | None = None, *, session=None) -> int:
     if session is None:
-        from .product_contract import resolve_mcp_profile
-        resolve_mcp_profile()
         from .session import GnomonSession
         with GnomonSession.from_config() as owned:
             return serve(stdin, stdout, session=owned)

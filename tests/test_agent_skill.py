@@ -10,8 +10,7 @@ from gnomon import GnomonSession
 SKILL = Path(__file__).resolve().parents[1] / "skills/use-gnomon/SKILL.md"
 
 
-def test_skill_forecast_example_uses_exposed_tool_and_executes_offline(monkeypatch):
-    monkeypatch.delenv("GNOMON_MCP_PROFILE", raising=False)
+def test_skill_forecast_example_uses_exposed_tool_and_executes_offline():
     examples = re.findall(r"```json\n(.*?)\n```", SKILL.read_text(), re.S)
     assert examples, "The skill must retain its runnable tool-call example"
     with GnomonSession.from_config() as session:

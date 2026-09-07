@@ -260,7 +260,7 @@ def test_python_cli_and_real_stdio_temporal_parity_without_providers(tmp_path, c
     config = tmp_path / "temporal.toml"
     config.write_text("enable_temporal=true\n")
     messages = [{"id": 1, "method": "tools/list"}, {"id": 2, "method": "tools/call", "params": {"name": "gnomon_temporal", "arguments": arguments}}]
-    completed = subprocess.run([sys.executable, "-m", "gnomon", "mcp", "serve", "--providers-config", str(config), "--profile", "execution"],
+    completed = subprocess.run([sys.executable, "-m", "gnomon", "mcp", "serve", "--providers-config", str(config)],
         input="".join(json.dumps(message) + "\n" for message in messages), text=True, capture_output=True, timeout=30)
     assert completed.returncode == 0, completed.stderr
     responses = list(map(json.loads, completed.stdout.splitlines()))

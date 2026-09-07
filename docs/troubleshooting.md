@@ -9,8 +9,6 @@
 - Expired reference: inspect again, or retrieve durable evidence from the ledger.
 - Result retention limit: execution may already have happened. Check the receipt
   before retrying paid work.
-- Retired command/profile: follow [migration](../COMPATIBILITY.md); it is not an
-  alias for the new contract.
 - No routing winner: retain the baseline fallback; missing comparable evidence is
   not proof that a model is worse.
 

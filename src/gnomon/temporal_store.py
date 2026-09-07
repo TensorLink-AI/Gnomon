@@ -326,10 +326,21 @@ class TemporalStore:
     revision rows, and the accumulated vintage history is what no model can
     reconstruct after the fact."""
 
+    SCHEMA_VERSION = 1
+    APPLICATION_ID = 0x474E5453
+
     def __init__(self, path: str | Path | None = None):
         self.path = Path(path) if path else DEFAULT_STORE_PATH
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            version = conn.execute("PRAGMA user_version").fetchone()[0]
+            application = conn.execute("PRAGMA application_id").fetchone()[0]
+            tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            if version not in (0, self.SCHEMA_VERSION):
+                raise GnomonError("UNSUPPORTED_STORE", f"unsupported temporal store schema version {version}")
+            if application not in (0, self.APPLICATION_ID) or (tables and application != self.APPLICATION_ID):
+                raise GnomonError("UNSUPPORTED_STORE", "use a new empty file for a Gnomon temporal store")
             conn.executescript("""
                 CREATE TABLE IF NOT EXISTS observations (
                     dataset TEXT NOT NULL,
@@ -340,6 +351,7 @@ class TemporalStore:
                     value REAL NOT NULL,
                     revision INTEGER NOT NULL,
                     source_ref TEXT NOT NULL,
+                    recorded_at TEXT NOT NULL,
                     PRIMARY KEY (dataset, entity, variable, valid_time, revision)
                 );
                 CREATE INDEX IF NOT EXISTS idx_observations_dataset
@@ -362,18 +374,8 @@ class TemporalStore:
                     assumed_known_time INTEGER NOT NULL DEFAULT 1
                 );
             """)
-            existing = {
-                row["name"] for row in conn.execute("PRAGMA table_info(ingests)")
-            }
-            for name, sql_type in (("reverts_recorded", "INTEGER NOT NULL DEFAULT 0"),
-                                   ("assumed_known_time", "INTEGER NOT NULL DEFAULT 1")):
-                if name not in existing:
-                    conn.execute(f"ALTER TABLE ingests ADD COLUMN {name} {sql_type}")
-            columns = {row["name"] for row in conn.execute("PRAGMA table_info(observations)")}
-            if "recorded_at" not in columns:
-                # Historical ingests were replaceable; their current timestamp
-                # cannot prove when an old observation was first recorded.
-                conn.execute("ALTER TABLE observations ADD COLUMN recorded_at TEXT")
+            conn.execute(f"PRAGMA user_version={self.SCHEMA_VERSION}")
+            conn.execute(f"PRAGMA application_id={self.APPLICATION_ID}")
 
     @contextmanager
     def _connect(self) -> Iterator[sqlite3.Connection]:

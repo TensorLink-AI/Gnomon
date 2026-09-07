@@ -19,18 +19,9 @@ def test_observed_mean_and_forecast_use_same_input(tmp_path, capsys):
     assert result["input"]["snapshot"]["known_time_assumed"] is True
 
 
-@pytest.mark.parametrize("command", ["forecast", "investigate", "detect", "decide", "monitor",
-                                    "track", "tsfm", "context", "covariates", "report", "eval"])
-def test_retired_commands_fail_without_silent_aliases(command, capsys):
-    assert main([command]) == 2
+def test_unknown_command_is_a_structured_error(capsys):
+    assert main(["not-a-command"]) == 2
     assert json.loads(capsys.readouterr().err)["error"]["code"] == "INVALID_ARGUMENTS"
-
-
-@pytest.mark.parametrize("profile", ["core", "data", "decision", "evidence", "full", "mega"])
-def test_retired_profiles_do_not_restore_legacy_runtime(profile, capsys):
-    assert main(["mcp", "serve", "--profile", profile]) == 2
-    error = json.loads(capsys.readouterr().err)["error"]
-    assert error["code"] == "INVALID_ARGUMENTS" and "Retired" in error["message"]
 
 
 def test_missing_input_is_structured(tmp_path, capsys):

@@ -1,6 +1,6 @@
 # First run
 
-Install the [release candidate or source checkout](installation.md), then run a reference forecast:
+Install the [package or source checkout](installation.md), then run a reference forecast:
 
 ```bash
 gnomon infer --provider last_value --request '{"history":[10,12,11],"horizon":2}'

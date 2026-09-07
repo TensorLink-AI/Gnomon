@@ -13,6 +13,5 @@ optional evidence about forecasts and what was known at the time.
 - [Containers](containers.md) · [Offline installs](offline-installation.md)
 - [Troubleshooting](troubleshooting.md)
 
-The 0.9 development line removes the old evaluated/context runtime and legacy
-profiles. See [migration](../COMPATIBILITY.md). This source tree is not the same
-as the published 0.8 release candidate.
+Version 1.0 has one provider-neutral execution contract. Optional ledger and
+temporal tools are explicit operator choices.

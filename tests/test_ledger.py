@@ -2,7 +2,6 @@ from dataclasses import replace
 from datetime import datetime
 import sqlite3
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
-from contextlib import contextmanager
 import multiprocessing
 
 import pytest
@@ -202,35 +201,17 @@ def test_failed_study_insert_rolls_back_payload_and_metadata(setup):
     assert ledger.execution(original.execution_id)["result"]["point"] == [2, 2]
 
 
-def test_failed_schema_upgrade_is_atomic_and_can_be_retried(setup, monkeypatch):
+def test_pre_release_schema_is_rejected_without_mutation(setup):
     ledger, engine, req = setup
-    original = engine.forecast("user", req)
+    engine.forecast("user", req)
     with sqlite3.connect(ledger.path) as conn:
-        conn.execute("DROP TABLE study_executions")
-        conn.execute("DROP TABLE studies")
-        conn.execute("PRAGMA user_version=2")
+        conn.execute("PRAGMA user_version=3")
         before = conn.execute("SELECT type,name,sql FROM sqlite_master ORDER BY name").fetchall()
-    connect = TemporalLedger._connect
-
-    @contextmanager
-    def fail_new_trigger(self):
-        with connect(self) as conn:
-            conn.set_authorizer(lambda action, name, *_: sqlite3.SQLITE_DENY
-                                if action == sqlite3.SQLITE_CREATE_TRIGGER
-                                and name == "immutable_studies_UPDATE" else sqlite3.SQLITE_OK)
-            yield conn
-
-    with monkeypatch.context() as patch:
-        patch.setattr(TemporalLedger, "_connect", fail_new_trigger)
-        with pytest.raises(sqlite3.DatabaseError, match="authorized"):
-            TemporalLedger(ledger.path)
-    with sqlite3.connect(ledger.path) as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
-        assert conn.execute("SELECT type,name,sql FROM sqlite_master ORDER BY name").fetchall() == before
-    upgraded = TemporalLedger(ledger.path)
-    assert upgraded.execution(original.execution_id)["result"]["point"] == [2, 2]
+    with pytest.raises(ForecastAdapterError, match="unsupported ledger schema version 3"):
+        TemporalLedger(ledger.path)
     with sqlite3.connect(ledger.path) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
+        assert conn.execute("SELECT type,name,sql FROM sqlite_master ORDER BY name").fetchall() == before
 
 
 def test_ledger_rejects_naive_time_and_other_databases(setup, tmp_path):
@@ -240,7 +221,7 @@ def test_ledger_rejects_naive_time_and_other_databases(setup, tmp_path):
     other = tmp_path / "other.db"
     with sqlite3.connect(other) as conn:
         conn.execute("CREATE TABLE existing (id TEXT)")
-    with pytest.raises(ForecastAdapterError, match="separate ledger"):
+    with pytest.raises(ForecastAdapterError, match="new empty file"):
         TemporalLedger(other)
     with sqlite3.connect(ledger.path) as conn:
         conn.execute("PRAGMA user_version=999")

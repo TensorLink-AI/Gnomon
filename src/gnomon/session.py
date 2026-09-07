@@ -95,8 +95,6 @@ _LEDGER_PARAMETERS = {
     "pending": ("source_as_of", "recorded_as_of"),
     "compare": ("execution_ids", "source_as_of", "recorded_as_of"),
     "decision": ("decision_id", "source_as_of", "recorded_as_of"),
-    "import_artifact": ("artifact_path", "project", "naive_timezone"),
-    "import_tracking": ("registry_path", "project", "naive_timezone"),
     "append_actual": ("series_id", "valid_time", "value", "source_available_at", "unit", "source_ref", "actuals"),
     "evaluate": ("execution_id", "execution_ids", "source_as_of", "recorded_as_of", "allow_partial"),
     "record_decision": ("execution_ids", "policy", "inputs", "action", "authorization_ref"),
@@ -109,13 +107,12 @@ _LEDGER_REQUIRED = {
     "execution": ("execution_id",), "actuals_as_of": ("series_id",),
     "evaluations": ("execution_id",), "pending": (), "compare": ("execution_ids",),
     "decision": ("decision_id",),
-    "import_artifact": ("artifact_path",), "import_tracking": ("registry_path",),
     "append_actual": (),
     "evaluate": (),
     "record_decision": ("execution_ids", "policy", "inputs", "action"),
     "append_decision_outcome": ("decision_id", "outcome", "source_available_at"),
 }
-_OUTCOME_WRITES = {"append_actual", "record_decision", "append_decision_outcome", "import_artifact", "import_tracking"}
+_OUTCOME_WRITES = {"append_actual", "record_decision", "append_decision_outcome"}
 
 
 def _strict(arguments, allowed, required=()):
@@ -228,8 +225,7 @@ class GnomonSession:
         return {"schema_version": "1", "status": "ok", "runtime_version": __version__,
                 "product_contract": product_claims(),
                 "interfaces": {"python": True, "cli": True, "mcp": True},
-                "mcp_profile": {"active": "execution", "available": ["execution"],
-                                "visible_tools": [tool["name"] for tool in self.tools()]},
+                "tools": {"visible": [tool["name"] for tool in self.tools()]},
                 "providers": self.engine.capabilities(),
                 "ledger": {"enabled": self.ledger is not None, "outcome_writes": self.allow_outcome_writes},
                 "temporal": {"enabled": self.enable_temporal, "semantics": "explicit_facts_not_natural_language"},

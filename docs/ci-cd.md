@@ -23,22 +23,22 @@ The publisher is bound to repository `TensorLink-AI/Gnomon`, workflow
 Environment approval may still be required. Do not fall back to extracting a key
 or publishing from a different account.
 
-For release candidates, use a PEP 440 version such as `0.9.0rc1` and tag
-`v0.9.0rc1`. GitHub must mark it as a prerelease, not latest stable.
+Stable releases use a PEP 440 version such as `1.0.0` and a matching `v1.0.0`
+tag. Versions containing a prerelease suffix are marked as prereleases and do
+not become GitHub's latest stable release.
 Publication is irreversible in the sense that a PyPI version/file cannot simply
 be overwritten; use a new version for corrections.
 
 ## Checklist
 
-1. Review the PR, migration notes and documented limitations.
+1. Review the PR and documented limitations.
 2. Verify production/harness tests, a fresh wheel and clean installed examples.
 3. Push the exact version tag only with explicit release authorization.
 4. Wait for build, publisher and any environment approval.
 5. Verify the version and file hashes on PyPI and install that exact version.
 
-Normally release from reviewed main. An explicitly authorized prerelease may
-come from the review branch; that does not imply the PR was merged or that
-pending live-evidence gates passed.
+Release from reviewed main so the tag, source archive and published package all
+identify the same accepted commit.
 
 ## Containers
 
