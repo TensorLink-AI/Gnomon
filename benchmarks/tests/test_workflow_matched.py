@@ -44,7 +44,7 @@ print(json.dumps({"case_id": case["id"], "status": "error" if failed else "answe
                        "budget": {"timeout_seconds": 5, "jobs": 1, "infrastructure_retries": 0,
                                   "max_rounds": 2, "max_tool_calls": 2, "max_tokens": 500}},
             "arms": {arm: {"description": f"{arm} scripted control test",
-                           "tool_contract": "none; this fixture does not measure a Gnomon profile",
+                           "tool_contract": "none; this fixture does not measure Gnomon tools",
                            "guidance": "Follow the common task instructions."} for arm in ARMS}}
     case = Case.from_dict({"id": "mean", "kind": "synthetic", "domain": "arithmetic",
                           "question": "Return the arithmetic mean.",

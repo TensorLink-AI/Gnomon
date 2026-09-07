@@ -75,7 +75,7 @@ dispatch remain explicit zero-work failures in the cohort. Receipts distinguish
 these preflight stops from external calls. A fresh output directory resets the
 local accounting boundary; it does not reset or certify your provider bill.
 
-Compare the three sealed output directories using `python -m
+Compare the three completed output directories using `python -m
 benchmarks.workflow.matched --ordinary PATH --lean PATH --full PATH`. Report all
-tasks, errors, incomplete costs, cap violations and declared profile differences.
+tasks, errors, incomplete costs, cap violations and declared arm differences.
 Passing scripted fixtures is not evidence of agent-quality improvement.

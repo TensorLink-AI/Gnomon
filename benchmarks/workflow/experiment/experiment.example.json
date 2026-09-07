@@ -26,7 +26,7 @@
     },
     "lean": {
       "description": "The same ordinary software plus current Gnomon execution tools, optional ledger and temporal operations enabled.",
-      "tool_contract": "Python plus persistent execution-profile MCP in a separate container; no agent outcome-write permission.",
+      "tool_contract": "Python plus persistent MCP in a separate container; no agent outcome-write permission.",
       "guidance": "Choose any available tool. Submit only your own supported answer; preserve earlier commitments."
     },
     "full": {

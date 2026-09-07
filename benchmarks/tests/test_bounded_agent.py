@@ -217,7 +217,7 @@ def test_same_loop_discovers_and_calls_real_mcp_session(monkeypatch, tmp_path):
     class Mcp(Backend):
         def __init__(self):
             super().__init__()
-            self.session = StdioMcpSession(tmp_path, profile="execution", call_timeout=5)
+            self.session = StdioMcpSession(tmp_path, call_timeout=5)
             self.session.initialize()
         def tools(self):
             return self.session.list_tools()

@@ -22,9 +22,9 @@ def options():
     return {"software_image": software, "service_image": service, "docker_host": "unix:///var/run/docker.sock"}
 
 
-@pytest.fixture(params=["execution", "full"])
+@pytest.fixture(params=["lean", "full"])
 def backend(request, tmp_path, options):
-    value = CombinedBackend(profile=request.param, case=CASE, options=options, workspace=tmp_path, timeout=45)
+    value = CombinedBackend(arm=request.param, case=CASE, options=options, workspace=tmp_path, timeout=45)
     try:
         yield value
     finally:
@@ -40,7 +40,7 @@ def test_actual_tools_keep_original_schema_and_identical_ordinary_access(backend
     variants = forecast["inputSchema"]["oneOf"]
     assert all("provider" in variant["required"] for variant in variants)
     assert all("input" not in variant["properties"] for variant in variants)
-    assert backend.service.provenance["profile"] == "execution"
+    assert backend.service.provenance["feature_arm"] in {"lean", "full"}
     assert len(tools) == (10 if full else 7)
     reply = backend.call("python", {"code": "import json; from pathlib import Path; print(json.loads(Path('/tmp/case.json').read_text())['available_at_cutoff']['series'])"}, timeout=5)
     assert reply.value["stdout"].strip() == "[3, 7]"
@@ -114,7 +114,7 @@ def test_full_forecast_uses_same_contract_and_records_evidence(tmp_path, options
 def test_wrong_installed_source_refused_before_serving(tmp_path, options, monkeypatch):
     monkeypatch.setattr(service_backend, "source_fingerprint", lambda: "wrong-checkout")
     with pytest.raises(ValueError, match="contents differ"):
-        McpBackend(profile="execution", case=CASE,
+        McpBackend(arm="lean", case=CASE,
                    options={"image": options["service_image"], "docker_host": options["docker_host"]},
                    workspace=tmp_path, timeout=30)
 
@@ -148,11 +148,11 @@ def test_package_identity_covers_nonpython_resources(tmp_path):
     assert source_fingerprint(tmp_path) == second
 
 
-@pytest.mark.parametrize("profile,value", [("retired", {"ledger": True}), ("execution", False),
-    ("execution", {"ledger": "true"}), ("execution", {"allow_outcome_writes": True})])
-def test_unsupported_startup_options_fail_before_container_work(profile, value):
+@pytest.mark.parametrize("arm,value", [("unknown", {"ledger": True}), ("lean", False),
+    ("lean", {"ledger": "true"}), ("lean", {"allow_outcome_writes": True})])
+def test_unsupported_startup_options_fail_before_container_work(arm, value):
     with pytest.raises(ValueError):
-        service_backend._execution_options(profile, value)
+        service_backend._execution_options(arm, value)
 
 
 def test_lean_ledger_and_temporal_options_are_startup_only(tmp_path, options):

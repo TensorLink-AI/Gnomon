@@ -1,7 +1,7 @@
 """Current execution services alongside identical ordinary software.
 
-The full arm enables the optional ledger and temporal tools, not a legacy runtime.
-Each agent filesystem is confined to explicitly owned no-network containers.
+The full arm enables the optional ledger and temporal tools. Each agent filesystem
+is confined to explicitly owned no-network containers.
 """
 
 from __future__ import annotations
@@ -28,20 +28,20 @@ def source_fingerprint(root=None):
                         and "__pycache__" not in path.parts and path.suffix not in {".pyc", ".pyo"}})
 
 
-def _execution_options(profile, value):
-    if profile not in {"execution", "full"}:
-        raise ValueError("service backend requires execution or the full feature arm")
+def _execution_options(arm, value):
+    if arm not in {"lean", "full"}:
+        raise ValueError("service backend requires the lean or full feature arm")
     if value is not None and not isinstance(value, dict):
         raise ValueError("execution_options must be an object")
-    value = {**({"ledger": True, "temporal": True} if profile == "full" else {}), **(value or {})}
+    value = {**({"ledger": True, "temporal": True} if arm == "full" else {}), **(value or {})}
     if set(value) - {"ledger", "temporal"} or any(type(item) is not bool for item in value.values()):
         raise ValueError("ledger/temporal startup options must be boolean")
     return value
 
 
 class McpBackend(SoftwareBackend):
-    def __init__(self, *, profile, case, options, workspace, timeout, execution_options=None):
-        execution_options = _execution_options(profile, execution_options)
+    def __init__(self, *, arm, case, options, workspace, timeout, execution_options=None):
+        execution_options = _execution_options(arm, execution_options)
         self.process = None
         self.request_id = 0
         super().__init__(case=case, options=options, workspace=workspace, timeout=timeout)
@@ -59,7 +59,7 @@ class McpBackend(SoftwareBackend):
                 extra = ["--providers-config", "/tmp/gnomon-operator.toml"]
             self.process = subprocess.Popen([
                 *self.argv, "exec", "--user=65534:65534", "-i", self.container,
-                "python", "-I", "-m", "gnomon", "mcp", "serve", "--profile", "execution", *extra],
+                "python", "-I", "-m", "gnomon", "mcp", "serve", *extra],
                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                 start_new_session=True, env={"PATH": "/usr/local/bin:/usr/bin:/bin", "LANG": "C.UTF-8"})
             for stream in (self.process.stdin, self.process.stdout):
@@ -72,7 +72,7 @@ class McpBackend(SoftwareBackend):
             self.inventory = self._rpc("tools/list", {}, timeout=timeout)["tools"]
             if not isinstance(self.inventory, list):
                 raise ValueError("invalid service tool inventory")
-            self.provenance.update(profile="execution", feature_arm=profile, execution_options=execution_options,
+            self.provenance.update(feature_arm=arm, execution_options=execution_options,
                                    server_info=initialized.get("serverInfo"),
                                    tool_inventory_sha256=fingerprint(self.inventory))
         except BaseException:
@@ -132,7 +132,7 @@ class McpBackend(SoftwareBackend):
 
     def call(self, name, arguments, *, timeout):
         if name not in {tool["name"] for tool in self.inventory}:
-            raise ValueError("tool is not in the discovered service profile")
+            raise ValueError("tool is not in the discovered service inventory")
         return ToolReply(self._rpc("tools/call", {"name": name, "arguments": arguments}, timeout=timeout), 0)
 
     def close(self):
@@ -154,11 +154,11 @@ class McpBackend(SoftwareBackend):
 class CombinedBackend:
     startup_cost_usd = 0
 
-    def __init__(self, *, profile, case, options, workspace, timeout):
+    def __init__(self, *, arm, case, options, workspace, timeout):
         if (not {"software_image", "service_image", "docker_host"} <= options.keys()
                 or set(options) - {"software_image", "service_image", "docker_host", "execution_options"}):
             raise ValueError("combined backend requires both pinned images and local docker_host")
-        execution_options = _execution_options(profile, options.get("execution_options"))
+        execution_options = _execution_options(arm, options.get("execution_options"))
         self.software = self.service = None
         started = time.monotonic()
         try:
@@ -166,7 +166,7 @@ class CombinedBackend:
                 (workspace / directory).mkdir(mode=0o700)
             self.software = SoftwareBackend(case=case, options={"image": options["software_image"], "docker_host": options["docker_host"]},
                                             workspace=workspace / "software", timeout=timeout)
-            self.service = McpBackend(profile=profile, case=case, options={"image": options["service_image"], "docker_host": options["docker_host"]},
+            self.service = McpBackend(arm=arm, case=case, options={"image": options["service_image"], "docker_host": options["docker_host"]},
                                       workspace=workspace / "service", timeout=timeout - (time.monotonic() - started),
                                       execution_options=execution_options)
             ordinary = self.software.provenance["software"]
@@ -218,8 +218,8 @@ class CombinedBackend:
 
 
 def lean(**kwargs):
-    return CombinedBackend(profile="execution", **kwargs)
+    return CombinedBackend(arm="lean", **kwargs)
 
 
 def full(**kwargs):
-    return CombinedBackend(profile="full", **kwargs)
+    return CombinedBackend(arm="full", **kwargs)

@@ -27,8 +27,7 @@ class StdioMcpSession:
     DEFAULT_CALL_TIMEOUT_SECONDS = 600.0
 
     def __init__(self, cwd: str | Path, command: list[str] | None = None,
-                 call_timeout: float | None = None,
-                 profile: str | None = None):
+                 call_timeout: float | None = None):
         child_env = dict(os.environ)
         # The child deliberately runs from a disposable jail, so its normal
         # import path would resolve the environment's last installed wheel.
@@ -40,8 +39,6 @@ class StdioMcpSession:
         inherited_path = child_env.get("PYTHONPATH")
         child_env["PYTHONPATH"] = os.pathsep.join(
             [*source_paths, *([inherited_path] if inherited_path else [])])
-        # Pin the execution contract instead of inheriting operator defaults.
-        child_env["GNOMON_MCP_PROFILE"] = profile or "execution"
         self._proc = subprocess.Popen(
             command or [sys.executable, "-m", "gnomon", "mcp", "serve"],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
