@@ -4,11 +4,11 @@
 
 # Gnomon
 
-Turn time-series data into forecasts you can check.
+## Know more than the prediction.
 
-Gnomon gives people and AI agents tools to inspect data, run their chosen models,
-compare forecasts against simple baselines, and keep a record of what was predicted
-and what was known at the time.
+Gnomon helps people and AI agents inspect time-series data, run their chosen models,
+challenge forecasts against honest baselines, and preserve the evidence behind every
+result.
 
 Use your own forecasting software. Add a remote service or a persistent ledger
 when you need one.
