@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Keep the CLI's single structured success or error response on stdout and use
+  exit status for failure, so callers can parse one stable channel.
+- Report safe, actionable provider entrypoint import failures without exposing
+  arbitrary provider exceptions, credentials or private endpoints.
+- Put local-provider environment isolation and the exact ledger scoring identity,
+  timestamp and timezone requirements in the first-run documentation.
+
 ## 1.0.0 — 2026-09-07
 
 First stable provider-neutral execution API.

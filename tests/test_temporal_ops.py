@@ -256,7 +256,9 @@ def test_python_cli_and_real_stdio_temporal_parity_without_providers(tmp_path, c
     assert main(["temporal", "--arguments", "@" + str(path)]) == 0
     assert json.loads(capsys.readouterr().out) == expected
     assert main(["temporal", "--arguments", "[]"]) == 2
-    assert json.loads(capsys.readouterr().err)["error"]["code"] == "INVALID_ARGUMENTS"
+    captured = capsys.readouterr()
+    assert json.loads(captured.out)["error"]["code"] == "INVALID_ARGUMENTS"
+    assert captured.err == ""
     config = tmp_path / "temporal.toml"
     config.write_text("enable_temporal=true\n")
     messages = [{"id": 1, "method": "tools/list"}, {"id": 2, "method": "tools/call", "params": {"name": "gnomon_temporal", "arguments": arguments}}]

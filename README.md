@@ -24,7 +24,12 @@ gnomon infer --provider last_value --request '{"history":[10,12,11],"horizon":2}
 
 From a checkout, use `python -m pip install .`.
 The forecast command runs an offline baseline.
-To use your own model:
+To use your own local model, install Gnomon in the **same Python environment** as
+the model and its dependencies, then run that environment's `gnomon` or
+`python -m gnomon`. An isolated Gnomon environment cannot import PyTorch or
+another model library installed elsewhere.
+
+Register your model as a callable:
 
 ```python
 from gnomon import ForecastRequest, ForecastResult, InferenceEngine
@@ -43,6 +48,12 @@ StatsForecast, NeuralForecast, Darts or your own code: wrap the call and return 
 `ForecastResult`. Use `register_factory` for a fresh model on each evaluation fold.
 Gnomon checks inputs and outputs; you choose and install the model software.
 See [provider integration](docs/production/INFERENCE.md).
+
+For a scoreable ledger record, give the forecast a nonempty `series_id` and
+explicit `future_timestamps`. Every ledger timestamp needs an explicit timezone
+such as `+00:00`; each actual must use the forecast's exact `series_id`, unit and
+one of its future timestamps. The [first-run guide](docs/getting-started.md#record-and-score-a-forecast)
+shows the complete CLI loop.
 
 ## Connect an agent
 

@@ -207,7 +207,46 @@ class GnomonSession:
             if not isinstance(entrypoint, str) or entrypoint.count(":") != 1:
                 raise ForecastAdapterError("entrypoint must be module:attribute")
             module, attribute = entrypoint.split(":")
-            target = getattr(importlib.import_module(module), attribute)
+            if not module or not attribute:
+                raise ForecastAdapterError("entrypoint must contain a nonempty module and attribute")
+            try:
+                imported = importlib.import_module(module)
+            except ModuleNotFoundError as exc:
+                missing = exc.name or module
+                raise GnomonError(
+                    "PROVIDER_LOAD_FAILED",
+                    f"Provider {name!r} could not import its configured entrypoint.",
+                    details={"provider": name, "entrypoint": entrypoint,
+                             "stage": "import_module", "missing_module": missing},
+                    repair_options=[{
+                        "action": "install_provider_dependency",
+                        "description": f"Install {missing!r} in the same Python environment as Gnomon, or correct the entrypoint.",
+                    }],
+                ) from None
+            except ImportError:
+                raise GnomonError(
+                    "PROVIDER_LOAD_FAILED",
+                    f"Provider {name!r} raised ImportError while loading its configured entrypoint.",
+                    details={"provider": name, "entrypoint": entrypoint,
+                             "stage": "import_module", "exception_type": "ImportError"},
+                    repair_options=[{
+                        "action": "check_provider_environment",
+                        "description": "Install the provider and its dependencies in the same Python environment as Gnomon, then verify the entrypoint.",
+                    }],
+                ) from None
+            try:
+                target = getattr(imported, attribute)
+            except AttributeError:
+                raise GnomonError(
+                    "PROVIDER_LOAD_FAILED",
+                    f"Provider {name!r} could not resolve its configured entrypoint attribute.",
+                    details={"provider": name, "entrypoint": entrypoint,
+                             "stage": "resolve_attribute", "attribute": attribute},
+                    repair_options=[{
+                        "action": "correct_provider_entrypoint",
+                        "description": "Set entrypoint to an importable module:attribute exposed by the provider package.",
+                    }],
+                ) from None
             caps = spec.get("capabilities")
             capabilities = AdapterCapabilities(**caps) if caps is not None else None
             kwargs = {"capabilities": capabilities, "revision": spec.get("revision"),
