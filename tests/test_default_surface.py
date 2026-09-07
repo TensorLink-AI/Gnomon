@@ -1,4 +1,4 @@
-"""Ordinary startup exercises the session, without legacy environment fixtures."""
+"""Ordinary startup exercises the session without ambient configuration."""
 
 from io import StringIO
 import json
@@ -14,7 +14,6 @@ def test_default_stdio_owns_one_session_and_reuses_frozen_data(tmp_path, monkeyp
     from gnomon.mcp_server import serve
     from gnomon.session import GnomonSession
 
-    monkeypatch.delenv("GNOMON_MCP_PROFILE", raising=False)
     source = tmp_path / "series.csv"
     source.write_text("timestamp,value\n2026-01-01,1\n2026-01-02,9\n2026-01-03,2\n")
     output = StringIO()
@@ -50,8 +49,7 @@ def test_default_stdio_owns_one_session_and_reuses_frozen_data(tmp_path, monkeyp
 
 
 @pytest.mark.parametrize("command", ["capabilities", "mcp"])
-def test_default_cli_is_free_of_advanced_imports(command, monkeypatch, tmp_path):
-    monkeypatch.delenv("GNOMON_MCP_PROFILE", raising=False)
+def test_default_cli_is_free_of_advanced_imports(command, tmp_path):
     code = """
 import sys
 from gnomon.cli import main
@@ -66,7 +64,7 @@ for module in ('toolspec', 'runtime', 'context', 'evaluation', 'publication', 'l
     assert result.returncode == 0, result.stderr
     data = json.loads(result.stdout)
     if command == "capabilities":
-        assert data["mcp_profile"]["active"] == "execution"
+        assert len(data["tools"]["visible"]) == 6
         assert data["product_contract"]["forecast_superiority"] == "not_established"
     else:
         assert len(data["result"]["tools"]) == 6

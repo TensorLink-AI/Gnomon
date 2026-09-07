@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/TensorLink-AI/Gnomon/main/docs/assets/gnomon-logo.png" alt="Gnomon logo" width="180">
+</p>
+
 # Gnomon
 
 Turn time-series data into forecasts you can check.
@@ -14,11 +18,11 @@ when you need one.
 Python 3.11–3.13. No required third-party dependencies.
 
 ```bash
-python -m pip install 'gnomon-forecast==0.9.0rc1'
+python -m pip install 'gnomon-forecast==1.0.0'
 gnomon infer --provider last_value --request '{"history":[10,12,11],"horizon":2}'
 ```
 
-This is the 0.9 release candidate. From a checkout, use `python -m pip install .`.
+From a checkout, use `python -m pip install .`.
 The forecast command runs an offline baseline.
 To use your own model:
 
@@ -74,12 +78,12 @@ order. They calculate supplied facts; they do not claim to improve an LLM's reas
 
 ## Status and guides
 
-This is a prerelease. Live-service verification and a real-agent comparison
-remain pending. A forecast is not permission to act; model quantiles are not proof
+The provider-neutral execution API is stable. Live-service verification and a
+real-agent comparison remain pending. A forecast is not permission to act; model quantiles are not proof
 of calibrated uncertainty. See [validation and limits](docs/agent-evaluation.md).
 
 - [First run](docs/getting-started.md) · [Python API](docs/python-api.md) · [CLI](docs/cli-reference.md)
 - [Ledger](docs/production/OPERATIONS.md) · [Time calculations](docs/production/TEMPORAL.md) · [All docs](docs/README.md)
-- [Migration from legacy workflows](COMPATIBILITY.md) · [Changelog](CHANGELOG.md)
+- [Changelog](CHANGELOG.md)
 
 *A gnomon is the part of a sundial that casts the shadow.*

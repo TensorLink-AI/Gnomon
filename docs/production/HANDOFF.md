@@ -1,77 +1,47 @@
-# Delivery checkpoint — iteration 28
+# Delivery checkpoint — iteration 29
 
-Historical checkpoint for the pre-release cleanup, not the current release status.
-See the [changelog](../../CHANGELOG.md) for subsequent ledger work and releases.
-
-Updated 2026-09-06. The user requested fixing the final review findings and checking
-for bugs. Implementation, local verification and all seven PR CI checks passed.
+Updated 2026-09-07 on `codex/v1.0.0-clean-surface`, based on merged `main`
+commit `3d2835f`.
 
 ## Current scope
 
-One provider-neutral Python/CLI/MCP execution session, explicit evaluation,
-optional observation vintages/forecast ledger and temporal arithmetic.
-Ephemeris is one connector; users own model libraries and callable/factory providers.
-Runtime:26 modules/5,778 lines (original118 modules/67,013 lines).
-One matched ordinary/lean/full agent workflow:3,309 implementation lines
-(`workflow/*.py` plus `common/*.py`; before benchmark cull5,289).
+Gnomon 1.0 has one provider-neutral Python/CLI/MCP execution contract, optional
+budgeted evaluation, an optional current-format temporal store and ledger, and
+optional explicit date/time calculations. User-selected callables and Ephemeris
+remain the provider boundaries. The agent skill ships with the wheel.
 
-Iteration28 rejects invalid repair/regrid values before reading files or opening
-a store, and nonboolean partial-scoring flags before appending evaluations.
-Ledger evaluation/comparison, backtesting and study routing share finite point
-losses that avoid intermediate overflow. Unrepresentable errors fail before writes.
-Removed unused repair constants, Snapshot.variables/access_log and obsolete MCP
-envelope fields. Corrected repair defaults and encoding guidance. Actual snapshot
-access summaries, saved forecasts, migration support and explicit repairs remain.
+Pre-1.0 artifact and TrackingStore imports, compatibility documentation, database
+schema upgrades and the MCP profile selector are removed. Fresh temporal stores
+and ledgers carry explicit database identities; incompatible files fail without
+mutation. Revision-aware observations and current ledger operations remain because
+they serve present data correctness, not compatibility.
 
 ## Verification
 
-- Full suite:819 passed,29 opt-in skips in30.42s;70 new cases, no tests removed.
-- Actual ordinary/service container suite:77 passed in34.74s.
-- New regressions cover invalid policy types/values through Python and real MCP,
-  unchanged inputs/no database creation, strict partial flags, large finite losses
-  and refusal without appending when errors are unrepresentable.
-- Ruff, compilation and whitespace pass.
-- Rebuilt wheel/sdist; clean installed CLI/MCP/provider/ledger/example-plugin
-  journeys pass. Artifacts: `/tmp/gnomon-fix28-final-dist.vVrj9k`.
-- Current rebuilt service image:
-  `sha256:6beb711ee4bdeb80d20ba3b2d15750ddaa8655bee2c3550c53164d5d322a009d`.
-- Initial full-suite/package checks caught a missed study-routing import after
-  metric consolidation; fixed it and rebuilt/reran successfully, not waived.
-- Fix commit107a3e3 is pushed to PR99; all seven checks passed:
-  [CI34010085711](https://github.com/TensorLink-AI/Gnomon/actions/runs/34010085711)
-  (Python3.11/3.12/3.13, harness, real containers and installed package/plugin)
-  and [Container34010085713](https://github.com/TensorLink-AI/Gnomon/actions/runs/34010085713).
-  This documentation-only follow-up records those results.
-  Do not edit source or commit during identity-pinned harness tests.
+- Full local production and benchmark suite: 856 passed, 29 opt-in skips.
+- Focused ledger-history regression: 62 passed.
+- Focused agent/docs/session/schema checks passed.
+- Ruff, compilation, whitespace and weighted-progress validation passed.
+- Fresh `1.0.0` wheel/sdist and separately packaged provider example built.
+- Twine metadata and clean offline installed-wheel Python/CLI/MCP/provider/ledger/
+  plugin journeys passed; installed runtime reported `1.0.0`.
+- Wheel SHA-256: `c69dff7db6eb6eae8d725b9ce5a3ec753e8fd74b691683ddeb5c177508aecc3d`.
+- Source SHA-256: `35abecd10e1749d369b54fa7d7c361b802661b12582f0ab9f888f12efe3d831b`.
 
-## Remaining external evidence
+## Release state
 
-[progress.json](progress.json) stays97/100. Fewer lines earn no extra points.
+The change is not yet merged or tagged. Push this branch, open a PR to `main`,
+wait for all CI and container checks, merge the accepted commit, then create
+`v1.0.0` at the resulting `main` commit. The tag-triggered release workflow must
+build again, create the GitHub release and publish through PyPI Trusted Publishing.
+Verify the PyPI JSON record and exact wheel/sdist names after it succeeds.
 
-- Actual matched agent comparison needs model/endpoint selection, credential
-  environment-variable name and spending approval.
-- Live Ephemeris needs deployment URL, credential environment-variable name
-  and budget for potentially billable wake-up/inference.
+Do not stage or remove unrelated root scratch files (`-`, `Continue`, `Current`,
+`Immediate`, `Use`, `accelerate`, `actual`, `cases.`, `optimizing`, `that`).
 
-Neither paid experiment nor authenticated inference has been performed. Scripted
-agents/local HTTP fixtures do not satisfy these gates. Do not extract credentials
-or repeat unauthenticated probes to bypass the authorization boundary.
+## Remaining evidence limits
 
-## Distribution and recovery
-
-Source0.9.0.dev0 is breaking and unreleased. Published0.8.0rc3 remains immutable;
-no PyPI upload. No user database, saved forecast or user input was deleted.
-Final-fix recovery0826117; residue-pass recovery53482fc; benchmark-cull recovery1642cb2; runtime recovery333ed2c;
-earlier benchmark/design archives2cba20e.
-
-Branch `codex/gnomon-ephemeris-ledger`, [PR99](https://github.com/TensorLink-AI/Gnomon/pull/99).
-It is ready for review rather than draft. At the user's request, PR99 now targets
-`main`, not `claude/enterprisebench-multi-domain-n4xyjf`. Main is an ancestor of
-the current source; the combined diff includes all31 implementation/cleanup commits
-and the old enterprisebench implementation is absent. This checkpoint triggers
-fresh PR checks against main. Do not merge without the user's instruction.
-Unrelated root scratch files are untouched and must not be staged:
-`-`, `Continue`, `Current`, `Immediate`, `Use`, `accelerate`, `actual`,
-`cases.`, `optimizing`, `that`.
-
-Continue from this checkpoint after automatic compaction, not from scratch.
+The delivery score remains 97/100. Live Ephemeris verification and an actual
+matched agent comparison are still separate evidence gates. Version 1.0 stabilizes
+the package interface; it does not assert forecast superiority, calibrated model
+uncertainty or action authorization.

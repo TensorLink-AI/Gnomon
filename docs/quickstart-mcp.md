@@ -10,7 +10,7 @@ to run `gnomon mcp serve` over stdio. No HTTP server is required.
 Omit the configuration argument for the three offline baselines.
 The default session exposes inspect, describe, capabilities, forecast, evaluate
 and read. A ledger adds ledger and route; `enable_temporal=true` adds temporal.
-There is only one execution contract, not separate legacy profiles.
+All interfaces use the same execution contract.
 
 Use the [agent skill](agent-skill.md) for model choice, cutoff semantics and
 safe retrieval. The host should consume `tools/list` rather than copying schemas.
@@ -19,6 +19,6 @@ Data/result references survive across calls in this process. The server closes
 them on exit. Large results are paged through `gnomon_read`; persistent history
 requires a ledger. Tool errors do not terminate the connection.
 
-Startup configuration owns imports, endpoints, authentication, limits and write
+Startup configuration owns provider entrypoints, endpoints, authentication, limits and write
 permissions. Agent arguments cannot enable them.
 [Configuration and full contracts](production/INFERENCE.md).

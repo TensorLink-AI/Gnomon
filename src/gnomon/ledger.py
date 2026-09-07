@@ -56,7 +56,9 @@ def _json(value) -> str:
 
 
 class TemporalLedger:
-    SCHEMA_VERSION = 3
+    # Version 4 is the first supported public ledger schema. Pre-1.0 schemas
+    # are deliberately rejected instead of carrying unused migration code.
+    SCHEMA_VERSION = 4
     APPLICATION_ID = 0x474E4F4D
 
     def __init__(self, path: str | Path, *, clock=None):
@@ -69,11 +71,11 @@ class TemporalLedger:
             application = conn.execute("PRAGMA application_id").fetchone()[0]
             if application not in (0, self.APPLICATION_ID) or (version and application != self.APPLICATION_ID):
                 raise ForecastAdapterError("database is not a Gnomon temporal ledger")
-            if version not in (0, 1, 2, self.SCHEMA_VERSION):
+            if version not in (0, self.SCHEMA_VERSION):
                 raise ForecastAdapterError(f"unsupported ledger schema version {version}")
             tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
             if version == 0 and tables:
-                raise ForecastAdapterError("use a separate ledger file; existing databases require an explicit importer")
+                raise ForecastAdapterError("use a new empty file for a Gnomon ledger")
             schema = """
                 CREATE TABLE IF NOT EXISTS payloads (
                     payload_id TEXT PRIMARY KEY, payload_json TEXT NOT NULL);
@@ -104,10 +106,6 @@ class TemporalLedger:
                     outcome_id TEXT PRIMARY KEY,
                     decision_id TEXT NOT NULL REFERENCES decisions(decision_id),
                     recorded_at TEXT NOT NULL, payload_json TEXT NOT NULL);
-                CREATE TABLE IF NOT EXISTS imports (
-                    source_id TEXT NOT NULL, series TEXT NOT NULL,
-                    execution_id TEXT NOT NULL REFERENCES executions(execution_id),
-                    PRIMARY KEY(source_id, series));
                 CREATE TABLE IF NOT EXISTS studies (
                     study_id TEXT PRIMARY KEY, recorded_at TEXT NOT NULL,
                     payload_id TEXT NOT NULL REFERENCES payloads(payload_id));
@@ -119,7 +117,7 @@ class TemporalLedger:
             for statement in schema.split(";"):
                 if statement.strip():
                     conn.execute(statement)
-            for table in ("payloads", "executions", "actuals", "evaluations", "decisions", "decision_outcomes", "imports",
+            for table in ("payloads", "executions", "actuals", "evaluations", "decisions", "decision_outcomes",
                           "studies", "study_executions"):
                 for action in ("UPDATE", "DELETE"):
                     conn.execute(f"CREATE TRIGGER IF NOT EXISTS immutable_{table}_{action} "
@@ -185,55 +183,6 @@ class TemporalLedger:
         conn.execute("INSERT INTO executions VALUES (?,?,?,?,?)",
                      (execution_id, fingerprint, payload_id, self._now(), int(cache_hit)))
         return execution_id
-
-    def import_artifact(self, artifact_path: str, *, project: str | None = None,
-                        naive_timezone: str | None = None) -> list[str]:
-        """Preserve a historical forecast without pretending to rerun its model.
-
-        Missing input snapshots stay unknown. Imports are idempotent and retain
-        the original artifact creation time separately from local recording time.
-        """
-        from .artifact_import import read_forecast_import
-        source_id, records = read_forecast_import(artifact_path, project=project, naive_timezone=naive_timezone)
-        ids = []
-        with self._connect() as conn:
-            conn.execute("BEGIN IMMEDIATE")
-            for record in records:
-                series = record["request"]["series_id"]
-                prior = conn.execute("SELECT execution_id FROM imports WHERE source_id=? AND series=?", (source_id, series)).fetchone()
-                if prior:
-                    ids.append(prior[0])
-                    continue
-                execution_id = self._insert_execution(conn, record)
-                conn.execute("INSERT INTO imports VALUES (?,?,?)", (source_id, series, execution_id))
-                ids.append(execution_id)
-        return ids
-
-    def import_tracking(self, registry_path: str, *, project: str | None = None,
-                        naive_timezone: str | None = None) -> dict:
-        """Read a legacy registry without modifying it or inventing score vintages."""
-        from urllib.parse import quote
-        from .contracts import GnomonError
-        conn = sqlite3.connect("file:" + quote(str(Path(registry_path).resolve())) + "?mode=ro", uri=True)
-        conn.row_factory = sqlite3.Row
-        try:
-            columns = {row[1] for row in conn.execute("PRAGMA table_info(forecasts)")}
-            if not {"forecast_id", "project", "artifact_path"} <= columns:
-                raise ForecastAdapterError("not a supported legacy tracking registry")
-            rows = conn.execute("SELECT * FROM forecasts" + (" WHERE project=?" if project is not None else ""),
-                                (project,) if project is not None else ()).fetchall()
-        finally:
-            conn.close()
-        imported, skipped = [], []
-        for row in rows:
-            try:
-                ids = self.import_artifact(row["artifact_path"], project=row["project"], naive_timezone=naive_timezone)
-                imported.extend(ids)
-            except (OSError, ValueError, GnomonError) as exc:
-                skipped.append({"forecast_id": row["forecast_id"], "reason": str(exc)})
-        return {"execution_ids": list(dict.fromkeys(imported)), "skipped": skipped,
-                "legacy_registry_unchanged": True,
-                "score_history": "not_reconstructed; mutable legacy summaries remain in the original registry"}
 
     def execution(self, execution_id: str) -> dict:
         with self._connect() as conn:

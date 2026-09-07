@@ -58,8 +58,7 @@ def compare_history(ledger, *, series_id, horizon, providers, start, end, source
         conn.execute("BEGIN")
         rows = conn.execute("SELECT e.execution_id, " + origin_expr + " AS origin, "
             "EXISTS(SELECT 1 FROM study_executions s JOIN studies t USING(study_id) "
-            "WHERE s.execution_id=e.execution_id AND t.recorded_at<=?) AS study_run, "
-            "EXISTS(SELECT 1 FROM imports i WHERE i.execution_id=e.execution_id) AS imported "
+            "WHERE s.execution_id=e.execution_id AND t.recorded_at<=?) AS study_run "
             "FROM executions e JOIN payloads p USING(payload_id) WHERE "
             "json_extract(p.payload_json, '$.request.series_id')=? AND json_extract(p.payload_json, '$.request.horizon')=? "
             "AND json_extract(p.payload_json, '$.request.unit') IS ? AND e.recorded_at<=? "
@@ -78,7 +77,7 @@ def compare_history(ledger, *, series_id, horizon, providers, start, end, source
                 continue
             if not start <= origin <= end:
                 continue
-            reason = "not_production_evidence" if row["study_run"] or row["imported"] else \
+            reason = "not_production_evidence" if row["study_run"] else \
                      "provider_version_mismatch" if run["revision"] != providers[run["provider"]] else None
             if reason:
                 answer["excluded"].append({"execution_id": run["execution_id"], "origin": origin, "reason": reason})

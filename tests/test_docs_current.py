@@ -54,16 +54,14 @@ def test_release_smoke_commands_are_supported_by_the_current_cli():
         build_parser().parse_args(command[1:])
 
 
-def test_default_tool_count_and_claims_are_honest(monkeypatch):
+def test_default_tool_count_and_claims_are_honest():
     from gnomon import GnomonSession
     from gnomon.product_contract import product_claims
-    monkeypatch.delenv("GNOMON_MCP_PROFILE", raising=False)
     with GnomonSession.from_config() as session:
         tools = session.tools()
         assert int(re.search(r"The agent gets (\d+) tools", README).group(1)) == len(tools)
         assert all(tool["name"] in README for tool in tools)
     claims = product_claims()
-    assert claims["default_mcp_profile"] == "execution"
     assert claims["forecast_superiority"] == claims["agent_choice_lift"] == "not_established"
     assert claims["current_evidence_release"] is None
     assert "remain pending" in README
@@ -81,8 +79,10 @@ def test_obsolete_designs_and_benchmark_entrypoints_are_absent():
 def test_retired_runtime_is_physically_absent():
     import importlib.util
     for name in ("runtime", "toolspec", "registry", "tsfm", "context", "publication",
-                 "tracking", "pipeline", "macros", "statsforecast_adapter", "agent_eval"):
+                 "tracking", "pipeline", "macros", "statsforecast_adapter", "agent_eval",
+                 "artifact_import"):
         assert importlib.util.find_spec(f"gnomon.{name}") is None, name
+    assert not (REPO / "COMPATIBILITY.md").exists()
 
 
 def test_current_contract_docs_do_not_advertise_removed_workflows():

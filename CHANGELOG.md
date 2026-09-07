@@ -2,10 +2,21 @@
 
 ## Unreleased
 
+## 1.0.0 — 2026-09-07
+
+First stable provider-neutral execution API.
+
+- Keep one Python/CLI/MCP execution contract with optional evaluation, temporal
+  data and durable ledger capabilities.
+- Remove pre-1.0 artifact and TrackingStore imports, schema-upgrade paths and
+  migration documentation. Fresh 1.0 ledger and temporal-store files have explicit
+  identities; incompatible databases fail without mutation.
+- Preserve the dependency-free forecast path and explicit evidence limits.
+
 ## 0.9.0rc1 — 2026-09-06
 
 Breaking release candidate: use the provider-neutral execution interface and
-review COMPATIBILITY.md before upgrading. Live-service verification and real-agent
+review its documented limits. Live-service verification and real-agent
 performance evidence remain pending; this is not a stable-production claim.
 
 - Repair the publishing workflow to verify current CLI commands and the separately
@@ -41,7 +52,7 @@ performance evidence remain pending; this is not a stable-production claim.
 - 0.9 development removes the old evaluated runtime, legacy profiles, context/
   publication/effect-learning stack, model catalogues/installers and per-library
   adapters. One provider-neutral session remains. This is a breaking change;
-  see COMPATIBILITY.md. Historical records remain importable read-only.
+  Historical records remained importable read-only in this candidate.
 - Reduce the CLI to session operations. Move agent-comparison metrics into the
   benchmark harness; full now means the same session with optional ledger/time
   tools, not the retired runtime. Old-arm evidence is not current-product evidence.

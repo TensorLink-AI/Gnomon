@@ -214,20 +214,6 @@ def test_compact_tool_report_and_exact_retrieval(tmp_path):
     assert session.call("gnomon_evaluate", {"study_id": report["study_id"]}, compact=False)["folds"][0]["request"]["history"][0] == 1
 
 
-def test_v2_ledger_migrates_studies_without_changing_old_executions(tmp_path):
-    session, ref = configured(tmp_path, ledger=True)
-    first = session.call("gnomon_forecast", {"provider": "trend", "data_ref": ref, "horizon": 1})
-    path = session.ledger.path
-    with sqlite3.connect(path) as conn:
-        conn.execute("DROP TABLE study_executions")
-        conn.execute("DROP TABLE studies")
-        conn.execute("PRAGMA user_version=2")
-    migrated = TemporalLedger(path)
-    assert migrated.execution(first["execution_id"])["provider"] == "trend"
-    with sqlite3.connect(path) as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
-
-
 def test_cli_and_mcp_share_study_cohorts_and_real_provider_calls(tmp_path, capsys):
     path = source(tmp_path)
     config = tmp_path / "providers.toml"

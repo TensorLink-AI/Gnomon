@@ -52,6 +52,4 @@ They use the [same contracts and budgets](production/INFERENCE.md) as MCP.
 `gnomon self-check leakage --cases 8 --seed 7` tests installed cutoff behavior,
 not LLM reasoning or forecast accuracy.
 
-Only the `execution` MCP profile remains. Optional ledger/temporal tools are
-enabled in configuration, not by selecting a separate runtime.
-[Retired commands and migration](../COMPATIBILITY.md).
+Optional ledger/temporal tools are enabled in operator configuration.

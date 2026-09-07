@@ -1,12 +1,12 @@
 # Gnomon production delivery plan
 
-Gnomon helps agents analyse time series, execute models from user-selected libraries or providers, and make decisions using explicit evidence. The user explicitly clarified on 2026-09-06: remove features that do not serve this goal, including previously preserved legacy APIs. This is the breaking0.9 development plan.
+Gnomon helps agents analyse time series, execute models from user-selected libraries or providers, and make decisions using explicit evidence. The user explicitly clarified that features without a current product use—including pre-1.0 migration surfaces—must not ship. This is the 1.0 delivery plan.
 
 ## Completion contract
 
 The weighted acceptance checks in [progress.json](progress.json) total exactly 100. Credit is awarded only for verified completed checks with evidence. This is a delivery score against a scoped release contract, not a universal guarantee of correctness. Existing code receives credit only after inspection and verification. A regression reopens the affected check.
 
-100 means all retained production capabilities, documented installation paths, migrations, public entry points, conformance/regression gates and actual TSFM integration meet the recorded acceptance criteria. Mock HTTP integration does not satisfy the live-service gate. Publishing packages, deploying services or sending external messages is not implied by preparing a production codebase.
+100 means all retained production capabilities, documented installation paths, public entry points, conformance/regression gates and actual TSFM integration meet the recorded acceptance criteria. Mock HTTP integration does not satisfy the live-service gate. Publishing packages, deploying services or sending external messages is not implied by preparing a production codebase.
 
 ## Workstreams
 
@@ -28,7 +28,7 @@ The weighted acceptance checks in [progress.json](progress.json) total exactly 1
 
 Benchmark scope: one matched ordinary/lean/full evaluation. Remove obsolete
 promotion/audit/generation runners, smoke policies, host-generated follow-up
-answers, response caches and old-format migrations (recovery `1642cb2`).
+answers, response caches and old-format compatibility paths (recovery `1642cb2`).
 Retain independently graded forecasts, agent-committed episodes, bounded single
 model requests, conservative attempt accounting and isolation regressions.
 
@@ -38,7 +38,7 @@ model requests, conservative attempt accounting and isolation regressions.
 4. Route the actual inference API through the same boundary; remove local-catalogue assumptions. Separate inference from optional budgeted evaluation.
 5. Make historical routing and evaluation consume revision-aware, cutoff-bound ledger records.
 6. Keep one small Python/CLI/MCP session. Temporal arithmetic is opt-in; natural-language question compilation, scenario generation and action policy engines are out of scope.
-7. Measure ordinary software versus six-tool lean execution versus execution with optional ledger/temporal tools. The old legacy-full arm is retired; its results are not interchangeable. Complete read-only migration, distribution, operating documentation and live-service release checks.
+7. Measure ordinary software versus six-tool lean execution versus execution with optional ledger/temporal tools. The old legacy-full arm is retired; its results are not interchangeable. Complete distribution, operating documentation and live-service release checks.
 
 ## Iteration and context handoff
 

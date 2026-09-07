@@ -57,12 +57,11 @@ dependency's source, remote weights or the operator's honesty.
 ## Contracts and state
 
 - Ordinary exposes `python` in its software-only container. Lean adds the actual
-  current `execution` profile:6 Gnomon tools by default,7 tools total.
+  current MCP service:6 Gnomon tools by default,7 tools total.
 - Full uses the same execution contract with ledger and temporal tools enabled:
   9 Gnomon tools,10 total. Both arms require an explicit provider; neither performs
   hidden model selection. Arguments are not repaired and answers are not filled
   from tool output. This compares feature availability, not just tool count.
-  Results from the retired legacy-full arm are not evidence for this comparison.
 - Lean optionally accepts `execution_options: {"ledger": true, "temporal": true}`
   in its options, adding route/ledger/temporal discovery (10 tools including Python).
   These are explicit pinned startup differences. Full enables both by default;

@@ -14,9 +14,9 @@ from datetime import date, datetime, timedelta, timezone
 
 def offline_env():
     environment = dict(os.environ)
-    # A caller's checkout import path/profile must not make an installed-wheel
-    # check pass by importing different source or selecting a legacy default.
-    for key in ("PYTHONPATH", "PYTHONHOME", "GNOMON_MCP_PROFILE"):
+    # A caller's checkout import path must not make an installed-wheel check
+    # pass by importing different source.
+    for key in ("PYTHONPATH", "PYTHONHOME"):
         environment.pop(key, None)
     return {**environment, "PIP_NO_INDEX": "1", "PIP_DISABLE_PIP_VERSION_CHECK": "1"}
 
@@ -31,11 +31,9 @@ def run(command: list[str], *, cwd: Path | None = None) -> str:
 
 
 def mcp_exchange(gnomon: Path, messages: list[dict[str, object]], *, cwd: Path,
-                 providers_config: Path | None = None, profile: str | None = None) \
+                 providers_config: Path | None = None) \
         -> dict[int, dict[str, object]]:
     command = [str(gnomon), "mcp", "serve"]
-    if profile is not None:
-        command.extend(["--profile", profile])
     if providers_config is not None:
         command.extend(["--providers-config", str(providers_config)])
     completed = subprocess.run(
@@ -136,7 +134,6 @@ assert EphemerisProvider('https://example.invalid').name == 'ephemeris/route'
 
         capabilities = json.loads(run([str(gnomon), "capabilities"], cwd=root))
         assert capabilities["product_contract"]["offline_builtin_runtime"] is True
-        assert capabilities["product_contract"]["default_mcp_profile"] == "execution"
         assert capabilities["temporal"]["enabled"] is False
         temporal_args = {"operation": "shift", "value": "2024-01-31", "amount": 1,
                          "unit": "months", "mode": "calendar", "invalid_date": "clamp"}
@@ -255,7 +252,6 @@ finally:
         print(json.dumps({
             "status": "passed",
             "runtime_version": capabilities["runtime_version"],
-            "default_mcp_profile": capabilities["mcp_profile"]["active"],
             "structural_leakage_check": "passed",
             "inference_not_action_authority": "passed",
             "packaged_mcp_journey": "passed",
