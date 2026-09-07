@@ -8,7 +8,7 @@ versions or evidence claims on different surfaces.
 
 from __future__ import annotations
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 CURRENT_EVIDENCE_RELEASE = None  # No completed evaluation of this release's default surface.
 

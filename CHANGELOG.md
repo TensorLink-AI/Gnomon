@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.0.1 — 2026-09-07
+
+CLI onboarding and diagnostics patch.
+
 - Keep the CLI's single structured success or error response on stdout and use
   exit status for failure, so callers can parse one stable channel.
 - Report safe, actionable provider entrypoint import failures without exposing
