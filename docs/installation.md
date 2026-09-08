@@ -59,13 +59,29 @@ The release list shows which environment is active, its requested ref, version,
 commit and source fingerprint. Legacy installs with unknown commits are marked
 as such and fingerprinted without executing their code. Updates resolve a ref to
 a commit before downloading and activate the new environment only after validation.
+When that clean commit is already active and the source fingerprint still matches,
+`gnomon update` returns `changed: false` and `reason: already_up_to_date` without
+creating an environment. Direct `install.sh` remains an explicit reinstall.
+
+Updates export the active environment's installed dependency versions and restore
+them in the replacement, including provider packages and optional file-format
+dependencies. Local/editable package sources must remain available. `pip check`
+must pass before activation; failed exports, unavailable dependencies or incompatible
+versions preserve the active environment. Gnomon itself is installed from the
+selected Git commit, and pip is managed by the installer.
 Failed installs are cleaned up. Rollback atomically selects an existing release.
 If an update or rollback selects a release that predates these commands, use the returned `management_command`
 path to manage installs from the newer environment.
 
 Pruning previews candidates unless `--apply` is supplied. It keeps one inactive
 release by default and always protects the active, running and in-progress
-environments. These commands manage `install.sh` environments; pip installs are
+environments. New standalone environments hold a shared lock for the lifetime of
+each Python process, including direct API use and MCP servers. Linux process
+inspection also detects older environments without these locks. If an older
+environment cannot be inspected reliably, the list reports `usage: unknown` and
+pruning preserves it. Processes detected after a preview are rechecked before
+removal and reported in `skipped_in_use` when necessary.
+These commands manage `install.sh` environments; pip installs are
 managed with that interpreter's pip.
 
 `gnomon --version` reports a qualified build ID, such as

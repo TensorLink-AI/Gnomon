@@ -92,6 +92,7 @@ def managed(tmp_path, monkeypatch):
                "installed_at": "2026-01-03T00:00:00Z", "build": build_info()}
     (entries[-1] / installation.RECEIPT).write_text(json.dumps(receipt))
     monkeypatch.setattr(sys, "prefix", str(entries[-1]))
+    monkeypatch.setattr(installation, "_resolve_ref", lambda *args: "b" * 40)
     return root, command, entries
 
 
@@ -154,6 +155,9 @@ def test_failed_update_keeps_active_release_and_clears_local_override(managed, m
     monkeypatch.setenv("GNOMON_LOCAL", "1")
     calls = []
     def fail(args, **kwargs):
+        if args[0] != "bash":
+            return SimpleNamespace(returncode=0, stdout="example-package==1.2\n")
+        assert Path(args[args.index("--requirements") + 1]).read_text() == "example-package==1.2\n"
         calls.append((args, kwargs))
         return SimpleNamespace(returncode=1)
     monkeypatch.setattr(installation.subprocess, "run", fail)
@@ -167,7 +171,9 @@ def test_failed_update_keeps_active_release_and_clears_local_override(managed, m
 def test_update_to_legacy_build_returns_a_working_management_command(managed, monkeypatch):
     _, command, entries = managed
     (entries[-1] / "install.sh").write_text("unused")
-    def succeed(*args, **kwargs):
+    def succeed(args, **kwargs):
+        if args[0] != "bash":
+            return SimpleNamespace(returncode=0, stdout="")
         command.unlink()
         command.symlink_to(entries[0] / "bin/gnomon")
         return SimpleNamespace(returncode=0)
@@ -222,3 +228,161 @@ exit 1
     assert result.returncode != 0
     assert (bins / "gnomon").resolve() == previous / "bin/gnomon"
     assert list((root / "releases").iterdir()) == [previous]
+
+
+def test_infer_and_ledger_schema_discovery_needs_no_provider_config_or_database(tmp_path):
+    from gnomon.session import GnomonSession, ledger_schema
+    code, request_schema = invoke('infer', '--schema')
+    assert code == 0 and request_schema['required'] == ['history', 'horizon']
+    missing = tmp_path / 'missing.db'
+    code, schema = invoke('ledger', '--schema', '--ledger-path', missing)
+    assert code == 0 and not missing.exists()
+    assert schema['oneOf'] == ledger_schema(allow_outcome_writes=True)['oneOf']
+    assert 'allow_outcome_writes=true' in schema['description']
+    code, result = invoke('infer', '--provider', 'lastvalue', '--request', '{"history":[1,2],"horizon":1}')
+    assert code == 2 and 'gnomon capabilities' in result['error']['message']
+    assert 'last_value' in result['error']['message']
+    assert result['error']['details']['schema_command'] == 'gnomon infer --schema'
+    assert invoke('infer', '--provider', 'last_value', '--request',
+                  json.dumps(result['error']['details']['example_arguments']))[0] == 0
+    with GnomonSession.from_config(ledger_path=missing):
+        pass
+    code, error = invoke('ledger', '--ledger-path', missing, '--arguments', '{}')
+    assert code == 2 and 'operation must be one of' in error['error']['message']
+    example = error['error']['details']['example_arguments']
+    assert invoke('ledger', '--ledger-path', missing, '--arguments', json.dumps(example))[0] == 0
+
+
+@pytest.mark.parametrize('configured', [False, True])
+def test_reading_missing_ledger_refuses_without_creating_it(tmp_path, configured):
+    path = tmp_path / 'absent-parent' / 'typo.db'
+    if configured:
+        config = tmp_path / 'providers.toml'
+        config.write_text('ledger_path = "absent-parent/typo.db"\n')
+        flags = ('--providers-config', config)
+    else:
+        flags = ('--ledger-path', path)
+    code, result = invoke('ledger', *flags, '--arguments', '{"operation":"execution","execution_id":"id"}')
+    assert code == 2 and result['error']['code'] == 'LEDGER_NOT_FOUND'
+    assert result['error']['details']['path'] == str(path)
+    assert not path.parent.exists()
+
+
+def test_existing_empty_database_is_not_initialized_by_ledger_reads(tmp_path):
+    path = tmp_path / 'empty.db'
+    path.touch()
+    code, result = invoke('ledger', '--ledger-path', path, '--arguments', '{"operation":"search"}')
+    assert code == 2 and result['error']['code'] == 'INVALID_LEDGER'
+    assert path.read_bytes() == b''
+
+
+def test_prune_detects_a_live_legacy_python_process(managed):
+    if not Path('/proc').is_dir():
+        pytest.skip('Legacy process inspection uses Linux procfs; other platforms preserve unknown releases')
+    _, _, entries = managed
+    subprocess.run([sys.executable, '-m', 'venv', '--without-pip', str(entries[0])], check=True)
+    live = subprocess.Popen([str(entries[0] / 'bin/python'), '-c',
+                             'import sys,time; print(sys.prefix,flush=True); time.sleep(60)'],
+                            stdout=subprocess.PIPE, text=True)
+    try:
+        assert live.stdout.readline().strip() == str(entries[0])
+        preview = installation.releases(prune=True, keep=0)
+        entry = next(e for e in preview['releases'] if e['release_id'] == entries[0].name)
+        assert entry['running'] and entry['usage'] == 'in_use'
+        assert entries[0].name not in preview['prune_candidates']
+        applied = installation.releases(prune=True, keep=0, apply=True)
+        assert entries[0].name not in applied['removed'] and entries[0].exists()
+        assert live.poll() is None
+    finally:
+        live.terminate()
+        live.wait()
+
+
+def test_shared_lease_protects_process_when_process_inspection_is_unavailable(managed, monkeypatch):
+    root, _, entries = managed
+    marker = entries[0] / 'lib/python3.12/site-packages/gnomon_release_lease.pth'
+    marker.touch()
+    locks = root / '.release-locks'
+    locks.mkdir()
+    lock = locks / (entries[0].name + '.lock')
+    lock.touch()
+    monkeypatch.setattr(installation, '_live_releases', lambda root: (set(), False))
+    live = subprocess.Popen([sys.executable, '-c',
+        'import fcntl,sys,time; f=open(sys.argv[1]); fcntl.flock(f,fcntl.LOCK_SH); print("ready",flush=True); time.sleep(60)',
+        str(lock)], stdout=subprocess.PIPE, text=True)
+    try:
+        assert live.stdout.readline().strip() == 'ready'
+        result = installation.releases(prune=True, keep=0, apply=True)
+        assert not result['removed']
+        by_id = {e['release_id']: e for e in result['releases']}
+        assert by_id[entries[0].name]['usage'] == 'in_use'
+        assert by_id[entries[1].name]['usage'] == 'unknown'
+    finally:
+        live.terminate()
+        live.wait()
+    assert installation.releases(prune=True, keep=0)['prune_candidates'] == [entries[0].name]
+
+
+def test_prune_rechecks_process_usage_after_preview(managed, monkeypatch):
+    _, _, entries = managed
+    calls = []
+    def live(root):
+        calls.append(root)
+        return (set() if len(calls) == 1 else set(entries)), True
+    monkeypatch.setattr(installation, '_live_releases', live)
+    result = installation.releases(prune=True, keep=0, apply=True)
+    assert len(result['prune_candidates']) == 2 and result['removed'] == []
+    assert set(result['skipped_in_use']) == {p.name for p in entries[:2]}
+    assert all(p.exists() for p in entries)
+
+
+def test_update_same_clean_commit_and_source_does_not_install_again(managed, monkeypatch):
+    _, _, entries = managed
+    active = entries[-1]
+    package = active / 'lib/python3.12/site-packages/gnomon'
+    receipt = json.loads((active / installation.RECEIPT).read_text())
+    receipt.update(source='github', build={'commit': 'b' * 40, 'dirty': None,
+                   'source_sha256': installation.source_fingerprint(package)})
+    (active / installation.RECEIPT).write_text(json.dumps(receipt))
+    def unexpected(*args, **kwargs):
+        pytest.fail('An unchanged update must not export dependencies or launch the installer')
+    monkeypatch.setattr(installation.subprocess, 'run', unexpected)
+    result = installation.update('main')
+    assert result['changed'] is False and result['reason'] == 'already_up_to_date'
+    assert result['active_release'] == active.name
+
+
+def test_dependency_export_failure_keeps_active_command(managed, monkeypatch):
+    _, command, entries = managed
+    (entries[-1] / 'install.sh').write_text('unused')
+    monkeypatch.setattr(installation.subprocess, 'run', lambda *a, **kw: SimpleNamespace(returncode=1))
+    with pytest.raises(GnomonError) as exc:
+        installation.update('main')
+    assert exc.value.code == 'DEPENDENCY_EXPORT_FAILED'
+    assert command.resolve() == entries[-1] / 'bin/gnomon'
+
+
+def test_opening_existing_ledger_does_not_require_a_write_lock(tmp_path):
+    import sqlite3
+    from gnomon import TemporalLedger
+    path = tmp_path / 'evidence.db'
+    TemporalLedger(path)
+    with sqlite3.connect(path) as writer:
+        writer.execute('BEGIN IMMEDIATE')
+        assert TemporalLedger(path, create=False).pending() == []
+
+
+@pytest.mark.parametrize('change', ['source', 'dirty'])
+def test_update_does_not_skip_a_modified_build_with_the_same_commit(managed, change):
+    _, _, entries = managed
+    active = entries[-1]
+    package = active / 'lib/python3.12/site-packages/gnomon'
+    receipt = json.loads((active / installation.RECEIPT).read_text())
+    receipt.update(source='github', build={'commit': 'b' * 40, 'dirty': change == 'dirty',
+                   'source_sha256': installation.source_fingerprint(package)})
+    (active / installation.RECEIPT).write_text(json.dumps(receipt))
+    if change == 'source':
+        (package / 'changed.py').write_text('VALUE = 1\n')
+    with pytest.raises(GnomonError) as exc:
+        installation.update('main')
+    assert exc.value.code == 'INSTALLER_NOT_FOUND'  # A reinstall was required, rather than a no-op.

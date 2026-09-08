@@ -9,6 +9,7 @@ VERSION="${GNOMON_VERSION:-main}"
 LOCAL_SOURCE="${GNOMON_LOCAL:-}"
 INSTALL_ROOT="${GNOMON_INSTALL_ROOT:-${XDG_DATA_HOME:-${HOME}/.local/share}/gnomon}"
 BIN_DIR="${GNOMON_BIN_DIR:-${XDG_BIN_HOME:-${HOME}/.local/bin}}"
+REQUIREMENTS=""
 
 usage() {
   printf '%s\n' \
@@ -22,6 +23,7 @@ usage() {
     "  --repository OWNER/REPO  Source repository" \
     "  --install-root DIR  Environment storage directory" \
     "  --bin-dir DIR       Command directory" \
+    "  --requirements FILE Restore dependencies exported by gnomon update" \
     "  -h, --help          Show this help"
 }
 
@@ -45,6 +47,10 @@ while (($#)); do
       ;;
     --bin-dir)
       BIN_DIR="${2:?--bin-dir requires a value}"
+      shift 2
+      ;;
+    --requirements)
+      REQUIREMENTS="${2:?--requirements requires a value}"
       shift 2
       ;;
     -h|--help)
@@ -139,6 +145,30 @@ PY
   GNOMON_BUILD_COMMIT="$SOURCE_COMMIT" "$RELEASE_DIR/bin/python" -m pip install --disable-pip-version-check "$SOURCE_URL"
 fi
 rm -f "$SOURCE_ARCHIVE"
+if [[ -n "$REQUIREMENTS" ]]; then
+  # freeze includes transitive dependencies. Do not let dependency resolution
+  # replace the selected Gnomon build; incompatible pins fail pip check below.
+  "$RELEASE_DIR/bin/python" -m pip install --disable-pip-version-check --no-deps --requirement "$REQUIREMENTS"
+fi
+"$RELEASE_DIR/bin/python" -m pip check
+# A shared lease lasts for every Python process in this environment, including
+# direct Python API use and MCP. It lives outside releases so pruning cannot
+# unlink the lock and accidentally create a second lock for the same release.
+"$RELEASE_DIR/bin/python" - "$INSTALL_ROOT" <<'PY'
+from pathlib import Path
+import sys, sysconfig
+root = Path(sys.argv[1])
+locks = root / ".release-locks"
+locks.mkdir(exist_ok=True)
+lock = locks / (Path(sys.prefix).name + ".lock")
+lock.touch(exist_ok=True)
+site = Path(sysconfig.get_path("purelib"))
+(site / "_gnomon_release_lease.py").write_text(
+    "import fcntl\n"
+    f"_handle = open({str(lock)!r}, 'r')\n"
+    "fcntl.flock(_handle, fcntl.LOCK_SH)\n", encoding="utf-8")
+(site / "gnomon_release_lease.pth").write_text("import _gnomon_release_lease\n", encoding="utf-8")
+PY
 "$RELEASE_DIR/bin/gnomon" capabilities >/dev/null
 cp -- "${BASH_SOURCE[0]}" "$RELEASE_DIR/install.sh"
 # Use only the standard library here so this installer can also activate older
@@ -164,7 +194,7 @@ except ImportError:
     build = {"package_version": gnomon.__version__, "commit": commit or None,
              "source_sha256": digest.hexdigest(), "provenance": "installer_receipt"}
 receipt = {"schema_version": 1, "release_id": prefix.name, "install_root": root, "command": command,
-           "repository": repository, "requested_ref": "local" if local else ref,
+           "repository": repository, "requested_ref": "local" if local else os.environ.get("GNOMON_UPDATE_REF", ref),
            "source": "local" if local else "github", "installed_at": datetime.now(timezone.utc).isoformat(), "build": build}
 (prefix / "gnomon-install.json").write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
 link = Path(command)

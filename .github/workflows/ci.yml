@@ -92,6 +92,8 @@ jobs:
         run: shellcheck install.sh
       - name: Build distributions
         run: python -m build
+      - name: Verify standalone update and release lifecycle
+        run: python scripts/install_smoke.py
       - name: Build the user-owned provider example separately
         run: python -m build --wheel --outdir example-dist examples/provider_plugin
       - name: Enforce distribution boundary

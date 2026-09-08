@@ -144,6 +144,10 @@ assert EphemerisProvider('https://example.invalid').name == 'ephemeris/route'
         assert imported == build
         schema = json.loads(run([str(gnomon), "temporal", "--schema"], cwd=root))
         assert len(schema["oneOf"]) == 5
+        request_schema = json.loads(run([str(gnomon), "infer", "--schema"], cwd=root))
+        assert request_schema["required"] == ["history", "horizon"]
+        ledger_schema = json.loads(run([str(gnomon), "ledger", "--schema"], cwd=root))
+        assert any(v["properties"]["operation"]["const"] == "search" for v in ledger_schema["oneOf"])
         assert capabilities["product_contract"]["offline_builtin_runtime"] is True
         assert capabilities["temporal"]["enabled"] is False
         temporal_args = {"operation": "shift", "value": "2024-01-31", "amount": 1,

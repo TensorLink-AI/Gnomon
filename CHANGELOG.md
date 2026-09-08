@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Complete infer/ledger schema discovery and provider-name recovery. Require an
+  existing ledger for CLI reads/routing so path typos cannot create empty evidence.
+- Preserve dependency versions during managed updates and skip unchanged builds.
+  Protect live Python/MCP environments during pruning using process inspection
+  and interpreter startup leases, preserving environments with unknown usage.
+
 - Mark main as 1.1.0.dev0 and embed commit/source fingerprints in distributions;
   expose qualified build IDs in CLI/MCP and use them in provider/content identity.
 - Add Python environment discovery and interpreter passthrough, plus managed

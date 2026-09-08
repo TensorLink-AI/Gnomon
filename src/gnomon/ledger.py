@@ -19,6 +19,7 @@ import sqlite3
 from uuid import uuid4
 
 from .forecast_adapter import ForecastAdapterError, point_error_metrics
+from .contracts import GnomonError
 from .ids import SYSTEM_CLOCK
 
 
@@ -61,14 +62,26 @@ class TemporalLedger:
     SCHEMA_VERSION = 4
     APPLICATION_ID = 0x474E4F4D
 
-    def __init__(self, path: str | Path, *, clock=None):
+    def __init__(self, path: str | Path, *, clock=None, create=True):
         self.path = Path(path).expanduser()
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._create = create
+        if create:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+        elif not self.path.is_file():
+            raise GnomonError("LEDGER_NOT_FOUND", "Ledger file does not exist. Check --ledger-path or the path in "
+                              "provider TOML; infer/evaluate create ledgers when recording evidence.",
+                              {"path": str(self.path.resolve())})
         self.clock = clock or SYSTEM_CLOCK
         with self._connect() as conn:
-            conn.execute("BEGIN IMMEDIATE")
+            if create:
+                conn.execute("BEGIN IMMEDIATE")
             version = conn.execute("PRAGMA user_version").fetchone()[0]
             application = conn.execute("PRAGMA application_id").fetchone()[0]
+            if not create:
+                if version != self.SCHEMA_VERSION or application != self.APPLICATION_ID:
+                    raise GnomonError("INVALID_LEDGER", "The selected file is not a supported Gnomon ledger.",
+                                      {"path": str(self.path.resolve())})
+                return
             if application not in (0, self.APPLICATION_ID) or (version and application != self.APPLICATION_ID):
                 raise ForecastAdapterError("database is not a Gnomon temporal ledger")
             if version not in (0, self.SCHEMA_VERSION):
@@ -127,7 +140,8 @@ class TemporalLedger:
 
     @contextmanager
     def _connect(self):
-        conn = sqlite3.connect(self.path, timeout=30)
+        conn = sqlite3.connect(self.path.resolve().as_uri() + ("?mode=rwc" if self._create else "?mode=rw"),
+                               uri=True, timeout=30)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys=ON")
         try:

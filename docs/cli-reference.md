@@ -35,6 +35,16 @@ Install/update progress goes to stderr; update returns its JSON result on stdout
 | `gnomon update` | Install and activate a Git ref after validation |
 | `gnomon rollback` | Activate an existing standalone release by ID |
 
+`infer --schema` prints the JSON object accepted by `--request` without requiring
+a provider. `ledger --schema` prints all operation shapes without opening a
+database; outcome-write operations identify their operator authorization requirement.
+Both commands include examples in help and argument errors. Provider-name errors
+list registered names and point to `capabilities` with the same provider config.
+
+`ledger` and `route` require an existing Gnomon ledger. A missing path reports
+`LEDGER_NOT_FOUND` with the resolved path instead of creating an empty database.
+`infer` and `evaluate` create a ledger when asked to record evidence there.
+
 ```bash
 gnomon infer --provider last_value --request '{"history":[1,2,3],"horizon":2}'
 gnomon infer --provider last_value --input data.csv --horizon 7

@@ -146,7 +146,10 @@ class InferenceEngine:
         with self._lock:
             provider = self._providers.get(name)
         if provider is None:
-            raise ForecastAdapterError(f"unknown provider {name!r}; register it at startup")
+            raise ForecastAdapterError(f"unknown provider {name!r}; available providers: "
+                                       + (", ".join(sorted(self._providers)) or "none registered")
+                                       + ". Run gnomon capabilities with the same --providers-config to discover providers, "
+                                       "or register a custom provider at startup.")
         request = _freeze_request(request)
         validate_capabilities(provider.capabilities, request)
         identity = {"provider": name, "revision": provider.revision,

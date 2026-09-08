@@ -23,6 +23,8 @@ _EXAMPLES = {
     "route": '{"data":{"input":"data.csv"},"study_id":"STUDY_ID",'
              '"candidates":["historical_mean"],"baseline":"last_value","horizon":2,'
              '"source_as_of":"2026-01-31T00:00:00Z","recorded_as_of":"2099-01-01T00:00:00Z"}',
+    "ledger": '{"operation":"search","limit":10}',
+    "infer": '{"history":[1,2,3],"horizon":2}',
     "temporal": '{"operation":"interval","left":{"start":"2026-01-01T00:00:00Z","end":"2026-01-03T00:00:00Z"},'
                 '"right":{"start":"2026-01-02T00:00:00Z","end":"2026-01-04T00:00:00Z"}}',
 }
@@ -69,9 +71,12 @@ def build_parser() -> argparse.ArgumentParser:
     caps = commands.add_parser("capabilities", help="List registered providers and enabled tools")
     caps.add_argument("--output", choices=("json",), default="json")
     caps.add_argument("--providers-config", help=_CONFIG_HELP)
-    infer = commands.add_parser("infer", help="Run a named provider without implicit backtesting")
-    infer.add_argument("--provider", required=True)
+    infer = commands.add_parser("infer", help="Run a named provider without implicit backtesting",
+        epilog="Example: gnomon infer --provider last_value --request '{\"history\":[1,2,3],\"horizon\":2}'. "
+               "Run gnomon infer --schema for the --request schema, and gnomon capabilities for provider names.")
+    infer.add_argument("--provider")
     source = infer.add_mutually_exclusive_group(required=True)
+    source.add_argument("--schema", action="store_true", help="Print the JSON Schema for --request and exit")
     source.add_argument("--request", help="Forecast request JSON or @file.json")
     source.add_argument("--input", help="Data file or store:<dataset>")
     infer.add_argument("--horizon", type=int)
@@ -100,7 +105,7 @@ def build_parser() -> argparse.ArgumentParser:
     _input_options(describe)
     for name in ("evaluate", "route", "ledger"):
         epilog = None
-        if name in _EXAMPLES:
+        if name in {"evaluate", "route"}:
             direct = ("gnomon evaluate --input data.gnomon --candidates historical_mean --baseline last_value "
                       "--horizon 2 --ledger-path evidence.db --save-result study.json" if name == "evaluate" else
                       "gnomon route --input data.gnomon --study @study.json --ledger-path evidence.db "
@@ -122,13 +127,17 @@ def build_parser() -> argparse.ArgumentParser:
                 "or after the study's recording time to use it (2099 illustrates all recorded evidence).\n"
                 "Evaluation exits 0 when complete, 3 when partial, and 2 when unscored; inspect issues for recovery."
             )
+        if name == "ledger":
+            epilog = ("Example: gnomon ledger --ledger-path evidence.db --arguments '" + _EXAMPLES[name] +
+                      "'\nRun gnomon ledger --schema for operations and required fields. "
+                      "Outcome writes require allow_outcome_writes=true in operator TOML.")
         sub = commands.add_parser(name, help=f"Run the session's {name} operation",
                                   epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
         source = sub.add_mutually_exclusive_group(required=True)
         source.add_argument("--arguments", help="JSON object or @file.json" + (
             "; see example below" if name in _EXAMPLES else ""))
-        if name in _EXAMPLES:
-            source.add_argument("--schema", action="store_true", help="Print the CLI arguments JSON Schema and exit")
+        source.add_argument("--schema", action="store_true", help="Print the CLI arguments JSON Schema and exit")
+        if name in {"evaluate", "route"}:
             source.add_argument("--input", help="Data file, saved .gnomon snapshot, store:<dataset> or -; use task flags instead of JSON")
             sub.add_argument("--candidates", nargs="+", help="Candidate provider names; excludes the baseline")
             sub.add_argument("--baseline", help="Explicit baseline provider")
@@ -180,6 +189,14 @@ def build_parser() -> argparse.ArgumentParser:
 
 def _arguments_schema(command):
     """Extend the shared tool schema with the CLI's inline inspection form."""
+    if command == "infer":
+        from .session import REQUEST_SCHEMA
+        return deepcopy(REQUEST_SCHEMA)
+    if command == "ledger":
+        from .session import ledger_schema
+        return {**ledger_schema(allow_outcome_writes=True), "description":
+                "Schema for --arguments. append_actual, record_decision and append_decision_outcome require "
+                "allow_outcome_writes=true in operator TOML. Ledger/route require an existing ledger."}
     if command == "temporal":
         from .temporal_ops import TEMPORAL_SCHEMA
         return deepcopy(TEMPORAL_SCHEMA)
@@ -194,6 +211,10 @@ def _arguments_schema(command):
 
 def _validate_cli_args(args):
     prog = f"gnomon {args.command}"
+    if args.command == "infer" and not args.schema and not args.provider:
+        raise _UsageError("--provider is required; run gnomon capabilities for registered provider names.", prog)
+    if args.command in {"evaluate", "route"} and args.input:
+        args.task_arguments = _task_flags(args)
     if args.command in ("inspect", "describe"):
         if args.input is not None and args.input_option is not None:
             raise _UsageError("Supply input either positionally or with --input, not both.", prog)
@@ -278,7 +299,7 @@ def _execute(session, args):
                               "use_cache": not args.no_cache}, compact=False)
         return {**result, "input": data} if args.input else result
     if args.command in {"evaluate", "route"} and args.input:
-        arguments = _task_flags(args)
+        arguments = args.task_arguments
         data = _inspect(session, args)
         arguments["data_ref"] = data["data_ref"]
     else:
@@ -363,7 +384,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 result = _execute(session, args)
         else:
             with GnomonSession.from_config(getattr(args, "providers_config", None),
-                                           ledger_path=getattr(args, "ledger_path", None)) as session:
+                                           ledger_path=getattr(args, "ledger_path", None),
+                                           create_ledger=args.command not in {"ledger", "route"}) as session:
                 if args.command == "mcp":
                     from .mcp_server import serve
                     return serve(session=session)
