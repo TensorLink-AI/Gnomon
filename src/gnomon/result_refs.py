@@ -109,11 +109,33 @@ class ResultReferences:
         else:
             return value
         ref = self.put(value)
-        summary = {key: value[key] for key in (
+        scalar_keys = (
             "status", "execution_id", "study_id", "data_ref", "provider", "revision", "evidence", "recorded",
-            "series_id", "unit", "horizon", "statistic", "value", "source_as_of", "recorded_as_of")
+            "series_id", "unit", "horizon", "statistic", "value", "source_as_of", "recorded_as_of",
+            "matched_origins", "observed_origins", "n", "unique_actuals", "duplicates_ignored", "provider_calls",
+            "next_step", "reason", "metric_version", "aggregation",
+        )
+        summary = {key: value[key] for key in scalar_keys
             if key in value and type(value[key]) in (str, int, float, bool, type(None))
             and len(encode(value[key]).encode("utf-8")) <= 160}
+        nested = value.get("result")
+        if isinstance(nested, dict):
+            result_summary = {key: nested[key] for key in scalar_keys
+                if key in nested and type(nested[key]) in (str, int, float, bool, type(None))
+                and len(encode(nested[key]).encode("utf-8")) <= 160}
+            # Aggregate model rankings are the decision-relevant part of a
+            # large history comparison. Detailed per-origin evidence remains
+            # behind the integrity-checked result reference.
+            models = nested.get("models")
+            if isinstance(models, list) and len(encode(models).encode("utf-8")) <= min(
+                4096, self.limits.max_response_bytes // 2
+            ):
+                result_summary["models"] = models
+            for key in ("origins", "excluded"):
+                if isinstance(nested.get(key), list):
+                    result_summary[f"{key}_count"] = len(nested[key])
+            if result_summary:
+                summary["result"] = result_summary
         # A projected answer contains no partial forecast presented as complete.
         projected = {"schema_version": "1", "status": "unscored" if value.get("status") == "unscored" else "result_available", "partial": True,
                      "result_ref": ref, "summary": summary, "action_authorized": False,

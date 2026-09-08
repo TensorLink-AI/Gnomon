@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 1.1.3 — 2026-09-09
+
+- Preserve bounded, decision-relevant summaries when a large structured result
+  moves behind a session result reference. Historical comparisons now keep their
+  matched/observed counts, aggregate model rankings, duplicate/provider-call
+  diagnostics, and origin/exclusion counts in the first agent-visible response;
+  detailed per-origin evidence remains available through `gnomon_read`.
+
 ## 1.1.2 — 2026-09-08
 
 - Expose ledger scoring completion, coverage, missing timestamps and visible

@@ -12,7 +12,7 @@ Record its commit and SHA-256, transfer it through your normal approval process,
 verify the hash, then install in the target Python 3.11–3.13 environment:
 
 ```bash
-python -m pip install --no-index --no-deps wheelhouse/gnomon_forecast-1.1.2-py3-none-any.whl
+python -m pip install --no-index --no-deps wheelhouse/gnomon_forecast-1.1.3-py3-none-any.whl
 gnomon capabilities
 gnomon self-check leakage --cases 8
 ```
