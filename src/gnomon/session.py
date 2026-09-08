@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from collections import OrderedDict
+from copy import deepcopy
 import importlib
 import json
 import os
@@ -305,6 +306,13 @@ class GnomonSession:
                 "fingerprint": run.fingerprint, "provider": run.provider, "revision": run.revision,
                 "cache_hit": run.cache_hit, "result": asdict(run.result),
                 "cache": cache,
+                "request_provenance": {
+                    "source": "caller_supplied_request",
+                    **{key: getattr(run.request, key) for key in (
+                        "cutoff", "known_time_cutoff", "recorded_time_cutoff", "snapshot_id", "series_id")},
+                    "history_start": run.request.timestamps[0] if run.request.timestamps else None,
+                    "history_end": run.request.timestamps[-1] if run.request.timestamps else None,
+                },
                 "evidence": run.evidence, "action_authorized": run.action_authorized,
                 "recorded": self.ledger is not None}
 
@@ -349,11 +357,17 @@ class GnomonSession:
             if name == "gnomon_temporal":
                 if not self.enable_temporal:
                     raise GnomonError("UNKNOWN_TOOL", "Temporal operations require enable_temporal=true at session startup.")
-                from .temporal_ops import temporal_operation
+                from .temporal_ops import temporal_operation, TEMPORAL_EXAMPLES
                 try:
                     return temporal_operation(**arguments)
-                except ValueError as exc:
-                    raise ForecastAdapterError(str(exc)) from None
+                except (ValueError, TypeError) as exc:
+                    operation = arguments.get("operation")
+                    example = TEMPORAL_EXAMPLES.get(operation) if isinstance(operation, str) else None
+                    raise GnomonError("INVALID_ARGUMENTS", str(exc), details={
+                        "example_arguments": deepcopy(example or TEMPORAL_EXAMPLES["interval"]),
+                        "supported_operations": list(TEMPORAL_EXAMPLES),
+                        "schema_command": "gnomon temporal --schema",
+                    }) from None
             if name == "gnomon_capabilities":
                 _strict(arguments, ())
                 return self.capabilities()
@@ -364,12 +378,15 @@ class GnomonSession:
                     _strict(arguments, {"provider", "data_ref", "horizon", "series_id", "season", "quantiles", "use_cache"},
                             {"provider", "data_ref", "horizon"})
                     request = self.data.request(**{k: v for k, v in arguments.items() if k not in {"provider", "use_cache"}})
+                    snapshot = self.data.snapshot_summary(arguments["data_ref"])
                 else:
                     _strict(arguments, {"provider", "request", "use_cache"}, {"provider", "request"})
                     request = ForecastRequest.from_dict(arguments["request"])
                 result = self.forecast(arguments["provider"], request, use_cache=arguments.get("use_cache", True))
                 if "data_ref" in arguments:
                     result["data_ref"] = arguments["data_ref"]
+                    result["snapshot"] = snapshot
+                    result["request_provenance"]["source"] = "frozen_snapshot"
                 return result
             if name in {"gnomon_inspect", "gnomon_describe"}:
                 schema = INSPECT_SCHEMA if name == "gnomon_inspect" else DESCRIBE_SCHEMA

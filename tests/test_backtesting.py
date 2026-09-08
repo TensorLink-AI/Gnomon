@@ -48,6 +48,7 @@ def test_matched_cohorts_explicit_baseline_and_immutable_study(tmp_path):
     assert report["scores"]["trend"] == {"n": 8, "mae": 0, "rmse": 0, "bias": 0}
     assert report["scores"]["last_value"]["mae"] == 1.5
     assert report["ranking"] == ["trend", "last_value"]
+    assert report["ranking_policy"]["ties"] == []
     assert report["action_authorized"] is False and report["training_cutoff_attested"] is False
     assert report["calibration"] == "not_established"
     saved = session.ledger.study(report["study_id"])
@@ -76,6 +77,32 @@ def test_every_invocation_including_baseline_counts_toward_budget(tmp_path, call
     assert sum(r["attempted"] for r in report["diagnostics"].values()) == calls
     assert report["usage"]["internal_model_calls"] == "unknown"
     assert report["usage"]["stop_reason"] == ("call_budget" if calls < 8 else None)
+    if matched == 0:
+        assert report["ranking_policy"]["ties"] == []
+        assert "No matched folds" in report["ranking_policy"]["guidance"]
+
+
+@pytest.mark.parametrize("candidates", [["seasonal_naive", "trend"], ["trend", "seasonal_naive"]])
+def test_tied_mae_is_disclosed_without_turning_display_order_into_a_winner(tmp_path, candidates):
+    session, ref = configured(tmp_path)
+    # Baseline and season=1 seasonal naive coincide; trend is strictly better.
+    report = session.call("gnomon_evaluate", {"data_ref": ref, "candidates": candidates,
+                          "baseline": "last_value", "horizon": 2})
+    policy = report["ranking_policy"]
+    assert report["ranking"][0] == "trend"
+    assert policy["ties"] == [{"mae": 1.5, "providers": ["last_value", "seasonal_naive"]}]
+    assert policy["tie_order"] == "provider_input_order"
+    assert "does not establish a winner" in policy["guidance"]
+    full = session.call("gnomon_evaluate", {"study_id": report["study_id"]}, compact=False)
+    assert full["ranking_policy"] == policy
+
+
+def test_close_scores_are_not_silently_treated_as_exact_ties(tmp_path):
+    session, ref = configured(tmp_path)
+    session.engine.register("near_last", lambda request: result(request, 1e-10))
+    report = session.evaluate(ref, candidates=["near_last"], baseline="last_value", horizon=2)
+    assert report["ranking"] == ["near_last", "last_value"]
+    assert report["ranking_policy"]["ties"] == []
 
 
 def test_errors_are_charged_and_never_dropped_from_completion_denominators(tmp_path):

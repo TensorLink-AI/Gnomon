@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Expose executed request cutoffs and frozen snapshot provenance directly on
+  forecast responses across CLI, Python and MCP, independently of ledger recording.
+- Match temporal error examples to the attempted operation and include runnable
+  examples in each operation's schema.
+- Disclose evaluation ranking and tie policy, with tied providers and guidance
+  that does not imply equivalent predictions or future performance.
+
 ## 1.1.0 — 2026-09-08
 
 - Complete infer/ledger schema discovery and provider-name recovery. Require an

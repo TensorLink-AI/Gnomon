@@ -37,6 +37,10 @@ def test_reference_does_not_reopen_mutated_source(tmp_path):
         assert run["result"]["unit"] == "requests"
         assert run["action_authorized"] is False
         assert first["snapshot"]["known_time_assumed"] is True
+        assert run["snapshot"] == first["snapshot"]
+        assert run["request_provenance"]["snapshot_id"] == first["snapshot"]["snapshot_id"]
+        assert run["request_provenance"]["known_time_cutoff"] is None
+        assert run["snapshot"]["as_of"] == "latest"
 
 
 @pytest.mark.parametrize("statistic,expected", [("mean", 1.5), ("median", 1.5), ("sum", 3),
@@ -76,6 +80,18 @@ def test_store_references_preserve_source_and_recording_cutoffs(tmp_path):
     request = refs.request(latest["data_ref"], horizon=1)
     assert request.history == (1, 2, 99) and request.known_time_cutoff == at(3).isoformat()
     assert refs.request(replay["data_ref"], horizon=1).recorded_time_cutoff == at(5).isoformat()
+    with GnomonSession.from_config() as session:
+        inspection = session.data.inspect("store:data", store_path=str(path), as_of=at(3).isoformat(),
+                                          recorded_as_of=at(5).isoformat())
+        from gnomon.mcp_server import _handle
+        response = _handle({"method": "tools/call", "params": {"name": "gnomon_forecast", "arguments": {
+            "provider": "last_value", "data_ref": inspection["data_ref"], "horizon": 1}}}, session=session)
+        forecast = response["structuredContent"]
+        assert forecast["result"]["point"] == [3]
+        assert forecast["snapshot"] == inspection["snapshot"]
+        assert forecast["request_provenance"]["recorded_time_cutoff"] == at(5).isoformat()
+        assert forecast["request_provenance"]["known_time_cutoff"] == at(3).isoformat()
+        assert forecast["recorded"] is False
 
 
 def test_lagged_input_cannot_label_pre_as_of_steps_as_future(tmp_path):

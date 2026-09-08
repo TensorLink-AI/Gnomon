@@ -198,6 +198,40 @@ def test_invalid_arguments_are_typed_at_session_boundary(arguments):
         assert error.value.code == "INVALID_ARGUMENTS"
 
 
+@pytest.mark.parametrize("operation", ["normalize", "duration", "shift", "interval", "order_events"])
+@pytest.mark.parametrize("from_file", [False, True])
+def test_operation_error_examples_work_in_cli_session_and_mcp(operation, from_file, tmp_path, capsys):
+    arguments = {"operation": operation, "wrong_field": True}
+    path = tmp_path / "arguments.json"
+    path.write_text(json.dumps(arguments))
+    assert main(["temporal", "--arguments", "@" + str(path) if from_file else json.dumps(arguments)]) == 2
+    details = json.loads(capsys.readouterr().out)["error"]["details"]
+    example = details["example_arguments"]
+    assert example["operation"] == operation
+    assert main(["temporal", "--arguments", json.dumps(example)]) == 0
+    assert json.loads(capsys.readouterr().out)["operation"] == operation
+    schema = next(s for s in TEMPORAL_SCHEMA["oneOf"] if s["properties"]["operation"]["const"] == operation)
+    assert example in schema["examples"]
+    with GnomonSession(enable_temporal=True) as session:
+        with pytest.raises(GnomonError) as error:
+            session.call("gnomon_temporal", arguments)
+        assert error.value.details == details
+        output = StringIO()
+        message = {"id": 1, "method": "tools/call", "params": {"name": "gnomon_temporal", "arguments": arguments}}
+        assert serve([json.dumps(message)], output, session=session) == 0
+        response = json.loads(output.getvalue())["result"]
+        assert response["isError"] is True
+        assert response["structuredContent"]["error"]["details"] == details
+
+
+@pytest.mark.parametrize("operation", [None, "unknown", [], {}])
+def test_unknown_operations_offer_valid_fallback_and_supported_names(operation, capsys):
+    assert main(["temporal", "--arguments", json.dumps({"operation": operation})]) == 2
+    details = json.loads(capsys.readouterr().out)["error"]["details"]
+    assert set(details["supported_operations"]) == {"normalize", "duration", "shift", "interval", "order_events"}
+    assert temporal_operation(**details["example_arguments"])["status"] == "ok"
+
+
 @pytest.mark.parametrize("override", [
     {"amount": True}, {"amount": 1.0}, {"amount": 1_000_001}, {"amount": -1_000_001},
     {"unit": "months"}, {"unit": []}, {"mode": "guess"}, {"target_fold": 0},

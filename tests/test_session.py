@@ -84,6 +84,25 @@ def test_factory_plugin_uses_per_request_lifecycle(tmp_path):
         assert session.call("gnomon_forecast", {"provider": "custom", "request": request()})["result"]["point"] == (3,)
 
 
+@pytest.mark.parametrize("with_cutoffs", [False, True])
+def test_direct_request_provenance_matches_recorded_execution_without_claiming_snapshot_verification(tmp_path, with_cutoffs):
+    payload = request()
+    if with_cutoffs:
+        payload.update(timestamps=["2025-01-01T00:00:00Z", "2025-01-02T00:00:00Z"],
+                       cutoff="2025-01-02T00:00:00Z", known_time_cutoff="2025-01-02T00:00:00Z",
+                       recorded_time_cutoff="2025-01-03T00:00:00Z", snapshot_id="caller-declared-id")
+    with GnomonSession.from_config(config(tmp_path)) as session:
+        forecast = session.forecast("last_value", ForecastRequest.from_dict(payload))
+        assert forecast["recorded"] is True
+        assert "snapshot" not in forecast
+        provenance = forecast["request_provenance"]
+        assert provenance["source"] == "caller_supplied_request"
+        stored = session.ledger.execution(forecast["execution_id"])["request"]
+        for key in ("cutoff", "known_time_cutoff", "recorded_time_cutoff", "snapshot_id", "series_id"):
+            assert provenance[key] == stored[key] == payload.get(key)
+        assert provenance["history_end"] == (payload["timestamps"][-1] if with_cutoffs else None)
+
+
 def test_mcp_session_never_accepts_agent_controlled_urls_imports_or_ledger_paths(tmp_path):
     path = config(tmp_path)
     with GnomonSession.from_config(path) as session:

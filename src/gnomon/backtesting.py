@@ -172,6 +172,11 @@ def evaluate_reference(engine, references, data_ref: str, *, candidates: list[st
                        "failed": sum(f["runs"].get(p, {}).get("status") == "error" for f in planned)} for p in providers}
     scores = {p: point_error_metrics((point, row["value"]) for f in matched
                          for point, row in zip(f["runs"][p]["point"], f["actuals"])) for p in providers}
+    ranking = sorted(providers, key=lambda p: scores[p]["mae"]) if matched else []
+    score_groups = {}
+    for provider in ranking:
+        score_groups.setdefault(scores[provider]["mae"], []).append(provider)
+    ties = [{"mae": score, "providers": group} for score, group in score_groups.items() if len(group) > 1]
     complete = len(matched) == folds
     issues = []
     required_rows = min_history + horizon + (folds - 1) * stride
@@ -201,7 +206,15 @@ def evaluate_reference(engine, references, data_ref: str, *, candidates: list[st
               "source_as_of": snapshot.as_of.isoformat() if snapshot.as_of else None,
               "recorded_as_of": snapshot.recorded_as_of.isoformat() if snapshot.recorded_as_of else None,
               "metric_version": "matched-point-errors/1", "scores": scores, "diagnostics": diagnostics,
-              "ranking": sorted(providers, key=lambda p: (scores[p]["mae"], providers.index(p))) if matched else [],
+              "ranking": ranking,
+              "ranking_policy": {"metric": "mae", "direction": "ascending",
+                                 "tie_comparison": "exact_unrounded_score",
+                                 "tie_order": "provider_input_order", "ties": ties,
+                                 "guidance": ("Tied providers have equal MAE on the matched folds; their order does not establish a winner. "
+                                              "Choose among them using known cost, latency or simplicity, or collect more evidence. "
+                                              "Equal MAE does not establish equivalent predictions or future performance."
+                                              if ties else "Ranking uses MAE on matched folds; it does not establish future performance."
+                                              if matched else "No matched folds were scored; there is no ranking or tie to interpret.")},
               "folds": planned, "evidence": "rolling_origin_backtest", "action_authorized": False,
               "training_cutoff_attested": False, "calibration": "not_established",
               "recorded": engine.ledger is not None}

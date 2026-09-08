@@ -105,6 +105,10 @@ class DataReferences:
                 "readiness": readiness,
                 "reference_scope": "session", "eviction": "least_recently_used"}
 
+    def snapshot_summary(self, data_ref: str) -> dict:
+        """Return provenance of the retained snapshot without reopening its source."""
+        return deepcopy(self._get(data_ref).loaded.snapshot.access_summary())
+
     def save(self, data_ref: str, path: str) -> str:
         from .snapshot_files import save_snapshot
         return save_snapshot(self._get(data_ref), path)
