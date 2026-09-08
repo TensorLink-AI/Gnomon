@@ -19,6 +19,11 @@ PROTOCOL_VERSION = "0.1"
 class ForecastAdapterError(ValueError):
     """An adapter violated the model-neutral forecast contract."""
 
+    def __init__(self, message, *, details=None, repair_options=None):
+        super().__init__(message)
+        self.details = details or {}
+        self.repair_options = repair_options
+
 
 def point_error_metrics(pairs) -> dict:
     """Finite point losses shared by backtests and durable ledger scoring."""
@@ -88,8 +93,11 @@ class ForecastRequest:
             value = getattr(self, name)
             if value is not None and (not isinstance(value, str) or not value.strip()):
                 raise ForecastAdapterError(f"{name} must be a nonempty string or None")
-        if not self.history or any(not math.isfinite(float(value))
-                                   for value in self.history):
+        try:
+            finite_history = bool(self.history) and all(math.isfinite(float(value)) for value in self.history)
+        except (ValueError, TypeError, OverflowError):
+            finite_history = False
+        if not finite_history:
             raise ForecastAdapterError("history must contain finite observations")
         if type(self.horizon) is not int or self.horizon < 1:
             raise ForecastAdapterError("horizon must be a positive integer")

@@ -72,6 +72,62 @@ MAX_ASSUMPTIVE_FRACTION = 0.30
 # Fraction of rows that may be dropped as unparseable under aggressive repair.
 MAX_DROPPED_FRACTION = 0.05
 
+REPAIR_HELP = (
+    "off: strict input; safe: formatting, identical duplicates and bounded timestamp jitter, no gap filling; "
+    "aggressive: also interpolate interior gaps and resolve conflicting rows, with disclosed assumptions. "
+    "Fills plus conflict resolutions may not exceed 30% of original observations per series (before deduplication/filling); "
+    "each gap is limited to max(3, original observations // 10) steps. "
+    "Unparseable-row drops may not exceed 5% of input rows. Timestamp alignment is not charged to the 30% budget."
+)
+
+
+def gap_budget(timestamps, frequency):
+    """Count exact missing grid slots without allocating a potentially huge grid."""
+    from .temporal import frequency_step, next_timestamp
+    total = len(timestamps)
+    filled = longest = 0
+    aligned = True
+    step = frequency_step(frequency)
+    for left, right in zip(timestamps, timestamps[1:]):
+        if step is not None:
+            count, remainder = divmod(right - left, step)
+            aligned = aligned and remainder.total_seconds() == 0 and count > 0
+            missing = max(0, count - 1)
+        else:
+            count = (right.year - left.year) * 12 + right.month - left.month
+            aligned = aligned and count > 0 and right.day == 1 and left.day == 1 and left.time() == right.time()
+            missing = max(0, count - 1)
+        if next_timestamp(left, frequency) > right:
+            aligned = False
+        filled += missing
+        longest = max(longest, missing)
+    run_limit = max(3, total // 10)
+    return {"filled": filled, "denominator": total, "denominator_basis": "observations_before_gap_filling",
+            "max_fraction": MAX_ASSUMPTIVE_FRACTION, "fraction": filled / max(1, total),
+            "longest_gap": longest, "max_gap_run": run_limit, "grid_aligned": aligned,
+            "within_budget": aligned and filled / max(1, total) <= MAX_ASSUMPTIVE_FRACTION and longest <= run_limit}
+
+
+def duplicate_diagnostic(observations, series):
+    seen = {}
+    duplicates = conflicts = total = 0
+    for item in observations:
+        if item.series != series:
+            continue
+        total += 1
+        if item.timestamp in seen:
+            duplicates += 1
+            conflicts += seen[item.timestamp] != item.value
+        seen[item.timestamp] = item.value
+    return GnomonError("DUPLICATE_TIMESTAMPS", f"Series {series} contains duplicate timestamps.",
+        details={"series": series, "duplicate_rows": duplicates, "conflicting_rows": conflicts,
+                 "original_observations": total, "conflict_fraction": conflicts / max(1, total),
+                 "max_fraction": MAX_ASSUMPTIVE_FRACTION}, repair_options=[{
+            "action": "correct_conflicting_rows" if conflicts else "deduplicate_identical_rows",
+            "description": "Correct conflicting measurements at the source; safe repair only removes identical rows. "
+                           "Aggressive chooses the last conflicting row; conflicts plus fills must fit 30% of original observations."
+                           if conflicts else "Use --repair safe to remove identical duplicate rows without changing observed values."}])
+
 # Scheduler and scrape jitter is bounded relative to the observed cadence.
 # The absolute cap prevents a long cadence from turning "alignment" into a
 # broad restamping authority (1% of a day would otherwise be 14.4 minutes).
@@ -471,9 +527,12 @@ def _excessive(series: str, counts: dict[str, int], total: int) -> GnomonError:
     return GnomonError(
         "EXCESSIVE_REPAIR",
         f"Series {series} would need repairs to more than "
-        f"{MAX_ASSUMPTIVE_FRACTION:.0%} of its rows; fix the data at the "
-        "source instead of forecasting on a mostly invented series.",
-        {"series": series, "total_observations": total, "repair_counts": counts},
+        f"{MAX_ASSUMPTIVE_FRACTION:.0%} of original observations or a gap longer than max(3, observations // 10); "
+        "fix the data at the source or select an observed contiguous window.",
+        {"series": series, "total_observations": total, "repair_counts": counts,
+         "denominator_basis": "original_observations_before_deduplication_and_filling",
+         "max_fraction": MAX_ASSUMPTIVE_FRACTION, "max_gap_run": max(3, total // 10)},
+        repair_options=[{"action": "correct_source", "description": "Supply observed values or use --window latest_contiguous with --frequency; aggressive repair cannot exceed these budgets."}],
     )
 
 
@@ -549,6 +608,11 @@ def _repair_series(
     # grid is irregular at the strict frequency. Safe and aggressive share
     # this bounded, no-merge alignment boundary.
     timestamps = [item.timestamp for item in kept]
+    if level == "safe" and len(timestamps) >= 3 and len(timestamps) != len(set(timestamps)):
+        error = duplicate_diagnostic(kept, name)
+        raise GnomonError("TIMESTAMP_ALIGNMENT_CONFLICT",
+                          "Exact duplicate timestamps contain conflicting measurements; safe repair cannot choose a value.",
+                          details=error.details, repair_options=error.repair_options)
     frequency: str | None = None
     if requested_frequency:
         frequency = normalise_frequency(requested_frequency)

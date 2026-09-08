@@ -14,6 +14,8 @@ from typing import Sequence
 from .contracts import GnomonError
 from .build_info import build_info
 from .session import EVALUATE_SCHEMA, INSPECT_SCHEMA, ROUTE_SCHEMA, GnomonSession, read_json_argument
+from .forecast_adapter import ForecastAdapterError
+from .repair import REPAIR_HELP
 
 
 _CONFIG_HELP = 'Path to operator TOML (not JSON); e.g. ledger_path = "ledger.db"'
@@ -58,9 +60,7 @@ def _input_options(parser):
                         help="Use the latest uninterrupted observed segment per series; requires --frequency and discloses excluded rows")
     for name in ("series-column", "frequency", "as-of", "recorded-as-of", "store-path", "unit"):
         parser.add_argument("--" + name)
-    parser.add_argument("--repair", choices=("off", "safe", "aggressive"), default="off", help=(
-        "off: strict input; safe: formatting, identical duplicates and bounded timestamp jitter, no gap filling; "
-        "aggressive: also interpolate interior gaps and resolve conflicting rows, with disclosed assumptions"))
+    parser.add_argument("--repair", choices=("off", "safe", "aggressive"), default="off", help=REPAIR_HELP.replace("%", "%%"))
     parser.add_argument("--regrid", choices=("business_daily", "month_start"))
 
 
@@ -71,6 +71,7 @@ def build_parser() -> argparse.ArgumentParser:
     caps = commands.add_parser("capabilities", help="List registered providers and enabled tools")
     caps.add_argument("--output", choices=("json",), default="json")
     caps.add_argument("--providers-config", help=_CONFIG_HELP)
+    caps.add_argument("--config-schema", action="store_true", help="Describe operator TOML configuration keys without loading providers")
     infer = commands.add_parser("infer", help="Run a named provider without implicit backtesting",
         epilog="Example: gnomon infer --provider last_value --request '{\"history\":[1,2,3],\"horizon\":2}'. "
                "Run gnomon infer --schema for the --request schema, and gnomon capabilities for provider names.")
@@ -130,7 +131,19 @@ def build_parser() -> argparse.ArgumentParser:
         if name == "ledger":
             epilog = ("Example: gnomon ledger --ledger-path evidence.db --arguments '" + _EXAMPLES[name] +
                       "'\nRun gnomon ledger --schema for operations and required fields. "
-                      "Outcome writes require allow_outcome_writes=true in operator TOML.")
+                      "Outcome writes require allow_outcome_writes=true in operator TOML.\n\n"
+                      "Ledger evaluate defaults allow_partial=true: exit 0/status ok means the operation succeeded.\n"
+                      "Read scoring_status/complete and result.status/result.coverage (each result for batches).\n"
+                      "Set allow_partial=false to reject incomplete horizons. Scoring persists evidence without actual-write opt-in; exact retries reuse scores.\n\n"
+                      "Omitted defaults (source cutoff | recording cutoff | unit):\n"
+                      "  search:          now       | now       | all units\n"
+                      "  pending:         now       | now       | each execution's unit\n"
+                      "  actuals_as_of:   unbounded | unbounded | unitless\n"
+                      "  evaluate/compare: unbounded | unbounded | each execution's unit\n"
+                      "  compare_history: required  | required  | unitless\n"
+                      "  study/evaluations: n/a     | unbounded | n/a\n"
+                      "  decision:        unbounded | unbounded | n/a\n"
+                      "Cutoffs filter source availability and local recording times. Units match exactly; no conversion.")
         sub = commands.add_parser(name, help=f"Run the session's {name} operation",
                                   epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
         source = sub.add_mutually_exclusive_group(required=True)
@@ -363,6 +376,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             return subprocess.call([sys.executable, *arguments])
         args = build_parser().parse_args(argv)
         _validate_cli_args(args)
+        if getattr(args, "config_schema", False):
+            from .session import configuration_schema
+            print(json.dumps(configuration_schema(), indent=2))
+            return 0
         if getattr(args, "schema", False):
             print(json.dumps(_arguments_schema(args.command), indent=2))
             return 0
@@ -401,6 +418,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         error = exc
     except FileNotFoundError as exc:
         error = GnomonError("INPUT_NOT_FOUND", str(exc))
+    except ForecastAdapterError as exc:
+        error = GnomonError("INVALID_ARGUMENTS", str(exc), details=exc.details, repair_options=exc.repair_options)
     except ValueError as exc:
         error = _UsageError(str(exc), f"gnomon {args.command}" if args else "gnomon")
     except KeyboardInterrupt:
@@ -417,8 +436,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     # reserved for unstructured diagnostics emitted outside this boundary.
     payload = error.to_dict()
     if error.code == "INVALID_ARGUMENTS" and args is not None and args.command in _EXAMPLES:
-        payload["error"]["details"].setdefault("example_arguments", json.loads(_EXAMPLES[args.command]))
-        payload["error"]["details"].setdefault("schema_command", f"gnomon {args.command} --schema")
+        details = payload["error"]["details"]
+        if args.command == "infer" and getattr(args, "input", None):
+            details.pop("example_arguments", None)
+            details["input_options"] = {key: getattr(args, key) for key in (
+                "input", "provider", "horizon", "season", "frequency", "time_column", "target_column", "timezone")
+                if getattr(args, key, None) is not None}
+            details["guidance"] = error.details.get("guidance", "Keep these input options and correct the reported issue; frozen snapshots cannot be overridden. Inspect source data again to change a cutoff or timezone.")
+        elif args.command == "infer" and "example_arguments" in details:
+            # Shared MCP examples include a provider wrapper; --request expects its request object.
+            example = details["example_arguments"]
+            if isinstance(example, dict) and "request" in example:
+                details["example_arguments"] = example["request"]
+        else:
+            details.setdefault("example_arguments", json.loads(_EXAMPLES[args.command]))
+        details.setdefault("schema_command", f"gnomon {args.command} --schema")
+        if args.command == "infer" and "required_history" in details:
+            details.pop("example_arguments", None)
+            details["request_parameters"] = {"season": details["season"], "horizon": details["horizon"]}
     print(json.dumps(payload, indent=2))
     return 2
 

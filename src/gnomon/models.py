@@ -1,6 +1,7 @@
 """Three dependency-free reference baselines; users own other model software."""
 
 from statistics import mean
+from .forecast_adapter import ForecastAdapterError
 
 def last_value(history: list[float], horizon: int, season: int) -> list[float]:
     return [history[-1]] * horizon
@@ -8,7 +9,11 @@ def last_value(history: list[float], horizon: int, season: int) -> list[float]:
 
 def seasonal_naive(history: list[float], horizon: int, season: int) -> list[float]:
     if len(history) < season:
-        raise ValueError("insufficient seasonal history")
+        raise ForecastAdapterError(
+            f"insufficient seasonal history: season={season} requires {season} observations; observed={len(history)}. "
+            "Supply more observed history; repair modes cannot create seasonal evidence.",
+            details={"required_history": season, "observed_history": len(history), "season": season,
+                     "horizon": horizon, "guidance": "Keep the intended season and supply at least season observed values."})
     return [history[-season + (index % season)] for index in range(horizon)]
 
 

@@ -71,6 +71,7 @@ def route_study(engine, references, data_ref: str, *, study_id: str, candidates:
             "provider_identity_changed": "run_new_evaluation_with_explicit_budget",
             "provider_revision_unknown": "register_an_explicit_provider_revision",
             "study_unavailable_at_recorded_cutoff": "search_for_a_study_visible_at_the_requested_cutoff",
+            "study_not_found": "check_study_id_and_ledger_path_or_run_evaluate",
             "select_an_original_backtest_study": "select_an_original_backtest_study",
             "task_identity_mismatch": "search_for_a_matching_task_study",
             "provider_cohort_mismatch": "select_a_study_with_the_requested_providers",
@@ -82,6 +83,8 @@ def route_study(engine, references, data_ref: str, *, study_id: str, candidates:
     try:
         report = engine.ledger.study(study_id, recorded_as_of=recorded_as_of)
     except ForecastAdapterError as error:
+        if error.details.get("reason") == "study_not_found":
+            return fallback("study_not_found")
         return fallback("study_integrity_unverifiable" if "integrity" in str(error) else "study_unavailable_at_recorded_cutoff")
     if report.get("evidence") != "rolling_origin_backtest" or report.get("derived_from"):
         return fallback("select_an_original_backtest_study")

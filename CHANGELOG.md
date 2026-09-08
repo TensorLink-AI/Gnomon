@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+## 1.1.2 — 2026-09-08
+
+- Expose ledger scoring completion, coverage, missing timestamps and visible
+  other-unit actuals. Explain the partial-scoring default and retained CLI exit
+  semantics; preserve exact retries and existing unit/cutoff selection rules.
+- Preserve ledger operations and task parameters in recovery guidance across
+  CLI and MCP. Explain stored forecast timezone failures and distinguish missing
+  studies from studies unavailable at a recording cutoff.
+- Publish repair budgets and denominators in help/schema and predict whether
+  gap interpolation fits both fraction and consecutive-gap limits. Give useful
+  duplicate, timestamp, target and seasonal-history recovery, and avoid suggesting
+  a business calendar when the input contains observed weekends.
+- List available providers, series and configuration keys on relevant errors;
+  add `capabilities --config-schema`, explain CLI/MCP forecast argument mapping,
+  group temporal shift field errors, and clarify Python forecast call/type errors.
+
+See [scoring and recovery contracts](docs/scoring-and-recovery.md) for examples
+and the operation defaults matrix. These changes address verified first-use
+interface friction; they do not establish forecasting superiority.
+
 ## 1.1.1 — 2026-09-08
 
 - Accept request dictionaries in Python session/engine forecasts and batches;

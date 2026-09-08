@@ -11,6 +11,10 @@ exit 2, partial evaluations exit 3, and interruption exits 130.
 Partial/unscored evaluations still return their report, including `issues`, row
 requirements and actual call/fold counts. stderr is reserved for unstructured process diagnostics. Run
 `gnomon --help` or a command's `--help`.
+These evaluation exit codes apply to the top-level `evaluate` backtest command.
+`ledger` scoring keeps exit 0 on successful operations even for partial/pending
+scores; inspect `scoring_status`, `complete` and `result.coverage`, or set
+`allow_partial=false`. See [scoring and recovery](scoring-and-recovery.md).
 CLI usage errors retain `error.code`, `error.message` and help guidance without
 the evidence-rejection envelope.
 `gnomon python` is an interpreter passthrough: its arguments, stdout, stderr and
@@ -20,6 +24,7 @@ Install/update progress goes to stderr; update returns its JSON result on stdout
 | Command | Purpose |
 | --- | --- |
 | `gnomon capabilities` | Registered providers, limits and enabled tools |
+| `gnomon capabilities --config-schema` | Operator TOML configuration keys without loading providers |
 | `gnomon infer` | Explicit provider inference; no implicit backtest |
 | `gnomon inspect` | Validate a file/store input and disclose snapshot semantics |
 | `gnomon describe` | Exact mean, median, latest, minimum, maximum or sum |

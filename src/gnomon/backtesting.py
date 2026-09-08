@@ -80,7 +80,11 @@ def evaluate_reference(engine, references, data_ref: str, *, candidates: list[st
         raise ForecastAdapterError("requested providers/folds exceed the explicit budget")
     identities = engine.capabilities()
     if any(name not in identities for name in providers):
-        raise ForecastAdapterError("every candidate and baseline must be registered before evaluation")
+        unknown = [name for name in providers if name not in identities]
+        raise ForecastAdapterError(
+            "every candidate and baseline must be registered before evaluation; unknown providers: "
+            + ", ".join(unknown) + "; available providers: " + ", ".join(sorted(identities)),
+            details={"unknown_providers": unknown, "available_providers": sorted(identities)})
     started = timer()
     frozen, name, rows = references._select(data_ref, series_id)
     # Retrospective interpolation/restamping can encode future values even
