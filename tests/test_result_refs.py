@@ -104,6 +104,46 @@ def test_forecast_projection_retrieves_without_rerunning_and_full_mode_is_explic
         session.results.read(ref)
 
 
+def test_large_history_projection_keeps_bounded_decision_summary():
+    store = ResultReferences(ResultLimits(max_response_bytes=2048))
+    models = [
+        {"provider": "a", "revision": "v1", "mae": 1.25},
+        {"provider": "b", "revision": "v2", "mae": 3.5},
+    ]
+    value = {
+        "schema_version": "1",
+        "status": "ok",
+        "result": {
+            "status": "ok",
+            "matched_origins": 40,
+            "observed_origins": 40,
+            "n": 40,
+            "duplicates_ignored": 0,
+            "provider_calls": 0,
+            "models": models,
+            "origins": [{"origin": index, "detail": "x" * 200} for index in range(40)],
+            "excluded": [],
+        },
+    }
+    try:
+        receipt = store.project(value)
+        assert receipt["status"] == "result_available" and receipt["partial"] is True
+        assert receipt["summary"]["result"] == {
+            "status": "ok",
+            "matched_origins": 40,
+            "observed_origins": 40,
+            "n": 40,
+            "duplicates_ignored": 0,
+            "provider_calls": 0,
+            "models": models,
+            "origins_count": 40,
+            "excluded_count": 0,
+        }
+        assert store.value(receipt["result_ref"]) == value
+    finally:
+        store.close()
+
+
 def test_malformed_rpc_lines_do_not_kill_or_execute_the_server(monkeypatch):
     import gnomon.mcp_server as server
     monkeypatch.setattr(server, "MAX_REQUEST_BYTES", 512)

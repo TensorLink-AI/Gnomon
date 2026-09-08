@@ -18,7 +18,7 @@ when you need one.
 Python 3.11–3.13. No required third-party dependencies.
 
 ```bash
-python -m pip install 'gnomon-forecast==1.1.2'
+python -m pip install 'gnomon-forecast==1.1.3'
 gnomon infer --provider last_value --request '{"history":[10,12,11],"horizon":2}'
 ```
 
