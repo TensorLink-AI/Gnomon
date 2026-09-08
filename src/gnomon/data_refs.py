@@ -11,13 +11,14 @@ from collections import OrderedDict
 from copy import deepcopy
 from dataclasses import asdict, dataclass
 from datetime import datetime
+from pathlib import Path
 from statistics import fmean, median
 
 from .contracts import GnomonError
 from .datasets import LoadedDataset, load_stage
 from .forecast_adapter import ForecastAdapterError, ForecastRequest
 from .ids import content_id
-from .repair import RepairLog
+from .repair import RepairLog, historical_repair_blockers
 from .temporal import next_timestamp
 
 STATISTICS = ("mean", "median", "latest", "minimum", "maximum", "sum")
@@ -53,25 +54,42 @@ class DataReferences:
     def inspect(self, input: str, *, time_column: str = "timestamp", target_column: str = "value",
                 series_column: str | None = None, frequency: str | None = None, as_of: str | None = None,
                 recorded_as_of: str | None = None, store_path: str | None = None,
-                repair: str = "off", regrid: str | None = None, unit: str | None = None) -> dict:
+                repair: str = "off", regrid: str | None = None, unit: str | None = None,
+                timezone: str | None = None, purpose: str = "infer", window: str | None = None) -> dict:
+        if purpose not in {"infer", "evaluate", "route"}:
+            raise ForecastAdapterError("purpose must be infer, evaluate or route")
         for name, value in (("input", input), ("time_column", time_column), ("target_column", target_column)):
             if not isinstance(value, str) or not value.strip():
                 raise ForecastAdapterError(f"{name} must be a nonempty string")
         if unit is not None and (not isinstance(unit, str) or not unit.strip()):
             raise ForecastAdapterError("unit must be a nonempty string or null")
-        log = RepairLog()
-        loaded = load_stage(input, time_column=time_column, target_column=target_column,
-                            series_column=series_column, frequency=frequency, as_of=instant(as_of, "as_of"),
-                            recorded_as_of=instant(recorded_as_of, "recorded_as_of"), store_path=store_path,
-                            repair=repair, repair_log=log, regrid=regrid)
+        if not input.startswith("store:") and Path(input).suffix == ".gnomon":
+            if (time_column != "timestamp" or target_column != "value" or repair != "off"
+                    or any(value is not None for value in (series_column, frequency, as_of, recorded_as_of,
+                                                          store_path, regrid, timezone, unit, window))):
+                raise ForecastAdapterError("A saved snapshot already fixes its schema, unit, timezone, repairs and cutoffs; "
+                                           "supply only input and purpose, or inspect the original source with new options.")
+            from .snapshot_files import load_snapshot
+            loaded, unit, repairs = load_snapshot(input, self.max_rows)
+        else:
+            log = RepairLog()
+            loaded = load_stage(input, time_column=time_column, target_column=target_column,
+                                series_column=series_column, frequency=frequency, as_of=instant(as_of, "as_of"),
+                                recorded_as_of=instant(recorded_as_of, "recorded_as_of"), store_path=store_path,
+                                repair=repair, repair_log=log, regrid=regrid, timezone=timezone, window=window)
+            repairs = tuple(action.to_dict() for action in log.actions())
         # Count every retained vintage, not only the latest materialized rows.
         count = loaded.snapshot.observation_count
         if count > self.max_rows:
             raise GnomonError("INVALID_ARGUMENTS", "Input exceeds this session's retained observation limit.")
-        repairs = tuple(action.to_dict() for action in log.actions())
         ref = content_id("data", {"snapshot": loaded.snapshot.snapshot_id, "schema": asdict(loaded.schema),
                                   "unit": unit, "repairs": repairs}, length=64)
         frozen = _FrozenInput(loaded, unit, repairs, count)
+        readiness = self._readiness(frozen)
+        if not readiness[purpose]["ready"]:
+            raise GnomonError("INPUT_NOT_READY", f"Input is not ready for {purpose}.",
+                              {"purpose": purpose, **readiness[purpose]},
+                              repair_options=readiness[purpose]["issues"])
         self._inputs.pop(ref, None)
         while self._inputs and (len(self._inputs) >= self.max_refs or
                                sum(item.row_count for item in self._inputs.values()) + count > self.max_rows):
@@ -84,7 +102,31 @@ class DataReferences:
                             "start": rows[0].timestamp.isoformat(), "end": rows[-1].timestamp.isoformat()}
                            for name, rows in sorted(loaded.groups.items())],
                 "snapshot": loaded.snapshot.access_summary(), "repairs": deepcopy(list(frozen.repairs)),
+                "readiness": readiness,
                 "reference_scope": "session", "eviction": "least_recently_used"}
+
+    def save(self, data_ref: str, path: str) -> str:
+        from .snapshot_files import save_snapshot
+        return save_snapshot(self._get(data_ref), path)
+
+    @staticmethod
+    def _readiness(frozen):
+        issues = []
+        blockers = historical_repair_blockers(frozen.repairs)
+        if blockers:
+            issues.append({"action": "prepare_observed_history", "codes": blockers,
+                           "description": "Historical scores need observed outcomes. Use a complete regular window of original "
+                                          "observations, or prepare each historical vintage upstream. Globally filled gaps "
+                                          "and shifted timestamps cannot be used as historical truth. For gaps, inspect the original "
+                                          "file with --window latest_contiguous --frequency <frequency> --repair off.",
+                           "example_input_options": {"window": "latest_contiguous", "frequency": frozen.loaded.frequency, "repair": "off"}})
+        routing = deepcopy(issues)
+        if any(row.timestamp.tzinfo is None for rows in frozen.loaded.groups.values() for row in rows):
+            routing.append({"action": "declare_timezone", "description": "Declare the source timezone at inspection: "
+                            "timezone=UTC (CLI: --timezone UTC), or supply timestamps with explicit offsets."})
+        return {"infer": {"ready": True, "issues": []},
+                "evaluate": {"ready": not issues, "issues": issues, "scope": "data_only_history_and_budget_checked_at_evaluation"},
+                "route": {"ready": not routing, "issues": routing, "scope": "data_only_study_and_cutoffs_checked_at_routing"}}
 
     def _get(self, ref: str) -> _FrozenInput:
         if not isinstance(ref, str) or ref not in self._inputs:

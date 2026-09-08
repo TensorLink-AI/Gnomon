@@ -18,6 +18,7 @@ from .data import Observation
 from .contracts import GnomonError
 from .forecast_adapter import AdapterCapabilities, ForecastAdapterError, ForecastRequest, point_error_metrics, validate_capabilities
 from .ids import content_id
+from .repair import historical_repair_blockers
 from .temporal import validate_and_group
 
 
@@ -84,8 +85,9 @@ def evaluate_reference(engine, references, data_ref: str, *, candidates: list[st
     frozen, name, rows = references._select(data_ref, series_id)
     # Retrospective interpolation/restamping can encode future values even
     # when the repaired row is later labelled known at its valid timestamp.
-    if any(r["code"] != "timestamps_reordered" for r in frozen.repairs):
-        raise ForecastAdapterError("historical evaluation requires unrepaired data; repair each vintage upstream or inspect with repair=off")
+    if historical_repair_blockers(frozen.repairs):
+        raise ForecastAdapterError("historical evaluation requires unrepaired observations or value-preserving format fixes; "
+                                   "use a complete regular window of observed data, or prepare each vintage upstream")
     snapshot = frozen.loaded.snapshot
     replay = replay or ("recorded" if snapshot.recorded_as_of is not None else "source_available")
     if replay not in {"recorded", "source_available"}:
@@ -171,6 +173,19 @@ def evaluate_reference(engine, references, data_ref: str, *, candidates: list[st
     scores = {p: point_error_metrics((point, row["value"]) for f in matched
                          for point, row in zip(f["runs"][p]["point"], f["actuals"])) for p in providers}
     complete = len(matched) == folds
+    issues = []
+    required_rows = min_history + horizon + (folds - 1) * stride
+    if len(origins) < folds:
+        issues.append({"code": "INSUFFICIENT_HISTORY", "available_rows": len(rows),
+                       "required_rows_for_one_fold": min_history + horizon,
+                       "required_rows_for_requested_folds": required_rows,
+                       "description": "Supply more observations or explicitly reduce folds, horizon or min_history."})
+    if stop_reason:
+        issues.append({"code": stop_reason.upper(), "description": "Evaluation stopped before all requested folds completed; inspect usage and budget."})
+    if any(f["status"] == "unavailable_history_or_capability" for f in planned):
+        issues.append({"code": "UNAVAILABLE_FOLDS", "description": "Historical vintages or provider capabilities do not support all requested folds."})
+    if any(f["status"] == "failed" for f in planned):
+        issues.append({"code": "PROVIDER_FAILURE", "description": "Inspect provider diagnostics and verify the provider environment."})
     cohort = {"folds": [{k: f[k] for k in ("origin", "request", "actuals")} for f in planned],
               "replay": replay, "horizon": horizon, "season": season, "series_id": name, "unit": frozen.unit}
     result = {"schema_version": "1", "study_id": str(uuid4()), "status": "complete" if complete else "partial" if matched else "unscored",
@@ -190,6 +205,8 @@ def evaluate_reference(engine, references, data_ref: str, *, candidates: list[st
               "folds": planned, "evidence": "rolling_origin_backtest", "action_authorized": False,
               "training_cutoff_attested": False, "calibration": "not_established",
               "recorded": engine.ledger is not None}
+    result["issues"] = issues
+    result["routing_readiness"] = references._readiness(frozen)["route"]
     if engine.ledger is not None:
         engine.ledger.record_study(result)
     return result

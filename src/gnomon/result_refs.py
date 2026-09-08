@@ -115,7 +115,7 @@ class ResultReferences:
             if key in value and type(value[key]) in (str, int, float, bool, type(None))
             and len(encode(value[key]).encode("utf-8")) <= 160}
         # A projected answer contains no partial forecast presented as complete.
-        projected = {"schema_version": "1", "status": "result_available", "partial": True,
+        projected = {"schema_version": "1", "status": "unscored" if value.get("status") == "unscored" else "result_available", "partial": True,
                      "result_ref": ref, "summary": summary, "action_authorized": False,
                      "retention": "session_lru", "full_result": {"tool": "gnomon_read", "arguments": {"result_ref": ref}}}
         if "error" in value:

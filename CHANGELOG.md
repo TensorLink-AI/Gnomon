@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Add direct evaluate/route flags, discoverable JSON schemas and examples,
+  `inspect`/`describe --input` aliases, and concise CLI usage errors.
+- Expose season and quantile options for file forecasts. Disclose session-only
+  cache behavior in capabilities and forecast responses.
+- Report inspection readiness, support explicit IANA timezones, and provide
+  an observed contiguous-window recovery for gapped data. Independent formatting
+  repairs can be evaluated; future-dependent preparation remains blocked.
+- Add portable frozen `.gnomon` snapshots, direct ledger paths and saved result
+  files for evaluation-to-routing across processes without copying study IDs.
+- Return exit 2 for unscored CLI evaluations and 3 for partial evaluations, with
+  actionable history and budget diagnostics in the result. MCP marks unscored
+  evaluations as failed tool calls while retaining their diagnostic reports.
+
 ## 1.0.1 — 2026-09-07
 
 CLI onboarding and diagnostics patch.

@@ -132,6 +132,16 @@ class InferenceEngine:
                            "batch": not p.factory and callable(getattr(p.target, "forecast_batch", None))}
                     for name, p in self._providers.items()}
 
+    def cache_policy(self, provider: str | None = None) -> dict[str, Any]:
+        policy = {"enabled": self._cache_size > 0, "max_entries": self._cache_size,
+                  "scope": "session", "persistent": False}
+        if provider is not None:
+            with self._lock:
+                registered = self._providers[provider]
+                policy["provider_eligible"] = (
+                    registered.deterministic and registered.revision not in {None, "latest", "unversioned"})
+        return policy
+
     def _prepare(self, name: str, request: ForecastRequest):
         with self._lock:
             provider = self._providers.get(name)

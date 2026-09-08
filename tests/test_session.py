@@ -36,6 +36,24 @@ def request():
             "future_timestamps": ["2025-01-03T00:00:00Z"]}
 
 
+def test_cache_policy_and_outcomes_match_reuse_in_a_long_lived_session(tmp_path):
+    path = config(tmp_path, "cache_size = 8\n")
+    with GnomonSession.from_config(path) as session:
+        assert session.capabilities()["cache"] == {
+            "enabled": True, "max_entries": 8, "scope": "session", "persistent": False}
+        args = {"provider": "last_value", "request": request()}
+        first = session.call("gnomon_forecast", args, compact=False)
+        second = session.call("gnomon_forecast", args, compact=False)
+        assert first["cache"]["status"] == "miss" and first["cache_hit"] is False
+        assert second["cache"]["status"] == "hit" and second["cache_hit"] is True
+        bypass = session.call("gnomon_forecast", {**args, "use_cache": False}, compact=False)
+        assert bypass["cache"]["status"] == "bypassed" and bypass["cache_hit"] is False
+        session.engine.register("unversioned", preferred, deterministic=True)
+        ineligible = session.call("gnomon_forecast", {**args, "provider": "unversioned"}, compact=False)
+        assert ineligible["cache"]["status"] == "ineligible"
+        assert ineligible["cache"]["provider_eligible"] is False and ineligible["cache_hit"] is False
+
+
 def call_message(name, args):
     return {"method": "tools/call", "params": {"name": name, "arguments": args}}
 

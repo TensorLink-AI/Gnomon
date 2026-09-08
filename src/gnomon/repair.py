@@ -46,6 +46,18 @@ if TYPE_CHECKING:  # pragma: no cover - import cycle guard (data imports repair)
 REPAIR_OFF = "off"
 REPAIR_AGGRESSIVE = "aggressive"
 
+# These operations preserve each observed value and its time independently of
+# later observations. Interpolation, restamping and guessed formats do not.
+HISTORICAL_SAFE_REPAIRS = frozenset({
+    "timestamps_reordered", "timezone_declared", "numeric_format_normalised",
+    "timestamp_format_normalised", "blank_row_skipped", "duplicate_row_collapsed",
+    "delimiter_detected", "window_selected",
+})
+
+
+def historical_repair_blockers(repairs):
+    return [r["code"] for r in repairs if r["code"] not in HISTORICAL_SAFE_REPAIRS or r.get("assumptive", False)]
+
 
 def validate_repair_level(level: str) -> None:
     """Reject invalid policy values before reading or transforming observations."""

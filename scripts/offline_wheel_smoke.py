@@ -184,6 +184,24 @@ assert EphemerisProvider('https://example.invalid').name == 'ephemeris/route'
                                      json.dumps({"operation": "study", "study_id": study["study_id"]})], cwd=root))["result"]
         assert saved_study["cohort_id"] == study["cohort_id"]
         assert saved_study["folds"][0]["request"]["history"]
+        frozen_file, result_file = root / "frozen.gnomon", root / "study.json"
+        frozen = json.loads(run([
+            str(gnomon), "inspect", "--input", str(source), "--timezone", "UTC",
+            "--for", "route", "--save-snapshot", str(frozen_file),
+        ], cwd=root))
+        assert frozen["readiness"]["route"]["ready"]
+        direct_study = json.loads(run([
+            str(gnomon), "evaluate", "--input", str(frozen_file), "--candidates", "seasonal_naive",
+            "--baseline", "last_value", "--horizon", "2", "--season", "7",
+            "--ledger-path", str(root / "direct.db"), "--save-result", str(result_file),
+        ], cwd=root))
+        direct_route = json.loads(run([
+            str(gnomon), "route", "--input", str(frozen_file), "--study", "@" + str(result_file),
+            "--ledger-path", str(root / "direct.db"), "--source-as-of", "2026-02-25T00:00:00Z",
+            "--recorded-as-of", datetime.now(timezone.utc).isoformat(),
+        ], cwd=root))
+        assert direct_route["study_id"] == direct_study["study_id"]
+        assert direct_route["matched_folds"] == 4 and direct_route["provider_calls"] == 0
         aware_source = root / "aware-series.csv"
         aware_source.write_text(
             "timestamp,value\n" + "\n".join(

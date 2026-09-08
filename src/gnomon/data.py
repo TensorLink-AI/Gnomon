@@ -182,6 +182,7 @@ def _load_lenient(
     level: str,
     log: "RepairLog",
     default_series: str = "__default__",
+    _defer_timezone: bool = False,
 ) -> list[Observation]:
     """The repair-enabled row loop: identical to the strict loop for clean
     cells, lenient — with disclosure — where the strict loop would raise."""
@@ -226,6 +227,13 @@ def _load_lenient(
                        series=series, example=raw_target.strip() or '""')
             continue
         if tier == "normalised":
+            try:
+                local_value, local_tier = parse_number(raw_target, None)
+            except ValueError:
+                local_value, local_tier = None, "assumptive"
+            if local_value != value or local_tier == "assumptive":
+                log.record("numeric_format_inferred", "Numeric punctuation was resolved using other rows in the column.",
+                           series=series, example=raw_target.strip())
             log.record("numeric_format_normalised",
                        "Currency symbols, group separators, percent signs, or "
                        "accounting negatives were normalised to plain numbers.",
@@ -264,6 +272,13 @@ def _load_lenient(
                 {"row": row_number, "value": str(row.get(time_column))},
             ) from exc
         if ts_tier == "normalised":
+            try:
+                local_stamp, _ = parse_timestamp_lenient(raw_time, None)
+            except AmbiguousDateOrder:
+                local_stamp = None
+            if local_stamp != timestamp:
+                log.record("date_format_inferred", "Day/month order was resolved using other rows in the column.",
+                           series=series, example=raw_time.strip())
             log.record("timestamp_format_normalised",
                        "Non-ISO timestamp formats were normalised.",
                        series=series, example=raw_time.strip())
@@ -276,7 +291,7 @@ def _load_lenient(
             {"dropped_rows": dropped, "total_rows": len(rows)},
         )
     aware = [item.timestamp.utcoffset() is not None for item in observations]
-    if any(aware) and not all(aware):
+    if any(aware) and not all(aware) and not _defer_timezone:
         if level == REPAIR_AGGRESSIVE:
             naive_count = sum(1 for flag in aware if not flag)
             observations = [
@@ -295,6 +310,7 @@ def _load_lenient(
 def load_observations(
     input_path: str, time_column: str, target_column: str, series_column: str | None,
     *, repair: str = "off", repair_log: "RepairLog | None" = None,
+    _defer_timezone: bool = False,
 ) -> tuple[list[Observation], str, list[str]]:
     from .repair import RepairLog, validate_repair_level
     validate_repair_level(repair)
@@ -305,7 +321,7 @@ def load_observations(
     rows, columns = _read_rows(path, time_column, target_column, repair, log)
     observations = observations_from_rows(
         rows, columns, time_column, target_column, series_column,
-        repair=repair, repair_log=log,
+        repair=repair, repair_log=log, _defer_timezone=_defer_timezone,
     )
     return observations, fingerprint(path), columns
 
@@ -320,6 +336,7 @@ def observations_from_rows(
     repair: str = "off",
     repair_log: "RepairLog | None" = None,
     default_series: str = "__default__",
+    _defer_timezone: bool = False,
 ) -> list[Observation]:
     """Extract one target column from rows using an explicit repair policy."""
     from .repair import RepairLog, validate_repair_level
@@ -331,11 +348,17 @@ def observations_from_rows(
         raise GnomonError(
             "MISSING_COLUMNS", f"Required columns are missing: {', '.join(missing)}",
             {"available_columns": columns, "missing_columns": missing},
+            repair_options=[{
+                "action": "supply_column_mapping",
+                "description": "All providers default to time_column=timestamp and target_column=value. "
+                               "Set time_column/target_column to your column names "
+                               "(CLI: --time-column ts --target-column value for ts,value input).",
+            }],
         )
     if repair != "off":
         observations = _load_lenient(
             rows, time_column, target_column, series_column, repair, log,
-            default_series,
+            default_series, _defer_timezone=_defer_timezone,
         )
     else:
         observations = []

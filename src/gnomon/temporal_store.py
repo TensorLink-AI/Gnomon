@@ -119,6 +119,10 @@ class Snapshot:
         """Number of retained vintages, including superseded visible rows."""
         return len(self._observations)
 
+    def retained_observations(self) -> tuple[TemporalObservation, ...]:
+        """Export only frozen visible vintages; never reopen or widen the source."""
+        return tuple(self._observations)
+
     def narrow(self, *, as_of: datetime, recorded_as_of: datetime | None = None) -> "Snapshot":
         """Freeze a stricter replay handle without reopening its source.
 

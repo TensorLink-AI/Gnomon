@@ -46,7 +46,9 @@ REQUEST_SCHEMA = {
 INSPECT_SCHEMA = {"type": "object", "additionalProperties": False, "required": ["input"],
                   "properties": {**{name: {"type": "string"} for name in (
                       "input", "time_column", "target_column", "series_column", "frequency", "as_of",
-                      "recorded_as_of", "store_path", "unit", "regrid")},
+                      "recorded_as_of", "store_path", "unit", "regrid", "timezone")},
+                      "purpose": {"enum": ["infer", "evaluate", "route"]},
+                      "window": {"enum": ["latest_contiguous"]},
                       "repair": {"enum": ["off", "safe", "aggressive"]}}}
 DESCRIBE_SCHEMA = {"type": "object", "additionalProperties": False, "required": ["data_ref", "statistic"],
                    "properties": {**{name: {"type": "string"} for name in ("data_ref", "series_id", "start", "end")},
@@ -115,9 +117,9 @@ _LEDGER_REQUIRED = {
 _OUTCOME_WRITES = {"append_actual", "record_decision", "append_decision_outcome"}
 
 
-def _strict(arguments, allowed, required=()):
+def _strict(arguments, allowed, required=(), *, label="arguments"):
     if not isinstance(arguments, dict):
-        raise ForecastAdapterError("arguments must be an object")
+        raise ForecastAdapterError(f"{label} must be an object")
     if set(arguments) - set(allowed):
         raise ForecastAdapterError("unknown arguments: " + ", ".join(sorted(set(arguments) - set(allowed))))
     missing = set(required) - set(arguments)
@@ -154,20 +156,31 @@ class GnomonSession:
         self.results = ResultReferences(ResultLimits(**(result_limits or {})))
 
     @classmethod
-    def from_config(cls, path: str | Path | None = None) -> "GnomonSession":
+    def from_config(cls, path: str | Path | None = None, *, ledger_path: str | Path | None = None) -> "GnomonSession":
         """Load only an explicitly supplied TOML path. No cwd config search."""
         config, directory = {}, Path.cwd()
         if path is not None:
             location = Path(path).expanduser().resolve()
             directory = location.parent
             with location.open("rb") as handle:
-                config = tomllib.load(handle)
+                try:
+                    config = tomllib.load(handle)
+                except tomllib.TOMLDecodeError:
+                    raise ForecastAdapterError(
+                        'Provider configuration must be valid TOML, not JSON. '
+                        'Example: schema_version = 1\nledger_path = "ledger.db"'
+                    ) from None
         _strict(config, {"schema_version", "ledger_path", "cache_size", "allow_outcome_writes", "providers",
                          "max_data_refs", "max_data_rows", "evaluation_limits", "result_limits", "enable_temporal"})
         if config.get("schema_version", 1) != 1:
             raise ForecastAdapterError("unsupported provider configuration schema")
-        ledger_path = config.get("ledger_path")
-        ledger = TemporalLedger(directory / ledger_path) if ledger_path else None
+        configured_ledger = directory / config["ledger_path"] if config.get("ledger_path") else None
+        if ledger_path is not None:
+            explicit_ledger = Path(ledger_path).expanduser().resolve()
+            if configured_ledger is not None and configured_ledger.resolve() != explicit_ledger:
+                raise ForecastAdapterError("--ledger-path conflicts with ledger_path in provider configuration; select one ledger.")
+            configured_ledger = explicit_ledger
+        ledger = TemporalLedger(configured_ledger) if configured_ledger else None
         engine = InferenceEngine(ledger=ledger, cache_size=config.get("cache_size", 0))
         session = cls(engine, ledger=ledger, allow_outcome_writes=config.get("allow_outcome_writes", False),
                       max_data_refs=config.get("max_data_refs", 16), max_data_rows=config.get("max_data_rows", 100_000),
@@ -266,6 +279,7 @@ class GnomonSession:
                 "interfaces": {"python": True, "cli": True, "mcp": True},
                 "tools": {"visible": [tool["name"] for tool in self.tools()]},
                 "providers": self.engine.capabilities(),
+                "cache": self.engine.cache_policy(),
                 "ledger": {"enabled": self.ledger is not None, "outcome_writes": self.allow_outcome_writes},
                 "temporal": {"enabled": self.enable_temporal, "semantics": "explicit_facts_not_natural_language"},
                 "data": {"reference_scope": "session", "max_refs": self.data.max_refs, "max_retained_rows": self.data.max_rows},
@@ -276,9 +290,14 @@ class GnomonSession:
 
     def forecast(self, provider: str, request: ForecastRequest, *, use_cache: bool = True) -> dict:
         run = self.engine.forecast(provider, request, use_cache=use_cache)
+        cache = self.engine.cache_policy(provider)
+        cache.update(lookup_requested=use_cache, status=(
+            "bypassed" if not use_cache else "disabled" if not cache["enabled"] else
+            "ineligible" if not cache["provider_eligible"] else "hit" if run.cache_hit else "miss"))
         return {"schema_version": "1", "status": "ok", "execution_id": run.execution_id,
                 "fingerprint": run.fingerprint, "provider": run.provider, "revision": run.revision,
                 "cache_hit": run.cache_hit, "result": asdict(run.result),
+                "cache": cache,
                 "evidence": run.evidence, "action_authorized": run.action_authorized,
                 "recorded": self.ledger is not None}
 
@@ -286,7 +305,7 @@ class GnomonSession:
         from .backtesting import EvaluationBudget, evaluate_reference
         limits = asdict(self.evaluation_limits)
         if budget is not None:
-            _strict(budget, limits)
+            _strict(budget, limits, label="budget")
         requested = EvaluationBudget.from_dict({**limits, **(budget or {})})
         for key, limit in limits.items():
             value = getattr(requested, key)

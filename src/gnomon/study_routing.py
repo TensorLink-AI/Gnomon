@@ -17,6 +17,7 @@ from time import monotonic
 from .forecast_adapter import AdapterCapabilities, ForecastAdapterError, point_error_metrics, validate_capabilities
 from .ids import content_id
 from .ledger import _time
+from .repair import historical_repair_blockers
 
 
 def route_study(engine, references, data_ref: str, *, study_id: str, candidates: list[str], baseline: str,
@@ -38,7 +39,7 @@ def route_study(engine, references, data_ref: str, *, study_id: str, candidates:
         raise ForecastAdapterError("providers must be distinct names including the baseline")
     source_cutoff, recorded_cutoff = datetime.fromisoformat(_time(source_as_of)), datetime.fromisoformat(_time(recorded_as_of))
     frozen, name, rows = references._select(data_ref, series_id)
-    if any(r["code"] != "timestamps_reordered" for r in frozen.repairs):
+    if historical_repair_blockers(frozen.repairs):
         raise ForecastAdapterError("routing requires unrepaired historical inputs")
     if any(r.timestamp.tzinfo is None for r in rows):
         raise ForecastAdapterError("historical routing requires timezone-aware valid times")
