@@ -17,7 +17,7 @@ _DATE = r"[0-9]{4}-[0-9]{2}-[0-9]{2}"
 _STAMP = re.compile(_DATE + r"T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,6})?(?:Z|[+-][0-9]{2}:[0-9]{2}(?::[0-9]{2})?)?")
 _TEXT = {"type": "string", "minLength": 1, "maxLength": 64}
 _LOCAL = {"value": _TEXT, "timezone": {"type": "string", "minLength": 1, "maxLength": 128},
-          "fold": {"type": "integer", "enum": [0, 1]}}
+          "fold": {"type": "integer", "enum": [0, 1], "description": "For an ambiguous local input without an offset: 0 selects the first occurrence, 1 the second. Caller must choose."}}
 _SPAN = {"type": "object", "additionalProperties": False, "required": ["start", "end"],
          "properties": {"start": _TEXT, "end": _TEXT}}
 _VARIANTS = {
@@ -25,8 +25,10 @@ _VARIANTS = {
     "duration": ({"start": _TEXT, "end": _TEXT}, ["start", "end"]),
     "shift": ({**_LOCAL, "amount": {"type": "integer", "minimum": -1_000_000, "maximum": 1_000_000},
                "unit": {"enum": ["seconds", "minutes", "hours", "days", "weeks", "months", "years"]},
-               "mode": {"enum": ["elapsed", "calendar"]}, "target_fold": _LOCAL["fold"],
-               "invalid_date": {"enum": ["reject", "clamp"]}}, ["value", "amount", "unit", "mode"]),
+               "mode": {"enum": ["elapsed", "calendar"]},
+               "target_fold": {**_LOCAL["fold"], "description": "For an ambiguous calendar target: 0 selects the first occurrence, 1 the second. Independent of the input fold."},
+               "invalid_date": {"enum": ["reject", "clamp"], "default": "reject",
+                                "description": "Reject an absent day in the target month by default; explicitly choose clamp to use its last day."}}, ["value", "amount", "unit", "mode"]),
     "interval": ({"left": _SPAN, "right": _SPAN}, ["left", "right"]),
     "order_events": ({"events": {"type": "array", "maxItems": 1000, "items": {
         "type": "object", "additionalProperties": False, "required": ["event_id", "at"],
@@ -62,9 +64,9 @@ def _keys(value, allowed, required):
         raise ValueError("; ".join(problems))
 
 
-def _fold(value):
+def _fold(value, field="fold"):
     if value is not None and (type(value) is not int or value not in (0, 1)):
-        raise ValueError("fold must be integer 0 or 1")
+        raise ValueError(f"{field} must be integer 0 or 1")
 
 
 def _parse(value):
@@ -104,17 +106,29 @@ def _candidates(wall, zone):
     return list(candidates.values())
 
 
-def _resolve(wall, zone, fold):
-    _fold(fold)
+class TemporalChoiceError(ValueError):
+    """A calculation needs an explicit caller choice, never an inferred fact."""
+
+    def __init__(self, message, field, choices, illustrative_value):
+        super().__init__(message)
+        self.field = field
+        self.choices = choices
+        self.illustrative_value = illustrative_value
+
+
+def _resolve(wall, zone, fold, *, field="fold"):
+    _fold(fold, field)
     candidates = _candidates(wall, zone)
     if not candidates:
         raise ValueError("nonexistent local time (clock gap); supply a valid time explicitly")
     if len(candidates) == 2:
         if fold is None:
-            raise ValueError("ambiguous local time; specify fold=0 (first) or fold=1 (second)")
+            raise TemporalChoiceError(f"ambiguous local time; specify {field}=0 (first) or {field}=1 (second)",
+                                      field, [0, 1], 0)
         return next(candidate for candidate in candidates if candidate.fold == fold)
     if fold == 1:
-        raise ValueError("fold=1 requested for an unambiguous local time")
+        raise TemporalChoiceError(f"{field}=1 requested for an unambiguous local time; use 0 or omit the field",
+                                  field, [0], 0)
     return candidates[0]
 
 
@@ -170,7 +184,8 @@ def _calendar_shift(value, amount, unit, invalid_date):
     day = min(value.day, calendar.monthrange(year, month)[1])
     clamped = day != value.day
     if clamped and invalid_date != "clamp":
-        raise ValueError("target month has no such day; explicitly select invalid_date=clamp if intended")
+        raise TemporalChoiceError("target month has no such day; keep rejection or explicitly select invalid_date=clamp if intended",
+                                  "invalid_date", ["reject", "clamp"], "clamp")
     return value.replace(year=year, month=month, day=day), clamped
 
 
@@ -178,7 +193,7 @@ def _shift(value, amount, unit, mode, timezone=None, fold=None, target_fold=None
     if type(amount) is not int or abs(amount) > 1_000_000:
         raise ValueError("amount must be an integer between -1000000 and 1000000")
     _fold(fold)
-    _fold(target_fold)
+    _fold(target_fold, "target_fold")
     scales = {"seconds": 1, "minutes": 60, "hours": 3600, "days": 86400, "weeks": 604800}
     if mode not in ("elapsed", "calendar") or invalid_date not in ("reject", "clamp"):
         raise ValueError("mode must be elapsed/calendar and invalid_date must be reject/clamp")
@@ -201,7 +216,7 @@ def _shift(value, amount, unit, mode, timezone=None, fold=None, target_fold=None
             clamped = False
         else:
             wall, clamped = _calendar_shift(origin.replace(tzinfo=None), amount, unit, invalid_date)
-            shifted = _resolve(wall, origin.tzinfo, target_fold)
+            shifted = _resolve(wall, origin.tzinfo, target_fold, field="target_fold")
         result = _projection(shifted)
     return {**result, "mode": mode, "amount": amount, "unit": unit,
             "invalid_date": invalid_date, "date_clamped": clamped}

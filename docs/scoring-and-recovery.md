@@ -118,10 +118,14 @@ Temporal errors preserve usable supplied fields in `example_arguments` and list
 `changed_fields`. For example, a shift of `2026-05-10` by seven days with no mode
 keeps that date and amount. `choices_required.mode` asks the caller to choose
 calendar or elapsed semantics; the example's calendar mode is illustrative.
-When the facts cannot produce a valid retry without additional decisions (such
-as January 31 plus one month), `example_kind: schema_illustration` labels the
-generic example and `supplied_arguments` retains the original request. A runnable
-illustration is not evidence that the original task has been completed.
+Ambiguous local times expose `choices_required.fold`; ambiguous calendar targets
+expose `target_fold`. Month-end shifts expose `invalid_date` with reject/clamp
+choices. Their examples retain the supplied date, amount, zone and unit and add
+an explicitly illustrative choice. Keeping reject leaves an invalid month-end
+request rejected. Nonexistent local times cannot be repaired by a semantic
+policy: `example_kind: task_template` retains the invalid facts and needs source
+correction. A separate `schema_example_arguments` is runnable but unrelated to
+the intended task. `supplied_arguments` always retains the original request.
 
 Ledger recovery templates preserve supplied numeric observations, including zero
 and fractional values, and keep batch writes as batches. `changed_fields` lists
@@ -184,3 +188,40 @@ an existing series; use `series_column` to read labels from source data.
 
 The default session's `temporal.enabled=false` describes that session's MCP tool
 visibility. The standalone `gnomon temporal` command is always available.
+
+## Routing and write metadata
+
+`route --study ID` and `route --study @file.json` both supply study parameters;
+Python/MCP routing also fills omitted task fields from the recorded study. The
+study must be visible at the explicitly supplied recording cutoff. Explicit
+parameter overrides remain subject to task-identity checks.
+
+`fallback_used` distinguishes baseline fallback from an evidence-based selection.
+A successful selection includes `selection_reason` and its newly computed
+`ranking_policy.ties`; a rescore stores this policy with its own scores. When no
+folds were excluded, insufficient-fold guidance asks for more matched evidence.
+
+`effective_source_as_of` and `effective_recorded_as_of` describe the **input
+snapshot**, which can be narrower than the request. `cutoff_scopes` separately
+reports the ledger evidence recording cutoff. For CSV with unknown recording
+times, a null snapshot recording cutoff does not disable the explicit recording
+cutoff on studies and executions.
+
+Batch actual writes return `query.unit_scope: per_actual` and indexed
+`actual_units`, each with its unit and default indicator. They do not assign a
+single unit or default indicator to a batch that can contain mixed units.
+
+Early numeric/timestamp errors perform a read-only drop-cost scan for inputs up
+to 100,000 rows. `drop_budget` reports `scanned_rows`, `scan_complete`,
+`dropped_rows`, and `within_budget` under aggressive parsing. Larger inputs report
+an unperformed scan and null eligibility. This scan counts unparseable drops;
+format normalization, missing values, grid fills and conflicts have separate
+semantics and checks. It does not modify the source or promise full recovery.
+
+## Self-check result contract
+
+Self-check schema 0.2 replaces `structural_claim_proven` with `checks_passed`.
+Cases vary their dates, history lengths and horizons reproducibly by seed, and
+report access-boundary, visible-history and forecast checks. Passing describes
+these finite synthetic cases only. `general_leakage_safety: not_established`
+makes the limit explicit; CLI exit status uses `checks_passed`.

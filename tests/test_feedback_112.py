@@ -35,13 +35,14 @@ def test_shift_recovery_preserves_task_and_exposes_semantic_choice(amount, expec
     assert code == 0 and result["result"]["date"] == expected
 
 
-def test_temporal_generic_fallback_is_labeled_and_preserves_original_request():
+def test_temporal_month_end_recovery_preserves_original_request_and_exposes_choice():
     request = dict(operation="shift", value="2026-01-31", amount=1, unit="months", mode="calendar")
     _, response = cli("temporal", "--arguments", json.dumps(request))
     details = response["error"]["details"]
-    assert details["example_kind"] == "schema_illustration"
+    assert details["example_kind"] == "parameter_preserving_example"
     assert details["supplied_arguments"] == request
-    assert "value" in details["changed_fields"]
+    assert details["changed_fields"] == ["invalid_date"]
+    assert details["choices_required"] == {"invalid_date": ["reject", "clamp"]}
     assert cli("temporal", "--arguments", json.dumps(details["example_arguments"]))[0] == 0
 
 

@@ -4,6 +4,7 @@ Gnomon runs the models you choose, checks their inputs and outputs, and keeps
 optional evidence about forecasts and what was known at the time.
 
 - [Start here](getting-started.md) · [Install](installation.md)
+- [Complete local evidence workflow](local-evidence-workflow.md)
 - [Python API](python-api.md) · [CLI](cli-reference.md) · [MCP](quickstart-mcp.md)
 - [Providers and evaluation](production/INFERENCE.md)
 - [Data and revisions](data-format.md) · [Ledger operations](production/OPERATIONS.md)

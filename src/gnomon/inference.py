@@ -102,10 +102,12 @@ class InferenceEngine:
                  deterministic: bool = False) -> None:
         """Register a ForecastRequest -> ForecastResult callable or provider object.
 
-        Example (import ForecastResult from gnomon first)::
+        Results must echo request series_id and unit, and any supplied future
+        timestamps. Example (import ForecastResult from gnomon first)::
 
             engine.register("custom", lambda r: ForecastResult(
-                point=(r.history[-1],) * r.horizon),
+                point=(r.history[-1],) * r.horizon,
+                series_id=r.series_id, unit=r.unit, timestamps=r.future_timestamps),
                 revision="custom-v1", deterministic=True)
 
         Return ForecastResult, not a dict. An object may expose forecast(request).
@@ -176,7 +178,8 @@ class InferenceEngine:
     def _finish(self, name, provider, request, fingerprint, result, cache_hit=False):
         if not isinstance(result, ForecastResult):
             raise ForecastAdapterError("provider must return ForecastResult, not a dict or other value. "
-                "Import ForecastResult from gnomon; e.g. return ForecastResult(point=(request.history[-1],) * request.horizon).")
+                "Import ForecastResult from gnomon; e.g. return ForecastResult(point=(request.history[-1],) * request.horizon, "
+                "series_id=request.series_id, unit=request.unit, timestamps=request.future_timestamps).")
         result = _copy_result(result).validate(request)
         execution = ForecastExecution(str(uuid4()), fingerprint, name, provider.revision,
                                       request, result, cache_hit, provider_identity={
@@ -226,7 +229,8 @@ class InferenceEngine:
         for result, (_, request, _) in zip(results, prepared):
             if not isinstance(result, ForecastResult):
                 raise ForecastAdapterError("provider must return ForecastResult, not a dict or other value. "
-                    "Import ForecastResult from gnomon; e.g. return ForecastResult(point=(request.history[-1],) * request.horizon).")
+                    "Import ForecastResult from gnomon; e.g. return ForecastResult(point=(request.history[-1],) * request.horizon, "
+                    "series_id=request.series_id, unit=request.unit, timestamps=request.future_timestamps).")
             _copy_result(result).validate(request)
         return [self._finish(name, provider, request, fingerprint, result)
                 for result, (_, request, fingerprint) in zip(results, prepared)]

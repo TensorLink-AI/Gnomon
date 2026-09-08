@@ -105,7 +105,8 @@ EVALUATE_SCHEMA = {"type": "object", "oneOf": [
      "properties": {"study_id": {"type": "string"}}},
 ]}
 ROUTE_SCHEMA = {"type": "object", "additionalProperties": False,
-               "required": ["data_ref", "study_id", "candidates", "baseline", "horizon", "source_as_of", "recorded_as_of"],
+               "required": ["data_ref", "study_id", "source_as_of", "recorded_as_of"],
+               "description": "Omitted candidates, baseline, horizon, season and series_id are loaded from the study visible at recorded_as_of. Explicit overrides must match its task identity.",
                "properties": {**{key: {"type": "string"} for key in (
                    "data_ref", "study_id", "baseline", "source_as_of", "recorded_as_of", "series_id")},
                    "candidates": {**_STRING_ARRAY, "minItems": 1, "uniqueItems": True},
@@ -193,7 +194,11 @@ def _strict(arguments, allowed, required=(), *, label="arguments"):
 
 
 class GnomonSession:
-    """An explicit registry, optional ledger and small tool dispatch boundary."""
+    """An explicit registry, optional ledger and small tool dispatch boundary.
+
+    Start with GnomonSession.from_config() for built-in providers; no TOML file
+    is required. Bare GnomonSession() starts empty for custom registries.
+    """
 
     def __init__(self, engine: InferenceEngine | None = None, *, ledger: TemporalLedger | None = None,
                  allow_outcome_writes: bool = False, max_data_refs: int = 16, max_data_rows: int = 100_000,
@@ -228,7 +233,7 @@ class GnomonSession:
         To enable built-in caching, put ``cache_size = 8`` in providers.toml::
 
             with GnomonSession.from_config("providers.toml") as session:
-                request = {"history": [1, 2, 3], "horizon": 2}
+                request = {"history": [1, 2, 3], "horizon": 2, "series_id": "sales", "unit": "widgets"}
                 assert not session.forecast("last_value", request)["cache_hit"]
                 assert session.forecast("last_value", request)["cache_hit"]
 
@@ -419,6 +424,26 @@ class GnomonSession:
 
     def route(self, data_ref: str, **kwargs) -> dict:
         from .study_routing import route_study
+        fields = ("candidates", "baseline", "horizon", "season", "series_id")
+        if any(key not in kwargs for key in fields):
+            if self.ledger is None:
+                raise ForecastAdapterError("study routing requires an explicit ledger")
+            if "study_id" not in kwargs or "recorded_as_of" not in kwargs:
+                raise ForecastAdapterError("study_id and recorded_as_of are required to load study parameters")
+            if not isinstance(kwargs["recorded_as_of"], str) or not kwargs["recorded_as_of"]:
+                raise ForecastAdapterError("recorded_as_of must be an explicit timestamp to load study parameters")
+            # Never derive a past recommendation's task from future evidence.
+            try:
+                report = self.ledger.study(kwargs["study_id"], recorded_as_of=kwargs["recorded_as_of"])
+            except ForecastAdapterError:
+                if any(key not in kwargs for key in ("candidates", "baseline", "horizon")):
+                    raise
+                # An explicitly supplied task can still return its usual safe
+                # fallback when the study cannot be read at this cutoff.
+            else:
+                defaults = {key: report[key] for key in fields if key != "candidates" and key in report}
+                defaults["candidates"] = [key for key in report["providers"] if key != report["baseline"]]
+                kwargs = {**defaults, **kwargs}
         return route_study(self.engine, self.data, data_ref, max_folds=self.evaluation_limits.max_folds, **kwargs)
 
     def call(self, name: str, arguments: dict[str, Any], *, compact: bool = True) -> dict:
@@ -451,6 +476,20 @@ class GnomonSession:
                 _strict(arguments, ())
                 return self.capabilities()
             if name == "gnomon_forecast":
+                variants = FORECAST_SCHEMA["oneOf"]
+                forms = [{"required": v["required"], "accepted_fields": sorted(v["properties"])} for v in variants]
+                if ("request" in arguments and "data_ref" in arguments) or not any(
+                        set(v["required"]) <= arguments.keys() and arguments.keys() <= v["properties"].keys()
+                        for v in variants):
+                    selected = variants[1] if "data_ref" in arguments or ("horizon" in arguments and "request" not in arguments) else variants[0]
+                    missing = sorted(set(selected["required"]) - arguments.keys())
+                    unknown = sorted(arguments.keys() - selected["properties"].keys())
+                    problems = (["unknown arguments: " + ", ".join(unknown)] if unknown else [])
+                    problems += ["missing arguments: " + ", ".join(missing)] if missing else []
+                    raise ForecastAdapterError(
+                        "; ".join(problems) + ". Forecast accepts exactly one form: provider, request[, use_cache]; or provider, data_ref, horizon "
+                        "with optional series_id, season, quantiles, use_cache. See argument_forms for both contracts.",
+                        details={"argument_forms": forms, "missing_fields": missing, "unknown_fields": unknown})
                 if type(arguments.get("use_cache", True)) is not bool:
                     raise ForecastAdapterError("use_cache must be a boolean")
                 if "data_ref" in arguments:
@@ -490,12 +529,18 @@ class GnomonSession:
                 return self.evaluate(**arguments)
             raise GnomonError("UNKNOWN_TOOL", "This execution session does not expose that tool.")
         except GnomonError as exc:
+            if name == "gnomon_inspect":
+                from .recovery import _example_copy
+                exc.details.setdefault("input_options", _example_copy(arguments))
             if exc.code == "INVALID_ARGUMENTS":
                 for key, value in argument_recovery(name, arguments).items():
                     exc.details.setdefault(key, value)
             raise
         except (ForecastAdapterError, TypeError, KeyError) as exc:
             details = {**argument_recovery(name, arguments), **getattr(exc, "details", {})}
+            if name in {"gnomon_inspect", "gnomon_describe", "gnomon_evaluate", "gnomon_route"}:
+                from .recovery import _example_copy
+                details.setdefault("supplied_arguments", _example_copy(arguments))
             if "execution_recorded_at" in details and "example_arguments" in details:
                 details["example_arguments"]["recorded_as_of"] = details["execution_recorded_at"]
                 from .recovery import example_changes
@@ -556,6 +601,14 @@ class GnomonSession:
         else:
             query["unit_defaulted"] = arguments.get("unit") is None
             query["omitted_unit"] = query["unit_default"] if query["unit_defaulted"] else None
+        if operation == "append_actual" and "actuals" in arguments:
+            for key in ("unit", "unit_default", "unit_defaulted", "omitted_unit"):
+                query.pop(key, None)
+            query["unit_scope"] = "per_actual"
+            query["actual_units"] = [{"index": i, "unit": item.get("unit"),
+                "unit_defaulted": item.get("unit") is None,
+                "omitted_unit": "unitless" if item.get("unit") is None else None}
+                for i, item in enumerate(arguments["actuals"])]
         # Search already reports its exact effective clock, including cursor reuse.
         if operation == "search":
             query.update({k: result[k] for k in ("source_as_of", "recorded_as_of") if k in result})
