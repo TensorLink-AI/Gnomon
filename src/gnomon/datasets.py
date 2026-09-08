@@ -2,16 +2,51 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime
+from dataclasses import dataclass, replace
+from datetime import datetime, timezone as utc_timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .contracts import DataSchema, GnomonError
 from .data import Observation, load_observations
 from .repair import REGRID_POLICIES, RepairLog, repair_observations, validate_repair_level
-from .temporal import validate_and_group
+from .temporal import is_regular_step, normalise_frequency, validate_and_group
 from .temporal_store import InMemoryTemporalStore, Snapshot, TemporalStore
 
 STORE_SCHEME = "store:"
+
+
+def _localize(value: datetime, zone: ZoneInfo | utc_timezone) -> datetime:
+    if value.tzinfo is not None:
+        return value.astimezone(zone)
+    candidates = [value.replace(tzinfo=zone, fold=fold) for fold in (0, 1)]
+    valid = [item for item in candidates
+             if item.astimezone(utc_timezone.utc).astimezone(zone).replace(tzinfo=None) == value]
+    if not valid or len({item.utcoffset() for item in valid}) > 1:
+        raise GnomonError("INVALID_ARGUMENTS", "Local timestamp is ambiguous or nonexistent in the declared timezone. "
+                          "Supply an explicit UTC offset in the input.", {"timestamp": value.isoformat(), "timezone": str(zone)})
+    return valid[0]
+
+
+def _latest_contiguous(observations, frequency, log):
+    from collections import defaultdict
+    groups = defaultdict(list)
+    for row in observations:
+        groups[row.series].append(row)
+    selected = []
+    for name, rows in groups.items():
+        rows.sort(key=lambda row: row.timestamp)
+        start = 0
+        for index in range(1, len(rows)):
+            if rows[index].timestamp == rows[index - 1].timestamp:
+                raise GnomonError("INVALID_ARGUMENTS", "Resolve duplicate timestamps before selecting a contiguous window.")
+            if not is_regular_step(rows[index - 1].timestamp, rows[index].timestamp, frequency):
+                start = index
+        window = rows[start:]
+        selected.extend(window)
+        log.record("window_selected", "Caller selected the latest contiguous observed window; earlier rows were excluded.",
+                   series=name, metrics={"excluded_rows": start, "selected_rows": len(window),
+                                         "start": window[0].timestamp.isoformat(), "end": window[-1].timestamp.isoformat()})
+    return selected
 
 
 def _knowledge_bound_plain_rows(
@@ -82,6 +117,8 @@ def load_stage(
     repair: str = "off",
     repair_log: "RepairLog | None" = None,
     regrid: str | None = None,
+    timezone: str | None = None,
+    window: str | None = None,
 ) -> LoadedDataset:
     """Resolve the input to a snapshot, then materialise the observations
     that are visible at ``as_of``. ``store:<dataset>`` inputs read from the
@@ -89,10 +126,24 @@ def load_stage(
     store with ``known_time = valid_time`` so the snapshot guarantee is
     uniform across both."""
     validate_repair_level(repair)
+    if window is not None and window != "latest_contiguous":
+        raise GnomonError("INVALID_ARGUMENTS", "window must be latest_contiguous or null.")
+    if window is not None and frequency is None:
+        raise GnomonError("INVALID_ARGUMENTS", "Selecting a contiguous window requires an explicit frequency (CLI: --frequency D).")
+    zone = None
+    if timezone is not None:
+        try:
+            zone = utc_timezone.utc if timezone == "UTC" else ZoneInfo(timezone)
+        except (ZoneInfoNotFoundError, ValueError, TypeError):
+            raise GnomonError("INVALID_ARGUMENTS", "Timezone is invalid or unavailable. Use UTC, or an IANA name such as "
+                              "Australia/Brisbane; install tzdata if the operating system has no timezone database.") from None
+        as_of = _localize(as_of, zone) if as_of else None
     if regrid is not None and (type(regrid) is not str or regrid not in REGRID_POLICIES):
         raise GnomonError("INVALID_ARGUMENTS", "regrid must be business_daily, month_start or null.")
     variable = target_column
     if input_path.startswith(STORE_SCHEME):
+        if timezone is not None or window is not None:
+            raise GnomonError("INVALID_ARGUMENTS", "Declare timezone/window when preparing file data; store snapshots are already curated.")
         if regrid:
             raise GnomonError(
                 "INVALID_ARGUMENTS",
@@ -115,10 +166,15 @@ def load_stage(
         log = repair_log if repair_log is not None else RepairLog()
         raw_observations, source_fingerprint, columns = load_observations(
             input_path, time_column, target_column, series_column,
-            repair=repair, repair_log=log,
+            repair=repair, repair_log=log, _defer_timezone=zone is not None,
         )
+        if zone is not None:
+            raw_observations = [replace(row, timestamp=_localize(row.timestamp, zone)) for row in raw_observations]
+            log.record("timezone_declared", f"Caller declared timezone {timezone} for input timestamps.")
         raw_observations = _knowledge_bound_plain_rows(raw_observations, as_of)
         _record_reordering(raw_observations, log)
+        if window is not None:
+            raw_observations = _latest_contiguous(raw_observations, normalise_frequency(frequency), log)
         # Calendar first, messiness second: the declared regrid settles the
         # grid before repair_observations measures gaps against it —
         # otherwise aggressive repair tries to interpolate every weekend

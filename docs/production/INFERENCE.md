@@ -109,6 +109,14 @@ The one-shot CLI freezes and forecasts in one session:
 `gnomon infer --input sales.csv --time-column date --target-column sales --frequency D --horizon 7 --provider last_value`.
 Its response includes inspection provenance; a returned reference cannot be reused
 in another CLI process. Long-lived Python/MCP sessions can reuse references.
+For cross-process input reuse, explicitly export `session.data.save(ref, "data.gnomon")`
+or `gnomon inspect --save-snapshot data.gnomon`, then inspect that saved input.
+Portable files preserve frozen vintages and repairs; they never reopen mutable
+sources. Inspection returns per-operation `readiness`, and `purpose="route"`
+checks timezone and repair suitability before a costly evaluation. Declare a
+file's IANA `timezone` explicitly when its timestamps have no offset.
+`window="latest_contiguous"` with an explicit frequency selects observed history
+after the last gap per series, disclosing the excluded rows and selected interval.
 
 ## Bring your own software
 
@@ -191,6 +199,13 @@ fresh factories are reconstructed and closed per fold. Inference caching is bypa
 Every provider receives exactly the same history, timestamps, cutoffs, horizon,
 season and unit for each fold. This release's new evaluator scores point forecasts;
 it does not guess covariate vintage joins or claim probability calibration.
+Reports include `issues` with actionable history and budget diagnostics and
+`routing_readiness` for the inspected data. CLI evaluations return exit 2 for an
+unscored report and exit 3 for a partial report. MCP marks unscored evaluations
+with `isError: true`, including compact result receipts; the report remains
+available for diagnosis. Independent value-preserving format fixes are allowed;
+format inference using other rows, interpolation and timestamp restamping remain
+excluded from historical scoring.
 
 An explicit baseline is mandatory and counts toward all limits. Defaults permit at
 most four providers (baseline included), eight folds and 32 provider attempts.

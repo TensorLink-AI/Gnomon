@@ -82,7 +82,8 @@ def _handle(message: dict[str, Any], *, session=None) -> dict[str, Any] | None:
         params = message.get("params") or {}
         name = str(params.get("name"))
         try:
-            return _tool_result(session.call(name, params.get("arguments", {})), False)
+            payload = session.call(name, params.get("arguments", {}))
+            return _tool_result(payload, payload.get("status") == "unscored")
         except GnomonError as exc:
             try:
                 return _tool_result(session.results.project(exc.to_dict()), True)
