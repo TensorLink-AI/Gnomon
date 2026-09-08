@@ -48,6 +48,27 @@ def test_season_can_be_set_for_file_forecasts_and_is_not_silently_ignored(tmp_pa
     assert code == 2 and "quantiles" in result["error"]["message"]
 
 
+def test_infer_echoes_effective_cutoffs_for_file_and_saved_snapshot(tmp_path):
+    path = source(tmp_path)
+    snapshot = tmp_path / "frozen.gnomon"
+    cutoff = "2026-01-15T00:00:00+00:00"
+    options = ("--timezone", "UTC", "--as-of", cutoff)
+    code, inspected = process("inspect", path, *options, "--save-snapshot", snapshot)
+    assert code == 0
+    for input_path, flags in ((path, options), (snapshot, ())):
+        code, forecast = process("infer", "--input", input_path, *flags, "--provider", "last_value", "--horizon", "2")
+        assert code == 0 and forecast["result"]["point"] == [15, 15]
+        assert forecast["recorded"] is False
+        assert forecast["snapshot"] == forecast["input"]["snapshot"] == inspected["snapshot"]
+        assert forecast["snapshot"]["as_of"] == cutoff
+        assert forecast["snapshot"]["accesses"][0]["max_known_time"] == cutoff
+        provenance = forecast["request_provenance"]
+        assert provenance["source"] == "frozen_snapshot"
+        assert provenance["cutoff"] == provenance["known_time_cutoff"] == provenance["history_end"] == cutoff
+        assert provenance["recorded_time_cutoff"] is None
+        assert provenance["snapshot_id"] == inspected["snapshot"]["snapshot_id"]
+
+
 def test_unscored_and_partial_evaluations_have_distinct_non_success_exits(tmp_path):
     path = source(tmp_path, count=5)
     code, result = invoke(*evaluation(path))

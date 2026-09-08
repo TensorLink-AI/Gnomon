@@ -33,8 +33,20 @@ _VARIANTS = {
         "properties": {"event_id": {"type": "string", "minLength": 1, "maxLength": 128}, "at": _TEXT}}},
         "start": _TEXT, "end": _TEXT}, ["events"]),
 }
+TEMPORAL_EXAMPLES = {
+    "normalize": {"operation": "normalize", "value": "2026-01-01T10:00:00+10:00"},
+    "duration": {"operation": "duration", "start": "2026-01-01T00:00:00Z", "end": "2026-01-02T00:00:00Z"},
+    "shift": {"operation": "shift", "value": "2026-01-01", "amount": 1, "unit": "days", "mode": "calendar"},
+    "interval": {"operation": "interval",
+                 "left": {"start": "2026-01-01T00:00:00Z", "end": "2026-01-03T00:00:00Z"},
+                 "right": {"start": "2026-01-02T00:00:00Z", "end": "2026-01-04T00:00:00Z"}},
+    "order_events": {"operation": "order_events", "events": [
+        {"event_id": "arrival", "at": "2026-01-01T00:00:00Z"},
+        {"event_id": "departure", "at": "2026-01-02T00:00:00Z"}]},
+}
 TEMPORAL_SCHEMA = {"type": "object", "oneOf": [
     {"type": "object", "additionalProperties": False, "required": ["operation", *required],
+     "examples": [TEMPORAL_EXAMPLES[name]],
      "properties": {"operation": {"const": name}, **properties}}
     for name, (properties, required) in _VARIANTS.items()
 ]}

@@ -417,8 +417,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     # reserved for unstructured diagnostics emitted outside this boundary.
     payload = error.to_dict()
     if error.code == "INVALID_ARGUMENTS" and args is not None and args.command in _EXAMPLES:
-        payload["error"]["details"].update({"example_arguments": json.loads(_EXAMPLES[args.command]),
-                                           "schema_command": f"gnomon {args.command} --schema"})
+        payload["error"]["details"].setdefault("example_arguments", json.loads(_EXAMPLES[args.command]))
+        payload["error"]["details"].setdefault("schema_command", f"gnomon {args.command} --schema")
     print(json.dumps(payload, indent=2))
     return 2
 

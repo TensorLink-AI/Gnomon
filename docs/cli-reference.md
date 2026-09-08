@@ -64,6 +64,15 @@ File options are `--time-column` (default timestamp for every provider), `--targ
 and `--window latest_contiguous`.
 They cannot be mixed with a typed request. Panel forecasts require `--series-id`
 unless only one series is present. Repairs default to off.
+
+Forecast responses include `request_provenance` with the execution's cutoff,
+known-time and recorded-time cutoffs, snapshot ID, selected series and history
+bounds. File/store/saved-snapshot inference also returns a top-level `snapshot`,
+including `as_of` and per-series `accesses[].max_known_time`, across CLI, Python
+and MCP. `recorded: false` means no durable ledger recording; it does not mean
+the cutoff was ignored. Typed requests label their provenance as caller-supplied;
+Gnomon does not independently verify their source timestamps or snapshot IDs.
+
 Column names are explicit: a `ts,value` CSV needs `--time-column ts` for both
 `seasonal_naive` and `historical_mean`. Defaults do not depend on the provider.
 
@@ -124,6 +133,12 @@ Schema, including nested `data` and budget fields; no config is needed to print 
 Pass the operation object directly, without an `arguments` or `tools/call` wrapper.
 For example, `data` is `{"input":"data.csv","time_column":"ts"}`, not a path string
 or an array of rows. `budget` is an object such as `{"max_calls":8}`, not a number.
+
+Evaluation includes `ranking_policy`: ascending MAE on matched folds, with exact
+unrounded ties listed explicitly. Input order within a tie is only a display
+convention. Choose tied providers using known cost, latency or simplicity, or
+collect more evidence; equal MAE does not establish equal predictions or future
+performance. An unscored evaluation has no ranking or ties.
 
 The direct-flag workflow needs no JSON construction or manual copying of IDs.
 For daily `timestamp,value` data ending on 2026-01-31, with UTC as its declared
@@ -199,9 +214,12 @@ alongside the existing `cache_hit` boolean. `reference_scope` describes data
 references separately from forecast caching.
 
 `gnomon temporal --schema` prints the full schema for normalize, duration, shift,
-interval and order_events. Its help and argument errors include an interval
+interval and order_events. Its help includes an interval
 example with `left` and `right` objects, each containing `start` and `end`.
 `gnomon temporal --arguments` uses the [temporal contract](production/TEMPORAL.md).
+Each operation's schema contains a runnable example. Argument errors return an
+`example_arguments` object for the attempted operation, including for `@file.json`
+input. Unknown or missing operations return a fallback example and supported names.
 `gnomon self-check leakage --cases 8 --seed 7` tests installed cutoff behavior,
 not LLM reasoning or forecast accuracy.
 
