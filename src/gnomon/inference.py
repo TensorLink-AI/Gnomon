@@ -27,8 +27,13 @@ def _json(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
 
 
-def _freeze_request(request: ForecastRequest) -> ForecastRequest:
+def _freeze_request(request: ForecastRequest | dict[str, Any]) -> ForecastRequest:
     """Copy user containers before invoking an extension; keep the recorded input."""
+    if isinstance(request, dict):
+        request = ForecastRequest.from_dict(request)
+    if not isinstance(request, ForecastRequest):
+        raise ForecastAdapterError(
+            'forecast request must be a ForecastRequest or dict, e.g. {"history": [1, 2, 3], "horizon": 2}')
     return ForecastRequest.from_dict(json.loads(_json(asdict(request))))
 
 
@@ -148,6 +153,8 @@ class InferenceEngine:
         if provider is None:
             raise ForecastAdapterError(f"unknown provider {name!r}; available providers: "
                                        + (", ".join(sorted(self._providers)) or "none registered")
+                                       + (". InferenceEngine starts empty: register a provider with engine.register(name, predictor), "
+                                          "or use GnomonSession.from_config() for built-in providers" if not self._providers else "")
                                        + ". Run gnomon capabilities with the same --providers-config to discover providers, "
                                        "or register a custom provider at startup.")
         request = _freeze_request(request)
@@ -175,7 +182,7 @@ class InferenceEngine:
                     self._cache.pop(next(iter(self._cache)))
         return execution
 
-    def forecast(self, name: str, request: ForecastRequest, *, use_cache: bool = True) -> ForecastExecution:
+    def forecast(self, name: str, request: ForecastRequest | dict[str, Any], *, use_cache: bool = True) -> ForecastExecution:
         provider, request, fingerprint = self._prepare(name, request)
         with self._lock:
             cached = self._cache.get(fingerprint) if use_cache else None
@@ -190,7 +197,7 @@ class InferenceEngine:
                 target.close()
         return self._finish(name, provider, request, fingerprint, result)
 
-    def forecast_batch(self, name: str, requests: list[ForecastRequest]) -> list[ForecastExecution]:
+    def forecast_batch(self, name: str, requests: list[ForecastRequest | dict[str, Any]]) -> list[ForecastExecution]:
         """Validate the whole batch before dispatch. Results preserve input order.
 
         Provider batching is optional. Factories always execute independently,

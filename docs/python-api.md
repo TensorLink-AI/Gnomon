@@ -15,6 +15,31 @@ or newer, use `gnomon python your_script.py` or
 For notebooks or existing applications, install into their interpreter instead
 of injecting the standalone environment's site-packages into `sys.path`.
 
+Start with `GnomonSession.from_config()` for built-in providers, inspection and
+evaluation; no configuration file is required. The CLI uses this same entry point.
+In 1.1.1 and newer, Python forecasts accept either a `ForecastRequest` or the same
+dictionary accepted by the CLI's `--request`:
+
+```python
+from gnomon import GnomonSession
+
+with GnomonSession.from_config() as session:
+    forecast = session.forecast("seasonal_naive", {
+        "history": [10, 20, 30, 40, 50, 60, 70], "horizon": 2, "season": 7,
+    })
+    assert forecast["result"]["point"] == (10, 20)
+    schema = session.capabilities()["providers"]["seasonal_naive"]["request_schema"]
+```
+
+`season` is the JSON/Python field; `--season` is its CLI flag. There is no
+`season_length` alias. `capabilities` includes a request schema for each provider,
+with defaults, supported features and declared history/horizon/frequency limits.
+Value-dependent requirements, such as history length being at least `season`
+for seasonal naive, are described and checked at execution.
+
+`InferenceEngine()` and a bare `GnomonSession()` start with an empty registry.
+Use an engine when your application explicitly registers its own providers.
+Engine forecasts also accept dictionaries, including mixed typed/dict batches.
 Use a callable for a loaded model, or a factory for a fresh fit per evaluation fold.
 Gnomon does not install model libraries or manage GPU memory.
 

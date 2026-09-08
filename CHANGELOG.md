@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 1.1.1 — 2026-09-08
+
+- Accept request dictionaries in Python session/engine forecasts and batches;
+  explain invalid types, missing fields and how to initialize built-in providers.
+- Publish per-provider request schemas in capabilities, including season defaults
+  and declared feature/history/horizon/frequency limits. Show nested command
+  choices in top-level help and explain ledger write authorization and query filters.
+
 - Expose executed request cutoffs and frozen snapshot provenance directly on
   forecast responses across CLI, Python and MCP, independently of ledger recording.
 - Match temporal error examples to the attempted operation and include runnable

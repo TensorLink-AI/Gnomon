@@ -33,7 +33,10 @@ REQUEST_SCHEMA = {
     "properties": {
         "history": {**_NUMBER_ARRAY, "minItems": 1},
         "horizon": {"type": "integer", "minimum": 1},
-        "season": {"type": "integer", "minimum": 1},
+        "season": {"type": "integer", "minimum": 1, "default": 1,
+                   "description": "Seasonal period in observations (CLI: --season), not season_length. "
+                                  "seasonal_naive requires at least season history values; 1 repeats the last value. "
+                                  "Non-seasonal providers may ignore this field."},
         "samples": {"type": "integer", "minimum": 0},
         "quantiles": _NUMBER_ARRAY,
         **{name: {"type": ["string", "null"]} for name in (
@@ -45,6 +48,25 @@ REQUEST_SCHEMA = {
             "past_covariates", "future_covariates", "related_series")},
     },
 }
+
+def provider_request_schema(capabilities: dict) -> dict:
+    """Describe the common request fields with this provider's declared limits."""
+    schema = deepcopy(REQUEST_SCHEMA)
+    # Shared scalar-array templates must not couple quantile and covariate limits.
+    properties = schema["properties"] = {name: deepcopy(value) for name, value in REQUEST_SCHEMA["properties"].items()}
+    properties["history"]["minItems"] = capabilities["min_history"] or 1
+    if capabilities["max_horizon"] is not None:
+        properties["horizon"]["maximum"] = capabilities["max_horizon"]
+    if capabilities["frequencies"]:
+        properties["frequency"]["enum"] = [None, *capabilities["frequencies"]]
+    for feature, field in (("quantiles", "quantiles"), ("past_covariates", "past_covariates"),
+                           ("future_covariates", "future_covariates"), ("panel", "related_series")):
+        if not capabilities[feature]:
+            properties[field]["maxItems"] = 0
+    if not capabilities["sample_paths"]:
+        properties["samples"]["maximum"] = 0
+    return schema
+
 
 INSPECT_SCHEMA = {"type": "object", "additionalProperties": False, "required": ["input"],
                   "properties": {**{name: {"type": "string"} for name in (
@@ -278,6 +300,9 @@ class GnomonSession:
             raise ForecastAdapterError("provider kind must be ephemeris, callable or factory")
 
     def capabilities(self) -> dict:
+        providers = self.engine.capabilities()
+        for provider in providers.values():
+            provider["request_schema"] = provider_request_schema(provider["capabilities"])
         return {"schema_version": "1", "status": "ok", "runtime_version": __version__,
                 "build": build_info(),
                 "product_contract": product_claims(),
@@ -286,7 +311,7 @@ class GnomonSession:
                                        "import_name": "gnomon", "command": "gnomon python",
                                        "details_command": "gnomon environment"},
                 "tools": {"visible": [tool["name"] for tool in self.tools()]},
-                "providers": self.engine.capabilities(),
+                "providers": providers,
                 "cache": self.engine.cache_policy(),
                 "ledger": {"enabled": self.ledger is not None, "outcome_writes": self.allow_outcome_writes},
                 "temporal": {"enabled": self.enable_temporal, "semantics": "explicit_facts_not_natural_language"},
@@ -296,7 +321,8 @@ class GnomonSession:
                                   "bound": "compact_structured_payload_utf8_not_provider_memory"},
                 "semantics": {"forecast": "inference_only", "calibration": "not_implied", "action_authorized": False}}
 
-    def forecast(self, provider: str, request: ForecastRequest, *, use_cache: bool = True) -> dict:
+    def forecast(self, provider: str, request: ForecastRequest | dict[str, Any], *, use_cache: bool = True) -> dict:
+        """Forecast from a typed request or the same request dict accepted by CLI/MCP."""
         run = self.engine.forecast(provider, request, use_cache=use_cache)
         cache = self.engine.cache_policy(provider)
         cache.update(lookup_requested=use_cache, status=(
@@ -421,7 +447,11 @@ class GnomonSession:
             raise ForecastAdapterError("ledger operation must be one of: " + ", ".join(
                 op for op in _LEDGER_PARAMETERS if self.allow_outcome_writes or op not in _OUTCOME_WRITES))
         if operation in _OUTCOME_WRITES and not self.allow_outcome_writes:
-            raise GnomonError("OUTCOME_WRITES_DISABLED", "Outcome writes require operator startup authorization.")
+            raise GnomonError("OUTCOME_WRITES_DISABLED", "Outcome writes require operator startup authorization.",
+                             details={"config_setting": "allow_outcome_writes = true", "cli_option": "--providers-config"},
+                             repair_options=[{"action": "configure_outcome_writes", "description":
+                                 "An authorized operator can set allow_outcome_writes = true in TOML and pass "
+                                 "--providers-config providers.toml, or set it when constructing GnomonSession."}])
         _strict(arguments, {"operation", *_LEDGER_PARAMETERS[operation]}, {"operation", *_LEDGER_REQUIRED[operation]})
         result = getattr(self.ledger, operation)(**{k: v for k, v in arguments.items() if k != "operation"})
         return {"schema_version": "1", "status": "ok", "operation": operation, "result": result}
@@ -491,6 +521,17 @@ def ledger_schema(*, allow_outcome_writes=False):
                              {"type": "object"} if p in {"policy", "inputs", "action", "outcome"} else
                              {**_STRING_ARRAY, "minItems": 1, "maxItems": 100, "uniqueItems": True} if p == "execution_ids" else
                              {"type": "string"})
+            if p == "unit":
+                properties[p]["description"] = (
+                    "Exact unit label; omitted/null searches all units." if operation == "search" else
+                    "Unit label to record; omitted/null records unitless data." if operation == "append_actual" else
+                    "Exact unit label; omitted/null selects only unitless data. Units are never converted.")
+            if p in {"source_as_of", "recorded_as_of"}:
+                clock = "source availability (source_available_at), not valid_time" if p == "source_as_of" else "local recording time"
+                default = ("Required for this operation." if operation == "compare_history" else
+                           "Omitted means the current clock." if operation in {"search", "pending"} else
+                           "Omitted means unbounded.")
+                properties[p]["description"] = f"Inclusive {clock} cutoff. {default} Supply explicit cutoffs for reproducible queries."
         if operation == "append_actual":
             scalar = {k: v for k, v in properties.items() if k != "actuals"}
             required = ["series_id", "valid_time", "value", "source_available_at"]
