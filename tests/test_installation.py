@@ -107,7 +107,8 @@ def test_releases_distinguish_legacy_builds_without_executing_them(managed):
     assert by_id[entries[-1].name]["active"] is True
 
 
-def test_pruning_requires_apply_and_protects_active_running_and_installing(managed):
+def test_pruning_requires_apply_and_protects_active_running_and_installing(managed, monkeypatch):
+    monkeypatch.setattr(installation, '_live_releases', lambda root: (set(), True))
     root, command, entries = managed
     installation.rollback(entries[0].name)
     assert command.resolve() == entries[0] / "bin/gnomon"
@@ -123,7 +124,8 @@ def test_pruning_requires_apply_and_protects_active_running_and_installing(manag
     assert not entries[1].exists()
 
 
-def test_default_pruning_keeps_one_inactive_release(managed):
+def test_default_pruning_keeps_one_inactive_release(managed, monkeypatch):
+    monkeypatch.setattr(installation, '_live_releases', lambda root: (set(), True))
     _, _, entries = managed
     result = installation.releases(prune=True)
     assert result["prune_candidates"] == [entries[0].name]
