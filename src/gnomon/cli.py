@@ -7,11 +7,12 @@ from copy import deepcopy
 import json
 from pathlib import Path
 import sys
+import subprocess
 from tempfile import TemporaryDirectory
 from typing import Sequence
 
 from .contracts import GnomonError
-from .product_contract import __version__
+from .build_info import build_info
 from .session import EVALUATE_SCHEMA, INSPECT_SCHEMA, ROUTE_SCHEMA, GnomonSession, read_json_argument
 
 
@@ -22,6 +23,10 @@ _EXAMPLES = {
     "route": '{"data":{"input":"data.csv"},"study_id":"STUDY_ID",'
              '"candidates":["historical_mean"],"baseline":"last_value","horizon":2,'
              '"source_as_of":"2026-01-31T00:00:00Z","recorded_as_of":"2099-01-01T00:00:00Z"}',
+    "ledger": '{"operation":"search","limit":10}',
+    "infer": '{"history":[1,2,3],"horizon":2}',
+    "temporal": '{"operation":"interval","left":{"start":"2026-01-01T00:00:00Z","end":"2026-01-03T00:00:00Z"},'
+                '"right":{"start":"2026-01-02T00:00:00Z","end":"2026-01-04T00:00:00Z"}}',
 }
 
 
@@ -53,20 +58,25 @@ def _input_options(parser):
                         help="Use the latest uninterrupted observed segment per series; requires --frequency and discloses excluded rows")
     for name in ("series-column", "frequency", "as-of", "recorded-as-of", "store-path", "unit"):
         parser.add_argument("--" + name)
-    parser.add_argument("--repair", choices=("off", "safe", "aggressive"), default="off")
+    parser.add_argument("--repair", choices=("off", "safe", "aggressive"), default="off", help=(
+        "off: strict input; safe: formatting, identical duplicates and bounded timestamp jitter, no gap filling; "
+        "aggressive: also interpolate interior gaps and resolve conflicting rows, with disclosed assumptions"))
     parser.add_argument("--regrid", choices=("business_daily", "month_start"))
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = _Parser(prog="gnomon", description="Run your time-series models and keep explicit evidence.")
-    parser.add_argument("--version", action="version", version=f"gnomon {__version__}")
+    parser.add_argument("--version", action="version", version=f"gnomon {build_info()['build_id']}")
     commands = parser.add_subparsers(dest="command", required=True)
     caps = commands.add_parser("capabilities", help="List registered providers and enabled tools")
     caps.add_argument("--output", choices=("json",), default="json")
     caps.add_argument("--providers-config", help=_CONFIG_HELP)
-    infer = commands.add_parser("infer", help="Run a named provider without implicit backtesting")
-    infer.add_argument("--provider", required=True)
+    infer = commands.add_parser("infer", help="Run a named provider without implicit backtesting",
+        epilog="Example: gnomon infer --provider last_value --request '{\"history\":[1,2,3],\"horizon\":2}'. "
+               "Run gnomon infer --schema for the --request schema, and gnomon capabilities for provider names.")
+    infer.add_argument("--provider")
     source = infer.add_mutually_exclusive_group(required=True)
+    source.add_argument("--schema", action="store_true", help="Print the JSON Schema for --request and exit")
     source.add_argument("--request", help="Forecast request JSON or @file.json")
     source.add_argument("--input", help="Data file or store:<dataset>")
     infer.add_argument("--horizon", type=int)
@@ -95,7 +105,7 @@ def build_parser() -> argparse.ArgumentParser:
     _input_options(describe)
     for name in ("evaluate", "route", "ledger"):
         epilog = None
-        if name in _EXAMPLES:
+        if name in {"evaluate", "route"}:
             direct = ("gnomon evaluate --input data.gnomon --candidates historical_mean --baseline last_value "
                       "--horizon 2 --ledger-path evidence.db --save-result study.json" if name == "evaluate" else
                       "gnomon route --input data.gnomon --study @study.json --ledger-path evidence.db "
@@ -117,13 +127,17 @@ def build_parser() -> argparse.ArgumentParser:
                 "or after the study's recording time to use it (2099 illustrates all recorded evidence).\n"
                 "Evaluation exits 0 when complete, 3 when partial, and 2 when unscored; inspect issues for recovery."
             )
+        if name == "ledger":
+            epilog = ("Example: gnomon ledger --ledger-path evidence.db --arguments '" + _EXAMPLES[name] +
+                      "'\nRun gnomon ledger --schema for operations and required fields. "
+                      "Outcome writes require allow_outcome_writes=true in operator TOML.")
         sub = commands.add_parser(name, help=f"Run the session's {name} operation",
                                   epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
         source = sub.add_mutually_exclusive_group(required=True)
         source.add_argument("--arguments", help="JSON object or @file.json" + (
             "; see example below" if name in _EXAMPLES else ""))
-        if name in _EXAMPLES:
-            source.add_argument("--schema", action="store_true", help="Print the CLI arguments JSON Schema and exit")
+        source.add_argument("--schema", action="store_true", help="Print the CLI arguments JSON Schema and exit")
+        if name in {"evaluate", "route"}:
             source.add_argument("--input", help="Data file, saved .gnomon snapshot, store:<dataset> or -; use task flags instead of JSON")
             sub.add_argument("--candidates", nargs="+", help="Candidate provider names; excludes the baseline")
             sub.add_argument("--baseline", help="Explicit baseline provider")
@@ -142,8 +156,15 @@ def build_parser() -> argparse.ArgumentParser:
         sub.add_argument("--providers-config", help=_CONFIG_HELP)
         sub.add_argument("--ledger-path", help="SQLite ledger path; route/ledger require this or ledger_path in provider TOML")
         sub.add_argument("--save-result", help="Save the result JSON atomically; stdout still returns the full result")
-    temporal = commands.add_parser("temporal", help="Calculate explicit dates, intervals and event order")
-    temporal.add_argument("--arguments", required=True, help="JSON object or @file.json")
+    temporal = commands.add_parser("temporal", help="Calculate explicit dates, intervals and event order",
+        formatter_class=argparse.RawDescriptionHelpFormatter, epilog=(
+            "Operations: normalize, duration, shift, interval, order_events.\n"
+            f"Example:\n  gnomon temporal --arguments '{_EXAMPLES['temporal']}'\n\n"
+            "Intervals use left/right objects with start/end timestamps and half-open [start,end) boundaries.\n"
+            "Run gnomon temporal --schema for every operation, required field and type."))
+    temporal_source = temporal.add_mutually_exclusive_group(required=True)
+    temporal_source.add_argument("--arguments", help="JSON object or @file.json")
+    temporal_source.add_argument("--schema", action="store_true", help="Print the complete temporal JSON Schema and exit")
     check = commands.add_parser("self-check", help="Verify installed snapshot cutoff behavior")
     check.add_argument("check", choices=("leakage",))
     check.add_argument("--cases", type=int, default=8)
@@ -153,11 +174,32 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--providers-config", help=_CONFIG_HELP)
     infer.add_argument("--ledger-path", help="Record forecasts in this SQLite ledger without a TOML file")
     infer.add_argument("--save-result", help="Save the result JSON atomically")
+    commands.add_parser("environment", help="Show the exact Python, import name, package path and installed build")
+    python = commands.add_parser("python", help="Run Python in Gnomon's environment; e.g. gnomon python -c 'import gnomon'")
+    python.add_argument("python_arguments", nargs=argparse.REMAINDER)
+    releases = commands.add_parser("releases", help="List install.sh environments and preview removal of old releases")
+    releases.add_argument("--prune", action="store_true", help="Preview old environments eligible for removal")
+    releases.add_argument("--keep", type=int, default=1, help="Keep this many inactive environments, in addition to active/running ones (default: 1)")
+    releases.add_argument("--apply", action="store_true", help="Apply --prune; active and running environments are protected")
+    commands.add_parser("rollback", help="Activate a release listed by gnomon releases").add_argument("release_id")
+    update = commands.add_parser("update", help="Install a Git ref into a new managed environment and activate it after validation")
+    update.add_argument("--version", default="main", help="Tag, branch or commit (default: main)")
     return parser
 
 
 def _arguments_schema(command):
     """Extend the shared tool schema with the CLI's inline inspection form."""
+    if command == "infer":
+        from .session import REQUEST_SCHEMA
+        return deepcopy(REQUEST_SCHEMA)
+    if command == "ledger":
+        from .session import ledger_schema
+        return {**ledger_schema(allow_outcome_writes=True), "description":
+                "Schema for --arguments. append_actual, record_decision and append_decision_outcome require "
+                "allow_outcome_writes=true in operator TOML. Ledger/route require an existing ledger."}
+    if command == "temporal":
+        from .temporal_ops import TEMPORAL_SCHEMA
+        return deepcopy(TEMPORAL_SCHEMA)
     schema = deepcopy(EVALUATE_SCHEMA if command == "evaluate" else ROUTE_SCHEMA)
     variants = schema["oneOf"] if "oneOf" in schema else [schema]
     inline = deepcopy(variants[0])
@@ -169,6 +211,10 @@ def _arguments_schema(command):
 
 def _validate_cli_args(args):
     prog = f"gnomon {args.command}"
+    if args.command == "infer" and not args.schema and not args.provider:
+        raise _UsageError("--provider is required; run gnomon capabilities for registered provider names.", prog)
+    if args.command in {"evaluate", "route"} and args.input:
+        args.task_arguments = _task_flags(args)
     if args.command in ("inspect", "describe"):
         if args.input is not None and args.input_option is not None:
             raise _UsageError("Supply input either positionally or with --input, not both.", prog)
@@ -253,7 +299,7 @@ def _execute(session, args):
                               "use_cache": not args.no_cache}, compact=False)
         return {**result, "input": data} if args.input else result
     if args.command in {"evaluate", "route"} and args.input:
-        arguments = _task_flags(args)
+        arguments = args.task_arguments
         data = _inspect(session, args)
         arguments["data_ref"] = data["data_ref"]
     else:
@@ -309,12 +355,28 @@ def _task_flags(args):
 def main(argv: Sequence[str] | None = None) -> int:
     args = None
     try:
+        argv = list(sys.argv[1:] if argv is None else argv)
+        if argv and argv[0] == "python":
+            arguments = argv[1:]
+            if arguments[:1] == ["--"]:
+                arguments = arguments[1:]
+            return subprocess.call([sys.executable, *arguments])
         args = build_parser().parse_args(argv)
         _validate_cli_args(args)
         if getattr(args, "schema", False):
             print(json.dumps(_arguments_schema(args.command), indent=2))
             return 0
-        if args.command == "self-check":
+        if args.command in {"environment", "releases", "rollback", "update"}:
+            from . import installation
+            if args.command == "environment":
+                result = installation.environment_info()
+            elif args.command == "releases":
+                result = installation.releases(prune=args.prune, apply=args.apply, keep=args.keep)
+            elif args.command == "rollback":
+                result = installation.rollback(args.release_id)
+            else:
+                result = installation.update(args.version)
+        elif args.command == "self-check":
             from .selfcheck import leakage_self_check
             result = leakage_self_check(args.cases, args.seed)
         elif args.command == "temporal":
@@ -322,7 +384,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 result = _execute(session, args)
         else:
             with GnomonSession.from_config(getattr(args, "providers_config", None),
-                                           ledger_path=getattr(args, "ledger_path", None)) as session:
+                                           ledger_path=getattr(args, "ledger_path", None),
+                                           create_ledger=args.command not in {"ledger", "route"}) as session:
                 if args.command == "mcp":
                     from .mcp_server import serve
                     return serve(session=session)

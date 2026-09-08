@@ -228,5 +228,7 @@ def test_config_and_session_reject_truthy_permission_strings(tmp_path):
 
 def test_cli_ledger_uses_the_same_typed_dispatch(tmp_path, capsys):
     path = config(tmp_path)
+    with GnomonSession.from_config(path):
+        pass  # Reads require a ledger previously initialized for recording.
     assert main(["ledger", "--providers-config", str(path), "--arguments", '{"operation":"pending"}']) == 0
     assert json.loads(capsys.readouterr().out)["result"] == []

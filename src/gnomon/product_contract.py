@@ -2,13 +2,13 @@
 
 This module is deliberately dependency-free.  The package builder reads its
 ``__version__`` value, while the runtime and documentation tests consume the
-same constants.  A release therefore cannot quietly present different
-versions or evidence claims on different surfaces.
+same package version. Qualified runtime build identity (commit and source
+fingerprint) is supplied separately by build_info and preserved in artifacts.
 """
 
 from __future__ import annotations
 
-__version__ = "1.0.1"
+__version__ = "1.1.0"
 
 CURRENT_EVIDENCE_RELEASE = None  # No completed evaluation of this release's default surface.
 

@@ -9,6 +9,7 @@ VERSION="${GNOMON_VERSION:-main}"
 LOCAL_SOURCE="${GNOMON_LOCAL:-}"
 INSTALL_ROOT="${GNOMON_INSTALL_ROOT:-${XDG_DATA_HOME:-${HOME}/.local/share}/gnomon}"
 BIN_DIR="${GNOMON_BIN_DIR:-${XDG_BIN_HOME:-${HOME}/.local/bin}}"
+REQUIREMENTS=""
 
 usage() {
   printf '%s\n' \
@@ -22,6 +23,7 @@ usage() {
     "  --repository OWNER/REPO  Source repository" \
     "  --install-root DIR  Environment storage directory" \
     "  --bin-dir DIR       Command directory" \
+    "  --requirements FILE Restore dependencies exported by gnomon update" \
     "  -h, --help          Show this help"
 }
 
@@ -45,6 +47,10 @@ while (($#)); do
       ;;
     --bin-dir)
       BIN_DIR="${2:?--bin-dir requires a value}"
+      shift 2
+      ;;
+    --requirements)
+      REQUIREMENTS="${2:?--requirements requires a value}"
       shift 2
       ;;
     -h|--help)
@@ -89,19 +95,23 @@ if [[ -z "$PYTHON_BIN" ]]; then
 fi
 
 mkdir -p "$INSTALL_ROOT/releases" "$BIN_DIR"
+INSTALL_ROOT="$(cd -- "$INSTALL_ROOT" && pwd)"
+BIN_DIR="$(cd -- "$BIN_DIR" && pwd)"
 RELEASE_ID="$(date -u +%Y%m%dT%H%M%SZ)-$$"
 RELEASE_DIR="$INSTALL_ROOT/releases/$RELEASE_ID"
-LINK_TMP="$BIN_DIR/.gnomon-$RELEASE_ID"
+INSTALL_SUCCEEDED=0
 
 cleanup_failed_install() {
-  rm -f "$LINK_TMP"
-  if [[ ! -x "$RELEASE_DIR/bin/gnomon" ]]; then
+  if [[ "$INSTALL_SUCCEEDED" != 1 ]] &&
+     [[ "$(readlink "$BIN_DIR/gnomon" 2>/dev/null || true)" != "$RELEASE_DIR/bin/gnomon" ]]; then
     rm -rf "$RELEASE_DIR"
   fi
 }
 trap cleanup_failed_install EXIT
+mkdir -p "$RELEASE_DIR"
+touch "$RELEASE_DIR/.installing"
 
-SOURCE_URL="https://github.com/$REPOSITORY/archive/$VERSION.tar.gz"
+SOURCE_COMMIT=""
 SOURCE_ARCHIVE="$RELEASE_DIR/gnomon-source.tar.gz"
 if [[ -n "$LOCAL_SOURCE" ]]; then
   printf 'Installing Gnomon from the local checkout at %s using %s...\n' "$SCRIPT_DIR" "$PYTHON_BIN"
@@ -111,21 +121,99 @@ fi
 "$PYTHON_BIN" -m venv "$RELEASE_DIR"
 "$RELEASE_DIR/bin/python" -m pip install --disable-pip-version-check --upgrade pip
 if [[ -n "$LOCAL_SOURCE" ]]; then
+  if command -v git >/dev/null 2>&1; then
+    SOURCE_COMMIT="$(git -C "$SCRIPT_DIR" rev-parse HEAD 2>/dev/null || true)"
+  fi
   "$RELEASE_DIR/bin/python" -m pip install --disable-pip-version-check "$SCRIPT_DIR"
 elif command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
-  gh api "repos/$REPOSITORY/tarball/$VERSION" > "$SOURCE_ARCHIVE"
-  "$RELEASE_DIR/bin/python" -m pip install --disable-pip-version-check "$SOURCE_ARCHIVE"
+  SOURCE_COMMIT="$(gh api "repos/$REPOSITORY/commits/$VERSION" --jq .sha)"
+  [[ "$SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ ]] || { printf 'Could not resolve source commit.\n' >&2; exit 1; }
+  gh api "repos/$REPOSITORY/tarball/$SOURCE_COMMIT" > "$SOURCE_ARCHIVE"
+  GNOMON_BUILD_COMMIT="$SOURCE_COMMIT" "$RELEASE_DIR/bin/python" -m pip install --disable-pip-version-check "$SOURCE_ARCHIVE"
 else
-  "$RELEASE_DIR/bin/python" -m pip install --disable-pip-version-check "$SOURCE_URL"
+  SOURCE_COMMIT="$("$PYTHON_BIN" - "$REPOSITORY" "$VERSION" <<'PY'
+import json, sys, urllib.parse, urllib.request
+repository, ref = sys.argv[1:]
+url = f"https://api.github.com/repos/{repository}/commits/{urllib.parse.quote(ref, safe='')}"
+request = urllib.request.Request(url, headers={"User-Agent": "gnomon-installer"})
+with urllib.request.urlopen(request, timeout=30) as response:
+    print(json.load(response)["sha"])
+PY
+)"
+  [[ "$SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ ]] || { printf 'Could not resolve source commit.\n' >&2; exit 1; }
+  SOURCE_URL="https://github.com/$REPOSITORY/archive/$SOURCE_COMMIT.tar.gz"
+  GNOMON_BUILD_COMMIT="$SOURCE_COMMIT" "$RELEASE_DIR/bin/python" -m pip install --disable-pip-version-check "$SOURCE_URL"
 fi
 rm -f "$SOURCE_ARCHIVE"
+if [[ -n "$REQUIREMENTS" ]]; then
+  # freeze includes transitive dependencies. Do not let dependency resolution
+  # replace the selected Gnomon build; incompatible pins fail pip check below.
+  "$RELEASE_DIR/bin/python" -m pip install --disable-pip-version-check --no-deps --requirement "$REQUIREMENTS"
+fi
+"$RELEASE_DIR/bin/python" -m pip check
+# A shared lease lasts for every Python process in this environment, including
+# direct Python API use and MCP. It lives outside releases so pruning cannot
+# unlink the lock and accidentally create a second lock for the same release.
+"$RELEASE_DIR/bin/python" - "$INSTALL_ROOT" <<'PY'
+from pathlib import Path
+import sys, sysconfig
+root = Path(sys.argv[1])
+locks = root / ".release-locks"
+locks.mkdir(exist_ok=True)
+lock = locks / (Path(sys.prefix).name + ".lock")
+lock.touch(exist_ok=True)
+site = Path(sysconfig.get_path("purelib"))
+(site / "_gnomon_release_lease.py").write_text(
+    "import fcntl\n"
+    f"_handle = open({str(lock)!r}, 'r')\n"
+    "fcntl.flock(_handle, fcntl.LOCK_SH)\n", encoding="utf-8")
+(site / "gnomon_release_lease.pth").write_text("import _gnomon_release_lease\n", encoding="utf-8")
+PY
 "$RELEASE_DIR/bin/gnomon" capabilities >/dev/null
+cp -- "${BASH_SOURCE[0]}" "$RELEASE_DIR/install.sh"
+# Use only the standard library here so this installer can also activate older
+# tagged packages that predate the release-management module.
+"$RELEASE_DIR/bin/python" - "$INSTALL_ROOT" "$BIN_DIR/gnomon" "$REPOSITORY" "$VERSION" "$LOCAL_SOURCE" "$SOURCE_COMMIT" <<'PY'
+from datetime import datetime, timezone
+import fcntl, hashlib, json, os
+from pathlib import Path
+import sys
+from uuid import uuid4
+import gnomon
 
-ln -s "$RELEASE_DIR/bin/gnomon" "$LINK_TMP"
-mv -f "$LINK_TMP" "$BIN_DIR/gnomon"
+root, command, repository, ref, local, commit = sys.argv[1:]
+prefix = Path(sys.prefix).resolve()
+package = Path(gnomon.__file__).parent
+try:
+    from gnomon.build_info import build_info
+    build = build_info()
+except ImportError:
+    digest = hashlib.sha256()
+    for path in sorted(package.rglob("*.py")):
+        digest.update(path.relative_to(package).as_posix().encode() + b"\0" + path.read_bytes() + b"\0")
+    build = {"package_version": gnomon.__version__, "commit": commit or None,
+             "source_sha256": digest.hexdigest(), "provenance": "installer_receipt"}
+receipt = {"schema_version": 1, "release_id": prefix.name, "install_root": root, "command": command,
+           "repository": repository, "requested_ref": "local" if local else os.environ.get("GNOMON_UPDATE_REF", ref),
+           "source": "local" if local else "github", "installed_at": datetime.now(timezone.utc).isoformat(), "build": build}
+(prefix / "gnomon-install.json").write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+link = Path(command)
+temporary = link.parent / (".gnomon-" + uuid4().hex)
+with (Path(root) / ".install.lock").open("a") as lock:
+    fcntl.flock(lock, fcntl.LOCK_EX)
+    try:
+        (prefix / ".installing").unlink()
+        temporary.symlink_to(prefix / "bin" / "gnomon")
+        os.replace(temporary, link)
+    finally:
+        temporary.unlink(missing_ok=True)
+print("Build: " + build.get("build_id", str(build)))
+PY
+INSTALL_SUCCEEDED=1
 trap - EXIT
 
 printf 'Gnomon installed successfully: %s\n' "$BIN_DIR/gnomon"
+printf 'Python API: %s -c "import gnomon"\n' "$RELEASE_DIR/bin/python"
 if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
   printf 'Add %s to PATH, then run: gnomon capabilities\n' "$BIN_DIR"
 else

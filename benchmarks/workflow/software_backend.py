@@ -47,13 +47,20 @@ for name,text in files.items():
     Path('/tmp/data',name).write_text(text,encoding='utf-8')
 spec=importlib.util.find_spec('gnomon')
 source=None
+build=None
+build_sha256=None
 if spec is not None:
     root=Path(spec.origin).parent
+    metadata=root/'_build_info.json'
+    if metadata.is_file():
+        build=json.loads(metadata.read_text(encoding='utf-8'))
+        build_sha256=hashlib.sha256(metadata.read_bytes()).hexdigest()
     files={str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(root.rglob('*'))
-           if p.is_file() and '__pycache__' not in p.parts and p.suffix not in {'.pyc','.pyo'}}
+           if p.is_file() and p != metadata and '__pycache__' not in p.parts and p.suffix not in {'.pyc','.pyo'}}
     source=hashlib.sha256(json.dumps(files,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()).hexdigest()
 print(json.dumps({'python':platform.python_version(), 'distributions':dict(sorted(
-    (d.metadata['Name'].lower(),d.version) for d in importlib.metadata.distributions())), 'gnomon_source_sha256':source}))
+    (d.metadata['Name'].lower(),d.version) for d in importlib.metadata.distributions())), 'gnomon_source_sha256':source,
+    'gnomon_build':build, 'gnomon_build_metadata_sha256':build_sha256}))
 """
 
 

@@ -4,6 +4,7 @@
 !Dockerfile
 !.dockerignore
 !pyproject.toml
+!build_hook.py
 !README.md
 !LICENSE
 !src/

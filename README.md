@@ -18,11 +18,12 @@ when you need one.
 Python 3.11–3.13. No required third-party dependencies.
 
 ```bash
-python -m pip install 'gnomon-forecast==1.0.1'
+python -m pip install 'gnomon-forecast==1.1.0'
 gnomon infer --provider last_value --request '{"history":[10,12,11],"horizon":2}'
 ```
 
-From a checkout, use `python -m pip install .`.
+From a checkout, use `python -m pip install .`; this also works before the
+versioned package is published.
 The forecast command runs an offline baseline.
 To use your own local model, install Gnomon in the **same Python environment** as
 the model and its dependencies, then run that environment's `gnomon` or

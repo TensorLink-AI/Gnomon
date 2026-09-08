@@ -133,6 +133,21 @@ assert EphemerisProvider('https://example.invalid').name == 'ephemeris/route'
         assert execution_mcp[3]["result"]["structuredContent"]["result"]["request"]["history"] == [1, 2]
 
         capabilities = json.loads(run([str(gnomon), "capabilities"], cwd=root))
+        build = capabilities["build"]
+        assert run([str(gnomon), "--version"], cwd=root).strip() == "gnomon " + build["build_id"]
+        assert "+" in build["build_id"] and build["source_sha256"][:12] in build["build_id"]
+        reported_env = json.loads(run([str(gnomon), "environment"], cwd=root))
+        assert reported_env["build"] == build and not reported_env["managed_install"]
+        assert Path(reported_env["prefix"]) == environment
+        imported = json.loads(run([str(gnomon), "python", "-c",
+            "import json,gnomon; from gnomon.build_info import build_info; print(json.dumps(build_info()))"], cwd=root))
+        assert imported == build
+        schema = json.loads(run([str(gnomon), "temporal", "--schema"], cwd=root))
+        assert len(schema["oneOf"]) == 5
+        request_schema = json.loads(run([str(gnomon), "infer", "--schema"], cwd=root))
+        assert request_schema["required"] == ["history", "horizon"]
+        ledger_schema = json.loads(run([str(gnomon), "ledger", "--schema"], cwd=root))
+        assert any(v["properties"]["operation"]["const"] == "search" for v in ledger_schema["oneOf"])
         assert capabilities["product_contract"]["offline_builtin_runtime"] is True
         assert capabilities["temporal"]["enabled"] is False
         temporal_args = {"operation": "shift", "value": "2024-01-31", "amount": 1,

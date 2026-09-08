@@ -47,6 +47,9 @@ def test_actual_tools_keep_original_schema_and_identical_ordinary_access(backend
     capabilities = backend.call("gnomon_capabilities", {}, timeout=5).value
     assert not capabilities["isError"]
     assert backend.provenance["service"]["software"]["gnomon_source_sha256"] == source_fingerprint()
+    inventory = backend.provenance["service"]["software"]
+    assert inventory["gnomon_build"] == capabilities["structuredContent"]["build"]
+    assert len(inventory["gnomon_build_metadata_sha256"]) == 64
 
 
 def test_mcp_errors_repair_without_closing_or_changing_arguments(backend):
@@ -146,6 +149,12 @@ def test_package_identity_covers_nonpython_resources(tmp_path):
     (tmp_path / "__pycache__").mkdir()
     (tmp_path / "__pycache__/cache.pyc").write_bytes(b"unrelated-bytecode")
     assert source_fingerprint(tmp_path) == second
+    (tmp_path / "_build_info.json").write_text('{"build_id":"generated"}')
+    assert source_fingerprint(tmp_path) == second
+    nested = tmp_path / "resources"
+    nested.mkdir()
+    (nested / "_build_info.json").write_text('{"value":1}')
+    assert source_fingerprint(tmp_path) != second
 
 
 @pytest.mark.parametrize("arm,value", [("unknown", {"ledger": True}), ("lean", False),

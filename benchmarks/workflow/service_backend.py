@@ -23,8 +23,11 @@ from .software_backend import SoftwareBackend, REQUIRED
 
 def source_fingerprint(root=None):
     root = Path(root) if root is not None else Path(__file__).resolve().parents[2] / "src/gnomon"
+    # The wheel's generated provenance is recorded separately in the inventory;
+    # all source and resource files must still match the checkout byte for byte.
     return fingerprint({str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest()
                         for path in sorted(root.rglob("*")) if path.is_file()
+                        and path != root / "_build_info.json"
                         and "__pycache__" not in path.parts and path.suffix not in {".pyc", ".pyo"}})
 
 

@@ -26,10 +26,13 @@ def test_package_version_has_one_source_and_install_instructions_match():
     from gnomon.ids import GNOMON_VERSION
     from gnomon.mcp_server import SERVER_INFO
     from gnomon.product_contract import __version__ as contract_version
+    from gnomon.build_info import build_info
     from gnomon import GnomonSession
-    assert contract_version == GNOMON_VERSION == SERVER_INFO["version"] == __version__
+    assert contract_version == __version__ == build_info()["package_version"]
+    assert GNOMON_VERSION == SERVER_INFO["version"] == build_info()["build_id"]
     with GnomonSession() as session:
         assert session.capabilities()["runtime_version"] == __version__
+        assert session.capabilities()["build"] == build_info()
     project = (REPO / "pyproject.toml").read_text()
     assert 'dynamic = ["version"]' in project
     assert 'path = "src/gnomon/product_contract.py"' in project

@@ -41,8 +41,13 @@ TEMPORAL_SCHEMA = {"type": "object", "oneOf": [
 
 
 def _keys(value, allowed, required):
-    if not isinstance(value, dict) or set(value) - set(allowed) or set(required) - set(value):
-        raise ValueError("missing, unknown or malformed temporal arguments")
+    if not isinstance(value, dict):
+        raise ValueError("temporal arguments must be an object")
+    missing, unknown = set(required) - set(value), set(value) - set(allowed)
+    if missing or unknown:
+        problems = (["missing fields: " + ", ".join(sorted(missing))] if missing else [])
+        problems += (["unknown fields: " + ", ".join(sorted(unknown))] if unknown else [])
+        raise ValueError("; ".join(problems))
 
 
 def _fold(value):
@@ -252,14 +257,14 @@ def _order_events(events, start=None, end=None):
             "included_count": len(rows), "excluded_event_ids": excluded, "window_boundary": "[start,end)" if window else None}
 
 
-def temporal_operation(operation: str, **arguments) -> dict:
+def temporal_operation(operation: str | None = None, **arguments) -> dict:
     """Execute one closed operation; invalid/ambiguous facts raise ValueError.
 
     Explicit nulls are rejected, like the tool schema. Optional fields are omitted.
     Duration strings preserve exact microseconds even beyond JSON safe integers.
     """
     if not isinstance(operation, str) or operation not in _VARIANTS:
-        raise ValueError("unknown temporal operation")
+        raise ValueError("operation must be one of: " + ", ".join(_VARIANTS))
     properties, required = _VARIANTS[operation]
     _keys(arguments, properties, required)
     if any(value is None for value in arguments.values()):

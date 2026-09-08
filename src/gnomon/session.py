@@ -12,6 +12,7 @@ from collections import OrderedDict
 import importlib
 import json
 import os
+import sys
 from pathlib import Path
 import tomllib
 from typing import Any
@@ -22,6 +23,7 @@ from .inference import InferenceEngine
 from .ledger import TemporalLedger
 from .ephemeris import EphemerisProvider
 from .product_contract import __version__, product_claims
+from .build_info import build_info
 
 _NUMBER_ARRAY = {"type": "array", "items": {"type": "number"}}
 _STRING_ARRAY = {"type": "array", "items": {"type": "string"}}
@@ -156,7 +158,8 @@ class GnomonSession:
         self.results = ResultReferences(ResultLimits(**(result_limits or {})))
 
     @classmethod
-    def from_config(cls, path: str | Path | None = None, *, ledger_path: str | Path | None = None) -> "GnomonSession":
+    def from_config(cls, path: str | Path | None = None, *, ledger_path: str | Path | None = None,
+                    create_ledger: bool = True) -> "GnomonSession":
         """Load only an explicitly supplied TOML path. No cwd config search."""
         config, directory = {}, Path.cwd()
         if path is not None:
@@ -180,7 +183,7 @@ class GnomonSession:
             if configured_ledger is not None and configured_ledger.resolve() != explicit_ledger:
                 raise ForecastAdapterError("--ledger-path conflicts with ledger_path in provider configuration; select one ledger.")
             configured_ledger = explicit_ledger
-        ledger = TemporalLedger(configured_ledger) if configured_ledger else None
+        ledger = TemporalLedger(configured_ledger, create=create_ledger) if configured_ledger else None
         engine = InferenceEngine(ledger=ledger, cache_size=config.get("cache_size", 0))
         session = cls(engine, ledger=ledger, allow_outcome_writes=config.get("allow_outcome_writes", False),
                       max_data_refs=config.get("max_data_refs", 16), max_data_rows=config.get("max_data_rows", 100_000),
@@ -189,7 +192,7 @@ class GnomonSession:
         from .models import BASELINES, predict
         for name in sorted(BASELINES):
             adapter = StatisticalAdapter(name, predict)
-            engine.register(name, adapter, revision=f"gnomon/{__version__}/{name}", deterministic=True)
+            engine.register(name, adapter, revision=f"gnomon/{build_info()['build_id']}/{name}", deterministic=True)
         try:
             for name, spec in config.get("providers", {}).items():
                 session._configure_provider(name, spec)
@@ -275,8 +278,12 @@ class GnomonSession:
 
     def capabilities(self) -> dict:
         return {"schema_version": "1", "status": "ok", "runtime_version": __version__,
+                "build": build_info(),
                 "product_contract": product_claims(),
                 "interfaces": {"python": True, "cli": True, "mcp": True},
+                "python_environment": {"executable": sys.executable, "distribution": "gnomon-forecast",
+                                       "import_name": "gnomon", "command": "gnomon python",
+                                       "details_command": "gnomon environment"},
                 "tools": {"visible": [tool["name"] for tool in self.tools()]},
                 "providers": self.engine.capabilities(),
                 "cache": self.engine.cache_policy(),
@@ -394,7 +401,8 @@ class GnomonSession:
             raise GnomonError("LEDGER_NOT_CONFIGURED", "Configure the ledger at session startup.")
         operation = arguments.get("operation")
         if operation not in _LEDGER_PARAMETERS:
-            raise ForecastAdapterError("unknown ledger operation")
+            raise ForecastAdapterError("ledger operation must be one of: " + ", ".join(
+                op for op in _LEDGER_PARAMETERS if self.allow_outcome_writes or op not in _OUTCOME_WRITES))
         if operation in _OUTCOME_WRITES and not self.allow_outcome_writes:
             raise GnomonError("OUTCOME_WRITES_DISABLED", "Outcome writes require operator startup authorization.")
         _strict(arguments, {"operation", *_LEDGER_PARAMETERS[operation]}, {"operation", *_LEDGER_REQUIRED[operation]})
@@ -423,42 +431,8 @@ class GnomonSession:
         if self.ledger is not None:
             tools.append({"name": "gnomon_route", "description": "Recommend from one immutable matched study with explicit source/recorded cutoffs; rescore without model calls or action permission.",
                           "inputSchema": ROUTE_SCHEMA})
-            variants = []
-            for operation, parameters in _LEDGER_PARAMETERS.items():
-                if operation in _OUTCOME_WRITES and not self.allow_outcome_writes:
-                    continue
-                properties = {"operation": {"const": operation}}
-                for p in parameters:
-                    properties[p] = ({"type": "number"} if p == "value" else
-                                     {"type": ["string", "null"], "minLength": 1} if p == "unit" else
-                                     {"type": "boolean"} if p == "allow_partial" else
-                                     {"type": "integer", "minimum": 1, "maximum": 100 if p == "limit" else 1_000_000} if p in {"limit", "horizon"} else
-                                     {"enum": ["waiting", "ready", "scored", "stale", "unscorable"]} if p == "status" else
-                                     {"type": "object", "minProperties": 2, "maxProperties": 8,
-                                      "additionalProperties": {"type": "string", "minLength": 1}} if p == "providers" else
-                                     {"type": "object"} if p in {"policy", "inputs", "action", "outcome"} else
-                                     {**_STRING_ARRAY, "minItems": 1, "maxItems": 100, "uniqueItems": True} if p == "execution_ids" else
-                                     {"type": "string"})
-                if operation == "append_actual":
-                    scalar = {k: v for k, v in properties.items() if k != "actuals"}
-                    required = ["series_id", "valid_time", "value", "source_available_at"]
-                    variants.append({"type": "object", "properties": scalar, "additionalProperties": False,
-                                     "required": ["operation", *required]})
-                    variants.append({"type": "object", "additionalProperties": False, "required": ["operation", "actuals"],
-                                     "properties": {"operation": properties["operation"], "actuals": {
-                                         "type": "array", "minItems": 1, "maxItems": 1000, "items": {
-                                             "type": "object", "additionalProperties": False, "required": required,
-                                             "properties": {k: v for k, v in scalar.items() if k != "operation"}}}}})
-                    continue
-                if operation == "evaluate":
-                    for field, other in (("execution_id", "execution_ids"), ("execution_ids", "execution_id")):
-                        variants.append({"type": "object", "additionalProperties": False, "required": ["operation", field],
-                                         "properties": {k: v for k, v in properties.items() if k != other}})
-                    continue
-                variants.append({"type": "object", "properties": properties, "additionalProperties": False,
-                                 "required": ["operation", *_LEDGER_REQUIRED[operation]]})
             tools.append({"name": "gnomon_ledger", "description": "Find forecasts and feedback status, compare matched production history, score named runs or record authorized actuals. Reads never run models; exact scoring retries reuse evidence.",
-                          "inputSchema": {"type": "object", "oneOf": variants}})
+                          "inputSchema": ledger_schema(allow_outcome_writes=self.allow_outcome_writes)})
         return tools
 
     def close(self):
@@ -481,3 +455,41 @@ def read_json_argument(value: str) -> dict:
     if not isinstance(parsed, dict):
         raise ForecastAdapterError("JSON argument must be an object")
     return parsed
+
+
+def ledger_schema(*, allow_outcome_writes=False):
+    variants = []
+    for operation, parameters in _LEDGER_PARAMETERS.items():
+        if operation in _OUTCOME_WRITES and not allow_outcome_writes:
+            continue
+        properties = {"operation": {"const": operation}}
+        for p in parameters:
+            properties[p] = ({"type": "number"} if p == "value" else
+                             {"type": ["string", "null"], "minLength": 1} if p == "unit" else
+                             {"type": "boolean"} if p == "allow_partial" else
+                             {"type": "integer", "minimum": 1, "maximum": 100 if p == "limit" else 1_000_000} if p in {"limit", "horizon"} else
+                             {"enum": ["waiting", "ready", "scored", "stale", "unscorable"]} if p == "status" else
+                             {"type": "object", "minProperties": 2, "maxProperties": 8,
+                              "additionalProperties": {"type": "string", "minLength": 1}} if p == "providers" else
+                             {"type": "object"} if p in {"policy", "inputs", "action", "outcome"} else
+                             {**_STRING_ARRAY, "minItems": 1, "maxItems": 100, "uniqueItems": True} if p == "execution_ids" else
+                             {"type": "string"})
+        if operation == "append_actual":
+            scalar = {k: v for k, v in properties.items() if k != "actuals"}
+            required = ["series_id", "valid_time", "value", "source_available_at"]
+            variants.append({"type": "object", "properties": scalar, "additionalProperties": False,
+                             "required": ["operation", *required]})
+            variants.append({"type": "object", "additionalProperties": False, "required": ["operation", "actuals"],
+                             "properties": {"operation": properties["operation"], "actuals": {
+                                 "type": "array", "minItems": 1, "maxItems": 1000, "items": {
+                                     "type": "object", "additionalProperties": False, "required": required,
+                                     "properties": {k: v for k, v in scalar.items() if k != "operation"}}}}})
+            continue
+        if operation == "evaluate":
+            for field, other in (("execution_id", "execution_ids"), ("execution_ids", "execution_id")):
+                variants.append({"type": "object", "additionalProperties": False, "required": ["operation", field],
+                                 "properties": {k: v for k, v in properties.items() if k != other}})
+            continue
+        variants.append({"type": "object", "properties": properties, "additionalProperties": False,
+                         "required": ["operation", *_LEDGER_REQUIRED[operation]]})
+    return {"type": "object", "oneOf": variants}

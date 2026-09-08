@@ -13,6 +13,9 @@ requirements and actual call/fold counts. stderr is reserved for unstructured pr
 `gnomon --help` or a command's `--help`.
 CLI usage errors retain `error.code`, `error.message` and help guidance without
 the evidence-rejection envelope.
+`gnomon python` is an interpreter passthrough: its arguments, stdout, stderr and
+exit status belong to Python, rather than the CLI's JSON response contract.
+Install/update progress goes to stderr; update returns its JSON result on stdout.
 
 | Command | Purpose |
 | --- | --- |
@@ -26,6 +29,21 @@ the evidence-rejection envelope.
 | `gnomon temporal` | Explicit date, instant, interval and ordering calculations |
 | `gnomon self-check leakage` | Offline check of snapshot cutoffs |
 | `gnomon mcp serve` | Long-lived stdio session for an agent |
+| `gnomon environment` | Exact interpreter, import path and build identity |
+| `gnomon python` | Run scripts or `-c` code in Gnomon's Python environment |
+| `gnomon releases` | List standalone installs; `--prune` previews cleanup |
+| `gnomon update` | Install and activate a Git ref after validation |
+| `gnomon rollback` | Activate an existing standalone release by ID |
+
+`infer --schema` prints the JSON object accepted by `--request` without requiring
+a provider. `ledger --schema` prints all operation shapes without opening a
+database; outcome-write operations identify their operator authorization requirement.
+Both commands include examples in help and argument errors. Provider-name errors
+list registered names and point to `capabilities` with the same provider config.
+
+`ledger` and `route` require an existing Gnomon ledger. A missing path reports
+`LEDGER_NOT_FOUND` with the resolved path instead of creating an empty database.
+`infer` and `evaluate` create a ledger when asked to record evidence there.
 
 ```bash
 gnomon infer --provider last_value --request '{"history":[1,2,3],"horizon":2}'
@@ -48,6 +66,16 @@ They cannot be mixed with a typed request. Panel forecasts require `--series-id`
 unless only one series is present. Repairs default to off.
 Column names are explicit: a `ts,value` CSV needs `--time-column ts` for both
 `seasonal_naive` and `historical_mean`. Defaults do not depend on the provider.
+
+| Repair mode | What it can change | Interior gaps |
+| --- | --- | --- |
+| `off` | Strict parsing and validation | Refused |
+| `safe` | Formatting, identical duplicates, bounded timestamp jitter | Refused; does not invent values |
+| `aggressive` | Safe fixes plus bounded interpolation, conflicting duplicates and row dropping | Filled when within repair limits, with disclosure |
+
+For observed-only historical evaluation, select a contiguous window rather than
+interpolating. A repair may be safe for inference yet unsuitable for historical
+scoring; inspection reports that distinction.
 For file inference, `--season 7` sets a weekly seasonal period for daily data;
 the default period is 1, which makes seasonal naive repeat the last value.
 `--quantiles 0.1 0.5 0.9` requests supported provider quantiles. These flags cannot
@@ -170,8 +198,19 @@ Capabilities disclose cache policy, and forecast results include `cache.status`
 alongside the existing `cache_hit` boolean. `reference_scope` describes data
 references separately from forecast caching.
 
+`gnomon temporal --schema` prints the full schema for normalize, duration, shift,
+interval and order_events. Its help and argument errors include an interval
+example with `left` and `right` objects, each containing `start` and `end`.
 `gnomon temporal --arguments` uses the [temporal contract](production/TEMPORAL.md).
 `gnomon self-check leakage --cases 8 --seed 7` tests installed cutoff behavior,
 not LLM reasoning or forecast accuracy.
 
 Optional ledger/temporal tools are enabled in operator configuration.
+
+`gnomon environment` explains the distinction between the `gnomon-forecast`
+distribution and `gnomon` import, and identifies the exact Python interpreter.
+Use `gnomon python your_script.py` to use the standalone environment's API.
+`gnomon releases`, `gnomon update --version REF`, `gnomon rollback RELEASE_ID`
+and `gnomon releases --prune [--keep N] [--apply]` manage standalone installs.
+See [installation](installation.md) for version requirements, build fingerprints
+and rollback/cleanup behavior.

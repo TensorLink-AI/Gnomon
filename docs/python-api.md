@@ -1,5 +1,20 @@
 # Python API
 
+Install the **gnomon-forecast** distribution in the Python you will use, then
+import **gnomon**:
+
+```bash
+python -m pip install gnomon-forecast
+python -c 'from gnomon import GnomonSession; print(GnomonSession)'
+```
+
+The standalone `install.sh` creates its own environment. On version 1.1.0
+or newer, use `gnomon python your_script.py` or
+`gnomon python -c 'from gnomon import GnomonSession; print(GnomonSession)'`.
+`gnomon environment` shows the exact interpreter and package paths.
+For notebooks or existing applications, install into their interpreter instead
+of injecting the standalone environment's site-packages into `sys.path`.
+
 Use a callable for a loaded model, or a factory for a fresh fit per evaluation fold.
 Gnomon does not install model libraries or manage GPU memory.
 
