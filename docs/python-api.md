@@ -43,6 +43,27 @@ Engine forecasts also accept dictionaries, including mixed typed/dict batches.
 Use a callable for a loaded model, or a factory for a fresh fit per evaluation fold.
 Gnomon does not install model libraries or manage GPU memory.
 
+To enable caching for built-ins, create an operator TOML file and keep one session
+open for both calls:
+
+```python
+from pathlib import Path
+from gnomon import GnomonSession
+
+Path("providers.toml").write_text("cache_size = 8\n")
+with GnomonSession.from_config("providers.toml") as session:
+    request = {"history": [1, 2, 3], "horizon": 2}
+    assert not session.forecast("last_value", request)["cache_hit"]
+    assert session.forecast("last_value", request)["cache_hit"]
+```
+
+`cache_size` is a TOML key, not a `from_config` keyword. The low-level custom-provider
+engine accepts `InferenceEngine(cache_size=8)`. Caching requires a deterministic
+provider with an explicit revision. CLI configuration uses
+`--providers-config providers.toml`; separate CLI invocations cannot share the
+session cache. `gnomon capabilities --config-schema` lists the configuration keys,
+and `help(GnomonSession.from_config)` includes the two-call example offline.
+
 ```python
 from gnomon import ForecastRequest, ForecastResult, InferenceEngine
 
@@ -54,6 +75,10 @@ with InferenceEngine() as engine:
     run = engine.forecast("my-model", ForecastRequest((1, 2, 3), 2))
     assert run.result.point == (3, 3)
 ```
+
+Custom predictors receive `ForecastRequest` and must return `ForecastResult`.
+A dictionary is accepted as a forecast request, but not as a predictor's result.
+`help(InferenceEngine.register)` includes a runnable typed-return example.
 
 For data inspection, tools and evaluation, use `GnomonSession.from_config()`.
 It registers three reference baselines without optional dependencies.

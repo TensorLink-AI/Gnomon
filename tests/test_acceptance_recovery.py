@@ -51,7 +51,9 @@ def test_scoring_coverage_units_cutoffs_and_exact_retries(tmp_path):
         assert (coverage["required_steps"], coverage["matched_steps"], coverage["fraction"]) == (2, 1, 0.5)
         assert coverage["other_units_at_missing_steps"] == [None]
         assert score["result"]["mae"] == 1
-        assert session.call("gnomon_ledger", query, compact=False) == score
+        retry = session.call("gnomon_ledger", query, compact=False)
+        assert not score["result"]["evaluation_reused"] and retry["result"]["evaluation_reused"]
+        assert retry == {**score, "result": {**score["result"], "evaluation_reused": True}}
         assert len(session.ledger.evaluations(eid)) == 1
         hidden = session.call("gnomon_ledger", dict(query, source_as_of=stamp(22)), compact=False)
         assert hidden["scoring_status"] == "pending" and hidden["result"]["mae"] is None

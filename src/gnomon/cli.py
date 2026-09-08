@@ -19,6 +19,10 @@ from .repair import REPAIR_HELP
 
 
 _CONFIG_HELP = 'Path to operator TOML (not JSON); e.g. ledger_path = "ledger.db"'
+_SERIES_HELP = ("Select an existing series, not a new label. Unlabeled input uses __default__; "
+                "use --series-column to read series labels from input.")
+_SCHEMA_COMMANDS = {name: f"gnomon {name} --schema" for name in ("infer", "evaluate", "route", "ledger", "temporal")}
+_SCHEMA_COMMANDS["configuration"] = "gnomon capabilities --config-schema"
 _EXAMPLES = {
     "evaluate": '{"data":{"input":"data.csv"},"candidates":["historical_mean"],'
                 '"baseline":"last_value","horizon":2,"folds":4,"budget":{"max_calls":8}}',
@@ -37,7 +41,7 @@ class _UsageError(GnomonError):
 
     def __init__(self, message, prog="gnomon"):
         super().__init__("INVALID_ARGUMENTS", message, repair_options=[{
-            "action": "show_usage", "description": f"Run {prog} --help.",
+            "action": "show_usage", "description": f"Run {prog} --help. Run gnomon schemas for schema entry points.",
         }])
 
     def to_dict(self):
@@ -68,6 +72,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = _Parser(prog="gnomon", description="Run your time-series models and keep explicit evidence.")
     parser.add_argument("--version", action="version", version=f"gnomon {build_info()['build_id']}")
     commands = parser.add_subparsers(dest="command", required=True)
+    commands.add_parser("schemas", help="List command and operator configuration schema entry points")
     caps = commands.add_parser("capabilities", help="List registered providers and enabled tools")
     caps.add_argument("--output", choices=("json",), default="json")
     caps.add_argument("--providers-config", help=_CONFIG_HELP)
@@ -83,11 +88,14 @@ def build_parser() -> argparse.ArgumentParser:
     infer.add_argument("--horizon", type=int)
     infer.add_argument("--season", type=int, help="Seasonal period in observations for --input (default: 1); weekly daily data uses 7")
     infer.add_argument("--quantiles", type=float, nargs="+", help="Requested quantiles for --input, e.g. 0.1 0.5 0.9; provider must support them")
-    infer.add_argument("--series-id")
+    infer.add_argument("--series-id", help=_SERIES_HELP)
     infer.add_argument("--providers-config", help=_CONFIG_HELP)
     infer.add_argument("--no-cache", action="store_true", help=(
         "Bypass cache lookup. Cache is off by default and session-only; each CLI invocation "
-        "starts a fresh session, so separate infer runs cannot reuse results."))
+        "starts a fresh session, so separate infer runs cannot reuse results. "
+        "Enable with cache_size = 8 in TOML and --providers-config providers.toml. "
+        "For a two-call Python hit example, use help(GnomonSession.from_config); "
+        "list settings with gnomon capabilities --config-schema."))
     _input_options(infer)
     inspect = commands.add_parser("inspect", help="Validate data and show its snapshot provenance")
     inspect.add_argument("input", nargs="?", help="Data file, store:<dataset>, or - for stdin")
@@ -101,7 +109,8 @@ def build_parser() -> argparse.ArgumentParser:
     describe.add_argument("--input", dest="input_option", help="Alias for the positional input")
     describe.add_argument("--statistic", required=True,
                           choices=("mean", "median", "latest", "minimum", "maximum", "sum"))
-    for name in ("series-id", "start", "end"):
+    describe.add_argument("--series-id", help=_SERIES_HELP)
+    for name in ("start", "end"):
         describe.add_argument("--" + name)
     _input_options(describe)
     for name in ("evaluate", "route", "ledger"):
@@ -126,7 +135,9 @@ def build_parser() -> argparse.ArgumentParser:
                 "to the last observation, or inspect data with as_of to select an earlier cutoff.\n"
                 "Replace example cutoffs with your analysis cutoffs; recorded_as_of must be at\n"
                 "or after the study's recording time to use it (2099 illustrates all recorded evidence).\n"
-                "Evaluation exits 0 when complete, 3 when partial, and 2 when unscored; inspect issues for recovery."
+                "Evaluation exits 0 when complete, 3 when partial, and 2 when unscored; inspect issues for recovery.\n"
+                "Routing defaults to at least 3 replayable matched folds. Check evaluation routing_readiness; "
+                "a complete study can still have too few folds."
             )
         if name == "ledger":
             epilog = ("Example: gnomon ledger --ledger-path evidence.db --arguments '" + _EXAMPLES[name] +
@@ -134,6 +145,7 @@ def build_parser() -> argparse.ArgumentParser:
                       "Outcome writes require allow_outcome_writes=true in operator TOML.\n\n"
                       "Ledger evaluate defaults allow_partial=true: exit 0/status ok means the operation succeeded.\n"
                       "Read scoring_status/complete and result.status/result.coverage (each result for batches).\n"
+                      "Check result.coverage_basis for saved versus reconstructed legacy coverage; result.current_coverage refreshes query diagnostics.\n"
                       "Set allow_partial=false to reject incomplete horizons. Scoring persists evidence without actual-write opt-in; exact retries reuse scores.\n\n"
                       "Omitted defaults (source cutoff | recording cutoff | unit):\n"
                       "  search:          now       | now       | all units\n"
@@ -156,14 +168,15 @@ def build_parser() -> argparse.ArgumentParser:
             sub.add_argument("--baseline", help="Explicit baseline provider")
             sub.add_argument("--horizon", type=int, help="Forecast steps per fold")
             sub.add_argument("--season", type=int, help="Seasonal period in observations (default: 1)")
-            sub.add_argument("--series-id")
+            sub.add_argument("--series-id", help=_SERIES_HELP)
             if name == "evaluate":
-                for option in ("folds", "min-history", "stride", "max-calls"):
+                sub.add_argument("--folds", type=int, help="Requested folds (default: 4); routing needs at least 3 successful replayable matched folds")
+                for option in ("min-history", "stride", "max-calls"):
                     sub.add_argument("--" + option, type=int)
             else:
                 sub.add_argument("--study", help="Study ID or @study.json saved by evaluate; a report supplies candidates, baseline, horizon and season")
                 sub.add_argument("--source-as-of", help="Required source cutoff, with explicit timezone")
-                sub.add_argument("--min-folds", type=int)
+                sub.add_argument("--min-folds", type=int, help="Minimum replayable matched folds (default: 3, minimum: 3)")
                 sub.add_argument("--min-improvement", type=float)
             _input_options(sub)
         sub.add_argument("--providers-config", help=_CONFIG_HELP)
@@ -376,6 +389,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             return subprocess.call([sys.executable, *arguments])
         args = build_parser().parse_args(argv)
         _validate_cli_args(args)
+        if args.command == "schemas":
+            print(json.dumps({"schema_version": "1", "status": "ok", "schemas": _SCHEMA_COMMANDS}, indent=2))
+            return 0
         if getattr(args, "config_schema", False):
             from .session import configuration_schema
             print(json.dumps(configuration_schema(), indent=2))
@@ -439,6 +455,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         details = payload["error"]["details"]
         if args.command == "infer" and getattr(args, "input", None):
             details.pop("example_arguments", None)
+            details.pop("example_kind", None)
+            details.pop("changed_fields", None)
             details["input_options"] = {key: getattr(args, key) for key in (
                 "input", "provider", "horizon", "season", "frequency", "time_column", "target_column", "timezone")
                 if getattr(args, key, None) is not None}
@@ -449,7 +467,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             if isinstance(example, dict) and "request" in example:
                 details["example_arguments"] = example["request"]
         else:
-            details.setdefault("example_arguments", json.loads(_EXAMPLES[args.command]))
+            if "example_arguments" not in details:
+                details["example_arguments"] = json.loads(_EXAMPLES[args.command])
+                details["example_kind"] = "schema_illustration"
+                details["example_guidance"] = ("This is a generic schema illustration, not a retry of your task. "
+                                               "Use your actual input, providers, IDs, horizon and cutoffs.")
         details.setdefault("schema_command", f"gnomon {args.command} --schema")
         if args.command == "infer" and "required_history" in details:
             details.pop("example_arguments", None)

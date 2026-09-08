@@ -8,7 +8,7 @@ fingerprint) is supplied separately by build_info and preserved in artifacts.
 
 from __future__ import annotations
 
-__version__ = "1.1.3"
+__version__ = "1.1.4"
 
 CURRENT_EVIDENCE_RELEASE = None  # No completed evaluation of this release's default surface.
 

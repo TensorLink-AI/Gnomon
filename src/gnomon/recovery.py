@@ -1,14 +1,108 @@
 """Task-specific argument examples shared by CLI and MCP errors."""
 
 from copy import deepcopy
-from datetime import datetime
+import math
 
 
-def _instant(value):
-    try:
-        return isinstance(value, str) and datetime.fromisoformat(value).utcoffset() is not None
-    except (ValueError, TypeError):
+def _example_copy(value):
+    """Keep error examples JSON-safe without inventing a finite observation."""
+    if isinstance(value, float) and not math.isfinite(value):
+        return "REPLACE_NONFINITE_VALUE"
+    if isinstance(value, dict):
+        return {key: _example_copy(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_example_copy(item) for item in value]
+    return deepcopy(value)
+
+
+def _matches(value, schema):
+    """Check the shared schema vocabulary before copying example fields."""
+    if "enum" in schema and value not in schema["enum"]:
         return False
+    kind = schema.get("type")
+    if isinstance(kind, list):
+        return any(_matches(value, {**schema, "type": item}) for item in kind)
+    if kind == "null":
+        return value is None
+    if kind == "boolean":
+        return type(value) is bool
+    if kind == "number":
+        try:
+            return type(value) in (int, float) and math.isfinite(value)
+        except OverflowError:
+            return False
+    if kind == "string":
+        return isinstance(value, str) and schema.get("minLength", 0) <= len(value) <= schema.get("maxLength", float("inf"))
+    if kind == "integer":
+        return type(value) is int and schema.get("minimum", float("-inf")) <= value <= schema.get("maximum", float("inf"))
+    if kind == "array":
+        return isinstance(value, list) and schema.get("minItems", 0) <= len(value) <= schema.get("maxItems", float("inf")) and all(
+            _matches(item, schema["items"]) for item in value) and (
+                not schema.get("uniqueItems") or all(item not in value[:i] for i, item in enumerate(value)))
+    if kind == "object":
+        if not isinstance(value, dict) or not schema.get("minProperties", 0) <= len(value) <= schema.get("maxProperties", float("inf")):
+            return False
+        fields, extra = schema.get("properties", {}), schema.get("additionalProperties", True)
+        return set(schema.get("required", ())) <= value.keys() and all(
+            _matches(item, fields[key]) if key in fields else
+            _matches(item, extra) if isinstance(extra, dict) else extra
+            for key, item in value.items())
+    return True
+
+
+def example_changes(arguments, example, prefix=""):
+    """Describe every replacement, including removed fields and nested facts."""
+    changed = []
+    for key in sorted(set(arguments) | set(example)):
+        path = prefix + key
+        if key not in arguments or key not in example:
+            changed.append(path)
+        elif isinstance(arguments[key], dict) and isinstance(example[key], dict):
+            changed.extend(example_changes(arguments[key], example[key], path + "."))
+        elif type(arguments[key]) is not type(example[key]) or arguments[key] != example[key]:
+            changed.append(path)
+    return changed
+
+
+def temporal_recovery(arguments):
+    from .temporal_ops import TEMPORAL_SCHEMA, TEMPORAL_EXAMPLES, temporal_operation
+
+    operation = arguments.get("operation")
+    known = isinstance(operation, str) and operation in TEMPORAL_EXAMPLES
+    operation = operation if known else "interval"
+    schema = next(s for s in TEMPORAL_SCHEMA["oneOf"] if s["properties"]["operation"]["const"] == operation)
+    example = deepcopy(TEMPORAL_EXAMPLES[operation])
+    for key, field in schema["properties"].items():
+        if key == "operation" or key not in arguments:
+            continue
+        supplied = arguments[key]
+        if _matches(supplied, field):
+            example[key] = deepcopy(supplied)
+        elif field.get("type") == "object" and isinstance(supplied, dict):
+            for child, value in supplied.items():
+                if child in field["properties"] and _matches(value, field["properties"][child]):
+                    example[key][child] = deepcopy(value)
+    kind = "parameter_preserving_example" if known else "schema_illustration"
+    try:
+        temporal_operation(**example)
+    except (ValueError, TypeError):
+        # Some valid-shaped fields still conflict (DST, interval order, date range).
+        # Keep that request visible and label the runnable generic illustration.
+        example = deepcopy(TEMPORAL_EXAMPLES[operation])
+        kind = "schema_illustration"
+    changed = example_changes(arguments, example)
+    details = {"example_arguments": example, "example_kind": kind,
+               "changed_fields": changed, "supported_operations": list(TEMPORAL_EXAMPLES),
+               "schema_command": "gnomon temporal --schema",
+               "guidance": "Example values for changed_fields are illustrative, not inferred task facts. "
+                           "Confirm missing choices and correct invalid values before retrying."}
+    if kind == "schema_illustration":
+        details["supplied_arguments"] = _example_copy(arguments)
+    if operation == "shift" and arguments.get("mode") not in ("calendar", "elapsed"):
+        details["choices_required"] = {"mode": ["calendar", "elapsed"]}
+        details["guidance"] += (" Choose mode explicitly: calendar applies local calendar arithmetic; elapsed applies "
+                                "a duration to an offset-aware instant. The example uses calendar as an illustration.")
+    return details
 
 
 def argument_recovery(name, arguments):
@@ -21,7 +115,7 @@ def argument_recovery(name, arguments):
             "actuals_as_of": {"series_id": "SERIES_ID"},
             "evaluations": {"execution_id": "EXECUTION_ID"},
             "evaluate": {"execution_id": "EXECUTION_ID", "allow_partial": True},
-            "compare": {"execution_ids": ["EXECUTION_ID"]},
+            "compare": {"execution_ids": ["EXECUTION_ID_1", "EXECUTION_ID_2"]},
             "compare_history": {"series_id": "SERIES_ID", "horizon": 2,
                                 "providers": {"last_value": "REVISION", "historical_mean": "REVISION"},
                                 "start": "2026-01-01T00:00:00Z", "end": "2026-01-31T00:00:00Z",
@@ -36,30 +130,88 @@ def argument_recovery(name, arguments):
         operation = arguments.get("operation")
         operation = operation if isinstance(operation, str) and operation in templates else "search"
         example = {"operation": operation, **deepcopy(templates[operation])}
-        for key, value in list(example.items()):
-            supplied = arguments.get(key)
-            if type(supplied) is type(value) and supplied and (
-                    key not in {"start", "end", "valid_time", "source_available_at", "source_as_of", "recorded_as_of"}
-                    or _instant(supplied)):
-                example[key] = deepcopy(supplied)
-        for key in ("source_as_of", "recorded_as_of", "unit"):
-            if isinstance(arguments.get(key), str) and (key == "unit" or _instant(arguments[key])):
-                example[key] = arguments[key]
+        from .session import ledger_schema
+        variants = [v for v in ledger_schema(allow_outcome_writes=True)["oneOf"]
+                    if v["properties"]["operation"]["const"] == operation]
+        schema = next((v for v in variants if any(key in arguments and key in v["required"]
+                      for key in ("actuals", "execution_ids"))), variants[0])
+        # Field schema, rather than the example value's Python type/truthiness,
+        # determines whether observations like zero and 2.5 survive recovery.
+        for key, supplied in arguments.items():
+            field = schema["properties"].get(key)
+            if key != "operation" and field is not None and _matches(supplied, field):
+                example[key] = _example_copy(supplied)
+        if operation == "append_actual" and isinstance(arguments.get("actuals"), list):
+            # An invalid batch remains a task template: never replace its rows
+            # with one unrelated synthetic scalar observation.
+            example = {"operation": operation, "actuals": _example_copy(arguments["actuals"])}
         if operation == "evaluate":
             example["allow_partial"] = True
             if isinstance(arguments.get("execution_ids"), list):
                 example.pop("execution_id")
-                example["execution_ids"] = arguments["execution_ids"]
-        return {"example_arguments": example, "schema_command": "gnomon ledger --schema",
+                example.setdefault("execution_ids", _example_copy(arguments["execution_ids"]))
+        placeholders = []
+        if operation == "compare":
+            supplied = arguments.get("execution_ids", [])
+            ids = list(dict.fromkeys(item for item in supplied if isinstance(item, str) and item)) if isinstance(supplied, list) else []
+            while len(ids) < 2:
+                placeholder = f"EXECUTION_ID_{len(ids) + 1}"
+                while placeholder in ids:
+                    placeholder += "_OTHER"
+                placeholders.append(placeholder)
+                ids.append(placeholder)
+            example["execution_ids"] = ids
+        details = {"example_arguments": example, "schema_command": "gnomon ledger --schema",
+                "example_kind": "task_template", "changed_fields": example_changes(arguments, example),
                 "guidance": "Keep the intended operation. Replace example IDs and dates with your task values. "
+                            "Changed fields are illustrative, not inferred observations or cutoffs. "
+                            "REPLACE_NONFINITE_VALUE marks an invalid numeric input; supply a real finite observation. "
+                            "Correct the reported issue before executing this template; validation and stored identities still apply. "
                             "For evaluate, allow_partial=true returns available coverage; strict scoring requires every matching-unit actual at the chosen cutoffs."}
+        if operation == "compare":
+            details.update(required_execution_count=2, placeholder_execution_ids=placeholders,
+                           discovery_arguments={"operation": "search", "limit": 10})
+            details["guidance"] = ("Choose between two and 100 distinct recorded execution IDs with matched inputs, snapshot and forecast origin. "
+                                   "Use ledger search to find IDs; replace placeholder_execution_ids before retrying. "
+                                   "The template does not assert that selected executions are compatible.")
+        return details
     if name == "gnomon_forecast":
+        from .session import REQUEST_SCHEMA, FORECAST_SCHEMA
+        from .forecast_adapter import ForecastRequest, ForecastAdapterError
         provider = arguments.get("provider")
         example = {"provider": provider if isinstance(provider, str) else "last_value",
                    "request": {"history": [1, 2, 3], "horizon": 2}}
+        request = arguments.get("request")
+        kind = "schema_illustration"
+        if isinstance(request, dict):
+            kind = "parameter_preserving_example"
+            for key, value in request.items():
+                field = REQUEST_SCHEMA["properties"].get(key)
+                if field is not None and _matches(value, field):
+                    example["request"][key] = deepcopy(value)
+            if "history" not in request or not _matches(request["history"], REQUEST_SCHEMA["properties"]["history"]):
+                # Do not substitute made-up observations for supplied invalid data.
+                example["request"].pop("history")
+                kind = "task_template"
+            try:
+                ForecastRequest.from_dict(example["request"])
+            except (ForecastAdapterError, TypeError, ValueError, OverflowError):
+                kind = "task_template"
+        elif isinstance(arguments.get("data_ref"), str):
+            example = {"provider": example["provider"], "data_ref": arguments["data_ref"], "horizon": 2}
+            for key, field in FORECAST_SCHEMA["oneOf"][1]["properties"].items():
+                if key in arguments and _matches(arguments[key], field):
+                    example[key] = deepcopy(arguments[key])
+            kind = "task_template"
+        if type(arguments.get("use_cache")) is bool:
+            example["use_cache"] = arguments["use_cache"]
         details = {"example_arguments": example, "schema_command": "gnomon infer --schema",
+                   "example_kind": kind, "changed_fields": example_changes(arguments, example),
                    "guidance": "Python uses session.forecast(provider, request). MCP uses provider plus request, "
                                "or provider, data_ref and horizon. CLI --input maps to gnomon_inspect followed by gnomon_forecast."}
+        details["guidance"] += (" Changed fields are illustrative; confirm the intended horizon and correct the reported issue. "
+                                "Supply real history observations if history is absent. Task templates may still require correction; "
+                                "no provider or snapshot availability has been verified by this example.")
         if isinstance(arguments.get("input"), str):
             details["inspect_arguments"] = {"input": arguments["input"]}
             details["next_tool"] = "gnomon_inspect"

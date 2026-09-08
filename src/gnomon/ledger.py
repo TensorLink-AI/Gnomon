@@ -279,10 +279,17 @@ class TemporalLedger:
 
     def evaluate(self, execution_id: str | None = None, *, source_as_of: str | None = None,
                  recorded_as_of: str | None = None, allow_partial: bool = True,
-                 execution_ids: list[str] | None = None) -> dict | list[dict]:
-        """Score one execution or an atomic batch of at most 100. Exact retries reuse scores."""
+                 execution_ids: list[str] | None = None,
+                 include_current_coverage: bool = False) -> dict | list[dict]:
+        """Score one execution or an atomic batch of at most 100. Exact retries reuse scores.
+
+        include_current_coverage adds current query diagnostics alongside immutable
+        score coverage. CLI/MCP enable this; evaluations() always reads saved evidence.
+        """
         if type(allow_partial) is not bool:
             raise ForecastAdapterError("allow_partial must be a boolean")
+        if type(include_current_coverage) is not bool:
+            raise ForecastAdapterError("include_current_coverage must be a boolean")
         if (execution_id is None) == (execution_ids is None):
             raise ForecastAdapterError("supply execution_id or execution_ids, not both")
         ids = _batch(execution_ids, "execution_ids", 100) if execution_ids is not None else [execution_id]
@@ -292,7 +299,8 @@ class TemporalLedger:
         recorded_as_of = _time(recorded_as_of, "recorded_as_of") if recorded_as_of is not None else None
         with self._connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
-            scores = [self._evaluate(conn, eid, source_as_of, recorded_as_of, allow_partial) for eid in ids]
+            scores = [self._evaluate(conn, eid, source_as_of, recorded_as_of, allow_partial,
+                                     include_current_coverage) for eid in ids]
         return scores if execution_ids is not None else scores[0]
 
     def _pairs(self, conn, req, source_as_of, recorded_as_of):
@@ -332,7 +340,8 @@ class TemporalLedger:
                 "missing_timestamps": [times[i] for i in missing], "unit": req["unit"],
                 "other_units_at_missing_steps": sorted(units, key=lambda u: (u is not None, u or ""))}
 
-    def _evaluate(self, conn, execution_id, source_as_of, recorded_as_of, allow_partial):
+    def _evaluate(self, conn, execution_id, source_as_of, recorded_as_of, allow_partial,
+                  include_current_coverage=False):
         execution = self._execution(conn, execution_id)
         if recorded_as_of is not None and execution["recorded_at"] > recorded_as_of:
             raise ForecastAdapterError("execution was not recorded by the requested cutoff", details={
@@ -361,15 +370,25 @@ class TemporalLedger:
             "AND json_extract(payload_json, '$.recorded_as_of') IS ? ORDER BY rowid DESC LIMIT 1",
             (execution_id, _json(record["actual_ids"]), _json(record["matched_steps"]), _METRIC_VERSION,
              source_as_of, recorded_as_of)).fetchone()
+        coverage_basis = "saved_evaluation"
         if previous:
             saved = json.loads(previous[0])
             # Preserve immutable score metadata on retries; enrich legacy scores
             # only when the additive fields did not exist in their release.
             saved.setdefault("complete", status == "complete")
+            if "coverage" not in saved:
+                coverage_basis = "reconstructed_current_query"
             saved.setdefault("coverage", coverage)
-            return saved
-        conn.execute("INSERT INTO evaluations VALUES (?,?,?,?)",
-                     (record["evaluation_id"], execution_id, record["recorded_at"], _json(record)))
+            record = saved
+        else:
+            conn.execute("INSERT INTO evaluations VALUES (?,?,?,?)",
+                         (record["evaluation_id"], execution_id, record["recorded_at"], _json(record)))
+        if include_current_coverage:
+            return {**record, "current_coverage": coverage,
+                    "coverage_basis": coverage_basis, "current_coverage_basis": "current_query",
+                    "evaluation_reused": previous is not None}
+        if coverage_basis != "saved_evaluation":
+            return {**record, "coverage_basis": coverage_basis}
         return record
 
     def evaluations(self, execution_id: str, *, recorded_as_of: str | None = None) -> list[dict]:
@@ -508,6 +527,9 @@ class TemporalLedger:
 
     def compare(self, execution_ids: list[str], *, source_as_of: str | None = None,
                 recorded_as_of: str | None = None) -> dict:
+        if not isinstance(execution_ids, list) or len(execution_ids) > 100 or any(
+                not isinstance(eid, str) or not eid for eid in execution_ids):
+            raise ForecastAdapterError("comparison requires a list of at most 100 nonempty execution IDs")
         if len(execution_ids) < 2 or len(set(execution_ids)) != len(execution_ids):
             raise ForecastAdapterError("comparison requires at least two distinct executions")
         with self._connect() as conn:

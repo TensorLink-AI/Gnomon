@@ -223,7 +223,19 @@ def evaluate_reference(engine, references, data_ref: str, *, candidates: list[st
               "training_cutoff_attested": False, "calibration": "not_established",
               "recorded": engine.ledger is not None}
     result["issues"] = issues
-    result["routing_readiness"] = references._readiness(frozen)["route"]
+    from .study_routing import DEFAULT_MIN_FOLDS
+    readiness = references._readiness(frozen)["route"]
+    readiness.update(matched_folds=len(matched), default_min_folds=DEFAULT_MIN_FOLDS,
+                     scope="data_and_study_preflight_cutoffs_and_identity_checked_at_routing")
+    if len(matched) < DEFAULT_MIN_FOLDS:
+        readiness["issues"].append({"action": "evaluate_more_matched_folds",
+            "description": f"Routing defaults to at least {DEFAULT_MIN_FOLDS} replayable matched folds; "
+                           f"this study has {len(matched)}. Evaluate more folds with sufficient observed history and budget."})
+    if engine.ledger is None:
+        readiness["issues"].append({"action": "persist_study",
+            "description": "Evaluate with --ledger-path evidence.db so routing can reuse recorded executions."})
+    readiness["ready"] = not readiness["issues"]
+    result["routing_readiness"] = readiness
     if engine.ledger is not None:
         engine.ledger.record_study(result)
     return result

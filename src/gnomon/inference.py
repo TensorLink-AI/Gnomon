@@ -100,7 +100,16 @@ class InferenceEngine:
                  capabilities: AdapterCapabilities | None = None,
                  revision: str | None = None, lifecycle: str = "stateless",
                  deterministic: bool = False) -> None:
-        """Register a request -> result callable or an existing provider object."""
+        """Register a ForecastRequest -> ForecastResult callable or provider object.
+
+        Example (import ForecastResult from gnomon first)::
+
+            engine.register("custom", lambda r: ForecastResult(
+                point=(r.history[-1],) * r.horizon),
+                revision="custom-v1", deterministic=True)
+
+        Return ForecastResult, not a dict. An object may expose forecast(request).
+        """
         self._register(name, predictor, capabilities, revision, lifecycle, False, deterministic)
 
     def register_factory(self, name: str, factory: Callable[[], Any], *,
@@ -166,7 +175,8 @@ class InferenceEngine:
 
     def _finish(self, name, provider, request, fingerprint, result, cache_hit=False):
         if not isinstance(result, ForecastResult):
-            raise ForecastAdapterError("provider must return ForecastResult")
+            raise ForecastAdapterError("provider must return ForecastResult, not a dict or other value. "
+                "Import ForecastResult from gnomon; e.g. return ForecastResult(point=(request.history[-1],) * request.horizon).")
         result = _copy_result(result).validate(request)
         execution = ForecastExecution(str(uuid4()), fingerprint, name, provider.revision,
                                       request, result, cache_hit, provider_identity={
@@ -215,7 +225,8 @@ class InferenceEngine:
             raise ForecastAdapterError("provider returned the wrong batch size")
         for result, (_, request, _) in zip(results, prepared):
             if not isinstance(result, ForecastResult):
-                raise ForecastAdapterError("provider must return ForecastResult")
+                raise ForecastAdapterError("provider must return ForecastResult, not a dict or other value. "
+                    "Import ForecastResult from gnomon; e.g. return ForecastResult(point=(request.history[-1],) * request.horizon).")
             _copy_result(result).validate(request)
         return [self._finish(name, provider, request, fingerprint, result)
                 for result, (_, request, fingerprint) in zip(results, prepared)]
