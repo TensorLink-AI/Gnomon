@@ -45,6 +45,19 @@ list registered names and point to `capabilities` with the same provider config.
 `LEDGER_NOT_FOUND` with the resolved path instead of creating an empty database.
 `infer` and `evaluate` create a ledger when asked to record evidence there.
 
+Ledger outcome writes require an operator TOML containing
+`allow_outcome_writes = true`, supplied with `--providers-config providers.toml`.
+Request JSON cannot enable writes. For `actuals_as_of` and `compare_history`, pass
+the same `unit` used when recording: omitted/null selects unitless data. `search`
+can discover executions across units when its unit filter is omitted.
+
+Cutoffs use source availability (`source_available_at`), separately from the
+observation's `valid_time`. Search/status operations default to the current clock;
+an actual with a later source availability is invisible at that cutoff. Supply
+`source_as_of` explicitly to query another cutoff. Raw `actuals_as_of` and
+`evaluate` leave omitted cutoffs unbounded; use both `source_as_of` and
+`recorded_as_of` for a reproducible historical view.
+
 ```bash
 gnomon infer --provider last_value --request '{"history":[1,2,3],"horizon":2}'
 gnomon infer --provider last_value --input data.csv --horizon 7
@@ -121,6 +134,10 @@ Both `inspect` and `describe` accept either a positional input or `--input`,
 including `--input -` for stdin. Supplying both is a usage error.
 
 Provider-backed commands accept explicit operator `--providers-config` TOML.
+`gnomon capabilities` includes `providers.<name>.request_schema`, with the JSON
+request field names, defaults and declared provider limits. Seasonal naive uses
+`"season": 7` for a seven-observation period, equivalent to `infer --season 7`.
+The default is 1; history must contain at least that many observations.
 Infer, evaluate, route and ledger also accept `--ledger-path evidence.db` without
 a TOML file. Route/ledger require a ledger configured by either method; conflicting
 paths are rejected. Evaluation/routing JSON may contain a `data`

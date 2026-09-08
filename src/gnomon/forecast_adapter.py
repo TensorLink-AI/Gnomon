@@ -169,6 +169,9 @@ class ForecastRequest:
         unknown = set(value) - {f.name for f in fields(cls)}
         if unknown:
             raise ForecastAdapterError("unknown forecast request fields: " + ", ".join(sorted(unknown)))
+        missing = {"history", "horizon"} - set(value)
+        if missing:
+            raise ForecastAdapterError("missing forecast request fields: " + ", ".join(sorted(missing)))
         converted = dict(value)
         arrays = {"history", "quantiles", "timestamps", "future_timestamps",
                   "past_covariate_names", "future_covariate_names"}
