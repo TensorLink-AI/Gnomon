@@ -276,10 +276,8 @@ class InMemoryTemporalStore:
         for item in observations:
             key = (item.series, item.timestamp)
             if key in seen:
-                raise GnomonError(
-                    "DUPLICATE_TIMESTAMPS",
-                    f"Series {item.series} contains duplicate timestamps.",
-                )
+                from .repair import duplicate_diagnostic
+                raise duplicate_diagnostic(observations, item.series)
             seen.add(key)
         rows = [
             TemporalObservation(

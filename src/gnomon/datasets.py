@@ -246,10 +246,17 @@ def _record_reordering(observations: list[Observation], log: "RepairLog") -> Non
 
 def _explain_grid_repair(exc, repair):
     if exc.code == "IRREGULAR_TIME_GRID" and repair != "aggressive":
-        exc.message += " Safe repair never fills missing values; interior interpolation requires repair=aggressive."
+        budget = exc.details.get("repair_budget", {})
+        allowed = budget.get("within_budget", False)
+        exc.message += (" Safe repair never fills missing values; interior interpolation requires repair=aggressive. "
+                        f"Gap filling needs {budget.get('filled', 'unknown')} fills / {budget.get('denominator', 'unknown')} observations "
+                        "before filling, capped at 30%; each gap is capped at max(3, observations // 10). "
+                        + ("This grid is within those limits; other input checks still apply." if allowed else
+                           "Aggressive interpolation cannot repair this grid within the limits; correct the source or select an observed window."))
         exc.args = (exc.message,)
         exc.details["repair_mode"] = repair
         exc.repair_options = [{"action": "select_observed_window", "description":
-            "For historical evaluation, use --window latest_contiguous with --frequency to select observed history."},
-            {"action": "allow_interpolation", "description":
-             "For inference, explicitly use --repair aggressive to fill bounded interior gaps; invented values are disclosed."}]
+            "Use --window latest_contiguous with --frequency to select observed history; enough history for the provider is still required."}]
+        if allowed:
+            exc.repair_options.append({"action": "allow_interpolation", "description":
+                "For inference, explicitly use --repair aggressive; these gaps fit the budget. Invented values are disclosed."})

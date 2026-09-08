@@ -357,7 +357,8 @@ def validate_and_group(
         values.sort(key=lambda item: item.timestamp)
         timestamps = [item.timestamp for item in values]
         if len(timestamps) != len(set(timestamps)):
-            raise GnomonError("DUPLICATE_TIMESTAMPS", f"Series {name} contains duplicate timestamps.")
+            from .repair import duplicate_diagnostic
+            raise duplicate_diagnostic(values, name)
         for left, right in zip(timestamps, timestamps[1:]):
             if not is_regular_step(left, right, frequency):
                 observed = _modal_step_description(timestamps)
@@ -373,13 +374,15 @@ def validate_and_group(
                            "found": right.isoformat(),
                            "frequency": frequency,
                            "modal_step": observed}
-                if frequency == "D" and _gap_weekend_only(left, right):
+                from .repair import gap_budget
+                details["repair_budget"] = gap_budget(timestamps, frequency)
+                if frequency == "D" and _gap_weekend_only(left, right) and all(t.weekday() < 5 for t in timestamps):
                     message += (
-                        " The skipped days are all weekend days — this looks "
-                        "like business-day (Mon-Fri) data. Gnomon grids are "
+                        " The skipped days are weekend days and observations are weekdays. "
+                        "If your source uses a business-day calendar, Gnomon grids are "
                         "continuous: pass regrid=business_daily to forward-"
                         "fill non-trading days onto the daily grid (disclosed,"
-                        " not capped), or resample to weekly."
+                        " subject to separate regrid limits), or resample to weekly."
                     )
                     details["gap_weekend_only"] = True
                 raise GnomonError("IRREGULAR_TIME_GRID", message, details)

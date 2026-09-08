@@ -183,7 +183,8 @@ def _shift(value, amount, unit, mode, timezone=None, fold=None, target_fold=None
     if mode not in ("elapsed", "calendar") or invalid_date not in ("reject", "clamp"):
         raise ValueError("mode must be elapsed/calendar and invalid_date must be reject/clamp")
     if not isinstance(unit, str) or unit not in (scales if mode == "elapsed" else ("days", "weeks", "months", "years")):
-        raise ValueError("unit unsupported for the selected arithmetic mode")
+        allowed = scales if mode == "elapsed" else ("days", "weeks", "months", "years")
+        raise ValueError("unit unsupported for the selected arithmetic mode; use plural units: " + ", ".join(allowed))
     if invalid_date != "reject" and unit not in ("months", "years"):
         raise ValueError("clamp applies only to calendar months/years")
     if isinstance(value, str) and re.fullmatch(_DATE, value):
@@ -278,6 +279,19 @@ def temporal_operation(operation: str | None = None, **arguments) -> dict:
     if not isinstance(operation, str) or operation not in _VARIANTS:
         raise ValueError("operation must be one of: " + ", ".join(_VARIANTS))
     properties, required = _VARIANTS[operation]
+    if operation == "shift":
+        problems = []
+        try:
+            _keys(arguments, properties, required)
+        except ValueError as exc:
+            problems.append(str(exc))
+        if "amount" in arguments and (type(arguments["amount"]) is not int or abs(arguments["amount"]) > 1_000_000):
+            problems.append("amount must be an integer between -1000000 and 1000000")
+        for key in ("unit", "mode", "invalid_date"):
+            if key in arguments and arguments[key] not in properties[key]["enum"]:
+                problems.append(key + " must be one of: " + ", ".join(properties[key]["enum"]))
+        if problems:
+            raise ValueError("; ".join(problems))
     _keys(arguments, properties, required)
     if any(value is None for value in arguments.values()):
         raise ValueError("omit optional arguments instead of supplying null")

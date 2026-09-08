@@ -42,14 +42,15 @@ def _batch(values, name, maximum):
     return values
 
 
-def _time(value: str | datetime) -> str:
+def _time(value: str | datetime, field="timestamp") -> str:
     try:
         dt = datetime.fromisoformat(value) if isinstance(value, str) else value
         if not isinstance(dt, datetime) or dt.tzinfo is None:
             raise ValueError("timezone required")
         return dt.astimezone(timezone.utc).isoformat(timespec="microseconds")
     except (ValueError, TypeError):
-        raise ForecastAdapterError("ledger timestamps require an explicit timezone") from None
+        raise ForecastAdapterError("ledger timestamps require an explicit timezone; invalid field: " + field,
+                                   details={"field": field, "accepted_example": "2026-01-21T00:00:00Z"}) from None
 
 
 def _json(value) -> str:
@@ -181,7 +182,9 @@ class TemporalLedger:
         with self._connect() as conn:
             row = conn.execute("SELECT s.recorded_at, p.payload_id, p.payload_json FROM studies s "
                                "JOIN payloads p USING(payload_id) WHERE study_id=?", (study_id,)).fetchone()
-        if row is None or (recorded_as_of is not None and row["recorded_at"] > _time(recorded_as_of)):
+        if row is None:
+            raise ForecastAdapterError("study_id was not found in this ledger", details={"reason": "study_not_found"})
+        if recorded_as_of is not None and row["recorded_at"] > _time(recorded_as_of):
             raise ForecastAdapterError("study was not recorded by the requested cutoff")
         if hashlib.sha256(row["payload_json"].encode()).hexdigest() != row["payload_id"]:
             raise ForecastAdapterError("study payload integrity check failed")
@@ -242,7 +245,7 @@ class TemporalLedger:
             raise ForecastAdapterError("actual requires a series_id and finite value")
         if (unit is not None and (not isinstance(unit, str) or not unit)) or not isinstance(source_ref, str):
             raise ForecastAdapterError("unit must be a nonempty string or null; source_ref must be a string")
-        valid, available = _time(valid_time), _time(source_available_at)
+        valid, available = _time(valid_time, "valid_time"), _time(source_available_at, "source_available_at")
         identity = _json([series_id, valid, available, float(value), unit, source_ref])
         actual_id = hashlib.sha256(identity.encode()).hexdigest()
         if conn.execute("SELECT 1 FROM actuals WHERE actual_id=?", (actual_id,)).fetchone():
@@ -285,8 +288,8 @@ class TemporalLedger:
         ids = _batch(execution_ids, "execution_ids", 100) if execution_ids is not None else [execution_id]
         if any(not isinstance(eid, str) or not eid for eid in ids) or len(set(ids)) != len(ids):
             raise ForecastAdapterError("execution IDs must be distinct nonempty strings")
-        source_as_of = _time(source_as_of) if source_as_of is not None else None
-        recorded_as_of = _time(recorded_as_of) if recorded_as_of is not None else None
+        source_as_of = _time(source_as_of, "source_as_of") if source_as_of is not None else None
+        recorded_as_of = _time(recorded_as_of, "recorded_as_of") if recorded_as_of is not None else None
         with self._connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
             scores = [self._evaluate(conn, eid, source_as_of, recorded_as_of, allow_partial) for eid in ids]
@@ -295,19 +298,55 @@ class TemporalLedger:
     def _pairs(self, conn, req, source_as_of, recorded_as_of):
         if not req["series_id"] or not req["future_timestamps"]:
             raise ForecastAdapterError("scoring requires series_id and explicit future_timestamps")
-        times = [_time(t) for t in req["future_timestamps"]]
+        try:
+            times = [_time(t) for t in req["future_timestamps"]]
+        except ForecastAdapterError:
+            raise ForecastAdapterError(
+                "Stored request.future_timestamps require an explicit timezone; declare the source timezone "
+                "at inspection (--timezone) and record a new forecast. Changing scoring cutoffs cannot repair stored timestamps.",
+                details={"field": "request.future_timestamps", "series_id": req["series_id"]}) from None
         actuals = {r["valid_time"]: r for r in self._actuals(
             conn, req["series_id"], source_as_of, recorded_as_of, req["unit"], times)}
         return times, [(i, actuals[t]) for i, t in enumerate(times) if t in actuals]
 
+    def _coverage(self, conn, req, times, pairs, source_as_of, recorded_as_of):
+        matched = {i for i, _ in pairs}
+        missing = [i for i in range(len(times)) if i not in matched]
+        # Only disclose other units visible under the same temporal cutoffs.
+        query = "SELECT DISTINCT valid_time, unit FROM actuals WHERE series_id=? AND unit IS NOT ?"
+        args = [req["series_id"], req["unit"]]
+        if source_as_of is not None:
+            query += " AND source_available_at<=?"
+            args.append(source_as_of)
+        if recorded_as_of is not None:
+            query += " AND recorded_at<=?"
+            args.append(recorded_as_of)
+        if times:
+            query += " AND valid_time>=? AND valid_time<=?"
+            args.extend((times[0], times[-1]))
+        missing_times = {times[i] for i in missing}
+        units = {row["unit"] for row in conn.execute(query, args)
+                 if row["valid_time"] in missing_times} if missing else set()
+        return {"required_steps": len(times), "matched_steps": len(pairs),
+                "fraction": len(pairs) / len(times), "missing_steps": missing,
+                "missing_timestamps": [times[i] for i in missing], "unit": req["unit"],
+                "other_units_at_missing_steps": sorted(units, key=lambda u: (u is not None, u or ""))}
+
     def _evaluate(self, conn, execution_id, source_as_of, recorded_as_of, allow_partial):
         execution = self._execution(conn, execution_id)
         if recorded_as_of is not None and execution["recorded_at"] > recorded_as_of:
-            raise ForecastAdapterError("execution was not recorded by the requested cutoff")
+            raise ForecastAdapterError("execution was not recorded by the requested cutoff", details={
+                "execution_id": execution_id, "execution_recorded_at": execution["recorded_at"],
+                "recorded_as_of": recorded_as_of,
+                "guidance": "Select an execution that existed at this cutoff, or choose a recording cutoff at or after execution_recorded_at if appropriate for the task."})
         req = execution["request"]
         times, pairs = self._pairs(conn, req, source_as_of, recorded_as_of)
+        coverage = self._coverage(conn, req, times, pairs, source_as_of, recorded_as_of)
         if not allow_partial and len(pairs) != len(times):
-            raise ForecastAdapterError("complete actual horizon is not yet available")
+            raise ForecastAdapterError("complete actual horizon is not yet available", details={
+                "execution_id": execution_id, "coverage": coverage,
+                "source_as_of": source_as_of, "recorded_as_of": recorded_as_of,
+                "guidance": "Supply actual observations for missing_timestamps with exactly this unit, and source/recording times visible at the chosen cutoffs. Change cutoffs only when appropriate for the task; allow_partial=true explicitly accepts incomplete scoring."})
         metrics = point_error_metrics([(execution["result"]["point"][i], row["value"]) for i, row in pairs])
         status = "complete" if len(pairs) == len(times) else "partial" if pairs else "pending"
         record = {"evaluation_id": str(uuid4()), "execution_id": execution_id,
@@ -315,7 +354,7 @@ class TemporalLedger:
                   "recorded_as_of": _time(recorded_as_of) if recorded_as_of else None,
                   "metric_version": _METRIC_VERSION, "status": status,
                   "matched_steps": [i for i, _ in pairs], "actual_ids": [r["actual_id"] for _, r in pairs],
-                  "horizon": len(times), **metrics}
+                  "horizon": len(times), "complete": status == "complete", "coverage": coverage, **metrics}
         previous = conn.execute("SELECT payload_json FROM evaluations WHERE execution_id=? "
             "AND json_extract(payload_json, '$.actual_ids')=? AND json_extract(payload_json, '$.matched_steps')=? "
             "AND json_extract(payload_json, '$.metric_version')=? AND json_extract(payload_json, '$.source_as_of') IS ? "
@@ -323,7 +362,12 @@ class TemporalLedger:
             (execution_id, _json(record["actual_ids"]), _json(record["matched_steps"]), _METRIC_VERSION,
              source_as_of, recorded_as_of)).fetchone()
         if previous:
-            return json.loads(previous[0])
+            saved = json.loads(previous[0])
+            # Preserve immutable score metadata on retries; enrich legacy scores
+            # only when the additive fields did not exist in their release.
+            saved.setdefault("complete", status == "complete")
+            saved.setdefault("coverage", coverage)
+            return saved
         conn.execute("INSERT INTO evaluations VALUES (?,?,?,?)",
                      (record["evaluation_id"], execution_id, record["recorded_at"], _json(record)))
         return record
@@ -379,6 +423,7 @@ class TemporalLedger:
         missing = [i for i in range(len(times)) if i not in matched]
         status = "waiting" if missing else "scored" if current else "stale" if score else "ready"
         return {**summary, "status": status, "score_state": state, "actuals_available": len(pairs),
+                "coverage": self._coverage(conn, req, times, pairs, source_as_of, recorded_as_of),
                 "missing_steps": missing, "missing_count": len(missing),
                 "evaluation_id": score["evaluation_id"] if score else None,
                 "mae": score["mae"] if current else None,
@@ -448,6 +493,10 @@ class TemporalLedger:
                 summary = self._summary(conn, self._execution(conn, row[1]), source, recorded)
                 if summary["missing_steps"] is not None:
                     summary["missing_steps"] = summary["missing_steps"][:20]
+                    coverage = summary["coverage"]
+                    for field in ("missing_steps", "missing_timestamps", "other_units_at_missing_steps"):
+                        coverage[field + "_truncated"] = len(coverage[field]) > 20
+                        coverage[field] = coverage[field][:20]
                 if status is None or summary["status"] == status:
                     items.append(summary)
                 if len(items) == limit:

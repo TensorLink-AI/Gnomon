@@ -269,7 +269,9 @@ def _load_lenient(
             raise GnomonError(
                 "INVALID_TIMESTAMP",
                 f"Cannot parse timestamp on row {row_number}: {row.get(time_column)!r}",
-                {"row": row_number, "value": str(row.get(time_column))},
+                {"row": row_number, "value": str(row.get(time_column)),
+                 "drop_budget": {"invalid_rows_at_least": 1, "total_rows": len(rows),
+                                 "max_fraction": MAX_DROPPED_FRACTION, "denominator_basis": "all_input_rows"}},
             ) from exc
         if ts_tier == "normalised":
             try:
@@ -288,7 +290,8 @@ def _load_lenient(
             "EXCESSIVE_REPAIR",
             f"More than {MAX_DROPPED_FRACTION:.0%} of rows are unparseable; "
             "fix the file at the source instead of forecasting the remainder.",
-            {"dropped_rows": dropped, "total_rows": len(rows)},
+            {"dropped_rows": dropped, "total_rows": len(rows), "max_fraction": MAX_DROPPED_FRACTION,
+             "denominator_basis": "all_input_rows"},
         )
     aware = [item.timestamp.utcoffset() is not None for item in observations]
     if any(aware) and not all(aware) and not _defer_timezone:
@@ -389,14 +392,19 @@ def observations_from_rows(
                     }, {
                         "action": "supply_arguments",
                         "description": "repair=\"aggressive\" drops non-finite "
-                                       "rows with a repair-log entry.",
+                                       "rows with a repair-log entry, only up to 5% of all input rows.",
                         "arguments": ["repair"],
                     }],
                 )
             series = str(row[series_column]) if series_column else default_series
-            observations.append(
-                Observation(_parse_timestamp(row[time_column], row_number), value, series)
-            )
+            try:
+                timestamp = _parse_timestamp(row[time_column], row_number)
+            except GnomonError as exc:
+                from .repair import MAX_DROPPED_FRACTION
+                exc.details["drop_budget"] = {"invalid_rows_at_least": 1, "total_rows": len(rows),
+                    "max_fraction": MAX_DROPPED_FRACTION, "denominator_basis": "all_input_rows"}
+                raise
+            observations.append(Observation(timestamp, value, series))
     if not observations:
         raise GnomonError("EMPTY_DATASET", "The input contains no observations.")
     return observations

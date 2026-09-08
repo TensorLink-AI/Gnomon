@@ -144,7 +144,9 @@ class DataReferences:
         if series_id is None and len(groups) == 1:
             series_id = next(iter(groups))
         if not isinstance(series_id, str) or series_id not in groups:
-            raise GnomonError("INVALID_ARGUMENTS", "Select one exact series_id from the inspected input.")
+            raise GnomonError("INVALID_ARGUMENTS", "Select one exact series_id from the inspected input. "
+                              "series_id is a selector, not a new label; use series_column to read labels from input.",
+                              details={"available_series_ids": sorted(groups), "requested_series_id": series_id})
         return frozen, series_id, groups[series_id]
 
     def describe(self, data_ref: str, *, statistic: str, series_id: str | None = None,

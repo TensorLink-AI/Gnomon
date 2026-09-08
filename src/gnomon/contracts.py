@@ -16,6 +16,10 @@ class DataSchema:
 
 # Callers can supply instance-specific repairs; do not suggest retired workflows.
 REPAIR_OPTIONS = {
+    "INVALID_TIMESTAMP": [{"action": "correct_timestamp", "description": "Correct the source timestamp to ISO 8601, e.g. 2026-01-02 or 2026-01-02T00:00:00Z. Declare the actual source timezone with --timezone when needed. Aggressive dropping is limited to 5% of all input rows; it cannot infer a missing timestamp."}],
+    "INVALID_TARGET": [{"action": "correct_target", "description": "Supply a finite numeric observation in the target column, or select the correct --target-column."}],
+    "EMPTY_DATASET": [{"action": "supply_observations", "description": "Supply input containing observed timestamp/value rows; repair modes cannot create source observations."}],
+    "TIMESTAMP_ALIGNMENT_CONFLICT": [{"action": "correct_conflicting_timestamps", "description": "Correct conflicting timestamps or measurements at the source. Safe repair cannot merge distinct observations. For exact conflicting duplicate rows only, aggressive chooses the last row subject to the 30% original-observation budget."}],
     "ERROR_DETAIL_LIMIT": [{"action": "simplify_request", "description": "Consult the tool schema and reduce invalid or oversized arguments; error details were not retained."}],
     "NON_FINITE_TARGET": [{"action": "supply_arguments", "description": "Supply finite observations; infinity and NaN are not measured values."}],
     "UNSUPPORTED_INPUT": [{"action": "convert_input", "description": "Supply CSV/TSV, JSON/JSONL, Parquet or Excel data with explicit column mappings."}],

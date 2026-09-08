@@ -25,6 +25,8 @@ from .ledger import TemporalLedger
 from .ephemeris import EphemerisProvider
 from .product_contract import __version__, product_claims
 from .build_info import build_info
+from .recovery import argument_recovery
+from .repair import REPAIR_HELP
 
 _NUMBER_ARRAY = {"type": "array", "items": {"type": "number"}}
 _STRING_ARRAY = {"type": "array", "items": {"type": "string"}}
@@ -74,7 +76,7 @@ INSPECT_SCHEMA = {"type": "object", "additionalProperties": False, "required": [
                       "recorded_as_of", "store_path", "unit", "regrid", "timezone")},
                       "purpose": {"enum": ["infer", "evaluate", "route"]},
                       "window": {"enum": ["latest_contiguous"]},
-                      "repair": {"enum": ["off", "safe", "aggressive"]}}}
+                      "repair": {"enum": ["off", "safe", "aggressive"], "description": REPAIR_HELP}}}
 DESCRIBE_SCHEMA = {"type": "object", "additionalProperties": False, "required": ["data_ref", "statistic"],
                    "properties": {**{name: {"type": "string"} for name in ("data_ref", "series_id", "start", "end")},
                        "statistic": {"enum": ["mean", "median", "latest", "minimum", "maximum", "sum"]}}}
@@ -142,11 +144,40 @@ _LEDGER_REQUIRED = {
 _OUTCOME_WRITES = {"append_actual", "record_decision", "append_decision_outcome"}
 
 
+def configuration_schema():
+    """Discover operator TOML keys without opening a ledger or loading providers."""
+    from .backtesting import EvaluationBudget
+    from .result_refs import ResultLimits
+    fields = {
+        "schema_version": {"const": 1, "default": 1},
+        "ledger_path": {"type": "string", "description": "SQLite path relative to this TOML file."},
+        "cache_size": {"type": "integer", "minimum": 0, "default": 0},
+        "allow_outcome_writes": {"type": "boolean", "default": False},
+        "enable_temporal": {"type": "boolean", "default": False},
+        "max_data_refs": {"type": "integer", "minimum": 1, "default": 16},
+        "max_data_rows": {"type": "integer", "minimum": 1, "default": 100000},
+        "evaluation_limits": {**deepcopy(_BUDGET_SCHEMA), "default": asdict(EvaluationBudget(max_seconds=30))},
+        "result_limits": {"type": "object", "additionalProperties": False, "properties": {
+            k: {"type": "integer", "minimum": 2048 if k == "max_response_bytes" else 1, "default": v}
+            for k, v in asdict(ResultLimits()).items()},
+            "description": "Response <= individual result <= retained bytes."},
+        "providers": {"type": "object", "additionalProperties": {"type": "object",
+            "required": ["kind"], "properties": {"kind": {"enum": ["ephemeris", "callable", "factory"]}},
+            "description": "ephemeris: exactly one base_url/base_url_env; optional token_env, model, mode, combine, timeout, discover. "
+                           "callable/factory: entrypoint=module:attribute required; optional capabilities, revision, deterministic, lifecycle. "
+                           "These operator fields load trusted Python or configure network providers."}},
+    }
+    return {"type": "object", "additionalProperties": False, "properties": fields,
+            "description": "Operator configuration is TOML, not JSON; this schema describes the parsed keys. "
+                           "Example TOML: schema_version = 1\\nledger_path = \"ledger.db\"\\nallow_outcome_writes = true"}
+
+
 def _strict(arguments, allowed, required=(), *, label="arguments"):
     if not isinstance(arguments, dict):
         raise ForecastAdapterError(f"{label} must be an object")
     if set(arguments) - set(allowed):
-        raise ForecastAdapterError("unknown arguments: " + ", ".join(sorted(set(arguments) - set(allowed))))
+        raise ForecastAdapterError("unknown arguments: " + ", ".join(sorted(set(arguments) - set(allowed)))
+                                   + "; accepted fields: " + ", ".join(sorted(allowed)))
     missing = set(required) - set(arguments)
     if missing:
         raise ForecastAdapterError("missing arguments: " + ", ".join(sorted(missing)))
@@ -196,8 +227,7 @@ class GnomonSession:
                         'Provider configuration must be valid TOML, not JSON. '
                         'Example: schema_version = 1\nledger_path = "ledger.db"'
                     ) from None
-        _strict(config, {"schema_version", "ledger_path", "cache_size", "allow_outcome_writes", "providers",
-                         "max_data_refs", "max_data_rows", "evaluation_limits", "result_limits", "enable_temporal"})
+        _strict(config, configuration_schema()["properties"], label="operator TOML configuration")
         if config.get("schema_version", 1) != 1:
             raise ForecastAdapterError("unsupported provider configuration schema")
         configured_ledger = directory / config["ledger_path"] if config.get("ledger_path") else None
@@ -314,15 +344,19 @@ class GnomonSession:
                 "providers": providers,
                 "cache": self.engine.cache_policy(),
                 "ledger": {"enabled": self.ledger is not None, "outcome_writes": self.allow_outcome_writes},
-                "temporal": {"enabled": self.enable_temporal, "semantics": "explicit_facts_not_natural_language"},
+                "temporal": {"enabled": self.enable_temporal, "semantics": "explicit_facts_not_natural_language",
+                             "scope": "this_session_and_its_MCP_tools", "standalone_cli": "gnomon temporal is always available"},
                 "data": {"reference_scope": "session", "max_refs": self.data.max_refs, "max_retained_rows": self.data.max_rows},
                 "evaluation_limits": asdict(self.evaluation_limits),
                 "result_limits": {**asdict(self.results.limits), "scope": "session", "offset_unit": "unicode_codepoints",
                                   "bound": "compact_structured_payload_utf8_not_provider_memory"},
                 "semantics": {"forecast": "inference_only", "calibration": "not_implied", "action_authorized": False}}
 
-    def forecast(self, provider: str, request: ForecastRequest | dict[str, Any], *, use_cache: bool = True) -> dict:
+    def forecast(self, provider: str, request: ForecastRequest | dict[str, Any] | None = None, *, use_cache: bool = True) -> dict:
         """Forecast from a typed request or the same request dict accepted by CLI/MCP."""
+        if request is None:
+            raise ForecastAdapterError('forecast request must be a ForecastRequest or dict. Use session.forecast(provider, request), e.g. '
+                                       'session.forecast("last_value", {"history":[1,2,3],"horizon":2}).')
         run = self.engine.forecast(provider, request, use_cache=use_cache)
         cache = self.engine.cache_policy(provider)
         cache.update(lookup_requested=use_cache, status=(
@@ -436,14 +470,28 @@ class GnomonSession:
                 _strict(arguments, schema["properties"], schema["required"])
                 return self.evaluate(**arguments)
             raise GnomonError("UNKNOWN_TOOL", "This execution session does not expose that tool.")
+        except GnomonError as exc:
+            if exc.code == "INVALID_ARGUMENTS":
+                for key, value in argument_recovery(name, arguments).items():
+                    exc.details.setdefault(key, value)
+            raise
         except (ForecastAdapterError, TypeError, KeyError) as exc:
-            raise GnomonError("INVALID_ARGUMENTS", str(exc)) from None
+            details = {**argument_recovery(name, arguments), **getattr(exc, "details", {})}
+            if "execution_recorded_at" in details and "example_arguments" in details:
+                details["example_arguments"]["recorded_as_of"] = details["execution_recorded_at"]
+            if "required_history" in details:
+                details.pop("example_arguments", None)
+                details["request_parameters"] = {"season": details["season"], "horizon": details["horizon"]}
+            repairs = getattr(exc, "repair_options", None)
+            if repairs is None and "guidance" in details:
+                repairs = [{"action": "repair_operation", "description": details["guidance"]}]
+            raise GnomonError("INVALID_ARGUMENTS", str(exc), details=details, repair_options=repairs) from None
 
     def _ledger_call(self, arguments):
         if self.ledger is None:
             raise GnomonError("LEDGER_NOT_CONFIGURED", "Configure the ledger at session startup.")
         operation = arguments.get("operation")
-        if operation not in _LEDGER_PARAMETERS:
+        if not isinstance(operation, str) or operation not in _LEDGER_PARAMETERS:
             raise ForecastAdapterError("ledger operation must be one of: " + ", ".join(
                 op for op in _LEDGER_PARAMETERS if self.allow_outcome_writes or op not in _OUTCOME_WRITES))
         if operation in _OUTCOME_WRITES and not self.allow_outcome_writes:
@@ -453,8 +501,39 @@ class GnomonSession:
                                  "An authorized operator can set allow_outcome_writes = true in TOML and pass "
                                  "--providers-config providers.toml, or set it when constructing GnomonSession."}])
         _strict(arguments, {"operation", *_LEDGER_PARAMETERS[operation]}, {"operation", *_LEDGER_REQUIRED[operation]})
-        result = getattr(self.ledger, operation)(**{k: v for k, v in arguments.items() if k != "operation"})
-        return {"schema_version": "1", "status": "ok", "operation": operation, "result": result}
+        parameters = {k: v for k, v in arguments.items() if k != "operation"}
+        if operation == "pending":
+            now = self.ledger._now()
+            for field in ("source_as_of", "recorded_as_of"):
+                parameters.setdefault(field, now)
+        result = getattr(self.ledger, operation)(**parameters)
+        query = {"source_as_of": parameters.get("source_as_of"), "recorded_as_of": parameters.get("recorded_as_of"),
+                 "omitted_cutoffs": "current_clock" if operation in {"search", "pending"} else
+                                    "required" if operation == "compare_history" else "unbounded",
+                 "unit": arguments.get("unit"), "omitted_unit": "all_units" if operation == "search" else
+                         "execution_unit" if operation in {"evaluate", "compare"} else "unitless"}
+        for field in ("source_as_of", "recorded_as_of"):
+            if field not in _LEDGER_PARAMETERS[operation]:
+                query.pop(field)
+        if not any(field in query for field in ("source_as_of", "recorded_as_of")):
+            query.pop("omitted_cutoffs")
+        if operation in {"evaluate", "compare"}:
+            query.pop("unit")
+        query.update({k: parameters[k] for k in ("series_id", "horizon", "provider", "start", "end", "status", "execution_id", "execution_ids", "study_id", "decision_id") if k in parameters})
+        if "unit" not in _LEDGER_PARAMETERS[operation] and operation not in {"evaluate", "compare"}:
+            query.pop("unit")
+            query.pop("omitted_unit")
+        # Search already reports its exact effective clock, including cursor reuse.
+        if operation == "search":
+            query.update({k: result[k] for k in ("source_as_of", "recorded_as_of") if k in result})
+        answer = {"schema_version": "1", "status": "ok", "operation": operation, "result": result,
+                  "query": query}
+        if operation == "evaluate":
+            scores = result if isinstance(result, list) else [result]
+            answer.update(scoring_status=("complete" if all(s["complete"] for s in scores) else
+                                          "partial" if any(s["n"] for s in scores) else "pending"),
+                          complete=all(s["complete"] for s in scores), allow_partial=arguments.get("allow_partial", True))
+        return answer
 
     def tools(self) -> list[dict]:
         tools = [
@@ -513,7 +592,11 @@ def ledger_schema(*, allow_outcome_writes=False):
         for p in parameters:
             properties[p] = ({"type": "number"} if p == "value" else
                              {"type": ["string", "null"], "minLength": 1} if p == "unit" else
-                             {"type": "boolean"} if p == "allow_partial" else
+                             {"type": "boolean", "default": True, "description":
+                              "True scores available matching-unit actuals, including partial/pending horizons. "
+                              "False rejects incomplete horizons. Top-level status ok and CLI exit 0 mean the operation succeeded; "
+                              "check scoring_status/complete and result.status/result.coverage (each result for batches). "
+                              "Scoring persists evidence without actual-write opt-in; exact retries reuse scores."} if p == "allow_partial" else
                              {"type": "integer", "minimum": 1, "maximum": 100 if p == "limit" else 1_000_000} if p in {"limit", "horizon"} else
                              {"enum": ["waiting", "ready", "scored", "stale", "unscorable"]} if p == "status" else
                              {"type": "object", "minProperties": 2, "maxProperties": 8,
