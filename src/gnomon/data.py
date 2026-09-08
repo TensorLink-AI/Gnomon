@@ -329,7 +329,52 @@ def load_observations(
     return observations, fingerprint(path), columns
 
 
-def observations_from_rows(
+def _drop_diagnostic(rows, time_column, target_column):
+    """Bounded, nonmutating cost scan using the aggressive parsing policy.
+
+    Passing this budget says nothing about subsequent grid/conflict budgets.
+    """
+    from .repair import MAX_DROPPED_FRACTION, AmbiguousDateOrder, parse_number, parse_timestamp_lenient, scan_day_first, scan_numeric_evidence
+    limit = 100_000
+    detail = {"total_rows": len(rows), "max_fraction": MAX_DROPPED_FRACTION,
+              "denominator_basis": "all_input_rows", "diagnostic_limit": limit,
+              "scan_complete": len(rows) <= limit, "policy": "aggressive_parsing_drop_cost",
+              "scope": "unparseable_drops_only_grid_and_conflict_budgets_checked_separately"}
+    if len(rows) > limit:
+        return {**detail, "scanned_rows": 0, "within_budget": None}
+    times = ["" if r.get(time_column) is None else str(r[time_column]) for r in rows]
+    values = ["" if r.get(target_column) is None else str(r[target_column]) for r in rows]
+    day_first, comma_role = scan_day_first(times), scan_numeric_evidence(values)
+    dropped = 0
+    for row, raw_time, raw_value in zip(rows, times, values):
+        if not raw_time.strip() and not raw_value.strip() and all(not str(v or "").strip() for v in row.values()):
+            continue
+        try:
+            _, tier = parse_number(raw_value, comma_role)
+            if tier == "missing":
+                continue
+            try:
+                parse_timestamp_lenient(raw_time, day_first)
+            except AmbiguousDateOrder:
+                parse_timestamp_lenient(raw_time, False)
+        except ValueError:
+            dropped += 1
+    return {**detail, "scanned_rows": len(rows), "dropped_rows": dropped,
+            "fraction": dropped / len(rows) if rows else 0,
+            "within_budget": not rows or dropped / len(rows) <= MAX_DROPPED_FRACTION}
+
+
+def observations_from_rows(rows, columns, time_column, target_column, series_column, **kwargs):
+    """Extract observations; early parse errors include a bounded drop-cost scan."""
+    try:
+        return _observations_from_rows(rows, columns, time_column, target_column, series_column, **kwargs)
+    except GnomonError as exc:
+        if exc.code in {"INVALID_TIMESTAMP", "INVALID_TARGET", "NON_FINITE_TARGET"}:
+            exc.details["drop_budget"] = _drop_diagnostic(rows, time_column, target_column)
+        raise
+
+
+def _observations_from_rows(
     rows: list[dict[str, object]],
     columns: list[str],
     time_column: str,

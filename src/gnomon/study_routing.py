@@ -63,7 +63,14 @@ def route_study(engine, references, data_ref: str, *, study_id: str, candidates:
               "source_as_of": _time(source_as_of), "recorded_as_of": _time(recorded_as_of),
               "effective_source_as_of": visible.as_of.isoformat(),
               "effective_recorded_as_of": visible.recorded_as_of.isoformat() if visible.recorded_as_of else None,
-              "recommendation": baseline, "basis": "explicit_baseline_fallback", "reason": None,
+              "cutoff_scopes": {
+                  "ledger_evidence_recorded_as_of": _time(recorded_as_of),
+                  "snapshot_source_as_of": visible.as_of.isoformat(),
+                  "snapshot_recorded_as_of": visible.recorded_as_of.isoformat() if visible.recorded_as_of else None,
+                  "snapshot_recording_basis": "unknown_recording_times" if parent.assumed_known_time else "recorded_vintages",
+                  "effective_fields_scope": "input_snapshot",
+                  "guidance": "recorded_as_of filters recorded studies and executions. Effective cutoff fields describe the input snapshot; a null snapshot recording cutoff does not disable ledger evidence filtering."},
+              "recommendation": baseline, "basis": "explicit_baseline_fallback", "fallback_used": True, "reason": None,
               "min_folds": min_folds, "min_improvement": min_improvement,
               "provider_calls": 0, "action_authorized": False, "recommendation_role": "advisory",
               "known_time_assumed": parent.assumed_known_time, "scores": {}, "matched_folds": 0}
@@ -79,7 +86,8 @@ def route_study(engine, references, data_ref: str, *, study_id: str, candidates:
             "provider_cohort_mismatch": "select_a_study_with_the_requested_providers",
             "study_exceeds_operator_fold_limit": "select_a_study_within_operator_limits",
             "study_integrity_unverifiable": "verify_ledger_integrity_before_reuse",
-        }.get(reason, "inspect_excluded_folds_before_collecting_more_evidence")
+        }.get(reason, "inspect_excluded_folds_before_collecting_more_evidence" if answer.get("excluded_folds")
+              else "evaluate_more_matched_folds_with_sufficient_history_and_budget")
         return {**answer, "reason": reason, "next_step": next_step}
 
     try:
@@ -155,11 +163,23 @@ def route_study(engine, references, data_ref: str, *, study_id: str, candidates:
     scores = {p: point_error_metrics((point, actual["value"]) for f in selected
                          for point, actual in zip(f["runs"][p]["point"], f["actuals"])) for p in providers}
     ranked = sorted(providers, key=lambda p: (scores[p]["mae"], providers.index(p)))
+    groups = {}
+    for provider in ranked:
+        groups.setdefault(scores[provider]["mae"], []).append(provider)
+    ranking_policy = {"metric": "mae", "direction": "ascending", "tie_comparison": "exact_unrounded_score",
+                      "tie_order": "provider_input_order", "ties": [
+                          {"mae": score, "providers": group} for score, group in groups.items() if len(group) > 1],
+                      "guidance": "Equal MAE does not establish a winner or equivalent predictions. Ranking does not establish future performance."}
     best, baseline_mae = ranked[0], scores[baseline]["mae"]
     improvement = (baseline_mae - scores[best]["mae"]) / baseline_mae if baseline_mae else 0.0
     choice = best if improvement >= min_improvement and scores[best]["mae"] < baseline_mae else baseline
+    selection_reason = ("candidate_exceeds_improvement_threshold" if choice != baseline else
+                        "baseline_tied_for_best" if len(groups[baseline_mae]) > 1 and best == baseline else
+                        "baseline_has_lowest_mae" if best == baseline else "improvement_below_threshold")
     rescore = {**deepcopy(report), "study_id": str(uuid4()), "derived_from": study_id, "rescore_only": True,
-               "folds": selected, "scores": scores, "ranking": ranked, "snapshot_id": visible.snapshot_id,
+               "folds": selected, "scores": scores, "ranking": ranked, "ranking_policy": ranking_policy,
+               "snapshot_id": visible.snapshot_id,
+               "cutoff_scopes": answer["cutoff_scopes"],
                "source_as_of": _time(source_as_of), "recorded_as_of": _time(recorded_as_of),
                "effective_source_as_of": answer["effective_source_as_of"],
                "effective_recorded_as_of": answer["effective_recorded_as_of"],
@@ -175,6 +195,7 @@ def route_study(engine, references, data_ref: str, *, study_id: str, candidates:
     rescore.pop("recorded_at", None)
     rescore["cohort_id"] = content_id("cohort", {"folds": [{k: f[k] for k in ("request", "actuals")} for f in selected]}, length=64)
     engine.ledger.record_study(rescore)
-    return {**answer, "recommendation": choice, "basis": "cutoff_bound_matched_study", "reason": None,
+    return {**answer, "recommendation": choice, "basis": "cutoff_bound_matched_study", "fallback_used": False, "reason": None,
+            "selection_reason": selection_reason, "ranking": ranked, "ranking_policy": ranking_policy,
             "scores": scores, "relative_mae_improvement": improvement, "rescore_study_id": rescore["study_id"],
             "cohort_id": rescore["cohort_id"], "model_identity_basis": "provider_declared_not_independently_attested"}

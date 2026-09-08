@@ -65,7 +65,7 @@ def example_changes(arguments, example, prefix=""):
 
 
 def temporal_recovery(arguments):
-    from .temporal_ops import TEMPORAL_SCHEMA, TEMPORAL_EXAMPLES, temporal_operation
+    from .temporal_ops import TEMPORAL_SCHEMA, TEMPORAL_EXAMPLES, TemporalChoiceError, temporal_operation
 
     operation = arguments.get("operation")
     known = isinstance(operation, str) and operation in TEMPORAL_EXAMPLES
@@ -83,23 +83,35 @@ def temporal_recovery(arguments):
                 if child in field["properties"] and _matches(value, field["properties"][child]):
                     example[key][child] = deepcopy(value)
     kind = "parameter_preserving_example" if known else "schema_illustration"
-    try:
-        temporal_operation(**example)
-    except (ValueError, TypeError):
-        # Some valid-shaped fields still conflict (DST, interval order, date range).
-        # Keep that request visible and label the runnable generic illustration.
-        example = deepcopy(TEMPORAL_EXAMPLES[operation])
-        kind = "schema_illustration"
+    choices = {}
+    if operation == "shift" and arguments.get("mode") not in ("calendar", "elapsed"):
+        choices["mode"] = ["calendar", "elapsed"]
+    for _ in range(5):
+        try:
+            temporal_operation(**example)
+            break
+        except TemporalChoiceError as exc:
+            choices[exc.field] = exc.choices
+            example[exc.field] = exc.illustrative_value
+        except (ValueError, TypeError):
+            # Invalid facts such as clock gaps cannot be repaired by inventing
+            # another date. Keep the task and provide a separate illustration.
+            kind = "task_template" if known else "schema_illustration"
+            break
     changed = example_changes(arguments, example)
     details = {"example_arguments": example, "example_kind": kind,
                "changed_fields": changed, "supported_operations": list(TEMPORAL_EXAMPLES),
                "schema_command": "gnomon temporal --schema",
                "guidance": "Example values for changed_fields are illustrative, not inferred task facts. "
                            "Confirm missing choices and correct invalid values before retrying."}
-    if kind == "schema_illustration":
-        details["supplied_arguments"] = _example_copy(arguments)
+    details["supplied_arguments"] = _example_copy(arguments)
+    if kind == "task_template":
+        details["schema_example_arguments"] = deepcopy(TEMPORAL_EXAMPLES[operation])
+        details["guidance"] += " This task template still requires correction; schema_example_arguments is a separate runnable illustration."
+    if choices:
+        details["choices_required"] = choices
+        details["guidance"] += " Example choices are illustrative: choose each listed policy explicitly before retrying; keeping reject leaves an invalid month-end request rejected."
     if operation == "shift" and arguments.get("mode") not in ("calendar", "elapsed"):
-        details["choices_required"] = {"mode": ["calendar", "elapsed"]}
         details["guidance"] += (" Choose mode explicitly: calendar applies local calendar arithmetic; elapsed applies "
                                 "a duration to an offset-aware instant. The example uses calendar as an illustration.")
     return details

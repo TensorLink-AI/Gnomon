@@ -116,6 +116,7 @@ class ResultReferences:
             "next_step", "reason", "metric_version", "aggregation",
             "operation", "scoring_status", "complete", "allow_partial", "evaluation_reused",
             "coverage_basis", "current_coverage_basis",
+            "fallback_used", "selection_reason",
         )
         summary = {key: value[key] for key in scalar_keys
             if key in value and type(value[key]) in (str, int, float, bool, type(None))

@@ -11,10 +11,10 @@ from typing import Any
 
 
 def leakage_self_check(cases: int = 8, seed: int = 7) -> dict[str, Any]:
-    """Prove snapshot reads stay at or before each declared cutoff.
+    """Check snapshot reads against declared cutoffs on finite synthetic cases.
 
     This is a mechanism check, not the historical LLM-control comparison.
-    It ships so an installed wheel can reproduce the product guarantee
+    It ships so an installed wheel can exercise the snapshot mechanism
     without network access or benchmark fixtures.
     """
     from .session import GnomonSession
@@ -27,8 +27,8 @@ def leakage_self_check(cases: int = 8, seed: int = 7) -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="gnomon-leakage-check-") as directory:
         root = Path(directory)
         for case in range(cases):
-            start = datetime(2025, 1, 1, tzinfo=timezone.utc)
-            history, horizon = 48, 4
+            start = datetime(2025, 1, 1, tzinfo=timezone.utc) + timedelta(days=case * 3)
+            history, horizon = rng.randint(24, 60), rng.randint(1, 7)
             cutoff = start + timedelta(days=history - 1)
             source = root / f"case-{case}.csv"
             records = []
@@ -54,21 +54,26 @@ def leakage_self_check(cases: int = 8, seed: int = 7) -> dict[str, Any]:
                     as_of=cutoff.isoformat(), store_path=str(store_path))
                 request = session.data.request(inspected["data_ref"], horizon=horizon)
                 execution = session.engine.forecast("last_value", request)
-                assert execution.result.point == (request.history[-1],) * horizon
+                forecast_matches = execution.result.point == (request.history[-1],) * horizon
                 expected = tuple(float(record[1]) for record in records
                     if datetime.fromisoformat(record[0]) <= cutoff
                     and datetime.fromisoformat(record[2]) <= cutoff)
-                assert request.history == expected
+                history_matches = request.history == expected
             accesses = inspected["snapshot"].get("accesses", [])
             known = [datetime.fromisoformat(item["max_known_time"])
                      for item in accesses if item.get("max_known_time")]
-            holds = bool(known) and max(known) <= cutoff
+            boundary_holds = bool(known) and max(known) <= cutoff
+            holds = boundary_holds and history_matches and forecast_matches
             rows.append({"case": case, "cutoff": cutoff.isoformat(),
                          "max_known_time": max(known).isoformat() if known else None,
+                         "history_length": history, "horizon": horizon,
+                         "checks": {"known_time_boundary": boundary_holds,
+                                    "visible_history_matches": history_matches, "forecast_matches": forecast_matches},
                          "holds": holds})
-    return {"schema_version": "0.1", "check": "snapshot_temporal_leakage",
+    return {"schema_version": "0.2", "check": "snapshot_temporal_leakage",
             "seed": seed, "cases": cases, "passed": sum(row["holds"] for row in rows),
             "failed": sum(not row["holds"] for row in rows),
-            "structural_claim_proven": bool(rows) and all(row["holds"] for row in rows),
+            "checks_passed": bool(rows) and all(row["holds"] for row in rows),
+            "evidence": "finite_synthetic_checks", "general_leakage_safety": "not_established",
             "rows": rows,
-            "limitation": "This validates the installed snapshot mechanism; it does not rerun the historical hosted-LLM control arm."}
+            "limitation": "These finite synthetic cases exercise the installed snapshot mechanism. They do not prove general leakage safety or rerun the historical hosted-LLM control arm."}

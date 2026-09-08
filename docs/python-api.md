@@ -52,7 +52,7 @@ from gnomon import GnomonSession
 
 Path("providers.toml").write_text("cache_size = 8\n")
 with GnomonSession.from_config("providers.toml") as session:
-    request = {"history": [1, 2, 3], "horizon": 2}
+    request = {"history": [1, 2, 3], "horizon": 2, "series_id": "sales", "unit": "widgets"}
     assert not session.forecast("last_value", request)["cache_hit"]
     assert session.forecast("last_value", request)["cache_hit"]
 ```
@@ -68,16 +68,22 @@ and `help(GnomonSession.from_config)` includes the two-call example offline.
 from gnomon import ForecastRequest, ForecastResult, InferenceEngine
 
 def predict(request):
-    return ForecastResult((request.history[-1],) * request.horizon)
+    return ForecastResult((request.history[-1],) * request.horizon,
+                          series_id=request.series_id, unit=request.unit,
+                          timestamps=request.future_timestamps)
 
 with InferenceEngine() as engine:
     engine.register("my-model", predict, revision="my-config-v1")
-    run = engine.forecast("my-model", ForecastRequest((1, 2, 3), 2))
+    run = engine.forecast("my-model", ForecastRequest((1, 2, 3), 2, series_id="sales", unit="widgets",
+                                                        future_timestamps=("2026-01-21T00:00:00Z", "2026-01-22T00:00:00Z")))
     assert run.result.point == (3, 3)
 ```
 
 Custom predictors receive `ForecastRequest` and must return `ForecastResult`.
-A dictionary is accepted as a forecast request, but not as a predictor's result.
+Results must echo `request.series_id`, `request.unit`, and `request.future_timestamps`
+(including the empty tuple when no forecast timestamps are supplied). The engine
+rejects mismatches instead of silently assigning another identity. A dictionary
+is accepted as a forecast request, but not as a predictor's result.
 `help(InferenceEngine.register)` includes a runnable typed-return example.
 
 For data inspection, tools and evaluation, use `GnomonSession.from_config()`.

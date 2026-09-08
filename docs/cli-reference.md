@@ -1,5 +1,8 @@
 # CLI reference
 
+`gnomon forecast` is an alias for `gnomon infer`, including help and schemas.
+For a copyable sequence, see the [local evidence workflow](local-evidence-workflow.md).
+
 Use `-` as the input for piped CSV (up to 8 MiB); larger inputs need a file.
 This works with inspect/describe, `infer --input -`, and evaluate/route with direct
 `--input -` flags. The CLI freezes input

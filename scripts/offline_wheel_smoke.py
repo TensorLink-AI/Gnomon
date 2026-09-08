@@ -169,7 +169,7 @@ assert EphemerisProvider('https://example.invalid').name == 'ephemeris/route'
         self_check = json.loads(run([
             str(gnomon), "self-check", "leakage", "--cases", "8", "--seed", "7",
         ], cwd=root))
-        assert self_check["structural_claim_proven"] is True
+        assert self_check["checks_passed"] is True
 
         source = root / "series.csv"
         start = date(2026, 1, 1)

@@ -77,7 +77,7 @@ def build_parser() -> argparse.ArgumentParser:
     caps.add_argument("--output", choices=("json",), default="json")
     caps.add_argument("--providers-config", help=_CONFIG_HELP)
     caps.add_argument("--config-schema", action="store_true", help="Describe operator TOML configuration keys without loading providers")
-    infer = commands.add_parser("infer", help="Run a named provider without implicit backtesting",
+    infer = commands.add_parser("infer", aliases=["forecast"], help="Forecast with a named provider without implicit backtesting",
         epilog="Example: gnomon infer --provider last_value --request '{\"history\":[1,2,3],\"horizon\":2}'. "
                "Run gnomon infer --schema for the --request schema, and gnomon capabilities for provider names.")
     infer.add_argument("--provider")
@@ -174,7 +174,7 @@ def build_parser() -> argparse.ArgumentParser:
                 for option in ("min-history", "stride", "max-calls"):
                     sub.add_argument("--" + option, type=int)
             else:
-                sub.add_argument("--study", help="Study ID or @study.json saved by evaluate; a report supplies candidates, baseline, horizon and season")
+                sub.add_argument("--study", help="Study ID or @study.json saved by evaluate; both supply candidates, baseline, horizon, season and series from the recorded study")
                 sub.add_argument("--source-as-of", help="Required source cutoff, with explicit timezone")
                 sub.add_argument("--min-folds", type=int, help="Minimum replayable matched folds (default: 3, minimum: 3)")
                 sub.add_argument("--min-improvement", type=float)
@@ -371,7 +371,7 @@ def _task_flags(args):
         arguments["budget"] = {"max_calls": args.max_calls}
     required = ["candidates", "baseline", "horizon"]
     if args.command == "route":
-        required += ["study_id", "source_as_of", "recorded_as_of"]
+        required = ["study_id", "source_as_of", "recorded_as_of"] if args.study else [*required, "study_id", "source_as_of", "recorded_as_of"]
     missing = ["--" + ("study" if key == "study_id" else key.replace("_", "-")) for key in required if key not in arguments]
     if missing:
         raise _UsageError("--input requires " + ", ".join(missing) + ".", f"gnomon {args.command}")
@@ -388,6 +388,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 arguments = arguments[1:]
             return subprocess.call([sys.executable, *arguments])
         args = build_parser().parse_args(argv)
+        if args.command == "forecast":
+            args.command = "infer"
         _validate_cli_args(args)
         if args.command == "schemas":
             print(json.dumps({"schema_version": "1", "status": "ok", "schemas": _SCHEMA_COMMANDS}, indent=2))
@@ -427,7 +429,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             from .snapshot_files import write_json
             result["saved_result"] = write_json(args.save_result, result)
         print(json.dumps(result, indent=2, allow_nan=False))
-        if result.get("status") == "unscored" or not result.get("structural_claim_proven", True):
+        if result.get("status") == "unscored" or (args.command == "self-check" and not result["checks_passed"]):
             return 2
         return 3 if result.get("status") == "partial" else 0
     except GnomonError as exc:
@@ -451,15 +453,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     # response. The exit status distinguishes success from failure; stderr is
     # reserved for unstructured diagnostics emitted outside this boundary.
     payload = error.to_dict()
+    if args is not None and getattr(args, "input", None):
+        # Source failures and provider validation must retain the same semantic
+        # context, including units, series selection, repairs and cutoffs.
+        payload["error"]["details"]["input_options"] = {
+            key: getattr(args, key) for key in (*_INPUT_KEYS, "provider", "horizon", "season", "series_id", "quantiles")
+            if getattr(args, key, None) is not None}
     if error.code == "INVALID_ARGUMENTS" and args is not None and args.command in _EXAMPLES:
         details = payload["error"]["details"]
         if args.command == "infer" and getattr(args, "input", None):
             details.pop("example_arguments", None)
             details.pop("example_kind", None)
             details.pop("changed_fields", None)
-            details["input_options"] = {key: getattr(args, key) for key in (
-                "input", "provider", "horizon", "season", "frequency", "time_column", "target_column", "timezone")
-                if getattr(args, key, None) is not None}
             details["guidance"] = error.details.get("guidance", "Keep these input options and correct the reported issue; frozen snapshots cannot be overridden. Inspect source data again to change a cutoff or timezone.")
         elif args.command == "infer" and "example_arguments" in details:
             # Shared MCP examples include a provider wrapper; --request expects its request object.

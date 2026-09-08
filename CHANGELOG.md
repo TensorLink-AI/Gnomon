@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+## 1.1.5 — 2026-09-09
+
+- Preserve request identity in installed custom-provider examples and rejection
+  guidance; explain empty session construction and add a unit-bearing cache example.
+- Add `forecast` as a CLI alias for `infer` and a tested local evidence workflow.
+  Route by study ID loads omitted task parameters at the requested recording cutoff.
+- Disclose routing fallback, selection and ties, recompute rescore tie metadata,
+  distinguish snapshot cutoffs from ledger evidence cutoffs, and make insufficient
+  fold guidance reflect whether any folds were excluded.
+- Keep units and temporal context in input errors, describe both MCP forecast
+  forms, and report batch actual units per item rather than as a unitless batch.
+- Preserve temporal facts through explicit fold, target-fold and month-end policy
+  examples; retain clock-gap requests as templates needing source correction.
+- Scan early parsing failures for complete unparseable-drop costs on inputs up
+  to 100,000 rows, without changing data or promising grid/conflict admissibility.
+- Self-check response schema 0.2 replaces `structural_claim_proven` with
+  `checks_passed`, varies synthetic temporal cases, and explicitly limits its claim.
+
 ## 1.1.4 — 2026-09-09
 
 - Preserve supplied temporal parameters in recovery examples, identify changed
