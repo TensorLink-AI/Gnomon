@@ -2,10 +2,11 @@ FROM python:3.12-slim AS builder
 
 WORKDIR /build
 RUN python -m pip install --no-cache-dir build
-COPY pyproject.toml README.md LICENSE ./
+COPY pyproject.toml build_hook.py README.md LICENSE ./
 COPY src ./src
 COPY skills ./skills
-RUN python -m build --wheel
+ARG GNOMON_BUILD_COMMIT
+RUN GNOMON_BUILD_COMMIT="$GNOMON_BUILD_COMMIT" python -m build --wheel
 
 FROM python:3.12-slim AS runtime
 
