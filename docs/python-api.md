@@ -8,8 +8,8 @@ python -m pip install gnomon-forecast
 python -c 'from gnomon import GnomonSession; print(GnomonSession)'
 ```
 
-The standalone `install.sh` creates its own environment. On current development
-builds, use `gnomon python your_script.py` or
+The standalone `install.sh` creates its own environment. On version 1.1.0
+or newer, use `gnomon python your_script.py` or
 `gnomon python -c 'from gnomon import GnomonSession; print(GnomonSession)'`.
 `gnomon environment` shows the exact interpreter and package paths.
 For notebooks or existing applications, install into their interpreter instead

@@ -9,7 +9,7 @@ an importable module.
 Install Gnomon:
 
 ```bash
-python -m pip install 'gnomon-forecast==1.0.1'
+python -m pip install 'gnomon-forecast==1.1.0'
 gnomon --version
 gnomon infer --provider last_value --request '{"history":[1,2,3],"horizon":2}'
 ```
@@ -22,12 +22,12 @@ another model library installed in a different environment.
 The repository also includes `install.sh` for a standalone CLI environment:
 
 ```bash
-bash install.sh --version v1.0.1
+bash install.sh --version v1.1.0
 ```
 
-The management commands below are part of the **1.1 development version on main**.
-Install that version with `bash install.sh --version main`, or use
-`bash install.sh --local` for your checkout.
+The management commands below require **Gnomon 1.1.0 or newer**. Before the
+version tag/package is published, install main with `bash install.sh --version main`,
+or use `bash install.sh --local` for your checkout.
 
 The standalone installer creates a private environment under
 `~/.local/share/gnomon/releases/` and places a `gnomon` symlink in `~/.local/bin`.
@@ -85,7 +85,7 @@ These commands manage `install.sh` environments; pip installs are
 managed with that interpreter's pip.
 
 `gnomon --version` reports a qualified build ID, such as
-`1.1.0.dev0+g0123456789ab.s0123456789ab.dirty`. The Git commit, source SHA-256,
+`1.1.0+g0123456789ab.s0123456789ab.dirty`. The Git commit, source SHA-256,
 package version and dirty state are also exposed by `gnomon environment` and
 capabilities, and embedded in wheels and source distributions. The source hash
 covers Gnomon's Python source files; it is distinct from the wheel's byte hash.
