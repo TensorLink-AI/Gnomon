@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## 1.1.4 — 2026-09-09
+
+- Preserve supplied temporal parameters in recovery examples, identify changed
+  fields and missing semantic choices, and label generic fallback illustrations.
+- Return current ledger coverage alongside immutable score evidence, including
+  newly visible wrong-unit actuals on reused scores; distinguish supplied query
+  cutoffs and units from operation defaults.
+- Include actual matched-fold counts and persistence in evaluation routing
+  readiness, with the default three-fold requirement visible in CLI help.
+- Add `gnomon schemas`, offline cache-enablement examples, series selector help,
+  and typed custom-provider return guidance.
+- Preserve zero/fractional actuals, batch shape and forecast history in recovery
+  templates; enforce 2–100 execution IDs in comparison schema/runtime and label
+  generic CLI illustrations. Label reconstructed legacy coverage separately
+  from saved evidence and retain scoring/coverage summaries in large responses.
+
 ## 1.1.3 — 2026-09-09
 
 - Preserve bounded, decision-relevant summaries when a large structured result

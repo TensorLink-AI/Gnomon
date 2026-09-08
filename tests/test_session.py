@@ -39,7 +39,8 @@ def request():
 def test_cache_policy_and_outcomes_match_reuse_in_a_long_lived_session(tmp_path):
     path = config(tmp_path, "cache_size = 8\n")
     with GnomonSession.from_config(path) as session:
-        assert session.capabilities()["cache"] == {
+        policy = session.capabilities()["cache"]
+        assert {key: policy[key] for key in ("enabled", "max_entries", "scope", "persistent")} == {
             "enabled": True, "max_entries": 8, "scope": "session", "persistent": False}
         args = {"provider": "last_value", "request": request()}
         first = session.call("gnomon_forecast", args, compact=False)

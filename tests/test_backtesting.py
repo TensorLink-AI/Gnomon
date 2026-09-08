@@ -266,7 +266,19 @@ def test_cli_and_mcp_share_study_cohorts_and_real_provider_calls(tmp_path, capsy
             return reply["structuredContent"]
         ref = call(1, "gnomon_inspect", {"input": str(path)})["data_ref"]
         mcp = call(2, "gnomon_evaluate", {"data_ref": ref, **options})
-        full = call(3, "gnomon_ledger", {"operation": "study", "study_id": mcp["study_id"]})["result"]
+        stored = call(3, "gnomon_ledger", {"operation": "study", "study_id": mcp["study_id"]})
+        if "result_ref" in stored:
+            # Added readiness diagnostics can move this study over the bounded
+            # response limit. Retrieve the full evidence in the same session.
+            pages, offset = [], 0
+            while offset is not None:
+                page = call(4 + len(pages), "gnomon_read", {"result_ref": stored["result_ref"],
+                            "pointer": "/result", "offset": offset})
+                pages.append(page["text"])
+                offset = page["next_offset"]
+            full = json.loads("".join(pages))
+        else:
+            full = stored["result"]
         assert mcp["cohort_id"] == expected["cohort_id"] and mcp["scores"] == cli["scores"]
         assert full["folds"][0]["request"]["history"]
     finally:

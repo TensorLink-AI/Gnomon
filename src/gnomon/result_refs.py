@@ -114,15 +114,33 @@ class ResultReferences:
             "series_id", "unit", "horizon", "statistic", "value", "source_as_of", "recorded_as_of",
             "matched_origins", "observed_origins", "n", "unique_actuals", "duplicates_ignored", "provider_calls",
             "next_step", "reason", "metric_version", "aggregation",
+            "operation", "scoring_status", "complete", "allow_partial", "evaluation_reused",
+            "coverage_basis", "current_coverage_basis",
         )
         summary = {key: value[key] for key in scalar_keys
             if key in value and type(value[key]) in (str, int, float, bool, type(None))
             and len(encode(value[key]).encode("utf-8")) <= 160}
+        readiness = value.get("routing_readiness")
+        if isinstance(readiness, dict):
+            summary["routing_readiness"] = {key: readiness[key] for key in (
+                "ready", "matched_folds", "default_min_folds") if type(readiness.get(key)) in (bool, int)}
+            if isinstance(readiness.get("issues"), list):
+                summary["routing_readiness"]["issues_count"] = len(readiness["issues"])
         nested = value.get("result")
         if isinstance(nested, dict):
             result_summary = {key: nested[key] for key in scalar_keys
                 if key in nested and type(nested[key]) in (str, int, float, bool, type(None))
                 and len(encode(nested[key]).encode("utf-8")) <= 160}
+            for key in ("coverage", "current_coverage"):
+                coverage = nested.get(key)
+                if isinstance(coverage, dict):
+                    result_summary[key] = {field: coverage[field] for field in (
+                        "required_steps", "matched_steps", "fraction", "unit")
+                        if field in coverage and type(coverage[field]) in (str, int, float, type(None))
+                        and len(encode(coverage[field]).encode("utf-8")) <= 160}
+                    for field in ("missing_steps", "other_units_at_missing_steps"):
+                        if isinstance(coverage.get(field), list):
+                            result_summary[key][field + "_count"] = len(coverage[field])
             # Aggregate model rankings are the decision-relevant part of a
             # large history comparison. Detailed per-origin evidence remains
             # behind the integrity-checked result reference.
@@ -136,15 +154,27 @@ class ResultReferences:
                     result_summary[f"{key}_count"] = len(nested[key])
             if result_summary:
                 summary["result"] = result_summary
+        # Preserve completion/coverage even if optional identifiers or rankings
+        # consume the remaining response budget. Full evidence is still retained.
+        essential = {key: summary[key] for key in (
+            "status", "operation", "scoring_status", "complete", "allow_partial", "routing_readiness") if key in summary}
+        if "result" in summary:
+            essential["result"] = {key: summary["result"][key] for key in (
+                "status", "complete", "n", "horizon", "evaluation_reused", "coverage_basis",
+                "current_coverage_basis", "coverage", "current_coverage") if key in summary["result"]}
         # A projected answer contains no partial forecast presented as complete.
         projected = {"schema_version": "1", "status": "unscored" if value.get("status") == "unscored" else "result_available", "partial": True,
                      "result_ref": ref, "summary": summary, "action_authorized": False,
-                     "retention": "session_lru", "full_result": {"tool": "gnomon_read", "arguments": {"result_ref": ref}}}
+                     "retention": "session_lru", "partial_scope": "response_payload",
+                     "full_result": {"tool": "gnomon_read", "arguments": {"result_ref": ref}}}
         if "error" in value:
             projected["status"] = "error"
             projected["error"] = {"code": "FULL_ERROR_RETAINED", "message": "Read the retained result for complete error details.",
                                   "retryable": False, "repair_options": [{"action": "read_retained_error",
                                       "description": "Use the full_result read call before changing the request or repeating an operation."}]}
+        if len(encode(projected).encode("utf-8")) > self.limits.max_response_bytes:
+            projected["summary"] = essential
+            projected["summary_truncated"] = True
         if len(encode(projected).encode("utf-8")) > self.limits.max_response_bytes:
             projected["summary"] = {}
         return projected

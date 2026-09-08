@@ -19,10 +19,12 @@ from .ids import content_id
 from .ledger import _time
 from .repair import historical_repair_blockers
 
+DEFAULT_MIN_FOLDS = 3
+
 
 def route_study(engine, references, data_ref: str, *, study_id: str, candidates: list[str], baseline: str,
                 horizon: int, source_as_of: str, recorded_as_of: str, series_id: str | None = None,
-                season: int = 1, min_folds: int = 3, min_improvement: float = .02, max_folds: int = 8) -> dict:
+                season: int = 1, min_folds: int = DEFAULT_MIN_FOLDS, min_improvement: float = .02, max_folds: int = 8) -> dict:
     started = monotonic()
     if engine.ledger is None:
         raise ForecastAdapterError("study routing requires an explicit ledger")

@@ -23,6 +23,7 @@ Install/update progress goes to stderr; update returns its JSON result on stdout
 
 | Command | Purpose |
 | --- | --- |
+| `gnomon schemas` | Index of CLI request and operator configuration schema commands |
 | `gnomon capabilities` | Registered providers, limits and enabled tools |
 | `gnomon capabilities --config-schema` | Operator TOML configuration keys without loading providers |
 | `gnomon infer` | Explicit provider inference; no implicit backtest |

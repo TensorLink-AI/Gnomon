@@ -77,6 +77,9 @@ INSPECT_SCHEMA = {"type": "object", "additionalProperties": False, "required": [
                       "purpose": {"enum": ["infer", "evaluate", "route"]},
                       "window": {"enum": ["latest_contiguous"]},
                       "repair": {"enum": ["off", "safe", "aggressive"], "description": REPAIR_HELP}}}
+_SERIES_SELECTOR = {"type": "string", "description":
+    "Select an existing inspected series, not a new label. Unlabeled input uses __default__; "
+    "read labels from a column using inspect series_column (CLI: --series-column)."}
 DESCRIBE_SCHEMA = {"type": "object", "additionalProperties": False, "required": ["data_ref", "statistic"],
                    "properties": {**{name: {"type": "string"} for name in ("data_ref", "series_id", "start", "end")},
                        "statistic": {"enum": ["mean", "median", "latest", "minimum", "maximum", "sum"]}}}
@@ -109,6 +112,9 @@ ROUTE_SCHEMA = {"type": "object", "additionalProperties": False,
                    "horizon": {"type": "integer", "minimum": 1}, "season": {"type": "integer", "minimum": 1},
                    "min_folds": {"type": "integer", "minimum": 3},
                    "min_improvement": {"type": "number", "minimum": 0, "maximum": 1}}}
+for _series_schema in (DESCRIBE_SCHEMA, FORECAST_SCHEMA["oneOf"][1],
+                       EVALUATE_SCHEMA["oneOf"][0], ROUTE_SCHEMA):
+    _series_schema["properties"]["series_id"] = deepcopy(_SERIES_SELECTOR)
 READ_SCHEMA = {"type": "object", "additionalProperties": False, "required": ["result_ref"],
                "properties": {"result_ref": {"type": "string"}, "pointer": {"type": "string", "maxLength": 1024},
                               "offset": {"type": "integer", "minimum": 0},
@@ -151,7 +157,10 @@ def configuration_schema():
     fields = {
         "schema_version": {"const": 1, "default": 1},
         "ledger_path": {"type": "string", "description": "SQLite path relative to this TOML file."},
-        "cache_size": {"type": "integer", "minimum": 0, "default": 0},
+        "cache_size": {"type": "integer", "minimum": 0, "default": 0,
+                       "description": "Maximum cached results per persistent session; 0 disables. "
+                                      "Set cache_size = 8 in TOML, then GnomonSession.from_config('providers.toml'). "
+                                      "Repeat the same deterministic, versioned provider request in that session to get a hit."},
         "allow_outcome_writes": {"type": "boolean", "default": False},
         "enable_temporal": {"type": "boolean", "default": False},
         "max_data_refs": {"type": "integer", "minimum": 1, "default": 16},
@@ -214,7 +223,19 @@ class GnomonSession:
     @classmethod
     def from_config(cls, path: str | Path | None = None, *, ledger_path: str | Path | None = None,
                     create_ledger: bool = True) -> "GnomonSession":
-        """Load only an explicitly supplied TOML path. No cwd config search."""
+        """Load only an explicitly supplied TOML path. No cwd config search.
+
+        To enable built-in caching, put ``cache_size = 8`` in providers.toml::
+
+            with GnomonSession.from_config("providers.toml") as session:
+                request = {"history": [1, 2, 3], "horizon": 2}
+                assert not session.forecast("last_value", request)["cache_hit"]
+                assert session.forecast("last_value", request)["cache_hit"]
+
+        cache_size is a TOML key, not a from_config keyword. Discover all keys
+        with ``gnomon capabilities --config-schema``. Separate CLI processes
+        cannot share this cache. Custom registries use InferenceEngine(cache_size=8).
+        """
         config, directory = {}, Path.cwd()
         if path is not None:
             location = Path(path).expanduser().resolve()
@@ -342,7 +363,10 @@ class GnomonSession:
                                        "details_command": "gnomon environment"},
                 "tools": {"visible": [tool["name"] for tool in self.tools()]},
                 "providers": providers,
-                "cache": self.engine.cache_policy(),
+                "cache": {**self.engine.cache_policy(),
+                          "enable": "Set cache_size = 8 in TOML; use GnomonSession.from_config('providers.toml'). "
+                                    "Repeat the same request in one session; see help(GnomonSession.from_config).",
+                          "schema_command": "gnomon capabilities --config-schema"},
                 "ledger": {"enabled": self.ledger is not None, "outcome_writes": self.allow_outcome_writes},
                 "temporal": {"enabled": self.enable_temporal, "semantics": "explicit_facts_not_natural_language",
                              "scope": "this_session_and_its_MCP_tools", "standalone_cli": "gnomon temporal is always available"},
@@ -417,17 +441,12 @@ class GnomonSession:
             if name == "gnomon_temporal":
                 if not self.enable_temporal:
                     raise GnomonError("UNKNOWN_TOOL", "Temporal operations require enable_temporal=true at session startup.")
-                from .temporal_ops import temporal_operation, TEMPORAL_EXAMPLES
+                from .temporal_ops import temporal_operation
+                from .recovery import temporal_recovery
                 try:
                     return temporal_operation(**arguments)
                 except (ValueError, TypeError) as exc:
-                    operation = arguments.get("operation")
-                    example = TEMPORAL_EXAMPLES.get(operation) if isinstance(operation, str) else None
-                    raise GnomonError("INVALID_ARGUMENTS", str(exc), details={
-                        "example_arguments": deepcopy(example or TEMPORAL_EXAMPLES["interval"]),
-                        "supported_operations": list(TEMPORAL_EXAMPLES),
-                        "schema_command": "gnomon temporal --schema",
-                    }) from None
+                    raise GnomonError("INVALID_ARGUMENTS", str(exc), details=temporal_recovery(arguments)) from None
             if name == "gnomon_capabilities":
                 _strict(arguments, ())
                 return self.capabilities()
@@ -479,8 +498,12 @@ class GnomonSession:
             details = {**argument_recovery(name, arguments), **getattr(exc, "details", {})}
             if "execution_recorded_at" in details and "example_arguments" in details:
                 details["example_arguments"]["recorded_as_of"] = details["execution_recorded_at"]
+                from .recovery import example_changes
+                details["changed_fields"] = example_changes(arguments, details["example_arguments"])
             if "required_history" in details:
                 details.pop("example_arguments", None)
+                details.pop("example_kind", None)
+                details.pop("changed_fields", None)
                 details["request_parameters"] = {"season": details["season"], "horizon": details["horizon"]}
             repairs = getattr(exc, "repair_options", None)
             if repairs is None and "guidance" in details:
@@ -505,24 +528,34 @@ class GnomonSession:
         if operation == "pending":
             now = self.ledger._now()
             for field in ("source_as_of", "recorded_as_of"):
-                parameters.setdefault(field, now)
-        result = getattr(self.ledger, operation)(**parameters)
+                if parameters.get(field) is None:
+                    parameters[field] = now
+        result = getattr(self.ledger, operation)(**parameters, **(
+            {"include_current_coverage": True} if operation == "evaluate" else {}))
         query = {"source_as_of": parameters.get("source_as_of"), "recorded_as_of": parameters.get("recorded_as_of"),
-                 "omitted_cutoffs": "current_clock" if operation in {"search", "pending"} else
+                 "cutoff_default": "current_clock" if operation in {"search", "pending"} else
                                     "required" if operation == "compare_history" else "unbounded",
-                 "unit": arguments.get("unit"), "omitted_unit": "all_units" if operation == "search" else
+                 "unit": arguments.get("unit"), "unit_default": "all_units" if operation == "search" else
                          "execution_unit" if operation in {"evaluate", "compare"} else "unitless"}
         for field in ("source_as_of", "recorded_as_of"):
             if field not in _LEDGER_PARAMETERS[operation]:
                 query.pop(field)
+            else:
+                query[field + "_defaulted"] = arguments.get(field) is None
         if not any(field in query for field in ("source_as_of", "recorded_as_of")):
-            query.pop("omitted_cutoffs")
+            query.pop("cutoff_default")
+        else:
+            query["omitted_cutoffs"] = query["cutoff_default"] if any(
+                query.get(field + "_defaulted", False) for field in ("source_as_of", "recorded_as_of")) else None
         if operation in {"evaluate", "compare"}:
             query.pop("unit")
         query.update({k: parameters[k] for k in ("series_id", "horizon", "provider", "start", "end", "status", "execution_id", "execution_ids", "study_id", "decision_id") if k in parameters})
         if "unit" not in _LEDGER_PARAMETERS[operation] and operation not in {"evaluate", "compare"}:
             query.pop("unit")
-            query.pop("omitted_unit")
+            query.pop("unit_default")
+        else:
+            query["unit_defaulted"] = arguments.get("unit") is None
+            query["omitted_unit"] = query["unit_default"] if query["unit_defaulted"] else None
         # Search already reports its exact effective clock, including cursor reuse.
         if operation == "search":
             query.update({k: result[k] for k in ("source_as_of", "recorded_as_of") if k in result})
@@ -596,13 +629,16 @@ def ledger_schema(*, allow_outcome_writes=False):
                               "True scores available matching-unit actuals, including partial/pending horizons. "
                               "False rejects incomplete horizons. Top-level status ok and CLI exit 0 mean the operation succeeded; "
                               "check scoring_status/complete and result.status/result.coverage (each result for batches). "
+                              "Check result.coverage_basis for saved versus reconstructed legacy coverage; "
+                              "result.current_coverage refreshes diagnostics at the query cutoffs. "
                               "Scoring persists evidence without actual-write opt-in; exact retries reuse scores."} if p == "allow_partial" else
                              {"type": "integer", "minimum": 1, "maximum": 100 if p == "limit" else 1_000_000} if p in {"limit", "horizon"} else
                              {"enum": ["waiting", "ready", "scored", "stale", "unscorable"]} if p == "status" else
                              {"type": "object", "minProperties": 2, "maxProperties": 8,
                               "additionalProperties": {"type": "string", "minLength": 1}} if p == "providers" else
                              {"type": "object"} if p in {"policy", "inputs", "action", "outcome"} else
-                             {**_STRING_ARRAY, "minItems": 1, "maxItems": 100, "uniqueItems": True} if p == "execution_ids" else
+                             {**_STRING_ARRAY, "minItems": 2 if operation == "compare" else 1,
+                              "maxItems": 100, "uniqueItems": True} if p == "execution_ids" else
                              {"type": "string"})
             if p == "unit":
                 properties[p]["description"] = (
