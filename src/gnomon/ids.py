@@ -15,9 +15,9 @@ import json
 from datetime import datetime, timezone
 from typing import Any, Protocol
 
-from .product_contract import __version__
+from .build_info import build_info
 
-GNOMON_VERSION = __version__
+GNOMON_VERSION = build_info()["build_id"]
 
 
 class Clock(Protocol):

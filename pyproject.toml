@@ -44,6 +44,9 @@ packages = ["src/gnomon"]
 [tool.hatch.version]
 path = "src/gnomon/product_contract.py"
 
+[tool.hatch.build.hooks.custom]
+path = "build_hook.py"
+
 [tool.hatch.build.targets.wheel.shared-data]
 "skills/use-gnomon" = "share/gnomon/skills/use-gnomon"
 
@@ -55,6 +58,7 @@ include = [
   "/LICENSE",
   "/CHANGELOG.md",
   "/pyproject.toml",
+  "/build_hook.py",
 ]
 
 [tool.pytest.ini_options]

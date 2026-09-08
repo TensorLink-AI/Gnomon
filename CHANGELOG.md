@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Mark main as 1.1.0.dev0 and embed commit/source fingerprints in distributions;
+  expose qualified build IDs in CLI/MCP and use them in provider/content identity.
+- Add Python environment discovery and interpreter passthrough, plus managed
+  install listing, updates, rollback and previewed pruning. Standalone installs
+  retain source receipts and clean up failed environments.
+- Add temporal JSON Schema discovery and actionable field errors. Explain repair
+  modes in help and gap errors, including why safe repair does not interpolate.
+
 - Add direct evaluate/route flags, discoverable JSON schemas and examples,
   `inspect`/`describe --input` aliases, and concise CLI usage errors.
 - Expose season and quantile options for file forecasts. Disclose session-only

@@ -184,7 +184,11 @@ def load_stage(
             raw_observations, implied = regrid_observations(
                 raw_observations, regrid, log)
             frequency = _regrid_frequency(frequency, implied, regrid)
-        raw_observations = repair_observations(raw_observations, frequency, repair, log)
+        try:
+            raw_observations = repair_observations(raw_observations, frequency, repair, log)
+        except GnomonError as exc:
+            _explain_grid_repair(exc, repair)
+            raise
         store, _ = InMemoryTemporalStore.from_plain_observations(
             raw_observations, variable, source_fingerprint,
         )
@@ -200,7 +204,11 @@ def load_stage(
             "No observations are known at or before the requested as_of instant.",
             {"as_of": as_of.isoformat() if as_of else "latest"},
         )
-    groups, resolved_frequency, zone = validate_and_group(observations, frequency)
+    try:
+        groups, resolved_frequency, zone = validate_and_group(observations, frequency)
+    except GnomonError as exc:
+        _explain_grid_repair(exc, repair)
+        raise
     schema = DataSchema(time_column, target_column, series_column, resolved_frequency, zone)
     return LoadedDataset(
         source_fingerprint, columns, groups, resolved_frequency, zone, schema,
@@ -234,3 +242,14 @@ def _record_reordering(observations: list[Observation], log: "RepairLog") -> Non
             "usually a symptom worth knowing about.",
             series=name, count=moved,
         )
+
+
+def _explain_grid_repair(exc, repair):
+    if exc.code == "IRREGULAR_TIME_GRID" and repair != "aggressive":
+        exc.message += " Safe repair never fills missing values; interior interpolation requires repair=aggressive."
+        exc.args = (exc.message,)
+        exc.details["repair_mode"] = repair
+        exc.repair_options = [{"action": "select_observed_window", "description":
+            "For historical evaluation, use --window latest_contiguous with --frequency to select observed history."},
+            {"action": "allow_interpolation", "description":
+             "For inference, explicitly use --repair aggressive to fill bounded interior gaps; invented values are disclosed."}]

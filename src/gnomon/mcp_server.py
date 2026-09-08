@@ -17,12 +17,12 @@ import sys
 from typing import Any, TextIO
 
 from .contracts import GnomonError
-from .product_contract import __version__
+from .build_info import build_info
 
 logger = logging.getLogger(__name__)
 
 PROTOCOL_VERSION = "2025-06-18"
-SERVER_INFO = {"name": "gnomon", "version": __version__}
+SERVER_INFO = {"name": "gnomon", "version": build_info()["build_id"]}
 MAX_REQUEST_BYTES = 1024 * 1024
 
 #: The shape every tool result shares. Tools may publish something tighter

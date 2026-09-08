@@ -12,6 +12,7 @@ from collections import OrderedDict
 import importlib
 import json
 import os
+import sys
 from pathlib import Path
 import tomllib
 from typing import Any
@@ -22,6 +23,7 @@ from .inference import InferenceEngine
 from .ledger import TemporalLedger
 from .ephemeris import EphemerisProvider
 from .product_contract import __version__, product_claims
+from .build_info import build_info
 
 _NUMBER_ARRAY = {"type": "array", "items": {"type": "number"}}
 _STRING_ARRAY = {"type": "array", "items": {"type": "string"}}
@@ -189,7 +191,7 @@ class GnomonSession:
         from .models import BASELINES, predict
         for name in sorted(BASELINES):
             adapter = StatisticalAdapter(name, predict)
-            engine.register(name, adapter, revision=f"gnomon/{__version__}/{name}", deterministic=True)
+            engine.register(name, adapter, revision=f"gnomon/{build_info()['build_id']}/{name}", deterministic=True)
         try:
             for name, spec in config.get("providers", {}).items():
                 session._configure_provider(name, spec)
@@ -275,8 +277,12 @@ class GnomonSession:
 
     def capabilities(self) -> dict:
         return {"schema_version": "1", "status": "ok", "runtime_version": __version__,
+                "build": build_info(),
                 "product_contract": product_claims(),
                 "interfaces": {"python": True, "cli": True, "mcp": True},
+                "python_environment": {"executable": sys.executable, "distribution": "gnomon-forecast",
+                                       "import_name": "gnomon", "command": "gnomon python",
+                                       "details_command": "gnomon environment"},
                 "tools": {"visible": [tool["name"] for tool in self.tools()]},
                 "providers": self.engine.capabilities(),
                 "cache": self.engine.cache_policy(),
