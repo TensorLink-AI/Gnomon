@@ -187,7 +187,7 @@ def load_stage(
         try:
             raw_observations = repair_observations(raw_observations, frequency, repair, log)
         except GnomonError as exc:
-            _explain_grid_repair(exc, repair)
+            _explain_grid_repair(exc, repair, raw_observations, frequency)
             raise
         store, _ = InMemoryTemporalStore.from_plain_observations(
             raw_observations, variable, source_fingerprint,
@@ -211,7 +211,7 @@ def load_stage(
     try:
         groups, resolved_frequency, zone = validate_and_group(observations, frequency)
     except GnomonError as exc:
-        _explain_grid_repair(exc, repair)
+        _explain_grid_repair(exc, repair, observations, frequency)
         raise
     schema = DataSchema(time_column, target_column, series_column, resolved_frequency, zone)
     return LoadedDataset(
@@ -243,13 +243,30 @@ def _record_reordering(observations: list[Observation], log: "RepairLog") -> Non
             "timestamps_reordered",
             "Rows arrived out of chronological order and were sorted. The "
             "sort is correct; it is recorded because an unsorted export is "
-            "usually a symptom worth knowing about.",
+            "usually a symptom worth knowing about. Count is the number of sorted positions whose timestamp differs from the original position, not the number of appended or malformed rows.",
             series=name, count=moved,
         )
 
 
-def _explain_grid_repair(exc, repair):
+def _explain_grid_repair(exc, repair, observations=None, frequency=None):
     if exc.code == "IRREGULAR_TIME_GRID" and repair != "aggressive":
+        if repair == 'off' and observations:
+            from .repair import repair_observations, RepairLog
+            trial = RepairLog()
+            try:
+                aligned = repair_observations(observations, frequency, 'safe', trial)
+                validate_and_group(aligned, frequency)
+            except GnomonError:
+                pass
+            else:
+                actions = [a.to_dict() for a in trial.actions() if a.code == 'timestamp_jitter_aligned']
+                if actions:
+                    exc.details['timestamp_alignment'] = {'admissible': True, 'proposed_count': sum(a['count'] for a in actions), 'repairs': actions}
+                    exc.message += ' Bounded safe timestamp alignment can repair this grid without dropping history or changing values; review the disclosed displacement and retry with repair=safe.'
+                    exc.args = (exc.message,)
+                    exc.repair_options = [{'action': 'align_timestamps_safe', 'arguments': {'repair': 'safe'}, 'admissible': True,
+                        'description': 'Use --repair safe after reviewing timestamp_alignment; bounded timestamp changes preserve values and row count.'}]
+                    return
         budget = exc.details.get("repair_budget", {})
         allowed = budget.get("within_budget", False)
         exc.message += (" Safe repair never fills missing values; interior interpolation requires repair=aggressive. "

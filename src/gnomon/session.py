@@ -140,7 +140,9 @@ EVALUATE_SCHEMA = {"type": "object", "oneOf": [
      "properties": {"data_ref": {"type": "string"}, "series_id": {"type": "string"},
                     "candidates": {**_STRING_ARRAY, "minItems": 1, "uniqueItems": True}, "baseline": {"type": "string"},
                     **{name: {"type": "integer", "minimum": 1} for name in ("horizon", "folds", "min_history", "stride", "season")},
-                    "budget": _BUDGET_SCHEMA, "verify": {'type': 'boolean', 'default': False}, "replay": {"enum": ["recorded", "source_available"]}}},
+                    "budget": _BUDGET_SCHEMA, "verify": {'type': 'boolean', 'default': False},
+                    "preflight": {'type': 'boolean', 'default': False, 'description': 'Plan folds and report visibility/capability causes without forecast calls or saving a study.'},
+                    "replay": {"enum": ["recorded", "source_available"], 'description': 'Defaults to recorded for a recording-bounded snapshot, otherwise source_available. Explicit source replay changes the temporal question; it does not attest local recording at each origin.'}}},
     {"type": "object", "additionalProperties": False, "required": ["study_id"],
      "description": "Retrieve complete saved study evidence, including fold requests, predictions and actuals. Retrieval makes no provider calls and does not rescore revised observations.",
      "properties": {"study_id": {"type": "string"}}},
@@ -256,10 +258,12 @@ def _strict(arguments, allowed, required=(), *, label="arguments"):
         raise ForecastAdapterError(f"{label} must be an object")
     if set(arguments) - set(allowed):
         raise ForecastAdapterError("unknown arguments: " + ", ".join(sorted(set(arguments) - set(allowed)))
-                                   + "; accepted fields: " + ", ".join(sorted(allowed)))
+                                   + "; accepted fields: " + ", ".join(sorted(allowed)),
+                                   details={'rejected_fields': [k[:128] for k in sorted(set(arguments) - set(allowed))],
+                                            'rejected_field_names_truncated': any(len(k) > 128 for k in arguments), 'expected_fields': sorted(allowed)})
     missing = set(required) - set(arguments)
     if missing:
-        raise ForecastAdapterError("missing arguments: " + ", ".join(sorted(missing)))
+        raise ForecastAdapterError("missing arguments: " + ", ".join(sorted(missing)), details={'missing_fields': sorted(missing), 'expected_fields': sorted(allowed)})
 
 
 class GnomonSession:
@@ -299,7 +303,8 @@ class GnomonSession:
 
     @classmethod
     def from_config(cls, path: str | Path | None = None, *, ledger_path: str | Path | None = None,
-                    create_ledger: bool = True) -> "GnomonSession":
+                    create_ledger: bool = True, ledger: TemporalLedger | None = None,
+                    discovery_only: bool = False) -> "GnomonSession":
         """Load built-ins and an explicitly supplied TOML path. No cwd config search.
 
         Relative paths resolve relative to the configuration file, not cwd.
@@ -317,6 +322,10 @@ class GnomonSession:
         cache_size is a TOML key, not a from_config keyword. Discover all keys
         with ``gnomon capabilities --config-schema``. Separate CLI processes
         cannot share this cache. Custom registries use InferenceEngine(cache_size=8).
+        To use built-ins with a controlled recording clock, pass
+        ledger=TemporalLedger('evidence.db', clock=your_clock). Do not also
+        configure a ledger path. discovery_only avoids opening the ledger;
+        configured provider discovery may still initialize provider code.
         """
         config, directory = {}, Path.cwd()
         if path is not None:
@@ -339,7 +348,8 @@ class GnomonSession:
             if configured_ledger is not None and configured_ledger.resolve() != explicit_ledger:
                 raise ForecastAdapterError("--ledger-path conflicts with ledger_path in provider configuration; select one ledger.")
             configured_ledger = explicit_ledger
-        ledger = TemporalLedger(configured_ledger, create=create_ledger) if configured_ledger else None
+        if ledger is not None and (configured_ledger is not None or discovery_only):
+            raise ForecastAdapterError('An explicit ledger cannot be combined with configured ledger paths or discovery_only.')
         engine = InferenceEngine(ledger=ledger, cache_size=config.get("cache_size", 0))
         session = cls(engine, ledger=ledger, allow_outcome_writes=config.get("allow_outcome_writes", False),
                       max_data_refs=config.get("max_data_refs", 16), max_data_rows=config.get("max_data_rows", 100_000),
@@ -351,7 +361,16 @@ class GnomonSession:
             engine.register(name, adapter, revision=f"gnomon/{build_info()['build_id']}/{name}", deterministic=True)
         try:
             for name, spec in config.get("providers", {}).items():
-                session._configure_provider(name, spec)
+                try:
+                    session._configure_provider(name, spec)
+                except ForecastAdapterError as exc:
+                    exc.details.update(provider=name)
+                    exc.details.setdefault('rejected_fields', exc.details.get('unknown_fields', []))
+                    raise
+            if configured_ledger is not None and not discovery_only:
+                session.ledger = engine._ledger = TemporalLedger(configured_ledger, create=create_ledger)
+            session._configured_ledger_path = configured_ledger
+            session._discovery_only = discovery_only
         except Exception:
             engine.close()
             raise
@@ -432,7 +451,12 @@ class GnomonSession:
         else:
             raise ForecastAdapterError("provider kind must be ephemeris, callable or factory")
 
-    def capabilities(self) -> dict:
+    def capabilities(self, *, brief: bool = False) -> dict:
+        if type(brief) is not bool:
+            raise ForecastAdapterError('brief must be a boolean')
+        if brief:
+            from .diagnostics import shared_provider_schemas
+            return shared_provider_schemas(self.capabilities())
         from .diagnostics import CUTOFF_SEMANTICS
         providers = self.engine.capabilities()
         for provider in providers.values():
@@ -458,7 +482,10 @@ class GnomonSession:
                           "enable": "Set cache_size = 8 in TOML; use GnomonSession.from_config('providers.toml'). "
                                     "Repeat the same request in one session; see help(GnomonSession.from_config).",
                           "schema_command": "gnomon capabilities --config-schema"},
-                "ledger": {"enabled": self.ledger is not None, "outcome_writes": self.allow_outcome_writes},
+                "ledger": {"enabled": self.ledger is not None, "outcome_writes": self.allow_outcome_writes,
+                    'configured': self.ledger is not None or getattr(self, '_configured_ledger_path', None) is not None,
+                    'exists': self.ledger.path.is_file() if self.ledger else Path(self._configured_ledger_path).is_file() if getattr(self, '_configured_ledger_path', None) else False,
+                    'opened': self.ledger is not None},
                 "temporal": {"enabled": self.enable_temporal, "semantics": "explicit_facts_not_natural_language",
                              "scope": "this_session_and_its_MCP_tools", "standalone_cli": "gnomon temporal is always available"},
                 "data": {"reference_scope": "session", "max_refs": self.data.max_refs, "max_retained_rows": self.data.max_rows},
@@ -487,7 +514,7 @@ class GnomonSession:
                 "cache_hit": run.cache_hit, "result": asdict(run.result),
                 "effective_season": run.request.season, "result_contract_validated": True,
                 **({'verification': verify_builtin(provider, run.request, run.result)} if verify else {}),
-                "season_guidance": "Season is an observation count; seasonal_naive with season=1 repeats the last value. Specify the intended period explicitly.",
+                **({'season_guidance': 'Season is an observation count; seasonal_naive with season=1 repeats the last value. Specify the intended period explicitly.'} if provider == 'seasonal_naive' else {}),
                 "cache": cache,
                 "request_provenance": {
                     "source": "caller_supplied_request",
@@ -510,7 +537,7 @@ class GnomonSession:
             if limit is not None and (value is None or value > limit):
                 raise ForecastAdapterError("evaluation budget cannot exceed operator startup limits")
         report = evaluate_reference(self.engine, self.data, data_ref, budget=requested, **kwargs)
-        if self.ledger is None:
+        if self.ledger is None and 'study_id' in report:
             self._studies[report["study_id"]] = self.results.put(report)
             while len(self._studies) > 3:
                 self._studies.popitem(last=False)
@@ -553,19 +580,23 @@ class GnomonSession:
         return route_study(self.engine, self.data, data_ref, max_folds=self.evaluation_limits.max_folds, **kwargs)
 
     def call(self, name: str, arguments: dict[str, Any], *, compact: bool = True) -> dict:
-        """Shared tool dispatch; full CLI/Python mode does not leave ephemeral references."""
+        """Shared tool dispatch. Default compact=True bounds responses and may retain
+        session-local result references. Pass compact=False for full Python results.
+        """
         if type(compact) is not bool:
             raise GnomonError("INVALID_ARGUMENTS", "compact must be a boolean")
         result = self._call(name, arguments)
         if compact and name == 'gnomon_capabilities':
             result.pop('cutoff_semantics', None)
             result['cutoff_semantics_command'] = 'gnomon capabilities'
+            result['cache']['enable'] = 'Set cache_size in TOML; repeat within one session.'
+            result['cache'].pop('statistics_scope', None)
             for provider in result['providers'].values():
-                for field, spec in provider['request_schema']['properties'].items():
+                for field, spec in provider.get('request_schema', {}).get('properties', {}).items():
                     if field != 'season':
                         spec.pop('description', None)
                     else:
-                        spec['description'] = 'Seasonal period in observations (--season); requires at least season history values. Default 1 repeats the last value.'
+                        spec['description'] = 'Seasonal observations (--season); requires season history values. Default 1 repeats last value.'
         if compact and name == "gnomon_evaluate" and "study_id" not in arguments and 'folds' in result:
             from .backtesting import compact_study
             result = compact_study(result)
@@ -591,9 +622,27 @@ class GnomonSession:
                 except (ValueError, TypeError) as exc:
                     raise GnomonError("INVALID_ARGUMENTS", str(exc), details=temporal_recovery(arguments)) from None
             if name == "gnomon_capabilities":
-                _strict(arguments, ())
-                return self.capabilities()
+                _strict(arguments, ('brief',))
+                return self.capabilities(**arguments)
             if name == "gnomon_forecast":
+                if 'selected_provider' in arguments and 'provider' not in arguments and isinstance(arguments['selected_provider'], str):
+                    corrected = {k: v for k, v in arguments.items() if k != 'selected_provider'}
+                    corrected['provider'] = arguments['selected_provider']
+                    from .recovery import _matches
+                    runnable = any(set(v['required']) <= corrected.keys() <= v['properties'].keys() and
+                        all(_matches(value, v['properties'][key]) for key, value in corrected.items()) for v in FORECAST_SCHEMA['oneOf'])
+                    if runnable and 'request' in corrected:
+                        try:
+                            ForecastRequest.from_dict(corrected['request'])
+                        except (ForecastAdapterError, ValueError, TypeError):
+                            runnable = False
+                    raise ForecastAdapterError("Missing required field 'provider'; 'selected_provider' is not a tool argument. Retry gnomon_forecast with provider using the same value.",
+                        details={'cause_code': 'INVALID_TOOL_ARGUMENTS', 'received_fields': sorted(arguments), 'missing_fields': ['provider'],
+                            'rejected_fields': ['selected_provider'], 'supplied_arguments': deepcopy(arguments),
+                            'example_arguments': corrected, 'example_kind': 'task_correction' if runnable else 'task_template', 'example_runnable': runnable,
+                            'changed_fields': ['selected_provider', 'provider'], 'preserved_fields': sorted(set(arguments) - {'selected_provider'}),
+                            'next_call': {'tool': 'gnomon_forecast', 'arguments': corrected, 'admissible': None},
+                            'provider_calls': 0, 'guidance': 'Only the argument name changed; no provider was executed. Request shape, provider availability and capabilities are checked on retry.'})
                 variants = FORECAST_SCHEMA["oneOf"]
                 forms = [{"required": v["required"], "accepted_fields": sorted(v["properties"])} for v in variants]
                 if ("request" in arguments and "data_ref" in arguments) or not any(
@@ -667,6 +716,12 @@ class GnomonSession:
                 return self.evaluate(**arguments)
             raise GnomonError("UNKNOWN_TOOL", "This execution session does not expose that tool.")
         except GnomonError as exc:
+            from .recovery import _example_copy
+            exc.details.setdefault('supplied_arguments', _example_copy(arguments))
+            if exc.code == 'MISSING_COLUMNS':
+                from .recovery import column_recovery
+                exc.details.update(column_recovery(exc.details, arguments))
+                exc.details['argument_basis'] = 'explicit_tool_arguments'
             if name == "gnomon_inspect":
                 from .recovery import _example_copy
                 exc.details.setdefault("input_options", _example_copy(arguments))
@@ -676,6 +731,9 @@ class GnomonSession:
             raise
         except (ForecastAdapterError, TypeError, KeyError) as exc:
             details = {**argument_recovery(name, arguments), **getattr(exc, "details", {})}
+            from .recovery import _example_copy
+            if name != 'gnomon_capabilities':
+                details.setdefault('supplied_arguments', _example_copy(arguments))
             if name in {"gnomon_inspect", "gnomon_describe", "gnomon_evaluate", "gnomon_route"}:
                 from .recovery import _example_copy
                 details.setdefault("supplied_arguments", _example_copy(arguments))
@@ -764,7 +822,8 @@ class GnomonSession:
             {"name": "gnomon_read", "description": "Read exact retained result JSON text pages, optionally at a JSON pointer. Concatenate pages at next_offset; no provider calls. References expire with the session or LRU eviction.",
              "inputSchema": READ_SCHEMA},
             {"name": "gnomon_capabilities", "description": "List this session's registered providers and storage capabilities.",
-             "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
+             "inputSchema": {"type": "object", "properties": {'brief': {'type': 'boolean', 'default': False,
+                'description': 'Deduplicate provider request schemas using shared JSON references.'}}, "additionalProperties": False}},
             {"name": "gnomon_forecast", "description": "Execute a registered provider. No implicit backtest, calibration claim or action permission.",
              "inputSchema": FORECAST_SCHEMA},
             {"name": "gnomon_inspect", "description": "Validate file/store data and freeze a session-local data_ref. Discloses cutoffs and repairs.",
@@ -824,7 +883,7 @@ def ledger_schema(*, allow_outcome_writes=False):
                               "result.current_coverage refreshes diagnostics at the query cutoffs. "
                               "Scoring persists evidence without actual-write opt-in; exact retries reuse scores."} if p == "allow_partial" else
                              {"type": "integer", "minimum": 1, "maximum": 100 if p == "limit" else 1_000_000} if p in {"limit", "horizon"} else
-                             {"enum": ["waiting", "ready", "scored", "stale", "unscorable"]} if p == "status" else
+                             {"enum": ["waiting", "ready", "scored", "stale", "unscorable", "scored_in_study"]} if p == "status" else
                              {"type": "object", "minProperties": 2, "maxProperties": 8,
                               "additionalProperties": {"type": "string", "minLength": 1}} if p == "providers" else
                              {"type": "object"} if p in {"policy", "inputs", "action", "outcome"} else

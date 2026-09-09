@@ -58,7 +58,7 @@ class GnomonError(Exception):
                 "message": self.message,
                 "retryable": self.retryable,
                 "details": self.details,
-                "recovery": recovery_metadata(details),
+                "recovery": {**recovery_metadata(details), 'cause_ref': '/error/message'},
                 "repair_options": repairs,
             },
             "rejection": {'error_ref': '/error', 'terminal': True} if compact else {

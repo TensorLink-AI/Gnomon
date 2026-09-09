@@ -54,7 +54,7 @@ def evaluate_reference(engine, references, data_ref: str, *, candidates: list[st
                        horizon: int, folds: int = 4, min_history: int = 8, stride: int | None = None,
                        series_id: str | None = None, season: int = 1, budget: EvaluationBudget | None = None,
                        replay: str | None = None, cancelled: Callable[[], bool] | None = None,
-                       timer: Callable[[], float] = monotonic, verify: bool = False) -> dict:
+                       timer: Callable[[], float] = monotonic, verify: bool = False, preflight: bool = False) -> dict:
     """Evaluate exact matched point-forecast tasks; persist an optional study.
 
     Current pretrained weights may have seen later training data. Observation
@@ -63,6 +63,8 @@ def evaluate_reference(engine, references, data_ref: str, *, candidates: list[st
     """
     if type(verify) is not bool:
         raise ForecastAdapterError('verify must be a boolean')
+    if type(preflight) is not bool:
+        raise ForecastAdapterError('preflight must be a boolean')
     budget = budget if budget is not None else EvaluationBudget()
     if not isinstance(budget, EvaluationBudget):
         raise ForecastAdapterError("budget must be EvaluationBudget")
@@ -95,6 +97,7 @@ def evaluate_reference(engine, references, data_ref: str, *, candidates: list[st
         raise ForecastAdapterError("historical evaluation requires unrepaired observations or value-preserving format fixes; "
                                    "use a complete regular window of observed data, or prepare each vintage upstream")
     snapshot = frozen.loaded.snapshot
+    replay_defaulted = replay is None
     replay = replay or ("recorded" if snapshot.recorded_as_of is not None else "source_available")
     if replay not in {"recorded", "source_available"}:
         raise ForecastAdapterError("replay must be source_available or recorded")
@@ -108,13 +111,20 @@ def evaluate_reference(engine, references, data_ref: str, *, candidates: list[st
     for origin in origins:
         cutoff = rows[origin - 1].timestamp
         vintage = snapshot.narrow(as_of=cutoff, recorded_as_of=cutoff if replay == "recorded" else None)
+        historical_vintages = [r for r in snapshot.retained_observations() if r.entity == name and r.variable == frozen.loaded.variable and r.valid_time <= cutoff]
+        visibility = {'scope': 'selected_series_variable_history_vintages_retained_in_parent_snapshot',
+            'input_vintages': len(historical_vintages),
+            'excluded_by_source_cutoff': sum(r.known_time > vintage.as_of for r in historical_vintages),
+            'excluded_by_recorded_cutoff': sum(vintage.recorded_as_of is not None and (r.recorded_at is None or r.recorded_at > vintage.recorded_as_of) for r in historical_vintages)}
         history = [r for r in vintage.series(name, frozen.loaded.variable) if r.valid_time <= cutoff]
         future = rows[origin:origin + horizon]
         actuals = [asdict(truth[r.timestamp]) for r in future]
         # JSON/ledger-safe timestamps keep both provenance clocks explicit.
         actuals = [{k: v.isoformat() if hasattr(v, "isoformat") else v for k, v in r.items()} for r in actuals]
         fold = {"origin": cutoff.isoformat(), "snapshot_id": vintage.snapshot_id,
-                "actuals": actuals, "request": None, "runs": {}, "status": "ready"}
+                "actuals": actuals, "request": None, "runs": {}, "status": "ready",
+                "replay_mode": replay, "visibility": visibility,
+                "available_history": len(history), "required_history": min_history}
         try:
             if len(history) < min_history or history[-1].valid_time != cutoff:
                 raise ForecastAdapterError("insufficient vintage history at origin")
@@ -133,7 +143,20 @@ def evaluate_reference(engine, references, data_ref: str, *, candidates: list[st
         except (ForecastAdapterError, GnomonError, ValueError) as exc:
             fold["status"] = "unavailable_history_or_capability"
             fold["error_type"] = type(exc).__name__
+            fold['reason'] = ('no_history_recorded_by_origin' if not history and replay == 'recorded' and visibility.get('excluded_by_recorded_cutoff', 0)
+                else 'no_history_source_available_by_origin' if not history else 'insufficient_history_at_origin' if len(history) < min_history
+                else 'history_grid_or_provider_capability')
+            fold['cause'] = str(exc)
         planned.append(fold)
+    if preflight:
+        return {'schema_version': '1', 'status': 'ok', 'operation': 'evaluation_preflight',
+            'ready': len(planned) == folds and all(f['status'] == 'ready' for f in planned),
+            'replay_mode': replay, 'replay_defaulted': replay_defaulted,
+            'replay_selection_reason': 'recording_bounded_snapshot' if replay_defaulted and replay == 'recorded' else 'source_availability_default' if replay_defaulted else 'explicit_caller_choice',
+            'planned_folds': [{k: v for k, v in f.items() if k not in ('actuals', 'runs', 'request')} for f in planned],
+            'provider_calls': 0, 'recorded': False,
+            'choices_required': {'replay': ['recorded', 'source_available']} if replay == 'recorded' and any(f['status'] != 'ready' for f in planned) else {},
+            'guidance': 'Recorded replay requires history locally recorded by each origin. Explicit replay=source_available asks a different question about source availability and does not prove local historical availability. No mode was changed automatically.'}
     calls, stop_reason = 0, None
     for fold in planned:
         if fold["status"] != "ready":
@@ -195,7 +218,7 @@ def evaluate_reference(engine, references, data_ref: str, *, candidates: list[st
     if stop_reason:
         issues.append({"code": stop_reason.upper(), "description": "Evaluation stopped before all requested folds completed; inspect usage and budget."})
     if any(f["status"] == "unavailable_history_or_capability" for f in planned):
-        issues.append({"code": "UNAVAILABLE_FOLDS", "description": "Historical vintages or provider capabilities do not support all requested folds."})
+        issues.append({"code": "UNAVAILABLE_FOLDS", "description": "Inspect excluded_folds for origin, replay mode, visibility counts and the actual cause. More folds cannot fix unavailable historical vintages."})
     if any(f["status"] == "failed" for f in planned):
         issues.append({"code": "PROVIDER_FAILURE", "description": "Inspect provider diagnostics and verify the provider environment."})
     cohort = {"folds": [{k: f[k] for k in ("origin", "request", "actuals")} for f in planned],
@@ -212,6 +235,9 @@ def evaluate_reference(engine, references, data_ref: str, *, candidates: list[st
                   "stop_reason": stop_reason, "wall_limit_overrun": budget.max_seconds is not None and elapsed > budget.max_seconds,
                   "dispatch_boundary_limits": True, "internal_model_calls": "unknown"},
               "replay": replay, "known_time_assumed": snapshot.assumed_known_time,
+              "replay_defaulted": replay_defaulted,
+              "replay_selection_reason": "recording_bounded_snapshot" if replay_defaulted and replay == 'recorded' else "source_availability_default" if replay_defaulted else "explicit_caller_choice",
+              "excluded_folds": [{k: f[k] for k in ('origin', 'reason', 'cause', 'replay_mode', 'visibility', 'available_history', 'required_history')} for f in planned if 'reason' in f],
               "source_as_of": snapshot.as_of.isoformat() if snapshot.as_of else None,
               "recorded_as_of": snapshot.recorded_as_of.isoformat() if snapshot.recorded_as_of else None,
               "metric_version": "matched-point-errors/1", "scores": scores, "diagnostics": diagnostics,
@@ -237,9 +263,9 @@ def evaluate_reference(engine, references, data_ref: str, *, candidates: list[st
     readiness.update(matched_folds=len(matched), default_min_folds=DEFAULT_MIN_FOLDS,
                      scope="data_and_study_preflight_cutoffs_and_identity_checked_at_routing")
     if len(matched) < DEFAULT_MIN_FOLDS:
-        readiness["issues"].append({"action": "evaluate_more_matched_folds",
+        readiness["issues"].append({"action": "resolve_historical_visibility" if result['excluded_folds'] else "evaluate_more_matched_folds",
             "description": f"Routing defaults to at least {DEFAULT_MIN_FOLDS} replayable matched folds; "
-                           f"this study has {len(matched)}. Evaluate more folds with sufficient observed history and budget."})
+                           f"this study has {len(matched)}. " + ("Inspect per-fold visibility. Source-availability replay is a different semantic choice requiring explicit replay=source_available; it does not prove local recording-time availability." if result['excluded_folds'] else "Evaluate more folds with sufficient observed history and budget.")})
     if engine.ledger is None:
         readiness["issues"].append({"action": "persist_study",
             "description": "Evaluate with --ledger-path evidence.db so routing can reuse recorded executions."})

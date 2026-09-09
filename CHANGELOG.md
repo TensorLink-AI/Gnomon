@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.1.7 — 2026-09-09
+
+- Explain compare-history exclusion causes and historical replay visibility per
+  fold; add evaluation preflight and explicit CLI replay selection.
+- Keep capability discovery from opening ledgers, validate providers before
+  ledger creation, and support configured built-ins with a caller-owned ledger.
+- Bind CSV timezone declarations transactionally to dataset identity. Disclose
+  completed backtest executions as scored in their saved study.
+- Recommend admissible safe jitter alignment, gate impossible drop advice and
+  expose combined fill/conflict costs alongside independent repair scopes.
+- Save rejected CLI results, warn on default routing fallback, identify mismatch
+  fields, and preserve task parameters in column/provider argument corrections.
+- Add cache counters, brief discovery projections, raw provider examples,
+  auditable self-check family contracts and detailed case evidence.
+- Clarify completion, returned evidence, result shapes and byte-budget scopes;
+  preserve compatibility for strict snapshots, compact-call defaults and legacy
+  errors. The external Arena adapter/protocol is not changed by this patch.
+
 ## 1.1.6 — 2026-09-09
 
 - Canonicalize validated cache identities across numeric/container/default and

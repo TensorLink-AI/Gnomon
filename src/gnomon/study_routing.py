@@ -126,9 +126,12 @@ def route_study(engine, references, data_ref: str, *, study_id: str, candidates:
         return fallback("study_exceeds_operator_fold_limit")
     variable = report.get('variable', next((a['variable'] for f in report['folds'] for a in f['actuals']), None))
     if variable is not None and variable != frozen.loaded.variable:
+        answer['mismatch'] = {'field': 'variable', 'study': variable, 'requested': frozen.loaded.variable}
         return fallback('task_identity_mismatch')
-    if any(report.get(k) != v for k, v in {"series_id": name, "unit": frozen.unit, "horizon": horizon,
-            "season": season, "frequency": frozen.loaded.frequency, "baseline": baseline}.items()):
+    mismatches = [{'field': k, 'study': report.get(k), 'requested': v} for k, v in {"series_id": name, "unit": frozen.unit, "horizon": horizon,
+            "season": season, "frequency": frozen.loaded.frequency, "baseline": baseline}.items() if report.get(k) != v]
+    if mismatches:
+        answer.update(mismatch=mismatches[0], mismatches=mismatches)
         return fallback("task_identity_mismatch")
     if set(report["providers"]) != set(providers):
         return fallback("provider_cohort_mismatch")
