@@ -9,6 +9,7 @@ imports controlled by an agent's request.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, replace
+from datetime import datetime, timezone
 import hashlib
 import json
 import threading
@@ -34,7 +35,28 @@ def _freeze_request(request: ForecastRequest | dict[str, Any]) -> ForecastReques
     if not isinstance(request, ForecastRequest):
         raise ForecastAdapterError(
             'forecast request must be a ForecastRequest or dict, e.g. {"history": [1, 2, 3], "horizon": 2}')
-    return ForecastRequest.from_dict(json.loads(_json(asdict(request))))
+    validated = ForecastRequest.from_dict(json.loads(_json(asdict(request))))
+    values = asdict(validated)
+    def number(value):
+        # Preserve large integers exactly; float(value) would merge distinct
+        # integers beyond binary64 precision. Integral floats have exact int equivalents.
+        return int(value) if isinstance(value, float) and value.is_integer() else value
+    for key in ("history", "quantiles"):
+        values[key] = tuple(number(v) for v in values[key])
+    for key in ("past_covariates", "future_covariates", "related_series"):
+        values[key] = tuple(tuple(number(v) for v in row) for row in values[key])
+    def timestamp(value):
+        parsed = datetime.fromisoformat(value)
+        # Calendar frequency grids retain their local offsets: a daily step
+        # across DST is not necessarily 24 elapsed hours. Without a frequency,
+        # the request describes explicit instants only and UTC is canonical.
+        return (parsed.astimezone(timezone.utc) if parsed.tzinfo is not None and not validated.frequency else parsed).isoformat()
+    for key in ("timestamps", "future_timestamps"):
+        values[key] = tuple(timestamp(v) for v in values[key])
+    for key in ("cutoff", "known_time_cutoff", "recorded_time_cutoff"):
+        if values[key] is not None:
+            values[key] = timestamp(values[key])
+    return ForecastRequest.from_dict(values)
 
 
 def _copy_result(result: ForecastResult) -> ForecastResult:
@@ -59,9 +81,18 @@ class ForecastExecution:
     evidence: str = "inference_only"
     action_authorized: bool = False
     provider_identity: dict | None = None
+    cache: dict | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        return {**asdict(self), "request_provenance": request_provenance(self.request),
+                "effective_season": self.request.season, "result_contract_validated": True}
+
+
+def request_provenance(request):
+    return {"source": "caller_supplied_request", **{key: getattr(request, key) for key in (
+        "cutoff", "known_time_cutoff", "recorded_time_cutoff", "snapshot_id", "series_id")},
+        "history_start": request.timestamps[0] if request.timestamps else None,
+        "history_end": request.timestamps[-1] if request.timestamps else None}
 
 
 @dataclass
@@ -158,6 +189,23 @@ class InferenceEngine:
                     registered.deterministic and registered.revision not in {None, "latest", "unversioned"})
         return policy
 
+    def cache_diagnostic(self, name, request, *, use_cache=True):
+        """Validate/canonicalize and inspect a lookup without executing a provider."""
+        if type(use_cache) is not bool:
+            raise ForecastAdapterError('use_cache must be a boolean')
+        _, canonical, fingerprint = self._prepare(name, request)
+        policy = self.cache_policy(name)
+        with self._lock:
+            present = fingerprint in self._cache
+        status = ("bypassed" if not use_cache else "disabled" if not policy["enabled"] else
+                  "ineligible" if not policy["provider_eligible"] else "hit" if present else "miss")
+        return {**policy, "status": status, "lookup_requested": use_cache, "fingerprint": fingerprint,
+                "canonical_request": asdict(canonical), "provider_calls": 0,
+                "reason": {"bypassed": "lookup_disabled_by_caller", "disabled": "cache_size_is_zero",
+                           "ineligible": "provider_requires_determinism_and_explicit_revision",
+                           "hit": "matching_entry_in_this_session", "miss": "no_matching_entry_in_this_session"}[status],
+                "cli_processes_share_entries": False}
+
     def _prepare(self, name: str, request: ForecastRequest):
         with self._lock:
             provider = self._providers.get(name)
@@ -175,14 +223,17 @@ class InferenceEngine:
         fingerprint = hashlib.sha256(_json(identity).encode()).hexdigest()
         return provider, request, fingerprint
 
-    def _finish(self, name, provider, request, fingerprint, result, cache_hit=False):
+    def _finish(self, name, provider, request, fingerprint, result, cache_hit=False, use_cache=True):
         if not isinstance(result, ForecastResult):
             raise ForecastAdapterError("provider must return ForecastResult, not a dict or other value. "
                 "Import ForecastResult from gnomon; e.g. return ForecastResult(point=(request.history[-1],) * request.horizon, "
                 "series_id=request.series_id, unit=request.unit, timestamps=request.future_timestamps).")
         result = _copy_result(result).validate(request)
         execution = ForecastExecution(str(uuid4()), fingerprint, name, provider.revision,
-                                      request, result, cache_hit, provider_identity={
+                                      request, result, cache_hit, cache={**self.cache_policy(name),
+                                          "lookup_requested": use_cache, "status": "bypassed" if not use_cache else
+                                          "disabled" if not self._cache_size else "ineligible" if not self.cache_policy(name)["provider_eligible"] else
+                                          "hit" if cache_hit else "miss"}, provider_identity={
                                           "lifecycle": provider.lifecycle, "capabilities": asdict(provider.capabilities)})
         # Recording failure is not silently ignored; callers should not claim
         # that an unrecorded invocation is auditable.
@@ -196,6 +247,8 @@ class InferenceEngine:
         return execution
 
     def forecast(self, name: str, request: ForecastRequest | dict[str, Any], *, use_cache: bool = True) -> ForecastExecution:
+        if type(use_cache) is not bool:
+            raise ForecastAdapterError('use_cache must be a boolean')
         provider, request, fingerprint = self._prepare(name, request)
         with self._lock:
             cached = self._cache.get(fingerprint) if use_cache else None
@@ -208,7 +261,7 @@ class InferenceEngine:
         finally:
             if provider.factory and callable(getattr(target, "close", None)):
                 target.close()
-        return self._finish(name, provider, request, fingerprint, result)
+        return self._finish(name, provider, request, fingerprint, result, use_cache=use_cache)
 
     def forecast_batch(self, name: str, requests: list[ForecastRequest | dict[str, Any]]) -> list[ForecastExecution]:
         """Validate the whole batch before dispatch. Results preserve input order.

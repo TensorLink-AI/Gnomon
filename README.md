@@ -18,7 +18,7 @@ when you need one.
 Python 3.11–3.13. No required third-party dependencies.
 
 ```bash
-python -m pip install 'gnomon-forecast==1.1.5'
+python -m pip install 'gnomon-forecast==1.1.6'
 gnomon infer --provider last_value --request '{"history":[10,12,11],"horizon":2}'
 ```
 
@@ -57,6 +57,12 @@ one of its future timestamps. The [first-run guide](docs/getting-started.md#reco
 shows the complete CLI loop.
 
 ## Connect an agent
+
+Start with the [agent operation guide](docs/agent-operations.md), including cache
+and configuration diagnostics, strict routing, independent verification, and
+[revised-vintage rescoring](docs/revised-vintage-workflow.md). The installed
+`gnomon providers example` and `python -m gnomon.examples.mcp_workflow` demonstrate
+custom providers and verified MCP pagination without external services.
 
 Run `gnomon mcp serve` in your agent host. The agent gets 6 tools by default:
 

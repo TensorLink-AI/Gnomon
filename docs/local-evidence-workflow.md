@@ -29,7 +29,7 @@ study_id="$(python -c 'import json; print(json.load(open("study.json"))["study_i
 recording_cutoff="$(python -c 'from datetime import datetime,timezone; print(datetime.now(timezone.utc).isoformat())')"
 gnomon route --input data.gnomon --study "$study_id" --ledger-path evidence.db \
   --source-as-of 2026-01-28T00:00:00Z --recorded-as-of "$recording_cutoff" \
-  --save-result route.json
+  --require-evidence --save-result route.json
 
 gnomon ledger --providers-config writer.toml --arguments '{"operation":"append_actual","actuals":[{"series_id":"__default__","unit":"widgets","valid_time":"2026-01-29T00:00:00Z","source_available_at":"2026-02-01T00:00:00Z","value":1},{"series_id":"__default__","unit":"widgets","valid_time":"2026-01-30T00:00:00Z","source_available_at":"2026-02-01T00:00:00Z","value":2}]}'
 
@@ -55,6 +55,21 @@ Check `study.json` for complete evaluation and `routing_readiness.ready` before
 routing. `route.json` should select seasonal naive from matched evidence with
 `fallback_used: false` and zero provider calls. This synthetic result makes no
 claim about future predictive superiority.
+
+`--require-evidence` rejects a fallback with exit 2 and
+`ROUTING_EVIDENCE_REQUIRED`. Without that flag, insufficient evidence or a
+study/task mismatch still returns the baseline with exit 0, `routing_status:
+"fallback"`, `evidence_based: false`, a warning and a reason. An evidence-supported
+baseline (including an exact tie) succeeds in strict mode. Fallback `next_actions`
+can include a proposed evaluation with the original task parameters; it requires
+new provider calls and sufficient history/budget, and is never run automatically.
+
+Retrieving an existing study does not rescore it. For full saved fold requests,
+predictions and actuals, use `gnomon evaluate --ledger-path evidence.db --arguments
+'{"study_id":"YOUR_STUDY_ID"}'`. Successful matched routing writes a new immutable
+rescore using the supplied evidence cutoffs, reuses predictions with zero provider
+calls, and returns `rescore_study_id` plus an exact `full_study` retrieval call.
+The original study stays unchanged.
 
 The forecast is [1, 2] widgets. The matching actuals give a complete zero-error
 score. `score.json` and `retry.json` have the same evaluation ID; the second has

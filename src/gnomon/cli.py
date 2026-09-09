@@ -18,7 +18,7 @@ from .forecast_adapter import ForecastAdapterError
 from .repair import REPAIR_HELP
 
 
-_CONFIG_HELP = 'Path to operator TOML (not JSON); e.g. ledger_path = "ledger.db"'
+_CONFIG_HELP = 'Path to operator TOML (not JSON); e.g. ledger_path = "ledger.db". Relative paths resolve against the configuration file directory, not cwd.'
 _SERIES_HELP = ("Select an existing series, not a new label. Unlabeled input uses __default__; "
                 "use --series-column to read series labels from input.")
 _SCHEMA_COMMANDS = {name: f"gnomon {name} --schema" for name in ("infer", "evaluate", "route", "ledger", "temporal")}
@@ -44,8 +44,8 @@ class _UsageError(GnomonError):
             "action": "show_usage", "description": f"Run {prog} --help. Run gnomon schemas for schema entry points.",
         }])
 
-    def to_dict(self):
-        result = super().to_dict()
+    def to_dict(self, *, compact=False):
+        result = super().to_dict(compact=compact)
         result.pop("rejection")
         return result
 
@@ -71,16 +71,25 @@ def _input_options(parser):
 def build_parser() -> argparse.ArgumentParser:
     parser = _Parser(prog="gnomon", description="Run your time-series models and keep explicit evidence.")
     parser.add_argument("--version", action="version", version=f"gnomon {build_info()['build_id']}")
+    parser.add_argument('--compact-errors', action='store_true', help='Replace duplicate legacy rejection details with an /error reference')
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("schemas", help="List command and operator configuration schema entry points")
     caps = commands.add_parser("capabilities", help="List registered providers and enabled tools")
     caps.add_argument("--output", choices=("json",), default="json")
     caps.add_argument("--providers-config", help=_CONFIG_HELP)
     caps.add_argument("--config-schema", action="store_true", help="Describe operator TOML configuration keys without loading providers")
+    caps.add_argument('--show-resolved-config', action='store_true', help='Inspect resolved paths/settings without loading providers or secrets. Relative TOML paths resolve against the configuration file directory.')
+    caps.add_argument('--cache', action='store_true', help='Inspect cache policy; add --provider and --request to validate a lookup without executing a forecast')
+    caps.add_argument('--provider')
+    caps.add_argument('--request', help='JSON request or @file for --cache --provider')
+    examples = commands.add_parser('providers', help='Discover a complete unit-bearing custom-provider example')
+    examples.add_argument('action', choices=['example'])
     infer = commands.add_parser("infer", aliases=["forecast"], help="Forecast with a named provider without implicit backtesting",
         epilog="Example: gnomon infer --provider last_value --request '{\"history\":[1,2,3],\"horizon\":2}'. "
                "Run gnomon infer --schema for the --request schema, and gnomon capabilities for provider names.")
+    infer.usage = 'gnomon infer (forecast) (--input INPUT --horizon HORIZON | --request JSON | --schema) [--provider PROVIDER] [options]'
     infer.add_argument("--provider")
+    infer.add_argument('--verify', action='store_true', help='Include independent arithmetic verification for deterministic built-ins')
     source = infer.add_mutually_exclusive_group(required=True)
     source.add_argument("--schema", action="store_true", help="Print the JSON Schema for --request and exit")
     source.add_argument("--request", help="Forecast request JSON or @file.json")
@@ -103,6 +112,7 @@ def build_parser() -> argparse.ArgumentParser:
     inspect.add_argument("--for", dest="purpose", choices=("infer", "evaluate", "route"), default="infer",
                          help="Check suitability for the next operation before proceeding (default: infer)")
     inspect.add_argument("--save-snapshot", metavar="FILE.gnomon", help="Save frozen data for reuse via --input FILE.gnomon in later processes")
+    inspect.add_argument('--diagnose', action='store_true', help='Dry-run all repair modes on a local file (up to 8 MiB), with no writes or forecasts; cannot combine with --repair or --save-snapshot')
     _input_options(inspect)
     describe = commands.add_parser("describe", help="Calculate an exact statistic over observed data")
     describe.add_argument("input", nargs="?", help="Data file, store:<dataset>, or - for stdin")
@@ -158,6 +168,8 @@ def build_parser() -> argparse.ArgumentParser:
                       "Cutoffs filter source availability and local recording times. Units match exactly; no conversion.")
         sub = commands.add_parser(name, help=f"Run the session's {name} operation",
                                   epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
+        if name == 'route':
+            sub.usage = 'gnomon route (--input INPUT --study STUDY --source-as-of SOURCE --recorded-as-of RECORDED | --arguments JSON | --schema) [options]'
         source = sub.add_mutually_exclusive_group(required=True)
         source.add_argument("--arguments", help="JSON object or @file.json" + (
             "; see example below" if name in _EXAMPLES else ""))
@@ -170,6 +182,11 @@ def build_parser() -> argparse.ArgumentParser:
             sub.add_argument("--season", type=int, help="Seasonal period in observations (default: 1)")
             sub.add_argument("--series-id", help=_SERIES_HELP)
             if name == "evaluate":
+                sub.add_argument('--verify', action='store_true', default=None, help='Include fold error vectors, metric sums and exact scored-pair hashes')
+                source.add_argument('--compare', nargs=2, metavar=('ORIGINAL_STUDY', 'RESCORED_STUDY'), help='Compare saved studies and verify prediction reuse; zero provider calls')
+                sub.add_argument('--rescore', metavar='STUDY_ID', help='With --input, rescore original executions using revised actuals; requires both evidence cutoffs and a ledger')
+                sub.add_argument('--source-as-of', help='For --rescore: inclusive actual source availability cutoff; never changes original forecast origins')
+                sub.add_argument('--no-partial', action='store_true', default=None, help='For --rescore: require actuals for every original fold')
                 sub.add_argument("--folds", type=int, help="Requested folds (default: 4); routing needs at least 3 successful replayable matched folds")
                 for option in ("min-history", "stride", "max-calls"):
                     sub.add_argument("--" + option, type=int)
@@ -178,6 +195,8 @@ def build_parser() -> argparse.ArgumentParser:
                 sub.add_argument("--source-as-of", help="Required source cutoff, with explicit timezone")
                 sub.add_argument("--min-folds", type=int, help="Minimum replayable matched folds (default: 3, minimum: 3)")
                 sub.add_argument("--min-improvement", type=float)
+                sub.add_argument("--require-evidence", action="store_true", default=None,
+                                 help="Reject any routing fallback with exit 2; default permits baseline fallback with exit 0. Check evidence_based and routing_status.")
             _input_options(sub)
         sub.add_argument("--providers-config", help=_CONFIG_HELP)
         sub.add_argument("--ledger-path", help="SQLite ledger path; route/ledger require this or ledger_path in provider TOML")
@@ -195,6 +214,8 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("check", choices=("leakage",))
     check.add_argument("--cases", type=int, default=8)
     check.add_argument("--seed", type=int, default=7)
+    from .selfcheck import FAMILIES
+    check.add_argument('--families', nargs='+', choices=FAMILIES, help='Additional finite offline checks; snapshot checks always run. Select explicit families to test revisions, recording, folds, covariates, series, DST, repairs or cache.')
     mcp = commands.add_parser("mcp", help="mcp serve: serve the execution session to an agent")
     serve = mcp.add_subparsers(dest="mcp_command", required=True).add_parser("serve")
     serve.add_argument("--providers-config", help=_CONFIG_HELP)
@@ -232,7 +253,15 @@ def _arguments_schema(command):
     inline["required"] = ["data" if key == "data_ref" else key for key in inline["required"]]
     inline["properties"].pop("data_ref")
     inline["properties"]["data"] = deepcopy(INSPECT_SCHEMA)
-    return {"type": "object", "oneOf": [inline, *variants]}
+    more_inline = []
+    for variant in variants[1:]:
+        if 'data_ref' in variant['properties']:
+            converted = deepcopy(variant)
+            converted['required'] = ['data' if k == 'data_ref' else k for k in converted['required']]
+            converted['properties'].pop('data_ref')
+            converted['properties']['data'] = deepcopy(INSPECT_SCHEMA)
+            more_inline.append(converted)
+    return {"type": "object", "oneOf": [inline, *variants, *more_inline]}
 
 
 def _validate_cli_args(args):
@@ -247,14 +276,16 @@ def _validate_cli_args(args):
         args.input = args.input if args.input is not None else args.input_option
         if args.input is None:
             raise _UsageError("An input is required: supply a positional path or --input PATH.", prog)
+        if args.command == 'inspect' and args.diagnose and (args.save_snapshot or 'repair' in args._explicit_fields or args.input == '-'):
+            raise _UsageError('--diagnose requires a local source file and cannot combine with --repair or --save-snapshot.', prog)
     if args.command in {"route", "ledger"} and not getattr(args, "schema", False) \
             and args.providers_config is None and args.ledger_path is None:
         raise _UsageError("Supply --ledger-path evidence.db or --providers-config providers.toml with ledger_path set.", prog)
     if args.command in {"evaluate", "route"} and not args.input:
         keys = ["candidates", "baseline", "horizon", "season", "series_id", "timezone", "series_column",
                 "frequency", "as_of", "recorded_as_of", "store_path", "unit", "regrid", "window"]
-        keys += (["folds", "min_history", "stride", "max_calls"] if args.command == "evaluate" else
-                 ["study", "source_as_of", "min_folds", "min_improvement"])
+        keys += (["folds", "min_history", "stride", "max_calls", "rescore", "source_as_of", "no_partial", "verify"] if args.command == "evaluate" else
+                 ["study", "source_as_of", "min_folds", "min_improvement", "require_evidence"])
         if any(getattr(args, key) is not None for key in keys) or args.repair != "off" \
                 or args.time_column != "timestamp" or args.target_column != "value":
             raise _UsageError("Task and data flags require --input; put them inside JSON when using --arguments.", prog)
@@ -266,11 +297,14 @@ MAX_STDIN_BYTES = 8 * 1024 * 1024
 
 
 def _inspect(session, args):
-    arguments = {key: getattr(args, key) for key in _INPUT_KEYS if getattr(args, key, None) is not None}
+    arguments = {key: getattr(args, key) for key in _INPUT_KEYS if getattr(args, key, None) is not None
+                 and (key not in {'time_column', 'target_column', 'repair'} or key in getattr(args, '_explicit_fields', set()))}
+    if getattr(args, 'diagnose', False):
+        arguments['diagnose'] = True
     if args.command in {"evaluate", "route"}:
         arguments["purpose"] = args.command
-    if args.command == "route":
-        # The route recording cutoff governs evidence, not the input file's
+    if args.command == "route" or (args.command == 'evaluate' and args.rescore):
+        # The route/rescore recording cutoff governs evidence, not the input file's
         # observation recording history. Store replay stays explicit in JSON.
         if not args.input.startswith("store:"):
             arguments.pop("recorded_as_of", None)
@@ -290,10 +324,19 @@ def _inspect(session, args):
 
 def _execute(session, args):
     if args.command == "capabilities":
+        if args.cache:
+            if bool(args.provider) != bool(args.request):
+                raise _UsageError('--cache requires both --provider and --request for a request diagnostic, or neither for policies.', 'gnomon capabilities')
+            return {'schema_version': '1', 'status': 'ok', 'cache': session.engine.cache_diagnostic(args.provider, read_json_argument(args.request))
+                    if args.provider else {p: session.engine.cache_policy(p) for p in session.engine.capabilities()}}
+        if args.provider or args.request:
+            raise _UsageError('--provider and --request require --cache.', 'gnomon capabilities')
         return session.capabilities()
     if args.command in ("inspect", "describe"):
         data = _inspect(session, args)
         if args.command == "inspect":
+            if args.diagnose:
+                return data
             if args.save_snapshot:
                 saved = session.data.save(data["data_ref"], args.save_snapshot)
                 data.update(snapshot_file=saved, reuse={"input": saved})
@@ -322,8 +365,10 @@ def _execute(session, args):
                 raise _UsageError("File/schema flags apply only with --input, not --request.", "gnomon infer")
             task = {"request": read_json_argument(args.request)}
         result = session.call("gnomon_forecast", {"provider": args.provider, **task,
-                              "use_cache": not args.no_cache}, compact=False)
+                              "use_cache": not args.no_cache, "verify": args.verify}, compact=False)
         return {**result, "input": data} if args.input else result
+    if args.command == 'evaluate' and args.compare:
+        return session.compare_studies(original_study_id=args.compare[0], rescored_study_id=args.compare[1])
     if args.command in {"evaluate", "route"} and args.input:
         arguments = args.task_arguments
         data = _inspect(session, args)
@@ -334,7 +379,7 @@ def _execute(session, args):
         if not isinstance(arguments["data"], dict):
             raise _UsageError('data must be an inspection object, e.g. {"data":{"input":"data.csv"}}.',
                               f"gnomon {args.command}")
-        if "data_ref" in arguments or (args.command == "evaluate" and "study_id" in arguments):
+        if "data_ref" in arguments or (args.command == "evaluate" and "study_id" in arguments and arguments.get('operation') != 'rescore'):
             raise _UsageError("data cannot be combined with data_ref/study_id.", f"gnomon {args.command}")
         data = session.call("gnomon_inspect", {**arguments.pop("data"), "purpose": args.command}, compact=False)
         arguments["data_ref"] = data["data_ref"]
@@ -349,6 +394,15 @@ def _execute(session, args):
 
 def _task_flags(args):
     arguments = {}
+    if args.command == 'evaluate' and args.rescore:
+        if not args.source_as_of or not args.recorded_as_of:
+            raise _UsageError('--rescore requires --source-as-of and --recorded-as-of evidence cutoffs.', 'gnomon evaluate')
+        if any(getattr(args, k) is not None for k in ('candidates', 'baseline', 'horizon', 'season', 'series_id', 'folds', 'min_history', 'stride', 'max_calls', 'verify')):
+            raise _UsageError('--rescore preserves original task parameters and folds; do not supply evaluation overrides.', 'gnomon evaluate')
+        return {'operation': 'rescore', 'study_id': args.rescore, 'source_as_of': args.source_as_of,
+                'recorded_as_of': args.recorded_as_of, 'allow_partial': not args.no_partial}
+    if args.command == 'evaluate' and (args.source_as_of or args.no_partial):
+        raise _UsageError('--source-as-of and --no-partial require --rescore.', 'gnomon evaluate')
     if args.command == "route" and args.study:
         if args.study.startswith("@"):
             report = read_json_argument(args.study)
@@ -364,8 +418,8 @@ def _task_flags(args):
         else:
             arguments["study_id"] = args.study
     keys = ["candidates", "baseline", "horizon", "season", "series_id"]
-    keys += (["folds", "min_history", "stride"] if args.command == "evaluate" else
-             ["source_as_of", "recorded_as_of", "min_folds", "min_improvement"])
+    keys += (["folds", "min_history", "stride", "verify"] if args.command == "evaluate" else
+             ["source_as_of", "recorded_as_of", "min_folds", "min_improvement", "require_evidence"])
     arguments.update({key: getattr(args, key) for key in keys if getattr(args, key) is not None})
     if args.command == "evaluate" and args.max_calls is not None:
         arguments["budget"] = {"max_calls": args.max_calls}
@@ -388,11 +442,23 @@ def main(argv: Sequence[str] | None = None) -> int:
                 arguments = arguments[1:]
             return subprocess.call([sys.executable, *arguments])
         args = build_parser().parse_args(argv)
+        args._explicit_fields = {item.split('=')[0][2:].replace('-', '_') for item in argv if item.startswith('--')}
         if args.command == "forecast":
             args.command = "infer"
         _validate_cli_args(args)
         if args.command == "schemas":
             print(json.dumps({"schema_version": "1", "status": "ok", "schemas": _SCHEMA_COMMANDS}, indent=2))
+            return 0
+        if args.command == 'providers':
+            from importlib.resources import files
+            print(json.dumps({'schema_version': '1', 'status': 'ok', 'python': files('gnomon.examples').joinpath('custom_provider.py').read_text(),
+                              'run': 'python -m gnomon.examples.custom_provider'}))
+            return 0
+        if getattr(args, 'show_resolved_config', False):
+            if args.cache or args.provider or args.request or args.config_schema:
+                raise _UsageError('--show-resolved-config cannot be combined with cache/schema request flags.', 'gnomon capabilities')
+            from .session import resolved_configuration
+            print(json.dumps(resolved_configuration(args.providers_config), indent=2))
             return 0
         if getattr(args, "config_schema", False):
             from .session import configuration_schema
@@ -413,7 +479,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 result = installation.update(args.version)
         elif args.command == "self-check":
             from .selfcheck import leakage_self_check
-            result = leakage_self_check(args.cases, args.seed)
+            result = leakage_self_check(args.cases, args.seed, args.families)
         elif args.command == "temporal":
             with GnomonSession(enable_temporal=True) as session:
                 result = _execute(session, args)
@@ -428,6 +494,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         if getattr(args, "save_result", None):
             from .snapshot_files import write_json
             result["saved_result"] = write_json(args.save_result, result)
+        from .diagnostics import completion
+        result = completion(result)
         print(json.dumps(result, indent=2, allow_nan=False))
         if result.get("status") == "unscored" or (args.command == "self-check" and not result["checks_passed"]):
             return 2
@@ -452,13 +520,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     # The CLI is a JSON interface: stdout always carries its one structured
     # response. The exit status distinguishes success from failure; stderr is
     # reserved for unstructured diagnostics emitted outside this boundary.
-    payload = error.to_dict()
+    payload = error.to_dict(compact=getattr(args, 'compact_errors', False))
     if args is not None and getattr(args, "input", None):
         # Source failures and provider validation must retain the same semantic
         # context, including units, series selection, repairs and cutoffs.
         payload["error"]["details"]["input_options"] = {
             key: getattr(args, key) for key in (*_INPUT_KEYS, "provider", "horizon", "season", "series_id", "quantiles")
             if getattr(args, key, None) is not None}
+        options = payload['error']['details']['input_options']
+        explicit = {k: v for k, v in options.items() if k in args._explicit_fields or k == 'input'}
+        payload['error']['details'].update(supplied_arguments=explicit, explicit_input_options=explicit,
+            defaulted_input_options={k: v for k, v in options.items() if k not in explicit})
     if error.code == "INVALID_ARGUMENTS" and args is not None and args.command in _EXAMPLES:
         details = payload["error"]["details"]
         if args.command == "infer" and getattr(args, "input", None):
@@ -481,6 +553,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "infer" and "required_history" in details:
             details.pop("example_arguments", None)
             details["request_parameters"] = {"season": details["season"], "horizon": details["horizon"]}
+    from .diagnostics import recovery_metadata
+    payload['error']['recovery'] = recovery_metadata(payload['error']['details'])
     print(json.dumps(payload, indent=2))
     return 2
 

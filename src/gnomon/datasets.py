@@ -143,7 +143,7 @@ def load_stage(
     variable = target_column
     if input_path.startswith(STORE_SCHEME):
         if timezone is not None or window is not None:
-            raise GnomonError("INVALID_ARGUMENTS", "Declare timezone/window when preparing file data; store snapshots are already curated.")
+            raise GnomonError("INVALID_ARGUMENTS", "Store snapshots are already curated. Declare timezone in TemporalStore.ingest_csv(timezone='UTC') using the actual source zone; reingest naive identities into a new dataset. Select windows before ingestion.")
         if regrid:
             raise GnomonError(
                 "INVALID_ARGUMENTS",
@@ -201,8 +201,12 @@ def load_stage(
     if not observations:
         raise GnomonError(
             "EMPTY_SNAPSHOT",
-            "No observations are known at or before the requested as_of instant.",
-            {"as_of": as_of.isoformat() if as_of else "latest"},
+            "No observations are visible for the selected variable and source/recording cutoffs; inspect exclusion_counts to identify the filtering boundary.",
+            {"as_of": as_of.isoformat() if as_of else "latest",
+             "recorded_as_of": recorded_as_of.isoformat() if recorded_as_of else None,
+             "variable": variable, "exclusion_counts": snapshot.visibility,
+             "cutoff_meanings": {"as_of": "source availability (known_time)", "recorded_as_of": "local ingestion time"}},
+            repair_options=[{"action": "review_visibility_filters", "description": "Check the selected variable and each cutoff's exclusion count. Choose cutoffs appropriate to the task; do not advance them merely to make an empty result disappear."}],
         )
     try:
         groups, resolved_frequency, zone = validate_and_group(observations, frequency)

@@ -18,14 +18,18 @@ from .forecast_adapter import AdapterCapabilities, ForecastAdapterError, point_e
 from .ids import content_id
 from .ledger import _time
 from .repair import historical_repair_blockers
+from .contracts import GnomonError
 
 DEFAULT_MIN_FOLDS = 3
 
 
 def route_study(engine, references, data_ref: str, *, study_id: str, candidates: list[str], baseline: str,
                 horizon: int, source_as_of: str, recorded_as_of: str, series_id: str | None = None,
-                season: int = 1, min_folds: int = DEFAULT_MIN_FOLDS, min_improvement: float = .02, max_folds: int = 8) -> dict:
+                season: int = 1, min_folds: int = DEFAULT_MIN_FOLDS, min_improvement: float = .02, max_folds: int = 8,
+                require_evidence: bool = False) -> dict:
     started = monotonic()
+    if type(require_evidence) is not bool:
+        raise ForecastAdapterError("require_evidence must be a boolean")
     if engine.ledger is None:
         raise ForecastAdapterError("study routing requires an explicit ledger")
     if not isinstance(study_id, str) or not study_id:
@@ -88,7 +92,27 @@ def route_study(engine, references, data_ref: str, *, study_id: str, candidates:
             "study_integrity_unverifiable": "verify_ledger_integrity_before_reuse",
         }.get(reason, "inspect_excluded_folds_before_collecting_more_evidence" if answer.get("excluded_folds")
               else "evaluate_more_matched_folds_with_sufficient_history_and_budget")
-        return {**answer, "reason": reason, "next_step": next_step}
+        actions = []
+        if reason == "insufficient_replayable_matched_folds" and not answer.get("excluded_folds"):
+            actions.append({"tool": "gnomon_evaluate", "arguments": {
+                "data_ref": data_ref, "series_id": name, "candidates": candidates,
+                "baseline": baseline, "horizon": horizon, "season": season, "folds": min_folds},
+                "example_kind": "task_template", "admissible": None,
+                "requires_provider_calls": True,
+                "guidance": "Check available observed history and operator dispatch budgets before executing. This creates a new study; sufficient replayable folds are not guaranteed."})
+        if reason not in {"study_not_found", "study_unavailable_at_recorded_cutoff", "study_integrity_unverifiable"}:
+            actions.append({"tool": "gnomon_ledger", "arguments": {
+                "operation": "study", "study_id": study_id, "recorded_as_of": recorded_as_of},
+                "requires_provider_calls": False})
+        response = {**answer, "reason": reason, "next_step": next_step, "next_actions": actions,
+                    "evidence_based": False, "routing_status": "fallback",
+                    "warning": "Baseline fallback: matched evidence did not support provider selection."}
+        if require_evidence:
+            raise GnomonError("ROUTING_EVIDENCE_REQUIRED",
+                              "Evidence-based routing was required but is unavailable: " + reason,
+                              details=response, repair_options=[{"action": next_step,
+                                  "description": "Resolve the reported evidence issue and retry with require_evidence=true. No provider was executed or rescore saved."}])
+        return response
 
     try:
         report = engine.ledger.study(study_id, recorded_as_of=recorded_as_of)
@@ -100,6 +124,9 @@ def route_study(engine, references, data_ref: str, *, study_id: str, candidates:
         return fallback("select_an_original_backtest_study")
     if len(report["folds"]) > max_folds:
         return fallback("study_exceeds_operator_fold_limit")
+    variable = report.get('variable', next((a['variable'] for f in report['folds'] for a in f['actuals']), None))
+    if variable is not None and variable != frozen.loaded.variable:
+        return fallback('task_identity_mismatch')
     if any(report.get(k) != v for k, v in {"series_id": name, "unit": frozen.unit, "horizon": horizon,
             "season": season, "frequency": frozen.loaded.frequency, "baseline": baseline}.items()):
         return fallback("task_identity_mismatch")
@@ -132,7 +159,7 @@ def route_study(engine, references, data_ref: str, *, study_id: str, candidates:
                                      if req["recorded_time_cutoff"] else None)
         history = [r for r in historical.series(name, frozen.loaded.variable)
                    if r.valid_time <= datetime.fromisoformat(req["cutoff"])]
-        if ([r.valid_time.isoformat() for r in history] != req["timestamps"] or [r.value for r in history] != req["history"]):
+        if ([r.valid_time for r in history] != [datetime.fromisoformat(t) for t in req["timestamps"]] or [r.value for r in history] != req["history"]):
             reason = "historical_inputs_not_reconstructible"
         actuals = [asdict(truth[t]) for t in future]
         actuals = [{k: v.isoformat() if hasattr(v, "isoformat") else v for k, v in row.items()} for row in actuals]
@@ -153,7 +180,8 @@ def route_study(engine, references, data_ref: str, *, study_id: str, candidates:
                 except (KeyError, ForecastAdapterError):
                     reason = "pretrained_training_cutoff_unattested"
         if reason:
-            excluded.append({"origin": fold["origin"], "reason": reason})
+            excluded.append({"origin": fold["origin"], "reason": reason,
+                **({'description': 'Actual values changed in data with assumed source availability. Their revision availability and recording history are unknown; ingest explicit vintages into TemporalStore before reusing revised outcomes.'} if reason == 'file_revision_availability_unknown' else {})})
         else:
             selected.append({**fold, "actuals": actuals})
     answer["matched_folds"] = len(selected)
@@ -187,6 +215,14 @@ def route_study(engine, references, data_ref: str, *, study_id: str, candidates:
                "usage": {**report["usage"], "provider_calls": 0, "elapsed_seconds": monotonic() - started,
                          "matched_folds": len(selected), "stop_reason": None, "wall_limit_overrun": False},
                "original_usage": report["usage"], "recorded": True}
+    from .rescoring import digest, refresh_derivations
+    rescore.update(original_study_id=study_id, rescore_study_id=rescore['study_id'], original_study_sha256=digest(report),
+                   predictions_reused_exactly=True, original_unchanged=True, original_snapshot_id=report['snapshot_id'],
+                   source_fingerprint=visible.source_ref)
+    refresh_derivations(rescore, selected, providers)
+    rescore.update(evaluation_status=rescore['status'], routing_status='rescore_not_a_new_route_task',
+        routing_readiness={'ready': False, 'issues': [{'action': 'route_original_study',
+            'description': 'Select the original study when routing; this record contains derived scores.'}]})
     rescore["original_diagnostics"] = rescore["diagnostics"]
     rescore["diagnostics"] = {p: {"attempted": 0, "succeeded": 0, "failed": 0, "reused": len(selected)} for p in providers}
     rescore["usage"]["internal_model_calls"] = 0
@@ -196,6 +232,8 @@ def route_study(engine, references, data_ref: str, *, study_id: str, candidates:
     rescore["cohort_id"] = content_id("cohort", {"folds": [{k: f[k] for k in ("request", "actuals")} for f in selected]}, length=64)
     engine.ledger.record_study(rescore)
     return {**answer, "recommendation": choice, "basis": "cutoff_bound_matched_study", "fallback_used": False, "reason": None,
+            "evidence_based": True, "routing_status": "selected",
             "selection_reason": selection_reason, "ranking": ranked, "ranking_policy": ranking_policy,
             "scores": scores, "relative_mae_improvement": improvement, "rescore_study_id": rescore["study_id"],
+            "full_study": {"tool": "gnomon_evaluate", "arguments": {"study_id": rescore["study_id"]}},
             "cohort_id": rescore["cohort_id"], "model_identity_basis": "provider_declared_not_independently_attested"}

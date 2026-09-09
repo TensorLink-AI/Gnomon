@@ -109,6 +109,8 @@ class ResultReferences:
         else:
             return value
         ref = self.put(value)
+        retained_text, digest = self.text(ref)
+        total_chars = len(retained_text)
         scalar_keys = (
             "status", "execution_id", "study_id", "data_ref", "provider", "revision", "evidence", "recorded",
             "series_id", "unit", "horizon", "statistic", "value", "source_as_of", "recorded_as_of",
@@ -116,7 +118,10 @@ class ResultReferences:
             "next_step", "reason", "metric_version", "aggregation",
             "operation", "scoring_status", "complete", "allow_partial", "evaluation_reused",
             "coverage_basis", "current_coverage_basis",
-            "fallback_used", "selection_reason",
+            "fallback_used", "selection_reason", "evidence_based", "routing_status", "recommendation",
+            "study_evidence_scope",
+            'operation_succeeded', 'task_completed', 'evidence_complete', 'evaluation_status',
+            'effective_season', 'season_defaulted', 'result_contract_validated', 'cache_hit',
         )
         summary = {key: value[key] for key in scalar_keys
             if key in value and type(value[key]) in (str, int, float, bool, type(None))
@@ -129,6 +134,12 @@ class ResultReferences:
                 summary["routing_readiness"]["issues_count"] = len(readiness["issues"])
         nested = value.get("result")
         if isinstance(nested, dict):
+            if isinstance(nested.get('point'), (list, tuple)):
+                summary['point_count'] = len(nested['point'])
+                summary['horizon'] = len(nested['point'])
+                summary['timestamp_count'] = len(nested.get('timestamps') or [])
+            if isinstance(value.get('cache'), dict):
+                summary['cache_status'] = value['cache'].get('status')
             result_summary = {key: nested[key] for key in scalar_keys
                 if key in nested and type(nested[key]) in (str, int, float, bool, type(None))
                 and len(encode(nested[key]).encode("utf-8")) <= 160}
@@ -158,7 +169,10 @@ class ResultReferences:
         # Preserve completion/coverage even if optional identifiers or rankings
         # consume the remaining response budget. Full evidence is still retained.
         essential = {key: summary[key] for key in (
-            "status", "operation", "scoring_status", "complete", "allow_partial", "routing_readiness") if key in summary}
+            "status", "operation", "scoring_status", "complete", "allow_partial", "routing_readiness",
+            "fallback_used", "evidence_based", "routing_status", "recommendation", "reason", "next_step",
+            "study_evidence_scope", 'operation_succeeded', 'task_completed', 'evidence_complete',
+            'point_count', 'timestamp_count', 'horizon', 'cache_status', 'result_contract_validated') if key in summary}
         if "result" in summary:
             essential["result"] = {key: summary["result"][key] for key in (
                 "status", "complete", "n", "horizon", "evaluation_reused", "coverage_basis",
@@ -167,7 +181,14 @@ class ResultReferences:
         projected = {"schema_version": "1", "status": "unscored" if value.get("status") == "unscored" else "result_available", "partial": True,
                      "result_ref": ref, "summary": summary, "action_authorized": False,
                      "retention": "session_lru", "partial_scope": "response_payload",
+                     "total_chars": total_chars, "root_sha256": digest,
+                     "recommended_max_chars": 4096, "minimum_pages": (total_chars + 4095) // 4096,
+                     "paging_guidance": "Follow next_offset until null; response byte limits may require more pages.",
+                     "full_result_scope": "response_payload",
                      "full_result": {"tool": "gnomon_read", "arguments": {"result_ref": ref}}}
+        full_study = value.get("full_study")
+        if isinstance(full_study, dict) and len(encode(full_study).encode("utf-8")) <= 256:
+            projected["full_study"] = full_study
         if "error" in value:
             projected["status"] = "error"
             projected["error"] = {"code": "FULL_ERROR_RETAINED", "message": "Read the retained result for complete error details.",

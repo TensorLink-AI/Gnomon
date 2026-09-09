@@ -185,7 +185,11 @@ class TemporalLedger:
         if row is None:
             raise ForecastAdapterError("study_id was not found in this ledger", details={"reason": "study_not_found"})
         if recorded_as_of is not None and row["recorded_at"] > _time(recorded_as_of):
-            raise ForecastAdapterError("study was not recorded by the requested cutoff")
+            raise ForecastAdapterError("study was not recorded by the requested cutoff",
+                details={'study_id': study_id, 'study_recorded_at': row['recorded_at'], 'recorded_as_of': recorded_as_of,
+                         'rejected_fields': ['recorded_as_of'],
+                         'guidance': 'Select a study already recorded by the intended cutoff. Only advance recorded_as_of to study_recorded_at or later if later evidence is appropriate to the task.'},
+                repair_options=[{'action': 'select_visible_study', 'description': 'Use evidence recorded by the intended recording cutoff, or explicitly choose a later evidence cutoff.'}])
         if hashlib.sha256(row["payload_json"].encode()).hexdigest() != row["payload_id"]:
             raise ForecastAdapterError("study payload integrity check failed")
         return {**json.loads(row["payload_json"]), "recorded_at": row["recorded_at"]}
@@ -194,6 +198,9 @@ class TemporalLedger:
         data = dict(data)
         execution_id, fingerprint = data.pop("execution_id"), data.pop("fingerprint")
         cache_hit = data.pop("cache_hit")
+        # Lookup diagnostics describe an invocation, not its reusable forecast
+        # payload. Keep cache_hit in the execution row and preserve deduplication.
+        data.pop('cache', None)
         encoded = _json(data)
         payload_id = hashlib.sha256(encoded.encode()).hexdigest()
         conn.execute("INSERT OR IGNORE INTO payloads VALUES (?,?)", (payload_id, encoded))

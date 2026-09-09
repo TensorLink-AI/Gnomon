@@ -110,6 +110,10 @@ class Snapshot:
             if as_of is None or item.known_time <= as_of
             if recorded_as_of is None or (item.recorded_at is not None and item.recorded_at <= recorded_as_of)
         ]
+        self.visibility = {"input_vintages": len(observations), "visible_vintages": len(self._observations),
+            "excluded_by_source_cutoff": sum(as_of is not None and item.known_time > as_of for item in observations),
+            "excluded_by_recorded_cutoff": sum(recorded_as_of is not None and
+                (item.recorded_at is None or item.recorded_at > recorded_as_of) for item in observations)}
         self._log: list[AccessRecord] = []
 
     # -- reads ------------------------------------------------------------
@@ -475,7 +479,20 @@ class TemporalStore:
         known_at_column: str | None = None,
         variable: str | None = None,
         clock: Clock | None = None,
+        timezone: str | None = None,
     ) -> IngestReport:
+        """Ingest CSV vintages. timezone localizes naive valid/known times at ingestion.
+
+        Explicit offsets are converted into that zone. Ambiguous/nonexistent
+        local times require explicit offsets; recording time comes from clock.
+        Use a new dataset when correcting previously ingested naive time identities.
+        """
+        from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+        from .datasets import _localize
+        try:
+            zone = ZoneInfo(timezone) if timezone is not None else None
+        except (ZoneInfoNotFoundError, ValueError, TypeError):
+            raise GnomonError("INVALID_ARGUMENTS", "timezone must name an available IANA zone, e.g. UTC.") from None
         path = Path(input_path).expanduser().resolve()
         if not path.is_file():
             raise GnomonError("INPUT_NOT_FOUND", f"Input file does not exist: {path}")
@@ -502,6 +519,8 @@ class TemporalStore:
                 _parse_timestamp(raw[known_at_column], number)
                 if known_at_column else valid_time
             )
+            if zone is not None:
+                valid_time, known_time = _localize(valid_time, zone), _localize(known_time, zone)
             if (valid_time.tzinfo is None) != (known_time.tzinfo is None):
                 raise GnomonError(
                     "MIXED_TIMEZONES",

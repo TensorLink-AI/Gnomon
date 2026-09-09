@@ -1,6 +1,33 @@
 # Changelog
 
-## Unreleased
+## 1.1.6 — 2026-09-09
+
+- Canonicalize validated cache identities across numeric/container/default and
+  timestamp representations without collapsing large integers or calendar DST
+  grids. Add cache diagnostics and engine execution cache/provenance metadata.
+- Add immutable revision-aware `evaluate --rescore` and `evaluate --compare`
+  operations through CLI, Python and MCP, preserving original executions/origins,
+  refreshing rankings, ties and optional arithmetic derivations with zero calls.
+- Accept timezone declaration at CSV store ingestion; disclose both visibility
+  cutoffs in empty snapshots and preserve explicit versus defaulted error inputs.
+- Add resolved-configuration inspection without provider imports or secrets,
+  installed provider/MCP examples, effective-season disclosure, centralized exit
+  and cutoff semantics, and optional compact error envelopes.
+- Add bounded all-mode repair diagnosis, separate bad-cell and affected-row
+  counts, shared recovery/budget metadata, optional arithmetic verification and
+  selectable finite self-check families for revisions, recording, folds,
+  covariates, series, DST, repairs and cache equivalence.
+
+- Label early gap-run rejection counts as lower bounds with incomplete-scan
+  metadata; retain the bounded scan and existing repair limits.
+- Add optional strict routing (`--require-evidence` / `require_evidence=true`),
+  explicit evidence/fallback status and task-preserving follow-up actions.
+- Link compact evaluations directly to full saved fold evidence; distinguish
+  full response retrieval from full study retrieval. Retained receipts include
+  character counts, hashes and pagination guidance.
+- Mark temporal examples mechanically runnable or unresolved, list preserved
+  fields, retain numbers in proposed integer type corrections, and restrict
+  month-end policy guidance to relevant failures.
 
 ## 1.1.5 — 2026-09-09
 

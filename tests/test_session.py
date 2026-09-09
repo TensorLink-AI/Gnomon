@@ -99,9 +99,12 @@ def test_direct_request_provenance_matches_recorded_execution_without_claiming_s
         provenance = forecast["request_provenance"]
         assert provenance["source"] == "caller_supplied_request"
         stored = session.ledger.execution(forecast["execution_id"])["request"]
+        from gnomon.inference import _freeze_request
+        from dataclasses import asdict
+        canonical = asdict(_freeze_request(payload))
         for key in ("cutoff", "known_time_cutoff", "recorded_time_cutoff", "snapshot_id", "series_id"):
-            assert provenance[key] == stored[key] == payload.get(key)
-        assert provenance["history_end"] == (payload["timestamps"][-1] if with_cutoffs else None)
+            assert provenance[key] == stored[key] == canonical.get(key)
+        assert provenance["history_end"] == (canonical["timestamps"][-1] if with_cutoffs else None)
 
 
 def test_mcp_session_never_accepts_agent_controlled_urls_imports_or_ledger_paths(tmp_path):

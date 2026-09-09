@@ -531,7 +531,9 @@ def _excessive(series: str, counts: dict[str, int], total: int) -> GnomonError:
         "fix the data at the source or select an observed contiguous window.",
         {"series": series, "total_observations": total, "repair_counts": counts,
          "denominator_basis": "original_observations_before_deduplication_and_filling",
-         "max_fraction": MAX_ASSUMPTIVE_FRACTION, "max_gap_run": max(3, total // 10)},
+         "max_fraction": MAX_ASSUMPTIVE_FRACTION, "max_gap_run": max(3, total // 10),
+         "scan_complete": "gap_run_at_least" not in counts,
+         "count_scope": "lower_bound_at_rejection" if "gap_run_at_least" in counts else "completed_repair_counts"},
         repair_options=[{"action": "correct_source", "description": "Supply observed values or use --window latest_contiguous with --frequency; aggressive repair cannot exceed these budgets."}],
     )
 
@@ -678,7 +680,7 @@ def _repair_series(
             missing.append(expected)
             expected = next_timestamp(expected, frequency)
             if len(missing) > run_cap:
-                raise _excessive(name, {"gap_run": len(missing)}, total)
+                raise _excessive(name, {"gap_run_at_least": len(missing)}, total)
         for index, slot in enumerate(missing, start=1):
             fraction = index / (len(missing) + 1)
             value = left.value + (right.value - left.value) * fraction
