@@ -66,6 +66,7 @@ class TemporalLedger:
     def __init__(self, path: str | Path, *, clock=None, create=True):
         self.path = Path(path).expanduser()
         self._create = create
+        self._committed_row_writes = 0
         if create:
             self.path.parent.mkdir(parents=True, exist_ok=True)
         elif not self.path.is_file():
@@ -148,6 +149,7 @@ class TemporalLedger:
         try:
             with conn:
                 yield conn
+            self._committed_row_writes += conn.total_changes
         finally:
             conn.close()
 
@@ -201,6 +203,9 @@ class TemporalLedger:
         # Lookup diagnostics describe an invocation, not its reusable forecast
         # payload. Keep cache_hit in the execution row and preserve deduplication.
         data.pop('cache', None)
+        # Completion contains the invocation ID. Reconstruct it on public reads
+        # so identical request/result payloads remain deduplicated and immutable.
+        data.pop('completion', None)
         encoded = _json(data)
         payload_id = hashlib.sha256(encoded.encode()).hexdigest()
         conn.execute("INSERT OR IGNORE INTO payloads VALUES (?,?)", (payload_id, encoded))
@@ -210,7 +215,11 @@ class TemporalLedger:
 
     def execution(self, execution_id: str) -> dict:
         with self._connect() as conn:
-            return self._execution(conn, execution_id)
+            record = self._execution(conn, execution_id)
+        if record.get('result_contract_validated') is True:
+            from .final_selection import _completion_from_record
+            record['completion'] = _completion_from_record(record)
+        return record
 
     def _execution(self, conn, execution_id):
         row = conn.execute("SELECT e.*, p.payload_json FROM executions e JOIN payloads p USING(payload_id) "

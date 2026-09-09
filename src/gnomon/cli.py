@@ -71,7 +71,9 @@ def _input_options(parser):
 def build_parser() -> argparse.ArgumentParser:
     parser = _Parser(prog="gnomon", description="Run your time-series models and keep explicit evidence.")
     parser.add_argument("--version", action="version", version=f"gnomon {build_info()['build_id']}")
-    parser.add_argument('--compact-errors', action='store_true', help='Replace duplicate legacy rejection details with an /error reference')
+    errors = parser.add_mutually_exclusive_group()
+    errors.add_argument('--compact-errors', dest='compact_errors', action='store_true', default=True, help='Reference the canonical error object (default)')
+    errors.add_argument('--expanded-errors', dest='compact_errors', action='store_false', help='Include duplicate legacy rejection details')
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("schemas", help="List command and operator configuration schema entry points")
     caps = commands.add_parser("capabilities", help="List registered providers and enabled tools")
@@ -79,7 +81,9 @@ def build_parser() -> argparse.ArgumentParser:
     caps.add_argument("--providers-config", help=_CONFIG_HELP)
     caps.add_argument("--config-schema", action="store_true", help="Describe operator TOML configuration keys without loading providers")
     caps.add_argument('--show-resolved-config', action='store_true', help='Inspect resolved paths/settings without loading providers or secrets. Relative TOML paths resolve against the configuration file directory.')
-    caps.add_argument('--brief', action='store_true', help='Return shared request schemas once, with references from providers; shorten discovery payload.')
+    shape = caps.add_mutually_exclusive_group()
+    shape.add_argument('--brief', dest='brief', action='store_true', default=True, help='Return shared request schemas once (default).')
+    shape.add_argument('--expanded', dest='brief', action='store_false', help='Repeat complete request schemas under each provider.')
     caps.add_argument('--cache', action='store_true', help='Inspect cache policy; add --provider and --request to validate a lookup without executing a forecast')
     caps.add_argument('--provider')
     caps.add_argument('--request', help='JSON request or @file for --cache --provider')
@@ -158,6 +162,9 @@ def build_parser() -> argparse.ArgumentParser:
             epilog = ("Example: gnomon ledger --ledger-path evidence.db --arguments '" + _EXAMPLES[name] +
                       "'\nRun gnomon ledger --schema for operations and required fields. "
                       "Outcome writes require allow_outcome_writes=true in operator TOML.\n\n"
+                      "Complete synthetic compare_history example (run in a fresh directory):\n"
+                      "  python -m gnomon.examples.compare_history\n"
+                      "Uses a controlled clock, history/future timestamps, units, provider revisions and actual availability.\n\n"
                       "Ledger evaluate defaults allow_partial=true: exit 0/status ok means the operation succeeded.\n"
                       "Read scoring_status/complete and result.status/result.coverage (each result for batches).\n"
                       "Check result.coverage_basis for saved versus reconstructed legacy coverage; result.current_coverage refreshes query diagnostics.\n"
@@ -339,11 +346,7 @@ def _execute(session, args):
                     if args.provider else {p: session.engine.cache_policy(p) for p in session.engine.capabilities()}}
         if args.provider or args.request:
             raise _UsageError('--provider and --request require --cache.', 'gnomon capabilities')
-        result = session.capabilities()
-        if args.brief:
-            from .diagnostics import shared_provider_schemas
-            result = shared_provider_schemas(result)
-        return result
+        return session.capabilities(brief=args.brief)
     if args.command in ("inspect", "describe"):
         data = _inspect(session, args)
         if args.command == "inspect":
@@ -544,7 +547,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     # The CLI is a JSON interface: stdout always carries its one structured
     # response. The exit status distinguishes success from failure; stderr is
     # reserved for unstructured diagnostics emitted outside this boundary.
-    payload = error.to_dict(compact=getattr(args, 'compact_errors', False))
+    payload = error.to_dict(compact=getattr(args, 'compact_errors', True))
     if args is not None and getattr(args, "input", None):
         # Source failures and provider validation must retain the same semantic
         # context, including units, series selection, repairs and cutoffs.
@@ -593,7 +596,24 @@ def main(argv: Sequence[str] | None = None) -> int:
             else:
                 correction[flag_index] = '--time-column=ts'
             details['next_call'] = {'argv': ['gnomon', *correction], 'runnable': True, 'admissible': None}
-    payload['error']['recovery'] = recovery_metadata(payload['error']['details'])
+    details = payload['error']['details']
+    if args is not None and str(getattr(args, 'input', '')).endswith('.gnomon') and details.get('rejected_fields'):
+        from .recovery import frozen_recovery
+        rejected = details['rejected_fields']
+        details.update(frozen_recovery(details.get('supplied_arguments', {}), rejected))
+        flags = {'--' + key.replace('_', '-') for key in rejected}
+        correction = []
+        skip = False
+        for item in argv:
+            if skip:
+                skip = False
+                continue
+            if item.split('=', 1)[0] in flags:
+                skip = '=' not in item
+                continue
+            correction.append(item)
+        details['next_call'] = {'argv': ['gnomon', *correction], 'runnable': True, 'admissible': True}
+    payload['error']['recovery'] = recovery_metadata(details, cause=error.message, cause_code=error.code)
     if getattr(args, 'save_result', None):
         from .snapshot_files import write_json
         try:

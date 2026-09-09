@@ -50,7 +50,7 @@ def route_study(engine, references, data_ref: str, *, study_id: str, candidates:
     if any(r.timestamp.tzinfo is None for r in rows):
         raise ForecastAdapterError("historical routing requires timezone-aware valid times")
     parent = frozen.loaded.snapshot
-    visible = parent.narrow(as_of=source_cutoff, recorded_as_of=None if parent.assumed_known_time else recorded_cutoff)
+    visible = parent.narrow(as_of=source_cutoff, recorded_as_of=None if parent.unknown_recorded_times else recorded_cutoff)
     current = [r for r in visible.series(name, frozen.loaded.variable) if r.valid_time <= source_cutoff]
     if [(r.valid_time, r.value) for r in current] != [(r.timestamp, r.value) for r in rows]:
         raise ForecastAdapterError("inspect the input at the routing source/recorded cutoffs before requesting a recommendation")
@@ -71,7 +71,7 @@ def route_study(engine, references, data_ref: str, *, study_id: str, candidates:
                   "ledger_evidence_recorded_as_of": _time(recorded_as_of),
                   "snapshot_source_as_of": visible.as_of.isoformat(),
                   "snapshot_recorded_as_of": visible.recorded_as_of.isoformat() if visible.recorded_as_of else None,
-                  "snapshot_recording_basis": "unknown_recording_times" if parent.assumed_known_time else "recorded_vintages",
+                  "snapshot_recording_basis": "unknown_recording_times" if parent.unknown_recorded_times else "recorded_vintages",
                   "effective_fields_scope": "input_snapshot",
                   "guidance": "recorded_as_of filters recorded studies and executions. Effective cutoff fields describe the input snapshot; a null snapshot recording cutoff does not disable ledger evidence filtering."},
               "recommendation": baseline, "basis": "explicit_baseline_fallback", "fallback_used": True, "reason": None,
@@ -125,16 +125,15 @@ def route_study(engine, references, data_ref: str, *, study_id: str, candidates:
     if len(report["folds"]) > max_folds:
         return fallback("study_exceeds_operator_fold_limit")
     variable = report.get('variable', next((a['variable'] for f in report['folds'] for a in f['actuals']), None))
-    if variable is not None and variable != frozen.loaded.variable:
-        answer['mismatch'] = {'field': 'variable', 'study': variable, 'requested': frozen.loaded.variable}
-        return fallback('task_identity_mismatch')
     mismatches = [{'field': k, 'study': report.get(k), 'requested': v} for k, v in {"series_id": name, "unit": frozen.unit, "horizon": horizon,
             "season": season, "frequency": frozen.loaded.frequency, "baseline": baseline}.items() if report.get(k) != v]
+    if variable is not None and variable != frozen.loaded.variable:
+        mismatches.append({'field': 'variable', 'study': variable, 'requested': frozen.loaded.variable})
+    if set(report["providers"]) != set(providers):
+        mismatches.append({'field': 'providers', 'study': list(report['providers']), 'requested': providers})
     if mismatches:
         answer.update(mismatch=mismatches[0], mismatches=mismatches)
-        return fallback("task_identity_mismatch")
-    if set(report["providers"]) != set(providers):
-        return fallback("provider_cohort_mismatch")
+        return fallback("provider_cohort_mismatch" if all(m['field'] == 'providers' for m in mismatches) else "task_identity_mismatch")
     for p in providers:
         revision = identities[p]["revision"]
         if revision in {None, "latest", "unversioned"}:
@@ -166,7 +165,7 @@ def route_study(engine, references, data_ref: str, *, study_id: str, candidates:
             reason = "historical_inputs_not_reconstructible"
         actuals = [asdict(truth[t]) for t in future]
         actuals = [{k: v.isoformat() if hasattr(v, "isoformat") else v for k, v in row.items()} for row in actuals]
-        if parent.assumed_known_time and any(a["value"] != b["value"] for a, b in zip(actuals, fold["actuals"])):
+        if parent.unknown_recorded_times and any(a["value"] != b["value"] for a, b in zip(actuals, fold["actuals"])):
             reason = "file_revision_availability_unknown"
         for p in providers:
             run = engine.ledger.execution(fold["runs"][p]["execution_id"])

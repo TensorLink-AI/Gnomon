@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.1.8 — 2026-09-09
+
+- Expose canonical forecast completions bound to the full request and a public
+  host-side final-selection resolver. Preserve a single matching execution
+  after prose finals, require explicit selection for ambiguity, and report
+  strict final conformance separately from recovered completion.
+
+- Keep assumed source availability independent of known recording timestamps
+  for CSV-store evaluation, routing and immutable rescoring. Report missing
+  origin observations separately from insufficient history, with exact cutoff
+  and endpoint visibility diagnostics.
+- Return task-preserving frozen-snapshot retries and temporal correction
+  templates, with authoritative recovery causes and explicit semantic choices.
+- Default capabilities to shared schemas and errors to a canonical error
+  object; retain `--expanded`, Python `brief=False`, and expanded-error options.
+- Report all independently checkable study mismatches and invalid configuration
+  field paths. Correlate provider failures without exposing exception secrets.
+- Measure provider dispatches, forecast requests and committed ledger row
+  writes at session boundaries; budget MCP read pages including these fields.
+- Install a complete controlled-clock `compare_history` example.
+
 ## 1.1.7 — 2026-09-09
 
 - Explain compare-history exclusion causes and historical replay visibility per
