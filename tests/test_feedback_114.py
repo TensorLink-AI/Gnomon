@@ -27,7 +27,9 @@ def test_installed_register_example_handles_request_identity(identified):
         second = engine.forecast('custom', request)
         assert first.result.point == (2, 2) and not first.cache_hit and second.cache_hit
         assert first.result.unit == request.get('unit')
-        assert first.result.timestamps == tuple(request.get('future_timestamps', []))
+        from gnomon import ForecastRequest
+        assert first.result.validate(ForecastRequest.from_dict(request))
+        assert first.result.timestamps == first.request.future_timestamps  # canonical timestamps
 
 
 def test_forecast_alias_and_semantic_error_context(tmp_path):

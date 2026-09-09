@@ -51,6 +51,37 @@ class DataReferences:
         self.max_refs, self.max_rows = max_refs, max_rows
         self._inputs: OrderedDict[str, _FrozenInput] = OrderedDict()
 
+    def diagnose(self, input, **options):
+        """Dry-run all repair policies on a local file; never write repaired data."""
+        path = Path(input)
+        if input.startswith('store:') or path.suffix == '.gnomon':
+            raise ForecastAdapterError('diagnose expects original local file data, not a curated store or saved snapshot')
+        if not path.is_file():
+            raise GnomonError('INPUT_NOT_FOUND', 'Diagnostic input file does not exist.')
+        if path.stat().st_size > 8 * 1024 * 1024:
+            raise GnomonError('DIAGNOSTIC_LIMIT', 'Bounded diagnostics accept files up to 8 MiB; partition the source deliberately for larger inputs.')
+        if 'repair' in options:
+            raise ForecastAdapterError('diagnose compares off/safe/aggressive; do not select one repair mode')
+        probe = DataReferences(max_refs=3, max_rows=min(self.max_rows, 100000))
+        outcomes = {}
+        try:
+            for mode in ('off', 'safe', 'aggressive'):
+                try:
+                    result = probe.inspect(input, repair=mode, **options)
+                    outcomes[mode] = {'status': 'ok', 'admissible': True, 'scope': 'data_preparation_only',
+                        'series': result['series'], 'repairs': result['repairs'], 'readiness': result['readiness'],
+                        'source_ref': result['snapshot']['source_ref']}
+                except (GnomonError, ForecastAdapterError) as exc:
+                    error = exc if isinstance(exc, GnomonError) else GnomonError('INVALID_ARGUMENTS', str(exc), details=exc.details)
+                    error.details.setdefault('supplied_arguments', {'input': input, **options, 'repair': mode})
+                    outcomes[mode] = {'status': 'rejected', 'admissible': False, 'error': error.to_dict(compact=True)['error']}
+            return {'schema_version': '1', 'status': 'ok', 'operation': 'diagnose', 'input': input,
+                'modes': outcomes, 'source_modified': False, 'provider_calls': 0,
+                'limits': {'file_bytes': 8 * 1024 * 1024, 'retained_rows': min(self.max_rows, 100000)},
+                'guidance': 'Dry-run results describe data preparation, not provider history/capability suitability. No repaired file or reusable data_ref is returned. Lower-bound counts remain labelled; later-stage budgets may be unmeasured after an earlier rejection.'}
+        finally:
+            probe.clear()
+
     def inspect(self, input: str, *, time_column: str = "timestamp", target_column: str = "value",
                 series_column: str | None = None, frequency: str | None = None, as_of: str | None = None,
                 recorded_as_of: str | None = None, store_path: str | None = None,
@@ -67,8 +98,11 @@ class DataReferences:
             if (time_column != "timestamp" or target_column != "value" or repair != "off"
                     or any(value is not None for value in (series_column, frequency, as_of, recorded_as_of,
                                                           store_path, regrid, timezone, unit, window))):
-                raise ForecastAdapterError("A saved snapshot already fixes its schema, unit, timezone, repairs and cutoffs; "
-                                           "supply only input and purpose, or inspect the original source with new options.")
+                rejected = {k: v for k, v in locals().items() if k in {'series_column', 'frequency', 'as_of', 'recorded_as_of', 'store_path', 'regrid', 'timezone', 'unit', 'window'} and v is not None}
+                rejected.update({k: v for k, v, default in [('time_column', time_column, 'timestamp'), ('target_column', target_column, 'value'), ('repair', repair, 'off')] if v != default})
+                raise ForecastAdapterError("No preparation options are accepted with .gnomon input, even identical cutoffs. A saved snapshot already fixes its schema, unit, timezone, repairs and cutoffs; "
+                                           "supply only input and purpose, or inspect the original source with new options.",
+                                           details={'rejected_fields': sorted(rejected), 'rejected_arguments': rejected})
             from .snapshot_files import load_snapshot
             loaded, unit, repairs = load_snapshot(input, self.max_rows)
         else:
@@ -127,7 +161,7 @@ class DataReferences:
         routing = deepcopy(issues)
         if any(row.timestamp.tzinfo is None for rows in frozen.loaded.groups.values() for row in rows):
             routing.append({"action": "declare_timezone", "description": "Declare the source timezone at inspection: "
-                            "timezone=UTC (CLI: --timezone UTC), or supply timestamps with explicit offsets."})
+                            "timezone=UTC (CLI: --timezone UTC) for files. For store input use TemporalStore.ingest_csv(timezone='UTC') at ingestion into a new dataset, or ingest timestamps with explicit offsets. Use the actual source timezone."})
         return {"infer": {"ready": True, "issues": []},
                 "evaluate": {"ready": not issues, "issues": issues, "scope": "data_only_history_and_budget_checked_at_evaluation"},
                 "route": {"ready": not routing, "issues": routing, "scope": "data_only_study_and_cutoffs_checked_at_routing"}}

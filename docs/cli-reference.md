@@ -28,6 +28,11 @@ Install/update progress goes to stderr; update returns its JSON result on stdout
 | --- | --- |
 | `gnomon schemas` | Index of CLI request and operator configuration schema commands |
 | `gnomon capabilities` | Registered providers, limits and enabled tools |
+| `gnomon providers example` | Print the installed unit-bearing custom-provider example |
+| `gnomon capabilities --show-resolved-config` | Resolve configuration paths without imports, database writes or secrets |
+| `gnomon capabilities --cache` | Inspect configured cache policy or a validated request fingerprint without forecasting |
+| `gnomon evaluate --rescore ID --input INPUT` | Score original executions against later visible actuals without moving forecast origins |
+| `gnomon evaluate --compare ORIGINAL RESCORE` | Compare immutable studies and verify unchanged original evidence / reused predictions |
 | `gnomon capabilities --config-schema` | Operator TOML configuration keys without loading providers |
 | `gnomon infer` | Explicit provider inference; no implicit backtest |
 | `gnomon inspect` | Validate a file/store input and disclose snapshot semantics |

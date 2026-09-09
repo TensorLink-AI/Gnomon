@@ -54,13 +54,15 @@ def evaluate_reference(engine, references, data_ref: str, *, candidates: list[st
                        horizon: int, folds: int = 4, min_history: int = 8, stride: int | None = None,
                        series_id: str | None = None, season: int = 1, budget: EvaluationBudget | None = None,
                        replay: str | None = None, cancelled: Callable[[], bool] | None = None,
-                       timer: Callable[[], float] = monotonic) -> dict:
+                       timer: Callable[[], float] = monotonic, verify: bool = False) -> dict:
     """Evaluate exact matched point-forecast tasks; persist an optional study.
 
     Current pretrained weights may have seen later training data. Observation
     replay does not attest a provider's training cutoff. No probability calibration
     or action permission follows from a lower historical point error.
     """
+    if type(verify) is not bool:
+        raise ForecastAdapterError('verify must be a boolean')
     budget = budget if budget is not None else EvaluationBudget()
     if not isinstance(budget, EvaluationBudget):
         raise ForecastAdapterError("budget must be EvaluationBudget")
@@ -126,7 +128,8 @@ def evaluate_reference(engine, references, data_ref: str, *, candidates: list[st
                 snapshot_id=vintage.snapshot_id, series_id=name, unit=frozen.unit)
             for provider in providers:
                 validate_capabilities(AdapterCapabilities(**identities[provider]["capabilities"]), request)
-            fold["request"] = asdict(request)
+            from .inference import _freeze_request
+            fold["request"] = asdict(_freeze_request(request))
         except (ForecastAdapterError, GnomonError, ValueError) as exc:
             fold["status"] = "unavailable_history_or_capability"
             fold["error_type"] = type(exc).__name__
@@ -199,9 +202,11 @@ def evaluate_reference(engine, references, data_ref: str, *, candidates: list[st
               "replay": replay, "horizon": horizon, "season": season, "series_id": name, "unit": frozen.unit}
     result = {"schema_version": "1", "study_id": str(uuid4()), "status": "complete" if complete else "partial" if matched else "unscored",
               "data_ref": data_ref, "snapshot_id": snapshot.snapshot_id,
+              "source_fingerprint": frozen.loaded.source_fingerprint,
+              'variable': frozen.loaded.variable,
               "cohort_id": content_id("cohort", cohort, length=64), "series_id": name,
               "unit": frozen.unit, "frequency": frozen.loaded.frequency, "horizon": horizon, "season": season,
-              "baseline": baseline, "providers": {p: identities[p] for p in providers},
+              "baseline": baseline, "provider_order": providers, "providers": {p: identities[p] for p in providers},
               "budget": asdict(budget), "usage": {"provider_calls": calls, "elapsed_seconds": elapsed,
                   "requested_folds": folds, "planned_folds": len(planned), "matched_folds": len(matched),
                   "stop_reason": stop_reason, "wall_limit_overrun": budget.max_seconds is not None and elapsed > budget.max_seconds,
@@ -223,6 +228,10 @@ def evaluate_reference(engine, references, data_ref: str, *, candidates: list[st
               "training_cutoff_attested": False, "calibration": "not_established",
               "recorded": engine.ledger is not None}
     result["issues"] = issues
+    if verify:
+        from .diagnostics import scored_pairs
+        result['score_derivations'] = {p: scored_pairs((point, actual['value']) for fold in matched
+            for point, actual in zip(fold['runs'][p]['point'], fold['actuals'])) for p in providers}
     from .study_routing import DEFAULT_MIN_FOLDS
     readiness = references._readiness(frozen)["route"]
     readiness.update(matched_folds=len(matched), default_min_folds=DEFAULT_MIN_FOLDS,
@@ -236,6 +245,8 @@ def evaluate_reference(engine, references, data_ref: str, *, candidates: list[st
             "description": "Evaluate with --ledger-path evidence.db so routing can reuse recorded executions."})
     readiness["ready"] = not readiness["issues"]
     result["routing_readiness"] = readiness
+    result['evaluation_status'] = result['status']
+    result['routing_status'] = 'ready_for_cutoff_checks' if readiness['ready'] else 'insufficient_folds' if len(matched) < DEFAULT_MIN_FOLDS else 'input_or_persistence_unready'
     if engine.ledger is not None:
         engine.ledger.record_study(result)
     return result
@@ -244,5 +255,7 @@ def evaluate_reference(engine, references, data_ref: str, *, candidates: list[st
 def compact_study(report: dict) -> dict:
     """No repeated training vectors on the ordinary agent/CLI projection."""
     return {**{k: v for k, v in report.items() if k != "folds"},
+            "study_evidence_scope": "fold_summary",
+            "full_study": {"tool": "gnomon_evaluate", "arguments": {"study_id": report["study_id"]}},
             "folds": [{k: v for k, v in fold.items() if k not in {"request", "actuals", "runs"}}
                       for fold in report["folds"]]}

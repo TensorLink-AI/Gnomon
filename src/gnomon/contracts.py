@@ -43,10 +43,14 @@ class GnomonError(Exception):
         self.repair_options = repair_options
         self.retryable = retryable
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self, *, compact=False) -> dict[str, Any]:
         repairs = (self.repair_options if self.repair_options is not None
                    else REPAIR_OPTIONS.get(self.code, []))
-        return {
+        from .diagnostics import completion, recovery_metadata, repair_budgets
+        details = self.details
+        if any(k in details for k in ('drop_budget', 'repair_budget', 'repair_counts', 'original_observations')):
+            details.setdefault('repair_budgets', repair_budgets(details))
+        return completion({
             "schema_version": "0.1",
             "status": "error",
             "error": {
@@ -54,12 +58,13 @@ class GnomonError(Exception):
                 "message": self.message,
                 "retryable": self.retryable,
                 "details": self.details,
+                "recovery": recovery_metadata(details),
                 "repair_options": repairs,
             },
-            "rejection": {
+            "rejection": {'error_ref': '/error', 'terminal': True} if compact else {
                 "code": self.code, "reason": self.message,
                 "missing": self.details,
                 "admissibility_path": repairs[:1],
                 "terminal": True,
             },
-        }
+        })

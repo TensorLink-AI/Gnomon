@@ -71,6 +71,8 @@ def _tool_result(payload: dict[str, Any], is_error: bool) -> dict[str, Any]:
 def _handle(message: dict[str, Any], *, session=None) -> dict[str, Any] | None:
     method = message.get("method")
     if method == "initialize":
+        if session is not None:
+            session._mcp_protocol_version = PROTOCOL_VERSION
         return {"protocolVersion": PROTOCOL_VERSION,
                 "capabilities": {"tools": {}}, "serverInfo": SERVER_INFO}
     if method == "ping":
@@ -86,7 +88,7 @@ def _handle(message: dict[str, Any], *, session=None) -> dict[str, Any] | None:
             return _tool_result(payload, payload.get("status") == "unscored")
         except GnomonError as exc:
             try:
-                return _tool_result(session.results.project(exc.to_dict()), True)
+                return _tool_result(session.results.project(exc.to_dict(compact=session.compact_errors)), True)
             except GnomonError:
                 return _tool_result(GnomonError("ERROR_DETAIL_LIMIT", "Error details exceed the result limit.").to_dict(), True)
         except Exception:

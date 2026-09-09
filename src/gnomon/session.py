@@ -28,6 +28,45 @@ from .build_info import build_info
 from .recovery import argument_recovery
 from .repair import REPAIR_HELP
 
+EXIT_SEMANTICS = {'0': 'Operation executed; inspect semantic_completion, routing_status, scoring_status and evidence completeness.',
+                  '2': 'Rejected, invalid, unscored or failed execution.', '3': 'Partial evaluation.', '130': 'Interrupted.'}
+
+
+def resolved_configuration(path=None, *, ledger_path=None):
+    """Inspect operator settings without importing providers, opening databases or resolving secrets."""
+    location = Path(path).expanduser().resolve() if path is not None else None
+    config = {}
+    if location:
+        try:
+            with location.open('rb') as handle:
+                config = tomllib.load(handle)
+        except tomllib.TOMLDecodeError:
+            raise ForecastAdapterError('Provider configuration must be valid TOML.') from None
+    _strict(config, configuration_schema()['properties'], label='operator TOML configuration')
+    from .recovery import _matches
+    if not _matches(config, configuration_schema()):
+        raise ForecastAdapterError('Invalid configuration field types or limits; use gnomon capabilities --config-schema.')
+    directory = location.parent if location else Path.cwd()
+    configured = (directory / config['ledger_path']).resolve() if config.get('ledger_path') else None
+    if ledger_path is not None:
+        explicit = Path(ledger_path).expanduser().resolve()
+        if configured is not None and configured != explicit:
+            raise ForecastAdapterError('--ledger-path conflicts with ledger_path in provider configuration; select one ledger.')
+        configured = explicit
+    providers = {}
+    for name, spec in config.get('providers', {}).items():
+        providers[name] = {k: spec[k] for k in ('kind', 'entrypoint', 'revision', 'deterministic', 'lifecycle') if k in spec}
+        providers[name]['entrypoint_imported'] = False
+        providers[name]['remote_endpoint_configured'] = bool(spec.get('base_url') or spec.get('base_url_env'))
+    return {'schema_version': '1', 'status': 'ok', 'configuration_file': str(location) if location else None,
+        'configuration_file_exists': location.is_file() if location else None,
+        'relative_path_base': str(directory), 'path_resolution': 'Relative TOML paths resolve against the configuration file directory; CLI paths resolve against cwd.',
+        'ledger_path': str(configured) if configured else None, 'ledger_exists': configured.is_file() if configured else None,
+        'ledger_parent_exists': configured.parent.is_dir() if configured else None,
+        'cache_size': config.get('cache_size', 0), 'allow_outcome_writes': config.get('allow_outcome_writes', False),
+        'enable_temporal': config.get('enable_temporal', False), 'providers': providers,
+        'provider_files_checked': False, 'guidance': 'Entrypoints are shown without importing code. Existence and dependency checks happen when starting the configured session. Secrets and remote endpoints are omitted.'}
+
 _NUMBER_ARRAY = {"type": "array", "items": {"type": "number"}}
 _STRING_ARRAY = {"type": "array", "items": {"type": "string"}}
 REQUEST_SCHEMA = {
@@ -83,7 +122,8 @@ _SERIES_SELECTOR = {"type": "string", "description":
 DESCRIBE_SCHEMA = {"type": "object", "additionalProperties": False, "required": ["data_ref", "statistic"],
                    "properties": {**{name: {"type": "string"} for name in ("data_ref", "series_id", "start", "end")},
                        "statistic": {"enum": ["mean", "median", "latest", "minimum", "maximum", "sum"]}}}
-_FORECAST_COMMON = {"provider": {"type": "string"}, "use_cache": {"type": "boolean"}}
+_FORECAST_COMMON = {"provider": {"type": "string"}, "use_cache": {"type": "boolean"},
+                    'verify': {'type': 'boolean', 'default': False, 'description': 'Include independent deterministic built-in arithmetic verification.'}}
 FORECAST_SCHEMA = {"type": "object", "oneOf": [
     {"type": "object", "additionalProperties": False, "required": ["provider", "request"],
      "properties": {**_FORECAST_COMMON, "request": REQUEST_SCHEMA}},
@@ -100,22 +140,50 @@ EVALUATE_SCHEMA = {"type": "object", "oneOf": [
      "properties": {"data_ref": {"type": "string"}, "series_id": {"type": "string"},
                     "candidates": {**_STRING_ARRAY, "minItems": 1, "uniqueItems": True}, "baseline": {"type": "string"},
                     **{name: {"type": "integer", "minimum": 1} for name in ("horizon", "folds", "min_history", "stride", "season")},
-                    "budget": _BUDGET_SCHEMA, "replay": {"enum": ["recorded", "source_available"]}}},
+                    "budget": _BUDGET_SCHEMA, "verify": {'type': 'boolean', 'default': False}, "replay": {"enum": ["recorded", "source_available"]}}},
     {"type": "object", "additionalProperties": False, "required": ["study_id"],
+     "description": "Retrieve complete saved study evidence, including fold requests, predictions and actuals. Retrieval makes no provider calls and does not rescore revised observations.",
      "properties": {"study_id": {"type": "string"}}},
 ]}
+EVALUATE_SCHEMA['oneOf'].extend([
+    {'type': 'object', 'additionalProperties': False,
+     'required': ['operation', 'study_id', 'data_ref', 'source_as_of', 'recorded_as_of'],
+     'description': 'Rescore recorded predictions at later actual availability cutoffs without changing original origins or calling providers. Saves a new immutable study.',
+     'properties': {'operation': {'const': 'rescore'}, **{k: {'type': 'string'} for k in ('study_id', 'data_ref', 'source_as_of', 'recorded_as_of')},
+                    'allow_partial': {'type': 'boolean', 'default': True}}},
+    {'type': 'object', 'additionalProperties': False,
+     'required': ['operation', 'original_study_id', 'rescored_study_id'],
+     'properties': {'operation': {'const': 'compare_studies'}, **{k: {'type': 'string'} for k in ('original_study_id', 'rescored_study_id')}}},
+])
 ROUTE_SCHEMA = {"type": "object", "additionalProperties": False,
                "required": ["data_ref", "study_id", "source_as_of", "recorded_as_of"],
-               "description": "Omitted candidates, baseline, horizon, season and series_id are loaded from the study visible at recorded_as_of. Explicit overrides must match its task identity.",
+               "description": "Omitted candidates, baseline, horizon, season and series_id are loaded from the study visible at recorded_as_of. Mismatched overrides or insufficient evidence return a disclosed baseline fallback by default (status ok). Set require_evidence=true to reject any fallback. Routing makes zero provider calls; successful matched routing saves a new immutable rescore and leaves the original study unchanged.",
                "properties": {**{key: {"type": "string"} for key in (
                    "data_ref", "study_id", "baseline", "source_as_of", "recorded_as_of", "series_id")},
                    "candidates": {**_STRING_ARRAY, "minItems": 1, "uniqueItems": True},
                    "horizon": {"type": "integer", "minimum": 1}, "season": {"type": "integer", "minimum": 1},
                    "min_folds": {"type": "integer", "minimum": 3},
-                   "min_improvement": {"type": "number", "minimum": 0, "maximum": 1}}}
+                   "min_improvement": {"type": "number", "minimum": 0, "maximum": 1},
+                   "require_evidence": {"type": "boolean", "default": False,
+                       "description": "Reject baseline fallback with ROUTING_EVIDENCE_REQUIRED (CLI exit 2). An evidence-supported baseline, including an exact tie, remains a successful selection."}}}
 for _series_schema in (DESCRIBE_SCHEMA, FORECAST_SCHEMA["oneOf"][1],
                        EVALUATE_SCHEMA["oneOf"][0], ROUTE_SCHEMA):
     _series_schema["properties"]["series_id"] = deepcopy(_SERIES_SELECTOR)
+INSPECT_SCHEMA['properties']['diagnose'] = {'type': 'boolean', 'default': False,
+    'description': 'Bounded local-file dry run of all three repair policies; no source changes, providers or reusable data reference. Do not combine with repair.'}
+for _schema in (INSPECT_SCHEMA, ROUTE_SCHEMA, EVALUATE_SCHEMA['oneOf'][2]):
+    for _key in ('as_of', 'source_as_of', 'recorded_as_of'):
+        if _key in _schema['properties']:
+            _schema['properties'][_key]['description'] = (
+                'Inclusive local recording cutoff; distinct from valid time and source availability.' if _key == 'recorded_as_of' else
+                'Inclusive source availability cutoff. For routing, the prospective forecast must also begin after this instant.' if _schema is ROUTE_SCHEMA else
+                'Inclusive source availability cutoff (known_time); rescore keeps original forecast origins unchanged.' if _schema is EVALUATE_SCHEMA['oneOf'][2] else
+                'Freeze observations visible by source availability (known_time), not local recording time. File known times are assumed from valid timestamps.')
+for _key in ('cutoff', 'known_time_cutoff', 'recorded_time_cutoff'):
+    REQUEST_SCHEMA['properties'][_key]['description'] = {
+        'cutoff': 'Forecast origin boundary: history ends at or before it; future timestamps follow it.',
+        'known_time_cutoff': 'Source availability boundary of the history used for this prediction.',
+        'recorded_time_cutoff': 'Local recording visibility boundary of the history used for this prediction.'}[_key]
 READ_SCHEMA = {"type": "object", "additionalProperties": False, "required": ["result_ref"],
                "properties": {"result_ref": {"type": "string"}, "pointer": {"type": "string", "maxLength": 1024},
                               "offset": {"type": "integer", "minimum": 0},
@@ -157,13 +225,14 @@ def configuration_schema():
     from .result_refs import ResultLimits
     fields = {
         "schema_version": {"const": 1, "default": 1},
-        "ledger_path": {"type": "string", "description": "SQLite path relative to this TOML file."},
+        "ledger_path": {"type": "string", "description": "SQLite path relative to this TOML file. Relative paths resolve relative to the configuration file, not the current working directory."},
         "cache_size": {"type": "integer", "minimum": 0, "default": 0,
                        "description": "Maximum cached results per persistent session; 0 disables. "
                                       "Set cache_size = 8 in TOML, then GnomonSession.from_config('providers.toml'). "
                                       "Repeat the same deterministic, versioned provider request in that session to get a hit."},
         "allow_outcome_writes": {"type": "boolean", "default": False},
         "enable_temporal": {"type": "boolean", "default": False},
+        'compact_errors': {'type': 'boolean', 'default': False, 'description': 'Replace the legacy duplicate rejection payload with an /error reference in MCP responses.'},
         "max_data_refs": {"type": "integer", "minimum": 1, "default": 16},
         "max_data_rows": {"type": "integer", "minimum": 1, "default": 100000},
         "evaluation_limits": {**deepcopy(_BUDGET_SCHEMA), "default": asdict(EvaluationBudget(max_seconds=30))},
@@ -203,7 +272,10 @@ class GnomonSession:
     def __init__(self, engine: InferenceEngine | None = None, *, ledger: TemporalLedger | None = None,
                  allow_outcome_writes: bool = False, max_data_refs: int = 16, max_data_rows: int = 100_000,
                  evaluation_limits: dict | None = None, result_limits: dict | None = None,
-                 enable_temporal: bool = False):
+                 enable_temporal: bool = False, compact_errors: bool = False):
+        if type(compact_errors) is not bool:
+            raise ForecastAdapterError('compact_errors must be a boolean')
+        self.compact_errors = compact_errors
         if type(allow_outcome_writes) is not bool:
             raise ForecastAdapterError("allow_outcome_writes must be a boolean")
         if type(enable_temporal) is not bool:
@@ -228,7 +300,12 @@ class GnomonSession:
     @classmethod
     def from_config(cls, path: str | Path | None = None, *, ledger_path: str | Path | None = None,
                     create_ledger: bool = True) -> "GnomonSession":
-        """Load only an explicitly supplied TOML path. No cwd config search.
+        """Load built-ins and an explicitly supplied TOML path. No cwd config search.
+
+        Relative paths resolve relative to the configuration file, not cwd.
+        CLI ledger_path overrides resolve against cwd. Inspect settings without
+        importing providers: gnomon capabilities --show-resolved-config
+        --providers-config providers.toml.
 
         To enable built-in caching, put ``cache_size = 8`` in providers.toml::
 
@@ -267,7 +344,7 @@ class GnomonSession:
         session = cls(engine, ledger=ledger, allow_outcome_writes=config.get("allow_outcome_writes", False),
                       max_data_refs=config.get("max_data_refs", 16), max_data_rows=config.get("max_data_rows", 100_000),
                       evaluation_limits=config.get("evaluation_limits"), result_limits=config.get("result_limits"),
-                      enable_temporal=config.get("enable_temporal", False))
+                      enable_temporal=config.get("enable_temporal", False), compact_errors=config.get('compact_errors', False))
         from .models import BASELINES, predict
         for name in sorted(BASELINES):
             adapter = StatisticalAdapter(name, predict)
@@ -356,6 +433,7 @@ class GnomonSession:
             raise ForecastAdapterError("provider kind must be ephemeris, callable or factory")
 
     def capabilities(self) -> dict:
+        from .diagnostics import CUTOFF_SEMANTICS
         providers = self.engine.capabilities()
         for provider in providers.values():
             provider["request_schema"] = provider_request_schema(provider["capabilities"])
@@ -363,6 +441,14 @@ class GnomonSession:
                 "build": build_info(),
                 "product_contract": product_claims(),
                 "interfaces": {"python": True, "cli": True, "mcp": True},
+                "operation_interfaces": {"routing": {'cli': True, 'python': True, 'mcp': self.ledger is not None},
+                    "ledger": {'cli': True, 'python': True, 'mcp': self.ledger is not None},
+                    "rescore": {'cli': True, 'python': True, 'mcp': True, 'requires_ledger': True}},
+                "exit_semantics": EXIT_SEMANTICS,
+                'cutoff_semantics': CUTOFF_SEMANTICS,
+                "version_semantics": {'distribution_version': __version__, 'runtime_build_id': build_info()['build_id']},
+                "mcp_protocol": {'negotiated_version': getattr(self, '_mcp_protocol_version', None),
+                    'supported_versions': ['2025-06-18'], 'transport': 'stdio', 'general_client_compatibility': 'not_claimed'},
                 "python_environment": {"executable": sys.executable, "distribution": "gnomon-forecast",
                                        "import_name": "gnomon", "command": "gnomon python",
                                        "details_command": "gnomon environment"},
@@ -381,12 +467,17 @@ class GnomonSession:
                                   "bound": "compact_structured_payload_utf8_not_provider_memory"},
                 "semantics": {"forecast": "inference_only", "calibration": "not_implied", "action_authorized": False}}
 
-    def forecast(self, provider: str, request: ForecastRequest | dict[str, Any] | None = None, *, use_cache: bool = True) -> dict:
+    def forecast(self, provider: str, request: ForecastRequest | dict[str, Any] | None = None, *, use_cache: bool = True, verify: bool = False) -> dict:
         """Forecast from a typed request or the same request dict accepted by CLI/MCP."""
         if request is None:
             raise ForecastAdapterError('forecast request must be a ForecastRequest or dict. Use session.forecast(provider, request), e.g. '
                                        'session.forecast("last_value", {"history":[1,2,3],"horizon":2}).')
+        if type(verify) is not bool:
+            raise ForecastAdapterError('verify must be a boolean')
+        if verify and not isinstance(getattr(self.engine._providers.get(provider), 'target', None), StatisticalAdapter):
+            raise ForecastAdapterError('verify requires a registered statistical built-in provider')
         run = self.engine.forecast(provider, request, use_cache=use_cache)
+        from .diagnostics import verify_builtin
         cache = self.engine.cache_policy(provider)
         cache.update(lookup_requested=use_cache, status=(
             "bypassed" if not use_cache else "disabled" if not cache["enabled"] else
@@ -394,6 +485,9 @@ class GnomonSession:
         return {"schema_version": "1", "status": "ok", "execution_id": run.execution_id,
                 "fingerprint": run.fingerprint, "provider": run.provider, "revision": run.revision,
                 "cache_hit": run.cache_hit, "result": asdict(run.result),
+                "effective_season": run.request.season, "result_contract_validated": True,
+                **({'verification': verify_builtin(provider, run.request, run.result)} if verify else {}),
+                "season_guidance": "Season is an observation count; seasonal_naive with season=1 repeats the last value. Specify the intended period explicitly.",
                 "cache": cache,
                 "request_provenance": {
                     "source": "caller_supplied_request",
@@ -422,6 +516,18 @@ class GnomonSession:
                 self._studies.popitem(last=False)
         return report
 
+    def rescore(self, data_ref: str, *, study_id: str, source_as_of: str, recorded_as_of: str, allow_partial=True):
+        """Reuse original predictions; evidence cutoffs govern actuals, never forecast origins."""
+        from .rescoring import rescore_study
+        return rescore_study(self.ledger, self.data, data_ref, study_id=study_id, source_as_of=source_as_of,
+                             recorded_as_of=recorded_as_of, allow_partial=allow_partial,
+                             max_folds=self.evaluation_limits.max_folds)
+
+    def compare_studies(self, *, original_study_id, rescored_study_id):
+        """Read immutable original/rescore differences without model calls."""
+        from .rescoring import compare_studies
+        return compare_studies(self.ledger, original_study_id=original_study_id, rescored_study_id=rescored_study_id)
+
     def route(self, data_ref: str, **kwargs) -> dict:
         from .study_routing import route_study
         fields = ("candidates", "baseline", "horizon", "season", "series_id")
@@ -442,7 +548,7 @@ class GnomonSession:
                 # fallback when the study cannot be read at this cutoff.
             else:
                 defaults = {key: report[key] for key in fields if key != "candidates" and key in report}
-                defaults["candidates"] = [key for key in report["providers"] if key != report["baseline"]]
+                defaults["candidates"] = [key for key in report.get('provider_order', report["providers"]) if key != report["baseline"]]
                 kwargs = {**defaults, **kwargs}
         return route_study(self.engine, self.data, data_ref, max_folds=self.evaluation_limits.max_folds, **kwargs)
 
@@ -451,9 +557,21 @@ class GnomonSession:
         if type(compact) is not bool:
             raise GnomonError("INVALID_ARGUMENTS", "compact must be a boolean")
         result = self._call(name, arguments)
-        if compact and name == "gnomon_evaluate" and "study_id" not in arguments:
+        if compact and name == 'gnomon_capabilities':
+            result.pop('cutoff_semantics', None)
+            result['cutoff_semantics_command'] = 'gnomon capabilities'
+            for provider in result['providers'].values():
+                for field, spec in provider['request_schema']['properties'].items():
+                    if field != 'season':
+                        spec.pop('description', None)
+                    else:
+                        spec['description'] = 'Seasonal period in observations (--season); requires at least season history values. Default 1 repeats the last value.'
+        if compact and name == "gnomon_evaluate" and "study_id" not in arguments and 'folds' in result:
             from .backtesting import compact_study
             result = compact_study(result)
+        if name != 'gnomon_read':
+            from .diagnostics import completion
+            result = completion(result)
         return self.results.project(result) if compact else result
 
     def _call(self, name: str, arguments: dict[str, Any]) -> dict:
@@ -493,14 +611,15 @@ class GnomonSession:
                 if type(arguments.get("use_cache", True)) is not bool:
                     raise ForecastAdapterError("use_cache must be a boolean")
                 if "data_ref" in arguments:
-                    _strict(arguments, {"provider", "data_ref", "horizon", "series_id", "season", "quantiles", "use_cache"},
+                    _strict(arguments, {"provider", "data_ref", "horizon", "series_id", "season", "quantiles", "use_cache", "verify"},
                             {"provider", "data_ref", "horizon"})
-                    request = self.data.request(**{k: v for k, v in arguments.items() if k not in {"provider", "use_cache"}})
+                    request = self.data.request(**{k: v for k, v in arguments.items() if k not in {"provider", "use_cache", "verify"}})
                     snapshot = self.data.snapshot_summary(arguments["data_ref"])
                 else:
-                    _strict(arguments, {"provider", "request", "use_cache"}, {"provider", "request"})
+                    _strict(arguments, {"provider", "request", "use_cache", "verify"}, {"provider", "request"})
                     request = ForecastRequest.from_dict(arguments["request"])
-                result = self.forecast(arguments["provider"], request, use_cache=arguments.get("use_cache", True))
+                result = self.forecast(arguments["provider"], request, use_cache=arguments.get("use_cache", True), verify=arguments.get('verify', False))
+                result['season_defaulted'] = 'season' not in (arguments['request'] if 'request' in arguments else arguments)
                 if "data_ref" in arguments:
                     result["data_ref"] = arguments["data_ref"]
                     result["snapshot"] = snapshot
@@ -509,6 +628,18 @@ class GnomonSession:
             if name in {"gnomon_inspect", "gnomon_describe"}:
                 schema = INSPECT_SCHEMA if name == "gnomon_inspect" else DESCRIBE_SCHEMA
                 _strict(arguments, schema["properties"], schema["required"])
+                if name == 'gnomon_inspect' and 'diagnose' in arguments:
+                    if type(arguments['diagnose']) is not bool:
+                        raise ForecastAdapterError('diagnose must be a boolean')
+                    clean = {k: v for k, v in arguments.items() if k != 'diagnose'}
+                    if arguments['diagnose']:
+                        return self.data.diagnose(**clean)
+                    arguments = clean
+                if name == 'gnomon_inspect' and str(arguments.get('input', '')).endswith('.gnomon'):
+                    rejected = set(arguments) - {'input', 'purpose'}
+                    if rejected:
+                        raise ForecastAdapterError('No preparation options are accepted with .gnomon input, even identical values. Inspect the original source to prepare a different snapshot.',
+                            details={'rejected_fields': sorted(rejected), 'rejected_arguments': {k: arguments[k] for k in sorted(rejected)}})
                 return getattr(self.data, "inspect" if name == "gnomon_inspect" else "describe")(**arguments)
             if name == "gnomon_ledger":
                 return self._ledger_call(arguments)
@@ -516,13 +647,20 @@ class GnomonSession:
                 _strict(arguments, ROUTE_SCHEMA["properties"], ROUTE_SCHEMA["required"])
                 return self.route(**arguments)
             if name == "gnomon_evaluate":
+                if 'operation' in arguments:
+                    operation = arguments['operation']
+                    if operation not in ('rescore', 'compare_studies'):
+                        raise ForecastAdapterError('evaluate operation must be rescore or compare_studies; omit it for a new evaluation or retrieval')
+                    schema = next(v for v in EVALUATE_SCHEMA['oneOf'] if v['properties'].get('operation', {}).get('const') == operation)
+                    _strict(arguments, schema['properties'], schema['required'])
+                    return (self.rescore if operation == 'rescore' else self.compare_studies)(**{k: v for k, v in arguments.items() if k != 'operation'})
                 if "study_id" in arguments:
                     _strict(arguments, {"study_id"}, {"study_id"})
                     study_id = arguments["study_id"]
                     if study_id in self._studies:
-                        return self.results.value(self._studies[study_id])
+                        return {**self.results.value(self._studies[study_id]), "study_evidence_scope": "full_folds"}
                     if self.ledger is not None:
-                        return self.ledger.study(study_id)
+                        return {**self.ledger.study(study_id), "study_evidence_scope": "full_folds"}
                     raise ForecastAdapterError("study is no longer retained; configure a ledger for durable retrieval")
                 schema = EVALUATE_SCHEMA["oneOf"][0]
                 _strict(arguments, schema["properties"], schema["required"])
@@ -633,7 +771,7 @@ class GnomonSession:
              "inputSchema": INSPECT_SCHEMA},
             {"name": "gnomon_describe", "description": "Compute an exact observed statistic over one frozen series and optional inclusive timestamp window.",
              "inputSchema": DESCRIBE_SCHEMA},
-            {"name": "gnomon_evaluate", "description": "Optional matched vintage-aware backtest with explicit baseline and dispatch budgets, or retrieve a full study.",
+            {"name": "gnomon_evaluate", "description": "Create a matched backtest; retrieve full saved evidence by study_id; operation=rescore reuses original executions with revised actuals and explicit cutoffs; operation=compare_studies compares immutable evidence. Rescore/comparison require a ledger and make zero provider calls.",
              "inputSchema": EVALUATE_SCHEMA},
         ]
         if self.enable_temporal:
@@ -722,4 +860,8 @@ def ledger_schema(*, allow_outcome_writes=False):
             continue
         variants.append({"type": "object", "properties": properties, "additionalProperties": False,
                          "required": ["operation", *_LEDGER_REQUIRED[operation]]})
-    return {"type": "object", "oneOf": variants}
+    return {"type": "object", "oneOf": variants,
+            'defaults_matrix': {op: {'source_as_of': 'required' if op == 'compare_history' else 'current_clock' if op in {'search', 'pending'} else 'unbounded' if 'source_as_of' in params else 'not_applicable',
+                'recorded_as_of': 'required' if op == 'compare_history' else 'current_clock' if op in {'search', 'pending'} else 'unbounded' if 'recorded_as_of' in params else 'not_applicable',
+                'unit': 'all_units' if op == 'search' else 'execution_unit' if op == 'evaluate' else 'unitless' if 'unit' in params else 'not_applicable'}
+                for op, params in _LEDGER_PARAMETERS.items() if allow_outcome_writes or op not in _OUTCOME_WRITES}}

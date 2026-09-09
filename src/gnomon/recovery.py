@@ -78,6 +78,11 @@ def temporal_recovery(arguments):
         supplied = arguments[key]
         if _matches(supplied, field):
             example[key] = deepcopy(supplied)
+        elif field.get("type") == "integer" and isinstance(supplied, str) and supplied.lstrip("+-").isascii() and supplied.lstrip("+-").isdigit() and len(supplied) <= 16:
+            # Propose an explicit type correction without changing the number.
+            # The operation itself continues to require an integer.
+            converted = int(supplied)
+            example[key] = converted if _matches(converted, field) else supplied
         elif field.get("type") == "object" and isinstance(supplied, dict):
             for child, value in supplied.items():
                 if child in field["properties"] and _matches(value, field["properties"][child]):
@@ -86,20 +91,27 @@ def temporal_recovery(arguments):
     choices = {}
     if operation == "shift" and arguments.get("mode") not in ("calendar", "elapsed"):
         choices["mode"] = ["calendar", "elapsed"]
+    runnable, unresolved = False, []
     for _ in range(5):
         try:
             temporal_operation(**example)
+            runnable = True
             break
         except TemporalChoiceError as exc:
             choices[exc.field] = exc.choices
             example[exc.field] = exc.illustrative_value
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as exc:
             # Invalid facts such as clock gaps cannot be repaired by inventing
             # another date. Keep the task and provide a separate illustration.
             kind = "task_template" if known else "schema_illustration"
+            unresolved.append({"message": str(exc), "action": "resolve_invalid_temporal_facts",
+                               "guidance": "Resolve this constraint using the intended dates, local times and arithmetic semantics; the template retains those facts."})
             break
     changed = example_changes(arguments, example)
     details = {"example_arguments": example, "example_kind": kind,
+               "example_runnable": runnable,
+               "preserved_fields": [key for key in arguments if key in example and not example_changes({key: arguments[key]}, {key: example[key]})],
+               "resolution_required": unresolved,
                "changed_fields": changed, "supported_operations": list(TEMPORAL_EXAMPLES),
                "schema_command": "gnomon temporal --schema",
                "guidance": "Example values for changed_fields are illustrative, not inferred task facts. "
@@ -110,7 +122,9 @@ def temporal_recovery(arguments):
         details["guidance"] += " This task template still requires correction; schema_example_arguments is a separate runnable illustration."
     if choices:
         details["choices_required"] = choices
-        details["guidance"] += " Example choices are illustrative: choose each listed policy explicitly before retrying; keeping reject leaves an invalid month-end request rejected."
+        details["guidance"] += " Example choices are illustrative: choose each listed policy explicitly before retrying."
+        if "invalid_date" in choices:
+            details["guidance"] += " For this invalid month-end target, clamp selects the last valid day; reject leaves the request rejected."
     if operation == "shift" and arguments.get("mode") not in ("calendar", "elapsed"):
         details["guidance"] += (" Choose mode explicitly: calendar applies local calendar arithmetic; elapsed applies "
                                 "a duration to an offset-aware instant. The example uses calendar as an illustration.")

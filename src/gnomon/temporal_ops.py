@@ -70,6 +70,8 @@ def _fold(value, field="fold"):
 
 
 def _parse(value):
+    if isinstance(value, str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        raise ValueError("date-only input is unsupported for timestamp operations such as normalize; supply the intended time of day, or use shift with calendar mode for date arithmetic")
     if not isinstance(value, str) or len(value) > 64 or not _STAMP.fullmatch(value):
         raise ValueError("timestamp requires ISO YYYY-MM-DDTHH:MM:SS, at most 6 fractional digits and an optional offset")
     offset = re.search(r"([+-])([0-9]{2}):([0-9]{2})(?::([0-9]{2}))?$", value)
@@ -316,6 +318,7 @@ def temporal_operation(operation: str | None = None, **arguments) -> dict:
         result = implementations[operation](**arguments)
     except OverflowError:
         raise ValueError("temporal calculation exceeds supported years 1..9999") from None
-    return {"schema_version": "1", "status": "ok", "operation": operation, "result": result,
+    from .diagnostics import completion
+    return completion({"schema_version": "1", "status": "ok", "operation": operation, "result": result,
             "evidence": "explicit_temporal_calculation", "input_facts": "supplied_not_verified",
-            "action_authorized": False}
+            "action_authorized": False})

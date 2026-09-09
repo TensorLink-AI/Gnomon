@@ -196,6 +196,14 @@ Python/MCP routing also fills omitted task fields from the recorded study. The
 study must be visible at the explicitly supplied recording cutoff. Explicit
 parameter overrides remain subject to task-identity checks.
 
+By default, a mismatch returns exit 0/status `ok` with `routing_status: fallback`,
+`evidence_based: false`, a warning and a reason. Use CLI `--require-evidence` or
+Python/MCP `require_evidence: true` to reject every fallback with
+`ROUTING_EVIDENCE_REQUIRED` (CLI exit 2). Strict rejection makes no provider calls
+and saves no rescore. An evidence-supported baseline or exact tie can still
+succeed. `next_actions` offers task-preserving follow-ups; proposed evaluations
+require new calls and history/budget checks, and are not automatically executed.
+
 `fallback_used` distinguishes baseline fallback from an evidence-based selection.
 A successful selection includes `selection_reason` and its newly computed
 `ranking_policy.ties`; a rescore stores this policy with its own scores. When no
@@ -217,6 +225,33 @@ to 100,000 rows. `drop_budget` reports `scanned_rows`, `scan_complete`,
 an unperformed scan and null eligibility. This scan counts unparseable drops;
 format normalization, missing values, grid fills and conflicts have separate
 semantics and checks. It does not modify the source or promise full recovery.
+
+A gap scan that stops after crossing its run limit reports
+`repair_counts.gap_run_at_least` and `scan_complete: false`. This is sufficient
+to reject the repair; it is not the total length of the gap.
+
+## Complete response versus complete study
+
+Compact evaluation responses have `study_evidence_scope: fold_summary` and an
+exact `full_study` tool call. Follow that `gnomon_evaluate` call with only
+`study_id` to retrieve full saved requests, predictions and actuals. This is
+retrieval, not rescoring, and makes no provider calls. The returned
+`study_evidence_scope: full_folds` describes the evidence included in the payload.
+
+Either response can exceed the response limit. In that case, `full_result` reads
+the complete retained **response payload**, which may itself be a fold summary.
+The initial receipt preserves `full_study` separately and advertises `total_chars`
+(Unicode codepoints), `root_sha256` (UTF-8 bytes), and `recommended_max_chars`.
+Concatenate `gnomon_read` pages using `next_offset` until it is null, then verify
+length and hash. `minimum_pages` is a lower bound: byte limits, escaping and
+Unicode may require more pages. References expire with the session or eviction;
+a ledger permits durable study retrieval.
+
+Temporal recovery reports `preserved_fields`, `changed_fields`,
+`example_runnable`, `choices_required` when applicable, and `resolution_required`.
+Runnable means the example passes temporal validation; missing dates or policy
+choices are still illustrations, not inferred user intent. Nonexistent local
+times and conflicting date/instant semantics remain non-runnable templates.
 
 ## Self-check result contract
 

@@ -249,7 +249,9 @@ class ForecastResult:
                     values.append(float(row[quantile]))
                 if values != sorted(values):
                     raise ForecastAdapterError("forecast quantiles are not monotone")
-        if self.timestamps != request.future_timestamps:
+        if (len(self.timestamps) != len(request.future_timestamps) or
+                [ForecastRequest._parse_time(t) for t in self.timestamps] !=
+                [ForecastRequest._parse_time(t) for t in request.future_timestamps]):
             raise ForecastAdapterError("result timestamps do not match requested future timestamps")
         if self.series_id != request.series_id or self.unit != request.unit:
             raise ForecastAdapterError("result series_id and unit must match the request")
@@ -262,6 +264,7 @@ class ForecastResult:
         return self
 
     def points(self) -> list[float]:
+        """Call result.points() to return a list copy; result.point is the tuple field."""
         return list(self.point)
 
 

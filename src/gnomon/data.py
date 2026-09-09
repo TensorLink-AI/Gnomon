@@ -345,21 +345,30 @@ def _drop_diagnostic(rows, time_column, target_column):
     times = ["" if r.get(time_column) is None else str(r[time_column]) for r in rows]
     values = ["" if r.get(target_column) is None else str(r[target_column]) for r in rows]
     day_first, comma_role = scan_day_first(times), scan_numeric_evidence(values)
-    dropped = 0
+    dropped = affected = bad_times = bad_targets = 0
     for row, raw_time, raw_value in zip(rows, times, values):
         if not raw_time.strip() and not raw_value.strip() and all(not str(v or "").strip() for v in row.values()):
             continue
+        bad_target, bad_time, tier = False, False, None
         try:
             _, tier = parse_number(raw_value, comma_role)
-            if tier == "missing":
-                continue
+        except ValueError:
+            bad_target = True
+        try:
             try:
                 parse_timestamp_lenient(raw_time, day_first)
             except AmbiguousDateOrder:
                 parse_timestamp_lenient(raw_time, False)
         except ValueError:
-            dropped += 1
+            bad_time = True
+        bad_times += bad_time
+        bad_targets += bad_target
+        affected += bad_time or bad_target
+        dropped += bad_target or (bad_time and tier != 'missing')
     return {**detail, "scanned_rows": len(rows), "dropped_rows": dropped,
+            "affected_rows": affected, "invalid_timestamp_fields": bad_times, "invalid_target_fields": bad_targets,
+            "proposed_drops": dropped, "predicted_rows_after_drops": len(rows) - dropped,
+            "maximum_allowed_drops": int(len(rows) * MAX_DROPPED_FRACTION),
             "fraction": dropped / len(rows) if rows else 0,
             "within_budget": not rows or dropped / len(rows) <= MAX_DROPPED_FRACTION}
 
@@ -371,6 +380,10 @@ def observations_from_rows(rows, columns, time_column, target_column, series_col
     except GnomonError as exc:
         if exc.code in {"INVALID_TIMESTAMP", "INVALID_TARGET", "NON_FINITE_TARGET"}:
             exc.details["drop_budget"] = _drop_diagnostic(rows, time_column, target_column)
+            if kwargs.get('repair', 'off') == 'safe':
+                exc.details['guidance'] = ('Safe mode never drops unparseable rows. Check drop_budget.within_budget; '
+                    'retry with aggressive only if dropping those rows preserves the intended task. Grid and conflict budgets still apply.')
+                exc.repair_options = [{'action': 'review_aggressive_drop', 'description': exc.details['guidance']}]
         raise
 
 
