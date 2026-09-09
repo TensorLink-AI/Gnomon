@@ -12,6 +12,12 @@ The default session exposes inspect, describe, capabilities, forecast, evaluate
 and read. A ledger adds ledger and route; `enable_temporal=true` adds temporal.
 All interfaces use the same execution contract.
 
+Retain each forecast's `completion` object and use `final_selection` for its
+canonical final JSON selection. The host can resolve prose finals against
+trusted task-matching executions with `gnomon.resolve_final_selection`; see
+[final-answer preservation](final-selection.md). A successful tool call and
+strict final-answer conformance are separate outcomes.
+
 Use the [agent skill](agent-skill.md) for model choice, cutoff semantics and
 safe retrieval. The host should consume `tools/list` rather than copying schemas.
 

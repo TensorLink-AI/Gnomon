@@ -123,6 +123,7 @@ class ResultReferences:
             'operation_succeeded', 'task_completed', 'evidence_complete', 'evaluation_status',
             'evidence_status', 'returned_evidence', 'scoring_complete',
             'effective_season', 'season_defaulted', 'result_contract_validated', 'cache_hit',
+            'request_fingerprint',
         )
         summary = {key: value[key] for key in scalar_keys
             if key in value and type(value[key]) in (str, int, float, bool, type(None))
@@ -188,6 +189,16 @@ class ResultReferences:
                      "full_result_scope": "response_payload",
                      "full_result": {"tool": "gnomon_read", "arguments": {"result_ref": ref}}}
         full_study = value.get("full_study")
+        if isinstance(value.get('completion'), dict):
+            projected['forecast_completion'] = {'tool': 'gnomon_read',
+                'arguments': {'result_ref': ref, 'pointer': '/completion'}}
+            projected['final_selection'] = {'provider': value.get('provider'), 'execution_id': value.get('execution_id'),
+                'guidance': 'Return these selection fields. Host must retrieve completion and match the expected request before resolution.'}
+        counts = value.get('execution_diagnostics')
+        if isinstance(counts, dict):
+            projected['execution_diagnostics'] = {key: counts.get(key) for key in
+                ('provider_calls', 'forecast_calls', 'ledger_writes', 'source_mutations')}
+            projected['execution_diagnostics']['scope_ref'] = '/execution_diagnostics/scope in full_result'
         if isinstance(full_study, dict) and len(encode(full_study).encode("utf-8")) <= 256:
             projected["full_study"] = full_study
         if "error" in value:
@@ -202,7 +213,7 @@ class ResultReferences:
             projected["summary"] = {}
         return projected
 
-    def read(self, result_ref, *, pointer="", offset=0, max_chars=4096):
+    def read(self, result_ref, *, pointer="", offset=0, max_chars=4096, _execution_diagnostics=None):
         if type(offset) is not int or offset < 0 or type(max_chars) is not int or not 1 <= max_chars <= 4096:
             raise GnomonError("INVALID_ARGUMENTS", "offset must be nonnegative and max_chars must be between 1 and 4096.")
         if not isinstance(pointer, str) or len(pointer) > 1024 or (pointer and not pointer.startswith("/")):
@@ -232,6 +243,7 @@ class ResultReferences:
 
         def page(end):
             return {"schema_version": "1", "status": "ok", "result_ref": result_ref, "pointer": pointer,
+                    **({'execution_diagnostics': _execution_diagnostics} if _execution_diagnostics is not None else {}),
                     "encoding": "json_text", "offset_unit": "unicode_codepoints", "offset": offset,
                     "next_offset": end if end < len(text) else None, "total_chars": len(text),
                     "root_sha256": digest, "text": text[offset:end]}

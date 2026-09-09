@@ -100,9 +100,10 @@ class DataReferences:
                                                           store_path, regrid, timezone, unit, window))):
                 rejected = {k: v for k, v in locals().items() if k in {'series_column', 'frequency', 'as_of', 'recorded_as_of', 'store_path', 'regrid', 'timezone', 'unit', 'window'} and v is not None}
                 rejected.update({k: v for k, v, default in [('time_column', time_column, 'timestamp'), ('target_column', target_column, 'value'), ('repair', repair, 'off')] if v != default})
+                from .recovery import frozen_recovery
                 raise ForecastAdapterError("No preparation options are accepted with .gnomon input, even identical cutoffs. A saved snapshot already fixes its schema, unit, timezone, repairs and cutoffs; "
                                            "supply only input and purpose, or inspect the original source with new options.",
-                                           details={'rejected_fields': sorted(rejected), 'rejected_arguments': rejected})
+                                           details={**frozen_recovery({'input': input, 'purpose': purpose, **rejected}, rejected), 'rejected_arguments': rejected})
             from .snapshot_files import load_snapshot
             loaded, unit, repairs = load_snapshot(input, self.max_rows)
         else:

@@ -17,6 +17,8 @@ def _example_copy(value):
 
 def _matches(value, schema):
     """Check the shared schema vocabulary before copying example fields."""
+    if "const" in schema and value != schema['const']:
+        return False
     if "enum" in schema and value not in schema["enum"]:
         return False
     kind = schema.get("type")
@@ -67,6 +69,17 @@ def example_changes(arguments, example, prefix=""):
 def temporal_recovery(arguments):
     from .temporal_ops import TEMPORAL_SCHEMA, TEMPORAL_EXAMPLES, TemporalChoiceError, temporal_operation
 
+    original = _example_copy(arguments)
+    arguments = deepcopy(original)
+    mechanical = []
+    if 'timestamp' in arguments and 'value' not in arguments and arguments.get('operation') in ('normalize', 'shift'):
+        arguments['value'] = arguments.pop('timestamp')
+        mechanical.append({'from': 'timestamp', 'to': 'value', 'action': 'rename_field'})
+    units = {'second': 'seconds', 'minute': 'minutes', 'hour': 'hours', 'day': 'days',
+             'week': 'weeks', 'month': 'months', 'year': 'years'}
+    if arguments.get('operation') == 'shift' and isinstance(arguments.get('unit'), str) and arguments['unit'] in units:
+        arguments['unit'] = units[arguments['unit']]
+        mechanical.append({'field': 'unit', 'action': 'pluralize_unit'})
     operation = arguments.get("operation")
     known = isinstance(operation, str) and operation in TEMPORAL_EXAMPLES
     operation = operation if known else "interval"
@@ -83,10 +96,15 @@ def temporal_recovery(arguments):
             # The operation itself continues to require an integer.
             converted = int(supplied)
             example[key] = converted if _matches(converted, field) else supplied
+            if _matches(converted, field):
+                mechanical.append({'field': key, 'action': 'integer_string_to_integer'})
         elif field.get("type") == "object" and isinstance(supplied, dict):
             for child, value in supplied.items():
-                if child in field["properties"] and _matches(value, field["properties"][child]):
-                    example[key][child] = deepcopy(value)
+                example[key][child] = deepcopy(value)
+        else:
+            # An invalid supplied fact is still the caller's fact. Do not
+            # replace it with a convenient, valid value from the schema.
+            example[key] = deepcopy(supplied)
     kind = "parameter_preserving_example" if known else "schema_illustration"
     choices = {}
     if operation == "shift" and arguments.get("mode") not in ("calendar", "elapsed"):
@@ -107,7 +125,7 @@ def temporal_recovery(arguments):
             unresolved.append({"message": str(exc), "action": "resolve_invalid_temporal_facts",
                                "guidance": "Resolve this constraint using the intended dates, local times and arithmetic semantics; the template retains those facts."})
             break
-    changed = example_changes(arguments, example)
+    changed = example_changes(original, example)
     details = {"example_arguments": example, "example_kind": kind,
                "example_runnable": runnable,
                "preserved_fields": [key for key in arguments if key in example and not example_changes({key: arguments[key]}, {key: example[key]})],
@@ -116,7 +134,40 @@ def temporal_recovery(arguments):
                "schema_command": "gnomon temporal --schema",
                "guidance": "Example values for changed_fields are illustrative, not inferred task facts. "
                            "Confirm missing choices and correct invalid values before retrying."}
-    details["supplied_arguments"] = _example_copy(arguments)
+    details["supplied_arguments"] = original
+    details['defaulted_input_options'] = {key: field['default'] for key, field in schema['properties'].items()
+        if 'default' in field and key not in original}
+    details['mechanical_corrections'] = mechanical
+    proposal = deepcopy(example)
+    for key, values in choices.items():
+        proposal[key] = '<' + '|'.join(str(v) for v in values) + '>'
+    missing = [k for k in schema.get('required', []) if k not in arguments and k not in choices]
+    for key in missing:
+        proposal[key] = '<supply_' + key + '>'
+    # A supplied interval object may still omit its endpoints. Never promote
+    # endpoints borrowed from the schema illustration into an exact retry.
+    for key, field in schema['properties'].items():
+        supplied = arguments.get(key)
+        if field.get('type') == 'object' and isinstance(supplied, dict):
+            for child in field.get('required', []):
+                if child not in supplied:
+                    path = key + '.' + child
+                    missing.append(path)
+                    proposal[key][child] = '<supply_' + path + '>'
+    if missing:
+        choices['missing_facts'] = missing
+    unknown = sorted(set(arguments) - set(schema['properties']))
+    if unknown:
+        choices['unknown_fields'] = unknown
+        for key in unknown:
+            proposal[key] = arguments[key]
+    if 'timestamp' in original and 'value' in original:
+        choices['timestamp_or_value'] = ['supply one intended value; timestamp is not accepted']
+        proposal['timestamp'] = original['timestamp']
+    exact = known and runnable and not choices and not missing and not unresolved
+    details['admissible'] = True if exact else False
+    details['next_call'] = {'tool': 'gnomon_temporal', 'arguments': proposal,
+                          'runnable': exact, 'admissible': exact}
     if kind == "task_template":
         details["schema_example_arguments"] = deepcopy(TEMPORAL_EXAMPLES[operation])
         details["guidance"] += " This task template still requires correction; schema_example_arguments is a separate runnable illustration."
@@ -129,6 +180,17 @@ def temporal_recovery(arguments):
         details["guidance"] += (" Choose mode explicitly: calendar applies local calendar arithmetic; elapsed applies "
                                 "a duration to an offset-aware instant. The example uses calendar as an illustration.")
     return details
+
+
+def frozen_recovery(arguments, rejected, *, tool='gnomon_inspect'):
+    """Remove preparation flags only; never alter a frozen snapshot's facts."""
+    corrected = {k: _example_copy(v) for k, v in arguments.items() if k not in rejected}
+    return {'supplied_arguments': _example_copy(arguments), 'rejected_fields': sorted(rejected),
+            'preserved_fields': list(corrected), 'changed_fields': sorted(rejected),
+            'example_arguments': corrected, 'example_kind': 'task_correction',
+            'example_runnable': True, 'admissible': True,
+            'guidance': 'Remove the rejected preparation options. The saved snapshot already fixes these values; all forecasting parameters are preserved.',
+            'next_call': {'tool': tool, 'arguments': corrected, 'runnable': True, 'admissible': True}}
 
 
 def column_recovery(details, arguments):

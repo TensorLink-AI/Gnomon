@@ -76,7 +76,7 @@ def test_provider_schemas_disclose_season_and_declared_limits_without_mutating_s
         caps = session.call("gnomon_capabilities", {})
         # The built-in discovery response fits the ordinary MCP response budget.
         assert not caps.get("partial")
-        seasonal = caps["providers"]["seasonal_naive"]["request_schema"]
+        seasonal = caps['request_schemas'][caps['providers']['seasonal_naive']['request_schema_ref'].rsplit('/', 1)[1]]
         assert seasonal["properties"]["season"]["default"] == 1
         assert "--season" in seasonal["properties"]["season"]["description"]
         assert "season_length" not in seasonal["properties"]
@@ -84,7 +84,7 @@ def test_provider_schemas_disclose_season_and_declared_limits_without_mutating_s
         assert seasonal["properties"]["quantiles"]["maxItems"] == 0
         session.engine.register("limited", lambda request: ForecastResult((1,) * request.horizon),
                                 capabilities=AdapterCapabilities(min_history=4, max_horizon=2, frequencies=("D",), future_covariates=True))
-        limited = session.capabilities()["providers"]["limited"]["request_schema"]["properties"]
+        limited = session.capabilities(brief=False)["providers"]["limited"]["request_schema"]["properties"]
         assert limited["history"]["minItems"] == 4
         assert limited["horizon"]["maximum"] == 2
         assert limited["frequency"]["enum"] == [None, "D"]
@@ -93,7 +93,7 @@ def test_provider_schemas_disclose_season_and_declared_limits_without_mutating_s
         with pytest.raises(ForecastAdapterError, match="history"):
             session.forecast("limited", {"history": [1], "horizon": 1})
         limited["history"]["minItems"] = 900
-        assert session.capabilities()["providers"]["last_value"]["request_schema"]["properties"]["history"]["minItems"] == 1
+        assert session.capabilities(brief=False)["providers"]["last_value"]["request_schema"]["properties"]["history"]["minItems"] == 1
 
 
 def test_top_level_help_shows_nested_commands(capsys):

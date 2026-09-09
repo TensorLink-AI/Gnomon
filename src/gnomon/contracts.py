@@ -29,6 +29,19 @@ REPAIR_OPTIONS = {
     "EXECUTION_FAILED": [{"action": "check_provider_environment", "description": "Verify the provider configuration and run Gnomon in the same Python environment as the provider and its dependencies."}],
 }
 
+def execution_failure(exc, *, provider=None, stage='execution'):
+    """Correlate a failure without exposing exception text or custom class names."""
+    from uuid import uuid4
+    import logging
+    reference = 'failure_' + uuid4().hex
+    category = next((label for kind, label in ((TimeoutError, 'timeout'), (ConnectionError, 'connection'),
+        (OSError, 'io'), (ValueError, 'value'), (TypeError, 'type')) if isinstance(exc, kind)), 'execution')
+    logging.getLogger(__name__).error('Execution failure %s category=%s stage=%s', reference, category, stage)
+    return GnomonError('EXECUTION_FAILED', 'Provider or ledger execution failed; exception text is withheld to protect secrets.',
+        details={'provider': provider, 'stage': stage, 'error_category': category, 'diagnostic_ref': reference,
+            'diagnostic_ref_scope': 'correlation identifier in the local Gnomon logger, not a retained result'})
+
+
 class GnomonError(Exception):
     def __init__(self, code: str, message: str, details: dict[str, Any] | None = None,
                  repair_options: list[dict[str, Any]] | None = None,
@@ -43,7 +56,7 @@ class GnomonError(Exception):
         self.repair_options = repair_options
         self.retryable = retryable
 
-    def to_dict(self, *, compact=False) -> dict[str, Any]:
+    def to_dict(self, *, compact=True) -> dict[str, Any]:
         repairs = (self.repair_options if self.repair_options is not None
                    else REPAIR_OPTIONS.get(self.code, []))
         from .diagnostics import completion, recovery_metadata, repair_budgets
@@ -53,12 +66,15 @@ class GnomonError(Exception):
         return completion({
             "schema_version": "0.1",
             "status": "error",
+            "execution_diagnostics": details.get('execution_diagnostics', {
+                'provider_calls': None, 'forecast_calls': None, 'ledger_writes': None, 'source_mutations': None,
+                'scope': 'Not measured at this boundary; null never asserts zero.'}),
             "error": {
                 "code": self.code,
                 "message": self.message,
                 "retryable": self.retryable,
                 "details": self.details,
-                "recovery": {**recovery_metadata(details), 'cause_ref': '/error/message'},
+                "recovery": recovery_metadata(details, cause=self.message, cause_code=self.code),
                 "repair_options": repairs,
             },
             "rejection": {'error_ref': '/error', 'terminal': True} if compact else {

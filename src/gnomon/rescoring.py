@@ -53,7 +53,7 @@ def rescore_study(ledger, references, data_ref, *, study_id, source_as_of, recor
     if historical_repair_blockers(frozen.repairs):
         raise GnomonError('INVALID_ARGUMENTS', 'Rescoring requires observed actuals, not globally repaired history.')
     snapshot = frozen.loaded.snapshot.narrow(as_of=datetime.fromisoformat(source),
-        recorded_as_of=None if frozen.loaded.snapshot.assumed_known_time else datetime.fromisoformat(recorded))
+        recorded_as_of=None if frozen.loaded.snapshot.unknown_recorded_times else datetime.fromisoformat(recorded))
     truth = {r.valid_time: r for r in snapshot.series(name, frozen.loaded.variable)}
     providers = original.get('provider_order', [original['baseline'], *[p for p in original['providers'] if p != original['baseline']]])
     folds, exclusions = [], []
@@ -74,7 +74,7 @@ def rescore_study(ledger, references, data_ref, *, study_id, source_as_of, recor
                 reason = 'actuals_unavailable_at_cutoffs'
             else:
                 actuals = [{k: v.isoformat() if hasattr(v, 'isoformat') else v for k, v in asdict(truth[t]).items()} for t in times]
-                if snapshot.assumed_known_time and actuals != old['actuals']:
+                if snapshot.unknown_recorded_times and actuals != old['actuals']:
                     reason = 'file_revision_availability_unknown'
                 elif not reason:
                     fold['actuals'] = actuals

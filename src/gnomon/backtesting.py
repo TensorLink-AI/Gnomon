@@ -101,7 +101,7 @@ def evaluate_reference(engine, references, data_ref: str, *, candidates: list[st
     replay = replay or ("recorded" if snapshot.recorded_as_of is not None else "source_available")
     if replay not in {"recorded", "source_available"}:
         raise ForecastAdapterError("replay must be source_available or recorded")
-    if replay == "recorded" and snapshot.assumed_known_time:
+    if replay == "recorded" and snapshot.unknown_recorded_times:
         raise ForecastAdapterError("plain files cannot reconstruct historical recording times")
     if snapshot.as_of is not None:
         rows = [r for r in rows if r.timestamp <= snapshot.as_of]
@@ -117,6 +117,15 @@ def evaluate_reference(engine, references, data_ref: str, *, candidates: list[st
             'excluded_by_source_cutoff': sum(r.known_time > vintage.as_of for r in historical_vintages),
             'excluded_by_recorded_cutoff': sum(vintage.recorded_as_of is not None and (r.recorded_at is None or r.recorded_at > vintage.recorded_as_of) for r in historical_vintages)}
         history = [r for r in vintage.series(name, frozen.loaded.variable) if r.valid_time <= cutoff]
+        endpoint = [r for r in historical_vintages if r.valid_time == cutoff]
+        visibility.update(required_history_endpoint=cutoff.isoformat(),
+            last_visible_timestamp=history[-1].valid_time.isoformat() if history else None,
+            endpoint_vintages=len(endpoint),
+            endpoint_excluded_by_source_cutoff=sum(r.known_time > vintage.as_of for r in endpoint),
+            endpoint_excluded_by_recorded_cutoff=sum(vintage.recorded_as_of is not None and
+                (r.recorded_at is None or r.recorded_at > vintage.recorded_as_of) for r in endpoint),
+            effective_source_as_of=vintage.as_of.isoformat(),
+            effective_recorded_as_of=vintage.recorded_as_of.isoformat() if vintage.recorded_as_of else None)
         future = rows[origin:origin + horizon]
         actuals = [asdict(truth[r.timestamp]) for r in future]
         # JSON/ledger-safe timestamps keep both provenance clocks explicit.
@@ -126,8 +135,10 @@ def evaluate_reference(engine, references, data_ref: str, *, candidates: list[st
                 "replay_mode": replay, "visibility": visibility,
                 "available_history": len(history), "required_history": min_history}
         try:
-            if len(history) < min_history or history[-1].valid_time != cutoff:
+            if len(history) < min_history:
                 raise ForecastAdapterError("insufficient vintage history at origin")
+            if history[-1].valid_time != cutoff:
+                raise ForecastAdapterError("required observation at the forecast origin is not visible; inspect endpoint visibility boundaries")
             validate_and_group([Observation(r.valid_time, r.value, name) for r in history], frozen.loaded.frequency)
             request = ForecastRequest(
                 tuple(r.value for r in history), horizon, season=season, frequency=frozen.loaded.frequency,
@@ -145,6 +156,7 @@ def evaluate_reference(engine, references, data_ref: str, *, candidates: list[st
             fold["error_type"] = type(exc).__name__
             fold['reason'] = ('no_history_recorded_by_origin' if not history and replay == 'recorded' and visibility.get('excluded_by_recorded_cutoff', 0)
                 else 'no_history_source_available_by_origin' if not history else 'insufficient_history_at_origin' if len(history) < min_history
+                else 'history_endpoint_not_visible' if history[-1].valid_time != cutoff
                 else 'history_grid_or_provider_capability')
             fold['cause'] = str(exc)
         planned.append(fold)

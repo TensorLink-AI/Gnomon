@@ -17,6 +17,7 @@ import sys
 from pathlib import Path
 import tomllib
 from typing import Any
+from functools import wraps
 
 from .contracts import GnomonError
 from .forecast_adapter import AdapterCapabilities, ForecastAdapterError, ForecastRequest, StatisticalAdapter
@@ -32,6 +33,19 @@ EXIT_SEMANTICS = {'0': 'Operation executed; inspect semantic_completion, routing
                   '2': 'Rejected, invalid, unscored or failed execution.', '3': 'Partial evaluation.', '130': 'Interrupted.'}
 
 
+def _measured(method):
+    @wraps(method)
+    def invoke(self, *args, **kwargs):
+        before = self._execution_counts()
+        try:
+            result = method(self, *args, **kwargs)
+        except (GnomonError, ForecastAdapterError) as exc:
+            exc.details['execution_diagnostics'] = self._execution_delta(before)
+            raise
+        return {**result, 'execution_diagnostics': self._execution_delta(before)}
+    return invoke
+
+
 def resolved_configuration(path=None, *, ledger_path=None):
     """Inspect operator settings without importing providers, opening databases or resolving secrets."""
     location = Path(path).expanduser().resolve() if path is not None else None
@@ -45,7 +59,7 @@ def resolved_configuration(path=None, *, ledger_path=None):
     _strict(config, configuration_schema()['properties'], label='operator TOML configuration')
     from .recovery import _matches
     if not _matches(config, configuration_schema()):
-        raise ForecastAdapterError('Invalid configuration field types or limits; use gnomon capabilities --config-schema.')
+        _configuration_error(config)
     directory = location.parent if location else Path.cwd()
     configured = (directory / config['ledger_path']).resolve() if config.get('ledger_path') else None
     if ledger_path is not None:
@@ -66,6 +80,34 @@ def resolved_configuration(path=None, *, ledger_path=None):
         'cache_size': config.get('cache_size', 0), 'allow_outcome_writes': config.get('allow_outcome_writes', False),
         'enable_temporal': config.get('enable_temporal', False), 'providers': providers,
         'provider_files_checked': False, 'guidance': 'Entrypoints are shown without importing code. Existence and dependency checks happen when starting the configured session. Secrets and remote endpoints are omitted.'}
+
+
+def _configuration_error(config):
+    """Name invalid paths and public constraints, never echo operator values."""
+    from .recovery import _matches
+    failures = []
+    def visit(value, schema, path):
+        if _matches(value, schema):
+            return
+        if isinstance(value, dict) and schema.get('type') == 'object':
+            props, extra = schema.get('properties', {}), schema.get('additionalProperties', True)
+            for key in schema.get('required', []):
+                if key not in value:
+                    failures.append({'field': path + '.' + key if path else key, 'reason': 'required field missing'})
+            for key, item in value.items():
+                child = path + '.' + key if path else key
+                spec = props.get(key, extra)
+                if isinstance(spec, dict):
+                    visit(item, spec, child)
+                elif spec is False:
+                    failures.append({'field': child, 'reason': 'unknown field'})
+        else:
+            failures.append({'field': path, 'reason': 'unsupported value or type',
+                'expected': {k: schema[k] for k in ('type', 'enum', 'minimum', 'maximum', 'const') if k in schema}})
+    visit(config, configuration_schema(), '')
+    raise ForecastAdapterError('Invalid configuration fields: ' + '; '.join(f['field'] + ': ' + f['reason'] +
+        ('; expected ' + json.dumps(f['expected']) if f.get('expected') else '') for f in failures) + '; use gnomon capabilities --config-schema.',
+        details={'invalid_fields': failures, 'rejected_fields': [f['field'] for f in failures]})
 
 _NUMBER_ARRAY = {"type": "array", "items": {"type": "number"}}
 _STRING_ARRAY = {"type": "array", "items": {"type": "string"}}
@@ -234,7 +276,7 @@ def configuration_schema():
                                       "Repeat the same deterministic, versioned provider request in that session to get a hit."},
         "allow_outcome_writes": {"type": "boolean", "default": False},
         "enable_temporal": {"type": "boolean", "default": False},
-        'compact_errors': {'type': 'boolean', 'default': False, 'description': 'Replace the legacy duplicate rejection payload with an /error reference in MCP responses.'},
+        'compact_errors': {'type': 'boolean', 'default': True, 'description': 'Replace the legacy duplicate rejection payload with an /error reference. False restores expanded legacy errors.'},
         "max_data_refs": {"type": "integer", "minimum": 1, "default": 16},
         "max_data_rows": {"type": "integer", "minimum": 1, "default": 100000},
         "evaluation_limits": {**deepcopy(_BUDGET_SCHEMA), "default": asdict(EvaluationBudget(max_seconds=30))},
@@ -276,7 +318,7 @@ class GnomonSession:
     def __init__(self, engine: InferenceEngine | None = None, *, ledger: TemporalLedger | None = None,
                  allow_outcome_writes: bool = False, max_data_refs: int = 16, max_data_rows: int = 100_000,
                  evaluation_limits: dict | None = None, result_limits: dict | None = None,
-                 enable_temporal: bool = False, compact_errors: bool = False):
+                 enable_temporal: bool = False, compact_errors: bool = True):
         if type(compact_errors) is not bool:
             raise ForecastAdapterError('compact_errors must be a boolean')
         self.compact_errors = compact_errors
@@ -340,6 +382,9 @@ class GnomonSession:
                         'Example: schema_version = 1\nledger_path = "ledger.db"'
                     ) from None
         _strict(config, configuration_schema()["properties"], label="operator TOML configuration")
+        from .recovery import _matches
+        if not _matches(config, configuration_schema()):
+            _configuration_error(config)
         if config.get("schema_version", 1) != 1:
             raise ForecastAdapterError("unsupported provider configuration schema")
         configured_ledger = directory / config["ledger_path"] if config.get("ledger_path") else None
@@ -354,7 +399,7 @@ class GnomonSession:
         session = cls(engine, ledger=ledger, allow_outcome_writes=config.get("allow_outcome_writes", False),
                       max_data_refs=config.get("max_data_refs", 16), max_data_rows=config.get("max_data_rows", 100_000),
                       evaluation_limits=config.get("evaluation_limits"), result_limits=config.get("result_limits"),
-                      enable_temporal=config.get("enable_temporal", False), compact_errors=config.get('compact_errors', False))
+                      enable_temporal=config.get("enable_temporal", False), compact_errors=config.get('compact_errors', True))
         from .models import BASELINES, predict
         for name in sorted(BASELINES):
             adapter = StatisticalAdapter(name, predict)
@@ -451,12 +496,13 @@ class GnomonSession:
         else:
             raise ForecastAdapterError("provider kind must be ephemeris, callable or factory")
 
-    def capabilities(self, *, brief: bool = False) -> dict:
+    @_measured
+    def capabilities(self, *, brief: bool = True) -> dict:
         if type(brief) is not bool:
             raise ForecastAdapterError('brief must be a boolean')
         if brief:
             from .diagnostics import shared_provider_schemas
-            return shared_provider_schemas(self.capabilities())
+            return shared_provider_schemas(self.capabilities(brief=False))
         from .diagnostics import CUTOFF_SEMANTICS
         providers = self.engine.capabilities()
         for provider in providers.values():
@@ -494,6 +540,7 @@ class GnomonSession:
                                   "bound": "compact_structured_payload_utf8_not_provider_memory"},
                 "semantics": {"forecast": "inference_only", "calibration": "not_implied", "action_authorized": False}}
 
+    @_measured
     def forecast(self, provider: str, request: ForecastRequest | dict[str, Any] | None = None, *, use_cache: bool = True, verify: bool = False) -> dict:
         """Forecast from a typed request or the same request dict accepted by CLI/MCP."""
         if request is None:
@@ -504,6 +551,8 @@ class GnomonSession:
         if verify and not isinstance(getattr(self.engine._providers.get(provider), 'target', None), StatisticalAdapter):
             raise ForecastAdapterError('verify requires a registered statistical built-in provider')
         run = self.engine.forecast(provider, request, use_cache=use_cache)
+        from .final_selection import FINAL_SELECTION_GUIDANCE
+        canonical = run.completion()
         from .diagnostics import verify_builtin
         cache = self.engine.cache_policy(provider)
         cache.update(lookup_requested=use_cache, status=(
@@ -511,6 +560,9 @@ class GnomonSession:
             "ineligible" if not cache["provider_eligible"] else "hit" if run.cache_hit else "miss"))
         return {"schema_version": "1", "status": "ok", "execution_id": run.execution_id,
                 "fingerprint": run.fingerprint, "provider": run.provider, "revision": run.revision,
+                'request_fingerprint': canonical['request_fingerprint'], 'completion': canonical,
+                'final_selection': {**deepcopy(FINAL_SELECTION_GUIDANCE),
+                    'example': {'provider': run.provider, 'execution_id': run.execution_id}},
                 "cache_hit": run.cache_hit, "result": asdict(run.result),
                 "effective_season": run.request.season, "result_contract_validated": True,
                 **({'verification': verify_builtin(provider, run.request, run.result)} if verify else {}),
@@ -526,6 +578,7 @@ class GnomonSession:
                 "evidence": run.evidence, "action_authorized": run.action_authorized,
                 "recorded": self.ledger is not None}
 
+    @_measured
     def evaluate(self, data_ref: str, *, budget: dict | None = None, **kwargs) -> dict:
         from .backtesting import EvaluationBudget, evaluate_reference
         limits = asdict(self.evaluation_limits)
@@ -543,6 +596,7 @@ class GnomonSession:
                 self._studies.popitem(last=False)
         return report
 
+    @_measured
     def rescore(self, data_ref: str, *, study_id: str, source_as_of: str, recorded_as_of: str, allow_partial=True):
         """Reuse original predictions; evidence cutoffs govern actuals, never forecast origins."""
         from .rescoring import rescore_study
@@ -550,11 +604,13 @@ class GnomonSession:
                              recorded_as_of=recorded_as_of, allow_partial=allow_partial,
                              max_folds=self.evaluation_limits.max_folds)
 
+    @_measured
     def compare_studies(self, *, original_study_id, rescored_study_id):
         """Read immutable original/rescore differences without model calls."""
         from .rescoring import compare_studies
         return compare_studies(self.ledger, original_study_id=original_study_id, rescored_study_id=rescored_study_id)
 
+    @_measured
     def route(self, data_ref: str, **kwargs) -> dict:
         from .study_routing import route_study
         fields = ("candidates", "baseline", "horizon", "season", "series_id")
@@ -585,7 +641,19 @@ class GnomonSession:
         """
         if type(compact) is not bool:
             raise GnomonError("INVALID_ARGUMENTS", "compact must be a boolean")
-        result = self._call(name, arguments)
+        before = self._execution_counts()
+        try:
+            result = self._call(name, arguments)
+        except GnomonError as exc:
+            exc.details['execution_diagnostics'] = self._execution_delta(before)
+            raise
+        except Exception as exc:
+            # Exception text and arbitrary class names may contain credentials.
+            from .contracts import execution_failure
+            error = execution_failure(exc, provider=arguments.get('provider') if isinstance(arguments, dict) else None)
+            error.details['execution_diagnostics'] = self._execution_delta(before)
+            raise error from None
+        result['execution_diagnostics'] = self._execution_delta(before)
         if compact and name == 'gnomon_capabilities':
             result.pop('cutoff_semantics', None)
             result['cutoff_semantics_command'] = 'gnomon capabilities'
@@ -605,13 +673,23 @@ class GnomonSession:
             result = completion(result)
         return self.results.project(result) if compact else result
 
+    def _execution_counts(self):
+        return {**self.engine._execution_stats,
+                'ledger_writes': getattr(self.ledger, '_committed_row_writes', 0)}
+
+    def _execution_delta(self, before):
+        from .diagnostics import EXECUTION_SCOPE
+        after = self._execution_counts()
+        return {**{k: after[k] - before[k] for k in before}, 'source_mutations': 0,
+                'scope': EXECUTION_SCOPE}
+
     def _call(self, name: str, arguments: dict[str, Any]) -> dict:
         try:
             if not isinstance(arguments, dict):
                 raise ForecastAdapterError("arguments must be an object")
             if name == "gnomon_read":
                 _strict(arguments, READ_SCHEMA["properties"], READ_SCHEMA["required"])
-                return self.results.read(**arguments)
+                return self.results.read(**arguments, _execution_diagnostics=self._execution_delta(self._execution_counts()))
             if name == "gnomon_temporal":
                 if not self.enable_temporal:
                     raise GnomonError("UNKNOWN_TOOL", "Temporal operations require enable_temporal=true at session startup.")
@@ -687,8 +765,9 @@ class GnomonSession:
                 if name == 'gnomon_inspect' and str(arguments.get('input', '')).endswith('.gnomon'):
                     rejected = set(arguments) - {'input', 'purpose'}
                     if rejected:
+                        from .recovery import frozen_recovery
                         raise ForecastAdapterError('No preparation options are accepted with .gnomon input, even identical values. Inspect the original source to prepare a different snapshot.',
-                            details={'rejected_fields': sorted(rejected), 'rejected_arguments': {k: arguments[k] for k in sorted(rejected)}})
+                            details={**frozen_recovery(arguments, rejected), 'rejected_arguments': {k: arguments[k] for k in sorted(rejected)}})
                 return getattr(self.data, "inspect" if name == "gnomon_inspect" else "describe")(**arguments)
             if name == "gnomon_ledger":
                 return self._ledger_call(arguments)
@@ -822,9 +901,9 @@ class GnomonSession:
             {"name": "gnomon_read", "description": "Read exact retained result JSON text pages, optionally at a JSON pointer. Concatenate pages at next_offset; no provider calls. References expire with the session or LRU eviction.",
              "inputSchema": READ_SCHEMA},
             {"name": "gnomon_capabilities", "description": "List this session's registered providers and storage capabilities.",
-             "inputSchema": {"type": "object", "properties": {'brief': {'type': 'boolean', 'default': False,
+             "inputSchema": {"type": "object", "properties": {'brief': {'type': 'boolean', 'default': True,
                 'description': 'Deduplicate provider request schemas using shared JSON references.'}}, "additionalProperties": False}},
-            {"name": "gnomon_forecast", "description": "Execute a registered provider. No implicit backtest, calibration claim or action permission.",
+            {"name": "gnomon_forecast", "description": "Execute a registered provider. Preserve completion as typed evidence; final_selection shows the provider/execution_id selection to return. No implicit backtest, calibration claim or action permission.",
              "inputSchema": FORECAST_SCHEMA},
             {"name": "gnomon_inspect", "description": "Validate file/store data and freeze a session-local data_ref. Discloses cutoffs and repairs.",
              "inputSchema": INSPECT_SCHEMA},

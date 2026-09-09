@@ -224,9 +224,10 @@ def test_cli_unexpected_provider_failure_keeps_secrets_redacted(tmp_path, capsys
     payload = json.loads(captured.out)
     assert captured.err == "" and "supersecret" not in captured.out
     assert payload["error"]["code"] == "EXECUTION_FAILED"
-    assert payload["error"]["details"] == {
-        "command": "infer", "stage": "provider_execution", "provider": "bad",
-    }
+    detail = payload['error']['details']
+    assert detail['stage'] == 'provider_execution' and detail['provider'] == 'bad'
+    assert detail['error_category'] == 'execution' and detail['diagnostic_ref'].startswith('failure_')
+    assert payload['execution_diagnostics']['provider_calls'] == 1
 
 
 def test_unexpected_provider_exceptions_are_secret_safe_at_mcp_boundary():

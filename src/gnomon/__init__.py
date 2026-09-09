@@ -8,12 +8,14 @@ from .session import GnomonSession
 from .backtesting import EvaluationBudget, evaluate_reference
 from .temporal_store import TemporalStore
 from .product_contract import __version__
+from .final_selection import forecast_completion, forecast_request_fingerprint, resolve_final_selection
 
 __all__ = [
     "AdapterCapabilities", "ForecastRequest", "ForecastResult",
     "ForecastExecution", "InferenceEngine", "EphemerisProvider",
     "TemporalLedger", "GnomonSession", "EvaluationBudget", "evaluate_reference",
     "TemporalStore", "temporal_operation", "__version__",
+    "forecast_completion", "forecast_request_fingerprint", "resolve_final_selection",
 ]
 
 

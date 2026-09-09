@@ -15,9 +15,15 @@ CUTOFF_SEMANTICS = {
 }
 
 
+EXECUTION_SCOPE = 'Gnomon dispatches, validated forecast requests, committed ledger row writes and source mutations during this call; excludes arbitrary provider side effects and concurrent calls.'
+
+
 def completion(payload):
     """Technical operation completeness; never assert the business intent was right."""
     status = payload.get('status')
+    if payload.get('evidence') == 'explicit_temporal_calculation':
+        payload = {**payload, 'execution_diagnostics': dict(provider_calls=0, forecast_calls=0,
+            ledger_writes=0, source_mutations=0, scope=EXECUTION_SCOPE)}
     evidence = None
     task = status not in ('error', 'unscored', 'partial', 'result_available')
     if status is None:
@@ -31,7 +37,10 @@ def completion(payload):
     if status in ('insufficient_evidence', 'incompatible_evidence'):
         evidence = False
     returned = 'fold_summary' if payload.get('study_evidence_scope') == 'fold_summary' else 'partial_payload' if status == 'result_available' else 'complete_payload'
-    return {**payload, 'operation_succeeded': status != 'error', 'task_completed': task,
+    return {**payload, 'execution_diagnostics': payload.get('execution_diagnostics', {
+                'provider_calls': None, 'forecast_calls': None, 'ledger_writes': None, 'source_mutations': None,
+                'scope': 'Not measured at this boundary; null never asserts zero.'}),
+            'operation_succeeded': status != 'error', 'task_completed': task,
             'evidence_complete': evidence, 'evidence_status': 'complete' if evidence is True else 'insufficient' if evidence is False else 'not_applicable',
             'scoring_complete': payload.get('complete') if 'scoring_status' in payload else status == 'complete' if 'folds' in payload else None,
             'returned_evidence': returned,
@@ -39,7 +48,7 @@ def completion(payload):
 
 
 def shared_provider_schemas(payload):
-    """Optional discovery projection; preserve public default schemas."""
+    """Deduplicate discovery schemas without changing provider contracts."""
     schemas = {}
     for provider in payload.get('providers', {}).values():
         schema = provider.pop('request_schema')
@@ -50,20 +59,22 @@ def shared_provider_schemas(payload):
     return {**payload, 'request_schemas': schemas}
 
 
-def recovery_metadata(details):
+def recovery_metadata(details, *, cause=None, cause_code=None):
     from .recovery import example_changes
     supplied = details.get('supplied_arguments', details.get('input_options', {}))
     fields = supplied if isinstance(supplied, dict) else {}
     example = details.get('example_arguments')
     changed = details.get('changed_fields', example_changes(supplied, example) if isinstance(example, dict) else [])
     return {'supplied_arguments': supplied, 'defaulted_arguments': details.get('defaulted_input_options', {}),
-        'cause': details.get('cause', details.get('reason')), 'next_call': details.get('next_call'),
+        'cause': cause or details.get('cause', details.get('reason')),
+        'cause_code': cause_code or details.get('cause_code'), 'next_call': details.get('next_call'),
         'preserved_fields': details.get('preserved_fields', [
         k for k in fields if isinstance(example, dict) and k in example and not example_changes({k: fields[k]}, {k: example[k]})]),
         'changed_fields': changed, 'choices_required': details.get('choices_required', {}),
         'rejected_fields': details.get('rejected_fields', []),
         'example_kind': details.get('example_kind', 'no_example'),
         'example_runnable': details.get('example_runnable', False),
+        'illustrative': example is not None and details.get('admissible') is not True,
         'admissible': details.get('admissible'), 'example_arguments_ref': '/error/details/example_arguments' if example is not None else None}
 
 

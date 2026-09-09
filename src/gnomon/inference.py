@@ -85,7 +85,13 @@ class ForecastExecution:
 
     def to_dict(self) -> dict[str, Any]:
         return {**asdict(self), "request_provenance": request_provenance(self.request),
+                'completion': self.completion(),
                 "effective_season": self.request.season, "result_contract_validated": True}
+
+    def completion(self) -> dict[str, Any]:
+        """Canonical point forecast and request binding for host final selection."""
+        from .final_selection import forecast_completion
+        return forecast_completion(self)
 
 
 def request_provenance(request):
@@ -121,6 +127,7 @@ class InferenceEngine:
         self._cache: dict[str, ForecastResult] = {}
         self._cache_size = cache_size
         self._cache_stats = dict(hits=0, misses=0, evictions=0)
+        self._execution_stats = dict(provider_calls=0, forecast_calls=0)
         self._ledger = ledger
         self._lock = threading.RLock()
 
@@ -256,18 +263,31 @@ class InferenceEngine:
             raise ForecastAdapterError('use_cache must be a boolean')
         provider, request, fingerprint = self._prepare(name, request)
         with self._lock:
+            self._execution_stats['forecast_calls'] += 1
             cached = self._cache.get(fingerprint) if use_cache else None
             if use_cache and self._cache_size and self.cache_policy(name)['provider_eligible']:
                 self._cache_stats['hits' if cached is not None else 'misses'] += 1
         if cached is not None:
             return self._finish(name, provider, request, fingerprint, cached, True)
-        target = provider.target() if provider.factory else provider.target
-        method = getattr(target, "forecast", target)
+        with self._lock:
+            self._execution_stats['provider_calls'] += 1
         try:
-            result = method(request)
-        finally:
-            if provider.factory and callable(getattr(target, "close", None)):
-                target.close()
+            target = provider.target() if provider.factory else provider.target
+            method = getattr(target, "forecast", target)
+            try:
+                result = method(request)
+            finally:
+                if provider.factory and callable(getattr(target, "close", None)):
+                    target.close()
+        except Exception as exc:
+            from .forecast_adapter import StatisticalAdapter
+            from .models import predict
+            if (isinstance(exc, ForecastAdapterError) and type(provider.target) is StatisticalAdapter
+                    and provider.target._predictor is predict):
+                # Built-in validation has vetted, task-specific repair details.
+                raise
+            from .contracts import execution_failure
+            raise execution_failure(exc, provider=name, stage='provider_execution') from None
         return self._finish(name, provider, request, fingerprint, result, use_cache=use_cache)
 
     def forecast_batch(self, name: str, requests: list[ForecastRequest | dict[str, Any]]) -> list[ForecastExecution]:
@@ -283,7 +303,14 @@ class InferenceEngine:
         batch = None if provider.factory else getattr(provider.target, "forecast_batch", None)
         if not callable(batch):
             return [self.forecast(name, request, use_cache=False) for _, request, _ in prepared]
-        results = list(batch([request for _, request, _ in prepared]))
+        with self._lock:
+            self._execution_stats['forecast_calls'] += len(prepared)
+            self._execution_stats['provider_calls'] += 1
+        try:
+            results = list(batch([request for _, request, _ in prepared]))
+        except Exception as exc:
+            from .contracts import execution_failure
+            raise execution_failure(exc, provider=name, stage='provider_execution') from None
         if len(results) != len(prepared):
             raise ForecastAdapterError("provider returned the wrong batch size")
         for result, (_, request, _) in zip(results, prepared):

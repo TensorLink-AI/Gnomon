@@ -9,7 +9,7 @@ an importable module.
 Install Gnomon:
 
 ```bash
-python -m pip install 'gnomon-forecast==1.1.7'
+python -m pip install 'gnomon-forecast==1.1.8'
 gnomon --version
 gnomon infer --provider last_value --request '{"history":[1,2,3],"horizon":2}'
 ```
@@ -22,7 +22,7 @@ another model library installed in a different environment.
 The repository also includes `install.sh` for a standalone CLI environment:
 
 ```bash
-bash install.sh --version v1.1.7
+bash install.sh --version v1.1.8
 ```
 
 The management commands below require **Gnomon 1.1.0 or newer**. Before the
