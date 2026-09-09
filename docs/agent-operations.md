@@ -119,3 +119,67 @@ availability: routing/ledger MCP tools appear when a ledger is configured.
 Continue with the [local workflow](local-evidence-workflow.md),
 [revised-vintage workflow](revised-vintage-workflow.md), and
 [MCP example](mcp-evidence-workflow.md).
+
+## Follow-up discovery and result contracts
+
+Use `gnomon capabilities --brief` (or Python `capabilities(brief=True)` / MCP
+`gnomon_capabilities` with `{"brief":true}`) for shared request schemas instead
+of repeating them per provider. Use `describe --brief` to omit the repeated
+inspection object. Normal per-command help remains self-contained.
+
+`gnomon providers example --raw` prints executable Python; `--write-to FILE.py`
+creates a new source file and refuses to overwrite one. Live cache statistics
+are `entries`, `hits`, `misses` and `evictions`. Hits/misses count only eligible
+lookups; diagnostics, disabled caching, bypasses and invalid requests do not
+increment them. Counters cover the engine lifetime, not other CLI processes.
+
+`gnomon evaluate --input data.csv --candidates historical_mean --baseline
+last_value --horizon 2 --preflight` reports planned origins, replay mode and
+visibility without forecasts or a saved study. Use `--replay recorded` or
+`--replay source_available` only after choosing the appropriate temporal
+question. Inspection discloses the default and points to preflight; it cannot
+know the requested horizons and origins in advance.
+
+Default route fallback keeps exit 0 and emits one stderr warning. Use
+`--require-evidence` for exit 2 on fallback. `--save-result` saves both success
+and rejection JSON; if saving fails, stdout retains the original rejection and
+names the unsaved path.
+
+| Result surface | Point forecast location |
+| --- | --- |
+| CLI/MCP inference result | `result.point` |
+| Python ForecastExecution | `result.point` tuple; `result.points()` list-copy method |
+| Saved study fold | `folds[i].runs[provider].point` |
+
+Study runs are compact evidence records, not ForecastExecution objects. Their
+existing shape remains stable. Completed backtest runs appear in ledger search
+as `scored_in_study`, with their saved study IDs. These are immutable study
+scores, not production-ledger actuals rescored at the search source cutoff.
+
+Completion fields have separate scopes:
+
+- `operation_succeeded`: the interface operation executed.
+- `task_completed`: the technical task completed; a default routing fallback
+  or incomplete requested scoring is false. A history query can complete while
+  finding insufficient evidence.
+- `scoring_complete`: whether requested scoring is complete; null when no
+  scoring operation was requested.
+- `evidence_status`: `complete`, `insufficient`, or `not_applicable` for the
+  scoring/selection evidence. The older `evidence_complete` boolean/null stays
+  available for compatibility; null means not applicable here.
+- `returned_evidence`: `complete_payload`, `fold_summary`, or `partial_payload`.
+  A fold summary can describe complete scoring without including all fold
+  vectors. Follow `full_study` for those vectors; follow `full_result` for a
+  retained response payload.
+
+The response byte budget counts compact UTF-8 encoded structured payload. It
+excludes JSON-RPC framing, duplicated MCP text blocks, transport headers and
+pretty-printed CLI whitespace. Retained-result hashes and character counts apply
+to the exact root text returned by `gnomon_read`.
+
+`gnomon self-check families` describes each fixture, assertion and limitation.
+Add `--detailed` to a leakage run for expected and actual values per case.
+See the [prospective comparison example](production-history-comparison.md) for
+built-ins paired with a controlled-clock TemporalLedger, and the
+[1.1.6 feedback disposition](feedback-116-disposition.md) for compatibility choices
+and the separately unresolved Arena adapter feedback.

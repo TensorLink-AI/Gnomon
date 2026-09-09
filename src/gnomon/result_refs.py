@@ -121,6 +121,7 @@ class ResultReferences:
             "fallback_used", "selection_reason", "evidence_based", "routing_status", "recommendation",
             "study_evidence_scope",
             'operation_succeeded', 'task_completed', 'evidence_complete', 'evaluation_status',
+            'evidence_status', 'returned_evidence', 'scoring_complete',
             'effective_season', 'season_defaulted', 'result_contract_validated', 'cache_hit',
         )
         summary = {key: value[key] for key in scalar_keys

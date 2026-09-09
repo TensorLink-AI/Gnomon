@@ -131,6 +131,20 @@ def temporal_recovery(arguments):
     return details
 
 
+def column_recovery(details, arguments):
+    """Propose only an unambiguous known alias, preserving every other argument."""
+    columns, missing = details.get('available_columns', []), details.get('missing_columns', [])
+    if missing != ['timestamp'] or 'ts' not in columns or arguments.get('time_column', 'timestamp') != 'timestamp':
+        return {'choices_required': {'column_mapping': {'available_columns': columns, 'missing_columns': missing}},
+                'example_runnable': False}
+    corrected = {**_example_copy(arguments), 'time_column': 'ts'}
+    return {'example_arguments': corrected, 'supplied_arguments': _example_copy(arguments),
+        'example_kind': 'task_correction', 'changed_fields': example_changes(arguments, corrected),
+        'preserved_fields': [k for k in arguments if k != 'time_column'], 'example_runnable': True,
+        'admissible': None, 'correction_scope': 'column_mapping_only_other_input_and_provider_checks_not_run',
+        'guidance': 'The available ts column is the timestamp alias. Only time_column changed; all other task parameters are preserved.'}
+
+
 def argument_recovery(name, arguments):
     arguments = arguments if isinstance(arguments, dict) else {}
     if name == "gnomon_ledger":
@@ -176,6 +190,10 @@ def argument_recovery(name, arguments):
             if isinstance(arguments.get("execution_ids"), list):
                 example.pop("execution_id")
                 example.setdefault("execution_ids", _example_copy(arguments["execution_ids"]))
+        if operation == 'search' and type(arguments.get('limit')) is int:
+            example['limit'] = max(1, min(100, arguments['limit']))
+        if operation == 'compare_history' and arguments.get('series_id') == '__default__':
+            example.pop('series_id', None)
         placeholders = []
         if operation == "compare":
             supplied = arguments.get("execution_ids", [])
@@ -200,6 +218,8 @@ def argument_recovery(name, arguments):
             details["guidance"] = ("Choose between two and 100 distinct recorded execution IDs with matched inputs, snapshot and forecast origin. "
                                    "Use ledger search to find IDs; replace placeholder_execution_ids before retrying. "
                                    "The template does not assert that selected executions are compatible.")
+        if operation == 'compare_history' and arguments.get('series_id') == '__default__':
+            details.update(rejected_fields=['series_id'], choices_required={'series_id': 'Select an explicit stable recorded series; __default__ is ineligible.'})
         return details
     if name == "gnomon_forecast":
         from .session import REQUEST_SCHEMA, FORECAST_SCHEMA
@@ -235,7 +255,7 @@ def argument_recovery(name, arguments):
                    "example_kind": kind, "changed_fields": example_changes(arguments, example),
                    "guidance": "Python uses session.forecast(provider, request). MCP uses provider plus request, "
                                "or provider, data_ref and horizon. CLI --input maps to gnomon_inspect followed by gnomon_forecast."}
-        details["guidance"] += (" Changed fields are illustrative; confirm the intended horizon and correct the reported issue. "
+        details["guidance"] += (" Changed fields are illustrative; correct only the reported issue while retaining valid task parameters. "
                                 "Supply real history observations if history is absent. Task templates may still require correction; "
                                 "no provider or snapshot availability has been verified by this example.")
         if isinstance(arguments.get("input"), str):

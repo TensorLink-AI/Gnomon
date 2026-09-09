@@ -379,6 +379,9 @@ class TemporalStore:
                     -- sits beside a real one.
                     assumed_known_time INTEGER NOT NULL DEFAULT 1
                 );
+                CREATE TABLE IF NOT EXISTS dataset_timezones (
+                    dataset TEXT PRIMARY KEY, timezone TEXT
+                );
             """)
             conn.execute(f"PRAGMA user_version={self.SCHEMA_VERSION}")
             conn.execute(f"PRAGMA application_id={self.APPLICATION_ID}")
@@ -403,6 +406,7 @@ class TemporalStore:
         source_fingerprint: str,
         assumed_known_time: bool = False,
         clock: Clock | None = None,
+        _csv_timezone: tuple | None = None,
     ) -> IngestReport:
         clock = clock or SYSTEM_CLOCK
         recorded_at = clock.now().isoformat()
@@ -422,6 +426,15 @@ class TemporalStore:
             report.warnings.append(KNOWN_TIME_ASSUMED_WARNING)
         with self._connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
+            if _csv_timezone is not None:
+                declared = _csv_timezone[0]
+                previous = conn.execute('SELECT timezone FROM dataset_timezones WHERE dataset=?', (dataset,)).fetchone()
+                populated = conn.execute('SELECT 1 FROM observations WHERE dataset=? LIMIT 1', (dataset,)).fetchone()
+                if (previous is not None and previous[0] != declared) or (previous is None and populated and declared is not None):
+                    raise GnomonError('DATASET_TIMEZONE_MISMATCH', 'CSV timezone declaration cannot change an existing dataset identity. Use a new dataset for a different timezone.',
+                        {'dataset': dataset, 'recorded_timezone': previous[0] if previous else 'unknown_legacy_or_row_ingestion',
+                         'requested_timezone': declared, 'rejected_fields': ['timezone']})
+                conn.execute('INSERT OR IGNORE INTO dataset_timezones VALUES (?,?)', (dataset, declared))
             for row in rows:
                 existing = conn.execute(
                     "SELECT known_time, value, revision FROM observations "
@@ -545,6 +558,7 @@ class TemporalStore:
             source_fingerprint=fingerprint(path),
             assumed_known_time=known_at_column is None,
             clock=clock,
+            _csv_timezone=(timezone,),
         )
 
     # -- reads ------------------------------------------------------------

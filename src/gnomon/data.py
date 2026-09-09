@@ -381,9 +381,12 @@ def observations_from_rows(rows, columns, time_column, target_column, series_col
         if exc.code in {"INVALID_TIMESTAMP", "INVALID_TARGET", "NON_FINITE_TARGET"}:
             exc.details["drop_budget"] = _drop_diagnostic(rows, time_column, target_column)
             if kwargs.get('repair', 'off') == 'safe':
-                exc.details['guidance'] = ('Safe mode never drops unparseable rows. Check drop_budget.within_budget; '
+                allowed = exc.details['drop_budget']['within_budget'] is True
+                exc.details['guidance'] = ('Safe mode never drops unparseable rows. These drops fit the aggressive drop budget; '
                     'retry with aggressive only if dropping those rows preserves the intended task. Grid and conflict budgets still apply.')
-                exc.repair_options = [{'action': 'review_aggressive_drop', 'description': exc.details['guidance']}]
+                if not allowed:
+                    exc.details['guidance'] = 'Safe mode never drops unparseable rows. Aggressive dropping is not established admissible by this budget; correct the malformed source fields.'
+                exc.repair_options = [{'action': 'review_aggressive_drop' if allowed else 'correct_source', 'description': exc.details['guidance']}]
         raise
 
 

@@ -416,7 +416,7 @@ class TemporalLedger:
             conn.execute("BEGIN")
             for row in conn.execute("SELECT execution_id FROM executions WHERE recorded_at<=? ORDER BY rowid", (recorded,)):
                 summary = self._summary(conn, self._execution(conn, row[0]), source, recorded)
-                if summary["status"] != "scored":
+                if summary["status"] not in {"scored", "scored_in_study"}:
                     rows.append({**summary, "status": "pending" if summary["status"] == "waiting" else summary["status"]})
         return rows
 
@@ -430,6 +430,17 @@ class TemporalLedger:
                                "WHERE execution_id=? AND recorded_at<=? ORDER BY study_id LIMIT 21",
                                (run["execution_id"], recorded_as_of)).fetchall()
         summary.update(study_ids=[s[0] for s in studies[:20]], study_ids_truncated=len(studies) > 20)
+        scored = conn.execute("SELECT DISTINCT s.study_id FROM study_executions se JOIN studies s USING(study_id) "
+            "JOIN payloads p ON p.payload_id=s.payload_id, json_each(p.payload_json, '$.folds') f, json_each(f.value, '$.runs') r "
+            "WHERE se.execution_id=? AND s.recorded_at<=? AND json_extract(f.value, '$.status')='complete' "
+            "AND json_extract(r.value, '$.execution_id')=se.execution_id LIMIT 21", (run['execution_id'], recorded_as_of)).fetchall()
+        if scored:
+            return {**summary, 'status': 'scored_in_study', 'score_state': 'snapshot_actuals',
+                'missing_steps': None, 'missing_count': None, 'actuals_available': None,
+                'study_score_scope': 'immutable_saved_scores_not_rescored_at_query_source_cutoff',
+                'scored_study_ids': [s[0] for s in scored[:20]], 'scored_study_ids_truncated': len(scored) > 20,
+                'next_step': 'retrieve_study_fold_evidence',
+                'guidance': 'These predictions were scored against frozen study actuals, independently of production ledger actuals. Retrieve the linked study; no production actual submission is required.'}
         try:
             times, pairs = self._pairs(conn, req, source_as_of, recorded_as_of)
         except ForecastAdapterError as exc:
@@ -471,7 +482,7 @@ class TemporalLedger:
         for name, value in (("series_id", series_id), ("provider", provider), ("unit", unit)):
             if value is not None and (not isinstance(value, str) or not value):
                 raise ForecastAdapterError(f"{name} must be a nonempty string")
-        if status is not None and status not in ("waiting", "ready", "scored", "stale", "unscorable"):
+        if status is not None and status not in ("waiting", "ready", "scored", "stale", "unscorable", "scored_in_study"):
             raise ForecastAdapterError("unknown feedback status")
         start, end = _time(start) if start is not None else None, _time(end) if end is not None else None
         if start and end and start > end:

@@ -107,10 +107,20 @@ class DataReferences:
             loaded, unit, repairs = load_snapshot(input, self.max_rows)
         else:
             log = RepairLog()
-            loaded = load_stage(input, time_column=time_column, target_column=target_column,
-                                series_column=series_column, frequency=frequency, as_of=instant(as_of, "as_of"),
-                                recorded_as_of=instant(recorded_as_of, "recorded_as_of"), store_path=store_path,
-                                repair=repair, repair_log=log, regrid=regrid, timezone=timezone, window=window)
+            try:
+                loaded = load_stage(input, time_column=time_column, target_column=target_column,
+                                    series_column=series_column, frequency=frequency, as_of=instant(as_of, "as_of"),
+                                    recorded_as_of=instant(recorded_as_of, "recorded_as_of"), store_path=store_path,
+                                    repair=repair, repair_log=log, regrid=regrid, timezone=timezone, window=window)
+            except GnomonError as exc:
+                if exc.code == 'MISSING_COLUMNS':
+                    from .recovery import column_recovery
+                    arguments = dict(input=input, time_column=time_column, target_column=target_column,
+                        series_column=series_column, frequency=frequency, as_of=as_of, recorded_as_of=recorded_as_of,
+                        store_path=store_path, repair=repair, regrid=regrid, timezone=timezone, window=window, unit=unit, purpose=purpose)
+                    exc.details.update(column_recovery(exc.details, {k: v for k, v in arguments.items() if v is not None}))
+                    exc.details['argument_basis'] = 'effective_python_inspection_arguments_defaults_may_be_included'
+                raise
             repairs = tuple(action.to_dict() for action in log.actions())
         # Count every retained vintage, not only the latest materialized rows.
         count = loaded.snapshot.observation_count
@@ -137,6 +147,11 @@ class DataReferences:
                            for name, rows in sorted(loaded.groups.items())],
                 "snapshot": loaded.snapshot.access_summary(), "repairs": deepcopy(list(frozen.repairs)),
                 "readiness": readiness,
+                'evaluation_replay': {'default_mode': 'recorded' if loaded.snapshot.recorded_as_of is not None else 'source_available',
+                    'basis': 'recording_bounded_snapshot' if loaded.snapshot.recorded_as_of is not None else 'no_recording_boundary',
+                    'preflight': {'tool': 'gnomon_evaluate', 'arguments': {'data_ref': ref, 'preflight': True},
+                        'choices_required': ['candidates', 'baseline', 'horizon']},
+                    'guidance': 'Use evaluation preflight to check actual planned origins. Recorded replay excludes history recorded after each origin. Source-availability replay requires an explicit semantic choice and never attests local historical availability.'},
                 "reference_scope": "session", "eviction": "least_recently_used"}
 
     def snapshot_summary(self, data_ref: str) -> dict:

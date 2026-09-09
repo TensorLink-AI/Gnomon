@@ -120,6 +120,7 @@ class InferenceEngine:
         self._providers: dict[str, _Provider] = {}
         self._cache: dict[str, ForecastResult] = {}
         self._cache_size = cache_size
+        self._cache_stats = dict(hits=0, misses=0, evictions=0)
         self._ledger = ledger
         self._lock = threading.RLock()
 
@@ -182,6 +183,9 @@ class InferenceEngine:
     def cache_policy(self, provider: str | None = None) -> dict[str, Any]:
         policy = {"enabled": self._cache_size > 0, "max_entries": self._cache_size,
                   "scope": "session", "persistent": False}
+        with self._lock:
+            policy.update(entries=len(self._cache), **self._cache_stats,
+                          statistics_scope='engine_lifetime_eligible_lookups_only')
         if provider is not None:
             with self._lock:
                 registered = self._providers[provider]
@@ -244,6 +248,7 @@ class InferenceEngine:
                 self._cache[fingerprint] = _copy_result(result)
                 while len(self._cache) > self._cache_size:
                     self._cache.pop(next(iter(self._cache)))
+                    self._cache_stats['evictions'] += 1
         return execution
 
     def forecast(self, name: str, request: ForecastRequest | dict[str, Any], *, use_cache: bool = True) -> ForecastExecution:
@@ -252,6 +257,8 @@ class InferenceEngine:
         provider, request, fingerprint = self._prepare(name, request)
         with self._lock:
             cached = self._cache.get(fingerprint) if use_cache else None
+            if use_cache and self._cache_size and self.cache_policy(name)['provider_eligible']:
+                self._cache_stats['hits' if cached is not None else 'misses'] += 1
         if cached is not None:
             return self._finish(name, provider, request, fingerprint, cached, True)
         target = provider.target() if provider.factory else provider.target

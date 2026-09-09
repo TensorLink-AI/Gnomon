@@ -26,17 +26,40 @@ def completion(payload):
         task = evidence = payload.get('complete', False)
     elif 'folds' in payload or 'fallback_used' in payload:
         task = evidence = (not payload.get('fallback_used', False) and status == 'ok') if 'fallback_used' in payload else status == 'complete'
+    if isinstance(payload.get('result'), dict) and payload['result'].get('status') in ('insufficient_evidence', 'incompatible_evidence'):
+        evidence = False
+    if status in ('insufficient_evidence', 'incompatible_evidence'):
+        evidence = False
+    returned = 'fold_summary' if payload.get('study_evidence_scope') == 'fold_summary' else 'partial_payload' if status == 'result_available' else 'complete_payload'
     return {**payload, 'operation_succeeded': status != 'error', 'task_completed': task,
-            'evidence_complete': evidence, 'completion_scope': 'requested_technical_operation_not_business_intent'}
+            'evidence_complete': evidence, 'evidence_status': 'complete' if evidence is True else 'insufficient' if evidence is False else 'not_applicable',
+            'scoring_complete': payload.get('complete') if 'scoring_status' in payload else status == 'complete' if 'folds' in payload else None,
+            'returned_evidence': returned,
+            'completion_scope': 'requested_technical_operation_not_business_intent'}
+
+
+def shared_provider_schemas(payload):
+    """Optional discovery projection; preserve public default schemas."""
+    schemas = {}
+    for provider in payload.get('providers', {}).values():
+        schema = provider.pop('request_schema')
+        encoded = json.dumps(schema, sort_keys=True)
+        key = 'request_' + hashlib.sha256(encoded.encode()).hexdigest()[:12]
+        schemas[key] = schema
+        provider['request_schema_ref'] = '#/request_schemas/' + key
+    return {**payload, 'request_schemas': schemas}
 
 
 def recovery_metadata(details):
     from .recovery import example_changes
     supplied = details.get('supplied_arguments', details.get('input_options', {}))
+    fields = supplied if isinstance(supplied, dict) else {}
     example = details.get('example_arguments')
     changed = details.get('changed_fields', example_changes(supplied, example) if isinstance(example, dict) else [])
-    return {'supplied_arguments': supplied, 'preserved_fields': details.get('preserved_fields', [
-        k for k in supplied if isinstance(example, dict) and k in example and not example_changes({k: supplied[k]}, {k: example[k]})]),
+    return {'supplied_arguments': supplied, 'defaulted_arguments': details.get('defaulted_input_options', {}),
+        'cause': details.get('cause', details.get('reason')), 'next_call': details.get('next_call'),
+        'preserved_fields': details.get('preserved_fields', [
+        k for k in fields if isinstance(example, dict) and k in example and not example_changes({k: fields[k]}, {k: example[k]})]),
         'changed_fields': changed, 'choices_required': details.get('choices_required', {}),
         'rejected_fields': details.get('rejected_fields', []),
         'example_kind': details.get('example_kind', 'no_example'),
@@ -53,17 +76,26 @@ def repair_budgets(details):
     def budget(scope, proposed, denominator, maximum, admissible=None, **extra):
         return {'scope': scope, 'proposed_count': proposed, 'denominator': denominator,
                 'max_fraction': maximum, 'admissible': admissible, **extra}
-    return {'drop_budget': budget('all_input_rows', drop.get('dropped_rows'), drop.get('total_rows'), .05,
+    combined = conflicts + fills if conflicts is not None and fills is not None else None
+    return {'combined_fill_conflict_budget': {'proposed_fills': fills, 'proposed_conflict_resolutions': conflicts,
+                'combined_cost': combined, 'original_observations': total, 'max_fraction': .30,
+                'fraction': combined / max(1, total) if combined is not None and total is not None else None,
+                'admissible': combined / max(1, total) <= .30 if combined is not None and total is not None else None,
+                'scope': 'fraction_only_gap_run_limit_checked_separately'},
+        'drop_budget': budget('all_input_rows', drop.get('dropped_rows'), drop.get('total_rows'), .05,
                 drop.get('within_budget'), scan_complete=drop.get('scan_complete'),
                 predicted_post_repair_count=drop.get('predicted_rows_after_drops')),
         'gap_fill_budget': budget('shared_fill_conflict_fraction_of_original_observations', fills, total, .30,
+                None if details.get('timestamp_alignment', {}).get('admissible') else
                 False if counts.get('gap_run_at_least', 0) > details.get('max_gap_run', float('inf')) else gap.get('within_budget'), max_gap_run=details.get('max_gap_run', gap.get('max_gap_run')),
+                applicability='safe_alignment_alternative_no_fill_plan' if details.get('timestamp_alignment', {}).get('admissible') else 'gap_fill_plan',
                 gap_run_at_least=counts.get('gap_run_at_least'),
                 predicted_post_repair_count=total + fills if total is not None and fills is not None and conflicts == 0 else None),
         'conflict_resolution_budget': budget('shared_fill_conflict_fraction_of_original_observations', conflicts, total, .30,
                 conflicts / max(1, total) <= .30 if conflicts is not None and total is not None else None),
         'timestamp_alignment_budget': {'scope': 'bounded_timestamp_jitter_not_charged_to_fill_conflict_budget',
-                'proposed_count': counts.get('aligned_timestamps_not_charged'), 'admissible': None},
+                'proposed_count': details.get('timestamp_alignment', {}).get('proposed_count', counts.get('aligned_timestamps_not_charged')),
+                'admissible': details.get('timestamp_alignment', {}).get('admissible')},
         'guidance': 'Null counts/admissibility were not measured. Passing one budget does not establish that the whole repair is admissible. Fills and conflicts share a combined 30% cap.'}
 
 

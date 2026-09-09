@@ -33,7 +33,8 @@ def _grid_shape(req):
 
 def compare_history(ledger, *, series_id, horizon, providers, start, end, source_as_of, recorded_as_of, unit):
     if not isinstance(series_id, str) or not series_id or series_id == "__default__":
-        raise ForecastAdapterError("comparison requires an explicit stable series_id")
+        raise ForecastAdapterError("comparison requires an explicit stable series_id", details={
+            "rejected_fields": ["series_id"], "choices_required": {"series_id": "Select the stable named series used in recorded forecasts; __default__ is not eligible."}})
     _bounded(horizon, "horizon", 1_000_000)
     if unit is not None and (not isinstance(unit, str) or not unit):
         raise ForecastAdapterError("unit must be a nonempty string or null")
@@ -88,7 +89,7 @@ def compare_history(ledger, *, series_id, horizon, providers, start, end, source
         for origin, by_provider in sorted(groups.items()):
             missing = [p for p in providers if p not in by_provider]
             reason = "missing_candidates" if missing else None
-            selected = []
+            selected, causes = [], []
             for p, runs in by_provider.items():
                 # Always first recorded, never the retry with the smallest loss.
                 selected.append(runs[0])
@@ -103,8 +104,15 @@ def compare_history(ledger, *, series_id, horizon, providers, start, end, source
                 try:
                     future = [_time(t) for t in req["future_timestamps"]]
                     history = [_time(t) for t in req["timestamps"]]
-                    if not history or not future or max(history) > origin or min(future) <= origin \
-                            or runs[0]["recorded_at"] >= min(future):
+                    if not history:
+                        reason = "missing_history_timestamps"
+                    elif not future:
+                        reason = "missing_future_timestamps"
+                    elif max(history) > origin:
+                        reason = "history_after_forecast_origin"
+                    elif min(future) <= origin:
+                        reason = "target_not_after_forecast_origin"
+                    elif runs[0]["recorded_at"] >= min(future):
                         reason = "forecast_not_recorded_before_target"
                     if origin > runs[0]["recorded_at"]:
                         reason = "forecast_origin_after_execution"
@@ -118,6 +126,11 @@ def compare_history(ledger, *, series_id, horizon, providers, start, end, source
                             reason = "pretrained_training_cutoff_unattested_or_after_origin"
                 except ForecastAdapterError:
                     reason = "timezone_unresolved"
+                if reason:
+                    causes.append({"provider": p, "execution_id": runs[0]["execution_id"], "reason": reason,
+                        "required_fields": ["timestamps", "cutoff", "future_timestamps", "series_id", "unit"],
+                        "forecast_recorded_at": runs[0]["recorded_at"],
+                        "guidance": "Record prospective forecasts with timezone-aware history timestamps, origin and future timestamps before the first target. Existing executions are immutable; do not invent or backdate missing history. See the production comparison example."})
             if reason is None:
                 try:
                     comparison = ledger._compare(conn, selected, source, recorded)
@@ -128,7 +141,7 @@ def compare_history(ledger, *, series_id, horizon, providers, start, end, source
                     reason = str(exc)
             if reason is not None:
                 answer["excluded"].append({"origin": origin, "reason": reason, "missing_providers": missing,
-                                            "execution_ids": [r["execution_id"] for r in selected]})
+                                            "execution_ids": [r["execution_id"] for r in selected], "causes": causes})
                 continue
             for run in selected:
                 identities.setdefault(run["provider"], set()).add(_json(run["provider_identity"]))
