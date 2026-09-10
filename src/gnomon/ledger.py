@@ -597,6 +597,8 @@ class TemporalLedger:
 
     def record_decision(self, *, execution_ids: list[str], policy: dict,
                         inputs: dict, action: dict, authorization_ref: str | None = None) -> str:
+        if isinstance(inputs, dict) and inputs.get('kind') == 'forecast_decision_summary/1':
+            raise ForecastAdapterError('Use record_decision_summary for validated forecast summaries')
         for execution_id in execution_ids:
             self.execution(execution_id)
         decision_id, now = str(uuid4()), self._now()
@@ -609,6 +611,8 @@ class TemporalLedger:
 
     def append_decision_outcome(self, decision_id: str, *, outcome: dict,
                                 source_available_at: str) -> str:
+        if isinstance(outcome, dict) and outcome.get('kind') == 'forecast_lesson/1':
+            raise ForecastAdapterError('Use record_lesson for validated immutable reviews and lesson versions')
         outcome_id = str(uuid4())
         payload = {"outcome_id": outcome_id, "decision_id": decision_id, "outcome": outcome,
                    "source_available_at": _time(source_available_at)}
@@ -631,3 +635,35 @@ class TemporalLedger:
                     if (not source_as_of or outcome["source_available_at"] <= _time(source_as_of))
                     and (not recorded_as_of or outcome["recorded_at"] <= _time(recorded_as_of))]
         return {**json.loads(row[0]), "recorded_at": row[1], "outcomes": outcomes}
+
+    def record_decision_summary(self, *, execution_id, rationale, assumptions,
+                                invalidation_conditions, context, evidence_refs=None):
+        """Record a bounded selection summary. Context carries source times and provenance."""
+        from .decision_memory import record_decision_summary
+        return record_decision_summary(self, execution_id=execution_id, rationale=rationale,
+            assumptions=assumptions, invalidation_conditions=invalidation_conditions,
+            context=context, evidence_refs=evidence_refs)
+
+    def compare_context(self, *, series_id, horizon, providers, start, end,
+                        source_as_of, recorded_as_of, context_filters, unit=None):
+        """Read exact context-filtered matched production evidence; no calls or writes."""
+        from .decision_memory import compare_context
+        return compare_context(self, series_id=series_id, horizon=horizon, providers=providers,
+            start=start, end=end, source_as_of=source_as_of, recorded_as_of=recorded_as_of,
+            context_filters=context_filters, unit=unit)
+
+    def review_decision(self, *, decision_id, source_as_of, recorded_as_of):
+        """Read a review packet; review_ready means complete actuals, not a proven explanation."""
+        from .decision_memory import review_decision
+        return review_decision(self, decision_id=decision_id, source_as_of=source_as_of, recorded_as_of=recorded_as_of)
+
+    def record_lesson(self, *, decision_id, lesson, source_as_of, recorded_as_of, previous_lesson_id=None):
+        """Append an immutable hypothesis and complete review; retries reuse identical latest lessons."""
+        from .decision_memory import record_lesson
+        return record_lesson(self, decision_id=decision_id, lesson=lesson, source_as_of=source_as_of,
+            recorded_as_of=recorded_as_of, previous_lesson_id=previous_lesson_id)
+
+    def export_lesson(self, *, lesson_id, recorded_as_of):
+        """Export compact JSON with immutable references and a numerical verification call."""
+        from .decision_memory import export_lesson
+        return export_lesson(self, lesson_id=lesson_id, recorded_as_of=recorded_as_of)

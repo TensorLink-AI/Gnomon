@@ -24,3 +24,5 @@ def __getattr__(name):
         from .temporal_ops import temporal_operation
         return temporal_operation
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+from .decision_memory import put_lesson as put_lesson

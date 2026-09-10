@@ -18,7 +18,7 @@ when you need one.
 Python 3.11–3.13. No required third-party dependencies.
 
 ```bash
-python -m pip install 'gnomon-forecast==1.1.8'
+python -m pip install 'gnomon-forecast==1.1.9'
 gnomon infer --provider last_value --request '{"history":[10,12,11],"horizon":2}'
 ```
 
@@ -105,3 +105,5 @@ of calibrated uncertainty. See [validation and limits](docs/agent-evaluation.md)
 - [Changelog](CHANGELOG.md)
 
 *A gnomon is the part of a sundial that casts the shadow.*
+
+Decision memory: [structured summaries, context comparisons, outcome reviews and portable lessons](docs/decision-memory.md). Run `python -m gnomon.examples.decision_memory` in a fresh directory for the offline example.

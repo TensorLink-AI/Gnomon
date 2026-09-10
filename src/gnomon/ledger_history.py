@@ -31,7 +31,7 @@ def _grid_shape(req):
     return {"frequency": frequency, "origin_lag_microseconds": (origin - history_end) // timedelta(microseconds=1)}
 
 
-def compare_history(ledger, *, series_id, horizon, providers, start, end, source_as_of, recorded_as_of, unit):
+def compare_history(ledger, *, series_id, horizon, providers, start, end, source_as_of, recorded_as_of, unit, context_filters=None):
     if not isinstance(series_id, str) or not series_id or series_id == "__default__":
         raise ForecastAdapterError("comparison requires an explicit stable series_id", details={
             "rejected_fields": ["series_id"], "choices_required": {"series_id": "Select the stable named series used in recorded forecasts; __default__ is not eligible."}})
@@ -68,6 +68,9 @@ def compare_history(ledger, *, series_id, horizon, providers, start, end, source
             "ORDER BY e.rowid LIMIT 1001", (recorded, series_id, horizon, unit, recorded, start, end, *providers)).fetchall()
         if len(rows) > 1000:
             raise ForecastAdapterError("comparison exceeds 1000 executions; narrow the origin window; no partial ranking produced")
+        if context_filters is not None:
+            from .decision_memory import context_records, match_context
+            contexts = context_records(conn, series_id, recorded, start, end)
         groups = {}
         for row in rows:
             run = ledger._execution(conn, row["execution_id"])
@@ -131,6 +134,12 @@ def compare_history(ledger, *, series_id, horizon, providers, start, end, source
                         "required_fields": ["timestamps", "cutoff", "future_timestamps", "series_id", "unit"],
                         "forecast_recorded_at": runs[0]["recorded_at"],
                         "guidance": "Record prospective forecasts with timezone-aware history timestamps, origin and future timestamps before the first target. Existing executions are immutable; do not invent or backdate missing history. See the production comparison example."})
+            context_evidence = None
+            if reason is None and context_filters is not None:
+                accepted, context_evidence = match_context(contexts, selected, origin, source, context_filters)
+                if not accepted:
+                    reason = context_evidence['reason']
+                    causes.append(context_evidence)
             if reason is None:
                 try:
                     comparison = ledger._compare(conn, selected, source, recorded)
@@ -149,7 +158,7 @@ def compare_history(ledger, *, series_id, horizon, providers, start, end, source
             task_shapes.add(_json({**{k: req.get(k) for k in ("season", "past_covariate_names",
                                                              "future_covariate_names", "quantiles", "samples")},
                                   "related_series_count": len(req["related_series"]), "forecast_grid": grid}))
-            answer["origins"].append({"origin": origin, **comparison})
+            answer["origins"].append({"origin": origin, **comparison, **({"context_evidence": context_evidence} if context_evidence is not None else {})})
         count = len(answer["origins"])
         answer.update(matched_origins=count, n=count * horizon)
         answer["unique_actuals"] = len({aid for o in answer["origins"] for aid in o["actual_ids"]})

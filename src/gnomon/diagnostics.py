@@ -34,6 +34,8 @@ def completion(payload):
         task = evidence = (not payload.get('fallback_used', False) and status == 'ok') if 'fallback_used' in payload else status == 'complete'
     if isinstance(payload.get('result'), dict) and payload['result'].get('status') in ('insufficient_evidence', 'incompatible_evidence'):
         evidence = False
+    if payload.get('operation') == 'compare_context' and isinstance(payload.get('result'), dict):
+        evidence = payload['result'].get('status') == 'ok'
     if status in ('insufficient_evidence', 'incompatible_evidence'):
         evidence = False
     returned = 'fold_summary' if payload.get('study_evidence_scope') == 'fold_summary' else 'partial_payload' if status == 'result_available' else 'complete_payload'

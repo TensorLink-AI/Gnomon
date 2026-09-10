@@ -229,6 +229,8 @@ def argument_recovery(name, arguments):
             "append_decision_outcome": {"decision_id": "DECISION_ID", "outcome": {},
                                         "source_available_at": "2026-02-01T00:00:00Z"},
         }
+        from .decision_memory import MEMORY_EXAMPLES
+        templates.update(deepcopy(MEMORY_EXAMPLES))
         operation = arguments.get("operation")
         operation = operation if isinstance(operation, str) and operation in templates else "search"
         example = {"operation": operation, **deepcopy(templates[operation])}
@@ -274,6 +276,11 @@ def argument_recovery(name, arguments):
                             "REPLACE_NONFINITE_VALUE marks an invalid numeric input; supply a real finite observation. "
                             "Correct the reported issue before executing this template; validation and stored identities still apply. "
                             "For evaluate, allow_partial=true returns available coverage; strict scoring requires every matching-unit actual at the chosen cutoffs."}
+        if operation in MEMORY_EXAMPLES:
+            from .decision_memory import MEMORY_DESCRIPTIONS
+            details['guidance'] = MEMORY_DESCRIPTIONS[operation] + ' Preserve supplied task facts; replace unresolved IDs and cutoffs before submitting.'
+            details['example_runnable'] = False
+            details['admissible'] = False
         if operation == "compare":
             details.update(required_execution_count=2, placeholder_execution_ids=placeholders,
                            discovery_arguments={"operation": "search", "limit": 10})
