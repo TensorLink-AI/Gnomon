@@ -164,6 +164,8 @@ def build_parser() -> argparse.ArgumentParser:
                       "Outcome writes require allow_outcome_writes=true in operator TOML.\n\n"
                       "Complete synthetic compare_history example (run in a fresh directory):\n"
                       "  python -m gnomon.examples.compare_history\n"
+                      "Decision summaries, context comparison, reviews and portable lessons:\n"
+                      "  python -m gnomon.examples.decision_memory\n"
                       "Uses a controlled clock, history/future timestamps, units, provider revisions and actual availability.\n\n"
                       "Ledger evaluate defaults allow_partial=true: exit 0/status ok means the operation succeeded.\n"
                       "Read scoring_status/complete and result.status/result.coverage (each result for batches).\n"

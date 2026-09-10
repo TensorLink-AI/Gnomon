@@ -23,6 +23,8 @@ from .contracts import GnomonError
 from .forecast_adapter import AdapterCapabilities, ForecastAdapterError, ForecastRequest, StatisticalAdapter
 from .inference import InferenceEngine
 from .ledger import TemporalLedger
+from .decision_memory import (MEMORY_PARAMETERS, MEMORY_REQUIRED, MEMORY_WRITES,
+                              MEMORY_PROPERTIES, MEMORY_DESCRIPTIONS)
 from .ephemeris import EphemerisProvider
 from .product_contract import __version__, product_claims
 from .build_info import build_info
@@ -260,7 +262,9 @@ _LEDGER_REQUIRED = {
     "record_decision": ("execution_ids", "policy", "inputs", "action"),
     "append_decision_outcome": ("decision_id", "outcome", "source_available_at"),
 }
-_OUTCOME_WRITES = {"append_actual", "record_decision", "append_decision_outcome"}
+_LEDGER_PARAMETERS.update(MEMORY_PARAMETERS)
+_LEDGER_REQUIRED.update(MEMORY_REQUIRED)
+_OUTCOME_WRITES = {"append_actual", "record_decision", "append_decision_outcome"} | MEMORY_WRITES
 
 
 def configuration_schema():
@@ -529,6 +533,9 @@ class GnomonSession:
                                     "Repeat the same request in one session; see help(GnomonSession.from_config).",
                           "schema_command": "gnomon capabilities --config-schema"},
                 "ledger": {"enabled": self.ledger is not None, "outcome_writes": self.allow_outcome_writes,
+                           "decision_memory": {"operations": list(MEMORY_PARAMETERS),
+                               "discovery": "gnomon ledger --schema", "example": "python -m gnomon.examples.decision_memory",
+                               "background_review": False, "external_memory_writes": "explicit caller-owned adapter only"},
                     'configured': self.ledger is not None or getattr(self, '_configured_ledger_path', None) is not None,
                     'exists': self.ledger.path.is_file() if self.ledger else Path(self._configured_ledger_path).is_file() if getattr(self, '_configured_ledger_path', None) else False,
                     'opened': self.ledger is not None},
@@ -854,7 +861,7 @@ class GnomonSession:
             {"include_current_coverage": True} if operation == "evaluate" else {}))
         query = {"source_as_of": parameters.get("source_as_of"), "recorded_as_of": parameters.get("recorded_as_of"),
                  "cutoff_default": "current_clock" if operation in {"search", "pending"} else
-                                    "required" if operation == "compare_history" else "unbounded",
+                                    "required" if operation in {"compare_history", *MEMORY_PARAMETERS} else "unbounded",
                  "unit": arguments.get("unit"), "unit_default": "all_units" if operation == "search" else
                          "execution_unit" if operation in {"evaluate", "compare"} else "unitless"}
         for field in ("source_as_of", "recorded_as_of"):
@@ -894,6 +901,9 @@ class GnomonSession:
             answer.update(scoring_status=("complete" if all(s["complete"] for s in scores) else
                                           "partial" if any(s["n"] for s in scores) else "pending"),
                           complete=all(s["complete"] for s in scores), allow_partial=arguments.get("allow_partial", True))
+        if operation == 'review_decision':
+            answer.update(scoring_status=result['scoring_status'], complete=result['review_ready'],
+                          review_ready=result['review_ready'])
         return answer
 
     def tools(self) -> list[dict]:
@@ -969,6 +979,8 @@ def ledger_schema(*, allow_outcome_writes=False):
                              {**_STRING_ARRAY, "minItems": 2 if operation == "compare" else 1,
                               "maxItems": 100, "uniqueItems": True} if p == "execution_ids" else
                              {"type": "string"})
+            if operation in MEMORY_PARAMETERS and p in MEMORY_PROPERTIES:
+                properties[p] = deepcopy(MEMORY_PROPERTIES[p])
             if p == "unit":
                 properties[p]["description"] = (
                     "Exact unit label; omitted/null searches all units." if operation == "search" else
@@ -976,7 +988,7 @@ def ledger_schema(*, allow_outcome_writes=False):
                     "Exact unit label; omitted/null selects only unitless data. Units are never converted.")
             if p in {"source_as_of", "recorded_as_of"}:
                 clock = "source availability (source_available_at), not valid_time" if p == "source_as_of" else "local recording time"
-                default = ("Required for this operation." if operation == "compare_history" else
+                default = ("Required for this operation." if operation in {"compare_history", *MEMORY_PARAMETERS} else
                            "Omitted means the current clock." if operation in {"search", "pending"} else
                            "Omitted means unbounded.")
                 properties[p]["description"] = f"Inclusive {clock} cutoff. {default} Supply explicit cutoffs for reproducible queries."
@@ -997,9 +1009,10 @@ def ledger_schema(*, allow_outcome_writes=False):
                                  "properties": {k: v for k, v in properties.items() if k != other}})
             continue
         variants.append({"type": "object", "properties": properties, "additionalProperties": False,
-                         "required": ["operation", *_LEDGER_REQUIRED[operation]]})
+                         "required": ["operation", *_LEDGER_REQUIRED[operation]],
+                         **({"description": MEMORY_DESCRIPTIONS[operation]} if operation in MEMORY_DESCRIPTIONS else {})})
     return {"type": "object", "oneOf": variants,
-            'defaults_matrix': {op: {'source_as_of': 'required' if op == 'compare_history' else 'current_clock' if op in {'search', 'pending'} else 'unbounded' if 'source_as_of' in params else 'not_applicable',
-                'recorded_as_of': 'required' if op == 'compare_history' else 'current_clock' if op in {'search', 'pending'} else 'unbounded' if 'recorded_as_of' in params else 'not_applicable',
+            'defaults_matrix': {op: {'source_as_of': 'not_applicable' if 'source_as_of' not in params else 'required' if op in {'compare_history', *MEMORY_PARAMETERS} else 'current_clock' if op in {'search', 'pending'} else 'unbounded',
+                'recorded_as_of': 'not_applicable' if 'recorded_as_of' not in params else 'required' if op in {'compare_history', *MEMORY_PARAMETERS} else 'current_clock' if op in {'search', 'pending'} else 'unbounded',
                 'unit': 'all_units' if op == 'search' else 'execution_unit' if op == 'evaluate' else 'unitless' if 'unit' in params else 'not_applicable'}
                 for op, params in _LEDGER_PARAMETERS.items() if allow_outcome_writes or op not in _OUTCOME_WRITES}}

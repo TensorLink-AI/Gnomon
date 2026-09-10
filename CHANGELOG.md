@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.1.9 — 2026-09-10
+
+- Record concise execution-bound decision summaries with assumptions, invalidation
+  conditions, verified ledger references and explicit context availability.
+- Compare complete matched production forecasts under exact context filters,
+  with exclusions, provenance, sample counts and descriptive error ranges.
+- Generate read-only outcome review packets and save immutable versioned lessons;
+  preserve original decisions, old actual evidence and exact latest retries.
+- Export compact hypotheses with verification calls and provide a dependency-free
+  adapter for caller-owned LangGraph-compatible stores. No background agents,
+  external memory services or causal/business-value claims are implied.
+- Expose the workflow through Python, CLI and configured MCP ledger tools, with
+  bounded schemas, write opt-in, measured diagnostics and an installed example.
+
 ## 1.1.8 — 2026-09-09
 
 - Expose canonical forecast completions bound to the full request and a public
