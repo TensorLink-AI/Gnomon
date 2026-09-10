@@ -300,17 +300,25 @@ def compare_context(ledger, *, context_filters, **kwargs):
                     'min_origin_mae': min(v), 'max_origin_mae': max(v), 'mean_origin_mae': mean(v)}
                    for m in answer['models']
                    for v in [[next(x['mae'] for x in o['models'] if x['provider'] == m['provider']) for o in answer['origins']]]]}
+    if answer.get('metric') == 'rmsle':
+        answer['uncertainty']['selected_metric'] = 'rmsle'
+        answer['uncertainty']['selected_metric_ranges'] = [
+            {'provider': m['provider'], 'min': min(values), 'max': max(values), 'mean': mean(values)}
+            for m in answer['models']
+            for values in [[next(x['rmsle'] for x in o['models'] if x['provider'] == m['provider'])
+                            for o in answer['origins']]]]
     return answer
 
 
 MEMORY_PARAMETERS = {
     'record_decision_summary': ('execution_id', 'rationale', 'assumptions', 'invalidation_conditions', 'context', 'evidence_refs'),
-    'compare_context': ('series_id', 'horizon', 'providers', 'unit', 'start', 'end', 'source_as_of', 'recorded_as_of', 'context_filters'),
+    'compare_context': ('series_id', 'horizon', 'providers', 'unit', 'start', 'end', 'source_as_of', 'recorded_as_of', 'context_filters',
+                        'metric', 'recent_origins', 'negative_predictions'),
     'review_decision': ('decision_id', 'source_as_of', 'recorded_as_of'),
     'record_lesson': ('decision_id', 'lesson', 'source_as_of', 'recorded_as_of', 'previous_lesson_id'),
     'export_lesson': ('lesson_id', 'recorded_as_of'),
 }
-MEMORY_REQUIRED = {k: tuple(p for p in v if p not in {'unit', 'evidence_refs', 'previous_lesson_id'})
+MEMORY_REQUIRED = {k: tuple(p for p in v if p not in {'unit', 'evidence_refs', 'previous_lesson_id', 'metric', 'recent_origins', 'negative_predictions'})
                    for k, v in MEMORY_PARAMETERS.items()}
 MEMORY_WRITES = {'record_decision_summary', 'record_lesson'}
 MEMORY_DESCRIPTIONS = {

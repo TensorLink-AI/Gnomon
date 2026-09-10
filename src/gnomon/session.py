@@ -237,7 +237,8 @@ READ_SCHEMA = {"type": "object", "additionalProperties": False, "required": ["re
 
 _LEDGER_PARAMETERS = {
     "search": ("series_id", "horizon", "provider", "unit", "start", "end", "status", "source_as_of", "recorded_as_of", "limit", "cursor"),
-    "compare_history": ("series_id", "horizon", "providers", "unit", "start", "end", "source_as_of", "recorded_as_of"),
+    "compare_history": ("series_id", "horizon", "providers", "unit", "start", "end", "source_as_of", "recorded_as_of",
+                        "metric", "recent_origins", "negative_predictions"),
     "study": ("study_id", "recorded_as_of"),
     "execution": ("execution_id",),
     "actuals_as_of": ("series_id", "source_as_of", "recorded_as_of", "unit"),
@@ -981,6 +982,15 @@ def ledger_schema(*, allow_outcome_writes=False):
                              {"type": "string"})
             if operation in MEMORY_PARAMETERS and p in MEMORY_PROPERTIES:
                 properties[p] = deepcopy(MEMORY_PROPERTIES[p])
+            if operation in {'compare_history', 'compare_context'} and p in {'metric', 'recent_origins', 'negative_predictions'}:
+                properties[p] = {
+                    'metric': {'enum': ['mae', 'rmsle'], 'default': 'mae',
+                        'description': 'Mean per-origin error on complete matched horizons. RMSLE uses natural log(1+x); this is not pooled RMSLE. Rankings/differences and recent/lifetime windows are returned in evidence_summary.'},
+                    'recent_origins': {'type': 'integer', 'minimum': 1, 'maximum': 1000, 'default': 4,
+                        'description': 'Latest N eligible matched origins inside this query; lifetime means the entire queried window.'},
+                    'negative_predictions': {'enum': ['reject', 'clip_zero'], 'default': 'reject',
+                        'description': 'RMSLE only: reject a whole matched origin with negative predictions, or explicitly clip predictions to zero. Negative actuals always exclude the whole origin.'},
+                }[p]
             if p == "unit":
                 properties[p]["description"] = (
                     "Exact unit label; omitted/null searches all units." if operation == "search" else

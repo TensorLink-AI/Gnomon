@@ -564,7 +564,7 @@ class TemporalLedger:
             runs = [self._execution(conn, eid) for eid in execution_ids]
             return self._compare(conn, runs, source_as_of, recorded_as_of)
 
-    def _compare(self, conn, runs, source_as_of, recorded_as_of):
+    def _compare(self, conn, runs, source_as_of, recorded_as_of, *, metric='mae', negative_predictions='reject'):
         if recorded_as_of is not None and any(r["recorded_at"] > _time(recorded_as_of) for r in runs):
             raise ForecastAdapterError("execution was not recorded by the requested cutoff")
         if any(not run["request"].get("history") or run["result"].get("metadata", {}).get("complete_request_reconstructed") is False
@@ -578,22 +578,39 @@ class TemporalLedger:
         if not req["series_id"] or not req["future_timestamps"]:
             raise ForecastAdapterError("comparison requires identified forecast timestamps")
         _, pairs = self._pairs(conn, req, source_as_of, recorded_as_of)
+        models = []
+        for run in runs:
+            scored = [(run['result']['point'][i], a['value']) for i, a in pairs]
+            model = {'execution_id': run['execution_id'], 'provider': run['provider'], 'revision': run['revision'],
+                     'mae': point_error_metrics(scored)['mae']}
+            if metric == 'rmsle':
+                from .evidence_summary import rmsle
+                model['rmsle'], model['clipped_predictions'] = rmsle(scored, negative_predictions)
+                model['scored_pairs_sha256'] = hashlib.sha256(_json(scored).encode()).hexdigest()
+            models.append(model)
         return {"n": len(pairs), "horizon": req["horizon"], "metric_version": _METRIC_VERSION,
+                **({'rmsle_metric_version': 'rmsle/1', 'negative_predictions': negative_predictions} if metric == 'rmsle' else {}),
                 "source_as_of": _time(source_as_of) if source_as_of else None,
                 "recorded_as_of": _time(recorded_as_of) if recorded_as_of else None,
                 "snapshot_id": req["snapshot_id"],
                 "actual_ids": [a["actual_id"] for _, a in pairs], "matched_steps": [i for i, _ in pairs],
-                "models": [{"execution_id": run["execution_id"], "provider": run["provider"], "revision": run["revision"],
-                            "mae": point_error_metrics([(run["result"]["point"][i], a["value"]) for i, a in pairs])["mae"]}
-                           for run in runs]}
+                "models": models}
 
     def compare_history(self, *, series_id: str, horizon: int, providers: dict[str, str],
                         start: str, end: str, source_as_of: str, recorded_as_of: str,
-                        unit: str | None = None) -> dict:
-        """Read matched production evidence over an explicit inclusive origin window; no routing or writes."""
+                        unit: str | None = None, metric: str = 'mae', recent_origins: int = 4,
+                        negative_predictions: str = 'reject') -> dict:
+        """Read matched production evidence without calls/writes.
+
+        metric is mae (default) or rmsle, averaged equally over complete origins.
+        evidence_summary calculates ranks, differences and the latest N matched
+        origins versus the full query window. RMSLE rejects negative actuals;
+        negative predictions require explicit negative_predictions='clip_zero'.
+        """
         from .ledger_history import compare_history
         return compare_history(self, series_id=series_id, horizon=horizon, providers=providers,
-                               start=start, end=end, source_as_of=source_as_of, recorded_as_of=recorded_as_of, unit=unit)
+                               start=start, end=end, source_as_of=source_as_of, recorded_as_of=recorded_as_of, unit=unit,
+                               metric=metric, recent_origins=recent_origins, negative_predictions=negative_predictions)
 
     def record_decision(self, *, execution_ids: list[str], policy: dict,
                         inputs: dict, action: dict, authorization_ref: str | None = None) -> str:
@@ -645,12 +662,14 @@ class TemporalLedger:
             context=context, evidence_refs=evidence_refs)
 
     def compare_context(self, *, series_id, horizon, providers, start, end,
-                        source_as_of, recorded_as_of, context_filters, unit=None):
+                        source_as_of, recorded_as_of, context_filters, unit=None,
+                        metric='mae', recent_origins=4, negative_predictions='reject'):
         """Read exact context-filtered matched production evidence; no calls or writes."""
         from .decision_memory import compare_context
         return compare_context(self, series_id=series_id, horizon=horizon, providers=providers,
             start=start, end=end, source_as_of=source_as_of, recorded_as_of=recorded_as_of,
-            context_filters=context_filters, unit=unit)
+            context_filters=context_filters, unit=unit, metric=metric, recent_origins=recent_origins,
+            negative_predictions=negative_predictions)
 
     def review_decision(self, *, decision_id, source_as_of, recorded_as_of):
         """Read a review packet; review_ready means complete actuals, not a proven explanation."""

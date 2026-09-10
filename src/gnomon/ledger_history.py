@@ -9,6 +9,7 @@ from .contracts import GnomonError
 from .forecast_adapter import ForecastAdapterError
 from .ledger import _METRIC_VERSION, _bounded, _json, _time
 from .temporal import is_regular_step, normalise_frequency
+from .evidence_summary import comparison_summary, validate_comparison_options
 
 
 def _grid_shape(req):
@@ -31,7 +32,9 @@ def _grid_shape(req):
     return {"frequency": frequency, "origin_lag_microseconds": (origin - history_end) // timedelta(microseconds=1)}
 
 
-def compare_history(ledger, *, series_id, horizon, providers, start, end, source_as_of, recorded_as_of, unit, context_filters=None):
+def compare_history(ledger, *, series_id, horizon, providers, start, end, source_as_of, recorded_as_of, unit,
+                    context_filters=None, metric='mae', recent_origins=4, negative_predictions='reject'):
+    validate_comparison_options(metric, recent_origins, negative_predictions)
     if not isinstance(series_id, str) or not series_id or series_id == "__default__":
         raise ForecastAdapterError("comparison requires an explicit stable series_id", details={
             "rejected_fields": ["series_id"], "choices_required": {"series_id": "Select the stable named series used in recorded forecasts; __default__ is not eligible."}})
@@ -48,7 +51,10 @@ def compare_history(ledger, *, series_id, horizon, providers, start, end, source
         raise ForecastAdapterError("require start <= end <= source_as_of")
     answer = {"status": "insufficient_evidence", "series_id": series_id, "unit": unit, "horizon": horizon,
               "providers": providers, "start": start, "end": end, "source_as_of": source, "recorded_as_of": recorded,
-              "metric_version": _METRIC_VERSION, "aggregation": "mean_mae_over_complete_matched_origins",
+              "metric_version": _METRIC_VERSION if metric == 'mae' else 'rmsle/1',
+              "metric": metric, "aggregation": f"mean_{metric}_over_complete_matched_origins",
+              "negative_predictions": negative_predictions if metric == 'rmsle' else 'not_applicable',
+              "negative_actuals": "reject_origin" if metric == 'rmsle' else 'allowed',
               "matched_origins": 0, "n": 0, "models": [], "origins": [], "excluded": [], "duplicates_ignored": 0,
               "provider_calls": 0, "action_authorized": False, "model_identity_basis": "provider_declared_not_independently_attested",
               "next_step": "collect_matched_forecasts_with_explicit_budget"}
@@ -142,7 +148,8 @@ def compare_history(ledger, *, series_id, horizon, providers, start, end, source
                     causes.append(context_evidence)
             if reason is None:
                 try:
-                    comparison = ledger._compare(conn, selected, source, recorded)
+                    comparison = ledger._compare(conn, selected, source, recorded,
+                                                 metric=metric, negative_predictions=negative_predictions)
                     grid = _grid_shape(selected[0]["request"])
                     if comparison["n"] != horizon:
                         reason = "incomplete_actuals"
@@ -170,8 +177,13 @@ def compare_history(ledger, *, series_id, horizon, providers, start, end, source
         if count:
             answer["models"] = [{"provider": p, "revision": revision,
                 "mae": mean(next(m["mae"] for m in o["models"] if m["provider"] == p)
-                            for o in answer["origins"])} for p, revision in providers.items()]
+                            for o in answer["origins"]),
+                **({'rmsle': mean(next(m['rmsle'] for m in o['models'] if m['provider'] == p)
+                                  for o in answer['origins'])} if metric == 'rmsle' else {})}
+                for p, revision in providers.items()]
             answer.update(status="ok", next_step="consider_evidence_and_sample_count_before_model_selection")
         elif any(e["reason"] == "incomplete_actuals" for e in answer["excluded"]):
             answer["next_step"] = "supply_missing_actuals"
+        answer['evidence_summary'] = comparison_summary(answer['origins'], providers,
+                                                        metric=metric, recent_origins=recent_origins)
         return answer

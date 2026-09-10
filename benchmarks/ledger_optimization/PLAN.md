@@ -78,3 +78,12 @@ Commit code, protocol, input hash manifests and compact per-case/aggregate
 results on the development branch. Keep large original transcripts/data in
 ignored experiment storage with hashes and retrieval paths. Commit no secrets.
 Do not merge to main, tag or publish PyPI as part of this experiment.
+
+## Development amendment 001 (after pilot 002, before expanded run)
+
+Add a fourth development-only arm, `ledger_blended`, showing the same RMSLE
+card plus a clearly labeled equal-weight current-CV/lifetime-history estimate.
+This screens a policy suggested by the offline results; it is not a final-test
+amendment or evidence of validated future accuracy. Expanded development cases:
+all four legacy series at rounds 0, 28, 56, 84; requested seeds 7 and 19. Freeze
+all four arms before dispatch (32 matched case-seed pairs, 128 decisions).

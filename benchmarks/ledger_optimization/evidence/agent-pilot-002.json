@@ -1,0 +1,277 @@
+{
+  "complete_matched_cases": 4,
+  "completion": {
+    "ledger_119": {
+      "api_calls": 8,
+      "completion_tokens": 3203,
+      "fallbacks": 0,
+      "forecast_attempts": 12,
+      "prompt_tokens": 28052,
+      "recorded_decisions": 4,
+      "reported_api_cost_usd": null,
+      "resolutions": {
+        "explicit_selection": 4
+      },
+      "successful_executions": 12
+    },
+    "ledger_rmsle": {
+      "api_calls": 8,
+      "completion_tokens": 3385,
+      "fallbacks": 0,
+      "forecast_attempts": 12,
+      "prompt_tokens": 25612,
+      "recorded_decisions": 4,
+      "reported_api_cost_usd": null,
+      "resolutions": {
+        "explicit_selection": 4
+      },
+      "successful_executions": 12
+    },
+    "no_ledger": {
+      "api_calls": 8,
+      "completion_tokens": 2088,
+      "fallbacks": 0,
+      "forecast_attempts": 10,
+      "prompt_tokens": 17442,
+      "recorded_decisions": 4,
+      "reported_api_cost_usd": null,
+      "resolutions": {
+        "explicit_selection": 4
+      },
+      "successful_executions": 10
+    }
+  },
+  "harness_failures": 0,
+  "incomplete_case_count": 0,
+  "limitation": "Development experiment, not an untouched final test; too few independent series to establish the objective.",
+  "manifest": {
+    "arms": [
+      "no_ledger",
+      "ledger_119",
+      "ledger_rmsle"
+    ],
+    "endpoint": "https://api.engy.ai/v1/chat/completions",
+    "fallback": "sf_seasonal_naive_7; included in primary denominator",
+    "forecast_attempt_budget": 3,
+    "gnomon_build": {
+      "build_id": "1.1.9+g91ff5d7b9c6f.sd33c6ec5b837.dirty",
+      "commit": "91ff5d7b9c6f8537e55e7b51e269e0eaeac6d697",
+      "dirty": true,
+      "fingerprint_scope": "gnomon_python_sources",
+      "package_version": "1.1.9",
+      "provenance": "git",
+      "source_sha256": "d33c6ec5b8372d2b6a4e45d411b85dbb448b3bf21b08c06af782420c2ca65850"
+    },
+    "max_tokens_per_turn": 2048,
+    "max_turns": 6,
+    "model": "deepseek-v4-flash-0731",
+    "rounds": [
+      12
+    ],
+    "runner_sha256": "eaa0d250100d023dd2a2f34fa23d67ae2c2f746e8461785a1cc21e4094de1301",
+    "scope": "development only",
+    "seed_honored_by_backend": "unverified",
+    "seeds_requested": [
+      7
+    ],
+    "selection_policy": "Gnomon 1.1.9 execution-bound resolver in every arm; same bounded corrections",
+    "snapshot_sha256": "d8724eb436813dc80d7f2cf62605f26d2ef67395878f5441f4c7c6faf43fa39f",
+    "system_prompt_sha256": "729a72f961316fb9a7d45e2d35c1af03f6ab5cf93c285aa160fb4630de98053b",
+    "temperature": 0.2
+  },
+  "mean_case_rmsle": {
+    "ledger_119": 0.5345009207720213,
+    "ledger_rmsle": 0.529762565569189,
+    "no_ledger": 0.5345009207720213
+  },
+  "per_case": [
+    {
+      "arm": "ledger_119",
+      "fallback_used": false,
+      "origin": "2014-04-01T00:00:00+00:00",
+      "provider": "sf_auto_arima_promo_7",
+      "resolution_status": "explicit_selection",
+      "rmsle": 0.524751401918876,
+      "round": 12,
+      "seed": 7,
+      "series_id": "item_122095_store_18"
+    },
+    {
+      "arm": "ledger_rmsle",
+      "fallback_used": false,
+      "origin": "2014-04-01T00:00:00+00:00",
+      "provider": "sf_auto_arima_promo_7",
+      "resolution_status": "explicit_selection",
+      "rmsle": 0.524751401918876,
+      "round": 12,
+      "seed": 7,
+      "series_id": "item_122095_store_18"
+    },
+    {
+      "arm": "no_ledger",
+      "fallback_used": false,
+      "origin": "2014-04-01T00:00:00+00:00",
+      "provider": "sf_auto_arima_promo_7",
+      "resolution_status": "explicit_selection",
+      "rmsle": 0.524751401918876,
+      "round": 12,
+      "seed": 7,
+      "series_id": "item_122095_store_18"
+    },
+    {
+      "arm": "ledger_119",
+      "fallback_used": false,
+      "origin": "2014-04-01T00:00:00+00:00",
+      "provider": "sf_mstl_7",
+      "resolution_status": "explicit_selection",
+      "rmsle": 0.34793835169861564,
+      "round": 12,
+      "seed": 7,
+      "series_id": "item_657869_store_44"
+    },
+    {
+      "arm": "ledger_rmsle",
+      "fallback_used": false,
+      "origin": "2014-04-01T00:00:00+00:00",
+      "provider": "sf_auto_ets_7",
+      "resolution_status": "explicit_selection",
+      "rmsle": 0.3289849308872866,
+      "round": 12,
+      "seed": 7,
+      "series_id": "item_657869_store_44"
+    },
+    {
+      "arm": "no_ledger",
+      "fallback_used": false,
+      "origin": "2014-04-01T00:00:00+00:00",
+      "provider": "sf_mstl_7",
+      "resolution_status": "explicit_selection",
+      "rmsle": 0.34793835169861564,
+      "round": 12,
+      "seed": 7,
+      "series_id": "item_657869_store_44"
+    },
+    {
+      "arm": "ledger_119",
+      "fallback_used": false,
+      "origin": "2014-04-01T00:00:00+00:00",
+      "provider": "sf_seasonal_naive_7",
+      "resolution_status": "explicit_selection",
+      "rmsle": 0.6338893500176229,
+      "round": 12,
+      "seed": 7,
+      "series_id": "item_779122_store_6"
+    },
+    {
+      "arm": "ledger_rmsle",
+      "fallback_used": false,
+      "origin": "2014-04-01T00:00:00+00:00",
+      "provider": "sf_seasonal_naive_7",
+      "resolution_status": "explicit_selection",
+      "rmsle": 0.6338893500176229,
+      "round": 12,
+      "seed": 7,
+      "series_id": "item_779122_store_6"
+    },
+    {
+      "arm": "no_ledger",
+      "fallback_used": false,
+      "origin": "2014-04-01T00:00:00+00:00",
+      "provider": "sf_seasonal_naive_7",
+      "resolution_status": "explicit_selection",
+      "rmsle": 0.6338893500176229,
+      "round": 12,
+      "seed": 7,
+      "series_id": "item_779122_store_6"
+    },
+    {
+      "arm": "ledger_119",
+      "fallback_used": false,
+      "origin": "2014-04-01T00:00:00+00:00",
+      "provider": "sf_seasonal_naive_7",
+      "resolution_status": "explicit_selection",
+      "rmsle": 0.6314245794529706,
+      "round": 12,
+      "seed": 7,
+      "series_id": "item_839362_store_27"
+    },
+    {
+      "arm": "ledger_rmsle",
+      "fallback_used": false,
+      "origin": "2014-04-01T00:00:00+00:00",
+      "provider": "sf_seasonal_naive_7",
+      "resolution_status": "explicit_selection",
+      "rmsle": 0.6314245794529706,
+      "round": 12,
+      "seed": 7,
+      "series_id": "item_839362_store_27"
+    },
+    {
+      "arm": "no_ledger",
+      "fallback_used": false,
+      "origin": "2014-04-01T00:00:00+00:00",
+      "provider": "sf_seasonal_naive_7",
+      "resolution_status": "explicit_selection",
+      "rmsle": 0.6314245794529706,
+      "round": 12,
+      "seed": 7,
+      "series_id": "item_839362_store_27"
+    }
+  ],
+  "raw_results": [
+    {
+      "path": "results/ledger-optimization/agent-pilot-002/0012-item_122095_store_18-7-ledger_119.json",
+      "sha256": "0737cd76acfa17cc0cc5b5ec349940e9448ea19f96dc3bbb4d5b416bf81ddf1d"
+    },
+    {
+      "path": "results/ledger-optimization/agent-pilot-002/0012-item_122095_store_18-7-ledger_rmsle.json",
+      "sha256": "df957d8aa8c26025e83b72ea69507093ed59d8684bee47a6e85824b1cca6303c"
+    },
+    {
+      "path": "results/ledger-optimization/agent-pilot-002/0012-item_122095_store_18-7-no_ledger.json",
+      "sha256": "de8007ab641a0a042697abb991d3d21fba61e16676f192cd496c16039e18ef29"
+    },
+    {
+      "path": "results/ledger-optimization/agent-pilot-002/0012-item_657869_store_44-7-ledger_119.json",
+      "sha256": "07ba23ecdae9ecfacb32d2253cc8f7d786d3c52b4c5369441ff3cb54cc2bf09f"
+    },
+    {
+      "path": "results/ledger-optimization/agent-pilot-002/0012-item_657869_store_44-7-ledger_rmsle.json",
+      "sha256": "bfcf15b49492f562394050c89f1ff2b5044aa7757000dd741f95119a52234170"
+    },
+    {
+      "path": "results/ledger-optimization/agent-pilot-002/0012-item_657869_store_44-7-no_ledger.json",
+      "sha256": "6bcbb9fcbb2429334d870611f4dda2dbad97e346ee15348e44dfcaca8973b9c7"
+    },
+    {
+      "path": "results/ledger-optimization/agent-pilot-002/0012-item_779122_store_6-7-ledger_119.json",
+      "sha256": "d50e44f239591afccd579b8e326506858954bbd3663dd4a0e4f0b2b5b4498834"
+    },
+    {
+      "path": "results/ledger-optimization/agent-pilot-002/0012-item_779122_store_6-7-ledger_rmsle.json",
+      "sha256": "1a7aadef5120362aaf8064518f683c2efe63e1591902bc706a79207b2833b8e1"
+    },
+    {
+      "path": "results/ledger-optimization/agent-pilot-002/0012-item_779122_store_6-7-no_ledger.json",
+      "sha256": "9bb30da35fd4d9cde3e78aa7d5f8da0a0a1579f52a6bceba38b67c1dca085f8f"
+    },
+    {
+      "path": "results/ledger-optimization/agent-pilot-002/0012-item_839362_store_27-7-ledger_119.json",
+      "sha256": "4c2f01396d0bbdcfd9fc80d6d14101ae635b2323d50d087e5187aff6c1328d4a"
+    },
+    {
+      "path": "results/ledger-optimization/agent-pilot-002/0012-item_839362_store_27-7-ledger_rmsle.json",
+      "sha256": "14f82d98924617cc62da42fbdb7ad22586f2074f5cb0b5f16f2c1c4c8c2a3ca1"
+    },
+    {
+      "path": "results/ledger-optimization/agent-pilot-002/0012-item_839362_store_27-7-no_ledger.json",
+      "sha256": "d685b2a2150978a9fd02ec56845986f73ffd491528618037ba005ad633436d33"
+    }
+  ],
+  "relative_improvement_vs_no_ledger": {
+    "ledger_119": 0.0,
+    "ledger_rmsle": 0.008865008494257198
+  },
+  "scope": "development only",
+  "target_established": false
+}
