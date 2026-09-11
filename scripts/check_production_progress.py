@@ -1,4 +1,7 @@
-"""Validate and report evidence-backed production delivery progress."""
+"""Validate and report an evidence-backed delivery-progress document.
+
+Delivery records are not user documentation and are not shipped in docs/.
+"""
 
 from __future__ import annotations
 
@@ -7,8 +10,6 @@ import json
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_PATH = ROOT / "docs" / "production" / "progress.json"
 
 
 def summarize(document: dict) -> dict:
@@ -52,7 +53,7 @@ def summarize(document: dict) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--path", type=Path, default=DEFAULT_PATH)
+    parser.add_argument("--path", type=Path, required=True, help="Delivery-progress JSON document (kept outside the public docs tree)")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--require-complete", action="store_true")
     args = parser.parse_args()

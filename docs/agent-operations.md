@@ -180,6 +180,4 @@ to the exact root text returned by `gnomon_read`.
 `gnomon self-check families` describes each fixture, assertion and limitation.
 Add `--detailed` to a leakage run for expected and actual values per case.
 See the [prospective comparison example](production-history-comparison.md) for
-built-ins paired with a controlled-clock TemporalLedger, and the
-[1.1.6 feedback disposition](feedback-116-disposition.md) for compatibility choices
-and the separately unresolved Arena adapter feedback.
+built-ins paired with a controlled-clock TemporalLedger.

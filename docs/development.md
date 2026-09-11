@@ -5,7 +5,6 @@ python -m pip install -e '.[dev]'
 ruff check src/gnomon
 pytest -q tests benchmarks/tests
 python -m compileall -q src tests
-python scripts/check_production_progress.py
 ```
 
 The runtime has one execution path: session joins Python/CLI/MCP; inference and

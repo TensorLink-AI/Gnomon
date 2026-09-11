@@ -3,8 +3,8 @@
 This is the implemented extension boundary, shared by Python `GnomonSession`,
 `gnomon infer`, and MCP. Backtesting is an explicit
 `session.evaluate(...)` operation, not an implicit step in forecasting.
-Live-service and actual agent-comparison acceptance remain pending.
-See [progress.json](progress.json), not this page, for release status.
+Live-service and actual agent-comparison acceptance remain pending; see
+[validation and limits](../agent-evaluation.md).
 
 For a complete runnable starting point, use the
 [installable provider/ledger example](../../examples/provider_plugin/README.md).

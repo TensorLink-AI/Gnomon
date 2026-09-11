@@ -38,4 +38,3 @@ service-operator responsibilities.
 
 Historical benchmark results do not establish gains for the current default.
 The retained workflow uses case schema v2 and current journal receipts.
-The [weighted delivery record](production/PLAN.md) is separate from publication.
