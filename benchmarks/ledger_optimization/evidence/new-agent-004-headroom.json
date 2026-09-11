@@ -1,0 +1,472 @@
+{
+  "confirmation_evaluated": false,
+  "control_mean_case_rmsle": 0.539649249258733,
+  "inputs": {
+    "cases": {
+      "path": "results/ledger-optimization/new-development-input-v2/cases.json",
+      "sha256": "5ee5a6dd4c346882287ef199f7640fa553a1f50062f73e9859ba33083f3a0c3f"
+    },
+    "report": {
+      "path": "benchmarks/ledger_optimization/evidence/new-agent-004.json",
+      "sha256": "b96c47ad9ee586611ebfae32d0d143644ec8daa2735aeaed151485e8e5e5485a"
+    }
+  },
+  "limitation": "Future-aware bound for these fixed forecasts and this observed control only. Not a deployable result or a bound on unseen series, other controls, ensembles or new forecasting candidates.",
+  "matched_case_seed_pairs": 64,
+  "maximum_relative_improvement": 0.11713686325899075,
+  "oracle_mean_case_rmsle": 0.4764364289404958,
+  "rows": [
+    {
+      "control_rmsle": 0.7071570811944259,
+      "oracle_rmsle": 0.7071570811944259,
+      "round": 0,
+      "seed": 19,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "control_rmsle": 0.7071570811944259,
+      "oracle_rmsle": 0.7071570811944259,
+      "round": 0,
+      "seed": 7,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "control_rmsle": 0.1901600278741466,
+      "oracle_rmsle": 0.1901600278741466,
+      "round": 0,
+      "seed": 19,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "control_rmsle": 0.1901600278741466,
+      "oracle_rmsle": 0.1901600278741466,
+      "round": 0,
+      "seed": 7,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "control_rmsle": 0.5816740142596424,
+      "oracle_rmsle": 0.5567810063634975,
+      "round": 0,
+      "seed": 19,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "control_rmsle": 0.5816740142596424,
+      "oracle_rmsle": 0.5567810063634975,
+      "round": 0,
+      "seed": 7,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "control_rmsle": 0.3679254560292163,
+      "oracle_rmsle": 0.35524615668206105,
+      "round": 0,
+      "seed": 19,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "control_rmsle": 0.3679254560292163,
+      "oracle_rmsle": 0.35524615668206105,
+      "round": 0,
+      "seed": 7,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "control_rmsle": 1.110171326801301,
+      "oracle_rmsle": 0.613616621633749,
+      "round": 0,
+      "seed": 19,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "control_rmsle": 1.110171326801301,
+      "oracle_rmsle": 0.613616621633749,
+      "round": 0,
+      "seed": 7,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "control_rmsle": 0.6674625524091429,
+      "oracle_rmsle": 0.6398919360661834,
+      "round": 0,
+      "seed": 19,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "control_rmsle": 0.6398919360661834,
+      "oracle_rmsle": 0.6398919360661834,
+      "round": 0,
+      "seed": 7,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "control_rmsle": 0.746849609226866,
+      "oracle_rmsle": 0.746849609226866,
+      "round": 0,
+      "seed": 19,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "control_rmsle": 0.746849609226866,
+      "oracle_rmsle": 0.746849609226866,
+      "round": 0,
+      "seed": 7,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "control_rmsle": 0.33770204222935724,
+      "oracle_rmsle": 0.33321138545576506,
+      "round": 0,
+      "seed": 19,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "control_rmsle": 0.33770204222935724,
+      "oracle_rmsle": 0.33321138545576506,
+      "round": 0,
+      "seed": 7,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "control_rmsle": 0.6482408317696241,
+      "oracle_rmsle": 0.6482408317696241,
+      "round": 8,
+      "seed": 19,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "control_rmsle": 0.6482408317696241,
+      "oracle_rmsle": 0.6482408317696241,
+      "round": 8,
+      "seed": 7,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "control_rmsle": 0.24578506609282794,
+      "oracle_rmsle": 0.24378815314770466,
+      "round": 8,
+      "seed": 19,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "control_rmsle": 0.24578506609282794,
+      "oracle_rmsle": 0.24378815314770466,
+      "round": 8,
+      "seed": 7,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "control_rmsle": 0.2668783391020871,
+      "oracle_rmsle": 0.0,
+      "round": 8,
+      "seed": 19,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "control_rmsle": 0.2668783391020871,
+      "oracle_rmsle": 0.0,
+      "round": 8,
+      "seed": 7,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "control_rmsle": 0.5695207822400004,
+      "oracle_rmsle": 0.5128542288142734,
+      "round": 8,
+      "seed": 19,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "control_rmsle": 0.5695207822400004,
+      "oracle_rmsle": 0.5128542288142734,
+      "round": 8,
+      "seed": 7,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "control_rmsle": 0.582908755092191,
+      "oracle_rmsle": 0.4938442771940013,
+      "round": 8,
+      "seed": 19,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "control_rmsle": 0.582908755092191,
+      "oracle_rmsle": 0.4938442771940013,
+      "round": 8,
+      "seed": 7,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "control_rmsle": 0.6184249066453299,
+      "oracle_rmsle": 0.6115353988528579,
+      "round": 8,
+      "seed": 19,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "control_rmsle": 0.6184249066453299,
+      "oracle_rmsle": 0.6115353988528579,
+      "round": 8,
+      "seed": 7,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "control_rmsle": 1.347434846002991,
+      "oracle_rmsle": 0.9821180453982585,
+      "round": 8,
+      "seed": 19,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "control_rmsle": 1.347434846002991,
+      "oracle_rmsle": 0.9821180453982585,
+      "round": 8,
+      "seed": 7,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "control_rmsle": 0.37229937402220636,
+      "oracle_rmsle": 0.3268535356982472,
+      "round": 8,
+      "seed": 19,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "control_rmsle": 0.37229937402220636,
+      "oracle_rmsle": 0.3268535356982472,
+      "round": 8,
+      "seed": 7,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "control_rmsle": 0.5137735852149405,
+      "oracle_rmsle": 0.4913013210504058,
+      "round": 17,
+      "seed": 19,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "control_rmsle": 0.5137735852149405,
+      "oracle_rmsle": 0.4913013210504058,
+      "round": 17,
+      "seed": 7,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "control_rmsle": 0.41593049000386695,
+      "oracle_rmsle": 0.319823994421777,
+      "round": 17,
+      "seed": 19,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "control_rmsle": 0.41593049000386695,
+      "oracle_rmsle": 0.319823994421777,
+      "round": 17,
+      "seed": 7,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "control_rmsle": 0.368265468733743,
+      "oracle_rmsle": 0.3192358308063959,
+      "round": 17,
+      "seed": 19,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "control_rmsle": 0.368265468733743,
+      "oracle_rmsle": 0.3192358308063959,
+      "round": 17,
+      "seed": 7,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "control_rmsle": 0.6121784684023501,
+      "oracle_rmsle": 0.5645378139986034,
+      "round": 17,
+      "seed": 19,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "control_rmsle": 0.6121784684023501,
+      "oracle_rmsle": 0.5645378139986034,
+      "round": 17,
+      "seed": 7,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "control_rmsle": 0.5259488551746964,
+      "oracle_rmsle": 0.5259488551746964,
+      "round": 17,
+      "seed": 19,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "control_rmsle": 0.5259488551746964,
+      "oracle_rmsle": 0.5259488551746964,
+      "round": 17,
+      "seed": 7,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "control_rmsle": 0.677133441570197,
+      "oracle_rmsle": 0.677133441570197,
+      "round": 17,
+      "seed": 19,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "control_rmsle": 0.677133441570197,
+      "oracle_rmsle": 0.677133441570197,
+      "round": 17,
+      "seed": 7,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "control_rmsle": 0.002095771363829718,
+      "oracle_rmsle": 0.0,
+      "round": 17,
+      "seed": 19,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "control_rmsle": 0.005845642617360801,
+      "oracle_rmsle": 0.0,
+      "round": 17,
+      "seed": 7,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "control_rmsle": 0.28271880707146735,
+      "oracle_rmsle": 0.25476524542276635,
+      "round": 17,
+      "seed": 19,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "control_rmsle": 0.28271880707146735,
+      "oracle_rmsle": 0.25476524542276635,
+      "round": 17,
+      "seed": 7,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "control_rmsle": 0.7575587206861388,
+      "oracle_rmsle": 0.6914382044105591,
+      "round": 25,
+      "seed": 19,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "control_rmsle": 0.7575587206861388,
+      "oracle_rmsle": 0.6914382044105591,
+      "round": 25,
+      "seed": 7,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "control_rmsle": 0.35434533167246585,
+      "oracle_rmsle": 0.3322082964430055,
+      "round": 25,
+      "seed": 19,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "control_rmsle": 0.35434533167246585,
+      "oracle_rmsle": 0.3322082964430055,
+      "round": 25,
+      "seed": 7,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "control_rmsle": 0.5380630737005198,
+      "oracle_rmsle": 0.49007367879643615,
+      "round": 25,
+      "seed": 19,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "control_rmsle": 0.5380630737005198,
+      "oracle_rmsle": 0.49007367879643615,
+      "round": 25,
+      "seed": 7,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "control_rmsle": 0.5445829310579866,
+      "oracle_rmsle": 0.44532467039185875,
+      "round": 25,
+      "seed": 19,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "control_rmsle": 0.5445829310579866,
+      "oracle_rmsle": 0.44532467039185875,
+      "round": 25,
+      "seed": 7,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "control_rmsle": 0.69774939748469,
+      "oracle_rmsle": 0.6782423501884265,
+      "round": 25,
+      "seed": 19,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "control_rmsle": 0.69774939748469,
+      "oracle_rmsle": 0.6782423501884265,
+      "round": 25,
+      "seed": 7,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "control_rmsle": 1.0789657405811492,
+      "oracle_rmsle": 1.0225266326762972,
+      "round": 25,
+      "seed": 19,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "control_rmsle": 1.0789657405811492,
+      "oracle_rmsle": 1.0225266326762972,
+      "round": 25,
+      "seed": 7,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "control_rmsle": 0.06899287148695145,
+      "oracle_rmsle": 0.061429097310806466,
+      "round": 25,
+      "seed": 19,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "control_rmsle": 0.17045670018838338,
+      "oracle_rmsle": 0.061429097310806466,
+      "round": 25,
+      "seed": 7,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "control_rmsle": 0.43105646927710745,
+      "oracle_rmsle": 0.40982799806197323,
+      "round": 25,
+      "seed": 19,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "control_rmsle": 0.43105646927710745,
+      "oracle_rmsle": 0.40982799806197323,
+      "round": 25,
+      "seed": 7,
+      "series_id": "item_1642664_store_31"
+    }
+  ],
+  "scope": "development only",
+  "target_established": false,
+  "target_feasible_on_this_fixed_cohort": false,
+  "target_relative_improvement": 0.2
+}

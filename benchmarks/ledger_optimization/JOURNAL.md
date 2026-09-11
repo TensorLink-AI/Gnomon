@@ -127,3 +127,56 @@ New-development live protocol: 64 matched case/seed pairs, 192 decisions;
 no ledger vs original MAE cards vs development RMSLE cards. Forecaster families,
 completion rules and budgets remain identical. Additional model calibration
 ideas remain prototypes and are not silently substituted into this comparison.
+
+## New-development live experiment 004 — complete
+
+192/192 decisions completed: eight new series, four registered origins, two
+requested agent seeds, three arms. All selections were explicit; zero fallbacks
+and zero harness failures. Mean per-case RMSLE:
+
+| Arm | RMSLE | Reduction versus no ledger |
+| --- | ---: | ---: |
+| No ledger | 0.5396492493 | — |
+| Original MAE ledger cards | 0.5417624406 | -0.3916% |
+| Development RMSLE ledger cards | 0.5338399528 | 1.0765% |
+
+Development cards improve 1.4624% over original cards. This does not establish
+20%, statistical superiority or a final-test result. There were 396 API calls,
+1,082,015 reported prompt tokens and 109,236 completion tokens. Engy did not
+return monetary costs; those remain unknown. Full per-case outcomes and raw
+hashes are in `evidence/new-agent-004.json`; raw transcripts remain in
+`results/ledger-optimization/new-agent-004/`.
+
+Independently recomputed every candidate score on this exact cohort from
+predictions and actuals. The future-aware best-candidate bound is 0.4764364289,
+only **11.7137%** below the observed control. Therefore no selection rule among
+these eight fixed forecasts can achieve 20% on this development cohort. This
+does not bound performance on unseen series or with new forecasts. The oracle
+uses outcomes and is never presented to the agent or counted as an executable
+policy. Reproduction: `headroom.py`; results:
+`evidence/new-agent-004-headroom.json`.
+
+## Exploratory forecast calibration — outside the registered objective
+
+Retained `calibration_feasibility.py` and
+`evidence/new-development-calibration-feasibility.json` as a separately labeled
+feasibility screen. Both automatic arms can shift predictions in log space;
+control estimates the shift from the latest two archived mature origins and
+ledger variants can use more historical outcomes. Initial two origins stay raw
+because earlier CV residual vectors were not archived. This archive-based
+control is a prototype, not a finished live-agent or original-CV comparison.
+
+Control RMSLE is 0.5587208311; the best full-development ledger window gives
+0.5458925408 (about 2.3% lower). Variants were explored, so this is development
+selection evidence only. No provider calls, source mutations or final-test
+access occurred. Changing predictions falls outside the fixed-portfolio
+protocol; do not silently count this result toward the registered objective.
+
+## Decision point
+
+The 20% target is **not achieved**. Repeating fixed-portfolio agent calls cannot
+overcome the observed cohort's oracle bound. Asked the user whether the next
+phase may expand to ensembles/calibration with identical capabilities in all
+arms. No expansion or final evaluation is authorized by elapsed waiting time.
+The 24-series confirmation partition remains reserved and unscored. Main and
+PyPI remain unchanged; all implementation changes are on the development branch.
