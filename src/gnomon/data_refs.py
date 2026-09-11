@@ -242,7 +242,7 @@ class DataReferences:
                           "column": options.get("time_column", "timestamp") if timestamp else options.get("target_column", "value"),
                           "row": cell.details["row"], "value": cell.details.get("value"),
                           "guidance": "Correct this cell in the source file; no repair level within budget can prepare it. "
-                                      "Other cells on the row are valid and must be kept."}
+                                      "Preserve other supplied values; further validation may identify additional errors."}
         else:
             correction = {"action": "correct_source", "reason": exc.code,
                           "guidance": "No repair level within budget can prepare this input; correct the source file."}

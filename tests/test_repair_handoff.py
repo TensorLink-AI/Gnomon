@@ -126,4 +126,5 @@ def test_invalid_timestamps_hand_off_to_the_timestamp_column_not_the_target(tmp_
         correction = caught.value.details["data_quality"]["next_call"]
         assert correction["action"] == "correct_timestamp" and correction["column"] == "when"
         assert correction["row"] == 4 and correction["value"] == "not-a-date"
-        assert "valid" in correction["guidance"], "the target value on that row is fine and must be kept"
+        assert "Preserve other supplied values" in correction["guidance"]
+        assert "further validation may identify additional errors" in correction["guidance"]

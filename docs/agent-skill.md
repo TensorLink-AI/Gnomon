@@ -3,8 +3,9 @@
 The [packaged skill](../skills/use-gnomon/SKILL.md) is a short instruction set:
 inspect once, forecast with an explicit provider, evaluate only when asked, page
 large results with `gnomon_read`, and use ledger/route/temporal only when exposed.
-It tells the agent to prefer a configured Ephemeris provider, then the user's
-registered model, and to label a built-in baseline as a reference. Every answer
+It tells the agent to use the provider the user names first, then the model
+they registered, then a configured Ephemeris provider (asking when both exist),
+and to label a built-in baseline as a reference. Every answer
 keeps the provider and revision, execution ID, snapshot ID with `as_of`, and
 quantiles when present.
 
