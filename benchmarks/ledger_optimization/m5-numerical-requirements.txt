@@ -1,0 +1,11 @@
+# Numerical packages pinned to the retained Favorita preparation environment.
+statsforecast==2.0.3
+numpy==2.4.6
+pandas==2.3.3
+scipy==1.15.3
+statsmodels==0.15.0
+scikit-learn==1.9.1
+numba==0.67.0
+llvmlite==0.49.0
+coreforecast==0.0.18
+utilsforecast==0.2.16
