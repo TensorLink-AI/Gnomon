@@ -81,3 +81,19 @@ ledger_119, ledger_supported. Every arm again sees the identical raw historical
 rows and current context. Run all 192 decisions afresh; do not selectively reuse
 favorable control draws. Backend honoring of requested seeds remains unverified.
 This trial cannot establish the final target; the reserved partition stays closed.
+
+## Selecting the confirmation implementation
+
+Before reading aggregate trial-008 scores, specify the choice rule: choose the
+larger relative mean-RMSLE improvement against its own equal-information control
+between context trial 005 and support trial 008. Break an exact tie using lower
+reported input-token usage. Retain both outcomes and do not pool their controls.
+This is development selection, not evidence of the final target.
+
+`confirmation.py freeze` binds the chosen audited development result, all critical
+script/source hashes, the existing 24-series partition, 26 origins, two seeds,
+three arms, budgets and analysis specification. Commit the freeze before reading
+confirmation forecasts/outcomes. Preparation verifies the freeze and emits no
+aggregate policy scores. The live runner requires the full frozen cohort and
+identical-information contract; it cannot run confirmation as development by
+omitting the freeze. Analyze only after all 3,744 decisions are accounted for.

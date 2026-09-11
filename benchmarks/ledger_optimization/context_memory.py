@@ -47,7 +47,9 @@ def compact_summary(summary):
         for window in ('lifetime', 'recent')}
 
 
-def prepare(cases, ledger, output):
+def prepare(cases, ledger, output, *, scope='development only'):
+    if scope not in ('development only', 'confirmation'):
+        raise ValueError('Unsupported evidence scope')
     if output.exists():
         raise ValueError('Use a new output directory; original evidence must remain unchanged')
     output.mkdir(parents=True)
@@ -103,20 +105,23 @@ def prepare(cases, ledger, output):
                   'request_fingerprint': forecast_request_fingerprint(request), 'current_context': current,
                   'raw_history': raw, 'context_retrieval': summary}
         packets.append(packet)
-        cv = min(providers, key=lambda p: case['current_card'][p]['cv_rmsle'])
-        selected = retrieval['comparison']
-        choice = selected['evidence_summary']['lifetime']['ranking'][0]['provider'] if selected else cv
-        scores = {'current_cv': case['scores'][cv], 'retrieved_context': case['scores'][choice]}
-        screens.append({'series_id': case['series_id'], 'round': case['round'], 'rmsle': scores,
-                        'context_choice': choice, 'current_cv_choice': cv, 'selected_index': retrieval['selected_index'],
-                        'matched_origins': selected['matched_origins'] if selected else 0})
+        if scope == 'development only':
+            cv = min(providers, key=lambda p: case['current_card'][p]['cv_rmsle'])
+            selected = retrieval['comparison']
+            choice = selected['evidence_summary']['lifetime']['ranking'][0]['provider'] if selected else cv
+            scores = {'current_cv': case['scores'][cv], 'retrieved_context': case['scores'][choice]}
+            screens.append({'series_id': case['series_id'], 'round': case['round'], 'rmsle': scores,
+                            'context_choice': choice, 'current_cv_choice': cv, 'selected_index': retrieval['selected_index'],
+                            'matched_origins': selected['matched_origins'] if selected else 0})
         path = output/f'{case["round"]:04d}-{case["series_id"]}.evidence.json'
         path.write_text(json.dumps({'retrieval': retrieval, 'unfiltered_comparison': broad}, indent=2, allow_nan=False)+'\n')
-    payload = {'scope': 'development only', 'information_contract': 'same_raw_matched_history_in_every_arm',
+    payload = {'scope': scope, 'information_contract': 'same_raw_matched_history_in_every_arm',
                'context_contract': 'origin_request_only_v1', 'source_ledger': str(ledger),
                'source_ledger_sha256': hashlib.sha256(ledger.read_bytes()).hexdigest(),
-               'provider_calls': 0, 'confirmation_opened': False, 'packets': packets}
+               'provider_calls': 0, 'confirmation_opened': scope == 'confirmation', 'packets': packets}
     (output/'memory.json').write_text(json.dumps(payload, sort_keys=True, allow_nan=False)+'\n')
+    if scope == 'confirmation':
+        return {'scope': scope, 'packets': len(packets), 'aggregate_scores_computed': False}
     report = {'scope': 'development automatic policy screen; not a live-agent or held-out result',
               'mean_case_rmsle': {key: mean(row['rmsle'][key] for row in screens) for key in screens[0]['rmsle']},
               'cases': screens, 'confirmation_opened': False, 'target_established': False}
@@ -130,6 +135,9 @@ def main():
     parser.add_argument('--ledger', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
+    receipt = args.cases.parent/'manifest.json'
+    if receipt.exists() and json.loads(receipt.read_text()).get('scope') == 'confirmation':
+        raise ValueError('Use the guarded confirmation preparation command, not development preparation')
     report = prepare(json.loads(args.cases.read_text()), args.ledger, args.output)
     print(json.dumps({k: v for k, v in report.items() if k != 'cases'}, indent=2))
 

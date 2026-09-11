@@ -55,6 +55,12 @@ The next registered development trial tests a concise historical-support packet;
 see [CONTEXT_PROTOCOL.md](CONTEXT_PROTOCOL.md). Forecasts remain unchanged, and
 the confirmation partition remains closed during development.
 
+The subsequent concise-support trial 008 completed 192 audited decisions:
+control RMSLE **0.546149**, original ledger **0.537920**, support packet
+**0.527158**. This is **3.48%** below its matched control, with 11 paired wins,
+one loss and 52 ties. It is the implementation selected for confirmation under
+the recorded development-choice rule. **The 20% target remains unestablished.**
+
 ## Reproduction and evidence
 
 - [PLAN.md](PLAN.md): objective, fairness, original protocol.

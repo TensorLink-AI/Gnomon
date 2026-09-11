@@ -227,12 +227,33 @@ def main():
     parser.add_argument('--workers', type=int, default=3)
     parser.add_argument('--arms', default=','.join(ARMS[:4]))
     parser.add_argument('--memory', type=Path, help='Prepared equal-information context-memory bundle')
+    parser.add_argument('--confirmation-freeze', type=Path, help='Require the exact frozen confirmation implementation and full cohort')
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
+    receipt_path = args.snapshot/'manifest.json'
+    if receipt_path.exists() and json.loads(receipt_path.read_text()).get('scope') == 'confirmation' and not args.confirmation_freeze:
+        raise ValueError('Confirmation inputs require the frozen confirmation mode')
     cases = json.loads((args.snapshot/'cases.json').read_text())
     rounds = {int(v) for v in args.rounds.split(',')}
     seeds = [int(v) for v in args.seeds.split(',')]
     arms = tuple(args.arms.split(','))
+    scope, frozen = 'development only', None
+    if args.confirmation_freeze:
+        from .confirmation import validate, validate_cases
+        frozen, _ = validate(args.confirmation_freeze)
+        scope = 'confirmation'
+        if sorted(rounds) != frozen['rounds'] or seeds != frozen['seeds_requested'] or list(arms) != frozen['arms']:
+            raise ValueError('Confirmation must run every frozen origin/seed/arm; no optional subset')
+        if sorted({c['series_id'] for c in cases}) != frozen['series'] or len(cases) != 624:
+            raise ValueError('Confirmation cases do not match the frozen partition')
+        validate_cases(cases, frozen)
+        receipt = json.loads((args.snapshot/'manifest.json').read_text())
+        if receipt['scope'] != scope or receipt['freeze_sha256'] != hashlib.sha256(args.confirmation_freeze.read_bytes()).hexdigest():
+            raise ValueError('Preparation was not authorized by this freeze')
+        if receipt['cases_sha256'] != hashlib.sha256((args.snapshot/'cases.json').read_bytes()).hexdigest():
+            raise ValueError('Prepared confirmation cases changed')
+        if args.memory is None or receipt['memory_sha256'] != hashlib.sha256(args.memory.read_bytes()).hexdigest():
+            raise ValueError('Prepared confirmation memory changed')
     if len(set(arms)) != len(arms) or not set(arms) <= set(ARMS) or 'no_ledger' not in arms:
         raise ValueError('Specify distinct supported arms, including no_ledger')
     if {'ledger_context', 'ledger_supported'} & set(arms) and args.memory is None:
@@ -240,10 +261,10 @@ def main():
     memory = {}
     if args.memory:
         bundle = json.loads(args.memory.read_text())
-        if bundle['scope'] != 'development only' or bundle['information_contract'] != 'same_raw_matched_history_in_every_arm':
+        if bundle['scope'] != scope or bundle['information_contract'] != 'same_raw_matched_history_in_every_arm':
             raise ValueError('Unsupported context-memory information contract')
         memory = {(p['series_id'], p['round']): p for p in bundle['packets']}
-    manifest = {'scope': 'development only', 'model': MODEL, 'endpoint': ENDPOINT,
+    manifest = {'scope': scope, 'model': MODEL, 'endpoint': ENDPOINT,
         'temperature': 0.2, 'max_tokens_per_turn': 2048, 'max_turns': 6, 'forecast_attempt_budget': 3,
         'seeds_requested': seeds, 'seed_honored_by_backend': 'unverified', 'rounds': sorted(rounds), 'arms': arms,
         'snapshot_sha256': hashlib.sha256((args.snapshot/'cases.json').read_bytes()).hexdigest(),
@@ -258,6 +279,12 @@ def main():
         'expected_decisions': sum(c['round'] in rounds for c in cases)*len(seeds)*len(arms),
         'selection_policy': 'Gnomon 1.1.9 execution-bound resolver in every arm; same bounded corrections',
         'fallback': 'sf_seasonal_naive_7; included in primary denominator'}
+    if frozen is not None:
+        for field in ('expected_decisions', 'model', 'temperature', 'max_tokens_per_turn', 'max_turns', 'forecast_attempt_budget',
+                      'historical_information_contract'):
+            if manifest[field] != frozen[field]:
+                raise ValueError('Runtime confirmation settings differ from freeze: '+field)
+        manifest['confirmation_freeze_sha256'] = hashlib.sha256(args.confirmation_freeze.read_bytes()).hexdigest()
     manifest_path = args.output/'manifest.json'
     if manifest_path.exists() and canonical(json.loads(manifest_path.read_text())) != canonical(manifest):
         raise ValueError('Cannot resume with changed experiment manifest')

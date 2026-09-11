@@ -1,4 +1,4 @@
-"""Measure development-only fixed-portfolio headroom on the exact live cohort.
+"""Measure fixed-portfolio headroom only after a complete live cohort.
 
 This oracle uses future outcomes and is never an executable selection policy.
 It is a lower bound on loss obtainable by choosing one existing candidate.
@@ -12,8 +12,10 @@ from statistics import mean
 
 
 def analyze(report, cases):
-    if report['scope'] != 'development only' or report['run_completion'] != 'complete':
-        raise ValueError('Requires a complete development run')
+    if report['scope'] not in ('development only', 'confirmation') or report['run_completion'] != 'complete':
+        raise ValueError('Requires a complete registered run')
+    if report['scope'] == 'confirmation' and not report['manifest'].get('confirmation_freeze_sha256'):
+        raise ValueError('Confirmation requires a frozen implementation')
     lookup = {(c['series_id'], c['round']): c for c in cases}
     rows = []
     for result in report['per_case']:
@@ -36,12 +38,12 @@ def analyze(report, cases):
                      'oracle_rmsle': min(scores.values())})
     control = mean(r['control_rmsle'] for r in rows)
     oracle = mean(r['oracle_rmsle'] for r in rows)
-    return {'scope': 'development only', 'matched_case_seed_pairs': len(rows),
+    return {'scope': report['scope'], 'matched_case_seed_pairs': len(rows),
             'control_mean_case_rmsle': control, 'oracle_mean_case_rmsle': oracle,
             'maximum_relative_improvement': 1-oracle/control,
             'target_relative_improvement': .2,
             'target_feasible_on_this_fixed_cohort': oracle <= .8*control,
-            'confirmation_evaluated': False, 'target_established': False,
+            'confirmation_evaluated': report['scope'] == 'confirmation', 'target_established': False,
             'limitation': 'Future-aware bound for these fixed forecasts and this observed control only. '
                           'Not a deployable result or a bound on unseen series, other controls, '
                           'ensembles or new forecasting candidates.',

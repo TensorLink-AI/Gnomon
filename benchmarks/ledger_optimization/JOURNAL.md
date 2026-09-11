@@ -291,3 +291,46 @@ revisions remain visible on subsequent queries.
 Full regression after the optimization: **1,203 passed, 29 skipped**. Logs:
 `/tmp/ledger-context-final-tests.log`, `/tmp/ledger-context-parsing-equivalence.log`.
 Hash-linked equivalence report: `evidence/context-parsing-equivalence.json`.
+
+## Concise historical support trial 008 — complete and audited
+
+192/192 explicit decisions, no fallbacks or harness failures. The audit again
+verifies identical shared information/system messages, task-bound unchanged
+forecasts, execution budgets and exact independently recalculated scores.
+Mean RMSLE: raw-history control **0.5461489361**, original MAE cards
+**0.5379198671**, historical-support packet **0.5271584056**. The treatment
+improves **3.4772%** over control and about 2.0% over original cards.
+
+Treatment wins 11 pairs, loses one and ties 52. Mature-history mean is
+0.5078140619 versus control 0.5325603814 (about 4.65% lower). Worst-decile mean
+is 1.0734213 versus 1.1436647. Seed agreement is 26/32 versus 29/32 provider-name
+matches, so this does not establish universal robustness. Keep all cold starts
+in the primary score. 398 API calls; 2,093,607 input and 131,896 output tokens
+reported; no monetary prices returned. This is development evidence only.
+
+The rule for selecting the confirmation implementation was written before
+aggregate trial-008 scores were read: larger relative gain against each trial's
+own matched equal-information control, exact ties broken by lower input tokens.
+Thus choose `ledger_supported` (3.4772%) over `ledger_context` (0.1338%). No
+confirmation observations or forecast scores have been inspected to make this
+choice. Code and configuration will be frozen before confirmation preparation.
+
+## Richer pooled memory selector prototype 009
+
+Screened 16 error-estimation rules over past matured development episodes.
+ExtraTrees predicts provider errors using observable history, current CV and
+forecast totals; it never modifies or combines the fixed demand forecasts.
+The training-selected rule improves only 0.7497% on development validation.
+This complexity is not promoted. It would additionally require the control to
+receive the same pooled historical information in any live trial. No API calls
+or confirmation access occurred. Optional scientific dependencies remain confined
+to the experiment environment, not Gnomon's runtime requirements.
+
+## Confirmation guard preparation
+
+Added a freeze binding code/source hashes, protocol, selected audited development
+run, 24 series, 26 origins, two seeds, three arms and exact budgets. Confirmation
+preparation requires this freeze and does not emit aggregate policy scores. The
+agent runner rejects partial confirmation cohorts and mismatched prepared input
+hashes. Eight synthetic guard tests passed without reading any held-out target
+values. Development outcomes and final confirmation are not interchangeable.
