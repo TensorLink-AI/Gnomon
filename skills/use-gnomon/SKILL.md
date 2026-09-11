@@ -17,8 +17,8 @@ Follow the session's `tools/list` schemas; run `gnomon_capabilities` when unsure
    baseline, horizon and folds/budget. `{"study_id": ...}` alone retrieves, never reruns.
 4. When `partial: true` accompanies `result_ref`, page the full result with
    `gnomon_read` (follow `next_offset` until null, or use a JSON pointer).
-5. Use `gnomon_ledger`, `gnomon_route` and `gnomon_temporal` only when exposed;
-   outcome writes need operator authorization and rescoring appends a new study.
+5. Use `gnomon_ledger`, `gnomon_route` and `gnomon_temporal` only when exposed; keep
+   source-availability and local-recording cutoffs distinct. Writes need operator permission.
 
 ## Provider choice
 
