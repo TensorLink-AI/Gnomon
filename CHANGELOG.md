@@ -9,7 +9,9 @@ discipline change.
 - README, docs index, first-run guide and provider guide now lead with frozen
   point-in-time data, execution IDs, ledger records and Ephemeris hosted models.
 - Rewrite the stale 0.6-era `gnomon.toml.example` to the current operator
-  schema and remove `gnomon.yaml.example`; YAML is not a 1.x configuration format.
+  schema: it loads from a bare install (callable example shipped in the wheel,
+  Ephemeris block ready to uncomment). Remove `gnomon.yaml.example`; YAML is
+  not a 1.x configuration format.
 - Add `--time` and `--target` aliases for `--time-column` and `--target-column`
   on `inspect`, `describe`, `infer`/`forecast`, `evaluate` and `route`.
 - `forecast FILE --horizon N` on a two-column CSV infers the time and target

@@ -204,29 +204,48 @@ class DataReferences:
                 except (GnomonError, ForecastAdapterError):
                     continue
                 arguments = {"input": input, **options, "repair": mode}
-                quality = {**result["data_quality"], "status": "needs_" + mode}
-                return {"data_quality": {**quality, "next_call": {"tool": "gnomon_inspect", "arguments": arguments}},
-                        "next_call": {"tool": "gnomon_inspect", "arguments": arguments, "runnable": True, "admissible": True},
+                assumptive = [r for r in result["repairs"] if r.get("assumptive") or r["code"].endswith("_dropped")]
+                # Budget compliance is not permission to change evidence: an
+                # aggressive rung fills, resolves or drops observations, so the
+                # user chooses it; safe changes only text and bounded jitter.
+                changes_evidence = mode == "aggressive" or bool(assumptive)
+                next_call = {"tool": "gnomon_inspect", "arguments": arguments, "runnable": True,
+                             "admissible": None if changes_evidence else True,
+                             "requires_user_choice": changes_evidence}
+                if changes_evidence:
+                    next_call["would_change"] = {"assumptive_fixes": sum(int(r["count"]) for r in assumptive if not r["code"].endswith("_dropped")),
+                                                 "dropped": sum(int(r["count"]) for r in assumptive if r["code"].endswith("_dropped")),
+                                                 "actions": sorted({r["code"] for r in assumptive})}
+                quality = {**result["data_quality"], "status": "needs_" + mode, "next_call": next_call}
+                return {"data_quality": quality, "next_call": next_call,
                         "example_arguments": arguments, "example_kind": "task_correction", "example_runnable": True,
-                        "admissible": True, "changed_fields": ["repair"],
-                        "guidance": f"{mode} repair completes preparation within budget; its fixes are listed in "
-                                    "repairs and never applied without this explicit choice."}
-            cell = exc.details if "row" in exc.details else {}
-            if not cell:
+                        "admissible": next_call["admissible"], "changed_fields": ["repair"],
+                        **({"choices_required": {"repair": [mode]}} if changes_evidence else {}),
+                        "guidance": (f"{mode} repair is within budget but changes evidence (would_change lists what); "
+                                     "ask the user before choosing it. Its fixes stay itemised in repairs." if changes_evidence else
+                                     f"{mode} repair completes preparation within budget without inventing a value; "
+                                     "its fixes are listed in repairs.")}
+            cell = exc if "row" in exc.details else None
+            if cell is None:
                 # The strict pass names the first cell no policy could parse.
                 try:
                     probe.inspect(input, repair="off", **options)
                 except GnomonError as strict:
-                    cell = strict.details if "row" in strict.details else {}
+                    cell = strict if "row" in strict.details else None
                 except ForecastAdapterError:
-                    cell = {}
+                    cell = None
         finally:
             probe.clear()
-        correction = ({"action": "correct_target", "row": cell["row"], "value": cell.get("value"),
-                       "guidance": "Correct this cell in the source file; no repair level within budget can prepare it."}
-                      if cell else
-                      {"action": "correct_source", "reason": exc.code,
-                       "guidance": "No repair level within budget can prepare this input; correct the source file."})
+        if cell is not None:
+            timestamp = cell.code == "INVALID_TIMESTAMP"
+            correction = {"action": "correct_timestamp" if timestamp else "correct_target",
+                          "column": options.get("time_column", "timestamp") if timestamp else options.get("target_column", "value"),
+                          "row": cell.details["row"], "value": cell.details.get("value"),
+                          "guidance": "Correct this cell in the source file; no repair level within budget can prepare it. "
+                                      "Other cells on the row are valid and must be kept."}
+        else:
+            correction = {"action": "correct_source", "reason": exc.code,
+                          "guidance": "No repair level within budget can prepare this input; correct the source file."}
         return {"data_quality": {"status": "rejected", "fixes": 0, "dropped": 0, "next_call": correction},
                 "next_call": correction, "admissible": False, "example_runnable": False}
 

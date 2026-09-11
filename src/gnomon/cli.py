@@ -367,7 +367,24 @@ def _forecast_text(result):
         lines.append(f"snapshot: {snapshot['snapshot_id']} as_of={snapshot['as_of']}")
     else:
         lines.append("snapshot: request supplied directly")
+    lines.extend(_disclosure_lines(result, forecast.get("unit")))
     return "\n".join(lines)
+
+
+def _disclosure_lines(result, unit=None):
+    """Disclosures the JSON carries that a terminal reader must not lose: repairs, assumed choices, unit."""
+    lines = []
+    repairs = (result.get("input") or {}).get("repairs", result.get("repairs")) or []
+    if repairs:
+        codes = ", ".join(f"{r['code']}x{r['count']}" for r in repairs)
+        assumptive = any(r.get("assumptive") for r in repairs)
+        lines.append(f"repairs: {len(repairs)} ({codes}){' assumptive: values were changed or invented' if assumptive else ''}")
+    assumptions = result.get("assumptions") or []
+    if assumptions:
+        lines.append("assumed: " + ", ".join(f"{a['field']}={a['value']} ({a['basis']})" for a in assumptions))
+    if unit:
+        lines.append(f"unit: {unit}")
+    return lines
 
 
 def _evaluate_text(result):
@@ -390,6 +407,7 @@ def _evaluate_text(result):
     ranked = [f"{name} (mae {_number(scores[name]['mae'])})" if name in scores else name for name in result.get("ranking", [])]
     lines.append(f"ranking: {' > '.join(ranked) if ranked else 'unscored'}  [{result['status']}]")
     lines.append(f"study: {result['study_id']}")
+    lines.extend(_disclosure_lines(result, result.get("unit")))
     return "\n".join(lines)
 
 
@@ -573,6 +591,8 @@ def _execute(session, args):
         data = session.call("gnomon_inspect", {**arguments.pop("data"), "purpose": args.command}, compact=False)
         arguments["data_ref"] = data["data_ref"]
     result = session.call("gnomon_" + args.command, arguments, compact=False)
+    if args.command == "evaluate" and args.input and 'data_quality' in data:
+        result["data_quality"], result["repairs"] = data["data_quality"], data["repairs"]
     if args.command == "evaluate" and 'study_id' in result:
         result["persistence"] = {"durable": session.ledger is not None,
                                  "next_step": ("Reuse study_id with the same ledger, or pass --study @study.json after --save-result study.json."
@@ -789,7 +809,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 continue
             correction.append(item)
         correction += ['--repair', mode]
-        details['next_call'] = {'argv': ['gnomon', *correction], 'runnable': True, 'admissible': True}
+        details['next_call'] = {**{k: v for k, v in handoff.items() if k not in {'tool', 'arguments'}},
+                                'argv': ['gnomon', *correction]}
         details['data_quality']['next_call'] = details['next_call']
     if args is not None and str(getattr(args, 'input', '')).endswith('.gnomon') and details.get('rejected_fields'):
         from .recovery import frozen_recovery

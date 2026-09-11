@@ -25,24 +25,25 @@ enable_temporal = false
 # Session-only forecast cache for deterministic providers; 0 disables it.
 cache_size = 0
 
-# Ephemeris: TensorLink's hosted forecasting models. Set exactly one of
-# base_url or base_url_env. Both environment variables must be set before
-# startup; an unset base URL variable is a configuration error.
-[providers.ephemeris]
-kind = "ephemeris"
-base_url_env = "EPHEMERIS_BASE_URL"
-token_env = "EPHEMERIS_API_TOKEN"
+# Ephemeris: TensorLink's hosted forecasting models. To enable it, export
+# EPHEMERIS_BASE_URL and EPHEMERIS_API_TOKEN, then uncomment this block. An
+# uncommented block with the base URL variable unset is a startup error.
 # discover = true registers every enabled, healthy hosted model as
 # ephemeris/<model> at startup; it needs network access.
-discover = false
+#
+# [providers.ephemeris]
+# kind = "ephemeris"
+# base_url_env = "EPHEMERIS_BASE_URL"
+# token_env = "EPHEMERIS_API_TOKEN"
+# discover = false
 
 # Your own model as a Python callable: module:attribute taking a
 # ForecastRequest and returning a ForecastResult. This entry points at the
-# installable example in examples/provider_plugin
-# (python -m pip install ./examples/provider_plugin); replace it with your
-# own module. Use kind = "factory" when each call needs a fresh fitted object.
+# example shipped inside the gnomon package, so it loads from a bare install;
+# replace it with your own module. Use kind = "factory" when each call needs
+# a fresh fitted object.
 [providers.my-model]
 kind = "callable"
-entrypoint = "gnomon_example_provider:last_value"
+entrypoint = "gnomon.examples.custom_provider:last_value_forecaster"
 revision = "my-model/0.0.0"
 deterministic = true

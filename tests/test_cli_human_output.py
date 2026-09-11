@@ -73,3 +73,22 @@ def test_quantile_bounds_are_printed_when_present():
                                       "quantiles": [{"0.1": 1.0, "0.5": 1.5, "0.9": 2.25}]}})
     assert text.split("\n") == ["2026-01-02  1.5  [1 2.25]", "provider: p (unversioned)", "execution: x",
                                 "snapshot: request supplied directly"]
+
+
+def test_terminal_keeps_repair_assumption_and_unit_disclosures(tty, tmp_path, capsys):
+    path = tmp_path / "dollars.csv"
+    rows = ["2026-01-%02d,$%d" % (day, 100 + day) for day in range(1, 15)] + ["2026-01-14,$114"]
+    path.write_text("timestamp,requests\n" + "\n".join(rows) + "\n")
+    assert main(["forecast", str(path), "--horizon", "2", "--provider", "last_value", "--target", "requests",
+                 "--unit", "widgets"]) == 0
+    lines = capsys.readouterr().out.rstrip("\n").split("\n")
+    assert [line.split(":")[0] for line in lines[2:]] == ["provider", "execution", "snapshot", "repairs", "unit"]
+    assert lines[5].startswith("repairs: 2 (") and "numeric_format_normalisedx15" in lines[5] and "duplicate_row_collapsedx1" in lines[5]
+    assert "assumptive" not in lines[5], "safe repair invents nothing, and says so by omission"
+    assert lines[6] == "unit: widgets"
+    # The bare form's inferred choices stay visible too.
+    assert main(["forecast", str(EXAMPLE), "--horizon", "2"]) == 0
+    last = capsys.readouterr().out.rstrip("\n").split("\n")[-1]
+    assert last.startswith("assumed: ") and "provider=last_value" in last and "target_column=requests" in last
+    assert main([*EVALUATE, "--unit", "widgets"]) == 0
+    assert capsys.readouterr().out.rstrip("\n").split("\n")[-1] == "unit: widgets"
