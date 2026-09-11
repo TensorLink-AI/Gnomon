@@ -46,6 +46,7 @@ def test_example_loads_with_callable_registered_and_ephemeris_configured_but_unr
     ephemeris = result["providers"]["ephemeris"]
     assert ephemeris["lifecycle"] == "pretrained" and ephemeris["revision"] is None
     assert not [name for name in result["providers"] if name.startswith("ephemeris/")], "no discovery without network"
+    assert result["ephemeris"] == {"configured": True, "base_url_env": "EPHEMERIS_BASE_URL", "discovered_models": 0}
     # The example names a ledger without creating one during discovery.
     assert result["ledger"]["configured"] is True and result["ledger"]["opened"] is False
 
