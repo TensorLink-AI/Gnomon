@@ -136,7 +136,10 @@ class Store:
         if self.arm != 'sqlite':
             raise ValueError('SQL tool belongs to the SQLite control')
         allowed = {sqlite3.SQLITE_SELECT, sqlite3.SQLITE_READ, sqlite3.SQLITE_FUNCTION, sqlite3.SQLITE_RECURSIVE}
-        self.db.set_authorizer(lambda action, *args: sqlite3.SQLITE_OK if action in allowed else sqlite3.SQLITE_DENY)
+        def authorize(action, arg1, arg2, *_):
+            schema_read = action == sqlite3.SQLITE_PRAGMA and arg1 == 'table_info' and arg2 in ('predictions', 'actuals')
+            return sqlite3.SQLITE_OK if action in allowed or schema_read else sqlite3.SQLITE_DENY
+        self.db.set_authorizer(authorize)
         ticks = 0
 
         def progress():

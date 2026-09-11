@@ -1,10 +1,11 @@
 """Run offline parity, replay immutability and deliberate-fault sensitivity checks."""
 import argparse
+from datetime import datetime, timezone
 import json
 import math
 from pathlib import Path
 
-from .scenario import canonical, digest, generate, matches, oracle, public_answer
+from .scenario import canonical, digest, generate, matches, oracle, public_answer, visible_history
 from .storage import Store
 
 MUTATIONS = ('ignore_recording', 'ignore_source', 'ignore_unit', 'ignore_context', 'ignore_revisions', 'no_memory')
@@ -16,6 +17,19 @@ def run(seeds, rounds, output):
                   checks=0, failures=[], worlds=[], mutation_failures_detected={m: 0 for m in MUTATIONS})
     for seed in seeds:
         world = generate(seed, rounds)
+        feature_checks = feature_fills = 0
+        for event in world['events']:
+            if event['kind'] != 'forecast':
+                continue
+            req = event['request']
+            base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+            day = (datetime.fromisoformat(req['cutoff']) - base).days
+            history, evidence = visible_history(world['base_observations'][req['series_id']], world['events'], req['series_id'], base, day)
+            feature_checks += 1
+            feature_fills += sum(e['forward_filled'] for e in evidence)
+            if history != req['history'] or evidence != event['history_evidence'] or any(
+                e['source_available_at'] > req['cutoff'] or e['recorded_at'] > req['cutoff'] for e in evidence):
+                report['failures'].append(dict(event_id=event['event_id'], cause='feature_visibility_violation'))
         stores = {arm: Store(output / f'{seed}-{arm}', arm) for arm in ('gnomon', 'sqlite')}
         saved = []
         try:
@@ -55,6 +69,7 @@ def run(seeds, rounds, output):
                 no_memory.append(scores['last_value'])
                 policy.append(scores[expected_provider(oracle(world['events'], task['queries']['current']))])
             report['worlds'].append(dict(seed=seed, family=world['family'], rounds=rounds,
+                feature_visibility_checks=feature_checks, forward_filled_feature_points=feature_fills,
                 event_stream_sha256=digest(world['events']), tasks_sha256=digest(world['tasks']),
                 hindsight_rmsle=sum(hindsight) / rounds, no_memory_rmsle=sum(no_memory) / rounds,
                 prescribed_memory_policy_rmsle=sum(policy) / rounds,

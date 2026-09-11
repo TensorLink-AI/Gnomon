@@ -34,6 +34,43 @@ def predictions(history):
                 seasonal_naive=history[-7:-5])
 
 
+def visible_history(values, events, series_id, base, day):
+    """Replay published vintages; missing delayed measurements carry forward causally.
+
+    Days outside the scored two-day horizons are observed at valid time. For
+    scored days, only the explicit actual event stream defines visibility.
+    Future corrections never enter an earlier forecast's feature history.
+    """
+    now = stamp(base + timedelta(days=day))
+    by_time = {}
+    for event in events:
+        if event['kind'] == 'actual' and event['series_id'] == series_id and event['unit'] == 'widgets':
+            by_time.setdefault(event['valid_time'], []).append(event)
+    history, evidence = [], []
+    last_value, last_fact = None, None
+    for d in range(day + 1):
+        valid = stamp(base + timedelta(days=d))
+        candidates = by_time.get(valid)
+        filled = False
+        if candidates is None:
+            last_value = values[d]
+            last_fact = dict(ref=f'observation/{series_id}/{d}', source_available_at=valid, recorded_at=valid)
+        else:
+            visible = [e for e in candidates if e['source_available_at'] <= now and e['recorded_at'] <= now]
+            if visible:
+                latest = max(visible, key=lambda e: (e['source_available_at'], e['recorded_at'], e['event_id']))
+                last_value = latest['value']
+                last_fact = {k: latest[k] for k in ('source_available_at', 'recorded_at')} | {'ref': latest['event_id']}
+            else:
+                filled = True
+        if d >= day - 27:
+            if last_fact is None:
+                raise ValueError('No visible initial observation for causal feature preparation')
+            history.append(last_value)
+            evidence.append(dict(last_fact, valid_time=valid, forward_filled=filled))
+    return history, evidence
+
+
 def generate(seed, rounds=24):
     if seed not in DEVELOPMENT:
         raise ValueError('Only preregistered development/validation seeds are enabled')
@@ -55,13 +92,14 @@ def generate(seed, rounds=24):
         revision = 'synthetic-recipes/2' if family == 'identity' and r >= 12 else 'synthetic-recipes/1'
         for s, values in series.items():
             context = {'promotion': 'planned' if (day // 8 + int(s[-1])) % 2 else 'none'}
-            history = values[day - 27:day + 1]
+            history, history_evidence = visible_history(values, events, s, base, day)
             request = dict(history=history, horizon=2, season=7, series_id=s, unit='widgets',
                 cutoff=origin, timestamps=[stamp(base + timedelta(days=d)) for d in range(day - 27, day + 1)],
                 future_timestamps=[shifted(origin, i) for i in (1, 2)], frequency='D')
             for p, point in predictions(history).items():
                 events.append(dict(kind='forecast', event_id=f'{seed}/{r}/{s}/{p}', recorded_at=origin,
-                    provider=p, revision=revision, request=request, point=point, context=context))
+                    provider=p, revision=revision, request=request, point=point, context=context,
+                    history_evidence=history_evidence))
             for step, target in enumerate(request['future_timestamps'], 1):
                 final = values[day + step]
                 delay = rng.randrange(5) if family != 'clean' else 0
@@ -91,13 +129,16 @@ def generate(seed, rounds=24):
                 end=shifted(origin, -8), source_as_of=cutoff, recorded_as_of=cutoff,
                 context_filters=current['context'], metric='rmsle', recent_origins=4)
         tasks.append(dict(task_id=f'{seed}/{r}', round=r, now=origin, queries=queries,
-            request=current['request'], family=family))
+            request=current['request'], family=family,
+            history_preparation=dict(rule='source_and_recording_visible_measurements_with_causal_forward_fill',
+                forward_filled_points=sum(v['forward_filled'] for v in current['history_evidence']),
+                assumptions='Unscored calendar days are observed at valid time. Delayed scored days carry the last visible value; never treat fills as actual outcomes.')))
     events.sort(key=lambda e: (e['recorded_at'], e['event_id']))
     # Arrival order is explicit; later source availability dominates arrival order.
     for seq, event in enumerate(events):
         event['sequence'] = seq
     return dict(seed=seed, family=family, rounds=rounds, events=events, tasks=tasks,
-                truth={f'{r}/{s}': v for (r, s), v in truth.items()})
+                truth={f'{r}/{s}': v for (r, s), v in truth.items()}, base_observations=series)
 
 
 def oracle(events, query, *, mutation=None):

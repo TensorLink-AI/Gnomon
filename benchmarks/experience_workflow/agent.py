@@ -13,7 +13,7 @@ from benchmarks.ledger_optimization.agent_loop import MODEL, api_key, request_ch
 from gnomon.contracts import GnomonError
 
 from .scenario import canonical, digest, expected_provider, generate, matches, oracle
-from .storage import Store, REFERENCE_SQL, execute, parameters
+from .storage import Store, REFERENCE_SQL, execute, parameters, sql_answer
 
 SYSTEM = '''Complete a longitudinal evidence checkpoint using the tools, not prose final JSON.
 Both original and current queries are explicit tasks; preserve their series, unit, provider revisions,
@@ -68,7 +68,7 @@ def tools_for(arm):
     else:
         tools.extend([tool('sql_query', 'Execute read-only SQLite. Default saved_query=matched_evidence computes exact matched '
             'RMSLE from raw forecasts/actuals. Pass the task query as params; dict-valued providers and context_filters '
-            'are JSON-encoded automatically. Returns rows {provider,matched_origins,score}; [] means zero matched origins. '
+            'are JSON-encoded automatically. The default query returns matched_origins,scores,ranking, including an explicit empty cohort. '
             'Custom SQL also supports CTEs, window functions, LOG1P, SQRT. Max 500 rows/2 million VM steps.',
             {'params': {'type': 'object'}, 'saved_query': {'type': 'string'}, 'sql': {'type': 'string'}}, ['params']),
             tool('save_query', 'Persist a parameterized SQL statement for later use; no scoring data is precomputed.',
@@ -97,7 +97,13 @@ class Boundary:
                 return self.store.query(args['arguments'])
             if name == 'sql_query' and self.store.arm == 'sqlite':
                 statement = args.get('sql') or self.store.saved_queries[args.get('saved_query', 'matched_evidence')]
-                return self.store.sql(statement, parameters(args['params']))
+                rows = self.store.sql(statement, parameters(args['params']))
+                if statement == REFERENCE_SQL:
+                    providers = args['params']['providers']
+                    if isinstance(providers, str):
+                        providers = json.loads(providers)
+                    return sql_answer(rows, providers)
+                return rows
             if name == 'save_query' and self.store.arm == 'sqlite':
                 if len(args['sql']) > 12000 or len(self.store.saved_queries) >= 16:
                     raise ValueError('saved_query_limit')
@@ -153,11 +159,13 @@ def checkpoint(store, world, task, seed, key, output, chat=request_chat):
     boundary = Boundary(store, world, task)
     prompt = dict(task=task, event_receipt=store.receipts[-1], notebook=store.notebook,
                   persistent_event_count=len(store.seen), storage='Gnomon ledger' if store.arm == 'gnomon' else 'SQLite')
-    if store.arm == 'sqlite' and task['round'] == 0:
-        prompt['installed_reference_sql'] = REFERENCE_SQL
+    if store.arm == 'sqlite':
         prompt['schema'] = {
             'predictions': 'event_id,provider,revision,series_id,unit,origin,recorded_at,horizon,step,valid_time,point,context(JSON)',
             'actuals': 'event_id,sequence,series_id,unit,valid_time,source_available_at,recorded_at,value'}
+        prompt['saved_queries'] = list(store.saved_queries)
+        if task['round'] == 0:
+            prompt['installed_reference_sql'] = REFERENCE_SQL
     messages = [{'role': 'system', 'content': SYSTEM}, {'role': 'user', 'content': canonical(prompt)}]
     usage, api_errors, api_calls = [], [], 0
     started = time.perf_counter()

@@ -32,3 +32,18 @@ query, fixed selection rule and demand generator unchanged.
 
 Pilot 002 is another development harness check, not a confirmation or a tuning
 success. Record its outcome even if SQLite is cheaper or Gnomon misses a gate.
+
+## 003 — feature and control audit before another pilot
+
+Pilot 002 was stopped cooperatively after a further validity review. Its
+forecast histories used final historical measurements even when corrections
+were not yet visible. Equal exposure across arms is insufficient for a temporal
+safety claim. Replace those features with both-clock-visible vintages and
+explicit causal forward fills; audit every generated feature request and test
+that changing unavailable revisions cannot change earlier features.
+
+The control also lost its table-schema instructions on chat reset and was denied
+read-only table_info requests. Restore schema/saved-query discovery every round,
+allow that read-only pragma, and format the reference SQL's existing scores into
+the same compact answer as Gnomon. These strengthen the control. Retain pilot
+002 but make no treatment-effect claim from these known harness limitations.

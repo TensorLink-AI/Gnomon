@@ -42,6 +42,12 @@ Each world contains multiple daily synthetic demand series with level, trend,
 weekly structure and noise. Forecasts use the same three built-in recipes:
 last_value, historical_mean, seasonal_naive (season 7). The demand generator
 does not consult an arm, selected provider, or ledger output.
+Forecast inputs replay only measurements visible at their origin under both
+clocks. Unknown delayed measurements are causally forward-filled from the last
+visible value, with per-point provenance and fill counts. This is explicit
+shared feature preparation, never an actual-outcome repair. Unscored calendar
+days are assumed observed at valid time. Quality scoring uses host-only latent
+demand; ledger comparisons use the available, potentially revised observations.
 
 An identical append-only event stream delivers forecast requests/results,
 context labels and actual revisions. Both arms get the same event receipts.
@@ -59,6 +65,11 @@ alternative, not reward making the control rediscover bitemporal joins. Prompt
 and tool-schema tokens count, including this setup cost. Both may keep notes.
 Read-only SQL is enforced, with row, VM-step and output limits. No unrestricted
 agent shell or access to private scoring files is exposed.
+The normalized table schema and saved-query names are available at every fresh
+checkpoint; read-only table_info is allowed. The reference query's three score
+rows are mechanically formatted into the same compact answer shape as Gnomon.
+This removes avoidable serialization and schema-discovery disadvantages from
+the control; no additional score calculation or recommendation is injected.
 
 Ingestion is automated identically for both arms, including all shadow candidate
 forecasts. Its time, input events and writes are reported separately. Consequently

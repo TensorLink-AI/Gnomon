@@ -1,4 +1,5 @@
 import copy
+from datetime import datetime, timezone
 import sqlite3
 
 import pytest
@@ -6,7 +7,7 @@ import pytest
 from benchmarks.experience_workflow.agent import Boundary, checkpoint
 from benchmarks.experience_workflow.audit import run
 from benchmarks.experience_workflow.report import summarize
-from benchmarks.experience_workflow.scenario import generate, oracle, public_answer, matches, expected_provider
+from benchmarks.experience_workflow.scenario import generate, oracle, public_answer, matches, expected_provider, visible_history
 from benchmarks.experience_workflow.storage import Store
 
 
@@ -42,6 +43,7 @@ def test_sql_cannot_mutate_attach_or_read_host_files(tmp_path):
             with pytest.raises(sqlite3.DatabaseError):
                 store.sql(sql, {})
         assert store.sql('SELECT 1 AS n', {}) == [{'n': 1}]
+        assert any(r['name'] == 'source_available_at' for r in store.sql('PRAGMA table_info(actuals)', {}))
     finally:
         store.close()
 
@@ -140,3 +142,22 @@ def test_failing_checkpoints_still_count_toward_token_cost():
     assert result['arms']['gnomon']['tokens_per_correct'] == 100
     assert result['arms']['sqlite']['tokens_per_correct'] == 30
     assert result['cost_ratio'] > 3
+
+
+def test_unavailable_revisions_cannot_change_earlier_forecast_features():
+    world = generate(103, 16)
+    event = next(e for e in world['events'] if e['kind'] == 'forecast' and e['event_id'] == '103/6/series-0/last_value')
+    req = event['request']
+    base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    day = (datetime.fromisoformat(req['cutoff']) - base).days
+    changed = copy.deepcopy(world['events'])
+    mutations = 0
+    for e in changed:
+        if e['kind'] == 'actual' and (e['source_available_at'] > req['cutoff'] or e['recorded_at'] > req['cutoff']):
+            e['value'] += 1000000
+            mutations += 1
+    assert mutations > 0
+    history, evidence = visible_history(world['base_observations']['series-0'], changed, 'series-0', base, day)
+    assert history == req['history']
+    assert all(e['source_available_at'] <= req['cutoff'] and e['recorded_at'] <= req['cutoff'] for e in evidence)
+    assert any(e['forward_filled'] for e in evidence)
