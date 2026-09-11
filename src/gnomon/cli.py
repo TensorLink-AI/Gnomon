@@ -56,9 +56,11 @@ class _Parser(argparse.ArgumentParser):
 
 
 def _input_options(parser):
-    parser.add_argument("--time-column", default="timestamp",
-                        help="Time column name (default: timestamp, for every provider); use --time-column ts for ts,value CSV")
-    parser.add_argument("--target-column", default="value", help="Target column name (default: value)")
+    # Short aliases share the canonical dest; help lists the long form first.
+    parser.add_argument("--time-column", "--time", dest="time_column", default="timestamp", metavar="NAME",
+                        help="Time column name (default: timestamp, for every provider); use --time-column ts for ts,value CSV. --time is an alias")
+    parser.add_argument("--target-column", "--target", dest="target_column", default="value", metavar="NAME",
+                        help="Target column name (default: value). --target is an alias")
     parser.add_argument("--timezone", help="Declare input timezone, e.g. UTC or Australia/Brisbane; required for routing date-only data")
     parser.add_argument("--window", choices=("latest_contiguous",),
                         help="Use the latest uninterrupted observed segment per series; requires --frequency and discloses excluded rows")
@@ -310,6 +312,13 @@ def _validate_cli_args(args):
 
 _INPUT_KEYS = ("input", "time_column", "target_column", "series_column", "frequency",
                "as_of", "recorded_as_of", "store_path", "unit", "repair", "regrid", "timezone", "purpose", "window")
+_FLAG_ALIASES = {"time": "time_column", "target": "target_column"}
+
+
+def _explicit_fields(argv):
+    """Fields the caller set on the command line, with short aliases mapped to their dest."""
+    fields = {item.split('=')[0][2:].replace('-', '_') for item in argv if item.startswith('--')}
+    return {_FLAG_ALIASES.get(field, field) for field in fields}
 MAX_STDIN_BYTES = 8 * 1024 * 1024
 
 
@@ -459,7 +468,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 arguments = arguments[1:]
             return subprocess.call([sys.executable, *arguments])
         args = build_parser().parse_args(argv)
-        args._explicit_fields = {item.split('=')[0][2:].replace('-', '_') for item in argv if item.startswith('--')}
+        args._explicit_fields = _explicit_fields(argv)
         if args.command == "forecast":
             args.command = "infer"
         _validate_cli_args(args)
@@ -590,13 +599,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         details['argument_basis'] = 'explicit_cli_arguments'
         if details.get('example_kind') == 'task_correction':
             correction = list(argv)
-            flag_index = next((i for i, v in enumerate(correction) if v == '--time-column' or v.startswith('--time-column=')), None)
+            flag_index = next((i for i, v in enumerate(correction)
+                               if v in {'--time-column', '--time'} or v.startswith(('--time-column=', '--time='))), None)
             if flag_index is None:
                 correction += ['--time-column', 'ts']
-            elif correction[flag_index] == '--time-column':
+            elif '=' not in correction[flag_index]:
                 correction[flag_index + 1] = 'ts'
             else:
-                correction[flag_index] = '--time-column=ts'
+                correction[flag_index] = correction[flag_index].split('=', 1)[0] + '=ts'
             details['next_call'] = {'argv': ['gnomon', *correction], 'runnable': True, 'admissible': None}
     details = payload['error']['details']
     if args is not None and str(getattr(args, 'input', '')).endswith('.gnomon') and details.get('rejected_fields'):
