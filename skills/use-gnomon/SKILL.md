@@ -84,4 +84,5 @@ ties establish neither causality nor source availability. Calculations do not
 verify the supplied facts.
 
 For other analyses, use the user's chosen software. Do not invent Gnomon operations.
-Local models are loaded and owned by the operator's provider callable.
+Operators configure local models. If a package is not registered, do not wrap
+it; the error names its adapter kind.

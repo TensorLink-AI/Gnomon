@@ -50,6 +50,10 @@ StatsForecast, NeuralForecast, Darts or your own code: wrap the call and return 
 Gnomon checks inputs and outputs; you choose and install the model software.
 See [provider integration](docs/production/INFERENCE.md).
 
+Nine maintained packages have ready-made adapters: install the extra and name
+the kind in `providers.toml`, for example `pip install 'gnomon-forecast[statsforecast]'`
+and `kind = "statsforecast"`. See [package adapters](docs/adapters.md).
+
 For a scoreable ledger record, give the forecast a nonempty `series_id` and
 explicit `future_timestamps`. Every ledger timestamp needs an explicit timezone
 such as `+00:00`; each actual must use the forecast's exact `series_id`, unit and

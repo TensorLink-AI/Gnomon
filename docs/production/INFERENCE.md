@@ -121,9 +121,13 @@ after the last gap per series, disclosing the excluded rows and selected interva
 ## Bring your own software
 
 Users own their library objects, fitting configuration and conversions. Gnomon
-requires one callable, `ForecastRequest -> ForecastResult`. It neither imports
-StatsForecast/NeuralForecast/Darts on your behalf nor guesses how their outputs
-map to timestamps, targets or uncertainty.
+requires one callable, `ForecastRequest -> ForecastResult`. For nine maintained
+packages a ready-made shim does the conversion: set `kind = "statsforecast"`
+(or `statsmodels`, `prophet`, `mlforecast`, `skforecast`, `sktime`, `darts`,
+`gluonts`, `neuralforecast`) with an explicit `model`, after installing the
+matching extra. See [package adapters](../adapters.md). Everything else uses
+the callable/factory kinds below, and Gnomon never guesses how a library's
+output maps to timestamps, targets or uncertainty.
 
 ```python
 from gnomon import ForecastRequest, ForecastResult, InferenceEngine

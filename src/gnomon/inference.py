@@ -221,12 +221,16 @@ class InferenceEngine:
         with self._lock:
             provider = self._providers.get(name)
         if provider is None:
+            from .adapters import ADAPTERS, install_command
+            hint = (f" {name!r} is an adapter kind, not a registered provider name: the operator adds "
+                    f"[providers.{name}] with kind = \"{name}\" to providers.toml after "
+                    f"{install_command(ADAPTERS[name])}." if name in ADAPTERS else "")
             raise ForecastAdapterError(f"unknown provider {name!r}; available providers: "
                                        + (", ".join(sorted(self._providers)) or "none registered")
                                        + (". InferenceEngine starts empty: register a provider with engine.register(name, predictor), "
                                           "or use GnomonSession.from_config() for built-in providers" if not self._providers else "")
                                        + ". Run gnomon capabilities with the same --providers-config to discover providers, "
-                                       "or register a custom provider at startup.")
+                                       "or register a custom provider at startup." + hint)
         request = _freeze_request(request)
         validate_capabilities(provider.capabilities, request)
         identity = {"provider": name, "revision": provider.revision,
@@ -271,6 +275,7 @@ class InferenceEngine:
             return self._finish(name, provider, request, fingerprint, cached, True)
         with self._lock:
             self._execution_stats['provider_calls'] += 1
+        target = None
         try:
             target = provider.target() if provider.factory else provider.target
             method = getattr(target, "forecast", target)
@@ -285,6 +290,12 @@ class InferenceEngine:
             if (isinstance(exc, ForecastAdapterError) and type(provider.target) is StatisticalAdapter
                     and provider.target._predictor is predict):
                 # Built-in validation has vetted, task-specific repair details.
+                raise
+            if isinstance(exc, ForecastAdapterError) and getattr(target, "gnomon_adapter_kind", None):
+                # Gnomon-authored adapter validation (missing timestamps, one-sided covariates,
+                # short history) names fields, never third-party exception text or secrets.
+                exc.details.setdefault("provider", name)
+                exc.details.setdefault("adapter_kind", target.gnomon_adapter_kind)
                 raise
             from .contracts import execution_failure
             raise execution_failure(exc, provider=name, stage='provider_execution') from None

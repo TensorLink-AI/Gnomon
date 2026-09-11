@@ -19,6 +19,7 @@ import tomllib
 from typing import Any
 from functools import wraps
 
+from .adapters import ADAPTERS, PROVIDER_FIELDS, adapter_kinds, build_provider, install_command
 from .contracts import GnomonError
 from .forecast_adapter import AdapterCapabilities, ForecastAdapterError, ForecastRequest, StatisticalAdapter
 from .inference import InferenceEngine
@@ -71,7 +72,7 @@ def resolved_configuration(path=None, *, ledger_path=None):
         configured = explicit
     providers = {}
     for name, spec in config.get('providers', {}).items():
-        providers[name] = {k: spec[k] for k in ('kind', 'entrypoint', 'revision', 'deterministic', 'lifecycle') if k in spec}
+        providers[name] = {k: spec[k] for k in ('kind', 'entrypoint', 'revision', 'deterministic', 'lifecycle', 'model', 'seed') if k in spec}
         providers[name]['entrypoint_imported'] = False
         providers[name]['remote_endpoint_configured'] = bool(spec.get('base_url') or spec.get('base_url_env'))
     return {'schema_version': '1', 'status': 'ok', 'configuration_file': str(location) if location else None,
@@ -289,10 +290,13 @@ def configuration_schema():
             for k, v in asdict(ResultLimits()).items()},
             "description": "Response <= individual result <= retained bytes."},
         "providers": {"type": "object", "additionalProperties": {"type": "object",
-            "required": ["kind"], "properties": {"kind": {"enum": ["ephemeris", "callable", "factory"]}},
+            "required": ["kind"], "properties": {"kind": {"enum": ["ephemeris", "callable", "factory", *ADAPTERS]}},
             "description": "ephemeris: exactly one base_url/base_url_env; optional token_env, model, mode, combine, timeout, discover. "
                            "callable/factory: entrypoint=module:attribute required; optional capabilities, revision, deterministic, lifecycle. "
-                           "These operator fields load trusted Python or configure network providers."}},
+                           "Adapter kinds (see adapter_kinds): optional model, options table, seed, revision, deterministic; "
+                           "the named package must be installed with the listed extra. "
+                           "These operator fields load trusted Python or configure network providers.",
+            "adapter_kinds": adapter_kinds()}},
     }
     return {"type": "object", "additionalProperties": False, "properties": fields,
             "description": "Operator configuration is TOML, not JSON; this schema describes the parsed keys. "
@@ -427,9 +431,35 @@ class GnomonSession:
 
     def _configure_provider(self, name, spec):
         _strict(spec, {"kind", "base_url", "base_url_env", "token_env", "model", "mode", "combine", "timeout",
-                       "discover", "entrypoint", "capabilities", "revision", "deterministic", "lifecycle"}, {"kind"})
+                       "discover", "entrypoint", "capabilities", "revision", "deterministic", "lifecycle",
+                       *PROVIDER_FIELDS}, {"kind"})
         kind = spec["kind"]
-        if kind == "ephemeris":
+        if kind in ADAPTERS:
+            _strict(spec, PROVIDER_FIELDS)
+            adapter = ADAPTERS[kind]
+            if "deterministic" in spec and type(spec["deterministic"]) is not bool:
+                raise ForecastAdapterError("deterministic must be a boolean")
+            try:
+                registration = build_provider(kind, name, spec)
+            except ModuleNotFoundError as exc:
+                missing = exc.name or kind
+                raise GnomonError(
+                    "PROVIDER_LOAD_FAILED",
+                    f"Provider {name!r} needs the {kind!r} adapter package, which is not installed.",
+                    details={"provider": name, "kind": kind, "stage": "import_adapter_dependency",
+                             "missing_module": missing, "install": install_command(adapter)},
+                    repair_options=[{
+                        "action": "install_provider_dependency",
+                        "description": f"Run {install_command(adapter)} in the same Python environment as Gnomon.",
+                    }],
+                ) from None
+            kwargs = {"capabilities": registration.capabilities, "revision": registration.revision,
+                      "deterministic": registration.deterministic}
+            if registration.factory:
+                self.engine.register_factory(name, registration.target, **kwargs)
+            else:
+                self.engine.register(name, registration.target, lifecycle=adapter.lifecycle, **kwargs)
+        elif kind == "ephemeris":
             _strict(spec, {"kind", "base_url", "base_url_env", "token_env", "model", "mode", "combine", "timeout", "discover"})
             if bool(spec.get("base_url")) == bool(spec.get("base_url_env")):
                 raise ForecastAdapterError("configure exactly one base_url or base_url_env")
@@ -498,7 +528,8 @@ class GnomonSession:
             else:
                 self.engine.register(name, target, lifecycle=spec.get("lifecycle", "stateless"), **kwargs)
         else:
-            raise ForecastAdapterError("provider kind must be ephemeris, callable or factory")
+            raise ForecastAdapterError("provider kind must be ephemeris, callable, factory or an adapter kind: "
+                                       + ", ".join(ADAPTERS))
 
     @_measured
     def capabilities(self, *, brief: bool = True) -> dict:

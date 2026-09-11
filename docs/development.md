@@ -16,7 +16,9 @@ Backtesting and study_routing consume that evidence; temporal_ops is opt-in.
 
 Project dependencies are declared in `pyproject.toml`. The ordinary benchmark environment has its own hash-locked
 `benchmarks/workflow/software/requirements.txt`, separate from the core package.
-Do not add per-library adapters: users own callable/factory integrations.
+Per-library adapters live in `gnomon.adapters`, one module per `kind`, each behind a
+pip extra with a lazy import and a skip-if-missing test. Add one only for a maintained,
+PyPI-released package; everything else stays a user-owned callable/factory integration.
 Unrelated user data and scratch files are not part of product changes.
 
 Production tests cover retained semantics. `benchmarks/workflow` measures the

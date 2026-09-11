@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- Add optional package adapters as provider kinds: `statsforecast`, `statsmodels`,
+  `prophet`, `mlforecast`, `skforecast`, `sktime`, `darts`, `gluonts` and
+  `neuralforecast`, each behind a pip extra with a lazy import. The core package
+  keeps zero dependencies; a missing package fails at startup with the install
+  command, and a provider named after an unconfigured kind gets the same hint.
+- Adapters share one conversion layer: real timestamps or a disclosed integer
+  index, monotone quantile rows with repaired crossings counted, paired
+  history/horizon covariates, package-version revisions and conservative
+  determinism. Foundation-model packages are deliberately not included yet.
+- `gnomon capabilities --config-schema` lists adapter kinds with install state.
+
 ## 1.1.9 — 2026-09-10
 
 - Record concise execution-bound decision summaries with assumptions, invalidation

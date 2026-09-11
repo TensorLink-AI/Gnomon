@@ -99,7 +99,8 @@ def test_config_invalid_path_and_values_remain_redacted(tmp_path):
         assert code == 2
         assert result['error']['details']['rejected_fields'] == ['providers.bad.kind']
         assert 'secret' not in json.dumps(result)
-        assert result['error']['details']['invalid_fields'][0]['expected']['enum'] == ['ephemeris', 'callable', 'factory']
+        from gnomon.adapters import ADAPTERS
+        assert result['error']['details']['invalid_fields'][0]['expected']['enum'] == ['ephemeris', 'callable', 'factory', *ADAPTERS]
 
 
 def test_all_independent_route_mismatches_and_write_counts(tmp_path):
