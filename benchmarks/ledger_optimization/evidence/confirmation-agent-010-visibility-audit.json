@@ -1,0 +1,18 @@
+{
+  "all_checks_passed": true,
+  "cases_sha256": "821b528402b2e4e265eeb56d861a5c2479a4182fa38bde5ec7ca63290bac8162",
+  "checks": {
+    "actual_visibility_checks": 109200,
+    "cases": 624,
+    "executions": 4992,
+    "historical_origin_exposures": 7800,
+    "raw_score_checks": 124800
+  },
+  "ledger_sha256": "5718f7643843bf0c2abf1184c651d458352c6462009a432c5ea05958d901f7a0",
+  "ledger_unchanged": true,
+  "limitation": "Validates recorded synthetic replay facts and numerical history. Does not establish real-world historical availability or broad leakage safety.",
+  "memory_sha256": "a52fb21b75e263831581585bcaf79f8605130a6f146976989df04eb387c6ada9",
+  "provider_calls": 0,
+  "scope": "confirmation",
+  "target_established": false
+}

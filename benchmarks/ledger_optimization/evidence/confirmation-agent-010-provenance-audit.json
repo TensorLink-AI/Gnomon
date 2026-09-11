@@ -1,0 +1,18 @@
+{
+  "all_registered_decisions_accounted_for": true,
+  "audited_at": "2026-09-11T03:25:37.878690+00:00",
+  "cases_sha256": "821b528402b2e4e265eeb56d861a5c2479a4182fa38bde5ec7ca63290bac8162",
+  "critical_implementation_hashes_unchanged": true,
+  "current_commit": "1709b4c0731818bc1bb4fd37fb7027f13ba43be8",
+  "freeze_commit": "1709b4c",
+  "freeze_commit_time": "2026-09-11T11:33:40+10:00",
+  "freeze_sha256": "37e980a7707ba88bd25a8d6f7a11d0b8718163d555e6ed5f703c9692f8e48094",
+  "gnomon_source_sha256": "ad21b5f0ea5424c4a2c610892fde60a59df85644e17b8da0911d2ff5504ff91b",
+  "historical_information_contract": "same_raw_matched_history_in_every_arm",
+  "implementation_commit": "2721c186af7ed1e3811499619e05c53930ab1842",
+  "limitation": "Artifact/code/cohort audit plus recorded preparation ordering. Original release and broad superiority are not established.",
+  "memory_sha256": "a52fb21b75e263831581585bcaf79f8605130a6f146976989df04eb387c6ada9",
+  "prepared_inputs_match_freeze_and_runtime": true,
+  "scope": "confirmation",
+  "target_established": false
+}

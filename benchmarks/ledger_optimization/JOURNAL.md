@@ -334,3 +334,51 @@ preparation requires this freeze and does not emit aggregate policy scores. The
 agent runner rejects partial confirmation cohorts and mismatched prepared input
 hashes. Eight synthetic guard tests passed without reading any held-out target
 values. Development outcomes and final confirmation are not interchangeable.
+
+## Frozen confirmation 010 — complete; objective failed
+
+Freeze 1709b4c was committed/pushed before preparing the 24 reserved series.
+All 26 origins, two requested seeds and three equal-information arms completed:
+3,744 decisions, 1,248 matched case/seed pairs. No optional stopping, partial
+performance analysis or treatment changes occurred. The source/protocol hash
+audit passed at completion.
+
+Mean RMSLE: control **0.5272968020**, original ledger **0.5284976078**, support
+**0.5243270335**. Support improves **0.5632%** versus control, with paired 95%
+interval **−0.3620% to +1.8225%**. Versus original ledger, improvement is
+0.7891% (interval −0.0596% to +2.0030%). Neither establishes reliable superiority.
+The 3.48% development improvement did not generalize at that magnitude.
+
+The independent future-aware candidate minimum is **0.4614605508**, while the
+20% target requires **0.4218374416**. Thus the maximum possible selection-only
+improvement on this exact cohort/control is **12.4856%**. Repeating selection
+tuning cannot meet the registered 20% objective here. Do not weaken the control,
+change the score, cherry-pick origins or present reused confirmation cases as
+untouched. Further target pursuit requires an explicitly revised test/objective
+scope; none was silently substituted. This does not bound all unseen datasets.
+
+All decisions ended in explicit execution selections. Zero API errors, harness
+failures and final fallbacks. Eleven intermediate tool calls were rejected and
+recovered: five over-budget forecast requests, five premature/conflicting
+selections, one invalid forecast request. All actual forecast attempts remained
+within the same limit. Prepared StatsForecast candidates/CV disclosed no recipe
+fallbacks. Execution reliability is separate from a forecasting improvement.
+
+The transcript audit verifies identical shared information, unchanged candidate
+points and independently reproduced RMSLE for every decision. A second read-only
+audit checks 4,992 executions, 7,800 historical-origin exposures, 109,200 actual
+visibility checks and 124,800 raw score checks, preserving the ledger hash.
+Support wins 146 pairs, loses 105 and ties 997. Seed provider-name agreement
+falls from control 571/624 to 509/624; tail improvement is very small. A broad
+robustness claim is therefore unsupported.
+
+7,804 API calls; 41,106,205 input and 2,350,618 output tokens reported. Monetary
+cost was not returned. Raw evidence remains locally hash-linked; all summaries,
+confidence intervals, audits and the negative objective result are retained in
+`evidence/confirmation-agent-010*`. The reviewed record explains inherited
+"development" prose in immutable frozen tool outputs whose actual scope is
+confirmation. Original artifacts and numeric results were not rewritten.
+
+Post-run audit/plot scripts in `audits/` were added after the experiment and
+do not change the frozen treatment. See `CONFIRMATION_010.md`. Main and PyPI
+were not modified for this work. The goal is not marked complete.

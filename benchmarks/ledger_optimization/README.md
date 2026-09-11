@@ -1,7 +1,17 @@
-# Ledger optimization development checkpoint
+# Ledger optimization checkpoint
 
 Branch: `dev/ledger-optimization`. **The 20% target has not been achieved.**
-This work is development evidence, not a release or forecast-superiority claim.
+Development and a complete frozen confirmation are retained here. No release or
+forecast-superiority claim is established.
+
+The reserved confirmation completed **3,744 decisions** with identical raw
+historical information and tools across all arms. Historical support improved
+mean RMSLE only **0.56%** (95% paired interval **−0.36% to +1.82%**). This does
+not establish a reliable mean or broad robustness advantage. Even perfect
+hindsight selection among the fixed forecasts improves at most **12.49%**, so
+20% is unattainable on this frozen benchmark without changing its constraints.
+See [the full confirmation report](CONFIRMATION_010.md) and its linked audits.
+No main merge or PyPI release was made.
 
 The product change adds selectable MAE/RMSLE ledger summaries, calculated
 ranks/ties, matched sample counts, pairwise differences and recent/lifetime
@@ -25,7 +35,8 @@ On run 004, even the hindsight best of the eight candidate forecasts is only
 11.71% better than the observed control. It is mathematically impossible to
 reach 20% on that cohort by selection alone. This bound says nothing about
 unseen series or expanded forecasting capabilities. The separately reserved
-24-series confirmation set has not been scored.
+24-series confirmation set stayed closed until implementation freeze 1709b4c;
+its subsequent complete result is reported above.
 
 ## Ledger-only continuation with equal historical information
 
@@ -51,9 +62,9 @@ historical cohorts in one database snapshot. Its sample-count threshold does
 not imply confidence or select a forecasting provider. Complete results remained
 identical across 208 regression queries after parsing reuse was optimized.
 
-The next registered development trial tests a concise historical-support packet;
-see [CONTEXT_PROTOCOL.md](CONTEXT_PROTOCOL.md). Forecasts remain unchanged, and
-the confirmation partition remains closed during development.
+The subsequent registered development trial tested a concise historical-support
+packet; see [CONTEXT_PROTOCOL.md](CONTEXT_PROTOCOL.md). Forecasts remained
+unchanged, and the confirmation partition stayed closed during development.
 
 The subsequent concise-support trial 008 completed 192 audited decisions:
 control RMSLE **0.546149**, original ledger **0.537920**, support packet
@@ -93,6 +104,7 @@ Retained runs contain API token usage, but the provider returned no dollar cost.
 The calibration feasibility script changes predictions and is explicitly outside
 the current fixed-candidate objective. It has not been promoted to production.
 
-Validation: full product suite passed 1,166 tests with 29 skips after the core
-metric implementation; subsequent focused checks and benchmark checks are
-recorded in the journal. Main, release tags and PyPI are unchanged.
+Validation: the latest full product suite passed **1,203 tests with 29 skips**
+after metric/context retrieval and parsing reuse changes. Subsequent focused
+benchmark checks and complete confirmation audits are recorded in the journal.
+This work remains on the development branch; no release was published.

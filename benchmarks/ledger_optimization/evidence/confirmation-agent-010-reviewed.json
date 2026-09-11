@@ -1,0 +1,141 @@
+{
+  "artifacts": [
+    {
+      "path": "benchmarks/ledger_optimization/evidence/confirmation-agent-010-analysis.json",
+      "sha256": "4efbde027cc6c6b746a72fea74bf34851dd9da2bccec915def7237ce4144f5c0"
+    },
+    {
+      "path": "benchmarks/ledger_optimization/evidence/confirmation-agent-010-audit.json",
+      "sha256": "20713c6e4be0ab83667ca951f021d6c3af326a97cdd0eb13e9d843e3205c723b"
+    },
+    {
+      "path": "benchmarks/ledger_optimization/evidence/confirmation-agent-010-boundary-audit.json",
+      "sha256": "f17edadb58a561d71eaca28ecc5de548392817dab127018304119c5c21323366"
+    },
+    {
+      "path": "benchmarks/ledger_optimization/evidence/confirmation-agent-010-headroom.json",
+      "sha256": "6c537840173dc4e374eeefee00bbdf6da58aacc24aeaab88bf5c15a2add996d9"
+    },
+    {
+      "path": "benchmarks/ledger_optimization/evidence/confirmation-agent-010-provenance-audit.json",
+      "sha256": "033e23dd91fb710098545f4cb36577cdd712662d128de6cc28d16fa3dcccb5d8"
+    },
+    {
+      "path": "benchmarks/ledger_optimization/evidence/confirmation-agent-010-robustness.json",
+      "sha256": "2c8ecf25bcf9377fc26eb20de526217ee92cbc482a5815e1011f6cd6b5471923"
+    },
+    {
+      "path": "benchmarks/ledger_optimization/evidence/confirmation-agent-010-visibility-audit.json",
+      "sha256": "1972e0a0ea265d53bd5d68f6b849fa8bb72fba775c20bd0f1000951868dfa245"
+    },
+    {
+      "path": "benchmarks/ledger_optimization/evidence/confirmation-agent-010.json",
+      "sha256": "cf5e831a21f7d02e45e326694e37232568a94d542b7fee91b78cc47741eecb95"
+    }
+  ],
+  "broad_robustness_improvement_established": false,
+  "candidate_preparation": {
+    "candidate_forecast_records": 4992,
+    "cases": 624,
+    "cv_fallbacks_logical": 0,
+    "new_forecast_values_created_by_ledger_treatment": false,
+    "recipe_fallbacks": 0
+  },
+  "cohort": {
+    "decisions": 3744,
+    "matched_case_seed_pairs": 1248,
+    "origins": 26,
+    "requested_seeds": [
+      7,
+      19
+    ],
+    "series": 24
+  },
+  "comparisons": {
+    "ledger_supported": {
+      "absolute_reduction_vs_no_ledger": 0.002969768515980964,
+      "absolute_reduction_vs_original": 0.004170574322988174,
+      "numerical_criteria_met": false,
+      "paired_95_percent_intervals": {
+        "absolute_vs_no_ledger": [
+          -0.0018358407719973075,
+          0.009821144531367051
+        ],
+        "absolute_vs_original": [
+          -0.0002991781951828517,
+          0.010802172898187188
+        ],
+        "relative_vs_no_ledger": [
+          -0.003620009543437741,
+          0.018225112289821235
+        ],
+        "relative_vs_original": [
+          -0.0005959873385579293,
+          0.020030032802450654
+        ]
+      },
+      "relative_reduction_vs_no_ledger": 0.005632062444674513,
+      "relative_reduction_vs_original": 0.007891377862537352
+    }
+  },
+  "completion": {
+    "api_errors": 0,
+    "decisions": 3744,
+    "explicit_selections": 3744,
+    "final_fallbacks": 0,
+    "forecast_calls_blocked_at_budget": 5,
+    "harness_failures": 0,
+    "intermediate_unsuccessful_tool_calls": 11,
+    "invalid_forecast_arguments": 1,
+    "unresolved_intermediate_selections": 5
+  },
+  "frozen_outputs_preserved": true,
+  "headroom": {
+    "control_mean_case_rmsle": 0.5272968020425801,
+    "maximum_relative_improvement": 0.12485615489764046,
+    "oracle_mean_case_rmsle": 0.46146055084972126,
+    "target_relative_improvement": 0.2
+  },
+  "historical_information_contract": "same_raw_matched_history_in_every_arm",
+  "limitations": [
+    "Retrospective Favorita replay with declared source/recording maturation and promotion-availability assumptions.",
+    "Seed honoring by the Engy backend was not verified.",
+    "Temporal variation across origins prevents interpreting the cumulative curve as a causal learning curve.",
+    "New test cohorts must be declared before inspection; this confirmation cohort is now spent."
+  ],
+  "mathematical_bound_scope": "These fixed candidate forecasts, registered cases and observed matched control; not a bound on all future datasets.",
+  "mean_case_rmsle": {
+    "ledger_119": 0.5284976078495873,
+    "ledger_supported": 0.5243270335265992,
+    "no_ledger": 0.5272968020425801
+  },
+  "no_reliable_mean_improvement_established": true,
+  "postrun_audit_scripts": [
+    {
+      "path": "benchmarks/ledger_optimization/audits/confirmation_010_boundary.py",
+      "sha256": "cd35bc5156b3c919bb84eb978a2046da02d6ff1cee72b54c2c05de266e00f8df"
+    },
+    {
+      "path": "benchmarks/ledger_optimization/audits/confirmation_010_plot.py",
+      "sha256": "11a46aef8e10d359d7e6d1cedfd8dfa0333da1eadc85bf0e00c534c9be4f9704"
+    },
+    {
+      "path": "benchmarks/ledger_optimization/audits/confirmation_010_visibility.py",
+      "sha256": "12eaf1e0fdff640bd34a6e0ee83fcfae6661a8914281db278cea6acea7f0b2dd"
+    }
+  ],
+  "reason": "Even future-aware perfect selection among the fixed forecasts cannot reach the 20% target on the registered cohort.",
+  "required_target_mean_rmsle": 0.4218374416340641,
+  "reviewed_at": "2026-09-11T03:27:14.465293+00:00",
+  "scope": "frozen_confirmation",
+  "scope_wording_note": "Original frozen tools carry scope=confirmation but some inherited explanatory prose says development. This reviewed record corrects that wording without altering the original artifacts or numerical analysis.",
+  "status": "target_not_established",
+  "target_established": false,
+  "target_feasible_for_this_fixed_cohort": false,
+  "usage": {
+    "api_calls": 7804,
+    "reported_api_cost_usd": null,
+    "reported_input_tokens": 41106205,
+    "reported_output_tokens": 2350618
+  }
+}

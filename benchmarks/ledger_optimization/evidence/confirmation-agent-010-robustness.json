@@ -1,0 +1,228 @@
+{
+  "cold_start": {
+    "ledger_119": {
+      "decisions": 192,
+      "mean_case_rmsle": 0.5217373930714505
+    },
+    "ledger_supported": {
+      "decisions": 192,
+      "mean_case_rmsle": 0.5212216389900771
+    },
+    "no_ledger": {
+      "decisions": 192,
+      "mean_case_rmsle": 0.5227256191925904
+    }
+  },
+  "diagnostic_only": true,
+  "input": {
+    "path": "/root/Gnomon/benchmarks/ledger_optimization/evidence/confirmation-agent-010.json",
+    "sha256": "cf5e831a21f7d02e45e326694e37232568a94d542b7fee91b78cc47741eecb95"
+  },
+  "limitation": "Descriptive finite development cohort. Tail metrics and subgroup wins do not establish the 20% overall target, causality or statistical significance.",
+  "mature_history": {
+    "ledger_119": {
+      "decisions": 1056,
+      "mean_case_rmsle": 0.5297267378092485
+    },
+    "ledger_supported": {
+      "decisions": 1056,
+      "mean_case_rmsle": 0.5248916507150577
+    },
+    "no_ledger": {
+      "decisions": 1056,
+      "mean_case_rmsle": 0.5281279261971237
+    }
+  },
+  "paired_differences": {
+    "ledger_119": {
+      "better_cases": 62,
+      "maximum_damage": 0.4252158003277191,
+      "maximum_gain": 0.3775864015480336,
+      "mean": 0.0012008058070072161,
+      "sign": "treatment_minus_control; negative favors treatment",
+      "tie_absolute_tolerance": 1e-12,
+      "tied_cases": 1124,
+      "worse_cases": 62
+    },
+    "ledger_supported": {
+      "better_cases": 146,
+      "maximum_damage": 0.4890311746305994,
+      "maximum_gain": 0.651044484309564,
+      "mean": -0.002969768515980883,
+      "sign": "treatment_minus_control; negative favors treatment",
+      "tie_absolute_tolerance": 1e-12,
+      "tied_cases": 997,
+      "worse_cases": 105
+    }
+  },
+  "per_origin": {
+    "0": {
+      "ledger_119": 0.59919416615942,
+      "ledger_supported": 0.5955429010039391,
+      "no_ledger": 0.597544334569307
+    },
+    "1": {
+      "ledger_119": 0.5379399313710935,
+      "ledger_supported": 0.5409282196690686,
+      "no_ledger": 0.5401708682761716
+    },
+    "2": {
+      "ledger_119": 0.502551237130612,
+      "ledger_supported": 0.5032050534555493,
+      "no_ledger": 0.503147405115276
+    },
+    "3": {
+      "ledger_119": 0.4472642376246764,
+      "ledger_supported": 0.44521038183175127,
+      "no_ledger": 0.45003986880960717
+    },
+    "4": {
+      "ledger_119": 0.4737829034694151,
+      "ledger_supported": 0.4683241021184622,
+      "no_ledger": 0.4690996469678826
+    },
+    "5": {
+      "ledger_119": 0.4869903473949127,
+      "ledger_supported": 0.48781262637739353,
+      "no_ledger": 0.4871699252218376
+    },
+    "6": {
+      "ledger_119": 0.6110824183005181,
+      "ledger_supported": 0.5963210600497777,
+      "no_ledger": 0.6102375725301563
+    },
+    "7": {
+      "ledger_119": 0.5711459030320494,
+      "ledger_supported": 0.5395992330060867,
+      "no_ledger": 0.5710284547886141
+    },
+    "8": {
+      "ledger_119": 0.5023358085591237,
+      "ledger_supported": 0.5012326779509293,
+      "no_ledger": 0.5012857400700325
+    },
+    "9": {
+      "ledger_119": 0.7113669629741214,
+      "ledger_supported": 0.7136994863021076,
+      "no_ledger": 0.710495856232808
+    },
+    "10": {
+      "ledger_119": 0.5554844648093329,
+      "ledger_supported": 0.5542801742789583,
+      "no_ledger": 0.550841101570863
+    },
+    "11": {
+      "ledger_119": 0.5720853141620275,
+      "ledger_supported": 0.5565290000888357,
+      "no_ledger": 0.5704602151728241
+    },
+    "12": {
+      "ledger_119": 0.5761920475058345,
+      "ledger_supported": 0.567969980224425,
+      "no_ledger": 0.5766971448146037
+    },
+    "13": {
+      "ledger_119": 0.5117938432893494,
+      "ledger_supported": 0.5167825225324368,
+      "no_ledger": 0.5177896163846256
+    },
+    "14": {
+      "ledger_119": 0.5224514957196622,
+      "ledger_supported": 0.5241771327574959,
+      "no_ledger": 0.5241922930840144
+    },
+    "15": {
+      "ledger_119": 0.5220302817179934,
+      "ledger_supported": 0.5180385451344577,
+      "no_ledger": 0.5113486022680261
+    },
+    "16": {
+      "ledger_119": 0.46760007906332735,
+      "ledger_supported": 0.47411498012155223,
+      "no_ledger": 0.4617504579159557
+    },
+    "17": {
+      "ledger_119": 0.5179964950083845,
+      "ledger_supported": 0.5185691264336714,
+      "no_ledger": 0.5183981062632403
+    },
+    "18": {
+      "ledger_119": 0.5274141956532045,
+      "ledger_supported": 0.5142747976317443,
+      "no_ledger": 0.5247060080789889
+    },
+    "19": {
+      "ledger_119": 0.5396828536621924,
+      "ledger_supported": 0.5526532586761124,
+      "no_ledger": 0.5335315449664653
+    },
+    "20": {
+      "ledger_119": 0.5333600730630866,
+      "ledger_supported": 0.523605739392674,
+      "no_ledger": 0.533225912330621
+    },
+    "21": {
+      "ledger_119": 0.5163086621760139,
+      "ledger_supported": 0.5024522269178987,
+      "no_ledger": 0.5050899282167873
+    },
+    "22": {
+      "ledger_119": 0.4567453871604139,
+      "ledger_supported": 0.4535346234705797,
+      "no_ledger": 0.45907402792099167
+    },
+    "23": {
+      "ledger_119": 0.4917779943515048,
+      "ledger_supported": 0.48960847800864693,
+      "no_ledger": 0.4966366234669248
+    },
+    "24": {
+      "ledger_119": 0.48875052798916596,
+      "ledger_supported": 0.4887515816708937,
+      "no_ledger": 0.4901258791589512
+    },
+    "25": {
+      "ledger_119": 0.49761017274183333,
+      "ledger_supported": 0.4852849625861309,
+      "no_ledger": 0.49562971891150603
+    }
+  },
+  "primary_metric_unchanged": true,
+  "provider_selection_agreement_across_seeds": {
+    "ledger_119": {
+      "cases": 624,
+      "cases_with_one_provider_name": 552,
+      "limitation": "Names only; distinct providers can return identical forecasts. Agreement is not accuracy."
+    },
+    "ledger_supported": {
+      "cases": 624,
+      "cases_with_one_provider_name": 509,
+      "limitation": "Names only; distinct providers can return identical forecasts. Agreement is not accuracy."
+    },
+    "no_ledger": {
+      "cases": 624,
+      "cases_with_one_provider_name": 571,
+      "limitation": "Names only; distinct providers can return identical forecasts. Agreement is not accuracy."
+    }
+  },
+  "scope": "confirmation",
+  "tail": {
+    "ledger_119": {
+      "maximum_rmsle": 1.9588948118115372,
+      "tail_decisions": 125,
+      "worst_decile_mean_rmsle": 1.1575669125218306
+    },
+    "ledger_supported": {
+      "maximum_rmsle": 1.9588948118115372,
+      "tail_decisions": 125,
+      "worst_decile_mean_rmsle": 1.1560999377259662
+    },
+    "no_ledger": {
+      "maximum_rmsle": 1.9588948118115372,
+      "tail_decisions": 125,
+      "worst_decile_mean_rmsle": 1.1579284862108223
+    }
+  },
+  "tail_definition": "Mean of the largest ceil(10% * decisions_per_arm) case RMSLE values; each arm may have different tail cases",
+  "target_established": false
+}

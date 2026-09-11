@@ -1,0 +1,154 @@
+{
+  "all_successful_forecast_counts_reconciled": true,
+  "arms": {
+    "ledger_119": {
+      "api_errors": 0,
+      "decisions": 1248,
+      "fallbacks": 0,
+      "forecast_attempts": 3097,
+      "resolution_statuses": {
+        "explicit_selection": 1248
+      },
+      "successful_executions": 3097,
+      "tool_calls": {
+        "gnomon_forecast": 3099,
+        "select_forecast": 1250
+      },
+      "unsuccessful_tool_calls": {
+        "gnomon_forecast": 2,
+        "select_forecast": 2
+      }
+    },
+    "ledger_supported": {
+      "api_errors": 0,
+      "decisions": 1248,
+      "fallbacks": 0,
+      "forecast_attempts": 2669,
+      "resolution_statuses": {
+        "explicit_selection": 1248
+      },
+      "successful_executions": 2668,
+      "tool_calls": {
+        "gnomon_forecast": 2671,
+        "select_forecast": 1250
+      },
+      "unsuccessful_tool_calls": {
+        "gnomon_forecast": 3,
+        "select_forecast": 2
+      }
+    },
+    "no_ledger": {
+      "api_errors": 0,
+      "decisions": 1248,
+      "fallbacks": 0,
+      "forecast_attempts": 2942,
+      "resolution_statuses": {
+        "explicit_selection": 1248
+      },
+      "successful_executions": 2942,
+      "tool_calls": {
+        "gnomon_forecast": 2943,
+        "select_forecast": 1249
+      },
+      "unsuccessful_tool_calls": {
+        "gnomon_forecast": 1,
+        "select_forecast": 1
+      }
+    }
+  },
+  "decisions": 3744,
+  "execution_budgets_respected": true,
+  "issues": [
+    {
+      "cause": "forecast_budget_exhausted",
+      "error_code": null,
+      "name": "gnomon_forecast",
+      "path": "/root/Gnomon/results/ledger-optimization/confirmation-agent-010/0005-item_1909482_store_38-19-ledger_supported.json",
+      "status": "error",
+      "tool_call_id": "call_5dfa795cc1574c7288a31453"
+    },
+    {
+      "cause": "forecast_budget_exhausted",
+      "error_code": null,
+      "name": "gnomon_forecast",
+      "path": "/root/Gnomon/results/ledger-optimization/confirmation-agent-010/0005-item_1909482_store_38-7-ledger_119.json",
+      "status": "error",
+      "tool_call_id": "call_436a3a3941724131b50cbd3a"
+    },
+    {
+      "cause": "selected_execution_not_successful",
+      "error_code": null,
+      "name": "select_forecast",
+      "path": "/root/Gnomon/results/ledger-optimization/confirmation-agent-010/0007-item_1472479_store_53-7-ledger_supported.json",
+      "status": "conflicting_final_selection",
+      "tool_call_id": "call_b18001b6d71e4a29b40b38b5"
+    },
+    {
+      "cause": "selected_execution_not_successful",
+      "error_code": null,
+      "name": "select_forecast",
+      "path": "/root/Gnomon/results/ledger-optimization/confirmation-agent-010/0007-item_1472479_store_53-7-ledger_supported.json",
+      "status": "conflicting_final_selection",
+      "tool_call_id": "call_8afd235698364fbfb8cb0222"
+    },
+    {
+      "cause": "no_successful_execution",
+      "error_code": null,
+      "name": "select_forecast",
+      "path": "/root/Gnomon/results/ledger-optimization/confirmation-agent-010/0010-item_1228937_store_54-7-no_ledger.json",
+      "status": "no_successful_execution",
+      "tool_call_id": "call_6c670007a7754e17ae3d1d68"
+    },
+    {
+      "cause": "no_successful_execution",
+      "error_code": null,
+      "name": "select_forecast",
+      "path": "/root/Gnomon/results/ledger-optimization/confirmation-agent-010/0010-item_123601_store_29-19-ledger_119.json",
+      "status": "no_successful_execution",
+      "tool_call_id": "call_9967ba7e9df54c6ab5abbd74"
+    },
+    {
+      "cause": "forecast_budget_exhausted",
+      "error_code": null,
+      "name": "gnomon_forecast",
+      "path": "/root/Gnomon/results/ledger-optimization/confirmation-agent-010/0010-item_1458088_store_7-7-no_ledger.json",
+      "status": "error",
+      "tool_call_id": "call_ccd99fd19f244ca4b6711266"
+    },
+    {
+      "cause": "forecast_budget_exhausted",
+      "error_code": null,
+      "name": "gnomon_forecast",
+      "path": "/root/Gnomon/results/ledger-optimization/confirmation-agent-010/0010-item_1920059_store_10-7-ledger_supported.json",
+      "status": "error",
+      "tool_call_id": "call_4cc3402428394df792cfc7ad"
+    },
+    {
+      "cause": "no_successful_execution",
+      "error_code": null,
+      "name": "select_forecast",
+      "path": "/root/Gnomon/results/ledger-optimization/confirmation-agent-010/0012-item_314393_store_15-19-ledger_119.json",
+      "status": "no_successful_execution",
+      "tool_call_id": "call_9641050e5bbb4c069e0387c7"
+    },
+    {
+      "cause": null,
+      "error_code": "INVALID_ARGUMENTS",
+      "name": "gnomon_forecast",
+      "path": "/root/Gnomon/results/ledger-optimization/confirmation-agent-010/0018-item_1584379_store_39-19-ledger_supported.json",
+      "status": "error",
+      "tool_call_id": "call_2cce8a92aca64aeb8b866af3"
+    },
+    {
+      "cause": "forecast_budget_exhausted",
+      "error_code": null,
+      "name": "gnomon_forecast",
+      "path": "/root/Gnomon/results/ledger-optimization/confirmation-agent-010/0019-item_1909482_store_38-7-ledger_119.json",
+      "status": "error",
+      "tool_call_id": "call_9b1f1dfe655b4f31beb3d6a7"
+    }
+  ],
+  "limitation": "Describes observed execution and final-selection behavior. It does not establish forecasting benefit or universal reliability.",
+  "scope": "confirmation",
+  "target_established": false
+}

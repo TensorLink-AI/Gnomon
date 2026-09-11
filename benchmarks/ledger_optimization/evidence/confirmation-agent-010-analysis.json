@@ -1,0 +1,357 @@
+{
+  "bootstrap": {
+    "agent_seeds_retained_together": true,
+    "block_length_origins": 4,
+    "interval": "Percentile 2.5/97.5 with linear interpolation",
+    "random_seed": 20260911,
+    "replicates": 5000,
+    "rng": "Python random.Random",
+    "series_resampled_with_replacement": true,
+    "shared_circular_time_blocks": true,
+    "zero_control_rule": "Relative interval is null if any replicate control mean is zero; absolute intervals remain defined. No replicates discarded."
+  },
+  "cohort": {
+    "decisions": 3744,
+    "matched_case_seed_pairs": 1248,
+    "origins": 26,
+    "requested_seeds": [
+      7,
+      19
+    ],
+    "series": 24
+  },
+  "cold_start": {
+    "decisions": 576,
+    "mean_case_rmsle": {
+      "ledger_119": 0.5217373930714505,
+      "ledger_supported": 0.5212216389900771,
+      "no_ledger": 0.5227256191925904
+    }
+  },
+  "comparisons": {
+    "ledger_supported": {
+      "absolute_reduction_vs_no_ledger": 0.002969768515980964,
+      "absolute_reduction_vs_original": 0.004170574322988174,
+      "numerical_criteria_met": false,
+      "paired_95_percent_intervals": {
+        "absolute_vs_no_ledger": [
+          -0.0018358407719973075,
+          0.009821144531367051
+        ],
+        "absolute_vs_original": [
+          -0.0002991781951828517,
+          0.010802172898187188
+        ],
+        "relative_vs_no_ledger": [
+          -0.003620009543437741,
+          0.018225112289821235
+        ],
+        "relative_vs_original": [
+          -0.0005959873385579293,
+          0.020030032802450654
+        ]
+      },
+      "relative_reduction_vs_no_ledger": 0.005632062444674513,
+      "relative_reduction_vs_original": 0.007891377862537352
+    }
+  },
+  "completion": {
+    "ledger_119": {
+      "fallbacks": 0,
+      "resolution_statuses": {
+        "explicit_selection": 1248
+      }
+    },
+    "ledger_supported": {
+      "fallbacks": 0,
+      "resolution_statuses": {
+        "explicit_selection": 1248
+      }
+    },
+    "no_ledger": {
+      "fallbacks": 0,
+      "resolution_statuses": {
+        "explicit_selection": 1248
+      }
+    }
+  },
+  "input": {
+    "path": "/root/Gnomon/benchmarks/ledger_optimization/evidence/confirmation-agent-010.json",
+    "sha256": "cf5e831a21f7d02e45e326694e37232568a94d542b7fee91b78cc47741eecb95"
+  },
+  "interpretation": "Numerical criteria only. A development result never establishes the target; confirmation requires the frozen protocol and a separate provenance audit.",
+  "limitations": [
+    "Finite-panel uncertainty; no general retail-population or model claim",
+    "Requested seed reproducibility depends on backend support",
+    "No causal-explanation or dollar-savings claim"
+  ],
+  "mature_history": {
+    "decisions": 3168,
+    "mean_case_rmsle": {
+      "ledger_119": 0.5297267378092485,
+      "ledger_supported": 0.5248916507150577,
+      "no_ledger": 0.5281279261971237
+    }
+  },
+  "mean_case_rmsle": {
+    "ledger_119": 0.5284976078495873,
+    "ledger_supported": 0.5243270335265992,
+    "no_ledger": 0.5272968020425801
+  },
+  "metric": "Arithmetic mean of per-case RMSLE; equal series/origin/requested-seed weights",
+  "per_seed": {
+    "19": {
+      "decisions": 1872,
+      "mean_case_rmsle": {
+        "ledger_119": 0.5275160299192257,
+        "ledger_supported": 0.5235259056567413,
+        "no_ledger": 0.5270605994875512
+      }
+    },
+    "7": {
+      "decisions": 1872,
+      "mean_case_rmsle": {
+        "ledger_119": 0.5294791857799488,
+        "ledger_supported": 0.525128161396457,
+        "no_ledger": 0.5275330045976089
+      }
+    }
+  },
+  "per_series": {
+    "item_1017791_store_47": {
+      "decisions": 156,
+      "mean_case_rmsle": {
+        "ledger_119": 0.5665959255825203,
+        "ledger_supported": 0.5673839877473604,
+        "no_ledger": 0.5680509151059953
+      }
+    },
+    "item_1148017_store_11": {
+      "decisions": 156,
+      "mean_case_rmsle": {
+        "ledger_119": 0.27913528376074936,
+        "ledger_supported": 0.26778070333890575,
+        "no_ledger": 0.2689625664256843
+      }
+    },
+    "item_1228937_store_54": {
+      "decisions": 156,
+      "mean_case_rmsle": {
+        "ledger_119": 0.42317702200479274,
+        "ledger_supported": 0.4192982835563164,
+        "no_ledger": 0.4227192379396723
+      }
+    },
+    "item_123601_store_29": {
+      "decisions": 156,
+      "mean_case_rmsle": {
+        "ledger_119": 0.7846934536682454,
+        "ledger_supported": 0.7834246014793599,
+        "no_ledger": 0.7829457544268539
+      }
+    },
+    "item_1239903_store_41": {
+      "decisions": 156,
+      "mean_case_rmsle": {
+        "ledger_119": 0.5922032881946435,
+        "ledger_supported": 0.5986311105581482,
+        "no_ledger": 0.5963774458342215
+      }
+    },
+    "item_1245918_store_16": {
+      "decisions": 156,
+      "mean_case_rmsle": {
+        "ledger_119": 0.6653995402936019,
+        "ledger_supported": 0.6551347537453371,
+        "no_ledger": 0.658538001216403
+      }
+    },
+    "item_1309246_store_48": {
+      "decisions": 156,
+      "mean_case_rmsle": {
+        "ledger_119": 0.5279295376505676,
+        "ledger_supported": 0.5148331547191054,
+        "no_ledger": 0.5279726475085502
+      }
+    },
+    "item_1397802_store_25": {
+      "decisions": 156,
+      "mean_case_rmsle": {
+        "ledger_119": 0.33799190883060226,
+        "ledger_supported": 0.3290995668680236,
+        "no_ledger": 0.3303582141490524
+      }
+    },
+    "item_1415679_store_43": {
+      "decisions": 156,
+      "mean_case_rmsle": {
+        "ledger_119": 0.4332514485523013,
+        "ledger_supported": 0.42054200246873585,
+        "no_ledger": 0.43128126647945436
+      }
+    },
+    "item_1458088_store_7": {
+      "decisions": 156,
+      "mean_case_rmsle": {
+        "ledger_119": 0.6468766602922418,
+        "ledger_supported": 0.614675847980783,
+        "no_ledger": 0.6490711133088438
+      }
+    },
+    "item_1460808_store_49": {
+      "decisions": 156,
+      "mean_case_rmsle": {
+        "ledger_119": 0.35066261936756277,
+        "ledger_supported": 0.3510431315532997,
+        "no_ledger": 0.35307292392156553
+      }
+    },
+    "item_1463771_store_28": {
+      "decisions": 156,
+      "mean_case_rmsle": {
+        "ledger_119": 0.9366947428651815,
+        "ledger_supported": 0.9385710661858241,
+        "no_ledger": 0.9333639788862034
+      }
+    },
+    "item_1464066_store_4": {
+      "decisions": 156,
+      "mean_case_rmsle": {
+        "ledger_119": 0.629194898800933,
+        "ledger_supported": 0.6294303749963401,
+        "no_ledger": 0.628538036958878
+      }
+    },
+    "item_1472479_store_53": {
+      "decisions": 156,
+      "mean_case_rmsle": {
+        "ledger_119": 0.08464431701880593,
+        "ledger_supported": 0.08453002986038205,
+        "no_ledger": 0.08466587613640492
+      }
+    },
+    "item_1584379_store_39": {
+      "decisions": 156,
+      "mean_case_rmsle": {
+        "ledger_119": 0.41320139005306605,
+        "ledger_supported": 0.41482934566811486,
+        "no_ledger": 0.40868595166205823
+      }
+    },
+    "item_1693652_store_17": {
+      "decisions": 156,
+      "mean_case_rmsle": {
+        "ledger_119": 0.8390501731549066,
+        "ledger_supported": 0.8306142889770342,
+        "no_ledger": 0.8358130766310226
+      }
+    },
+    "item_1696038_store_33": {
+      "decisions": 156,
+      "mean_case_rmsle": {
+        "ledger_119": 0.45953743362972,
+        "ledger_supported": 0.4616953178775609,
+        "no_ledger": 0.45990799061670934
+      }
+    },
+    "item_1909482_store_38": {
+      "decisions": 156,
+      "mean_case_rmsle": {
+        "ledger_119": 0.182137058437565,
+        "ledger_supported": 0.1878028232218496,
+        "no_ledger": 0.18103260877842667
+      }
+    },
+    "item_1911102_store_5": {
+      "decisions": 156,
+      "mean_case_rmsle": {
+        "ledger_119": 0.34330001674559907,
+        "ledger_supported": 0.3413590705787139,
+        "no_ledger": 0.34395477227095705
+      }
+    },
+    "item_1920059_store_10": {
+      "decisions": 156,
+      "mean_case_rmsle": {
+        "ledger_119": 0.8646472135776512,
+        "ledger_supported": 0.8613442365316257,
+        "no_ledger": 0.8655271752326602
+      }
+    },
+    "item_314393_store_15": {
+      "decisions": 156,
+      "mean_case_rmsle": {
+        "ledger_119": 0.6531284279828192,
+        "ledger_supported": 0.6444113820500659,
+        "no_ledger": 0.6576130773268157
+      }
+    },
+    "item_847569_store_9": {
+      "decisions": 156,
+      "mean_case_rmsle": {
+        "ledger_119": 0.6670282932623097,
+        "ledger_supported": 0.6747815658184613,
+        "no_ledger": 0.668811307913383
+      }
+    },
+    "item_872307_store_35": {
+      "decisions": 156,
+      "mean_case_rmsle": {
+        "ledger_119": 0.7999008153776138,
+        "ledger_supported": 0.7889352006168369,
+        "no_ledger": 0.7935964139072583
+      }
+    },
+    "item_996597_store_37": {
+      "decisions": 156,
+      "mean_case_rmsle": {
+        "ledger_119": 0.20356111928609477,
+        "ledger_supported": 0.20369695824019568,
+        "no_ledger": 0.20426289638484751
+      }
+    }
+  },
+  "reported_usage": {
+    "ledger_119": {
+      "api_calls": 2544,
+      "completion_tokens": 819765,
+      "fallbacks": 0,
+      "forecast_attempts": 3097,
+      "prompt_tokens": 15047230,
+      "recorded_decisions": 1248,
+      "reported_api_cost_usd": null,
+      "resolutions": {
+        "explicit_selection": 1248
+      },
+      "successful_executions": 3097
+    },
+    "ledger_supported": {
+      "api_calls": 2681,
+      "completion_tokens": 815801,
+      "fallbacks": 0,
+      "forecast_attempts": 2669,
+      "prompt_tokens": 13762654,
+      "recorded_decisions": 1248,
+      "reported_api_cost_usd": null,
+      "resolutions": {
+        "explicit_selection": 1248
+      },
+      "successful_executions": 2668
+    },
+    "no_ledger": {
+      "api_calls": 2579,
+      "completion_tokens": 715052,
+      "fallbacks": 0,
+      "forecast_attempts": 2942,
+      "prompt_tokens": 12296321,
+      "recorded_decisions": 1248,
+      "reported_api_cost_usd": null,
+      "resolutions": {
+        "explicit_selection": 1248
+      },
+      "successful_executions": 2942
+    }
+  },
+  "scope": "confirmation",
+  "target_established": false
+}
