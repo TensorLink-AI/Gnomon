@@ -1,0 +1,18 @@
+{
+  "argv": [
+    ".venv/bin/python",
+    "-m",
+    "benchmarks.ledger_optimization.m5_prepare",
+    "prepare",
+    "--archive",
+    "results/ledger-optimization/m5-source-014/m5.zip",
+    "--output",
+    "results/ledger-optimization/m5-panel-014"
+  ],
+  "cwd": "/root/Gnomon",
+  "started_unix": 1789162610.6037822,
+  "seconds": 8.622207164764404,
+  "exit_code": 1,
+  "stdout": "",
+  "stderr": "Traceback (most recent call last):\n  File \"<frozen runpy>\", line 198, in _run_module_as_main\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"/root/Gnomon/benchmarks/ledger_optimization/m5_prepare.py\", line 192, in <module>\n    main()\n  File \"/root/Gnomon/benchmarks/ledger_optimization/m5_prepare.py\", line 187, in main\n    result = fetch(args.archive) if args.command == 'fetch' else prepare(args.archive, args.output)\n                                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/Gnomon/benchmarks/ledger_optimization/m5_prepare.py\", line 131, in prepare\n    calendar = {r['d']: date.fromisoformat(r['date']) for r in rows(zipped, 'calendar.csv')}\n                ~^^^^^\nKeyError: 'd'\n"
+}

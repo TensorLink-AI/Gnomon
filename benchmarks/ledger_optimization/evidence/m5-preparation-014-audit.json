@@ -1,0 +1,25 @@
+{
+  "complete_origin_horizons_checked": 208,
+  "development_rows_checked": 5840,
+  "development_series": 8,
+  "development_sha256": "db247708b5511ebad809739fcddb98074f44fca33e72f53e6ce8628b3697ff5a",
+  "engy_calls": 0,
+  "forecast_models_fitted": 0,
+  "limitations": [
+    "No forecasting performance measured.",
+    "Source and recording availability are replay assumptions.",
+    "No global or model-training non-contamination proof."
+  ],
+  "manifest_sha256": "6343970b713d8ccc49c5f3d6a633e3c876511ef4fd16c19f832d34a792243dd9",
+  "reserved_outcome_scoring_performed": false,
+  "reserved_series": 24,
+  "second_clean_preparation_identical_development_bytes": true,
+  "second_clean_preparation_identical_prefix_eligibility": true,
+  "second_clean_preparation_identical_splits": true,
+  "split_item_overlap": false,
+  "split_store_overlap": false,
+  "status": "passed",
+  "target_established": false,
+  "test_cases": 7,
+  "unique_items_across_splits": 32
+}

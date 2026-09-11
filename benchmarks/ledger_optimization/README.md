@@ -31,6 +31,12 @@ its later slice. This diagnoses useful but limited historical signal, not a
 live-agent superiority result. See [the audit](OPPORTUNITY_013_RESULT.md) and
 [the gate for another forecast evaluation](FORECAST_EVALUATION_GATE.md).
 
+Source amendment 014 prepares a prospective M5 panel: eight development series
+and 24 reserved series, disjoint by store and item. Selection uses only the
+initial history, and two clean preparations produce identical outputs. No
+forecasts or performance scores exist yet; reserved outcomes remain unscored.
+See [preparation and limitations](M5_PREPARATION_014_RESULT.md).
+
 The user's subsequent evaluation-development task is tracked separately in
 [the accumulated-experience workflow benchmark](../experience_workflow/README.md).
 It starts from arrived raw events and measures correct retrieval, revision review,

@@ -1,0 +1,344 @@
+{
+  "api_calls": 0,
+  "availability": "source and recording at period-end, assumed not observed",
+  "development": {
+    "path": "results/ledger-optimization/m5-panel-014/development.csv",
+    "rows": 5840,
+    "sha256": "db247708b5511ebad809739fcddb98074f44fca33e72f53e6ce8628b3697ff5a"
+  },
+  "eligibility": {
+    "eligible_series": 27380,
+    "rejected_prefix_reasons": {
+      "fewer_than_28_nonzero_initial_days": 3110
+    },
+    "stores": [
+      "CA_1",
+      "CA_2",
+      "CA_3",
+      "CA_4",
+      "TX_1",
+      "TX_2",
+      "TX_3",
+      "WI_1",
+      "WI_2",
+      "WI_3"
+    ],
+    "total_series": 30490
+  },
+  "first_day": 1212,
+  "horizon": 14,
+  "last_day": 1941,
+  "origin_indices": [
+    365,
+    379,
+    393,
+    407,
+    421,
+    435,
+    449,
+    463,
+    477,
+    491,
+    505,
+    519,
+    533,
+    547,
+    561,
+    575,
+    589,
+    603,
+    617,
+    631,
+    645,
+    659,
+    673,
+    687,
+    701,
+    715
+  ],
+  "promotion_feature": "unavailable_assumed_zero; not an observed no-promotion assertion",
+  "provider_calls": 0,
+  "reserved_forecasts_computed": false,
+  "reserved_future_targets_numeric_inspection": false,
+  "rounds": 26,
+  "scope": "source amendment and development preparation only",
+  "seed": 20260912,
+  "selection_cutoff_day": 1577,
+  "source": {
+    "archive": "results/ledger-optimization/m5-source-014/m5.zip",
+    "commit": "72b8e7fd3b565b3c538adcb1d1a05117d8562d7e",
+    "git_blob": "925e92ee03cdb83c54a1dbbc12260a3b1939753c",
+    "sha256": "cc704ba15d6802f8262e6ec7d4c6041e4ad6366a94365e8c84f721e450eed774",
+    "url": "https://raw.githubusercontent.com/Nixtla/m5-forecasts/72b8e7fd3b565b3c538adcb1d1a05117d8562d7e/datasets/m5.zip"
+  },
+  "source_attribution": "M5 forecasting competition / Walmart; pinned Nixtla data mirror",
+  "source_hashes": {
+    "M5_PROTOCOL_014.md": "602d5eddc3223dee53c980af1fe45e69ec7e0729e0c340aedee598e0f81b39f3",
+    "m5_prepare.py": "3ac1b25471c405fea8c4ffa7aa115e396ab1e5f64885b2642328630826937eff"
+  },
+  "source_target": "observed daily sales; not latent demand",
+  "splits": {
+    "development": [
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "0be4a84948478d710b4cdb0d0ed4c3a6b4ede71de8eb8456b4809033b59e3ab2",
+        "initial_nonzero_count": 41,
+        "item_id": "FOODS_2_313",
+        "series_id": "FOODS_2_313_CA_3",
+        "store_id": "CA_3"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "7b20f7aee4ccf8c282629cdca50054a6cfb91d89aed6b20ab3f3390ae1046644",
+        "initial_nonzero_count": 49,
+        "item_id": "HOUSEHOLD_2_034",
+        "series_id": "HOUSEHOLD_2_034_CA_3",
+        "store_id": "CA_3"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "d189234773c7e814bdeb4833b9ad34b008257c746a0811124bd5d0fbc16f5e09",
+        "initial_nonzero_count": 196,
+        "item_id": "FOODS_3_035",
+        "series_id": "FOODS_3_035_CA_3",
+        "store_id": "CA_3"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "5a52c452e780a208f07cdd22567d93a8dba73b573cd8d4c701c1ec88a794e4fe",
+        "initial_nonzero_count": 209,
+        "item_id": "HOUSEHOLD_1_522",
+        "series_id": "HOUSEHOLD_1_522_CA_3",
+        "store_id": "CA_3"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "c3111824e418d2e8da3b32df658943efad63cdbc12e203312264215cebfc125e",
+        "initial_nonzero_count": 267,
+        "item_id": "FOODS_3_488",
+        "series_id": "FOODS_3_488_WI_2",
+        "store_id": "WI_2"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "7ae3eae2323ffb43a310dc542cab6cce9de153e7d27d67aff682df2df4ad8c1c",
+        "initial_nonzero_count": 253,
+        "item_id": "FOODS_3_498",
+        "series_id": "FOODS_3_498_WI_2",
+        "store_id": "WI_2"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "a193cbd2312332d433306608f51622fd76ed1ae74855f8c1f5f546e0ed29b26b",
+        "initial_nonzero_count": 277,
+        "item_id": "HOUSEHOLD_1_050",
+        "series_id": "HOUSEHOLD_1_050_WI_2",
+        "store_id": "WI_2"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "7475f44cd59eeef35273507158d389dadf4dd96cd1463bf01eab42285ce527b8",
+        "initial_nonzero_count": 99,
+        "item_id": "HOBBIES_1_030",
+        "series_id": "HOBBIES_1_030_WI_2",
+        "store_id": "WI_2"
+      }
+    ],
+    "reserved": [
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "35e916535bc62466c86363cccfdf0db944025a34e2fe6ad0b95ff6b18f95c7f7",
+        "initial_nonzero_count": 115,
+        "item_id": "FOODS_3_612",
+        "series_id": "FOODS_3_612_CA_2",
+        "store_id": "CA_2"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "7d23b6ffd8e0cf25c04ac0e2658f348fc5860e03fb617261c1c4975ac905eee9",
+        "initial_nonzero_count": 158,
+        "item_id": "FOODS_3_208",
+        "series_id": "FOODS_3_208_CA_2",
+        "store_id": "CA_2"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "0adaf027d0160e670a86d07be8a3432a69dce8f17fcd14bccdd090ebcb36367a",
+        "initial_nonzero_count": 158,
+        "item_id": "FOODS_3_331",
+        "series_id": "FOODS_3_331_CA_2",
+        "store_id": "CA_2"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "511c9bb8e2cd97e8fef2241edb5a4b48f957cb631a9e12d37eb562a9d97a8bcd",
+        "initial_nonzero_count": 218,
+        "item_id": "FOODS_2_290",
+        "series_id": "FOODS_2_290_WI_1",
+        "store_id": "WI_1"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "fd57335074e65c0f40ed1f5a5350b71057b4ad080ee79891f21a60936b3b8142",
+        "initial_nonzero_count": 29,
+        "item_id": "HOUSEHOLD_1_477",
+        "series_id": "HOUSEHOLD_1_477_WI_1",
+        "store_id": "WI_1"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "4d2fb86a735a6af1726fd51fa42af4fb7257b997015b1989cfd56f702be467a2",
+        "initial_nonzero_count": 262,
+        "item_id": "HOUSEHOLD_1_179",
+        "series_id": "HOUSEHOLD_1_179_WI_1",
+        "store_id": "WI_1"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "c0f7dfdf88086b4a67e8ff81a7723adad77ee3179bf6b1999a862224f0170d26",
+        "initial_nonzero_count": 148,
+        "item_id": "FOODS_2_145",
+        "series_id": "FOODS_2_145_CA_1",
+        "store_id": "CA_1"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "c3c469e3f4dbe4220c8297581e9d867c63d796dc1973a20bbc45dc24243767dd",
+        "initial_nonzero_count": 52,
+        "item_id": "FOODS_2_223",
+        "series_id": "FOODS_2_223_CA_1",
+        "store_id": "CA_1"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "588fbeee65f50446b9447d7a06b290e1cc37f823bd0afd24e67e3f431cf5127a",
+        "initial_nonzero_count": 139,
+        "item_id": "HOBBIES_1_036",
+        "series_id": "HOBBIES_1_036_CA_1",
+        "store_id": "CA_1"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "1c114a356f6d7d4f43f0a574112dc8eec1592a865ad4c3666d5c7b04bbb89602",
+        "initial_nonzero_count": 49,
+        "item_id": "HOUSEHOLD_2_182",
+        "series_id": "HOUSEHOLD_2_182_CA_4",
+        "store_id": "CA_4"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "7f29c8916e13920ba8f338be181de3a0afb583bd43dda2551eb8ac83b3b8c72f",
+        "initial_nonzero_count": 96,
+        "item_id": "HOUSEHOLD_1_004",
+        "series_id": "HOUSEHOLD_1_004_CA_4",
+        "store_id": "CA_4"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "7331059c18f51a6bb0c90771b03adb2c340ed062504cde1a3142a067cfd41f6c",
+        "initial_nonzero_count": 136,
+        "item_id": "FOODS_3_733",
+        "series_id": "FOODS_3_733_CA_4",
+        "store_id": "CA_4"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "db767b93bf5ca1823cd7065ed26d130ec1f4b0eee3540c50833f3abc346c083c",
+        "initial_nonzero_count": 42,
+        "item_id": "HOBBIES_1_334",
+        "series_id": "HOBBIES_1_334_TX_1",
+        "store_id": "TX_1"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "4fc2823aab1e501d97b7e1f94b889486a2836d5da698cc77e74e6dd94efec64d",
+        "initial_nonzero_count": 122,
+        "item_id": "HOUSEHOLD_2_468",
+        "series_id": "HOUSEHOLD_2_468_TX_1",
+        "store_id": "TX_1"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "3e6345a72c91586e23c07ed28ee0e26caf0c11ea303b03b7309e6acfecdf421b",
+        "initial_nonzero_count": 31,
+        "item_id": "FOODS_1_053",
+        "series_id": "FOODS_1_053_TX_1",
+        "store_id": "TX_1"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "2218ec6a1f00fff2f0ed6641c86386b24968c05007160a331619ca93a6f214cf",
+        "initial_nonzero_count": 246,
+        "item_id": "FOODS_3_577",
+        "series_id": "FOODS_3_577_WI_3",
+        "store_id": "WI_3"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "0899758ce35895b7a99c1c0cea23f655d05f9e55536f775ff183851714668f27",
+        "initial_nonzero_count": 70,
+        "item_id": "HOBBIES_1_068",
+        "series_id": "HOBBIES_1_068_WI_3",
+        "store_id": "WI_3"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "1fcccc0d7917f4ee2108c6c1107c36fd66da509f1a584fb3326f13ee82d91fce",
+        "initial_nonzero_count": 248,
+        "item_id": "HOUSEHOLD_1_385",
+        "series_id": "HOUSEHOLD_1_385_WI_3",
+        "store_id": "WI_3"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "4422687eb9be5cee816c20d344348cbe64bcad230162fb480ab576d7befeee07",
+        "initial_nonzero_count": 157,
+        "item_id": "FOODS_3_594",
+        "series_id": "FOODS_3_594_TX_3",
+        "store_id": "TX_3"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "39b4cef5b2c884f45712b2880bd924ae9ef12f4b96f20cb22a0e94af1be8bd10",
+        "initial_nonzero_count": 28,
+        "item_id": "HOBBIES_1_325",
+        "series_id": "HOBBIES_1_325_TX_3",
+        "store_id": "TX_3"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "cd5bfa7d3a8bcafa1d8738bb74d6602d944125aa90f3ac6a7e44bef4239059ce",
+        "initial_nonzero_count": 119,
+        "item_id": "FOODS_3_700",
+        "series_id": "FOODS_3_700_TX_3",
+        "store_id": "TX_3"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "c874fabfd7d50165c6885a9ad31ee4fa4e4d19ebd38d76320cccdbff409c0911",
+        "initial_nonzero_count": 36,
+        "item_id": "FOODS_3_068",
+        "series_id": "FOODS_3_068_TX_2",
+        "store_id": "TX_2"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "dccc2e425d3d7bd879c492794a00101c87743060fce2ccaa6a6c46a62ab81f76",
+        "initial_nonzero_count": 229,
+        "item_id": "FOODS_3_812",
+        "series_id": "FOODS_3_812_TX_2",
+        "store_id": "TX_2"
+      },
+      {
+        "initial_count": 366,
+        "initial_history_sha256": "1eab3fb9a6c5a0ec65c1444cbab0b3343c046440e8f5d4efc970bbf4af4dc51b",
+        "initial_nonzero_count": 109,
+        "item_id": "FOODS_3_146",
+        "series_id": "FOODS_3_146_TX_2",
+        "store_id": "TX_2"
+      }
+    ]
+  },
+  "target_established": false,
+  "timestamp_semantics": "published reporting date plus one day, 00:00 UTC period-end replay convention"
+}

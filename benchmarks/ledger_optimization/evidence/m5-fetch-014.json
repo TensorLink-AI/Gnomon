@@ -1,0 +1,16 @@
+{
+  "argv": [
+    ".venv/bin/python",
+    "-m",
+    "benchmarks.ledger_optimization.m5_prepare",
+    "fetch",
+    "--archive",
+    "results/ledger-optimization/m5-source-014/m5.zip"
+  ],
+  "cwd": "/root/Gnomon",
+  "started_unix": 1789162578.2181659,
+  "seconds": 6.090970993041992,
+  "exit_code": 0,
+  "stdout": "{\n  \"source_url\": \"https://raw.githubusercontent.com/Nixtla/m5-forecasts/72b8e7fd3b565b3c538adcb1d1a05117d8562d7e/datasets/m5.zip\",\n  \"source_commit\": \"72b8e7fd3b565b3c538adcb1d1a05117d8562d7e\",\n  \"git_blob\": \"925e92ee03cdb83c54a1dbbc12260a3b1939753c\",\n  \"bytes\": 50219189,\n  \"sha256\": \"cc704ba15d6802f8262e6ec7d4c6041e4ad6366a94365e8c84f721e450eed774\",\n  \"archive\": \"results/ledger-optimization/m5-source-014/m5.zip\"\n}\n",
+  "stderr": ""
+}

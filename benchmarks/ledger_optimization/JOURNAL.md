@@ -453,3 +453,30 @@ mappings, in evidence/opportunity-013.json. No API/provider calls or new data
 access. FORECAST_EVALUATION_GATE.md now records the development-only feasibility,
 fair-agent comparison and immutable final-test gates. The original target and
 negative confirmation remain unchanged; no main or PyPI changes.
+
+## 2026-09-12: M5 prospective source preparation 014
+
+Previous turn made progress with audit 013 and the fair-evaluation gate, pushed
+as 50a60c4. Revalidated state and inspected the separate FreshRetailNet ROI plan
+without modifying it. Its 90-day source cannot meet the existing annual-history
+and 26 nonoverlapping 14-day origin schedule. Selected the longer M5 retail
+source for task relevance before computing any candidate outcomes, not because
+of an observed advantage. No M5 references were found in the searched prior
+local experiment manifests/receipts; this is not a global contamination proof.
+
+Committed source pin, protocol, prefix-only selection and tests as ce5c03c before
+download. First preparation failed on missing calendar d field before target
+export. Preserved the failure, corrected the mirror's one-based date mapping
+under 0cce4b4, then retried without changing sampling rules. All seven tests pass.
+
+Eight development series (CA_3/WI_2), 24 reserved series (eight other stores), all
+32 items unique. 30,490 prefixes checked; 27,380 eligible, 3,110 below initial
+nonzero-history threshold. Development exports 5,840 rows and supports 208
+origin/horizon pairs. Two clean preparations agree byte-for-byte on development
+targets and exactly on split/eligibility metadata. All source and code hashes,
+timestamps, disjointness and planned horizons checked. Reserved later targets
+were not inspected numerically, scored or exported; no forecasting model or
+Engy call ran. Keep source/recording assumptions and unavailable promotion
+feature explicit. Source amendment does not replace the primary target or grant
+permission to cherry-pick reserved outcomes. Full commands, failure, retry,
+timings and receipts are retained in evidence/m5-*-014*. Main/PyPI unchanged.
