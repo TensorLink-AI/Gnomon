@@ -13,6 +13,11 @@ hindsight selection among the fixed forecasts improves at most **12.49%**, so
 See [the full confirmation report](CONFIRMATION_010.md) and its linked audits.
 No main merge or PyPI release was made.
 
+Continuation screen 011 tested past outcomes conditioned on the current CV
+leader, without changing forecasts. Its training-selected rule was 0.28% worse
+than current CV and 2.23% worse than existing support on the later development
+slice. It was not promoted to a live run. See [the retained result](CV_CONTEXT_011_RESULT.md).
+
 The user's subsequent evaluation-development task is tracked separately in
 [the accumulated-experience workflow benchmark](../experience_workflow/README.md).
 It starts from arrived raw events and measures correct retrieval, revision review,

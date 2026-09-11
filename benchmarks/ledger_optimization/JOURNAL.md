@@ -382,3 +382,25 @@ confirmation. Original artifacts and numeric results were not rewritten.
 Post-run audit/plot scripts in `audits/` were added after the experiment and
 do not change the frozen treatment. See `CONFIRMATION_010.md`. Main and PyPI
 were not modified for this work. The goal is not marked complete.
+
+## 2026-09-12: CV-leader context screen 011, not promoted
+
+Revalidated the active 20% forecast-error objective and the original negative
+confirmation. The separate workflow-efficiency experiment and Hermes skill
+comparison do not satisfy the three-arm, untouched forecast-error objective.
+The original confirmation cases/ledger artifacts remain available locally;
+missing `/tmp` Hermes archives were not recreated or claimed as present.
+
+Committed protocol, code and five passing tests as bd9768f before running a
+bounded screen on only the existing 208 development cases. Four fixed variants
+conditioned retrieval on the same historical CV leader, requiring 4/8 origins
+and 50%/75% paired wins. Same providers and immutable predictions, no API calls.
+Training selected minimum 4 / 75% wins; the later development slice was 0.28%
+worse than CV and 2.23% worse than existing unconditioned support. Do not promote.
+
+Independent metric calculations agreed with every cached candidate loss. All
+208 reference-policy choices agreed with screen 007, input hash unchanged.
+Future outcomes, late recording and source visibility were covered by tests.
+Retained every variant and per-case retrieval/choice/loss in cv-context-011.json;
+no after-the-fact variant substitution or fresh confirmation was performed.
+No forecasting superiority claim, main merge, release or PyPI change.
