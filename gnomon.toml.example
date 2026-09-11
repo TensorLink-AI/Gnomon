@@ -1,93 +1,48 @@
-# Gnomon project configuration (preferred; parsed by Python >=3.11 stdlib)
-# Copy to gnomon.toml. Unknown or unsupported keys fail at startup.
+# Gnomon operator configuration (TOML, parsed by the Python 3.11+ stdlib).
+#
+# Copy to providers.toml and pass it explicitly:
+#   gnomon capabilities --providers-config providers.toml
+#   gnomon mcp serve --providers-config providers.toml
+#
+# Gnomon never searches the working directory for configuration. Unknown keys
+# fail at startup; run `gnomon capabilities --config-schema` for every key.
+# Relative paths resolve against this file's directory, not the current
+# working directory. Credentials are environment variable *names*, never
+# values, and are never agent tool arguments.
 
-[models.statistical]
-enabled = true
-candidates = ["drift", "linear_trend", "window_average", "theta", "ets", "croston_sba"]
+schema_version = 1
 
-# Optional extra: pip install "gnomon-forecast[statsforecast]". Candidates
-# still have to beat the mandatory baselines on Gnomon's rolling folds.
-[models.statsforecast]
-enabled = false
-candidates = ["statsforecast_autoets", "statsforecast_autoarima", "statsforecast_autotheta", "statsforecast_croston_optimized"]
+# Optional SQLite ledger. Forecasts, actuals, scores and decisions are recorded
+# here and later revisions never overwrite earlier predictions.
+ledger_path = "gnomon-ledger.db"
 
-[models.tsfm]
-candidates = []
+# Agents may append actuals, record decisions and outcomes only when true.
+allow_outcome_writes = false
 
-# Single-TSFM project recipe: set models.statistical.enabled = false above
-# and replace the empty list with, for example,
-# candidates = ["chronos_bolt_mini"]
-# This skips every other optional model. Mandatory baselines still compete;
-# the setting narrows the contest and does not force the TSFM to publish.
+# Expose gnomon_temporal (date shifts, intervals, event order) to MCP clients.
+enable_temporal = false
 
-# Strict is the default. Evidence-weighted admission requires a versioned JSON
-# registry compiled from independent pinned-revision outcomes. Relative paths
-# resolve beside this configuration file.
-[models.admission]
-policy = "strict" # strict | evidence_weighted
-# evidence_registry_path = "model-evidence.json"
+# Session-only forecast cache for deterministic providers; 0 disables it.
+cache_size = 0
 
-# [models.tsfm.overrides.chronos_bolt_mini]
-# backend = "sandbox" # auto | sandbox | api | skip
+# Ephemeris: TensorLink's hosted forecasting models. Set exactly one of
+# base_url or base_url_env. Both environment variables must be set before
+# startup; an unset base URL variable is a configuration error.
+[providers.ephemeris]
+kind = "ephemeris"
+base_url_env = "EPHEMERIS_BASE_URL"
+token_env = "EPHEMERIS_API_TOKEN"
+# discover = true registers every enabled, healthy hosted model as
+# ephemeris/<model> at startup; it needs network access.
+discover = false
 
-[backends.sandbox]
-enabled = true
-
-[backends.api]
-enabled = false
-timeout = 60
-retry = 2
-
-# [backends.api.providers.chronos_bolt_mini]
-# url = "https://inference.example.com/v1/forecast"
-# model = "chronos-bolt-mini"
-# revision = "provider-specific immutable revision"
-# timeout = 30
-# retry = 2
-# [backends.api.providers.chronos_bolt_mini.auth]
-# type = "bearer"
-# token_env = "GNOMON_API_KEY"
-# header = "Authorization"
-
-[ensemble]
-enabled = false
-strategy = "weighted_mean" # weighted_mean | median | voting
-
-[ensemble.weighted_mean]
-min_models = 2
-max_weight_ratio = 0.7
-
-# [ensemble.median]
-# min_models = 3
-
-# [ensemble.voting]
-# min_models = 3
-# threshold = 0.5
-
-[meta_model]
-enabled = false
-min_models = 2
-non_negative = true
-
-[meta_model.linear_regression]
-ridge_alpha = 0.000001
-
-[evaluation]
-minimum_baseline_improvement = 0.02
-selection = "per_series"
-
-[evaluation.folds]
-# min_observations = 56
-
-[evaluation.uncertainty]
-pool_residuals = true
-target_coverage = 0.80
-
-[context]
-future_events = false
-structural_events = false
-
-[output]
-write_forecast_csv = true
-write_summary = true
-write_evidence = true
+# Your own model as a Python callable: module:attribute taking a
+# ForecastRequest and returning a ForecastResult. This entry points at the
+# installable example in examples/provider_plugin
+# (python -m pip install ./examples/provider_plugin); replace it with your
+# own module. Use kind = "factory" when each call needs a fresh fitted object.
+[providers.my-model]
+kind = "callable"
+entrypoint = "gnomon_example_provider:last_value"
+revision = "my-model/0.0.0"
+deterministic = true
