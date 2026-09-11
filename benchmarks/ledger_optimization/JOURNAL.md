@@ -180,3 +180,19 @@ phase may expand to ensembles/calibration with identical capabilities in all
 arms. No expansion or final evaluation is authorized by elapsed waiting time.
 The 24-series confirmation partition remains reserved and unscored. Main and
 PyPI remain unchanged; all implementation changes are on the development branch.
+
+## Final-analysis preparation while scope decision is pending
+
+Implemented `analysis.py` using the already registered 5,000-replicate,
+seed-20260911 series/shared-circular-four-origin-block bootstrap. Added strict
+cohort validation, seed/series/cold/mature breakdowns, retained fallback counts,
+absolute and relative paired intervals, and explicit zero-control semantics.
+The numerical gate cannot by itself mark the target achieved. The implementation
+rejects our sparse four-origin agent runs for this consecutive-origin analysis;
+it does not fabricate intervals by treating distant origins as adjacent.
+
+Eleven synthetic analysis tests pass, covering exact paired effects,
+determinism, invalid cohorts, zero controls and fallback inclusion. This work
+uses no additional API calls and no confirmation data. The broader forecasting
+scope decision remains pending; no user response is inferred from automatic
+goal continuations or elapsed time.

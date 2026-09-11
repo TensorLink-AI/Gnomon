@@ -48,6 +48,12 @@ PYTHONPATH=/root/Gnomon/src .venv/bin/python -m benchmarks.ledger_optimization.s
   --output /tmp/new-agent-headroom.json
 ```
 
+`analysis.py` supplies the preregistered paired bootstrap for a **complete,
+consecutive-origin** run. It refuses the sparse-origin development run above.
+Its statistical criteria are necessary but do not replace the final provenance
+audit. Tests use synthetic balanced panels; no confirmation outcomes were read
+to develop the analyzer.
+
 Live runs require Engy credentials; never put credentials in tracked artifacts.
 Retained runs contain API token usage, but the provider returned no dollar cost.
 The calibration feasibility script changes predictions and is explicitly outside

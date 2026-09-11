@@ -72,3 +72,26 @@ Report seed-specific, cold-start (origins 0–3), mature (4–25), per-series an
 per-arm completion/cost results separately without changing the primary metric.
 If the target fails, preserve the failure; do not tune against the confirmation
 outcomes and relabel it a fresh confirmation.
+
+## Analysis implementation
+
+`analysis.py` implements the specified bootstrap with Python `random.Random`,
+seed 20260911, 5,000 replicates and linearly interpolated percentile endpoints.
+Each replicate draws series with replacement and one shared sequence of circular
+four-origin blocks, truncated to the original number of origins. Both requested
+agent seeds remain together inside each case; averaging them before resampling
+is equivalent for this balanced arithmetic-mean metric. No arm is sampled
+independently from its control.
+
+The analyzer rejects missing/extra/duplicate decisions, nonfinite or negative
+RMSLE, unresolved harness failures and nonconsecutive origin grids. Fallback
+forecasts remain in the primary denominator. A zero control mean makes relative
+improvement undefined; if any resample has zero control mean, its relative
+interval is null and cannot pass the numerical gate. Absolute intervals are
+also returned. No resamples are dropped to produce a favorable interval.
+
+It reports the 20% point-estimate criterion, positive lower uncertainty bound,
+and improvement over original ledger separately from provenance. The analyzer
+always leaves `target_established: false`: verifying the frozen implementation,
+untouched partition, visibility rules and matched execution is a separate
+required audit. Development results cannot establish the final target.
