@@ -19,6 +19,12 @@ discipline change.
   pipes, agents and CI keep the JSON envelope, and `--json` forces it.
 - `capabilities` (CLI and MCP) gains an additive top-level `ephemeris` field
   reporting whether a hosted-model provider is configured.
+- Repair handoff: `safe` repair (text normalisation and bounded jitter alignment,
+  no invented values) is the default for inspect, describe, forecast and
+  evaluate; `aggressive` stays opt-in. `inspect` leads with a `data_quality`
+  summary, and a failed load carries the exact `next_call` (the admissible
+  repair level, or `correct_target` with the row and value). The same file
+  always freezes to the same snapshot; a test pins it.
 - Agent skill cut to a short order-of-operations instruction set.
 - Add `examples/agent_cheating_demo.sh`, an offline demonstration of source
   cutoffs, recorded replay and revision-aware rescoring.

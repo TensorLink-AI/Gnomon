@@ -97,7 +97,13 @@ File options are `--time-column`/`--time` (default timestamp for every provider)
 `--recorded-as-of`, `--store-path`, `--unit`, `--repair`, `--regrid`, `--timezone`
 and `--window latest_contiguous`.
 They cannot be mixed with a typed request. Panel forecasts require `--series-id`
-unless only one series is present. Repairs default to off.
+unless only one series is present. Repairs default to `safe`: text normalisation,
+identical-duplicate removal and bounded timestamp jitter alignment only, every fix
+itemised in `repairs` and summarised in `data_quality`. `aggressive` (gap
+interpolation, conflict resolution, row drops) is never applied unless chosen;
+when `safe` fails, the error's `next_call` names the exact retry, or
+`correct_target` with the row and value when no repair level is admissible.
+`--repair off` is the strict path.
 
 Forecast responses include `request_provenance` with the execution's cutoff,
 known-time and recorded-time cutoffs, snapshot ID, selected series and history

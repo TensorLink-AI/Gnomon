@@ -119,7 +119,7 @@ def test_cache_counters_and_study_scoring_discovery(tmp_path):
 def test_repairs_offer_alignment_and_reject_impossible_drops(tmp_path):
     path = tmp_path / 'jitter.csv'
     path.write_text('timestamp,value\n' + ''.join(f'{(at(i) + timedelta(minutes=1 if i == 12 else 0)).isoformat()},{i}\n' for i in range(1, 31)))
-    code, rejected = cli('inspect', '--input', path, '--frequency', 'D')
+    code, rejected = cli('inspect', '--input', path, '--frequency', 'D', '--repair', 'off')
     assert code == 2 and rejected['error']['repair_options'][0]['action'] == 'align_timestamps_safe'
     assert rejected['error']['details']['timestamp_alignment']['admissible']
     assert rejected['error']['details']['repair_budgets']['gap_fill_budget']['admissible'] is None

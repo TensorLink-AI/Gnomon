@@ -138,9 +138,10 @@ def test_duplicate_recovery_and_season_parameters(tmp_path):
     path = tmp_path / "data.csv"
     path.write_text("timestamp,value\n2026-01-01,1\n2026-01-02,2\n2026-01-02,2\n2026-01-03,3\n")
     args = ("infer", "--provider", "last_value", "--input", path, "--horizon", "2")
-    _, error = cli(*args)
+    _, error = cli(*args, "--repair", "off")  # strict mode is explicit since 1.2.0; safe is the default
     assert error["error"]["repair_options"][0]["action"] == "deduplicate_identical_rows"
-    code, result = cli(*args, "--repair", "safe")
+    assert error["error"]["details"]["next_call"]["argv"][-2:] == ["--repair", "safe"]
+    code, result = cli(*args)
     assert code == 0 and result["result"]["point"] == [3, 3]
     path.write_text("timestamp,value\n2026-01-01,1\n2026-01-02,2\n")
     _, result = cli("infer", "--provider", "seasonal_naive", "--input", path,

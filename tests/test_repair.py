@@ -105,13 +105,15 @@ def daily_rows(count=30):
     return [((datetime(2026, 1, 1) + timedelta(days=i)).isoformat(), str(100+i)) for i in range(count)]
 
 
-def test_repairs_are_explicit_off_by_default_and_disclosed(tmp_path):
+def test_strict_repair_rejects_and_the_safe_default_discloses_every_fix(tmp_path):
+    # 1.2.0: safe is the default; strict rejection needs an explicit repair="off".
     rows = daily_rows()
     rows[5] = (rows[5][0], "$105")
     with pytest.raises(GnomonError) as caught:
-        inspect_rows(tmp_path, rows)
+        inspect_rows(tmp_path, rows, repair="off")
     assert caught.value.code == "INVALID_TARGET"
-    inspected, request = inspect_rows(tmp_path, rows + [rows[10]], repair="safe")
+    inspected, request = inspect_rows(tmp_path, rows + [rows[10]])
+    assert inspected["data_quality"]["status"] == "repaired_safe"
     assert request.history == tuple(float(100+i) for i in range(30))
     codes = {action["code"] for action in inspected["repairs"]}
     assert {"numeric_format_normalised", "duplicate_row_collapsed"} <= codes
@@ -184,7 +186,7 @@ def test_safe_jitter_alignment_preserves_values_and_discloses_tolerance(tmp_path
     start = datetime(2026, 1, 1, 0, 7)
     rows = [((start + timedelta(minutes=20*i, seconds=(-1, 1, 0)[i%3])).isoformat(), str(i)) for i in range(36)]
     with pytest.raises(GnomonError):
-        inspect_rows(tmp_path, rows)
+        inspect_rows(tmp_path, rows, repair="off")
     inspected, request = inspect_rows(tmp_path, rows, repair="safe")
     aligned = next(action for action in inspected["repairs"] if action["code"] == "timestamp_jitter_aligned")
     assert aligned["count"] == 24 and aligned["metrics"]["tolerance_seconds"] == 12

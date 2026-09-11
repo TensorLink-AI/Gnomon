@@ -6,18 +6,18 @@
 
 **Give your agent a forecast it can't fake.**
 
-<!-- TODO(F2): link docs/assets/demo.gif (recording of examples/agent_cheating_demo.sh) -->
+<!-- TODO(F2): docs/assets/demo.gif -->
 
 Gnomon runs time-series models, Ephemeris (hosted) or your own, against frozen
 point-in-time data and returns every forecast with the snapshot, execution ID and
-evaluation evidence behind it. Agents get numbers they can quote. You get a ledger
-you can audit.
+evidence behind it. Agents get numbers they can quote. You get a ledger you can audit.
 
 ## Why
 
 - Agents wired straight to data backtest on the future.
 - Given too little history, they invent numbers.
 - Without a snapshot and execution ID, nobody can say where a figure came from.
+- Silently "cleaned" data hides what the model never saw.
 
 ## Quick start
 
@@ -25,8 +25,7 @@ you can audit.
 python -m pip install gnomon-forecast
 ```
 
-With Ephemeris (credentials are environment variables named in
-[operator config](gnomon.toml.example), never arguments):
+With Ephemeris (credentials come from [operator config](gnomon.toml.example), never arguments):
 
 ```bash
 EPHEMERIS_BASE_URL=https://... EPHEMERIS_API_TOKEN=... gnomon forecast requests.csv \
@@ -34,7 +33,7 @@ EPHEMERIS_BASE_URL=https://... EPHEMERIS_API_TOKEN=... gnomon forecast requests.
   --providers-config providers.toml --quantiles 0.1 0.5 0.9
 ```
 
-Built-in baseline, no key needed:
+Built-in baseline, no key:
 
 ```bash
 gnomon forecast examples/messy_requests.csv --time timestamp --target requests \
@@ -68,23 +67,24 @@ The agent gets 6 tools by default:
 
 ## What every forecast carries
 
-- A frozen snapshot with its `as_of` cutoff.
+- A frozen snapshot with its `as_of` cutoff; the same file always freezes to the same snapshot.
 - An execution ID and request fingerprint.
 - The provider and revision.
+- Every data repair itemised; nothing interpolated unless you chose `aggressive`.
 - An optional ledger row that later actuals never overwrite.
 - Rescoring after revisions, originals intact.
 
 ## Ephemeris
 
-Ephemeris is TensorLink's hosted forecasting models. Each forecast returns point
-values, requested quantiles and `models_used`. Access is per deployment: set
-`EPHEMERIS_BASE_URL` and `EPHEMERIS_API_TOKEN` and register the provider in
-[operator config](docs/production/INFERENCE.md#ephemeris-hosted-models), never
-as tool arguments.
+Ephemeris is TensorLink's hosted forecasting models: point values, requested
+quantiles and `models_used` per forecast. Set `EPHEMERIS_BASE_URL` and
+`EPHEMERIS_API_TOKEN` and register the provider in
+[operator config](docs/production/INFERENCE.md#ephemeris-hosted-models);
+credentials are never tool arguments.
 
 ## Your own models
 
-Register any callable that maps a request to a result:
+Register any callable:
 
 ```python
 from gnomon import ForecastRequest, ForecastResult, InferenceEngine
@@ -99,8 +99,8 @@ execution = engine.forecast("my-model", ForecastRequest((10, 12, 11), 2))
 print(execution.result.point)  # (11.0, 11.0)
 ```
 
-Install Gnomon in the model's Python environment (`python -m pip install .` from a
-checkout). See [provider integration](docs/production/INFERENCE.md).
+Install it in the model's environment (`python -m pip install .` from a checkout);
+see [provider integration](docs/production/INFERENCE.md).
 
 ## Status and guides
 

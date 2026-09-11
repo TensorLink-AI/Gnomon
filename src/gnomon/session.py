@@ -159,7 +159,7 @@ INSPECT_SCHEMA = {"type": "object", "additionalProperties": False, "required": [
                       "recorded_as_of", "store_path", "unit", "regrid", "timezone")},
                       "purpose": {"enum": ["infer", "evaluate", "route"]},
                       "window": {"enum": ["latest_contiguous"]},
-                      "repair": {"enum": ["off", "safe", "aggressive"], "description": REPAIR_HELP}}}
+                      "repair": {"enum": ["off", "safe", "aggressive"], "default": "safe", "description": REPAIR_HELP}}}
 _SERIES_SELECTOR = {"type": "string", "description":
     "Select an existing inspected series, not a new label. Unlabeled input uses __default__; "
     "read labels from a column using inspect series_column (CLI: --series-column)."}

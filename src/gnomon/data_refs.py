@@ -43,6 +43,27 @@ class _FrozenInput:
     row_count: int
 
 
+REPAIR_DEFAULT = "safe"
+_REPAIR_LADDER = ("off", "safe", "aggressive")
+# Failures that no repair level addresses: the caller must change the request, not the data policy.
+_NO_HANDOFF_CODES = frozenset({"MISSING_COLUMNS", "INPUT_NOT_FOUND", "UNSUPPORTED_INPUT", "INVALID_ARGUMENTS",
+                               "INPUT_TOO_LARGE", "DIAGNOSTIC_LIMIT", "EMPTY_SNAPSHOT"})
+_DISCLOSURE_CODES = frozenset({"timezone_declared", "window_selected"})
+
+
+def data_quality(repairs, repair):
+    """First-key summary of what preparation changed. Every fix stays itemised in ``repairs``."""
+    fixes = sum(int(r["count"]) for r in repairs if not r["code"].endswith("_dropped") and r["code"] not in _DISCLOSURE_CODES)
+    dropped = sum(int(r["count"]) for r in repairs if r["code"].endswith("_dropped"))
+    if not fixes and not dropped:
+        status = "clean"
+    elif repair == "aggressive" or any(r.get("assumptive") for r in repairs):
+        status = "repaired_aggressive"
+    else:
+        status = "repaired_safe"
+    return {"status": status, "fixes": fixes, "dropped": dropped, "next_call": None}
+
+
 class DataReferences:
     def __init__(self, *, max_refs: int = 16, max_rows: int = 100_000):
         for value in (max_refs, max_rows):
@@ -50,6 +71,7 @@ class DataReferences:
                 raise ForecastAdapterError("data reference capacities must be positive integers")
         self.max_refs, self.max_rows = max_refs, max_rows
         self._inputs: OrderedDict[str, _FrozenInput] = OrderedDict()
+        self._handoff = True  # probes created by the handoff itself never diagnose recursively
 
     def diagnose(self, input, **options):
         """Dry-run all repair policies on a local file; never write repaired data."""
@@ -85,8 +107,10 @@ class DataReferences:
     def inspect(self, input: str, *, time_column: str = "timestamp", target_column: str = "value",
                 series_column: str | None = None, frequency: str | None = None, as_of: str | None = None,
                 recorded_as_of: str | None = None, store_path: str | None = None,
-                repair: str = "off", regrid: str | None = None, unit: str | None = None,
+                repair: str = REPAIR_DEFAULT, regrid: str | None = None, unit: str | None = None,
                 timezone: str | None = None, purpose: str = "infer", window: str | None = None) -> dict:
+        """Freeze an input. repair defaults to safe: text normalisation and bounded jitter
+        alignment only, every fix listed in ``repairs``; aggressive stays opt-in."""
         if purpose not in {"infer", "evaluate", "route"}:
             raise ForecastAdapterError("purpose must be infer, evaluate or route")
         for name, value in (("input", input), ("time_column", time_column), ("target_column", target_column)):
@@ -95,11 +119,11 @@ class DataReferences:
         if unit is not None and (not isinstance(unit, str) or not unit.strip()):
             raise ForecastAdapterError("unit must be a nonempty string or null")
         if not input.startswith("store:") and Path(input).suffix == ".gnomon":
-            if (time_column != "timestamp" or target_column != "value" or repair != "off"
+            if (time_column != "timestamp" or target_column != "value" or repair != REPAIR_DEFAULT
                     or any(value is not None for value in (series_column, frequency, as_of, recorded_as_of,
                                                           store_path, regrid, timezone, unit, window))):
                 rejected = {k: v for k, v in locals().items() if k in {'series_column', 'frequency', 'as_of', 'recorded_as_of', 'store_path', 'regrid', 'timezone', 'unit', 'window'} and v is not None}
-                rejected.update({k: v for k, v, default in [('time_column', time_column, 'timestamp'), ('target_column', target_column, 'value'), ('repair', repair, 'off')] if v != default})
+                rejected.update({k: v for k, v, default in [('time_column', time_column, 'timestamp'), ('target_column', target_column, 'value'), ('repair', repair, REPAIR_DEFAULT)] if v != default})
                 from .recovery import frozen_recovery
                 raise ForecastAdapterError("No preparation options are accepted with .gnomon input, even identical cutoffs. A saved snapshot already fixes its schema, unit, timezone, repairs and cutoffs; "
                                            "supply only input and purpose, or inspect the original source with new options.",
@@ -121,6 +145,11 @@ class DataReferences:
                         store_path=store_path, repair=repair, regrid=regrid, timezone=timezone, window=window, unit=unit, purpose=purpose)
                     exc.details.update(column_recovery(exc.details, {k: v for k, v in arguments.items() if v is not None}))
                     exc.details['argument_basis'] = 'effective_python_inspection_arguments_defaults_may_be_included'
+                elif self._handoff and exc.code not in _NO_HANDOFF_CODES and not input.startswith("store:"):
+                    options = dict(time_column=time_column, target_column=target_column, series_column=series_column,
+                                   frequency=frequency, as_of=as_of, recorded_as_of=recorded_as_of, store_path=store_path,
+                                   regrid=regrid, timezone=timezone, window=window, unit=unit, purpose=purpose)
+                    exc.details.update(self._repair_handoff(exc, input, repair, {k: v for k, v in options.items() if v is not None}))
                 raise
             repairs = tuple(action.to_dict() for action in log.actions())
         # Count every retained vintage, not only the latest materialized rows.
@@ -140,7 +169,8 @@ class DataReferences:
                                sum(item.row_count for item in self._inputs.values()) + count > self.max_rows):
             self._inputs.popitem(last=False)
         self._inputs[ref] = frozen
-        return {"schema_version": "1", "status": "ok", "data_ref": ref,
+        return {"schema_version": "1", "status": "ok", "data_quality": data_quality(repairs, repair),
+                "data_ref": ref,
                 "frequency": loaded.frequency, "timezone": loaded.timezone, "unit": unit,
                 "unit_basis": "caller_declared" if unit else "unknown",
                 "series": [{"series_id": name, "count": len(rows),
@@ -154,6 +184,51 @@ class DataReferences:
                         'choices_required': ['candidates', 'baseline', 'horizon']},
                     'guidance': 'Use evaluation preflight to check actual planned origins. Recorded replay excludes history recorded after each origin. Source-availability replay requires an explicit semantic choice and never attests local historical availability.'},
                 "reference_scope": "session", "eviction": "least_recently_used"}
+
+    def _repair_handoff(self, exc, input, repair, options):
+        """Diagnose a failed load inline so the caller's next call is spelled out.
+
+        The next repair level is dry-run, never applied: the caller chooses it.
+        Bounded like diagnose (local files up to 8 MiB); one rung per failure.
+        """
+        path = Path(input)
+        if not path.is_file() or path.stat().st_size > 8 * 1024 * 1024:
+            return {}
+        current = _REPAIR_LADDER.index(repair) if repair in _REPAIR_LADDER else 0
+        probe = DataReferences(max_refs=1, max_rows=min(self.max_rows, 100000))
+        probe._handoff = False
+        try:
+            for mode in _REPAIR_LADDER[current + 1:]:
+                try:
+                    result = probe.inspect(input, repair=mode, **options)
+                except (GnomonError, ForecastAdapterError):
+                    continue
+                arguments = {"input": input, **options, "repair": mode}
+                quality = {**result["data_quality"], "status": "needs_" + mode}
+                return {"data_quality": {**quality, "next_call": {"tool": "gnomon_inspect", "arguments": arguments}},
+                        "next_call": {"tool": "gnomon_inspect", "arguments": arguments, "runnable": True, "admissible": True},
+                        "example_arguments": arguments, "example_kind": "task_correction", "example_runnable": True,
+                        "admissible": True, "changed_fields": ["repair"],
+                        "guidance": f"{mode} repair completes preparation within budget; its fixes are listed in "
+                                    "repairs and never applied without this explicit choice."}
+            cell = exc.details if "row" in exc.details else {}
+            if not cell:
+                # The strict pass names the first cell no policy could parse.
+                try:
+                    probe.inspect(input, repair="off", **options)
+                except GnomonError as strict:
+                    cell = strict.details if "row" in strict.details else {}
+                except ForecastAdapterError:
+                    cell = {}
+        finally:
+            probe.clear()
+        correction = ({"action": "correct_target", "row": cell["row"], "value": cell.get("value"),
+                       "guidance": "Correct this cell in the source file; no repair level within budget can prepare it."}
+                      if cell else
+                      {"action": "correct_source", "reason": exc.code,
+                       "guidance": "No repair level within budget can prepare this input; correct the source file."})
+        return {"data_quality": {"status": "rejected", "fixes": 0, "dropped": 0, "next_call": correction},
+                "next_call": correction, "admissible": False, "example_runnable": False}
 
     def snapshot_summary(self, data_ref: str) -> dict:
         """Return provenance of the retained snapshot without reopening its source."""

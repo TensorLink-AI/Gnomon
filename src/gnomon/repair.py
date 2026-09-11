@@ -13,9 +13,9 @@ is honesty, not fragility: repairs are allowed, but only under three rules.
    the honest answer is ``EXCESSIVE_REPAIR``, not a forecast built on a
    dataset Gnomon mostly invented.
 
-Repair is off by default. Two explicitly selected levels are available:
+``safe`` is the default; ``off`` (strict) and ``aggressive`` are explicit choices:
 
-- ``safe``: reinterprets cell *text* and aligns bounded
+- ``safe`` (default): reinterprets cell *text* and aligns bounded
   scheduler/scrape jitter — date formats, currency/thousands separators,
   percent signs, sentinel missing values, fully blank rows, byte-identical
   duplicate rows, and timestamps within 1% of a deterministic grid (capped
@@ -73,7 +73,8 @@ MAX_ASSUMPTIVE_FRACTION = 0.30
 MAX_DROPPED_FRACTION = 0.05
 
 REPAIR_HELP = (
-    "off: strict input; safe: formatting, identical duplicates and bounded timestamp jitter, no gap filling; "
+    "safe (default): formatting, identical duplicates and bounded timestamp jitter, no gap filling, every fix listed in repairs; "
+    "off: strict input; "
     "aggressive: also interpolate interior gaps and resolve conflicting rows, with disclosed assumptions. "
     "Fills plus conflict resolutions may not exceed 30% of original observations per series (before deduplication/filling); "
     "each gap is limited to max(3, original observations // 10) steps. "

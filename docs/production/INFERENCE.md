@@ -95,8 +95,8 @@ belong in the user's chosen software, not invented describe operations.
 Inspection and backtesting use one loader. `as_of` bounds source
 availability before any file repair; `recorded_as_of` additionally bounds locally
 recorded vintages for `store:<dataset>` inputs. Plain files cannot reconstruct
-recording-time history and reject that option. Repair is off unless explicitly
-requested and every repair is disclosed. File values assume availability at their
+recording-time history and reject that option. Repair defaults to `safe`
+(no invented values), `aggressive` is explicit, and every repair is disclosed. File values assume availability at their
 valid timestamp; this assumption is not proof of historical availability.
 
 Reference forecasts derive the future grid from the last observed timestamp and

@@ -68,7 +68,7 @@ def _input_options(parser):
                         help="Use the latest uninterrupted observed segment per series; requires --frequency and discloses excluded rows")
     for name in ("series-column", "frequency", "as-of", "recorded-as-of", "store-path", "unit"):
         parser.add_argument("--" + name)
-    parser.add_argument("--repair", choices=("off", "safe", "aggressive"), default="off", help=REPAIR_HELP.replace("%", "%%"))
+    parser.add_argument("--repair", choices=("off", "safe", "aggressive"), default="safe", help=REPAIR_HELP.replace("%", "%%"))
     parser.add_argument("--regrid", choices=("business_daily", "month_start"))
 
 
@@ -319,7 +319,7 @@ def _validate_cli_args(args):
                 "frequency", "as_of", "recorded_as_of", "store_path", "unit", "regrid", "window"]
         keys += (["folds", "min_history", "stride", "max_calls", "rescore", "source_as_of", "no_partial", "verify", "preflight", "replay"] if args.command == "evaluate" else
                  ["study", "source_as_of", "min_folds", "min_improvement", "require_evidence"])
-        if any(getattr(args, key) is not None for key in keys) or args.repair != "off" \
+        if any(getattr(args, key) is not None for key in keys) or args.repair != "safe" \
                 or args.time_column != "timestamp" or args.target_column != "value":
             raise _UsageError("Task and data flags require --input; put them inside JSON when using --arguments.", prog)
 
@@ -547,7 +547,7 @@ def _execute(session, args):
         else:
             if any(getattr(args, key) is not None for key in (
                     "horizon", "series_column", "series_id", "frequency", "as_of",
-                    "recorded_as_of", "store_path", "unit", "regrid", "timezone", "season", "quantiles", "window")) or args.repair != "off" \
+                    "recorded_as_of", "store_path", "unit", "regrid", "timezone", "season", "quantiles", "window")) or args.repair != "safe" \
                     or args.time_column != "timestamp" or args.target_column != "value":
                 raise _UsageError("File/schema flags apply only with --input, not --request.", "gnomon infer")
             task = {"request": read_json_argument(args.request)}
@@ -774,6 +774,23 @@ def main(argv: Sequence[str] | None = None) -> int:
                 correction[flag_index] = correction[flag_index].split('=', 1)[0] + '=ts'
             details['next_call'] = {'argv': ['gnomon', *correction], 'runnable': True, 'admissible': None}
     details = payload['error']['details']
+    handoff = details.get('next_call')
+    if args is not None and getattr(args, 'input', None) and isinstance(handoff, dict) and 'repair' in handoff.get('arguments', {}):
+        # The repair handoff names the tool call; give the CLI caller the exact argv instead.
+        correction, mode, skip = [], handoff['arguments']['repair'], False
+        for item in argv:
+            if skip:
+                skip = False
+                continue
+            if item == '--repair':
+                skip = True
+                continue
+            if item.startswith('--repair='):
+                continue
+            correction.append(item)
+        correction += ['--repair', mode]
+        details['next_call'] = {'argv': ['gnomon', *correction], 'runnable': True, 'admissible': True}
+        details['data_quality']['next_call'] = details['next_call']
     if args is not None and str(getattr(args, 'input', '')).endswith('.gnomon') and details.get('rejected_fields'):
         from .recovery import frozen_recovery
         rejected = details['rejected_fields']

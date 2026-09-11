@@ -12,8 +12,11 @@ Regular whole-second subdaily steps and daily, weekly and month-start calendars
 are supported. A horizon counts grid steps, not calendar days in general.
 Named zones and daylight-saving behavior matter for calendar operations.
 
-Repairs are explicit: `off` rejects malformed input, `safe` applies disclosed
-normalization, and `aggressive` permits bounded disclosed imputation.
+Repairs are disclosed, never silent: `safe` (the default) applies text
+normalisation and bounded jitter alignment without inventing a value, `off`
+rejects malformed input, and `aggressive` permits bounded disclosed imputation
+only when chosen. Every fix is itemised in `repairs`; `data_quality` summarises
+the count and, on failure, the exact `next_call`.
 Calendar regrids `business_daily` and `month_start` must be declared and are
 checked for implausible filling/collisions. Repairs never establish model accuracy.
 

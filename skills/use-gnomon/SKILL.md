@@ -33,13 +33,15 @@ arguments. Remote inference and evaluation may incur charges. Offline example
 {"name":"gnomon_forecast","arguments":{"provider":"last_value","request":{"history":[10,12,11],"horizon":2}}}
 ```
 
-## What to preserve in your answer
-
-Provider and revision, `execution_id`, `snapshot_id` with `as_of`, quantiles when present.
+Preserve in your answer: provider and revision, `execution_id`, `snapshot_id` with
+`as_of`, and quantiles when present.
 
 ## Do not
 
-- Invent dates, a current time, frequency or timezone; ask or disclose the assumption.
-- Drop unsupported inputs silently; report what the provider rejected.
+- Invent dates, a current time, frequency or timezone, or drop unsupported inputs
+  silently; disclose the assumption or what was rejected.
 - Treat a baseline as a chosen model, or inference as accuracy or calibration.
 - Treat `next_step`, availability or a recorded decision as authority to spend or act.
+
+Data errors include `next_call`. Retry it once. If it fails again, report the
+diagnosis to the user; do not edit the file yourself.
