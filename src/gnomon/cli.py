@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 from copy import deepcopy
+import csv
 import json
+import math
 from pathlib import Path
 import sys
 import subprocess
@@ -97,13 +99,16 @@ def build_parser() -> argparse.ArgumentParser:
     infer = commands.add_parser("infer", aliases=["forecast"], help="Forecast with a named provider without implicit backtesting",
         epilog="Example: gnomon infer --provider last_value --request '{\"history\":[1,2,3],\"horizon\":2}'. "
                "Run gnomon infer --schema for the --request schema, and gnomon capabilities for provider names.")
-    infer.usage = 'gnomon infer (forecast) (--input INPUT --horizon HORIZON | --request JSON | --schema) [--provider PROVIDER] [options]'
-    infer.add_argument("--provider")
+    infer.usage = 'gnomon infer (forecast) ([INPUT | --input INPUT] --horizon HORIZON | --request JSON | --schema) [--provider PROVIDER] [options]'
+    infer.add_argument("input_positional", nargs="?", metavar="INPUT", help="Data file (alias for --input)")
+    infer.add_argument("--provider", help="Registered provider name. With a data file and only the built-in baselines "
+                                          "registered, defaults to last_value and discloses that in assumptions")
     infer.add_argument('--verify', action='store_true', help='Include independent arithmetic verification for deterministic built-ins')
-    source = infer.add_mutually_exclusive_group(required=True)
+    source = infer.add_mutually_exclusive_group()
     source.add_argument("--schema", action="store_true", help="Print the JSON Schema for --request and exit")
     source.add_argument("--request", help="Forecast request JSON or @file.json")
-    source.add_argument("--input", help="Data file or store:<dataset>")
+    source.add_argument("--input", help="Data file or store:<dataset>. With no --provider and no column flags, a two-column "
+                                        "CSV's timestamp-like and numeric columns are inferred and disclosed in assumptions")
     infer.add_argument("--horizon", type=int)
     infer.add_argument("--season", type=int, help="Seasonal period in observations for --input (default: 1); weekly daily data uses 7")
     infer.add_argument("--quantiles", type=float, nargs="+", help="Requested quantiles for --input, e.g. 0.1 0.5 0.9; provider must support them")
@@ -285,8 +290,15 @@ def _arguments_schema(command):
 
 def _validate_cli_args(args):
     prog = f"gnomon {args.command}"
-    if args.command == "infer" and not args.schema and not args.provider:
-        raise _UsageError("--provider is required; run gnomon capabilities for registered provider names.", prog)
+    if args.command == "infer":
+        if args.input_positional is not None:
+            if args.input is not None:
+                raise _UsageError("Supply input either positionally or with --input, not both.", prog)
+            args.input = args.input_positional
+        if sum(1 for chosen in (args.schema, args.request, args.input) if chosen) != 1:
+            raise _UsageError("one of the arguments --schema --request --input (or a positional INPUT) is required", prog)
+        if not args.schema and not args.input and not args.provider:
+            raise _UsageError("--provider is required; run gnomon capabilities for registered provider names.", prog)
     if args.command in {"evaluate", "route"} and args.input:
         args.task_arguments = _task_flags(args)
     if args.command in ("inspect", "describe"):
@@ -320,6 +332,83 @@ def _explicit_fields(argv):
     fields = {item.split('=')[0][2:].replace('-', '_') for item in argv if item.startswith('--')}
     return {_FLAG_ALIASES.get(field, field) for field in fields}
 MAX_STDIN_BYTES = 8 * 1024 * 1024
+
+
+def _is_number(text):
+    try:
+        return math.isfinite(float(text))
+    except ValueError:
+        return False
+
+
+def _is_timestamp(text):
+    from .data import _parse_timestamp
+    try:
+        _parse_timestamp(text, 0)
+    except GnomonError:
+        return False
+    return True
+
+
+def _infer_two_columns(path):
+    """Name the timestamp-like and numeric columns of a plain two-column CSV.
+
+    Returns None whenever the choice is not unambiguous: any other column
+    count, a column that is neither kind, or both columns qualifying for the
+    same role. The caller then falls through to the usual column error.
+    """
+    try:
+        with Path(path).open(newline="", encoding="utf-8") as handle:
+            reader = csv.reader(handle)
+            header = next(reader, None)
+            sample = [row for _, row in zip(range(64), reader)]
+    except (OSError, UnicodeDecodeError, csv.Error):
+        return None
+    if header is None or len(header) != 2 or not sample:
+        return None
+    roles = []
+    for index in range(2):
+        values = [row[index].strip() for row in sample if len(row) == 2 and row[index].strip()]
+        kinds = set()
+        if values and all(_is_number(v) for v in values):
+            kinds.add("numeric")
+        if values and all(_is_timestamp(v) for v in values):
+            kinds.add("timestamp")
+        roles.append(kinds)
+    timestamps = [i for i, kinds in enumerate(roles) if "timestamp" in kinds]
+    numerics = [i for i, kinds in enumerate(roles) if "numeric" in kinds]
+    if len(timestamps) != 1 or len(numerics) != 1 or timestamps == numerics:
+        return None
+    return header[timestamps[0]].strip(), header[numerics[0]].strip()
+
+
+def _infer_defaults(session, args):
+    """Fill the provider and column names a bare `forecast FILE --horizon N` leaves open.
+
+    Column inference is limited to that bare form. Once a provider is named,
+    column mapping stays explicit and the usual column-correction guidance applies.
+    """
+    if args.provider is not None:
+        return []
+    from .models import BASELINES
+    if set(session.engine.capabilities()) - set(BASELINES):
+        raise _UsageError("--provider is required; run gnomon capabilities for registered provider names.", "gnomon infer")
+    args.provider = "last_value"
+    assumptions = [{"field": "provider", "value": "last_value",
+                    "basis": "default_reference_baseline_only_built_ins_registered",
+                    "note": "A reference baseline, not a chosen model. Pass --provider to select one."}]
+    explicit = getattr(args, "_explicit_fields", set())
+    plain_csv = (not args.input.startswith("store:") and args.input != "-"
+                 and Path(args.input).suffix.lower() == ".csv" and Path(args.input).is_file())
+    if plain_csv and not {"time_column", "target_column"} & explicit:
+        inferred = _infer_two_columns(args.input)
+        if inferred is not None:
+            for field, value in zip(("time_column", "target_column"), inferred):
+                if value != getattr(args, field):
+                    setattr(args, field, value)
+                    args._explicit_fields = explicit = explicit | {field}
+                    assumptions.append({"field": field, "value": value, "basis": "inferred_from_two_column_csv_header"})
+    return assumptions
 
 
 def _inspect(session, args):
@@ -378,6 +467,7 @@ def _execute(session, args):
         if args.input:
             if args.horizon is None:
                 raise _UsageError("--input requires --horizon.", "gnomon infer")
+            assumptions = _infer_defaults(session, args)
             data = _inspect(session, args)
             task = {"data_ref": data["data_ref"], "horizon": args.horizon}
             for key in ("series_id", "season", "quantiles"):
@@ -392,7 +482,9 @@ def _execute(session, args):
             task = {"request": read_json_argument(args.request)}
         result = session.call("gnomon_forecast", {"provider": args.provider, **task,
                               "use_cache": not args.no_cache, "verify": args.verify}, compact=False)
-        return {**result, "input": data} if args.input else result
+        if not args.input:
+            return result
+        return {**result, "input": data, **({"assumptions": assumptions} if assumptions else {})}
     if args.command == 'evaluate' and args.compare:
         return session.compare_studies(original_study_id=args.compare[0], rescored_study_id=args.compare[1])
     if args.command in {"evaluate", "route"} and args.input:
