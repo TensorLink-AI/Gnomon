@@ -404,3 +404,26 @@ Future outcomes, late recording and source visibility were covered by tests.
 Retained every variant and per-case retrieval/choice/loss in cv-context-011.json;
 no after-the-fact variant substitution or fresh confirmation was performed.
 No forecasting superiority claim, main merge, release or PyPI change.
+
+## 2026-09-12: override-outcome trust screen 012, not promoted
+
+Committed protocol, implementation and tests as b3bfe38 before scoring. Four
+fixed gates require 2/4 matured earlier override decisions, using all history or
+the latest four. Reconstruct historical support proposals using only evidence
+visible at their own origins. Permit a new override only if past overrides beat
+their contemporaneous CV choices in mean loss and on at least half the episodes.
+No changed predictions, API/provider calls or new confirmation observations.
+
+Training selected minimum two / latest four. Later development RMSLE is
+0.5426050080 versus CV 0.5456698185 and existing support 0.5352551237:
+0.56% better than CV, 1.37% worse than incumbent. Seventeen incumbent overrides
+were rejected, producing seven improvements, nine regressions and one tie.
+Do not promote or replace the selected variant after inspecting later scores.
+
+Ten focused tests passed (five new plus five shared). All 208 incumbent choices
+match screen 007, input hash remains unchanged, and retained report bytes match
+the original local output. Every cached candidate loss was recomputed. Preserve
+all gates and per-case evidence in evidence/override-trust-012.json. The protocol
+and result explicitly retain inherited replay assumptions and the already-used
+development scope. The original target remains unestablished; main/PyPI and the
+spent confirmation are unchanged.
