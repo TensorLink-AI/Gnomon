@@ -4,51 +4,40 @@
 
 # Gnomon
 
-**Give your agent a forecast it can't fake.**
+**Give your agent forecasts it can verify.**
 
 <!-- TODO(F2): docs/assets/demo.gif -->
 
-Gnomon runs time-series models, Ephemeris (hosted) or your own, against frozen
-point-in-time data and returns every forecast with the snapshot, execution ID and
-evidence behind it. Agents get numbers they can quote. You get a ledger you can audit.
-
-## Why
-
-- Agents wired straight to data backtest on the future.
-- Given too little history, they invent numbers.
-- Without a snapshot and execution ID, nobody can say where a figure came from.
-- Silently "cleaned" data hides what the model never saw.
+Gnomon connects agents to Ephemeris, TensorLink's hosted forecasting API, or
+your own models. Run forecasts, compare performance, and preserve the evidence
+behind each decision. Keep predictions and outcomes across tasks, so agents can
+check what worked before—even when observations are revised.
 
 ## Quick start
 
 ```bash
 python -m pip install gnomon-forecast
-```
-
-With Ephemeris (credentials come from [operator config](gnomon.toml.example), never arguments):
-
-```bash
-EPHEMERIS_BASE_URL=https://... EPHEMERIS_API_TOKEN=... gnomon forecast requests.csv \
-  --time timestamp --target requests --horizon 7 --provider ephemeris \
-  --providers-config providers.toml --quantiles 0.1 0.5 0.9
-```
-
-Built-in baseline, no key:
-
-```bash
-gnomon forecast examples/messy_requests.csv --time timestamp --target requests \
-  --horizon 7 --provider seasonal_naive --season 7
+gnomon forecast --provider seasonal_naive \
+  --request '{"history":[120,131,125,140,152,161,118,122,134,128,142,155,163,121],"horizon":7,"season":7}'
 ```
 
 ```
-2026-06-10T00:00:00  334.1
++1  122
++2  134
 ...
-provider: seasonal_naive (gnomon/1.2.0+g11c1331ec78e.s2fb3c6d977e0/seasonal_naive)
-execution: a7873cde-6dce-4b6b-9b1e-803e34991ed1
-snapshot: snapshot_be702c167b9001e3 as_of=latest
++7  121
+provider: seasonal_naive (gnomon/1.2.0+…/seasonal_naive)
+execution: 9b051531-a0f4-482d-8312-c8a49b7b4452
+snapshot: request supplied directly
 ```
 
-Pipes and agents receive the JSON envelope; `--json` forces it.
+A CSV works the same way: `gnomon forecast data.csv --horizon 7` freezes a
+snapshot and labels every inferred choice in `assumptions`. Pipes and agents
+receive the JSON envelope; `--json` forces it.
+
+Hosted models: [set up Ephemeris](docs/production/INFERENCE.md#ephemeris-hosted-models)
+(two environment variables and a `providers.toml`), then add
+`--provider ephemeris --providers-config providers.toml --quantiles 0.1 0.5 0.9`.
 
 ## Connect an agent
 
@@ -73,6 +62,12 @@ The agent gets 6 tools by default:
 - Every data repair itemised; nothing interpolated unless you chose `aggressive`.
 - An optional ledger row that later actuals never overwrite.
 - Rescoring after revisions, originals intact.
+
+## Keep experience across tasks
+
+The optional ledger records each forecast, the actuals that arrive later and the
+scores. Revised observations refresh the scores; original predictions never
+change. See [ledger operations](docs/production/OPERATIONS.md).
 
 ## Ephemeris
 

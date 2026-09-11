@@ -2,7 +2,7 @@
 
 ## 1.2.0 — 2026-09-11
 
-Repositioning release: Gnomon gives an agent a forecast it cannot fake. No new
+Repositioning release: Gnomon gives an agent forecasts it can verify. No new
 capabilities; the front door, defaults, configuration, skill and release
 discipline change.
 
