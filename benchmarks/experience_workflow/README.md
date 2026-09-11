@@ -33,6 +33,8 @@ overwritten. Progress summaries can be refreshed. No confirmation seeds are
 enabled. Run both agent seeds and all 24 rounds for a full development iteration;
 keep validation seeds 200–203 for the frozen development candidate. Do not tune
 on validation repeatedly or reuse earlier Favorita confirmation as fresh evidence.
+Create a `STOP` file in a live run directory to stop after the current paired
+checkpoint finishes in each worker, preserving complete response/usage records.
 
 * `scenario.py`: seeded event stream and independent, plain-Python scoring oracle.
 * `storage.py`: public Gnomon ledger adapter and indexed normalized SQLite control.

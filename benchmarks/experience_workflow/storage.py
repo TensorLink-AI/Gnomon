@@ -116,6 +116,7 @@ class Store:
             self.writes = self.ledger._committed_row_writes
         self.ingest_seconds += time.perf_counter() - started
         self.receipts.append(dict(now=now, event_ids=[e['event_id'] for e in incoming]))
+        self.persist()
         return self.receipts[-1]
 
     def query(self, query):
@@ -156,12 +157,17 @@ class Store:
             self.db.set_authorizer(None)
             self.db.set_progress_handler(None, 0)
 
+    def persist(self):
+        temporary = self.path / 'state.tmp'
+        temporary.write_text(canonical(dict(notebook=self.notebook,
+            saved_queries=self.saved_queries, receipts=self.receipts, writes=self.writes,
+            ingest_seconds=self.ingest_seconds, query_seconds=self.query_seconds)) + '\n')
+        temporary.replace(self.path / 'state.json')
+
     def close(self):
         if self.arm == 'sqlite':
             self.db.close()
-        (self.path / 'state.json').write_text(canonical(dict(notebook=self.notebook,
-            saved_queries=self.saved_queries, receipts=self.receipts, writes=self.writes,
-            ingest_seconds=self.ingest_seconds, query_seconds=self.query_seconds)) + '\n')
+        self.persist()
 
 
 def execute(event):

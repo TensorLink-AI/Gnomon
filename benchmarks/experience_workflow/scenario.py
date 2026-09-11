@@ -88,7 +88,7 @@ def generate(seed, rounds=24):
             cutoff = shifted(origin, -lag)
             queries[label] = dict(series_id=s, horizon=2, unit='widgets',
                 providers={p: revision for p in PROVIDERS}, start=stamp(base),
-                end=shifted(origin, -max(4, lag)), source_as_of=cutoff, recorded_as_of=cutoff,
+                end=shifted(origin, -8), source_as_of=cutoff, recorded_as_of=cutoff,
                 context_filters=current['context'], metric='rmsle', recent_origins=4)
         tasks.append(dict(task_id=f'{seed}/{r}', round=r, now=origin, queries=queries,
             request=current['request'], family=family))

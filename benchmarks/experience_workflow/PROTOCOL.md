@@ -72,6 +72,10 @@ Retrieve an exact context cohort twice: an earlier evidence vintage and the
 current vintage. Report matched complete origins and mean per-origin RMSLE for
 every requested versioned provider, plus the ranked providers (stable provider
 input order breaks exact ties). Numeric tolerance: absolute/relative 1e-9.
+Both vintages use the **same** requested origin range, ending eight days before
+the current checkpoint. Only source and recording cutoffs change. Newly visible
+outcomes and later revisions can change scores; newly added forecast origins
+outside that range cannot explain the difference.
 Select the lowest current-vintage score when at least 3 matched origins exist;
 otherwise select last_value. Execute that provider for the bound current task
 and submit its execution ID with both evidence answers. This fixed policy

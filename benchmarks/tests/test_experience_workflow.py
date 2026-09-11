@@ -30,6 +30,9 @@ def test_generator_reproducible_and_future_truth_not_in_tasks():
         assert 'truth' not in task and 'events' not in task
         assert task['request']['timestamps'][-1] == task['now']
         assert min(task['request']['future_timestamps']) > task['now']
+        old, new = task['queries']['original'], task['queries']['current']
+        assert {k: v for k, v in old.items() if k not in ('source_as_of', 'recorded_as_of')} == {
+            k: v for k, v in new.items() if k not in ('source_as_of', 'recorded_as_of')}
 
 
 def test_sql_cannot_mutate_attach_or_read_host_files(tmp_path):
@@ -103,3 +106,37 @@ def test_oracle_requires_full_horizon_not_partial_metrics():
     partial = oracle([e for e in world['events'] if e['event_id'] != next(iter(remove))], q)
     assert partial['matched_origins'] == full['matched_origins'] - 1
     assert not matches(dict(matched_origins=0, scores={}, ranking=[]), full)
+
+
+def test_exact_ties_share_canonical_provider_order_in_both_stores(tmp_path):
+    world = generate(100, 8)
+    for event in world['events']:
+        if event['kind'] == 'forecast':
+            event['point'] = [5., 5.]
+            event['request']['history'] = [5.] * 28
+        else:
+            event['value'] = 5.
+    task = world['tasks'][-1]
+    expected = oracle(world['events'], task['queries']['current'])
+    assert expected['matched_origins'] > 0 and set(expected['scores'].values()) == {0.}
+    assert expected['ranking'] == ['historical_mean', 'last_value', 'seasonal_naive']
+    for arm in ('sqlite', 'gnomon'):
+        store = Store(tmp_path / arm, arm)
+        try:
+            store.ingest(world['events'], task['now'])
+            assert matches(store.query(task['queries']['current']), expected)
+        finally:
+            store.close()
+
+
+def test_failing_checkpoints_still_count_toward_token_cost():
+    from benchmarks.experience_workflow.report import measures
+    def row(arm, completed, tokens):
+        return dict(arm=arm, completed=completed, tokens=tokens, usage_complete=True,
+                    rmsle=1., api_calls=1, tool_attempts=1, provider_calls=1,
+                    api_errors=[], errors=[], fallback_used=not completed)
+    result = measures([row('gnomon', True, 10), row('gnomon', False, 90),
+                       row('sqlite', True, 30), row('sqlite', True, 30)])
+    assert result['arms']['gnomon']['tokens_per_correct'] == 100
+    assert result['arms']['sqlite']['tokens_per_correct'] == 30
+    assert result['cost_ratio'] > 3

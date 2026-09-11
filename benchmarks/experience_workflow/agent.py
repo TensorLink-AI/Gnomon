@@ -22,12 +22,28 @@ mean per-origin RMSLE. Return ranking in ascending score; exact ties use provide
 When fewer than 3 current matched origins exist, choose last_value; otherwise choose the first current
 ranked provider. Execute the chosen provider for the host-bound current request, then submit_decision
 with that execution_id and both evidence answers: {matched_origins:int,scores:{provider:number},ranking:[provider]}.
+The submission shape is evidence={"original":{matched_origins,scores,ranking},"current":{matched_origins,scores,ranking}}.
+Query original and current separately. Never put both query objects inside one compare_context call.
 An empty cohort means matched_origins=0,scores={},ranking=[]. Do not invent scores or change cutoffs.
+Empty cohorts during cold start are expected and valid: follow the last_value rule, without hunting for nonexistent history.
 You have 8 API turns, 12 tool attempts, 3 forecast attempts and 2 submission attempts per checkpoint.
 Independent checkpoints reset chat; notebook entries and saved SQL survive. Store useful concise notes.
 Historical descriptions are not causal explanations. Do not infer stockouts from zero observations.
 The host supplies identical raw event ingestion to both arms, and no future scoring truth.
 '''
+
+EVIDENCE_SCHEMA = dict(type='object', additionalProperties=False,
+    required=['matched_origins', 'scores', 'ranking'], properties={
+        'matched_origins': {'type': 'integer', 'minimum': 0},
+        'scores': {'type': 'object', 'additionalProperties': {'type': 'number', 'minimum': 0}},
+        'ranking': {'type': 'array', 'items': {'type': 'string'}, 'uniqueItems': True}})
+QUERY_SCHEMA = dict(type='object', additionalProperties=False,
+    required=['series_id', 'horizon', 'providers', 'start', 'end', 'source_as_of', 'recorded_as_of', 'context_filters'],
+    properties={**{k: {'type': 'string'} for k in ('series_id', 'start', 'end', 'source_as_of', 'recorded_as_of')},
+        'unit': {'type': ['string', 'null']}, 'horizon': {'type': 'integer', 'minimum': 1},
+        'providers': {'type': 'object', 'additionalProperties': {'type': 'string'}},
+        'context_filters': {'type': 'object', 'additionalProperties': {'type': 'string'}},
+        'metric': {'const': 'rmsle'}, 'recent_origins': {'type': 'integer', 'minimum': 1}})
 
 
 def tool(name, description, properties, required=()):
@@ -39,14 +55,16 @@ def tools_for(arm):
     tools = [tool('forecast', 'Execute this provider for the exact current request. Returns typed completion.',
                   {'provider': {'type': 'string'}}, ['provider']),
              tool('submit_decision', 'Finish this checkpoint with an executed forecast and both evidence answers.',
-                  {'execution_id': {'type': 'string'}, 'evidence': {'type': 'object'}, 'rationale': {'type': 'string'}},
+                  {'execution_id': {'type': 'string'}, 'evidence': {'type': 'object', 'additionalProperties': False,
+                   'required': ['original', 'current'], 'properties': {'original': EVIDENCE_SCHEMA, 'current': EVIDENCE_SCHEMA}},
+                   'rationale': {'type': 'string'}},
                   ['execution_id', 'evidence']),
              tool('save_note', 'Persist a concise note or reusable instructions between checkpoints (max 4000 chars total).',
                   {'key': {'type': 'string'}, 'value': {'type': 'string'}}, ['key', 'value'])]
     if arm == 'gnomon':
         tools.append(tool('compare_context', 'Call public TemporalLedger.compare_context with the supplied query arguments. '
             'Returns calculated matched_origins, scores and ranking; no forecasts or writes.',
-            {'arguments': {'type': 'object'}}, ['arguments']))
+            {'arguments': QUERY_SCHEMA}, ['arguments']))
     else:
         tools.extend([tool('sql_query', 'Execute read-only SQLite. Default saved_query=matched_evidence computes exact matched '
             'RMSLE from raw forecasts/actuals. Pass the task query as params; dict-valued providers and context_filters '
@@ -84,12 +102,14 @@ class Boundary:
                 if len(args['sql']) > 12000 or len(self.store.saved_queries) >= 16:
                     raise ValueError('saved_query_limit')
                 self.store.saved_queries[args['name']] = args['sql']
+                self.store.persist()
                 return {'saved': args['name']}
             if name == 'save_note':
                 proposed = {**self.store.notebook, args['key']: args['value']}
                 if len(canonical(proposed)) > 4000:
                     raise ValueError('notebook_limit')
                 self.store.notebook = proposed
+                self.store.persist()
                 return {'saved': args['key']}
             if name == 'forecast':
                 self.forecasts += 1
@@ -112,6 +132,8 @@ class Boundary:
                     raise ValueError('execution_id_does_not_reference_successful_current_task')
                 expected = {label: oracle(self.world['events'], query) for label, query in self.task['queries'].items()}
                 supplied = args.get('evidence', {})
+                if not isinstance(supplied, dict) or set(supplied) != {'original', 'current'}:
+                    raise ValueError('evidence_requires_separate_original_and_current_objects; each needs matched_origins,scores,ranking')
                 invalid = [label for label in expected if not matches(supplied.get(label), expected[label])]
                 if invalid:
                     raise ValueError('evidence_does_not_match_requested_query:' + ','.join(invalid))
@@ -203,6 +225,8 @@ def run_world(world_seed, agent_seed, rounds, output, key):
     rng = random.Random(world_seed * 100 + agent_seed)
     try:
         for task in world['tasks']:
+            if (output.parent / 'STOP').exists():
+                break
             for store in stores.values():
                 store.ingest(world['events'], task['now'])
             arms = list(stores)
@@ -246,6 +270,8 @@ def main():
         jobs = [pool.submit(run_world, s, a, args.rounds, args.output / f'{s}-{a}', key)
                 for s in args.seeds for a in args.agent_seeds]
         rows = [row for job in jobs for row in job.result()]
+    unchanged = manifest['source'] == source_manifest()
+    (args.output / 'source_audit.json').write_text(canonical({'unchanged': unchanged}) + '\n')
     (args.output / 'decisions.json').write_text(canonical(rows) + '\n')
     from .report import summarize
     report = summarize(rows, manifest)
