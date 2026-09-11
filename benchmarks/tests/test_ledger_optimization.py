@@ -5,6 +5,7 @@ import pytest
 
 from benchmarks.ledger_optimization import agent_loop
 from benchmarks.ledger_optimization.replay import screen
+from benchmarks.ledger_optimization.prepare_panel import disjoint_selection, identity
 
 
 def test_past_only_screen_does_not_read_future_outcomes():
@@ -66,3 +67,15 @@ def test_agent_does_not_receive_oracle_scores():
 def test_metric_rejects_negative_actuals():
     with pytest.raises(Exception, match='nonnegative_actuals'):
         agent_loop.rmsle([(1, -1)], 'clip_zero')
+
+
+def test_panel_split_has_disjoint_items_stores_and_excludes_prior_ids():
+    candidates = [{'unique_id': f'item_{i}_store_{i}'} for i in range(40)]
+    splits = disjoint_selection(candidates, ['item_0_store_1'])
+    assert len(splits['development']) == 8 and len(splits['confirmation']) == 24
+    pairs = {k: [identity(s) for s in v] for k,v in splits.items()}
+    assert {i for i,_ in pairs['development']}.isdisjoint(i for i,_ in pairs['confirmation'])
+    assert {s for _,s in pairs['development']}.isdisjoint(s for _,s in pairs['confirmation'])
+    assert all(i != 0 and s != 1 for group in pairs.values() for i,s in group)
+    with pytest.raises(ValueError, match='no automatic rule change'):
+        disjoint_selection(candidates[:3], [])

@@ -23,7 +23,12 @@ def summarize(directory):
         by_arm[r['arm']].append(r)
     complete = {k: v for k, v in by_case.items() if set(v) == set(manifest['arms'])}
     scores = {arm: mean(r[arm]['rmsle'] for r in complete.values()) for arm in manifest['arms']} if complete else {}
+    expected = manifest.get('expected_decisions')
     return {'scope': manifest['scope'], 'manifest': manifest, 'complete_matched_cases': len(complete),
+        'expected_decisions': expected, 'recorded_decisions': len(records),
+        'missing_decisions': expected-len(records) if expected is not None else None,
+        'run_completion': ('complete' if expected==len(records) and len(complete)==len(by_case) else 'incomplete')
+                          if expected is not None else 'expected_count_not_recorded_in_legacy_manifest',
         'incomplete_case_count': len(by_case)-len(complete), 'harness_failures': len(list(directory.glob('*.harness-error.json'))),
         'mean_case_rmsle': scores,
         'relative_improvement_vs_no_ledger': {arm: 1-score/scores['no_ledger'] if scores['no_ledger'] else None

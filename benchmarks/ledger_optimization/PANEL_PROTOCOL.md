@@ -44,6 +44,13 @@ fallback metadata. Screen policies on only the eight development series.
 Live agent runs use the same completion policy and budgets in every arm.
 This is additional development; gains are not confirmation evidence.
 
+The first live new-development comparison uses all eight development series
+at origins 0, 8, 17 and 25, requested seeds 7 and 19, and no-ledger/original-MAE/
+RMSLE-card arms. That is 64 matched case-seed pairs and 192 decisions. The
+failed explicit-blend arm is not promoted into this run. Automatic calibration
+screens use origins 0–17 for variant selection and 18–25 for development
+validation; this internal slice is not the reserved confirmation set.
+
 ## Confirmation specification (pending implementation freeze)
 
 All 24 reserved series, all 26 origins, requested agent seeds 7 and 19, three

@@ -71,3 +71,59 @@ The local legacy results are available, but the original Favorita runner and
 full corpus have not been located. Requested the current pod SSH address or
 project/data path from the user while continuing useful local work. No final
 holdout has been opened, selected by outcomes, or scored.
+
+## Expanded experiment 003 — complete
+
+128/128 decisions completed, 32 matched series/origin/seed pairs, no fallbacks.
+Mean RMSLE: no ledger 0.5537699094; old MAE cards 0.5454432126; RMSLE cards
+0.5449298781; explicit CV/history blend suggestion 0.5585197485. The RMSLE
+cards improve 1.5963% against control and only 0.0941% against the old cards.
+The blend suggestion is 0.8577% worse than control and is not promoted. A useful
+automatic offline selector did not translate into a useful agent suggestion.
+Retain this failure. 267 API calls, token usage retained, dollar costs unknown.
+One malformed tool request was repaired; all final selections were explicit.
+
+## Data-access prerequisite resolved
+
+Recovered the Arena branch using the retained deployment record and fetched
+commit `b600eaa2c2691bebed926dac996d4b03e0c216e9` into
+`/tmp/gnomon-ledger-opt-arena`. Read-only SSH to the original Arena pod also
+works. The raw data was not present there, so downloaded the same raw Favorita
+archive through `datasetsforecast` locally. No source run or remote service was
+changed. User does not need to provide an SSH address now.
+
+`PANEL_PROTOCOL.md` was committed as `97d8c55` before new panel selection. It
+reserves disjoint items/stores, eight additional development series and 24
+confirmation series. Future confirmation values are moved only by deterministic
+data preparation and must not be analyzed until the final candidate is frozen.
+
+## New panel preparation and additional development
+
+All 32 disjoint pairs qualified under the registered rule. The ID/file/source
+hash manifest is retained in `evidence/new-panel-manifest.json`. Confirmation
+has not been forecast, scored or used for tuning. Original-source assumptions
+(zero-fill absent sales, clip returns, known future promotions) are disclosed.
+
+Generated all eight fixed recipes and two historical CV folds at 26 origins
+for the eight new development series: 208 cases. The current-CV automatic
+selector scores 0.5658325868 RMSLE; hindsight best-candidate oracle is
+0.4942338380 (12.6537% headroom versus CV). This is not yet a live agent
+control. Simple past-only selectors improve only modestly (best full-development
+score 0.5566543426). A 24-variant calibration/retrieval screen selects pooled
+16-neighbor retrieval on origins 0–17; its development validation RMSLE on
+18–25 is 0.5479491984. No final-test claim follows from these screens.
+
+Preparation's initial readback included the current pending shadow origin in
+legacy card exclusion counts, whereas the original Arena query ends at the
+previous origin. Corrected that query window, retained the initial inputs,
+and generated `new-development-input-v2` with unchanged forecasts/metrics.
+The upcoming live cases' 72 historical card windows are checked directly
+against the real ledger, including models, matched counts and exclusions.
+An initial verification compared different provider display orders; matching
+the original provider order resolves that verification mismatch without changing
+any scores.
+
+New-development live protocol: 64 matched case/seed pairs, 192 decisions;
+no ledger vs original MAE cards vs development RMSLE cards. Forecaster families,
+completion rules and budgets remain identical. Additional model calibration
+ideas remain prototypes and are not silently substituted into this comparison.

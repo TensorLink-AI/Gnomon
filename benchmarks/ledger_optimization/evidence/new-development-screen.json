@@ -1,0 +1,18 @@
+{
+  "scope": "new development only; automatic selectors, not agent comparison",
+  "cases": 208,
+  "scores": {
+    "cv": 0.5658325867650449,
+    "oracle": 0.4942338380494807,
+    "window4_cv0": 0.5614716394084246,
+    "window4_cv0.5": 0.5620532387484887,
+    "window4_cv0.75": 0.5634918115940201,
+    "window12_cv0": 0.5571733545227977,
+    "window12_cv0.5": 0.5599776673558958,
+    "window12_cv0.75": 0.5621448162649324,
+    "window0_cv0": 0.5579625722674714,
+    "window0_cv0.5": 0.5566543425662113,
+    "window0_cv0.75": 0.5614789603270672
+  },
+  "oracle_reduction_vs_cv": 0.12653698353590004
+}

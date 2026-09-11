@@ -117,14 +117,21 @@ def play(case, request, revision, arm, card, seed, key, trace_path=None):
     resolution = None
     started = time.monotonic()
     for turn in range(6):
+        if trace_path is not None:
+            with trace_path.open('a') as stream:
+                stream.write(canonical({'event': 'request_started', 'turn': turn, 'model': MODEL,
+                    'messages_sha256': hashlib.sha256(canonical(messages).encode()).hexdigest()})+'\n')
         try:
             reply = request_chat(messages, ([FORECAST_TOOL] if forecast_calls < 3 else [])+[SELECT_TOOL], seed, key)
         except Exception as exc:
             errors.append({'category': type(exc).__name__, 'http_status': getattr(exc, 'code', None)})
+            if trace_path is not None:
+                with trace_path.open('a') as stream:
+                    stream.write(canonical({'event': 'request_failed', 'turn': turn, **errors[-1]})+'\n')
             break
         if trace_path is not None:
             with trace_path.open('a') as stream:
-                stream.write(canonical({'turn': turn, 'response': reply})+'\n')
+                stream.write(canonical({'event': 'response_received', 'turn': turn, 'response': reply})+'\n')
         wire.append(reply)
         usage.append(reply.get('usage', {}))
         message = reply['choices'][0]['message']
@@ -207,20 +214,24 @@ def main():
     parser.add_argument('--rounds', default='12')
     parser.add_argument('--seeds', default='7')
     parser.add_argument('--workers', type=int, default=3)
+    parser.add_argument('--arms', default=','.join(ARMS))
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     cases = json.loads((args.snapshot/'cases.json').read_text())
     rounds = {int(v) for v in args.rounds.split(',')}
     seeds = [int(v) for v in args.seeds.split(',')]
+    arms = tuple(args.arms.split(','))
+    if len(set(arms)) != len(arms) or not set(arms) <= set(ARMS) or 'no_ledger' not in arms:
+        raise ValueError('Specify distinct supported arms, including no_ledger')
     manifest = {'scope': 'development only', 'model': MODEL, 'endpoint': ENDPOINT,
         'temperature': 0.2, 'max_tokens_per_turn': 2048, 'max_turns': 6, 'forecast_attempt_budget': 3,
-        'seeds_requested': seeds, 'seed_honored_by_backend': 'unverified', 'rounds': sorted(rounds), 'arms': ARMS,
+        'seeds_requested': seeds, 'seed_honored_by_backend': 'unverified', 'rounds': sorted(rounds), 'arms': arms,
         'snapshot_sha256': hashlib.sha256((args.snapshot/'cases.json').read_bytes()).hexdigest(),
         'runner_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         'gnomon_build': build_info(),
         'system_prompt_sha256': hashlib.sha256(SYSTEM.encode()).hexdigest(),
         'series': sorted({c['series_id'] for c in cases}),
-        'expected_decisions': sum(c['round'] in rounds for c in cases)*len(seeds)*len(ARMS),
+        'expected_decisions': sum(c['round'] in rounds for c in cases)*len(seeds)*len(arms),
         'selection_policy': 'Gnomon 1.1.9 execution-bound resolver in every arm; same bounded corrections',
         'fallback': 'sf_seasonal_naive_7; included in primary denominator'}
     manifest_path = args.output/'manifest.json'
@@ -237,7 +248,7 @@ def main():
         request, revision = original['request'], original['revision']
         card = evidence_card(ledger, case, request, revision, cases[0]['origin'])
         for seed in seeds:
-            order = list(ARMS)
+            order = list(arms)
             random.Random(f'{seed}:{case["round"]}:{case["series_id"]}').shuffle(order)
             for arm in order:
                 path = args.output/f'{case["round"]:04d}-{case["series_id"]}-{seed}-{arm}.json'
