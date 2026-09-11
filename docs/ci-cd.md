@@ -13,9 +13,15 @@ The builder, CLI, MCP and artifacts consume it. Do not set a second static
 
 ## PyPI publishing
 
-`.github/workflows/release.yml` runs on a matching `v*` tag. It checks the version,
-runs regressions, builds wheel/sdist, checks package metadata and proves
-installed-wheel operation before uploading through PyPI Trusted Publishing.
+`.github/workflows/release.yml` runs only on a stable tag of the form
+`vMAJOR.MINOR.PATCH` (for example `v1.2.0`). Tags carrying `.dev`, `rc` or any
+other suffix do not trigger it, and a second guard inside the job rejects them.
+It checks the version, runs regressions, builds wheel/sdist, checks package
+metadata and proves installed-wheel operation before uploading through PyPI
+Trusted Publishing.
+
+Publish to PyPI only for user-visible changes. Intermediate work is tagged,
+not published.
 
 The publisher is bound to repository `TensorLink-AI/Gnomon`, workflow
 `release.yml` and GitHub environment `pypi`. Only the publishing job receives
@@ -23,9 +29,9 @@ The publisher is bound to repository `TensorLink-AI/Gnomon`, workflow
 Environment approval may still be required. Do not fall back to extracting a key
 or publishing from a different account.
 
-Stable releases use a PEP 440 version such as `1.0.0` and a matching `v1.0.0`
-tag. Versions containing a prerelease suffix are marked as prereleases and do
-not become GitHub's latest stable release.
+Stable releases use a PEP 440 version such as `1.2.0` and a matching `v1.2.0`
+tag. A prerelease version needs a manual GitHub release if one is wanted; the
+workflow does not build or publish it.
 Publication is irreversible in the sense that a PyPI version/file cannot simply
 be overwritten; use a new version for corrections.
 

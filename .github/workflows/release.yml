@@ -3,7 +3,9 @@ name: Release to PyPI
 on:
   push:
     tags:
-      - "v*"
+      # Stable releases only: vMAJOR.MINOR.PATCH. Prerelease, .dev and rc tags
+      # never publish. Intermediate work is tagged, not published.
+      - "v[0-9]+.[0-9]+.[0-9]+"
 
 permissions:
   contents: read
@@ -17,10 +19,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Verify tag matches package version
+      - name: Verify tag is a stable release and matches package version
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
           PACKAGE_VERSION="$(PYTHONPATH=src python -c 'from gnomon.product_contract import __version__; print(__version__)')"
           test "$RELEASE_TAG" = "v$PACKAGE_VERSION"
       - name: Verify production and evaluation-harness regressions
@@ -94,14 +97,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          release_flags=()
-          if ! [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            release_flags+=(--prerelease --latest=false)
-          fi
           gh release create "$RELEASE_TAG" dist/* \
             --title "$RELEASE_TAG" \
             --notes-file release-notes.md \
-            --verify-tag "${release_flags[@]}"
+            --verify-tag
 
   publish:
     name: Publish to PyPI
