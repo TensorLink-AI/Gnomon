@@ -78,6 +78,10 @@ def test_bad_sql_is_recoverable_not_harness_crash(tmp_path):
         boundary = Boundary(store, world, world['tasks'][0])
         assert 'error' in boundary.call('sql_query', {'sql': 'SELECT no_such_field FROM actuals', 'params': {}})
         assert boundary.call('sql_query', {'sql': 'SELECT 1 AS n', 'params': {}}) == [{'n': 1}]
+        description = boundary.call('describe_query', {'name': 'matched_evidence'})
+        assert 'ROW_NUMBER() OVER' in description['sql']
+        assert description['storage'] == 'host_registry_not_sql_table'
+        assert store.query_seconds > 0
     finally:
         store.close()
 

@@ -74,6 +74,9 @@ def tools_for(arm):
             'are JSON-encoded automatically. The default query returns matched_origins,scores,ranking, including an explicit empty cohort. '
             'Custom SQL also supports CTEs, window functions, LOG1P, SQRT. Max 500 rows/2 million VM steps.',
             {'params': {'type': 'object'}, 'saved_query': {'type': 'string'}, 'sql': {'type': 'string'}}, ['params']),
+            tool('describe_query', 'Read a saved parameterized SQL statement. Saved queries live in the host registry, '
+                 'not a SQL table. The default name is matched_evidence. This only returns code; it does not execute a query.',
+                 {'name': {'type': 'string'}}, ['name']),
             tool('save_query', 'Persist a parameterized SQL statement for later use; no scoring data is precomputed.',
                  {'name': {'type': 'string'}, 'sql': {'type': 'string'}}, ['name', 'sql'])])
     return tools
@@ -119,6 +122,9 @@ class Boundary:
                 self.store.saved_queries[args['name']] = args['sql']
                 self.store.persist()
                 return {'saved': args['name']}
+            if name == 'describe_query' and self.store.arm == 'sqlite':
+                return {'name': args['name'], 'sql': self.store.saved_queries[args['name']],
+                        'storage': 'host_registry_not_sql_table'}
             if name == 'save_note':
                 proposed = {**self.store.notebook, args['key']: args['value']}
                 if len(canonical(proposed)) > 4000:

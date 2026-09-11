@@ -132,11 +132,13 @@ class Store:
                     ranking=[r['provider'] for r in window['ranking']])
             return sql_answer(self.sql(REFERENCE_SQL, parameters(query)), query['providers'])
         finally:
-            self.query_seconds += time.perf_counter() - started
+            if self.arm == 'gnomon':
+                self.query_seconds += time.perf_counter() - started
 
     def sql(self, statement, params):
         if self.arm != 'sqlite':
             raise ValueError('SQL tool belongs to the SQLite control')
+        started = time.perf_counter()
         allowed = {sqlite3.SQLITE_SELECT, sqlite3.SQLITE_READ, sqlite3.SQLITE_FUNCTION, sqlite3.SQLITE_RECURSIVE}
         def authorize(action, arg1, arg2, *_):
             schema_read = action == sqlite3.SQLITE_PRAGMA and arg1 == 'table_info' and arg2 in ('predictions', 'actuals')
@@ -161,6 +163,7 @@ class Store:
         finally:
             self.db.set_authorizer(None)
             self.db.set_progress_handler(None, 0)
+            self.query_seconds += time.perf_counter() - started
 
     def persist(self):
         temporary = self.path / 'state.tmp'

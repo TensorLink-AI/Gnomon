@@ -1,6 +1,7 @@
 # Accumulated-experience workflow benchmark
 
 This benchmark tests the cost and correctness of **using accumulating evidence**.
+See [current status and retained experiments](STATUS.md) before interpreting a run.
 It is separate from the closed fixed-portfolio forecast-selection experiment in
 `../ledger_optimization/CONFIRMATION_010.md`. Read [PROTOCOL.md](PROTOCOL.md) for
 the objective, fairness contract, budgets, scope and confirmation criteria.
@@ -52,7 +53,7 @@ The freeze command checks the exact validation grid, current code, complete usag
 completion/cost/quality thresholds and deterministic audit. The confirmation run
 has 24 worlds × 24 rounds × two agent seeds × two arms (2,304 decisions). A global
 cohort claim prevents rerunning the same reserved seeds under a new filename.
-Confirmation is not authorized by a development progress chart alone. After all
+The runner will not open confirmation from a development progress chart alone. After all
 confirmation gates pass, progress can set `objective_achieved=true`; development
 always leaves it false. Forecast-superiority and real-data claims remain separate.
 
