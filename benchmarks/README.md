@@ -7,6 +7,12 @@ Start with [matched controls](workflow/MATCHED.md),
 [operator configuration](workflow/experiment/README.md), and the
 [11-task retrospective cohort](workflow/cases/MATCHED_RETROSPECTIVE.md).
 
+For the development experiment on accumulating and querying experience, see
+[the longitudinal evidence-workflow benchmark](experience_workflow/README.md).
+It compares Gnomon with a persistent SQLite control, independently audits revised
+evidence and forecast-input visibility, and tracks a preregistered agent-work
+objective separately from forecast quality. It has not established superiority.
+
 ```bash
 pytest -q benchmarks/tests
 ```

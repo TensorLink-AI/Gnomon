@@ -13,6 +13,12 @@ hindsight selection among the fixed forecasts improves at most **12.49%**, so
 See [the full confirmation report](CONFIRMATION_010.md) and its linked audits.
 No main merge or PyPI release was made.
 
+The user's subsequent evaluation-development task is tracked separately in
+[the accumulated-experience workflow benchmark](../experience_workflow/README.md).
+It starts from arrived raw events and measures correct retrieval, revision review,
+execution-bound decisions and agent work against persistent SQLite. Its new
+efficiency objective does not replace or reverse this closed forecast-error result.
+
 The product change adds selectable MAE/RMSLE ledger summaries, calculated
 ranks/ties, matched sample counts, pairwise differences and recent/lifetime
 disagreement. MAE remains the default; forecast arithmetic is unchanged.

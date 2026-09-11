@@ -12,9 +12,10 @@ MUTATIONS = ('ignore_recording', 'ignore_source', 'ignore_unit', 'ignore_context
 
 
 def run(seeds, rounds, output):
+    from .agent import source_manifest
     output.mkdir(parents=True, exist_ok=False)
     report = dict(scope='development deterministic harness validation', objective_achieved=False,
-                  checks=0, failures=[], worlds=[], mutation_failures_detected={m: 0 for m in MUTATIONS})
+                  source=source_manifest(), checks=0, failures=[], worlds=[], mutation_failures_detected={m: 0 for m in MUTATIONS})
     for seed in seeds:
         world = generate(seed, rounds)
         feature_checks = feature_fills = 0

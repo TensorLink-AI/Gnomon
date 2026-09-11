@@ -41,7 +41,10 @@ def summarize(rows, manifest, draws=5000):
     paired = all(len(pair) == 2 and {r['arm'] for r in pair} == {'gnomon', 'sqlite'}
                  and len({r['task_sha256'] for r in pair}) == 1
                  and len({r['event_receipt_sha256'] for r in pair}) == 1 for pair in pairs.values())
-    complete_run = (bool(rows) and paired and len(rows) == manifest['expected_decisions']
+    expected_grid = {(w, a, r, arm) for w in manifest.get('seeds', []) for a in manifest['agent_seeds']
+                     for r in range(manifest['rounds']) for arm in ('gnomon', 'sqlite')}
+    actual_grid = {(r['world'], r['agent_seed'], r['round'], r['arm']) for r in rows}
+    complete_run = (bool(rows) and paired and actual_grid == expected_grid and len(rows) == manifest['expected_decisions']
                     and all(r['usage_complete'] and not r['api_errors'] for r in rows))
     estimates = {k: [] for k in ('cost_ratio', 'completion_difference', 'rmsle_ratio')}
     rng = random.Random(20260911)
@@ -66,9 +69,14 @@ def summarize(rows, manifest, draws=5000):
         completion_noninferiority=intervals['completion_difference'] is not None and intervals['completion_difference'][0] >= -.02,
         forecast_noninferiority=intervals['rmsle_ratio'] is not None and intervals['rmsle_ratio'][1] <= 1.02,
         complete_paired_run=complete_run,
-        sufficient_confirmation_worlds=len(worlds) >= 24 and manifest['rounds'] == 24 and len(manifest['agent_seeds']) == 2)
-    return dict(scope=manifest['scope'], objective_achieved=False,
-        objective_status='development_only_confirmation_not_run', target_tokens_per_correct_ratio=.80,
+        sufficient_confirmation_worlds=worlds == list(range(9000, 9024)) and manifest['rounds'] == 24 and sorted(manifest['agent_seeds']) == [7, 19],
+        frozen_prerequisites=bool(manifest.get('prerequisites_passed')),
+        unchanged_source=bool(manifest.get('source_unchanged')))
+    achieved = manifest['scope'] == 'confirmation' and manifest.get('confirmation_guard_passed') is True and all(checks.values())
+    return dict(scope=manifest['scope'], objective_achieved=achieved,
+        objective_status='achieved_on_frozen_synthetic_confirmation' if achieved else
+            'confirmation_target_not_established' if manifest['scope'] == 'confirmation' else 'development_only_confirmation_not_run',
+        target_tokens_per_correct_ratio=.80,
         point=point, exploratory_95pct_world_cluster_intervals=intervals,
         gates={name: 'met_in_this_sample' if value else 'not_met_or_not_established' for name, value in checks.items()},
         world_count=len(worlds), seed_repetitions_are_not_independent_worlds=True,
@@ -79,7 +87,7 @@ def summarize(rows, manifest, draws=5000):
             'Primary cost is all billed tokens divided by correct checkpoints, including failures.',
             'Synthetic worlds, requested seeds and small pilots do not establish production robustness.',
             'Accepted decisions are guarded by the common host oracle; rejection attempts are reported separately.',
-            'Confirmation requires frozen prompts/code, parity and mutation audits, and a separate guarded runner.'])
+            'Confirmation requires frozen prompts/code, parity and mutation audits, and the guarded runner.'])
 
 
 def main():
@@ -87,6 +95,8 @@ def main():
     parser.add_argument('run', type=Path)
     args = parser.parse_args()
     manifest = json.loads((args.run / 'manifest.json').read_text())
+    if (args.run / 'source_audit.json').exists():
+        manifest['source_unchanged'] = json.loads((args.run / 'source_audit.json').read_text())['unchanged']
     rows = [json.loads(p.read_text()) for p in sorted(args.run.glob('*/*.decision.json'))]
     report = summarize(rows, manifest)
     (args.run / 'progress.json').write_text(canonical(report) + '\n')

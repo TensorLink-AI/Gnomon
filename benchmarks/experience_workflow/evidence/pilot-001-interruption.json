@@ -1,0 +1,12 @@
+{
+  "status": "interrupted_harness_development",
+  "cause": "Shared submission schema under-specified; vintage cohorts also need identical origin bounds.",
+  "requests_started": 52,
+  "responses_retained": 48,
+  "requests_without_retained_response": 4,
+  "known_tokens": 182404,
+  "total_tokens_unknown": true,
+  "usd": null,
+  "completed_checkpoint_artifacts": 5,
+  "objective_achieved": false
+}

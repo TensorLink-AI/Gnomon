@@ -71,8 +71,8 @@ def visible_history(values, events, series_id, base, day):
     return history, evidence
 
 
-def generate(seed, rounds=24):
-    if seed not in DEVELOPMENT:
+def generate(seed, rounds=24, *, _confirmation=False):
+    if seed not in DEVELOPMENT and not (_confirmation and 9000 <= seed < 9024):
         raise ValueError('Only preregistered development/validation seeds are enabled')
     if not 4 <= rounds <= 24:
         raise ValueError('Use 4..24 rounds; shorter runs are development probes')

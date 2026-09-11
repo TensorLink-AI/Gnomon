@@ -47,3 +47,21 @@ read-only table_info requests. Restore schema/saved-query discovery every round,
 allow that read-only pragma, and format the reference SQL's existing scores into
 the same compact answer as Gnomon. These strengthen the control. Retain pilot
 002 but make no treatment-effect claim from these known harness limitations.
+
+## 004 — complete development pilot and metric-disclosure correction
+
+Pilot 003 completed all 64 decisions, with unchanged source and no API errors:
+Gnomon 20/32 correct, SQLite 26/32. Tokens per correct checkpoint were 31,427.95
+versus 28,471.08 (ratio 1.10386); no objective gate was established. All 12 failed
+Gnomon checkpoints contained a query using the public default MAE, while the task
+required RMSLE. The benchmark's compact adapter had removed Gnomon's metric
+label, and its schema failed to describe that default accurately. These are
+known adapter limitations, so this is retained as harness-development evidence,
+not a fair estimate of the product's advantage or disadvantage.
+
+Restore effective metric/query metadata, publish the actual MAE default in the
+query schema, and give specific metric-mismatch recovery. Preserve original
+scores. Add a regression replaying that failure and its task-preserving correction.
+Also implement the guarded confirmation freeze, complete-grid checks and a
+one-use reserved-cohort registry. No validation or confirmation worlds have been
+opened. The next development run must exercise this corrected source.

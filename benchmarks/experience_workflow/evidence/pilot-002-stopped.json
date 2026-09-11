@@ -1,0 +1,22 @@
+{
+  "scope": "stopped development pilot; known harness limitations; not a treatment comparison",
+  "status": "cooperatively_stopped",
+  "reason": [
+    "feature histories used unavailable final revisions",
+    "control schema discovery did not survive chat reset"
+  ],
+  "completed_checkpoint_artifacts": 24,
+  "requested_checkpoint_count": 96,
+  "api_calls": 136,
+  "known_tokens": 659359,
+  "usd": null,
+  "all_usage_retained": true,
+  "source_unchanged": true,
+  "objective_achieved": false,
+  "raw_artifacts": {
+    "results/experience-workflow/pilot-002/decisions.json": "f064b0b577b6447e653c5b9cd263d9b8573a60bcd01d01cc3b71e02850c9c4c5",
+    "results/experience-workflow/pilot-002/manifest.json": "914331437517a21e9ca73de285a0bd796817f20b3e930d0154047ba3c05e1e4e",
+    "results/experience-workflow/pilot-002/progress.json": "b802777034401115162e37bd9077d0ab024cc598a583a85317ed0c40ce4424b4",
+    "results/experience-workflow/pilot-002/source_audit.json": "7b1091156e395cfd14143e1422db96bdd4af83edae5ef286f4f90f2a49480c8f"
+  }
+}

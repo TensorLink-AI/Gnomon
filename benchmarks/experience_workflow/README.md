@@ -29,12 +29,32 @@ PYTHONPATH="$PWD/src" .venv/bin/python -m benchmarks.experience_workflow.report 
 ```
 
 Each output directory must be new; completed transcripts and decisions are never
-overwritten. Progress summaries can be refreshed. No confirmation seeds are
-enabled. Run both agent seeds and all 24 rounds for a full development iteration;
+overwritten. Progress summaries can be refreshed. Confirmation requires the
+guarded freeze workflow below. Run both agent seeds and all 24 rounds for a full development iteration;
 keep validation seeds 200–203 for the frozen development candidate. Do not tune
 on validation repeatedly or reuse earlier Favorita confirmation as fresh evidence.
 Create a `STOP` file in a live run directory to stop after the current paired
 checkpoint finishes in each worker, preserving complete response/usage records.
+
+After a candidate passes full validation on 200–203 and a current-source audit:
+
+```bash
+PYTHONPATH="$PWD/src" .venv/bin/python -m benchmarks.experience_workflow.freeze \
+  --validation-run results/experience-workflow/validation-NEW \
+  --audit results/experience-workflow/audit-NEW/report.json \
+  --output results/experience-workflow/freeze-NEW.json
+PYTHONPATH="$PWD/src" .venv/bin/python -m benchmarks.experience_workflow.agent \
+  --confirmation-freeze results/experience-workflow/freeze-NEW.json \
+  --workers 4 --output results/experience-workflow/confirmation-NEW
+```
+
+The freeze command checks the exact validation grid, current code, complete usage,
+completion/cost/quality thresholds and deterministic audit. The confirmation run
+has 24 worlds × 24 rounds × two agent seeds × two arms (2,304 decisions). A global
+cohort claim prevents rerunning the same reserved seeds under a new filename.
+Confirmation is not authorized by a development progress chart alone. After all
+confirmation gates pass, progress can set `objective_achieved=true`; development
+always leaves it false. Forecast-superiority and real-data claims remain separate.
 
 * `scenario.py`: seeded event stream and independent, plain-Python scoring oracle.
 * `storage.py`: public Gnomon ledger adapter and indexed normalized SQLite control.

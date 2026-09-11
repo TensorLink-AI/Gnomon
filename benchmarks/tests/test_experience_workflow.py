@@ -161,3 +161,88 @@ def test_unavailable_revisions_cannot_change_earlier_forecast_features():
     assert history == req['history']
     assert all(e['source_available_at'] <= req['cutoff'] and e['recorded_at'] <= req['cutoff'] for e in evidence)
     assert any(e['forward_filled'] for e in evidence)
+
+
+def test_compact_adapter_exposes_public_metric_default_and_specific_repair(tmp_path):
+    world = generate(102, 8)
+    task = world['tasks'][5]
+    store = Store(tmp_path / 'gnomon', 'gnomon')
+    try:
+        store.ingest(world['events'], task['now'])
+        boundary = Boundary(store, world, task)
+        evidence = {}
+        for label, query in task['queries'].items():
+            omitted = {k: v for k, v in query.items() if k != 'metric'}
+            result = boundary.call('compare_context', {'arguments': omitted})
+            assert result['metric'] == 'mae'
+            assert result['query']['unit'] == 'widgets'
+            evidence[label] = public_answer(result)
+        completion = boundary.call('forecast', {'provider': 'last_value'})
+        rejected = boundary.call('submit_decision', {'execution_id': completion['execution_id'], 'evidence': evidence})
+        assert 'evidence_metric_mismatch' in rejected['error']['cause']
+        for label, query in task['queries'].items():
+            result = boundary.call('compare_context', {'arguments': query})
+            assert result['metric'] == 'rmsle'
+            evidence[label] = public_answer(result)
+        assert boundary.call('submit_decision', {'execution_id': completion['execution_id'], 'evidence': evidence})['accepted']
+    finally:
+        store.close()
+
+
+def test_freeze_rejects_incomplete_pilot_without_opening_confirmation(tmp_path):
+    import json
+    from benchmarks.experience_workflow.freeze import create
+    pilot = tmp_path / 'pilot'
+    pilot.mkdir()
+    (pilot / 'manifest.json').write_text(json.dumps(dict(seeds=[100], agent_seeds=[7], rounds=8, expected_decisions=16)))
+    (pilot / 'decisions.json').write_text('[]')
+    audit = tmp_path / 'audit.json'
+    audit.write_text('{}')
+    with pytest.raises(ValueError, match='full preregistered validation grid'):
+        create(pilot, audit, tmp_path / 'freeze.json')
+    assert not (tmp_path / 'freeze.json').exists()
+
+
+def test_confirmation_guard_rejects_drift_and_consumes_cohort_once(tmp_path, monkeypatch):
+    import json
+    from benchmarks.experience_workflow import freeze
+    from benchmarks.experience_workflow.agent import source_manifest
+    monkeypatch.setattr(freeze, 'REGISTRY', tmp_path / 'cohort-used.json')
+    # Synthetic receipt tests guard mechanics only; no confirmation world is generated.
+    references = {}
+    for i in range(4):
+        p = tmp_path / f'proof-{i}.json'
+        p.write_text('{}')
+        references[str(p)] = freeze.sha(p)
+    receipt = dict(kind='experience-workflow-confirmation/1', seeds=freeze.RESERVED_SEEDS,
+        agent_seeds=[7, 19], rounds=24, prerequisites_passed=True, prerequisites=references, source={},
+        validation_run=str(tmp_path / 'synthetic-validation'), audit_path=str(tmp_path / 'synthetic-audit'))
+    monkeypatch.setattr(freeze, '_validated_receipt', lambda *args: receipt)
+    path = tmp_path / 'freeze.json'
+    path.write_text(json.dumps(receipt))
+    with pytest.raises(ValueError, match='changed after freeze'):
+        freeze.consume(path, tmp_path / 'run')
+    assert not freeze.REGISTRY.exists()
+    receipt['source'] = source_manifest()
+    path.write_text(json.dumps(receipt))
+    freeze.consume(path, tmp_path / 'run')
+    with pytest.raises(FileExistsError):
+        freeze.consume(path, tmp_path / 'different-run-name')
+
+
+def test_success_gate_requires_real_confirmation_grid_and_prerequisites():
+    rows = []
+    for world in range(9000, 9024):
+        for agent_seed in (7, 19):
+            for r in range(24):
+                for arm in ('gnomon', 'sqlite'):
+                    rows.append(dict(world=world, agent_seed=agent_seed, round=r, family='guard-unit-test',
+                        arm=arm, completed=True, tokens=70 if arm == 'gnomon' else 100,
+                        usage_complete=True, rmsle=1., api_calls=1, tool_attempts=1, provider_calls=1,
+                        api_errors=[], errors=[], fallback_used=False, task_sha256='same', event_receipt_sha256='same'))
+    manifest = dict(scope='confirmation', seeds=list(range(9000, 9024)), agent_seeds=[7, 19], rounds=24,
+        expected_decisions=2304, source_unchanged=True, confirmation_guard_passed=True, prerequisites_passed=True)
+    assert summarize(rows, manifest, draws=20)['objective_achieved']
+    assert not summarize(rows, {**manifest, 'scope': 'development'}, draws=20)['objective_achieved']
+    assert not summarize(rows, {**manifest, 'prerequisites_passed': False}, draws=20)['objective_achieved']
+    assert not summarize(rows[:-1], manifest, draws=20)['objective_achieved']

@@ -43,7 +43,9 @@ QUERY_SCHEMA = dict(type='object', additionalProperties=False,
         'unit': {'type': ['string', 'null']}, 'horizon': {'type': 'integer', 'minimum': 1},
         'providers': {'type': 'object', 'additionalProperties': {'type': 'string'}},
         'context_filters': {'type': 'object', 'additionalProperties': {'type': 'string'}},
-        'metric': {'const': 'rmsle'}, 'recent_origins': {'type': 'integer', 'minimum': 1}})
+        'metric': {'enum': ['mae', 'rmsle'], 'default': 'mae',
+                   'description': 'Public Gnomon default is MAE. This checkpoint requires explicit metric=rmsle.'},
+        'recent_origins': {'type': 'integer', 'minimum': 1}})
 
 
 def tool(name, description, properties, required=()):
@@ -63,7 +65,8 @@ def tools_for(arm):
                   {'key': {'type': 'string'}, 'value': {'type': 'string'}}, ['key', 'value'])]
     if arm == 'gnomon':
         tools.append(tool('compare_context', 'Call public TemporalLedger.compare_context with the supplied query arguments. '
-            'Returns calculated matched_origins, scores and ranking; no forecasts or writes.',
+            'Set metric=rmsle explicitly for this task; the public default is mae. Returns effective metric/query and '
+            'calculated matched_origins, scores and ranking; no forecasts or writes.',
             {'arguments': QUERY_SCHEMA}, ['arguments']))
     else:
         tools.extend([tool('sql_query', 'Execute read-only SQLite. Default saved_query=matched_evidence computes exact matched '
@@ -83,6 +86,7 @@ class Boundary:
         self.executions = {}
         self.result = None
         self.errors = []
+        self.query_results = []
 
     def call(self, name, args):
         self.calls += 1
@@ -94,7 +98,9 @@ class Boundary:
             if not isinstance(args, dict):
                 raise ValueError('arguments_must_be_object')
             if name == 'compare_context' and self.store.arm == 'gnomon':
-                return self.store.query(args['arguments'])
+                result = self.store.query(args['arguments'])
+                self.query_results.append(result)
+                return result
             if name == 'sql_query' and self.store.arm == 'sqlite':
                 statement = args.get('sql') or self.store.saved_queries[args.get('saved_query', 'matched_evidence')]
                 rows = self.store.sql(statement, parameters(args['params']))
@@ -102,7 +108,10 @@ class Boundary:
                     providers = args['params']['providers']
                     if isinstance(providers, str):
                         providers = json.loads(providers)
-                    return sql_answer(rows, providers)
+                    result = sql_answer(rows, providers)
+                    result['query'] = {k: v for k, v in args['params'].items() if k not in ('metric', 'recent_origins')}
+                    self.query_results.append(result)
+                    return result
                 return rows
             if name == 'save_query' and self.store.arm == 'sqlite':
                 if len(args['sql']) > 12000 or len(self.store.saved_queries) >= 16:
@@ -142,6 +151,8 @@ class Boundary:
                     raise ValueError('evidence_requires_separate_original_and_current_objects; each needs matched_origins,scores,ranking')
                 invalid = [label for label in expected if not matches(supplied.get(label), expected[label])]
                 if invalid:
+                    if any(result['metric'] != 'rmsle' for result in self.query_results[-2:]):
+                        raise ValueError('evidence_metric_mismatch: a recent query returned MAE; rerun the affected query with metric=rmsle, preserving all other task fields')
                     raise ValueError('evidence_does_not_match_requested_query:' + ','.join(invalid))
                 if selected['provider'] != expected_provider(expected['current']):
                     raise ValueError('selected_provider_does_not_follow_required_evidence_policy')
@@ -225,8 +236,8 @@ def checkpoint(store, world, task, seed, key, output, chat=request_chat):
     return row
 
 
-def run_world(world_seed, agent_seed, rounds, output, key):
-    world = generate(world_seed, rounds)
+def run_world(world_seed, agent_seed, rounds, output, key, confirmation=False):
+    world = generate(world_seed, rounds, _confirmation=confirmation)
     output.mkdir(parents=True, exist_ok=False)
     stores = {arm: Store(output / arm, arm) for arm in ('gnomon', 'sqlite')}
     rows = []
@@ -258,31 +269,48 @@ def source_manifest():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--seeds', type=int, nargs='+', default=[100, 101, 102, 103])
-    parser.add_argument('--agent-seeds', type=int, nargs='+', default=[7])
-    parser.add_argument('--rounds', type=int, default=12)
+    parser.add_argument('--seeds', type=int, nargs='+')
+    parser.add_argument('--agent-seeds', type=int, nargs='+')
+    parser.add_argument('--rounds', type=int)
+    parser.add_argument('--confirmation-freeze', type=Path)
     parser.add_argument('--workers', type=int, default=4)
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
-    worlds = [generate(s, args.rounds) for s in args.seeds]  # reject reserved seeds before dispatch
+    if not 1 <= args.workers <= 24:
+        raise ValueError('workers must be between 1 and 24')
+    key = None
+    confirmation = args.confirmation_freeze is not None
+    if confirmation:
+        if args.seeds is not None or args.agent_seeds is not None or args.rounds is not None:
+            raise ValueError('Confirmation cannot override frozen seeds or rounds')
+        key = api_key()  # A missing local credential must not consume the cohort.
+        from .freeze import consume
+        receipt = consume(args.confirmation_freeze, args.output)
+        args.seeds, args.agent_seeds, args.rounds = receipt['seeds'], receipt['agent_seeds'], receipt['rounds']
+    else:
+        args.seeds = args.seeds or [100, 101, 102, 103]
+        args.agent_seeds = args.agent_seeds or [7]
+        args.rounds = args.rounds if args.rounds is not None else 12
+    worlds = [generate(s, args.rounds, _confirmation=confirmation) for s in args.seeds]
     if set(args.agent_seeds) - {7, 19} or len(set(args.seeds)) != len(args.seeds) or len(set(args.agent_seeds)) != len(args.agent_seeds):
         raise ValueError('Use unique world seeds and unique agent seeds from 7,19')
     args.output.mkdir(parents=True, exist_ok=False)
-    manifest = dict(scope='development live-agent pilot', objective_achieved=False, model=MODEL,
+    manifest = dict(scope='confirmation' if confirmation else 'development live-agent pilot', objective_achieved=False, model=MODEL,
+        confirmation_guard_passed=confirmation, prerequisites_passed=confirmation,
         seeds=args.seeds, agent_seeds=args.agent_seeds, rounds=args.rounds, source=source_manifest(),
         worlds={str(w['seed']): dict(events_sha256=digest(w['events']), tasks_sha256=digest(w['tasks'])) for w in worlds},
         expected_decisions=len(worlds) * len(args.agent_seeds) * args.rounds * 2)
     (args.output / 'manifest.json').write_text(canonical(manifest) + '\n')
-    key = api_key()
+    key = key or api_key()
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
-        jobs = [pool.submit(run_world, s, a, args.rounds, args.output / f'{s}-{a}', key)
+        jobs = [pool.submit(run_world, s, a, args.rounds, args.output / f'{s}-{a}', key, confirmation)
                 for s in args.seeds for a in args.agent_seeds]
         rows = [row for job in jobs for row in job.result()]
     unchanged = manifest['source'] == source_manifest()
     (args.output / 'source_audit.json').write_text(canonical({'unchanged': unchanged}) + '\n')
     (args.output / 'decisions.json').write_text(canonical(rows) + '\n')
     from .report import summarize
-    report = summarize(rows, manifest)
+    report = summarize(rows, {**manifest, 'source_unchanged': unchanged})
     (args.output / 'progress.json').write_text(canonical(report) + '\n')
     print(json.dumps(report, indent=2))
 

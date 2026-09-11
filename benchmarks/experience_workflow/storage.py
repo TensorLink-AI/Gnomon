@@ -45,7 +45,7 @@ def parameters(query):
 
 def sql_answer(rows, providers):
     scores = {p: next(row['score'] for row in rows if row['provider'] == p) for p in providers} if rows else {}
-    return dict(matched_origins=rows[0]['matched_origins'] if rows else 0,
+    return dict(metric='rmsle', matched_origins=rows[0]['matched_origins'] if rows else 0,
                 scores=scores, ranking=sorted(scores, key=scores.get))
 
 
@@ -125,7 +125,9 @@ class Store:
             if self.arm == 'gnomon':
                 answer = self.ledger.compare_context(**query)
                 window = answer['evidence_summary']['lifetime']
-                return dict(matched_origins=answer['matched_origins'],
+                return dict(metric=answer['metric'], query={k: answer[k] for k in
+                    ('series_id', 'unit', 'horizon', 'providers', 'start', 'end', 'source_as_of', 'recorded_as_of')},
+                    matched_origins=answer['matched_origins'],
                     scores={r['provider']: r['score'] for r in window['ranking']},
                     ranking=[r['provider'] for r in window['ranking']])
             return sql_answer(self.sql(REFERENCE_SQL, parameters(query)), query['providers'])

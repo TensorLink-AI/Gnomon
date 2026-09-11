@@ -120,10 +120,16 @@ infrastructure or interface change → repeat on development → validate once o
 confirmation. Keep a JSON progress report with each gate's estimate and status.
 Development may show progress but can never set objective_achieved=true.
 
-Confirmation execution is intentionally unavailable in the initial harness until
-pilot validation and a separate freeze manifest/guard are implemented. Never
-silently treat development seeds, synthetic test assertions, or a scripted
-policy as independent live-agent confirmation.
+Confirmation requires `freeze.py`: a full 200–203 validation grid with both agent
+seeds, 24 rounds, >=95% completion, <=0.80 token-per-correct ratio and <=1.02
+forecast-error ratio, plus passing current-source parity/feature/mutation audits.
+Freeze all source/prompt/protocol hashes and prerequisite artifacts. The guarded
+runner opens exactly seeds 9000–9023 once; source drift, overrides and a second
+cohort claim reject before generation. Interrupted confirmation remains spent;
+do not quietly retry under a new run name. This is an auditable CLI workflow,
+not a security boundary against an operator manually regenerating public seeds.
+Never treat development seeds, synthetic assertions, or a scripted policy as
+independent live-agent confirmation. No confirmation has been opened.
 
 ## Interpretation and later external validation
 
