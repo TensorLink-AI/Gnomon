@@ -87,3 +87,36 @@ This screens a policy suggested by the offline results; it is not a final-test
 amendment or evidence of validated future accuracy. Expanded development cases:
 all four legacy series at rounds 0, 28, 56, 84; requested seeds 7 and 19. Freeze
 all four arms before dispatch (32 matched case-seed pairs, 128 decisions).
+
+## User clarification: accumulated evidence is the intended advantage
+
+The user clarified that the focus is ledger infrastructure: accumulating what
+worked and what failed, then using relevant past evidence for future decisions.
+Do not expand this effort into new forecasting models, ensembles or forecast
+bias correction. The forecasting candidates and control capabilities remain
+fixed. Calibration feasibility remains an explicitly out-of-scope prototype.
+
+Next development work should improve the path from stored outcomes to usable
+decision evidence:
+
+1. Preserve task, provider revision, forecast-time context and matured outcomes
+   together. Context must be observable at the original decision time; never
+   label past episodes using subsequently observed success or failure.
+2. Retrieve comparable past episodes, initially through explicit filters on
+   observable conditions, and compare providers on the same eligible origins.
+   Show the filters, sample counts, exclusions, dates and numerical references.
+3. Expose disagreement between recent, longer-window and comparable-context
+   evidence. Make insufficient or stale evidence explicit. Do not convert an
+   observed loss into a proven causal business explanation.
+4. Measure whether accumulated evidence changes decisions usefully. Compare
+   no ledger, existing summary cards and contextual evidence with identical
+   models, current inputs, candidate forecasts and budgets. Report cold-start
+   and mature-history performance without removing cold starts from the primary
+   metric. Additional records are valuable only if they improve future choices.
+
+Existing APIs already support context records and exact `compare_context`
+filters. The agent trials so far mainly used aggregate recent/lifetime cards;
+their results do not test the full contextual retrieval path. Build on those
+APIs and measure the end-to-end retrieval path before adding another storage
+system. Keep the 20% objective, acknowledge fixed-portfolio headroom on each
+tested cohort, and preserve the untouched confirmation partition.

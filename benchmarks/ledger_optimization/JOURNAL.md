@@ -196,3 +196,15 @@ determinism, invalid cohorts, zero controls and fallback inclusion. This work
 uses no additional API calls and no confirmation data. The broader forecasting
 scope decision remains pending; no user response is inferred from automatic
 goal continuations or elapsed time.
+
+## Scope clarification received
+
+The user clarified that the desired edge is accumulated evidence of what has
+and has not worked, through ledger infrastructure. The earlier question about
+expanding forecast capabilities is resolved in favor of keeping the ledger
+focus. Ensembles and bias correction are not the next phase. Updated PLAN.md
+to prioritize contextual evidence capture/retrieval, comparable cohorts,
+recency and evidence sufficiency, with unchanged forecasting candidates and
+matched controls. The 11.7% oracle bound concerns the evaluated development
+cohort, not a universal limit on ledger value. No claim of 20% improvement is
+made; confirmation remains untouched.
