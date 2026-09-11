@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 from datetime import datetime, timedelta
 from statistics import mean
 
@@ -33,7 +34,8 @@ def _grid_shape(req):
 
 
 def compare_history(ledger, *, series_id, horizon, providers, start, end, source_as_of, recorded_as_of, unit,
-                    context_filters=None, metric='mae', recent_origins=4, negative_predictions='reject'):
+                    context_filters=None, metric='mae', recent_origins=4, negative_predictions='reject',
+                    _connection=None):
     validate_comparison_options(metric, recent_origins, negative_predictions)
     if not isinstance(series_id, str) or not series_id or series_id == "__default__":
         raise ForecastAdapterError("comparison requires an explicit stable series_id", details={
@@ -60,9 +62,10 @@ def compare_history(ledger, *, series_id, horizon, providers, start, end, source
               "next_step": "collect_matched_forecasts_with_explicit_budget"}
     origin_expr = "COALESCE(json_extract(p.payload_json, '$.request.cutoff'), " \
                   "json_extract(p.payload_json, '$.request.timestamps[#-1]'))"
-    with ledger._connect() as conn:
+    with ledger._connect() if _connection is None else nullcontext(_connection) as conn:
         # One SQLite read snapshot: every origin/candidate sees the same revisions.
-        conn.execute("BEGIN")
+        if _connection is None:
+            conn.execute("BEGIN")
         rows = conn.execute("SELECT e.execution_id, " + origin_expr + " AS origin, "
             "EXISTS(SELECT 1 FROM study_executions s JOIN studies t USING(study_id) "
             "WHERE s.execution_id=e.execution_id AND t.recorded_at<=?) AS study_run "

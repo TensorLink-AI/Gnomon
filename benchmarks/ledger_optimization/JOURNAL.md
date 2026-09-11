@@ -208,3 +208,36 @@ recency and evidence sufficiency, with unchanged forecasting candidates and
 matched controls. The 11.7% oracle bound concerns the evaluated development
 cohort, not a universal limit on ledger value. No claim of 20% improvement is
 made; confirmation remains untouched.
+
+## Contextual retrieval development started after user direction to continue
+
+User explicitly asked to continue toward the target through ledger
+infrastructure, with the same tools/information and improved robustness through
+accumulated experience. The new CONTEXT_PROTOCOL.md makes the next control
+stronger: every arm receives identical matured historical score rows and
+forecast-time context, while the ledger arms organize that evidence. These runs
+must not be pooled with earlier comparisons whose control had no historical
+score rows. Original candidates and forecast/selection tools remain fixed.
+
+Implemented a public `retrieve_context` operation: explicit progressively broader
+filters, first cohort meeting a caller-specified matched-origin count, one SQLite
+read snapshot, no provider selection/calls/writes. Do not choose cohorts by their
+favorable observed losses. Nine focused tests cover selection/broadening,
+recording visibility, invalid hierarchies, public dispatch and no writes/calls.
+
+Preparation 005 initially failed on equivalent timestamp representations
+(microseconds in normalized ledger output versus absent microseconds in cached
+inputs). The failed copy remains in `results/ledger-optimization/context-memory-005/`;
+its log is `/tmp/ledger-context-005-prepare.log`. No API calls or scored trial
+result occurred. Fixed timestamp joins by comparing parsed instants. A synthetic
+integration test also exposed an overly broad assumption that all providers
+share one revision; preparation now reads each provider's recorded revision.
+The ongoing StatsForecast preparation uses equal revisions and is unaffected
+by that generalization. The source ledger is never mutated.
+
+Full regression run: 1,193 passed, 29 skipped, one documented-workflow test
+failed because its freshly read wall-clock cutoff was about 2.5 seconds earlier
+than the preceding forecast recording timestamp. The package correctly rejected
+that cutoff. The exact test passed on isolated retry without code changes.
+Retained `/tmp/ledger-context-full-tests.log`; do not report the initial full run
+as entirely green or attribute the clock anomaly to the new retrieval logic.

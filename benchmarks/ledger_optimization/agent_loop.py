@@ -26,7 +26,7 @@ from gnomon.forecast_adapter import AdapterCapabilities
 
 MODEL = 'deepseek-v4-flash-0731'
 ENDPOINT = 'https://api.engy.ai/v1/chat/completions'
-ARMS = ('no_ledger', 'ledger_119', 'ledger_rmsle', 'ledger_blended')
+ARMS = ('no_ledger', 'ledger_119', 'ledger_rmsle', 'ledger_blended', 'ledger_context')
 SYSTEM = '''Select a retail-demand forecast to minimize RMSLE over the next horizon.
 All candidates have the same history and current CV evidence. Lower error is better.
 You may execute up to three forecasts. Call gnomon_forecast with provider, then
@@ -71,7 +71,7 @@ def request_chat(messages, tools, seed, key):
         return json.load(response)
 
 
-def context(case, request, arm, card):
+def context(case, request, arm, card, memory=None):
     # This explicit allowlist prevents actuals or candidate hindsight losses from
     # entering an agent request when the host's case also contains evaluation data.
     result = {k: request[k] for k in ('series_id', 'unit', 'horizon', 'cutoff', 'frequency', 'season')}
@@ -80,6 +80,12 @@ def context(case, request, arm, card):
     result['history_count'] = len(request['history'])
     result['current_cv'] = case['current_card']
     result['candidates'] = list(case['predictions'])
+    if memory is not None:
+        if memory['request_fingerprint'] != result['request_fingerprint']:
+            raise ValueError('Historical memory belongs to another request')
+        result['current_context'] = memory['current_context']
+        result['raw_matched_history'] = memory['raw_history']
+        result['information_contract'] = 'Every arm receives these same historical rows; ledger summaries only organize this evidence.'
     if arm == 'ledger_119':
         result['historical_evidence'] = case['legacy_evidence']
     elif arm in ('ledger_rmsle', 'ledger_blended'):
@@ -94,10 +100,12 @@ def context(case, request, arm, card):
                 'estimated_ranking': [{'provider': p, 'estimated_rmsle': estimates[p]}
                                       for p in sorted(estimates, key=estimates.__getitem__)],
                 'guidance': 'Consider these estimates with sample size and regime changes. They are not measured future errors or a mandate.'}
+    elif arm == 'ledger_context':
+        result['historical_evidence'] = memory['context_retrieval'] if memory else {}
     return result
 
 
-def play(case, request, revision, arm, card, seed, key, trace_path=None):
+def play(case, request, revision, arm, card, seed, key, trace_path=None, memory=None):
     engine = InferenceEngine()
     expected = forecast_request_fingerprint(request)
     for name, points in case['predictions'].items():
@@ -110,7 +118,7 @@ def play(case, request, revision, arm, card, seed, key, trace_path=None):
                         capabilities=AdapterCapabilities(past_covariates=True, future_covariates=True))
     session = GnomonSession(engine)
     messages = [{'role': 'system', 'content': SYSTEM},
-                {'role': 'user', 'content': canonical(context(case, request, arm, card))}]
+                {'role': 'user', 'content': canonical(context(case, request, arm, card, memory))}]
     completions, wire, usage, errors = [], [], [], []
     final = None
     forecast_calls = 0
@@ -214,7 +222,8 @@ def main():
     parser.add_argument('--rounds', default='12')
     parser.add_argument('--seeds', default='7')
     parser.add_argument('--workers', type=int, default=3)
-    parser.add_argument('--arms', default=','.join(ARMS))
+    parser.add_argument('--arms', default=','.join(ARMS[:-1]))
+    parser.add_argument('--memory', type=Path, help='Prepared equal-information context-memory bundle')
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     cases = json.loads((args.snapshot/'cases.json').read_text())
@@ -223,6 +232,14 @@ def main():
     arms = tuple(args.arms.split(','))
     if len(set(arms)) != len(arms) or not set(arms) <= set(ARMS) or 'no_ledger' not in arms:
         raise ValueError('Specify distinct supported arms, including no_ledger')
+    if 'ledger_context' in arms and args.memory is None:
+        raise ValueError('ledger_context requires --memory and the same raw history in every arm')
+    memory = {}
+    if args.memory:
+        bundle = json.loads(args.memory.read_text())
+        if bundle['scope'] != 'development only' or bundle['information_contract'] != 'same_raw_matched_history_in_every_arm':
+            raise ValueError('Unsupported context-memory information contract')
+        memory = {(p['series_id'], p['round']): p for p in bundle['packets']}
     manifest = {'scope': 'development only', 'model': MODEL, 'endpoint': ENDPOINT,
         'temperature': 0.2, 'max_tokens_per_turn': 2048, 'max_turns': 6, 'forecast_attempt_budget': 3,
         'seeds_requested': seeds, 'seed_honored_by_backend': 'unverified', 'rounds': sorted(rounds), 'arms': arms,
@@ -230,6 +247,8 @@ def main():
         'runner_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         'gnomon_build': build_info(),
         'system_prompt_sha256': hashlib.sha256(SYSTEM.encode()).hexdigest(),
+        'memory_sha256': hashlib.sha256(args.memory.read_bytes()).hexdigest() if args.memory else None,
+        'historical_information_contract': 'same_raw_matched_history_in_every_arm' if args.memory else 'historical_records_only_in_ledger_arms',
         'series': sorted({c['series_id'] for c in cases}),
         'expected_decisions': sum(c['round'] in rounds for c in cases)*len(seeds)*len(arms),
         'selection_policy': 'Gnomon 1.1.9 execution-bound resolver in every arm; same bounded corrections',
@@ -253,10 +272,11 @@ def main():
             for arm in order:
                 path = args.output/f'{case["round"]:04d}-{case["series_id"]}-{seed}-{arm}.json'
                 if not path.exists():
-                    tasks.append((path, case, request, revision, arm, card, seed))
+                    packet = memory[case['series_id'], case['round']] if args.memory else None
+                    tasks.append((path, case, request, revision, arm, card, seed, packet))
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
-        futures = {pool.submit(play, case, request, revision, arm, card, seed, key, path.with_suffix('.wire.jsonl')): path
-                   for path, case, request, revision, arm, card, seed in tasks}
+        futures = {pool.submit(play, case, request, revision, arm, card, seed, key, path.with_suffix('.wire.jsonl'), packet): path
+                   for path, case, request, revision, arm, card, seed, packet in tasks}
         for future in as_completed(futures):
             path = futures[future]
             try:

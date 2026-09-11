@@ -671,6 +671,22 @@ class TemporalLedger:
             context_filters=context_filters, unit=unit, metric=metric, recent_origins=recent_origins,
             negative_predictions=negative_predictions)
 
+    def retrieve_context(self, *, series_id, horizon, providers, start, end,
+                         source_as_of, recorded_as_of, context_candidates, min_origins=4,
+                         unit=None, metric='mae', recent_origins=4, negative_predictions='reject'):
+        """Read progressively broader cohorts; select by count, never by best score.
+
+        context_candidates is an explicit most-specific-first list of exact
+        filters. Later entries may only remove filters. An empty final filter
+        opts into unfiltered evidence. min_origins is not a confidence test.
+        No provider calls or writes; one SQLite read snapshot across all cohorts.
+        """
+        from .context_retrieval import retrieve_context
+        return retrieve_context(self, series_id=series_id, horizon=horizon, providers=providers,
+            start=start, end=end, source_as_of=source_as_of, recorded_as_of=recorded_as_of,
+            context_candidates=context_candidates, min_origins=min_origins, unit=unit,
+            metric=metric, recent_origins=recent_origins, negative_predictions=negative_predictions)
+
     def review_decision(self, *, decision_id, source_as_of, recorded_as_of):
         """Read a review packet; review_ready means complete actuals, not a proven explanation."""
         from .decision_memory import review_decision

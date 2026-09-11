@@ -314,14 +314,17 @@ MEMORY_PARAMETERS = {
     'record_decision_summary': ('execution_id', 'rationale', 'assumptions', 'invalidation_conditions', 'context', 'evidence_refs'),
     'compare_context': ('series_id', 'horizon', 'providers', 'unit', 'start', 'end', 'source_as_of', 'recorded_as_of', 'context_filters',
                         'metric', 'recent_origins', 'negative_predictions'),
+    'retrieve_context': ('series_id', 'horizon', 'providers', 'unit', 'start', 'end', 'source_as_of', 'recorded_as_of',
+                         'context_candidates', 'min_origins', 'metric', 'recent_origins', 'negative_predictions'),
     'review_decision': ('decision_id', 'source_as_of', 'recorded_as_of'),
     'record_lesson': ('decision_id', 'lesson', 'source_as_of', 'recorded_as_of', 'previous_lesson_id'),
     'export_lesson': ('lesson_id', 'recorded_as_of'),
 }
-MEMORY_REQUIRED = {k: tuple(p for p in v if p not in {'unit', 'evidence_refs', 'previous_lesson_id', 'metric', 'recent_origins', 'negative_predictions'})
+MEMORY_REQUIRED = {k: tuple(p for p in v if p not in {'unit', 'evidence_refs', 'previous_lesson_id', 'metric', 'recent_origins', 'negative_predictions', 'min_origins'})
                    for k, v in MEMORY_PARAMETERS.items()}
 MEMORY_WRITES = {'record_decision_summary', 'record_lesson'}
 MEMORY_DESCRIPTIONS = {
+    'retrieve_context': 'Read caller-ordered progressively broader context cohorts in one database snapshot. Select the first meeting min_origins, never the best observed score. Explicit {} opts into unfiltered evidence. Count eligibility is not confidence; no provider selection, calls or writes.',
     'record_decision_summary': 'Record a concise caller hypothesis tied to an existing execution. Context source availability is explicit; recording time is assigned by the ledger. No business action is executed.',
     'compare_context': 'Read complete matched production origins with exact context filters. Labels must be source-available by origin, locally recorded before the first target and visible at recorded_as_of. Conflicts exclude an origin. Descriptive ranges are not confidence intervals or causal evidence.',
     'review_decision': 'Read-only outcome-triggered review packet. review_ready requires complete matching-unit actuals. Poll with explicit advancing cutoffs; no background agent is run and no business explanation is validated.',
@@ -334,6 +337,12 @@ _context_fields['source_ref']['maxLength'] = 500
 for _field in ('valid_from', 'valid_to', 'source_available_at'):
     _context_fields[_field]['description'] = 'Explicit timezone timestamp; valid interval is half-open. Source availability is independent of the valid interval.'
 MEMORY_PROPERTIES = {
+    'context_candidates': {'type': 'array', 'minItems': 1, 'maxItems': 8,
+                           'description': 'Most-specific-first exact filters. Each later entry must strictly remove filters without changing values. Empty {} explicitly permits unfiltered fallback.',
+                           'items': {'type': 'object', 'maxProperties': 16, 'propertyNames': _text_schema,
+                                     'additionalProperties': _text_schema}},
+    'min_origins': {'type': 'integer', 'minimum': 1, 'maximum': 1000, 'default': 4,
+                    'description': 'Required complete matched origins for retrieval eligibility, not statistical significance.'},
     'rationale': {'type': 'string', 'minLength': 1, 'maxLength': 1000},
     'lesson': {'type': 'string', 'minLength': 1, 'maxLength': 2000},
     'assumptions': {'type': 'array', 'maxItems': 8, 'items': {'type': 'string', 'minLength': 1, 'maxLength': 500}},
@@ -347,6 +356,11 @@ MEMORY_PROPERTIES = {
     'previous_lesson_id': {'type': ['string', 'null'], 'minLength': 1},
 }
 MEMORY_EXAMPLES = {
+    'retrieve_context': {'series_id': 'SERIES_ID', 'horizon': 2,
+                         'providers': {'last_value': 'REVISION', 'historical_mean': 'REVISION'},
+                         'start': 'ORIGIN_START', 'end': 'ORIGIN_END', 'source_as_of': 'SOURCE_CUTOFF',
+                         'recorded_as_of': 'RECORDING_CUTOFF',
+                         'context_candidates': [{'promotion': 'planned', 'demand': 'sparse'}, {'demand': 'sparse'}, {}]},
     'record_decision_summary': {'execution_id': 'EXECUTION_ID', 'rationale': 'RATIONALE',
                               'assumptions': [], 'invalidation_conditions': [], 'context': []},
     'compare_context': {'series_id': 'SERIES_ID', 'horizon': 2,

@@ -82,3 +82,44 @@ change; the caller still needs to assess relevance.
 The development experiment and its 20% improvement target are documented in
 [the protocol](../benchmarks/ledger_optimization/PLAN.md). Current results are
 development evidence; no 20% or held-out superiority claim has been established.
+
+## Retrieve comparable experience without selecting a favorable subset
+
+`TemporalLedger.retrieve_context(...)` and ledger operation `retrieve_context`
+accept the same identity, time-window, metric and cutoff arguments as
+`compare_context`, with these two replacements:
+
+```python
+context_candidates = [
+    {"promotion": "planned", "demand": "sparse"},
+    {"demand": "sparse"},
+    {},
+]
+min_origins = 4
+```
+
+This is a query template: labels must already have been recorded against
+eligible executions using `record_decision_summary`. They are caller assertions,
+not automatically established explanations. Choose the context ordering and
+count threshold before inspecting the comparison scores.
+
+The method reads every cohort from one SQLite snapshot at the same explicit
+source and recording cutoffs. It selects the **first** caller-ordered cohort
+with at least `min_origins` complete matched origins. It does not choose the
+cohort with the lowest observed error, select a provider or make a forecast.
+
+Each later filter must strictly remove keys without changing retained values.
+An empty final `{}` explicitly allows unfiltered history; omit it to require
+context-specific evidence. There are at most eight cohorts. Existing unit,
+provider-version, prospective-recording and actual-visibility checks apply to
+every cohort. Missing/conflicting/late labels do not become valid through a
+context-specific match. Unfiltered history has no context requirement and is
+clearly identified as such if selected.
+
+The result exposes `selected_index`, `selected_filters`, `broadened`,
+`context_specific`, per-cohort counts/exclusions/summaries, and the complete
+selected `comparison` with its underlying origins and numerical references.
+If no cohort meets the count rule, `status` is `insufficient_evidence` and
+`comparison` is null. More observations improve the evidence available to the
+caller, but the count threshold itself establishes neither confidence nor
+better future performance. Provider calls and ledger writes are zero.

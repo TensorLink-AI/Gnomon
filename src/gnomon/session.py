@@ -982,7 +982,7 @@ def ledger_schema(*, allow_outcome_writes=False):
                              {"type": "string"})
             if operation in MEMORY_PARAMETERS and p in MEMORY_PROPERTIES:
                 properties[p] = deepcopy(MEMORY_PROPERTIES[p])
-            if operation in {'compare_history', 'compare_context'} and p in {'metric', 'recent_origins', 'negative_predictions'}:
+            if operation in {'compare_history', 'compare_context', 'retrieve_context'} and p in {'metric', 'recent_origins', 'negative_predictions'}:
                 properties[p] = {
                     'metric': {'enum': ['mae', 'rmsle'], 'default': 'mae',
                         'description': 'Mean per-origin error on complete matched horizons. RMSLE uses natural log(1+x); this is not pooled RMSLE. Rankings/differences and recent/lifetime windows are returned in evidence_summary.'},
