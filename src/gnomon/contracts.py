@@ -66,6 +66,8 @@ class GnomonError(Exception):
         return completion({
             "schema_version": "0.1",
             "status": "error",
+            # Same object as error.details.data_quality: agents read one key on both paths.
+            **({"data_quality": details["data_quality"]} if "data_quality" in details else {}),
             "execution_diagnostics": details.get('execution_diagnostics', {
                 'provider_calls': None, 'forecast_calls': None, 'ledger_writes': None, 'source_mutations': None,
                 'scope': 'Not measured at this boundary; null never asserts zero.'}),

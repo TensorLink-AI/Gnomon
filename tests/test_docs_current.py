@@ -15,8 +15,9 @@ def test_names_and_public_provider_match_code():
     from gnomon import EphemerisProvider
     assert EphemerisProvider("https://example.invalid").name == "ephemeris/route"
     assert "Ephemeris" in README
-    assert "Ephemeris" not in README.split("## Quick start", 1)[0]
-    assert "## Optional connectors" in README
+    assert "## Ephemeris" in README and "## Your own models" in README
+    # Positioning: hosted models are named up front, but the tagline stays product-neutral.
+    assert "Ephemeris" not in README.split("**", 2)[1]
     assert "sundial" in README
     assert not any(word in README for word in ("personification", "Greek god", "deity"))
 
@@ -36,10 +37,12 @@ def test_package_version_has_one_source_and_install_instructions_match():
     project = (REPO / "pyproject.toml").read_text()
     assert 'dynamic = ["version"]' in project
     assert 'path = "src/gnomon/product_contract.py"' in project
-    for path in (REPO / "README.md", DOCS / "installation.md"):
-        assert "pip install ." in path.read_text()
-        if ".dev" not in __version__:
-            assert f"gnomon-forecast=={__version__}" in path.read_text()
+    assert "pip install ." in README
+    assert "pip install gnomon-forecast\n" in README, "the README install line is unpinned"
+    installation = (DOCS / "installation.md").read_text()
+    assert "pip install ." in installation
+    if ".dev" not in __version__:
+        assert f"gnomon-forecast=={__version__}" in installation
     assert "](installation.md)" in (DOCS / "getting-started.md").read_text()
 
 

@@ -3,8 +3,8 @@
 This is the implemented extension boundary, shared by Python `GnomonSession`,
 `gnomon infer`, and MCP. Backtesting is an explicit
 `session.evaluate(...)` operation, not an implicit step in forecasting.
-Live-service and actual agent-comparison acceptance remain pending.
-See [progress.json](progress.json), not this page, for release status.
+Live-service and actual agent-comparison acceptance remain pending; see
+[validation and limits](../agent-evaluation.md).
 
 For a complete runnable starting point, use the
 [installable provider/ledger example](../../examples/provider_plugin/README.md).
@@ -95,8 +95,8 @@ belong in the user's chosen software, not invented describe operations.
 Inspection and backtesting use one loader. `as_of` bounds source
 availability before any file repair; `recorded_as_of` additionally bounds locally
 recorded vintages for `store:<dataset>` inputs. Plain files cannot reconstruct
-recording-time history and reject that option. Repair is off unless explicitly
-requested and every repair is disclosed. File values assume availability at their
+recording-time history and reject that option. Repair defaults to `safe`
+(no invented values), `aggressive` is explicit, and every repair is disclosed. File values assume availability at their
 valid timestamp; this assumption is not proof of historical availability.
 
 Reference forecasts derive the future grid from the last observed timestamp and
@@ -336,10 +336,16 @@ Recommendations are advisory and never grant action/deployment permission. A
 successful route appends a rescore study, retrievable through the ledger; its
 recording time is now, never backdated to the queried historical instant.
 
-## Ephemeris
+## Ephemeris (hosted models)
 
-Ephemeris is one optional remote inference connector. Its deployment base URL
-is configured by the operator, not determined by the provider name.
+Ephemeris is TensorLink's hosted forecasting service. A deployment serves one or
+more pretrained time-series models behind `/models` and `/forecast`; a forecast
+returns point values, the requested quantiles and the `models_used` behind them.
+Gnomon treats it as one provider among others: the deployment URL and credential
+environment-variable names are operator configuration, never tool arguments, and
+no served-model revision is attested (`revision_attested: false`). Register it in
+TOML (`kind = "ephemeris"` with `base_url_env`/`token_env`, optionally
+`discover = true`; see [gnomon.toml.example](../../gnomon.toml.example)) or in Python:
 
 ```python
 import os

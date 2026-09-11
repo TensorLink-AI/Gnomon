@@ -159,7 +159,7 @@ INSPECT_SCHEMA = {"type": "object", "additionalProperties": False, "required": [
                       "recorded_as_of", "store_path", "unit", "regrid", "timezone")},
                       "purpose": {"enum": ["infer", "evaluate", "route"]},
                       "window": {"enum": ["latest_contiguous"]},
-                      "repair": {"enum": ["off", "safe", "aggressive"], "description": REPAIR_HELP}}}
+                      "repair": {"enum": ["off", "safe", "aggressive"], "default": "safe", "description": REPAIR_HELP}}}
 _SERIES_SELECTOR = {"type": "string", "description":
     "Select an existing inspected series, not a new label. Unlabeled input uses __default__; "
     "read labels from a column using inspect series_column (CLI: --series-column)."}
@@ -336,6 +336,7 @@ class GnomonSession:
         if engine is not None and ledger is not None and engine.ledger is not ledger:
             raise ForecastAdapterError("session and engine must share the same ledger")
         self.allow_outcome_writes = allow_outcome_writes
+        self._ephemeris_configs: list[dict] = []
         from .data_refs import DataReferences
         self.data = DataReferences(max_refs=max_data_refs, max_rows=max_data_rows)
         from .backtesting import EvaluationBudget
@@ -439,8 +440,9 @@ class GnomonSession:
             provider = EphemerisProvider(url, **{key: spec[key] for key in (
                 "model", "mode", "combine", "token_env", "timeout") if key in spec})
             self.engine.register(name, provider, lifecycle="pretrained")
-            if spec.get("discover", False):
-                provider.register_models(self.engine, prefix=name + "/")
+            discovered = provider.register_models(self.engine, prefix=name + "/") if spec.get("discover", False) else []
+            self._ephemeris_configs.append({"name": name, "base_url_env": spec.get("base_url_env"),
+                                            "discovered_models": len(discovered)})
         elif kind in {"callable", "factory"}:
             _strict(spec, {"kind", "entrypoint", "capabilities", "revision", "deterministic", "lifecycle"}, {"entrypoint"})
             entrypoint = spec["entrypoint"]
@@ -500,6 +502,23 @@ class GnomonSession:
         else:
             raise ForecastAdapterError("provider kind must be ephemeris, callable or factory")
 
+    def _ephemeris_status(self) -> dict:
+        """Additive discovery field: is a hosted-model provider configured in this session?"""
+        configs = list(getattr(self, "_ephemeris_configs", []))
+        if not configs:
+            with self.engine._lock:
+                manual = [name for name, p in self.engine._providers.items() if isinstance(p.target, EphemerisProvider)]
+            if manual:
+                configs = [{"name": manual[0], "base_url_env": None,
+                            "discovered_models": sum(1 for n in manual if "/" in n)}]
+        if not configs:
+            return {"configured": False,
+                    "setup": "Add [providers.ephemeris] kind = \"ephemeris\" with base_url_env/token_env to operator TOML, "
+                             "set those environment variables and pass --providers-config; see "
+                             "https://github.com/TensorLink-AI/Gnomon/blob/main/docs/production/INFERENCE.md#ephemeris-hosted-models"}
+        return {"configured": True, "base_url_env": configs[0]["base_url_env"],
+                "discovered_models": sum(c["discovered_models"] for c in configs)}
+
     @_measured
     def capabilities(self, *, brief: bool = True) -> dict:
         if type(brief) is not bool:
@@ -527,6 +546,7 @@ class GnomonSession:
                                        "import_name": "gnomon", "command": "gnomon python",
                                        "details_command": "gnomon environment"},
                 "tools": {"visible": [tool["name"] for tool in self.tools()]},
+                "ephemeris": self._ephemeris_status(),
                 "providers": providers,
                 "cache": {**self.engine.cache_policy(),
                           "enable": "Set cache_size = 8 in TOML; use GnomonSession.from_config('providers.toml'). "

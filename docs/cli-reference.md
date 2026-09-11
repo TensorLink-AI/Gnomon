@@ -11,6 +11,11 @@ before computing results and removes its temporary file when inspection finishes
 One CLI uses the same execution session as Python and MCP. Its single structured
 JSON response always goes to stdout: success exits 0, errors or unscored evaluations
 exit 2, partial evaluations exit 3, and interruption exits 130.
+On an interactive terminal, a successful `infer`/`forecast` prints one line per
+horizon step (`timestamp point [low high]`) followed by `provider`, `execution`
+and `snapshot` lines, and `evaluate` prints a per-fold MAE table with a final
+ranking line. Pipes, agents and CI always receive the JSON envelope; `--json`
+forces it on a terminal. Errors are always JSON.
 Partial/unscored evaluations still return their report, including `issues`, row
 requirements and actual call/fold counts. stderr is reserved for unstructured process diagnostics. Run
 `gnomon --help` or a command's `--help`.
@@ -75,6 +80,8 @@ an actual with a later source availability is invisible at that cutoff. Supply
 ```bash
 gnomon infer --provider last_value --request '{"history":[1,2,3],"horizon":2}'
 gnomon infer --provider last_value --input data.csv --horizon 7
+gnomon forecast data.csv --horizon 7   # two-column CSV: columns inferred, last_value baseline, disclosed in assumptions
+gnomon forecast data.csv --time date --target sales --horizon 7 --provider seasonal_naive --season 7
 gnomon inspect data.csv --time-column date --target-column sales
 gnomon inspect --input data.csv --time-column ts
 gnomon describe data.csv --statistic mean --start 2025-01-01 --end 2025-01-31
@@ -85,12 +92,18 @@ gnomon mcp serve --providers-config providers.toml
 
 `--request` and `--arguments` accept a JSON object or `@file.json`.
 `infer` takes either a typed request or `--input` plus `--horizon`.
-File options are `--time-column` (default timestamp for every provider), `--target-column`
-(default value), `--series-column`, `--frequency`, `--as-of`,
+File options are `--time-column`/`--time` (default timestamp for every provider),
+`--target-column`/`--target` (default value), `--series-column`, `--frequency`, `--as-of`,
 `--recorded-as-of`, `--store-path`, `--unit`, `--repair`, `--regrid`, `--timezone`
 and `--window latest_contiguous`.
 They cannot be mixed with a typed request. Panel forecasts require `--series-id`
-unless only one series is present. Repairs default to off.
+unless only one series is present. Repairs default to `safe`: text normalisation,
+identical-duplicate removal and bounded timestamp jitter alignment only, every fix
+itemised in `repairs` and summarised in `data_quality`. `aggressive` (gap
+interpolation, conflict resolution, row drops) is never applied unless chosen;
+when `safe` fails, the error's `next_call` names the exact retry, or
+`correct_target` with the row and value when no repair level is admissible.
+`--repair off` is the strict path.
 
 Forecast responses include `request_provenance` with the execution's cutoff,
 known-time and recorded-time cutoffs, snapshot ID, selected series and history

@@ -1,23 +1,31 @@
 # First run
 
-Install the [package or source checkout](installation.md), then run a reference forecast:
+Install the [package or source checkout](installation.md). From a checkout, the
+bundled example has `timestamp` and `requests` columns of daily data; forecast
+the next week with the seasonal baseline, which repeats the previous seven days:
 
 ```bash
-gnomon infer --provider last_value --request '{"history":[10,12,11],"horizon":2}'
+gnomon forecast examples/messy_requests.csv --time timestamp --target requests \
+  --horizon 7 --provider seasonal_naive --season 7
 ```
 
-The result repeats 11 twice. This is an offline baseline, not an accuracy claim.
+On a terminal this prints one line per day, then the provider and revision, the
+execution ID and the frozen snapshot ID with its `as_of` cutoff. Pipes and agents
+receive the JSON envelope (`--json` forces it). It is an offline baseline, not an
+accuracy claim; a configured Ephemeris or registered model is chosen the same
+way with `--provider`.
 
-From a source checkout, the bundled example has timestamp and requests columns:
+Inspect and summarise the same file first when you want the frozen snapshot and
+an exact observed statistic:
 
 ```bash
-gnomon inspect examples/daily_requests.csv --target-column requests
-gnomon describe examples/daily_requests.csv --target-column requests --statistic mean
-gnomon infer --input examples/daily_requests.csv --target-column requests --provider last_value --horizon 7
+gnomon inspect examples/messy_requests.csv --time timestamp --target requests
+gnomon describe examples/messy_requests.csv --time timestamp --target requests --statistic mean
 ```
 
-For your own CSV, use its path and column names. Use `--season 7` with
-`seasonal_naive` to repeat the previous week of daily observations.
+For your own CSV, use its path and column names. A two-column CSV needs no
+column flags: `gnomon forecast data.csv --horizon 7` infers them, runs the
+`last_value` reference baseline and discloses both choices in `assumptions`.
 
 ## Inspect, compare and route
 

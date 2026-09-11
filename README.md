@@ -4,33 +4,82 @@
 
 # Gnomon
 
-## Know more than the prediction.
+**Give your agent forecasts it can verify.**
 
-Gnomon helps people and AI agents inspect time-series data, run their chosen models,
-challenge forecasts against honest baselines, and preserve the evidence behind every
-result.
+<!-- TODO(F2): docs/assets/demo.gif -->
 
-Use your own forecasting software. Add a remote service or a persistent ledger
-when you need one.
+Gnomon connects agents to Ephemeris, TensorLink's hosted forecasting API, or
+your own models. Run forecasts, compare performance, and preserve the evidence
+behind each decision. Keep predictions and outcomes across tasks, so agents can
+check what worked before—even when observations are revised.
 
 ## Quick start
 
-Python 3.11–3.13. No required third-party dependencies.
-
 ```bash
-python -m pip install 'gnomon-forecast==1.1.9'
-gnomon infer --provider last_value --request '{"history":[10,12,11],"horizon":2}'
+python -m pip install gnomon-forecast
+gnomon forecast --provider seasonal_naive \
+  --request '{"history":[120,131,125,140,152,161,118,122,134,128,142,155,163,121],"horizon":7,"season":7}'
 ```
 
-From a checkout, use `python -m pip install .`; this also works before the
-versioned package is published.
-The forecast command runs an offline baseline.
-To use your own local model, install Gnomon in the **same Python environment** as
-the model and its dependencies, then run that environment's `gnomon` or
-`python -m gnomon`. An isolated Gnomon environment cannot import PyTorch or
-another model library installed elsewhere.
+```
++1  122
++2  134
+...
++7  121
+provider: seasonal_naive (gnomon/1.2.0+…/seasonal_naive)
+execution: 9b051531-a0f4-482d-8312-c8a49b7b4452
+snapshot: request supplied directly
+```
 
-Register your model as a callable:
+A CSV works the same way: `gnomon forecast data.csv --horizon 7` freezes a
+snapshot and labels every inferred choice in `assumptions`. Pipes and agents
+receive the JSON envelope; `--json` forces it.
+
+Hosted models: [set up Ephemeris](docs/production/INFERENCE.md#ephemeris-hosted-models)
+(two environment variables and a `providers.toml`), then add
+`--provider ephemeris --providers-config providers.toml --quantiles 0.1 0.5 0.9`.
+
+## Connect an agent
+
+```bash
+claude mcp add gnomon -- gnomon mcp serve --providers-config /absolute/path/providers.toml
+```
+
+The agent gets 6 tools by default:
+
+- `gnomon_inspect`: check data, freeze a snapshot.
+- `gnomon_describe`: exact observed statistic.
+- `gnomon_capabilities`: models, limits, Ephemeris status.
+- `gnomon_forecast`: run the selected model.
+- `gnomon_evaluate`: compare models on past data, budgeted.
+- `gnomon_read`: page saved results, no rerun.
+
+## What every forecast carries
+
+- A frozen snapshot with its `as_of` cutoff; the same file always freezes to the same snapshot.
+- An execution ID and request fingerprint.
+- The provider and revision.
+- Every data repair itemised; nothing interpolated unless you chose `aggressive`.
+- An optional ledger row that later actuals never overwrite.
+- Rescoring after revisions, originals intact.
+
+## Keep experience across tasks
+
+The optional ledger records each forecast, the actuals that arrive later and the
+scores. Revised observations refresh the scores; original predictions never
+change. See [ledger operations](docs/production/OPERATIONS.md).
+
+## Ephemeris
+
+Ephemeris is TensorLink's hosted forecasting models: point values, requested
+quantiles and `models_used` per forecast. Set `EPHEMERIS_BASE_URL` and
+`EPHEMERIS_API_TOKEN` and register the provider in
+[operator config](docs/production/INFERENCE.md#ephemeris-hosted-models);
+credentials are never tool arguments.
+
+## Your own models
+
+Register any callable:
 
 ```python
 from gnomon import ForecastRequest, ForecastResult, InferenceEngine
@@ -45,65 +94,17 @@ execution = engine.forecast("my-model", ForecastRequest((10, 12, 11), 2))
 print(execution.result.point)  # (11.0, 11.0)
 ```
 
-StatsForecast, NeuralForecast, Darts or your own code: wrap the call and return a
-`ForecastResult`. Use `register_factory` for a fresh model on each evaluation fold.
-Gnomon checks inputs and outputs; you choose and install the model software.
-See [provider integration](docs/production/INFERENCE.md).
-
-For a scoreable ledger record, give the forecast a nonempty `series_id` and
-explicit `future_timestamps`. Every ledger timestamp needs an explicit timezone
-such as `+00:00`; each actual must use the forecast's exact `series_id`, unit and
-one of its future timestamps. The [first-run guide](docs/getting-started.md#record-and-score-a-forecast)
-shows the complete CLI loop.
-
-## Connect an agent
-
-Start with the [agent operation guide](docs/agent-operations.md), including cache
-and configuration diagnostics, strict routing, independent verification, and
-[revised-vintage rescoring](docs/revised-vintage-workflow.md). The installed
-`gnomon providers example` and `python -m gnomon.examples.mcp_workflow` demonstrate
-custom providers and verified MCP pagination without external services.
-
-Run `gnomon mcp serve` in your agent host. The agent gets 6 tools by default:
-
-- `gnomon_inspect`: check data and freeze a reusable snapshot.
-- `gnomon_describe`: calculate an observed statistic.
-- `gnomon_capabilities`: find available models and their limits.
-- `gnomon_forecast`: run the selected model.
-- `gnomon_evaluate`: compare models on past data with an explicit budget.
-- `gnomon_read`: retrieve saved results without running the model again.
-
-Python, CLI and MCP share the same interface.
-Start with the [MCP quickstart](docs/quickstart-mcp.md)
-and [agent skill](skills/use-gnomon/SKILL.md).
-
-## Optional connectors
-
-Ephemeris is one connector for remote time-series inference. Set its deployment
-URL and credentials in operator configuration; they are never agent tool arguments.
-Local models work without it.
-See [connector setup](docs/production/INFERENCE.md#ephemeris).
-
-## Keep the history straight
-
-The optional SQLite ledger saves forecasts, revised actuals, scores and decisions.
-Later corrections do not overwrite earlier predictions. You can ask what was known
-at a particular time, find forecasts that need scoring, and compare models on
-matched past results. No automatic retraining or model calls are involved.
-
-Optional date and time tools handle timezones, calendar shifts, intervals and event
-order. They calculate supplied facts; they do not claim to improve an LLM's reasoning.
+Install it in the model's environment (`python -m pip install .` from a checkout);
+see [provider integration](docs/production/INFERENCE.md).
 
 ## Status and guides
 
-The provider-neutral execution API is stable. Live-service verification and a
-real-agent comparison remain pending. A forecast is not permission to act; model quantiles are not proof
-of calibrated uncertainty. See [validation and limits](docs/agent-evaluation.md).
+The execution API is stable; a real-agent comparison and the authenticated
+Ephemeris gate remain pending, and a forecast is not permission to act. See
+[validation and limits](docs/agent-evaluation.md).
 
 - [First run](docs/getting-started.md) · [Python API](docs/python-api.md) · [CLI](docs/cli-reference.md)
-- [Ledger](docs/production/OPERATIONS.md) · [Time calculations](docs/production/TEMPORAL.md) · [All docs](docs/README.md)
-- [Changelog](CHANGELOG.md)
+- [MCP quickstart](docs/quickstart-mcp.md) · [Agent skill](skills/use-gnomon/SKILL.md) · [Ledger](docs/production/OPERATIONS.md)
+- [Decision memory](docs/decision-memory.md) · [All docs](docs/README.md) · [Changelog](CHANGELOG.md)
 
 *A gnomon is the part of a sundial that casts the shadow.*
-
-Decision memory: [structured summaries, context comparisons, outcome reviews and portable lessons](docs/decision-memory.md). Run `python -m gnomon.examples.decision_memory` in a fresh directory for the offline example.
