@@ -33,9 +33,15 @@ live-agent superiority result. See [the audit](OPPORTUNITY_013_RESULT.md) and
 
 Source amendment 014 prepares a prospective M5 panel: eight development series
 and 24 reserved series, disjoint by store and item. Selection uses only the
-initial history, and two clean preparations produce identical outputs. No
-forecasts or performance scores exist yet; reserved outcomes remain unscored.
+initial history, and two clean preparations produce identical outputs. Preparation
+computed no forecasts; reserved outcomes remain unscored.
 See [preparation and limitations](M5_PREPARATION_014_RESULT.md).
+
+The subsequent complete M5 development screen 015 is negative: support is 1.42%
+worse than CV and the hindsight ceiling is 11.66% against CV. All 4,992 production
+and CV forecasts passed independent checks, with no recipe fallback. Reserved
+stores remain closed and no paid comparison was launched. See
+[the result and pending scope decision](M5_CANDIDATES_015_RESULT.md).
 
 The user's subsequent evaluation-development task is tracked separately in
 [the accumulated-experience workflow benchmark](../experience_workflow/README.md).

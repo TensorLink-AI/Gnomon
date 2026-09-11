@@ -1,10 +1,12 @@
 from copy import deepcopy
+from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
 import json
 
 import pytest
 
 from benchmarks.ledger_optimization.m5_candidates import PROVIDERS, compute_case, load_panel, metric, request
+from benchmarks.ledger_optimization.audits.m5_candidates_015 import check_request, score
 
 
 def rows():
@@ -75,3 +77,15 @@ def test_known_seasonal_and_metric_arithmetic():
     assert point == tuple(actual)
     assert metric(point, actual) == {'mae': 0, 'rmsle': 0}
     assert metric([-1, 3], [0, 3])['rmsle'] == 0  # pinned clipping convention
+
+
+def test_independent_audit_rejects_changed_cutoff_and_identity():
+    data = rows()
+    req = json.loads(json.dumps(asdict(request(data, 365))))
+    check_request(req, data, 365)
+    for field, value in [('series_id', 'unrelated'), ('recorded_time_cutoff', req['future_timestamps'][0])]:
+        altered = dict(req, **{field: value})
+        with pytest.raises(AssertionError):
+            check_request(altered, data, 365)
+    with pytest.raises(AssertionError):
+        score([-1] * 14, [1] * 14)  # pinned provider must have clipped before returning

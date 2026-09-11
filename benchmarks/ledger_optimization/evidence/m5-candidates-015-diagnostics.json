@@ -1,0 +1,17 @@
+{
+  "distinct_point_vectors_per_case": {
+    "6": 19,
+    "7": 2,
+    "8": 187
+  },
+  "original_screen_sha256": "a328cf64f5aa969df24b838d12ee702088d9a61a49b993775d6022202d7f14bc",
+  "raw_dispatch_path": "results/ledger-optimization/m5-dispatch-015",
+  "raw_run_path": "results/ledger-optimization/m5-candidates-015",
+  "scope": "post-run descriptive diagnostics only",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "c6b48647752553c865fe11c5fa5548f091f2d1659857f8e94b777e8256676b88",
+  "support_changed_choices": 101,
+  "support_improvements": 55,
+  "support_regressions": 46,
+  "target_established": false
+}

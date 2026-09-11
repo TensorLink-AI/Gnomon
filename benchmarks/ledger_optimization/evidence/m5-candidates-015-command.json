@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "results/ledger-optimization/m5-runtime-015/bin/python",
+    "-u",
+    "-m",
+    "benchmarks.ledger_optimization.m5_candidates",
+    "--panel-manifest",
+    "results/ledger-optimization/m5-panel-014/manifest.json",
+    "--recipes",
+    "results/ledger-optimization/m5-recipe-source-015/retail_providers.py",
+    "--output",
+    "results/ledger-optimization/m5-candidates-015"
+  ],
+  "cwd": "/root/Gnomon",
+  "environment_overrides": {
+    "OPENBLAS_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1",
+    "NUMBA_NUM_THREADS": "1",
+    "PYTHONPATH": "/root/Gnomon/src"
+  },
+  "started_unix": 1789163449.109899,
+  "exit_code": 0,
+  "seconds": 170.7817509174347
+}

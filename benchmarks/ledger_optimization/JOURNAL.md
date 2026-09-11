@@ -480,3 +480,34 @@ Engy call ran. Keep source/recording assumptions and unavailable promotion
 feature explicit. Source amendment does not replace the primary target or grant
 permission to cherry-pick reserved outcomes. Full commands, failure, retry,
 timings and receipts are retained in evidence/m5-*-014*. Main/PyPI unchanged.
+
+## 2026-09-12: M5 forecasting and fixed-policy screen 015
+
+Previous turn made progress by freezing and preparing the new source under
+prefix-only selection. Current turn froze 53ea3d9 before fitting. Used the same
+eight pinned recipes and original numerical package versions in an isolated
+runtime. A read-only uv cache error was resolved with a separate temporary cache
+before model execution; no numerical version or forecasting rule was changed.
+
+All 208 development cases completed, 1,664 production plus 3,328 CV requests,
+1,792 exact-request cache misses and 3,200 hits. No numerical recipe fallback.
+Support RMSLE 0.6257278285 versus CV 0.6169646542: 1.42% worse. Future-aware
+minimum 0.5450017262 permits only 11.66% improvement against CV. Later slice
+support is 2.24% worse; lifetime MAE's better later score is retained as a fixed
+diagnostic, not selected retroactively or equated to a 1.1.9 agent.
+
+Twelve pre-dispatch tests passed, plus one later independent-audit fault test.
+The full independent audit reproduces 4,992 metrics/requests, 1,792 distinct
+request identities, CV maturity, causal support selections and input/code hashes.
+All 101 changed support choices retained: 55 improvements, 46 regressions,
+negative net mean result. No case or duplicate prediction deleted. Measured
+subprocess elapsed 170.78 seconds, no Engy calls. Original requests, predictions,
+CV evidence, command logs and source snapshots remain locally hash-linked.
+
+M5 failed the preregistered development gate. Its reserved stores stay closed;
+no paid live selection trial is justified by this screen. Asked the user to
+resolve the fixed-forecast scope: retain the negative conclusion, or explicitly
+permit equal additional forecasting choices in all arms while retaining 20%.
+No expansion occurred while that question was pending. The objective remains
+unachieved; this is the first scope-blocking decision point after completing
+the new source's development work. Main/PyPI and earlier evidence unchanged.

@@ -1,0 +1,13 @@
+{
+  "audit_script_sha256": "db31435f2eeeb74448caedaf65c4cab7d361b43085b336b255eb88570490b1aa",
+  "cases_checked": 208,
+  "cases_sha256": "577a31b7b77b35f8c058d1a1c4b2da1bed2d74a3df62b7b38b274e4f342af731",
+  "distinct_forecasting_requests_checked": 1792,
+  "forecasts_and_scores_checked": 4992,
+  "limitation": "Development numerical and visibility audit, not an agent or confirmation result.",
+  "reserved_data_read": false,
+  "screen_sha256": "a328cf64f5aa969df24b838d12ee702088d9a61a49b993775d6022202d7f14bc",
+  "source_hashes_unchanged": true,
+  "status": "passed",
+  "target_established": false
+}
