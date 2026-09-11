@@ -336,10 +336,16 @@ Recommendations are advisory and never grant action/deployment permission. A
 successful route appends a rescore study, retrievable through the ledger; its
 recording time is now, never backdated to the queried historical instant.
 
-## Ephemeris
+## Ephemeris (hosted models)
 
-Ephemeris is one optional remote inference connector. Its deployment base URL
-is configured by the operator, not determined by the provider name.
+Ephemeris is TensorLink's hosted forecasting service. A deployment serves one or
+more pretrained time-series models behind `/models` and `/forecast`; a forecast
+returns point values, the requested quantiles and the `models_used` behind them.
+Gnomon treats it as one provider among others: the deployment URL and credential
+environment-variable names are operator configuration, never tool arguments, and
+no served-model revision is attested (`revision_attested: false`). Register it in
+TOML (`kind = "ephemeris"` with `base_url_env`/`token_env`, optionally
+`discover = true`; see [gnomon.toml.example](../../gnomon.toml.example)) or in Python:
 
 ```python
 import os
