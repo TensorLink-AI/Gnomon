@@ -2,7 +2,7 @@ from copy import deepcopy
 
 import pytest
 
-from benchmarks.ledger_optimization.m5_prepare import CUTOFF, FIRST, fetch, prefix_metadata, prepare, select, verify_archive
+from benchmarks.ledger_optimization.m5_prepare import CUTOFF, FIRST, calendar_mapping, fetch, prefix_metadata, prepare, select, verify_archive
 
 
 def fixture():
@@ -74,3 +74,14 @@ def test_existing_outputs_and_wrong_archive_rejected_before_work(tmp_path):
         fetch(archive)
     with pytest.raises(ValueError, match='reuse'):
         prepare(archive, tmp_path)
+
+
+def test_calendar_without_d_uses_verified_one_based_daily_order():
+    rows = [{'date': '2011-01-29'}, {'date': '2011-01-30'}]
+    result = calendar_mapping(rows)
+    assert str(result['d_1']) == '2011-01-29' and str(result['d_2']) == '2011-01-30'
+    assert calendar_mapping([dict(row, d=f'd_{i}') for i, row in enumerate(rows, 1)]) == result
+    with pytest.raises(ValueError, match='consecutive'):
+        calendar_mapping(rows[::-1])
+    with pytest.raises(ValueError, match='identifiers'):
+        calendar_mapping([{'date': '2011-01-29', 'd': 'd_2'}])

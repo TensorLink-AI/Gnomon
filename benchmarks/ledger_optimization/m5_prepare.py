@@ -121,6 +121,22 @@ def rows(zipped, name):
             yield from csv.DictReader(stream)
 
 
+def calendar_mapping(source_rows):
+    # The pinned mirror omits d; its documented loader uses one-based row order.
+    result = {}
+    previous = None
+    for index, row in enumerate(source_rows, 1):
+        key = f'd_{index}'
+        if 'd' in row and row['d'] != key:
+            raise ValueError('Calendar day identifiers disagree with row order')
+        current = date.fromisoformat(row['date'])
+        if previous is not None and current - previous != timedelta(days=1):
+            raise ValueError('Calendar must have consecutive daily rows')
+        result[key] = current
+        previous = current
+    return result
+
+
 def prepare(archive, output):
     if output.exists():
         raise ValueError('Refuse to reuse any preparation directory')
@@ -128,7 +144,7 @@ def prepare(archive, output):
     with ZipFile(archive) as zipped:
         eligible, counts = prefix_metadata(rows(zipped, 'sales_train_evaluation.csv'))
         splits = select(eligible, counts['stores'])
-        calendar = {r['d']: date.fromisoformat(r['date']) for r in rows(zipped, 'calendar.csv')}
+        calendar = calendar_mapping(rows(zipped, 'calendar.csv'))
         days = [calendar[f'd_{i}'] for i in range(FIRST, LAST + 1)]
         if any(b - a != timedelta(days=1) for a, b in zip(days, days[1:])):
             raise ValueError('Calendar is not a complete daily grid')

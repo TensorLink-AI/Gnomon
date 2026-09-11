@@ -92,3 +92,13 @@ Keep the main metric, 20% point target, positive 95% improvement interval,
 1.1.9 comparison, equal tools/information/budgets and common execution-bound
 completion handling. No stronger treatment forecasting model, weaker control,
 case deletion or inventory-profit substitution. Main and PyPI stay unchanged.
+
+## Metadata adapter correction, before first successful preparation
+
+The first attempt stopped at the calendar header: the pinned mirror omits `d`.
+Its [published loader](https://raw.githubusercontent.com/Nixtla/datasetsforecast/main/datasetsforecast/m5.py)
+reconstructs d_1, d_2, ... from one-based calendar row order. Apply that mapping
+with an explicit consecutive-date check. Preserve the failed attempt log. No
+development target export, forecast calculation or reserved-outcome analysis
+occurred before this correction. Store/item sampling, prefix cutoff, dates and
+source bytes are unchanged; no fallback seed or replacement cohort is introduced.
