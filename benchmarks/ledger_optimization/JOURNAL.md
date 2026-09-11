@@ -427,3 +427,29 @@ all gates and per-case evidence in evidence/override-trust-012.json. The protoco
 and result explicitly retain inherited replay assumptions and the already-used
 development scope. The original target remains unestablished; main/PyPI and the
 spent confirmation are unchanged.
+
+## 2026-09-12: opportunity and historical-linkage audit 013
+
+Previous goal turn made progress by retaining the negative screen-012 result
+and pushing aec5e89. Revalidated branch state and the unchanged objective before
+this audit. No live process or pending paid run was inferred from old files.
+
+Registered 45dc81b before computing a fixed 256-trial historical provider-label
+corruption diagnostic and future-aware headroom on development only. Correct
+support beats every corrupted-history aggregate overall and later, while cold
+origins are unchanged. This is diagnostic sensitivity to truthful linkage, not
+a fair no-ledger comparator, p-value or uncertainty interval.
+
+All-case RMSLE: CV 0.5658325868, support 0.5540610449, future-aware per-case oracle
+0.4942338380. Maximum gain is 12.65% against CV; later slice maximum is 9.14%.
+Correct support captures 16.44% of the all-case oracle opportunity. No basis to
+keep buying selection-only trials on this panel in pursuit of 20%, and no
+permission to select a future holdout by favorable oracle headroom.
+
+Ten tests passed. Independent post-run recomputation checked 53,248 mapped
+selections, 1,024 aggregates and 208 prior incumbent choices; input and frozen
+source hashes unchanged. Preserve all mappings and choices, including identity
+mappings, in evidence/opportunity-013.json. No API/provider calls or new data
+access. FORECAST_EVALUATION_GATE.md now records the development-only feasibility,
+fair-agent comparison and immutable final-test gates. The original target and
+negative confirmation remain unchanged; no main or PyPI changes.

@@ -24,6 +24,13 @@ current CV but 1.37% worse than existing support on the later development slice.
 It was also rejected without an API run or new confirmation access. See
 [the retained result](OVERRIDE_TRUST_012_RESULT.md).
 
+Audit 013 found that correct historical provider linkage beats all 256
+deliberately mislinked diagnostic trials. However, the development panel's
+future-aware improvement ceiling is only 12.65% versus current CV, or 9.14% on
+its later slice. This diagnoses useful but limited historical signal, not a
+live-agent superiority result. See [the audit](OPPORTUNITY_013_RESULT.md) and
+[the gate for another forecast evaluation](FORECAST_EVALUATION_GATE.md).
+
 The user's subsequent evaluation-development task is tracked separately in
 [the accumulated-experience workflow benchmark](../experience_workflow/README.md).
 It starts from arrived raw events and measures correct retrieval, revision review,

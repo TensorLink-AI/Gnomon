@@ -1,0 +1,12 @@
+{
+  "status": "passed",
+  "cases": 208,
+  "historical_mapping_choices_checked": 53248,
+  "trial_slice_aggregates_checked": 1024,
+  "incumbent_reference_choices_checked": 208,
+  "inputs_unchanged": true,
+  "source_hashes_unchanged": true,
+  "retained_report_sha256": "bf2607dab17e4445470e63b1b845512385c9df2a31802894f938566e67d0a738",
+  "target_established": false,
+  "limitation": "Independent recomputation of diagnostic arithmetic and visibility, not independent forecasting superiority evidence."
+}
