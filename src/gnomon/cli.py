@@ -104,6 +104,7 @@ def build_parser() -> argparse.ArgumentParser:
     infer.add_argument("--provider", help="Registered provider name. With a data file and only the built-in baselines "
                                           "registered, defaults to last_value and discloses that in assumptions")
     infer.add_argument('--verify', action='store_true', help='Include independent arithmetic verification for deterministic built-ins')
+    infer.add_argument('--json', action='store_true', help='Print the full JSON envelope even on a terminal (the default whenever stdout is not a TTY)')
     source = infer.add_mutually_exclusive_group()
     source.add_argument("--schema", action="store_true", help="Print the JSON Schema for --request and exit")
     source.add_argument("--request", help="Forecast request JSON or @file.json")
@@ -203,6 +204,7 @@ def build_parser() -> argparse.ArgumentParser:
             sub.add_argument("--season", type=int, help="Seasonal period in observations (default: 1)")
             sub.add_argument("--series-id", help=_SERIES_HELP)
             if name == "evaluate":
+                sub.add_argument('--json', action='store_true', help='Print the full JSON envelope even on a terminal (the default whenever stdout is not a TTY)')
                 sub.add_argument('--preflight', action='store_true', default=None, help='Explain planned fold visibility and replay before any provider calls or saved study')
                 sub.add_argument('--replay', choices=['recorded', 'source_available'], help='Explicit temporal replay choice; recording-bounded snapshots default to recorded. See --preflight.')
                 sub.add_argument('--verify', action='store_true', default=None, help='Include fold error vectors, metric sums and exact scored-pair hashes')
@@ -332,6 +334,75 @@ def _explicit_fields(argv):
     fields = {item.split('=')[0][2:].replace('-', '_') for item in argv if item.startswith('--')}
     return {_FLAG_ALIASES.get(field, field) for field in fields}
 MAX_STDIN_BYTES = 8 * 1024 * 1024
+
+
+def _stdout_is_tty():
+    try:
+        return sys.stdout.isatty()
+    except (AttributeError, ValueError):
+        return False
+
+
+def _number(value):
+    text = f"{float(value):.6g}"
+    return text
+
+
+def _forecast_text(result):
+    """Compact terminal view: one line per step, then provider, execution and snapshot."""
+    forecast = result["result"]
+    timestamps = forecast.get("timestamps") or [f"+{i + 1}" for i in range(len(forecast["point"]))]
+    quantiles = forecast.get("quantiles") or [None] * len(forecast["point"])
+    lines = []
+    for timestamp, point, row in zip(timestamps, forecast["point"], quantiles):
+        line = f"{timestamp}  {_number(point)}"
+        if row:
+            keys = sorted(row, key=float)
+            line += f"  [{_number(row[keys[0]])} {_number(row[keys[-1]])}]"
+        lines.append(line)
+    lines.append(f"provider: {result['provider']} ({result.get('revision') or 'unversioned'})")
+    lines.append(f"execution: {result['execution_id']}")
+    snapshot = result.get("snapshot")
+    if snapshot:
+        lines.append(f"snapshot: {snapshot['snapshot_id']} as_of={snapshot['as_of']}")
+    else:
+        lines.append("snapshot: request supplied directly")
+    return "\n".join(lines)
+
+
+def _evaluate_text(result):
+    """Per-fold MAE per provider, then the recorded ranking and study identity."""
+    providers = list(result.get("provider_order") or result["providers"])
+    width = max(len(name) for name in providers)
+    lines = ["  ".join(["origin".ljust(19), *(name.rjust(max(width, 8)) for name in providers)])]
+    for fold in result["folds"]:
+        cells = []
+        for name in providers:
+            run = fold["runs"].get(name) or {}
+            actuals = [item["value"] for item in fold.get("actuals") or []]
+            if run.get("status") == "ok" and len(actuals) == len(run.get("point", ())) and actuals:
+                error = sum(abs(p - a) for p, a in zip(run["point"], actuals)) / len(actuals)
+                cells.append(_number(error).rjust(max(width, 8)))
+            else:
+                cells.append("-".rjust(max(width, 8)))
+        lines.append("  ".join([str(fold["origin"])[:19].ljust(19), *cells]))
+    scores = result.get("scores") or {}
+    ranked = [f"{name} (mae {_number(scores[name]['mae'])})" if name in scores else name for name in result.get("ranking", [])]
+    lines.append(f"ranking: {' > '.join(ranked) if ranked else 'unscored'}  [{result['status']}]")
+    lines.append(f"study: {result['study_id']}")
+    return "\n".join(lines)
+
+
+def _human_text(command, result):
+    """Return terminal text for a complete forecast or evaluation, else None for JSON."""
+    try:
+        if command == "infer" and result.get("status") == "ok" and "result" in result:
+            return _forecast_text(result)
+        if command == "evaluate" and isinstance(result.get("folds"), list) and "study_id" in result:
+            return _evaluate_text(result)
+    except (KeyError, TypeError, ValueError):
+        return None
+    return None
 
 
 def _is_number(text):
@@ -626,7 +697,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         result = completion(result)
         if args.command == 'route' and result.get('fallback_used'):
             print('gnomon: routing used a baseline fallback (' + str(result.get('reason')) + '); evidence-based selection did not complete. Use --require-evidence to reject fallbacks.', file=sys.stderr)
-        print(json.dumps(result, indent=2, allow_nan=False))
+        # Terminals get a compact table; pipes, agents and CI keep the envelope.
+        text = _human_text(args.command, result) if not getattr(args, "json", False) and _stdout_is_tty() else None
+        print(text if text is not None else json.dumps(result, indent=2, allow_nan=False))
         if result.get("status") == "unscored" or (args.command == "self-check" and result.get('checks_passed') is False):
             return 2
         return 3 if result.get("status") == "partial" else 0
