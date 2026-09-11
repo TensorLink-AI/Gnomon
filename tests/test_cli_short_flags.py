@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+import re
 
 import pytest
 
@@ -52,5 +53,7 @@ def test_help_keeps_the_long_form_canonical(command, capsys):
     with pytest.raises(SystemExit):
         build_parser().parse_args([command, "--help"])
     text = capsys.readouterr().out
-    assert "--time-column NAME, --time NAME" in text
-    assert "--target-column NAME, --target NAME" in text
+    # argparse repeats the metavar per alias before 3.13 and once after; the
+    # contract is that the long form is listed first, with the alias beside it.
+    assert re.search(r"--time-column(?: NAME)?, --time NAME", text), text
+    assert re.search(r"--target-column(?: NAME)?, --target NAME", text), text
