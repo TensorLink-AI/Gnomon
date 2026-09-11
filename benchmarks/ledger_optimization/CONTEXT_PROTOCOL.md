@@ -60,3 +60,24 @@ mature samples separately; all remain in the primary mean per-case RMSLE.
 The 20% final objective remains unchanged. Any confirmation freeze must explicitly
 carry this equal-information contract forward; the earlier final-arm descriptions
 are insufficient by themselves to specify the control after this clarification.
+
+## Subsequent development trial 008: concise historical support
+
+After context trial 005, a 108-rule automatic screen selected
+`all_4_0.5_False_0` on origins 0..17 only. On development validation origins
+18..25 it improved 1.9086% versus automatic current-CV selection. This is an
+automatic policy result, not evidence of agent improvement.
+
+Freeze that rule for the next live trial: use all matched history; require four
+origins, strictly lower mean RMSLE than the current-CV provider, and wins on at
+least half of historical origins. Among qualifying candidates take the lowest
+mean historical loss; otherwise retain current CV. No recent-window gate or
+extra improvement margin. The support packet gives the counts, both historical
+means, both current-CV scores, cutoffs and the explicit non-guarantee. The agent
+still chooses and must execute its chosen fixed candidate. No forecast changes.
+
+Trial 008 repeats the same 64 case/seed pairs with three arms: no_ledger,
+ledger_119, ledger_supported. Every arm again sees the identical raw historical
+rows and current context. Run all 192 decisions afresh; do not selectively reuse
+favorable control draws. Backend honoring of requested seeds remains unverified.
+This trial cannot establish the final target; the reserved partition stays closed.

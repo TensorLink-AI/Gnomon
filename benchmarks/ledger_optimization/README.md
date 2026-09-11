@@ -27,6 +27,34 @@ reach 20% on that cohort by selection alone. This bound says nothing about
 unseen series or expanded forecasting capabilities. The separately reserved
 24-series confirmation set has not been scored.
 
+## Ledger-only continuation with equal historical information
+
+The user clarified that the intended advantage is accumulating and using
+experience, with unchanged forecasting tools. Context trial 005 gives **all**
+arms identical matured historical score rows and current conditions; ledger
+arms organize that evidence. This is a stronger control-information contract
+than the earlier runs above, so their effects must not be pooled.
+
+| Arm | Mean per-case RMSLE |
+| --- | ---: |
+| Raw-history control | 0.541443 |
+| Existing MAE summaries | 0.543930 |
+| Context retrieval | 0.540718 |
+
+All 192 decisions passed the equal-information/typed-execution/arithmetic audit.
+The **0.13%** mean improvement does not establish the 20% target. Tail losses
+improved descriptively, while seed-level provider choice became less consistent.
+See the robustness report before interpreting this as a reliability improvement.
+
+The new public `retrieve_context` operation reads explicit progressively broader
+historical cohorts in one database snapshot. Its sample-count threshold does
+not imply confidence or select a forecasting provider. Complete results remained
+identical across 208 regression queries after parsing reuse was optimized.
+
+The next registered development trial tests a concise historical-support packet;
+see [CONTEXT_PROTOCOL.md](CONTEXT_PROTOCOL.md). Forecasts remain unchanged, and
+the confirmation partition remains closed during development.
+
 ## Reproduction and evidence
 
 - [PLAN.md](PLAN.md): objective, fairness, original protocol.

@@ -1,0 +1,2512 @@
+{
+  "cases": [
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.7071570811944259,
+        "retrieved_context": 0.7071570811944259
+      },
+      "round": 0,
+      "selected_index": null,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "context_choice": "sf_auto_arima_7",
+      "current_cv_choice": "sf_auto_arima_7",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.1901600278741466,
+        "retrieved_context": 0.1901600278741466
+      },
+      "round": 0,
+      "selected_index": null,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "context_choice": "sf_mstl_7",
+      "current_cv_choice": "sf_mstl_7",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.5816740142596424,
+        "retrieved_context": 0.5816740142596424
+      },
+      "round": 0,
+      "selected_index": null,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "context_choice": "sf_window_average_28",
+      "current_cv_choice": "sf_window_average_28",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.3679254560292163,
+        "retrieved_context": 0.3679254560292163
+      },
+      "round": 0,
+      "selected_index": null,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "context_choice": "sf_seasonal_naive_7",
+      "current_cv_choice": "sf_seasonal_naive_7",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 1.110171326801301,
+        "retrieved_context": 1.110171326801301
+      },
+      "round": 0,
+      "selected_index": null,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "context_choice": "sf_croston_optimized",
+      "current_cv_choice": "sf_croston_optimized",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.6674625524091429,
+        "retrieved_context": 0.6674625524091429
+      },
+      "round": 0,
+      "selected_index": null,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.746849609226866,
+        "retrieved_context": 0.746849609226866
+      },
+      "round": 0,
+      "selected_index": null,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_auto_ets_7",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.33770204222935724,
+        "retrieved_context": 0.33770204222935724
+      },
+      "round": 0,
+      "selected_index": null,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.5602483502672339,
+        "retrieved_context": 0.5602483502672339
+      },
+      "round": 1,
+      "selected_index": null,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "context_choice": "sf_auto_arima_7",
+      "current_cv_choice": "sf_auto_arima_7",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.24293048981776025,
+        "retrieved_context": 0.24293048981776025
+      },
+      "round": 1,
+      "selected_index": null,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "context_choice": "sf_mstl_7",
+      "current_cv_choice": "sf_mstl_7",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.6124073035762966,
+        "retrieved_context": 0.6124073035762966
+      },
+      "round": 1,
+      "selected_index": null,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "context_choice": "sf_window_average_28",
+      "current_cv_choice": "sf_window_average_28",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.4421827798151518,
+        "retrieved_context": 0.4421827798151518
+      },
+      "round": 1,
+      "selected_index": null,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.45850965256092024,
+        "retrieved_context": 0.45850965256092024
+      },
+      "round": 1,
+      "selected_index": null,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "context_choice": "sf_mstl_7",
+      "current_cv_choice": "sf_mstl_7",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.7901475259228924,
+        "retrieved_context": 0.7901475259228924
+      },
+      "round": 1,
+      "selected_index": null,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.9563980981979102,
+        "retrieved_context": 0.9563980981979102
+      },
+      "round": 1,
+      "selected_index": null,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "context_choice": "sf_auto_arima_7",
+      "current_cv_choice": "sf_auto_arima_7",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.30212761816133793,
+        "retrieved_context": 0.30212761816133793
+      },
+      "round": 1,
+      "selected_index": null,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 1.6361953276082672,
+        "retrieved_context": 1.6361953276082672
+      },
+      "round": 2,
+      "selected_index": null,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.1827893357790546,
+        "retrieved_context": 0.1827893357790546
+      },
+      "round": 2,
+      "selected_index": null,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "context_choice": "sf_auto_arima_7",
+      "current_cv_choice": "sf_auto_arima_7",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.35280414170975694,
+        "retrieved_context": 0.35280414170975694
+      },
+      "round": 2,
+      "selected_index": null,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.6427644880968134,
+        "retrieved_context": 0.6427644880968134
+      },
+      "round": 2,
+      "selected_index": null,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.5782542417000001,
+        "retrieved_context": 0.5782542417000001
+      },
+      "round": 2,
+      "selected_index": null,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "context_choice": "sf_mstl_7",
+      "current_cv_choice": "sf_mstl_7",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.5429193067664964,
+        "retrieved_context": 0.5429193067664964
+      },
+      "round": 2,
+      "selected_index": null,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.7704160678972792,
+        "retrieved_context": 0.7704160678972792
+      },
+      "round": 2,
+      "selected_index": null,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.6276156243496295,
+        "retrieved_context": 0.6276156243496295
+      },
+      "round": 2,
+      "selected_index": null,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "context_choice": "sf_croston_optimized",
+      "current_cv_choice": "sf_croston_optimized",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.8931888349895429,
+        "retrieved_context": 0.8931888349895429
+      },
+      "round": 3,
+      "selected_index": null,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.40763541427140937,
+        "retrieved_context": 0.40763541427140937
+      },
+      "round": 3,
+      "selected_index": null,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "context_choice": "sf_auto_arima_7",
+      "current_cv_choice": "sf_auto_arima_7",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.20142329967359335,
+        "retrieved_context": 0.20142329967359335
+      },
+      "round": 3,
+      "selected_index": null,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.5036926498822148,
+        "retrieved_context": 0.5036926498822148
+      },
+      "round": 3,
+      "selected_index": null,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.5263096156308679,
+        "retrieved_context": 0.5263096156308679
+      },
+      "round": 3,
+      "selected_index": null,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.4911110697544307,
+        "retrieved_context": 0.4911110697544307
+      },
+      "round": 3,
+      "selected_index": null,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.645605032967582,
+        "retrieved_context": 0.645605032967582
+      },
+      "round": 3,
+      "selected_index": null,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 0,
+      "rmsle": {
+        "current_cv": 0.3917084394955217,
+        "retrieved_context": 0.3917084394955217
+      },
+      "round": 3,
+      "selected_index": null,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "context_choice": "sf_auto_arima_7",
+      "current_cv_choice": "sf_auto_arima_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.7328395729618501,
+        "retrieved_context": 0.7328395729618501
+      },
+      "round": 4,
+      "selected_index": 4,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.11858255665871366,
+        "retrieved_context": 0.11858255665871366
+      },
+      "round": 4,
+      "selected_index": 3,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "context_choice": "sf_auto_arima_7",
+      "current_cv_choice": "sf_seasonal_naive_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.0,
+        "retrieved_context": 0.18219855503370158
+      },
+      "round": 4,
+      "selected_index": 4,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_window_average_28",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.5786853704049485,
+        "retrieved_context": 0.6669883019084722
+      },
+      "round": 4,
+      "selected_index": 3,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 1.215259538049909,
+        "retrieved_context": 1.1072892296067358
+      },
+      "round": 4,
+      "selected_index": 4,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 1.0690916792155671,
+        "retrieved_context": 1.107533547360776
+      },
+      "round": 4,
+      "selected_index": 3,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.7755955514474571,
+        "retrieved_context": 0.7755955514474571
+      },
+      "round": 4,
+      "selected_index": 4,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.39147959944327615,
+        "retrieved_context": 0.39147959944327615
+      },
+      "round": 4,
+      "selected_index": 0,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "context_choice": "sf_auto_arima_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 5,
+      "rmsle": {
+        "current_cv": 0.8075365801713206,
+        "retrieved_context": 0.5816315728852752
+      },
+      "round": 5,
+      "selected_index": 4,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 5,
+      "rmsle": {
+        "current_cv": 0.15468451266634134,
+        "retrieved_context": 0.15468451266634134
+      },
+      "round": 5,
+      "selected_index": 3,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_seasonal_naive_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.39350576222400974,
+        "retrieved_context": 0.39727119289429486
+      },
+      "round": 5,
+      "selected_index": 3,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "context_choice": "sf_window_average_28",
+      "current_cv_choice": "sf_window_average_28",
+      "matched_origins": 5,
+      "rmsle": {
+        "current_cv": 0.7213735035753677,
+        "retrieved_context": 0.7213735035753677
+      },
+      "round": 5,
+      "selected_index": 3,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 5,
+      "rmsle": {
+        "current_cv": 0.6291530883311248,
+        "retrieved_context": 0.6291530883311248
+      },
+      "round": 5,
+      "selected_index": 4,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_ets_7",
+      "matched_origins": 5,
+      "rmsle": {
+        "current_cv": 0.708537166453475,
+        "retrieved_context": 0.7882274717644183
+      },
+      "round": 5,
+      "selected_index": 3,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 5,
+      "rmsle": {
+        "current_cv": 0.8397916102756541,
+        "retrieved_context": 0.831915491970081
+      },
+      "round": 5,
+      "selected_index": 4,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 5,
+      "rmsle": {
+        "current_cv": 0.35432784563474395,
+        "retrieved_context": 0.31134770093088887
+      },
+      "round": 5,
+      "selected_index": 0,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "context_choice": "sf_auto_arima_7",
+      "current_cv_choice": "sf_auto_arima_7",
+      "matched_origins": 6,
+      "rmsle": {
+        "current_cv": 0.7362531645521024,
+        "retrieved_context": 0.7362531645521024
+      },
+      "round": 6,
+      "selected_index": 4,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 6,
+      "rmsle": {
+        "current_cv": 0.11991334235408335,
+        "retrieved_context": 0.11991334235408335
+      },
+      "round": 6,
+      "selected_index": 3,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_seasonal_naive_7",
+      "matched_origins": 5,
+      "rmsle": {
+        "current_cv": 0.7180543185187105,
+        "retrieved_context": 0.36952065115247934
+      },
+      "round": 6,
+      "selected_index": 3,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_mstl_7",
+      "matched_origins": 6,
+      "rmsle": {
+        "current_cv": 0.38587901217293435,
+        "retrieved_context": 0.4156366910433304
+      },
+      "round": 6,
+      "selected_index": 4,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 6,
+      "rmsle": {
+        "current_cv": 0.8574430820804205,
+        "retrieved_context": 0.8574430820804205
+      },
+      "round": 6,
+      "selected_index": 4,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "context_choice": "sf_mstl_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.6689731457502333,
+        "retrieved_context": 0.40883362091892345
+      },
+      "round": 6,
+      "selected_index": 0,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 6,
+      "rmsle": {
+        "current_cv": 0.8282138438844289,
+        "retrieved_context": 0.7909544114510061
+      },
+      "round": 6,
+      "selected_index": 4,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 6,
+      "rmsle": {
+        "current_cv": 0.3458629960339268,
+        "retrieved_context": 0.33799430889033494
+      },
+      "round": 6,
+      "selected_index": 0,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "context_choice": "sf_croston_optimized",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 1.065693730827816,
+        "retrieved_context": 0.7630587822867453
+      },
+      "round": 7,
+      "selected_index": 3,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.11903584256391311,
+        "retrieved_context": 0.11903584256391311
+      },
+      "round": 7,
+      "selected_index": 2,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 6,
+      "rmsle": {
+        "current_cv": 0.4099662451373039,
+        "retrieved_context": 0.4099662451373039
+      },
+      "round": 7,
+      "selected_index": 3,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_mstl_7",
+      "matched_origins": 6,
+      "rmsle": {
+        "current_cv": 0.3153215550369389,
+        "retrieved_context": 0.32078089176836505
+      },
+      "round": 7,
+      "selected_index": 3,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.3568682665900269,
+        "retrieved_context": 0.42256334703960335
+      },
+      "round": 7,
+      "selected_index": 3,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "context_choice": "sf_mstl_7",
+      "current_cv_choice": "sf_auto_ets_7",
+      "matched_origins": 5,
+      "rmsle": {
+        "current_cv": 0.7455473886643365,
+        "retrieved_context": 0.8281062297625914
+      },
+      "round": 7,
+      "selected_index": 0,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_croston_optimized",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.8729168814587629,
+        "retrieved_context": 0.8699753628770097
+      },
+      "round": 7,
+      "selected_index": 3,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 7,
+      "rmsle": {
+        "current_cv": 0.44696737146094806,
+        "retrieved_context": 0.44696737146094806
+      },
+      "round": 7,
+      "selected_index": 0,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "context_choice": "sf_croston_optimized",
+      "current_cv_choice": "sf_mstl_7",
+      "matched_origins": 5,
+      "rmsle": {
+        "current_cv": 0.6482408317696241,
+        "retrieved_context": 0.7985129300793866
+      },
+      "round": 8,
+      "selected_index": 3,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.24578506609282794,
+        "retrieved_context": 0.24578506609282794
+      },
+      "round": 8,
+      "selected_index": 0,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_croston_optimized",
+      "matched_origins": 7,
+      "rmsle": {
+        "current_cv": 0.2668783391020871,
+        "retrieved_context": 0.107513560156388
+      },
+      "round": 8,
+      "selected_index": 3,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_mstl_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.5695207822400004,
+        "retrieved_context": 0.5128542288142734
+      },
+      "round": 8,
+      "selected_index": 0,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 5,
+      "rmsle": {
+        "current_cv": 0.582908755092191,
+        "retrieved_context": 0.5436523428852549
+      },
+      "round": 8,
+      "selected_index": 3,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_auto_ets_7",
+      "matched_origins": 6,
+      "rmsle": {
+        "current_cv": 0.6184249066453299,
+        "retrieved_context": 0.6184249066453299
+      },
+      "round": 8,
+      "selected_index": 0,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_seasonal_naive_7",
+      "matched_origins": 5,
+      "rmsle": {
+        "current_cv": 1.347434846002991,
+        "retrieved_context": 1.0286599855954368
+      },
+      "round": 8,
+      "selected_index": 3,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 8,
+      "rmsle": {
+        "current_cv": 0.37229937402220636,
+        "retrieved_context": 0.37229937402220636
+      },
+      "round": 8,
+      "selected_index": 0,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "context_choice": "sf_croston_optimized",
+      "current_cv_choice": "sf_mstl_7",
+      "matched_origins": 6,
+      "rmsle": {
+        "current_cv": 1.2518865642796453,
+        "retrieved_context": 1.2937311792297517
+      },
+      "round": 9,
+      "selected_index": 3,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_seasonal_naive_7",
+      "matched_origins": 9,
+      "rmsle": {
+        "current_cv": 0.32086479593153566,
+        "retrieved_context": 0.18736648237787767
+      },
+      "round": 9,
+      "selected_index": 3,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_auto_arima_7",
+      "matched_origins": 8,
+      "rmsle": {
+        "current_cv": 0.021866378221798315,
+        "retrieved_context": 0.09517346421337924
+      },
+      "round": 9,
+      "selected_index": 3,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_window_average_28",
+      "matched_origins": 5,
+      "rmsle": {
+        "current_cv": 0.9817353933627341,
+        "retrieved_context": 0.9220403288288012
+      },
+      "round": 9,
+      "selected_index": 0,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_ets_7",
+      "matched_origins": 9,
+      "rmsle": {
+        "current_cv": 1.0672936346984445,
+        "retrieved_context": 0.9991486174958849
+      },
+      "round": 9,
+      "selected_index": 4,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 9,
+      "rmsle": {
+        "current_cv": 0.9759539148803461,
+        "retrieved_context": 0.9278804267765782
+      },
+      "round": 9,
+      "selected_index": 3,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "context_choice": "sf_croston_optimized",
+      "current_cv_choice": "sf_mstl_7",
+      "matched_origins": 6,
+      "rmsle": {
+        "current_cv": 0.8993132212252669,
+        "retrieved_context": 0.9827903990343676
+      },
+      "round": 9,
+      "selected_index": 3,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_auto_arima_7",
+      "matched_origins": 9,
+      "rmsle": {
+        "current_cv": 1.0452530551321546,
+        "retrieved_context": 1.0349614026556933
+      },
+      "round": 9,
+      "selected_index": 0,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "context_choice": "sf_auto_arima_7",
+      "current_cv_choice": "sf_mstl_7",
+      "matched_origins": 10,
+      "rmsle": {
+        "current_cv": 1.05566640552918,
+        "retrieved_context": 0.9234989847016951
+      },
+      "round": 10,
+      "selected_index": 4,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_window_average_28",
+      "matched_origins": 5,
+      "rmsle": {
+        "current_cv": 0.10178269430994231,
+        "retrieved_context": 0.11690959497364432
+      },
+      "round": 10,
+      "selected_index": 0,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_seasonal_naive_7",
+      "matched_origins": 9,
+      "rmsle": {
+        "current_cv": 0.3471724535166496,
+        "retrieved_context": 0.3591467707259339
+      },
+      "round": 10,
+      "selected_index": 3,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 10,
+      "rmsle": {
+        "current_cv": 0.2881433215932795,
+        "retrieved_context": 0.2881433215932795
+      },
+      "round": 10,
+      "selected_index": 4,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 6,
+      "rmsle": {
+        "current_cv": 0.9412255764370469,
+        "retrieved_context": 0.9412255764370469
+      },
+      "round": 10,
+      "selected_index": 3,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_auto_ets_7",
+      "matched_origins": 7,
+      "rmsle": {
+        "current_cv": 0.5459041249307826,
+        "retrieved_context": 0.5459041249307826
+      },
+      "round": 10,
+      "selected_index": 0,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_ets_7",
+      "matched_origins": 7,
+      "rmsle": {
+        "current_cv": 0.850121351689313,
+        "retrieved_context": 0.8480026793986768
+      },
+      "round": 10,
+      "selected_index": 3,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 10,
+      "rmsle": {
+        "current_cv": 0.4911996462008492,
+        "retrieved_context": 0.4911996462008492
+      },
+      "round": 10,
+      "selected_index": 0,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "context_choice": "sf_auto_arima_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.704965074473512,
+        "retrieved_context": 0.7805009976832046
+      },
+      "round": 11,
+      "selected_index": 3,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 7,
+      "rmsle": {
+        "current_cv": 0.29010051679587157,
+        "retrieved_context": 0.14214788949798945
+      },
+      "round": 11,
+      "selected_index": 2,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_seasonal_naive_7",
+      "matched_origins": 10,
+      "rmsle": {
+        "current_cv": 0.49097599224558874,
+        "retrieved_context": 0.352641318714381
+      },
+      "round": 11,
+      "selected_index": 3,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 11,
+      "rmsle": {
+        "current_cv": 0.399019710810989,
+        "retrieved_context": 0.399019710810989
+      },
+      "round": 11,
+      "selected_index": 4,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_croston_optimized",
+      "matched_origins": 7,
+      "rmsle": {
+        "current_cv": 0.6550805115639944,
+        "retrieved_context": 0.668604097763224
+      },
+      "round": 11,
+      "selected_index": 3,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 8,
+      "rmsle": {
+        "current_cv": 1.305807521542025,
+        "retrieved_context": 1.2822682765409734
+      },
+      "round": 11,
+      "selected_index": 0,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_mstl_7",
+      "matched_origins": 8,
+      "rmsle": {
+        "current_cv": 0.8856757111269719,
+        "retrieved_context": 0.8132105450954651
+      },
+      "round": 11,
+      "selected_index": 3,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 11,
+      "rmsle": {
+        "current_cv": 0.4967483497560294,
+        "retrieved_context": 0.4967483497560294
+      },
+      "round": 11,
+      "selected_index": 0,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "context_choice": "sf_auto_arima_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 5,
+      "rmsle": {
+        "current_cv": 0.9049149915629437,
+        "retrieved_context": 0.9002876075254057
+      },
+      "round": 12,
+      "selected_index": 3,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.12523613885628926,
+        "retrieved_context": 0.12523613885628926
+      },
+      "round": 12,
+      "selected_index": 2,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "context_choice": "sf_seasonal_naive_7",
+      "current_cv_choice": "sf_croston_optimized",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.5306635432345577,
+        "retrieved_context": 0.5617873868357343
+      },
+      "round": 12,
+      "selected_index": 2,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_window_average_28",
+      "matched_origins": 6,
+      "rmsle": {
+        "current_cv": 0.7410129729124771,
+        "retrieved_context": 0.690410710205676
+      },
+      "round": 12,
+      "selected_index": 0,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_croston_optimized",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.37097544855904346,
+        "retrieved_context": 0.6997063459335557
+      },
+      "round": 12,
+      "selected_index": 3,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_auto_arima_7",
+      "matched_origins": 12,
+      "rmsle": {
+        "current_cv": 0.8085068291591258,
+        "retrieved_context": 0.7879838131760359
+      },
+      "round": 12,
+      "selected_index": 3,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_mstl_7",
+      "matched_origins": 9,
+      "rmsle": {
+        "current_cv": 0.8105472108007789,
+        "retrieved_context": 0.8380626771879758
+      },
+      "round": 12,
+      "selected_index": 3,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_7",
+      "matched_origins": 12,
+      "rmsle": {
+        "current_cv": 0.34632858128004823,
+        "retrieved_context": 0.36256304249931476
+      },
+      "round": 12,
+      "selected_index": 0,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "context_choice": "sf_auto_arima_7",
+      "current_cv_choice": "sf_mstl_7",
+      "matched_origins": 7,
+      "rmsle": {
+        "current_cv": 0.8081200768718736,
+        "retrieved_context": 0.8020813201738868
+      },
+      "round": 13,
+      "selected_index": 3,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 5,
+      "rmsle": {
+        "current_cv": 0.1976185725584659,
+        "retrieved_context": 0.1976185725584659
+      },
+      "round": 13,
+      "selected_index": 2,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "context_choice": "sf_croston_optimized",
+      "current_cv_choice": "sf_auto_arima_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.5093634895243915,
+        "retrieved_context": 0.38345943974805824
+      },
+      "round": 13,
+      "selected_index": 0,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_auto_ets_7",
+      "matched_origins": 7,
+      "rmsle": {
+        "current_cv": 0.47112711890369824,
+        "retrieved_context": 0.47112711890369824
+      },
+      "round": 13,
+      "selected_index": 0,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.7391384914081431,
+        "retrieved_context": 0.7391384914081431
+      },
+      "round": 13,
+      "selected_index": 0,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "context_choice": "sf_auto_arima_7",
+      "current_cv_choice": "sf_auto_arima_7",
+      "matched_origins": 9,
+      "rmsle": {
+        "current_cv": 0.8837453042345428,
+        "retrieved_context": 0.8837453042345428
+      },
+      "round": 13,
+      "selected_index": 0,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 10,
+      "rmsle": {
+        "current_cv": 0.5781682173197639,
+        "retrieved_context": 0.5781682173197639
+      },
+      "round": 13,
+      "selected_index": 3,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_7",
+      "matched_origins": 13,
+      "rmsle": {
+        "current_cv": 0.2647475065652526,
+        "retrieved_context": 0.25157515842993017
+      },
+      "round": 13,
+      "selected_index": 0,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "context_choice": "sf_mstl_7",
+      "current_cv_choice": "sf_mstl_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.735627416953201,
+        "retrieved_context": 0.735627416953201
+      },
+      "round": 14,
+      "selected_index": 2,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 6,
+      "rmsle": {
+        "current_cv": 0.24318826398183793,
+        "retrieved_context": 0.24318826398183793
+      },
+      "round": 14,
+      "selected_index": 0,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_window_average_28",
+      "matched_origins": 13,
+      "rmsle": {
+        "current_cv": 0.49154127233457884,
+        "retrieved_context": 0.48694450762280067
+      },
+      "round": 14,
+      "selected_index": 3,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_auto_ets_7",
+      "matched_origins": 8,
+      "rmsle": {
+        "current_cv": 0.5772505415947987,
+        "retrieved_context": 0.5772505415947987
+      },
+      "round": 14,
+      "selected_index": 0,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 5,
+      "rmsle": {
+        "current_cv": 0.5479581297301322,
+        "retrieved_context": 0.5479581297301322
+      },
+      "round": 14,
+      "selected_index": 0,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "context_choice": "sf_auto_arima_7",
+      "current_cv_choice": "sf_croston_optimized",
+      "matched_origins": 10,
+      "rmsle": {
+        "current_cv": 1.4910075406291174,
+        "retrieved_context": 1.464808709479617
+      },
+      "round": 14,
+      "selected_index": 0,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "context_choice": "sf_seasonal_naive_7",
+      "current_cv_choice": "sf_seasonal_naive_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.0,
+        "retrieved_context": 0.0
+      },
+      "round": 14,
+      "selected_index": 0,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_ets_7",
+      "matched_origins": 14,
+      "rmsle": {
+        "current_cv": 0.3786881412025326,
+        "retrieved_context": 0.38452283941674953
+      },
+      "round": 14,
+      "selected_index": 0,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "context_choice": "sf_auto_arima_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 1.0103101372194263,
+        "retrieved_context": 1.1581433323651829
+      },
+      "round": 15,
+      "selected_index": 0,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_croston_optimized",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.38837230178011334,
+        "retrieved_context": 0.3946864667046878
+      },
+      "round": 15,
+      "selected_index": 0,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "context_choice": "sf_seasonal_naive_7",
+      "current_cv_choice": "sf_croston_optimized",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.43097526946229997,
+        "retrieved_context": 0.7643547273281085
+      },
+      "round": 15,
+      "selected_index": 0,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 12,
+      "rmsle": {
+        "current_cv": 0.7672936648479797,
+        "retrieved_context": 0.721715956721283
+      },
+      "round": 15,
+      "selected_index": 3,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 6,
+      "rmsle": {
+        "current_cv": 0.8550954493824221,
+        "retrieved_context": 0.9405812883541035
+      },
+      "round": 15,
+      "selected_index": 0,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 15,
+      "rmsle": {
+        "current_cv": 0.9617580594490311,
+        "retrieved_context": 1.0049933435327167
+      },
+      "round": 15,
+      "selected_index": 4,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_seasonal_naive_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.0,
+        "retrieved_context": 0.03930482960114028
+      },
+      "round": 15,
+      "selected_index": 1,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 15,
+      "rmsle": {
+        "current_cv": 0.3690722499963717,
+        "retrieved_context": 0.3709370386238327
+      },
+      "round": 15,
+      "selected_index": 0,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "context_choice": "sf_auto_arima_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 7,
+      "rmsle": {
+        "current_cv": 0.6513462754859533,
+        "retrieved_context": 0.6168111438684253
+      },
+      "round": 16,
+      "selected_index": 3,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_croston_optimized",
+      "matched_origins": 5,
+      "rmsle": {
+        "current_cv": 0.2464524754342121,
+        "retrieved_context": 0.24462094942894946
+      },
+      "round": 16,
+      "selected_index": 0,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "context_choice": "sf_croston_optimized",
+      "current_cv_choice": "sf_croston_optimized",
+      "matched_origins": 5,
+      "rmsle": {
+        "current_cv": 0.4705646603476379,
+        "retrieved_context": 0.4705646603476379
+      },
+      "round": 16,
+      "selected_index": 0,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 16,
+      "rmsle": {
+        "current_cv": 0.5692834708286223,
+        "retrieved_context": 0.5478279532296667
+      },
+      "round": 16,
+      "selected_index": 4,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 8,
+      "rmsle": {
+        "current_cv": 0.31879332487641615,
+        "retrieved_context": 0.35209419302423467
+      },
+      "round": 16,
+      "selected_index": 3,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 16,
+      "rmsle": {
+        "current_cv": 0.44285549841094207,
+        "retrieved_context": 0.34325001436612573
+      },
+      "round": 16,
+      "selected_index": 4,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_seasonal_naive_7",
+      "matched_origins": 5,
+      "rmsle": {
+        "current_cv": 0.0,
+        "retrieved_context": 0.009128934881742157
+      },
+      "round": 16,
+      "selected_index": 1,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 16,
+      "rmsle": {
+        "current_cv": 0.31962214350449253,
+        "retrieved_context": 0.3013601068564439
+      },
+      "round": 16,
+      "selected_index": 0,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_auto_ets_7",
+      "matched_origins": 8,
+      "rmsle": {
+        "current_cv": 0.5137735852149405,
+        "retrieved_context": 0.5137735852149405
+      },
+      "round": 17,
+      "selected_index": 3,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_mstl_7",
+      "matched_origins": 7,
+      "rmsle": {
+        "current_cv": 0.41593049000386695,
+        "retrieved_context": 0.319823994421777
+      },
+      "round": 17,
+      "selected_index": 0,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "context_choice": "sf_auto_arima_7",
+      "current_cv_choice": "sf_window_average_28",
+      "matched_origins": 5,
+      "rmsle": {
+        "current_cv": 0.368265468733743,
+        "retrieved_context": 0.3192358308063959
+      },
+      "round": 17,
+      "selected_index": 0,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_auto_ets_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.6121784684023501,
+        "retrieved_context": 0.6121784684023501
+      },
+      "round": 17,
+      "selected_index": 3,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 9,
+      "rmsle": {
+        "current_cv": 0.5259488551746964,
+        "retrieved_context": 0.6234780374482907
+      },
+      "round": 17,
+      "selected_index": 3,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "context_choice": "sf_auto_arima_7",
+      "current_cv_choice": "sf_auto_ets_7",
+      "matched_origins": 11,
+      "rmsle": {
+        "current_cv": 0.677133441570197,
+        "retrieved_context": 0.8034677550853392
+      },
+      "round": 17,
+      "selected_index": 0,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "context_choice": "sf_window_average_28",
+      "current_cv_choice": "sf_seasonal_naive_7",
+      "matched_origins": 6,
+      "rmsle": {
+        "current_cv": 0.0,
+        "retrieved_context": 0.0
+      },
+      "round": 17,
+      "selected_index": 1,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_ets_7",
+      "matched_origins": 17,
+      "rmsle": {
+        "current_cv": 0.28271880707146735,
+        "retrieved_context": 0.3152745927226565
+      },
+      "round": 17,
+      "selected_index": 0,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "context_choice": "sf_mstl_7",
+      "current_cv_choice": "sf_auto_ets_7",
+      "matched_origins": 5,
+      "rmsle": {
+        "current_cv": 0.7498312722642185,
+        "retrieved_context": 0.6351035572667572
+      },
+      "round": 18,
+      "selected_index": 2,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 6,
+      "rmsle": {
+        "current_cv": 0.25398895404346816,
+        "retrieved_context": 0.25398895404346816
+      },
+      "round": 18,
+      "selected_index": 0,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "context_choice": "sf_croston_optimized",
+      "current_cv_choice": "sf_window_average_28",
+      "matched_origins": 6,
+      "rmsle": {
+        "current_cv": 0.4879414862497353,
+        "retrieved_context": 0.46878425774650023
+      },
+      "round": 18,
+      "selected_index": 0,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 9,
+      "rmsle": {
+        "current_cv": 0.5954337202562193,
+        "retrieved_context": 0.5467216794163006
+      },
+      "round": 18,
+      "selected_index": 0,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 8,
+      "rmsle": {
+        "current_cv": 0.46289965782690967,
+        "retrieved_context": 0.47107999191967437
+      },
+      "round": 18,
+      "selected_index": 3,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_auto_ets_7",
+      "matched_origins": 12,
+      "rmsle": {
+        "current_cv": 1.3465391503181996,
+        "retrieved_context": 1.3465391503181996
+      },
+      "round": 18,
+      "selected_index": 0,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "context_choice": "sf_window_average_28",
+      "current_cv_choice": "sf_seasonal_naive_7",
+      "matched_origins": 7,
+      "rmsle": {
+        "current_cv": 0.0,
+        "retrieved_context": 0.0
+      },
+      "round": 18,
+      "selected_index": 1,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 18,
+      "rmsle": {
+        "current_cv": 0.3909860684885675,
+        "retrieved_context": 0.3869235697771848
+      },
+      "round": 18,
+      "selected_index": 0,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "context_choice": "sf_mstl_7",
+      "current_cv_choice": "sf_seasonal_naive_7",
+      "matched_origins": 10,
+      "rmsle": {
+        "current_cv": 0.9171803316507771,
+        "retrieved_context": 1.0529169515304773
+      },
+      "round": 19,
+      "selected_index": 3,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_7",
+      "matched_origins": 8,
+      "rmsle": {
+        "current_cv": 0.12717562099285815,
+        "retrieved_context": 0.11730235212659497
+      },
+      "round": 19,
+      "selected_index": 0,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "context_choice": "sf_croston_optimized",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 7,
+      "rmsle": {
+        "current_cv": 0.3470145855205062,
+        "retrieved_context": 0.36415291532362615
+      },
+      "round": 19,
+      "selected_index": 0,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 10,
+      "rmsle": {
+        "current_cv": 0.6549014801987227,
+        "retrieved_context": 0.6538773001421242
+      },
+      "round": 19,
+      "selected_index": 0,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 7,
+      "rmsle": {
+        "current_cv": 1.2827839323045482,
+        "retrieved_context": 1.4744846796780084
+      },
+      "round": 19,
+      "selected_index": 0,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_auto_ets_7",
+      "matched_origins": 19,
+      "rmsle": {
+        "current_cv": 0.49152335743313297,
+        "retrieved_context": 0.49152335743313297
+      },
+      "round": 19,
+      "selected_index": 4,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "context_choice": "sf_seasonal_naive_7",
+      "current_cv_choice": "sf_seasonal_naive_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.0,
+        "retrieved_context": 0.0
+      },
+      "round": 19,
+      "selected_index": 0,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 19,
+      "rmsle": {
+        "current_cv": 0.4220902648841109,
+        "retrieved_context": 0.37255234590893715
+      },
+      "round": 19,
+      "selected_index": 0,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_seasonal_naive_7",
+      "matched_origins": 9,
+      "rmsle": {
+        "current_cv": 0.9407308939524884,
+        "retrieved_context": 0.6413094676269513
+      },
+      "round": 20,
+      "selected_index": 3,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_7",
+      "matched_origins": 9,
+      "rmsle": {
+        "current_cv": 0.24378815021844957,
+        "retrieved_context": 0.23104630875126728
+      },
+      "round": 20,
+      "selected_index": 0,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "context_choice": "sf_auto_arima_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 6,
+      "rmsle": {
+        "current_cv": 0.5446802411774491,
+        "retrieved_context": 0.5673933926237361
+      },
+      "round": 20,
+      "selected_index": 0,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_auto_ets_7",
+      "matched_origins": 11,
+      "rmsle": {
+        "current_cv": 0.5465284072054033,
+        "retrieved_context": 0.5465284072054033
+      },
+      "round": 20,
+      "selected_index": 0,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 1.0443603559399464,
+        "retrieved_context": 1.0292780036422384
+      },
+      "round": 20,
+      "selected_index": 0,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_mstl_7",
+      "matched_origins": 20,
+      "rmsle": {
+        "current_cv": 0.8921829546328,
+        "retrieved_context": 0.8987380507697711
+      },
+      "round": 20,
+      "selected_index": 4,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "context_choice": "sf_seasonal_naive_7",
+      "current_cv_choice": "sf_seasonal_naive_7",
+      "matched_origins": 5,
+      "rmsle": {
+        "current_cv": 0.0,
+        "retrieved_context": 0.0
+      },
+      "round": 20,
+      "selected_index": 0,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 20,
+      "rmsle": {
+        "current_cv": 0.29873943787988244,
+        "retrieved_context": 0.29873943787988244
+      },
+      "round": 20,
+      "selected_index": 0,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "context_choice": "sf_auto_arima_7",
+      "current_cv_choice": "sf_auto_arima_7",
+      "matched_origins": 5,
+      "rmsle": {
+        "current_cv": 0.8536787294168001,
+        "retrieved_context": 0.8536787294168001
+      },
+      "round": 21,
+      "selected_index": 0,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "context_choice": "sf_auto_arima_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 7,
+      "rmsle": {
+        "current_cv": 0.19083408105911584,
+        "retrieved_context": 0.19419738331159364
+      },
+      "round": 21,
+      "selected_index": 0,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "context_choice": "sf_croston_optimized",
+      "current_cv_choice": "sf_croston_optimized",
+      "matched_origins": 8,
+      "rmsle": {
+        "current_cv": 0.42816277462983954,
+        "retrieved_context": 0.42816277462983954
+      },
+      "round": 21,
+      "selected_index": 0,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_auto_ets_7",
+      "matched_origins": 12,
+      "rmsle": {
+        "current_cv": 0.5073922684822855,
+        "retrieved_context": 0.5073922684822855
+      },
+      "round": 21,
+      "selected_index": 0,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 11,
+      "rmsle": {
+        "current_cv": 0.9301007367624798,
+        "retrieved_context": 1.0513362356470255
+      },
+      "round": 21,
+      "selected_index": 3,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_mstl_7",
+      "matched_origins": 13,
+      "rmsle": {
+        "current_cv": 0.9022710691763398,
+        "retrieved_context": 0.8934432141122883
+      },
+      "round": 21,
+      "selected_index": 0,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "context_choice": "sf_seasonal_naive_7",
+      "current_cv_choice": "sf_seasonal_naive_7",
+      "matched_origins": 6,
+      "rmsle": {
+        "current_cv": 0.0,
+        "retrieved_context": 0.0
+      },
+      "round": 21,
+      "selected_index": 0,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 21,
+      "rmsle": {
+        "current_cv": 0.3548946121666792,
+        "retrieved_context": 0.3548946121666792
+      },
+      "round": 21,
+      "selected_index": 0,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_mstl_7",
+      "matched_origins": 6,
+      "rmsle": {
+        "current_cv": 1.03062750718848,
+        "retrieved_context": 0.9035587901332275
+      },
+      "round": 22,
+      "selected_index": 0,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 10,
+      "rmsle": {
+        "current_cv": 0.38393542571176853,
+        "retrieved_context": 0.38393542571176853
+      },
+      "round": 22,
+      "selected_index": 0,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_croston_optimized",
+      "matched_origins": 7,
+      "rmsle": {
+        "current_cv": 0.46912094538160337,
+        "retrieved_context": 0.4870748819670035
+      },
+      "round": 22,
+      "selected_index": 0,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_auto_ets_7",
+      "matched_origins": 13,
+      "rmsle": {
+        "current_cv": 0.533009906200242,
+        "retrieved_context": 0.533009906200242
+      },
+      "round": 22,
+      "selected_index": 0,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_mstl_7",
+      "matched_origins": 12,
+      "rmsle": {
+        "current_cv": 0.8994681771295142,
+        "retrieved_context": 0.7674602443367577
+      },
+      "round": 22,
+      "selected_index": 3,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 14,
+      "rmsle": {
+        "current_cv": 0.8511319832053322,
+        "retrieved_context": 0.8401442862498985
+      },
+      "round": 22,
+      "selected_index": 0,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "context_choice": "sf_seasonal_naive_7",
+      "current_cv_choice": "sf_seasonal_naive_7",
+      "matched_origins": 7,
+      "rmsle": {
+        "current_cv": 0.0,
+        "retrieved_context": 0.0
+      },
+      "round": 22,
+      "selected_index": 0,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 22,
+      "rmsle": {
+        "current_cv": 0.3414613567428651,
+        "retrieved_context": 0.3414613567428651
+      },
+      "round": 22,
+      "selected_index": 0,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 7,
+      "rmsle": {
+        "current_cv": 0.945116484703631,
+        "retrieved_context": 0.9459436750450543
+      },
+      "round": 23,
+      "selected_index": 1,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "context_choice": "sf_auto_arima_7",
+      "current_cv_choice": "sf_window_average_28",
+      "matched_origins": 8,
+      "rmsle": {
+        "current_cv": 0.25118265097155307,
+        "retrieved_context": 0.2447812675673031
+      },
+      "round": 23,
+      "selected_index": 0,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "context_choice": "sf_window_average_28",
+      "current_cv_choice": "sf_auto_ets_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.4535509654867458,
+        "retrieved_context": 0.4457450455337677
+      },
+      "round": 23,
+      "selected_index": 1,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 14,
+      "rmsle": {
+        "current_cv": 0.660031905276749,
+        "retrieved_context": 0.661113671111983
+      },
+      "round": 23,
+      "selected_index": 2,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "context_choice": "sf_window_average_28",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.8707552147040689,
+        "retrieved_context": 0.855096248591234
+      },
+      "round": 23,
+      "selected_index": 1,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_auto_ets_7",
+      "matched_origins": 15,
+      "rmsle": {
+        "current_cv": 0.6101364909896734,
+        "retrieved_context": 0.6101364909896734
+      },
+      "round": 23,
+      "selected_index": 0,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "context_choice": "sf_seasonal_naive_7",
+      "current_cv_choice": "sf_seasonal_naive_7",
+      "matched_origins": 8,
+      "rmsle": {
+        "current_cv": 0.0,
+        "retrieved_context": 0.0
+      },
+      "round": 23,
+      "selected_index": 0,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 23,
+      "rmsle": {
+        "current_cv": 0.4879592820440805,
+        "retrieved_context": 0.45296091089032603
+      },
+      "round": 23,
+      "selected_index": 0,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_window_average_28",
+      "matched_origins": 7,
+      "rmsle": {
+        "current_cv": 0.6812711801159553,
+        "retrieved_context": 0.6470226142089647
+      },
+      "round": 24,
+      "selected_index": 0,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_7",
+      "matched_origins": 11,
+      "rmsle": {
+        "current_cv": 0.35087672781363816,
+        "retrieved_context": 0.33808234055597414
+      },
+      "round": 24,
+      "selected_index": 0,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_ets_7",
+      "matched_origins": 8,
+      "rmsle": {
+        "current_cv": 0.48768332754891613,
+        "retrieved_context": 0.4640803644391625
+      },
+      "round": 24,
+      "selected_index": 0,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_mstl_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.6941943066920845,
+        "retrieved_context": 0.5968630560852979
+      },
+      "round": 24,
+      "selected_index": 2,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.8363419651722327,
+        "retrieved_context": 0.8363419651722327
+      },
+      "round": 24,
+      "selected_index": 2,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_mstl_7",
+      "matched_origins": 16,
+      "rmsle": {
+        "current_cv": 0.6978183517911833,
+        "retrieved_context": 0.6574108381125453
+      },
+      "round": 24,
+      "selected_index": 0,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "context_choice": "sf_seasonal_naive_7",
+      "current_cv_choice": "sf_seasonal_naive_7",
+      "matched_origins": 9,
+      "rmsle": {
+        "current_cv": 0.2936164846496898,
+        "retrieved_context": 0.2936164846496898
+      },
+      "round": 24,
+      "selected_index": 0,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_mstl_7",
+      "matched_origins": 24,
+      "rmsle": {
+        "current_cv": 0.33247881393070283,
+        "retrieved_context": 0.34300670217068097
+      },
+      "round": 24,
+      "selected_index": 0,
+      "series_id": "item_1642664_store_31"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_window_average_28",
+      "matched_origins": 8,
+      "rmsle": {
+        "current_cv": 0.7575587206861388,
+        "retrieved_context": 0.9294546666090879
+      },
+      "round": 25,
+      "selected_index": 0,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "context_choice": "sf_auto_arima_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 9,
+      "rmsle": {
+        "current_cv": 0.35434533167246585,
+        "retrieved_context": 0.35002174628621996
+      },
+      "round": 25,
+      "selected_index": 0,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "context_choice": "sf_croston_optimized",
+      "current_cv_choice": "sf_mstl_7",
+      "matched_origins": 9,
+      "rmsle": {
+        "current_cv": 0.5380630737005198,
+        "retrieved_context": 0.5108049201557745
+      },
+      "round": 25,
+      "selected_index": 0,
+      "series_id": "item_1372862_store_12"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_mstl_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.5445829310579866,
+        "retrieved_context": 0.4918207412806823
+      },
+      "round": 25,
+      "selected_index": 1,
+      "series_id": "item_1457251_store_14"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_arima_promo_7",
+      "matched_origins": 4,
+      "rmsle": {
+        "current_cv": 0.69774939748469,
+        "retrieved_context": 0.69774939748469
+      },
+      "round": 25,
+      "selected_index": 1,
+      "series_id": "item_1503891_store_36"
+    },
+    {
+      "context_choice": "sf_auto_ets_7",
+      "current_cv_choice": "sf_mstl_7",
+      "matched_origins": 17,
+      "rmsle": {
+        "current_cv": 1.0789657405811492,
+        "retrieved_context": 1.0225266326762972
+      },
+      "round": 25,
+      "selected_index": 0,
+      "series_id": "item_159156_store_1"
+    },
+    {
+      "context_choice": "sf_auto_theta_7",
+      "current_cv_choice": "sf_auto_theta_7",
+      "matched_origins": 22,
+      "rmsle": {
+        "current_cv": 0.1501426719739397,
+        "retrieved_context": 0.1501426719739397
+      },
+      "round": 25,
+      "selected_index": 3,
+      "series_id": "item_161288_store_51"
+    },
+    {
+      "context_choice": "sf_auto_arima_promo_7",
+      "current_cv_choice": "sf_auto_ets_7",
+      "matched_origins": 25,
+      "rmsle": {
+        "current_cv": 0.43105646927710745,
+        "retrieved_context": 0.4566392990091247
+      },
+      "round": 25,
+      "selected_index": 0,
+      "series_id": "item_1642664_store_31"
+    }
+  ],
+  "confirmation_opened": false,
+  "inputs": {
+    "cases_sha256": "5ee5a6dd4c346882287ef199f7640fa553a1f50062f73e9859ba33083f3a0c3f",
+    "memory_sha256": "e49374769e87bb532764df5a1073da4e3c436154038d68fd8c323a591109ac0b",
+    "protocol_sha256": "1d5f1461e8ab77d6b77c6ab657510174aaf8e9d5f59c5a982d4363d667d004e8"
+  },
+  "mean_case_rmsle": {
+    "current_cv": 0.5658325867650449,
+    "retrieved_context": 0.5586275151027474
+  },
+  "scope": "development automatic policy screen; not a live-agent or held-out result",
+  "target_established": false
+}

@@ -1,0 +1,118 @@
+{
+  "cold_start": {
+    "ledger_119": {
+      "decisions": 16,
+      "mean_case_rmsle": 0.5851914367101424
+    },
+    "ledger_context": {
+      "decisions": 16,
+      "mean_case_rmsle": 0.5869146002315773
+    },
+    "no_ledger": {
+      "decisions": 16,
+      "mean_case_rmsle": 0.5851914367101424
+    }
+  },
+  "diagnostic_only": true,
+  "input": {
+    "path": "benchmarks/ledger_optimization/evidence/context-agent-005.json",
+    "sha256": "bdcfea347f31ef184bf890e745b25dcd89ab8c02895f5886d42f8463a1d5896d"
+  },
+  "limitation": "Descriptive finite development cohort. Tail metrics and subgroup wins do not establish the 20% overall target, causality or statistical significance.",
+  "mature_history": {
+    "ledger_119": {
+      "decisions": 48,
+      "mean_case_rmsle": 0.5301762089774301
+    },
+    "ledger_context": {
+      "decisions": 48,
+      "mean_case_rmsle": 0.5253193122126507
+    },
+    "no_ledger": {
+      "decisions": 48,
+      "mean_case_rmsle": 0.5268598835726477
+    }
+  },
+  "paired_differences": {
+    "ledger_119": {
+      "better_cases": 2,
+      "maximum_damage": 0.2447797145395197,
+      "maximum_gain": 0.2447797145395197,
+      "mean": 0.0024872440535868225,
+      "sign": "treatment_minus_control; negative favors treatment",
+      "tie_absolute_tolerance": 1e-12,
+      "tied_cases": 58,
+      "worse_cases": 4
+    },
+    "ledger_context": {
+      "better_cases": 8,
+      "maximum_damage": 0.2447797145395197,
+      "maximum_gain": 0.3187748604075542,
+      "mean": -0.0007246376396389822,
+      "sign": "treatment_minus_control; negative favors treatment",
+      "tie_absolute_tolerance": 1e-12,
+      "tied_cases": 47,
+      "worse_cases": 9
+    }
+  },
+  "per_origin": {
+    "0": {
+      "ledger_119": 0.5851914367101424,
+      "ledger_context": 0.5869146002315773,
+      "no_ledger": 0.5851914367101424
+    },
+    "8": {
+      "ledger_119": 0.5788769882506288,
+      "ledger_context": 0.5426838969052329,
+      "no_ledger": 0.5719923644067407
+    },
+    "17": {
+      "ledger_119": 0.42475561094188635,
+      "ledger_context": 0.43753315496268824,
+      "no_ledger": 0.4216912585714272
+    },
+    "25": {
+      "ledger_119": 0.5868960277397751,
+      "ledger_context": 0.5957408847700311,
+      "no_ledger": 0.5868960277397751
+    }
+  },
+  "primary_metric_unchanged": true,
+  "provider_selection_agreement_across_seeds": {
+    "ledger_119": {
+      "cases": 32,
+      "cases_with_one_provider_name": 29,
+      "limitation": "Names only; distinct providers can return identical forecasts. Agreement is not accuracy."
+    },
+    "ledger_context": {
+      "cases": 32,
+      "cases_with_one_provider_name": 21,
+      "limitation": "Names only; distinct providers can return identical forecasts. Agreement is not accuracy."
+    },
+    "no_ledger": {
+      "cases": 32,
+      "cases_with_one_provider_name": 29,
+      "limitation": "Names only; distinct providers can return identical forecasts. Agreement is not accuracy."
+    }
+  },
+  "scope": "development only",
+  "tail": {
+    "ledger_119": {
+      "maximum_rmsle": 1.347434846002991,
+      "tail_decisions": 7,
+      "worst_decile_mean_rmsle": 1.1186717924938603
+    },
+    "ledger_context": {
+      "maximum_rmsle": 1.110171326801301,
+      "tail_decisions": 7,
+      "worst_decile_mean_rmsle": 1.0609376000829
+    },
+    "no_ledger": {
+      "maximum_rmsle": 1.347434846002991,
+      "tail_decisions": 7,
+      "worst_decile_mean_rmsle": 1.1186717924938603
+    }
+  },
+  "tail_definition": "Mean of the largest ceil(10% * decisions_per_arm) case RMSLE values; each arm may have different tail cases",
+  "target_established": false
+}

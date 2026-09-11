@@ -241,3 +241,53 @@ than the preceding forecast recording timestamp. The package correctly rejected
 that cutoff. The exact test passed on isolated retry without code changes.
 Retained `/tmp/ledger-context-full-tests.log`; do not report the initial full run
 as entirely green or attribute the clock anomaly to the new retrieval logic.
+
+## Equal-information context trial 005 — complete and audited
+
+All 192 decisions completed with explicit selection, no fallback and no harness
+failure. The transcript audit verified identical shared raw history, current
+information and system messages across all arms; selected fixed forecasts and
+independently recomputed RMSLE match exactly (maximum numerical delta zero).
+
+Mean RMSLE: raw-history control 0.5414427719; original MAE cards 0.5439300159;
+contextual retrieval 0.5407181342. Context improves **0.1338%** against control
+and does not establish the target. Worst-decile mean is 1.06094 versus 1.11867
+for control, but provider-name agreement across seeds falls from 29/32 to 21/32
+cases. Context wins eight pairs, loses nine and ties 47. These mixed development
+diagnostics are not statistical proof of robustness. All cold-start cases remain
+in the primary denominator. There were 410 API calls, 2,342,754 reported input
+tokens and 117,363 output tokens; monetary cost remains unreported, not zero.
+
+Reports: `context-agent-005.json`, `context-agent-005-audit.json` and
+`context-agent-005-robustness.json`. Raw traces remain in the hash-linked run
+directory. No confirmation data were accessed.
+
+## Subsequent automatic screens
+
+`cv_reliability.py` screened 24 past-only rules for the relationship between
+previous CV and realized loss. The training-selected rule loses 0.8576% against
+current CV on development validation. Retain the failure; do not promote it.
+This does not modify provider forecasts. Any live pooled-history treatment would
+require the same pooled CV/outcome information to be available to its control.
+
+`support_screen.py` screened 108 descriptive support rules for changing current
+CV's provider choice. The rule selected on origins 0..17 is all history, minimum
+four matched origins, at least 50% paired wins, lower mean loss, no extra margin
+or recent gate. It improves 1.9086% over automatic CV on origins 18..25. This is
+development selection evidence only. Freeze this rule for live trial 008; keep
+all three arms on the same raw historical data and unchanged forecasting tools.
+
+## Retrieval parsing reuse and regression validation
+
+A late-origin five-cohort profiling probe spent most time normalizing repeated
+timestamps and decoding identical immutable executions. Added bounded per-call
+timestamp reuse and per-read-snapshot execution reuse. Neither survives across
+queries. The profiling probe fell from 2.523 to 0.890 seconds; this single probe
+is not a general throughput benchmark. Every complete result across all 208
+development queries equals its archived pre-optimization result, with zero
+provider calls or ledger writes. A regression test confirms later actual
+revisions remain visible on subsequent queries.
+
+Full regression after the optimization: **1,203 passed, 29 skipped**. Logs:
+`/tmp/ledger-context-final-tests.log`, `/tmp/ledger-context-parsing-equivalence.log`.
+Hash-linked equivalence report: `evidence/context-parsing-equivalence.json`.

@@ -26,7 +26,7 @@ from gnomon.forecast_adapter import AdapterCapabilities
 
 MODEL = 'deepseek-v4-flash-0731'
 ENDPOINT = 'https://api.engy.ai/v1/chat/completions'
-ARMS = ('no_ledger', 'ledger_119', 'ledger_rmsle', 'ledger_blended', 'ledger_context')
+ARMS = ('no_ledger', 'ledger_119', 'ledger_rmsle', 'ledger_blended', 'ledger_context', 'ledger_supported')
 SYSTEM = '''Select a retail-demand forecast to minimize RMSLE over the next horizon.
 All candidates have the same history and current CV evidence. Lower error is better.
 You may execute up to three forecasts. Call gnomon_forecast with provider, then
@@ -102,6 +102,9 @@ def context(case, request, arm, card, memory=None):
                 'guidance': 'Consider these estimates with sample size and regime changes. They are not measured future errors or a mandate.'}
     elif arm == 'ledger_context':
         result['historical_evidence'] = memory['context_retrieval'] if memory else {}
+    elif arm == 'ledger_supported':
+        from .support_screen import support_packet
+        result['historical_evidence'] = support_packet(case, memory) if memory else {}
     return result
 
 
@@ -222,7 +225,7 @@ def main():
     parser.add_argument('--rounds', default='12')
     parser.add_argument('--seeds', default='7')
     parser.add_argument('--workers', type=int, default=3)
-    parser.add_argument('--arms', default=','.join(ARMS[:-1]))
+    parser.add_argument('--arms', default=','.join(ARMS[:4]))
     parser.add_argument('--memory', type=Path, help='Prepared equal-information context-memory bundle')
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
@@ -232,8 +235,8 @@ def main():
     arms = tuple(args.arms.split(','))
     if len(set(arms)) != len(arms) or not set(arms) <= set(ARMS) or 'no_ledger' not in arms:
         raise ValueError('Specify distinct supported arms, including no_ledger')
-    if 'ledger_context' in arms and args.memory is None:
-        raise ValueError('ledger_context requires --memory and the same raw history in every arm')
+    if {'ledger_context', 'ledger_supported'} & set(arms) and args.memory is None:
+        raise ValueError('Context/support arms require --memory and the same raw history in every arm')
     memory = {}
     if args.memory:
         bundle = json.loads(args.memory.read_text())
@@ -245,6 +248,8 @@ def main():
         'seeds_requested': seeds, 'seed_honored_by_backend': 'unverified', 'rounds': sorted(rounds), 'arms': arms,
         'snapshot_sha256': hashlib.sha256((args.snapshot/'cases.json').read_bytes()).hexdigest(),
         'runner_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        'support_rule_sha256': hashlib.sha256(Path(__file__).with_name('support_screen.py').read_bytes()).hexdigest()
+                               if 'ledger_supported' in arms else None,
         'gnomon_build': build_info(),
         'system_prompt_sha256': hashlib.sha256(SYSTEM.encode()).hexdigest(),
         'memory_sha256': hashlib.sha256(args.memory.read_bytes()).hexdigest() if args.memory else None,

@@ -78,6 +78,17 @@ def test_recording_visibility_still_excludes_later_outcomes(history):
     assert all(c['matched_origins'] == 0 for c in result['cohorts'])
 
 
+def test_parsing_reuse_never_hides_new_actual_revisions_between_calls(history):
+    ledger, _, query = history
+    before = ledger.retrieve_context(**query, min_origins=2)
+    ledger.append_actual(series_id='sales', unit='widgets', valid_time='2026-01-02T00:00:00Z',
+                         value=3, source_available_at=ledger._now())
+    after = ledger.retrieve_context(**query, min_origins=2)
+    assert before['comparison']['models'] != after['comparison']['models']
+    assert before['comparison']['models'][0]['mae'] == 97
+    assert after['comparison']['models'][0]['mae'] == 48.5
+
+
 @pytest.mark.parametrize('candidates', [[], [{}, {'a': 'b'}], [{'a': 'b'}, {'a': 'c'}], [{'a': 'b'}, {'a': 'b'}], [None]])
 def test_retrieval_cannot_switch_the_task_or_duplicate_candidates(history, candidates):
     ledger, _, query = history
