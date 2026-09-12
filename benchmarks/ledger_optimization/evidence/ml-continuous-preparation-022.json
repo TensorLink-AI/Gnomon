@@ -1,0 +1,140 @@
+{
+  "scope": "Continuous development preparation only",
+  "source": "/root/Gnomon/results/hermes-ml-checkpoint-120-v1/setup/host-jobs-original.json",
+  "source_sha256": "836e05229535f144acab46e94d48fb0fbddf2acc9b9bf4696369f5149efb9ec9",
+  "output_sha256": "cf7bdd21e216e84809edb8653710e0c0755402864201400c5749a8dbff00f561",
+  "cases": 104,
+  "series": {
+    "item_1047756_store_23": {
+      "original_rounds": [
+        0,
+        1,
+        2,
+        3,
+        22,
+        23,
+        24,
+        25
+      ],
+      "original_tasks_reproduced": 8,
+      "new_intermediate_origins": 18,
+      "unique_observations": 1094,
+      "equal_numeric_representation_matches": 98,
+      "start": "2014-08-18T00:00:00+00:00",
+      "end": "2017-08-15T00:00:00+00:00"
+    },
+    "item_1304243_store_32": {
+      "original_rounds": [
+        0,
+        1,
+        2,
+        3,
+        22,
+        23,
+        24,
+        25
+      ],
+      "original_tasks_reproduced": 8,
+      "new_intermediate_origins": 18,
+      "unique_observations": 1094,
+      "equal_numeric_representation_matches": 98,
+      "start": "2014-08-18T00:00:00+00:00",
+      "end": "2017-08-15T00:00:00+00:00"
+    },
+    "item_1372862_store_12": {
+      "original_rounds": [
+        0,
+        1,
+        2,
+        3,
+        22,
+        23,
+        24,
+        25
+      ],
+      "original_tasks_reproduced": 8,
+      "new_intermediate_origins": 18,
+      "unique_observations": 1094,
+      "equal_numeric_representation_matches": 98,
+      "start": "2014-08-18T00:00:00+00:00",
+      "end": "2017-08-15T00:00:00+00:00"
+    },
+    "item_1457251_store_14": {
+      "original_rounds": [
+        0,
+        1,
+        2,
+        3,
+        22,
+        23,
+        24,
+        25
+      ],
+      "original_tasks_reproduced": 8,
+      "new_intermediate_origins": 18,
+      "unique_observations": 1094,
+      "equal_numeric_representation_matches": 98,
+      "start": "2014-08-18T00:00:00+00:00",
+      "end": "2017-08-15T00:00:00+00:00"
+    }
+  },
+  "provider_calls": 0,
+  "api_calls": 0,
+  "ledger_writes": 0,
+  "final_data_opened": false,
+  "covariate_assumption": "Retains provided future onpromotion/calendar convention; not measured publication vintages.",
+  "launch_authorized_by_this_receipt": false,
+  "protocol_commit": "a446c64",
+  "representation_correction_commit": "db57a4a",
+  "preparation_attempts": [
+    {
+      "attempt": 1,
+      "exit_code": 1,
+      "cause": "integer history versus floating actual representation; no numeric conflict"
+    },
+    {
+      "attempt": 2,
+      "exit_code": 0
+    },
+    {
+      "attempt": 3,
+      "exit_code": 0
+    }
+  ],
+  "independent": {
+    "passed": true,
+    "checks": 148,
+    "cases": 104,
+    "source_sha256": "836e05229535f144acab46e94d48fb0fbddf2acc9b9bf4696369f5149efb9ec9",
+    "output_sha256": "cf7bdd21e216e84809edb8653710e0c0755402864201400c5749a8dbff00f561",
+    "method": "Independent first/last positional reconstruction, all fields and original anchors",
+    "provider_calls": 0,
+    "api_calls": 0,
+    "ledger_writes": 0,
+    "final_data_opened": false
+  },
+  "negative_and_repeat": {
+    "repeat_byte_identical": true,
+    "overwrite_rejected": true,
+    "original_export_unchanged": true,
+    "perturbed_history_rejected": "Independent task reconstruction failed: item_1047756_store_23/7",
+    "source_sha256": "836e05229535f144acab46e94d48fb0fbddf2acc9b9bf4696369f5149efb9ec9",
+    "output_sha256": "cf7bdd21e216e84809edb8653710e0c0755402864201400c5749a8dbff00f561"
+  },
+  "synthetic_tests_passed": 10,
+  "prior_goal_turn": "Progress: verified live process and completed a new 26-session frozen audit, 1407 checks, zero failures.",
+  "artifact_hashes": {
+    "existing-output-rejection.json": "fb792779a5ab5abbacaddc3b80e738bf68216e05e70efa2f7bbbeecef3f480f0",
+    "export-002/host-jobs.json": "cf7bdd21e216e84809edb8653710e0c0755402864201400c5749a8dbff00f561",
+    "export-002/manifest.json": "fcd51c9d36ed89164ee66ab910a5507d136d08ff6ab0fd87b7b2d0c4ed47063d",
+    "export-003/host-jobs.json": "cf7bdd21e216e84809edb8653710e0c0755402864201400c5749a8dbff00f561",
+    "export-003/manifest.json": "fcd51c9d36ed89164ee66ab910a5507d136d08ff6ab0fd87b7b2d0c4ed47063d",
+    "independent-verification.json": "e4b02279b5892f482729758ed0e422fb0672a342f879f611d3db20341f5cfd29",
+    "negative-and-repeat-checks.json": "a21385abe8da1690f184ecb924e200c7041ea77c87c30828ab3c2887bcd6dd7b",
+    "overlap-diagnostic.json": "14fb2d5c8a7344a1d78d8568dd7c8bd781aba64a30f5f295ddcb49453ec23a75",
+    "perturbed-export.json": "fc03251bdcc61db8486afc44e88a9357e12d2d69f68207360f670024f5df3262",
+    "prepare-001.json": "0009051b6b5c43b5db800950bb9a40f62dbcfe9ca033c017cad3e43ffa143295",
+    "prepare-002.json": "a4239d31675facc7b70bffe0e2805dff6609ade5f64d2fd08a3f45a1a9462e59",
+    "prepare-003.json": "551598a33295c34ac324b5d396577c7772adcf19f7ba24c58570da45a6818dc2"
+  }
+}

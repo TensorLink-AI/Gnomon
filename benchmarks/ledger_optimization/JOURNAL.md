@@ -652,3 +652,45 @@ receipt is evidence/ml-review-coverage-021.json. This establishes that the fixed
 maturation path produces correct displayed evidence. It is not proof that an
 agent uses it well, a measured accuracy improvement or satisfaction of the20%
 held-out objective. The final outcome and 1.1.9 agent comparison remain pending.
+
+## 2026-09-13 (Brisbane): continuous development preparation 022
+
+Previous goal turn made progress: revalidated the live remote process and audited
+26 closed pilot sessions (all full), with 1,407 checks and zero integrity failures.
+This turn retained that trial's frozen code and gate. Later closed evidence has
+two no-execution service failures, one plain and one ledger: each received three
+429 capacity-exhausted responses. Other sessions encountered 504 upstream miner
+timeouts. Keep these cases and original fallbacks in the trial; do not attribute
+their missing checkpoints to agent numerical-budget exhaustion or silently rerun.
+The 30-session snapshot passes 1,578 integrity checks. Remote PID and boot/start
+identity remained verified live; this partial snapshot is not a final gate.
+
+Found a design limitation in the development schedule: rounds 0,1,2,3,22,23,24,25
+provide at most seven earlier decisions, even in the calendar-late phase. This
+cannot test the ten-origin accumulation hypothesis. Before exporting anything,
+froze ML_CONTINUOUS_022.md and a validated preparation tool at a446c64. Prepare
+all 26 consecutive origins on the same four already-used development series;
+no new item/date selection based on error or hindsight, and no model execution.
+
+First preparation rejected the source's integer history versus float actual
+representation (28 versus 28.0). Retained its exact failed output. A diagnostic
+found those overlapping values numerically identical. Frozen correction db57a4a
+allows exact cross-role numeric equality and preserves each original role's
+representation; within-role conflicts, changed values and booleans still reject.
+All ten synthetic tests pass, including temporal perturbation, metadata exclusion,
+source/output independence, overlap rejection and representation fidelity.
+
+Two separate exports now agree byte-for-byte: 104 tasks, hash
+cf7bdd21e216e84809edb8653710e0c0755402864201400c5749a8dbff00f561.
+An independent verifier uses positional concatenation of only first/last anchor
+arrays, not the exporter's timestamp merge. It passes 148 checks, reproducing
+all new task fields and all 32 original anchor records exactly. An intentionally
+altered history rejects, and retrying an existing output directory rejects
+without modifying it. Exact evidence is retained in results/ledger-ml-continuous-022;
+the tracked receipt is evidence/ml-continuous-preparation-022.json.
+
+This prepares a more suitable development schedule; it does not launch a paid
+comparison, establish benefit or open reserved final outcomes. The incumbent
+1.1.9 dynamic evidence adapter and subsequent comparative protocol still need
+freezing before inference. Current pilot/evaluation remain unchanged. Main/PyPI
+unchanged and the 20% objective remains unmet.
