@@ -1,0 +1,147 @@
+{
+  "passed": true,
+  "regression_groups": 27,
+  "checks": [
+    "plain: baseline-first, idempotence, explicit post-comparison selection required",
+    "plain: atomic batch refusal, final-fit reserve, zero-fit reselection at exhausted budget",
+    "plain: valid ML commit, unknown/invalid selection leaves checkpoint intact",
+    "plain: protected selection requests/time reject new exploration but allow explicit commit",
+    "plain: concurrent callers cannot over-admit folds or overwrite checkpoint",
+    "plain: duplicate configuration executions require explicit execution_id",
+    "failed numerical fit is charged and preserves prior published checkpoint",
+    "plain: new-origin reset, matured outcome ingestion, immutable historical evidence",
+    "gnomon: baseline-first, idempotence, explicit post-comparison selection required",
+    "gnomon: atomic batch refusal, final-fit reserve, zero-fit reselection at exhausted budget",
+    "gnomon: valid ML commit, unknown/invalid selection leaves checkpoint intact",
+    "gnomon: protected selection requests/time reject new exploration but allow explicit commit",
+    "gnomon: concurrent callers cannot over-admit folds or overwrite checkpoint",
+    "gnomon: duplicate configuration executions require explicit execution_id",
+    "gnomon: new-origin reset, matured outcome ingestion, immutable historical evidence",
+    "ledger: baseline-first, idempotence, explicit post-comparison selection required",
+    "ledger: atomic batch refusal, final-fit reserve, zero-fit reselection at exhausted budget",
+    "ledger: valid ML commit, unknown/invalid selection leaves checkpoint intact",
+    "ledger: protected selection requests/time reject new exploration but allow explicit commit",
+    "ledger: concurrent callers cannot over-admit folds or overwrite checkpoint",
+    "ledger: duplicate configuration executions require explicit execution_id",
+    "ledger: new-origin reset, matured outcome ingestion, immutable historical evidence",
+    "plain=gnomon: exact numerical equivalence across all eight fits",
+    "gnomon=ledger: exact numerical equivalence across all eight fits",
+    "pilot promotion requires >=11/12 in every arm and no integrity failure",
+    "maturation identity, visibility, idempotence, independent expected metrics and no new fits",
+    "bounded termination correction, live pinned Hermes handoff, exact API budget and phase interventions"
+  ],
+  "tested_sources": {
+    "PROTOCOL.md": "496d4138be323589610d1c03cb4f1a024f957b9154c3a5081ac47c0d3bc5c31a",
+    "README.md": "9bbb08a3e320928d23bae6c0befa81377f3c59cf8f94976aade2dad9169f8dfe",
+    "TASK.md": "6e0b3541548824c1302be3e0fea188b89eee51b861f482f9b4cfdcc274416525",
+    "analyze.py": "b3096483c2aca1d0f4cdd3a0429a32d522f863c8080c07ff76a24e8ee4379703",
+    "check_forecast.py": "21f035381c5f51a4f4dfb9bda3e5e19400c7b7d5c9abe63df5f539b42c8994a9",
+    "core.py": "7391b54afe431dda3cdd13ed158a770dc2feb3a97a142e7f4250497634809c5f",
+    "lab.py": "8a8a2828c0cbcc41a646f89cf9cb0d8bb5d154fd33fac416e645db5089ce9218",
+    "maturation.py": "6e3728f08ad7a5e551fafedae872afc4b470ccb3eacb41082405b71923b24875",
+    "numerical.py": "a71b75f06ad69fcca06275046c5e74565b15d7d6dd2538df0fe827c448fc0413",
+    "pipeline.py": "b26a03dc656315e7498eef08b56d2d7e7618bb672388788885371eeec65153b3",
+    "policy.py": "bacdcca6f79af92813802871f0d5e0655fe5ac45db47b40fee166da380eec6bb",
+    "preflight.py": "c4e7ce55680520aab147f11588386e72e1c15f99bc47e8fc105c8d5e77ac7637",
+    "restore_runtime.py": "12d6310ec0e82ed71fcfce5dc958a421131983bd2b5996c173fd9960137d8413",
+    "run.py": "ade277175e411bca80c80e1fec74e09ba80cee50a5db9ed756d68f90b2eedc55",
+    "test_maturation.py": "11ac74d138ed25ab15dca373bce0507c4f437c2741a97abf504bc2a313f2f1d3",
+    "test_orchestration.py": "4fd20534bc506238ad77e362ddaed132de5277426e26593b25d404684ff593ad",
+    "transport.py": "1fa00756e06587d1ea51debb6065debf75f3b05fce6181087cd6ac337b41d93b",
+    "worker.py": "af94f6f877cfe31b6ccc7241a75ea60d536c0f80dc16c0386384834727f6a1b5"
+  },
+  "independent_maturation": {
+    "passed": true,
+    "executions_checked": [
+      {
+        "arm": "plain",
+        "execution_id": "045c9f0c-9d9a-4abc-b7a0-95c528d3b0fc",
+        "selected": false,
+        "n": 14,
+        "metrics": {
+          "mae": 9.642857142857142,
+          "rmse": 12.584003451093887,
+          "bias": 3.7857142857142856,
+          "rmsle": 1.1780131359730208
+        }
+      },
+      {
+        "arm": "plain",
+        "execution_id": "eb906ea6-6335-4007-b063-7fe73a3353f2",
+        "selected": true,
+        "n": 14,
+        "metrics": {
+          "mae": 4.062322466603134,
+          "rmse": 6.489929620047054,
+          "bias": -2.755965921591393,
+          "rmsle": 0.6892613470935534
+        }
+      },
+      {
+        "arm": "gnomon",
+        "execution_id": "9a89d56b-acc2-4f5c-8633-9b0ee90f755d",
+        "selected": false,
+        "n": 14,
+        "metrics": {
+          "mae": 9.642857142857142,
+          "rmse": 12.584003451093887,
+          "bias": 3.7857142857142856,
+          "rmsle": 1.1780131359730208
+        }
+      },
+      {
+        "arm": "gnomon",
+        "execution_id": "5c02c3af-33d5-442d-907a-5a94ed3cfe9f",
+        "selected": true,
+        "n": 14,
+        "metrics": {
+          "mae": 4.062322466603134,
+          "rmse": 6.489929620047054,
+          "bias": -2.755965921591393,
+          "rmsle": 0.6892613470935534
+        }
+      },
+      {
+        "arm": "ledger",
+        "execution_id": "53b838aa-ca6f-43ab-b79a-214021e7d982",
+        "selected": false,
+        "n": 14,
+        "metrics": {
+          "mae": 9.642857142857142,
+          "rmse": 12.584003451093887,
+          "bias": 3.7857142857142856,
+          "rmsle": 1.1780131359730208
+        }
+      },
+      {
+        "arm": "ledger",
+        "execution_id": "2650cd8d-0f98-435a-9143-280dc37faff0",
+        "selected": true,
+        "n": 14,
+        "metrics": {
+          "mae": 4.062322466603134,
+          "rmse": 6.489929620047054,
+          "bias": -2.755965921591393,
+          "rmsle": 0.6892613470935534
+        }
+      }
+    ],
+    "new_fits_during_maturation": 0,
+    "scope": "Synthetic preflight; six saved production executions across three arms; no paid agent claims."
+  },
+  "interrupted_v2_usage": {
+    "completed_sessions": 10,
+    "forwarded_requests": 159,
+    "saved_responses": 157,
+    "reported_total_tokens": 2472360,
+    "responses_with_token_usage": 147,
+    "dollar_cost": null,
+    "note": "Stopped development run. No missing session imputed as an agent failure. Keep raw receipts; billing cost not inferred without current rate evidence."
+  },
+  "limits": [
+    "Development workflow only; does not establish a forecasting benefit or the 20% goal.",
+    "Independent verifier first looked for the cleared current checkpoint; corrected to verify retained immutable checkpoint copies. No forecast or score changed.",
+    "Initial runtime restoration differed solely by bootstrap pip; removed it to match the frozen package inventories exactly. Original restore exit/log retained."
+  ],
+  "evidence_root": "results/hermes-ml-checkpoint-120-v3-validation"
+}

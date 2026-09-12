@@ -1,0 +1,338 @@
+{
+  "read_only": true,
+  "databases_unchanged": true,
+  "source_hashes": {
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1047756_store_23/work/ledger.db": "a1941465d1f338a5ea245f8c853842f395e3444feb56c7a43a1c06f44cdc8442",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1304243_store_32/work/ledger.db": "9b84ae5cfe47c2bc5c91010aba48edd6825c1d0540b37f9e51143d3b61599ddb",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1372862_store_12/work/ledger.db": "516809c7c4c7b641d4b6cb012f02f75c358cb0f43ee3049194d5e2ec030701d1",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1457251_store_14/work/ledger.db": "aa4314f783192c5605d88d1d62cf03c5bb2989a958fe0bfc93a6cd69e6ed6569"
+  },
+  "executions_checked": 54,
+  "without_saved_scores": 26,
+  "rows": [
+    {
+      "series_id": "item_1047756_store_23",
+      "origin": "2016-08-16T00:00:00+00:00",
+      "execution_id": "1ae09577-9a97-493b-a1d0-d9893cbe76c9",
+      "saved_evaluations": 1
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "origin": "2016-08-30T00:00:00+00:00",
+      "execution_id": "33085f38-e48b-4975-aaa3-be3ccbca3df1",
+      "saved_evaluations": 0
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "origin": "2016-08-30T00:00:00+00:00",
+      "execution_id": "118cae77-4828-42d7-b170-c529f7bbc380",
+      "saved_evaluations": 1
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "origin": "2016-09-13T00:00:00+00:00",
+      "execution_id": "0fb1d2fe-6aa6-449e-8a54-39a373546aef",
+      "saved_evaluations": 0
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "origin": "2016-09-13T00:00:00+00:00",
+      "execution_id": "7d02d611-db65-4b63-ac89-c797d879332b",
+      "saved_evaluations": 1
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "origin": "2016-09-27T00:00:00+00:00",
+      "execution_id": "77de4c64-41ef-47ea-b4dc-ffbda49fce7d",
+      "saved_evaluations": 0
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "origin": "2016-09-27T00:00:00+00:00",
+      "execution_id": "df9567ce-ed13-4fd0-b644-f7e2ec164534",
+      "saved_evaluations": 1
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "origin": "2017-06-20T00:00:00+00:00",
+      "execution_id": "31cd5fef-b723-4226-9ef9-60a047447355",
+      "saved_evaluations": 0
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "origin": "2017-06-20T00:00:00+00:00",
+      "execution_id": "7bd97259-5dd4-4757-bc52-fa101f922ceb",
+      "saved_evaluations": 1
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "origin": "2017-07-04T00:00:00+00:00",
+      "execution_id": "4eb8c7d3-a07b-45ea-bd8b-9c5b19b49996",
+      "saved_evaluations": 0
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "origin": "2017-07-04T00:00:00+00:00",
+      "execution_id": "168658bb-3f47-4843-a4a5-58ed9f8facb3",
+      "saved_evaluations": 1
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "origin": "2017-07-18T00:00:00+00:00",
+      "execution_id": "165767a8-9059-4ca1-a0ed-dfef61f5e4a4",
+      "saved_evaluations": 0
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "origin": "2017-07-18T00:00:00+00:00",
+      "execution_id": "05519ada-5954-41f1-9a28-70458f78b123",
+      "saved_evaluations": 1
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "origin": "2016-08-16T00:00:00+00:00",
+      "execution_id": "0b05f7e6-448c-4711-bcf7-e79d24fa3fd8",
+      "saved_evaluations": 1
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "origin": "2016-08-30T00:00:00+00:00",
+      "execution_id": "f9beab21-a1c6-42e5-9118-b07b81e4dd76",
+      "saved_evaluations": 0
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "origin": "2016-08-30T00:00:00+00:00",
+      "execution_id": "169c6862-36cf-4b73-a0ac-44cd3116800e",
+      "saved_evaluations": 1
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "origin": "2016-09-13T00:00:00+00:00",
+      "execution_id": "29340e53-d33c-46ab-9b7d-46352364a400",
+      "saved_evaluations": 0
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "origin": "2016-09-13T00:00:00+00:00",
+      "execution_id": "b6c33ab1-8da0-4964-a746-5b7eab41c6a7",
+      "saved_evaluations": 1
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "origin": "2016-09-27T00:00:00+00:00",
+      "execution_id": "cc418f80-6dba-4ca0-bcdd-78add58e7efd",
+      "saved_evaluations": 0
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "origin": "2016-09-27T00:00:00+00:00",
+      "execution_id": "5eccd6e7-f79e-4e0c-83e3-680498a46986",
+      "saved_evaluations": 1
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "origin": "2017-06-20T00:00:00+00:00",
+      "execution_id": "1cfdb06f-77b1-461c-a893-3bd167a41d31",
+      "saved_evaluations": 0
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "origin": "2017-06-20T00:00:00+00:00",
+      "execution_id": "10b25fd5-a9e5-4aea-8d21-28823786fdc6",
+      "saved_evaluations": 1
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "origin": "2017-07-04T00:00:00+00:00",
+      "execution_id": "1b36cf39-6b32-4372-9533-2df27dce0cf2",
+      "saved_evaluations": 0
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "origin": "2017-07-04T00:00:00+00:00",
+      "execution_id": "b68fc616-8b98-4a05-80c2-83e0afaa4492",
+      "saved_evaluations": 1
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "origin": "2017-07-18T00:00:00+00:00",
+      "execution_id": "d5a89856-765d-475b-bc4c-ce7c8915fa8e",
+      "saved_evaluations": 0
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "origin": "2017-07-18T00:00:00+00:00",
+      "execution_id": "e0e2e57f-1332-42bf-bd91-679209f800d2",
+      "saved_evaluations": 1
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "origin": "2016-08-16T00:00:00+00:00",
+      "execution_id": "b879ae97-4db4-4afb-b84f-268fc9b48c47",
+      "saved_evaluations": 0
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "origin": "2016-08-16T00:00:00+00:00",
+      "execution_id": "20f3cb8d-90b2-4d21-bfad-e6d5ecbeee59",
+      "saved_evaluations": 1
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "origin": "2016-08-30T00:00:00+00:00",
+      "execution_id": "48813cb9-d287-4d34-a0dd-2c5bbc91ddb4",
+      "saved_evaluations": 0
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "origin": "2016-08-30T00:00:00+00:00",
+      "execution_id": "018ac59c-1d26-4871-abcd-5ad514b136ce",
+      "saved_evaluations": 1
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "origin": "2016-09-13T00:00:00+00:00",
+      "execution_id": "870dc11f-4a87-491e-9ac7-7cd7e74f3d87",
+      "saved_evaluations": 0
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "origin": "2016-09-13T00:00:00+00:00",
+      "execution_id": "39ab4831-5a50-4ebf-9f8d-ca03246f8d9f",
+      "saved_evaluations": 1
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "origin": "2016-09-27T00:00:00+00:00",
+      "execution_id": "e5e9c66d-d2cc-4d7e-b157-43add62b7a08",
+      "saved_evaluations": 0
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "origin": "2016-09-27T00:00:00+00:00",
+      "execution_id": "348402bc-7024-45bc-914f-e8752ba831cc",
+      "saved_evaluations": 1
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "origin": "2017-06-20T00:00:00+00:00",
+      "execution_id": "859f69ed-44a0-4b1e-b4c2-cb1fee0f27a0",
+      "saved_evaluations": 0
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "origin": "2017-06-20T00:00:00+00:00",
+      "execution_id": "da21fefc-3647-4c2c-8ca8-0ad379a4c98c",
+      "saved_evaluations": 1
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "origin": "2017-07-04T00:00:00+00:00",
+      "execution_id": "37405f07-1828-4c8e-9a4b-75d7b7be0ba0",
+      "saved_evaluations": 0
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "origin": "2017-07-04T00:00:00+00:00",
+      "execution_id": "ad5b8d3c-d1db-4e12-9f24-c899d89c3afd",
+      "saved_evaluations": 1
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "origin": "2017-07-18T00:00:00+00:00",
+      "execution_id": "9e179a49-630e-4b8a-aecc-27b93a622898",
+      "saved_evaluations": 0
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "origin": "2017-07-18T00:00:00+00:00",
+      "execution_id": "2c12792d-eb00-42d4-a272-5ab945e2f165",
+      "saved_evaluations": 1
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "origin": "2016-08-16T00:00:00+00:00",
+      "execution_id": "aa942d22-a113-453a-9444-bd201aa62461",
+      "saved_evaluations": 0
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "origin": "2016-08-16T00:00:00+00:00",
+      "execution_id": "7b9e1226-61e6-48a3-b4ef-8f82ff8dcdee",
+      "saved_evaluations": 1
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "origin": "2016-08-30T00:00:00+00:00",
+      "execution_id": "aefd145b-3ba2-4475-98e6-9f8d654c44c9",
+      "saved_evaluations": 0
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "origin": "2016-08-30T00:00:00+00:00",
+      "execution_id": "5d2f6101-65a8-4037-8c4d-6d8cd0cdd62d",
+      "saved_evaluations": 1
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "origin": "2016-09-13T00:00:00+00:00",
+      "execution_id": "f2191b4c-2f97-4e0a-88ac-19d79fdd7ddc",
+      "saved_evaluations": 0
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "origin": "2016-09-13T00:00:00+00:00",
+      "execution_id": "c607b16f-6c39-4673-8ed0-42811605a3ff",
+      "saved_evaluations": 1
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "origin": "2016-09-27T00:00:00+00:00",
+      "execution_id": "af1382ec-1634-4bb2-883d-15f9760f43b2",
+      "saved_evaluations": 0
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "origin": "2016-09-27T00:00:00+00:00",
+      "execution_id": "4923861e-55cb-4044-8b04-22df2b5843bb",
+      "saved_evaluations": 1
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "origin": "2017-06-20T00:00:00+00:00",
+      "execution_id": "c21a2307-17e0-4264-a9a0-b1f2b8deb8df",
+      "saved_evaluations": 0
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "origin": "2017-06-20T00:00:00+00:00",
+      "execution_id": "7e5643f4-0776-4a87-9ed6-2238095bf813",
+      "saved_evaluations": 1
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "origin": "2017-07-04T00:00:00+00:00",
+      "execution_id": "75f593e1-8f02-4d8f-80a1-f014407d413e",
+      "saved_evaluations": 0
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "origin": "2017-07-04T00:00:00+00:00",
+      "execution_id": "5aac7d99-df60-4ddc-a195-a0cf8c48412b",
+      "saved_evaluations": 1
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "origin": "2017-07-18T00:00:00+00:00",
+      "execution_id": "b91866c7-ab3d-4c4a-b5d0-efc502a0edd3",
+      "saved_evaluations": 0
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "origin": "2017-07-18T00:00:00+00:00",
+      "execution_id": "813b21a1-2e0b-47b9-a35c-69fa171a47d8",
+      "saved_evaluations": 1
+    }
+  ]
+}

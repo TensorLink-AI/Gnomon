@@ -511,3 +511,53 @@ permit equal additional forecasting choices in all arms while retaining 20%.
 No expansion occurred while that question was pending. The objective remains
 unachieved; this is the first scope-blocking decision point after completing
 the new source's development work. Main/PyPI and earlier evidence unchanged.
+
+
+## 2026-09-13 (Brisbane): ML workflow audit and prospective maturation v3
+
+The user subsequently authorized a common actual-model-fitting/backtesting task
+for all arms. That is a scope amendment from the earlier fixed-eight-recipe
+screen, not a reinterpretation of its negative results. Keep the 20% held-out
+objective, matched-information rules and current-1.1.9 comparison requirement.
+The Hermes/Gnomon 1.2.0 ML trials use development Favorita series; they do not
+satisfy either final requirement.
+
+The completed checkpoint-v1 development trial finished 96 sessions with 3,792
+independent checks and no integrity failures. Full workflows: plain 29/32,
+Gnomon 28/32, ledger 29/32. Mean per-case RMSLE including declared fallbacks:
+plain 0.5064452434610625, Gnomon 0.5532628499601663,
+ledger 0.5407122678674124. Ledger is 2.27% better than Gnomon and 6.77% worse
+than plain. On the selected 22-case all-three-complete subset, ledger is 1.84%
+worse than Gnomon; this subset is diagnostic, not an unbiased treatment estimate.
+Raw archive SHA256: 476f33ed8092626ef025bf98c4cd43e612a69502fccbc00a4d8b4e27141fdc38.
+
+Checkpoint-v2 introduced equal protected selection budgets and bounded corrective
+continuations, tested in 26 regression groups including real pinned Hermes with
+synthetic upstream responses. Its local pilot was interrupted by an environment
+reset after 10/36 sessions, all ten full. The managed process was unavailable
+and pinned /tmp runtimes disappeared. Preserve 159 forwarded requests, 157 saved
+responses, and 2,472,360 reported tokens (147 responses had token usage); incomplete
+receipts and unknown billing are explicit. Do not count the interruption as agent
+failure or pool those ten observations with a restart. No promotion gate ran.
+
+A read-only audit of v1 found 54 already-executed production forecasts at 28
+matured origins, but only the 28 selected submissions received outcome scores.
+The 26 unselected alternatives were omitted; a read-only SQLite check confirmed
+all score-presence results and preserved all database hashes. None of 35 ledger
+reviews displayed matched production comparisons. This is a benchmark integration
+omission, not a demonstrated failure of TemporalLedger.evaluate. Compact audit
+artifacts are evidence/ml-review-016*.json; originals remain unchanged.
+
+Prospective checkpoint-v3 scores every eligible prior production execution once,
+using exact origin, targets, series and unit identity and explicit outcome
+visibility. All three arms get the same raw matured outcomes; ledger additionally
+persists them through its public API. No new provider calls or revised submissions.
+Keep the v2 model/prompt-budget rules and existing review ordering. The isolated
+Targon CPU pod is reachable; restore frozen dependencies there and pass the full
+preflight before any new Engy requests. Host migration is disclosed and results
+will not be pooled across versions. Full protocol: ../hermes_ml_checkpoint_v3/PROTOCOL.md.
+
+The previous status-only turn is classified as no progress toward performance;
+this turn revalidated terminal local state and advances code, visibility tests,
+audit closure checks and durable runtime preparation. The target remains unproven.
+No main/PyPI changes, no reserved final outcomes opened.

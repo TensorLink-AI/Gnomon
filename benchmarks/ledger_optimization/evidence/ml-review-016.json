@@ -1,0 +1,919 @@
+{
+  "scope": "Completed checkpoint-v1 development only; read-only coverage audit",
+  "source_hashes": {
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1047756_store_23/work/experiments.jsonl": "1834c2c90478b85b1e2f2e6e138e8646b7fdd197480964ab01f8136d44b89bf8",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1047756_store_23/work/review-log.jsonl": "03998cf70e09003888bd36fa36c9ebba746d035ec936dbdb713a9826f8bf0c78",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1047756_store_23/work/previous_runs.json": "fc3c638562e78869b48b117b63d4f9bd2339b6886e4f6aab520cc2127379101c",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1047756_store_23/work/task.json": "992adc0249b78fb2fd00cd0c99d9a34352f2770436e4d2bb7b5505011432aaf1",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1304243_store_32/work/experiments.jsonl": "4838823100cf40fe86aea6d43a8033cea95e7d7d90e58977e106ec2a047fe885",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1304243_store_32/work/review-log.jsonl": "5ca5a90b71802c365aa0fa3f5e31dbf24376910312a6f83f50a373f65fe7f69e",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1304243_store_32/work/previous_runs.json": "39575d4280fdf13b85006b07a28b79efd5b026fe075ea9c9f28ab2104aba1e4d",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1304243_store_32/work/task.json": "39823fad347136c75b094379bf2bff4edaeaff0cd110dc179b44677fe2ae2f5e",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1372862_store_12/work/experiments.jsonl": "f228be9802675aa82cbe8ff475334b80ef2e50251ae0017f1f1301490aee345b",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1372862_store_12/work/review-log.jsonl": "2bd1ec984c77595e008fad1e5a62b594d2b62b8264132c5c40ac6a957275ffb3",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1372862_store_12/work/previous_runs.json": "ea653330c61753d221f5aea7127afc3e54fe90e20c8070e02e5e86430b2e44e7",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1372862_store_12/work/task.json": "f858a7bc7cf3e4036592ba5aa70bb5b50b77b81f999556beb4dff4292b895867",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1457251_store_14/work/experiments.jsonl": "651f1b41162873a67bb6c8df37da6e747864a17fabc57bc4b017216818ffa37a",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1457251_store_14/work/review-log.jsonl": "57729e8b762a00fd029f327f983339a19f27f4631813cf37e678b6cd4075d40d",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1457251_store_14/work/previous_runs.json": "ea4562973b960d0ae112cc442e9b5093deea43af7aa40f687e899f7dcb82db06",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1457251_store_14/work/task.json": "dfb3d39fed57c2acf66e72b5f23f342ef96981fb9fe9354c40d3c991d8b8789f"
+  },
+  "source_unchanged": true,
+  "series": [
+    {
+      "series_id": "item_1047756_store_23",
+      "as_of": "2017-08-01T00:00:00+00:00",
+      "origins": [
+        {
+          "origin": "2016-08-16T00:00:00+00:00",
+          "executions": [
+            {
+              "execution_id": "1ae09577-9a97-493b-a1d0-d9893cbe76c9",
+              "config_id": "5ee336af9243f066",
+              "matured_event_present": true
+            }
+          ],
+          "distinct_configs": 1,
+          "unscored_executions": 0
+        },
+        {
+          "origin": "2016-08-30T00:00:00+00:00",
+          "executions": [
+            {
+              "execution_id": "33085f38-e48b-4975-aaa3-be3ccbca3df1",
+              "config_id": "5ee336af9243f066",
+              "matured_event_present": false
+            },
+            {
+              "execution_id": "118cae77-4828-42d7-b170-c529f7bbc380",
+              "config_id": "dad9469f1ab8a4ce",
+              "matured_event_present": true
+            }
+          ],
+          "distinct_configs": 2,
+          "unscored_executions": 1
+        },
+        {
+          "origin": "2016-09-13T00:00:00+00:00",
+          "executions": [
+            {
+              "execution_id": "0fb1d2fe-6aa6-449e-8a54-39a373546aef",
+              "config_id": "5ee336af9243f066",
+              "matured_event_present": false
+            },
+            {
+              "execution_id": "7d02d611-db65-4b63-ac89-c797d879332b",
+              "config_id": "10b92ef135624402",
+              "matured_event_present": true
+            }
+          ],
+          "distinct_configs": 2,
+          "unscored_executions": 1
+        },
+        {
+          "origin": "2016-09-27T00:00:00+00:00",
+          "executions": [
+            {
+              "execution_id": "77de4c64-41ef-47ea-b4dc-ffbda49fce7d",
+              "config_id": "5ee336af9243f066",
+              "matured_event_present": false
+            },
+            {
+              "execution_id": "df9567ce-ed13-4fd0-b644-f7e2ec164534",
+              "config_id": "9827d2b47b48b72e",
+              "matured_event_present": true
+            }
+          ],
+          "distinct_configs": 2,
+          "unscored_executions": 1
+        },
+        {
+          "origin": "2017-06-20T00:00:00+00:00",
+          "executions": [
+            {
+              "execution_id": "31cd5fef-b723-4226-9ef9-60a047447355",
+              "config_id": "5ee336af9243f066",
+              "matured_event_present": false
+            },
+            {
+              "execution_id": "7bd97259-5dd4-4757-bc52-fa101f922ceb",
+              "config_id": "a7319ab3b571caba",
+              "matured_event_present": true
+            }
+          ],
+          "distinct_configs": 2,
+          "unscored_executions": 1
+        },
+        {
+          "origin": "2017-07-04T00:00:00+00:00",
+          "executions": [
+            {
+              "execution_id": "4eb8c7d3-a07b-45ea-bd8b-9c5b19b49996",
+              "config_id": "5ee336af9243f066",
+              "matured_event_present": false
+            },
+            {
+              "execution_id": "168658bb-3f47-4843-a4a5-58ed9f8facb3",
+              "config_id": "a7319ab3b571caba",
+              "matured_event_present": true
+            }
+          ],
+          "distinct_configs": 2,
+          "unscored_executions": 1
+        },
+        {
+          "origin": "2017-07-18T00:00:00+00:00",
+          "executions": [
+            {
+              "execution_id": "165767a8-9059-4ca1-a0ed-dfef61f5e4a4",
+              "config_id": "5ee336af9243f066",
+              "matured_event_present": false
+            },
+            {
+              "execution_id": "05519ada-5954-41f1-9a28-70458f78b123",
+              "config_id": "b4386d2da772a1a6",
+              "matured_event_present": true
+            }
+          ],
+          "distinct_configs": 2,
+          "unscored_executions": 1
+        }
+      ]
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "as_of": "2017-08-01T00:00:00+00:00",
+      "origins": [
+        {
+          "origin": "2016-08-16T00:00:00+00:00",
+          "executions": [
+            {
+              "execution_id": "0b05f7e6-448c-4711-bcf7-e79d24fa3fd8",
+              "config_id": "5ee336af9243f066",
+              "matured_event_present": true
+            }
+          ],
+          "distinct_configs": 1,
+          "unscored_executions": 0
+        },
+        {
+          "origin": "2016-08-30T00:00:00+00:00",
+          "executions": [
+            {
+              "execution_id": "f9beab21-a1c6-42e5-9118-b07b81e4dd76",
+              "config_id": "5ee336af9243f066",
+              "matured_event_present": false
+            },
+            {
+              "execution_id": "169c6862-36cf-4b73-a0ac-44cd3116800e",
+              "config_id": "2351461a9a59b71e",
+              "matured_event_present": true
+            }
+          ],
+          "distinct_configs": 2,
+          "unscored_executions": 1
+        },
+        {
+          "origin": "2016-09-13T00:00:00+00:00",
+          "executions": [
+            {
+              "execution_id": "29340e53-d33c-46ab-9b7d-46352364a400",
+              "config_id": "5ee336af9243f066",
+              "matured_event_present": false
+            },
+            {
+              "execution_id": "b6c33ab1-8da0-4964-a746-5b7eab41c6a7",
+              "config_id": "a1bcf0b0964b2442",
+              "matured_event_present": true
+            }
+          ],
+          "distinct_configs": 2,
+          "unscored_executions": 1
+        },
+        {
+          "origin": "2016-09-27T00:00:00+00:00",
+          "executions": [
+            {
+              "execution_id": "cc418f80-6dba-4ca0-bcdd-78add58e7efd",
+              "config_id": "5ee336af9243f066",
+              "matured_event_present": false
+            },
+            {
+              "execution_id": "5eccd6e7-f79e-4e0c-83e3-680498a46986",
+              "config_id": "a1bcf0b0964b2442",
+              "matured_event_present": true
+            }
+          ],
+          "distinct_configs": 2,
+          "unscored_executions": 1
+        },
+        {
+          "origin": "2017-06-20T00:00:00+00:00",
+          "executions": [
+            {
+              "execution_id": "1cfdb06f-77b1-461c-a893-3bd167a41d31",
+              "config_id": "5ee336af9243f066",
+              "matured_event_present": false
+            },
+            {
+              "execution_id": "10b25fd5-a9e5-4aea-8d21-28823786fdc6",
+              "config_id": "ae7dc1951fe35aac",
+              "matured_event_present": true
+            }
+          ],
+          "distinct_configs": 2,
+          "unscored_executions": 1
+        },
+        {
+          "origin": "2017-07-04T00:00:00+00:00",
+          "executions": [
+            {
+              "execution_id": "1b36cf39-6b32-4372-9533-2df27dce0cf2",
+              "config_id": "5ee336af9243f066",
+              "matured_event_present": false
+            },
+            {
+              "execution_id": "b68fc616-8b98-4a05-80c2-83e0afaa4492",
+              "config_id": "ae7dc1951fe35aac",
+              "matured_event_present": true
+            }
+          ],
+          "distinct_configs": 2,
+          "unscored_executions": 1
+        },
+        {
+          "origin": "2017-07-18T00:00:00+00:00",
+          "executions": [
+            {
+              "execution_id": "d5a89856-765d-475b-bc4c-ce7c8915fa8e",
+              "config_id": "5ee336af9243f066",
+              "matured_event_present": false
+            },
+            {
+              "execution_id": "e0e2e57f-1332-42bf-bd91-679209f800d2",
+              "config_id": "10b92ef135624402",
+              "matured_event_present": true
+            }
+          ],
+          "distinct_configs": 2,
+          "unscored_executions": 1
+        }
+      ]
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "as_of": "2017-08-01T00:00:00+00:00",
+      "origins": [
+        {
+          "origin": "2016-08-16T00:00:00+00:00",
+          "executions": [
+            {
+              "execution_id": "b879ae97-4db4-4afb-b84f-268fc9b48c47",
+              "config_id": "5ee336af9243f066",
+              "matured_event_present": false
+            },
+            {
+              "execution_id": "20f3cb8d-90b2-4d21-bfad-e6d5ecbeee59",
+              "config_id": "02279b66149d6867",
+              "matured_event_present": true
+            }
+          ],
+          "distinct_configs": 2,
+          "unscored_executions": 1
+        },
+        {
+          "origin": "2016-08-30T00:00:00+00:00",
+          "executions": [
+            {
+              "execution_id": "48813cb9-d287-4d34-a0dd-2c5bbc91ddb4",
+              "config_id": "5ee336af9243f066",
+              "matured_event_present": false
+            },
+            {
+              "execution_id": "018ac59c-1d26-4871-abcd-5ad514b136ce",
+              "config_id": "02279b66149d6867",
+              "matured_event_present": true
+            }
+          ],
+          "distinct_configs": 2,
+          "unscored_executions": 1
+        },
+        {
+          "origin": "2016-09-13T00:00:00+00:00",
+          "executions": [
+            {
+              "execution_id": "870dc11f-4a87-491e-9ac7-7cd7e74f3d87",
+              "config_id": "5ee336af9243f066",
+              "matured_event_present": false
+            },
+            {
+              "execution_id": "39ab4831-5a50-4ebf-9f8d-ca03246f8d9f",
+              "config_id": "282fcc20124e9244",
+              "matured_event_present": true
+            }
+          ],
+          "distinct_configs": 2,
+          "unscored_executions": 1
+        },
+        {
+          "origin": "2016-09-27T00:00:00+00:00",
+          "executions": [
+            {
+              "execution_id": "e5e9c66d-d2cc-4d7e-b157-43add62b7a08",
+              "config_id": "5ee336af9243f066",
+              "matured_event_present": false
+            },
+            {
+              "execution_id": "348402bc-7024-45bc-914f-e8752ba831cc",
+              "config_id": "fad629e67119d702",
+              "matured_event_present": true
+            }
+          ],
+          "distinct_configs": 2,
+          "unscored_executions": 1
+        },
+        {
+          "origin": "2017-06-20T00:00:00+00:00",
+          "executions": [
+            {
+              "execution_id": "859f69ed-44a0-4b1e-b4c2-cb1fee0f27a0",
+              "config_id": "5ee336af9243f066",
+              "matured_event_present": false
+            },
+            {
+              "execution_id": "da21fefc-3647-4c2c-8ca8-0ad379a4c98c",
+              "config_id": "fad629e67119d702",
+              "matured_event_present": true
+            }
+          ],
+          "distinct_configs": 2,
+          "unscored_executions": 1
+        },
+        {
+          "origin": "2017-07-04T00:00:00+00:00",
+          "executions": [
+            {
+              "execution_id": "37405f07-1828-4c8e-9a4b-75d7b7be0ba0",
+              "config_id": "5ee336af9243f066",
+              "matured_event_present": false
+            },
+            {
+              "execution_id": "ad5b8d3c-d1db-4e12-9f24-c899d89c3afd",
+              "config_id": "fad629e67119d702",
+              "matured_event_present": true
+            }
+          ],
+          "distinct_configs": 2,
+          "unscored_executions": 1
+        },
+        {
+          "origin": "2017-07-18T00:00:00+00:00",
+          "executions": [
+            {
+              "execution_id": "9e179a49-630e-4b8a-aecc-27b93a622898",
+              "config_id": "5ee336af9243f066",
+              "matured_event_present": false
+            },
+            {
+              "execution_id": "2c12792d-eb00-42d4-a272-5ab945e2f165",
+              "config_id": "8d14fd30329e357d",
+              "matured_event_present": true
+            }
+          ],
+          "distinct_configs": 2,
+          "unscored_executions": 1
+        }
+      ]
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "as_of": "2017-08-01T00:00:00+00:00",
+      "origins": [
+        {
+          "origin": "2016-08-16T00:00:00+00:00",
+          "executions": [
+            {
+              "execution_id": "aa942d22-a113-453a-9444-bd201aa62461",
+              "config_id": "5ee336af9243f066",
+              "matured_event_present": false
+            },
+            {
+              "execution_id": "7b9e1226-61e6-48a3-b4ef-8f82ff8dcdee",
+              "config_id": "1cce6ffe78ec6fe6",
+              "matured_event_present": true
+            }
+          ],
+          "distinct_configs": 2,
+          "unscored_executions": 1
+        },
+        {
+          "origin": "2016-08-30T00:00:00+00:00",
+          "executions": [
+            {
+              "execution_id": "aefd145b-3ba2-4475-98e6-9f8d654c44c9",
+              "config_id": "5ee336af9243f066",
+              "matured_event_present": false
+            },
+            {
+              "execution_id": "5d2f6101-65a8-4037-8c4d-6d8cd0cdd62d",
+              "config_id": "1cce6ffe78ec6fe6",
+              "matured_event_present": true
+            }
+          ],
+          "distinct_configs": 2,
+          "unscored_executions": 1
+        },
+        {
+          "origin": "2016-09-13T00:00:00+00:00",
+          "executions": [
+            {
+              "execution_id": "f2191b4c-2f97-4e0a-88ac-19d79fdd7ddc",
+              "config_id": "5ee336af9243f066",
+              "matured_event_present": false
+            },
+            {
+              "execution_id": "c607b16f-6c39-4673-8ed0-42811605a3ff",
+              "config_id": "1cce6ffe78ec6fe6",
+              "matured_event_present": true
+            }
+          ],
+          "distinct_configs": 2,
+          "unscored_executions": 1
+        },
+        {
+          "origin": "2016-09-27T00:00:00+00:00",
+          "executions": [
+            {
+              "execution_id": "af1382ec-1634-4bb2-883d-15f9760f43b2",
+              "config_id": "5ee336af9243f066",
+              "matured_event_present": false
+            },
+            {
+              "execution_id": "4923861e-55cb-4044-8b04-22df2b5843bb",
+              "config_id": "1cce6ffe78ec6fe6",
+              "matured_event_present": true
+            }
+          ],
+          "distinct_configs": 2,
+          "unscored_executions": 1
+        },
+        {
+          "origin": "2017-06-20T00:00:00+00:00",
+          "executions": [
+            {
+              "execution_id": "c21a2307-17e0-4264-a9a0-b1f2b8deb8df",
+              "config_id": "5ee336af9243f066",
+              "matured_event_present": false
+            },
+            {
+              "execution_id": "7e5643f4-0776-4a87-9ed6-2238095bf813",
+              "config_id": "10b92ef135624402",
+              "matured_event_present": true
+            }
+          ],
+          "distinct_configs": 2,
+          "unscored_executions": 1
+        },
+        {
+          "origin": "2017-07-04T00:00:00+00:00",
+          "executions": [
+            {
+              "execution_id": "75f593e1-8f02-4d8f-80a1-f014407d413e",
+              "config_id": "5ee336af9243f066",
+              "matured_event_present": false
+            },
+            {
+              "execution_id": "5aac7d99-df60-4ddc-a195-a0cf8c48412b",
+              "config_id": "10b92ef135624402",
+              "matured_event_present": true
+            }
+          ],
+          "distinct_configs": 2,
+          "unscored_executions": 1
+        },
+        {
+          "origin": "2017-07-18T00:00:00+00:00",
+          "executions": [
+            {
+              "execution_id": "b91866c7-ab3d-4c4a-b5d0-efc502a0edd3",
+              "config_id": "5ee336af9243f066",
+              "matured_event_present": false
+            },
+            {
+              "execution_id": "813b21a1-2e0b-47b9-a35c-69fa171a47d8",
+              "config_id": "badffa813c1d4e0d",
+              "matured_event_present": true
+            }
+          ],
+          "distinct_configs": 2,
+          "unscored_executions": 1
+        }
+      ]
+    }
+  ],
+  "reviews": [
+    {
+      "series_id": "item_1047756_store_23",
+      "origin": "2016-08-30T00:00:00+00:00",
+      "record_count": 31,
+      "shown_records": 20,
+      "comparison_count": 45,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 93,
+      "payload_bytes": 15918
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "origin": "2016-09-13T00:00:00+00:00",
+      "record_count": 38,
+      "shown_records": 20,
+      "comparison_count": 45,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 116,
+      "payload_bytes": 15842
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "origin": "2016-09-27T00:00:00+00:00",
+      "record_count": 57,
+      "shown_records": 20,
+      "comparison_count": 66,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 175,
+      "payload_bytes": 15861
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "origin": "2017-06-20T00:00:00+00:00",
+      "record_count": 79,
+      "shown_records": 20,
+      "comparison_count": 100,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 243,
+      "payload_bytes": 16166
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "origin": "2017-07-04T00:00:00+00:00",
+      "record_count": 92,
+      "shown_records": 20,
+      "comparison_count": 100,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 284,
+      "payload_bytes": 16377
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "origin": "2017-07-18T00:00:00+00:00",
+      "record_count": 102,
+      "shown_records": 20,
+      "comparison_count": 100,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 316,
+      "payload_bytes": 16511
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "origin": "2017-07-18T00:00:00+00:00",
+      "record_count": 102,
+      "shown_records": 20,
+      "comparison_count": 100,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 316,
+      "payload_bytes": 16511
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "origin": "2017-07-18T00:00:00+00:00",
+      "record_count": 102,
+      "shown_records": 20,
+      "comparison_count": 100,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 316,
+      "payload_bytes": 16511
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "origin": "2017-08-01T00:00:00+00:00",
+      "record_count": 136,
+      "shown_records": 20,
+      "comparison_count": 112,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 420,
+      "payload_bytes": 17212
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "origin": "2016-08-30T00:00:00+00:00",
+      "record_count": 31,
+      "shown_records": 20,
+      "comparison_count": 45,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 93,
+      "payload_bytes": 15980
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "origin": "2016-09-13T00:00:00+00:00",
+      "record_count": 41,
+      "shown_records": 20,
+      "comparison_count": 55,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 125,
+      "payload_bytes": 15839
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "origin": "2016-09-27T00:00:00+00:00",
+      "record_count": 48,
+      "shown_records": 20,
+      "comparison_count": 55,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 148,
+      "payload_bytes": 15824
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "origin": "2017-06-20T00:00:00+00:00",
+      "record_count": 55,
+      "shown_records": 20,
+      "comparison_count": 55,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 171,
+      "payload_bytes": 15871
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "origin": "2017-07-04T00:00:00+00:00",
+      "record_count": 104,
+      "shown_records": 20,
+      "comparison_count": 169,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 320,
+      "payload_bytes": 17263
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "origin": "2017-07-04T00:00:00+00:00",
+      "record_count": 122,
+      "shown_records": 20,
+      "comparison_count": 211,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 376,
+      "payload_bytes": 17051
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "origin": "2017-07-18T00:00:00+00:00",
+      "record_count": 129,
+      "shown_records": 20,
+      "comparison_count": 230,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 397,
+      "payload_bytes": 17149
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "origin": "2017-08-01T00:00:00+00:00",
+      "record_count": 139,
+      "shown_records": 20,
+      "comparison_count": 230,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 429,
+      "payload_bytes": 17144
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "origin": "2016-08-30T00:00:00+00:00",
+      "record_count": 16,
+      "shown_records": 16,
+      "comparison_count": 10,
+      "shown_comparisons": 10,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 50,
+      "payload_bytes": 10953
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "origin": "2016-08-30T00:00:00+00:00",
+      "record_count": 22,
+      "shown_records": 20,
+      "comparison_count": 10,
+      "shown_comparisons": 10,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 70,
+      "payload_bytes": 12842
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "origin": "2016-09-13T00:00:00+00:00",
+      "record_count": 23,
+      "shown_records": 20,
+      "comparison_count": 10,
+      "shown_comparisons": 10,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 73,
+      "payload_bytes": 12867
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "origin": "2016-09-27T00:00:00+00:00",
+      "record_count": 36,
+      "shown_records": 20,
+      "comparison_count": 21,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 114,
+      "payload_bytes": 15381
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "origin": "2016-09-27T00:00:00+00:00",
+      "record_count": 48,
+      "shown_records": 20,
+      "comparison_count": 21,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 152,
+      "payload_bytes": 15771
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "origin": "2016-09-27T00:00:00+00:00",
+      "record_count": 51,
+      "shown_records": 20,
+      "comparison_count": 26,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 161,
+      "payload_bytes": 15624
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "origin": "2017-06-20T00:00:00+00:00",
+      "record_count": 52,
+      "shown_records": 20,
+      "comparison_count": 26,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 164,
+      "payload_bytes": 15626
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "origin": "2017-07-04T00:00:00+00:00",
+      "record_count": 65,
+      "shown_records": 20,
+      "comparison_count": 26,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 205,
+      "payload_bytes": 16159
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "origin": "2017-07-18T00:00:00+00:00",
+      "record_count": 78,
+      "shown_records": 20,
+      "comparison_count": 30,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 246,
+      "payload_bytes": 16340
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "origin": "2017-08-01T00:00:00+00:00",
+      "record_count": 91,
+      "shown_records": 20,
+      "comparison_count": 35,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 287,
+      "payload_bytes": 16396
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "origin": "2016-08-30T00:00:00+00:00",
+      "record_count": 16,
+      "shown_records": 16,
+      "comparison_count": 10,
+      "shown_comparisons": 10,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 50,
+      "payload_bytes": 10953
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "origin": "2016-09-13T00:00:00+00:00",
+      "record_count": 32,
+      "shown_records": 20,
+      "comparison_count": 21,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 100,
+      "payload_bytes": 15646
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "origin": "2016-09-27T00:00:00+00:00",
+      "record_count": 42,
+      "shown_records": 20,
+      "comparison_count": 21,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 132,
+      "payload_bytes": 15825
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "origin": "2017-06-20T00:00:00+00:00",
+      "record_count": 52,
+      "shown_records": 20,
+      "comparison_count": 21,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 164,
+      "payload_bytes": 15794
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "origin": "2017-06-20T00:00:00+00:00",
+      "record_count": 58,
+      "shown_records": 20,
+      "comparison_count": 21,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 184,
+      "payload_bytes": 15877
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "origin": "2017-07-04T00:00:00+00:00",
+      "record_count": 68,
+      "shown_records": 20,
+      "comparison_count": 30,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 214,
+      "payload_bytes": 16097
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "origin": "2017-07-18T00:00:00+00:00",
+      "record_count": 78,
+      "shown_records": 20,
+      "comparison_count": 35,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 246,
+      "payload_bytes": 15962
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "origin": "2017-08-01T00:00:00+00:00",
+      "record_count": 94,
+      "shown_records": 20,
+      "comparison_count": 54,
+      "shown_comparisons": 20,
+      "shown_production_comparisons": 0,
+      "ledger_queries": 296,
+      "payload_bytes": 15981
+    }
+  ],
+  "summary": {
+    "review_calls": 35,
+    "reviews_with_truncated_comparisons": 31,
+    "median_review_bytes": 15918,
+    "maximum_available_comparisons": 230,
+    "shown_production_comparisons": 0,
+    "matured_origins": 28,
+    "origins_with_multiple_executed_configurations": 26,
+    "matching_executed_forecasts": 54,
+    "matching_forecasts_without_matured_event": 26
+  },
+  "limits": [
+    "No numerical rescoring, provider call, ledger write or original grade change.",
+    "Source/recording visibility follows the original synthetic replay assumptions.",
+    "Missing matched evidence does not establish that exposing it would improve selections.",
+    "This is a benchmark-integration omission, not a failure of TemporalLedger.evaluate.",
+    "The frozen checkpoint-v2 pilot retains v1 maturation to isolate orchestration changes."
+  ]
+}
