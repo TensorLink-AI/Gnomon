@@ -795,3 +795,10 @@ results/ledger-cards-024; receipt evidence/ml-development-cards-026.json.
 Next required work is four-arm runner integration, sealed runtime parity and a
 fresh preflight/freeze before any paid comparison. No process is currently running
 an evaluation, the 20% target remains unproven, and main/PyPI/final data are unchanged.
+
+Artifact check: attempt 003 had temporarily reused the two root helper paths in
+results/ledger-cards-024. Its exact source is now preserved under source-003, and
+the original root helper bytes are restored from the retained attempt-002 copies.
+All original 024 receipt hashes and all 026 receipt hashes verify. Original argv
+and results remain unchanged; the 026 receipt explicitly names the source snapshot
+needed to reproduce that later attempt. No ledger, score or observation changed.

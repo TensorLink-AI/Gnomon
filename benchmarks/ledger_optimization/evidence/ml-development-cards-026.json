@@ -71,10 +71,7 @@
     "command-1.1.9-001.json": "c77cc1590d658084dd14aa374a051be03699f8398dc9f093a577b65fc76a8d2e",
     "ml_ledger_cards_check.py.attempt002": "8fe87532119a037c1bdfcbb7cef7f41382e9b2a19dd3d2d753842237bd12fd26",
     "command-1.2.0-003.json": "4eeed8c0c005a6741163908b5564e8ad96a6b688c18d33bad4b85fc3a5d25cb6",
-    "ml_ledger_cards.py": "d997fa096900ba7129e5d693959fdf7e46ef5a97f3bf1a3b0c26908ef6c712c8",
     "command-1.2.0-001.json": "28bd44d0bbac76db78d07c0788f3bddc7af4d4c029f656d156b7e1bf83095883",
-    "development_evidence_summary.py": "1cd7adfc4a6180e000b32af7120ee77bc735b3df0bb1cb633f767302676f35ec",
-    "ml_ledger_cards_check.py": "1c4ea5a4fcbe04ce970869b050a31429761bb5a29cc81849a6ee09bf479b2d8e",
     "command-1.1.9-002.json": "c5d8271bafa22d75e19328e21e7ed8adf3b93590ff50299040d23dc4272e678a",
     "ml_ledger_cards_check.py.attempt001": "2669d9768768aac0f68da03860210655ae20b43632423a066f11c62201c10ead",
     "ml_ledger_cards.py.attempt002": "3b04d2ad926f19b90f3ca2711828de66a06c4dd15c5dc19c0c2c94fd672ef53c",
@@ -90,11 +87,16 @@
     "1.1.9-002/result.json": "9496adaeed2ca23b8dce81776aa17650e838dec5ead2b652efeb982798fb778a",
     "1.1.9-002/ledger.db": "ef93b78a670c48fa40ffc3cffaa355ce6d2650999f15b06d027074457ccc2388",
     "1.2.0-002/result.json": "70c09ad5d8d5e01d71278e68604cd90637ea5aaed72daff477998ecc8e26c465",
-    "1.2.0-002/ledger.db": "37113b0772f2f05f2cbe6b8900b4bbf4f37a6162ac5b298c8457abfa9c6039aa"
+    "1.2.0-002/ledger.db": "37113b0772f2f05f2cbe6b8900b4bbf4f37a6162ac5b298c8457abfa9c6039aa",
+    "source-003/ml_ledger_cards.py": "d997fa096900ba7129e5d693959fdf7e46ef5a97f3bf1a3b0c26908ef6c712c8",
+    "source-003/ml_ledger_cards_check.py": "1c4ea5a4fcbe04ce970869b050a31429761bb5a29cc81849a6ee09bf479b2d8e",
+    "source-003/development_evidence_summary.py": "1cd7adfc4a6180e000b32af7120ee77bc735b3df0bb1cb633f767302676f35ec"
   },
   "source_hashes": {
     "ML_CARDS_026.md": "92650413a8fbccf27ce94cfba336eb31245daf5e387099ceb01cefaeee7d0dc0",
     "ml_ledger_cards.py": "d997fa096900ba7129e5d693959fdf7e46ef5a97f3bf1a3b0c26908ef6c712c8",
     "ml_ledger_cards_check.py": "1c4ea5a4fcbe04ce970869b050a31429761bb5a29cc81849a6ee09bf479b2d8e"
-  }
+  },
+  "source_snapshot_note": "Attempt 003 executed the root helper paths shown in its original argv; exact source is now preserved under source-003. Original root helper bytes were restored to their immutable 024 receipt. Use source-003 helpers to reproduce 003.",
+  "prior_024_artifacts_verified_unchanged": true
 }
