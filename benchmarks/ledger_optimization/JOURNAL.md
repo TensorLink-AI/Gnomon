@@ -731,3 +731,39 @@ agent execution budgets. Do not give treatment-only or post hoc free retries.
 Finish the 1.1.9 dynamic-card comparator and continuous-origin protocol before
 inference. No live experiment remains, no automatic reroll was launched, and
 the reserved final outcomes, main and PyPI remain unchanged.
+
+## 2026-09-13 (Brisbane): dynamic incumbent cards 024 and service admission 025
+
+Previous goal turn made progress: completed continuous-task preparation and
+preserved the failed pilot, including independent service attribution and costs.
+The v3 trial remains terminal and failed; no retry or regrading occurred.
+
+Implemented a prospective dynamic-configuration adapter for the real published
+1.1.9 incumbent. Preserve MAE, last-four/last-twelve/lifetime global production
+windows, exact revisions, matched cohorts and public ledger verification. Pair
+comparisons avoid an all-configurations intersection that would discard useful
+overlap. Order pages by latest shared origin then IDs, never by model errors.
+Both ledger presentations will use this shared retrieval arrangement; the
+incumbent is not deliberately starved of comparisons. Full evidence is retained;
+compact cards have exact file/JSON-pointer references. No global ranking is
+inferred across different pair cohorts.
+
+The same executable synthetic check passes eleven groups on published 1.1.9 and
+pinned 1.2.0. Nine direct public per-window queries agree with adapter summaries.
+Fixtures include two overlapping pairs with an empty three-model intersection,
+different recent/lifetime support, pagination, explicit pair retrieval, conflicting
+identity, retrospective/unclosed forecasts and a future source/recorded revision.
+All reads make zero provider calls and leave ledger bytes unchanged. Exact
+commands, full cards and direct queries are in results/ledger-cards-024; tracked
+receipt evidence/ml-incumbent-cards-024.json. This validates an adapter, not the
+incumbent agent's forecasting performance or the requested target.
+
+Added a separate common service-admission component and prospective policy
+ML_SERVICE_ADMISSION_025.md. Before each future session's task clock/numerical
+work, a fixed task-free canary must succeed. Known outages permit at most ten
+probes spaced sixty seconds apart, with all usage/cost evidence retained. Exhaustion
+stops admission as infrastructure-incomplete. No within-session free retries,
+time resets, treatment-only privileges or modifications to old scores. Seven
+tests pass, including HTTP-200 error envelopes, non-JSON 504s, bounded waiting,
+authorization failure, accounting and credential redaction. Runner integration,
+the development RMSLE presentation and the next paid protocol are still pending.

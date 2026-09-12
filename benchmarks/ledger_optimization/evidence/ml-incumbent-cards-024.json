@@ -1,0 +1,87 @@
+{
+  "scope": "Dynamic incumbent adapter compatibility; no comparative agent performance claim",
+  "passed": true,
+  "runtimes": [
+    {
+      "distribution_version": "1.1.9",
+      "build": {
+        "build_id": "1.1.9+g59a6d81709a4.s9e199ad6d265",
+        "commit": "59a6d81709a4625bf042e7ca152aa5f12534c28a",
+        "dirty": false,
+        "fingerprint_scope": "gnomon_python_sources",
+        "package_version": "1.1.9",
+        "provenance": "git",
+        "source_sha256": "9e199ad6d265ccc3afe622df6f1142975d593aa597816bf5f9eac93d62a68911"
+      },
+      "checks": [
+        "pair cohorts survive empty three-model intersection",
+        "global recent windows, not last successful matches",
+        "empty pair disclosed",
+        "score-independent recency ordering",
+        "all nine pair/window summaries equal independent public queries",
+        "exact pagination and explicit pair retrieval",
+        "compact summaries retain exact metrics and resolvable evidence references",
+        "zero provider calls and byte-identical ledger during all reviews",
+        "future-recorded/source-available revision invisible at query cutoff",
+        "conflicting provider identity rejected",
+        "retrospective and unclosed forecasts cannot alter production cards"
+      ],
+      "synthetic_provider_calls": 30,
+      "provider_calls_during_review": 0,
+      "api_calls": 0,
+      "final_data_opened": false
+    },
+    {
+      "distribution_version": "1.2.0",
+      "build": {
+        "build_id": "1.2.0+ga38cd0cad353.s9723394ccb6d",
+        "commit": "a38cd0cad35383e5f10021abf3aa20d4c16923be",
+        "dirty": false,
+        "fingerprint_scope": "gnomon_python_sources",
+        "package_version": "1.2.0",
+        "provenance": "git",
+        "source_sha256": "9723394ccb6d9e11991b312e01bac47c767c69407b6b33d36971cb6e48b6a22e"
+      },
+      "checks": [
+        "pair cohorts survive empty three-model intersection",
+        "global recent windows, not last successful matches",
+        "empty pair disclosed",
+        "score-independent recency ordering",
+        "all nine pair/window summaries equal independent public queries",
+        "exact pagination and explicit pair retrieval",
+        "compact summaries retain exact metrics and resolvable evidence references",
+        "zero provider calls and byte-identical ledger during all reviews",
+        "future-recorded/source-available revision invisible at query cutoff",
+        "conflicting provider identity rejected",
+        "retrospective and unclosed forecasts cannot alter production cards"
+      ],
+      "synthetic_provider_calls": 30,
+      "provider_calls_during_review": 0,
+      "api_calls": 0,
+      "final_data_opened": false
+    }
+  ],
+  "artifacts": {
+    "command-1.2.0-002.json": "8cfe26178a77b61ba1cdc00320b963cb65214d079963f80651e9f1a5458677d3",
+    "command-1.1.9-001.json": "c77cc1590d658084dd14aa374a051be03699f8398dc9f093a577b65fc76a8d2e",
+    "ml_ledger_cards.py": "3b04d2ad926f19b90f3ca2711828de66a06c4dd15c5dc19c0c2c94fd672ef53c",
+    "command-1.2.0-001.json": "28bd44d0bbac76db78d07c0788f3bddc7af4d4c029f656d156b7e1bf83095883",
+    "ml_ledger_cards_check.py": "8fe87532119a037c1bdfcbb7cef7f41382e9b2a19dd3d2d753842237bd12fd26",
+    "command-1.1.9-002.json": "c5d8271bafa22d75e19328e21e7ed8adf3b93590ff50299040d23dc4272e678a",
+    "ml_ledger_cards_check.py.attempt001": "2669d9768768aac0f68da03860210655ae20b43632423a066f11c62201c10ead",
+    "ml_ledger_cards.py.attempt001": "576373251ee7b497da65f50bd7f9a4242e2c9d8ab92728a705750c67c96cc57b",
+    "1.2.0-001/result.json": "862e1ce66f4d99db77c2b0f8074ad37e2d097b3ea65a693a5a2b8c2df46fca0b",
+    "1.2.0-001/ledger.db": "7b8cd5f781fde5b49c34b5dfa5c8be9543592dab91210cfdf545202988817ad0",
+    "1.1.9-001/result.json": "a196dd90533fb5132b11dd147d5e6bc0cdafd4e7d0ecc673fd51adea777a88b0",
+    "1.1.9-001/ledger.db": "6a597d42d36a66d2d53d103dc0e678f6738db346f826d39521eb3ffe8192fb63",
+    "1.1.9-002/result.json": "9496adaeed2ca23b8dce81776aa17650e838dec5ead2b652efeb982798fb778a",
+    "1.1.9-002/ledger.db": "ef93b78a670c48fa40ffc3cffaa355ce6d2650999f15b06d027074457ccc2388",
+    "1.2.0-002/result.json": "70c09ad5d8d5e01d71278e68604cd90637ea5aaed72daff477998ecc8e26c465",
+    "1.2.0-002/ledger.db": "37113b0772f2f05f2cbe6b8900b4bbf4f37a6162ac5b298c8457abfa9c6039aa"
+  },
+  "source_hashes": {
+    "ML_CARDS_024.md": "c5d51cc3737de65ab8fab09b84bdbec61a79fc03d3cb17f6fdc3133dbfe8c976",
+    "ml_ledger_cards.py": "3b04d2ad926f19b90f3ca2711828de66a06c4dd15c5dc19c0c2c94fd672ef53c",
+    "ml_ledger_cards_check.py": "8fe87532119a037c1bdfcbb7cef7f41382e9b2a19dd3d2d753842237bd12fd26"
+  }
+}
