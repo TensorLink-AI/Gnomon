@@ -1,20 +1,28 @@
 # Ledger optimization development protocol
 
 Status: development; no release or superiority claim. Branch: `dev/ledger-optimization`.
-Baseline source: Gnomon 1.1.9, commit `59a6d81709a4625bf042e7ca152aa5f12534c28a`.
+Current Gnomon baseline: **1.2.0**, commit `a38cd0cad35383e5f10021abf3aa20d4c16923be`,
+source SHA-256 `9723394ccb6d9e11991b312e01bac47c767c69407b6b33d36971cb6e48b6a22e`.
+
+The user's latest version correction supersedes the earlier 1.1.9 comparison
+requirement and proposed four-arm ML run. The next run has exactly three arms:
+Hermes alone, Hermes + Gnomon 1.2.0 without ledger, and Hermes + Gnomon 1.2.0
+with the development ledger workflow. Do not launch a 1.1.9 arm. Historical
+protocols and compatibility results are retained as historical evidence only.
 
 ## Objective agreed before experiments
 
 Achieve at least **20% lower mean per-case RMSLE** than a matched no-ledger
 agent on an untouched final evaluation set. The paired 95% uncertainty interval
-must exclude zero improvement, and development must improve over the current
-1.1.9 ledger. The 20% threshold refers to the point estimate; it is not the
+must exclude zero improvement. Use the corrected 1.2.0 comparison above; the
+superseded 1.1.9 requirement is no longer a dispatch prerequisite. The 20% threshold refers to the point estimate; it is not the
 lower confidence bound. User authorizes required Engy/API spending. Log usage,
 reported costs, and unavailable billing information; missing cost is not zero.
 
 ## Fair comparison
 
-Three arms: no ledger, frozen 1.1.9 ledger evidence, development ledger evidence.
+Three arms: Hermes alone, Hermes + Gnomon 1.2.0 without ledger, and Hermes +
+Gnomon 1.2.0 with development ledger evidence.
 Use identical agent model/settings, candidate implementations, current history,
 CV evidence, forecast execution budgets, completion resolution and fallback
 policies. The historical evidence is the intended treatment. A typed execution
@@ -131,28 +139,27 @@ earlier fixed-eight-recipe restriction for that task only. It does not authorize
 stronger forecasting tools or privileged observations exclusively for treatment.
 The earlier fixed-portfolio screens and negative confirmation remain unchanged.
 
-The current checkpoint-v3 trial uses Gnomon 1.2.0 in both Gnomon arms and retains
+The completed checkpoint-v3 trial used Gnomon 1.2.0 in both Gnomon arms and retained
 all three arms' matured raw outcome scores. It is development evidence about a
-workflow, not a matched 1.1.9 comparison or untouched final evaluation. Completion
+workflow, not an untouched final evaluation. Completion
 gates do not substitute for the 20% point target or uncertainty requirement.
 
-Before final confirmation, compare the selected development implementation with
-both an equally informed no-ledger arm and the frozen 1.1.9 incumbent on the same
-task. Compatibility check 019 verifies that the exact published 1.1.9 build
-`59a6d81709a4625bf042e7ca152aa5f12534c28a` supports the shared typed execution,
-covariate/identity, controlled-clock, scoring and matched-history contracts.
-This is not evidence of the incumbent agent's performance.
+Before final confirmation, compare the selected development implementation in
+the three corrected arms above, with equal information and budgets. The existing
+1.1.9 compatibility checks and proposed incumbent adapter are historical work;
+they do not authorize a fourth arm or delay the 1.2.0-only integration.
 
-The old incumbent MAE cards used last-four, last-twelve and lifetime windows with
+The historical MAE cards used last-four, last-twelve and lifetime windows with
 complete matched origins. A dynamic configuration search requires an explicit,
 prospectively frozen adaptation of that evidence presentation. Preserve config
 and provider-revision identity and show missing overlap; do not deliberately
-cripple the incumbent with an all-configurations intersection or fabricate
+discard useful comparisons through an all-configurations intersection or fabricate
 unexecuted forecasts. Keep completion handling, budget accounting, raw evidence
 access and outcome maturation common. Freeze the adapter and test it before any
 comparative agent inference. Package version alone does not define a fair memory
-treatment; neither a deterministic MAE selector nor the existing 1.2.0 pilot can
-be relabeled as the 1.1.9 agent baseline.
+treatment. The comparison-card code can support the development ledger workflow
+without introducing a separate version arm. All Gnomon execution runtimes must
+match the pinned 1.2.0 build above; development helpers are separately identified.
 
 The 24 M5 reserved series remain unopened. The ML task would need a separately
 recorded history/covariate adapter before using that source, without changing its

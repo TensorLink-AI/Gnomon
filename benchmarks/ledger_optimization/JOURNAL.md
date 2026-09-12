@@ -802,3 +802,14 @@ the original root helper bytes are restored from the retained attempt-002 copies
 All original 024 receipt hashes and all 026 receipt hashes verify. Original argv
 and results remain unchanged; the 026 receipt explicitly names the source snapshot
 needed to reproduce that later attempt. No ledger, score or observation changed.
+
+## User correction: 1.2.0, three arms
+
+The user explicitly rejected the carried-forward 1.1.9 comparator. PLAN.md now
+supersedes that obsolete requirement: exactly Hermes alone, Hermes + Gnomon
+1.2.0 without ledger, and Hermes + Gnomon 1.2.0 with the development ledger
+workflow. Both Gnomon arms use the a38cd0cad353 build already tested in v3.
+Do not add a fourth 1.1.9 arm. Preserve prior compatibility checks and protocols
+as history, not current dispatch requirements. No paid 1.1.9 comparison was run.
+The integration and fresh evaluation are not complete, and no new accuracy result
+has been established. Main/PyPI and the final holdout remain unchanged.
