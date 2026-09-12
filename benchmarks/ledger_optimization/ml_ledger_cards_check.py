@@ -4,14 +4,15 @@ from copy import deepcopy
 from datetime import datetime,timedelta,timezone
 import hashlib
 import importlib.metadata
+import importlib.util
 import json
 from pathlib import Path
 import sys
 
-from ml_ledger_cards import incumbent_cards,compact_cards
+from ml_ledger_cards import incumbent_cards,compact_cards,development_cards
 
 
-def run(root):
+def run(root,development_math=None):
     from gnomon import ForecastResult, InferenceEngine, TemporalLedger
     from gnomon.ids import FixedClock
     from gnomon.build_info import build_info
@@ -77,6 +78,25 @@ def run(root):
                 target=target[int(key)] if isinstance(target,list) else target[key]
             assert target==card['cards'][index]['windows'][name]['origins']
     checks.append('compact summaries retain exact metrics and resolvable evidence references')
+    development=None;math_hash=None
+    if development_math:
+        spec=importlib.util.spec_from_file_location('gnomon.evidence_summary',development_math)
+        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        math_hash=hashlib.sha256(development_math.read_bytes()).hexdigest()
+        development=development_cards(db,records,task,module)
+        assert development['configuration_index']==card['configuration_index']
+        assert development['total_pairs']==card['total_pairs']
+        for old,new in zip(card['cards'],development['cards'],strict=True):
+            for label in old['windows']:
+                a,b=old['windows'][label],new['windows'][label]
+                assert a['matched_origins']==b['matched_origins'] and a['n']==b['n']
+                assert [o['actual_ids'] for o in a['origins']]==[o['actual_ids'] for o in b['origins']]
+                assert [m['mae'] for m in a['models']]==[m['mae'] for m in b['models']]
+                for m in b['models']:
+                    import math
+                    expected=abs(math.log1p({'a':2,'b':4,'c':3}[m['provider']])-math.log(2))
+                    assert abs(m['rmsle']-expected)<1e-12
+        checks.append('development RMSLE uses identical cohort, actual IDs and original MAE; independent logarithm check')
     assert len(calls)==provider_count
     assert hashlib.sha256((root/'ledger.db').read_bytes()).hexdigest()==before
     checks.append('zero provider calls and byte-identical ledger during all reviews')
@@ -86,6 +106,7 @@ def run(root):
                      valid_time=(first+timedelta(days=1)).isoformat(),
                      source_available_at=(first+timedelta(days=40)).isoformat())
     assert incumbent_cards(db,records,task)==card
+    if development_math:assert development_cards(db,records,task,module)==development
     checks.append('future-recorded/source-available revision invisible at query cutoff')
     wrong=deepcopy(records);wrong[1]['execution']['provider']='a'
     try:incumbent_cards(db,wrong,task)
@@ -103,6 +124,7 @@ def run(root):
     checks.append('retrospective and unclosed forecasts cannot alter production cards')
     result={'passed':True,'checks':checks,'distribution_version':importlib.metadata.version('gnomon-forecast'),
             'build':build_info(),'python':sys.executable,'card':card,'direct_queries':queries,
+            'development_card':development,'development_math_sha256':math_hash,
             'synthetic_provider_calls':provider_count,'provider_calls_during_review':len(calls)-provider_count,
             'api_calls':0,'final_data_opened':False}
     (root/'result.json').write_text(json.dumps(result,indent=2)+'\n')
@@ -110,6 +132,6 @@ def run(root):
 
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--output',type=Path,required=True)
-    result=run(p.parse_args().output)
-    print(json.dumps({k:v for k,v in result.items() if k not in ('card','direct_queries')},indent=2))
+    p=argparse.ArgumentParser();p.add_argument('--output',type=Path,required=True);p.add_argument('--development-math',type=Path)
+    args=p.parse_args();result=run(args.output,args.development_math)
+    print(json.dumps({k:v for k,v in result.items() if k not in ('card','direct_queries','development_card')},indent=2))

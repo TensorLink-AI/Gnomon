@@ -767,3 +767,31 @@ time resets, treatment-only privileges or modifications to old scores. Seven
 tests pass, including HTTP-200 error envelopes, non-JSON 504s, bounded waiting,
 authorization failure, accounting and credential redaction. Runner integration,
 the development RMSLE presentation and the next paid protocol are still pending.
+
+The single task-free pod canary then returned HTTP 200 with an upstream-error
+envelope after 107.814 seconds, no usage, and no task data or agent work. It was
+correctly judged unavailable, not healthy. This exposed the distinction between
+a urllib socket timeout and a total response deadline. Preserved its full response
+and exact source under results/service-admission-025. Fixed admission to run the
+network request in a bounded child process with credentials sent through stdin;
+timeout terminates/reaps it and reports a wall-clock-deadline error. Nine tests
+now pass, including actual termination of a deliberately slow synthetic child
+and immediate stop on worker-contract failure. No second live canary or agent
+trial was launched. Tracked receipt: evidence/ml-service-admission-025.json.
+
+Also implemented the separately specified development RMSLE presentation
+(ML_CARDS_026.md). It reuses exactly the incumbent's pair/page/window cohorts,
+reads public execution and actual-ID references, checks temporal/task identity,
+and calls the existing development evidence_summary helper pinned at
+1cd7adfc4a6180e000b32af7120ee77bc735b3df0bb1cb633f767302676f35ec.
+This helper is a development extension, not falsely attributed to the installed
+1.2.0 wheel. Preserve public MAE, add objective-aligned RMSLE and within-cohort
+ranks/ties/differences, and disclose unavailable recent evidence. Both published
+runtimes pass twelve synthetic groups, with independent logarithmic calculations,
+identical actual IDs/cohort counts, future-revision invariance, zero review-time
+provider calls and unchanged ledger bytes. Full commands/results remain in
+results/ledger-cards-024; receipt evidence/ml-development-cards-026.json.
+
+Next required work is four-arm runner integration, sealed runtime parity and a
+fresh preflight/freeze before any paid comparison. No process is currently running
+an evaluation, the 20% target remains unproven, and main/PyPI/final data are unchanged.

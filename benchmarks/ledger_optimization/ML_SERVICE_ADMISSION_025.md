@@ -36,3 +36,10 @@ This change targets avoidable starts during a known outage. It does not increase
 the ledger arm's forecasting information, model capabilities or execution budget.
 Completion/integrity gates remain separate from the requested final accuracy
 and uncertainty target. Freeze integration and test it before paid dispatch.
+
+The first task-free live probe returned a service-error envelope after 107.8s,
+despite a 30s urllib socket timeout. Preserve that attempt and its absent usage.
+Socket-read timeouts are not total deadlines. Before integration, enforce the
+30s entire-request limit using a child process; pass credentials through stdin,
+never command arguments, terminate the child on expiry, and record an explicit
+wall-clock deadline error. A synthetic slow child must demonstrate termination.

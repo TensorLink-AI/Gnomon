@@ -1,0 +1,38 @@
+{
+  "scope": "Task-free pod service check and prospective admission fix",
+  "initial_probe": {
+    "scope": "one task-free service probe; no agent run",
+    "status": 200,
+    "seconds": 107.81441488303244,
+    "usage": null,
+    "response_sha256": "c53b73d332868473d5e77799211abc9b595594bb9f651549047fff4f5f59399a",
+    "provider_model": "deepseek-v4-flash-0731",
+    "task_data_read": false,
+    "agent_started": false,
+    "api_calls": 1,
+    "ready": false,
+    "retryable": true,
+    "cause": "service_unavailable"
+  },
+  "error_category": "upstream_error",
+  "error_code": 504,
+  "initial_probe_protocol_commit": "2efe896",
+  "socket_timeout_was_not_wall_deadline": true,
+  "hard_deadline_fix_tested": true,
+  "synthetic_tests_passed": 9,
+  "integration_into_agent_runner": false,
+  "new_agent_evaluation_started": false,
+  "api_dollar_cost": null,
+  "artifacts": {
+    "mirror-001.json": "6379c17d798191f995d43b0950ea7787779fe29c9af7354b25de37a514ff207d",
+    "remote-probe-script.py": "02500a4cbce6d70c8f0ca1ee835af27e580825e359c3c526ea32976fd261c059",
+    "remote-process.json": "945703ca3b45787c1ac4aa7f6a59e8266e58246bb84e5d55dd1f8d3c6125e6bd",
+    "remote-001/response.txt": "c53b73d332868473d5e77799211abc9b595594bb9f651549047fff4f5f59399a",
+    "remote-001/request.json": "8310df980410788da159544cfe9948eaaaaf244c8c9f2bc127cea46671eceb86",
+    "remote-001/receipt.json": "fb8778bf189c72cbdc5223892db59d58500d38ea84ba974f29c4829cff36f348"
+  },
+  "source_hashes": {
+    "ML_SERVICE_ADMISSION_025.md": "0ce2e889f0e60e0fe794697b4400f22df92bf0d6a17a4206bf76d3ab41e0043a",
+    "ml_service_admission.py": "5caed8a96b9a8034e415e6c5656e93e44b6c2bedaac8af82ba3991b6c7c952f9"
+  }
+}

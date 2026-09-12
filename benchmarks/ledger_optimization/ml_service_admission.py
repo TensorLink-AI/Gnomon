@@ -3,8 +3,11 @@
 Does not retry an agent, reset a running budget, score data or select a model.
 """
 from datetime import datetime,timezone
+import base64
 import json
 from pathlib import Path
+import subprocess
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -31,9 +34,8 @@ def decision(status,raw):
     return {'ready':ready,'retryable':False,'cause':'completion_received' if ready else 'probe_contract_or_authorization_failure'}
 
 
-def probe(api_key):
+def _network(api_key):
     if not isinstance(api_key,str) or not api_key.strip():raise ValueError('API credential required')
-    started=time.monotonic()
     request=urllib.request.Request('https://api.engy.ai/v1/chat/completions',data=json.dumps(PAYLOAD).encode(),
                 headers={'Authorization':'Bearer '+api_key,'Content-Type':'application/json'})
     try:
@@ -41,6 +43,24 @@ def probe(api_key):
     except urllib.error.HTTPError as exc:raw,status=exc.read(),exc.code
     except (OSError,TimeoutError) as exc:
         raw=json.dumps({'error':{'type':'upstream_error','message':type(exc).__name__}}).encode();status=502
+    return status,raw.replace(api_key.encode(),b'[REDACTED]')
+
+
+def probe(api_key):
+    """Bound the entire request with a process deadline, including response reads."""
+    if not isinstance(api_key,str) or not api_key.strip():raise ValueError('API credential required')
+    started=time.monotonic()
+    process=subprocess.Popen([sys.executable,str(Path(__file__).resolve()),'--probe-worker'],
+                             stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+    try:
+        stdout,stderr=process.communicate(json.dumps({'api_key':api_key}).encode(),timeout=PROBE_TIMEOUT)
+        if process.returncode:raise ValueError('Probe worker failed')
+        value=json.loads(stdout);raw=base64.b64decode(value['body']);status=value['status']
+    except subprocess.TimeoutExpired:
+        process.kill();process.communicate()
+        raw=b'{"error":{"type":"upstream_error","message":"probe_wall_clock_deadline_exceeded"}}';status=504
+    except (ValueError,KeyError):
+        raw=b'{"error":{"type":"probe_worker_failure","message":"See probe worker contract"}}';status=400
     return status,raw.replace(api_key.encode(),b'[REDACTED]'),time.monotonic()-started
 
 
@@ -68,3 +88,9 @@ def wait_ready(output,perform_probe,*,sleep=time.sleep):
         if verdict['ready'] or not state['waiting']:return state
         sleep(RETRY_SECONDS)
     raise AssertionError('Unreachable')
+
+
+if __name__=='__main__':
+    if sys.argv[1:]!=['--probe-worker']:raise SystemExit('Internal readiness worker only')
+    status,raw=_network(json.load(sys.stdin)['api_key'])
+    print(json.dumps({'status':status,'body':base64.b64encode(raw).decode()}))

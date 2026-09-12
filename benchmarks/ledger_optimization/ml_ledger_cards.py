@@ -114,3 +114,53 @@ def compact_cards(result,evidence_path):
     compact['full_evidence_path']=str(evidence_path)
     compact['returned_evidence']='summary_with_exact_full_evidence_references'
     return compact
+
+
+def development_cards(db,records,task,evidence_math,**options):
+    """Metric-aligned view on the SAME pairs/windows, using frozen dev math.
+
+    evidence_math supplies Gnomon's development rmsle/comparison_summary helpers.
+    The runner must pin that module separately from the installed engine version.
+    """
+    result=incumbent_cards(db,records,task,**options)
+    result.update(adapter='dynamic-development-rmsle-v1',metric='rmsle')
+    if not any(c['windows']['lifetime']['matched_origins'] for c in result['cards']):return result
+    visible=db.actuals_as_of(task['series_id'],unit=task['unit'],source_as_of=task['origin'],recorded_as_of=task['origin'])
+    actuals={a['actual_id']:a for a in visible};executions={}
+    result['ledger_queries']+=1
+    for card in result['cards']:
+        for window in card['windows'].values():
+            for origin in window['origins']:
+                if origin['n']!=task['horizon']:raise ValueError('Incomplete matched origin')
+                selected=[actuals[a] for a in origin['actual_ids']]
+                if (len(selected)!=task['horizon'] or len({a['actual_id'] for a in selected})!=len(selected)
+                        or any(a['series_id']!=task['series_id'] or a['unit']!=task['unit'] for a in selected)):
+                    raise ValueError('Actual evidence identity mismatch')
+                for a in selected:
+                    if instant(a['recorded_at'])>instant(task['origin']) or instant(a['source_available_at'])>instant(task['origin']):
+                        raise ValueError('Actual outside evidence cutoff')
+                by_time={instant(a['valid_time']):a['value'] for a in selected}
+                for model in origin['models']:
+                    eid=model['execution_id']
+                    if eid not in executions:executions[eid]=db.execution(eid);result['ledger_queries']+=1
+                    execution=executions[eid];request=execution['request'];point=execution['result']['point']
+                    if (execution['provider']!=model['provider'] or execution['revision']!=model['revision']
+                            or request['series_id']!=task['series_id'] or request['unit']!=task['unit']
+                            or request['horizon']!=task['horizon'] or instant(request['cutoff'])!=instant(origin['origin'])
+                            or instant(execution['recorded_at'])>instant(task['origin'])):
+                        raise ValueError('Execution evidence identity or ex-ante recording mismatch')
+                    times=[instant(t) for t in request['future_timestamps']]
+                    if (len(times)!=len(point) or len(point)!=task['horizon'] or len(set(times))!=len(times)
+                            or set(times)!=set(by_time) or instant(execution['recorded_at'])>=min(times)):
+                        raise ValueError('Execution targets do not match referenced actuals')
+                    model['rmsle'],model['negative_predictions_clipped']=evidence_math.rmsle(zip(point,[by_time[t] for t in times],strict=True),'clip_zero')
+            summary=evidence_math.comparison_summary(window['origins'],card['providers'],metric='rmsle',recent_origins=4)['lifetime']
+            window['aggregation']='mean_rmsle_over_complete_matched_origins'
+            window.update({k:summary[k] for k in ('ranking','ties','pairwise_differences')})
+            for model in window['models']:
+                model['rmsle']=next(r['score'] for r in summary['ranking'] if r['provider']==model['provider'])
+        recent=card['windows']['last_4_origins']['ranking'];lifetime=card['windows']['lifetime']['ranking']
+        card['recent_lifetime_disagreement']=(any(a['rank']!=next(b['rank'] for b in lifetime if b['provider']==a['provider']) for a in recent)
+                                               if recent and lifetime else None)
+        card['comparison_scope']='Within this matched pair and stated global-origin window; descriptive evidence only.'
+    return result

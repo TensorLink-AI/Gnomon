@@ -3,7 +3,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch,MagicMock
-from benchmarks.ledger_optimization.ml_service_admission import decision,wait_ready,probe,MAX_PROBES,PAYLOAD
+from benchmarks.ledger_optimization.ml_service_admission import decision,wait_ready,probe,_network,MAX_PROBES,PAYLOAD
 
 GOOD=json.dumps({'choices':[{'message':{'content':'READY'}}],'usage':{'total_tokens':20}}).encode()
 ERROR=json.dumps({'error':{'type':'rate_limit_error','code':429}}).encode()
@@ -50,9 +50,24 @@ class AdmissionTest(unittest.TestCase):
         response=MagicMock();response.__enter__.return_value=response
         response.status=503;response.read.return_value=b'synthetic-secret-key'
         with patch('benchmarks.ledger_optimization.ml_service_admission.urllib.request.urlopen',return_value=response):
-            status,raw,seconds=probe('synthetic-secret-key')
+            status,raw=_network('synthetic-secret-key')
         self.assertEqual(status,503);self.assertEqual(raw,b'[REDACTED]')
         with self.assertRaises(ValueError):probe('')
+
+    def test_wall_deadline_terminates_slow_worker(self):
+        with tempfile.TemporaryDirectory() as parent:
+            script=Path(parent)/'slow.py';script.write_text('import time\ntime.sleep(30)\n')
+            with patch('benchmarks.ledger_optimization.ml_service_admission.__file__',str(script)),patch('benchmarks.ledger_optimization.ml_service_admission.PROBE_TIMEOUT',0.05):
+                status,raw,seconds=probe('synthetic-secret')
+            self.assertEqual(status,504);self.assertLess(seconds,2)
+            self.assertIn(b'wall_clock_deadline',raw);self.assertNotIn(b'synthetic-secret',raw)
+
+    def test_worker_contract_failure_stops_admission(self):
+        with tempfile.TemporaryDirectory() as parent:
+            script=Path(parent)/'bad.py';script.write_text('raise SystemExit(1)\n')
+            with patch('benchmarks.ledger_optimization.ml_service_admission.__file__',str(script)):
+                status,raw,_=probe('synthetic-secret')
+            self.assertEqual(status,400);self.assertFalse(decision(status,raw)['retryable'])
 
 
 if __name__=='__main__':unittest.main()
