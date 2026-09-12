@@ -561,3 +561,28 @@ The previous status-only turn is classified as no progress toward performance;
 this turn revalidated terminal local state and advances code, visibility tests,
 audit closure checks and durable runtime preparation. The target remains unproven.
 No main/PyPI changes, no reserved final outcomes opened.
+
+
+V3 startup update: all 27 preflight groups passed, and an independent read of
+six matured production executions reproduced MAE/RMSE/bias/RMSLE and confirmed
+zero additional fits. The first paid-pilot startup then stopped at runtime parity,
+before any API call. Pinned Hermes' optional Bedrock adapter had lazily installed
+pip, boto3, botocore, s3transfer and jmespath during its synthetic plain-arm test.
+The failing startup and package differences are preserved. Restore the original
+inventories; set the existing HERMES_DISABLE_LAZY_INSTALLS=1 in every agent's
+environment and add before/after inventory checks to preflight and inference.
+Rerun the full preflight under this explicitly frozen environment. No forecasting
+model, budget, task, score or paid outcome changed. This is an environment repair,
+not a new candidate recipe or an accuracy-driven retry.
+
+
+Read-only portfolio headroom audit 018 retained all 96 v1 cases and recomputed
+all submitted errors. A hindsight minimum over each arm's already-executed
+production alternatives plus its original graded forecast would reduce ledger
+mean RMSLE from 0.54071227 to 0.52314926 (3.25%, three improved cases). Plain's
+corresponding reduction is 1.37%, Gnomon's 4.57%. This restricted oracle is not a
+bound over unexecuted configurations or a causal policy, and was not fed to the
+agents. It indicates that 20% would require better configuration exploration,
+not merely recovery/selection among the production predictions already present.
+No new provider/ledger writes, changed original scores, or reserved data access.
+The fresh v3 promotion rule remains completion/integrity only.

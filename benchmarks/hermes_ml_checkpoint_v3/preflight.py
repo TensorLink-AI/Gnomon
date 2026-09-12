@@ -5,7 +5,7 @@ from pathlib import Path
 import shutil
 import subprocess
 
-from .run import HERE, OTHER, ARMS, prepare, records, environment, assess
+from .run import HERE, OTHER, ARMS, prepare, records, environment, assess, runtime_inventory
 from .transport import dump, sha
 
 
@@ -13,6 +13,8 @@ def main():
     parser=argparse.ArgumentParser();parser.add_argument('--output',type=Path,required=True)
     root=parser.parse_args().output.resolve();root.mkdir(parents=True,exist_ok=False)
     frozen={p.name:sha(p) for p in HERE.iterdir() if p.is_file()}
+    initial_inventory=runtime_inventory()
+    dump(root/'initial-runtime-inventory.json',initial_inventory)
     jobs=next(iter(json.loads((OTHER/'setup/recovered-task-source/host-jobs.json').read_text()).values()))
     job=jobs[0];checks=[];results={};base_config={'model':'ridge','window':180,'lags':14,'alpha':10}
     for arm in ARMS:
@@ -162,6 +164,10 @@ def main():
     from .test_orchestration import run_checks
     run_checks(root/'orchestration-tests')
     checks.append('bounded termination correction, live pinned Hermes handoff, exact API budget and phase interventions')
+    final_inventory=runtime_inventory()
+    dump(root/'final-runtime-inventory.json',final_inventory)
+    assert initial_inventory==final_inventory
+    checks.append('pinned package parity before and after native Hermes; lazy installations disabled')
     assert all(sha(HERE/n)==h for n,h in frozen.items())
     dump(root/'passed.json',{'passed':True,'checks':checks,'tested_sources':frozen})
     print(json.dumps({'passed':True,'checks':checks}))

@@ -1,0 +1,2077 @@
+{
+  "scope": "Completed v1 development only, all 96 cases retained",
+  "summary": {
+    "plain": {
+      "cases": 32,
+      "actual_mean_rmsle": 0.5064452434610625,
+      "restricted_hindsight_mean_rmsle": 0.49948470115981713,
+      "hindsight_reduction_fraction": 0.013743918796979449,
+      "cases_with_better_executed_option": 3
+    },
+    "gnomon": {
+      "cases": 32,
+      "actual_mean_rmsle": 0.5532628499601663,
+      "restricted_hindsight_mean_rmsle": 0.5279778098358521,
+      "hindsight_reduction_fraction": 0.04570167710724604,
+      "cases_with_better_executed_option": 4
+    },
+    "ledger": {
+      "cases": 32,
+      "actual_mean_rmsle": 0.5407122678674124,
+      "restricted_hindsight_mean_rmsle": 0.5231492617877509,
+      "hindsight_reduction_fraction": 0.03248124210114678,
+      "cases_with_better_executed_option": 3
+    }
+  },
+  "source_hashes": {
+    "results/hermes-ml-checkpoint-120-v1/evaluation/host-jobs.json": "c87196d9a746b304363d4864109a7bf2f89bbb140fc000d8e157ad680a3137e4",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1047756_store_23/round-0/grade.json": "310685632981a3eb70d17ef3a896c965f8ad14484b9126faaf09f73701f0da09",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1047756_store_23/round-0/project/experiments.jsonl": "0eb8a3fc68420f5ee324ec3a39827aecd8212c832f6c0530fc1924c3c0b2ca9c",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1047756_store_23/round-1/grade.json": "93e6e9873a8ac70814941eb9bfd48ae6100fc295f20255265a709bb093ddce6a",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1047756_store_23/round-1/project/experiments.jsonl": "c489009867e62935d8079e515e1d29df682b038182e09596a66691eb0824b5ca",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1047756_store_23/round-2/grade.json": "73efb9eef16c96d9b181eeae4f8b549034da353b316ef2a760e3be7c252bf3c5",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1047756_store_23/round-2/project/experiments.jsonl": "8c5e35d70de63a27ccb7a923dbf9f83774e660a2fcc4eeaef0df41b627559051",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1047756_store_23/round-22/grade.json": "bc815b2b5ff54cb04f893cef465b5f7f9c1189fb14bcbddbff5612073319dfc4",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1047756_store_23/round-22/project/experiments.jsonl": "f709a92aaa0f7d3b49af9012fa77f1a612b2d1ba4d3426ebebd65f03247c5d69",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1047756_store_23/round-23/grade.json": "343bdb10423e36c330e2153363d623f9faf36deaade9e7fd1887da35ceb2a3b3",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1047756_store_23/round-23/project/experiments.jsonl": "db4409d340b59f135b46c3f468e98330b843e9d9d4b5c54ea192d81c6c4e154e",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1047756_store_23/round-24/grade.json": "ac4c6b2a6ee402fa6fcc4280844bb460d7e464ed33350a91831e2c7e1ad19b91",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1047756_store_23/round-24/project/experiments.jsonl": "b784fc4d12281339a456e9af5b567f8e3acb1d37cf7962966f5b62bce9870afd",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1047756_store_23/round-25/grade.json": "23ae2b7ffaa7cb78c299333df6679cfd54a55fe191af00b009242c376efe0abe",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1047756_store_23/round-25/project/experiments.jsonl": "04d2fbb090de9193f16bdd34849d70d6cab96b9435297939c23121bcaeeef80a",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1047756_store_23/round-3/grade.json": "5d783d8a39968cf6d5014798af796964e93e4bfe7526a720ef3ba307e8ca4423",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1047756_store_23/round-3/project/experiments.jsonl": "a4187e44477d93ace11e3b188764d823666c0f5a96a329747f360b480197d60c",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1304243_store_32/round-0/grade.json": "9881dbc507c9f330a8282b2d4e6a604f09f670f8dacb6d5495f079b9688326fa",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1304243_store_32/round-0/project/experiments.jsonl": "b242389fde45d162bf3f6d5f9a279dca449a480bb6561351a92a5d6d91de9db4",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1304243_store_32/round-1/grade.json": "fe2ad0e74630274f8365da3de1c7ea485e9791933fecf987e114127fa83d115c",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1304243_store_32/round-1/project/experiments.jsonl": "acbdbd79e7c59524ebbe9e5512041e03b54a54e0e6fbfc99d2c8700891fad7d7",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1304243_store_32/round-2/grade.json": "a4af9b8d6782540526671d10f89cf3e82e8ab12770a45d92a369c1461fb6a2a5",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1304243_store_32/round-2/project/experiments.jsonl": "8a761d6ae69ab9411a32d3a93c27c25b76f0bb1765e014a77fea9f35a915c439",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1304243_store_32/round-22/grade.json": "7621ea77ca0acedca977331a62902d91663ceac7d38b2a39bb5dda56877fbe5d",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1304243_store_32/round-22/project/experiments.jsonl": "f9fa21660eb1335c939821013cc7c0fb4c53410e8db0095049a392da3ab84e2d",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1304243_store_32/round-23/grade.json": "962ef1239c0430098aca7eb7e14a6a94e8f3161b4845c56566be6c1d9467660c",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1304243_store_32/round-23/project/experiments.jsonl": "57e587359125406778ddba8c9c01d3e614256224a060b7e5dc37eddbd3f97e51",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1304243_store_32/round-24/grade.json": "f9333dd842f0bccc8203f1ed10e1f2f63e3cc74c70ff3c62c4f7dd81459ece31",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1304243_store_32/round-24/project/experiments.jsonl": "005731279e2c87961f5659908fa20431f0f7a72427c5096ceb2edab4265b0820",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1304243_store_32/round-25/grade.json": "8b989f2811c9c57d9f76b830ff6b42f14180bcc3ed8505b7e5f9c1a90e6c31b5",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1304243_store_32/round-25/project/experiments.jsonl": "4c6f19e3da22edf19403b802ca8072bc5f96a93ba7111e2ea732278ac509cffd",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1304243_store_32/round-3/grade.json": "371f5d6bad970177edaa73ba0b39a3229e657c8591f64cbcc2ce88376b876286",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1304243_store_32/round-3/project/experiments.jsonl": "e1c5fcdc824c5b39d97ae71da6b3140b70f23d8c4740e176eb39c169d02142c2",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1372862_store_12/round-0/grade.json": "db33ad01697c42cc587c3decdaa6a65e14bec3dab5f3130372ac75b0621f6473",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1372862_store_12/round-0/project/experiments.jsonl": "c1e93871385c3a2b7dc342f997064956517ac90378a0980175824d52fbc31a18",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1372862_store_12/round-1/grade.json": "f237e223d5891980510212a2d601f5011cce61b07de04cc225fe8f422ba5ab2f",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1372862_store_12/round-1/project/experiments.jsonl": "2304f7f21e68c0931dabd89fd2e9ba43bae12405fd0d78e98bed3fae3cba3df4",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1372862_store_12/round-2/grade.json": "efe4e815c1665cfdb1d1661aaac08d98a118766cbb230a8241b8652da5840f19",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1372862_store_12/round-2/project/experiments.jsonl": "14fc2b8ffa989ca909f6fa3063042cef614419597d3f68a2199f2f0e866dee27",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1372862_store_12/round-22/grade.json": "937ed272d0e0df666119595d078053c99013dad88d571cc91536ece15759672f",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1372862_store_12/round-22/project/experiments.jsonl": "7e057e4508d0dd94db5feefbf2d4753aaaa20f82cda5ad825fd234bd81e46a3b",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1372862_store_12/round-23/grade.json": "e136c2007a0fff87aeeaa386a15e076fd1596b90a79f4a48bf6734c3b05e060c",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1372862_store_12/round-23/project/experiments.jsonl": "0581e856afe3ea7fb8564f28acf0407c5aeb8876be313b5aab726cb54146d3d0",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1372862_store_12/round-24/grade.json": "5e314e647f094d423f0bf3d91d8c05f1432170c819e1f44fd4b9738f31e51933",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1372862_store_12/round-24/project/experiments.jsonl": "c9456080716f01eb96c64f5fc5827be1a65e5c1e8e6efe74c7e05494c76fc743",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1372862_store_12/round-25/grade.json": "d8babc9bbe7dd1283fb18598fb4afe7bd5ca8d89bfd02c8c32f9cbcbe7ab3b82",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1372862_store_12/round-25/project/experiments.jsonl": "7e2e50276f19e80e61b216dfdc053a55f4cc758f39d793da92891266a67ec627",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1372862_store_12/round-3/grade.json": "7b75b6a0c7fdc3a131e6d7a635749b6fdbf75c1af3708ba8d41fa6fcef309e09",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1372862_store_12/round-3/project/experiments.jsonl": "f49d626d614c54348fea1f050ee54cd8a9e68def24424156335e38675154d613",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1457251_store_14/round-0/grade.json": "9dc1dd1cbf8205880b4f4e40689ab264bfcdd6f1df50cb7189922f00b39dc5f3",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1457251_store_14/round-0/project/experiments.jsonl": "e3f5b71feb0f4f175a9914818cd89c364f7195279a8a4f1e33b479af5339cef4",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1457251_store_14/round-1/grade.json": "c98875acda3cc6a8a98e3c458d76103fb002b4eb21cd5256a88362397a7966fc",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1457251_store_14/round-1/project/experiments.jsonl": "3491fe0180e788cac2e4c258dba0a5e2a76e93423730faef3aac79dd783d3023",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1457251_store_14/round-2/grade.json": "692e8baa0e2089356528e74d9a85551f5d49860a474cdfca6c62409642673aa1",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1457251_store_14/round-2/project/experiments.jsonl": "08f7dec74b99fe5173cc200fa66fd9c4e68ee5e8bf632d00df77900764b31a2c",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1457251_store_14/round-22/grade.json": "b4ef8fda9bda4d4d01e2fba17137511a6679e72ea78ab00afaa3cd21df5a3415",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1457251_store_14/round-22/project/experiments.jsonl": "21add01eb4880e494d12d59594c599abca8b0a982ea560d11454012a157fa45b",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1457251_store_14/round-23/grade.json": "0ae23e17eef465f77429226bb34ec7e0e2271e5ed0ca09765c4e8f113568f9c6",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1457251_store_14/round-23/project/experiments.jsonl": "f3b96da72db44476dbb858a5a17f48014256b5c925f46cb0dc3a42932b048aaa",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1457251_store_14/round-24/grade.json": "b569aec7dfb36a82324b802cb2564233eb539b5d54601e1546a396d4ddcc5c5e",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1457251_store_14/round-24/project/experiments.jsonl": "4d91aaeaa2085fa15b38e2344faf7708fbf91f5d6af6df3cde8bd660365c748b",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1457251_store_14/round-25/grade.json": "002b6c41ce17c361b0bb9f8c5dbc8cfc22865886881ba629463aeae4a47f7d2f",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1457251_store_14/round-25/project/experiments.jsonl": "fdefd29f0b369cea14df583790455cec4889dd6f526ff13612b7c654eb1094f8",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1457251_store_14/round-3/grade.json": "28e7d2a83b733acf1b82fdaf09b44fd28a7c8721986523a8c300b40b4c01def0",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/gnomon/item_1457251_store_14/round-3/project/experiments.jsonl": "ac8671fbf6c3295f6aec9157064a805aa2dcbe1e2d3ea26108d7ab65dcea3ff7",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1047756_store_23/round-0/grade.json": "b5e7d5409f5aab588ff10efd7f2e5bc6e64359433ae2bc8ee126f050c3243b73",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1047756_store_23/round-0/project/experiments.jsonl": "3c8dfc67b93973e275f02b4eb43f0472ce419bd409dafb4115bf3c0180a1cc9a",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1047756_store_23/round-1/grade.json": "f4b9c7e9831b788b739f7186e4857dd849b3462f4511d7466a77ea308374afb3",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1047756_store_23/round-1/project/experiments.jsonl": "d6a1ff2c092803689e31dfda9bf613d6cf1ada1f9bd435d9c17758c3cd41de53",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1047756_store_23/round-2/grade.json": "f744e74b62958fd0c1e03cca4445cb6517512cc4bb81f7d144def85f61598f16",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1047756_store_23/round-2/project/experiments.jsonl": "52cc5aa2b6a2bf785f59d7b76d49b14c29bc3d4e0fcf271d583c7dcdbcbc5ac6",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1047756_store_23/round-22/grade.json": "78d603c07c3865d7669031ca06e6d02d7489b0dfbf48fa1feb3ec415db00a354",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1047756_store_23/round-22/project/experiments.jsonl": "0e15ca5ecc439de0c37eb3384bed5424d5008d888a2aee3d6135ceff021cc283",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1047756_store_23/round-23/grade.json": "771e05b31726efa861000b985d418dc5f523eede92d64d93a8fe596464cb6cb7",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1047756_store_23/round-23/project/experiments.jsonl": "934578bd539c58aab745aa50df37973086700922aa7cd70a0623001a050d9505",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1047756_store_23/round-24/grade.json": "f472c388bdb015e73566c3c45f81c3b23eeb3fdb25b04746fead868bca66292e",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1047756_store_23/round-24/project/experiments.jsonl": "1768654fd5110e5c55a8d695937beb11d3c5765be232f4933821d764fa33c9ca",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1047756_store_23/round-25/grade.json": "65d12b95a911dc055db4340008dae4c633b6acd79d0ba1b34cada01ef684fe49",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1047756_store_23/round-25/project/experiments.jsonl": "1834c2c90478b85b1e2f2e6e138e8646b7fdd197480964ab01f8136d44b89bf8",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1047756_store_23/round-3/grade.json": "c7cf1e8ff1e331a1266ef4036f8f228377557ba8ca86bab69e15fbc44dbe65b3",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1047756_store_23/round-3/project/experiments.jsonl": "03bf4b3d37695b73e88b3c9efa6b846f36502a3fd29f9bd7f841f65ad5f23b09",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1304243_store_32/round-0/grade.json": "e03215680d6ae27dfa778997f44c9a42a09f084bc6745de75570589b3b2e6488",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1304243_store_32/round-0/project/experiments.jsonl": "7d18e45aaa7c7ba634e9770b0b1a0f397bb3098b77f3381becb5b76b3c8abca4",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1304243_store_32/round-1/grade.json": "29459b609521395ab678db2df428064c7b8a32a55b2f98a773ab34e616b027fe",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1304243_store_32/round-1/project/experiments.jsonl": "d4eaf18012facab6a78076d16ee9cb990cfa5a09528e1d186688f1fad5796b93",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1304243_store_32/round-2/grade.json": "665d9a67b256263ed0eca1e87411eaa6de37f9d39a776a13d734eefdc4a31d62",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1304243_store_32/round-2/project/experiments.jsonl": "21ec9493de1d05ffed0846eee24d95291e786887a3490f9cf82db60f28bfea33",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1304243_store_32/round-22/grade.json": "1a1e3da9caf4cab41c408ca0b21013891876c7339a2604630fc5615c10b894e3",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1304243_store_32/round-22/project/experiments.jsonl": "d74d6e0c6f14a60a6afeea7a57f7027b4fa1ad6b022753e9cf6c958b8930cd3e",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1304243_store_32/round-23/grade.json": "d3fafddffba8dfedf1b99617c3050979b5fb0544f9b470e7c2387fd63e1feee3",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1304243_store_32/round-23/project/experiments.jsonl": "2621f3156149c01df0324417114d7a5d25e8cee0a6b9fc268608d656f196750d",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1304243_store_32/round-24/grade.json": "54e607c7bb180b109dcef848191b4215c294454e0eb41040bcab3660e2a7c518",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1304243_store_32/round-24/project/experiments.jsonl": "2d25e4b5c5df0588efa3ec9312e96234929ea54f5625e07e34808ee9303a5de2",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1304243_store_32/round-25/grade.json": "742fc62b78d492dca23cbb3f75b4ab5fa8422f36b99ed8056ac09380c1f36c84",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1304243_store_32/round-25/project/experiments.jsonl": "4838823100cf40fe86aea6d43a8033cea95e7d7d90e58977e106ec2a047fe885",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1304243_store_32/round-3/grade.json": "7eb9b4eb0ea5afa338a7593e11173f4be7167f253e29e7caf55494602a449a2b",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1304243_store_32/round-3/project/experiments.jsonl": "e4ccf07daa2230a9498faf355061f16e6d2aaca2e48809f2e1a252e088674c60",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1372862_store_12/round-0/grade.json": "fda2f8de8bc3807d04b4ce7e5cf8a6eef518a3ae511882b61f6ff2e56bd0d158",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1372862_store_12/round-0/project/experiments.jsonl": "01f9470b986c575b7aa007252483ed773408a45cd2d8b372085f3ea29feae529",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1372862_store_12/round-1/grade.json": "bb29be2018373c3f3eb0bf479a183a1c66fbc6009c689a8dfcd821eee3c16ca8",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1372862_store_12/round-1/project/experiments.jsonl": "840632dbdf4eee93414968978642ceeb37a8c216b7bd7d424aa64401f68a96a9",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1372862_store_12/round-2/grade.json": "c6e1c9ce656bd74a63460cdf9a73e9e930f421050ed1f70a8faa5fd193819c64",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1372862_store_12/round-2/project/experiments.jsonl": "1bdebdf92b2a7be3071d94b63670639c222be418d6407a246043e912ce1ba9d5",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1372862_store_12/round-22/grade.json": "0783a70e51690187eb0ed4ca9cff14f9eb24ee75184dfb7483a3b8789d521336",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1372862_store_12/round-22/project/experiments.jsonl": "28400fee74803516f0d407adf8bfeced872b1e84e8969bf427b6e76281ee045a",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1372862_store_12/round-23/grade.json": "ae39aa095adc9c292d1ed04333d3158fb4be29994b922e1fbd05393742e78454",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1372862_store_12/round-23/project/experiments.jsonl": "f05bb8f66ec23488d71408a355c040c0203c15ed572b2d5a7b3744b96ff2fb34",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1372862_store_12/round-24/grade.json": "71f87d0964ceb81d7339fa5f949c4a3b5cdaa67fd334e645ed9e86588267317d",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1372862_store_12/round-24/project/experiments.jsonl": "715d00f92346c5c9a59094b4d52b762c04111860d21b646b1e911d9bdee3ddc6",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1372862_store_12/round-25/grade.json": "13d4fbf6bba5045f96a593004444cf8bc0e26ab7b74d6d8512bd4acba27080f2",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1372862_store_12/round-25/project/experiments.jsonl": "f228be9802675aa82cbe8ff475334b80ef2e50251ae0017f1f1301490aee345b",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1372862_store_12/round-3/grade.json": "1a475fc0f1e065cefa98b8a857f2916c4e3d0dfebb7ec8f263d0702eb43352b1",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1372862_store_12/round-3/project/experiments.jsonl": "fc49b94243d0f386ebd66308e271774a5765c0d36007a19c4e2fb9ed0dc9c3af",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1457251_store_14/round-0/grade.json": "afe3001ddf72b1b43ee19239eeaf094b3b04280283e40c41dd6e48ec4942f521",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1457251_store_14/round-0/project/experiments.jsonl": "d6ae1f11dc11a428f4c15f08a3788b36fb416b497a87c849296da2fa69da494f",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1457251_store_14/round-1/grade.json": "8a5faace7ec8e156d5a8f60d270b04b7f21b6612d605ebd05795831cd1c6e476",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1457251_store_14/round-1/project/experiments.jsonl": "3f2bb30a98f5359ab4a03a1d1dca1b5194fc4a607e9b53a5527915bec2f6041e",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1457251_store_14/round-2/grade.json": "975a25549cacbea0716e58bd515dfb5361c57ab9640c8a80496a1888b952930d",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1457251_store_14/round-2/project/experiments.jsonl": "34b1bce77bfe8ab867ef12be4d2f1cf27bb0e6ea44d5536fab9c3e6d00a38145",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1457251_store_14/round-22/grade.json": "388e5428943abe9ba143da3ecdd1aaec413f2af41698cccaeb278c345138027a",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1457251_store_14/round-22/project/experiments.jsonl": "4ef0db81f32a3ae1022b7c1be50d4d07074221528e713762e2390854c28754af",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1457251_store_14/round-23/grade.json": "fd5bdd2ad8f846cca914ed898fd74c35526431131b079825bd4c89862652d6a8",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1457251_store_14/round-23/project/experiments.jsonl": "27617aeb8abf7902485bcf7c3d54ed473c554bb3b2356555816b0770252cf38f",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1457251_store_14/round-24/grade.json": "fe06c992e33c3ef8091d3644ebec0bfdbbeca6f37e61f3d67408b1a83093c80b",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1457251_store_14/round-24/project/experiments.jsonl": "deb217a748fe6ae0d5e954ad002860a93a0ae0083c0aa637bec40a82e9a2e40b",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1457251_store_14/round-25/grade.json": "3688d6d8f2d12a2b37f0d7c973faccd5e3bc0ae7d7bd4797ebd666c980289b21",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1457251_store_14/round-25/project/experiments.jsonl": "651f1b41162873a67bb6c8df37da6e747864a17fabc57bc4b017216818ffa37a",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1457251_store_14/round-3/grade.json": "366abbcf788e00e42c2d2e70627ef0365d60acc3cdf84a4b5a9ef56273dcc715",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/ledger/item_1457251_store_14/round-3/project/experiments.jsonl": "1406fe0ab00bbc098dd6ee5663d7c8e2032fc14c0e85f3a5e116de2eb9f0294c",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1047756_store_23/round-0/grade.json": "d2a55b221267103aeccf4d9e0a2471ce63535757b8d9ad506eea11405b76205b",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1047756_store_23/round-0/project/experiments.jsonl": "8394dd56b185e3c74217e96c56df845e4fa508eedde796ed7bfb31db1209d26d",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1047756_store_23/round-1/grade.json": "f29d223fc894deeddb2a672ba57a96ba16f01d56048bb98f334d72f613fec94a",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1047756_store_23/round-1/project/experiments.jsonl": "6ca4cef9130abf7878497f15373336bbbe3ce58b5ff4fa77e2edc6ffb9eac43c",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1047756_store_23/round-2/grade.json": "5cb6a485159a09c89e7854f42c4113ee68a106c3b58fb1c8c171af013c1e5a17",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1047756_store_23/round-2/project/experiments.jsonl": "6ca4cef9130abf7878497f15373336bbbe3ce58b5ff4fa77e2edc6ffb9eac43c",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1047756_store_23/round-22/grade.json": "c476a444c8e95b86bbf2d7b6e118ed9a9885122b177c363815fd312bd5c9dcae",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1047756_store_23/round-22/project/experiments.jsonl": "00f0fe6b9856cbe2f308b1f1db3768b207ea2a23f655ec85dbd152c4f7681ed4",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1047756_store_23/round-23/grade.json": "746fc46d5bd5580dd2334362987c45b43583b1af81b1d08f05e084e20140abf0",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1047756_store_23/round-23/project/experiments.jsonl": "0cbb2baf174c05d8a69dd2427ac63c7c881a4ca49373b914c8855d01bc1e1310",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1047756_store_23/round-24/grade.json": "ab6d788ee0c26517dd09886116a046b7092a6c607b47b97bc66c89350a532691",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1047756_store_23/round-24/project/experiments.jsonl": "633665b67dc41e782b742057835fbdd852d9f7c79ff05bf27058da897db4c553",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1047756_store_23/round-25/grade.json": "4a58065e65d259411c6e07e998991f32af1b6cde40bf1848f7665f3345af9a10",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1047756_store_23/round-25/project/experiments.jsonl": "4e92e65610c87c7800f736b11c5c03fc444ad3e5644ca5fb2aa352c778d88056",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1047756_store_23/round-3/grade.json": "0cfd7f6f070f90da9462829e67b2f3a3ad9b229743c8c10649c34fa2949fe95d",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1047756_store_23/round-3/project/experiments.jsonl": "8001662c482cab8fcfbe00c98a4b30b42cf2821d12e7d858a831e19cb62de1a2",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1304243_store_32/round-0/grade.json": "7fc1e5ff7e26a21cc5e0e497dd0d37fd4755571237a5b7cc771d38a51543ccd1",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1304243_store_32/round-0/project/experiments.jsonl": "b1896aa9794a9177233a9b69afa6f75bd9f865d5d37b22d3cb63746bb53a3382",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1304243_store_32/round-1/grade.json": "770464b2ddc613155e58612a058ad1eebabca08d345c873d1f6adacd3e8315d0",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1304243_store_32/round-1/project/experiments.jsonl": "17b3f2ddd97041b5132807d62c8b790d2cf4eaeed885c57f2cb05ab7b93371de",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1304243_store_32/round-2/grade.json": "e7c80d0fbdd4ea78449a4af6439e15c48695e820b04e5f13f128ce32eb84a233",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1304243_store_32/round-2/project/experiments.jsonl": "535a64fa72b10141fc624f8ff1803db59522eba79ab359d61d561838269f9b99",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1304243_store_32/round-22/grade.json": "47865a10b85dd4d3542c3b8ec0c5eb1ffe6fdc124b6aafa8577cc6967ec2419b",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1304243_store_32/round-22/project/experiments.jsonl": "15e1e8200c15dbcc330ae9e2e03164ff59319dd224f520fac35604a28e66a17c",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1304243_store_32/round-23/grade.json": "a46da8a196db69275b5f9c826d92ecc2ace43c5b7d0022cacf19a3783c98cb16",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1304243_store_32/round-23/project/experiments.jsonl": "b14dc1c152116ef9a8bf1c7b32cd57c2c1403725de76d7f073332316395f701d",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1304243_store_32/round-24/grade.json": "017e88c875591351e9f3e8e9af76e27d8c8336291702f84c2728d67308166d69",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1304243_store_32/round-24/project/experiments.jsonl": "5f4be1d2c9589f12265eb15733130678a16f4cd66c23320088c9d5a3c9f799e0",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1304243_store_32/round-25/grade.json": "f4659abc63785e1498087c7ba38dc97c7752b8c87810eea64695aabb4824408d",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1304243_store_32/round-25/project/experiments.jsonl": "a29feedf7157764f8b507727d6ec455c82a7ddf664fea97403fc5f540e0edf48",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1304243_store_32/round-3/grade.json": "04848ef1704f72231cf1612ef327579c5a3b33ea31257e308c07b24b21cebc79",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1304243_store_32/round-3/project/experiments.jsonl": "03a4f0835dd32687fae91315a25364394f17b78ad2e74137a585a6783f2a8a8d",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1372862_store_12/round-0/grade.json": "0e1a12a75e559889cff28814ec600f010f8f441bbcb80d09b7d502ee196181cd",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1372862_store_12/round-0/project/experiments.jsonl": "de6fc128fe1dda2833902dd2abd9b513a6d7b2a11f066f811862ae7c1ac17c22",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1372862_store_12/round-1/grade.json": "5e5f9efde0f68cb9b32c865439203ee692a849db685fefa1952da16446cdbbb6",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1372862_store_12/round-1/project/experiments.jsonl": "6fa6462fd5d4736ee6f4ac850f74a1f7d9cb19320c15c573f125bccd3e6945c1",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1372862_store_12/round-2/grade.json": "b56f9df03d2d2af1bc60a27efe1958b240d1aafad983440579b7776b921410ce",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1372862_store_12/round-2/project/experiments.jsonl": "017a3672002f680371aea99ab9ab5fd42c2ef0111d5920617f42901ace208f96",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1372862_store_12/round-22/grade.json": "9f0f5b3055a4aa01caf097a442d32651b7533a1d45c5e6d493e832669ff92c68",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1372862_store_12/round-22/project/experiments.jsonl": "efde26680d7c5282a3d427c58db50d9897e66cd4c748d059cba9a082fca9619e",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1372862_store_12/round-23/grade.json": "46f97543f560807e108ff6e6f181fe56e2c5fccda025266b1d2a23e8e5c40189",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1372862_store_12/round-23/project/experiments.jsonl": "b01c8e80999391859ec55c6ec29f7db93b33c1b0090f7cb8b971da2d57eb7f9a",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1372862_store_12/round-24/grade.json": "cbbc36f65de318c82b77941ee1c4a7b6f33e6878343ad5fc6a8e5344bad330b4",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1372862_store_12/round-24/project/experiments.jsonl": "2de7d9d31f03c70920f710d324e4d06c96486d6a4b1d13477f68bfba77e8bc1e",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1372862_store_12/round-25/grade.json": "b4645349bcb7ec2af7658b8be6cffc202aee6939268c2c06658fdf77a14deeb5",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1372862_store_12/round-25/project/experiments.jsonl": "bf36a1cac1363a48bcf35eda7ba247dc9a339633db5b7437cc6f78ff21965761",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1372862_store_12/round-3/grade.json": "ef5f4a5e7c9b3a55eae76f174ab7b6f992ef0a4f13cdb846d8c07e0cd24a62ea",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1372862_store_12/round-3/project/experiments.jsonl": "3584eda9c604ce0fbd8945c1762adf994d0e334aca7c1484d3de14f88f1c0917",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1457251_store_14/round-0/grade.json": "16609d43dfecd736e558f8f1c0ad1da0ca74e57dc607e04fc2c6e7e0429e27ba",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1457251_store_14/round-0/project/experiments.jsonl": "41d2e5a8f9c1279b41bb8ad46ef4a21fc8b10ccbd570503033d7a0b21e35b7a0",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1457251_store_14/round-1/grade.json": "c9a8f1a5291485488b88514e27c648e6ea4440c196156b80cb3fbf3724287ffc",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1457251_store_14/round-1/project/experiments.jsonl": "440418eb22b1e5471a49aeca4ea31a42c37fa596ac798ca799da72e25b2fe1e3",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1457251_store_14/round-2/grade.json": "19965408f65f526bc3e814f02cdcd0bfe00bb07e099c22f81b9fbbec47675647",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1457251_store_14/round-2/project/experiments.jsonl": "0ab80543eba18e8d1215d39c7e99cb9d2ca4f641f784b81ae0d0b5143482f694",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1457251_store_14/round-22/grade.json": "4b3fc019beab53f1dfccbf1fcce0e4d3c5c3c315c1043a44c1e052c8787a390c",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1457251_store_14/round-22/project/experiments.jsonl": "e426aaf9f522757fa4f87f85a41c005b0bd4ac03c326ed351a88be8efe0fa903",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1457251_store_14/round-23/grade.json": "27797424de18605f2fc50b8e0364f12d0ad4bc107f65f2740bc8f536ef3ba6a0",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1457251_store_14/round-23/project/experiments.jsonl": "4173755976e4c79b720aeb20a35a288e939a6cc42ea105401dbe6f4b4e9c2e92",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1457251_store_14/round-24/grade.json": "8efb6a979d8be6ba70c63c0f501c821ef4be845e2c2872d1df386d70377a4a40",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1457251_store_14/round-24/project/experiments.jsonl": "8d43e0fd4159612d1185c46864d4c64aae02cc6378ae09abb5282e3e62298540",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1457251_store_14/round-25/grade.json": "5e63f6eb23661ccf074511edf16b33367bd634a159411f6ca67bfb7fcaefd238",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1457251_store_14/round-25/project/experiments.jsonl": "27495b7fac8599270aeffee5a69e5189f5cd554aba9ef3d3ed8b27e3960b0e34",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1457251_store_14/round-3/grade.json": "b10c751880f27162d6f328a87ae52d90c277b35dfce9cd218fcd3e7cde02c499",
+    "results/hermes-ml-checkpoint-120-v1/evaluation/plain/item_1457251_store_14/round-3/project/experiments.jsonl": "4941966856596b11038f68149b801d90b6f613a8c979801abf1536442ea52b4e"
+  },
+  "rows": [
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 0,
+      "actual_submitted_rmsle": 0.6535197691028208,
+      "restricted_hindsight_rmsle": 0.6535197691028208,
+      "executed_options": [
+        {
+          "execution_id": "8a2ac210-4cc0-487f-aa9c-8b8ee9feb346",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 1.1780131359730208
+        },
+        {
+          "execution_id": "7ddb8ed3-4ff7-49e9-a94b-8d72eece51a3",
+          "config_id": "c035223b9f7d67fd",
+          "rmsle": 0.6535197691028208
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 1,
+      "actual_submitted_rmsle": 0.5027927532154673,
+      "restricted_hindsight_rmsle": 0.5027927532154673,
+      "executed_options": [
+        {
+          "execution_id": "8cdfa6de-1396-4e2f-980d-1bc50fc1ef07",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.6973999985520729
+        },
+        {
+          "execution_id": "c3a7c5c0-3fd2-46ee-b022-eceb45407b67",
+          "config_id": "c035223b9f7d67fd",
+          "rmsle": 0.5027927532154673
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 2,
+      "actual_submitted_rmsle": 1.5883298866669089,
+      "restricted_hindsight_rmsle": 0.9341020335747072,
+      "executed_options": [
+        {
+          "execution_id": "b7c45b56-2d42-42be-a9d4-029efacc28d9",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.9341020335747072
+        },
+        {
+          "execution_id": "bb9e51aa-8c38-409d-a4f4-43e031d9075e",
+          "config_id": "90b430266bcaf37d",
+          "rmsle": 1.5883298866669089
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 22,
+      "actual_submitted_rmsle": 0.9282085575667082,
+      "restricted_hindsight_rmsle": 0.9282085575667082,
+      "executed_options": [
+        {
+          "execution_id": "935ca692-17e0-4916-9216-dfb31ab067d3",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 1.2201523846554305
+        },
+        {
+          "execution_id": "b3bd50f6-9069-48a5-9624-b19c6347d724",
+          "config_id": "90b430266bcaf37d",
+          "rmsle": 0.9282085575667082
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 23,
+      "actual_submitted_rmsle": 0.8373965777949055,
+      "restricted_hindsight_rmsle": 0.8373965777949055,
+      "executed_options": [
+        {
+          "execution_id": "9b581a1b-dc79-4721-9821-05575d425b78",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 1.189092262236168
+        },
+        {
+          "execution_id": "c85e18bb-1099-463e-966d-b33d6ca1acf2",
+          "config_id": "10b92ef135624402",
+          "rmsle": 0.8373965777949055
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 24,
+      "actual_submitted_rmsle": 1.0552246636458877,
+      "restricted_hindsight_rmsle": 1.0552246636458877,
+      "executed_options": [
+        {
+          "execution_id": "a50f9865-a2ae-415f-9be8-018d7d517108",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 1.0552246636458877
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 25,
+      "actual_submitted_rmsle": 0.7829700740297102,
+      "restricted_hindsight_rmsle": 0.7829700740297102,
+      "executed_options": [
+        {
+          "execution_id": "73bc11dd-280a-4ca7-b353-c9cb9b7e1bc9",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.9471624254582391
+        },
+        {
+          "execution_id": "8b341816-ec84-4b3b-a274-892372745a0c",
+          "config_id": "0e71f5cc3600d726",
+          "rmsle": 0.7829700740297102
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 3,
+      "actual_submitted_rmsle": 0.691032445530674,
+      "restricted_hindsight_rmsle": 0.691032445530674,
+      "executed_options": [
+        {
+          "execution_id": "f0d42e70-f8f4-4448-bf82-45705d18b066",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 1.0416815173995755
+        },
+        {
+          "execution_id": "4568f9d4-9bec-4946-916c-8349a0252d4a",
+          "config_id": "0e71f5cc3600d726",
+          "rmsle": 0.691032445530674
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 0,
+      "actual_submitted_rmsle": 0.17834395342202147,
+      "restricted_hindsight_rmsle": 0.17834395342202147,
+      "executed_options": [
+        {
+          "execution_id": "fcdab204-8fc9-4559-98ad-f0ff84ebe4f8",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.3208647959315356
+        },
+        {
+          "execution_id": "bc7252fe-9a88-4a68-8925-894929c9f242",
+          "config_id": "6483a97739e1c4f4",
+          "rmsle": 0.17834395342202147
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 1,
+      "actual_submitted_rmsle": 0.24456914349269013,
+      "restricted_hindsight_rmsle": 0.24456914349269013,
+      "executed_options": [
+        {
+          "execution_id": "dc2369fd-c750-42da-918b-5e2e3ba3314e",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.3705027526090929
+        },
+        {
+          "execution_id": "5c02eae0-f09a-4fa3-8e5d-0389a6b41758",
+          "config_id": "f83d133cf0026add",
+          "rmsle": 0.24456914349269013
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 2,
+      "actual_submitted_rmsle": 0.18525137630454644,
+      "restricted_hindsight_rmsle": 0.18525137630454644,
+      "executed_options": [],
+      "fallback_used": true
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 22,
+      "actual_submitted_rmsle": 0.3848249358844261,
+      "restricted_hindsight_rmsle": 0.3848249358844261,
+      "executed_options": [
+        {
+          "execution_id": "13fecdad-9d44-45bb-a628-551333279459",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.49012907173427356
+        },
+        {
+          "execution_id": "e08a74c3-6354-4075-9ea3-5d0aa8877d80",
+          "config_id": "c203edde3758976f",
+          "rmsle": 0.3848249358844261
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 23,
+      "actual_submitted_rmsle": 0.24481442641388224,
+      "restricted_hindsight_rmsle": 0.24481442641388224,
+      "executed_options": [
+        {
+          "execution_id": "d81f58f7-1d59-4b3c-b3c7-493e3579b7e3",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.2619850088181714
+        },
+        {
+          "execution_id": "d0625de7-06e3-4e69-81a4-394b99d8d95d",
+          "config_id": "c203edde3758976f",
+          "rmsle": 0.24481442641388224
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 24,
+      "actual_submitted_rmsle": 0.37238912042130795,
+      "restricted_hindsight_rmsle": 0.37238912042130795,
+      "executed_options": [
+        {
+          "execution_id": "dc0f849e-9855-4324-bbea-c37f4babdd63",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.41423467034235967
+        },
+        {
+          "execution_id": "65fa9080-f7c2-4baa-a386-525b105e6cc6",
+          "config_id": "09219785a50249d2",
+          "rmsle": 0.37238912042130795
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 25,
+      "actual_submitted_rmsle": 0.372839530611199,
+      "restricted_hindsight_rmsle": 0.372839530611199,
+      "executed_options": [
+        {
+          "execution_id": "529e8a7c-e7eb-4950-a2b1-be0a32f1bd95",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.49012907173427356
+        },
+        {
+          "execution_id": "ada8bde9-969a-4414-a5ff-2dcdfea3b0e7",
+          "config_id": "09219785a50249d2",
+          "rmsle": 0.372839530611199
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 3,
+      "actual_submitted_rmsle": 0.43222128382498404,
+      "restricted_hindsight_rmsle": 0.43222128382498404,
+      "executed_options": [
+        {
+          "execution_id": "8e4d8175-edfe-404a-9d46-c798c905f7d3",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.4727398118933461
+        },
+        {
+          "execution_id": "088b493f-aaaf-4be3-9dbb-35f881acb6b0",
+          "config_id": "f83d133cf0026add",
+          "rmsle": 0.43222128382498404
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1372862_store_12",
+      "round": 0,
+      "actual_submitted_rmsle": 0.9117494568388227,
+      "restricted_hindsight_rmsle": 0.9117494568388227,
+      "executed_options": [
+        {
+          "execution_id": "c9eaa56a-92d1-4fb9-b6d1-c260135cafc8",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.9117494568388227
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1372862_store_12",
+      "round": 1,
+      "actual_submitted_rmsle": 0.48928735923928274,
+      "restricted_hindsight_rmsle": 0.48928735923928274,
+      "executed_options": [
+        {
+          "execution_id": "e1dba35f-912e-41fd-97da-9ee64bf58717",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.607776958381726
+        },
+        {
+          "execution_id": "6050b25c-6811-4bac-bdd7-6523e7a8afaa",
+          "config_id": "282fcc20124e9244",
+          "rmsle": 0.48928735923928274
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1372862_store_12",
+      "round": 2,
+      "actual_submitted_rmsle": 0.40590552455197765,
+      "restricted_hindsight_rmsle": 0.40590552455197765,
+      "executed_options": [
+        {
+          "execution_id": "77c1712d-e054-48b5-8b84-3e695eaad60a",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.4909759922455888
+        },
+        {
+          "execution_id": "7d982b44-e992-4192-b006-cc054c7736e6",
+          "config_id": "e0d59da239af0a39",
+          "rmsle": 0.40590552455197765
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1372862_store_12",
+      "round": 22,
+      "actual_submitted_rmsle": 0.5033543579762807,
+      "restricted_hindsight_rmsle": 0.5033543579762807,
+      "executed_options": [
+        {
+          "execution_id": "a58d134e-d57c-4a4f-8eb8-03e64c234018",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.7301893586981079
+        },
+        {
+          "execution_id": "b9b3ba25-ef04-4edd-af37-b11208b9789e",
+          "config_id": "3e4981edd4b4c3dc",
+          "rmsle": 0.5033543579762807
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1372862_store_12",
+      "round": 23,
+      "actual_submitted_rmsle": 0.6552796077136296,
+      "restricted_hindsight_rmsle": 0.6552796077136296,
+      "executed_options": [
+        {
+          "execution_id": "f98f0a4b-fc61-4d3f-9972-ef03e324ddb8",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.6552796077136296
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1372862_store_12",
+      "round": 24,
+      "actual_submitted_rmsle": 0.48424682387841844,
+      "restricted_hindsight_rmsle": 0.48424682387841844,
+      "executed_options": [
+        {
+          "execution_id": "5ca1f536-3067-4cea-b473-7ea6fa0a610f",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.572073478689217
+        },
+        {
+          "execution_id": "6997f40a-29a0-4282-a2cf-5bb1d2b014a5",
+          "config_id": "a560c5fc94a93443",
+          "rmsle": 0.48424682387841844
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1372862_store_12",
+      "round": 25,
+      "actual_submitted_rmsle": 0.5201908882218852,
+      "restricted_hindsight_rmsle": 0.5201908882218852,
+      "executed_options": [
+        {
+          "execution_id": "7ae3de9c-0c43-487e-adb0-1019a40299d3",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.6685550534532758
+        },
+        {
+          "execution_id": "0cf06918-9320-43be-a7ed-753b30301845",
+          "config_id": "a560c5fc94a93443",
+          "rmsle": 0.5201908882218852
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1372862_store_12",
+      "round": 3,
+      "actual_submitted_rmsle": 0.11967742096623724,
+      "restricted_hindsight_rmsle": 0.0,
+      "executed_options": [
+        {
+          "execution_id": "c5089967-d96e-48d2-831f-7b6816bf6d68",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.0
+        },
+        {
+          "execution_id": "33512016-b4f2-46ae-a1bf-920c071f9fa9",
+          "config_id": "3e4981edd4b4c3dc",
+          "rmsle": 0.11967742096623724
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1457251_store_14",
+      "round": 0,
+      "actual_submitted_rmsle": 0.4410993076906369,
+      "restricted_hindsight_rmsle": 0.4410993076906369,
+      "executed_options": [
+        {
+          "execution_id": "24715396-a04a-4e07-897f-e45ed24cf894",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.6629978564722295
+        },
+        {
+          "execution_id": "5b882f41-b5d1-41e7-a96d-07889e74e3fb",
+          "config_id": "1cce6ffe78ec6fe6",
+          "rmsle": 0.4410993076906369
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1457251_store_14",
+      "round": 1,
+      "actual_submitted_rmsle": 0.4807213092170471,
+      "restricted_hindsight_rmsle": 0.4807213092170471,
+      "executed_options": [
+        {
+          "execution_id": "7bac7bda-c041-4441-aea0-5a32cd4556b4",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.5277451801069839
+        },
+        {
+          "execution_id": "8090ffad-c747-42fc-9ad6-9b883f318989",
+          "config_id": "1cce6ffe78ec6fe6",
+          "rmsle": 0.4807213092170471
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1457251_store_14",
+      "round": 2,
+      "actual_submitted_rmsle": 0.5253564472950542,
+      "restricted_hindsight_rmsle": 0.5253564472950542,
+      "executed_options": [
+        {
+          "execution_id": "514edb4d-29a3-4996-9fb8-e2fc666057a7",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.6755861788815326
+        },
+        {
+          "execution_id": "5432368f-21a1-4f32-a079-5e33a5fc8557",
+          "config_id": "1cce6ffe78ec6fe6",
+          "rmsle": 0.5253564472950542
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1457251_store_14",
+      "round": 22,
+      "actual_submitted_rmsle": 0.5280980289386612,
+      "restricted_hindsight_rmsle": 0.5280980289386612,
+      "executed_options": [
+        {
+          "execution_id": "0525ff9e-4af8-4ccd-9614-ad6c1c476caf",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.5414909480076284
+        },
+        {
+          "execution_id": "4fe5d1b0-8c22-446b-be89-f0632855c7c5",
+          "config_id": "a7319ab3b571caba",
+          "rmsle": 0.5280980289386612
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1457251_store_14",
+      "round": 23,
+      "actual_submitted_rmsle": 0.7006388435871718,
+      "restricted_hindsight_rmsle": 0.666190852930825,
+      "executed_options": [
+        {
+          "execution_id": "723cc65f-4ad9-465a-aaa4-587c2067a621",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.666190852930825
+        },
+        {
+          "execution_id": "cc996973-02e1-4bb2-97b6-5cca6d1b5754",
+          "config_id": "a7319ab3b571caba",
+          "rmsle": 0.7006388435871718
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1457251_store_14",
+      "round": 24,
+      "actual_submitted_rmsle": 0.5512224346121664,
+      "restricted_hindsight_rmsle": 0.5512224346121664,
+      "executed_options": [
+        {
+          "execution_id": "44b14c10-c286-4b39-8637-41cfb2f59b7d",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.8714767970964467
+        },
+        {
+          "execution_id": "448afe60-f5b3-4116-a7df-24cb7e3c3aa5",
+          "config_id": "c035223b9f7d67fd",
+          "rmsle": 0.5512224346121664
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1457251_store_14",
+      "round": 25,
+      "actual_submitted_rmsle": 0.44609268965513,
+      "restricted_hindsight_rmsle": 0.44532467039185875,
+      "executed_options": [
+        {
+          "execution_id": "cf0449b7-d0ee-4c19-80ed-1b7ef7c858e6",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.44532467039185875
+        },
+        {
+          "execution_id": "35a043ac-fd6a-499f-986a-6c4151740bee",
+          "config_id": "c035223b9f7d67fd",
+          "rmsle": 0.44609268965513
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1457251_store_14",
+      "round": 3,
+      "actual_submitted_rmsle": 0.48676220041478035,
+      "restricted_hindsight_rmsle": 0.48676220041478035,
+      "executed_options": [
+        {
+          "execution_id": "a3964d65-edea-455b-8a33-37f425a02939",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.5690242068765021
+        },
+        {
+          "execution_id": "a2444b7d-6349-4910-a94b-3b0eae5bbed3",
+          "config_id": "a7319ab3b571caba",
+          "rmsle": 0.48676220041478035
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 0,
+      "actual_submitted_rmsle": 1.1780131359730208,
+      "restricted_hindsight_rmsle": 1.1780131359730208,
+      "executed_options": [
+        {
+          "execution_id": "1ae09577-9a97-493b-a1d0-d9893cbe76c9",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 1.1780131359730208
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 1,
+      "actual_submitted_rmsle": 0.48625357392095914,
+      "restricted_hindsight_rmsle": 0.48625357392095914,
+      "executed_options": [
+        {
+          "execution_id": "33085f38-e48b-4975-aaa3-be3ccbca3df1",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.6973999985520729
+        },
+        {
+          "execution_id": "118cae77-4828-42d7-b170-c529f7bbc380",
+          "config_id": "dad9469f1ab8a4ce",
+          "rmsle": 0.48625357392095914
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 2,
+      "actual_submitted_rmsle": 1.3495160760300693,
+      "restricted_hindsight_rmsle": 0.9341020335747072,
+      "executed_options": [
+        {
+          "execution_id": "0fb1d2fe-6aa6-449e-8a54-39a373546aef",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.9341020335747072
+        },
+        {
+          "execution_id": "7d02d611-db65-4b63-ac89-c797d879332b",
+          "config_id": "10b92ef135624402",
+          "rmsle": 1.3495160760300693
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 22,
+      "actual_submitted_rmsle": 0.9125544673525099,
+      "restricted_hindsight_rmsle": 0.9125544673525099,
+      "executed_options": [
+        {
+          "execution_id": "31cd5fef-b723-4226-9ef9-60a047447355",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 1.2201523846554305
+        },
+        {
+          "execution_id": "7bd97259-5dd4-4757-bc52-fa101f922ceb",
+          "config_id": "a7319ab3b571caba",
+          "rmsle": 0.9125544673525099
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 23,
+      "actual_submitted_rmsle": 0.8255991120564619,
+      "restricted_hindsight_rmsle": 0.8255991120564619,
+      "executed_options": [
+        {
+          "execution_id": "4eb8c7d3-a07b-45ea-bd8b-9c5b19b49996",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 1.189092262236168
+        },
+        {
+          "execution_id": "168658bb-3f47-4843-a4a5-58ed9f8facb3",
+          "config_id": "a7319ab3b571caba",
+          "rmsle": 0.8255991120564619
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 24,
+      "actual_submitted_rmsle": 0.6597349037999047,
+      "restricted_hindsight_rmsle": 0.6597349037999047,
+      "executed_options": [
+        {
+          "execution_id": "165767a8-9059-4ca1-a0ed-dfef61f5e4a4",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 1.0552246636458877
+        },
+        {
+          "execution_id": "05519ada-5954-41f1-9a28-70458f78b123",
+          "config_id": "b4386d2da772a1a6",
+          "rmsle": 0.6597349037999047
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 25,
+      "actual_submitted_rmsle": 0.8037803569113149,
+      "restricted_hindsight_rmsle": 0.8037803569113149,
+      "executed_options": [
+        {
+          "execution_id": "c3b391c1-a157-48fa-834e-5c7b5d4c9e98",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.9471624254582391
+        },
+        {
+          "execution_id": "2df3bfe5-8ed9-4be2-b296-dc8d892055b4",
+          "config_id": "b4386d2da772a1a6",
+          "rmsle": 0.8037803569113149
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 3,
+      "actual_submitted_rmsle": 0.8920416275646856,
+      "restricted_hindsight_rmsle": 0.8920416275646856,
+      "executed_options": [
+        {
+          "execution_id": "77de4c64-41ef-47ea-b4dc-ffbda49fce7d",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 1.0416815173995755
+        },
+        {
+          "execution_id": "df9567ce-ed13-4fd0-b644-f7e2ec164534",
+          "config_id": "9827d2b47b48b72e",
+          "rmsle": 0.8920416275646856
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 0,
+      "actual_submitted_rmsle": 0.3208647959315356,
+      "restricted_hindsight_rmsle": 0.3208647959315356,
+      "executed_options": [
+        {
+          "execution_id": "0b05f7e6-448c-4711-bcf7-e79d24fa3fd8",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.3208647959315356
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 1,
+      "actual_submitted_rmsle": 0.2617737491867465,
+      "restricted_hindsight_rmsle": 0.2617737491867465,
+      "executed_options": [
+        {
+          "execution_id": "f9beab21-a1c6-42e5-9118-b07b81e4dd76",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.3705027526090929
+        },
+        {
+          "execution_id": "169c6862-36cf-4b73-a0ac-44cd3116800e",
+          "config_id": "2351461a9a59b71e",
+          "rmsle": 0.2617737491867465
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 2,
+      "actual_submitted_rmsle": 0.18305102709825,
+      "restricted_hindsight_rmsle": 0.18305102709825,
+      "executed_options": [
+        {
+          "execution_id": "29340e53-d33c-46ab-9b7d-46352364a400",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.3208647959315356
+        },
+        {
+          "execution_id": "b6c33ab1-8da0-4964-a746-5b7eab41c6a7",
+          "config_id": "a1bcf0b0964b2442",
+          "rmsle": 0.18305102709825
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 22,
+      "actual_submitted_rmsle": 0.39606368302634176,
+      "restricted_hindsight_rmsle": 0.39606368302634176,
+      "executed_options": [
+        {
+          "execution_id": "1cfdb06f-77b1-461c-a893-3bd167a41d31",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.49012907173427356
+        },
+        {
+          "execution_id": "10b25fd5-a9e5-4aea-8d21-28823786fdc6",
+          "config_id": "ae7dc1951fe35aac",
+          "rmsle": 0.39606368302634176
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 23,
+      "actual_submitted_rmsle": 0.24815796507063967,
+      "restricted_hindsight_rmsle": 0.24815796507063967,
+      "executed_options": [
+        {
+          "execution_id": "1b36cf39-6b32-4372-9533-2df27dce0cf2",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.2619850088181714
+        },
+        {
+          "execution_id": "b68fc616-8b98-4a05-80c2-83e0afaa4492",
+          "config_id": "ae7dc1951fe35aac",
+          "rmsle": 0.24815796507063967
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 24,
+      "actual_submitted_rmsle": 0.3754896937426676,
+      "restricted_hindsight_rmsle": 0.3754896937426676,
+      "executed_options": [
+        {
+          "execution_id": "d5a89856-765d-475b-bc4c-ce7c8915fa8e",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.41423467034235967
+        },
+        {
+          "execution_id": "e0e2e57f-1332-42bf-bd91-679209f800d2",
+          "config_id": "10b92ef135624402",
+          "rmsle": 0.3754896937426676
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 25,
+      "actual_submitted_rmsle": 0.3909673115677744,
+      "restricted_hindsight_rmsle": 0.3909673115677744,
+      "executed_options": [
+        {
+          "execution_id": "a3e1b758-77b2-4c83-906e-c55757cd0ac7",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.49012907173427356
+        },
+        {
+          "execution_id": "63db6867-47f0-4a15-9194-4cdff1c35cc0",
+          "config_id": "16617241d0cf42cc",
+          "rmsle": 0.3909673115677744
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 3,
+      "actual_submitted_rmsle": 0.45116040310418165,
+      "restricted_hindsight_rmsle": 0.45116040310418165,
+      "executed_options": [
+        {
+          "execution_id": "cc418f80-6dba-4ca0-bcdd-78add58e7efd",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.4727398118933461
+        },
+        {
+          "execution_id": "5eccd6e7-f79e-4e0c-83e3-680498a46986",
+          "config_id": "a1bcf0b0964b2442",
+          "rmsle": 0.45116040310418165
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1372862_store_12",
+      "round": 0,
+      "actual_submitted_rmsle": 0.572400637390426,
+      "restricted_hindsight_rmsle": 0.572400637390426,
+      "executed_options": [
+        {
+          "execution_id": "b879ae97-4db4-4afb-b84f-268fc9b48c47",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.9117494568388227
+        },
+        {
+          "execution_id": "20f3cb8d-90b2-4d21-bfad-e6d5ecbeee59",
+          "config_id": "02279b66149d6867",
+          "rmsle": 0.572400637390426
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1372862_store_12",
+      "round": 1,
+      "actual_submitted_rmsle": 0.521433319485696,
+      "restricted_hindsight_rmsle": 0.521433319485696,
+      "executed_options": [
+        {
+          "execution_id": "48813cb9-d287-4d34-a0dd-2c5bbc91ddb4",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.607776958381726
+        },
+        {
+          "execution_id": "018ac59c-1d26-4871-abcd-5ad514b136ce",
+          "config_id": "02279b66149d6867",
+          "rmsle": 0.521433319485696
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1372862_store_12",
+      "round": 2,
+      "actual_submitted_rmsle": 0.3103251544634164,
+      "restricted_hindsight_rmsle": 0.3103251544634164,
+      "executed_options": [
+        {
+          "execution_id": "870dc11f-4a87-491e-9ac7-7cd7e74f3d87",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.4909759922455888
+        },
+        {
+          "execution_id": "39ab4831-5a50-4ebf-9f8d-ca03246f8d9f",
+          "config_id": "282fcc20124e9244",
+          "rmsle": 0.3103251544634164
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1372862_store_12",
+      "round": 22,
+      "actual_submitted_rmsle": 0.5027848109433759,
+      "restricted_hindsight_rmsle": 0.5027848109433759,
+      "executed_options": [
+        {
+          "execution_id": "859f69ed-44a0-4b1e-b4c2-cb1fee0f27a0",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.7301893586981079
+        },
+        {
+          "execution_id": "da21fefc-3647-4c2c-8ca8-0ad379a4c98c",
+          "config_id": "fad629e67119d702",
+          "rmsle": 0.5027848109433759
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1372862_store_12",
+      "round": 23,
+      "actual_submitted_rmsle": 0.3554961001936731,
+      "restricted_hindsight_rmsle": 0.3554961001936731,
+      "executed_options": [
+        {
+          "execution_id": "37405f07-1828-4c8e-9a4b-75d7b7be0ba0",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.6552796077136296
+        },
+        {
+          "execution_id": "ad5b8d3c-d1db-4e12-9f24-c899d89c3afd",
+          "config_id": "fad629e67119d702",
+          "rmsle": 0.3554961001936731
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1372862_store_12",
+      "round": 24,
+      "actual_submitted_rmsle": 0.4984586962840016,
+      "restricted_hindsight_rmsle": 0.4984586962840016,
+      "executed_options": [
+        {
+          "execution_id": "9e179a49-630e-4b8a-aecc-27b93a622898",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.572073478689217
+        },
+        {
+          "execution_id": "2c12792d-eb00-42d4-a272-5ab945e2f165",
+          "config_id": "8d14fd30329e357d",
+          "rmsle": 0.4984586962840016
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1372862_store_12",
+      "round": 25,
+      "actual_submitted_rmsle": 0.5080812235433827,
+      "restricted_hindsight_rmsle": 0.5080812235433827,
+      "executed_options": [
+        {
+          "execution_id": "ea281675-9449-468f-8b0f-797bf26e1d3a",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.6685550534532758
+        },
+        {
+          "execution_id": "5d23b913-5b78-4734-bdef-43f1788b6cb2",
+          "config_id": "fad629e67119d702",
+          "rmsle": 0.5080812235433827
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1372862_store_12",
+      "round": 3,
+      "actual_submitted_rmsle": 0.12037731105199236,
+      "restricted_hindsight_rmsle": 0.0,
+      "executed_options": [
+        {
+          "execution_id": "e5e9c66d-d2cc-4d7e-b157-43add62b7a08",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.0
+        },
+        {
+          "execution_id": "348402bc-7024-45bc-914f-e8752ba831cc",
+          "config_id": "fad629e67119d702",
+          "rmsle": 0.12037731105199236
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1457251_store_14",
+      "round": 0,
+      "actual_submitted_rmsle": 0.4410993076906369,
+      "restricted_hindsight_rmsle": 0.4410993076906369,
+      "executed_options": [
+        {
+          "execution_id": "aa942d22-a113-453a-9444-bd201aa62461",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.6629978564722295
+        },
+        {
+          "execution_id": "7b9e1226-61e6-48a3-b4ef-8f82ff8dcdee",
+          "config_id": "1cce6ffe78ec6fe6",
+          "rmsle": 0.4410993076906369
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1457251_store_14",
+      "round": 1,
+      "actual_submitted_rmsle": 0.4807213092170471,
+      "restricted_hindsight_rmsle": 0.4807213092170471,
+      "executed_options": [
+        {
+          "execution_id": "aefd145b-3ba2-4475-98e6-9f8d654c44c9",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.5277451801069839
+        },
+        {
+          "execution_id": "5d2f6101-65a8-4037-8c4d-6d8cd0cdd62d",
+          "config_id": "1cce6ffe78ec6fe6",
+          "rmsle": 0.4807213092170471
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1457251_store_14",
+      "round": 2,
+      "actual_submitted_rmsle": 0.5253564472950542,
+      "restricted_hindsight_rmsle": 0.5253564472950542,
+      "executed_options": [
+        {
+          "execution_id": "f2191b4c-2f97-4e0a-88ac-19d79fdd7ddc",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.6755861788815326
+        },
+        {
+          "execution_id": "c607b16f-6c39-4673-8ed0-42811605a3ff",
+          "config_id": "1cce6ffe78ec6fe6",
+          "rmsle": 0.5253564472950542
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1457251_store_14",
+      "round": 22,
+      "actual_submitted_rmsle": 0.5144116439001554,
+      "restricted_hindsight_rmsle": 0.5144116439001554,
+      "executed_options": [
+        {
+          "execution_id": "c21a2307-17e0-4264-a9a0-b1f2b8deb8df",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.5414909480076284
+        },
+        {
+          "execution_id": "7e5643f4-0776-4a87-9ed6-2238095bf813",
+          "config_id": "10b92ef135624402",
+          "rmsle": 0.5144116439001554
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1457251_store_14",
+      "round": 23,
+      "actual_submitted_rmsle": 0.6924156939726428,
+      "restricted_hindsight_rmsle": 0.666190852930825,
+      "executed_options": [
+        {
+          "execution_id": "75f593e1-8f02-4d8f-80a1-f014407d413e",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.666190852930825
+        },
+        {
+          "execution_id": "5aac7d99-df60-4ddc-a195-a0cf8c48412b",
+          "config_id": "10b92ef135624402",
+          "rmsle": 0.6924156939726428
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1457251_store_14",
+      "round": 24,
+      "actual_submitted_rmsle": 0.5254872818403798,
+      "restricted_hindsight_rmsle": 0.5254872818403798,
+      "executed_options": [
+        {
+          "execution_id": "b91866c7-ab3d-4c4a-b5d0-efc502a0edd3",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.8714767970964467
+        },
+        {
+          "execution_id": "813b21a1-2e0b-47b9-a35c-69fa171a47d8",
+          "config_id": "badffa813c1d4e0d",
+          "rmsle": 0.5254872818403798
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1457251_store_14",
+      "round": 25,
+      "actual_submitted_rmsle": 0.44532467039185875,
+      "restricted_hindsight_rmsle": 0.44532467039185875,
+      "executed_options": [
+        {
+          "execution_id": "d84aad90-5af9-489f-885e-0e0e363cd481",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.44532467039185875
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1457251_store_14",
+      "round": 3,
+      "actual_submitted_rmsle": 0.5535970817563972,
+      "restricted_hindsight_rmsle": 0.5535970817563972,
+      "executed_options": [
+        {
+          "execution_id": "af1382ec-1634-4bb2-883d-15f9760f43b2",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.5690242068765021
+        },
+        {
+          "execution_id": "4923861e-55cb-4044-8b04-22df2b5843bb",
+          "config_id": "1cce6ffe78ec6fe6",
+          "rmsle": 0.5535970817563972
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 0,
+      "actual_submitted_rmsle": 0.6562568974344698,
+      "restricted_hindsight_rmsle": 0.6562568974344698,
+      "executed_options": [
+        {
+          "execution_id": "425bacd8-aca8-4342-8042-d07fcfd006d0",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 1.1780131359730208
+        },
+        {
+          "execution_id": "1d53ffa3-2fbe-4f72-8dfd-1b22c5b6a884",
+          "config_id": "282fcc20124e9244",
+          "rmsle": 0.6562568974344698
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 1,
+      "actual_submitted_rmsle": 0.5043040710305915,
+      "restricted_hindsight_rmsle": 0.5043040710305915,
+      "executed_options": [],
+      "fallback_used": true
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 2,
+      "actual_submitted_rmsle": 0.8270436312348252,
+      "restricted_hindsight_rmsle": 0.8270436312348252,
+      "executed_options": [],
+      "fallback_used": true
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 22,
+      "actual_submitted_rmsle": 0.8794811717273365,
+      "restricted_hindsight_rmsle": 0.8794811717273365,
+      "executed_options": [
+        {
+          "execution_id": "3ffd4669-1072-4b4b-8426-52e370b7fcf3",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 1.2201523846554305
+        },
+        {
+          "execution_id": "185cd5d3-f6b4-40e5-b73d-90ce0327f952",
+          "config_id": "9dad8a334dee0d06",
+          "rmsle": 0.8794811717273365
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 23,
+      "actual_submitted_rmsle": 0.7824807842410426,
+      "restricted_hindsight_rmsle": 0.7824807842410426,
+      "executed_options": [
+        {
+          "execution_id": "cd07641f-6b74-4876-b76a-45a57397e6eb",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 1.189092262236168
+        },
+        {
+          "execution_id": "8fe65530-4a3f-40b4-bf0c-a27e916d4f1c",
+          "config_id": "0018aabc55c66f16",
+          "rmsle": 0.7824807842410426
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 24,
+      "actual_submitted_rmsle": 0.6359744441929049,
+      "restricted_hindsight_rmsle": 0.6359744441929049,
+      "executed_options": [
+        {
+          "execution_id": "4cc32db4-7ca1-43af-963f-ae1b0fae1d1a",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 1.0552246636458877
+        },
+        {
+          "execution_id": "0e734254-9e06-49dd-b5c8-ac5543f5e157",
+          "config_id": "9dad8a334dee0d06",
+          "rmsle": 0.6359744441929049
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 25,
+      "actual_submitted_rmsle": 0.7842001499115061,
+      "restricted_hindsight_rmsle": 0.7842001499115061,
+      "executed_options": [
+        {
+          "execution_id": "46261ffa-70f2-4b6a-be50-e02d48e838e6",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.9471624254582391
+        },
+        {
+          "execution_id": "d588a7fe-9e96-4726-bcff-211503feeb5d",
+          "config_id": "9dad8a334dee0d06",
+          "rmsle": 0.7842001499115061
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 3,
+      "actual_submitted_rmsle": 0.864275269783438,
+      "restricted_hindsight_rmsle": 0.864275269783438,
+      "executed_options": [
+        {
+          "execution_id": "1a39d41e-d2a5-4c46-95d5-cbe941602290",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 1.0416815173995755
+        },
+        {
+          "execution_id": "7363feb4-98c7-4f28-8792-f2ede29e5a56",
+          "config_id": "282fcc20124e9244",
+          "rmsle": 0.864275269783438
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 0,
+      "actual_submitted_rmsle": 0.19336155837590965,
+      "restricted_hindsight_rmsle": 0.19336155837590965,
+      "executed_options": [
+        {
+          "execution_id": "035ce977-aeae-4158-a69f-11708eeb5375",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.3208647959315356
+        },
+        {
+          "execution_id": "0041ea71-1a3a-4807-b88d-0124d90681a6",
+          "config_id": "492e6d5663de5a5a",
+          "rmsle": 0.19336155837590965
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 1,
+      "actual_submitted_rmsle": 0.2619850088181714,
+      "restricted_hindsight_rmsle": 0.2619850088181714,
+      "executed_options": [],
+      "fallback_used": true
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 2,
+      "actual_submitted_rmsle": 0.18337733197068412,
+      "restricted_hindsight_rmsle": 0.18337733197068412,
+      "executed_options": [
+        {
+          "execution_id": "e3f6381c-5a91-44c7-bc4c-14d95cbf855e",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.3208647959315356
+        },
+        {
+          "execution_id": "55e8861b-8b87-414f-8e40-fa16b925afe6",
+          "config_id": "9cddc3e90ecfe231",
+          "rmsle": 0.18337733197068412
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 22,
+      "actual_submitted_rmsle": 0.3974872161378995,
+      "restricted_hindsight_rmsle": 0.3974872161378995,
+      "executed_options": [
+        {
+          "execution_id": "64771c07-2179-4f2f-809a-4459763b07f4",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.49012907173427356
+        },
+        {
+          "execution_id": "f8a007b3-55fe-4af4-a768-fc23676d3188",
+          "config_id": "c3e70a3c91f9075b",
+          "rmsle": 0.3974872161378995
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 23,
+      "actual_submitted_rmsle": 0.2455763803232526,
+      "restricted_hindsight_rmsle": 0.2455763803232526,
+      "executed_options": [
+        {
+          "execution_id": "c934a35b-4713-4d51-9cd1-ad2377d038f0",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.2619850088181714
+        },
+        {
+          "execution_id": "b6ea8cea-186b-4f52-b113-834080886926",
+          "config_id": "1cce6ffe78ec6fe6",
+          "rmsle": 0.2455763803232526
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 24,
+      "actual_submitted_rmsle": 0.3895003162078246,
+      "restricted_hindsight_rmsle": 0.3895003162078246,
+      "executed_options": [
+        {
+          "execution_id": "4d2ca202-e277-4ea1-89d6-e280f1e08a29",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.41423467034235967
+        },
+        {
+          "execution_id": "1727c5b1-3039-4247-90c3-44bb2891eaf3",
+          "config_id": "4274697b311635b9",
+          "rmsle": 0.3895003162078246
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 25,
+      "actual_submitted_rmsle": 0.39199384301116585,
+      "restricted_hindsight_rmsle": 0.39199384301116585,
+      "executed_options": [
+        {
+          "execution_id": "0bb85090-28c5-4fb8-85d9-b5dbdb435d86",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.49012907173427356
+        },
+        {
+          "execution_id": "28c5dd24-cf8a-4bbd-b828-d8004b9d43ba",
+          "config_id": "1dd9b568ae94fcca",
+          "rmsle": 0.39199384301116585
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 3,
+      "actual_submitted_rmsle": 0.43004509872616675,
+      "restricted_hindsight_rmsle": 0.43004509872616675,
+      "executed_options": [
+        {
+          "execution_id": "d66bda26-25b0-4753-9b28-7da412117164",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.4727398118933461
+        },
+        {
+          "execution_id": "a30491d5-f0a6-4929-9b60-34dded2b24cd",
+          "config_id": "221b35eed2a5d209",
+          "rmsle": 0.43004509872616675
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1372862_store_12",
+      "round": 0,
+      "actual_submitted_rmsle": 0.5707052295416891,
+      "restricted_hindsight_rmsle": 0.5707052295416891,
+      "executed_options": [
+        {
+          "execution_id": "3ab424f1-29a8-4e98-ad3a-4fa8220702f0",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.9117494568388227
+        },
+        {
+          "execution_id": "d4fa7006-d83b-4e84-98b6-317c7ffaf7ac",
+          "config_id": "76759dc457ba2660",
+          "rmsle": 0.5707052295416891
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1372862_store_12",
+      "round": 1,
+      "actual_submitted_rmsle": 0.48928735923928274,
+      "restricted_hindsight_rmsle": 0.48928735923928274,
+      "executed_options": [
+        {
+          "execution_id": "2eaa030b-c762-4be3-a38b-bc1fd1aa9485",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.607776958381726
+        },
+        {
+          "execution_id": "aab35417-b554-4de0-b74c-76dc1ff92bdd",
+          "config_id": "282fcc20124e9244",
+          "rmsle": 0.48928735923928274
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1372862_store_12",
+      "round": 2,
+      "actual_submitted_rmsle": 0.36669044332083545,
+      "restricted_hindsight_rmsle": 0.36669044332083545,
+      "executed_options": [
+        {
+          "execution_id": "9b3e4b4c-4989-4837-97b9-a0bb0f65cba0",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.4909759922455888
+        },
+        {
+          "execution_id": "a67ff03d-f9ae-463a-9a73-c4d41a2bdde1",
+          "config_id": "a1bcf0b0964b2442",
+          "rmsle": 0.36669044332083545
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1372862_store_12",
+      "round": 22,
+      "actual_submitted_rmsle": 0.5355504831527036,
+      "restricted_hindsight_rmsle": 0.5355504831527036,
+      "executed_options": [
+        {
+          "execution_id": "5986c4d0-ad3e-4fd7-a8c0-de33d15f11b7",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.7301893586981079
+        },
+        {
+          "execution_id": "6357d3ae-5677-4674-8659-5fc7ac8d83dc",
+          "config_id": "a1bcf0b0964b2442",
+          "rmsle": 0.5355504831527036
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1372862_store_12",
+      "round": 23,
+      "actual_submitted_rmsle": 0.33577029330198205,
+      "restricted_hindsight_rmsle": 0.33577029330198205,
+      "executed_options": [
+        {
+          "execution_id": "4277cbf9-9635-437e-a3e0-bca90152a8df",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.6552796077136296
+        },
+        {
+          "execution_id": "9052f354-42fe-4713-9547-220713c3733a",
+          "config_id": "dbd8360f9be4642b",
+          "rmsle": 0.33577029330198205
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1372862_store_12",
+      "round": 24,
+      "actual_submitted_rmsle": 0.5435696776527098,
+      "restricted_hindsight_rmsle": 0.5435696776527098,
+      "executed_options": [
+        {
+          "execution_id": "e8817f3b-9f33-4af4-8849-85787ace685e",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.572073478689217
+        },
+        {
+          "execution_id": "8a35c091-0f07-4f91-9fba-d55fd45d2974",
+          "config_id": "5e3c1c90c975b491",
+          "rmsle": 0.5435696776527098
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1372862_store_12",
+      "round": 25,
+      "actual_submitted_rmsle": 0.49588274264835536,
+      "restricted_hindsight_rmsle": 0.49588274264835536,
+      "executed_options": [
+        {
+          "execution_id": "8aa8a231-d205-470d-8a06-0f42309611a6",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.6685550534532758
+        },
+        {
+          "execution_id": "5831e06f-98dd-43ad-a400-8413bc19d02c",
+          "config_id": "6483a97739e1c4f4",
+          "rmsle": 0.49588274264835536
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1372862_store_12",
+      "round": 3,
+      "actual_submitted_rmsle": 0.18159696658736157,
+      "restricted_hindsight_rmsle": 0.0,
+      "executed_options": [
+        {
+          "execution_id": "1326ef40-ccfd-446b-b2e6-c156d3d673e6",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.0
+        },
+        {
+          "execution_id": "9217f6c0-2740-41c6-a2da-a8ddf933b4f4",
+          "config_id": "a1bcf0b0964b2442",
+          "rmsle": 0.18159696658736157
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1457251_store_14",
+      "round": 0,
+      "actual_submitted_rmsle": 0.4410993076906369,
+      "restricted_hindsight_rmsle": 0.4410993076906369,
+      "executed_options": [
+        {
+          "execution_id": "d4ea607d-8211-4ad2-98c2-f2e2455b748e",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.6629978564722295
+        },
+        {
+          "execution_id": "d7b7ea43-9cef-4f13-983e-f7f6bb864163",
+          "config_id": "1cce6ffe78ec6fe6",
+          "rmsle": 0.4410993076906369
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1457251_store_14",
+      "round": 1,
+      "actual_submitted_rmsle": 0.4807213092170471,
+      "restricted_hindsight_rmsle": 0.4807213092170471,
+      "executed_options": [
+        {
+          "execution_id": "735a013f-35e0-4e10-ab28-fd905422f263",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.5277451801069839
+        },
+        {
+          "execution_id": "922a0c1f-db6a-4996-ba52-c9b5a283b882",
+          "config_id": "1cce6ffe78ec6fe6",
+          "rmsle": 0.4807213092170471
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1457251_store_14",
+      "round": 2,
+      "actual_submitted_rmsle": 0.4884074055536674,
+      "restricted_hindsight_rmsle": 0.4884074055536674,
+      "executed_options": [
+        {
+          "execution_id": "56b710a1-0f9c-4984-8292-ab297457f32c",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.6755861788815326
+        },
+        {
+          "execution_id": "f55216e4-1711-44d8-a95e-b08e454d831d",
+          "config_id": "a7319ab3b571caba",
+          "rmsle": 0.4884074055536674
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1457251_store_14",
+      "round": 22,
+      "actual_submitted_rmsle": 0.5108816907815654,
+      "restricted_hindsight_rmsle": 0.5108816907815654,
+      "executed_options": [
+        {
+          "execution_id": "ff217f30-60df-47a9-b1ce-a8f506ad1fda",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.5414909480076284
+        },
+        {
+          "execution_id": "dfb56661-5c87-4620-bfac-6abd8680e997",
+          "config_id": "71baeb8c0dcef084",
+          "rmsle": 0.5108816907815654
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1457251_store_14",
+      "round": 23,
+      "actual_submitted_rmsle": 0.6937101275494122,
+      "restricted_hindsight_rmsle": 0.666190852930825,
+      "executed_options": [
+        {
+          "execution_id": "42473741-d617-4c5f-9044-3ebad23a9f05",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.666190852930825
+        },
+        {
+          "execution_id": "2faffb73-e8fa-4bf3-9219-d96fa1ded7f6",
+          "config_id": "02279b66149d6867",
+          "rmsle": 0.6937101275494122
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1457251_store_14",
+      "round": 24,
+      "actual_submitted_rmsle": 0.6993235981490199,
+      "restricted_hindsight_rmsle": 0.6993235981490199,
+      "executed_options": [
+        {
+          "execution_id": "66b13e89-ff87-4004-bb50-178bbbccb6dd",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.8714767970964467
+        },
+        {
+          "execution_id": "a93b53c1-341c-4efc-8f16-1c6e1e1273cb",
+          "config_id": "2ab394cebc3962bd",
+          "rmsle": 0.6993235981490199
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1457251_store_14",
+      "round": 25,
+      "actual_submitted_rmsle": 0.458945782825759,
+      "restricted_hindsight_rmsle": 0.44532467039185875,
+      "executed_options": [
+        {
+          "execution_id": "b23c3b72-a23c-4fb0-96af-dc2bf07f7fcc",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.44532467039185875
+        },
+        {
+          "execution_id": "d3a519f6-4055-4f50-8701-89f4b64c8ba8",
+          "config_id": "dad9469f1ab8a4ce",
+          "rmsle": 0.458945782825759
+        }
+      ],
+      "fallback_used": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1457251_store_14",
+      "round": 3,
+      "actual_submitted_rmsle": 0.48676220041478035,
+      "restricted_hindsight_rmsle": 0.48676220041478035,
+      "executed_options": [
+        {
+          "execution_id": "392c39c8-da8c-4dba-b7e8-9379b840cb9f",
+          "config_id": "5ee336af9243f066",
+          "rmsle": 0.5690242068765021
+        },
+        {
+          "execution_id": "f2bd99d7-f4ae-4184-aa8a-5cfd2fdd2488",
+          "config_id": "a7319ab3b571caba",
+          "rmsle": 0.48676220041478035
+        }
+      ],
+      "fallback_used": false
+    }
+  ],
+  "provider_calls": 0,
+  "ledger_writes": 0,
+  "limits": [
+    "Uses future targets in hindsight; never used as agent input or scored as a causal policy.",
+    "Restricted to already-executed production forecasts plus the originally graded forecast/fallback.",
+    "Does not bound additional model/configuration exploration or establish an attainable 20% gain.",
+    "No original score, execution, ledger or outcome was modified."
+  ]
+}

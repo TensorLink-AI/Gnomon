@@ -40,8 +40,19 @@ def environment(home,work,python):
     env.update(HERMES_HOME=str(home),TERMINAL_CWD=str(work),
         PATH=str(python.parent)+':'+env.get('PATH','/usr/bin:/bin'),
         PYTHONDONTWRITEBYTECODE='1',PYTHONUNBUFFERED='1',HERMES_DISABLE_TELEMETRY='1',
+        HERMES_DISABLE_LAZY_INSTALLS='1',
         OMP_NUM_THREADS='1',OPENBLAS_NUM_THREADS='1',MKL_NUM_THREADS='1')
     return env
+
+
+def runtime_inventory():
+    runtimes={a:OTHER/('plain-venv' if a=='plain' else 'gnomon-venv')/'bin/python' for a in ARMS}
+    code='import json,importlib.metadata,importlib.util;print(json.dumps({"gnomon":importlib.util.find_spec("gnomon") is not None,"packages":{d.metadata["Name"]:d.version for d in importlib.metadata.distributions()}}))'
+    inventory={a:json.loads(subprocess.check_output([str(py),'-I','-c',code],text=True)) for a,py in runtimes.items()}
+    assert inventory['plain']['gnomon'] is False and inventory['gnomon']['gnomon'] is True
+    strip=lambda d:{k:v for k,v in d['packages'].items() if k.lower()!='gnomon-forecast'}
+    assert strip(inventory['plain'])==strip(inventory['gnomon'])==strip(inventory['ledger']), 'Runtime package parity failed'
+    return inventory
 
 
 def prepare(work,job,prior,arm):
@@ -217,11 +228,7 @@ def main():
     raw=json.loads(source.read_text());keys=sorted(raw)
     jobs={s:[{k:j[k] for k in ('request','actual','origin','outcome_recorded_at','future_timestamps','series_id','round')} for j in (raw[s][:3] if args.pilot else raw[s])] for s in keys}
     runtimes={a:OTHER/('plain-venv' if a=='plain' else 'gnomon-venv')/'bin/python' for a in ARMS}
-    check='import json,importlib.metadata,importlib.util;print(json.dumps({"gnomon":importlib.util.find_spec("gnomon") is not None,"packages":{d.metadata["Name"]:d.version for d in importlib.metadata.distributions()}}))'
-    inventory={a:json.loads(subprocess.check_output([str(py),'-I','-c',check],text=True)) for a,py in runtimes.items()}
-    assert inventory['plain']['gnomon'] is False and inventory['gnomon']['gnomon'] is True
-    strip=lambda d:{k:v for k,v in d['packages'].items() if k.lower()!='gnomon-forecast'}
-    assert strip(inventory['plain'])==strip(inventory['gnomon'])==strip(inventory['ledger'])
+    inventory=runtime_inventory()
     build=json.loads(subprocess.check_output([str(runtimes['gnomon']),'-I','-c','import json;from gnomon.build_info import build_info;print(json.dumps(build_info()))'],text=True))
     assert build['source_sha256']==BUILD_SHA and build['package_version']=='1.2.0'
     frozen={p.name:sha(p) for p in HERE.iterdir() if p.is_file()}
@@ -232,6 +239,9 @@ def main():
         futures=[pool.submit(chain,i,s,jobs[s],root,runtimes,api_key) for i,s in enumerate(keys)]
         for f in as_completed(futures):rows+=f.result()
     assert all(sha(HERE/n)==h for n,h in frozen.items())
+    final_inventory=runtime_inventory()
+    dump(root/'final-runtime-inventory.json',final_inventory)
+    assert inventory==final_inventory, 'Runtime package inventory changed during the experiment'
     dump(root/'complete.json',{'completed':len(rows),'planned':sum(map(len,jobs.values()))*3,'source_unchanged':True})
 
 

@@ -124,6 +124,13 @@ maturation. Use detached processes plus frequent off-pod evidence copies; the
 pod itself is not guaranteed permanent. Preserve interruption logs and every
 attempt's API receipts. Completion and accuracy gates above are unchanged.
 
+The first v3 startup guard stopped before any API request: the Hermes synthetic
+preflight had lazily installed optional AWS packages in only the plain runtime.
+Keep that zero-call startup attempt. Remove those bootstrap additions, retaining
+the original package pins; use Hermes' HERMES_DISABLE_LAZY_INSTALLS=1 in every
+agent environment. Verify equal inventories before/after preflight and inference.
+This changes no numerical model, candidate, budget or forecast selection rule.
+
 This development evaluation is not the untouched final evaluation and is not a
 matched current-1.1.9 ledger comparison. Neither its completion rate nor an
 improvement on these reused series establishes the 20% goal. Reserved final
