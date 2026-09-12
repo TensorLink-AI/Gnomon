@@ -39,6 +39,16 @@ It accepts only the pinned development source and refuses an existing output
 directory. Test source consistency, temporal perturbations and metadata exclusion
 before export. Record hashes and reproduce the export independently.
 
+Preparation attempt 001 stopped before export: shared observations were written
+as integer history values and floating-point actuals (for example, 28 and 28.0).
+The overlap diagnostic found no numerical disagreement. Preserve this failed
+attempt. Before retry, allow exactly equal finite numeric representations across
+history/actual roles, retaining each role's original representation so all 32
+anchor records still reproduce byte-for-byte under canonical JSON. New actual
+arrays use floating-point numbers. Within-role or numerical conflicts still
+reject; boolean sales are invalid. No tolerance, rounding, date selection or
+outcome-value alteration is permitted.
+
 Any subsequent agent run requires its own frozen protocol after the current
 pilot/development result is assessed. Keep equal capabilities, raw evidence,
 numerical/API/correction budgets and completion handling; the ledger treatment

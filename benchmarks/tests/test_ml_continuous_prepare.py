@@ -36,6 +36,19 @@ class ContinuousPreparationTest(unittest.TestCase):
         raw=fixture();raw['synthetic'][1]['request']['history'][0]+=1
         with self.assertRaisesRegex(ValueError,'Conflicting'):reconstruct(raw)
 
+    def test_integer_history_float_actuals_preserve_anchor_bytes(self):
+        raw=fixture()
+        for anchor in raw['synthetic']:
+            anchor['request']['history']=[int(v) for v in anchor['request']['history']]
+        jobs,proof=reconstruct(raw)
+        self.assertGreater(proof['synthetic']['equal_numeric_representation_matches'],0)
+        for anchor in raw['synthetic']:
+            self.assertEqual(canonical(jobs['synthetic'][anchor['round']]),canonical(anchor))
+
+    def test_boolean_sales_rejected(self):
+        raw=fixture();raw['synthetic'][0]['request']['history'][0]=True
+        with self.assertRaisesRegex(ValueError,'Invalid sales'):reconstruct(raw)
+
     def test_export_mutation_cannot_change_source_or_other_tasks(self):
         raw=fixture();before=deepcopy(raw);jobs,_=reconstruct(raw)
         later=deepcopy(jobs['synthetic'][1])

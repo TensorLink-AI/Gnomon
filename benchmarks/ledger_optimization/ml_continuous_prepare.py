@@ -31,12 +31,15 @@ def reconstruct(raw):
         template=by_round[0]['request'];static={k:v for k,v in template.items() if k not in DYNAMIC}
         first=datetime.fromisoformat(by_round[0]['origin'])
         if first.tzinfo is None:raise ValueError('Explicit timezone required')
-        values={};covariates={}
-        def add(table,time,value):
+        values={};covariates={};history_values={};actual_values={};representation_matches=0
+        def add(table,time,value,numeric=False):
+            nonlocal representation_matches
             key=datetime.fromisoformat(time)
             if key.tzinfo is None:raise ValueError('Explicit timezone required')
             if key in table and canonical(table[key])!=canonical(value):
-                raise ValueError('Conflicting overlapping source observation')
+                if numeric and type(value) in (int,float) and type(table[key]) in (int,float) and table[key]==value:
+                    representation_matches+=1
+                else:raise ValueError('Conflicting overlapping source observation')
             table[key]=value
         for anchor in anchors:
             r=anchor['request'];origin=first+timedelta(days=14*anchor['round'])
@@ -56,10 +59,10 @@ def reconstruct(raw):
             if r['timestamps']!=expected_history or r['future_timestamps']!=expected_future:
                 raise ValueError('Nonconsecutive anchor timestamps')
             for t,y,c in zip(r['timestamps'],r['history'],r['past_covariates'],strict=True):
-                add(values,t,y);add(covariates,t,c)
+                add(values,t,y,numeric=True);add(history_values,t,y);add(covariates,t,c)
             for t,y,c in zip(r['future_timestamps'],anchor['actual'],r['future_covariates'],strict=True):
-                add(values,t,y);add(covariates,t,c)
-        if any(not math.isfinite(y) or y<0 for y in values.values()):
+                add(values,t,y,numeric=True);add(actual_values,t,y);add(covariates,t,c)
+        if any(type(y) not in (int,float) or not math.isfinite(y) or y<0 for y in values.values()):
             raise ValueError('Invalid sales value; do not delete the case')
         width=len(template['past_covariate_names'])
         if any(len(v)!=width or any(not math.isfinite(x) for x in v) for v in covariates.values()):
@@ -69,15 +72,16 @@ def reconstruct(raw):
             origin=first+timedelta(days=14*number)
             history=[origin-timedelta(days=i) for i in range(729,-1,-1)]
             future=[origin+timedelta(days=i) for i in range(1,15)]
-            if any(t not in values or t not in covariates for t in history+future):
+            if (any(t not in values or t not in covariates for t in history+future) or
+                    any(t not in history_values for t in history)):
                 raise ValueError('Missing source observation; interpolation forbidden')
             request=deepcopy(template)
-            request.update(history=[values[t] for t in history],timestamps=[t.isoformat() for t in history],
+            request.update(history=[history_values[t] for t in history],timestamps=[t.isoformat() for t in history],
                            past_covariates=[deepcopy(covariates[t]) for t in history],
                            future_covariates=[deepcopy(covariates[t]) for t in future],
                            future_timestamps=[t.isoformat() for t in future],
                            cutoff=origin.isoformat(),known_time_cutoff=origin.isoformat())
-            job={'request':request,'actual':[values[t] for t in future],
+            job={'request':request,'actual':[actual_values[t] if t in actual_values else float(values[t]) for t in future],
                  'origin':origin.isoformat(),'outcome_recorded_at':future[-1].isoformat(),
                  'future_timestamps':request['future_timestamps'],'series_id':series,'round':number}
             if number in by_round:
@@ -87,6 +91,7 @@ def reconstruct(raw):
         output[series]=jobs
         proof[series]={'original_rounds':sorted(by_round),'original_tasks_reproduced':len(anchors),
                        'new_intermediate_origins':26-len(anchors),'unique_observations':len(values),
+                       'equal_numeric_representation_matches':representation_matches,
                        'start':min(values).isoformat(),'end':max(values).isoformat()}
     return output,proof
 
