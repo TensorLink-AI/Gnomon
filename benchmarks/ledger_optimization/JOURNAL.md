@@ -631,3 +631,24 @@ unselected alternatives; all match the original targets and start zero new fits.
 The partial run remains ineligible for promotion or a comparative accuracy claim.
 Receipt: evidence/ml-v3-progress-020.json. The running source stays frozen at
 931317a; these baseline/audit utilities are outside that experiment's code path.
+
+
+## 2026-09-13 (Brisbane): production comparison fidelity audit 021
+
+Previous goal turn made progress on the 1.1.9 compatibility prerequisite and
+closed-session audits. This turn revalidated the same remote PID/boot/start
+identity and mirrored new evidence without restarting or changing the trial.
+The 14-session closed snapshot passed 767 frozen-auditor checks. A separate
+read-only audit verifies all four distinct saved ledger review packets in that
+snapshot contain a production comparison. Recomputed each displayed mean RMSLE
+from task-matching original predictions and mature actuals, checked origins,
+source/recording visibility and exact sample counts; one packet now has two
+matched production origins. Cumulative copies of the same packet are counted
+once. No original data, score, provider execution or ledger changed.
+
+Six independent fixture tests pass, including wrong displayed values, wrong
+origins, future recording, unmatured targets and duplicate matched origins. The
+receipt is evidence/ml-review-coverage-021.json. This establishes that the fixed
+maturation path produces correct displayed evidence. It is not proof that an
+agent uses it well, a measured accuracy improvement or satisfaction of the20%
+held-out objective. The final outcome and 1.1.9 agent comparison remain pending.

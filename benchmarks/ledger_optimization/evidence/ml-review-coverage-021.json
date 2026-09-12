@@ -1,0 +1,64 @@
+{
+  "passed": true,
+  "snapshot": "results/hermes-ml-checkpoint-120-v3-audits/progress-005",
+  "snapshot_sha256": "d7a6b38bb433cc92e997f027a02ffc3142c0ef8b62f41dfad91fec37b4aa9609",
+  "unique_review_packets": 4,
+  "packets_with_production_comparisons": 4,
+  "production_comparisons_checked": 4,
+  "packets": [
+    {
+      "series_id": "item_1047756_store_23",
+      "packet_index": 0,
+      "origin": "2016-08-30T00:00:00+00:00",
+      "production_comparisons_checked": 1,
+      "displayed_comparisons": 16,
+      "available_comparisons": 16,
+      "production_matched_origin_counts": [
+        1
+      ]
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "packet_index": 1,
+      "origin": "2016-09-13T00:00:00+00:00",
+      "production_comparisons_checked": 1,
+      "displayed_comparisons": 20,
+      "available_comparisons": 22,
+      "production_matched_origin_counts": [
+        2
+      ]
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "packet_index": 0,
+      "origin": "2016-08-30T00:00:00+00:00",
+      "production_comparisons_checked": 1,
+      "displayed_comparisons": 11,
+      "available_comparisons": 11,
+      "production_matched_origin_counts": [
+        1
+      ]
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "packet_index": 1,
+      "origin": "2016-08-30T00:00:00+00:00",
+      "production_comparisons_checked": 1,
+      "displayed_comparisons": 16,
+      "available_comparisons": 16,
+      "production_matched_origin_counts": [
+        1
+      ]
+    }
+  ],
+  "source_unchanged": true,
+  "provider_calls": 0,
+  "ledger_writes": 0,
+  "limits": [
+    "Partial development evidence; this establishes displayed comparison fidelity, not better decisions.",
+    "Repeated packet indices across cumulative snapshots are counted once.",
+    "No conclusions about untouched final data or the 20% target."
+  ],
+  "auditor_sha256": "86e1457947c310fbc0a71dbe5868764fe0e9ae841ca690598f20480b1e1424e2",
+  "fault_tests_passed": 6
+}
