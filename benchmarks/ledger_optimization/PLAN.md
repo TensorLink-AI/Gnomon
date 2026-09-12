@@ -120,3 +120,42 @@ their results do not test the full contextual retrieval path. Build on those
 APIs and measure the end-to-end retrieval path before adding another storage
 system. Keep the 20% objective, acknowledge fixed-portfolio headroom on each
 tested cohort, and preserve the untouched confirmation partition.
+
+## Later user-authorized ML task amendment (019)
+
+The user subsequently requested a matched Hermes task that requires backtesting
+and iterating a time-series model, comparing Hermes alone, Gnomon + Hermes and
+Gnomon + Hermes + ledger. This authorizes the common fitted Ridge/Random Forest/
+seasonal configuration space in the ML development protocols. It supersedes the
+earlier fixed-eight-recipe restriction for that task only. It does not authorize
+stronger forecasting tools or privileged observations exclusively for treatment.
+The earlier fixed-portfolio screens and negative confirmation remain unchanged.
+
+The current checkpoint-v3 trial uses Gnomon 1.2.0 in both Gnomon arms and retains
+all three arms' matured raw outcome scores. It is development evidence about a
+workflow, not a matched 1.1.9 comparison or untouched final evaluation. Completion
+gates do not substitute for the 20% point target or uncertainty requirement.
+
+Before final confirmation, compare the selected development implementation with
+both an equally informed no-ledger arm and the frozen 1.1.9 incumbent on the same
+task. Compatibility check 019 verifies that the exact published 1.1.9 build
+`59a6d81709a4625bf042e7ca152aa5f12534c28a` supports the shared typed execution,
+covariate/identity, controlled-clock, scoring and matched-history contracts.
+This is not evidence of the incumbent agent's performance.
+
+The old incumbent MAE cards used last-four, last-twelve and lifetime windows with
+complete matched origins. A dynamic configuration search requires an explicit,
+prospectively frozen adaptation of that evidence presentation. Preserve config
+and provider-revision identity and show missing overlap; do not deliberately
+cripple the incumbent with an all-configurations intersection or fabricate
+unexecuted forecasts. Keep completion handling, budget accounting, raw evidence
+access and outcome maturation common. Freeze the adapter and test it before any
+comparative agent inference. Package version alone does not define a fair memory
+treatment; neither a deterministic MAE selector nor the existing 1.2.0 pilot can
+be relabeled as the 1.1.9 agent baseline.
+
+The 24 M5 reserved series remain unopened. The ML task would need a separately
+recorded history/covariate adapter before using that source, without changing its
+identity selection or inspecting reserved targets to choose a favorable task.
+Keep the final development gates, one-shot final freeze, primary metric and
+cluster/time-block uncertainty rules. No passing final candidate exists yet.

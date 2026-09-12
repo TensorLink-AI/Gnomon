@@ -1,0 +1,335 @@
+{
+  "passed": true,
+  "scope": "Synthetic public API baseline compatibility, not agent or forecasting performance",
+  "results": {
+    "1.1.9": {
+      "distribution_version": "1.1.9",
+      "build": {
+        "build_id": "1.1.9+g59a6d81709a4.s9e199ad6d265",
+        "commit": "59a6d81709a4625bf042e7ca152aa5f12534c28a",
+        "dirty": false,
+        "fingerprint_scope": "gnomon_python_sources",
+        "package_version": "1.1.9",
+        "provenance": "git",
+        "source_sha256": "9e199ad6d265ccc3afe622df6f1142975d593aa597816bf5f9eac93d62a68911"
+      },
+      "provider_calls_during_scoring_or_comparison": 0,
+      "comparison": {
+        "status": "ok",
+        "series_id": "synthetic_sales",
+        "unit": "widgets",
+        "horizon": 2,
+        "providers": {
+          "synthetic_last": "synthetic-contract-v1",
+          "synthetic_mean": "synthetic-contract-v1"
+        },
+        "start": "2026-01-03T00:00:00.000000+00:00",
+        "end": "2026-01-03T00:00:00.000000+00:00",
+        "source_as_of": "2026-01-06T00:00:00.000000+00:00",
+        "recorded_as_of": "2026-01-06T00:00:00.000000+00:00",
+        "metric_version": "point-errors/1",
+        "aggregation": "mean_mae_over_complete_matched_origins",
+        "matched_origins": 1,
+        "n": 2,
+        "models": [
+          {
+            "provider": "synthetic_last",
+            "revision": "synthetic-contract-v1",
+            "mae": 1.5
+          },
+          {
+            "provider": "synthetic_mean",
+            "revision": "synthetic-contract-v1",
+            "mae": 2.5
+          }
+        ],
+        "origins": [
+          {
+            "origin": "2026-01-03T00:00:00.000000+00:00",
+            "n": 2,
+            "horizon": 2,
+            "metric_version": "point-errors/1",
+            "source_as_of": "2026-01-06T00:00:00.000000+00:00",
+            "recorded_as_of": "2026-01-06T00:00:00.000000+00:00",
+            "snapshot_id": null,
+            "actual_ids": [
+              "c23e88709bd65898cad2d66e37f86e1527bae0b8c3982484204dbf65223f0690",
+              "d249a850a2ed79d071cd20196dca13269fe15de8c16eb2d6a2bcaf740e3c9e71"
+            ],
+            "matched_steps": [
+              0,
+              1
+            ],
+            "models": [
+              {
+                "execution_id": "fad16eb7-909d-4685-9dac-e3fd2d4c8d0a",
+                "provider": "synthetic_last",
+                "revision": "synthetic-contract-v1",
+                "mae": 1.5
+              },
+              {
+                "execution_id": "77087850-d786-4258-8872-f2e4134dc8e7",
+                "provider": "synthetic_mean",
+                "revision": "synthetic-contract-v1",
+                "mae": 2.5
+              }
+            ]
+          }
+        ],
+        "excluded": [],
+        "duplicates_ignored": 0,
+        "provider_calls": 0,
+        "action_authorized": false,
+        "model_identity_basis": "provider_declared_not_independently_attested",
+        "next_step": "consider_evidence_and_sample_count_before_model_selection",
+        "observed_origins": 1,
+        "unique_actuals": 2
+      },
+      "complete": [
+        {
+          "evaluation_id": "1401c838-823a-4c03-a1d5-98072b8581eb",
+          "execution_id": "fad16eb7-909d-4685-9dac-e3fd2d4c8d0a",
+          "recorded_at": "2026-01-06T00:00:00.000000+00:00",
+          "source_as_of": "2026-01-06T00:00:00.000000+00:00",
+          "recorded_as_of": "2026-01-06T00:00:00.000000+00:00",
+          "metric_version": "point-errors/1",
+          "status": "complete",
+          "matched_steps": [
+            0,
+            1
+          ],
+          "actual_ids": [
+            "c23e88709bd65898cad2d66e37f86e1527bae0b8c3982484204dbf65223f0690",
+            "d249a850a2ed79d071cd20196dca13269fe15de8c16eb2d6a2bcaf740e3c9e71"
+          ],
+          "horizon": 2,
+          "complete": true,
+          "coverage": {
+            "required_steps": 2,
+            "matched_steps": 2,
+            "fraction": 1.0,
+            "missing_steps": [],
+            "missing_timestamps": [],
+            "unit": "widgets",
+            "other_units_at_missing_steps": []
+          },
+          "n": 2,
+          "mae": 1.5,
+          "rmse": 1.5811388300841895,
+          "bias": -1.5
+        },
+        {
+          "evaluation_id": "f02e444c-779c-48dc-953a-62ef7c4b8de6",
+          "execution_id": "77087850-d786-4258-8872-f2e4134dc8e7",
+          "recorded_at": "2026-01-06T00:00:00.000000+00:00",
+          "source_as_of": "2026-01-06T00:00:00.000000+00:00",
+          "recorded_as_of": "2026-01-06T00:00:00.000000+00:00",
+          "metric_version": "point-errors/1",
+          "status": "complete",
+          "matched_steps": [
+            0,
+            1
+          ],
+          "actual_ids": [
+            "c23e88709bd65898cad2d66e37f86e1527bae0b8c3982484204dbf65223f0690",
+            "d249a850a2ed79d071cd20196dca13269fe15de8c16eb2d6a2bcaf740e3c9e71"
+          ],
+          "horizon": 2,
+          "complete": true,
+          "coverage": {
+            "required_steps": 2,
+            "matched_steps": 2,
+            "fraction": 1.0,
+            "missing_steps": [],
+            "missing_timestamps": [],
+            "unit": "widgets",
+            "other_units_at_missing_steps": []
+          },
+          "n": 2,
+          "mae": 2.5,
+          "rmse": 2.5495097567963922,
+          "bias": -2.5
+        }
+      ]
+    },
+    "1.2.0": {
+      "distribution_version": "1.2.0",
+      "build": {
+        "build_id": "1.2.0+ga38cd0cad353.s9723394ccb6d",
+        "commit": "a38cd0cad35383e5f10021abf3aa20d4c16923be",
+        "dirty": false,
+        "fingerprint_scope": "gnomon_python_sources",
+        "package_version": "1.2.0",
+        "provenance": "git",
+        "source_sha256": "9723394ccb6d9e11991b312e01bac47c767c69407b6b33d36971cb6e48b6a22e"
+      },
+      "provider_calls_during_scoring_or_comparison": 0,
+      "comparison": {
+        "status": "ok",
+        "series_id": "synthetic_sales",
+        "unit": "widgets",
+        "horizon": 2,
+        "providers": {
+          "synthetic_last": "synthetic-contract-v1",
+          "synthetic_mean": "synthetic-contract-v1"
+        },
+        "start": "2026-01-03T00:00:00.000000+00:00",
+        "end": "2026-01-03T00:00:00.000000+00:00",
+        "source_as_of": "2026-01-06T00:00:00.000000+00:00",
+        "recorded_as_of": "2026-01-06T00:00:00.000000+00:00",
+        "metric_version": "point-errors/1",
+        "aggregation": "mean_mae_over_complete_matched_origins",
+        "matched_origins": 1,
+        "n": 2,
+        "models": [
+          {
+            "provider": "synthetic_last",
+            "revision": "synthetic-contract-v1",
+            "mae": 1.5
+          },
+          {
+            "provider": "synthetic_mean",
+            "revision": "synthetic-contract-v1",
+            "mae": 2.5
+          }
+        ],
+        "origins": [
+          {
+            "origin": "2026-01-03T00:00:00.000000+00:00",
+            "n": 2,
+            "horizon": 2,
+            "metric_version": "point-errors/1",
+            "source_as_of": "2026-01-06T00:00:00.000000+00:00",
+            "recorded_as_of": "2026-01-06T00:00:00.000000+00:00",
+            "snapshot_id": null,
+            "actual_ids": [
+              "c23e88709bd65898cad2d66e37f86e1527bae0b8c3982484204dbf65223f0690",
+              "d249a850a2ed79d071cd20196dca13269fe15de8c16eb2d6a2bcaf740e3c9e71"
+            ],
+            "matched_steps": [
+              0,
+              1
+            ],
+            "models": [
+              {
+                "execution_id": "a384056b-c3e5-48be-9a81-1706d31d7ba6",
+                "provider": "synthetic_last",
+                "revision": "synthetic-contract-v1",
+                "mae": 1.5
+              },
+              {
+                "execution_id": "23025cae-d9e4-4f34-94b2-dda47f8e8526",
+                "provider": "synthetic_mean",
+                "revision": "synthetic-contract-v1",
+                "mae": 2.5
+              }
+            ]
+          }
+        ],
+        "excluded": [],
+        "duplicates_ignored": 0,
+        "provider_calls": 0,
+        "action_authorized": false,
+        "model_identity_basis": "provider_declared_not_independently_attested",
+        "next_step": "consider_evidence_and_sample_count_before_model_selection",
+        "observed_origins": 1,
+        "unique_actuals": 2
+      },
+      "complete": [
+        {
+          "evaluation_id": "ee78c897-2e56-471a-ae63-7f12533839ba",
+          "execution_id": "a384056b-c3e5-48be-9a81-1706d31d7ba6",
+          "recorded_at": "2026-01-06T00:00:00.000000+00:00",
+          "source_as_of": "2026-01-06T00:00:00.000000+00:00",
+          "recorded_as_of": "2026-01-06T00:00:00.000000+00:00",
+          "metric_version": "point-errors/1",
+          "status": "complete",
+          "matched_steps": [
+            0,
+            1
+          ],
+          "actual_ids": [
+            "c23e88709bd65898cad2d66e37f86e1527bae0b8c3982484204dbf65223f0690",
+            "d249a850a2ed79d071cd20196dca13269fe15de8c16eb2d6a2bcaf740e3c9e71"
+          ],
+          "horizon": 2,
+          "complete": true,
+          "coverage": {
+            "required_steps": 2,
+            "matched_steps": 2,
+            "fraction": 1.0,
+            "missing_steps": [],
+            "missing_timestamps": [],
+            "unit": "widgets",
+            "other_units_at_missing_steps": []
+          },
+          "n": 2,
+          "mae": 1.5,
+          "rmse": 1.5811388300841895,
+          "bias": -1.5
+        },
+        {
+          "evaluation_id": "3f550225-1c47-4e5a-a6ac-c20789d629ba",
+          "execution_id": "23025cae-d9e4-4f34-94b2-dda47f8e8526",
+          "recorded_at": "2026-01-06T00:00:00.000000+00:00",
+          "source_as_of": "2026-01-06T00:00:00.000000+00:00",
+          "recorded_as_of": "2026-01-06T00:00:00.000000+00:00",
+          "metric_version": "point-errors/1",
+          "status": "complete",
+          "matched_steps": [
+            0,
+            1
+          ],
+          "actual_ids": [
+            "c23e88709bd65898cad2d66e37f86e1527bae0b8c3982484204dbf65223f0690",
+            "d249a850a2ed79d071cd20196dca13269fe15de8c16eb2d6a2bcaf740e3c9e71"
+          ],
+          "horizon": 2,
+          "complete": true,
+          "coverage": {
+            "required_steps": 2,
+            "matched_steps": 2,
+            "fraction": 1.0,
+            "missing_steps": [],
+            "missing_timestamps": [],
+            "unit": "widgets",
+            "other_units_at_missing_steps": []
+          },
+          "n": 2,
+          "mae": 2.5,
+          "rmse": 2.5495097567963922,
+          "bias": -2.5
+        }
+      ]
+    }
+  },
+  "files": {
+    "/root/Gnomon/results/ledger-119-compatibility-019/install-1.2.0.log": "3c01735f8209b373d52e3cb16cb5401056f9776d4a11dd5c7c3cbec6a1463409",
+    "/root/Gnomon/results/ledger-119-compatibility-019/test-1.2.0-001-command.json": "513e2f3058b9a519da6296097839f7f141f6299a1f89d4368a2669ccc781611f",
+    "/root/Gnomon/results/ledger-119-compatibility-019/test-1.1.9-002-command.json": "92f4a46cb5d5ff58a8a56d354b184ed954a65cd6f353b99f3511e5bb26d6db8b",
+    "/root/Gnomon/results/ledger-119-compatibility-019/test-1.1.9-001-command.json": "306bbe29ea61a22949a8241919a9a08b45ba8ba55b95a8d2cccd4c4c6162a139",
+    "/root/Gnomon/results/ledger-119-compatibility-019/test-1.2.0-003-command.json": "ded08d4d76ec29b81502fe3417394cadd0b9ccdbec9ecc4791982e018e4d5406",
+    "/root/Gnomon/results/ledger-119-compatibility-019/install-1.2.0.json": "067ac4be88354efdb97d357f7d89d90a39f84471bfde6c221003b6a3fdd4c545",
+    "/root/Gnomon/results/ledger-119-compatibility-019/test-1.2.0-002-command.json": "bedd4f64976095e77caf258dcdc325b7aa4fb3a5b5bec1d77f177723f5306adb",
+    "/root/Gnomon/results/ledger-119-compatibility-019/install-1.1.9.json": "98216c00ac3138ce0131ce12ce8af331a3ca74bcd1cf3b4201c10c021509f10d",
+    "/root/Gnomon/results/ledger-119-compatibility-019/test-1.1.9-003-command.json": "aeebd0c4498a0c933c70c47efa43654fa458f353a5d58e708a55901e6e9b5e27",
+    "/root/Gnomon/results/ledger-119-compatibility-019/wheel-retention.json": "caa300c0cf4b4c66f0a7f2ce8bf367a7ca4f14d44817a64dea743253feda1ecb",
+    "/root/Gnomon/results/ledger-119-compatibility-019/install-1.1.9.log": "9d9ceb7cd41da387e7fa0ea07dae527124bb5c8a442f8d4fd6c2ff67747791cd",
+    "/root/Gnomon/results/ledger-119-compatibility-019/assets/gnomon_forecast-1.1.9-py3-none-any.whl": "b9c7c0b6076b58f06d09848b1ac591c43bb6030f2de45ceb04dd3d57e5bb1e11",
+    "/root/Gnomon/results/ledger-119-compatibility-019/test-1.2.0-001/ledger.db": "68727d030b0ccc2d756f14bc34be17fca3ae0c4f56b12505e213dc4b69ab4743",
+    "/root/Gnomon/results/ledger-119-compatibility-019/test-1.1.9-002/result.json": "9eea2ad34c5910b42d44b88422b0858504c15c05a3ef7ae1c63c0fe2006433f2",
+    "/root/Gnomon/results/ledger-119-compatibility-019/test-1.1.9-002/ledger.db": "eadfa74bfa54606516dfab6bfc7daeee5b164223324aa354c33a4fd13bf1e0ea",
+    "/root/Gnomon/results/ledger-119-compatibility-019/test-1.2.0-002/result.json": "f6279c1fd4096efc97bf2a3412563fab2865cd1767dc5a6d24a7250ef4b5ce70",
+    "/root/Gnomon/results/ledger-119-compatibility-019/test-1.2.0-002/ledger.db": "2de53e6f2f968504de0379f2dec13d98f34fa4fd415c260a6f88f7cb497a1d37",
+    "/root/Gnomon/results/ledger-119-compatibility-019/test-1.1.9-001/ledger.db": "ccb4a952f99360ceae0735517c7456c5aa6eeb70f9719415aaa4c9de2d9eb0c9",
+    "/root/Gnomon/results/ledger-119-compatibility-019/test-1.2.0-003/result.json": "f1733f20a4a892bd2a90cee9ad9092a80093491f5160ac58533568fc9b56a53b",
+    "/root/Gnomon/results/ledger-119-compatibility-019/test-1.2.0-003/ledger.db": "63ccc1432da6156b4ac8c655266be7f7164ed683b89b7844aa1c9cd9f0c39784",
+    "/root/Gnomon/results/ledger-119-compatibility-019/test-1.1.9-003/result.json": "e074cdb37c444b673a908cd5ef112811e1790cc26bcb1a7786c549424cc824aa",
+    "/root/Gnomon/results/ledger-119-compatibility-019/test-1.1.9-003/ledger.db": "ce35acc36e214aca757531238360c616b3a04ac04269696c90ce5dae2b03c819"
+  },
+  "test_source_sha256": "e4f303bf7e40238292868dd60871c24c837a598bad71b52ae14eccf85fb35681",
+  "tester_correction": "Initial assertion compared tuple-valued point to list; normalized sequences for both versions, retained failed attempts and used new databases. No package change.",
+  "reserved_outcomes_accessed": false,
+  "api_calls": 0,
+  "additional_validation": "Checked pending/partial/complete semantics and specific strict-horizon rejection; generic exception alone cannot pass."
+}

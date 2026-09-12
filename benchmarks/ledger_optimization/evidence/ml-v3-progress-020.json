@@ -1,0 +1,31 @@
+{
+  "scope": "Partial development pilot; no promotion or accuracy claim",
+  "completed_sessions": 10,
+  "audit_checks": 519,
+  "audit_failures": [],
+  "arms": {
+    "gnomon": {
+      "tasks": 3,
+      "workflow_complete": 3,
+      "http_errors": 0,
+      "tokens": 675623
+    },
+    "ledger": {
+      "tasks": 4,
+      "workflow_complete": 4,
+      "http_errors": 0,
+      "tokens": 855199
+    },
+    "plain": {
+      "tasks": 3,
+      "workflow_complete": 3,
+      "http_errors": 0,
+      "tokens": 791834
+    }
+  },
+  "unique_matured_executions": 8,
+  "unique_matured_unselected_executions": 4,
+  "report_path": "results/hermes-ml-checkpoint-120-v3-audits/progress-003/report.json",
+  "report_sha256": "0375362deaedaf7278d93dbf97a1e4d83cc69a116361adfab61ad71b03b694e8",
+  "snapshot_receipt_sha256": "a2faa97cf0c1b2f3990aa43b07d74f2eaf574cb8d467cc418fac1a735e2de9f9"
+}

@@ -586,3 +586,48 @@ agents. It indicates that 20% would require better configuration exploration,
 not merely recovery/selection among the production predictions already present.
 No new provider/ledger writes, changed original scores, or reserved data access.
 The fresh v3 promotion rule remains completion/integrity only.
+
+
+## 2026-09-13 (Brisbane): baseline compatibility and live audit 019
+
+Previous goal turn made progress: committed/pushed the common all-execution
+maturation fix, repaired a guarded zero-call startup, passed 28 regression groups
+and launched a separate durable pod pilot. This turn verified the same live PID
+and boot/start identity; no trial restart or source change. Copied evidence off
+pod. The first six closed sessions all completed with zero API errors; the frozen
+independent auditor reproduced 303 checks with zero failures. A partial progress
+snapshot cannot pass the 36-session promotion gate or establish an accuracy gain.
+
+Installed the published 1.1.9 wheel into an isolated local runtime; its build is
+exactly the objective's 59a6d81709a4625bf042e7ca152aa5f12534c28a. Ran the same
+synthetic public-API script against it and pinned 1.2.0. Both support request
+identity/covariates, controlled-clock execution, recording/source cutoff exclusion,
+pending/partial/strict/complete scoring, atomic batch scoring, score reuse, saved
+retrieval and matched history. Independent metric expectations agree and scoring/
+comparison made zero additional provider calls. First assertions expected list
+rather than tuple points; corrected the tester for both versions and retained
+both failed attempts/new databases. No package implementation was changed.
+Pinned wheel and exact argv/stdout/stderr are retained under ignored
+results/ledger-119-compatibility-019; compact receipt is evidence/ml-baseline-compatibility-019.json.
+
+This closes a compatibility prerequisite, not the incumbent-performance gap.
+PLAN.md now explicitly records the user's later common-model-fitting amendment
+and requires prospective evidence-adapter semantics for a real matched 1.1.9
+comparison. It forbids passing off the current 1.2.0 workflow or a deterministic
+MAE selector as the incumbent agent. Reserved outcomes remain unopened and no
+final candidate is eligible for dispatch. Main/PyPI unchanged.
+
+Added a separate progress auditor that verifies frozen source hashes, reads only
+closed immutable session snapshots, preserves every source-file hash, and writes
+into a new output directory. An altered-auditor fixture was rejected before
+import. Rechecking the six-case snapshot preserved source bytes and all checks.
+No live result, model request, scoring rule, prompt or budget was changed.
+
+
+A later closed snapshot includes 10/36 pilot sessions: plain 3/3, Gnomon 3/3,
+ledger 4/4 full, zero completed-session HTTP errors. All 519 independent checks
+pass. Eight unique prior production forecasts have matured, including four
+unselected alternatives; all match the original targets and start zero new fits.
+The partial run remains ineligible for promotion or a comparative accuracy claim.
+Receipt: evidence/ml-v3-progress-020.json. The running source stays frozen at
+931317a; these baseline/audit utilities are outside that experiment's code path.
