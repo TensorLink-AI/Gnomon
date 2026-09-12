@@ -1,0 +1,320 @@
+{
+  "source": "results/hermes-ml-checkpoint-120-v3-pod-002",
+  "sessions": 36,
+  "incomplete_sessions": 8,
+  "no_execution_service_failures": 6,
+  "service_interrupted_before_execution": 8,
+  "incomplete_with_some_successful_responses": 2,
+  "incomplete_not_explained_by_pre_execution_service_stop": 0,
+  "http_error_status_counts": {
+    "200": 2,
+    "429": 27,
+    "504": 1
+  },
+  "totals": {
+    "api_calls": 414,
+    "api_errors": 30,
+    "numerical_attempts": 542,
+    "tokens": 6365769,
+    "responses": 414
+  },
+  "responses_with_usage": 384,
+  "api_dollar_cost": null,
+  "cost_note": "Preserved reported tokens; failed responses without usage are not evidence of zero billing.",
+  "per_arm": {
+    "plain": {
+      "full": 9,
+      "tasks": 12
+    },
+    "gnomon": {
+      "full": 10,
+      "tasks": 12
+    },
+    "ledger": {
+      "full": 9,
+      "tasks": 12
+    }
+  },
+  "failures": [
+    {
+      "arm": "gnomon",
+      "series_id": "item_1372862_store_12",
+      "round": 2,
+      "workflow_complete": false,
+      "valid": false,
+      "api_calls": 4,
+      "api_errors": 3,
+      "numerical_attempts": 0,
+      "tokens": 8114,
+      "fallback_used": true,
+      "all_responses_errors": false,
+      "errors": [
+        {
+          "http_status": 429,
+          "category": "rate_limit_error"
+        },
+        {
+          "http_status": 429,
+          "category": "rate_limit_error"
+        },
+        {
+          "http_status": 429,
+          "category": "rate_limit_error"
+        }
+      ],
+      "no_execution_service_failure": false,
+      "service_interrupted_before_execution": true,
+      "successful_api_responses": 1
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1457251_store_14",
+      "round": 2,
+      "workflow_complete": false,
+      "valid": false,
+      "api_calls": 3,
+      "api_errors": 3,
+      "numerical_attempts": 0,
+      "tokens": 0,
+      "fallback_used": true,
+      "all_responses_errors": true,
+      "errors": [
+        {
+          "http_status": 429,
+          "category": "rate_limit_error"
+        },
+        {
+          "http_status": 429,
+          "category": "rate_limit_error"
+        },
+        {
+          "http_status": 429,
+          "category": "rate_limit_error"
+        }
+      ],
+      "no_execution_service_failure": true,
+      "service_interrupted_before_execution": true,
+      "successful_api_responses": 0
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1372862_store_12",
+      "round": 1,
+      "workflow_complete": false,
+      "valid": false,
+      "api_calls": 3,
+      "api_errors": 3,
+      "numerical_attempts": 0,
+      "tokens": 0,
+      "fallback_used": true,
+      "all_responses_errors": true,
+      "errors": [
+        {
+          "http_status": 429,
+          "category": "rate_limit_error"
+        },
+        {
+          "http_status": 429,
+          "category": "rate_limit_error"
+        },
+        {
+          "http_status": 429,
+          "category": "rate_limit_error"
+        }
+      ],
+      "no_execution_service_failure": true,
+      "service_interrupted_before_execution": true,
+      "successful_api_responses": 0
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1372862_store_12",
+      "round": 2,
+      "workflow_complete": false,
+      "valid": false,
+      "api_calls": 3,
+      "api_errors": 3,
+      "numerical_attempts": 0,
+      "tokens": 0,
+      "fallback_used": true,
+      "all_responses_errors": true,
+      "errors": [
+        {
+          "http_status": 429,
+          "category": "rate_limit_error"
+        },
+        {
+          "http_status": 429,
+          "category": "rate_limit_error"
+        },
+        {
+          "http_status": 429,
+          "category": "rate_limit_error"
+        }
+      ],
+      "no_execution_service_failure": true,
+      "service_interrupted_before_execution": true,
+      "successful_api_responses": 0
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1457251_store_14",
+      "round": 2,
+      "workflow_complete": false,
+      "valid": false,
+      "api_calls": 4,
+      "api_errors": 3,
+      "numerical_attempts": 0,
+      "tokens": 8159,
+      "fallback_used": true,
+      "all_responses_errors": false,
+      "errors": [
+        {
+          "http_status": 429,
+          "category": "rate_limit_error"
+        },
+        {
+          "http_status": 429,
+          "category": "rate_limit_error"
+        },
+        {
+          "http_status": 429,
+          "category": "rate_limit_error"
+        }
+      ],
+      "no_execution_service_failure": false,
+      "service_interrupted_before_execution": true,
+      "successful_api_responses": 1
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1372862_store_12",
+      "round": 2,
+      "workflow_complete": false,
+      "valid": false,
+      "api_calls": 3,
+      "api_errors": 3,
+      "numerical_attempts": 0,
+      "tokens": 0,
+      "fallback_used": true,
+      "all_responses_errors": true,
+      "errors": [
+        {
+          "http_status": 429,
+          "category": "rate_limit_error"
+        },
+        {
+          "http_status": 429,
+          "category": "rate_limit_error"
+        },
+        {
+          "http_status": 504,
+          "category": "invalid_response"
+        }
+      ],
+      "no_execution_service_failure": true,
+      "service_interrupted_before_execution": true,
+      "successful_api_responses": 0
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1457251_store_14",
+      "round": 1,
+      "workflow_complete": false,
+      "valid": false,
+      "api_calls": 3,
+      "api_errors": 3,
+      "numerical_attempts": 0,
+      "tokens": 0,
+      "fallback_used": true,
+      "all_responses_errors": true,
+      "errors": [
+        {
+          "http_status": 429,
+          "category": "rate_limit_error"
+        },
+        {
+          "http_status": 429,
+          "category": "rate_limit_error"
+        },
+        {
+          "http_status": 429,
+          "category": "rate_limit_error"
+        }
+      ],
+      "no_execution_service_failure": true,
+      "service_interrupted_before_execution": true,
+      "successful_api_responses": 0
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1457251_store_14",
+      "round": 2,
+      "workflow_complete": false,
+      "valid": false,
+      "api_calls": 3,
+      "api_errors": 3,
+      "numerical_attempts": 0,
+      "tokens": 0,
+      "fallback_used": true,
+      "all_responses_errors": true,
+      "errors": [
+        {
+          "http_status": 429,
+          "category": "rate_limit_error"
+        },
+        {
+          "http_status": 429,
+          "category": "rate_limit_error"
+        },
+        {
+          "http_status": 429,
+          "category": "rate_limit_error"
+        }
+      ],
+      "no_execution_service_failure": true,
+      "service_interrupted_before_execution": true,
+      "successful_api_responses": 0
+    }
+  ],
+  "integrity_checks": 1798,
+  "gate": {
+    "accuracy_used_for_promotion": false,
+    "arms": {
+      "gnomon": {
+        "completed": 10,
+        "tasks": 12
+      },
+      "ledger": {
+        "completed": 9,
+        "tasks": 12
+      },
+      "plain": {
+        "completed": 9,
+        "tasks": 12
+      }
+    },
+    "integrity_passed": true,
+    "passed": false,
+    "required_per_arm": "11 of 12 full workflows",
+    "threshold": 0.9
+  },
+  "grades_changed": false,
+  "sessions_retried": 0,
+  "new_api_calls": 0,
+  "conclusion_scope": "Completion attribution only; original all-case scores and failed promotion are unchanged.",
+  "full_audit": "results/hermes-ml-checkpoint-120-v3-audits/service-023-clarified.json",
+  "full_audit_sha256": "f569cac4a64c5d09376e3e4c04bab0c77f704fd6e790a974526b34c43d9a7d65",
+  "source_files_hashed": 867,
+  "fixture_tests_passed": 5,
+  "archive_sha256": "0a7ecdb26858822b5b6309922f2e891ece2b55dd14ef46fd3d4989d125c76e07",
+  "archive_inventory_files_verified": 3445,
+  "trial_source_commit": "931317a",
+  "evaluation_run": false,
+  "all_case_mean_rmsle": {
+    "gnomon": 0.5139679505595369,
+    "ledger": 0.5099814995003011,
+    "plain": 0.5063407228031283
+  },
+  "accuracy_limitation": "Pilot gate failed. All-case errors include predeclared fallbacks; this is not evidence of a ledger effect or final target achievement."
+}

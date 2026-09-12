@@ -694,3 +694,40 @@ comparison, establish benefit or open reserved final outcomes. The incumbent
 1.1.9 dynamic evidence adapter and subsequent comparative protocol still need
 freezing before inference. Current pilot/evaluation remain unchanged. Main/PyPI
 unchanged and the 20% objective remains unmet.
+
+## 2026-09-13 (Brisbane): completed pilot service attribution 023
+
+The exact live remote PID is now terminal. FINISHED.json reports completion at
+2026-09-12T22:59:09.930802+00:00; the frozen gate correctly rejected promotion:
+plain 9/12 full, Gnomon 10/12, ledger 9/12, against 11/12 required in each arm.
+The 96-session evaluation was not launched. All 36 sessions and original fallback
+scores remain. All 1,798 frozen independent checks pass. Mirrored and verified the
+archive SHA-256 0a7ecdb26858822b5b6309922f2e891ece2b55dd14ef46fd3d4989d125c76e07
+and all 3,445 inventory entries. Do not restart this trial or treat the failed
+gate as passed after subtracting service failures.
+
+A separate read-only audit finds eight incomplete sessions, all ending after
+three service-error responses and before any numerical execution. Six received
+only service errors; two received one successful API response first. This is an
+observed termination attribution, not proof those agents would have completed
+under a healthy service. It is not numerical-budget exhaustion. Earlier sessions
+with committed forecasts survived later service errors. Five classification
+fixtures distinguish those states and unrelated non-service errors. The first
+auditor attempt expected JSON in every response; the retained HTTP 504 HTML body
+required explicit invalid-response handling, consistent with the frozen grader.
+
+Counts: 414 forwarded API calls, 414 responses, 30 errors, 542 numerical attempts,
+6,365,769 reported tokens across 384 responses with usage. Error receipts include
+27 HTTP 429s, two HTTP 200 error envelopes and one non-JSON HTTP 504. No dollar
+cost supplied; absent usage is not zero billing. All-case mean RMSLE remains
+plain 0.506341, Gnomon 0.513968, ledger 0.509981, including every fallback.
+The failed pilot is not evidence of a ledger benefit or the 20% objective.
+Tracked receipt: evidence/ml-service-failures-023.json; full attribution and hashes
+are in results/hermes-ml-checkpoint-120-v3-audits/service-023-clarified.json.
+
+Next paid protocol must prospectively handle upstream capacity outages equally
+for all arms, preserving attempts/costs and distinguishing service waiting from
+agent execution budgets. Do not give treatment-only or post hoc free retries.
+Finish the 1.1.9 dynamic-card comparator and continuous-origin protocol before
+inference. No live experiment remains, no automatic reroll was launched, and
+the reserved final outcomes, main and PyPI remain unchanged.
