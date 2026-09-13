@@ -12,7 +12,7 @@ import time
 import urllib.error
 import urllib.request
 
-PAYLOAD={'model':'deepseek-v4-flash-0731','messages':[{'role':'user','content':'Reply with the word READY.'}],
+PAYLOAD={'model':'deepseek-v4.1-flash','messages':[{'role':'user','content':'Reply with the word READY.'}],
          'temperature':0,'seed':7,'max_tokens':16,'stream':False}
 MAX_PROBES=10
 RETRY_SECONDS=60

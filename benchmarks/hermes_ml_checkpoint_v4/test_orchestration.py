@@ -89,7 +89,7 @@ def run_checks(root):
                 'arguments':json.dumps({'command':commands.get(n,'python lab.py status'),'timeout':60})}}]}
             finish='tool_calls'
         return Reply({'id':f'chatcmpl-{n}','object':'chat.completion','created':int(time.time()),
-                      'model':'deepseek-v4-flash-0731','choices':[{'index':0,'message':message,'finish_reason':finish}],
+                      'model':'deepseek-v4.1-flash','choices':[{'index':0,'message':message,'finish_reason':finish}],
                       'usage':{'prompt_tokens':10,'completion_tokens':10,'total_tokens':20}})
     with patch('urllib.request.urlopen',side_effect=fake_upstream):
         with proxy(out,'synthetic-test-key',work=work,deadline=time.time()+480) as url:

@@ -29,7 +29,7 @@ The reserve does not add executions. Validation/retrieval/reusing an existing
 selected execution costs no new numerical fit. Errors and results expose remaining
 numerical capacity, captured model-request capacity and approximate remaining time.
 
-Same Engy deepseek-v4-flash-0731, temperature .2, requested seed7, 16 requests,
+Same Engy deepseek-v4.1-flash, temperature .2, requested seed7, 16 requests,
 3072 output tokens per request, 480 seconds, parent timeout520. No model-call budget
 extension, free correction inference or extra host-generated forecasts. The
 first12 requests are exploration; requests13–16 are protected selection/correction.

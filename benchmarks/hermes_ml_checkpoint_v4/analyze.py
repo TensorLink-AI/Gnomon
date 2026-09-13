@@ -150,7 +150,7 @@ def analyze(root):
         admitted=json.loads((admission/'status.json').read_text())
         assert admitted['ready'] and not admitted['agent_started'] and admitted['agent_requests']==0
         assert 1<=admitted['probe_count']<=10
-        canary={'model':'deepseek-v4-flash-0731','messages':[{'role':'user','content':'Reply with the word READY.'}],
+        canary={'model':'deepseek-v4.1-flash','messages':[{'role':'user','content':'Reply with the word READY.'}],
                 'temperature':0,'seed':7,'max_tokens':16,'stream':False}
         probe_receipts=[]
         for request in sorted(admission.glob('probe-*-request.json')):

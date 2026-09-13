@@ -104,7 +104,7 @@ def main():
 
     def factory(remaining, seconds):
         agent = bounded(
-            model='deepseek-v4-flash-0731', provider='custom',
+            model='deepseek-v4.1-flash', provider='custom',
             api_mode='chat_completions', base_url=base_url,
             api_key='local-evaluation-proxy', max_iterations=remaining, max_tokens=3072,
             request_overrides={'temperature':0.2,'seed':7},

@@ -10,7 +10,7 @@ import time
 import urllib.error
 import urllib.request
 from .policy import REQUEST_LIMIT, EXPLORATION_REQUESTS, phase, SELECTION_NOTICE
-MODEL = 'deepseek-v4-flash-0731'
+MODEL = 'deepseek-v4.1-flash'
 
 def dump(path, value):
     Path(path).write_text(json.dumps(value, indent=2, sort_keys=True, allow_nan=False, default=str) + '\n')
