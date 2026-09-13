@@ -1,0 +1,75 @@
+{
+  "freeze_commit": "9ec79fb",
+  "exit_status": 0,
+  "report": {
+    "overall": {
+      "cases": 416,
+      "control_rmsle": 0.26063159842148664,
+      "hindsight_minimum_mean_rmsle_bounds": [
+        0.19778307458885744,
+        0.1977836281740609
+      ],
+      "hindsight_improvement_bounds": [
+        0.24113718608205614,
+        0.24113931009620793
+      ],
+      "target_rmsle": 0.20850527873718933,
+      "twenty_percent_ruled_out": false
+    },
+    "domains": {
+      "electricity": {
+        "cases": 208,
+        "control_rmsle": 0.11122640184939628,
+        "hindsight_minimum_mean_rmsle_bounds": [
+          0.08441037172880754,
+          0.08441089986705953
+        ],
+        "hindsight_improvement_bounds": [
+          0.24108935950877652,
+          0.2410941078261114
+        ],
+        "target_rmsle": 0.08898112147951703,
+        "twenty_percent_ruled_out": false
+      },
+      "pedestrian": {
+        "cases": 208,
+        "control_rmsle": 0.410036794993577,
+        "hindsight_minimum_mean_rmsle_bounds": [
+          0.3111557774489073,
+          0.31115635648106227
+        ],
+        "hindsight_improvement_bounds": [
+          0.24115015949742657,
+          0.24115157164424372
+        ],
+        "target_rmsle": 0.3280294359948616,
+        "twenty_percent_ruled_out": false
+      }
+    },
+    "weight_fits": 416,
+    "iterations": 6213,
+    "seconds": 0.47104479700010415,
+    "new_provider_fits": 0,
+    "api_calls": 0,
+    "reserved_data_accessed": false,
+    "hindsight_only": true
+  },
+  "verification": {
+    "checks": 15838,
+    "failures": 0,
+    "cases": 416,
+    "report_sha256": "88a5c4e734956990e09459cf27f407185f3b35a5b89b1d27ed05243b08059387",
+    "verifier_sha256": "447e1547dda5a170fdc0a2b50d1c44e514d22389d3ed0b093808db6d2fec5936",
+    "scope": "Independent scalar objectives, feasible forecasts, convex gap bounds, maximum-regularizer correction, source hashes and aggregates. Floating-point tolerances apply; hindsight diagnostic only."
+  },
+  "files": {
+    "manifest.json": "2de1e81402a44ccb66e6a74566a44fccec39096662289ea4702d0f179e72b9de",
+    "report.json": "88a5c4e734956990e09459cf27f407185f3b35a5b89b1d27ed05243b08059387",
+    "verification.json": "8790db7b9aceaaac4469659ac096c969ed91ec24f6f6073f8372c629d3b193fb"
+  },
+  "archive": {
+    "path": "results/broad-ensemble-bound-046-001.tar.gz",
+    "bytes": 178000,
+    "sha256": "193926c7884524b4e1d2e34ae3da70267b2097f9654f709c87b29c827a578586"
+  }
+}

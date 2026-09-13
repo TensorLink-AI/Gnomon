@@ -78,6 +78,13 @@ control ensemble's own 7.44% gain over hard selection is not ledger value.
 All 43,441 checks passed after an explicitly preserved solver failure and
 uniform tighter-tolerance rerun. No provider refits, API calls or final access.
 
+[Ensemble opportunity audit 046](BROAD_ENSEMBLE_BOUND_046_RESULT.md) bounds
+hindsight improvement at roughly 24.114% against that stronger control. These
+optimization bounds are not confidence intervals or deployable performance.
+They do not rule out 20%, but achieving it would require capturing about 83%
+of the oracle gain. All 15,838 checks passed; no original model fits or final
+outcomes were accessed. The achieved ledger gain remains 0.96% on development.
+
 ## Earlier frozen confirmation and development history
 
 The reserved confirmation completed **3,744 decisions** with identical raw

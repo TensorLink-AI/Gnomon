@@ -947,3 +947,15 @@ versus CV ensemble, electricity1.61% worse/pedestrians1.65% better. The control
 ensemble improves7.44% on its own; do not attribute that to ledger evidence.
 Both attempts retained, no provider refits/API/final reads. See report045 and
 both receipts. This is a development prototype, not a release or final proof.
+
+## Certified ensemble opportunity 046
+
+Frozen 9ec79fb before computation. Fit the fixed ensemble to current future
+actuals deliberately as a hindsight diagnostic. Feasible solutions and convex
+gap/regularizer lower bounds place overall oracle improvement at24.1137–24.1139%
+versus strong CV ensemble. Not a confidence interval or deployable rule. The
+action space does not rule out20%, but a learner would need about83% of oracle
+gain. Existing real weighting gain remains0.96%. All416 cases, 416 diagnostic
+weight fits/6,213 iterations/0.4710s, two tests and15,838 independent checks.
+No provider fits/API/final reads. Preserve all weights as diagnostic artifacts;
+never expose future-aware weights to an evaluated agent or selection policy.
