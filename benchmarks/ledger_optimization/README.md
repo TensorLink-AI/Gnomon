@@ -57,6 +57,13 @@ not deployable performance. All 6,346 independent checks passed; no new forecast
 or final data access. Further work needs stronger proposals or earlier usable
 evidence, not reinterpretation of these negative results.
 
+[Earlier-evidence preparation 041/042](BROAD_WARMUP_042_RESULT.md) now supplies
+125 usable warm-up origins for the same sixteen development series, retaining
+all 416 scored tasks. Three earlier origins are explicitly unavailable because
+of missing source rows. The strict attempt remains failed; the separate partial
+evidence preparation passed 1,033 checks. No warm-up models have been fitted and
+this is not a new accuracy result.
+
 ## Earlier frozen confirmation and development history
 
 The reserved confirmation completed **3,744 decisions** with identical raw

@@ -1,0 +1,22 @@
+{
+  "freeze_commit": "b1ef307",
+  "exit_status": 1,
+  "result": {
+    "error": "ValueError",
+    "message": "Fixed pedestrian identities fail preperiod timestamp/identity coverage; no replacements",
+    "forecast_computations": 0
+  },
+  "files": {
+    "FAILED.json": "1a3423e5f2cebc0362cbedfe5a57e3371b76e17e08f6ba968b066f36f0120201",
+    "manifest.json": "c916ea55d44b03e89d6b6a8e10bdba1a1f1c8831f825d49662f202ea2e2ef4a1",
+    "pedestrian-coverage.json": "a6c9b0b131ac9b240cc3ed576578bdaa9f03b5265605cfe014b1d0c9b7503821"
+  },
+  "archive": {
+    "path": "results/broad-warmup-041-001.tar.gz",
+    "bytes": 1222,
+    "sha256": "ab85a5b3f7794900e1943bf8a04de24de55fa19370a2c7af6cfeb788b8fc0bd9"
+  },
+  "forecast_computations": 0,
+  "api_calls": 0,
+  "reserved_counts_accessed": 0
+}

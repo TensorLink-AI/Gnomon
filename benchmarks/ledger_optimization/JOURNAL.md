@@ -908,3 +908,16 @@ this portfolio. Not a universal bound or held-out claim. Three tests, 6,346
 independent checks passed; zero new forecasts/API calls/final reads. Preserve
 all bounds and source hashes in evidence/broad-opportunity-040.json. Do not
 promote a hindsight policy or silently remove early origins.
+
+## Earlier evidence preparation 041/042
+
+Strict 041 frozen b1ef307 failed before count parsing: fixed pedestrian sensor 1
+has 120 absent hour labels in the earlier period. Preserve this failure.
+Separate availability-aware amendment 042 frozen e72b169 retains all series and
+scored tasks and marks entire incomplete warm-up cohorts unavailable. It yields
+125 usable earlier origins of 128 attempts: five for sensor 1, eight for all
+others. No imputation, replacement or scored-task exclusion. Original overlaps
+match exactly. Five tests and 1,033 independent checks passed. No new forecasts,
+API calls or reserved count access. Future numerical cost would be 3,000 common
+computations, not free ledger history; fitting still needs a separate protocol.
+See BROAD_WARMUP_042_RESULT.md and both receipts. No new performance conclusion.

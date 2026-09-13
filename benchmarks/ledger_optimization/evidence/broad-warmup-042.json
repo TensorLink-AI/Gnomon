@@ -1,0 +1,55 @@
+{
+  "freeze_commit": "e72b169",
+  "exit_status": 0,
+  "result": {
+    "development_series": 16,
+    "proposed_warmup_tasks": 128,
+    "usable_warmup_tasks": 125,
+    "unavailable_warmup_tasks": 3,
+    "scored_tasks_unchanged": 416,
+    "reserved_counts_parsed": 0,
+    "forecast_computations": 0,
+    "api_calls": 0,
+    "spans_sha256": "32a6c000a32021656431af81ab39f4106c1b9ca63649da19278b605aae589df4"
+  },
+  "files": {
+    "COMPLETED.json": "4feba0a774875c89d2663b57bd388430719b764e217393e04858ae269398aeb8",
+    "boundaries.json": "1a3523dc839e775c53621c878b848cd72fcb8564b5b10946af5e2801567a0604",
+    "manifest.json": "7c017fbbdbad08e6f86e859823fcaac698c627190c7723c11c3394f124a5c7ce",
+    "metadata-coverage.json": "b5338051505e73d4fca7f4a8f97929f810821cb9f4cec81b08a9ea05a07d9509",
+    "verification.json": "c064ae37e522bca870f57c669806221e6a80ec2b8426207755c212ed5d7d7088",
+    "warmup-spans.json": "32a6c000a32021656431af81ab39f4106c1b9ca63649da19278b605aae589df4"
+  },
+  "archive": {
+    "path": "results/broad-warmup-042-001.tar.gz",
+    "bytes": 61930,
+    "sha256": "1c405687b6560795e8572e001117edbd06ff71ac9d08b6054d4732767ecfc813"
+  },
+  "forecast_computations": 0,
+  "api_calls": 0,
+  "reserved_counts_accessed": 0,
+  "verification": {
+    "checks": 1033,
+    "failures": 0,
+    "verifier_sha256": "bf6dde9d1d5bbe3db861a66dd2b155356ae2bdc2e2ba3e8f11706d5688f47bb1",
+    "scope": "Fixed identities, source hashes, original overlap, every warmup history/target boundary, missing counts and cohort admissibility. Does not establish actual historical publication times.",
+    "ready_at_first_scored_origin": {
+      "electricity:T15": 8,
+      "electricity:T174": 8,
+      "electricity:T217": 8,
+      "electricity:T286": 8,
+      "electricity:T318": 8,
+      "electricity:T47": 8,
+      "electricity:T63": 8,
+      "electricity:T8": 8,
+      "pedestrian:sensor_1": 5,
+      "pedestrian:sensor_24": 8,
+      "pedestrian:sensor_29": 8,
+      "pedestrian:sensor_34": 8,
+      "pedestrian:sensor_40": 8,
+      "pedestrian:sensor_43": 8,
+      "pedestrian:sensor_48": 8,
+      "pedestrian:sensor_61": 8
+    }
+  }
+}
