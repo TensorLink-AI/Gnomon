@@ -921,3 +921,16 @@ match exactly. Five tests and 1,033 independent checks passed. No new forecasts,
 API calls or reserved count access. Future numerical cost would be 3,000 common
 computations, not free ledger history; fitting still needs a separate protocol.
 See BROAD_WARMUP_042_RESULT.md and both receipts. No new performance conclusion.
+
+## Warm-start contextual screen 043: rejected
+
+Frozen e0aa538. Added 125 earlier matched cohorts while retaining all scored
+forecasts and tasks. One primary same-domain, temporally filtered ridge model
+of CV residuals (twelve predecision features, alpha10, half correction) was
+1.84% worse overall: electricity 4.92% worse, pedestrians 1.01% worse. Warm
+recent/blended/calibrated diagnostics were respectively 5.11% worse, 0.60%
+better and 0.19% worse. No substitute primary. Additional 3,000 computations,
+1,500 forecast-estimator fits, 416 contextual fits, 241.14s wall; zero API calls.
+73,138 independent checks and three tests passed. Earlier evidence did not
+resolve this selection failure. No final reads or paid confirmation. Preserve
+all predictions, cohorts, matrices and negative outcomes in receipt 043.

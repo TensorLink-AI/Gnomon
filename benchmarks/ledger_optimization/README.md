@@ -61,8 +61,15 @@ evidence, not reinterpretation of these negative results.
 125 usable warm-up origins for the same sixteen development series, retaining
 all 416 scored tasks. Three earlier origins are explicitly unavailable because
 of missing source rows. The strict attempt remains failed; the separate partial
-evidence preparation passed 1,033 checks. No warm-up models have been fitted and
-this is not a new accuracy result.
+evidence preparation passed 1,033 checks. No models were fitted during that
+preparation; it was not an accuracy result.
+
+The subsequent [warm-start screen 043](BROAD_WARM_SCREEN_043_RESULT.md) is complete:
+the primary contextual rule was **1.84% worse** than current CV. Its best
+prespecified diagnostic, a warm CV/history blend, improved only 0.60% overall
+and harmed electricity. All 73,138 audit checks passed. Added cost: 3,000 forecast
+computations and 416 contextual fits; zero API calls or final-outcome access.
+The gate failed despite supplying prior evidence; no paid confirmation launched.
 
 ## Earlier frozen confirmation and development history
 
