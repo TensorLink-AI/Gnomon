@@ -49,3 +49,8 @@ field was not parsed. Inspect the same 4,954 nominal-hour span from protocol
 035 using timestamp and sensor fields only. Record missing/duplicate labels,
 sensor-name changes and coverage bitmaps. Do not read or summarize count values,
 change dates, select a smaller favorable subwindow or infer DST fold semantics.
+
+The first coverage attempt stopped before reading rows: the ZIP also contains
+a macOS resource-fork entry ending in `.csv`. Pin the exact previously observed
+publisher CSV member, excluding the resource fork. Preserve that failed attempt
+in `timestamp-attempt-001.json`; this changes no timestamp or eligibility rule.

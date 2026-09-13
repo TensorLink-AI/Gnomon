@@ -11,6 +11,7 @@ from pathlib import Path
 import zipfile
 
 SHA='5fa1d8fd8a50b0b2eededb85149a541336c2cfe1ab53706a0dbb1e81a526bc8a'
+MEMBER='Pedestrian_Counting_System_Monthly_counts_per_hour_may_2009_to_14_dec_2022.csv'
 END=datetime(2020,5,1)
 FIRST_ORIGIN=END-timedelta(hours=24+25*168)
 START=FIRST_ORIGIN-timedelta(hours=730)
@@ -33,9 +34,8 @@ def audit(archive_path,output):
         if hashlib.file_digest(stream,'sha256').hexdigest()!=SHA:raise ValueError('Source mismatch')
     positions={};names={};rows_seen=0;in_window=0
     with zipfile.ZipFile(archive_path) as archive:
-        files=[n for n in archive.namelist() if n.endswith('.csv')]
-        if len(files)!=1:raise ValueError('Expected one source CSV')
-        with archive.open(files[0]) as raw:
+        if archive.namelist().count(MEMBER)!=1:raise ValueError('Expected exact publisher CSV member')
+        with archive.open(MEMBER) as raw:
             for row in csv.DictReader(io.TextIOWrapper(raw,encoding='utf-8-sig')):
                 rows_seen+=1
                 # Numeric conversions below are date/identity metadata only.
