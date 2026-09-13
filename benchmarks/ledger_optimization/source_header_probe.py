@@ -13,13 +13,13 @@ SOURCES = {
 }
 
 
-def header(stream):
+def header(stream, encoding='cp1252'):
     lines=[]
     for _ in range(200):
         line=stream.readline(8193)
         if not line or len(line)>8192:
             raise ValueError('Missing or oversized TSF header')
-        text=line.decode('utf-8',errors='strict').rstrip('\r\n')
+        text=line.decode(encoding,errors='strict').rstrip('\r\n')
         lines.append(text)
         if text.strip().lower()=='@data':
             return lines
@@ -31,7 +31,8 @@ def probe(output):
     records=[]
     for name,(record,filename,expected) in SOURCES.items():
         url=f'https://zenodo.org/records/{record}/files/{filename}?download=1'
-        receipt={'source':name,'url':url,'expected_md5':expected,'observation_rows_parsed':0}
+        receipt={'source':name,'url':url,'expected_md5':expected,'observation_rows_parsed':0,
+                 'header_encoding':'cp1252'}
         started=time.monotonic()
         try:
             request=urllib.request.Request(url,headers={'User-Agent':'Gnomon-development-source-probe/1'})

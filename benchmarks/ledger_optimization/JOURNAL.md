@@ -841,3 +841,17 @@ was launched, no series was filtered, no final data opened. Archive, source/runt
 hashes, all scores, and the negative outcome are in evidence/ml-cohort-032.json.
 Future work must justify a broader task population independently of observed
 wins; merely tuning this selector cannot credibly meet the objective.
+
+## Source metadata preparation 034
+
+Continuing offline evaluation preparation under the existing goal, independently
+of the optional broader-agent-run scope choice. Pinned electricity hourly record
+4656140 and pedestrian counts record 4656626 before download at 11a4e11. Both
+archive MD5 values match the publisher; SHA-256 and exact URLs are retained.
+The parser stops at @data; no observation rows were parsed and no forecasts or
+API model calls ran. Pedestrian header decoding initially failed under UTF-8;
+the publisher loader documents cp1252, and the unchanged archives passed a
+header-only local recovery. Original failure remains in evidence/broad-source-034.json.
+Headers alone do not establish source recording times, timezone/DST semantics
+or an eligible final population. Freeze those assumptions and identity splits
+before data preparation. Existing negative results and reserved targets unchanged.

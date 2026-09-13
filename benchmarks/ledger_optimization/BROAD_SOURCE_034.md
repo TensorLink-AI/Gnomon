@@ -32,3 +32,12 @@ measurements or transformed values. A usable file format alone is insufficient.
 If these cannot be established, preserve that limitation and reject unsupported
 claims about real-time availability. Both arms must use the same declared
 synthetic availability convention if true publication/recording times are absent.
+
+## Encoding recovery after acquisition
+
+Both downloads matched the publisher checksums. The original UTF-8 header probe
+failed on a Windows-1252 punctuation byte in the pedestrian comments. The
+[publisher's TSF loader](https://github.com/rakshitha123/TSForecasting/blob/master/utils/data_loader.py)
+explicitly uses `cp1252`. Use that encoding with strict decoding and re-read
+only the headers from the unchanged local archives; retain the original failure
+receipt. This is a format correction, not permission to inspect observation rows.

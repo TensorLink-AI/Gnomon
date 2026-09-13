@@ -1,0 +1,123 @@
+{
+  "freeze_commit": "11a4e11",
+  "scope": "source acquisition and TSF headers only",
+  "original": {
+    "sources": [
+      {
+        "source": "electricity",
+        "url": "https://zenodo.org/records/4656140/files/electricity_hourly_dataset.zip?download=1",
+        "expected_md5": "18096614662b02640d265ad2a6a416bd",
+        "observation_rows_parsed": 0,
+        "http_status": 200,
+        "bytes": 11823931,
+        "sha256": "eff447075dde68dca0105ab7e2851c5637967ae3bb21556fd8b931f196d5968c",
+        "md5": "18096614662b02640d265ad2a6a416bd",
+        "header": [
+          "# Dataset Information",
+          "# The electricity dataset represents the electricity consumption of 370 clients recorded in 15-minutes periods in Kilowatt (kW) from 2011 to 2014.",
+          "# This file contains an aggregated version of the original dataset used by Lai et al. (2017).",
+          "# This contains 321 hourly time series from 2012 to 2014.",
+          "#",
+          "# For more details, please refer to",
+          "# UCI, 2020. Electricityloaddiagrams20112014 data set, uci machine learning repository. Accessed:  2020-04-30. URL https://archive.ics.uci.edu/ml/datasets/ElectricityLoadDiagrams20112014",
+          "# Lai, G., 2017. multivariate-time-series-data. https://github.com/laiguokun/multivariate-time-series-data, accessed:  2020-05-04",
+          "# Lai, G., Chang, W., Yang, Y., Liu, H., 2017. Modeling long and short-term temporal patterns with deep neural networks. CoRR abs/1703.07015.URL http://arxiv.org/abs/1703.07015",
+          "#",
+          "@relation Electricity",
+          "@attribute series_name string",
+          "@attribute start_timestamp date",
+          "@frequency hourly",
+          "@missing false",
+          "@equallength true",
+          "@data"
+        ],
+        "member": "electricity_hourly_dataset.tsf",
+        "status": "header_verified",
+        "seconds": 4.795182120999925
+      },
+      {
+        "source": "pedestrian",
+        "url": "https://zenodo.org/records/4656626/files/pedestrian_counts_dataset.zip?download=1",
+        "expected_md5": "420043b57ed8577564d299742e8acf97",
+        "observation_rows_parsed": 0,
+        "http_status": 200,
+        "bytes": 4587054,
+        "sha256": "6e81cb8cad43650e7e0f754a1103fc75c960e03387bae9b91146aa3241c9aa50",
+        "md5": "420043b57ed8577564d299742e8acf97",
+        "status": "failed",
+        "error": "UnicodeDecodeError",
+        "message": "'utf-8' codec can't decode byte 0x96 in position 54: invalid start byte",
+        "seconds": 3.8314934600002744
+      }
+    ],
+    "api_model_calls": 0
+  },
+  "recovery": {
+    "original_receipt_sha256": "3840bd866b20e7cbe17bf1b4bb2fd713fec0a3b8ac0638266e694fd4c3bc373a",
+    "sources": [
+      {
+        "source": "electricity",
+        "sha256": "eff447075dde68dca0105ab7e2851c5637967ae3bb21556fd8b931f196d5968c",
+        "md5": "18096614662b02640d265ad2a6a416bd",
+        "encoding": "cp1252",
+        "header": [
+          "# Dataset Information",
+          "# The electricity dataset represents the electricity consumption of 370 clients recorded in 15-minutes periods in Kilowatt (kW) from 2011 to 2014.",
+          "# This file contains an aggregated version of the original dataset used by Lai et al. (2017).",
+          "# This contains 321 hourly time series from 2012 to 2014.",
+          "#",
+          "# For more details, please refer to",
+          "# UCI, 2020. Electricityloaddiagrams20112014 data set, uci machine learning repository. Accessed:  2020-04-30. URL https://archive.ics.uci.edu/ml/datasets/ElectricityLoadDiagrams20112014",
+          "# Lai, G., 2017. multivariate-time-series-data. https://github.com/laiguokun/multivariate-time-series-data, accessed:  2020-05-04",
+          "# Lai, G., Chang, W., Yang, Y., Liu, H., 2017. Modeling long and short-term temporal patterns with deep neural networks. CoRR abs/1703.07015.URL http://arxiv.org/abs/1703.07015",
+          "#",
+          "@relation Electricity",
+          "@attribute series_name string",
+          "@attribute start_timestamp date",
+          "@frequency hourly",
+          "@missing false",
+          "@equallength true",
+          "@data"
+        ],
+        "observation_rows_parsed": 0
+      },
+      {
+        "source": "pedestrian",
+        "sha256": "6e81cb8cad43650e7e0f754a1103fc75c960e03387bae9b91146aa3241c9aa50",
+        "md5": "420043b57ed8577564d299742e8acf97",
+        "encoding": "cp1252",
+        "header": [
+          "# Dataset Information",
+          "# This dataset contains hourly pedestrian counts captured from 66 sensors in Melbourne city starting from May 2009.",
+          "# The original dataset is regularly updated when a new set of observations become available.",
+          "# This file contains pedestrian counts up to 2020-04-30.",
+          "# The series are ordered from sensor 1 to sensor 66.",
+          "#",
+          "# For more details, please refer to",
+          "# City of Melbourne, 2017. Pedestrian counting system \u2013 2009 to present (counts per hour). URL https://data.melbourne.vic.gov.au/Transport/Pedestrian-Counting-System-2009-to-Present-counts-/b2ak-trbp",
+          "#",
+          "@relation Pedestrian_Counts",
+          "@attribute series_name string",
+          "@attribute start_timestamp date",
+          "@frequency hourly",
+          "@missing false",
+          "@equallength false",
+          "@data"
+        ],
+        "observation_rows_parsed": 0
+      }
+    ],
+    "network_calls": 0,
+    "api_model_calls": 0
+  },
+  "tests_passed": 3,
+  "source_files": {
+    "benchmarks/ledger_optimization/source_header_probe.py": "a5fe6ae662f43752a52920019b8c2921ac76588e7e00a0e9be3934b8b8be3b26",
+    "benchmarks/ledger_optimization/BROAD_SOURCE_034.md": "b72e1fefadc052ad3882af8f7043397b43b6d7ba792f86f1ba4857cc53e1d881"
+  },
+  "remaining": [
+    "Freeze source-specific operational horizon, units and time convention.",
+    "Freeze identity-based development/reserved split before observation eligibility scanning.",
+    "No agent evaluation or reserved target scoring authorized by this metadata probe."
+  ]
+}
