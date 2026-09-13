@@ -1,0 +1,292 @@
+{
+  "freeze_commit": "4bcf7eb",
+  "exit_status": 0,
+  "report": {
+    "overall": {
+      "cases": 416,
+      "risk_prediction": {
+        "cv": {
+          "risk_mse": 0.03734139999208742,
+          "risk_mae": 0.12327391977196382,
+          "contrast_mse": 0.037828967554665464,
+          "pair_ordering_counts": {
+            "correct": 3757,
+            "opposite": 2483,
+            "predicted_tied": 0,
+            "actual_tied": 0
+          },
+          "contrast_skill_vs_cv": 0.0
+        },
+        "historical": {
+          "risk_mse": 0.04932017951614007,
+          "risk_mae": 0.1160908457270177,
+          "contrast_mse": 0.06169167368261754,
+          "pair_ordering_counts": {
+            "correct": 3809,
+            "opposite": 2431,
+            "predicted_tied": 0,
+            "actual_tied": 0
+          },
+          "contrast_skill_vs_cv": -0.6308051123380205
+        },
+        "blend": {
+          "risk_mse": 0.0342671994700286,
+          "risk_mae": 0.1095616632046956,
+          "contrast_mse": 0.03998061869415797,
+          "pair_ordering_counts": {
+            "correct": 3887,
+            "opposite": 2353,
+            "predicted_tied": 0,
+            "actual_tied": 0
+          },
+          "contrast_skill_vs_cv": -0.05687839977084286
+        }
+      },
+      "ensemble_gain_prediction": {
+        "cv": {
+          "prediction_mse": 0.0015625398179656004,
+          "mean_predicted_gain": -0.0062806580858425585,
+          "ordering_counts": {
+            "correct": 137,
+            "opposite": 278,
+            "predicted_tied": 0,
+            "actual_tied": 1
+          }
+        },
+        "historical": {
+          "prediction_mse": 0.0020573155406882464,
+          "mean_predicted_gain": 0.016834868218441087,
+          "ordering_counts": {
+            "correct": 278,
+            "opposite": 137,
+            "predicted_tied": 0,
+            "actual_tied": 1
+          }
+        },
+        "blend": {
+          "prediction_mse": 0.0014452668680168684,
+          "mean_predicted_gain": 0.005277105066299266,
+          "ordering_counts": {
+            "correct": 278,
+            "opposite": 137,
+            "predicted_tied": 0,
+            "actual_tied": 1
+          }
+        }
+      },
+      "actual_gain": {
+        "mean": 0.0049545366563658105,
+        "helped": 278,
+        "hurt": 137,
+        "tied": 1,
+        "sum_gain": 4.579629665409735,
+        "sum_loss": 2.5185424163615573
+      }
+    },
+    "domains": {
+      "electricity": {
+        "cases": 208,
+        "risk_prediction": {
+          "cv": {
+            "risk_mse": 0.01040297580933706,
+            "risk_mae": 0.05579834993749148,
+            "contrast_mse": 0.016595945208055435,
+            "pair_ordering_counts": {
+              "correct": 1814,
+              "opposite": 1306,
+              "predicted_tied": 0,
+              "actual_tied": 0
+            },
+            "contrast_skill_vs_cv": 0.0
+          },
+          "historical": {
+            "risk_mse": 0.03617180053906873,
+            "risk_mae": 0.06483453056601492,
+            "contrast_mse": 0.05814617345586973,
+            "pair_ordering_counts": {
+              "correct": 1922,
+              "opposite": 1198,
+              "predicted_tied": 0,
+              "actual_tied": 0
+            },
+            "contrast_skill_vs_cv": -2.5036373479737937
+          },
+          "blend": {
+            "risk_mse": 0.016874537389926975,
+            "risk_mae": 0.05361535870499604,
+            "contrast_mse": 0.02767992176191365,
+            "pair_ordering_counts": {
+              "correct": 1914,
+              "opposite": 1206,
+              "predicted_tied": 0,
+              "actual_tied": 0
+            },
+            "contrast_skill_vs_cv": -0.6678725685644111
+          }
+        },
+        "ensemble_gain_prediction": {
+          "cv": {
+            "prediction_mse": 0.00047860809949380436,
+            "mean_predicted_gain": -0.0029538099066207146,
+            "ordering_counts": {
+              "correct": 74,
+              "opposite": 134,
+              "predicted_tied": 0,
+              "actual_tied": 0
+            }
+          },
+          "historical": {
+            "prediction_mse": 0.0011070382681400424,
+            "mean_predicted_gain": 0.008286232708440533,
+            "ordering_counts": {
+              "correct": 134,
+              "opposite": 74,
+              "predicted_tied": 0,
+              "actual_tied": 0
+            }
+          },
+          "blend": {
+            "prediction_mse": 0.0006734576388874498,
+            "mean_predicted_gain": 0.00266621140090991,
+            "ordering_counts": {
+              "correct": 134,
+              "opposite": 74,
+              "predicted_tied": 0,
+              "actual_tied": 0
+            }
+          }
+        },
+        "actual_gain": {
+          "mean": 0.001001881389828264,
+          "helped": 134,
+          "hurt": 74,
+          "tied": 0,
+          "sum_gain": 1.0022905587298805,
+          "sum_loss": 0.7938992296456017
+        }
+      },
+      "pedestrian": {
+        "cases": 208,
+        "risk_prediction": {
+          "cv": {
+            "risk_mse": 0.06427982417483778,
+            "risk_mae": 0.19074948960643617,
+            "contrast_mse": 0.059061989901275494,
+            "pair_ordering_counts": {
+              "correct": 1943,
+              "opposite": 1177,
+              "predicted_tied": 0,
+              "actual_tied": 0
+            },
+            "contrast_skill_vs_cv": 0.0
+          },
+          "historical": {
+            "risk_mse": 0.0624685584932114,
+            "risk_mae": 0.16734716088802049,
+            "contrast_mse": 0.06523717390936536,
+            "pair_ordering_counts": {
+              "correct": 1887,
+              "opposite": 1233,
+              "predicted_tied": 0,
+              "actual_tied": 0
+            },
+            "contrast_skill_vs_cv": -0.10455428302385217
+          },
+          "blend": {
+            "risk_mse": 0.051659861550130214,
+            "risk_mae": 0.16550796770439513,
+            "contrast_mse": 0.05228131562640229,
+            "pair_ordering_counts": {
+              "correct": 1973,
+              "opposite": 1147,
+              "predicted_tied": 0,
+              "actual_tied": 0
+            },
+            "contrast_skill_vs_cv": 0.11480605862090609
+          }
+        },
+        "ensemble_gain_prediction": {
+          "cv": {
+            "prediction_mse": 0.0026464715364373963,
+            "mean_predicted_gain": -0.009607506265064403,
+            "ordering_counts": {
+              "correct": 63,
+              "opposite": 144,
+              "predicted_tied": 0,
+              "actual_tied": 1
+            }
+          },
+          "historical": {
+            "prediction_mse": 0.0030075928132364507,
+            "mean_predicted_gain": 0.025383503728441646,
+            "ordering_counts": {
+              "correct": 144,
+              "opposite": 63,
+              "predicted_tied": 0,
+              "actual_tied": 1
+            }
+          },
+          "blend": {
+            "prediction_mse": 0.002217076097146287,
+            "mean_predicted_gain": 0.007887998731688621,
+            "ordering_counts": {
+              "correct": 144,
+              "opposite": 63,
+              "predicted_tied": 0,
+              "actual_tied": 1
+            }
+          }
+        },
+        "actual_gain": {
+          "mean": 0.008907191922903358,
+          "helped": 144,
+          "hurt": 63,
+          "tied": 1,
+          "sum_gain": 3.577339106679854,
+          "sum_loss": 1.7246431867159557
+        }
+      }
+    },
+    "seconds": 0.9682946920001996,
+    "cpu_seconds": 0.9413855,
+    "provider_calls": 0,
+    "api_calls": 0,
+    "weight_fits": 0,
+    "policy_changed": false,
+    "diagnostic_only": true,
+    "confidence_interval": null,
+    "limitations": [
+      "Repeated development cases; not held-out or causal agent evidence.",
+      "Pairwise contrasts and successive origins are dependent.",
+      "Ensemble gain estimates are losses on fitting records, not out-of-sample validation.",
+      "Historical availability assumes period-end recording; original forecast computations reused."
+    ]
+  },
+  "verification": {
+    "checks": 120453,
+    "failures": 0,
+    "cases": 416,
+    "report_sha256": "1e596b5788ee476c322802fdf7275f32145337edeac9e96b7367eaef9f3ad9c4",
+    "cases_sha256": "49619949b5ce14fd9067e47a72bea8de1c6f21195a11d89779dec213b01165b2",
+    "verifier_sha256": "c0588be57e36a47844934d4b27bb8917f0a02af873f3fac40151ec8e8cb36d21",
+    "scope": "Independent array-based estimates, all 15 model contrasts, sign counts, ensemble losses/gains and aggregates; frozen source hashes and time visibility. No new fits or reserved access."
+  },
+  "synthetic_tests": {
+    "tests": 4,
+    "failures": 0,
+    "module": "benchmarks.tests.test_evidence_skill"
+  },
+  "files": {
+    "RERUN.md": "d26af6fc417ca21ae6090cc0f60304a00d57408ffd4764b695c047ffc6836bbc",
+    "cases.json": "49619949b5ce14fd9067e47a72bea8de1c6f21195a11d89779dec213b01165b2",
+    "manifest.json": "ca6d803c5b134914f60da2612e85485f6381df95ffa234e551d903d911391349",
+    "report.json": "1e596b5788ee476c322802fdf7275f32145337edeac9e96b7367eaef9f3ad9c4",
+    "verification.json": "c692af9e32602cb542a85271429f6e14f1a41e12883767c652510481f378d98f"
+  },
+  "archive": {
+    "path": "results/broad-evidence-skill-048-001.tar.gz",
+    "bytes": 817954,
+    "sha256": "a20fd49f96f3f9783df2c296b204b9c959afcd9afae94a766c8c1487ae81a888",
+    "verified_files": 5
+  }
+}

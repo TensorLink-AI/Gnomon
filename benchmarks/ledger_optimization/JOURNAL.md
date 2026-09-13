@@ -976,3 +976,21 @@ no reserved outcome access. Preserve all candidate IDs/distances/scales, selecte
 cohorts, inputs, weights, forecasts, scores and archive in receipt047. The gate
 failed; no paid confirmation. A small development signal does not establish
 the20% target or causal agent value.
+
+## Predictive evidence diagnostic048
+
+Previous turn made progress: frozen047 implementation, complete416-case result,
+independent verification and branch push. Revalidated03b76fa and archived inputs
+before freezing048 at4bcf7eb. No live job was assumed or restarted.
+
+048 diagnoses evidence quality without changing policies. Blended historical/CV
+pair ordering improves60.21%→62.29%, but pair-difference MSE worsens5.69% overall
+(electricity66.79% worse; pedestrian11.48% better). All137 harmful047 changes
+were predicted beneficial by the historical/blended fitting objectives. A mean
+predicted gain close to realized gain does not imply case-level discrimination.
+Four tests and120,453 independent checks pass;0.9683s processing;zero calls/fits.
+Post-hoc arithmetic from preserved helpful-case gains bounds perfect filtering
+of these fixed proposals at4.22%, well below20. No reserved outcomes accessed.
+Retain receipt048, all contrasts, source hashes and full diagnostic limitations.
+This is evidence directing next work toward stronger matched-action proposals;
+it is not a new agent score, an accuracy promotion, or a release.

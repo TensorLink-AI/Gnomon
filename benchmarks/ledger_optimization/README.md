@@ -11,6 +11,14 @@ passed; zero new provider/API calls. This is a small prototype gain, not a new
 agent comparison or held-out proof. The >=20% gate failed; final data remain
 untouched.
 
+The [predictive-evidence audit 048](BROAD_EVIDENCE_SKILL_048_RESULT.md) finds that
+history slightly improves model ordering while worsening overall calibration
+of pairwise error differences. The 047 changes helped 278 tasks and hurt 137;
+even a perfect hindsight rejection filter would offer only 4.22% on those
+proposals. All 120,453 audit checks passed with zero new calls/fits. This directs
+further development toward stronger proposals, not treating fitted objective
+improvement as evidence of a 20% benefit.
+
 ## Latest completed comparison: Gnomon 1.2.0 and Hermes
 
 DeepSeek **deepseek-v4.1-flash** through Engy; 104 tasks per arm, four retail
