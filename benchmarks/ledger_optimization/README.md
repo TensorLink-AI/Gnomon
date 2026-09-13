@@ -42,6 +42,13 @@ not capture. All 176,846 saved-evidence checks passed; 9,984 computations cost
 confirmation was launched. This is a numerical mechanism screen, not a new
 agent comparison.
 
+[Calibration follow-up 039](BROAD_CALIBRATION_039_RESULT.md) also failed: using
+past CV-to-outcome errors to correct current estimates was 0.26% worse overall.
+Its 9,248 verification checks passed, with zero new forecasts/API calls. The
+original historical overrides helped 129 cases and hurt 157; larger downside
+outweighed gains even in electricity, where helpful overrides were more common.
+No final outcomes were opened.
+
 ## Earlier frozen confirmation and development history
 
 The reserved confirmation completed **3,744 decisions** with identical raw

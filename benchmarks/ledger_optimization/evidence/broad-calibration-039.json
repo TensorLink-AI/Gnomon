@@ -1,0 +1,176 @@
+{
+  "freeze_commit": "0c0f9a9",
+  "exit_status": 0,
+  "report": {
+    "overall": {
+      "cases": 416,
+      "cv_rmsle": 0.28158276793416015,
+      "calibrated_rmsle": 0.28230259458678136,
+      "relative_reduction": -0.0025563590339787723,
+      "calibrated_overrides": 120,
+      "original_historical_overrides": {
+        "count": 286,
+        "helped": 129,
+        "hurt": 157,
+        "tied": 0,
+        "total_rmsle_saved": 8.891730908136553,
+        "total_rmsle_added": 14.723756772984009
+      }
+    },
+    "domains": {
+      "electricity": {
+        "cases": 208,
+        "cv_rmsle": 0.11968321759118748,
+        "calibrated_rmsle": 0.12570013908740504,
+        "relative_reduction": -0.050273727739925,
+        "calibrated_overrides": 56,
+        "original_historical_overrides": {
+          "count": 151,
+          "helped": 77,
+          "hurt": 74,
+          "tied": 0,
+          "total_rmsle_saved": 1.6374340724717267,
+          "total_rmsle_added": 4.01031253459671
+        }
+      },
+      "pedestrian": {
+        "cases": 208,
+        "cv_rmsle": 0.4434823182771328,
+        "calibrated_rmsle": 0.4389050500861577,
+        "relative_reduction": 0.010321196589656911,
+        "calibrated_overrides": 64,
+        "original_historical_overrides": {
+          "count": 135,
+          "helped": 52,
+          "hurt": 83,
+          "tied": 0,
+          "total_rmsle_saved": 7.254296835664826,
+          "total_rmsle_added": 10.713444238387298
+        }
+      }
+    },
+    "early_development_round_0_17": {
+      "cases": 288,
+      "cv_rmsle": 0.26547098274045305,
+      "calibrated_rmsle": 0.2679846867956941,
+      "relative_reduction": -0.009468846761676586,
+      "calibrated_overrides": 65,
+      "original_historical_overrides": {
+        "count": 180,
+        "helped": 80,
+        "hurt": 100,
+        "tied": 0,
+        "total_rmsle_saved": 4.125557006440865,
+        "total_rmsle_added": 10.685160638567583
+      }
+    },
+    "later_development_round_18_25": {
+      "cases": 128,
+      "cv_rmsle": 0.3178342846200012,
+      "calibrated_rmsle": 0.31451788711672773,
+      "relative_reduction": 0.01043436049461588,
+      "calibrated_overrides": 55,
+      "original_historical_overrides": {
+        "count": 106,
+        "helped": 49,
+        "hurt": 57,
+        "tied": 0,
+        "total_rmsle_saved": 4.766173901695687,
+        "total_rmsle_added": 4.038596134416427
+      }
+    },
+    "mature_round_ge_10": {
+      "cases": 256,
+      "cv_rmsle": 0.2786725111972017,
+      "calibrated_rmsle": 0.280209698588986,
+      "relative_reduction": -0.005516107007398574,
+      "calibrated_overrides": 91,
+      "original_historical_overrides": {
+        "count": 208,
+        "helped": 94,
+        "hurt": 114,
+        "tied": 0,
+        "total_rmsle_saved": 6.280456460737862,
+        "total_rmsle_added": 8.15123749757963
+      }
+    },
+    "original_recipe_cv_vs_actual": {
+      "electricity": {
+        "daily": {
+          "mean_cv_rmsle": 0.19097990801526277,
+          "mean_actual_rmsle": 0.18756695659708597
+        },
+        "weekly": {
+          "mean_cv_rmsle": 0.16170959293816953,
+          "mean_actual_rmsle": 0.15236945166244056
+        },
+        "weekly_mean": {
+          "mean_cv_rmsle": 0.14174266270829797,
+          "mean_actual_rmsle": 0.14498259402825697
+        },
+        "ridge_short": {
+          "mean_cv_rmsle": 0.1776318039279834,
+          "mean_actual_rmsle": 0.14317991123491697
+        },
+        "ridge_long": {
+          "mean_cv_rmsle": 0.16027144961982376,
+          "mean_actual_rmsle": 0.15787339862552713
+        },
+        "forest": {
+          "mean_cv_rmsle": 0.15025438232288088,
+          "mean_actual_rmsle": 0.16134098764803434
+        }
+      },
+      "pedestrian": {
+        "daily": {
+          "mean_cv_rmsle": 0.6587120691594001,
+          "mean_actual_rmsle": 0.5204322784843297
+        },
+        "weekly": {
+          "mean_cv_rmsle": 0.5779893445047142,
+          "mean_actual_rmsle": 0.5327458201237613
+        },
+        "weekly_mean": {
+          "mean_cv_rmsle": 0.5951693309809157,
+          "mean_actual_rmsle": 0.5400098283012029
+        },
+        "ridge_short": {
+          "mean_cv_rmsle": 0.6178569334151579,
+          "mean_actual_rmsle": 0.5067283088485761
+        },
+        "ridge_long": {
+          "mean_cv_rmsle": 0.522720011325314,
+          "mean_actual_rmsle": 0.45979373083716674
+        },
+        "forest": {
+          "mean_cv_rmsle": 0.5691266487516857,
+          "mean_actual_rmsle": 0.43317444200170213
+        }
+      }
+    },
+    "development_gate_passed": false,
+    "seconds": 0.047447634000491234,
+    "cpu_seconds": 0.044711200000000006,
+    "additional_forecasts": 0,
+    "api_calls": 0,
+    "reserved_future_reads": 0
+  },
+  "verification": {
+    "checks": 9248,
+    "failures": 0,
+    "cases": 416,
+    "verifier_sha256": "2ff97501034be5091c333d5ebaefe803acb954b73fa128a488e4a8c3fa0c21d5",
+    "report_sha256": "6005052284260497779dd46a7ce38a0b6e39c340e6aa008b01095e9089ecb074",
+    "scope": "Original evidence hashes, all visible same-series retrievals, bias corrections, choices, override counts and aggregates. Uses independently audited 038 forecast scores; no model refits."
+  },
+  "archive": {
+    "path": "results/broad-calibration-039-001.tar.gz",
+    "bytes": 75138,
+    "sha256": "ff113b90cdeb414fbcf28e67f243b32915d8a315b97f88919ced926a4ae04604"
+  },
+  "files": {
+    "manifest.json": "ac3183d6a5ade1600895fff84a97b7f789c9fba83ef5b6e0a7a05c3e517f57a8",
+    "report.json": "6005052284260497779dd46a7ce38a0b6e39c340e6aa008b01095e9089ecb074",
+    "verification.json": "9b2ab44de89e7d1656c37630b0becb5f7ffb00166c96e3bd462c3ae18341d69c"
+  }
+}

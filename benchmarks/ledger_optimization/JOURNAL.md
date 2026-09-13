@@ -883,3 +883,15 @@ Independent saved evidence audit: 176,846 checks, zero failures. Gate rejected;
 no paid agent confirmation or reserved outcome access. See
 BROAD_SCREEN_038_RESULT.md and evidence/broad-screen-038.json. This supports
 investigating override reliability; it does not establish a ledger advantage.
+
+## Hourly CV error calibration 039: rejected
+
+Frozen at 0c0f9a9. One rule estimates recipe-specific production-minus-CV bias
+from the last eight matured same-series origins, minimum four, shrunk n/(n+4).
+It worsened overall RMSLE by 0.26% (electricity 5.03% worse, pedestrians 1.03%
+better), despite reducing the harm of 038's original past selector. The later
+development slice improved 1.04%; it is not a fresh holdout or substitute for
+the primary result. All 416 cases retained, 9,248 independent checks passed,
+three tests passed. No new forecasts/API calls/final reads. Original overrides
+helped 129 cases, harmed 157; losses totaled 14.72376 versus 8.89173 saved.
+See BROAD_CALIBRATION_039_RESULT.md and the archive receipt. Do not promote.
