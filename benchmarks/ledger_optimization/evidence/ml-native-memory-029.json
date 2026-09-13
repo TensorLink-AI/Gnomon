@@ -1,0 +1,24 @@
+{
+  "requested_scope": "Rerun only Hermes control with active native memory; do not rerun other arms",
+  "arm": "plain",
+  "model": "deepseek-v4.1-flash",
+  "gnomon_available_to_agent": false,
+  "planned_sessions": 104,
+  "pilot_sessions": 0,
+  "reference_run": "hermes-ml-checkpoint-120-v4-pod-002",
+  "scheduled_after_reference_finishes": true,
+  "native_workflow": "Memory pointer plus task-specific skills read and updated by the agent",
+  "automatic_background_review": false,
+  "budgets_unchanged": true,
+  "original_results_replaced": false,
+  "comparison_limit": "Separate explicitly prompted follow-up, not a contemporaneous randomized comparison",
+  "sources": {
+    "MEMORY_WORKFLOW.md": "5c12bb6cb399219b67f46c7ba487bf5be637800c9f94077f39c49ed9053c9f1f",
+    "PROTOCOL.md": "f5c325730c845aeb309780b72e6ed9744263c7a0a4c70d79f64fba342af5328e",
+    "run.py": "f6808342aa2922827213e6fe12cbf51c36e29c3deb77852fafa30b866cc564c9",
+    "analyze.py": "7fd6af45a42761635a69c285805a8f6852554d86ab4192eae543fdcb56662797",
+    "preflight.py": "19666d49db0a68abd0014efaa91c91ab70ba0a323144e567010aed42bed515c7"
+  },
+  "validation_path": "/root/gnomon-ledger-ml-v3/validation/native-memory-preflight-001",
+  "held_out_targets_opened": false
+}
