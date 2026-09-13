@@ -33,6 +33,15 @@ offered only 5.90% on its three unchanged default recipes. It used 1,248 fits
 and zero API calls, passed 11,235 independent checks, and is not a new agent
 comparison. [Recorded negative result](evidence/ml-cohort-032.json).
 
+The broader [hourly development screen 038](BROAD_SCREEN_038_RESULT.md) completed
+416 electricity/pedestrian cases. Its primary historical selector was **4.98%
+worse** than current CV; the secondary blend improved only **0.46%** overall.
+The six-recipe hindsight diagnostic offered 21.69%, which the tested rule did
+not capture. All 176,846 saved-evidence checks passed; 9,984 computations cost
+838 seconds and zero API calls. No final outcomes were opened and no paid
+confirmation was launched. This is a numerical mechanism screen, not a new
+agent comparison.
+
 ## Earlier frozen confirmation and development history
 
 The reserved confirmation completed **3,744 decisions** with identical raw

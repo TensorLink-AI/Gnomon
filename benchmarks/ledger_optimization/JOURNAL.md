@@ -866,3 +866,20 @@ or Engy calls. Retain both failures and the read-only initial-history eligibilit
 review in evidence/broad-panel-035.json. Do not silently move dates, lower quotas,
 or promote an electricity-only subset. Source coverage/timestamp suitability
 remains required before fitting; this failure gives no ledger accuracy result.
+
+## Publisher source replacement 036/037 and hourly screen 038
+
+Original publisher timestamp coverage provides 43 complete, stable-name sensor
+grids at unchanged dates. Frozen source replacement 037 selected eight
+development and sixteen reserved series per source; 502 export checks passed.
+Reserved later values were not parsed. The TSF failure remains preserved.
+
+Screen 038 froze six hourly recipes and three selectors at 7c6431d. All 416
+cases completed with 9,984 computations, 4,992 estimator fits, 838.17s wall time,
+zero API calls. Primary recent historical selection worsened RMSLE by 4.98%
+overall (9.53% electricity, 3.75% pedestrians). Secondary blend improved 0.46%
+overall but worsened electricity. Restricted hindsight improved 21.69%.
+Independent saved evidence audit: 176,846 checks, zero failures. Gate rejected;
+no paid agent confirmation or reserved outcome access. See
+BROAD_SCREEN_038_RESULT.md and evidence/broad-screen-038.json. This supports
+investigating override reliability; it does not establish a ledger advantage.
