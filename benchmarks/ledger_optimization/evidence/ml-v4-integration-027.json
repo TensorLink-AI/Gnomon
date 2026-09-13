@@ -1,5 +1,5 @@
 {
-  "stage": "v4_runner_integrated_preflight_in_progress",
+  "stage": "preflight_passed_pilot_pipeline_launched",
   "arms": [
     "plain",
     "gnomon",
@@ -17,7 +17,6 @@
     "runtime": "Published Gnomon 1.2.0 on Targon"
   },
   "remote_preflight": "/root/gnomon-ledger-ml-v3/validation/v4-preflight-001",
-  "paid_v4_sessions_started": 0,
   "held_out_targets_opened": false,
   "accuracy_target_established": false,
   "sources": {
@@ -44,5 +43,45 @@
     "TASK.md": "6e0b3541548824c1302be3e0fea188b89eee51b861f482f9b4cfdcc274416525"
   },
   "development_math_original_sha256": "1cd7adfc4a6180e000b32af7120ee77bc735b3df0bb1cb633f767302676f35ec",
-  "development_math_change": "Import ForecastAdapterError from published gnomon.forecast_adapter; numerical helper logic unchanged."
+  "development_math_change": "Import ForecastAdapterError from published gnomon.forecast_adapter; numerical helper logic unchanged.",
+  "preflight_passed": true,
+  "preflight_check_groups": 28,
+  "preflight_sha256": "b4d4d2fe2120fd9f71b1746314aa8795593553164ff3d55ee3178d6d71e23747",
+  "preflight_checks": [
+    "plain: baseline-first, idempotence, explicit post-comparison selection required",
+    "plain: atomic batch refusal, final-fit reserve, zero-fit reselection at exhausted budget",
+    "plain: valid ML commit, unknown/invalid selection leaves checkpoint intact",
+    "plain: protected selection requests/time reject new exploration but allow explicit commit",
+    "plain: concurrent callers cannot over-admit folds or overwrite checkpoint",
+    "plain: duplicate configuration executions require explicit execution_id",
+    "failed numerical fit is charged and preserves prior published checkpoint",
+    "plain: new-origin reset, matured outcome ingestion, immutable historical evidence",
+    "gnomon: baseline-first, idempotence, explicit post-comparison selection required",
+    "gnomon: atomic batch refusal, final-fit reserve, zero-fit reselection at exhausted budget",
+    "gnomon: valid ML commit, unknown/invalid selection leaves checkpoint intact",
+    "gnomon: protected selection requests/time reject new exploration but allow explicit commit",
+    "gnomon: concurrent callers cannot over-admit folds or overwrite checkpoint",
+    "gnomon: duplicate configuration executions require explicit execution_id",
+    "gnomon: new-origin reset, matured outcome ingestion, immutable historical evidence",
+    "ledger: baseline-first, idempotence, explicit post-comparison selection required",
+    "ledger: atomic batch refusal, final-fit reserve, zero-fit reselection at exhausted budget",
+    "ledger: valid ML commit, unknown/invalid selection leaves checkpoint intact",
+    "ledger: protected selection requests/time reject new exploration but allow explicit commit",
+    "ledger: concurrent callers cannot over-admit folds or overwrite checkpoint",
+    "ledger: duplicate configuration executions require explicit execution_id",
+    "ledger: new-origin reset, matured outcome ingestion, immutable historical evidence",
+    "plain=gnomon: exact numerical equivalence across all eight fits",
+    "gnomon=ledger: exact numerical equivalence across all eight fits",
+    "pilot promotion requires >=11/12 in every arm and no integrity failure",
+    "maturation identity, visibility, idempotence, independent expected metrics and no new fits",
+    "bounded termination correction, live pinned Hermes handoff, exact API budget and phase interventions",
+    "pinned package parity before and after native Hermes; lazy installations disabled"
+  ],
+  "launch": {
+    "pid": 3111251,
+    "at": "2026-09-13T00:49:43.002962+00:00",
+    "root": "/root/gnomon-ledger-ml-v3/code/results/hermes-ml-checkpoint-120-v4-pod-001",
+    "source_commit": "ec43ef2",
+    "service_admission_precedes_agent_start": true
+  }
 }
