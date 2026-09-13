@@ -20,5 +20,21 @@
     "preflight.py": "19666d49db0a68abd0014efaa91c91ab70ba0a323144e567010aed42bed515c7"
   },
   "validation_path": "/root/gnomon-ledger-ml-v3/validation/native-memory-preflight-001",
-  "held_out_targets_opened": false
+  "held_out_targets_opened": false,
+  "validation_passed": true,
+  "validation_paid_api_calls": 0,
+  "validation_checks": [
+    "Native memory write survives into next-origin model prompt",
+    "Native skill create, next-origin read and update persist",
+    "Both origins complete the unchanged backtest/commit workflow",
+    "Same numerical code, budgets and isolated no-Gnomon runtime"
+  ],
+  "validation_sha256": "419eca472dadbafe1c33cb371addf6b2dc5cd1c4593dbde2ce84e29e2647f1cf",
+  "launch": {
+    "pid": 3395714,
+    "at": "2026-09-13T10:39:32.753372+00:00",
+    "source_commit": "7834d00",
+    "root": "/root/gnomon-ledger-ml-v3/code/results/hermes-ml-native-memory-120-pod-001",
+    "state_at_launch": "waiting_for_existing_run"
+  }
 }
