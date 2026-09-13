@@ -826,3 +826,18 @@ and three matched past origins across all current options in 16/104 tasks. This
 changes the next experiment toward persistent comparable configuration cohorts;
 it is not a learned policy or held-out success. Original forecasts and scores,
 main/PyPI, and final holdout remain unchanged.
+
+## Persistent default-cohort screen 032: negative promotion result
+
+Protocol and implementation were frozen at 1455107 before execution. All 104
+development cases and 1,248 numerical fits completed in 51.26 seconds, with zero
+API calls. Recurring default seasonal/Ridge/random-forest configurations provide
+matched history. Current-CV RMSLE was 0.479535; recent matched-past selection was
+0.475129 (0.92% lower), and restricted hindsight 0.451248 (5.90% lower). Independent
+saved-pair and temporal checks passed 11,235 assertions; 11 unit tests passed.
+This is not an agent treatment effect. It fails the existing spending gate: even
+hindsight on this fixed default portfolio cannot reach 20%. No paid evaluation
+was launched, no series was filtered, no final data opened. Archive, source/runtime
+hashes, all scores, and the negative outcome are in evidence/ml-cohort-032.json.
+Future work must justify a broader task population independently of observed
+wins; merely tuning this selector cannot credibly meet the objective.

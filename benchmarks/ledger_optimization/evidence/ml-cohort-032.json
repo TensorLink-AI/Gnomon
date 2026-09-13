@@ -1,0 +1,2108 @@
+{
+  "freeze_commit": "1455107",
+  "manifest": {
+    "source_sha256": "380261912295bbe21f3c998a8c6f7048cde1fb0869d37bb4db44ad3a72b28f25",
+    "numerical_sha256": "a71b75f06ad69fcca06275046c5e74565b15d7d6dd2538df0fe827c448fc0413",
+    "screen_source_sha256": "4c75409b6d778cc530c6d1bfb7e1392d3f636b6022fbf982ae1f4a00ff01794c",
+    "protocol_sha256": "024c75e0ab6de25de84053c929310a543d3c4c2081ff4cb779dc014fb1caa747",
+    "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+    "executable": "/usr/bin/python3",
+    "packages": {
+      "numpy": "2.4.4",
+      "scikit-learn": "1.9.0"
+    },
+    "configs": {
+      "seasonal": {
+        "model": "seasonal",
+        "season": 7
+      },
+      "ridge": {
+        "model": "ridge",
+        "window": 365,
+        "lags": 14,
+        "alpha": 10.0
+      },
+      "random_forest": {
+        "model": "random_forest",
+        "window": 365,
+        "lags": 14,
+        "depth": 6
+      }
+    },
+    "planned_fits": 1248,
+    "planned_cases": 104,
+    "api_calls": 0
+  },
+  "result": {
+    "means": {
+      "cv_rmsle": 0.47953534817519866,
+      "past_rmsle": 0.4751286994326381,
+      "hindsight_rmsle": 0.45124769595109154
+    },
+    "past_relative_reduction": 0.009189413792600298,
+    "hindsight_relative_reduction": 0.058989712294936436,
+    "numerical_fits": 1248,
+    "api_calls": 0,
+    "seconds": 51.2587582220001,
+    "rows": [
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 0,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 0,
+          "history_origins": [],
+          "basis": "insufficient_history_use_current_cv"
+        },
+        "cv_rmsle": 0.6448454479465358,
+        "past_rmsle": 0.6448454479465358,
+        "hindsight_rmsle": 0.6448454479465358
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 1,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 1,
+          "history_origins": [
+            "2016-08-16T00:00:00+00:00"
+          ],
+          "basis": "insufficient_history_use_current_cv"
+        },
+        "cv_rmsle": 0.5308334089651892,
+        "past_rmsle": 0.5308334089651892,
+        "hindsight_rmsle": 0.508482209944873
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 2,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 2,
+          "history_origins": [
+            "2016-08-16T00:00:00+00:00",
+            "2016-08-30T00:00:00+00:00"
+          ],
+          "basis": "insufficient_history_use_current_cv"
+        },
+        "cv_rmsle": 1.3251256104185387,
+        "past_rmsle": 1.3251256104185387,
+        "hindsight_rmsle": 0.9341020335747072
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 3,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 3,
+          "history_origins": [
+            "2016-08-16T00:00:00+00:00",
+            "2016-08-30T00:00:00+00:00",
+            "2016-09-13T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.8215182023789172,
+        "past_rmsle": 0.8215182023789172,
+        "hindsight_rmsle": 0.8215182023789172
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 4,
+        "selection": {
+          "cv": "seasonal",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-08-16T00:00:00+00:00",
+            "2016-08-30T00:00:00+00:00",
+            "2016-09-13T00:00:00+00:00",
+            "2016-09-27T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 1.1923358725035638,
+        "past_rmsle": 0.8733644048653649,
+        "hindsight_rmsle": 0.8733644048653649
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 5,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-08-30T00:00:00+00:00",
+            "2016-09-13T00:00:00+00:00",
+            "2016-09-27T00:00:00+00:00",
+            "2016-10-11T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.6119382336008763,
+        "past_rmsle": 0.6119382336008763,
+        "hindsight_rmsle": 0.5502513232825783
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 6,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-09-13T00:00:00+00:00",
+            "2016-09-27T00:00:00+00:00",
+            "2016-10-11T00:00:00+00:00",
+            "2016-10-25T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.6431099286767683,
+        "past_rmsle": 0.6431099286767683,
+        "hindsight_rmsle": 0.6431099286767683
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 7,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-09-27T00:00:00+00:00",
+            "2016-10-11T00:00:00+00:00",
+            "2016-10-25T00:00:00+00:00",
+            "2016-11-08T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.7500384962091119,
+        "past_rmsle": 0.7500384962091119,
+        "hindsight_rmsle": 0.7249366930950575
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 8,
+        "selection": {
+          "cv": "random_forest",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-10-11T00:00:00+00:00",
+            "2016-10-25T00:00:00+00:00",
+            "2016-11-08T00:00:00+00:00",
+            "2016-11-22T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.59714487987581,
+        "past_rmsle": 0.6806092537734244,
+        "hindsight_rmsle": 0.59714487987581
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 9,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-10-25T00:00:00+00:00",
+            "2016-11-08T00:00:00+00:00",
+            "2016-11-22T00:00:00+00:00",
+            "2016-12-06T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 1.0273495850096894,
+        "past_rmsle": 1.0273495850096894,
+        "hindsight_rmsle": 1.0273495850096894
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 10,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-11-08T00:00:00+00:00",
+            "2016-11-22T00:00:00+00:00",
+            "2016-12-06T00:00:00+00:00",
+            "2016-12-20T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.6186128482066843,
+        "past_rmsle": 0.6186128482066843,
+        "hindsight_rmsle": 0.6186128482066843
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 11,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-11-22T00:00:00+00:00",
+            "2016-12-06T00:00:00+00:00",
+            "2016-12-20T00:00:00+00:00",
+            "2017-01-03T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.5420265980332062,
+        "past_rmsle": 0.5420265980332062,
+        "hindsight_rmsle": 0.5420265980332062
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 12,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-12-06T00:00:00+00:00",
+            "2016-12-20T00:00:00+00:00",
+            "2017-01-03T00:00:00+00:00",
+            "2017-01-17T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.8073893187979887,
+        "past_rmsle": 0.8073893187979887,
+        "hindsight_rmsle": 0.7903546384534696
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 13,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-12-20T00:00:00+00:00",
+            "2017-01-03T00:00:00+00:00",
+            "2017-01-17T00:00:00+00:00",
+            "2017-01-31T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.809621271581364,
+        "past_rmsle": 0.809621271581364,
+        "hindsight_rmsle": 0.7906904198882061
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 14,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-01-03T00:00:00+00:00",
+            "2017-01-17T00:00:00+00:00",
+            "2017-01-31T00:00:00+00:00",
+            "2017-02-14T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.7330168125883157,
+        "past_rmsle": 0.7330168125883157,
+        "hindsight_rmsle": 0.7330168125883157
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 15,
+        "selection": {
+          "cv": "ridge",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-01-17T00:00:00+00:00",
+            "2017-01-31T00:00:00+00:00",
+            "2017-02-14T00:00:00+00:00",
+            "2017-02-28T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.8113414200822198,
+        "past_rmsle": 0.8960595894615845,
+        "hindsight_rmsle": 0.8113414200822198
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 16,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-01-31T00:00:00+00:00",
+            "2017-02-14T00:00:00+00:00",
+            "2017-02-28T00:00:00+00:00",
+            "2017-03-14T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.5292732612967299,
+        "past_rmsle": 0.5292732612967299,
+        "hindsight_rmsle": 0.4338550960490412
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 17,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-02-14T00:00:00+00:00",
+            "2017-02-28T00:00:00+00:00",
+            "2017-03-14T00:00:00+00:00",
+            "2017-03-28T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.5713200425216378,
+        "past_rmsle": 0.5713200425216378,
+        "hindsight_rmsle": 0.557677685849829
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 18,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-02-28T00:00:00+00:00",
+            "2017-03-14T00:00:00+00:00",
+            "2017-03-28T00:00:00+00:00",
+            "2017-04-11T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.6012290299497285,
+        "past_rmsle": 0.6012290299497285,
+        "hindsight_rmsle": 0.5194654915980826
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 19,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-03-14T00:00:00+00:00",
+            "2017-03-28T00:00:00+00:00",
+            "2017-04-11T00:00:00+00:00",
+            "2017-04-25T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.705195156728689,
+        "past_rmsle": 0.705195156728689,
+        "hindsight_rmsle": 0.7000988363094864
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 20,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-03-28T00:00:00+00:00",
+            "2017-04-11T00:00:00+00:00",
+            "2017-04-25T00:00:00+00:00",
+            "2017-05-09T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.5499191694826349,
+        "past_rmsle": 0.5499191694826349,
+        "hindsight_rmsle": 0.5499191694826349
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 21,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-04-11T00:00:00+00:00",
+            "2017-04-25T00:00:00+00:00",
+            "2017-05-09T00:00:00+00:00",
+            "2017-05-23T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.7043851573638562,
+        "past_rmsle": 0.7043851573638562,
+        "hindsight_rmsle": 0.5145505483166003
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 22,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-04-25T00:00:00+00:00",
+            "2017-05-09T00:00:00+00:00",
+            "2017-05-23T00:00:00+00:00",
+            "2017-06-06T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.9047059565604116,
+        "past_rmsle": 0.9047059565604116,
+        "hindsight_rmsle": 0.8441618643837948
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 23,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-05-09T00:00:00+00:00",
+            "2017-05-23T00:00:00+00:00",
+            "2017-06-06T00:00:00+00:00",
+            "2017-06-20T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.8636192607631396,
+        "past_rmsle": 0.8636192607631396,
+        "hindsight_rmsle": 0.8636192607631396
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 24,
+        "selection": {
+          "cv": "ridge",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-05-23T00:00:00+00:00",
+            "2017-06-06T00:00:00+00:00",
+            "2017-06-20T00:00:00+00:00",
+            "2017-07-04T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.7026924712879304,
+        "past_rmsle": 0.6566178702519677,
+        "hindsight_rmsle": 0.6566178702519677
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 25,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-06-06T00:00:00+00:00",
+            "2017-06-20T00:00:00+00:00",
+            "2017-07-04T00:00:00+00:00",
+            "2017-07-18T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.7739217717568522,
+        "past_rmsle": 0.7739217717568522,
+        "hindsight_rmsle": 0.7739217717568522
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 0,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 0,
+          "history_origins": [],
+          "basis": "insufficient_history_use_current_cv"
+        },
+        "cv_rmsle": 0.17913397311707252,
+        "past_rmsle": 0.17913397311707252,
+        "hindsight_rmsle": 0.17913397311707252
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 1,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 1,
+          "history_origins": [
+            "2016-08-16T00:00:00+00:00"
+          ],
+          "basis": "insufficient_history_use_current_cv"
+        },
+        "cv_rmsle": 0.24172748912946956,
+        "past_rmsle": 0.24172748912946956,
+        "hindsight_rmsle": 0.24172748912946956
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 2,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 2,
+          "history_origins": [
+            "2016-08-16T00:00:00+00:00",
+            "2016-08-30T00:00:00+00:00"
+          ],
+          "basis": "insufficient_history_use_current_cv"
+        },
+        "cv_rmsle": 0.1802660412158594,
+        "past_rmsle": 0.1802660412158594,
+        "hindsight_rmsle": 0.1802660412158594
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 3,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 3,
+          "history_origins": [
+            "2016-08-16T00:00:00+00:00",
+            "2016-08-30T00:00:00+00:00",
+            "2016-09-13T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.4289956146700652,
+        "past_rmsle": 0.4289956146700652,
+        "hindsight_rmsle": 0.415418794804815
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 4,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-08-16T00:00:00+00:00",
+            "2016-08-30T00:00:00+00:00",
+            "2016-09-13T00:00:00+00:00",
+            "2016-09-27T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.08624727007343572,
+        "past_rmsle": 0.08624727007343572,
+        "hindsight_rmsle": 0.08624727007343572
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 5,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-08-30T00:00:00+00:00",
+            "2016-09-13T00:00:00+00:00",
+            "2016-09-27T00:00:00+00:00",
+            "2016-10-11T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.3613273597923129,
+        "past_rmsle": 0.3613273597923129,
+        "hindsight_rmsle": 0.3613273597923129
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 6,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-09-13T00:00:00+00:00",
+            "2016-09-27T00:00:00+00:00",
+            "2016-10-11T00:00:00+00:00",
+            "2016-10-25T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.0726270418132787,
+        "past_rmsle": 0.0726270418132787,
+        "hindsight_rmsle": 0.0726270418132787
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 7,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-09-27T00:00:00+00:00",
+            "2016-10-11T00:00:00+00:00",
+            "2016-10-25T00:00:00+00:00",
+            "2016-11-08T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.08748741987129284,
+        "past_rmsle": 0.08748741987129284,
+        "hindsight_rmsle": 0.0
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 8,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-10-11T00:00:00+00:00",
+            "2016-10-25T00:00:00+00:00",
+            "2016-11-08T00:00:00+00:00",
+            "2016-11-22T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.24785436419637907,
+        "past_rmsle": 0.24785436419637907,
+        "hindsight_rmsle": 0.24785436419637907
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 9,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-10-25T00:00:00+00:00",
+            "2016-11-08T00:00:00+00:00",
+            "2016-11-22T00:00:00+00:00",
+            "2016-12-06T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.17757463170041501,
+        "past_rmsle": 0.17757463170041501,
+        "hindsight_rmsle": 0.17757463170041501
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 10,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-11-08T00:00:00+00:00",
+            "2016-11-22T00:00:00+00:00",
+            "2016-12-06T00:00:00+00:00",
+            "2016-12-20T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.08764227213738825,
+        "past_rmsle": 0.08764227213738825,
+        "hindsight_rmsle": 0.0
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 11,
+        "selection": {
+          "cv": "ridge",
+          "past": "seasonal",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-11-22T00:00:00+00:00",
+            "2016-12-06T00:00:00+00:00",
+            "2016-12-20T00:00:00+00:00",
+            "2017-01-03T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.12453337255235375,
+        "past_rmsle": 0.2936164846496898,
+        "hindsight_rmsle": 0.12453337255235375
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 12,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-12-06T00:00:00+00:00",
+            "2016-12-20T00:00:00+00:00",
+            "2017-01-03T00:00:00+00:00",
+            "2017-01-17T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.09026621714209748,
+        "past_rmsle": 0.09026621714209748,
+        "hindsight_rmsle": 0.09026621714209748
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 13,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-12-20T00:00:00+00:00",
+            "2017-01-03T00:00:00+00:00",
+            "2017-01-17T00:00:00+00:00",
+            "2017-01-31T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.18041460968544912,
+        "past_rmsle": 0.18041460968544912,
+        "hindsight_rmsle": 0.18019749406999938
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 14,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-01-03T00:00:00+00:00",
+            "2017-01-17T00:00:00+00:00",
+            "2017-01-31T00:00:00+00:00",
+            "2017-02-14T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.23715677982813071,
+        "past_rmsle": 0.23715677982813071,
+        "hindsight_rmsle": 0.23715677982813071
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 15,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-01-17T00:00:00+00:00",
+            "2017-01-31T00:00:00+00:00",
+            "2017-02-14T00:00:00+00:00",
+            "2017-02-28T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.4087994310440503,
+        "past_rmsle": 0.4087994310440503,
+        "hindsight_rmsle": 0.4078763339292262
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 16,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-01-31T00:00:00+00:00",
+            "2017-02-14T00:00:00+00:00",
+            "2017-02-28T00:00:00+00:00",
+            "2017-03-14T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.25744501863995084,
+        "past_rmsle": 0.25744501863995084,
+        "hindsight_rmsle": 0.25744501863995084
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 17,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-02-14T00:00:00+00:00",
+            "2017-02-28T00:00:00+00:00",
+            "2017-03-14T00:00:00+00:00",
+            "2017-03-28T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.32188019445646304,
+        "past_rmsle": 0.32188019445646304,
+        "hindsight_rmsle": 0.32188019445646304
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 18,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-02-28T00:00:00+00:00",
+            "2017-03-14T00:00:00+00:00",
+            "2017-03-28T00:00:00+00:00",
+            "2017-04-11T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.25501266169282816,
+        "past_rmsle": 0.25501266169282816,
+        "hindsight_rmsle": 0.2504786952788164
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 19,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-03-14T00:00:00+00:00",
+            "2017-03-28T00:00:00+00:00",
+            "2017-04-11T00:00:00+00:00",
+            "2017-04-25T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.07402803553578556,
+        "past_rmsle": 0.07402803553578556,
+        "hindsight_rmsle": 0.06009147259486105
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 20,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-03-28T00:00:00+00:00",
+            "2017-04-11T00:00:00+00:00",
+            "2017-04-25T00:00:00+00:00",
+            "2017-05-09T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.24517241672674037,
+        "past_rmsle": 0.24517241672674037,
+        "hindsight_rmsle": 0.24203463169494757
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 21,
+        "selection": {
+          "cv": "random_forest",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-04-11T00:00:00+00:00",
+            "2017-04-25T00:00:00+00:00",
+            "2017-05-09T00:00:00+00:00",
+            "2017-05-23T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.1938283328344362,
+        "past_rmsle": 0.2049227256362981,
+        "hindsight_rmsle": 0.1938283328344362
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 22,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-04-25T00:00:00+00:00",
+            "2017-05-09T00:00:00+00:00",
+            "2017-05-23T00:00:00+00:00",
+            "2017-06-06T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.3996674710834084,
+        "past_rmsle": 0.3996674710834084,
+        "hindsight_rmsle": 0.39642061299429343
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 23,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-05-09T00:00:00+00:00",
+            "2017-05-23T00:00:00+00:00",
+            "2017-06-06T00:00:00+00:00",
+            "2017-06-20T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.2455763803232526,
+        "past_rmsle": 0.2455763803232526,
+        "hindsight_rmsle": 0.2455763803232526
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 24,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-05-23T00:00:00+00:00",
+            "2017-06-06T00:00:00+00:00",
+            "2017-06-20T00:00:00+00:00",
+            "2017-07-04T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.37889576237455425,
+        "past_rmsle": 0.37889576237455425,
+        "hindsight_rmsle": 0.37667948861592837
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 25,
+        "selection": {
+          "cv": "ridge",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-06-06T00:00:00+00:00",
+            "2017-06-20T00:00:00+00:00",
+            "2017-07-04T00:00:00+00:00",
+            "2017-07-18T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.39998747216670016,
+        "past_rmsle": 0.40222980219711485,
+        "hindsight_rmsle": 0.39998747216670016
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 0,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 0,
+          "history_origins": [],
+          "basis": "insufficient_history_use_current_cv"
+        },
+        "cv_rmsle": 0.572400637390426,
+        "past_rmsle": 0.572400637390426,
+        "hindsight_rmsle": 0.572400637390426
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 1,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 1,
+          "history_origins": [
+            "2016-08-16T00:00:00+00:00"
+          ],
+          "basis": "insufficient_history_use_current_cv"
+        },
+        "cv_rmsle": 0.521433319485696,
+        "past_rmsle": 0.521433319485696,
+        "hindsight_rmsle": 0.49500441269971684
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 2,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 2,
+          "history_origins": [
+            "2016-08-16T00:00:00+00:00",
+            "2016-08-30T00:00:00+00:00"
+          ],
+          "basis": "insufficient_history_use_current_cv"
+        },
+        "cv_rmsle": 0.24167634898439513,
+        "past_rmsle": 0.24167634898439513,
+        "hindsight_rmsle": 0.24167634898439513
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 3,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 3,
+          "history_origins": [
+            "2016-08-16T00:00:00+00:00",
+            "2016-08-30T00:00:00+00:00",
+            "2016-09-13T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.07630911417210562,
+        "past_rmsle": 0.07630911417210562,
+        "hindsight_rmsle": 0.0
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 4,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-08-16T00:00:00+00:00",
+            "2016-08-30T00:00:00+00:00",
+            "2016-09-13T00:00:00+00:00",
+            "2016-09-27T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.12232538472303936,
+        "past_rmsle": 0.12232538472303936,
+        "hindsight_rmsle": 0.0
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 5,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-08-30T00:00:00+00:00",
+            "2016-09-13T00:00:00+00:00",
+            "2016-09-27T00:00:00+00:00",
+            "2016-10-11T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.3480896370085972,
+        "past_rmsle": 0.3480896370085972,
+        "hindsight_rmsle": 0.3480896370085972
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 6,
+        "selection": {
+          "cv": "seasonal",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-09-13T00:00:00+00:00",
+            "2016-09-27T00:00:00+00:00",
+            "2016-10-11T00:00:00+00:00",
+            "2016-10-25T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.7180543185187105,
+        "past_rmsle": 0.4460595386305032,
+        "hindsight_rmsle": 0.4156405406190498
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 7,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-09-27T00:00:00+00:00",
+            "2016-10-11T00:00:00+00:00",
+            "2016-10-25T00:00:00+00:00",
+            "2016-11-08T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.28966995748380964,
+        "past_rmsle": 0.28966995748380964,
+        "hindsight_rmsle": 0.2653014077141932
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 8,
+        "selection": {
+          "cv": "ridge",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-10-11T00:00:00+00:00",
+            "2016-10-25T00:00:00+00:00",
+            "2016-11-08T00:00:00+00:00",
+            "2016-11-22T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.057677680838918416,
+        "past_rmsle": 0.02790737566040305,
+        "hindsight_rmsle": 0.0
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 9,
+        "selection": {
+          "cv": "random_forest",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-10-25T00:00:00+00:00",
+            "2016-11-08T00:00:00+00:00",
+            "2016-11-22T00:00:00+00:00",
+            "2016-12-06T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.055104722352627915,
+        "past_rmsle": 0.1044201685605018,
+        "hindsight_rmsle": 0.0
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 10,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-11-08T00:00:00+00:00",
+            "2016-11-22T00:00:00+00:00",
+            "2016-12-06T00:00:00+00:00",
+            "2016-12-20T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.3366111558574197,
+        "past_rmsle": 0.3366111558574197,
+        "hindsight_rmsle": 0.3275078711077393
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 11,
+        "selection": {
+          "cv": "seasonal",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-11-22T00:00:00+00:00",
+            "2016-12-06T00:00:00+00:00",
+            "2016-12-20T00:00:00+00:00",
+            "2017-01-03T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.4909759922455888,
+        "past_rmsle": 0.35496064353184015,
+        "hindsight_rmsle": 0.3303200685768702
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 12,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-12-06T00:00:00+00:00",
+            "2016-12-20T00:00:00+00:00",
+            "2017-01-03T00:00:00+00:00",
+            "2017-01-17T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.5185654252262403,
+        "past_rmsle": 0.5185654252262403,
+        "hindsight_rmsle": 0.5045808221688961
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 13,
+        "selection": {
+          "cv": "ridge",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-12-20T00:00:00+00:00",
+            "2017-01-03T00:00:00+00:00",
+            "2017-01-17T00:00:00+00:00",
+            "2017-01-31T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.3826764446422681,
+        "past_rmsle": 0.4226482057047573,
+        "hindsight_rmsle": 0.3826764446422681
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 14,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-01-03T00:00:00+00:00",
+            "2017-01-17T00:00:00+00:00",
+            "2017-01-31T00:00:00+00:00",
+            "2017-02-14T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.4141675476232566,
+        "past_rmsle": 0.4141675476232566,
+        "hindsight_rmsle": 0.4141675476232566
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 15,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-01-17T00:00:00+00:00",
+            "2017-01-31T00:00:00+00:00",
+            "2017-02-14T00:00:00+00:00",
+            "2017-02-28T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.48226123115581393,
+        "past_rmsle": 0.48226123115581393,
+        "hindsight_rmsle": 0.48226123115581393
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 16,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-01-31T00:00:00+00:00",
+            "2017-02-14T00:00:00+00:00",
+            "2017-02-28T00:00:00+00:00",
+            "2017-03-14T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.4650331145120993,
+        "past_rmsle": 0.4650331145120993,
+        "hindsight_rmsle": 0.4431884469158163
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 17,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-02-14T00:00:00+00:00",
+            "2017-02-28T00:00:00+00:00",
+            "2017-03-14T00:00:00+00:00",
+            "2017-03-28T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.34355095235084127,
+        "past_rmsle": 0.34355095235084127,
+        "hindsight_rmsle": 0.34355095235084127
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 18,
+        "selection": {
+          "cv": "random_forest",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-02-28T00:00:00+00:00",
+            "2017-03-14T00:00:00+00:00",
+            "2017-03-28T00:00:00+00:00",
+            "2017-04-11T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.4515958261738537,
+        "past_rmsle": 0.48124139619806644,
+        "hindsight_rmsle": 0.4515958261738537
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 19,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-03-14T00:00:00+00:00",
+            "2017-03-28T00:00:00+00:00",
+            "2017-04-11T00:00:00+00:00",
+            "2017-04-25T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.27814791706637515,
+        "past_rmsle": 0.27814791706637515,
+        "hindsight_rmsle": 0.27814791706637515
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 20,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-03-28T00:00:00+00:00",
+            "2017-04-11T00:00:00+00:00",
+            "2017-04-25T00:00:00+00:00",
+            "2017-05-09T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.6081717385261236,
+        "past_rmsle": 0.6081717385261236,
+        "hindsight_rmsle": 0.5907808700900643
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 21,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-04-11T00:00:00+00:00",
+            "2017-04-25T00:00:00+00:00",
+            "2017-05-09T00:00:00+00:00",
+            "2017-05-23T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.44293120887388066,
+        "past_rmsle": 0.44293120887388066,
+        "hindsight_rmsle": 0.4334240913358269
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 22,
+        "selection": {
+          "cv": "ridge",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-04-25T00:00:00+00:00",
+            "2017-05-09T00:00:00+00:00",
+            "2017-05-23T00:00:00+00:00",
+            "2017-06-06T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.5002534089129652,
+        "past_rmsle": 0.4990720183369142,
+        "hindsight_rmsle": 0.4990720183369142
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 23,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-05-09T00:00:00+00:00",
+            "2017-05-23T00:00:00+00:00",
+            "2017-06-06T00:00:00+00:00",
+            "2017-06-20T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.36772823004968785,
+        "past_rmsle": 0.36772823004968785,
+        "hindsight_rmsle": 0.35439890051417067
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 24,
+        "selection": {
+          "cv": "random_forest",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-05-23T00:00:00+00:00",
+            "2017-06-06T00:00:00+00:00",
+            "2017-06-20T00:00:00+00:00",
+            "2017-07-04T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.5031200745186141,
+        "past_rmsle": 0.4670891193801226,
+        "hindsight_rmsle": 0.4670891193801226
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 25,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-06-06T00:00:00+00:00",
+            "2017-06-20T00:00:00+00:00",
+            "2017-07-04T00:00:00+00:00",
+            "2017-07-18T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.512698678267193,
+        "past_rmsle": 0.512698678267193,
+        "hindsight_rmsle": 0.49878237213256194
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 0,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 0,
+          "history_origins": [],
+          "basis": "insufficient_history_use_current_cv"
+        },
+        "cv_rmsle": 0.4410993076906369,
+        "past_rmsle": 0.4410993076906369,
+        "hindsight_rmsle": 0.4410993076906369
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 1,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 1,
+          "history_origins": [
+            "2016-08-16T00:00:00+00:00"
+          ],
+          "basis": "insufficient_history_use_current_cv"
+        },
+        "cv_rmsle": 0.4807213092170471,
+        "past_rmsle": 0.4807213092170471,
+        "hindsight_rmsle": 0.4807213092170471
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 2,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 2,
+          "history_origins": [
+            "2016-08-16T00:00:00+00:00",
+            "2016-08-30T00:00:00+00:00"
+          ],
+          "basis": "insufficient_history_use_current_cv"
+        },
+        "cv_rmsle": 0.5253564472950542,
+        "past_rmsle": 0.5253564472950542,
+        "hindsight_rmsle": 0.5253564472950542
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 3,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 3,
+          "history_origins": [
+            "2016-08-16T00:00:00+00:00",
+            "2016-08-30T00:00:00+00:00",
+            "2016-09-13T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.5535970817563972,
+        "past_rmsle": 0.5535970817563972,
+        "hindsight_rmsle": 0.5535970817563972
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 4,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-08-16T00:00:00+00:00",
+            "2016-08-30T00:00:00+00:00",
+            "2016-09-13T00:00:00+00:00",
+            "2016-09-27T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.5440644295750986,
+        "past_rmsle": 0.5440644295750986,
+        "hindsight_rmsle": 0.5163439071202955
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 5,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-08-30T00:00:00+00:00",
+            "2016-09-13T00:00:00+00:00",
+            "2016-09-27T00:00:00+00:00",
+            "2016-10-11T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.6485264030185737,
+        "past_rmsle": 0.6485264030185737,
+        "hindsight_rmsle": 0.6485264030185737
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 6,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-09-13T00:00:00+00:00",
+            "2016-09-27T00:00:00+00:00",
+            "2016-10-11T00:00:00+00:00",
+            "2016-10-25T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.41292742810169486,
+        "past_rmsle": 0.41292742810169486,
+        "hindsight_rmsle": 0.41292742810169486
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 7,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-09-27T00:00:00+00:00",
+            "2016-10-11T00:00:00+00:00",
+            "2016-10-25T00:00:00+00:00",
+            "2016-11-08T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.3738654529686829,
+        "past_rmsle": 0.3738654529686829,
+        "hindsight_rmsle": 0.3187337175690933
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 8,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-10-11T00:00:00+00:00",
+            "2016-10-25T00:00:00+00:00",
+            "2016-11-08T00:00:00+00:00",
+            "2016-11-22T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.49098265068612407,
+        "past_rmsle": 0.49098265068612407,
+        "hindsight_rmsle": 0.49098265068612407
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 9,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-10-25T00:00:00+00:00",
+            "2016-11-08T00:00:00+00:00",
+            "2016-11-22T00:00:00+00:00",
+            "2016-12-06T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.8931031692823553,
+        "past_rmsle": 0.8931031692823553,
+        "hindsight_rmsle": 0.8931031692823553
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 10,
+        "selection": {
+          "cv": "ridge",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-11-08T00:00:00+00:00",
+            "2016-11-22T00:00:00+00:00",
+            "2016-12-06T00:00:00+00:00",
+            "2016-12-20T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.49097119362804953,
+        "past_rmsle": 0.44819442743158255,
+        "hindsight_rmsle": 0.44819442743158255
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 11,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-11-22T00:00:00+00:00",
+            "2016-12-06T00:00:00+00:00",
+            "2016-12-20T00:00:00+00:00",
+            "2017-01-03T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.3107939664192344,
+        "past_rmsle": 0.3107939664192344,
+        "hindsight_rmsle": 0.3107939664192344
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 12,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-12-06T00:00:00+00:00",
+            "2016-12-20T00:00:00+00:00",
+            "2017-01-03T00:00:00+00:00",
+            "2017-01-17T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.6393416273367963,
+        "past_rmsle": 0.6393416273367963,
+        "hindsight_rmsle": 0.6393416273367963
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 13,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2016-12-20T00:00:00+00:00",
+            "2017-01-03T00:00:00+00:00",
+            "2017-01-17T00:00:00+00:00",
+            "2017-01-31T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.44726928527136556,
+        "past_rmsle": 0.44726928527136556,
+        "hindsight_rmsle": 0.44726928527136556
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 14,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-01-03T00:00:00+00:00",
+            "2017-01-17T00:00:00+00:00",
+            "2017-01-31T00:00:00+00:00",
+            "2017-02-14T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.5552558203093978,
+        "past_rmsle": 0.5552558203093978,
+        "hindsight_rmsle": 0.5492942316272087
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 15,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-01-17T00:00:00+00:00",
+            "2017-01-31T00:00:00+00:00",
+            "2017-02-14T00:00:00+00:00",
+            "2017-02-28T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.7223777205670826,
+        "past_rmsle": 0.7223777205670826,
+        "hindsight_rmsle": 0.7223777205670826
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 16,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-01-31T00:00:00+00:00",
+            "2017-02-14T00:00:00+00:00",
+            "2017-02-28T00:00:00+00:00",
+            "2017-03-14T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.5759794662404331,
+        "past_rmsle": 0.5759794662404331,
+        "hindsight_rmsle": 0.5759794662404331
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 17,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-02-14T00:00:00+00:00",
+            "2017-02-28T00:00:00+00:00",
+            "2017-03-14T00:00:00+00:00",
+            "2017-03-28T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.5801306490149499,
+        "past_rmsle": 0.5801306490149499,
+        "hindsight_rmsle": 0.5673869974319994
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 18,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-02-28T00:00:00+00:00",
+            "2017-03-14T00:00:00+00:00",
+            "2017-03-28T00:00:00+00:00",
+            "2017-04-11T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.5557913100824889,
+        "past_rmsle": 0.5557913100824889,
+        "hindsight_rmsle": 0.5557913100824889
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 19,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-03-14T00:00:00+00:00",
+            "2017-03-28T00:00:00+00:00",
+            "2017-04-11T00:00:00+00:00",
+            "2017-04-25T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.6359477998508026,
+        "past_rmsle": 0.6359477998508026,
+        "hindsight_rmsle": 0.6069606646801602
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 20,
+        "selection": {
+          "cv": "ridge",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-03-28T00:00:00+00:00",
+            "2017-04-11T00:00:00+00:00",
+            "2017-04-25T00:00:00+00:00",
+            "2017-05-09T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.5878013139557318,
+        "past_rmsle": 0.5427903035939067,
+        "hindsight_rmsle": 0.5427903035939067
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 21,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-04-11T00:00:00+00:00",
+            "2017-04-25T00:00:00+00:00",
+            "2017-05-09T00:00:00+00:00",
+            "2017-05-23T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.48762685682070356,
+        "past_rmsle": 0.48762685682070356,
+        "hindsight_rmsle": 0.47366193338491874
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 22,
+        "selection": {
+          "cv": "random_forest",
+          "past": "random_forest",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-04-25T00:00:00+00:00",
+            "2017-05-09T00:00:00+00:00",
+            "2017-05-23T00:00:00+00:00",
+            "2017-06-06T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.5178562690784623,
+        "past_rmsle": 0.5178562690784623,
+        "hindsight_rmsle": 0.47621272457964314
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 23,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-05-09T00:00:00+00:00",
+            "2017-05-23T00:00:00+00:00",
+            "2017-06-06T00:00:00+00:00",
+            "2017-06-20T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.6937101275494122,
+        "past_rmsle": 0.6937101275494122,
+        "hindsight_rmsle": 0.666190852930825
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 24,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-05-23T00:00:00+00:00",
+            "2017-06-06T00:00:00+00:00",
+            "2017-06-20T00:00:00+00:00",
+            "2017-07-04T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.7094767875906501,
+        "past_rmsle": 0.7094767875906501,
+        "hindsight_rmsle": 0.7094767875906501
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 25,
+        "selection": {
+          "cv": "ridge",
+          "past": "ridge",
+          "matched_origins": 4,
+          "history_origins": [
+            "2017-06-06T00:00:00+00:00",
+            "2017-06-20T00:00:00+00:00",
+            "2017-07-04T00:00:00+00:00",
+            "2017-07-18T00:00:00+00:00"
+          ],
+          "basis": "recent_common_past_origins"
+        },
+        "cv_rmsle": 0.5598154235633277,
+        "past_rmsle": 0.5598154235633277,
+        "hindsight_rmsle": 0.44532467039185875
+      }
+    ],
+    "limitation": "Fixed development cohort mechanism screen, not an agent treatment effect or held-out result."
+  },
+  "verification": {
+    "checks": 11235,
+    "failures": [],
+    "saved_pair_hashes": {
+      "item_1047756_store_23-00.json": "5314944cc4db67cb37da2655a1efb03bbe3e8d0339fbeef5445b7ab6b1dcba01",
+      "item_1047756_store_23-01.json": "26ec6a93418bdfb720667ea605d2eb879f4a15889091c68a33e05a66da295d12",
+      "item_1047756_store_23-02.json": "b4d2554cc07987a8b6c23ecf9116d86c24c0c73271b03e0e52bd23dcfbe6c415",
+      "item_1047756_store_23-03.json": "08a99cb6c5616ac70b5501798ed78ca6bd16a2830c3dbfcbc3aa4f28fbc8ffaa",
+      "item_1047756_store_23-04.json": "adfb077e586ae21226336c5acce260f58e385a50df84c457fb2d959a187e4318",
+      "item_1047756_store_23-05.json": "cec1f0c0b705de116a308e464b12f6e5c75af605d3e4ab9b02c3a4e8cf8fd40e",
+      "item_1047756_store_23-06.json": "28887d883aa319c6c825c05ffe6a1bc5c8b5a5fe7e84ceca752280be4a755332",
+      "item_1047756_store_23-07.json": "0337c416a1edf90e9243ed3e4b992cff23ecac582fdb2245f5412c1e77dc311e",
+      "item_1047756_store_23-08.json": "ab91a5aa19e4e96e5f19800921e3103ccf174301884a403dd091efb829c7fd00",
+      "item_1047756_store_23-09.json": "9c2f84e87a2996d3e88a5dac9987603ad847ee29e64232a396fdeab3dd57e1da",
+      "item_1047756_store_23-10.json": "4a0d360fc3402da819b5668cbdb4a4f3a3d6c7877ebad7cb19168486ce483ff5",
+      "item_1047756_store_23-11.json": "81f900b700a9dd3940e393db77924d670bf2981dcbeddadb58e5fecc49db094c",
+      "item_1047756_store_23-12.json": "f3581d2aefa48b73f305e44c4025c7f105578292cce56d14ad55e4fa6184ad68",
+      "item_1047756_store_23-13.json": "868b4256e667025766faca7bce9aa7834bb869b302f0f343483c7a9544098682",
+      "item_1047756_store_23-14.json": "12fc7c0ad0b6d412326b2ccba0ef5145090856a663dc0a13078a7723ba8f4d88",
+      "item_1047756_store_23-15.json": "7fd0e874cf6d35010dd52669a030838e431305ec7ca7a04e99c7697480031214",
+      "item_1047756_store_23-16.json": "01c7fc4809778f5f8739e8b56dc41842f96466496df1415887d0572dcbfab05a",
+      "item_1047756_store_23-17.json": "b97817da075bc46d899700e0ff00b96f2b76341e96adce8f9c122edb16125550",
+      "item_1047756_store_23-18.json": "5545b25cde8f59acc9a71aa608f7642e13a0f5523788b9d41ff1c0bd41c56acb",
+      "item_1047756_store_23-19.json": "a7805de60150d004828a61c1ca4a8d602f6501caf8854eb603d24e11fd54f47d",
+      "item_1047756_store_23-20.json": "c715084ce6ee9b881b21c3a0e5e5047383d0b5e36b8a2d32be562c83f555c2ef",
+      "item_1047756_store_23-21.json": "0d035e9564fb3378fc4d892b16269e9b0ed43f9ad07bad81219e26675daab32c",
+      "item_1047756_store_23-22.json": "07ead1090a61b0e1f2363a24545c619d1211ef057d14565875437f5d8144c1eb",
+      "item_1047756_store_23-23.json": "446a1215e0a3868700e8ec18d00446dfd52034dae13b0a71052d9f29c1b3a6ec",
+      "item_1047756_store_23-24.json": "22f1956beb8cb28dd8239a3bc242365d08744128bb4e3b6a9f251850a5facdb2",
+      "item_1047756_store_23-25.json": "aab4d1b231b2d5974d0dfc814f2aea373d5750ef8cc88a20e92deb0d39ceb430",
+      "item_1304243_store_32-00.json": "a54f808e2c028bb9602d9539a9c42de747d1c85599663303f821067d705b81ca",
+      "item_1304243_store_32-01.json": "f112b4c05db60421656e33d4db910c59549a2b7eb347104498aa8ed436edba9d",
+      "item_1304243_store_32-02.json": "cf446bcc4fa24b1f6e05756ee44862bb283c004a165d39fe86dff551d156489b",
+      "item_1304243_store_32-03.json": "4205531e1463b9c248482e0ef5ab005265a84964cd072fb02e5ddb5cf0acf026",
+      "item_1304243_store_32-04.json": "b6e856a13194132b61abdf46df15dbcd8d2f16a9fe65c94cb58b3e753b44676e",
+      "item_1304243_store_32-05.json": "8f65ae2a1b2deb68860b92cf5d9af2dcfd3975bc8b77fbe4cd1230d408cd0afd",
+      "item_1304243_store_32-06.json": "bc99cda73ef1c06d5870de9058a1d203177df0b1f8d29cf1492da95157dc3c3b",
+      "item_1304243_store_32-07.json": "b81cc1ea623a7996616feef0ff840353ab31155386ad38ed8deead1b43dcfef4",
+      "item_1304243_store_32-08.json": "b18f39ab5f3a11f9baf97ed313446f3e11f9bee24be6c867a38a0b377c0ae0df",
+      "item_1304243_store_32-09.json": "8dcf221a7facd2e6b4e43bef5113de602e2cf920d63ad283de09afcdaff83c97",
+      "item_1304243_store_32-10.json": "7af7116428d0f3dc00350978a35469b13c4918348064410e3e765193a440c77f",
+      "item_1304243_store_32-11.json": "e71261a16212754255cd1df11aa434c0762e4b59b90fcc596979c191b509cdab",
+      "item_1304243_store_32-12.json": "aaf6c58918e2c6c7bd37588275138b4e76219270a9d6aba006792d2c8b0bf39f",
+      "item_1304243_store_32-13.json": "0a0c083d08efabedd62af998e61a8ca74ecbba3874713b0cbe14d7528521f7ae",
+      "item_1304243_store_32-14.json": "048d4d9b46c2e1aa4dcd4c309eee44932d1a4b05947ab3615f6f112627f9b93f",
+      "item_1304243_store_32-15.json": "186970018dd2fcc01d051ca3fa8c50639b9f7db7134e168c0d13e338f864621d",
+      "item_1304243_store_32-16.json": "b53975229eef6b54283eb71554ec13bdb9e871b0b3b820f16435898808a76d05",
+      "item_1304243_store_32-17.json": "387c03df090a0c13460adc4d58004b7022bef19c5a0059cd0c43ffaa5b5cf33b",
+      "item_1304243_store_32-18.json": "b7761617a3273f3b96795569c1c229271a483b6445465d50d1568876a54bd8c0",
+      "item_1304243_store_32-19.json": "958a9584eafc5054fa06028dab3554758c7e0742e361c04a68654e5edb3c28e8",
+      "item_1304243_store_32-20.json": "2224260c43d4aabc5c87eab50d66d6bdff20b78b48defa70e6b2ca34161edfa9",
+      "item_1304243_store_32-21.json": "b617356882c761776ee9f890bd495ef32851d8592228970ff8d53d67ea7617f5",
+      "item_1304243_store_32-22.json": "f2082220e184e400c41696b038831dc875ef9895e06bb2c5794cedbc18edcb17",
+      "item_1304243_store_32-23.json": "19928b4266aa68ab471e91498de7ea12404e2dd9e37998b2a05c087f292a0c26",
+      "item_1304243_store_32-24.json": "249a381c1ec87acb0fe47912904cc13905de76bb975ed73094ef56eb37c4bbc3",
+      "item_1304243_store_32-25.json": "8b44c8e006445eb0e2fd8281f067caf5776fa978653c4a3872dfe924e911cc90",
+      "item_1372862_store_12-00.json": "c8eb22d5a1ddaf28e4ccb0fc3419788d6c7a1e7d3c2f1f20b511d6aca90dba8a",
+      "item_1372862_store_12-01.json": "74edbecb00e671b77741d8c9d29c10310e748bb1dbb8d978e0463eaafa2cbd7b",
+      "item_1372862_store_12-02.json": "06487d7fae7fdd26a40467c31588122686bfbc612dcab9a5782541c0893facdb",
+      "item_1372862_store_12-03.json": "8edecb2903e404b33969ea5b078bcaba05d2e3f29a43f0e8a6ac0ba6680f2f6f",
+      "item_1372862_store_12-04.json": "6fa100d30ce3f50873b079221fff4def190f4f36d452e74bd1be38e3a0a29ec8",
+      "item_1372862_store_12-05.json": "7b2f6b22f24a4f8efd701bebe709dd326aad1402a5fd26941b1c9c6a39ef58cb",
+      "item_1372862_store_12-06.json": "ed4c3815504a49af64c44694c1dc195aa6f238cb19f880d36877d7194daee144",
+      "item_1372862_store_12-07.json": "07b0a6747a15f3089c246148799e480e639cabb8eeb19d49a1f3676ec0a3bc94",
+      "item_1372862_store_12-08.json": "cf5ecb86de1e04aac7fb9b011522de388e3913868cdb0095c51f6194a596eb5c",
+      "item_1372862_store_12-09.json": "4ce1b89a7f7cf17226a5d16d0283d765f9eb08c9c75bccfb272fd4eaeae6ef9e",
+      "item_1372862_store_12-10.json": "0879a580309e2b4e6f0a23173f0d79d1baa687f37541d8829d3a89f8a7ce698f",
+      "item_1372862_store_12-11.json": "34c1dff473bf777a62ac76c6c552779e52108436dab62a416e58b5fa8efaa019",
+      "item_1372862_store_12-12.json": "bd272f3aad267993225aec1e043452b6f20c744ae4a418c66bacd59984d3f58e",
+      "item_1372862_store_12-13.json": "3b6989643d819d29052c8f4c022669ba0d21efae0d69333df2c88c4514afeebf",
+      "item_1372862_store_12-14.json": "58d972e5d287843f2790f01362ea4df817714b35bed5cd804003952c23c7ea5d",
+      "item_1372862_store_12-15.json": "b8cadba29a0b3ced4f6eb3eb7130c3a15eb91e7a79164b8121683d11b31d5e78",
+      "item_1372862_store_12-16.json": "d628bc4fe601a2c78d65057128cefda13dd5db459f033bfc70dcc77f09ad6dc0",
+      "item_1372862_store_12-17.json": "472a6267e4c0770c00b1e66ef6c57a1c3ddca434e3063bd383d68a7ceb4f6cde",
+      "item_1372862_store_12-18.json": "b31fcbaff127f9d48d89506b6fdfd349628c99c6c5cd455f95d6feb76830ae6c",
+      "item_1372862_store_12-19.json": "6f05fb2077386a200be81a2094d44ad35c5629f4ee166024a27aa37cd4ecb651",
+      "item_1372862_store_12-20.json": "0461ae725ae990ca6a19dc46799c76afbb836d2e82caae91ff44d16343f7b61c",
+      "item_1372862_store_12-21.json": "8c8340f8f42ba5de30818f909782f14b90587b5d9d8b31297fbe748c59284975",
+      "item_1372862_store_12-22.json": "6c1f694180205dc05101d28951291927dd1bd4c44c3a5ee70523409ec8e9e152",
+      "item_1372862_store_12-23.json": "67d5009778981baabec57b74f7abf738483ae250d5fddc468ef485b125b31e64",
+      "item_1372862_store_12-24.json": "1e7091021d081cab0a8fbdecbafa2f684ceb1d05d8cc1ada9c2283f81b79faec",
+      "item_1372862_store_12-25.json": "6c6f6f938a282ac948fadcdd2a61579b019c00d7501508dc927fa6b870e9f374",
+      "item_1457251_store_14-00.json": "bd04b66ddaa51f7c31447957d9b0b30b704c82f9f24fe679897212d3f9f8f800",
+      "item_1457251_store_14-01.json": "1916fe85243d2c87a6c16fe6a9fcb25899523e9cf1fc4eeb6d6d639fb089b9dd",
+      "item_1457251_store_14-02.json": "5be47f53f5e9ecf59f8889a923e71b06e4e53999b6c11d631d970df0cd256518",
+      "item_1457251_store_14-03.json": "e2b03b2ffeb000b54534f7545b63eb061de08f94e0e363ad5f42e9abcda3ebbe",
+      "item_1457251_store_14-04.json": "ec58e904e0173ba8cbce8735c62a83483bf0d60f1d92b8882b391e5ed308dbc4",
+      "item_1457251_store_14-05.json": "64034919c83b2a8341588524bc25c59c52162ed9d3f9e46abb9ef9fdf3c6935f",
+      "item_1457251_store_14-06.json": "1e255eb96a04beaff440a19e923334606eafccd14440b56faee2a7845a4dd8a9",
+      "item_1457251_store_14-07.json": "4994bb8b8bf608ec8cb88757627332e2c2ad8275de8f2365837d0a51b2425356",
+      "item_1457251_store_14-08.json": "8b23b261d84c6b48b7717937c0c5652c2503ac03f085e85233071eacbcb5b2f0",
+      "item_1457251_store_14-09.json": "4797939320dc3578f650f23a6976a5f0d2d8d39b6e595aa770c7e8201d9ead01",
+      "item_1457251_store_14-10.json": "07a565df4bfd18860da79dcc64f6b09eb3c1612f7c9f3181647763b15a5e654d",
+      "item_1457251_store_14-11.json": "0ab9e56d79c04d92e6d0bd17428d4ed88dc6382b35a2260c632c9423665e5bc7",
+      "item_1457251_store_14-12.json": "bc14ecb2fc90f89e1f5b5b43f91c2cd60148ec49df4d8474e6cf0a53145f5439",
+      "item_1457251_store_14-13.json": "21d577035dc0e6a02aef21bdf217dcd80530299d0607f6329a008ce470e9ee7e",
+      "item_1457251_store_14-14.json": "6bda941b8e73cb76412d8a7e3ceb6c8c2c35337a0eac2786e7497e60cdde53f8",
+      "item_1457251_store_14-15.json": "e59c6a43634c437a388964b05579b0a3943c1b6168f9885aced007eed52ebef5",
+      "item_1457251_store_14-16.json": "90b273116df4d97924b43fae86ac0fdfd94c2f6febd4520a8c9b789b778e2399",
+      "item_1457251_store_14-17.json": "07fda3923c09c88a1d7e56b2e6c08d0cb617ab481e504fa68af3d6bbf260a388",
+      "item_1457251_store_14-18.json": "449f5560ce0e9c044fed6ea729a1503f764bc7088c5cf595353f492d914727d9",
+      "item_1457251_store_14-19.json": "6dd77a736b2aba69d7c8e30bc0e98109f3d62ebb65a5ae8b7ff4b9426954b102",
+      "item_1457251_store_14-20.json": "3595c5ea4c78dbab70483096778e1d7355945492a9feae018ac8fdc4a395880b",
+      "item_1457251_store_14-21.json": "3013947a1abcd5fc9da7f8d1a7a6c8c3137b18881f28375681114fe2a7ca44cc",
+      "item_1457251_store_14-22.json": "2c6808b2181846312adae1289078345a0c62f9b1ef6dcb062815b367c0347828",
+      "item_1457251_store_14-23.json": "1afd09a5ce3e7bb98b505db6ba73a3a0a22138e614b6f42a934cae297e446424",
+      "item_1457251_store_14-24.json": "7752845384cc30f348fd52edab44abbc28cffac552c9faf3d906921a2c152aa6",
+      "item_1457251_store_14-25.json": "f0a0efb17ea509fe2dacd1a561ec89b550bc985b23c679e5dd977d2d1d6db0c8"
+    },
+    "provider_calls": 0,
+    "report_sha256": "650906f3685fa9507b0e78cf41e4b3aa493cdd9126a870dd770eb287b4368ce9"
+  },
+  "archive": "results/ml-cohort-032-001.tar.gz",
+  "archive_sha256": "76dfbcf43adeb02de984c592ce9f4b366bc50f0a2ce1bab7ab5326e2a2f10ca2",
+  "screen_runtime_seconds": 51.2587582220001,
+  "paid_api_calls": 0,
+  "agent_evaluation_started": false,
+  "passed_20_percent_development_gate": false,
+  "interpretation": "Negative mechanism screen on reused development data. Do not promote this fixed portfolio to paid agent confirmation; even hindsight improvement is below target.",
+  "source_hashes": {
+    "ml_cohort_verify.py": "25c971c1693ad498842727caa37a3b65df819180daaf8a000d11b1012a368ca1",
+    "numerical.py": "a71b75f06ad69fcca06275046c5e74565b15d7d6dd2538df0fe827c448fc0413",
+    "ml_cohort_screen.py": "4c75409b6d778cc530c6d1bfb7e1392d3f636b6022fbf982ae1f4a00ff01794c",
+    "ML_COHORT_032.md": "024c75e0ab6de25de84053c929310a543d3c4c2081ff4cb779dc014fb1caa747"
+  }
+}
