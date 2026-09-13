@@ -37,3 +37,15 @@ Do not claim that the original counts are identical to TSF or mix their values
 in one series without verifying provenance. The previous first-history and
 identity-selection conditions must remain explicit. Reserved later counts stay
 unparsed until a separately frozen final evaluation is justified.
+
+## Timestamp-only coverage stage
+
+Acquisition passed the frozen HTTP validator and size checks. The downloaded
+archive SHA-256 is
+`5fa1d8fd8a50b0b2eededb85149a541336c2cfe1ab53706a0dbb1e81a526bc8a`.
+Its CSV schema has Date_Time, redundant calendar fields, Sensor_ID, Sensor_Name
+and Hourly_Counts. A timestamp-only format example was inspected; the count
+field was not parsed. Inspect the same 4,954 nominal-hour span from protocol
+035 using timestamp and sensor fields only. Record missing/duplicate labels,
+sensor-name changes and coverage bitmaps. Do not read or summarize count values,
+change dates, select a smaller favorable subwindow or infer DST fold semantics.
