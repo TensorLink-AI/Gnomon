@@ -53,6 +53,15 @@ class BroadScreenTest(unittest.TestCase):
         self.assertEqual(predict(history, labels[:n], labels[n:], 'weekly_mean'),
                          [sum(n-168*k+i for k in (1, 2, 3))/3 for i in range(24)])
 
+    def test_all_recipes_preserve_constant_level_at_each_origin(self):
+        for n in (658, 682, 706, 730):
+            labels = [datetime(2020, 1, 1, tzinfo=timezone.utc)+timedelta(hours=i) for i in range(n+24)]
+            for model in MODELS:
+                point = predict([37.0]*n, labels[:n], labels[n:], model)
+                self.assertEqual(len(point), 24)
+                for value in point:
+                    self.assertAlmostEqual(value, 37.0, places=10)
+
 
 if __name__ == '__main__':
     unittest.main()
