@@ -17,7 +17,38 @@ def rmsle(point,actual):
     return math.sqrt(sum((math.log1p(p)-math.log1p(a))**2 for p,a in zip(point,actual,strict=True))/14)
 
 
-def analyze(root):
+def audit_orchestration(folder, row):
+    """Keep process termination distinct from independently validated checkpoints."""
+    path = folder / 'orchestration.json'
+    if path.exists():
+        value = json.loads(path.read_text())
+        assert value['corrections'] <= 2
+        assert len(list(folder.glob('hermes-attempt-*.json'))) == value['attempts']
+        return {'status': 'shutdown_record_present'}
+    process = json.loads((folder / 'process.json').read_text())
+    command = json.loads((folder / 'command.json').read_text())
+    assert process['exit_code'] == row['exit_code'] and row['exit_code'] in (-15, -9)
+    assert row['seconds'] >= command['timeout'] == 520
+    assert row['orchestration_stop'] == 'worker_failed' and row['corrections'] == 0
+    assert not list(folder.glob('hermes-attempt-*.json'))
+    assert not (folder / 'corrections.jsonl').exists()
+    requests = list(folder.glob('api-*-request.json'))
+    assert 1 <= len(requests) <= 16
+    # In this supported recovery there was exactly one user turn, not hidden
+    # corrective attempts. Do not invent a successful orchestration transcript.
+    for request in requests:
+        messages = json.loads(request.read_text())['messages']
+        assert sum(m.get('role') == 'user' for m in messages) == 1
+    return {'status': 'missing_shutdown_record_after_worker_termination',
+            'exit_code': row['exit_code'], 'observed_requests': len(requests),
+            'single_attempt_verified_from_wire': True,
+            'checkpoint_scoring_changed': False}
+
+
+def analyze(root, output=None):
+    root = Path(root)
+    output = Path(output) if output is not None else root
+    output.mkdir(parents=True, exist_ok=True)
     manifest=json.loads((root/'manifest.json').read_text())
     jobs=json.loads((root/'host-jobs.json').read_text());index={(s,j['round']):j for s,js in jobs.items() for j in js}
     rows=[];checks=0;failures=[]
@@ -165,9 +196,7 @@ def analyze(root):
         # Include every API request/error, not merely successful final conversations.
         receipt=[json.loads(f.read_text()) for f in p.parent.glob('api-*-receipt.json')]
         assert len(receipt)<=16
-        orchestration=json.loads((p.parent/'orchestration.json').read_text())
-        assert orchestration['corrections']<=2
-        assert len(list(p.parent.glob('hermes-attempt-*.json')))==orchestration['attempts']
+        r['orchestration_audit']=audit_orchestration(p.parent,r)
         for request in p.parent.glob('api-*-forwarded.json'):
             number=int(request.name.split('-')[1])
             if number>=13:
@@ -235,7 +264,9 @@ def analyze(root):
         'all_three_full_workflows':successful_matched,
         'audit_checks':checks,'audit_failures':failures,'rows':rows,
         'interpretation':'A supported ML iteration workflow comparison; no causal/business or general ledger superiority claim.'}
-    dump(root/'report.json',value)
+    value['shutdown_record_gaps']=[{'arm':r['arm'],'series_id':r['series_id'],'round':r['round'],
+        **r['orchestration_audit']} for r in rows if r['orchestration_audit']['status']!='shutdown_record_present']
+    dump(output/'report.json',value)
     lines=['# Checkpoint-first Hermes ML iteration — Gnomon 1.2.0','',
         'Matched development experiment. Full completion requires two distinct three-fold backtests, at least one ML model, and explicit selection of a backtested execution AFTER comparison. An initial baseline alone is not full completion.','',
         '| Arm | Forecasts valid | Workflows complete | Mean RMSLE | Tokens | Ledger reviews |',
@@ -246,7 +277,7 @@ def analyze(root):
     for name,c in contrasts.items():lines.append(f'- {name}: {c["relative_rmsle_reduction"]:.2%} relative RMSLE reduction across {c["pairs"]} pairs.')
     lines+=['',f'Independent checks: {checks}; integrity failures: {len(failures)}.',
         'Four reused development series and one requested seed cannot establish broad superiority. API dollar cost was not supplied. The ledger treatment includes a public-API review helper; it does not isolate the database from its usability support.']
-    (root/'RESULTS.md').write_text('\n'.join(lines)+'\n')
+    (output/'RESULTS.md').write_text('\n'.join(lines)+'\n')
     return value
 
 

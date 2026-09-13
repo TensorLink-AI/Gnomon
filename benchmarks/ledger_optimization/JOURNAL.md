@@ -813,3 +813,16 @@ Do not add a fourth 1.1.9 arm. Preserve prior compatibility checks and protocols
 as history, not current dispatch requirements. No paid 1.1.9 comparison was run.
 The integration and fresh evaluation are not complete, and no new accuracy result
 has been established. Main/PyPI and the final holdout remain unchanged.
+
+## Completed v4 comparison and native-memory follow-up (030/031)
+
+All 312 main sessions and 104 requested memory-only follow-up sessions are complete.
+See ML_COMPLETED_030.md and evidence/ml-completed-030.json for final scores, costs,
+59,003 main and 19,312 native audit checks, immutable archive hashes, and the
+preserved worker termination. No additional paid run was started. The target is
+unmet: ledger improvement versus no-ledger Gnomon is 1.14%, interval includes zero.
+Read-only opportunity audit finds only 2.20% further restricted hindsight headroom
+and three matched past origins across all current options in 16/104 tasks. This
+changes the next experiment toward persistent comparable configuration cohorts;
+it is not a learned policy or held-out success. Original forecasts and scores,
+main/PyPI, and final holdout remain unchanged.

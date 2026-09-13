@@ -1,0 +1,310 @@
+{
+  "experiment": "Completed 1.2.0 three-arm v4 and native-memory-only follow-up",
+  "model": "deepseek-v4.1-flash",
+  "main": {
+    "complete": true,
+    "arms": {
+      "gnomon": {
+        "admission_api_calls": 106,
+        "admission_reported_tokens": 1456,
+        "admission_wait_seconds": 277.79676231369376,
+        "api_calls": 1380,
+        "baseline_checkpoint_only": 2,
+        "blocked_api_requests": 0,
+        "checkpoint_publications": 211,
+        "cold_rmsle": 0.5283914030097698,
+        "corrections": 0,
+        "distinct_configs_per_task": 5.615384615384615,
+        "dollars": null,
+        "http_errors": 0,
+        "later_rmsle": 0.5528782030380542,
+        "ledger_reviews": 0,
+        "mature_rmsle": 0.4828363429602427,
+        "mean_rmsle": 0.48145366973290055,
+        "numerical_attempts": 1961,
+        "numerical_successes": 1961,
+        "orchestration_stops": {
+          "checkpoint_workflow_complete": 102,
+          "request_budget_exhausted": 2
+        },
+        "per_series": {
+          "item_1047756_store_23": 0.753757101258755,
+          "item_1304243_store_32": 0.23577620328695506,
+          "item_1372862_store_12": 0.3791682435803883,
+          "item_1457251_store_14": 0.557113130805504
+        },
+        "review_calls": 106,
+        "seconds": 23819.10362670012,
+        "tasks": 104,
+        "tokens": 24581379,
+        "usage_complete": true,
+        "valid": 104,
+        "valid_only_rmsle": 0.48145366973290055,
+        "workflow_complete": 102
+      },
+      "ledger": {
+        "admission_api_calls": 104,
+        "admission_reported_tokens": 1456,
+        "admission_wait_seconds": 171.8487373162061,
+        "api_calls": 1364,
+        "baseline_checkpoint_only": 2,
+        "blocked_api_requests": 0,
+        "checkpoint_publications": 214,
+        "cold_rmsle": 0.47778031618779737,
+        "corrections": 0,
+        "distinct_configs_per_task": 5.625,
+        "dollars": null,
+        "http_errors": 1,
+        "later_rmsle": 0.5475875528788752,
+        "ledger_reviews": 100,
+        "mature_rmsle": 0.4894128755451472,
+        "mean_rmsle": 0.47597010247611965,
+        "numerical_attempts": 1962,
+        "numerical_successes": 1962,
+        "orchestration_stops": {
+          "checkpoint_workflow_complete": 102,
+          "request_budget_exhausted": 2
+        },
+        "per_series": {
+          "item_1047756_store_23": 0.7177517612394566,
+          "item_1304243_store_32": 0.23806465393901755,
+          "item_1372862_store_12": 0.37635550969801995,
+          "item_1457251_store_14": 0.5717084850279844
+        },
+        "review_calls": 104,
+        "seconds": 24875.38010379672,
+        "tasks": 104,
+        "tokens": 29344909,
+        "usage_complete": false,
+        "valid": 104,
+        "valid_only_rmsle": 0.47597010247611965,
+        "workflow_complete": 102
+      },
+      "plain": {
+        "admission_api_calls": 105,
+        "admission_reported_tokens": 1456,
+        "admission_wait_seconds": 269.9610515218228,
+        "api_calls": 1368,
+        "baseline_checkpoint_only": 5,
+        "blocked_api_requests": 1,
+        "checkpoint_publications": 208,
+        "cold_rmsle": 0.49621184790605205,
+        "corrections": 0,
+        "distinct_configs_per_task": 5.865384615384615,
+        "dollars": null,
+        "http_errors": 8,
+        "later_rmsle": 0.5377238815804882,
+        "ledger_reviews": 0,
+        "mature_rmsle": 0.48730897219378905,
+        "mean_rmsle": 0.4801476303699293,
+        "numerical_attempts": 2034,
+        "numerical_successes": 2034,
+        "orchestration_stops": {
+          "checkpoint_workflow_complete": 99,
+          "incomplete_without_recoverable_termination": 1,
+          "request_budget_exhausted": 4
+        },
+        "per_series": {
+          "item_1047756_store_23": 0.7463170829942815,
+          "item_1304243_store_32": 0.23392723026111797,
+          "item_1372862_store_12": 0.38590840680949373,
+          "item_1457251_store_14": 0.5544378014148241
+        },
+        "review_calls": 104,
+        "seconds": 24361.766650434583,
+        "tasks": 104,
+        "tokens": 25723263,
+        "usage_complete": false,
+        "valid": 104,
+        "valid_only_rmsle": 0.4801476303699293,
+        "workflow_complete": 99
+      }
+    },
+    "contrasts": {
+      "gnomon_vs_plain": {
+        "exploratory_series_bootstrap_95_interval": [
+          -0.009476200131640411,
+          0.01024736550947547
+        ],
+        "losses": 53,
+        "pairs": 104,
+        "relative_rmsle_reduction": -0.002720078743208676,
+        "warning": "Only four reused development series, one requested seed: not confirmatory.",
+        "wins": 45
+      },
+      "ledger_vs_gnomon": {
+        "exploratory_series_bootstrap_95_interval": [
+          -0.021294024460384753,
+          0.04197360021031882
+        ],
+        "losses": 45,
+        "pairs": 104,
+        "relative_rmsle_reduction": 0.011389605275670789,
+        "warning": "Only four reused development series, one requested seed: not confirmatory.",
+        "wins": 51
+      },
+      "ledger_vs_plain": {
+        "exploratory_series_bootstrap_95_interval": [
+          -0.027155069581852986,
+          0.03366663196471997
+        ],
+        "losses": 43,
+        "pairs": 104,
+        "relative_rmsle_reduction": 0.00870050715566606,
+        "warning": "Only four reused development series, one requested seed: not confirmatory.",
+        "wins": 49
+      }
+    },
+    "audit_checks": 59003,
+    "audit_failures": []
+  },
+  "native_memory": {
+    "complete": true,
+    "arms": {
+      "plain": {
+        "admission_api_calls": 104,
+        "admission_reported_tokens": 1456,
+        "admission_wait_seconds": 178.94318984262645,
+        "api_calls": 1354,
+        "baseline_checkpoint_only": 0,
+        "blocked_api_requests": 4,
+        "checkpoint_publications": 256,
+        "cold_rmsle": 0.4848446799940311,
+        "corrections": 0,
+        "distinct_configs_per_task": 4.923076923076923,
+        "dollars": null,
+        "http_errors": 0,
+        "later_rmsle": 0.5597678974062702,
+        "ledger_reviews": 0,
+        "mature_rmsle": 0.4879463279853569,
+        "mean_rmsle": 0.47594891272342993,
+        "numerical_attempts": 1760,
+        "numerical_successes": 1760,
+        "orchestration_stops": {
+          "checkpoint_workflow_complete": 103,
+          "worker_failed": 1
+        },
+        "per_series": {
+          "item_1047756_store_23": 0.7421367457086692,
+          "item_1304243_store_32": 0.2298514606443531,
+          "item_1372862_store_12": 0.3691978586413387,
+          "item_1457251_store_14": 0.5626095858993587
+        },
+        "review_calls": 104,
+        "seconds": 24736.411618400365,
+        "tasks": 104,
+        "tokens": 26831582,
+        "usage_complete": true,
+        "valid": 104,
+        "valid_only_rmsle": 0.47594891272342993,
+        "workflow_complete": 104
+      }
+    },
+    "audit_checks": 19312,
+    "audit_failures": [],
+    "shutdown_record_gaps": [
+      {
+        "arm": "plain",
+        "checkpoint_scoring_changed": false,
+        "exit_code": -15,
+        "observed_requests": 15,
+        "round": 12,
+        "series_id": "item_1372862_store_12",
+        "single_attempt_verified_from_wire": true,
+        "status": "missing_shutdown_record_after_worker_termination"
+      }
+    ]
+  },
+  "memory_adoption": {
+    "memory_tool_sessions": 53,
+    "sessions_with_saved_memory": 104,
+    "sessions_with_task_skill": 103,
+    "skill_read_sessions": 99,
+    "skill_update_sessions": 92
+  },
+  "memory_comparisons": {
+    "gnomon": {
+      "existing_arm_api_calls": 1380,
+      "existing_arm_full_workflows": 102,
+      "existing_arm_reported_tokens": 24581379,
+      "existing_arm_rmsle": 0.48145366973290055,
+      "matched_tasks": 104,
+      "native_memory_api_calls": 1354,
+      "native_memory_full_workflows": 104,
+      "native_memory_relative_error_reduction": 0.011433617304287047,
+      "native_memory_reported_tokens": 26831582,
+      "native_memory_rmsle": 0.47594891272342993
+    },
+    "ledger": {
+      "existing_arm_api_calls": 1364,
+      "existing_arm_full_workflows": 102,
+      "existing_arm_reported_tokens": 29344909,
+      "existing_arm_rmsle": 0.47597010247611965,
+      "matched_tasks": 104,
+      "native_memory_api_calls": 1354,
+      "native_memory_full_workflows": 104,
+      "native_memory_relative_error_reduction": 4.451908340352695e-05,
+      "native_memory_reported_tokens": 26831582,
+      "native_memory_rmsle": 0.47594891272342993
+    },
+    "plain": {
+      "existing_arm_api_calls": 1368,
+      "existing_arm_full_workflows": 99,
+      "existing_arm_reported_tokens": 25723263,
+      "existing_arm_rmsle": 0.4801476303699293,
+      "matched_tasks": 104,
+      "native_memory_api_calls": 1354,
+      "native_memory_full_workflows": 104,
+      "native_memory_relative_error_reduction": 0.00874463890046584,
+      "native_memory_reported_tokens": 26831582,
+      "native_memory_rmsle": 0.47594891272342993
+    }
+  },
+  "opportunity": {
+    "tasks": 104,
+    "submitted_rmsle": 0.47597010247611965,
+    "hindsight_best_executed_rmsle": 0.4654766339927336,
+    "restricted_hindsight_reduction": 0.0220464865940031,
+    "tasks_with_better_executed_forecast": 12,
+    "tasks_with_at_least_two_executed_configurations": 101,
+    "tasks_with_at_least_three_all_options_matched_past_origins": 16
+  },
+  "source_hashes": {
+    "results/hermes-ml-checkpoint-120-v4-pod-002/evaluation/report.json": "f40470972b584140a82f264a1fa21b4e364a2aeeafb1a8fc9d5b6e72f709d437",
+    "results/hermes-ml-checkpoint-120-v4-pod-002/evaluation/host-jobs.json": "380261912295bbe21f3c998a8c6f7048cde1fb0869d37bb4db44ad3a72b28f25",
+    "results/ml-completed-030-reaudit/report.json": "2a91373c6a7d39730fd9b9ad1dc83e89afa13825f37e3b9ec710f71cb089a99c",
+    "results/ml-completed-030-reaudit/native-memory-report.json": "bf33c4cc99009db58c50172a30f032a8556fd4249df4d2988a3e37a2815ae37f",
+    "results/ml-completed-030-reaudit/opportunity.json": "64fa81085197baf113fc50e3c94a5ee44a4197f0e21555ed492d84b12c0af2f3",
+    "benchmarks/hermes_ml_checkpoint_v4/analyze.py": "25335eaa864ec5a768a8ab6b47969ba395d094147565d4ea6da519161a50bd7b",
+    "benchmarks/hermes_ml_native_memory/analyze.py": "adb60b0e9e6a9b1b3216bcee633c293bd79a9d9cd8c7d192a7ebe3dbcc0b8313",
+    "benchmarks/ledger_optimization/ml_completed_opportunity.py": "1a3ac3ea04322dde5efee8b8681c48cdb5afe8bb4b935445e438de9c54875445"
+  },
+  "archive_verifications": [
+    {
+      "archive": "results/hermes-ml-native-memory-120-pod-001/evidence.tar.gz",
+      "sha256": "195172ed7c6210e5970bb23eb83d769827c8b2535426c8b171176fd0a51afe0f",
+      "matches_original_terminal_receipt": true
+    },
+    {
+      "sha256": "270e454e70e5626368e6a0418a0ff5469ec7c715e2362c96144bbeeef40170d8",
+      "matches_original_terminal_receipt": true
+    }
+  ],
+  "result_identity_checks": [
+    105,
+    355
+  ],
+  "repair": {
+    "provider_calls": 0,
+    "original_scores_changed": false,
+    "original_shutdown_failure_preserved": true,
+    "regression_tests_passed": 7
+  },
+  "target_achieved": false,
+  "limitations": [
+    "Four reused retail development series, 26 origins, one agent seed. No untouched final evaluation was opened.",
+    "Native-memory is a later explicitly prompted follow-up, not a contemporaneous randomized fourth arm.",
+    "Token totals are reported usage, not billed dollar costs; main plain and ledger usage is incomplete.",
+    "Hindsight is limited to already executed forecasts and is not a deployable policy or a bound on unexecuted configurations."
+  ]
+}

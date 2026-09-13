@@ -11,7 +11,10 @@ from benchmarks.hermes_ml_checkpoint_v4.transport import dump, sha
 
 def native_calls(folder):
     counts = Counter(); seen = set()
-    for path in sorted(folder.glob('hermes-attempt-*.json')):
+    # Wire histories also retain native tool calls if the worker cannot write
+    # its final conversation/shutdown record. Count each tool-call ID once.
+    paths = sorted(folder.glob('hermes-attempt-*.json')) + sorted(folder.glob('api-*-request.json'))
+    for path in paths:
         for message in json.loads(path.read_text()).get('messages', []):
             for call in message.get('tool_calls') or []:
                 function = call.get('function', {})
@@ -23,9 +26,10 @@ def native_calls(folder):
     return counts
 
 
-def analyze(root, reference):
+def analyze(root, reference, output=None):
     root, reference = Path(root), Path(reference)
-    report = audit(root)
+    output = Path(output) if output is not None else root
+    report = audit(root, output=output)
     assert set(report['arms']) == {'plain'} and report['arms']['plain']['tasks'] == 104
     memory = []
     for path in root.glob('plain/*/round-*/grade.json'):
@@ -70,9 +74,9 @@ def analyze(root, reference):
          'skill_update_sessions': sum(r['skill_manage_calls']>0 for r in memory),
          'sessions_with_saved_memory': sum(r['saved_memory_present'] for r in memory),
          'sessions_with_task_skill': sum(r['task_skill_present'] for r in memory)}
-    dump(root/'native-memory-report.json', {'summary': summary, 'sessions': memory, 'comparisons': comparisons,
+    dump(output/'native-memory-report.json', {'summary': summary, 'sessions': memory, 'comparisons': comparisons,
          'reference_report_sha256': sha(reference/'evaluation/report.json'),
          'limitation': 'Separate explicitly prompted development follow-up. Tool calls are invocation counts, not proof of useful lessons. No contemporaneous randomized comparison or held-out superiority claim.'})
-    (root/'MEMORY_RESULTS.md').write_text('# Hermes native-memory follow-up\n\nOnly Hermes was rerun; all original evidence remains unchanged.\n\n'
+    (output/'MEMORY_RESULTS.md').write_text('# Hermes native-memory follow-up\n\nOnly Hermes was rerun; all original evidence remains unchanged.\n\n'
          + json.dumps({'adoption': summary, 'comparisons': comparisons}, indent=2) + '\n')
     return report

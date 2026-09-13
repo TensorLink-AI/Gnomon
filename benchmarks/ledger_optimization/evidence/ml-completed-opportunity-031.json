@@ -1,0 +1,963 @@
+{
+  "summary": {
+    "tasks": 104,
+    "submitted_rmsle": 0.47597010247611965,
+    "hindsight_best_executed_rmsle": 0.4654766339927336,
+    "restricted_hindsight_reduction": 0.0220464865940031,
+    "tasks_with_better_executed_forecast": 12,
+    "tasks_with_at_least_two_executed_configurations": 101,
+    "tasks_with_at_least_three_all_options_matched_past_origins": 16
+  },
+  "rows": [
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 0,
+      "submitted_rmsle": 0.6296480100280767,
+      "hindsight_best_executed_rmsle": 0.6296480100280767,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 0,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 1,
+      "submitted_rmsle": 0.48562219026783543,
+      "hindsight_best_executed_rmsle": 0.48562219026783543,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 1
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 2,
+      "submitted_rmsle": 1.0325316590791407,
+      "hindsight_best_executed_rmsle": 0.9341020335747072,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 2
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 3,
+      "submitted_rmsle": 0.7268251635227415,
+      "hindsight_best_executed_rmsle": 0.7268251635227415,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 4,
+      "submitted_rmsle": 1.0275240688452143,
+      "hindsight_best_executed_rmsle": 1.0275240688452143,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 5,
+      "submitted_rmsle": 0.6879850336012912,
+      "hindsight_best_executed_rmsle": 0.6879850336012912,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 6,
+      "submitted_rmsle": 0.6433385057240175,
+      "hindsight_best_executed_rmsle": 0.6433385057240175,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 7,
+      "submitted_rmsle": 0.697852396639469,
+      "hindsight_best_executed_rmsle": 0.697852396639469,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 1
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 8,
+      "submitted_rmsle": 0.5875521764192391,
+      "hindsight_best_executed_rmsle": 0.5875521764192391,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 2
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 9,
+      "submitted_rmsle": 1.0526887354392052,
+      "hindsight_best_executed_rmsle": 1.0526887354392052,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 3
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 10,
+      "submitted_rmsle": 0.6038984960166986,
+      "hindsight_best_executed_rmsle": 0.6038984960166986,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 11,
+      "submitted_rmsle": 0.5641668461675239,
+      "hindsight_best_executed_rmsle": 0.5641668461675239,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 1
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 12,
+      "submitted_rmsle": 0.8217484756320677,
+      "hindsight_best_executed_rmsle": 0.8217484756320677,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 2
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 13,
+      "submitted_rmsle": 0.7551797503517877,
+      "hindsight_best_executed_rmsle": 0.7551797503517877,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 14,
+      "submitted_rmsle": 0.7074115660974852,
+      "hindsight_best_executed_rmsle": 0.7074115660974852,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 15,
+      "submitted_rmsle": 0.7531606194016192,
+      "hindsight_best_executed_rmsle": 0.7531606194016192,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 1
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 16,
+      "submitted_rmsle": 0.49658253867484003,
+      "hindsight_best_executed_rmsle": 0.49658253867484003,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 2
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 17,
+      "submitted_rmsle": 0.5111265063516371,
+      "hindsight_best_executed_rmsle": 0.5111265063516371,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 3
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 18,
+      "submitted_rmsle": 0.7091764178906809,
+      "hindsight_best_executed_rmsle": 0.5194654915980826,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 4
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 19,
+      "submitted_rmsle": 0.7427038797722119,
+      "hindsight_best_executed_rmsle": 0.7427038797722119,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 3
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 20,
+      "submitted_rmsle": 0.5400461783436872,
+      "hindsight_best_executed_rmsle": 0.5400461783436872,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 1
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 21,
+      "submitted_rmsle": 0.75819299243412,
+      "hindsight_best_executed_rmsle": 0.5145505483166003,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 2
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 22,
+      "submitted_rmsle": 0.9126992757479578,
+      "hindsight_best_executed_rmsle": 0.9126992757479578,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 23,
+      "submitted_rmsle": 0.8262596894528333,
+      "hindsight_best_executed_rmsle": 0.8262596894528333,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 1
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 24,
+      "submitted_rmsle": 0.655487451142081,
+      "hindsight_best_executed_rmsle": 0.655487451142081,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 2
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 25,
+      "submitted_rmsle": 0.7321371691824095,
+      "hindsight_best_executed_rmsle": 0.7321371691824095,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 3
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 0,
+      "submitted_rmsle": 0.1791339731170725,
+      "hindsight_best_executed_rmsle": 0.1791339731170725,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 0,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 1,
+      "submitted_rmsle": 0.24172748912946956,
+      "hindsight_best_executed_rmsle": 0.24172748912946956,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 1
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 2,
+      "submitted_rmsle": 0.1802660412158594,
+      "hindsight_best_executed_rmsle": 0.1802660412158594,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 2
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 3,
+      "submitted_rmsle": 0.42899561467006525,
+      "hindsight_best_executed_rmsle": 0.4289956146700652,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 3
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 4,
+      "submitted_rmsle": 0.08624727007343573,
+      "hindsight_best_executed_rmsle": 0.08624727007343573,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 4
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 5,
+      "submitted_rmsle": 0.3617225738496824,
+      "hindsight_best_executed_rmsle": 0.3617225738496824,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 6,
+      "submitted_rmsle": 0.09825335882898609,
+      "hindsight_best_executed_rmsle": 0.09825335882898609,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 7,
+      "submitted_rmsle": 0.06592054223339132,
+      "hindsight_best_executed_rmsle": 0.0,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 1
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 8,
+      "submitted_rmsle": 0.2478543641963791,
+      "hindsight_best_executed_rmsle": 0.2478543641963791,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 5
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 9,
+      "submitted_rmsle": 0.17757463170041507,
+      "hindsight_best_executed_rmsle": 0.17757463170041507,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 6
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 10,
+      "submitted_rmsle": 0.07250327472862754,
+      "hindsight_best_executed_rmsle": 0.0,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 11,
+      "submitted_rmsle": 0.27102503514531884,
+      "hindsight_best_executed_rmsle": 0.27102503514531884,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 12,
+      "submitted_rmsle": 0.2367723373148021,
+      "hindsight_best_executed_rmsle": 0.2367723373148021,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 13,
+      "submitted_rmsle": 0.17167658790271495,
+      "hindsight_best_executed_rmsle": 0.17167658790271495,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 14,
+      "submitted_rmsle": 0.24597434252029954,
+      "hindsight_best_executed_rmsle": 0.24597434252029954,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 1
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 15,
+      "submitted_rmsle": 0.41033898043844746,
+      "hindsight_best_executed_rmsle": 0.41033898043844746,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 2
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 16,
+      "submitted_rmsle": 0.2448620054427709,
+      "hindsight_best_executed_rmsle": 0.2448620054427709,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 17,
+      "submitted_rmsle": 0.3299275421611077,
+      "hindsight_best_executed_rmsle": 0.3299275421611077,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 1
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 18,
+      "submitted_rmsle": 0.23906727476284143,
+      "hindsight_best_executed_rmsle": 0.23906727476284143,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 2
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 19,
+      "submitted_rmsle": 0.0754848037125095,
+      "hindsight_best_executed_rmsle": 0.0754848037125095,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 3
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 20,
+      "submitted_rmsle": 0.23593299036584728,
+      "hindsight_best_executed_rmsle": 0.23593299036584728,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 4
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 21,
+      "submitted_rmsle": 0.18945639902850855,
+      "hindsight_best_executed_rmsle": 0.18945639902850855,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 5
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 22,
+      "submitted_rmsle": 0.39308928931126297,
+      "hindsight_best_executed_rmsle": 0.39308928931126297,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 23,
+      "submitted_rmsle": 0.2611820242078468,
+      "hindsight_best_executed_rmsle": 0.2611820242078468,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 1
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 24,
+      "submitted_rmsle": 0.3727848416505675,
+      "hindsight_best_executed_rmsle": 0.3727848416505675,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 1
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 25,
+      "submitted_rmsle": 0.3719074147062269,
+      "hindsight_best_executed_rmsle": 0.3719074147062269,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 0,
+      "submitted_rmsle": 0.5724006373904262,
+      "hindsight_best_executed_rmsle": 0.5724006373904262,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 0,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 1,
+      "submitted_rmsle": 0.5035910057301041,
+      "hindsight_best_executed_rmsle": 0.5035910057301041,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 2,
+      "submitted_rmsle": 0.36669044332083506,
+      "hindsight_best_executed_rmsle": 0.36669044332083506,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 3,
+      "submitted_rmsle": 0.08154373562361225,
+      "hindsight_best_executed_rmsle": 0.0,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 4,
+      "submitted_rmsle": 0.050913245088933905,
+      "hindsight_best_executed_rmsle": 0.0,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 5,
+      "submitted_rmsle": 0.39350576222400974,
+      "hindsight_best_executed_rmsle": 0.39350576222400974,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 6,
+      "submitted_rmsle": 0.413872754366258,
+      "hindsight_best_executed_rmsle": 0.413872754366258,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 7,
+      "submitted_rmsle": 0.24739243629101784,
+      "hindsight_best_executed_rmsle": 0.24739243629101784,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 8,
+      "submitted_rmsle": 0.03552975289400282,
+      "hindsight_best_executed_rmsle": 0.0,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 1
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 9,
+      "submitted_rmsle": 0.115620967780865,
+      "hindsight_best_executed_rmsle": 0.0,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 10,
+      "submitted_rmsle": 0.33368367792184334,
+      "hindsight_best_executed_rmsle": 0.33368367792184334,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 1
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 11,
+      "submitted_rmsle": 0.49097599224558874,
+      "hindsight_best_executed_rmsle": 0.49097599224558874,
+      "executed_configurations": 1,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 12,
+      "submitted_rmsle": 0.521499367055563,
+      "hindsight_best_executed_rmsle": 0.521499367055563,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 13,
+      "submitted_rmsle": 0.3866533379021364,
+      "hindsight_best_executed_rmsle": 0.3866533379021364,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 1
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 14,
+      "submitted_rmsle": 0.48051988916748095,
+      "hindsight_best_executed_rmsle": 0.48051988916748095,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 15,
+      "submitted_rmsle": 0.5030288255224643,
+      "hindsight_best_executed_rmsle": 0.5030288255224643,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 1
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 16,
+      "submitted_rmsle": 0.4388061075921864,
+      "hindsight_best_executed_rmsle": 0.4388061075921864,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 2
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 17,
+      "submitted_rmsle": 0.3283136652482916,
+      "hindsight_best_executed_rmsle": 0.3283136652482916,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 18,
+      "submitted_rmsle": 0.4899752677770801,
+      "hindsight_best_executed_rmsle": 0.4899752677770801,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 19,
+      "submitted_rmsle": 0.19997469598851303,
+      "hindsight_best_executed_rmsle": 0.19997469598851303,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 1
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 20,
+      "submitted_rmsle": 0.5241792413671783,
+      "hindsight_best_executed_rmsle": 0.5241792413671783,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 21,
+      "submitted_rmsle": 0.4599894901267812,
+      "hindsight_best_executed_rmsle": 0.4599894901267812,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 2
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 22,
+      "submitted_rmsle": 0.4952289104878564,
+      "hindsight_best_executed_rmsle": 0.4952289104878564,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 1
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 23,
+      "submitted_rmsle": 0.34001785437388843,
+      "hindsight_best_executed_rmsle": 0.34001785437388843,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 2
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 24,
+      "submitted_rmsle": 0.4971014841132348,
+      "hindsight_best_executed_rmsle": 0.4971014841132348,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 25,
+      "submitted_rmsle": 0.5142347045483674,
+      "hindsight_best_executed_rmsle": 0.5142347045483674,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 1
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 0,
+      "submitted_rmsle": 0.491807461946558,
+      "hindsight_best_executed_rmsle": 0.491807461946558,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 0,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 1,
+      "submitted_rmsle": 0.5277451801069839,
+      "hindsight_best_executed_rmsle": 0.5277451801069839,
+      "executed_configurations": 1,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 2,
+      "submitted_rmsle": 0.6755861788815326,
+      "hindsight_best_executed_rmsle": 0.6755861788815326,
+      "executed_configurations": 1,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 3,
+      "submitted_rmsle": 0.5203702749744448,
+      "hindsight_best_executed_rmsle": 0.4879230929018868,
+      "executed_configurations": 3,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 4,
+      "submitted_rmsle": 0.5733102472848705,
+      "hindsight_best_executed_rmsle": 0.5733102472848705,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 5,
+      "submitted_rmsle": 0.6578376620639268,
+      "hindsight_best_executed_rmsle": 0.6578376620639268,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 1
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 6,
+      "submitted_rmsle": 0.5018587813255615,
+      "hindsight_best_executed_rmsle": 0.5018587813255615,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 7,
+      "submitted_rmsle": 0.3452221811033465,
+      "hindsight_best_executed_rmsle": 0.3452221811033465,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 8,
+      "submitted_rmsle": 0.5417488095307698,
+      "hindsight_best_executed_rmsle": 0.5417488095307698,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 1
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 9,
+      "submitted_rmsle": 0.9226553061179773,
+      "hindsight_best_executed_rmsle": 0.9226553061179773,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 2
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 10,
+      "submitted_rmsle": 0.49097119362804953,
+      "hindsight_best_executed_rmsle": 0.49097119362804953,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 11,
+      "submitted_rmsle": 0.3201471911295875,
+      "hindsight_best_executed_rmsle": 0.3201471911295875,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 12,
+      "submitted_rmsle": 0.6738096201652876,
+      "hindsight_best_executed_rmsle": 0.6738096201652876,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 1
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 13,
+      "submitted_rmsle": 0.47164327746188817,
+      "hindsight_best_executed_rmsle": 0.47164327746188817,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 1
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 14,
+      "submitted_rmsle": 0.5315294470543384,
+      "hindsight_best_executed_rmsle": 0.5315294470543384,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 2
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 15,
+      "submitted_rmsle": 0.7466150720090968,
+      "hindsight_best_executed_rmsle": 0.7466150720090968,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 3
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 16,
+      "submitted_rmsle": 0.5900037387977128,
+      "hindsight_best_executed_rmsle": 0.5900037387977128,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 4
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 17,
+      "submitted_rmsle": 0.5719038147184442,
+      "hindsight_best_executed_rmsle": 0.5719038147184442,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 2
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 18,
+      "submitted_rmsle": 0.5531515078896114,
+      "hindsight_best_executed_rmsle": 0.5531515078896114,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 3
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 19,
+      "submitted_rmsle": 0.6455002848200249,
+      "hindsight_best_executed_rmsle": 0.6455002848200249,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 4
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 20,
+      "submitted_rmsle": 0.6480707091951936,
+      "hindsight_best_executed_rmsle": 0.6480707091951936,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 21,
+      "submitted_rmsle": 0.47366193338491885,
+      "hindsight_best_executed_rmsle": 0.47366193338491885,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 1
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 22,
+      "submitted_rmsle": 0.475142797014663,
+      "hindsight_best_executed_rmsle": 0.475142797014663,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 23,
+      "submitted_rmsle": 0.6923634791437443,
+      "hindsight_best_executed_rmsle": 0.666190852930825,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 1
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 24,
+      "submitted_rmsle": 0.6975533908645163,
+      "hindsight_best_executed_rmsle": 0.6975533908645163,
+      "executed_configurations": 3,
+      "configurations_with_visible_history": 2,
+      "all_options_matched_past_origins": 0
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 25,
+      "submitted_rmsle": 0.5242110701145465,
+      "hindsight_best_executed_rmsle": 0.44532467039185875,
+      "executed_configurations": 2,
+      "configurations_with_visible_history": 1,
+      "all_options_matched_past_origins": 0
+    }
+  ],
+  "source_hashes": {
+    "results/hermes-ml-checkpoint-120-v4-pod-002/evaluation/report.json": "f40470972b584140a82f264a1fa21b4e364a2aeeafb1a8fc9d5b6e72f709d437",
+    "results/hermes-ml-checkpoint-120-v4-pod-002/evaluation/host-jobs.json": "380261912295bbe21f3c998a8c6f7048cde1fb0869d37bb4db44ad3a72b28f25",
+    "results/hermes-ml-checkpoint-120-v4-pod-002/evaluation/ledger/item_1047756_store_23/round-25/project/experiments.jsonl": "52c2795d47464b51e60899ffe9fbd39f4c380041ea09051ca3a9dba6a26293f2",
+    "results/hermes-ml-checkpoint-120-v4-pod-002/evaluation/ledger/item_1304243_store_32/round-25/project/experiments.jsonl": "5bde62c46a233472baaae4433cd060d5e645d00316b9437b6d4385544544c6a3",
+    "results/hermes-ml-checkpoint-120-v4-pod-002/evaluation/ledger/item_1372862_store_12/round-25/project/experiments.jsonl": "bcff02c0aa2dbcf1e402aaf798b8794cb083c53a163a38aa8498088838d67b9b",
+    "results/hermes-ml-checkpoint-120-v4-pod-002/evaluation/ledger/item_1457251_store_14/round-25/project/experiments.jsonl": "07eaa7375c79749c7618522be5809f35bf133005801eb33f503e90d3e3b5ce3c"
+  },
+  "provider_calls": 0,
+  "limitations": [
+    "Reused development data; hindsight is not a deployable selection rule.",
+    "Coverage is restricted to already executed configurations; no claim about unexecuted alternatives.",
+    "No original forecast, selection, grade, outcome or ledger is modified."
+  ]
+}
