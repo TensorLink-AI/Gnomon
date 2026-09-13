@@ -26,6 +26,7 @@ class BroadPanelPrepareTest(unittest.TestCase):
         start=datetime(2014,1,1);end=start+timedelta(hours=4954)
         self.assertEqual(layout(start,end),(0,730,4954))
         self.assertEqual(start+timedelta(hours=730+25*168+24),end)
+        self.assertEqual(layout(start+timedelta(seconds=1),end),(0,730,4954))
 
     def test_ineligible_prefix_and_duplicate_ids_rejected(self):
         start=datetime(2014,1,1);end=start+timedelta(hours=4954)

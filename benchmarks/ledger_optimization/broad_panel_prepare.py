@@ -15,6 +15,9 @@ HOUR=timedelta(hours=1)
 
 
 def layout(start,end):
+    # TSF labels may have a constant sub-hour phase (these sources use :00:01).
+    # Preserve it in every coordinate rather than shifting or dropping values.
+    end=end+timedelta(minutes=start.minute,seconds=start.second,microseconds=start.microsecond)
     last_origin=end-timedelta(hours=24)
     first_origin=last_origin-timedelta(hours=25*168)
     offset=(first_origin-start)/HOUR
@@ -82,6 +85,7 @@ def prepare(source_root,output):
         'protocol_sha256':hashlib.sha256(Path(__file__).with_name('BROAD_PANEL_035.md').read_bytes()).hexdigest(),
         'observation_availability':'assumed_at_nominal_period_end',
         'timezone':'UTC_surrogate_for_naive_source_hour_positions_not_actual_source_timezone',
+        'grid_phase':'preserve_source_start_minute_second_and_microsecond_at_nominal_end_boundary',
         'provider_calls':0,'final_values_exported':False})
     selections={};all_jobs={}
     try:

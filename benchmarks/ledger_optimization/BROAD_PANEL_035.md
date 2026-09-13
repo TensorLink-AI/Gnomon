@@ -91,3 +91,13 @@ still applies: no paid agent confirmation on a negative offline screen. All
 controls receive the same recipes, raw arrived data, memory opportunities,
 cohort-maintenance costs and checkpoint rules. No final superiority claim is
 possible merely from preparing this panel.
+
+## Grid-phase correction before successful preparation
+
+Attempt 001 rejected a nonwhole-hour label before exporting data. Metadata-only
+inspection shows the first three series in each source start at 00:00:01. Keep
+the source's minute/second/microsecond phase at every nominal end boundary,
+including the declared last-day endpoint. This changes only the coordinate
+phase; do not round timestamps or move observations between rows. The source
+dates, horizon, history, identity seed and eligibility thresholds are unchanged.
+Preserve attempt 001 and test the one-second phase before another preparation.
