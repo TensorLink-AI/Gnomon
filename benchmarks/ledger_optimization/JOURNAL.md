@@ -855,3 +855,14 @@ header-only local recovery. Original failure remains in evidence/broad-source-03
 Headers alone do not establish source recording times, timezone/DST semantics
 or an eligible final population. Freeze those assumptions and identity splits
 before data preparation. Existing negative results and reserved targets unchanged.
+
+## Prospective hourly panel 035: failed preparation gate
+
+Frozen at bb388a9 before value inspection. Metadata phase corrected at c1d7b8d
+without changing the dates, seed or thresholds. Attempt 002 failed: electricity
+has 320 eligible series, but pedestrian data only five, below the required 24.
+No development jobs exported, no reserved later values parsed, no forecasting
+or Engy calls. Retain both failures and the read-only initial-history eligibility
+review in evidence/broad-panel-035.json. Do not silently move dates, lower quotas,
+or promote an electricity-only subset. Source coverage/timestamp suitability
+remains required before fitting; this failure gives no ledger accuracy result.

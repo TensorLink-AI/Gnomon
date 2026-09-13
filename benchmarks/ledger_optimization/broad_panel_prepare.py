@@ -97,6 +97,7 @@ def prepare(source_root,output):
                 row,reason=eligible(name,start,tokens,end)
                 if row is None:rejected.append({'series_name':name,'reason':reason})
                 else:accepted.append(row)
+            save(f'{source}-eligibility.json',{'eligible':accepted,'rejected':rejected})
             dev,reserved=partition(source,accepted)
             selections[source]={'eligible_count':len(accepted),'rejected':rejected,'development':dev,'reserved':reserved}
         save('selection.json',selections)  # All source IDs fixed before later-value parsing.

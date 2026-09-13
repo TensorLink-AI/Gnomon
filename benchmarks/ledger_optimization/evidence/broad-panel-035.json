@@ -1,0 +1,2784 @@
+{
+  "initial_freeze_commit": "bb388a9",
+  "phase_correction_commit": "c1d7b8d",
+  "preparation_succeeded": false,
+  "provider_calls": 0,
+  "api_model_calls": 0,
+  "development_jobs_exported": false,
+  "reserved_later_values_parsed": 0,
+  "attempts": [
+    {
+      "directory": "results/broad-panel-035-001",
+      "failure": {
+        "error": "ValueError",
+        "message": "Nonhourly source start alignment",
+        "provider_calls": 0
+      },
+      "protocol": {
+        "source_sha256": {
+          "electricity": "eff447075dde68dca0105ab7e2851c5637967ae3bb21556fd8b931f196d5968c",
+          "pedestrian": "6e81cb8cad43650e7e0f754a1103fc75c960e03387bae9b91146aa3241c9aa50"
+        },
+        "code_sha256": "14f06af5c5018cf84be2feb50b3471ef0e784df768060927ff0f7bf210bb03c4",
+        "protocol_sha256": "dfd501c0e7f492928e2f452fb0bc67471c2ee62daf1f2ce76c38021f5b3f223b",
+        "observation_availability": "assumed_at_nominal_period_end",
+        "timezone": "UTC_surrogate_for_naive_source_hour_positions_not_actual_source_timezone",
+        "provider_calls": 0,
+        "final_values_exported": false
+      }
+    },
+    {
+      "directory": "results/broad-panel-035-002",
+      "failure": {
+        "error": "ValueError",
+        "message": "Fewer than 24 eligible series; protocol cannot be relaxed",
+        "provider_calls": 0
+      },
+      "protocol": {
+        "source_sha256": {
+          "electricity": "eff447075dde68dca0105ab7e2851c5637967ae3bb21556fd8b931f196d5968c",
+          "pedestrian": "6e81cb8cad43650e7e0f754a1103fc75c960e03387bae9b91146aa3241c9aa50"
+        },
+        "code_sha256": "e11720d284d71910332eabef3e5aa7eea9dfeff7bf7910bf580a699377698e46",
+        "protocol_sha256": "9cb16815fc5251320a8fca8677ae109c75cc04d2d86745e15aed6a935648943c",
+        "observation_availability": "assumed_at_nominal_period_end",
+        "timezone": "UTC_surrogate_for_naive_source_hour_positions_not_actual_source_timezone",
+        "grid_phase": "preserve_source_start_minute_second_and_microsecond_at_nominal_end_boundary",
+        "provider_calls": 0,
+        "final_values_exported": false
+      }
+    }
+  ],
+  "eligibility_review": {
+    "electricity": {
+      "counts": {
+        "eligible": 320,
+        "fewer_than_28_nonzero_initial_observations": 1
+      },
+      "maximum_nominal_end": "2015-01-01T00:00:01",
+      "rows": [
+        {
+          "name": "T1",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T2",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T3",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T4",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T5",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T6",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T7",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T8",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T9",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T10",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T11",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T12",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T13",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T14",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T15",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T16",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T17",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T18",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T19",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T20",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T21",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T22",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T23",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T24",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T25",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T26",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T27",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T28",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T29",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T30",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T31",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T32",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T33",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T34",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T35",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T36",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T37",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T38",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T39",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T40",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T41",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T42",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T43",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T44",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T45",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T46",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T47",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T48",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T49",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T50",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T51",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T52",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T53",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T54",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T55",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T56",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T57",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T58",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T59",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T60",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T61",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T62",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T63",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T64",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T65",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T66",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T67",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T68",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T69",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T70",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T71",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T72",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T73",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T74",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T75",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T76",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T77",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T78",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T79",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T80",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T81",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T82",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T83",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T84",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T85",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T86",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T87",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T88",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T89",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T90",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T91",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T92",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T93",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T94",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T95",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T96",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T97",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T98",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T99",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T100",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T101",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T102",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T103",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T104",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T105",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T106",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T107",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T108",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T109",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T110",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T111",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T112",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T113",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T114",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T115",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T116",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T117",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T118",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T119",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T120",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T121",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T122",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T123",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T124",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T125",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T126",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T127",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T128",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T129",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T130",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T131",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T132",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T133",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T134",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T135",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T136",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T137",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T138",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T139",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T140",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T141",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T142",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T143",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T144",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T145",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T146",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T147",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T148",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T149",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T150",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T151",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T152",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T153",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T154",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T155",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T156",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T157",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T158",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T159",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T160",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T161",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T162",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T163",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T164",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T165",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T166",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T167",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T168",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T169",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T170",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T171",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T172",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T173",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T174",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T175",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T176",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T177",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T178",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T179",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T180",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T181",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T182",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T183",
+          "reason": "fewer_than_28_nonzero_initial_observations",
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T184",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T185",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T186",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T187",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T188",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T189",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T190",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T191",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T192",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T193",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T194",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T195",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T196",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T197",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T198",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T199",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T200",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T201",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T202",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T203",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T204",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T205",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T206",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T207",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T208",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T209",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T210",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T211",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T212",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T213",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T214",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T215",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T216",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T217",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T218",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T219",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T220",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T221",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T222",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T223",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T224",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T225",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T226",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T227",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T228",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T229",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T230",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T231",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T232",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T233",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T234",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T235",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T236",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T237",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T238",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T239",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T240",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T241",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T242",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T243",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T244",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T245",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T246",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T247",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T248",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T249",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T250",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T251",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T252",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T253",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T254",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T255",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T256",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T257",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T258",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T259",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T260",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T261",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T262",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T263",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T264",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T265",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T266",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T267",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T268",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T269",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T270",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T271",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T272",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T273",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T274",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T275",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T276",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T277",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T278",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T279",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T280",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T281",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T282",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T283",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T284",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T285",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T286",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T287",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T288",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T289",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T290",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T291",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T292",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T293",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T294",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T295",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T296",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T297",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T298",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T299",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T300",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T301",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T302",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T303",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T304",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T305",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T306",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T307",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T308",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T309",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T310",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T311",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T312",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T313",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T314",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T315",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T316",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T317",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T318",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T319",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T320",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        },
+        {
+          "name": "T321",
+          "reason": null,
+          "length": 26304,
+          "start": "2012-01-01T00:00:01",
+          "nominal_end": "2015-01-01T00:00:01"
+        }
+      ]
+    },
+    "pedestrian": {
+      "counts": {
+        "insufficient_position_coverage": 61,
+        "eligible": 5
+      },
+      "maximum_nominal_end": "2020-05-01T00:00:01",
+      "rows": [
+        {
+          "name": "T1",
+          "reason": "insufficient_position_coverage",
+          "length": 84331,
+          "start": "2009-05-01T00:00:01",
+          "nominal_end": "2018-12-13T19:00:01"
+        },
+        {
+          "name": "T2",
+          "reason": "insufficient_position_coverage",
+          "length": 96187,
+          "start": "2009-05-01T00:00:01",
+          "nominal_end": "2020-04-20T19:00:01"
+        },
+        {
+          "name": "T3",
+          "reason": "insufficient_position_coverage",
+          "length": 91594,
+          "start": "2009-05-19T00:00:01",
+          "nominal_end": "2019-10-30T10:00:01"
+        },
+        {
+          "name": "T4",
+          "reason": "insufficient_position_coverage",
+          "length": 90260,
+          "start": "2009-05-01T00:00:01",
+          "nominal_end": "2019-08-17T20:00:01"
+        },
+        {
+          "name": "T5",
+          "reason": "insufficient_position_coverage",
+          "length": 93068,
+          "start": "2009-05-01T00:00:01",
+          "nominal_end": "2019-12-12T20:00:01"
+        },
+        {
+          "name": "T6",
+          "reason": "insufficient_position_coverage",
+          "length": 95994,
+          "start": "2009-05-01T00:00:01",
+          "nominal_end": "2020-04-12T18:00:01"
+        },
+        {
+          "name": "T7",
+          "reason": "insufficient_position_coverage",
+          "length": 77924,
+          "start": "2009-09-25T00:00:01",
+          "nominal_end": "2018-08-15T20:00:01"
+        },
+        {
+          "name": "T8",
+          "reason": "insufficient_position_coverage",
+          "length": 94801,
+          "start": "2009-05-21T00:00:01",
+          "nominal_end": "2020-03-14T01:00:01"
+        },
+        {
+          "name": "T9",
+          "reason": "insufficient_position_coverage",
+          "length": 96424,
+          "start": "2009-05-01T00:00:01",
+          "nominal_end": "2020-04-30T16:00:01"
+        },
+        {
+          "name": "T10",
+          "reason": "insufficient_position_coverage",
+          "length": 95985,
+          "start": "2009-05-01T00:00:01",
+          "nominal_end": "2020-04-12T09:00:01"
+        },
+        {
+          "name": "T11",
+          "reason": "insufficient_position_coverage",
+          "length": 94908,
+          "start": "2009-05-01T00:00:01",
+          "nominal_end": "2020-02-27T12:00:01"
+        },
+        {
+          "name": "T12",
+          "reason": "insufficient_position_coverage",
+          "length": 92917,
+          "start": "2009-05-01T00:00:01",
+          "nominal_end": "2019-12-06T13:00:01"
+        },
+        {
+          "name": "T13",
+          "reason": "insufficient_position_coverage",
+          "length": 70028,
+          "start": "2009-05-01T00:00:01",
+          "nominal_end": "2017-04-26T20:00:01"
+        },
+        {
+          "name": "T14",
+          "reason": "insufficient_position_coverage",
+          "length": 90930,
+          "start": "2009-05-01T00:00:01",
+          "nominal_end": "2019-09-14T18:00:01"
+        },
+        {
+          "name": "T15",
+          "reason": "insufficient_position_coverage",
+          "length": 88700,
+          "start": "2009-05-01T00:00:01",
+          "nominal_end": "2019-06-13T20:00:01"
+        },
+        {
+          "name": "T16",
+          "reason": "insufficient_position_coverage",
+          "length": 45359,
+          "start": "2009-05-01T00:00:01",
+          "nominal_end": "2014-07-03T23:00:01"
+        },
+        {
+          "name": "T17",
+          "reason": "insufficient_position_coverage",
+          "length": 90091,
+          "start": "2009-05-01T00:00:01",
+          "nominal_end": "2019-08-10T19:00:01"
+        },
+        {
+          "name": "T18",
+          "reason": "insufficient_position_coverage",
+          "length": 96423,
+          "start": "2009-05-01T00:00:01",
+          "nominal_end": "2020-04-30T15:00:01"
+        },
+        {
+          "name": "T19",
+          "reason": "insufficient_position_coverage",
+          "length": 56969,
+          "start": "2013-09-01T00:00:01",
+          "nominal_end": "2020-03-01T17:00:01"
+        },
+        {
+          "name": "T20",
+          "reason": "insufficient_position_coverage",
+          "length": 57307,
+          "start": "2013-09-06T00:00:01",
+          "nominal_end": "2020-03-20T19:00:01"
+        },
+        {
+          "name": "T21",
+          "reason": "insufficient_position_coverage",
+          "length": 57979,
+          "start": "2013-09-01T00:00:01",
+          "nominal_end": "2020-04-12T19:00:01"
+        },
+        {
+          "name": "T22",
+          "reason": "insufficient_position_coverage",
+          "length": 46030,
+          "start": "2013-09-01T00:00:01",
+          "nominal_end": "2018-12-01T22:00:01"
+        },
+        {
+          "name": "T23",
+          "reason": "insufficient_position_coverage",
+          "length": 56227,
+          "start": "2013-09-01T00:00:01",
+          "nominal_end": "2020-01-30T19:00:01"
+        },
+        {
+          "name": "T24",
+          "reason": "insufficient_position_coverage",
+          "length": 57187,
+          "start": "2013-09-01T00:00:01",
+          "nominal_end": "2020-03-10T19:00:01"
+        },
+        {
+          "name": "T25",
+          "reason": "insufficient_position_coverage",
+          "length": 54826,
+          "start": "2013-09-01T00:00:01",
+          "nominal_end": "2019-12-03T10:00:01"
+        },
+        {
+          "name": "T26",
+          "reason": "insufficient_position_coverage",
+          "length": 57691,
+          "start": "2013-09-28T00:00:01",
+          "nominal_end": "2020-04-27T19:00:01"
+        },
+        {
+          "name": "T27",
+          "reason": "insufficient_position_coverage",
+          "length": 57426,
+          "start": "2013-09-01T00:00:01",
+          "nominal_end": "2020-03-20T18:00:01"
+        },
+        {
+          "name": "T28",
+          "reason": "insufficient_position_coverage",
+          "length": 56946,
+          "start": "2013-09-20T00:00:01",
+          "nominal_end": "2020-03-19T18:00:01"
+        },
+        {
+          "name": "T29",
+          "reason": "insufficient_position_coverage",
+          "length": 54186,
+          "start": "2013-10-11T00:00:01",
+          "nominal_end": "2019-12-16T18:00:01"
+        },
+        {
+          "name": "T30",
+          "reason": "insufficient_position_coverage",
+          "length": 53996,
+          "start": "2013-10-16T00:00:01",
+          "nominal_end": "2019-12-13T20:00:01"
+        },
+        {
+          "name": "T31",
+          "reason": "insufficient_position_coverage",
+          "length": 57139,
+          "start": "2013-10-09T00:00:01",
+          "nominal_end": "2020-04-15T19:00:01"
+        },
+        {
+          "name": "T32",
+          "reason": "insufficient_position_coverage",
+          "length": 26443,
+          "start": "2013-12-20T00:00:01",
+          "nominal_end": "2016-12-25T19:00:01"
+        },
+        {
+          "name": "T33",
+          "reason": "insufficient_position_coverage",
+          "length": 47315,
+          "start": "2014-04-23T00:00:01",
+          "nominal_end": "2019-09-15T11:00:01"
+        },
+        {
+          "name": "T34",
+          "reason": "insufficient_position_coverage",
+          "length": 51683,
+          "start": "2014-06-08T00:00:01",
+          "nominal_end": "2020-04-30T11:00:01"
+        },
+        {
+          "name": "T35",
+          "reason": "insufficient_position_coverage",
+          "length": 35398,
+          "start": "2016-04-12T00:00:01",
+          "nominal_end": "2020-04-25T22:00:01"
+        },
+        {
+          "name": "T36",
+          "reason": "insufficient_position_coverage",
+          "length": 43795,
+          "start": "2015-01-21T00:00:01",
+          "nominal_end": "2020-01-19T19:00:01"
+        },
+        {
+          "name": "T37",
+          "reason": "insufficient_position_coverage",
+          "length": 45976,
+          "start": "2015-02-01T00:00:01",
+          "nominal_end": "2020-04-30T16:00:01"
+        },
+        {
+          "name": "T38",
+          "reason": "insufficient_position_coverage",
+          "length": 17662,
+          "start": "2015-01-01T00:00:01",
+          "nominal_end": "2017-01-05T22:00:01"
+        },
+        {
+          "name": "T39",
+          "reason": "insufficient_position_coverage",
+          "length": 45724,
+          "start": "2014-08-23T00:00:01",
+          "nominal_end": "2019-11-10T04:00:01"
+        },
+        {
+          "name": "T40",
+          "reason": "insufficient_position_coverage",
+          "length": 45765,
+          "start": "2015-01-20T00:00:01",
+          "nominal_end": "2020-04-09T21:00:01"
+        },
+        {
+          "name": "T41",
+          "reason": "insufficient_position_coverage",
+          "length": 15815,
+          "start": "2017-07-01T00:00:01",
+          "nominal_end": "2019-04-20T23:00:01"
+        },
+        {
+          "name": "T42",
+          "reason": "insufficient_position_coverage",
+          "length": 43336,
+          "start": "2015-04-15T00:00:01",
+          "nominal_end": "2020-03-24T16:00:01"
+        },
+        {
+          "name": "T43",
+          "reason": "insufficient_position_coverage",
+          "length": 44219,
+          "start": "2015-04-15T00:00:01",
+          "nominal_end": "2020-04-30T11:00:01"
+        },
+        {
+          "name": "T44",
+          "reason": "insufficient_position_coverage",
+          "length": 44207,
+          "start": "2015-04-15T00:00:01",
+          "nominal_end": "2020-04-29T23:00:01"
+        },
+        {
+          "name": "T45",
+          "reason": "insufficient_position_coverage",
+          "length": 21599,
+          "start": "2017-07-01T00:00:01",
+          "nominal_end": "2019-12-17T23:00:01"
+        },
+        {
+          "name": "T46",
+          "reason": "insufficient_position_coverage",
+          "length": 23472,
+          "start": "2017-08-08T00:00:01",
+          "nominal_end": "2020-04-12T00:00:01"
+        },
+        {
+          "name": "T47",
+          "reason": "insufficient_position_coverage",
+          "length": 23411,
+          "start": "2017-08-25T00:00:01",
+          "nominal_end": "2020-04-26T11:00:01"
+        },
+        {
+          "name": "T48",
+          "reason": "insufficient_position_coverage",
+          "length": 21876,
+          "start": "2017-10-03T00:00:01",
+          "nominal_end": "2020-04-01T12:00:01"
+        },
+        {
+          "name": "T49",
+          "reason": "insufficient_position_coverage",
+          "length": 20784,
+          "start": "2017-11-30T00:00:01",
+          "nominal_end": "2020-04-14T00:00:01"
+        },
+        {
+          "name": "T50",
+          "reason": "insufficient_position_coverage",
+          "length": 24215,
+          "start": "2017-07-01T00:00:01",
+          "nominal_end": "2020-04-04T23:00:01"
+        },
+        {
+          "name": "T51",
+          "reason": null,
+          "length": 21168,
+          "start": "2017-12-01T00:00:01",
+          "nominal_end": "2020-05-01T00:00:01"
+        },
+        {
+          "name": "T52",
+          "reason": "insufficient_position_coverage",
+          "length": 23974,
+          "start": "2017-08-01T00:00:01",
+          "nominal_end": "2020-04-25T22:00:01"
+        },
+        {
+          "name": "T53",
+          "reason": "insufficient_position_coverage",
+          "length": 39765,
+          "start": "2015-10-01T00:00:01",
+          "nominal_end": "2020-04-13T21:00:01"
+        },
+        {
+          "name": "T54",
+          "reason": "insufficient_position_coverage",
+          "length": 16032,
+          "start": "2018-07-01T00:00:01",
+          "nominal_end": "2020-04-29T00:00:01"
+        },
+        {
+          "name": "T55",
+          "reason": "insufficient_position_coverage",
+          "length": 5616,
+          "start": "2018-08-01T00:00:01",
+          "nominal_end": "2019-03-23T00:00:01"
+        },
+        {
+          "name": "T56",
+          "reason": "insufficient_position_coverage",
+          "length": 15027,
+          "start": "2018-08-01T00:00:01",
+          "nominal_end": "2020-04-18T03:00:01"
+        },
+        {
+          "name": "T57",
+          "reason": "insufficient_position_coverage",
+          "length": 13368,
+          "start": "2018-09-01T00:00:01",
+          "nominal_end": "2020-03-11T00:00:01"
+        },
+        {
+          "name": "T58",
+          "reason": null,
+          "length": 13872,
+          "start": "2018-10-01T00:00:01",
+          "nominal_end": "2020-05-01T00:00:01"
+        },
+        {
+          "name": "T59",
+          "reason": null,
+          "length": 10632,
+          "start": "2019-02-13T00:00:01",
+          "nominal_end": "2020-05-01T00:00:01"
+        },
+        {
+          "name": "T60",
+          "reason": "insufficient_position_coverage",
+          "length": 2291,
+          "start": "2019-04-18T13:00:00",
+          "nominal_end": "2019-07-23T00:00:00"
+        },
+        {
+          "name": "T61",
+          "reason": null,
+          "length": 7320,
+          "start": "2019-07-01T00:00:01",
+          "nominal_end": "2020-05-01T00:00:01"
+        },
+        {
+          "name": "T62",
+          "reason": null,
+          "length": 5112,
+          "start": "2019-10-01T00:00:01",
+          "nominal_end": "2020-05-01T00:00:01"
+        },
+        {
+          "name": "T63",
+          "reason": "insufficient_position_coverage",
+          "length": 1777,
+          "start": "2020-01-08T00:00:01",
+          "nominal_end": "2020-03-22T01:00:01"
+        },
+        {
+          "name": "T64",
+          "reason": "insufficient_position_coverage",
+          "length": 2112,
+          "start": "2020-01-17T00:00:01",
+          "nominal_end": "2020-04-14T00:00:01"
+        },
+        {
+          "name": "T65",
+          "reason": "insufficient_position_coverage",
+          "length": 1176,
+          "start": "2020-03-13T00:00:01",
+          "nominal_end": "2020-05-01T00:00:01"
+        },
+        {
+          "name": "T66",
+          "reason": "insufficient_position_coverage",
+          "length": 576,
+          "start": "2020-04-07T00:00:01",
+          "nominal_end": "2020-05-01T00:00:01"
+        }
+      ]
+    }
+  },
+  "review_sha256": "f181e53a04679026190cb5d7bdabe67f810c1c5de28064168ad6da74056cb0b8",
+  "tests_passed": 8,
+  "next_action": "Preserve failed panel; find a substantively suitable source rather than relaxing the fixed sample or date requirements."
+}
