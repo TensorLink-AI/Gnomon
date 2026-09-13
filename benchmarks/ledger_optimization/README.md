@@ -49,6 +49,14 @@ original historical overrides helped 129 cases and hurt 157; larger downside
 outweighed gains even in electricity, where helpful overrides were more common.
 No final outcomes were opened.
 
+[Opportunity audit 040](BROAD_OPPORTUNITY_040_RESULT.md) rules out another filter
+as a standalone solution here: perfect hindsight among the existing proposals
+improves at most 10.09%. Even perfect six-recipe selection after a three-origin
+CV cold start offers only 19.71%. These are fixed-development diagnostic bounds,
+not deployable performance. All 6,346 independent checks passed; no new forecasts
+or final data access. Further work needs stronger proposals or earlier usable
+evidence, not reinterpretation of these negative results.
+
 ## Earlier frozen confirmation and development history
 
 The reserved confirmation completed **3,744 decisions** with identical raw

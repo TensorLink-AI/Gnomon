@@ -1,0 +1,159 @@
+{
+  "protocol_commit": "cbd7d15",
+  "code_commit": "85983f9",
+  "exit_status": 0,
+  "report": {
+    "overall": {
+      "cases": 416,
+      "mean_rmsle": {
+        "cv": 0.28158276793416015,
+        "all_six_oracle": 0.22050467257990736,
+        "past_perfect_filter": 0.2602084147896011,
+        "blended_perfect_filter": 0.2680472826166141,
+        "calibrated_perfect_filter": 0.26940545819386796,
+        "proposal_union_oracle": 0.2531745657716687,
+        "all_six_after_3_origins": 0.22608855859793853,
+        "all_six_after_4_origins": 0.22778595568537693,
+        "all_six_after_8_origins": 0.23942280964186932,
+        "all_six_after_10_origins": 0.24755519855892344
+      },
+      "relative_reduction": {
+        "cv": 0.0,
+        "all_six_oracle": 0.2169099188929562,
+        "past_perfect_filter": 0.075907887763774,
+        "blended_perfect_filter": 0.048069295634990516,
+        "calibrated_perfect_filter": 0.043245933796415725,
+        "proposal_union_oracle": 0.10088757337996579,
+        "all_six_after_3_origins": 0.19707956471681998,
+        "all_six_after_4_origins": 0.19105150731866527,
+        "all_six_after_8_origins": 0.1497249231605987,
+        "all_six_after_10_origins": 0.12084393382763059
+      },
+      "twenty_percent_feasible_within_each_bound": {
+        "cv": false,
+        "all_six_oracle": true,
+        "past_perfect_filter": false,
+        "blended_perfect_filter": false,
+        "calibrated_perfect_filter": false,
+        "proposal_union_oracle": false,
+        "all_six_after_3_origins": false,
+        "all_six_after_4_origins": false,
+        "all_six_after_8_origins": false,
+        "all_six_after_10_origins": false
+      },
+      "target_rmsle": 0.22526621434732813,
+      "oracle_gain_capture_required": 0.9220417444289343,
+      "remaining_regret_allowed_at_target": 0.004761541767420774
+    },
+    "domains": {
+      "electricity": {
+        "cases": 208,
+        "mean_rmsle": {
+          "cv": 0.11968321759118748,
+          "all_six_oracle": 0.09450052119196879,
+          "past_perfect_filter": 0.11181093839661187,
+          "blended_perfect_filter": 0.11619334096336945,
+          "calibrated_perfect_filter": 0.11633158363939737,
+          "proposal_union_oracle": 0.10937718681855166,
+          "all_six_after_3_origins": 0.0979326715153178,
+          "all_six_after_4_origins": 0.09863074847064413,
+          "all_six_after_8_origins": 0.10286908047413873,
+          "all_six_after_10_origins": 0.10541159461234949
+        },
+        "relative_reduction": {
+          "cv": 0.0,
+          "all_six_oracle": 0.21041125820361417,
+          "past_perfect_filter": 0.06577596552814657,
+          "blended_perfect_filter": 0.029159281460318986,
+          "calibrated_perfect_filter": 0.028004209940599933,
+          "proposal_union_oracle": 0.08611090995095938,
+          "all_six_after_3_origins": 0.18173430254996104,
+          "all_six_after_4_origins": 0.17590159710155961,
+          "all_six_after_8_origins": 0.14048867882615157,
+          "all_six_after_10_origins": 0.11924498075901369
+        },
+        "twenty_percent_feasible_within_each_bound": {
+          "cv": false,
+          "all_six_oracle": true,
+          "past_perfect_filter": false,
+          "blended_perfect_filter": false,
+          "calibrated_perfect_filter": false,
+          "proposal_union_oracle": false,
+          "all_six_after_3_origins": false,
+          "all_six_after_4_origins": false,
+          "all_six_after_8_origins": false,
+          "all_six_after_10_origins": false
+        },
+        "target_rmsle": 0.09574657407295,
+        "oracle_gain_capture_required": 0.9505194812649271,
+        "remaining_regret_allowed_at_target": 0.0012460528809812021
+      },
+      "pedestrian": {
+        "cases": 208,
+        "mean_rmsle": {
+          "cv": 0.4434823182771328,
+          "all_six_oracle": 0.34650882396784594,
+          "past_perfect_filter": 0.4086058911825904,
+          "blended_perfect_filter": 0.41990122426985876,
+          "calibrated_perfect_filter": 0.42247933274833854,
+          "proposal_union_oracle": 0.39697194472478575,
+          "all_six_after_3_origins": 0.35424444568055924,
+          "all_six_after_4_origins": 0.3569411629001097,
+          "all_six_after_8_origins": 0.3759765388095999,
+          "all_six_after_10_origins": 0.3896988025054974
+        },
+        "relative_reduction": {
+          "cv": 0.0,
+          "all_six_oracle": 0.2186637218954195,
+          "past_perfect_filter": 0.07864220433868141,
+          "blended_perfect_filter": 0.05317256863561848,
+          "calibrated_perfect_filter": 0.04735923995885094,
+          "proposal_union_oracle": 0.10487537300930827,
+          "all_six_after_3_origins": 0.20122081291369254,
+          "all_six_after_4_origins": 0.19514003560102122,
+          "all_six_after_8_origins": 0.15221752183893933,
+          "all_six_after_10_origins": 0.12127544561545744
+        },
+        "twenty_percent_feasible_within_each_bound": {
+          "cv": false,
+          "all_six_oracle": true,
+          "past_perfect_filter": false,
+          "blended_perfect_filter": false,
+          "calibrated_perfect_filter": false,
+          "proposal_union_oracle": false,
+          "all_six_after_3_origins": true,
+          "all_six_after_4_origins": false,
+          "all_six_after_8_origins": false,
+          "all_six_after_10_origins": false
+        },
+        "target_rmsle": 0.35478585462170625,
+        "oracle_gain_capture_required": 0.9146464638320491,
+        "remaining_regret_allowed_at_target": 0.008277030653860318
+      }
+    },
+    "seconds": 0.013654454000061378,
+    "additional_forecasts": 0,
+    "api_calls": 0,
+    "inherited_forecast_computations": 9984,
+    "reserved_future_reads": 0,
+    "limitation": "Actual future error used deliberately. Fixed development portfolio hindsight diagnostics, not deployable rules or general impossibility bounds."
+  },
+  "verification": {
+    "checks": 6346,
+    "failures": 0,
+    "cases": 416,
+    "report_sha256": "c16b2c7407ccce160e6232e133bc278616568f9167a50155e080266098700437",
+    "verifier_sha256": "0a81a1626f8086b8580b584220e2b00c01d79c0f80e6ec1017fb0de22d01a180",
+    "scope": "Enumerated permitted execution sets for every case, visibility, unchanged source hashes, aggregates and target feasibility. Nondeployable hindsight diagnostic only."
+  },
+  "files": {
+    "manifest.json": "402539427bc2bef39c98c9f5e07498edcd8a9f822154d80bf151b02fdaf4affa",
+    "report.json": "c16b2c7407ccce160e6232e133bc278616568f9167a50155e080266098700437",
+    "verification.json": "b6a55577843e37212d3bfec908905a3487526d90bc018d55fe38cf4faa64da58"
+  },
+  "archive": {
+    "path": "results/broad-opportunity-040-001.tar.gz",
+    "bytes": 28067,
+    "sha256": "009d402d10353d1a5f23553779a2ba05ad5c241598a8cd04e85553c039dbae22"
+  }
+}

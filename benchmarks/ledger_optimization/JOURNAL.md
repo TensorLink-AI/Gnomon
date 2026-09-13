@@ -895,3 +895,16 @@ the primary result. All 416 cases retained, 9,248 independent checks passed,
 three tests passed. No new forecasts/API calls/final reads. Original overrides
 helped 129 cases, harmed 157; losses totaled 14.72376 versus 8.89173 saved.
 See BROAD_CALIBRATION_039_RESULT.md and the archive receipt. Do not promote.
+
+## Opportunity bounds 040: filters alone ruled out on this development panel
+
+Frozen diagnostic list cbd7d15 and code 85983f9 before computation. Perfect
+hindsight choice among the three tested proposals plus CV gives only 10.09%
+improvement; perfect six-recipe choice gives 21.69% but requires capturing 92.20%
+of that gain to meet 20%. Retaining CV for three initial origins reduces even
+the latter oracle to 19.71%. Therefore another accept/reject filter or a
+three-origin same-series warmup cannot meet the current development bar within
+this portfolio. Not a universal bound or held-out claim. Three tests, 6,346
+independent checks passed; zero new forecasts/API calls/final reads. Preserve
+all bounds and source hashes in evidence/broad-opportunity-040.json. Do not
+promote a hindsight policy or silently remove early origins.
