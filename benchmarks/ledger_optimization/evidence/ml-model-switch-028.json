@@ -43,5 +43,14 @@
     "TASK.md": "6e0b3541548824c1302be3e0fea188b89eee51b861f482f9b4cfdcc274416525"
   },
   "held_out_targets_opened": false,
-  "accuracy_target_established": false
+  "accuracy_target_established": false,
+  "validation_passed": true,
+  "validation_sha256": "5b14f9b09d799529fe7992b7eba26afb0737f5c46b29cd3ba30dac008fe1b306",
+  "launch": {
+    "pid": 3127209,
+    "at": "2026-09-13T01:25:56.398090+00:00",
+    "model": "deepseek-v4.1-flash",
+    "source_commit": "1f054f6",
+    "root": "/root/gnomon-ledger-ml-v3/code/results/hermes-ml-checkpoint-120-v4-pod-002"
+  }
 }
