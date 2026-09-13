@@ -4,6 +4,37 @@ Branch: `dev/ledger-optimization`. **The 20% target has not been achieved.**
 Development and a complete frozen confirmation are retained here. No release or
 forecast-superiority claim is established.
 
+## Latest completed comparison: Gnomon 1.2.0 and Hermes
+
+DeepSeek **deepseek-v4.1-flash** through Engy; 104 tasks per arm, four retail
+series and 26 forecast origins. All forecasts were valid; full workflow counts
+additionally require backtest comparison and explicit selection.
+
+| Arm | Mean case RMSLE | Completed workflows | Reported tokens |
+| --- | ---: | ---: | ---: |
+| Hermes | 0.480148 | 99/104 | 25,723,263 |
+| Hermes + Gnomon 1.2.0 | 0.481454 | 102/104 | 24,581,379 |
+| Hermes + Gnomon 1.2.0 + ledger | 0.475970 | 102/104 | 29,344,909 |
+| Hermes + explicitly prompted native memory | 0.475949 | 104/104 | 26,831,582 |
+
+Ledger improved error by **1.14%** versus no-ledger Gnomon; exploratory 95%
+interval **−2.13% to +4.20%**. Native memory was a separate, later follow-up,
+not a simultaneous randomized fourth arm. Its accuracy effectively tied ledger.
+Main plain/ledger token accounting is incomplete; these are not billed costs.
+The main and follow-up audits passed 59,003 and 19,312 checks respectively,
+retaining one worker termination after a valid checkpoint. No agent evaluation
+remains running from these runs.
+
+**[Full latest results, costs, audit qualifications and evidence](ML_COMPLETED_030.md).**
+
+The subsequent [fixed-cohort numerical diagnostic](ML_COHORT_032.md) also failed
+the promotion gate: past selection improved error by 0.92%, while hindsight
+offered only 5.90% on its three unchanged default recipes. It used 1,248 fits
+and zero API calls, passed 11,235 independent checks, and is not a new agent
+comparison. [Recorded negative result](evidence/ml-cohort-032.json).
+
+## Earlier frozen confirmation and development history
+
 The reserved confirmation completed **3,744 decisions** with identical raw
 historical information and tools across all arms. Historical support improved
 mean RMSLE only **0.56%** (95% paired interval **−0.36% to +1.82%**). This does
@@ -54,7 +85,7 @@ ranks/ties, matched sample counts, pairwise differences and recent/lifetime
 disagreement. MAE remains the default; forecast arithmetic is unchanged.
 See [metric documentation](../../docs/ledger-comparison-metrics.md).
 
-## Live matched experiments
+## Earlier matched experiments
 
 | Run | Matched case/seed pairs | No-ledger RMSLE | Original ledger | RMSLE cards |
 | --- | ---: | ---: | ---: | ---: |

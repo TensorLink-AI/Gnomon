@@ -4,7 +4,10 @@ This is an evaluation-design constraint after negative confirmation 010 and
 development audit 013, not a fresh final manifest or authorization to inspect a
 new final set. The target remains at least 20% lower mean per-case RMSLE than an
 equally informed no-ledger agent, with the paired 95% interval excluding zero
-and improvement over 1.1.9. Workflow token savings do not satisfy it.
+and improvement over the matched incumbent. The user's subsequent version
+correction in PLAN.md supersedes the original 1.1.9 comparator: future Gnomon
+arms use **1.2.0**. Historical 1.1.9 results stay historical. Workflow token
+savings do not satisfy the accuracy objective.
 
 ## Select the task before measuring the advantage
 
@@ -47,7 +50,7 @@ opportunity; it is not permission to manufacture an easy control.
    Record every API attempt and unavailable billing information.
 5. Require a credible development result before opening another final cohort:
    the complete matched run must reach the unchanged point target and improve
-   over 1.1.9, with no unresolved numerical, visibility, fairness or accounting
+   over the matched 1.2.0 incumbent, with no unresolved numerical, visibility, fairness or accounting
    failures. This is a spending gate, not independent evidence of superiority.
    Freeze source, prompts, budgets, seeds, sample size and the shared temporal
    block/series uncertainty calculation before final dispatch.
@@ -61,3 +64,10 @@ failed to improve incumbent support. Audit 013 shows real historical-linkage
 sensitivity but insufficient headroom on existing development cases. Confirmation
 010 remains spent and negative. The separate experience-workflow and Hermes
 experiments cannot be presented as new confirmation of this objective.
+
+Completed ML experiments 030–032 have not changed that decision. The live 1.2.0
+ledger gain is 1.14%, with an interval including zero; the fixed default-cohort
+screen's hindsight gain is only 5.90%. Do not reopen the reserved M5 stores or
+launch a paid confirmation based on either result. A broader task population
+requires its own substantive justification and prospective source/split protocol,
+not selection of series because their realized gains are favorable.
