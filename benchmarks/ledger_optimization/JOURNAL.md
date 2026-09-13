@@ -959,3 +959,20 @@ gain. Existing real weighting gain remains0.96%. All416 cases, 416 diagnostic
 weight fits/6,213 iterations/0.4710s, two tests and15,838 independent checks.
 No provider fits/API/final reads. Preserve all weights as diagnostic artifacts;
 never expose future-aware weights to an evaluated agent or selection policy.
+
+## Context-matched ensemble 047: small gain, gate failed
+
+The preceding user-facing results turn was a status restatement, not new
+experimental progress. Revalidated current branch and evidence before this run;
+046 report was already committed/pushed at62cc021. No paid jobs were restarted.
+
+047 frozen6b60292 before execution. Retrieve sixteen nearest predecision contexts
+from the latest eight visible same-domain origins; half current-CV/half historical
+objective mass. Strong045 CV ensemble unchanged. Completed416 tasks and416 fits,
+7,759 iterations,2.794s measured loop, zero API/provider fits. Improvement1.90%
+overall,0.90% electricity,2.17% pedestrian. Eight synthetic tests and97,777
+independent audit checks passed. No solver failures, no future-aware046 weights,
+no reserved outcome access. Preserve all candidate IDs/distances/scales, selected
+cohorts, inputs, weights, forecasts, scores and archive in receipt047. The gate
+failed; no paid confirmation. A small development signal does not establish
+the20% target or causal agent value.

@@ -4,6 +4,13 @@ Branch: `dev/ledger-optimization`. **The 20% target has not been achieved.**
 Development and a complete frozen confirmation are retained here. No release or
 forecast-superiority claim is established.
 
+Latest offline mechanism test: [context-matched ensemble 047](BROAD_CONTEXT_ENSEMBLE_047_RESULT.md)
+improved mean RMSLE **1.90%** against the equally capable CV ensemble on 416
+development tasks (electricity 0.90%, pedestrians 2.17%). All 97,777 audit checks
+passed; zero new provider/API calls. This is a small prototype gain, not a new
+agent comparison or held-out proof. The >=20% gate failed; final data remain
+untouched.
+
 ## Latest completed comparison: Gnomon 1.2.0 and Hermes
 
 DeepSeek **deepseek-v4.1-flash** through Engy; 104 tasks per arm, four retail
