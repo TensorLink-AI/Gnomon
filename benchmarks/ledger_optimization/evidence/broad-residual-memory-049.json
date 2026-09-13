@@ -1,0 +1,4240 @@
+{
+  "freeze_commit": "515a3de",
+  "exit_status": 0,
+  "report": {
+    "overall": {
+      "cases": 416,
+      "mean_rmsle": {
+        "uncorrected": 0.26063159842148664,
+        "cv_correction": 0.26230298430819793,
+        "ledger_correction": 0.26008047856026933
+      },
+      "primary_reduction": 0.008473047890744656,
+      "reduction_vs_uncorrected_guard": 0.002114555044573141,
+      "control_correction_reduction_vs_uncorrected": -0.006412829053860092
+    },
+    "domains": {
+      "electricity": {
+        "cases": 208,
+        "mean_rmsle": {
+          "uncorrected": 0.11122640184939629,
+          "cv_correction": 0.11052518766084517,
+          "ledger_correction": 0.11036351699622927
+        },
+        "primary_reduction": 0.001462749514725914,
+        "reduction_vs_uncorrected_guard": 0.007757913937874061,
+        "control_correction_reduction_vs_uncorrected": 0.006304386160945752
+      },
+      "pedestrian": {
+        "cases": 208,
+        "mean_rmsle": {
+          "uncorrected": 0.410036794993577,
+          "cv_correction": 0.41408078095555073,
+          "ledger_correction": 0.40979744012430935
+        },
+        "primary_reduction": 0.010344215496688736,
+        "reduction_vs_uncorrected_guard": 0.00058373997697303,
+        "control_correction_reduction_vs_uncorrected": -0.009862495296396823
+      }
+    },
+    "rows": [
+      {
+        "series_id": "electricity:T15",
+        "round": 0,
+        "scores": {
+          "uncorrected": 0.06066115113206595,
+          "cv_correction": 0.05688568666647397,
+          "ledger_correction": 0.05857703806348508
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 0,
+        "scores": {
+          "uncorrected": 0.056202371199024444,
+          "cv_correction": 0.0489834551215595,
+          "ledger_correction": 0.051626977818085305
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 0,
+        "scores": {
+          "uncorrected": 0.05269772113726944,
+          "cv_correction": 0.06021984231133839,
+          "ledger_correction": 0.05487273825368276
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 0,
+        "scores": {
+          "uncorrected": 0.0724466167512979,
+          "cv_correction": 0.07444657358332096,
+          "ledger_correction": 0.07156677624180413
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 0,
+        "scores": {
+          "uncorrected": 0.4288510937576709,
+          "cv_correction": 0.39239154519462277,
+          "ledger_correction": 0.41552995839355433
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 0,
+        "scores": {
+          "uncorrected": 0.08607934884683702,
+          "cv_correction": 0.09054242434754164,
+          "ledger_correction": 0.08709812994262293
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 0,
+        "scores": {
+          "uncorrected": 0.03593306426089553,
+          "cv_correction": 0.03470157005338683,
+          "ledger_correction": 0.035709853823180336
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 0,
+        "scores": {
+          "uncorrected": 0.07520522704253656,
+          "cv_correction": 0.07787352732807969,
+          "ledger_correction": 0.07625498914796032
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 1,
+        "scores": {
+          "uncorrected": 0.046632815357186254,
+          "cv_correction": 0.04316088588013723,
+          "ledger_correction": 0.04532090314230583
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 1,
+        "scores": {
+          "uncorrected": 0.1724234832397517,
+          "cv_correction": 0.1976498625880195,
+          "ledger_correction": 0.17968851469521346
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 1,
+        "scores": {
+          "uncorrected": 0.05850608318304607,
+          "cv_correction": 0.06833484899723571,
+          "ledger_correction": 0.06374918506945224
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 1,
+        "scores": {
+          "uncorrected": 0.08524448856788609,
+          "cv_correction": 0.08363351285776129,
+          "ledger_correction": 0.08689287670625523
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 1,
+        "scores": {
+          "uncorrected": 0.2493003692126086,
+          "cv_correction": 0.24533284763797827,
+          "ledger_correction": 0.2402607717378274
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 1,
+        "scores": {
+          "uncorrected": 0.039619996500856104,
+          "cv_correction": 0.027560259218049117,
+          "ledger_correction": 0.046135240781254375
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 1,
+        "scores": {
+          "uncorrected": 0.06984451386000115,
+          "cv_correction": 0.07115976239227997,
+          "ledger_correction": 0.07004585361416975
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 1,
+        "scores": {
+          "uncorrected": 0.04902215127360433,
+          "cv_correction": 0.04829252623619416,
+          "ledger_correction": 0.046778058129385555
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 2,
+        "scores": {
+          "uncorrected": 0.06765232197675139,
+          "cv_correction": 0.07190770724653914,
+          "ledger_correction": 0.06916958811316351
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 2,
+        "scores": {
+          "uncorrected": 0.05980672984756677,
+          "cv_correction": 0.07377390613677723,
+          "ledger_correction": 0.06524842851344036
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 2,
+        "scores": {
+          "uncorrected": 0.06284955598505745,
+          "cv_correction": 0.06723264153736203,
+          "ledger_correction": 0.06607415869823448
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 2,
+        "scores": {
+          "uncorrected": 0.05017911239646841,
+          "cv_correction": 0.04519550009036051,
+          "ledger_correction": 0.047950366927232674
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 2,
+        "scores": {
+          "uncorrected": 0.16823418040689805,
+          "cv_correction": 0.13759591484732878,
+          "ledger_correction": 0.14433329682144774
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 2,
+        "scores": {
+          "uncorrected": 0.36080522147017313,
+          "cv_correction": 0.39104507828057894,
+          "ledger_correction": 0.3851776807156151
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 2,
+        "scores": {
+          "uncorrected": 0.04883603336811313,
+          "cv_correction": 0.04366811481950308,
+          "ledger_correction": 0.04641290644488516
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 2,
+        "scores": {
+          "uncorrected": 0.06953551085747896,
+          "cv_correction": 0.07366904313637167,
+          "ledger_correction": 0.07319774899513205
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 3,
+        "scores": {
+          "uncorrected": 0.07836916971272005,
+          "cv_correction": 0.07570091574551158,
+          "ledger_correction": 0.07646484134188085
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 3,
+        "scores": {
+          "uncorrected": 0.13597836009993425,
+          "cv_correction": 0.14801604977838273,
+          "ledger_correction": 0.13995003997995714
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 3,
+        "scores": {
+          "uncorrected": 0.11158896093492011,
+          "cv_correction": 0.10710545340881124,
+          "ledger_correction": 0.10844549975289577
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 3,
+        "scores": {
+          "uncorrected": 0.08431687191797656,
+          "cv_correction": 0.08169204866899522,
+          "ledger_correction": 0.08261687761055211
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 3,
+        "scores": {
+          "uncorrected": 0.1457916934437135,
+          "cv_correction": 0.13301735900109835,
+          "ledger_correction": 0.1363159897718096
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 3,
+        "scores": {
+          "uncorrected": 0.04833359200342159,
+          "cv_correction": 0.053952188600683584,
+          "ledger_correction": 0.07575991536631707
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 3,
+        "scores": {
+          "uncorrected": 0.07359210825845318,
+          "cv_correction": 0.06236135022111131,
+          "ledger_correction": 0.0668250296026065
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 3,
+        "scores": {
+          "uncorrected": 0.09716822450823029,
+          "cv_correction": 0.08075336805291887,
+          "ledger_correction": 0.08580202818671032
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 4,
+        "scores": {
+          "uncorrected": 0.03938722368455046,
+          "cv_correction": 0.03587937359618421,
+          "ledger_correction": 0.038542889428091004
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 4,
+        "scores": {
+          "uncorrected": 0.031536631812972477,
+          "cv_correction": 0.028949180011450693,
+          "ledger_correction": 0.029433776949826126
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 4,
+        "scores": {
+          "uncorrected": 0.039763414093225466,
+          "cv_correction": 0.03603420691533248,
+          "ledger_correction": 0.038702208533801435
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 4,
+        "scores": {
+          "uncorrected": 0.04338648575573039,
+          "cv_correction": 0.04311050229162783,
+          "ledger_correction": 0.04181981668015847
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 4,
+        "scores": {
+          "uncorrected": 0.25955242893004116,
+          "cv_correction": 0.27916014968205094,
+          "ledger_correction": 0.25975312076253
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 4,
+        "scores": {
+          "uncorrected": 0.28522003251455913,
+          "cv_correction": 0.26247957731130883,
+          "ledger_correction": 0.28662530985334095
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 4,
+        "scores": {
+          "uncorrected": 0.06367627243373009,
+          "cv_correction": 0.06426629963785814,
+          "ledger_correction": 0.06542152431339682
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 4,
+        "scores": {
+          "uncorrected": 0.06815058130474816,
+          "cv_correction": 0.06150848391202698,
+          "ledger_correction": 0.06903199671213987
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 5,
+        "scores": {
+          "uncorrected": 0.0631418018677945,
+          "cv_correction": 0.06758168832314723,
+          "ledger_correction": 0.06559967265910058
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 5,
+        "scores": {
+          "uncorrected": 0.10658909290408848,
+          "cv_correction": 0.1035467241767808,
+          "ledger_correction": 0.10494709821340638
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 5,
+        "scores": {
+          "uncorrected": 0.05857628427055999,
+          "cv_correction": 0.05961249926308683,
+          "ledger_correction": 0.06004992418050386
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 5,
+        "scores": {
+          "uncorrected": 0.2189701515491504,
+          "cv_correction": 0.21871513532443845,
+          "ledger_correction": 0.21923786132926337
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 5,
+        "scores": {
+          "uncorrected": 0.344155564006727,
+          "cv_correction": 0.3168799657473139,
+          "ledger_correction": 0.31878570198132716
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 5,
+        "scores": {
+          "uncorrected": 0.6065529130324203,
+          "cv_correction": 0.583316321991429,
+          "ledger_correction": 0.6170642331457983
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 5,
+        "scores": {
+          "uncorrected": 0.06551818790331634,
+          "cv_correction": 0.06623921260343306,
+          "ledger_correction": 0.0660723088794536
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 5,
+        "scores": {
+          "uncorrected": 0.04796172682106906,
+          "cv_correction": 0.052207419604394255,
+          "ledger_correction": 0.05009645275734385
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 6,
+        "scores": {
+          "uncorrected": 0.06995347055193057,
+          "cv_correction": 0.0706928617812995,
+          "ledger_correction": 0.07047619348459817
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 6,
+        "scores": {
+          "uncorrected": 0.039604319814314684,
+          "cv_correction": 0.045647544670232625,
+          "ledger_correction": 0.04215984840859713
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 6,
+        "scores": {
+          "uncorrected": 0.032328672623958304,
+          "cv_correction": 0.028365134563301,
+          "ledger_correction": 0.029515456098861345
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 6,
+        "scores": {
+          "uncorrected": 0.17927434671676565,
+          "cv_correction": 0.15313528759430645,
+          "ledger_correction": 0.169203180347304
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 6,
+        "scores": {
+          "uncorrected": 0.25798388401880484,
+          "cv_correction": 0.2791001881855829,
+          "ledger_correction": 0.26605334588418944
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 6,
+        "scores": {
+          "uncorrected": 0.1165357401936142,
+          "cv_correction": 0.12151796517288595,
+          "ledger_correction": 0.11865500148504626
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 6,
+        "scores": {
+          "uncorrected": 0.06339013508345008,
+          "cv_correction": 0.05922461631237367,
+          "ledger_correction": 0.060058692238236046
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 6,
+        "scores": {
+          "uncorrected": 0.06854871028998077,
+          "cv_correction": 0.06646103322420285,
+          "ledger_correction": 0.0685927631216405
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 7,
+        "scores": {
+          "uncorrected": 0.05744461357854151,
+          "cv_correction": 0.05798809516808589,
+          "ledger_correction": 0.05590199174230107
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 7,
+        "scores": {
+          "uncorrected": 0.05397160953019584,
+          "cv_correction": 0.060800037965552715,
+          "ledger_correction": 0.05750815417624003
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 7,
+        "scores": {
+          "uncorrected": 0.04640636382959542,
+          "cv_correction": 0.0493671690057582,
+          "ledger_correction": 0.048687867047415574
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 7,
+        "scores": {
+          "uncorrected": 0.06274178801334417,
+          "cv_correction": 0.061077985405830496,
+          "ledger_correction": 0.05976573275592639
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 7,
+        "scores": {
+          "uncorrected": 0.18917870780683332,
+          "cv_correction": 0.20509032149619671,
+          "ledger_correction": 0.19055038659699333
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 7,
+        "scores": {
+          "uncorrected": 0.36955576026613574,
+          "cv_correction": 0.36116122882926943,
+          "ledger_correction": 0.3661647311000862
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 7,
+        "scores": {
+          "uncorrected": 0.04647487285681306,
+          "cv_correction": 0.05192656144949515,
+          "ledger_correction": 0.05023945598885731
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 7,
+        "scores": {
+          "uncorrected": 0.05339586409155034,
+          "cv_correction": 0.055666422653564716,
+          "ledger_correction": 0.05368134142430009
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 8,
+        "scores": {
+          "uncorrected": 0.07888440786565235,
+          "cv_correction": 0.06703209128179954,
+          "ledger_correction": 0.0722781444231073
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 8,
+        "scores": {
+          "uncorrected": 0.10407936406504052,
+          "cv_correction": 0.12681406227493036,
+          "ledger_correction": 0.11437124010427843
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 8,
+        "scores": {
+          "uncorrected": 0.03882588405856653,
+          "cv_correction": 0.043010501863741835,
+          "ledger_correction": 0.03925595001017016
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 8,
+        "scores": {
+          "uncorrected": 0.0949901961559341,
+          "cv_correction": 0.09486644349359619,
+          "ledger_correction": 0.09461287360397705
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 8,
+        "scores": {
+          "uncorrected": 0.1658745692822896,
+          "cv_correction": 0.1462503447303804,
+          "ledger_correction": 0.15705949468135
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 8,
+        "scores": {
+          "uncorrected": 0.37567987307090367,
+          "cv_correction": 0.3781324917015612,
+          "ledger_correction": 0.38265999303869336
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 8,
+        "scores": {
+          "uncorrected": 0.039918461549312285,
+          "cv_correction": 0.04681167451527126,
+          "ledger_correction": 0.04108963733872161
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 8,
+        "scores": {
+          "uncorrected": 0.049750800672968866,
+          "cv_correction": 0.043510730670273334,
+          "ledger_correction": 0.04537662514257002
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 9,
+        "scores": {
+          "uncorrected": 0.06437843344809807,
+          "cv_correction": 0.06221377005814444,
+          "ledger_correction": 0.06282194343953831
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 9,
+        "scores": {
+          "uncorrected": 0.07114333280476606,
+          "cv_correction": 0.059700465059107984,
+          "ledger_correction": 0.061011826648574054
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 9,
+        "scores": {
+          "uncorrected": 0.04466832751355744,
+          "cv_correction": 0.04716141767417699,
+          "ledger_correction": 0.04615042752789779
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 9,
+        "scores": {
+          "uncorrected": 0.13767519925215252,
+          "cv_correction": 0.17229916326724146,
+          "ledger_correction": 0.1567387117211361
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 9,
+        "scores": {
+          "uncorrected": 0.22825830387742124,
+          "cv_correction": 0.24392492250260672,
+          "ledger_correction": 0.23120511980070968
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 9,
+        "scores": {
+          "uncorrected": 0.10019421624131694,
+          "cv_correction": 0.10880146150271523,
+          "ledger_correction": 0.10115264997206572
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 9,
+        "scores": {
+          "uncorrected": 0.06413693532629722,
+          "cv_correction": 0.0657663634630268,
+          "ledger_correction": 0.06549623560232616
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 9,
+        "scores": {
+          "uncorrected": 0.0769979875697196,
+          "cv_correction": 0.06594829436914376,
+          "ledger_correction": 0.07213773118368891
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 10,
+        "scores": {
+          "uncorrected": 0.07113706401678464,
+          "cv_correction": 0.07713592830995467,
+          "ledger_correction": 0.07358453572976885
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 10,
+        "scores": {
+          "uncorrected": 0.13005099832224473,
+          "cv_correction": 0.10096675778083779,
+          "ledger_correction": 0.11288519477126538
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 10,
+        "scores": {
+          "uncorrected": 0.04352568493854511,
+          "cv_correction": 0.05851760868136042,
+          "ledger_correction": 0.04824662972899421
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 10,
+        "scores": {
+          "uncorrected": 0.0739899220604834,
+          "cv_correction": 0.06893982168668714,
+          "ledger_correction": 0.06717581357580522
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 10,
+        "scores": {
+          "uncorrected": 0.20017374625367754,
+          "cv_correction": 0.18301955023064653,
+          "ledger_correction": 0.18428160732740678
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 10,
+        "scores": {
+          "uncorrected": 0.08155812567344979,
+          "cv_correction": 0.08032045213316064,
+          "ledger_correction": 0.0796042474064169
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 10,
+        "scores": {
+          "uncorrected": 0.05151293631320808,
+          "cv_correction": 0.04142484685653936,
+          "ledger_correction": 0.04545280272867377
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 10,
+        "scores": {
+          "uncorrected": 0.06173979235023994,
+          "cv_correction": 0.054039344376485485,
+          "ledger_correction": 0.05726132896179013
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 11,
+        "scores": {
+          "uncorrected": 0.06503663742804071,
+          "cv_correction": 0.056651700941815104,
+          "ledger_correction": 0.05951660847284567
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 11,
+        "scores": {
+          "uncorrected": 0.054419526852589536,
+          "cv_correction": 0.059266189201823076,
+          "ledger_correction": 0.05598089949471854
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 11,
+        "scores": {
+          "uncorrected": 0.06499619135321098,
+          "cv_correction": 0.06377618382596957,
+          "ledger_correction": 0.06422583838597604
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 11,
+        "scores": {
+          "uncorrected": 0.07116743332872198,
+          "cv_correction": 0.06780725224520605,
+          "ledger_correction": 0.06670550951968351
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 11,
+        "scores": {
+          "uncorrected": 0.24836392584190012,
+          "cv_correction": 0.23552232792860742,
+          "ledger_correction": 0.2266234709690914
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 11,
+        "scores": {
+          "uncorrected": 0.06683130337314776,
+          "cv_correction": 0.0672409020574476,
+          "ledger_correction": 0.06604154715354436
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 11,
+        "scores": {
+          "uncorrected": 0.06515373798783712,
+          "cv_correction": 0.06568233753527626,
+          "ledger_correction": 0.06510166184656214
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 11,
+        "scores": {
+          "uncorrected": 0.10642157243252194,
+          "cv_correction": 0.10232987710935378,
+          "ledger_correction": 0.1037239985885259
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 12,
+        "scores": {
+          "uncorrected": 0.05226760478023696,
+          "cv_correction": 0.052387542556097795,
+          "ledger_correction": 0.05190002258062126
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 12,
+        "scores": {
+          "uncorrected": 0.05531516781214155,
+          "cv_correction": 0.05102036692637456,
+          "ledger_correction": 0.05570287332305308
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 12,
+        "scores": {
+          "uncorrected": 0.02642110628245015,
+          "cv_correction": 0.03135126596889085,
+          "ledger_correction": 0.03065265187562832
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 12,
+        "scores": {
+          "uncorrected": 0.04517387325658199,
+          "cv_correction": 0.048941351912696746,
+          "ledger_correction": 0.051545036728823504
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 12,
+        "scores": {
+          "uncorrected": 0.23220802543346902,
+          "cv_correction": 0.23336141120332327,
+          "ledger_correction": 0.22981910749839637
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 12,
+        "scores": {
+          "uncorrected": 0.07880689073264684,
+          "cv_correction": 0.07257700192491374,
+          "ledger_correction": 0.07313485661430098
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 12,
+        "scores": {
+          "uncorrected": 0.04527567314049014,
+          "cv_correction": 0.04105550530042496,
+          "ledger_correction": 0.04256872947065171
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 12,
+        "scores": {
+          "uncorrected": 0.07696706191755744,
+          "cv_correction": 0.07561134087535377,
+          "ledger_correction": 0.07929324136397754
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 13,
+        "scores": {
+          "uncorrected": 0.09487305120490108,
+          "cv_correction": 0.08448707683190636,
+          "ledger_correction": 0.08914515473005075
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 13,
+        "scores": {
+          "uncorrected": 0.0479458171977368,
+          "cv_correction": 0.050394027348739705,
+          "ledger_correction": 0.047365859720525885
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 13,
+        "scores": {
+          "uncorrected": 0.029877277821118813,
+          "cv_correction": 0.03664273695867212,
+          "ledger_correction": 0.03056358076743916
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 13,
+        "scores": {
+          "uncorrected": 0.03963445383180434,
+          "cv_correction": 0.030764449684449552,
+          "ledger_correction": 0.03408935180141762
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 13,
+        "scores": {
+          "uncorrected": 0.21163985306015365,
+          "cv_correction": 0.2460758575420486,
+          "ledger_correction": 0.23155244141882306
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 13,
+        "scores": {
+          "uncorrected": 0.09656159241004955,
+          "cv_correction": 0.0937236317325178,
+          "ledger_correction": 0.09707781386965324
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 13,
+        "scores": {
+          "uncorrected": 0.06478853620473336,
+          "cv_correction": 0.054904611629916104,
+          "ledger_correction": 0.05928659968014079
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 13,
+        "scores": {
+          "uncorrected": 0.0702952290338137,
+          "cv_correction": 0.06916445211414388,
+          "ledger_correction": 0.06941096539204282
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 14,
+        "scores": {
+          "uncorrected": 0.05341933944565275,
+          "cv_correction": 0.06414166445698499,
+          "ledger_correction": 0.05868064339862948
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 14,
+        "scores": {
+          "uncorrected": 0.06155384622233233,
+          "cv_correction": 0.06120265531381349,
+          "ledger_correction": 0.05921424950864116
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 14,
+        "scores": {
+          "uncorrected": 0.06509888356573112,
+          "cv_correction": 0.05636905627693256,
+          "ledger_correction": 0.05780822253214181
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 14,
+        "scores": {
+          "uncorrected": 0.051495468625193885,
+          "cv_correction": 0.044508766974789955,
+          "ledger_correction": 0.04787126704103525
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 14,
+        "scores": {
+          "uncorrected": 0.5114248169627399,
+          "cv_correction": 0.5577496623031035,
+          "ledger_correction": 0.5336626185685498
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 14,
+        "scores": {
+          "uncorrected": 0.056726664096517616,
+          "cv_correction": 0.060355672224096435,
+          "ledger_correction": 0.055770660117155334
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 14,
+        "scores": {
+          "uncorrected": 0.05982078223140003,
+          "cv_correction": 0.04977487825931607,
+          "ledger_correction": 0.05303694791593038
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 14,
+        "scores": {
+          "uncorrected": 0.06328221615902559,
+          "cv_correction": 0.05482110422976156,
+          "ledger_correction": 0.059165840590189915
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 15,
+        "scores": {
+          "uncorrected": 0.05935300980939745,
+          "cv_correction": 0.05946232673910048,
+          "ledger_correction": 0.06223334774920699
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 15,
+        "scores": {
+          "uncorrected": 0.08367857879364045,
+          "cv_correction": 0.06641266062789522,
+          "ledger_correction": 0.07660591660497348
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 15,
+        "scores": {
+          "uncorrected": 0.02697711373706223,
+          "cv_correction": 0.02921100024285069,
+          "ledger_correction": 0.027070854565692096
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 15,
+        "scores": {
+          "uncorrected": 0.12249447592972329,
+          "cv_correction": 0.11182240649577871,
+          "ledger_correction": 0.12053873028675324
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 15,
+        "scores": {
+          "uncorrected": 0.45794928001456414,
+          "cv_correction": 0.43466002915964064,
+          "ledger_correction": 0.43534767258606905
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 15,
+        "scores": {
+          "uncorrected": 0.09308064886236114,
+          "cv_correction": 0.08402250900379217,
+          "ledger_correction": 0.08883598895722433
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 15,
+        "scores": {
+          "uncorrected": 0.04984062476556525,
+          "cv_correction": 0.048367144404343566,
+          "ledger_correction": 0.05040168291095454
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 15,
+        "scores": {
+          "uncorrected": 0.05146881460736361,
+          "cv_correction": 0.05006242596973423,
+          "ledger_correction": 0.04980797232429103
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 16,
+        "scores": {
+          "uncorrected": 0.055250407789280254,
+          "cv_correction": 0.04931936180029711,
+          "ledger_correction": 0.04815966054681898
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 16,
+        "scores": {
+          "uncorrected": 0.07323008154856882,
+          "cv_correction": 0.08097456254696142,
+          "ledger_correction": 0.07366297651611758
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 16,
+        "scores": {
+          "uncorrected": 0.04325286359198642,
+          "cv_correction": 0.04820844075137309,
+          "ledger_correction": 0.04199817554185683
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 16,
+        "scores": {
+          "uncorrected": 0.029519129755569716,
+          "cv_correction": 0.03318427434997128,
+          "ledger_correction": 0.028394136621484507
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 16,
+        "scores": {
+          "uncorrected": 0.24618094038690247,
+          "cv_correction": 0.22405443545838988,
+          "ledger_correction": 0.21806903212986145
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 16,
+        "scores": {
+          "uncorrected": 0.07349113417886308,
+          "cv_correction": 0.06373490472076923,
+          "ledger_correction": 0.06600896468822949
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 16,
+        "scores": {
+          "uncorrected": 0.054472908531480506,
+          "cv_correction": 0.052914183411382515,
+          "ledger_correction": 0.05161186908052939
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 16,
+        "scores": {
+          "uncorrected": 0.058419633522408344,
+          "cv_correction": 0.060411322686314925,
+          "ledger_correction": 0.05728619492886138
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 17,
+        "scores": {
+          "uncorrected": 0.08588505802472637,
+          "cv_correction": 0.093794135808371,
+          "ledger_correction": 0.08839550889702512
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 17,
+        "scores": {
+          "uncorrected": 0.09639855312197615,
+          "cv_correction": 0.07861744535854964,
+          "ledger_correction": 0.07999087350385063
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 17,
+        "scores": {
+          "uncorrected": 0.06868035692817606,
+          "cv_correction": 0.06277643408876496,
+          "ledger_correction": 0.06267043851864404
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 17,
+        "scores": {
+          "uncorrected": 0.0741762942537145,
+          "cv_correction": 0.07901281367961523,
+          "ledger_correction": 0.08033262640922445
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 17,
+        "scores": {
+          "uncorrected": 0.4123330206445143,
+          "cv_correction": 0.3311473119760643,
+          "ledger_correction": 0.35143176571465545
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 17,
+        "scores": {
+          "uncorrected": 0.08836185458737139,
+          "cv_correction": 0.09801342814095948,
+          "ledger_correction": 0.09300298303736064
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 17,
+        "scores": {
+          "uncorrected": 0.06461396115906634,
+          "cv_correction": 0.05944851037069591,
+          "ledger_correction": 0.06200072658721841
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 17,
+        "scores": {
+          "uncorrected": 0.07840134976623415,
+          "cv_correction": 0.07238215308085794,
+          "ledger_correction": 0.07234427681125952
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 18,
+        "scores": {
+          "uncorrected": 0.07665801532933385,
+          "cv_correction": 0.06963670757475429,
+          "ledger_correction": 0.07215750156630461
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 18,
+        "scores": {
+          "uncorrected": 0.06027462649220753,
+          "cv_correction": 0.06953598336291095,
+          "ledger_correction": 0.06666339921891755
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 18,
+        "scores": {
+          "uncorrected": 0.06790584550276202,
+          "cv_correction": 0.06884891290010971,
+          "ledger_correction": 0.06836255113982954
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 18,
+        "scores": {
+          "uncorrected": 0.09271450214900974,
+          "cv_correction": 0.10142769926616241,
+          "ledger_correction": 0.09681942952849663
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 18,
+        "scores": {
+          "uncorrected": 0.24567402687187623,
+          "cv_correction": 0.24894471557744086,
+          "ledger_correction": 0.2377546041735122
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 18,
+        "scores": {
+          "uncorrected": 0.07565278553337294,
+          "cv_correction": 0.09192212292800615,
+          "ledger_correction": 0.08373703802812375
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 18,
+        "scores": {
+          "uncorrected": 0.0765925071169177,
+          "cv_correction": 0.06764429554717816,
+          "ledger_correction": 0.07155052371515123
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 18,
+        "scores": {
+          "uncorrected": 0.06546832376920304,
+          "cv_correction": 0.06438829008608571,
+          "ledger_correction": 0.06403158780554637
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 19,
+        "scores": {
+          "uncorrected": 0.05694702261885529,
+          "cv_correction": 0.06264504232870975,
+          "ledger_correction": 0.059347488518887985
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 19,
+        "scores": {
+          "uncorrected": 0.05466286570354147,
+          "cv_correction": 0.048614068917269326,
+          "ledger_correction": 0.052885752363698225
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 19,
+        "scores": {
+          "uncorrected": 0.04311136378712038,
+          "cv_correction": 0.04401635630831823,
+          "ledger_correction": 0.0421642770537328
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 19,
+        "scores": {
+          "uncorrected": 0.2679303222134808,
+          "cv_correction": 0.34492018567109656,
+          "ledger_correction": 0.3076443142733146
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 19,
+        "scores": {
+          "uncorrected": 0.25623486401082823,
+          "cv_correction": 0.2558481426575009,
+          "ledger_correction": 0.24613210060894739
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 19,
+        "scores": {
+          "uncorrected": 0.06890879934906555,
+          "cv_correction": 0.07280031889436869,
+          "ledger_correction": 0.06824085055149982
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 19,
+        "scores": {
+          "uncorrected": 0.07809319520880849,
+          "cv_correction": 0.07688695555514771,
+          "ledger_correction": 0.07692755465819678
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 19,
+        "scores": {
+          "uncorrected": 0.06750442252722631,
+          "cv_correction": 0.06355360084108926,
+          "ledger_correction": 0.06484544878796979
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 20,
+        "scores": {
+          "uncorrected": 0.07047306807704419,
+          "cv_correction": 0.07252389786110426,
+          "ledger_correction": 0.0720998098760859
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 20,
+        "scores": {
+          "uncorrected": 0.02832069578091482,
+          "cv_correction": 0.0344061435465467,
+          "ledger_correction": 0.03061416005101904
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 20,
+        "scores": {
+          "uncorrected": 0.07929267280502943,
+          "cv_correction": 0.08297512371026237,
+          "ledger_correction": 0.0811130608613371
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 20,
+        "scores": {
+          "uncorrected": 0.12707716416472747,
+          "cv_correction": 0.1552481056203983,
+          "ledger_correction": 0.14196124446226419
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 20,
+        "scores": {
+          "uncorrected": 0.2440205121859544,
+          "cv_correction": 0.24434422174865938,
+          "ledger_correction": 0.2332461313828962
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 20,
+        "scores": {
+          "uncorrected": 0.07828834729555113,
+          "cv_correction": 0.09088450669848934,
+          "ledger_correction": 0.08077978841579914
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 20,
+        "scores": {
+          "uncorrected": 0.07309911856189401,
+          "cv_correction": 0.06171064184027369,
+          "ledger_correction": 0.07015943765054235
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 20,
+        "scores": {
+          "uncorrected": 0.04623507015188663,
+          "cv_correction": 0.05025848162136447,
+          "ledger_correction": 0.04808010543323303
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 21,
+        "scores": {
+          "uncorrected": 0.04150937183440541,
+          "cv_correction": 0.04175095172688547,
+          "ledger_correction": 0.04112753281937836
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 21,
+        "scores": {
+          "uncorrected": 0.03937816578589433,
+          "cv_correction": 0.03083583147768735,
+          "ledger_correction": 0.0330856257603151
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 21,
+        "scores": {
+          "uncorrected": 0.048773171411726844,
+          "cv_correction": 0.04329209802101556,
+          "ledger_correction": 0.0457077820803679
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 21,
+        "scores": {
+          "uncorrected": 0.10451158303498685,
+          "cv_correction": 0.10162012698724915,
+          "ledger_correction": 0.10171389341133559
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 21,
+        "scores": {
+          "uncorrected": 0.37721178264744354,
+          "cv_correction": 0.40775326577314436,
+          "ledger_correction": 0.3901350239053563
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 21,
+        "scores": {
+          "uncorrected": 0.1287592529991038,
+          "cv_correction": 0.11606329835017161,
+          "ledger_correction": 0.11738315956827748
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 21,
+        "scores": {
+          "uncorrected": 0.06593544537443985,
+          "cv_correction": 0.06452633128236168,
+          "ledger_correction": 0.06629039818628134
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 21,
+        "scores": {
+          "uncorrected": 0.05420778927686679,
+          "cv_correction": 0.04813129413667175,
+          "ledger_correction": 0.05036517584743018
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 22,
+        "scores": {
+          "uncorrected": 0.0701982762192351,
+          "cv_correction": 0.07274665932934384,
+          "ledger_correction": 0.06752139619882573
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 22,
+        "scores": {
+          "uncorrected": 0.03528723533664726,
+          "cv_correction": 0.03266344028112534,
+          "ledger_correction": 0.031143232541117626
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 22,
+        "scores": {
+          "uncorrected": 0.08640713347695486,
+          "cv_correction": 0.10235225604917386,
+          "ledger_correction": 0.09247600385904935
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 22,
+        "scores": {
+          "uncorrected": 0.048802407119661176,
+          "cv_correction": 0.041804527646229654,
+          "ledger_correction": 0.04540011169631339
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 22,
+        "scores": {
+          "uncorrected": 0.28398232256221856,
+          "cv_correction": 0.2914305304477129,
+          "ledger_correction": 0.2775448872560441
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 22,
+        "scores": {
+          "uncorrected": 0.1498295310743224,
+          "cv_correction": 0.1529435356946936,
+          "ledger_correction": 0.14628946509786353
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 22,
+        "scores": {
+          "uncorrected": 0.05752028158706359,
+          "cv_correction": 0.05954961294516435,
+          "ledger_correction": 0.056052009665395336
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 22,
+        "scores": {
+          "uncorrected": 0.07201366024697993,
+          "cv_correction": 0.06369244397811867,
+          "ledger_correction": 0.06780892569236267
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 23,
+        "scores": {
+          "uncorrected": 0.039379435041946756,
+          "cv_correction": 0.04210021369965995,
+          "ledger_correction": 0.039232105119021754
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 23,
+        "scores": {
+          "uncorrected": 0.029744465425615374,
+          "cv_correction": 0.028412148699234696,
+          "ledger_correction": 0.028556319554666035
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 23,
+        "scores": {
+          "uncorrected": 0.03766765513528504,
+          "cv_correction": 0.03933726260046415,
+          "ledger_correction": 0.03956227803060896
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 23,
+        "scores": {
+          "uncorrected": 0.07151954647390817,
+          "cv_correction": 0.07284348041404982,
+          "ledger_correction": 0.07116490257190208
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 23,
+        "scores": {
+          "uncorrected": 0.30530519693166963,
+          "cv_correction": 0.2517981964165152,
+          "ledger_correction": 0.2841708835978786
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 23,
+        "scores": {
+          "uncorrected": 0.09715989727123216,
+          "cv_correction": 0.10162164429848808,
+          "ledger_correction": 0.09984147814864895
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 23,
+        "scores": {
+          "uncorrected": 0.059809718713641685,
+          "cv_correction": 0.07026374278391564,
+          "ledger_correction": 0.0649701553395491
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 23,
+        "scores": {
+          "uncorrected": 0.05168508269901122,
+          "cv_correction": 0.05937838092434822,
+          "ledger_correction": 0.05323848412171004
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 24,
+        "scores": {
+          "uncorrected": 0.11710332492784134,
+          "cv_correction": 0.11571904654548673,
+          "ledger_correction": 0.11774267615011474
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 24,
+        "scores": {
+          "uncorrected": 0.41007939012909467,
+          "cv_correction": 0.41487723695111506,
+          "ledger_correction": 0.41454875398104785
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 24,
+        "scores": {
+          "uncorrected": 0.15753267555397193,
+          "cv_correction": 0.16034370646603133,
+          "ledger_correction": 0.16037276229107808
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 24,
+        "scores": {
+          "uncorrected": 0.2775136317512737,
+          "cv_correction": 0.27798289022838557,
+          "ledger_correction": 0.27818586059342104
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 24,
+        "scores": {
+          "uncorrected": 0.2662521580041093,
+          "cv_correction": 0.22879729534596085,
+          "ledger_correction": 0.2886962077335906
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 24,
+        "scores": {
+          "uncorrected": 0.13006259600643674,
+          "cv_correction": 0.13391293655946587,
+          "ledger_correction": 0.1351566531493953
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 24,
+        "scores": {
+          "uncorrected": 0.16993623339214534,
+          "cv_correction": 0.16355275393244456,
+          "ledger_correction": 0.16910836753308484
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 24,
+        "scores": {
+          "uncorrected": 0.1796659503351879,
+          "cv_correction": 0.1831454933873254,
+          "ledger_correction": 0.18282293264199836
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 25,
+        "scores": {
+          "uncorrected": 0.10454031871874397,
+          "cv_correction": 0.10076364645141139,
+          "ledger_correction": 0.10132721117073752
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 25,
+        "scores": {
+          "uncorrected": 0.30128739930813064,
+          "cv_correction": 0.297711067300512,
+          "ledger_correction": 0.2975912916280777
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 25,
+        "scores": {
+          "uncorrected": 0.12815613195261025,
+          "cv_correction": 0.12246078133563867,
+          "ledger_correction": 0.12541115592193622
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 25,
+        "scores": {
+          "uncorrected": 0.1309156362604472,
+          "cv_correction": 0.12837516356612777,
+          "ledger_correction": 0.13604022411741173
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 25,
+        "scores": {
+          "uncorrected": 0.3479635760700211,
+          "cv_correction": 0.3913195706485734,
+          "ledger_correction": 0.40381407727080915
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 25,
+        "scores": {
+          "uncorrected": 0.20302289236992183,
+          "cv_correction": 0.20077023932388424,
+          "ledger_correction": 0.19010874303504577
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 25,
+        "scores": {
+          "uncorrected": 0.0901419546732147,
+          "cv_correction": 0.0841591853773168,
+          "ledger_correction": 0.08227659142963394
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 25,
+        "scores": {
+          "uncorrected": 0.08262515865388328,
+          "cv_correction": 0.08160167040269885,
+          "ledger_correction": 0.08170692476525233
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 0,
+        "scores": {
+          "uncorrected": 0.36052041464340784,
+          "cv_correction": 0.3838599256896391,
+          "ledger_correction": 0.372430654612153
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 0,
+        "scores": {
+          "uncorrected": 0.1437334249225066,
+          "cv_correction": 0.22274194908077702,
+          "ledger_correction": 0.17633724952494037
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 0,
+        "scores": {
+          "uncorrected": 0.463727086993004,
+          "cv_correction": 0.4507700986230593,
+          "ledger_correction": 0.4339404828765276
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 0,
+        "scores": {
+          "uncorrected": 0.3073317829793073,
+          "cv_correction": 0.2829908482878487,
+          "ledger_correction": 0.2718761251305805
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 0,
+        "scores": {
+          "uncorrected": 0.22981351121555924,
+          "cv_correction": 0.272017448991862,
+          "ledger_correction": 0.23006826577284065
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 0,
+        "scores": {
+          "uncorrected": 0.5729685346459491,
+          "cv_correction": 0.5567808699968425,
+          "ledger_correction": 0.5683621608786865
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 0,
+        "scores": {
+          "uncorrected": 0.3149842595821647,
+          "cv_correction": 0.34515815256870297,
+          "ledger_correction": 0.3214619305131047
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 0,
+        "scores": {
+          "uncorrected": 0.2243636036464745,
+          "cv_correction": 0.19636827715888264,
+          "ledger_correction": 0.1929445043108958
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 1,
+        "scores": {
+          "uncorrected": 0.34777055432147735,
+          "cv_correction": 0.32417330026103097,
+          "ledger_correction": 0.33641040103384945
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 1,
+        "scores": {
+          "uncorrected": 0.08830189246209776,
+          "cv_correction": 0.09015416901540241,
+          "ledger_correction": 0.08217974146068706
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 1,
+        "scores": {
+          "uncorrected": 0.5386112571391954,
+          "cv_correction": 0.526260435696673,
+          "ledger_correction": 0.5289867234205541
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 1,
+        "scores": {
+          "uncorrected": 0.31513708611848085,
+          "cv_correction": 0.3499215561463517,
+          "ledger_correction": 0.327245696921763
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 1,
+        "scores": {
+          "uncorrected": 0.28288822084873133,
+          "cv_correction": 0.3014813919673286,
+          "ledger_correction": 0.2735426703614014
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 1,
+        "scores": {
+          "uncorrected": 0.5434578409112719,
+          "cv_correction": 0.6099896223331909,
+          "ledger_correction": 0.5740671192692218
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 1,
+        "scores": {
+          "uncorrected": 0.2923451343575455,
+          "cv_correction": 0.3054590911875967,
+          "ledger_correction": 0.3057490849659134
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 1,
+        "scores": {
+          "uncorrected": 0.20720752773500217,
+          "cv_correction": 0.1891884328890376,
+          "ledger_correction": 0.1968170827808583
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 2,
+        "scores": {
+          "uncorrected": 0.3548855473893033,
+          "cv_correction": 0.38704465575912095,
+          "ledger_correction": 0.37146302156632705
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 2,
+        "scores": {
+          "uncorrected": 0.2161265145306797,
+          "cv_correction": 0.22624011667297736,
+          "ledger_correction": 0.22365389512752254
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 2,
+        "scores": {
+          "uncorrected": 0.7489157981639176,
+          "cv_correction": 0.7495074172298486,
+          "ledger_correction": 0.7459587170381913
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 2,
+        "scores": {
+          "uncorrected": 0.4585123248740271,
+          "cv_correction": 0.49090639613877457,
+          "ledger_correction": 0.470358619947611
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 2,
+        "scores": {
+          "uncorrected": 0.24335726897677173,
+          "cv_correction": 0.3299498915609587,
+          "ledger_correction": 0.2831568014337548
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 2,
+        "scores": {
+          "uncorrected": 0.7105071039236556,
+          "cv_correction": 0.7731393438096459,
+          "ledger_correction": 0.7470051758632338
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 2,
+        "scores": {
+          "uncorrected": 0.2783838035385205,
+          "cv_correction": 0.34115780713110777,
+          "ledger_correction": 0.29734198431831904
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 2,
+        "scores": {
+          "uncorrected": 0.2827563191256288,
+          "cv_correction": 0.26535643621236643,
+          "ledger_correction": 0.2697648303621968
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 3,
+        "scores": {
+          "uncorrected": 0.31726510618047926,
+          "cv_correction": 0.2857233423117028,
+          "ledger_correction": 0.3032997126856092
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 3,
+        "scores": {
+          "uncorrected": 0.27592913870766617,
+          "cv_correction": 0.28693848021351326,
+          "ledger_correction": 0.27992504254406253
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 3,
+        "scores": {
+          "uncorrected": 0.5132130370760288,
+          "cv_correction": 0.49660583085788473,
+          "ledger_correction": 0.506642910215921
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 3,
+        "scores": {
+          "uncorrected": 0.44870539364476725,
+          "cv_correction": 0.4581067632310694,
+          "ledger_correction": 0.46258558699855407
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 3,
+        "scores": {
+          "uncorrected": 0.2544784113526361,
+          "cv_correction": 0.2643540681459315,
+          "ledger_correction": 0.2541875964949012
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 3,
+        "scores": {
+          "uncorrected": 0.42200392985654506,
+          "cv_correction": 0.3824498189154356,
+          "ledger_correction": 0.3930696734641375
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 3,
+        "scores": {
+          "uncorrected": 0.3159604547642928,
+          "cv_correction": 0.3385609746193512,
+          "ledger_correction": 0.33048671444601957
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 3,
+        "scores": {
+          "uncorrected": 0.2225679720801505,
+          "cv_correction": 0.2519069268016353,
+          "ledger_correction": 0.23629240795605716
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 4,
+        "scores": {
+          "uncorrected": 0.22312628552392494,
+          "cv_correction": 0.20072348133587456,
+          "ledger_correction": 0.21328850158766605
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 4,
+        "scores": {
+          "uncorrected": 0.15698344450238957,
+          "cv_correction": 0.1710845389883642,
+          "ledger_correction": 0.1689161600284134
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 4,
+        "scores": {
+          "uncorrected": 0.3529068240660271,
+          "cv_correction": 0.35683633480459315,
+          "ledger_correction": 0.3439007519665395
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 4,
+        "scores": {
+          "uncorrected": 0.23106543826191012,
+          "cv_correction": 0.22459126410868496,
+          "ledger_correction": 0.22474111062162255
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 4,
+        "scores": {
+          "uncorrected": 0.22428779205046506,
+          "cv_correction": 0.24933051368145145,
+          "ledger_correction": 0.2348760950440443
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 4,
+        "scores": {
+          "uncorrected": 0.5053078098391969,
+          "cv_correction": 0.43634063447702665,
+          "ledger_correction": 0.4600607595154548
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 4,
+        "scores": {
+          "uncorrected": 0.23448939959731485,
+          "cv_correction": 0.21579184265739998,
+          "ledger_correction": 0.22226081054547733
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 4,
+        "scores": {
+          "uncorrected": 0.16582362853768887,
+          "cv_correction": 0.19240613991064417,
+          "ledger_correction": 0.18082652758084658
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 5,
+        "scores": {
+          "uncorrected": 0.2966722399413006,
+          "cv_correction": 0.29825781959563513,
+          "ledger_correction": 0.2992840752076177
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 5,
+        "scores": {
+          "uncorrected": 0.16315091783406413,
+          "cv_correction": 0.20741814524300042,
+          "ledger_correction": 0.17555822133344137
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 5,
+        "scores": {
+          "uncorrected": 0.8546256335055462,
+          "cv_correction": 0.8534221882409201,
+          "ledger_correction": 0.8350965053180767
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 5,
+        "scores": {
+          "uncorrected": 0.2999444972821044,
+          "cv_correction": 0.32105344986787643,
+          "ledger_correction": 0.30110662046350056
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 5,
+        "scores": {
+          "uncorrected": 0.26230587907512276,
+          "cv_correction": 0.26561600520128337,
+          "ledger_correction": 0.2588733029518347
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 5,
+        "scores": {
+          "uncorrected": 0.5016790138028528,
+          "cv_correction": 0.5323837122848265,
+          "ledger_correction": 0.5093660223529216
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 5,
+        "scores": {
+          "uncorrected": 0.16046995734107858,
+          "cv_correction": 0.1895101292724472,
+          "ledger_correction": 0.16227911072138093
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 5,
+        "scores": {
+          "uncorrected": 0.1578233703372351,
+          "cv_correction": 0.18966722040704173,
+          "ledger_correction": 0.17275125043724965
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 6,
+        "scores": {
+          "uncorrected": 0.2763710143982665,
+          "cv_correction": 0.21974579625113508,
+          "ledger_correction": 0.2390118847586326
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 6,
+        "scores": {
+          "uncorrected": 0.17556214729415262,
+          "cv_correction": 0.20062228050917727,
+          "ledger_correction": 0.19045081816779325
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 6,
+        "scores": {
+          "uncorrected": 0.47748536509115297,
+          "cv_correction": 0.4564848555095327,
+          "ledger_correction": 0.4742898767260305
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 6,
+        "scores": {
+          "uncorrected": 0.26441973976570754,
+          "cv_correction": 0.22604489154905263,
+          "ledger_correction": 0.24694596065456548
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 6,
+        "scores": {
+          "uncorrected": 0.2315261465772042,
+          "cv_correction": 0.2398240569632741,
+          "ledger_correction": 0.23412438183261383
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 6,
+        "scores": {
+          "uncorrected": 0.23940186516035908,
+          "cv_correction": 0.3000501616766991,
+          "ledger_correction": 0.2714747156332154
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 6,
+        "scores": {
+          "uncorrected": 0.13096411991992785,
+          "cv_correction": 0.17213887935073854,
+          "ledger_correction": 0.1505346772567871
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 6,
+        "scores": {
+          "uncorrected": 0.15382515780096861,
+          "cv_correction": 0.16166252559165253,
+          "ledger_correction": 0.15439921466617063
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 7,
+        "scores": {
+          "uncorrected": 1.003450273594198,
+          "cv_correction": 1.028302127169358,
+          "ledger_correction": 1.0173595147259422
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 7,
+        "scores": {
+          "uncorrected": 0.2981097051608369,
+          "cv_correction": 0.24770552104592086,
+          "ledger_correction": 0.26173630368718664
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 7,
+        "scores": {
+          "uncorrected": 0.559030870522363,
+          "cv_correction": 0.626906632874215,
+          "ledger_correction": 0.5825620833674853
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 7,
+        "scores": {
+          "uncorrected": 0.5816900353682849,
+          "cv_correction": 0.6065697567860454,
+          "ledger_correction": 0.5694609489759009
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 7,
+        "scores": {
+          "uncorrected": 1.2884355112353862,
+          "cv_correction": 1.4733010347000481,
+          "ledger_correction": 1.3836039746606363
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 7,
+        "scores": {
+          "uncorrected": 0.7897096655068768,
+          "cv_correction": 0.6855487573258225,
+          "ledger_correction": 0.747225099167177
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 7,
+        "scores": {
+          "uncorrected": 0.6608560518445027,
+          "cv_correction": 0.6134946413832819,
+          "ledger_correction": 0.6180375010605891
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 7,
+        "scores": {
+          "uncorrected": 0.40110295803629387,
+          "cv_correction": 0.5225244751963976,
+          "ledger_correction": 0.4419292259054744
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 8,
+        "scores": {
+          "uncorrected": 0.8252268118030279,
+          "cv_correction": 0.8243945812519438,
+          "ledger_correction": 0.8270138846178815
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 8,
+        "scores": {
+          "uncorrected": 0.54826501219431,
+          "cv_correction": 0.6560173682188639,
+          "ledger_correction": 0.6079970404263152
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 8,
+        "scores": {
+          "uncorrected": 0.4724081883353938,
+          "cv_correction": 0.5722842324786902,
+          "ledger_correction": 0.46016214944533873
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 8,
+        "scores": {
+          "uncorrected": 0.8526965977447435,
+          "cv_correction": 0.9852521494171625,
+          "ledger_correction": 0.9213547680425955
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 8,
+        "scores": {
+          "uncorrected": 0.7521917349228786,
+          "cv_correction": 0.8432838881249528,
+          "ledger_correction": 0.769229226058345
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 8,
+        "scores": {
+          "uncorrected": 1.1303568460016438,
+          "cv_correction": 1.1718808320937015,
+          "ledger_correction": 1.1310293351586056
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 8,
+        "scores": {
+          "uncorrected": 0.7314383311884238,
+          "cv_correction": 0.7385368860393149,
+          "ledger_correction": 0.7317532241853698
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 8,
+        "scores": {
+          "uncorrected": 0.49207401256990685,
+          "cv_correction": 0.5668865451515624,
+          "ledger_correction": 0.529677229548803
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 9,
+        "scores": {
+          "uncorrected": 0.368946950706617,
+          "cv_correction": 0.3613803047177528,
+          "ledger_correction": 0.34944755964758273
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 9,
+        "scores": {
+          "uncorrected": 0.13766506960293573,
+          "cv_correction": 0.1567952238956484,
+          "ledger_correction": 0.15109963512668592
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 9,
+        "scores": {
+          "uncorrected": 0.5107367685040316,
+          "cv_correction": 0.4328088375735478,
+          "ledger_correction": 0.4516798001104708
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 9,
+        "scores": {
+          "uncorrected": 0.367613197804607,
+          "cv_correction": 0.41495561970688294,
+          "ledger_correction": 0.3999471083795631
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 9,
+        "scores": {
+          "uncorrected": 0.3370253455755198,
+          "cv_correction": 0.31947872385529186,
+          "ledger_correction": 0.3176150879545253
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 9,
+        "scores": {
+          "uncorrected": 0.526794509102318,
+          "cv_correction": 0.328882417204149,
+          "ledger_correction": 0.4209295402589723
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 9,
+        "scores": {
+          "uncorrected": 0.4087554974553438,
+          "cv_correction": 0.48762198058084877,
+          "ledger_correction": 0.44759410072219086
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 9,
+        "scores": {
+          "uncorrected": 0.26643885933881284,
+          "cv_correction": 0.26904366336001434,
+          "ledger_correction": 0.2736834044620817
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 10,
+        "scores": {
+          "uncorrected": 0.2651036381853473,
+          "cv_correction": 0.3041469630813151,
+          "ledger_correction": 0.2905429670982624
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 10,
+        "scores": {
+          "uncorrected": 0.33581669948563836,
+          "cv_correction": 0.2730867684047863,
+          "ledger_correction": 0.3024955506739335
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 10,
+        "scores": {
+          "uncorrected": 0.49824585561239054,
+          "cv_correction": 0.6383614082678162,
+          "ledger_correction": 0.5622363773907462
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 10,
+        "scores": {
+          "uncorrected": 0.4737558564959667,
+          "cv_correction": 0.5249128627470865,
+          "ledger_correction": 0.494610590000108
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 10,
+        "scores": {
+          "uncorrected": 0.2973146727421286,
+          "cv_correction": 0.2825551699646825,
+          "ledger_correction": 0.2862055043600757
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 10,
+        "scores": {
+          "uncorrected": 0.3022700324459624,
+          "cv_correction": 0.3240884468556878,
+          "ledger_correction": 0.29657516973815606
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 10,
+        "scores": {
+          "uncorrected": 0.23810334492751603,
+          "cv_correction": 0.29063449628559385,
+          "ledger_correction": 0.25335323333740906
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 10,
+        "scores": {
+          "uncorrected": 0.2998847593311248,
+          "cv_correction": 0.29852815375003616,
+          "ledger_correction": 0.29520644240342997
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 11,
+        "scores": {
+          "uncorrected": 0.19710717654997598,
+          "cv_correction": 0.22167865010102725,
+          "ledger_correction": 0.19507400041327463
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 11,
+        "scores": {
+          "uncorrected": 0.28612578811065065,
+          "cv_correction": 0.2631146643054923,
+          "ledger_correction": 0.2786593922329509
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 11,
+        "scores": {
+          "uncorrected": 0.5143774504631312,
+          "cv_correction": 0.5186287834804595,
+          "ledger_correction": 0.5123970242778101
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 11,
+        "scores": {
+          "uncorrected": 0.43460897392046566,
+          "cv_correction": 0.3941530567673315,
+          "ledger_correction": 0.4255683946579282
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 11,
+        "scores": {
+          "uncorrected": 0.3130308037563687,
+          "cv_correction": 0.2960205652287817,
+          "ledger_correction": 0.30379473406066054
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 11,
+        "scores": {
+          "uncorrected": 0.3268096061286638,
+          "cv_correction": 0.3316743174577155,
+          "ledger_correction": 0.33280857981355544
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 11,
+        "scores": {
+          "uncorrected": 0.44099843245959996,
+          "cv_correction": 0.39375056606596626,
+          "ledger_correction": 0.4090699587264764
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 11,
+        "scores": {
+          "uncorrected": 0.32168978076868693,
+          "cv_correction": 0.28629727102149927,
+          "ledger_correction": 0.2998033274027094
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 12,
+        "scores": {
+          "uncorrected": 0.2584114262514173,
+          "cv_correction": 0.2925974551931608,
+          "ledger_correction": 0.2753949028137663
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 12,
+        "scores": {
+          "uncorrected": 0.2490003454963324,
+          "cv_correction": 0.2670412622540159,
+          "ledger_correction": 0.26415218898363674
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 12,
+        "scores": {
+          "uncorrected": 0.7493048022593443,
+          "cv_correction": 0.7911550698004636,
+          "ledger_correction": 0.7783826622346105
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 12,
+        "scores": {
+          "uncorrected": 0.45407536410309635,
+          "cv_correction": 0.45271444746108563,
+          "ledger_correction": 0.4607961911457273
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 12,
+        "scores": {
+          "uncorrected": 0.15064954935167385,
+          "cv_correction": 0.20571067709495183,
+          "ledger_correction": 0.1621297241964847
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 12,
+        "scores": {
+          "uncorrected": 0.4262640986414526,
+          "cv_correction": 0.4496957960375216,
+          "ledger_correction": 0.445601934883868
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 12,
+        "scores": {
+          "uncorrected": 0.2852925951597585,
+          "cv_correction": 0.3212943430016272,
+          "ledger_correction": 0.29788301049514193
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 12,
+        "scores": {
+          "uncorrected": 0.2998733204962464,
+          "cv_correction": 0.27522939953290965,
+          "ledger_correction": 0.28323398645594555
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 13,
+        "scores": {
+          "uncorrected": 0.17027523702975922,
+          "cv_correction": 0.21814025338038331,
+          "ledger_correction": 0.19012853715490566
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 13,
+        "scores": {
+          "uncorrected": 0.1305516259051207,
+          "cv_correction": 0.09846811096010169,
+          "ledger_correction": 0.1170829299968271
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 13,
+        "scores": {
+          "uncorrected": 0.37934903305773177,
+          "cv_correction": 0.33035123414410505,
+          "ledger_correction": 0.34022970490599685
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 13,
+        "scores": {
+          "uncorrected": 0.46412763148850056,
+          "cv_correction": 0.46969636276808985,
+          "ledger_correction": 0.4647173463562353
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 13,
+        "scores": {
+          "uncorrected": 0.3490790027209929,
+          "cv_correction": 0.3679486087455736,
+          "ledger_correction": 0.3596402662968085
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 13,
+        "scores": {
+          "uncorrected": 0.5956162036506067,
+          "cv_correction": 0.51536962638491,
+          "ledger_correction": 0.5478618465045333
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 13,
+        "scores": {
+          "uncorrected": 0.3400296927331552,
+          "cv_correction": 0.3133128441672765,
+          "ledger_correction": 0.3255795650480308
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 13,
+        "scores": {
+          "uncorrected": 0.23792652879974208,
+          "cv_correction": 0.18903128979780967,
+          "ledger_correction": 0.20725869572701738
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 14,
+        "scores": {
+          "uncorrected": 0.25494074414184503,
+          "cv_correction": 0.25923889961146096,
+          "ledger_correction": 0.25699745418202025
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 14,
+        "scores": {
+          "uncorrected": 0.1721398267553966,
+          "cv_correction": 0.17878434806351753,
+          "ledger_correction": 0.1715418488059834
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 14,
+        "scores": {
+          "uncorrected": 0.2864212326834347,
+          "cv_correction": 0.2670732574156795,
+          "ledger_correction": 0.27068227460873107
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 14,
+        "scores": {
+          "uncorrected": 0.36010913618027923,
+          "cv_correction": 0.3112550789799868,
+          "ledger_correction": 0.32789532918940795
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 14,
+        "scores": {
+          "uncorrected": 0.23077961502658198,
+          "cv_correction": 0.18480614465548423,
+          "ledger_correction": 0.20670960520026735
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 14,
+        "scores": {
+          "uncorrected": 0.49274015547222816,
+          "cv_correction": 0.48605236885016667,
+          "ledger_correction": 0.48812403177962427
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 14,
+        "scores": {
+          "uncorrected": 0.25384709532858,
+          "cv_correction": 0.244063117635157,
+          "ledger_correction": 0.2505918962256422
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 14,
+        "scores": {
+          "uncorrected": 0.3575520849924485,
+          "cv_correction": 0.3538334990933886,
+          "ledger_correction": 0.3528502986493293
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 15,
+        "scores": {
+          "uncorrected": 0.17900706377554806,
+          "cv_correction": 0.17654923063866343,
+          "ledger_correction": 0.17995024940483623
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 15,
+        "scores": {
+          "uncorrected": 0.16305676526913757,
+          "cv_correction": 0.18197647617402907,
+          "ledger_correction": 0.1727748357072975
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 15,
+        "scores": {
+          "uncorrected": 0.6670958840824144,
+          "cv_correction": 0.6370636258388204,
+          "ledger_correction": 0.6487284833593898
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 15,
+        "scores": {
+          "uncorrected": 0.7136373648364036,
+          "cv_correction": 0.6236857265428385,
+          "ledger_correction": 0.6696841615394425
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 15,
+        "scores": {
+          "uncorrected": 0.2142499394866238,
+          "cv_correction": 0.24786413353037406,
+          "ledger_correction": 0.23449848379744073
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 15,
+        "scores": {
+          "uncorrected": 0.39283782085723673,
+          "cv_correction": 0.4338554706177792,
+          "ledger_correction": 0.41135747701073677
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 15,
+        "scores": {
+          "uncorrected": 0.33085400515261737,
+          "cv_correction": 0.2756912943157376,
+          "ledger_correction": 0.28521500386398696
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 15,
+        "scores": {
+          "uncorrected": 0.3072755124016845,
+          "cv_correction": 0.2989755798135371,
+          "ledger_correction": 0.29610768103265234
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 16,
+        "scores": {
+          "uncorrected": 0.17542729575677599,
+          "cv_correction": 0.192958977839807,
+          "ledger_correction": 0.19082383644284148
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 16,
+        "scores": {
+          "uncorrected": 0.1823458526064433,
+          "cv_correction": 0.19479775593018625,
+          "ledger_correction": 0.1887235524283921
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 16,
+        "scores": {
+          "uncorrected": 0.24291763463399413,
+          "cv_correction": 0.24282901166196727,
+          "ledger_correction": 0.2604422849414597
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 16,
+        "scores": {
+          "uncorrected": 0.4261956776148876,
+          "cv_correction": 0.43396932362302454,
+          "ledger_correction": 0.4223960728570014
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 16,
+        "scores": {
+          "uncorrected": 0.28169888838479373,
+          "cv_correction": 0.2547961841401599,
+          "ledger_correction": 0.2746885346209317
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 16,
+        "scores": {
+          "uncorrected": 0.6734670675001091,
+          "cv_correction": 0.7387015251681148,
+          "ledger_correction": 0.6987908513510491
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 16,
+        "scores": {
+          "uncorrected": 0.19669726126418713,
+          "cv_correction": 0.18717026881329965,
+          "ledger_correction": 0.19255093310695237
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 16,
+        "scores": {
+          "uncorrected": 0.3173536211134197,
+          "cv_correction": 0.36875651913713253,
+          "ledger_correction": 0.3534373237205713
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 17,
+        "scores": {
+          "uncorrected": 0.2616314460215939,
+          "cv_correction": 0.23288547294089232,
+          "ledger_correction": 0.2523344618116871
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 17,
+        "scores": {
+          "uncorrected": 0.20339541581317444,
+          "cv_correction": 0.17084552647941395,
+          "ledger_correction": 0.19134346861495313
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 17,
+        "scores": {
+          "uncorrected": 0.8311975896592412,
+          "cv_correction": 0.7994234467100494,
+          "ledger_correction": 0.817302933378168
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 17,
+        "scores": {
+          "uncorrected": 0.8821461289371102,
+          "cv_correction": 0.8589571522680362,
+          "ledger_correction": 0.8671506383641463
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 17,
+        "scores": {
+          "uncorrected": 0.3166836110268636,
+          "cv_correction": 0.31079383152407125,
+          "ledger_correction": 0.31283549728316795
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 17,
+        "scores": {
+          "uncorrected": 1.053313291240497,
+          "cv_correction": 0.9851695068307255,
+          "ledger_correction": 1.0028755574536639
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 17,
+        "scores": {
+          "uncorrected": 0.29910080870783895,
+          "cv_correction": 0.3076562668920231,
+          "ledger_correction": 0.30048496354725107
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 17,
+        "scores": {
+          "uncorrected": 0.30448035999850986,
+          "cv_correction": 0.27734249425083846,
+          "ledger_correction": 0.2934788828297211
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 18,
+        "scores": {
+          "uncorrected": 0.2370143849209474,
+          "cv_correction": 0.22167991579320837,
+          "ledger_correction": 0.23743074442119402
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 18,
+        "scores": {
+          "uncorrected": 0.2131590012291655,
+          "cv_correction": 0.20086040541728295,
+          "ledger_correction": 0.21508990476645182
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 18,
+        "scores": {
+          "uncorrected": 0.38261709865381344,
+          "cv_correction": 0.4079539012883117,
+          "ledger_correction": 0.38507422573218303
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 18,
+        "scores": {
+          "uncorrected": 0.6909858807222244,
+          "cv_correction": 0.6390514279878946,
+          "ledger_correction": 0.6873335850481814
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 18,
+        "scores": {
+          "uncorrected": 0.32023376252488234,
+          "cv_correction": 0.3422885693226234,
+          "ledger_correction": 0.3379481501630692
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 18,
+        "scores": {
+          "uncorrected": 0.8197573756891967,
+          "cv_correction": 0.8536450747718924,
+          "ledger_correction": 0.8416527952768837
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 18,
+        "scores": {
+          "uncorrected": 0.19935649319391321,
+          "cv_correction": 0.1925067901593701,
+          "ledger_correction": 0.1883472402921906
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 18,
+        "scores": {
+          "uncorrected": 0.3252858312933104,
+          "cv_correction": 0.3711044171968422,
+          "ledger_correction": 0.3541378957241944
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 19,
+        "scores": {
+          "uncorrected": 0.3979398683111448,
+          "cv_correction": 0.30182583793080525,
+          "ledger_correction": 0.3496540336124126
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 19,
+        "scores": {
+          "uncorrected": 0.528961719464849,
+          "cv_correction": 0.4380879871344991,
+          "ledger_correction": 0.49544271566049347
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 19,
+        "scores": {
+          "uncorrected": 0.6469972424631143,
+          "cv_correction": 0.5772229175689629,
+          "ledger_correction": 0.6191388741838463
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 19,
+        "scores": {
+          "uncorrected": 0.5321595579123426,
+          "cv_correction": 0.4276295838867837,
+          "ledger_correction": 0.4516967463064346
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 19,
+        "scores": {
+          "uncorrected": 0.7610421400953086,
+          "cv_correction": 0.6030871377211008,
+          "ledger_correction": 0.6673822504168571
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 19,
+        "scores": {
+          "uncorrected": 0.8235831690422518,
+          "cv_correction": 0.7932686472356416,
+          "ledger_correction": 0.818269228425845
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 19,
+        "scores": {
+          "uncorrected": 0.43412689722987824,
+          "cv_correction": 0.409220737344676,
+          "ledger_correction": 0.4109754417396043
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 19,
+        "scores": {
+          "uncorrected": 0.6024353726851039,
+          "cv_correction": 0.4870550945052172,
+          "ledger_correction": 0.538297124824648
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 20,
+        "scores": {
+          "uncorrected": 0.603334726921985,
+          "cv_correction": 0.6575400200476087,
+          "ledger_correction": 0.6635406932114973
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 20,
+        "scores": {
+          "uncorrected": 0.2943245672156618,
+          "cv_correction": 0.30471030685803546,
+          "ledger_correction": 0.2843262966309773
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 20,
+        "scores": {
+          "uncorrected": 0.5140228433147188,
+          "cv_correction": 0.491115464719134,
+          "ledger_correction": 0.48800575439072214
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 20,
+        "scores": {
+          "uncorrected": 0.39506565884168604,
+          "cv_correction": 0.4100243904741262,
+          "ledger_correction": 0.3895791919481795
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 20,
+        "scores": {
+          "uncorrected": 0.5420242267419423,
+          "cv_correction": 0.5681843389359873,
+          "ledger_correction": 0.5369974710284704
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 20,
+        "scores": {
+          "uncorrected": 0.7708603671263327,
+          "cv_correction": 0.8519773427709372,
+          "ledger_correction": 0.82419166557578
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 20,
+        "scores": {
+          "uncorrected": 0.2768339588461262,
+          "cv_correction": 0.33189584138391376,
+          "ledger_correction": 0.3289778553204117
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 20,
+        "scores": {
+          "uncorrected": 0.4771679455681668,
+          "cv_correction": 0.47791978033635124,
+          "ledger_correction": 0.5151016721923247
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 21,
+        "scores": {
+          "uncorrected": 0.6675639926455557,
+          "cv_correction": 0.6498784197666597,
+          "ledger_correction": 0.6237171601359512
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 21,
+        "scores": {
+          "uncorrected": 0.1367475979498286,
+          "cv_correction": 0.14420345008850644,
+          "ledger_correction": 0.15980380401359498
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 21,
+        "scores": {
+          "uncorrected": 1.2025668109214693,
+          "cv_correction": 1.208251519827296,
+          "ledger_correction": 1.1640871681652918
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 21,
+        "scores": {
+          "uncorrected": 0.6593247200112793,
+          "cv_correction": 0.6606754324162356,
+          "ledger_correction": 0.622934779248966
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 21,
+        "scores": {
+          "uncorrected": 0.49054684662174,
+          "cv_correction": 0.4758063791098694,
+          "ledger_correction": 0.49031846650584204
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 21,
+        "scores": {
+          "uncorrected": 0.5241290571619687,
+          "cv_correction": 0.5515547140963225,
+          "ledger_correction": 0.5420755470022549
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 21,
+        "scores": {
+          "uncorrected": 0.5918410099622519,
+          "cv_correction": 0.6753805526310904,
+          "ledger_correction": 0.6098783169276709
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 21,
+        "scores": {
+          "uncorrected": 0.4418226282567524,
+          "cv_correction": 0.4543034347845296,
+          "ledger_correction": 0.43255585565885557
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 22,
+        "scores": {
+          "uncorrected": 0.3689971435980756,
+          "cv_correction": 0.4036906088610171,
+          "ledger_correction": 0.4432931277618476
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 22,
+        "scores": {
+          "uncorrected": 0.16202922245930015,
+          "cv_correction": 0.14152238411299634,
+          "ledger_correction": 0.13529614905195375
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 22,
+        "scores": {
+          "uncorrected": 0.36577173349372505,
+          "cv_correction": 0.3683486815727229,
+          "ledger_correction": 0.4213055370986407
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 22,
+        "scores": {
+          "uncorrected": 0.5123659187025238,
+          "cv_correction": 0.533617087944512,
+          "ledger_correction": 0.5711085957311665
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 22,
+        "scores": {
+          "uncorrected": 0.44619647801195544,
+          "cv_correction": 0.43610831632890756,
+          "ledger_correction": 0.42863615656202575
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 22,
+        "scores": {
+          "uncorrected": 0.46485423436024564,
+          "cv_correction": 0.48222958230730395,
+          "ledger_correction": 0.5098123445427197
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 22,
+        "scores": {
+          "uncorrected": 1.279750360059539,
+          "cv_correction": 1.28619429546453,
+          "ledger_correction": 1.2933085900014565
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 22,
+        "scores": {
+          "uncorrected": 0.2674513507896709,
+          "cv_correction": 0.2846082119622397,
+          "ledger_correction": 0.31760923591987483
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 23,
+        "scores": {
+          "uncorrected": 0.2875785712465276,
+          "cv_correction": 0.3172843643474347,
+          "ledger_correction": 0.29668438991838547
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 23,
+        "scores": {
+          "uncorrected": 0.24291972956326036,
+          "cv_correction": 0.28118368846695296,
+          "ledger_correction": 0.2560523292282033
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 23,
+        "scores": {
+          "uncorrected": 0.36145617365648186,
+          "cv_correction": 0.41138066368201587,
+          "ledger_correction": 0.3826924403678858
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 23,
+        "scores": {
+          "uncorrected": 0.505756202476075,
+          "cv_correction": 0.5263548764227898,
+          "ledger_correction": 0.5305412701733823
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 23,
+        "scores": {
+          "uncorrected": 0.4806871473295176,
+          "cv_correction": 0.5310815327354941,
+          "ledger_correction": 0.5059514352523495
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 23,
+        "scores": {
+          "uncorrected": 0.4289629464403844,
+          "cv_correction": 0.3934988077081657,
+          "ledger_correction": 0.40349281532084247
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 23,
+        "scores": {
+          "uncorrected": 0.4965969582804497,
+          "cv_correction": 0.4840486921900376,
+          "ledger_correction": 0.47027981483179726
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 23,
+        "scores": {
+          "uncorrected": 0.34993908800612283,
+          "cv_correction": 0.364254345738088,
+          "ledger_correction": 0.34442511895345007
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 24,
+        "scores": {
+          "uncorrected": 0.2676767775475676,
+          "cv_correction": 0.2634415663087143,
+          "ledger_correction": 0.28936772296955465
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 24,
+        "scores": {
+          "uncorrected": 0.210634106131256,
+          "cv_correction": 0.215793145933549,
+          "ledger_correction": 0.21936889669717624
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 24,
+        "scores": {
+          "uncorrected": 0.363758217299807,
+          "cv_correction": 0.39983492610083476,
+          "ledger_correction": 0.4005597557556039
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 24,
+        "scores": {
+          "uncorrected": 0.3781737743137771,
+          "cv_correction": 0.37191663978594697,
+          "ledger_correction": 0.4085199890835753
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 24,
+        "scores": {
+          "uncorrected": 0.42191393737798555,
+          "cv_correction": 0.3822169914185792,
+          "ledger_correction": 0.39446973763904825
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 24,
+        "scores": {
+          "uncorrected": 0.49221761359295685,
+          "cv_correction": 0.4635063880159644,
+          "ledger_correction": 0.47728869935531104
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 24,
+        "scores": {
+          "uncorrected": 0.35292303355287363,
+          "cv_correction": 0.40314226441813666,
+          "ledger_correction": 0.37810817750756726
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 24,
+        "scores": {
+          "uncorrected": 0.3031181426002449,
+          "cv_correction": 0.32662488535066514,
+          "ledger_correction": 0.3089842107068515
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 25,
+        "scores": {
+          "uncorrected": 0.38557575444867037,
+          "cv_correction": 0.36445956992192774,
+          "ledger_correction": 0.3648567114441527
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 25,
+        "scores": {
+          "uncorrected": 0.21214013120870748,
+          "cv_correction": 0.2225983391284282,
+          "ledger_correction": 0.21691384060690458
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 25,
+        "scores": {
+          "uncorrected": 0.44326739972658186,
+          "cv_correction": 0.42482933849305543,
+          "ledger_correction": 0.42748660725720705
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 25,
+        "scores": {
+          "uncorrected": 0.42771934045550686,
+          "cv_correction": 0.3419296848805836,
+          "ledger_correction": 0.3696070238126293
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 25,
+        "scores": {
+          "uncorrected": 0.5354107678238085,
+          "cv_correction": 0.5187602828152821,
+          "ledger_correction": 0.5060440719350482
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 25,
+        "scores": {
+          "uncorrected": 0.5937906005965425,
+          "cv_correction": 0.5544924962957003,
+          "ledger_correction": 0.5709524311021151
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 25,
+        "scores": {
+          "uncorrected": 0.4783552461094033,
+          "cv_correction": 0.5195790583602582,
+          "ledger_correction": 0.47320532143540706
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 25,
+        "scores": {
+          "uncorrected": 0.4382002302826439,
+          "cv_correction": 0.46302354053907746,
+          "ledger_correction": 0.4416810110211478
+        }
+      }
+    ],
+    "vector_fits": 832,
+    "clipped_leads": {
+      "cv_correction": 10,
+      "ledger_correction": 6
+    },
+    "seconds": 1.3831436470009066,
+    "cpu_seconds": 1.3326902,
+    "api_calls": 0,
+    "provider_fits": 0,
+    "inherited_forecast_computations": 12984,
+    "development_gate_passed": false
+  },
+  "verification": {
+    "checks": 38434,
+    "failures": 0,
+    "cases": 416,
+    "verified_vector_fits": 832,
+    "report_sha256": "ec7445a3b708b97eb18d2f2a6bcbf9001b100538e103bfbc4bb7340478f7fdec",
+    "verifier_sha256": "df173355303a36453ed735b50f9523f4c0224a17c3d0c45d28896677a52c8a7d",
+    "scope": "Independent array residuals, normal-equation corrections, objectives, stationarity, clipping, forecasts and metrics; exact frozen sources, time/phase matching and both promotion comparators. No provider refits or reserved access."
+  },
+  "synthetic_tests": {
+    "tests": 4,
+    "failures": 0,
+    "module": "benchmarks.tests.test_residual_memory"
+  },
+  "files": {
+    "RERUN.md": "dbdb836d9399931361422d9324ff7172c1545292d7e307d0e1faa0eb9bec1bb6",
+    "electricity:T15-00.json": "313ccccd2742604047bb49692578decb335b1f518d0ac1d496a06b5f1dc787b2",
+    "electricity:T15-01.json": "cfefd611108a4fb9450ad42826cb47b9501156b80ed111c6b76d5f68709d21fe",
+    "electricity:T15-02.json": "92a4c6bf35a2afbd175f9e8f1b13a33d0ce5a406672604354b639f1ca66410a3",
+    "electricity:T15-03.json": "bfd0df0db36ad97ba16cc0efebcfbc718dcd1bb8e76ce4fcc09505423a5a5621",
+    "electricity:T15-04.json": "c23823cc92b3a2a1dfa2335051d43f183dd8ed54943528f0515a9257380ebb61",
+    "electricity:T15-05.json": "0e35dd681a88130515b95de928bc7bbaa6ca4727a2442a969293b9858f65ef0a",
+    "electricity:T15-06.json": "d2edad39843a5d6f4b9c9e6b43c6740f18f78c9374f9eecca31671ac2e6cfa67",
+    "electricity:T15-07.json": "e5b2c410e04f4924f090ad7ba4dc333273fd62a145ed6273fcef48f370b42a0c",
+    "electricity:T15-08.json": "175e03cb14036b6c9e8af75d8c23343a50896744768952f0370bf6e5e8e46e30",
+    "electricity:T15-09.json": "94358bcf301283d7f7b81fd93568435f0826044e9b6cae6850df5145226b61c9",
+    "electricity:T15-10.json": "8969637af73e298a0de5c36d018e5a698afcfa94943286dc7138037a3482354e",
+    "electricity:T15-11.json": "0061374c0c78da1fcf5879e516567c2385a6f7d1174d4c98335e8718d56234cd",
+    "electricity:T15-12.json": "2b05dc82bcdacc7e7b6a826f73172c2c9119eed93e4bfd9d40f5648951bc20f0",
+    "electricity:T15-13.json": "c32c82aed576403051141e4eb4ac6d60c466e243c34c94208934fa03224b287b",
+    "electricity:T15-14.json": "6b6dff63789bca426d2a1404718688516e221c817cdb572114260a90875a674b",
+    "electricity:T15-15.json": "6c08fc92858cfbd2850ff51ed4051159942d6d21e9374f4f9585112b3ed9fcee",
+    "electricity:T15-16.json": "8fe2907c685f54f57ec93ee963d7ea2425b35a00c0b8d6bcf932f4eb0639d4ea",
+    "electricity:T15-17.json": "a04b9db66f0e30dae6239aac00c69f7d60d89c0dd5b3df598bb0cbc319e39c74",
+    "electricity:T15-18.json": "bbf64a284b5d76f2b6932f3c97e30952dbc86b38bcd4ac88ce2f4bebc1c9cefb",
+    "electricity:T15-19.json": "528f6294065666af84a2d174bde1e2a3d501555249e40268edabed9ae8f89241",
+    "electricity:T15-20.json": "09746fb845635058a759efa1d9006e66cfee46d177253f06c8e85b33816bc765",
+    "electricity:T15-21.json": "5dff4497a8ddb3a9be29f502bc9eb8e52c7f74b116d8a9c5627a2a6513d892fb",
+    "electricity:T15-22.json": "1304c57385860db436b4dd8075a5314f57853bb0eaad4ab41cfc06955fc04d56",
+    "electricity:T15-23.json": "0a5b1ff07794e786b91479662f4d84bfe1077d52632b2ef924309294308457f9",
+    "electricity:T15-24.json": "acf8c5f415921cb46371c990ee26ebe9244f56217604308f0e019b3317a89c62",
+    "electricity:T15-25.json": "1a98a199e87db54c50866c93e8ba9b23039d7e919a15202e60eecd9ecaa18695",
+    "electricity:T174-00.json": "80136d8187d8e536d37bc1ec939b674aa96d0687af5c56fd497885ebeaa75564",
+    "electricity:T174-01.json": "d1421b6bbcb9a6093141870544cef6cb470bc9077b0d541339cb14b00f68e276",
+    "electricity:T174-02.json": "9ec0acfbe73d54d39b412987c1e33edd2e442a9f4f66dc6c71cf29e113ed383e",
+    "electricity:T174-03.json": "c7a64626d0feccbf7a4121e1da2e681298d649b769760056f5a2e6a6a580a343",
+    "electricity:T174-04.json": "27ba4566181ed8c3db052618f84834979ac62260c419c2acb8a8af29242d8c60",
+    "electricity:T174-05.json": "3e6322601e2ada8e79e374fc735e7eaa9dda50097d9ecfbe7d5cfe1e6aedbee7",
+    "electricity:T174-06.json": "24263ec2ad92a12f3e301e4a180c5caff25c72eff7a1743de9f5b979ccc70212",
+    "electricity:T174-07.json": "20b4d5a6b5dac67c046d776a29d0baab9c92975453986ca53753952d0ea12774",
+    "electricity:T174-08.json": "a50ae945fc9248c8c9b3cded98f13a54a4672fe33fa1c17a9edc169e4291a923",
+    "electricity:T174-09.json": "0a9c3ca032418eeb73215b26c3534e4a30eed2672dcf1313346f93f219b45337",
+    "electricity:T174-10.json": "0c9a980663712c882dec3cd913452ee48fec3ecd04ae3118d7a14565f94bd467",
+    "electricity:T174-11.json": "27166d3137fd9a12deb2772578f908739eeb5e5bc33f3714bacc3d7e6b24da46",
+    "electricity:T174-12.json": "3bdd461bf03295debe5373347725e15d1fff48e86839cd4435802b3a4d223a6d",
+    "electricity:T174-13.json": "82e40e8ba622c37f4266f5dd861ca28c29d71ec690605b92998d4e949a4c4817",
+    "electricity:T174-14.json": "128ea6aa30915da7889a7746109c0d7ceec4ce3608f278880428d8fd78b209e7",
+    "electricity:T174-15.json": "6d03e98c1ff3d1463b6483efa2d60c1785b534b4bb9ad647f7f0a04d5f2fab65",
+    "electricity:T174-16.json": "01ca9e8b7bc7323718c598af4db10b7fccd7b3c58077e6ac40231ad010866f63",
+    "electricity:T174-17.json": "f9ebaa22062c1fcff9322acd13bc1bb3796fb70b9c39bde66905567bdfb4ae6c",
+    "electricity:T174-18.json": "e113f72aeda0b0abd3015de7794e0067829262fb7deb47a660d9e7e829e5c6a9",
+    "electricity:T174-19.json": "4857847590541d54aa01600621636a5e0561eed47be8e5cad82085fa5a38199d",
+    "electricity:T174-20.json": "67b6ffdabd8f1e499e668bd9fc96d1ea21d1c985e2790fbbdef73d30b328eb1a",
+    "electricity:T174-21.json": "302e3d90a596075f899052b1cc751a7110b33118ef85f33f133671e66035675c",
+    "electricity:T174-22.json": "67cd24324fabcd9a8efbc0e14a8b1270aba78a093760728abc9ce6c35a4fbd7a",
+    "electricity:T174-23.json": "966cde1a26ad1e482d7a60d2b2590774d79c95a630365546c9067e7d43755d38",
+    "electricity:T174-24.json": "9549251bb3134d215cb713f5ffe60c668d150e4f061438b13ee24b5f6ffd8e55",
+    "electricity:T174-25.json": "0690dc223e46cb366675dbb4ccc09136d3ce028bfff5965ad1602f87e7a49021",
+    "electricity:T217-00.json": "9324bd1909dc1df27f3da2e98ffd861b490a2a59a4a7e538a9aecea0618ea15b",
+    "electricity:T217-01.json": "cfa729f246b355745c05b4164c98c6142ccab2258383100586c864cda7bdaa84",
+    "electricity:T217-02.json": "d9c598fe5195e74b9864c3e4d4055aa4e6981a36e8457b8b8d14483a2f5d08ae",
+    "electricity:T217-03.json": "ed76368ced2a77c2fc02b9d8ee6d1c7b5e04adbc911b02d84e9be1638967ec84",
+    "electricity:T217-04.json": "37089ba796ff47abe16324e465737380d7504bf7e63a8966f679b2eae6da9247",
+    "electricity:T217-05.json": "99c04c316b5e6f7c9ca3878453a936d8343c7b1d5b021886719bfc2e2fbbaf46",
+    "electricity:T217-06.json": "990d579a42ab1451a3169f40611c98d1076678661e2eb34c1a17cf98daafac7b",
+    "electricity:T217-07.json": "46a9e610345e5e1b0e9c3fabc738249cf0171071c89cfb78f78361d2af2b8836",
+    "electricity:T217-08.json": "3cd928b2ce4dff90ef989a4e4b215fee58f884c4d9eed7541f13893dac965e49",
+    "electricity:T217-09.json": "a7591e876c0b9cf34c53d9cb80948ae589c9472602ff4bb48f4823ab1e120d03",
+    "electricity:T217-10.json": "3f07ab135bd10a00b9ef50779e8a5cac322acca532d314cce19d7249419c8ea3",
+    "electricity:T217-11.json": "fac956e67c42377383400b64f05430b6ffdf64c531984f9e662ae4c78afd0bfe",
+    "electricity:T217-12.json": "1e59e665ea09f680e39970e90edcba679ec6e2dc77a329691b28d10c29d49d1c",
+    "electricity:T217-13.json": "4a3a79aa022820eefb45612016ef3c29cd5b85eccf9b87e06aaac83e20deea6d",
+    "electricity:T217-14.json": "92695b31619eb375b5cefc5db8020a16edb38ccf63713c85d49dfa8cb2bf928b",
+    "electricity:T217-15.json": "be96a014198e95c1c1350cc7189cbeda882694a85706ad50d02d90fda0253e0c",
+    "electricity:T217-16.json": "4f3675d008229d235480b748a43e9010383ed91067217ebc734284760760f4ff",
+    "electricity:T217-17.json": "046864fecfa1d02d6ba27ac6e4f45cb90abb64d57a3a7195fd12a0d3b44b6627",
+    "electricity:T217-18.json": "1e26799dcccfaf2e3b3c22fd1b8e1bbe26c4f05d63c6b3cab1855cc2e03e5b3f",
+    "electricity:T217-19.json": "8fb1881f026d4ec0c0aefb627a7bc09f9a17d086712e79c39e07fd3df65d0d65",
+    "electricity:T217-20.json": "59eb1cf3ed1aec224784b341ae93018a3e9330d67d89d9c3775e3666cd0d56f0",
+    "electricity:T217-21.json": "c6c823c41a821c7656d09758128dded2c911f21441c03ff701dbdbc01944587d",
+    "electricity:T217-22.json": "64c8c17a5d492615ac011344dc8382ed49b791c4aa16aad5b12f9aa03d1a87f0",
+    "electricity:T217-23.json": "3592b1b833880e0d3f28ee4780c5ee3a82f80e9c8c94fd6d791b67d0620f03cb",
+    "electricity:T217-24.json": "3ba2a2b5ba6f3d7b350b12aa2a6591579aabc2dd23b6f1829999b77ab8d2fc02",
+    "electricity:T217-25.json": "05f16736d31e04ef2bcc1417a3c9c6bd49efb0bc0d1da32073c30e7c4241223d",
+    "electricity:T286-00.json": "4a080e3d15c6418e29eec205aed809223d8c8e152d4361601279a0ffe19e9806",
+    "electricity:T286-01.json": "c58500d5ba533bf12c8b604f25bac9de60983bfa5b545fa3b3493298baac7af6",
+    "electricity:T286-02.json": "a9ccbe74aada9db68ece06038c5a1b3af93f9f80f294f9717f08ca8b993ca9e4",
+    "electricity:T286-03.json": "5fe3ce835544b54a0bb4ebe699a6d1c8a2bbc81d4019838f324ac421368ec270",
+    "electricity:T286-04.json": "cb9d11604eb862a934e17e5b71e48c989db4b3cc9d1aec1477dffbf07ea754fc",
+    "electricity:T286-05.json": "9c0d9a0d7492d6c455c1cbe80a1eaf685d702e72328ec794093e2fbd26b45c83",
+    "electricity:T286-06.json": "fb3b8c538661d7a8266ecb1027c358c073ef7c08174ee02e75dda96817a10909",
+    "electricity:T286-07.json": "0b5dc2477c37233fbc4b117b2c7ce6aaaf1fcba338c5eeac08bb21e71d046d53",
+    "electricity:T286-08.json": "ce1b6eeac9e24ac3cd91bdf7cdc2292ea10a420a471affb3f9af18b1f563aba7",
+    "electricity:T286-09.json": "0cda1cd68843e1e06892a1c43209d4be031ae0876e21033fac6911248b5d7160",
+    "electricity:T286-10.json": "759d1363afa469621d6ee5b3d99a0ec22110d384a2aa0795d430aefbad7a2c1d",
+    "electricity:T286-11.json": "f0e9a4cf9c3c1148621416f07253c6f427f16ffcc07b5c722c2aba5e24499d1b",
+    "electricity:T286-12.json": "1e19e2a8fbeb54b4869030d5237e58a3a08ebcf2433cb4c0f236c7da4845903a",
+    "electricity:T286-13.json": "047c0b007d34995842433b64212235a67ac166a7d758585d43ddb768f3ddd83b",
+    "electricity:T286-14.json": "9d146c76f22f5b979771255565d2f0949ba945554733cef5578a0dc64d57dc08",
+    "electricity:T286-15.json": "21ae24d49951b13724e56009d2748c533b9aaed1ae54c4102a1164f956c1045e",
+    "electricity:T286-16.json": "3eb458c1a79036fe6f6d33b2ce9863b94c5d7155068bfc461357b58c663a05ef",
+    "electricity:T286-17.json": "8eba2e46ad6429c0e520c94f5a71b486a74ab97467c10deef87cd0a5f343c979",
+    "electricity:T286-18.json": "e4a096a38679b79ce95345a62606abba6f05f4a7308ab696f08f3239673a2f00",
+    "electricity:T286-19.json": "9845bf2654c9f4a557b51ce015fcf68047ab6c48e2f05db1348422f0350ba80f",
+    "electricity:T286-20.json": "65d147b719f93ec69cb6a25221b94cd9aacb0906aa8e38ad250b4b92fb6ceb06",
+    "electricity:T286-21.json": "11ed24f7a8c4bcdff928a104d546a81c4604179f9bdfb53e22a1b38a5a90a73e",
+    "electricity:T286-22.json": "03e9f961169fce30937ef4b86f766689403a693cf06ec6084733bf04a77dfaf2",
+    "electricity:T286-23.json": "70ce3e4135699dafdb7d918d10719de84df49c5b2795bc059079fa12c0e2feec",
+    "electricity:T286-24.json": "7f68bbef4e35ceb5e3a267f2fcac1d6ab93d3c6b1517304082b4beee3f5acdaf",
+    "electricity:T286-25.json": "73c3b6cb3da1e3afadf6e6875cbd9f68033e479cfa83dd723b9d801d4c23d746",
+    "electricity:T318-00.json": "a3e684cb5e8873c845e023d8a8c82c3eed820124be1a8e2fb59c22b0779790bf",
+    "electricity:T318-01.json": "815e4f9ccd9e03901d85a418a2f9028a7eeb146d87326bcf11c5d82084526f17",
+    "electricity:T318-02.json": "ba615d62ce1557ce5675cbf3c9adfc001492bf3ad223bd6b14f5e5f41af4a585",
+    "electricity:T318-03.json": "fdbbc94bc82be81fb08836e14cc8ca027f4b69d98044414c550f02ab683543ae",
+    "electricity:T318-04.json": "1f169084119658248849d525359109e278c79768174c4b748279d57f9648c317",
+    "electricity:T318-05.json": "34ac2b0487b07bc711668507bf636694ec28287a4ae7bd056d795721326f8067",
+    "electricity:T318-06.json": "6aa9a9c775d5d1a8b65f02602101c0ecb8a4270ff205720c32eeb735a982db08",
+    "electricity:T318-07.json": "43b77559052c7cb95706affe946fea23239e497ae1df01701f6faba550b7ce98",
+    "electricity:T318-08.json": "94e8d41a9d2b7f9f1e157ca01a1f9bea214a2d155708f4743df77da5fdc4bce9",
+    "electricity:T318-09.json": "b72c7b687d15c71df646a2afebd9c2787364e6a8845ead734811033196c5d8de",
+    "electricity:T318-10.json": "a746c91b9d645d084d0d82b91d56ba65f0e40f67c4ac49f7f61eb7f6bf82e28a",
+    "electricity:T318-11.json": "e18d41852594baee2b01e42ce60c42e3a7ce7ecaf6ce9bca495544cecc12e9a8",
+    "electricity:T318-12.json": "f307d64d2263a3f2a4e6b0dae46891914d0d4e7ff3a7c92d3053a15709742339",
+    "electricity:T318-13.json": "5544d84465fdb3ccf06ae69a13c650c193b1504121f5cf95de1860d2192a6848",
+    "electricity:T318-14.json": "af1b6dcedbe14ac761152c563efce546ed52f7e6d36e479fc15b7f091878e7a2",
+    "electricity:T318-15.json": "5b6ff359ed5c47197066a26f0531c628f3cb9209a3225fade0599528129e4e14",
+    "electricity:T318-16.json": "9efc8a83958ec3311419ad3846c69e5b00235941b785e968dc704d388e93ff5d",
+    "electricity:T318-17.json": "1291b941eefe00417432651e7d29a0842acb663048b50e1443ef8ad157970e80",
+    "electricity:T318-18.json": "bef063b409f2e45a20e5c7130d14efb2824c433638e0912fca9762d5b27fcdc5",
+    "electricity:T318-19.json": "faf15769594ecbf6207ff373cde8b21ccc1d6e52a47f7722f3ae26e2bc946b29",
+    "electricity:T318-20.json": "fb377ab6a838dfb2135f4051b5619aa5506afbca81b51a81cd2161c895a3aaf4",
+    "electricity:T318-21.json": "cd775fcfcacae9cd4196294fc773238c1ece4efac09675cfba99c59ec8bfb1f5",
+    "electricity:T318-22.json": "08929656f144a7085da2787cc9fbefe31b692e9acf092140a5b3a6fe815888f6",
+    "electricity:T318-23.json": "84c6a1a56a9ce386ebe4840bfefd754a8a54c7382a3f35d5b68d0c7e0e9013df",
+    "electricity:T318-24.json": "80d5ccf115e4e9588e0b9c4bcf2f5d4be29610ae8b0824dfc61278525054ab50",
+    "electricity:T318-25.json": "964b3f72024cb899dd32f8fccc90e602a2120ece8c603b4188f78028dcaf6b40",
+    "electricity:T47-00.json": "c283a719d01f77b9eb0eeec42688bdb6182571da363d6eb40db7930f59d28f89",
+    "electricity:T47-01.json": "cd6ea8e0eab68973225fc4ba17bc4398acf7f57f1652043c8171cfc61dd082b1",
+    "electricity:T47-02.json": "4331fb04af1cdea5181513d125754c70001ae4b4d830e11fb9373703d06cf293",
+    "electricity:T47-03.json": "aae4ff22943e17dc52aa4aa90a40780095014c8a26d9fdc33e6836edfa6a0d2a",
+    "electricity:T47-04.json": "355e58a562fd55ed0c69c957a52a3e228b3647d894805cf161eb87b96f6d3556",
+    "electricity:T47-05.json": "d8fd169ad1f7afcb4f5c1048e0ba62cb1d96e7ee8343ceb2e2cfb4f1772bd288",
+    "electricity:T47-06.json": "dd8d8e858e39230a5709b9a422dcccb33e0f79160c4711490fd061a2e2c8a93e",
+    "electricity:T47-07.json": "e0544cfec568a2210e7e2da366047acf49ad4c16d48a2826b3ec06114ccf3189",
+    "electricity:T47-08.json": "0ea015f110e561c4332d14a9919b31216878dc8122d232956cbdc65619590ddf",
+    "electricity:T47-09.json": "e617cf6f10365b1c4ac6534f3a59e7bc7f2b6b8aab4f41d17bbe6e13b7c1c1b7",
+    "electricity:T47-10.json": "52daef4b72ef614f337cf435ff74d4c8b43303ad4cf0572b467bf0f3cdf410d3",
+    "electricity:T47-11.json": "aa123d38e9aaafd646bb5f0de400617fc6148bd7e73bfd112c3c504e7ca64d3c",
+    "electricity:T47-12.json": "0fd202c06abc8bab62039080ee2f42e0abfb65fa9be5cb2cbacce2cc8f8cd92d",
+    "electricity:T47-13.json": "e65fcc662a65c439b5c31bec9f31c07a031aa66cb49829fac5814af6ea961570",
+    "electricity:T47-14.json": "4e2e896ca3ce17789635aa64c0343674b4da28836687677add67b488dfe04b64",
+    "electricity:T47-15.json": "7a622c27c3640530955da756d0c8f8f6d6af7812b742da51840ab4e04dc302af",
+    "electricity:T47-16.json": "1177cf13dd02ae6ae094d87930bf68b7c44a12aac850062edcc33f8300634b22",
+    "electricity:T47-17.json": "17201bb97fb78292f5c870a730cbeb54ed9782bb706eefa39bc7a40d9b94c398",
+    "electricity:T47-18.json": "5dd5e77f65bcb521807ea17506642743cdf48f562cde75c1d9f23a03b99c8ff4",
+    "electricity:T47-19.json": "ff460ae2c8cc386477ee9eb195b1ebba05586fb6ea5a2286a000acb0adece35a",
+    "electricity:T47-20.json": "b1bdcceae49d89bfb9fa7ffa90def04762bc632ef0110272c1793d5419d82691",
+    "electricity:T47-21.json": "5ad95281e3984e9ada77ddd755e76188fc8b8280ffdc7802184af2459ef9a102",
+    "electricity:T47-22.json": "515bd9432b0b4c25559753d640c6bf4360316a3ca2dc483161971a2caf8e2b52",
+    "electricity:T47-23.json": "9525d773f87640841993aead85c18058cca669d9600b7ec353f6a0b8dcab5d26",
+    "electricity:T47-24.json": "17b388704850c8f50715ab7562411548385e816997db373948c75ccd77e86b1e",
+    "electricity:T47-25.json": "3d991690057b0e74249a0677264dade3d0e4118b33e6b479e9409c0444ea7d42",
+    "electricity:T63-00.json": "82eb7eb0d72bc4e938a6866b3a16a9aee747adf26a66c28814253fdb3b69d6c0",
+    "electricity:T63-01.json": "2d163a3473094cbae864a0a4b637670ead76f8e3d20597d9f4aa760b6eec5af0",
+    "electricity:T63-02.json": "04ca448fe07b9df1e85d563ff87b02e037c40a996ae342785e212a05d5b7b30c",
+    "electricity:T63-03.json": "c0128b66efaf076abbcb010cdf63d39998d468d5f99bd54299c944e53e609b67",
+    "electricity:T63-04.json": "23ebe35ed33a93adf1bc03fd43f3c0e7dce5d7aa670ec881d7b8afaf8155b94c",
+    "electricity:T63-05.json": "2b62ab422bb00f94c3c908bd2428966c935532792b803d8aef9c92d2aafc12db",
+    "electricity:T63-06.json": "d1b7e01378f44de9d04c7ba324b6014e9c1f4c55ff10bcc34ced8456e1169fd2",
+    "electricity:T63-07.json": "d4ea9b2a0d262a3b535a481fa1344dcfe8e8e7eb5fb6ca1b2c2a406ae6ef7d6f",
+    "electricity:T63-08.json": "983856d53d9ff1820f2a520be44056852dea587c9f0a0cc8b4263f5545adeadb",
+    "electricity:T63-09.json": "9abc0e0b1d054d31ebedada2197c4553126c38ad61584a44657602036ad98c11",
+    "electricity:T63-10.json": "e1e3db486b356d8ef9815b3005c0ac8f08ed0848aee8f31667f2a6b1169cad48",
+    "electricity:T63-11.json": "8fe3765aaf81c7f3ea5f4ee6d2ab89426ed138ae2a4d685928527ec3ca5597fe",
+    "electricity:T63-12.json": "38fb18933e5c5e587b1debdb8223b40c99035c4d790f71b2ec2eafcb7b056628",
+    "electricity:T63-13.json": "7af091eae347bdb32522e6335ed2a602ca9880cf523501b46c84b30c78fa9440",
+    "electricity:T63-14.json": "33c3b559b8226bb67e5cf5465d48039d1309d6adca9efc8a2a4954bc23e05063",
+    "electricity:T63-15.json": "27355d3b352b021dbc18f10b67d2bd3a592cdeac6630567afa6f1345e0076d49",
+    "electricity:T63-16.json": "3c5e2ec4ad598e7c57aa37725e23d1fd5cb1a1429a4b173e09e1aa14e9f953c8",
+    "electricity:T63-17.json": "6cf2041c1adb4d05b72f055ce2f66201a36da90ee99c586cc06bfd2fe67393f5",
+    "electricity:T63-18.json": "98124f7df0c6e8fdfeb3febcf8a17c2c3d7d5510d2db6ee5fa556d5a465a0f38",
+    "electricity:T63-19.json": "46b379cbeb03639ffed0dd493d2b907c5f96ed86658d9a29204d218cbf19759c",
+    "electricity:T63-20.json": "3fccfd33fa21ecbf9a1153f205eeaa5d90a245ed3e3e8e23bf4e015649d49369",
+    "electricity:T63-21.json": "2f8b05c0014eb1705000dd958661ccff7e291fa0208b4ae5a5b259ec09bba9e8",
+    "electricity:T63-22.json": "fda5b67a9822ea58bb4638360eb99c139e5a71deb2c204208f0b6f5325f14ecb",
+    "electricity:T63-23.json": "913d0a84c938036c3b6f43461bd003cbacb7834c0296d66a4451133f583afd69",
+    "electricity:T63-24.json": "7fc6bc0b9fbbdbe1e7e5fb477b3145dbcac2a1764ee71b0cb43218204e2463ff",
+    "electricity:T63-25.json": "d864d555ad82adb8710323a4ee1f0184a639c8a1d1a9ef20059d8859a60281b5",
+    "electricity:T8-00.json": "11b19220a27b098ab3927656316f9250f03d4602dc312f85ae7cd08b8a148605",
+    "electricity:T8-01.json": "cd08b1e3d315d760c70e0864a2a577dc79a8c45974384663438b9a22406e56b7",
+    "electricity:T8-02.json": "187eca958a983a6a9011fb9f39186f3e2c2faef0e8c8b494788abbc02c34cac9",
+    "electricity:T8-03.json": "77966692991369ad2cf5cbc74656dfc901d4bfe43b8180cf9d2605bece0b18a0",
+    "electricity:T8-04.json": "f91ecc8506d612968fe8d39e0b24781ad6e4021bd583797b775cfc4d00aa1d03",
+    "electricity:T8-05.json": "1dd866de35d6c2683b79450b1fd6418815b1362311506ffd210724f8b9efe534",
+    "electricity:T8-06.json": "99943615a06e562dd6f441cc38bb9cda0f3ed9aaec4ea1b909abda7e174016f7",
+    "electricity:T8-07.json": "68cf5eb111f0912c87011cc1353071be92b1276f0effd0bd5c331b976555956a",
+    "electricity:T8-08.json": "d1d8cb3d9d7a5ac1a58528c32d9aa87ba18f943f1970881a42ad143a9dab9b8a",
+    "electricity:T8-09.json": "4bb00e46ce943fa7aab5ff747866eaf6d7793cf9a8685b0d50ec6f4f20719780",
+    "electricity:T8-10.json": "aae4862d0bb6217a1c192985443c8f70bb2fbd2a5df7414ec2f65a7423c91d16",
+    "electricity:T8-11.json": "130e09224f7f9378fb917e2bf13db355f80a166a63709205b552b9710723fbda",
+    "electricity:T8-12.json": "5a2eb59790a89395e723706ca40ffdc45a756f0c4e45dedefbb8f922f005e7f8",
+    "electricity:T8-13.json": "aa1bf821f00ebf1cd733cb68c0fabd49d171f74fe0fef6c9c2682258240881ec",
+    "electricity:T8-14.json": "5658b83d54a30a4dc5e6d10b1c5919ce2c6128d13e8e9a633dcbb1d3f9638770",
+    "electricity:T8-15.json": "e447ff12430485f78a952d9a1d0abcac5dae0801798a332e7d130fbe124560f5",
+    "electricity:T8-16.json": "8b22709573bd560173a19e2a268a0d76567827a2cb10640ef6cc107c8694e440",
+    "electricity:T8-17.json": "d78111bf98b00e54c4f9b2b7e8d1220aef439f66e0a7029778692de4f110abac",
+    "electricity:T8-18.json": "ab5fee03579880d5317206889ec802fc0a79a35476c7a24b46061409764b706a",
+    "electricity:T8-19.json": "2e1557356eb5b0507db8df161ef9e0bdb3907fcec259c1d716b88a982df214bf",
+    "electricity:T8-20.json": "1767f98722947e7d16dc5de1d0a9b99199441c023403f82e146552d71d45b940",
+    "electricity:T8-21.json": "654ffc590d7b1d6a485aa88892ad94c7c4ba7f24abb8d171563c0ab6d2e5cb0b",
+    "electricity:T8-22.json": "c8f101da8a9da659f483dd07d226b99bd4de1504660cbccbbc67e20c338364be",
+    "electricity:T8-23.json": "60687aa149892f569978944385ea1700e8556d21ced264d4ef7857f738a0c773",
+    "electricity:T8-24.json": "b605dfcd4b7f4363f9fc2dd49084ef466d62567f62d4344fba04355869214c3b",
+    "electricity:T8-25.json": "fcecb91fc4027d76570a38411d77216887e71cf07985e087931169f7ee37fc3f",
+    "manifest.json": "04ea6f79aea39eca277bbe26f2ddb7e4543076023f7e5d0e4687366fa94d7719",
+    "pedestrian:sensor_1-00.json": "7e1c5235f1c8a83891c5b2f5e8b7bec82b3e1df930c4976da13f90ca846c100b",
+    "pedestrian:sensor_1-01.json": "2c64884735b342ced2e5b9b31a913b8033e22424eaf43b0bf02010e5bdcf9cae",
+    "pedestrian:sensor_1-02.json": "b324727f79f1dc59d9ed34f3741a87c384b3bdc0f55f83d0ce25cbfd78c5b583",
+    "pedestrian:sensor_1-03.json": "9f549d79266b2ed85d21d19f0def954f8568b16381667b7a22b5c1a059c1bef3",
+    "pedestrian:sensor_1-04.json": "ca665db3e1e520f67a1358d979197ae63ca06ff02d39993e612353ed8efc2623",
+    "pedestrian:sensor_1-05.json": "f62e919c9d11c8e63481cb2735e8d8e26c4f83a380e9bc420d7e4e112982e285",
+    "pedestrian:sensor_1-06.json": "f4222f5e3253e5a1339b29d38b676bab75750bf0ea5e679997278ddd308b3945",
+    "pedestrian:sensor_1-07.json": "ca73a3e5850433ffa54fce20ee2901560fffeb9399273c41bb4fdd29438adbf3",
+    "pedestrian:sensor_1-08.json": "30cd5d30a5394e8958de0270d6e7572639e80e40ba3924da8a12735c8f84a7c0",
+    "pedestrian:sensor_1-09.json": "afcad552b4b6f41acfcd2bc5f69ce8e6eaba07850abebf725795a5f6199ff92d",
+    "pedestrian:sensor_1-10.json": "c79de08545c53c9999bed56243140abe7b5ddcfc30c8ef7286f2e33a0bbce15a",
+    "pedestrian:sensor_1-11.json": "4d7c92190a82a1e70b3d9eb60e502a6bf97fa64a5ea703020e5f8975c45898a4",
+    "pedestrian:sensor_1-12.json": "3fa5390d18c98e4762623fa7392e91ac2e5fb8564ccb4f62aaf10e002a70adf6",
+    "pedestrian:sensor_1-13.json": "99662c95fb4ad08675a5d4a6a2aba82d8eeec607c6220ad943e3a0d5871e0b7a",
+    "pedestrian:sensor_1-14.json": "71a27e48505aa62969e325765229cff7795f0f087696c34b162d99fc955f8122",
+    "pedestrian:sensor_1-15.json": "270096b0090cf9136e3705f37cc98de51fb29977fb34005ee74f3ad996d75580",
+    "pedestrian:sensor_1-16.json": "589d94f23d374a31ef2e5f97a37f25043a0d715a5bf85e8aec7d858ff05da447",
+    "pedestrian:sensor_1-17.json": "5a767ecef4038e6f2b191084befc417b7eee016a9e015085feba7545b440fe24",
+    "pedestrian:sensor_1-18.json": "1dbf392d0813554698c1ad0833f481721b04bec2779ee14e7dfd978dd3469611",
+    "pedestrian:sensor_1-19.json": "bab44cf8093dd0c8656b701906115825a0d37f9d6d833f4b7d820385cc574871",
+    "pedestrian:sensor_1-20.json": "e445570e4a8ada5e51fd6a44ded8ba0e7bbae0138f8dfee6caba5ee4a49830d5",
+    "pedestrian:sensor_1-21.json": "394ad6dce8a010f22a6c277c34016e0f26ce8975da1bb9c90e38fd3090f672a3",
+    "pedestrian:sensor_1-22.json": "ea6d239332e3d81e2f28b253a08420b18b7c569c509e55bbe58d09a33eb769d4",
+    "pedestrian:sensor_1-23.json": "c58630700dabd1e724d190ad0289976b0895e16e4acc702c4280876f1eece11b",
+    "pedestrian:sensor_1-24.json": "341783fec78e3527f502d837d4d0d5d24723ad2e4a38af00c05f7e5cc2084be2",
+    "pedestrian:sensor_1-25.json": "5d4becf081e33bc3ce584a239ed5b4245d608805df3cc0c0de01503662577f97",
+    "pedestrian:sensor_24-00.json": "362c999ce7f018d33ab08a3e24c77ebcc83cd9b038e05773814767a63d639947",
+    "pedestrian:sensor_24-01.json": "7b5ce7cbc2752a4bcd203cabf0aeee0297abb97996b545b315d67ad233a6d215",
+    "pedestrian:sensor_24-02.json": "cae6ec26953ec61549bae4e1d1f72a3ea05a4e391a18e3f89f500bbd2d27be3d",
+    "pedestrian:sensor_24-03.json": "127ac80605764623d01d9dd97b4ec4f0ea94b31902889529594cebc64c61d09e",
+    "pedestrian:sensor_24-04.json": "d988477d025c7b79c80f7df3764d27e7187f404d22e1f9b2b076363078d0d0b4",
+    "pedestrian:sensor_24-05.json": "d4cb62820d28637daee3b6b88aeefda7e9bf2260ea6d1aae1651d498b73e1f8f",
+    "pedestrian:sensor_24-06.json": "116d68b1471e6de1fddef5d46cf6691f0e1b979745f1afb33d1ed515fbd6ee17",
+    "pedestrian:sensor_24-07.json": "f64e8475f6879f5d9f7b14a35f4043a1bd4fdc39fc783de306f65aea1af0f727",
+    "pedestrian:sensor_24-08.json": "6af865c68b8de95622ead84718d8bc804e95918b42c382f99f9d4a739e5c460f",
+    "pedestrian:sensor_24-09.json": "9029bb4f7ffedbe397deeb9781f128aa198edb8f904678486392aaef18fba6ac",
+    "pedestrian:sensor_24-10.json": "5659e9b8bebd0a3682c9bf5fa8ef6e7e611a7e4cce7fb818ae284a396eca880f",
+    "pedestrian:sensor_24-11.json": "e5b4c3e4dd13553cad434903e782eed87951c8cb4acef2686d5bf90dff6f4238",
+    "pedestrian:sensor_24-12.json": "c6d6571c4cc24b63d4e39cdd176ff6b61dc116e757714539b25f06326f8b2144",
+    "pedestrian:sensor_24-13.json": "d0363dd72517ad7361aa762c3c865d28bebb620b83d90b5db0664d5e66d59382",
+    "pedestrian:sensor_24-14.json": "8ecec182417bd6661a7aafc5c5fece65ffaee043a106883e6f4561bed1bcacf3",
+    "pedestrian:sensor_24-15.json": "0aeb8153a81c81504f3962e604225710af6985812ee75db2b44fae02bdc883f7",
+    "pedestrian:sensor_24-16.json": "d3ac999b8bfdf5fb25e15ae46e417e4212034c1d1f8cc87fbe3c04f60ad860b3",
+    "pedestrian:sensor_24-17.json": "b6e114021d02945d89632e0ea5edf7fd59fde99701ce12c5a992cf5061225d9c",
+    "pedestrian:sensor_24-18.json": "b10d9893b49f3cf5cd588c8b1ea2cfae54cd53f378fa484a92e5a6d4af507e57",
+    "pedestrian:sensor_24-19.json": "c264b83e6550be69200d951da0bffd33c2bd35e462c108c4b8306c88de9dd397",
+    "pedestrian:sensor_24-20.json": "a80ab03f9a6dbc85d179b7b9c53d0bc03689464e8870ea7748bade4d7f499caf",
+    "pedestrian:sensor_24-21.json": "669ad8be3c65e46d539c7a3dd49bead6ff159a3d618746d3ed9b52bfcc207364",
+    "pedestrian:sensor_24-22.json": "b34c9e9a65b09791bc0cb6f86d30d49cbf7b32319a68a4d2325c8c8b76750efa",
+    "pedestrian:sensor_24-23.json": "840db6c1d568ab0a4598369bc0f0eee457349144fec7a5267643c19a04dac935",
+    "pedestrian:sensor_24-24.json": "fffdcac2d94e92a9a7b0d754f9dfd87bb4c86181f41267a06bbcb01335f25395",
+    "pedestrian:sensor_24-25.json": "526e9d49ea680cabc8f19f7a34dc4f00bbac377af042a0f4b27a2e3105bfacef",
+    "pedestrian:sensor_29-00.json": "76738d5225e549628706d3d2479ae0ea8ab92f776c3928b4b0dcebddc8a5fd1b",
+    "pedestrian:sensor_29-01.json": "026399a34a882740125d1458423c0e108c06c2dc946c289fa7b2acab1008b9ac",
+    "pedestrian:sensor_29-02.json": "b4429a97f6ac0cd38faccff1aaa880326e283dacbfaefdb2da115490be150933",
+    "pedestrian:sensor_29-03.json": "f9226ae850863ddcd39ae464d6d88316ef89478e762a4a7ec4fb6d9453f3f757",
+    "pedestrian:sensor_29-04.json": "9707f15b25d245102cef6ad3feb229ee72bb9dfd13e89ad4a5b96a8dcc87078a",
+    "pedestrian:sensor_29-05.json": "8cde5399d9a296d71a99d230bfa6e3c9ea93a7fb20f841440319438b045f540a",
+    "pedestrian:sensor_29-06.json": "0f2456f5d7db742055925ba83d6e91d20799b73f97267655029827abadd284b2",
+    "pedestrian:sensor_29-07.json": "cea97ac780060616058d7dfcc41d0e8e84731097b830ccc61e33f56ce36451e0",
+    "pedestrian:sensor_29-08.json": "032338846cb2494f9715abc965622d8b321a6059b4a0dfc78c260a28e763233d",
+    "pedestrian:sensor_29-09.json": "e36e3d9a0a93ff04aa8fc28d9a65f4d69e8d72fa3204edacec2c3e679ee062ba",
+    "pedestrian:sensor_29-10.json": "a65506672cc124faa3bc9057f3f7a2d258d6fb24c7663591e76577deb1d90a5a",
+    "pedestrian:sensor_29-11.json": "00231bd24fbe521f448eccd20679366f9acab0f60a33c5b923ae512852a5b226",
+    "pedestrian:sensor_29-12.json": "857435be5ba4547b4f515e5803d629f09ecedbca4fc8bb5926b80a2fbe88f73a",
+    "pedestrian:sensor_29-13.json": "b1f7f92ec20f6a3be88d14cafde259493170cc39369c6a76060b4aad62b92f4e",
+    "pedestrian:sensor_29-14.json": "36672cd059e2f687f0ba86d0956c02754fbbbc8b934873f3389e4dcc15856ba2",
+    "pedestrian:sensor_29-15.json": "4ab03f4eb8409081c509d698314a01cd2cf00e34565ff45f6af5908addddd535",
+    "pedestrian:sensor_29-16.json": "198012772236539070eb0991e13f7c6772f26450da4b695635d530ac635235ce",
+    "pedestrian:sensor_29-17.json": "8c8f249fa949528657339e2cd903713fe177b114596d1ead2e607f23d4171a04",
+    "pedestrian:sensor_29-18.json": "6c6d5ce9e8a20d56d30df36748115867e6e65e22427489b5bfccc3af7f736aec",
+    "pedestrian:sensor_29-19.json": "644030a7ab45686afd416078914d553ea8058262b0c23f16e41eafc50bb4a8ea",
+    "pedestrian:sensor_29-20.json": "c2d389564e427c50c537de04442bb94ddd97f26c7134567ff13f3fb81a525940",
+    "pedestrian:sensor_29-21.json": "872db1bfe5723dc2b7def3b13daff52bac1c1ff11035ba74cbfd7c657031b535",
+    "pedestrian:sensor_29-22.json": "0cbf062fb990188565d0d107188ffd00a3b05b5b670572e8c6fa77599bbb71cc",
+    "pedestrian:sensor_29-23.json": "5af51117d03aaac6f0457110cee81305249c8d42d77347488322c3f350fc3b4c",
+    "pedestrian:sensor_29-24.json": "b507d73fb40b81ffa70be99c51c8bc7f354938442a5704495e16d616e2fa20e3",
+    "pedestrian:sensor_29-25.json": "347769fa47ca681013fe1df7df2bdeb144f5a1906a673c3e2212a3ffcdd7f2a9",
+    "pedestrian:sensor_34-00.json": "353619f0ba1b398eeec7b569c3bede7f2fb3e325eb69d0de2123201dd8fd0b56",
+    "pedestrian:sensor_34-01.json": "51cd1a1ad55fc59b027f10742f70243c352e4458215fe8a2cef7fcb3ebf23919",
+    "pedestrian:sensor_34-02.json": "2e526828ffe61c8dc94eb606f86f8d4e47b4587c9fe0654af366f5e52d436d3d",
+    "pedestrian:sensor_34-03.json": "7147d6ba8e73e6312431d8141ef9d5c58642ce0e3f2ac75be200fb1915bf2bb0",
+    "pedestrian:sensor_34-04.json": "c20482ce9dad98832364d73e60218301cfa1009cce39148aa0c6ed0bfcc2b9b3",
+    "pedestrian:sensor_34-05.json": "df56c7ef3f1c323ebd29030c757239a291dce2d1bdf9d4077d117ef41c3f91e9",
+    "pedestrian:sensor_34-06.json": "88e63a8cdceae3a2dfa183184941877cd60219fe100e6947d56c254cc5b552b0",
+    "pedestrian:sensor_34-07.json": "7b48882cc57e3c97a5211984fc7a9f4af33f79b2f5a2e050687ccaea90250d98",
+    "pedestrian:sensor_34-08.json": "dd2a0dc53d1468311cde4dc11f62e1486314e56841ed0b8654c5512f61cd6831",
+    "pedestrian:sensor_34-09.json": "3ccaeb6c5674839573de3fe6ad5c62179b24c2741b123553aebf83a10e355d8b",
+    "pedestrian:sensor_34-10.json": "bfe10f8ed0f03d7330bcb9cadc41773a808dd0c69312d2e2cf8a60ae2a378629",
+    "pedestrian:sensor_34-11.json": "6cc030ae95a2796cb41248435631905bb92fdbdc6b96aac95e0ea23094e2789a",
+    "pedestrian:sensor_34-12.json": "04a0bc13dc417ed7e720744790316ae7cead64246f2d03e4d298eb025f82e19e",
+    "pedestrian:sensor_34-13.json": "89e1e1c0d240e788752f8031635f604ce2a47680e4a6cabf3f985f086f92b938",
+    "pedestrian:sensor_34-14.json": "61a46a80339c21af452865504d88015bcb14e48b5ddf9800bce1e457185483d9",
+    "pedestrian:sensor_34-15.json": "c45f8f39e37783c4a864689070969d17b20760a2b8a72ad6a5f6976e8ee9b2f7",
+    "pedestrian:sensor_34-16.json": "22bdda862324851d9f8c3527ef13fc6e45fcec369c49458a491611707b39b65c",
+    "pedestrian:sensor_34-17.json": "ab5e3cc929fb3dd8f98ad5096145a41fa24cbf7c4b7de3381dc55b30eabcc559",
+    "pedestrian:sensor_34-18.json": "73b0182bf3eb0865ba436c8db6566527fee37ece5630f6d8f55dbebb38d3e469",
+    "pedestrian:sensor_34-19.json": "21ab6e7cf2de4207af6431a6d8284e9ab10feae66a8e2b63dcbd380ed5745427",
+    "pedestrian:sensor_34-20.json": "e473ce880fac19299f9d32774ce8399523c59a7488f3f564cee38a82ed56eeaa",
+    "pedestrian:sensor_34-21.json": "4b5d6e7436297832a5d31fe7765f7e8ad8979e81b0079bfc7fc42f4b446ec1b4",
+    "pedestrian:sensor_34-22.json": "42fef6212113ed0684fb7fd7ff391e528a24e5f5ce80d79b8fa943dc132346c3",
+    "pedestrian:sensor_34-23.json": "a8b9303f022b25594adc83de8dab18ca0905e906f546c791f7eef3852d0192b4",
+    "pedestrian:sensor_34-24.json": "c019442a7a31963e285b067853dfbe4e6ad5f0ab040f65677e14aa9adb5ea8a0",
+    "pedestrian:sensor_34-25.json": "c2eb44c061de6e45d9b872df8061050b9b9a2259fdf0147b54105033ee4f7879",
+    "pedestrian:sensor_40-00.json": "8aa551b08fb3bd3798563911221f1071d7a18a570c835b985eef010aa9eded31",
+    "pedestrian:sensor_40-01.json": "6ca926fc6bac0729dbd6da755596e7abcd370548f313efd2d349508c47205b57",
+    "pedestrian:sensor_40-02.json": "a8774f7ee67785b8d47d9213cd95753f2549f8d2a116881be169684ecdbb9796",
+    "pedestrian:sensor_40-03.json": "801290aae3c8870e67cd9571b90543955f1cf4670bbfb89124337ad3abdd8237",
+    "pedestrian:sensor_40-04.json": "cc04d98f7a66fd0baa4c488e25d2953fe44fefcf497e2e6fa8d15434eb721721",
+    "pedestrian:sensor_40-05.json": "4271abdee2e785dfc136365e6a8b85351dab0fe94fbc41aba1b35342bec6d9ef",
+    "pedestrian:sensor_40-06.json": "e5b3cde354cd0c67f8890ca6edb7a833adc7e2ed6d66c7c7a2316b9debbc94ad",
+    "pedestrian:sensor_40-07.json": "6ba67c96ac8271528f820b8aabab740e7cfc5b8145369c8333e853db626b0e3f",
+    "pedestrian:sensor_40-08.json": "281ea3e433072026e9a264d456d5aac8c08a3562c2db6a75ec1689da0870c9e7",
+    "pedestrian:sensor_40-09.json": "011801073983144c358c87c788a760a8219ac8487543f25ac9c7abd339f3f858",
+    "pedestrian:sensor_40-10.json": "f09475af88fcc7e349c7017587ac3f25bb2bf909f13952fa9479e24c781fbe57",
+    "pedestrian:sensor_40-11.json": "5e83975f061d2a52faa2ccf1d8dddb4013b38e633d7f67c4d8c31ce421f9a571",
+    "pedestrian:sensor_40-12.json": "10295ffdb7eb745730a8a326b49d1aa528c8c450aafab3bca00da67b72b95146",
+    "pedestrian:sensor_40-13.json": "b8a19c53e5215d707ca01074761bbba0ea2edbe74519e9d0a5404e944e4526ee",
+    "pedestrian:sensor_40-14.json": "37ec89e67a15c843efe45c4fa691a28124adaa3e1c850f5817daf73f3b09c2da",
+    "pedestrian:sensor_40-15.json": "8e3bbbe2db8232e16e76ff1ab43551737c69cc2f108a0e7dee91cd177e47216d",
+    "pedestrian:sensor_40-16.json": "553360c9f26bef727e6ff4d52238378833d8aa3b2e20ba43ce1b9a8a8c2d9006",
+    "pedestrian:sensor_40-17.json": "7e66cc5167244be64235bd0e62cbcb13e63bb93bb1b9ac25f52be0e567d0bf6f",
+    "pedestrian:sensor_40-18.json": "cd0e17fd284d31dbffca8fc6960edfe52093afe20d19a4eb5a728b306f5fe5a1",
+    "pedestrian:sensor_40-19.json": "d5011bfda7b808aa4d9dc96f7015c090f0979e81419e8fc1eeb8847735174226",
+    "pedestrian:sensor_40-20.json": "b93aef0894b13dfb1e99dd1ae4e7ff8987c55c410ce964d18cd313f57c221b15",
+    "pedestrian:sensor_40-21.json": "15435c6d6239d930c167457d78c1e72950362f375f46fb5a3e8aeef52bf0356f",
+    "pedestrian:sensor_40-22.json": "c283bb72cd69b8ee92806a48d6e7ad71d72712c77ab8a36b18f8a52d2bf597b4",
+    "pedestrian:sensor_40-23.json": "dbfb9cb9593088421f2a2bcf19652af98a66f3f5f0d2143ca63a46be0034081d",
+    "pedestrian:sensor_40-24.json": "e4ac9a21f6e4ed797ef34a70432a585e1b89e7ccafbbaa744fc1a20c1c6fbf75",
+    "pedestrian:sensor_40-25.json": "b946cb03a32bb688d2f0eb69a3e1773cffb0790a8100428ecbf0a4b642aa688e",
+    "pedestrian:sensor_43-00.json": "93818459540acf22136bc0c3cf94f09ed186395f012a21e0bed0936a95d66088",
+    "pedestrian:sensor_43-01.json": "dc5105066372bad1afa15da66b74c59c3ffc6d10dde2c395a3085dabe4593b5b",
+    "pedestrian:sensor_43-02.json": "5b2e67799278b575c0c8d6ff58b668d31e7901ebf9897ab9ee2eef8dde417e8a",
+    "pedestrian:sensor_43-03.json": "e4a0e15f2705e58d7b0d68f88ed2638efc1a785fb9d9d585f1bb9a7c301f970a",
+    "pedestrian:sensor_43-04.json": "8b4ba43860786e7752b18fd7c02a91d477d945d84a39249baba14392b111f8cf",
+    "pedestrian:sensor_43-05.json": "da87dfa7a41a61a591d1253d85cb8dfe5b15862f1221d1f8ee3b5f260297eb30",
+    "pedestrian:sensor_43-06.json": "798942ff59df9268103e69dd8b5748cfb995173e2dfc90e419bbc351bf0749a6",
+    "pedestrian:sensor_43-07.json": "474fac870ea5bf39b6c230350d5c1a304a27fb835615f43ea8158e91f38e1f11",
+    "pedestrian:sensor_43-08.json": "db694e97545fde7b9fdea23fd13af70eaf0f53c5d0ae21e502c2dadef33b5e05",
+    "pedestrian:sensor_43-09.json": "44659ff5b764d16441832d94c3db3e9dda3bcfe429f3ce6c131c756bac3de1fa",
+    "pedestrian:sensor_43-10.json": "7e563d2f7c64b972962be39dac0917005db668863033e1ffb3f37806f7c64014",
+    "pedestrian:sensor_43-11.json": "6f1feb85bd7a22e8e2844598d0e1b93a2dc43efcf51651454d382fd7451382c6",
+    "pedestrian:sensor_43-12.json": "42365419453cc637bcb8512f7f7930b7929633232f5c4ac3b86425551a6660bf",
+    "pedestrian:sensor_43-13.json": "066e3a34d8381385e573bb884f1e3a6b9d7b5b34ed902a8e46b54d715062ac00",
+    "pedestrian:sensor_43-14.json": "8007b7f5922ef29c68672d18f6b354033f0780b6690a35ae3be03ebed7264045",
+    "pedestrian:sensor_43-15.json": "a3649b37633ef48fa5d602fe58f5c22c157c4d97e0101d835db78ea37ab2f164",
+    "pedestrian:sensor_43-16.json": "48cdee417351d8512c25bed96c8f7a15ee2863dcd7252475a0f5cb2b3b662760",
+    "pedestrian:sensor_43-17.json": "e36da11a84d31d1eff6cfeb19619d791310da43ba49161d79cdc0797923dec23",
+    "pedestrian:sensor_43-18.json": "0e908997153dcecdf1801ed2a41b2db9f80037758045f36396a480d68c9d0087",
+    "pedestrian:sensor_43-19.json": "feee7c0cc9a6e0605ef3152c3a064de33247509a2ad33e50a3c2246ae600de44",
+    "pedestrian:sensor_43-20.json": "558dd3836eb980f79ad84eaa59cbce8ab18266d9c5daebb5b6822465c5e0e161",
+    "pedestrian:sensor_43-21.json": "b780cf6ec492030a5b3817cd68a8c62e8e65145bce50caa66435900875756707",
+    "pedestrian:sensor_43-22.json": "6f1200572be5a08fdd066c010dd08cff6858286b21f0627c03c17c830e572013",
+    "pedestrian:sensor_43-23.json": "dab5057a5a0c2cab8ca2651fe768eb8e372333abb2c31796a58ab4d0705e6658",
+    "pedestrian:sensor_43-24.json": "9700bc8da31cf2d70a8990234e83aa5a42d204e6e1ce3b3d2be91a9a25d58e00",
+    "pedestrian:sensor_43-25.json": "518e398ca1b2ee0b503c73be0b7e00d74b17246ffbb004fa511b1dfcd18e013a",
+    "pedestrian:sensor_48-00.json": "362eb3a426d41c08bda053677c2a27b3d17e8b0e68db65518cb7ea4ef7b5186f",
+    "pedestrian:sensor_48-01.json": "f05670808e3c4da6de8ebe63ee929d16741f3220fcd97969ff4a44dd60c8f34a",
+    "pedestrian:sensor_48-02.json": "228f7dadf8394c804c52330beea62b8159a8c0b3dd908d8ba8c4182644b0858c",
+    "pedestrian:sensor_48-03.json": "930ef0cbe3471feb1a6775b365c7364af62de9075cdacc72684de2c4d429ac90",
+    "pedestrian:sensor_48-04.json": "3ef848e4d85c7e479f59e2d5b16af8b0a333be6725cea000247392f50fc1fdd9",
+    "pedestrian:sensor_48-05.json": "e6a9da57491ae8b1a0e9396735714da32a5856c56fbe0b788675f423fcb76e48",
+    "pedestrian:sensor_48-06.json": "f8ef22e16ca9ab32cd0696d3a9218e80a7906853f664fd5be909a17f0cbfaf1c",
+    "pedestrian:sensor_48-07.json": "94d418abb6df159a882305bb9f96651a6e3d7902a872e7aea5accbaf24e277dc",
+    "pedestrian:sensor_48-08.json": "048845eb46f8e5067da8faa9164fe7ec5db2a37dd6861524bbcad5bdc92cd8d6",
+    "pedestrian:sensor_48-09.json": "b1bc0b18f0608f71fdf4f9c53a1b740a2532a760971fe250927ada55e491f141",
+    "pedestrian:sensor_48-10.json": "1b7d699d429d366237bc61d1c49c1db026865b1bbff1be8522c272b507db0afd",
+    "pedestrian:sensor_48-11.json": "9df19706811b822bbfc894625ec013cc0dd80aee3d6f0e0761e36a071be2dd3f",
+    "pedestrian:sensor_48-12.json": "476bd5c79c88e0e79a4bf32ccf0818d6e85dc7290f5b43cf44e50a631a894404",
+    "pedestrian:sensor_48-13.json": "ef0195613bb6cf8c0636618ae10efd4161c4b93149c9804d55d01c3144916331",
+    "pedestrian:sensor_48-14.json": "c406d42d55ca9f36d3012670cafa5953c85dfcc9214bd78b22252286083f2c37",
+    "pedestrian:sensor_48-15.json": "7ebf0d99eeb80c3d0a3a71fd2f1f9e2e462a0b9c4cf289d02d763e452c4a70b2",
+    "pedestrian:sensor_48-16.json": "529209dfed28c9eb6c513b5a258aded03252519a6139e0e0bef8ea609b6a0095",
+    "pedestrian:sensor_48-17.json": "9f53c23c379cfd1d87f388ca65394d8b569e9449a5518358539958677e7fc396",
+    "pedestrian:sensor_48-18.json": "a4a5e98892022fd9670c625e81b0a3c075b2500b743635fc11b1d56cd68cecf1",
+    "pedestrian:sensor_48-19.json": "9e7508afb1c2b1a64e4ef28523cdfae8acbd8620a67e96e0d50818bc214ae939",
+    "pedestrian:sensor_48-20.json": "819ff723598e37ca78755f59ac02985a95ddc7c51fdbb8794e19e580274958db",
+    "pedestrian:sensor_48-21.json": "d6dec735bd71f6a1544e2dd3b3e19f34358ce8ca00c0712f274f7c5da5b967d9",
+    "pedestrian:sensor_48-22.json": "59b013a0b2e10d4d4faf47134b35ad3b1b0a0f06a14c88baa5f500e4f41f36a7",
+    "pedestrian:sensor_48-23.json": "f7d86da44757bb8007dd618c034e4b0a2a350294e4565b0edc0be32e0f0e63f9",
+    "pedestrian:sensor_48-24.json": "d0674fad58fdf25e128cc20860f17220c8a95df00be143a59cdd12c1efec47d0",
+    "pedestrian:sensor_48-25.json": "6e1a9caba108d9b00673d02474239941db6ce497783bba34385889641a3ad347",
+    "pedestrian:sensor_61-00.json": "8e626dd0fd40b08b34cb300e54d6f1253b63f6c688a8fb430638308b3e14d30f",
+    "pedestrian:sensor_61-01.json": "1d562deb19a3dace6ce4907832101e5b4fc78186c941b3abccb1450f555970b7",
+    "pedestrian:sensor_61-02.json": "2772cefb3188ceca51a2f2a78c46ece9d70cec7886558856f03862ef2088c16c",
+    "pedestrian:sensor_61-03.json": "6f765e877ff492b56b6b2c494d125fd0bd0b114fc5b371372c5e623799ea4ffd",
+    "pedestrian:sensor_61-04.json": "55e0bf024c44f2b8f49937e318f2849b26152b9ea507758f8beaa9ce81a5a61a",
+    "pedestrian:sensor_61-05.json": "197fd8f3c01e50e73169bb343868a21431ee9277ede93f9bbfac8eb2a15dae25",
+    "pedestrian:sensor_61-06.json": "c2c615b8297e6b5c4ae1ce1e8d9fc3a43ca594d9f8506b6b18ea0a567918a49b",
+    "pedestrian:sensor_61-07.json": "dbdfdaffd0b0cc57c8a5fec25a7eabdf961fa7c8b170a17d14fb2c50c1a1db23",
+    "pedestrian:sensor_61-08.json": "29bf7a5152e9ca6ed025fa8a9e1dadde81fe6dad18cab0a75e40656653f10426",
+    "pedestrian:sensor_61-09.json": "4821636ab6eb9d3603051ade8eff554780e8dc4d8eb38e980a2002eee5c61d6e",
+    "pedestrian:sensor_61-10.json": "82e951ac9e1a08fd555b4f0cae8d2937314cbc58db01ede9256000fcafd7f598",
+    "pedestrian:sensor_61-11.json": "2614adb7003a1372c26527ab7c20a940c216401f9f8f47232f41c9d09f764429",
+    "pedestrian:sensor_61-12.json": "2264572789435e592bdf524477261798b5679d05ebf4720f44c3bc5eafebdb6f",
+    "pedestrian:sensor_61-13.json": "2731f35d21e9c321449c7ebdc3734c4f7bde43e3c8d885b4e1aefb63a3a70459",
+    "pedestrian:sensor_61-14.json": "166a503420065a4f166e146b67e289ca8419dc2466318d1c1753ab73e4cfe399",
+    "pedestrian:sensor_61-15.json": "96ecc1b2081c71ad8e3dd44c19883aa5009c18c0b098105b60a18e2c65075a30",
+    "pedestrian:sensor_61-16.json": "0c550b43cca96ff188521c804635ed70a99ab906581bd4725b75bc94f28300ca",
+    "pedestrian:sensor_61-17.json": "4c78992012a5ff6b924b6c690d547f1901b5a95cdd48f1967645458d2137e176",
+    "pedestrian:sensor_61-18.json": "3f18eb668166856775620cd842a18bd436973b76a09ad0b3bda63c642bf02296",
+    "pedestrian:sensor_61-19.json": "01108f2ed6e6532569dcd3dd906710ae6434dcdeca9182b74fbd7eb1e4587739",
+    "pedestrian:sensor_61-20.json": "de3e8fa8f0526defcda0cfca70bd162f1ef09cc1e9730b7399b6c4488b12ea7a",
+    "pedestrian:sensor_61-21.json": "53ea7d93ae49e5a121b979a62a2d50648fcf72eba7cb69ca53ce71133be45d0f",
+    "pedestrian:sensor_61-22.json": "95f9d44c5cdcf6e1408e335b5d54be6f1da333bcc88dda84d4bd06294ad86edb",
+    "pedestrian:sensor_61-23.json": "6b535a6ab2bdf56e83f2a067dcff3b231144ed8c6ab180261cd5ef7b0720b931",
+    "pedestrian:sensor_61-24.json": "9ba0f9aee999843573e54aa072c2fab6ecd82c724e68431f083719384fe26713",
+    "pedestrian:sensor_61-25.json": "8147059866c9088f95945bdd43de38e9536163a5570050b1654567f1d855a8d2",
+    "report.json": "ec7445a3b708b97eb18d2f2a6bcbf9001b100538e103bfbc4bb7340478f7fdec",
+    "verification.json": "25b6e9c5fc28e55438d8c47c180b5fcffa80003e81432e4428e43bda0904fb89"
+  },
+  "archive": {
+    "path": "results/broad-residual-memory-049-001.tar.gz",
+    "bytes": 2707718,
+    "sha256": "835b9165a76143ce2869ee7430dcded1fb242b46fbf70b149b1a839f72a67e31",
+    "verified_files": 420
+  }
+}

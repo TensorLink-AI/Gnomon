@@ -994,3 +994,20 @@ of these fixed proposals at4.22%, well below20. No reserved outcomes accessed.
 Retain receipt048, all contrasts, source hashes and full diagnostic limitations.
 This is evidence directing next work toward stronger matched-action proposals;
 it is not a new agent score, an accuracy promotion, or a release.
+
+## Shared residual-memory action 049: gate failed
+
+Previous turn made progress: evidence-skill implementation, complete diagnostic,
+independent audit and push e9eb5a6. Revalidated current branch and source reports
+before amending the action space equally for both arms and freezing at 515a3de.
+
+Both arms retain 045 CV ensemble weights and get the same ridge-shrunk 24-lead
+signed-log-error correction. Control uses three current CV folds; ledger blends
+those with sixteen frozen 047 neighbors. Ledger improves 0.85% versus corrected
+control but only 0.21% versus uncorrected stronger control. CV-only correction
+worsens overall error by 0.64%; prespecified guard prevents a weakened-control
+claim. All 416 tasks, 832 fits, 1.3831s processing; four synthetic tests and
+38,434 independent checks pass. Clipped leads 10 control / 6 ledger, fully
+disclosed. No provider fits/API/final reads; all inherited costs retained.
+Receipt 049 preserves corrections, residuals, hashes, scores and archive.
+No promotion or paid confirmation. Target remains unmet, with main/PyPI unchanged.

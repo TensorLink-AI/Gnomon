@@ -19,6 +19,13 @@ proposals. All 120,453 audit checks passed with zero new calls/fits. This direct
 further development toward stronger proposals, not treating fitted objective
 improvement as evidence of a 20% benefit.
 
+[Shared residual correction 049](BROAD_RESIDUAL_MEMORY_049_RESULT.md) also failed
+the gate: 0.85% better than CV-only correction, but just 0.21% better than the
+stronger uncorrected ensemble. Both methods had the same correction tool; the
+additional control exposed degradation caused by CV-only correction. All 416
+tasks and 832 vector fits were audited (38,434 checks), with zero new API/provider
+calls. No final data were opened and no rule was promoted.
+
 ## Latest completed comparison: Gnomon 1.2.0 and Hermes
 
 DeepSeek **deepseek-v4.1-flash** through Engy; 104 tasks per arm, four retail
