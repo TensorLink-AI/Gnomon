@@ -1,0 +1,28 @@
+{
+  "source_sha256": "5fa1d8fd8a50b0b2eededb85149a541336c2cfe1ab53706a0dbb1e81a526bc8a",
+  "rows_transited": 4562230,
+  "rows_in_window": 277269,
+  "start_label": "2019-10-07T14:00:00",
+  "end_label_exclusive": "2020-05-01T00:00:00",
+  "first_origin": "2019-11-07T00:00:00",
+  "expected_hours": 4954,
+  "sensors_in_window": 60,
+  "sensors_complete_unique": 43,
+  "count_fields_parsed": 0,
+  "provider_calls": 0,
+  "limitation": "Naive source-hour labels; coverage does not establish DST interpretation, count validity, or historical publication times.",
+  "audit_code_sha256": "a17ed582a973fe23fd9e26442fa3e43867f108fc327f07557e15bc9f8ec23628",
+  "coverage_receipt_sha256": "27cbc5bc6f9df48482da77ef84069bd89f80084c0387ab7824d9d3435c2a7437",
+  "attempts": [
+    {
+      "attempt": 1,
+      "exit_status": 1,
+      "reason": "ZIP resource fork also matched csv suffix; no rows read"
+    },
+    {
+      "attempt": 2,
+      "exit_status": 0,
+      "code_commit": "bec2fef"
+    }
+  ]
+}
