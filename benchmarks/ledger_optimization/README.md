@@ -71,6 +71,13 @@ and harmed electricity. All 73,138 audit checks passed. Added cost: 3,000 foreca
 computations and 416 contextual fits; zero API calls or final-outcome access.
 The gate failed despite supplying prior evidence; no paid confirmation launched.
 
+[Shared-ensemble screen 044/045](BROAD_ENSEMBLE_045_RESULT.md) tests forecast
+combination equally for both methods. Ledger weights improved RMSLE **0.96%**
+against CV-fitted weights, but harmed electricity and missed the gate. The
+control ensemble's own 7.44% gain over hard selection is not ledger value.
+All 43,441 checks passed after an explicitly preserved solver failure and
+uniform tighter-tolerance rerun. No provider refits, API calls or final access.
+
 ## Earlier frozen confirmation and development history
 
 The reserved confirmation completed **3,744 decisions** with identical raw

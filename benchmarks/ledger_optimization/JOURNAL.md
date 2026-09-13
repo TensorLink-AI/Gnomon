@@ -934,3 +934,16 @@ better and 0.19% worse. No substitute primary. Additional 3,000 computations,
 73,138 independent checks and three tests passed. Earlier evidence did not
 resolve this selection failure. No final reads or paid confirmation. Preserve
 all predictions, cohorts, matrices and negative outcomes in receipt 043.
+
+## Shared forecast combination 044/045: gate failed
+
+044 frozen 08d6ab0 gives both control and ledger a common convex log-space
+ensemble action. It stopped after 407 cases/816 started fits on a convex gap
+of 1.12714e-5 versus threshold1e-5. No aggregate accuracy used for repair.
+045 frozen acf05e4 uniformly tightens ftol to1e-12 without changing threshold,
+objective or inputs, and recomputes every fit. Completed 416 cases/832 fits;
+43,441 independent checks and four tests pass. Primary ledger improvement0.96%
+versus CV ensemble, electricity1.61% worse/pedestrians1.65% better. The control
+ensemble improves7.44% on its own; do not attribute that to ledger evidence.
+Both attempts retained, no provider refits/API/final reads. See report045 and
+both receipts. This is a development prototype, not a release or final proof.
