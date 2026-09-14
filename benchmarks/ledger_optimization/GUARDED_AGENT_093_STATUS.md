@@ -1,8 +1,8 @@
 # Guarded pilot 093 — completed
 
-Latest audited continuation: 282/312 sessions, 93 matched cases (2026-09-14
-22:08 UTC). The pilot is complete; the full development continuation is active.
-See the twentieth audit below. The 20% target remains unmet.
+Latest audited continuation: 289/312 sessions, 96 matched cases (2026-09-14
+22:19 UTC). The pilot is complete; the full development continuation is active.
+See the twenty-first audit below. The 20% target remains unmet.
 
 All 36 sessions finished. Every forecast is valid; plain Hermes completed 11/12 full workflows, Gnomon without ledger 12/12, ledger 12/12. The frozen completion gate passed. Independent local audit: 4,227 file hashes verified, 2,942 checks, zero integrity failures.
 
@@ -720,3 +720,24 @@ this is not evidence that memory caused the failure. It remains in the experimen
 and will enter all-three scores when the matching arms complete. Receipt:
 `evidence/guarded-agent-093-failure-monitor-004.json`.
 The trial remains active, final holdout closed, and the 20% objective unmet.
+
+## Twenty-first continuation audit — 2026-09-14 22:19 UTC
+
+Seven additional disjoint sessions passed 3,565 independent checks. Verified
+1,094 new file hashes and all 4,227 original pilot files; no audit failures.
+Combined evidence contains 289 audited sessions and 96 all-three matched cases.
+
+| Arm | Matched RMSLE | Reported tokens | Model requests | Fits | Full matched workflows |
+|---|---:|---:|---:|---:|---:|
+| Hermes | 0.474527 | 27,122,855 | 1,338 | 1,363 | 92/96 |
+| Gnomon | 0.478879 | 26,610,942 | 1,304 | 1,412 | 91/96 |
+| Ledger | 0.463515 | 21,058,677 | 1,130 | 1,532 | 96/96 |
+
+Ledger RMSLE is 3.21% lower and reported tokens 20.86% fewer than Gnomon without
+ledger, with more numerical fits. All nine incomplete workflows now occur in
+this matched subset and remain scored. Full audited inventory has 96/96/97 valid
+forecasts and 92/91/97 full workflows. These are partial reused-development
+results, not final efficacy evidence. The controller remains active; no new
+trial or final holdout access has occurred. The 20% target remains unmet.
+
+Receipt: `evidence/guarded-agent-093-development-audit-021.json`.
