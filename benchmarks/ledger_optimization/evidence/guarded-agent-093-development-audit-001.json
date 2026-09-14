@@ -1,0 +1,100 @@
+{
+  "status": "incremental_development_audit_passed",
+  "at": "2026-09-14T16:00:28.392886+00:00",
+  "incremental_sessions_audited": 9,
+  "incremental_checks": 1159,
+  "incremental_failures": [],
+  "verified_snapshot_files": 1041,
+  "pilot_terminal_inventory_matched": true,
+  "pilot_prefix_checks": [
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 4,
+      "pilot_raw_log_prefix_preserved": true
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 3,
+      "pilot_raw_log_prefix_preserved": true
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 3,
+      "pilot_raw_log_prefix_preserved": true
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 3,
+      "pilot_raw_log_prefix_preserved": true
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 4,
+      "pilot_raw_log_prefix_preserved": true
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 3,
+      "pilot_raw_log_prefix_preserved": true
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 3,
+      "pilot_raw_log_prefix_preserved": true
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 4,
+      "pilot_raw_log_prefix_preserved": true
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 3,
+      "pilot_raw_log_prefix_preserved": true
+    }
+  ],
+  "combined_sessions_with_audit": 45,
+  "combined_all_three_matched_cases": 14,
+  "combined_all_three_matched_rmsle": {
+    "plain": 0.528430618619355,
+    "gnomon": 0.5595932353745469,
+    "ledger": 0.5103930149768913
+  },
+  "ledger_vs_gnomon_relative_reduction": 0.08792139948712019,
+  "completion": {
+    "plain": {
+      "incremental_tasks": 3,
+      "valid": 3,
+      "full_workflows": 3
+    },
+    "gnomon": {
+      "incremental_tasks": 3,
+      "valid": 3,
+      "full_workflows": 3
+    },
+    "ledger": {
+      "incremental_tasks": 3,
+      "valid": 3,
+      "full_workflows": 3
+    }
+  },
+  "scope": "Partial development run. Only all-three matched cases compared; all outcomes included. No efficacy or final claim. Original pilot counts and costs are reused once.",
+  "target_met": false,
+  "final_holdout_accessed": false,
+  "files": {
+    "results/guarded-history-093-development-audit-001/remote.json": "b83706d96c2aff3cec9f57ad1b58304a45fe55f9fd46c6ed43a72d852bb1361d",
+    "results/guarded-history-093-development-audit-001/snapshot.py": "75f5df94ee21c138b79e71b43ca5dbd01a29d944b2e611d22c767e5897f964cf",
+    "results/guarded-history-093-development-audit-001/snapshot.json": "ae97e5855bf7492e1c82086b4d7b43ba36e72b627220bd943ebc16080075f53a",
+    "results/guarded-history-093-development-audit-001/snapshot.tar.gz": "2ce14c776943d78c31db3004ae1253d48a1eff7a440a195d69c85aff62b5e76b",
+    "results/guarded-history-093-development-audit-001/audit/report.json": "d63103d9a2c48bf29e5cb198d8c24fd03d8d59479653bc912cebc447337fee49"
+  }
+}
