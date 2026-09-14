@@ -1086,3 +1086,28 @@ with zero forecast difference. Six weight fits,0 provider computations/API calls
 score yet. This checkpoint is progress plus a verified wait, not a completed
 accuracy experiment. Continue the same process handle; do not restart it merely
 because a polling call yields.
+
+## Validation054 failure, corrected055 result: 5.17%, gate unmet
+
+Previous turn made progress: source audit, frozen runner and verifier, exact
+adapter regression, push90a4ba8. Revalidated live shell60594 and waited on that
+same handle; no duplicate run. All533 forecasts completed, then global CV
+certificate failed on electricity:T298 round20 after165 mixtures. Terminal exit1
+confirmed failure. Preserve receipt054,495 completed/one failed weight fit and
+all12,792 forecast computations/6,396 estimator fits; no aggregate was computed.
+
+Synthetic exact-fit tests motivated055's smooth numerical search with an exact
+norm-dual suboptimality bound. Objective and1e-5 threshold unchanged. Freeze
+5aab39a preceded uniform refitting of all416 cases from byte-identical raw
+forecasts. No provider rerun or dropped case. Nine relevant tests passed.
+055 completed1,248 fits/50,637 iterations in8.23s,0 API calls. Mean RMSLE
+0.3105655423 matched CV versus0.2945112004 ledger:5.17% reduction, paired95%
+interval[1.32%,8.80%]. Domain gains6.64% electricity,3.83% pedestrian. Against
+strong global guard5.59%, interval[-1.67%,11.24%]. Full gate fails;20% unmet.
+
+Independent audit:296,346 checks plus1,248 amendment checks, no failures. These
+verify arithmetic and artifacts, not independent statistical observations.
+Archive/receipts retain original failure, uniform correction, costs and all
+resamples. No new Hermes trial; earlier agent gain remains1.14% inconclusive.
+Final-reserved observations/main/PyPI unchanged. No paid confirmation or further
+tuning on these validation series. Goal remains active and unachieved.
