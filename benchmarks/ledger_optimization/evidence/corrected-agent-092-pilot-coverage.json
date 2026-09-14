@@ -1,0 +1,32 @@
+{
+  "experiment": "092",
+  "stage": "pilot_history_coverage",
+  "scope": "All twelve pilot ledger sessions, including four opening sessions without prior history. Descriptive, post-hoc; not evidence of causal use or score benefit.",
+  "summary": {
+    "sessions": 12,
+    "reviews": 8,
+    "reviews_with_evidence": 8,
+    "selected_with_matched_prior": 3,
+    "selected_without_matched_prior_after_opening": 5,
+    "selected_with_matched_prior_by_round": {
+      "0": 0,
+      "1": 0,
+      "2": 3
+    },
+    "largest_matched_pair_origin_count": 1,
+    "paginated_reviews": 0
+  },
+  "checks": 24,
+  "passed": true,
+  "original_inputs_match_remote_seal": true,
+  "provider_calls": 0,
+  "api_calls": 0,
+  "live_trial_changed": false,
+  "evidence_root": "results/corrected-history-092-pilot-coverage",
+  "files": {
+    "audit.py": "7ba4b2953a5e4a5d5d491b37be8addc182f8f30529915dbf22592c9a1fa11c70",
+    "initial-audit.py": "20b038c77beb0c7213cba0bca9160073bc1c37d094fef732c0a61ec520fde448",
+    "result.json": "01a218c0e8c694454bf99758c36d659ec11bac0998b317b2c14b1f56f5941586"
+  },
+  "audit_recovery": "Initial local diagnostic assumed all 12 sessions had ledger review-log entries. Four opening sessions have no prior history and use the raw opening summary. Corrected expectation is zero such entries at origin zero and one for each of the eight later sessions. No experiment changes or extra model calls."
+}

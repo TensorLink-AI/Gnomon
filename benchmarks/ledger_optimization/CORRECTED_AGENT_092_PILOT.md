@@ -44,6 +44,20 @@ loss diagnostic remains in `evidence/corrected-agent-092-live-audit-003.json`;
 all arms selected the lowest cross-validation error within their own tested
 portfolios. Its realized loss was not a fallback or scoring error.
 
+A separate all-pilot coverage diagnostic found eight history-bearing reviews,
+one for each session after the opening origin. Every returned pair comparison
+contained only **one matched past origin**; no review was truncated by pagination.
+Only three of those eight final configurations had any matched prior comparison
+in the review (all three at origin two). The other five selected configurations
+had no matched prior comparison. This describes evidence available in the review,
+not proof of whether or how the agent used it. It does not excuse the worse
+forecast scores or establish that more history will help. It shows why cold
+completion cannot by itself establish the value of accumulated evidence.
+The diagnostic reads all 12 ledger sessions, including four with no prior history;
+its inputs match the sealed pilot, and it makes zero model or ledger calls.
+See `evidence/corrected-agent-092-pilot-coverage.json` for hashes and the retained
+correction to the diagnostic's initial expectation about opening review logs.
+
 ## Continuing experiment and preserved evidence
 
 Pilot completion at 08:25:35 UTC on 14 September 2026 passed the predeclared
