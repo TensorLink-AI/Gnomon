@@ -1150,3 +1150,25 @@ Live shell92906 has completed74/525 episodes with no reported failure. No agent
 or comparative accuracy result yet; continue that handle, do not restart on
 poll timeout. Independent forecast/source/role/cost verifier prepared while it
 runs. Main/PyPI/final-reserved data unchanged,0 paid API calls. Goal still unmet.
+
+## Added-memory generation059 and breadth comparison060 complete
+
+Previous turn made progress: committed disjoint057 IDs/source058, frozen059
+generator, independent audit and live-job checkpoint e9b3ea4. Revalidated
+session92906 and continued that same process. All525 new historical cases
+completed,0 failures/unfinished jobs,12,600 computations/6,300 estimator fits,
+567.97s wall/1081.06 worker CPU seconds. Independent audit190,074 checks passed;
+source/cost archive committed c7f8e3a. No duplicated work or paid API calls.
+
+060 comparison/independent verifier frozen at e83e009 before scoring. It merges
+1066 historical/current-context records with exact allowed identities and keeps
+all416 original scored cases/comparator predictions. Only the historical pool
+changes;047 retrieval and050 fits remain fixed. Expanded RMSLE0.2522581717:
+2.49% better than matched CV,0.46% better than old ledger. Electricity worsens
+0.064% vs matched CV/0.196% vs incumbent; pedestrian gains3.165%/0.637%. Added
+memory used408/416 cases,5.976 of16 neighbors on average. Gate fails.
+
+416 weight fits/23,862 iterations/4.738s;92,935 independent checks pass. Preserve
+all results/costs under receipt060. No promotion or paid confirmation. Separate
+055 validation and final reserves remain untouched; main/PyPI unchanged. Both
+jobs terminal, no agent run in flight.20% final matched-agent goal remains unmet.
