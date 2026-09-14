@@ -1,0 +1,38 @@
+{
+  "freeze_commit": "a72d06e",
+  "root": "results/broad-memory-source-058-001",
+  "archive": "results/broad-memory-source-058-001.tar.gz",
+  "archive_sha256": "1436e68e8ce239d9d0e3c34dd818b01899996d4fde53b8a578444906254f26c5",
+  "files": {
+    "COMPLETED.json": "0ce708fc1e684478f9d39fb801086a70ebfebf50c4e64295d51126cc7a137bdf",
+    "manifest.json": "d7b1d84fb4685fabeff39e8244361cf92d10ab1909396245c312c60e2cea3141",
+    "memory-spans.json": "3d4c9426338a928064b18ced0d4aea7f2729521addc3d092adbfaa846a353191",
+    "metadata-coverage.json": "cf2cf348dbdc7924873c3ce441eb405a94966fe93761c757e15db9c4bc6145cf",
+    "status.json": "b55fe6b7dd04099e36355aaa1797457e3b75f4b1607215660f0f2532ab0ecad3",
+    "verification.json": "a0b5de0c43f132e95ce43bd9d26f48a3121bb3605e6e9beeeb4abec349f826a7",
+    "warmup-boundaries.json": "8da58f4aca170eceaa1923f8997251ff63d6fff1575790d8add2f76afe1eb236",
+    "warmup-spans.json": "97eb66659a438bc709ff6e186ed754213f42d71f1f67996e713ba4ecaee058a4"
+  },
+  "result": {
+    "memory_series": 16,
+    "main_memory_cases": 400,
+    "usable_warmup_cases": 125,
+    "unavailable_warmup_cases": 3,
+    "warmup_attempts": 128,
+    "memory_spans_sha256": "3d4c9426338a928064b18ced0d4aea7f2729521addc3d092adbfaa846a353191",
+    "warmup_spans_sha256": "97eb66659a438bc709ff6e186ed754213f42d71f1f67996e713ba4ecaee058a4",
+    "api_calls": 0,
+    "forecast_computations": 0,
+    "validation_or_reserved_counts_parsed": 0,
+    "seconds": 18.223875672001668
+  },
+  "verification": {
+    "checks": 1468,
+    "failures": 0,
+    "memory_series": 16,
+    "main_memory_cases": 400,
+    "usable_warmup_cases": 125,
+    "unavailable_warmup_cases": 3,
+    "scope": "Named identities, protected partitions, prefix hashes, complete bounded task slices, missingness and temporal geometry; no forecast scores."
+  }
+}
