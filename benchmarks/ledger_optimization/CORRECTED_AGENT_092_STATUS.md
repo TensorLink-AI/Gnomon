@@ -29,6 +29,18 @@ Audit001 remains in `evidence/corrected-agent-092-development-audit-001.json`:
 19 sessions, 1,544 checks; six matched early cases gave ledger 4.6% worse than
 Gnomon. Neither provisional snapshot establishes the 20% target.
 
+At the 46-session live check (09:33 UTC), every completed session remained valid
+and workflow-complete, with no budget violations. One subsequent Gnomon-control
+session (`item_1304243_store_32`, round 7) had a proxy 502/URLError response.
+It completed within the same 16-request limit: 15 successful responses, one
+failed attempt, 47 numerical attempts, no extra correction turn. The 254,269
+reported tokens cover the successful responses; the failed attempt's usage and
+upstream billing are unknown, not zero. Its 48-check wire/budget audit and raw
+file references are retained in `evidence/corrected-agent-092-service-incident-001.json`.
+No session was rerun and no forecast-engine defect was established. Later audits
+must include failed responses explicitly; earlier all-success wire checks are
+snapshot-specific assertions, not a rule for excluding failures.
+
 The fresh 312-session development evaluation continues. See the
 [complete pilot result](CORRECTED_AGENT_092_PILOT.md) for the separate pilot's
 worse ledger accuracy; pilot and development scores are not pooled.
