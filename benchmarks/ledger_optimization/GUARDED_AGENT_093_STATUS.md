@@ -200,3 +200,24 @@ origins. No future/outcome-based changes were made to the running treatment.
 The sparse-display prototype is separate and undeployed. Final holdout remains
 closed, main/PyPI unchanged, and the 20% target unmet. Receipt:
 `evidence/guarded-agent-093-development-audit-005.json`.
+
+## First multi-case mature-history diagnostic
+
+Using the frozen original analyzer's definitions, the 36 audited matched cases
+include 14 cold cases (round < 4), ten mature cases (round >= 10), and no later
+cases (round >= 22). Later is a subset of mature, not a separate exclusive bin.
+All failures remain in each phase's matched denominator.
+
+| Phase | Matched cases | Gnomon RMSLE | Ledger RMSLE | Ledger error reduction |
+|---|---:|---:|---:|---:|
+| Cold | 14 | 0.559593 | 0.510393 | 8.79% |
+| Mature | 10 | 0.412364 | 0.385909 | 6.42% |
+
+There is no observed growth in the aggregate advantage yet. Mature coverage
+contains only two series (four and six origins); cold coverage contains all four
+series. Different origins and incomplete series coverage prevent a causal
+interpretation of the phase difference. Mature full workflows are 10/10 plain,
+8/10 Gnomon and 10/10 ledger; these incomplete Gnomon cases remain scored.
+Continue the complete scheduled grid unchanged. Do not discard cold starts,
+change the mature threshold or claim an accumulated-history benefit from this
+partial diagnostic. Receipt: `evidence/guarded-agent-093-phases-001.json`.
