@@ -1318,3 +1318,23 @@ User requested results and task explanation; clearly reported negative20% gate,
 No paid confirmation, no protected validation/final access, no main/PyPI change.
 Goal active/unmet. Next investigate search-to-ensemble bottleneck before freezing
 another candidate; do not weaken the control or redefine the success threshold.
+
+## Configuration diagnostic067: single-model saved-choice ceiling remains below20%
+
+Previous goal turn made progress: full066audit, archive and result pushed740d02f.
+This turn revalidated branch/state, froze diagnostic067at73f2db4 and completed
+it on all416 development cases with0new fits/API calls. Four tests passed;
+independent50,949assertions0fail. Complete source identity/outputs retained.
+
+Expanded searches agree362/416times. Extras selected201control/200ledger;
+production improvements111/118 and worsening90/82 versus original-six current
+CV selection. Hindsight union score.21878935008414044, only15.4310% better than
+strong block-CV:20% impossible by selecting among these exact saved forecasts.
+This does not cover the other unproduced extra configs, all78 catalogue entries
+or new blends. No new deployable gain or agent result was claimed.
+
+User asked what previous best/existing/search meant. Explained: strong baseline
+blends six models using current CV; previous best061also uses matured historical
+forecast errors; new066remembers backtests to search settings and selects one
+forecast. Main/PyPI/final reserves unchanged. Goal active/unmet; next retain strong
+blending action when assessing any further common configuration-search budget.
