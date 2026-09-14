@@ -1,8 +1,8 @@
 # Guarded pilot 093 — completed
 
-Latest audited continuation: 97/312 sessions, 31 matched cases (2026-09-14
-17:06 UTC). The pilot is complete; the full development continuation is active.
-See the fourth audit below. The 20% target remains unmet.
+Latest audited continuation: 111/312 sessions, 36 matched cases (2026-09-14
+17:28 UTC). The pilot is complete; the full development continuation is active.
+See the fifth audit below. The 20% target remains unmet.
 
 All 36 sessions finished. Every forecast is valid; plain Hermes completed 11/12 full workflows, Gnomon without ledger 12/12, ledger 12/12. The frozen completion gate passed. Independent local audit: 4,227 file hashes verified, 2,942 checks, zero integrity failures.
 
@@ -174,3 +174,29 @@ comparisons regardless of score or support size. This would reduce empty-card
 output without hiding losses or claiming unsupported rankings. It has not been
 implemented in the live trial or shown to improve accuracy. Receipt:
 `evidence/guarded-agent-093-pair-support-001.json`.
+
+## Fifth continuation audit — 2026-09-14 17:28 UTC
+
+Fourteen new sessions passed 5,027 independent checks, zero integrity failures
+and zero shutdown gaps. Verified the full archive and 1,999 snapshot files,
+all 4,227 original pilot files and 14 retained pilot prefixes. Combined audited
+evidence now contains 111 sessions and 36 all-three matched cases.
+
+| Arm | Matched mean RMSLE | Matched reported tokens | Full matched workflows |
+|---|---:|---:|---:|
+| plain | 0.477626 | 8,094,906 | 35/36 |
+| gnomon | 0.506410 | 10,380,791 | 33/36 |
+| ledger | 0.456414 | 7,463,953 | 36/36 |
+
+Ledger is 9.87% lower in error and uses 28.10% fewer reported tokens versus
+Gnomon without ledger on this partial set. All incomplete workflows are included.
+Numerical attempts are 490/505/564: ledger still uses more numerical fits.
+Across all audited sessions, full completion is 36/37, 33/36 and 38/38; all
+forecasts are valid. Counts outside the matched table cover different tasks.
+
+The existing plain-arm native note persists in five sessions; this is not five
+memory writes. Ledger evidence is available in 34 sessions, with up to 16 past
+origins. No future/outcome-based changes were made to the running treatment.
+The sparse-display prototype is separate and undeployed. Final holdout remains
+closed, main/PyPI unchanged, and the 20% target unmet. Receipt:
+`evidence/guarded-agent-093-development-audit-005.json`.
