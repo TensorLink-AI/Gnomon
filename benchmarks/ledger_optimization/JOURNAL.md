@@ -1338,3 +1338,24 @@ blends six models using current CV; previous best061also uses matured historical
 forecast errors; new066remembers backtests to search settings and selects one
 forecast. Main/PyPI/final reserves unchanged. Goal active/unmet; next retain strong
 blending action when assessing any further common configuration-search budget.
+
+## Search ensemble068: small new development low, target not achieved
+
+Previous goal turn made progress: froze/audited/pushed diagnostic067at68c9dbb.
+Revalidated branch and numerical modules; froze068atc38e450 after five synthetic
+tests. Kept066search choices/costs, added the same seven-slot four-block blending
+action to both arms, and gave only ledger matured same-arm production evidence.
+No final/validation access, new raw forecasts or API calls.
+
+All416tasks/832fits completed. Matched current-only blend.2576259533432357;
+ledger blend.2510782023798801 (2.54157%gain). Fixed strong guard.2587110657586681
+(2.95034%gain).061incumbent.25198521475530405 (0.35995%gainoverall), but pedestrian
+is0.17452%worse than061.20%and domain gates fail. This is a numerical combined
+memory treatment, not a Hermes result or isolated causal component attribution.
+
+Full47,500-check independent audit0fail, all832objective/gradient certificates,
+causal inputs, configuration identities and forecasts verified. Run13.298s,
+audit6.034s; all inherited066model/search costs and045anchor fits disclosed.
+No paid confirmation justified. Result archived/receipted; main/PyPI unchanged.
+Goal remains active and unproven; next work should explain residual shortcomings
+rather than repeating arbitrary tuning or redefining the20%success criterion.
