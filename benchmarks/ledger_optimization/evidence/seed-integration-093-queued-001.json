@@ -1,0 +1,66 @@
+{
+  "status": "queued_not_yet_tested",
+  "launch": {
+    "pid": 4004888,
+    "start_ticks": "1554918296",
+    "boot_id": "998193f3-2771-4162-80e8-1a4887370f60",
+    "at": "2026-09-14T16:52:55.247438+00:00",
+    "waiting_for": {
+      "pid": 3981368,
+      "start_ticks": "1554537629",
+      "boot_id": "998193f3-2771-4162-80e8-1a4887370f60",
+      "at": "2026-09-14T15:49:28.583190+00:00",
+      "controller_sha256": "87596c9064de75b0ff55e030fbe13a479eada224bf94af4e773038fedc479ce4",
+      "source_commit": "d034bbf",
+      "continuation_source_sha256": "6ea588139648e818fd3c6f7ed807a5042a978c665e8775464739ba77028c900c",
+      "preflight_sha256": "321d3741997dbd2b69b14c9afad043226818ee79427e300b9b7933fa417799af",
+      "cost_source_sha256": "70e09ac8c27e193ebc40dbc5f65e4cc7b6c91e46e166e93677ecf598d93c5d86",
+      "planned_total": 312,
+      "retained_pilot_sessions": 36,
+      "new_sessions_planned": 276,
+      "original_pilot_immutable": true,
+      "model": "deepseek-v4.1-flash",
+      "gnomon": "1.2.0",
+      "final_holdout_accessed": false,
+      "automatic_final_dispatch": false
+    },
+    "source_hashes": {
+      "controller.py": "e0a0c15d26fce23f9f5bbaaf3fc7ec1f772286a5856b67ba4667fa150e6d4a05",
+      "seed_capsule_093.py": "715c6118a2ec307673815270f26aff5fad6f901d6cf8c8d12c6d8c8dea9a3694",
+      "probe_seed_integration_093.py": "1be3f2d5f0b09eb5a517a6e589f1fe231b69c1d69a63892f4b792e22b1674a38"
+    },
+    "source_commit": "34d7772",
+    "engy_calls": 0,
+    "scope": "Queued synthetic integration only after the paid controller exits cleanly; no final dispatch."
+  },
+  "verified": {
+    "live": true,
+    "status": {
+      "status": "waiting_for_development_controller_to_exit",
+      "at": "2026-09-14T16:53:25.424850+00:00",
+      "pid": 3981368
+    },
+    "incomplete": null,
+    "source_hashes": {
+      "controller.py": "e0a0c15d26fce23f9f5bbaaf3fc7ec1f772286a5856b67ba4667fa150e6d4a05",
+      "seed_capsule_093.py": "715c6118a2ec307673815270f26aff5fad6f901d6cf8c8d12c6d8c8dea9a3694",
+      "probe_seed_integration_093.py": "1be3f2d5f0b09eb5a517a6e589f1fe231b69c1d69a63892f4b792e22b1674a38"
+    }
+  },
+  "waiting_for_paid_controller": 3981368,
+  "engy_calls": 0,
+  "planned_synthetic_sessions": 12,
+  "planned_scripted_model_responses": 48,
+  "planned_numerical_attempts": 96,
+  "final_holdout_accessed": false,
+  "automatic_final_dispatch": false,
+  "scope": "Deferred real-worker integration of seed capsules after current development controller exits cleanly and passes its audit. Waiting is not a passing integration result. Do not start another paid run before checking this controller is terminal.",
+  "files": {
+    "results/seed-integration-093-queued-001/source-hashes.json": "6c8a0aaefad83ab7536f6fe5c8b8ea0e01b45d1c9b2aef9a15702cc71dabb512",
+    "results/seed-integration-093-queued-001/launch.json": "4e24968114fe76e711c7b6d5e4f3fb1649533fcbd640aca37b430484d93e9110",
+    "results/seed-integration-093-queued-001/launch.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/seed-integration-093-queued-001/controller.py": "e0a0c15d26fce23f9f5bbaaf3fc7ec1f772286a5856b67ba4667fa150e6d4a05",
+    "results/seed-integration-093-queued-001/launch-script.py": "e1bb91383829de4db03998e619f06632db72efe92b337397405f08f91b43190c",
+    "results/seed-integration-093-queued-001/verified-status.json": "9dafe930196e39cb361ee617261389a98edaccc4af7eb75d62472e40f35445cb"
+  }
+}

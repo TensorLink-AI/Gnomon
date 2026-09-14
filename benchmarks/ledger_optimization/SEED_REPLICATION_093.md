@@ -59,3 +59,21 @@ does not bypass them or authorize M5 target access.
 Do not launch a second paid development run from this artifact while guarded093
 is running. Do not open reserved data until the development and final-freeze
 gates pass. Main, PyPI and the live pod's files remain unchanged.
+
+## Full integration queued after development
+
+A separate synthetic integration controller is queued on the pinned pod runtime.
+It waits for development controller PID 3981368 (boot/start identity retained)
+to exit cleanly with its complete audit before doing any numerical work. Queued
+controller PID 4004888 was verified alive and waiting. It will run six synthetic
+sessions for each requested seed, covering all three arms over two origins, with
+real model fits, ledger maturation, native-memory restoration and cross-arm/seed
+isolation checks. Upstream replies and service probes are scripted: zero Engy
+requests. It preserves each subprocess, source hashes, transcripts, independent
+audit and any failure. Pending integration is not passing integration evidence.
+
+Receipt: `evidence/seed-integration-093-queued-001.json`; pod directory:
+`/root/gnomon-ledger-ml-v3/code/results/seed-integration-093-queued-001`.
+Before starting another paid run or changing the pinned runtime, inspect this
+controller and wait for its terminal outcome so the tests cannot contend with
+timed agent sessions. It never launches a paid or final evaluation.
