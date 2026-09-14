@@ -661,3 +661,15 @@ these are partial reused-development results, not final efficacy evidence.
 The 20% target remains unmet and final holdout remains unopened.
 
 Receipt: `evidence/guarded-agent-093-development-audit-018.json`.
+
+## Updated accumulation diagnostic on 88 matched cases
+
+The unchanged phase definitions now include 48 matched mature-history cases
+(round >= 10), with 1.15% lower ledger RMSLE than Gnomon without ledger. All four
+series contribute, with 16/16/10/6 cases respectively. Cold cases remain 5.66%
+better; the later-origin subset (round >= 22) is still the same eight cases from
+two completed series and remains 3.14% worse. All failures are retained.
+Mature and later overlap, and phase cohorts differ. This does not identify a
+causal accumulation effect or justify expecting the 20% target from longer
+history alone. The run continues through its full frozen schedule.
+Receipt: `evidence/guarded-agent-093-phases-007.json`.
