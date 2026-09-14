@@ -51,6 +51,12 @@ class BoundaryTests(unittest.TestCase):
         self.reject_without_execution('lab',{'operation':'status; touch owned'})
         self.reject_without_execution('lab',{'operation':'status','env':{'PYTHONPATH':'.'}})
 
+    def test_review_pair_preserves_both_provider_identifiers(self):
+        result=self.boundary.dispatch('lab',{'operation':'review','pair':['ridge_a','seasonal_b']})
+        self.assertEqual(result['status'],'ok')
+        self.assertEqual(self.calls[-1][0][-3:],['--pair','ridge_a','seasonal_b'])
+        self.reject_without_execution('lab',{'operation':'review','pair':'ridge_a seasonal_b'})
+
     def test_bad_types_duplicates_and_options_rejected(self):
         for args in [[],{'operation':'backtest'}, {'operation':'status','config':{}},
                      {'operation':'review','limit':True},{'operation':'review','limit':101},
@@ -106,6 +112,18 @@ class BoundaryTests(unittest.TestCase):
         r=boundary.dispatch('lab',{'operation':'status'})['result']
         self.assertEqual(r['exit_code'],0);self.assertEqual(r['stdout'],'trusted lab\n')
         self.assertFalse((self.work/'__pycache__').exists())
+
+    def test_symlinked_virtualenv_interpreter_retains_its_environment(self):
+        import venv
+        with tempfile.TemporaryDirectory() as environment:
+            venv.EnvBuilder(with_pip=False,symlinks=True).create(environment)
+            python=Path(environment)/'bin/python'
+            (self.work/'lab.py').write_text('import sys,json;print(json.dumps({"prefix":sys.prefix}))\n')
+            hashes={'lab.py':hashlib.sha256((self.work/'lab.py').read_bytes()).hexdigest()}
+            boundary=LabBoundary(self.work,python,hashes)
+            result=boundary.dispatch('lab',{'operation':'status'})['result']
+            self.assertEqual(result['exit_code'],0,result)
+            self.assertEqual(json.loads(result['stdout'])['prefix'],environment)
 
 
 

@@ -93,6 +93,44 @@ selective reruns of benchmark outcomes.
 6. Retain the development and untouched-final gates. The final set remains closed
    until development supports proceeding and the final adapter/protocol is frozen.
 
+## Real-backend and worker checkpoint
+
+The next integration pass fixed two adapter issues before any paid dispatch:
+
+- Resolving the Python executable's symlink would leave its virtual environment.
+  The guard now validates existence while retaining the exact invoked venv path.
+  A new symlinked-venv regression and both actual pod environments confirm this.
+- The lab's review `--pair` takes two configuration IDs, not one string. The
+  structured schema and argument conversion now preserve both IDs.
+
+`probe_backends_boundary_093.py` passed 24 plain, 24 Gnomon, and 25 ledger
+assertions. Each arm made 60 real numerical invocations. A protected observer at
+the numerical implementation independently reconciled all 180 entries/returns
+with the recorded attempt identities. Every corresponding prediction, request,
+and metric was identical across arms. Excess work was rejected, the final-fit
+reserve worked, and three earlier production alternatives matured at a second
+synthetic origin without extra fitting. Native memory persisted across that reset.
+
+`worker_093.py` now uses the guarded tools and the same continuation limits,
+with correction text referring to the structured lab tool. `TASK_093.md` describes
+the new common interface and maps legacy CLI diagnostics to tool arguments.
+The full worker passed 12 assertions per arm against a scripted loopback server,
+with four responses and eight real numerical attempts per arm. Each saved a valid
+post-comparison checkpoint, decision note, and native memory. Five additional
+policy tests cover correction limits, unchanged budgets, deadlines, and refusing
+to reinterpret runtime failures as agent repair. The boundary suite passes 25 tests.
+
+These are synthetic integration results, not ledger accuracy evidence. No Engy
+calls were made. Evidence roots: `results/execution-boundary-093-backends-001`
+and `results/execution-boundary-093-worker-001`.
+
+Still required before a new paid trial: integrate the worker into the prospective
+host runner; update the transport's selection-phase notice to structured syntax;
+verify profile isolation, deployment manifests, service admission and cost logs;
+freeze all matched settings and run the fresh pilot gate. The original092 process
+remains stopped. No development efficacy or final-test claim follows from these
+passing integration checks.
+
 The exact overall number of fits in old trials remains unknown. Pattern screening
 and manual inspection found confirmed bypasses, but no-match sessions are not
 proven compliant. Original artifacts and scores remain preserved and qualified.

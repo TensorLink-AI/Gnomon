@@ -18,7 +18,9 @@ def tool_schemas(native_tools):
              'config':{'type':'object','description':'Exact model configuration from TASK.md; used only by backtest/commit.'},
              'execution_id':{'type':'string','description':'Commit an existing execution; preserve the returned ID.'},
              'offset':{'type':'integer','minimum':0,'maximum':1000000},
-             'limit':{'type':'integer','minimum':1,'maximum':100},'pair':string},['operation'])
+             'limit':{'type':'integer','minimum':1,'maximum':100},
+             'pair':{'type':'array','items':string,'minItems':2,'maxItems':2,
+                     'description':'Two exact config_ids from a returned ledger review card.'}},['operation'])
     tools=[schema('lab',
         'All model fitting and forecast selection must use this metered lab. start creates baseline evidence; '
         'status inspects it; review pages prior outcomes (offset/limit/pair); backtest requires config; '

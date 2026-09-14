@@ -46,7 +46,11 @@ class LabBoundary:
 
     def __init__(self, work, python, protected_hashes, *, runner=subprocess.run):
         self.work = Path(work).resolve(strict=True)
-        self.python = str(Path(python).resolve(strict=True))
+        # Python discovers pyvenv.cfg from the invoked path. Resolving the
+        # executable symlink first silently leaves a virtual environment.
+        candidate = Path(os.path.abspath(python))
+        candidate.resolve(strict=True)  # Validate existence, retain venv identity.
+        self.python = str(candidate)
         self.protected = dict(protected_hashes)
         if 'lab.py' not in self.protected:
             raise ValueError('Host manifest must include lab.py and every imported project module.')
@@ -126,12 +130,18 @@ class LabBoundary:
             argv += ['--config', json.dumps(args['config'], allow_nan=False)]
         if op == 'backtest' and 'config' not in args:
             raise BoundaryRejected('Backtest requires an explicit configuration.')
-        for key in ('execution_id', 'pair'):
+        for key in ('execution_id',):
             if key in args:
                 v = args[key]
                 if not isinstance(v, str) or not v or len(v) > 256 or v.startswith('-'):
                     raise BoundaryRejected(f'{key} must be a bounded identifier.')
                 argv += ['--' + key.replace('_', '-'), v]
+        if 'pair' in args:
+            pair = args['pair']
+            if (not isinstance(pair, list) or len(pair) != 2 or
+                    any(not isinstance(v, str) or not v or len(v) > 256 or v.startswith('-') for v in pair)):
+                raise BoundaryRejected('pair must contain exactly two bounded configuration IDs from review cards.')
+            argv += ['--pair', *pair]
         for key, lo, hi in [('offset', 0, 1000000), ('limit', 1, 100)]:
             if key in args:
                 argv += ['--' + key, str(integer(args[key], lo, hi, key))]
