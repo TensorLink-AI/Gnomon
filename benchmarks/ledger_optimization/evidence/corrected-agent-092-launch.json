@@ -1,0 +1,58 @@
+{
+  "experiment": "092",
+  "status": "pilot_launched_not_scored",
+  "source_commit": "5c05bd0d6fcd9522cf36846b8e7f068bad3b2abb",
+  "trial_launch": {
+    "pid": 3757757,
+    "boot_id": "998193f3-2771-4162-80e8-1a4887370f60",
+    "start_ticks": "1551585042",
+    "argv": [
+      "/root/gnomon-ledger-ml-v3/runtime/gnomon-venv/bin/python",
+      "-m",
+      "benchmarks.hermes_ml_checkpoint_v5.pipeline",
+      "--root",
+      "/root/gnomon-ledger-ml-v3/code/results/corrected-history-092-run-001",
+      "--preflight",
+      "/root/gnomon-ledger-ml-v3/code/results/corrected-history-092-preflight-001/passed.json"
+    ],
+    "source_commit": "5c05bd0d6fcd9522cf36846b8e7f068bad3b2abb",
+    "launched_at": "2026-09-14T07:37:22.683812+00:00",
+    "pilot_sessions": 36,
+    "conditional_development_sessions": 312,
+    "final_holdout": false,
+    "model": "deepseek-v4.1-flash",
+    "engine": "published Gnomon 1.2.0",
+    "comparison": "development-history-091"
+  },
+  "source_files_verified": 27,
+  "preflight": {
+    "passed": true,
+    "check_groups": 29,
+    "engy_api_calls": 0,
+    "synthetic_native_hermes_requests": 16,
+    "numerical_setup_fits": "Not independently counted; per-command outputs retained."
+  },
+  "runtime_files": {
+    "checks": {
+      "hermes_archive_files": 12173,
+      "gnomon_wheel_files": 40
+    },
+    "mismatches": [],
+    "passed": true,
+    "assets": {
+      "hermes-frozen.tar.gz": "e91f16fa0791926a91324814454d2530785100ab2793c62aa9dc7c84d1f03924",
+      "gnomon_forecast-1.2.0-py3-none-any.whl": "030a5cd063c424482bebdc2a522aa98a8f4bf88285bab31c4e47ddc9afa04f2f"
+    }
+  },
+  "preflight_archive": {
+    "path": "results/corrected-history-092-preflight-bundle.tar.gz",
+    "sha256": "605bd87b973aff260c9fd9373d89d27b20bc2e9b4928c247ce9e71e5a097de25",
+    "bytes": 2575146,
+    "verified_files": 610
+  },
+  "initial_launch_guard": "Rejected older runtime task manifest before any tests/API calls. Corrected to the predeclared continuous task hash; failed attempt retained.",
+  "protected_holdouts_read": false,
+  "main_or_pypi_changed": false,
+  "accuracy_claim": null,
+  "costs": "Preflight had no paid model calls. Live pilot/API receipts remain at the remote run root; totals pending."
+}
