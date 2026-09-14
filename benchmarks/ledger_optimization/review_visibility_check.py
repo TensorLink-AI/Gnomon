@@ -5,6 +5,8 @@ import hashlib
 import importlib.metadata
 import json
 from pathlib import Path
+import shutil
+import sqlite3
 import sys
 
 from .agent_review import review as old_review
@@ -46,7 +48,21 @@ def run(source, output):
     records = json.loads((source / 'records.json').read_text())
     task = json.loads((source / 'task.json').read_text())
     before = json.loads((source / 'before.json').read_text())
-    db = Reads(TemporalLedger(source / 'base/ledger.db'))
+    # The published constructor initializes schema even for an existing file.
+    # Open a copy, and distinguish constructor effects from query effects.
+    ledger_path = root / 'ledger.db'
+    shutil.copyfile(source / 'base/ledger.db', ledger_path)
+    def logical_dump():
+        connection = sqlite3.connect(ledger_path.resolve().as_uri() + '?mode=ro', uri=True)
+        try:
+            return '\n'.join(connection.iterdump())
+        finally:
+            connection.close()
+    before_open_hash = sha(ledger_path)
+    before_open_dump = logical_dump()
+    db = Reads(TemporalLedger(ledger_path))
+    after_open_hash = sha(ledger_path)
+    after_open_dump = logical_dump()
     checks = []
 
     def require(condition, name):
@@ -55,6 +71,7 @@ def run(source, output):
             raise AssertionError(name)
 
     require(len(records) == 11, 'eleven frozen synthetic forecasts')
+    require(before_open_dump == after_open_dump, 'constructor preserves logical database contents')
     visible, excluded, reads = visible_records(db, records, task)
     require(len(visible) == 9 and len(excluded) == 2 and reads == 11, 'future-recorded events excluded')
     packets = []
@@ -105,11 +122,16 @@ def run(source, output):
     else:
         raise AssertionError('Existing evidence was overwritten')
     require(sha(root / 'full-0.json') == saved_hash, 'existing evidence immutable')
+    require(sha(ledger_path) == after_open_hash, 'queries leave initialized working ledger byte-identical')
     require(inventory == {str(p.relative_to(source)): sha(p) for p in source.rglob('*') if p.is_file()},
             'all original source artifacts and ledger byte-identical')
     report = {'passed': True, 'checks': checks, 'check_count': len(checks),
               'runtime_build': build, 'source_files': inventory,
               'public_reads': dict(db.calls), 'new_provider_calls': 0, 'api_calls': 0,
+              'constructor_before_sha256': before_open_hash,
+              'constructor_after_sha256': after_open_hash,
+              'constructor_changed_file_bytes': before_open_hash != after_open_hash,
+              'constructor_changed_logical_contents': before_open_dump != after_open_dump,
               'protected_access': False, 'accuracy_claim': False}
     for name, value in [('report', report), ('packets', packets)]:
         (root / (name + '.json')).write_text(json.dumps(value, indent=2) + '\n')
