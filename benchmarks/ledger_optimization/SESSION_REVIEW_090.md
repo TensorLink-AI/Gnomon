@@ -22,3 +22,14 @@ when it is available. Query calls must not execute forecasts or mutate the ledge
 This is compatibility for an already-authorized development workflow, not a new
 forecasting method, paid experiment or superiority claim. Main/PyPI, original
 agent results and protected targets remain unchanged. The20%goal remains unmet.
+
+Before real-corpus replay: after the synthetic correction, replay exactly the
+sixteen already-frozen089queries against copies of the four original030final
+ledgers and their original event logs. Validate source hashes against the pinned
+030inventory before loading. The database contains later events, but each query
+must retain its original source/recording origin. Compare every returned card,
+candidate and pagination field against that query's original full evidence.
+Additional operator exclusions and counted execution reads are expected; no
+model choice, forecast, target or original score is changed. Original databases
+must never be passed to a potentially mutating constructor. Stop on a mismatch,
+preserve it, and do not relax numerical or temporal equality after seeing it.
