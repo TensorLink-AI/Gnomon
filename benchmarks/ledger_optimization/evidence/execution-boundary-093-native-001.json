@@ -1,0 +1,116 @@
+{
+  "experiment": "093",
+  "phase": "offline_integration",
+  "at": "2026-09-14T14:35:21.114878+00:00",
+  "status": "adapter_probes_passed_worker_and_all_arm_gates_pending",
+  "local_tests": 23,
+  "native_dispatch_assertions": 28,
+  "full_hermes_conversation_assertions": 10,
+  "engy_calls": 0,
+  "scripted_chat_responses": 3,
+  "scripted_model_discovery_requests": 1,
+  "performance_claim": null,
+  "target_met": false,
+  "final_holdout_accessed": false,
+  "main_or_pypi_changed": false,
+  "previous_goal_turn": "Status-only report; this turn implements and tests the next integration step.",
+  "failed_probes_preserved": [
+    {
+      "probe": "conversation-001",
+      "exit_status": 1,
+      "cause": "Stub consumed a model-discovery request as a chat response; request was not an Engy call."
+    },
+    {
+      "probe": "conversation-002",
+      "exit_status": 1,
+      "cause": "Hermes deduplicated a malformed raw JSON call before dispatch. Adapter now records raw arguments earlier and retains every call."
+    }
+  ],
+  "passed_probes": [
+    {
+      "probe": "probe-001",
+      "exit_status": 0
+    },
+    {
+      "probe": "probe-002",
+      "exit_status": 0
+    },
+    {
+      "probe": "conversation-003",
+      "exit_status": 0
+    }
+  ],
+  "runtime_verification": {
+    "archive_sha256": "e91f16fa0791926a91324814454d2530785100ab2793c62aa9dc7c84d1f03924",
+    "checks": [
+      {
+        "file": "run_agent.py",
+        "expected": "51e28e8905ebe1c9442e0c67a7eca0d53e6315414cf8c6927501b130d7650872",
+        "actual": "51e28e8905ebe1c9442e0c67a7eca0d53e6315414cf8c6927501b130d7650872",
+        "passed": true
+      },
+      {
+        "file": "tools/memory_tool.py",
+        "expected": "38630aab4d9ef64be4c21a6fa91db5588636bdb9450e0d83ac9ef63b813bbcfc",
+        "actual": "38630aab4d9ef64be4c21a6fa91db5588636bdb9450e0d83ac9ef63b813bbcfc",
+        "passed": true
+      },
+      {
+        "file": "tools/skills_tool.py",
+        "expected": "0f205b8c2d9266d272d8c6cae3d189b86a5aebce98f03b61605d266b65f9497c",
+        "actual": "0f205b8c2d9266d272d8c6cae3d189b86a5aebce98f03b61605d266b65f9497c",
+        "passed": true
+      },
+      {
+        "file": "tools/skill_manager_tool.py",
+        "expected": "87f088f543adbac9723ef196336f424adf2afd15a6c71c5e0e2918173df1a386",
+        "actual": "87f088f543adbac9723ef196336f424adf2afd15a6c71c5e0e2918173df1a386",
+        "passed": true
+      }
+    ],
+    "scope": "Four observed native/entrypoint source files match the frozen Hermes archive; not a new whole-runtime audit."
+  },
+  "limitations": [
+    "Conversation uses scripted responses and a synthetic lab, not real model performance.",
+    "Native callbacks require fresh per-arm profiles with external skills, autoload and sync disabled.",
+    "Actual Gnomon 1.2.0 model/ledger arms and prospective worker integration remain to be tested.",
+    "No replacement paid evaluation has started; stopped092 is not resumed."
+  ],
+  "next_step": "Integrate the adapter and schemas into the prospective worker/task instructions; test real published Gnomon1.2.0 across all three arms before freezing a fresh trial.",
+  "source_hashes": {
+    "benchmarks/ledger_optimization/execution_boundary_093.py": "c68e54d273a4b88227f4579d24434d27c143cc930feeb2c89413b33d0a7cc8d2",
+    "benchmarks/ledger_optimization/hermes_boundary_093.py": "0fd740aba17b96913bf97f9a19b6307b2e2f298429b8ae024569647116065051",
+    "benchmarks/ledger_optimization/boundary_schemas_093.py": "d1f1edb362ff20a6b2ff414ca73657379a1c157caff2d5d175fc506683b0158a",
+    "benchmarks/ledger_optimization/probe_native_boundary_093.py": "b945352668762c94ce117fd8fbfc013d5c1cdb3309f266a45057dd02c783217b",
+    "benchmarks/ledger_optimization/probe_conversation_boundary_093.py": "b1b0bc2f0bac6c416f3cc261567791b4a379ad5f6d914d3ff0ee8f22bd20c030",
+    "benchmarks/tests/test_hermes_boundary_093.py": "7f2c34b73c8900e0b624e5368c3b4cb492e5c6d101270f64fde9c6a5ec35337f"
+  },
+  "artifacts": {
+    "results/execution-boundary-093-native-001/combined-tests.txt": "03ba719c04e57f4ce344f01809d5c5c8c3540dfb9932a879170057a8232c537c",
+    "results/execution-boundary-093-native-001/conversation-001-transcript.json": "37126bdf05cb410455d5e00809e92a0cf3d55090f275d1f344822d2668797467",
+    "results/execution-boundary-093-native-001/conversation-001.stderr": "a81a44e369a08c1d69dc0350d356b615337b2ede0ea5553f52e2be5d7fa96aa8",
+    "results/execution-boundary-093-native-001/conversation-001.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/execution-boundary-093-native-001/conversation-002-transcript.json": "42846a542045994bd21626ab77616014f3b9f2af316092d0289f74e59849d7c5",
+    "results/execution-boundary-093-native-001/conversation-002.py": "be77a4b38f47cbb759d55fadc3cb9437d42b8025f61225898b6fd1dbe82a1a4c",
+    "results/execution-boundary-093-native-001/conversation-002.stderr": "4409c341958a786def6940c3b79fdd25f08c1c9253be14aa4402354fd429763f",
+    "results/execution-boundary-093-native-001/conversation-002.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/execution-boundary-093-native-001/conversation-003-result.json": "df1715ca471f867a1aa0cd56d28e49b3580f7c7248a9d9b1bf52b976575bc2ea",
+    "results/execution-boundary-093-native-001/conversation-003-transcript.json": "7928030abf4ac3fd2dea66fc1f087f1fd6585b6615204f65635554cc6132daa3",
+    "results/execution-boundary-093-native-001/conversation-003.py": "b1b0bc2f0bac6c416f3cc261567791b4a379ad5f6d914d3ff0ee8f22bd20c030",
+    "results/execution-boundary-093-native-001/conversation-003.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/execution-boundary-093-native-001/conversation-003.stdout": "e0e54e95b61e18aab25e5036f5ff7f73691794a9a3bf1e8f7b6b1bad3c843bf2",
+    "results/execution-boundary-093-native-001/probe-001.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/execution-boundary-093-native-001/probe-001.stdout": "5d82825694ecb1ae40ae3a9219c0aca7f50941fc13ba9646e5f060f1c29c8afa",
+    "results/execution-boundary-093-native-001/probe-002.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/execution-boundary-093-native-001/probe-002.stdout": "2b3cc49a6e49aacdfd51305ae6b4b870a82447f733e1e55d070d82081f403091",
+    "results/execution-boundary-093-native-001/runtime-sources.txt": "bf4cb4c43b6659ca7747bed45330dd0c01804ca1ad1451fe32bc549e0cfb5a8e",
+    "results/execution-boundary-093-native-001/runtime-verification.json": "d74af6487b4187f02e99277b5b4011e73b70cda6f3adefe1d5e49866ea25f4ed",
+    "results/execution-boundary-093-native-001/sources/boundary_schemas_093.py": "d1f1edb362ff20a6b2ff414ca73657379a1c157caff2d5d175fc506683b0158a",
+    "results/execution-boundary-093-native-001/sources/execution_boundary_093.py": "c68e54d273a4b88227f4579d24434d27c143cc930feeb2c89413b33d0a7cc8d2",
+    "results/execution-boundary-093-native-001/sources/hermes_boundary_093.py": "0fd740aba17b96913bf97f9a19b6307b2e2f298429b8ae024569647116065051",
+    "results/execution-boundary-093-native-001/sources/probe_conversation_boundary_093.py": "b1b0bc2f0bac6c416f3cc261567791b4a379ad5f6d914d3ff0ee8f22bd20c030",
+    "results/execution-boundary-093-native-001/sources/probe_native_boundary_093.py": "b945352668762c94ce117fd8fbfc013d5c1cdb3309f266a45057dd02c783217b",
+    "results/execution-boundary-093-native-001/sources/test_hermes_boundary_093.py": "7f2c34b73c8900e0b624e5368c3b4cb492e5c6d101270f64fde9c6a5ec35337f",
+    "results/execution-boundary-093-native-001/unit-tests.txt": "e0df1cb42be69ed950d6abe0bdf675c4d264a96c888690f71007197fee9ea63e"
+  }
+}

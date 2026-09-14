@@ -41,16 +41,45 @@ This is a tool-execution boundary, not a claim of a general OS sandbox. It assum
 host-owned runner/configuration, immutable installed runtime, fresh project roots,
 and interception of every model-requested tool execution path.
 
+## Hermes adapter progress
+
+`hermes_boundary_093.py` now intercepts the batch dispatcher and its sequential,
+concurrent, and direct-invocation entry points. It records raw tool calls before
+Hermes argument normalization, disables tool-name guessing and parsed-argument
+deduplication, rejects duplicate JSON keys/non-finite values, and preserves IDs.
+Intent is recorded before execution; a failed canonical result append prevents
+later calls in that batch. Deadlines and interruptions reject new dispatches.
+
+Native Hermes memory and text skills are retained through four explicit callbacks,
+not a general tool registry. Skills may store Markdown/text references; script
+files and path escapes are unavailable. `skill_view(preprocess=False)` is essential:
+the native default can execute inline shell templates while displaying a skill.
+Fresh per-arm profiles without external skills, sync, or autoloads remain required.
+
+The actual pinned Hermes runtime passed 28 direct native-tool/dispatch assertions
+and a full scripted conversation passed 10 assertions with zero Engy requests.
+The combined local suite passes 23 tests, including the real plain-arm 60-fit
+accounting regression. The Gnomon-backed arms still require equivalent tests.
+The conversation advertises the nine permitted tools, returns results for mixed
+valid/unknown/malformed calls, and preserves native memory on disk. It uses a
+loopback scripted provider and a synthetic lab: it is not a forecasting result.
+Evidence is under `results/execution-boundary-093-native-001`.
+
+Two failed conversation probes are retained. The first exposed an unrelated
+Hermes model-discovery request that the stub server had mistakenly counted as a
+conversation response. The second exposed Hermes deduplicating malformed JSON
+before dispatch. The third passes after separating discovery and preserving raw
+arguments at the earlier validation hook. These are integration findings, not
+selective reruns of benchmark outcomes.
+
 ## Integration and release gates still required
 
-1. Intercept Hermes above both sequential and concurrent tool dispatch. Its
-   `_invoke_tool` alone is insufficient: the sequential path can invoke inline
-   executors separately. Validate raw JSON, reject duplicate/unknown fields, keep
-   tool-call identities, and retain every admitted/rejected result.
-2. Preserve native Hermes memory and text-based skills for every arm without
-   exposing a code-execution or arbitrary-file-write path. Verify actual pinned
-   Hermes behavior, not only a stub dispatcher. No silent removal of memory.
-3. Publish precise schemas, example calls, and task instructions for the new tools.
+1. Integrate the tested adapter into the prospective worker and host runner; verify
+   the fresh profile, pinned sources, canonical persistence, and cost logs there.
+   A standalone conversation probe does not establish every worker invariant.
+2. Exercise native memory and text-skill persistence across actual sequential
+   forecasting sessions in every arm; retain no arbitrary execution path.
+3. Publish precise example calls and task instructions for the new tool schemas.
    Keep model choice, configuration search, evidence interpretation, and explicit
    selection with the agent; the host must not choose a forecast.
 4. Run synthetic integration tests for every arm using the pinned published
