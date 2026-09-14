@@ -1,0 +1,61 @@
+{
+  "status": "seed_capsules_scripted_checks_passed",
+  "tests": 3,
+  "base_files": 24,
+  "seed7_byte_identical_to_live_base": true,
+  "seed19_only_changed_files": [
+    "worker.py",
+    "transport.py"
+  ],
+  "requested_seeds": [
+    7,
+    19
+  ],
+  "scripted_worker_constructions": 6,
+  "scripted_forwarded_requests": 32,
+  "budget_overrun_requests_rejected": 2,
+  "provider_calls": 0,
+  "engy_calls": 0,
+  "reserved_data_accessed": false,
+  "live_run_modified": false,
+  "final_gate_opened": false,
+  "source_matches_audited_pilot": true,
+  "scope": "Source copies and mocked-agent/local-proxy settings checks. Actual model seed support, full integration and final launch remain unproven.",
+  "probes": [
+    {
+      "status": "scripted_seed_probe_passed",
+      "requested_seed": 7,
+      "worker_constructions": 3,
+      "scripted_forwarded_requests": 16,
+      "seventeenth_request_rejected": true,
+      "selection_phase_preserved": true,
+      "provider_calls": 0,
+      "engy_calls": 0,
+      "final_gate_opened": false,
+      "capsule_manifest_sha256": "7b423f636dfed1478c011507cce3fda6086e66b68fc16fbc14ca2e781b5419f3",
+      "limitations": "Mock agent construction and scripted proxy upstream; actual model seed support and full runner/memory integration untested."
+    },
+    {
+      "status": "scripted_seed_probe_passed",
+      "requested_seed": 19,
+      "worker_constructions": 3,
+      "scripted_forwarded_requests": 16,
+      "seventeenth_request_rejected": true,
+      "selection_phase_preserved": true,
+      "provider_calls": 0,
+      "engy_calls": 0,
+      "final_gate_opened": false,
+      "capsule_manifest_sha256": "549ac7c4ad599b205d8554389c0ba819b865b85b4fca9712216fcbc394c2f012",
+      "limitations": "Mock agent construction and scripted proxy upstream; actual model seed support and full runner/memory integration untested."
+    }
+  ],
+  "artifact_files": 207,
+  "files": {
+    "benchmarks/ledger_optimization/seed_capsule_093.py": "715c6118a2ec307673815270f26aff5fad6f901d6cf8c8d12c6d8c8dea9a3694",
+    "benchmarks/ledger_optimization/probe_seed_capsule_093.py": "affecd4f2514d914e8ead9def574c4d13be71bb5ba38a6d4a64955f54d5daffd",
+    "benchmarks/ledger_optimization/SEED_REPLICATION_093.md": "856e2f43f78cb15a76e32ecebdf26d35698fddc2239d508195999c23a15795fd",
+    "benchmarks/tests/test_seed_capsule_093.py": "3a6567012b5b79c01d4ff098ef54f006e293b0b04a6d1d9b5a007c80f8b4519d",
+    "results/seed-capsule-093-synthetic-001/tests.txt": "36d902e5cfc62a5125c8a6349367b928962a585cd61cc391dc5b13d4a1e245c3",
+    "results/seed-capsule-093-synthetic-001/SHA256SUMS.json": "10afdda0d2c92e5f3d041816f03baa6457070fdf58103fdb957580d66c600d67"
+  }
+}
