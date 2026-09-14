@@ -1,0 +1,168 @@
+{
+  "status": "incremental_development_audit_passed",
+  "at": "2026-09-14T16:13:43.932980+00:00",
+  "incremental_sessions_audited": 20,
+  "incremental_checks": 2984,
+  "incremental_failures": [],
+  "verified_snapshot_files": 2337,
+  "original_pilot_files_reverified": 4227,
+  "pilot_prefix_checks": [
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 3,
+      "pilot_raw_log_prefix_preserved": true
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 4,
+      "pilot_raw_log_prefix_preserved": true
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 5,
+      "pilot_raw_log_prefix_preserved": true
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 3,
+      "pilot_raw_log_prefix_preserved": true
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 4,
+      "pilot_raw_log_prefix_preserved": true
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 5,
+      "pilot_raw_log_prefix_preserved": true
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 6,
+      "pilot_raw_log_prefix_preserved": true
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 3,
+      "pilot_raw_log_prefix_preserved": true
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 4,
+      "pilot_raw_log_prefix_preserved": true
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 5,
+      "pilot_raw_log_prefix_preserved": true
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 3,
+      "pilot_raw_log_prefix_preserved": true
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 4,
+      "pilot_raw_log_prefix_preserved": true
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 5,
+      "pilot_raw_log_prefix_preserved": true
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 6,
+      "pilot_raw_log_prefix_preserved": true
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 3,
+      "pilot_raw_log_prefix_preserved": true
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 4,
+      "pilot_raw_log_prefix_preserved": true
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 5,
+      "pilot_raw_log_prefix_preserved": true
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 3,
+      "pilot_raw_log_prefix_preserved": true
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 4,
+      "pilot_raw_log_prefix_preserved": true
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 5,
+      "pilot_raw_log_prefix_preserved": true
+    }
+  ],
+  "combined_sessions_with_audit": 56,
+  "combined_all_three_matched_cases": 18,
+  "matched_arms": {
+    "plain": {
+      "mean_rmsle": 0.5335882361064764,
+      "reported_tokens": 3385740,
+      "model_requests": 234,
+      "numerical_attempts": 229,
+      "full_workflows": 17
+    },
+    "gnomon": {
+      "mean_rmsle": 0.5592791229524106,
+      "reported_tokens": 4243690,
+      "model_requests": 256,
+      "numerical_attempts": 274,
+      "full_workflows": 18
+    },
+    "ledger": {
+      "mean_rmsle": 0.5009574421596009,
+      "reported_tokens": 3166221,
+      "model_requests": 222,
+      "numerical_attempts": 294,
+      "full_workflows": 18
+    }
+  },
+  "ledger_vs_gnomon_relative_reduction": 0.10428009628704171,
+  "ledger_vs_gnomon_reported_token_reduction": 0.2538990831092752,
+  "scope": "Partial development only. Supersedes audit-001 for continuation coverage; never add both audit rows. Retained pilot included once. Scores and costs use identical all-three case set without success filtering. Reported tokens are not billed dollars.",
+  "target_met": false,
+  "final_holdout_accessed": false,
+  "files": {
+    "results/guarded-history-093-development-audit-002/snapshot.py": "e4f5252403f2cadbb0cec8146cd773d418357a8bcace2bcc312a7a63cb9f2333",
+    "results/guarded-history-093-development-audit-002/snapshot.json": "a6dbb3eb3932d9eec5c152f8671c78ffdc8da939bbb2b71183cf8d975d4b9a8c",
+    "results/guarded-history-093-development-audit-002/snapshot.tar.gz": "201dc39c153817d1d739e62e0b9b66ef8b03cf61da7f881c1fb21626b52ee291",
+    "results/guarded-history-093-development-audit-002/remote.json": "deaf01ca3a95642487a9137228323f02e4d32a129d4d3481e881dcdab2386be3",
+    "results/guarded-history-093-development-audit-002/audit/report.json": "52498eb8b2767388568d2ac9126139a82105129a2372deff8aa6cac552dce271"
+  }
+}

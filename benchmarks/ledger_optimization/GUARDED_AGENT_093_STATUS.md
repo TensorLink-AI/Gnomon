@@ -23,3 +23,9 @@ Continuation receipt: `evidence/guarded-agent-093-development-launch.json`. Moni
 ## First continuation audit
 
 Nine additional sessions independently audited: all nine valid and full workflows; 1,159 checks passed, zero integrity failures. Their retained pilot log prefixes and the terminal pilot inventory match. Combined audited evidence contains 45 sessions and 14 all-three matched cases: plain 0.528431, Gnomon 0.559593, ledger 0.510393 mean per-case RMSLE. This partial 8.79% ledger reduction versus Gnomon is development monitoring, not a final or reliable superiority finding. Per-arm incremental totals do not necessarily contain the same cases and must not be compared directly. Receipt: `evidence/guarded-agent-093-development-audit-001.json`.
+
+## Second continuation audit — 2026-09-14 16:13 UTC
+
+Twenty continuation sessions audited, all valid/full: 2,337 snapshot hashes verified, 2,984 independent checks, zero failures or missing shutdown records. All 4,227 original pilot inventory files reverified, and retained pilot experiment prefixes match in every new session. This supersedes the first continuation audit; do not add both batches.
+
+Combined evidence contains 56 audited sessions and 18 all-three matched cases. Matched mean RMSLE: plain 0.533588, Gnomon 0.559279, ledger 0.500957. Matched reported tokens: plain 3,385,740, Gnomon 4,243,690, ledger 3,166,221. Ledger has 10.43% lower error and 25.39% fewer reported tokens versus Gnomon without ledger in this partial set. Numerical attempts are 229/274/294 respectively, so token reduction is not fewer model fits. All outcomes remain included; plain's baseline-only pilot case is retained. No held-out data accessed, no final claim; the 20% target remains unmet. Receipt: `evidence/guarded-agent-093-development-audit-002.json`.
