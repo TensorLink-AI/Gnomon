@@ -1,5 +1,49 @@
 # 092: corrected-history agent trial
 
+Status at 2026-09-14 11:08 UTC: **pilot complete; development evaluation running**.
+Snapshot005 captures 95 completed sessions, all valid and workflow-complete.
+It passes 19,635 independent numerical/evidence checks, verifies all 11,218
+archived files, and confirms all 27 frozen trial source hashes. The remotely
+saved and locally transferred 194,543,022-byte archive has SHA-256
+`ba063f05eb4b6125fd711775b71b32e78f8f2773b950d7e068e4245d4dbb1614`.
+
+The 31 cases completed by all three arms give:
+
+| Arm | Mean RMSLE | Matched reported tokens | Forwarded attempts |
+|---|---:|---:|---:|
+| Hermes | 0.471409626 | 7,617,081 | 420 |
+| Gnomon without ledger | 0.466919210 | 7,820,898 | 412 |
+| Ledger | 0.472807055 | 6,578,167 | 385 |
+
+Ledger is **1.26% worse** than Gnomon without ledger, with approximately 15.9%
+fewer reported tokens. Both Gnomon arms have one failed attempt with unknown
+usage, so reported token totals are incomplete. Matching uses completion
+presence, not success or score; all completed cases happen to be successful.
+The two unmatched sessions remain in the archive and total cost accounting.
+These are still only two reused development series, not held-out results.
+
+The frozen mature subset (origins >=10) now contains 11 matched cases: mean
+RMSLE 0.427586260 Hermes, 0.422159192 Gnomon, 0.428588915 ledger, giving ledger
+1.52% worse. Cold and origins-4–9 subsets remain 2.15% and 0.42% worse respectively.
+No late cases (origin >=22) are present. These partial subsets do not establish
+a phase effect, a trend, or the 20% target.
+
+All 95 sessions made 1,246 forwarded agent attempts: 1,244 successful flash
+responses and the same two failures previously preserved. Agent reported usage
+is 22,523,603 tokens, excluding unknown failed-attempt usage. Readiness adds
+96 probes and 1,330 reported tokens, including the previously disclosed local
+wall-clock timeout with unknown usage. The existing locally blocked agent
+request remains retained and was not forwarded. No reruns, free agent retries,
+case exclusions, or live configuration changes were introduced by this audit.
+No new provider or API calls were made for the audit.
+
+These are cumulative development totals including snapshots001–004; do not
+add snapshots together. Pilot costs remain separate. Reproduction and hashes:
+`evidence/corrected-agent-092-development-audit-005.json`.
+The final holdout remains unopened and the target remains unmet.
+
+## Snapshot004
+
 Status at 2026-09-14 10:32 UTC: **pilot complete; development evaluation running**.
 Snapshot004 captures 77 completed sessions, all valid and workflow-complete,
 including both sessions with agent API errors. It passes 13,929 independent
