@@ -1,8 +1,8 @@
 # Guarded pilot 093 — completed
 
-Latest audited continuation: 161/312 sessions, 53 matched cases (2026-09-14
-18:53 UTC). The pilot is complete; the full development continuation is active.
-See the ninth audit below. The 20% target remains unmet.
+Latest audited continuation: 173/312 sessions, 57 matched cases (2026-09-14
+19:11 UTC). The pilot is complete; the full development continuation is active.
+See the tenth audit below. The 20% target remains unmet.
 
 All 36 sessions finished. Every forecast is valid; plain Hermes completed 11/12 full workflows, Gnomon without ledger 12/12, ledger 12/12. The frozen completion gate passed. Independent local audit: 4,227 file hashes verified, 2,942 checks, zero integrity failures.
 
@@ -383,3 +383,39 @@ in the matched scores. This adds one incomplete workflow to the four
 previously retained cases. Raw grade inspection is preserved separately
 from the pending independent session audit; no run changes were made.
 Receipt: `evidence/guarded-agent-093-failure-monitor-002.json`.
+
+## Tenth continuation audit — 2026-09-14 19:11 UTC
+
+Twelve new sessions passed 3,756 independent checks, zero failures or missing
+shutdown records. All 1,735 snapshot hashes, the 32,062,842-byte archive,
+4,227 original pilot files and 12 retained pilot prefixes were verified.
+Combined evidence contains 173 sessions and 57 matched cases. Mean RMSLE:
+plain 0.477798, Gnomon 0.489355, ledger 0.461857 (5.62% lower ledger error).
+Matched tokens: 15,123,743 / 15,807,154 / 12,037,062 (23.85% fewer for ledger).
+Matched full workflows: 56/57, 53/57, 57/57. All outcomes remain scored.
+
+Two resumed third-series sessions were incomplete after exhausting the
+16-request budget: Gnomon round 3 and plain round 4, both retaining valid
+seasonal forecasts with zero RMSLE. The latter is not yet an all-three
+matched case in this snapshot. The complete audited inventory contains
+six incomplete workflows (plain 2, Gnomon 4, ledger 0).
+
+### Local audit reporting correction
+
+The frozen auditor crashed while summarizing this incremental batch because
+a bootstrap resample had zero control RMSLE. Its original stderr and exit
+status are retained. A separate local `analyze_guarded_093.py` preserves
+all session checks, numerical scores and the original sampling procedure,
+but counts undefined relative draws and returns a null relative interval
+if any occur. It also reports absolute differences as diagnostics, never
+as a substitute target. No draw is dropped or assigned a synthetic gain.
+This batch has 69 undefined relative draws in its ledger/Gnomon contrast.
+Five regression tests cover positive-data parity, mixed and all-zero control,
+retaining losses and invalid input. The preceding real audit was recomputed
+to check that its session fields and existing contrasts remain identical.
+
+The frozen live analyzer and all runner sources remain unchanged. Subsequent
+local incremental audits should use the new local analyzer, with its source
+hash retained in their receipts. No forecast was rerun, no outcomes excluded
+and no final holdout opened. The 20% target remains unmet.
+Receipt: `evidence/guarded-agent-093-development-audit-010.json`.
