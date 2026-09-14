@@ -1451,3 +1451,24 @@ Main/PyPI and protected data unchanged. Latest numerical development best stays
 068(.2510782;2.54%matched gain), not070or hindsight floor. Goal active/unmet.
 Next focus must specify how to generalize past experience better; simply giving
 more unconstrained hourly weights did not improve prospective performance.
+
+## Same-series-priority071: negative audited retrieval result
+
+Previous goal turn completed/audited/pushed070atf1a330d. This turn revalidated
+state, froze071ate253e19 after four synthetic tests, and ran all416cases. Restored
+068four-block learner; changed only mature-evidence ordering to prefer exact
+series before other contextual neighbors, with unchanged16-record quota.
+No new source forecasts/API, validation/final access or release changes.
+
+Control exactly reproduces068(.2576259533432357). Ledger.25187025227270116,
+2.23413%matched gain, but0.31546%worse than068(.2510782023798801); worsens both
+domains. Average14.543same-series neighbors;285cases all16same-series,131borrow
+others.20%and incumbent guards fail. No paid/final confirmation justified.
+
+832fits,51,085iterations,12.910s wall/12.096CPU. Independent53,354checks0fail,
+all causal neighbors/pairs/config IDs,832convex certificates, exact-control
+parity and aggregate scores. Audit6.858s. All inherited model/search/anchor and
+comparison costs retained. Complete archive/receipt preserves the negative result.
+Goal active/unmet;068remains lowest original-development mean and only2.54%
+matched gain. Future work must test predictability of useful evidence rather
+than treating hindsight headroom as a practical improvement guarantee.
