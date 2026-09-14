@@ -111,6 +111,26 @@ class AdapterTests(unittest.TestCase):
                 seen.append(visible)
             self.assertEqual(seen[0],seen[1]);self.assertEqual(seen[1],seen[2])
 
+    def test_shared_builder_rejects_unresolved_or_incomplete_inputs(self):
+        rows,calendar,manifest=fixture();metadata=manifest['splits']['development'][0]
+        values=[float(rows[0][f'd_{i}']) for i in range(a.FIRST,a.LAST+1)]
+        stamps=[a.period_end(calendar[f'd_{i}']) for i in range(a.FIRST,a.LAST+1)]
+        with self.assertRaisesRegex(ValueError,'complete 1094-day'):
+            a.build_series_jobs(metadata,values[1:],stamps[1:])
+        with self.assertRaisesRegex(ValueError,'series identity'):
+            a.build_series_jobs({**metadata,'series_id':'__default__'},values,stamps)
+        invalid=list(values);invalid[0]=True
+        with self.assertRaisesRegex(ValueError,'Invalid'):
+            a.build_series_jobs(metadata,invalid,stamps)
+        naive=[t.replace(tzinfo=None) for t in stamps]
+        with self.assertRaisesRegex(ValueError,'midnight UTC'):
+            a.build_series_jobs(metadata,values,naive)
+        shifted=list(stamps);shifted[0]+=timedelta(hours=1)
+        with self.assertRaisesRegex(ValueError,'midnight UTC'):
+            a.build_series_jobs(metadata,values,shifted)
+        self.assertEqual(a.build_series_jobs(metadata,values,stamps),
+            a.build_development_jobs(rows,calendar,manifest)[metadata['series_id']])
+
     def test_cli_preparation_refuses_overwrite_and_wrong_manifest_before_archive(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);manifest=root/'manifest.json';manifest.write_text('{}')

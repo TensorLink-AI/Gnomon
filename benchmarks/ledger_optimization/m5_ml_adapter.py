@@ -35,6 +35,49 @@ def covariates(times):
              cos(2*pi*(t-timedelta(days=1)).weekday()/7)] for t in times]
 
 
+def build_series_jobs(metadata, values, stamps):
+    """Shared pure request builder; callers enforce split and access gates.
+
+    This performs no I/O. A future gated final exporter must use this same
+    builder instead of duplicating development request/visibility semantics.
+    """
+    series = metadata['series_id']
+    if not isinstance(series,str) or not series or series=='__default__':
+        raise ValueError('Explicit series identity required')
+    if len(values)!=LAST-FIRST+1 or len(stamps)!=len(values):
+        raise ValueError('Require the complete 1094-day observation/calendar grid')
+    if any(type(v) not in (int,float) or not isfinite(v) or v<0 for v in values):
+        raise ValueError('Invalid sales observations; no replacement: ' + series)
+    if any(not isinstance(t,datetime) or t.utcoffset()!=timedelta(0)
+           or any((t.hour,t.minute,t.second,t.microsecond)) for t in stamps):
+        raise ValueError('Require explicit midnight UTC period-end timestamps')
+    if any(b-a!=timedelta(days=1) for a,b in zip(stamps,stamps[1:])):
+        raise ValueError('Calendar must be complete and consecutive')
+    values = [float(v) for v in values]
+    original_prefix = values[m5_prepare.FIRST-FIRST:m5_prepare.CUTOFF-FIRST+1]
+    if value_hash(original_prefix) != metadata['initial_history_sha256']:
+        raise ValueError('Original selection-prefix hash changed: ' + series)
+    jobs = []
+    for number in range(ROUNDS):
+        start = number*HORIZON
+        end = start+HISTORY
+        history_times, future_times = stamps[start:end], stamps[end:end+HORIZON]
+        origin = history_times[-1].isoformat()
+        future = [t.isoformat() for t in future_times]
+        if len(history_times)!=HISTORY or len(future)!=HORIZON or future_times[0]<=history_times[-1]:
+            raise ValueError('Incomplete or nonprospective task')
+        request = {'history':values[start:end], 'horizon':HORIZON, 'season':7, 'frequency':'D',
+            'cutoff':origin, 'known_time_cutoff':origin, 'recorded_time_cutoff':origin,
+            'timestamps':[t.isoformat() for t in history_times], 'future_timestamps':future,
+            'past_covariates':covariates(history_times), 'future_covariates':covariates(future_times),
+            'past_covariate_names':list(COVARIATES), 'future_covariate_names':list(COVARIATES),
+            'series_id':series, 'unit':'unit_sales'}
+        jobs.append({'series_id':series, 'round':number, 'origin':origin,
+            'future_timestamps':future, 'outcome_recorded_at':future[-1],
+            'request':request, 'actual':values[end:end+HORIZON]})
+    return jobs
+
+
 def build_development_jobs(source_rows, calendar, manifest):
     """Read numerical sales only for fixed development identities; no reselection."""
     selected = manifest['splits']['development']
@@ -64,30 +107,7 @@ def build_development_jobs(source_rows, calendar, manifest):
             values = [float(row[f'd_{i}']) for i in range(FIRST,LAST+1)]
         except (ValueError,TypeError,KeyError) as exc:
             raise ValueError('Invalid or missing development history/target; no replacement: ' + series) from exc
-        if any(not isfinite(v) or v < 0 for v in values):
-            raise ValueError('Invalid development sales; no replacement: ' + series)
-        original_prefix = values[m5_prepare.FIRST-FIRST:m5_prepare.CUTOFF-FIRST+1]
-        if value_hash(original_prefix) != metadata['initial_history_sha256']:
-            raise ValueError('Original selection-prefix hash changed: ' + series)
-        jobs = []
-        for number in range(ROUNDS):
-            start = number*HORIZON
-            end = start+HISTORY
-            history_times, future_times = stamps[start:end], stamps[end:end+HORIZON]
-            origin = history_times[-1].isoformat()
-            future = [t.isoformat() for t in future_times]
-            if len(history_times)!=HISTORY or len(future)!=HORIZON or future_times[0]<=history_times[-1]:
-                raise ValueError('Incomplete or nonprospective task')
-            request = {'history':values[start:end], 'horizon':HORIZON, 'season':7, 'frequency':'D',
-                'cutoff':origin, 'known_time_cutoff':origin, 'recorded_time_cutoff':origin,
-                'timestamps':[t.isoformat() for t in history_times], 'future_timestamps':future,
-                'past_covariates':covariates(history_times), 'future_covariates':covariates(future_times),
-                'past_covariate_names':list(COVARIATES), 'future_covariate_names':list(COVARIATES),
-                'series_id':series, 'unit':'unit_sales'}
-            jobs.append({'series_id':series, 'round':number, 'origin':origin,
-                'future_timestamps':future, 'outcome_recorded_at':future[-1],
-                'request':request, 'actual':values[end:end+HORIZON]})
-        result[series] = jobs
+        result[series] = build_series_jobs(metadata,values,stamps)
     if set(result) != {s['series_id'] for s in selected}:
         raise ValueError('Missing selected source series; no replacement')
     return {s:result[s] for s in sorted(result)}

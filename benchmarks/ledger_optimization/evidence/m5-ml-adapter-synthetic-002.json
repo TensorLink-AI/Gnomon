@@ -1,0 +1,22 @@
+{
+  "status": "shared_request_builder_verified",
+  "tests": 9,
+  "synthetic_tasks_byte_equivalent": 208,
+  "synthetic_jobs_sha256": "5323506eb48e1404a55b7dec0b96958d6eac1eece422262dd3d6f8af4320d7ba",
+  "real_archive_opened": false,
+  "reserved_targets_accessed": false,
+  "provider_calls": 0,
+  "engy_calls": 0,
+  "live_run_modified": false,
+  "final_dispatch_enabled": false,
+  "target_met": false,
+  "scope": "Shared no-I/O per-series request construction. Development export keeps its fixed-identity access checks. A separately gated final exporter remains required.",
+  "files": {
+    "benchmarks/ledger_optimization/m5_ml_adapter.py": "803c8ec8344692a50689c0034dc0a9b34d96487caf0dffd9913858a2b8816f97",
+    "benchmarks/ledger_optimization/M5_ML_ADAPTER.md": "c6a6e01eedf38276794edc6cdfb3a039d5c9268188bc3f0ec6a4e3094644853d",
+    "benchmarks/tests/test_m5_ml_adapter.py": "6999cd6078939b41abfbaf2df9c27ec9f14fb00628f67452cdca21d26a6d8b9a",
+    "results/m5-ml-adapter-synthetic-002/tests.txt": "cd7c4cb0378428c7e91908a70a309d4a437a3b18990b79ab83437326c844df07",
+    "results/m5-ml-adapter-synthetic-002/before-jobs-sha256.txt": "bf6f0a653c944ae1750d003abacb16e6ec10ae448cca7a295fe74e06c29460da",
+    "results/m5-ml-adapter-synthetic-002/equivalence.json": "9e8b42703a0312a3d98c71ead85254f69196f0bedfe2560a59b072099e28cd7f"
+  }
+}

@@ -35,6 +35,14 @@ fixtures, including poisonous reserved-target values, future perturbations,
 unchanged initial-history hashes, chronological boundaries, and invalid early
 history. Preparation makes zero provider calls and zero Engy requests.
 
+`build_series_jobs` is a shared pure constructor with no file or network access.
+The development exporter calls it only after checking fixed development identity.
+A future final exporter must use this same constructor behind its final access
+gate, so the final requests cannot silently diverge from the tested preparation.
+It requires the full daily grid, midnight UTC timestamps, nonnegative numerical
+observations and the unchanged selection-prefix hash. Synthetic equivalence
+checks retain the exact pre-refactor 208-task output hash.
+
 This does not itself satisfy the final gate. A later final host adapter must
 preserve these rules, use the same tested implementation in all three arms,
 freeze its input and source hashes, and pass the numerical/visibility checks
