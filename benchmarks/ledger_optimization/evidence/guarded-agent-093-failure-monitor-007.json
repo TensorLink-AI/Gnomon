@@ -1,0 +1,135 @@
+{
+  "new_cases": [
+    {
+      "file": "plain/item_1457251_store_14/round-25/grade.json",
+      "grade": {
+        "api_calls": 16,
+        "api_errors": 0,
+        "arm": "plain",
+        "backtested_configurations": 1,
+        "baseline_checkpoint_only": true,
+        "blocked_api_requests": 0,
+        "cause": null,
+        "checkpoint_publications": 2,
+        "config": {
+          "model": "seasonal",
+          "season": 7
+        },
+        "corrections": 0,
+        "decision_summary_present": true,
+        "execution_id": "c87bf09d-4c94-4f0e-86ad-fe5e7a615c6d",
+        "exit_code": 0,
+        "fallback_used": false,
+        "ledger_reviews": 0,
+        "numerical_attempts": 4,
+        "numerical_successes": 4,
+        "orchestration_stop": "request_budget_exhausted",
+        "origin": "2017-08-01T00:00:00+00:00",
+        "point": [
+          2.0,
+          4.0,
+          1.0,
+          4.0,
+          2.0,
+          3.0,
+          3.0,
+          2.0,
+          4.0,
+          1.0,
+          4.0,
+          2.0,
+          3.0,
+          3.0
+        ],
+        "prior_outcomes": 25,
+        "responses": 16,
+        "review_calls": 1,
+        "rmsle": 0.44532467039185875,
+        "round": 25,
+        "seconds": 167.13111871108413,
+        "selection_after_comparison": false,
+        "selection_interventions": 4,
+        "series_id": "item_1457251_store_14",
+        "tokens": 461824,
+        "usage_complete": true,
+        "valid": true,
+        "workflow_complete": false
+      }
+    }
+  ],
+  "files": {
+    "results/guarded-history-093-development-audit-024/snapshot/plain/item_1457251_store_14/round-25/grade.json": "61936117a034e9d7d47f4270027c1a82f2326371e352cc5f82931690730f6a17",
+    "results/guarded-history-093-development-audit-024/snapshot/plain/item_1457251_store_14/round-25/boundary-events.jsonl": "aef86d4f9d4f24b964a520fcc72bc6015c0d29f899f4d6fc9f71b7c0794d894d"
+  },
+  "target_met": false,
+  "status": "new_incomplete_workflow_independently_audited",
+  "independent_audit_receipt": "benchmarks/ledger_optimization/evidence/guarded-agent-093-development-audit-024.json",
+  "incomplete_workflows_by_arm": {
+    "plain": 7,
+    "gnomon": 5,
+    "ledger": 0
+  },
+  "all_incomplete_have_valid_forecasts": true,
+  "scope": "Final development audit includes both cases. Valid baseline forecasts remain scored; no rerun, exclusion or extra budget. Tool usage describes observed behavior, not internal reasoning.",
+  "requested_tools": {
+    "lab": 6,
+    "project_list": 1,
+    "evidence_read": 7,
+    "data_summary": 10,
+    "notes_write": 1
+  },
+  "lab_requests": [
+    {
+      "operation": "review"
+    },
+    {
+      "operation": "status"
+    },
+    {
+      "operation": "start"
+    },
+    {
+      "operation": "commit",
+      "config": {
+        "model": "ridge",
+        "window": 365,
+        "lags": 14,
+        "alpha": 10
+      }
+    },
+    {
+      "operation": "commit",
+      "config": {
+        "model": "seasonal",
+        "season": 7
+      }
+    },
+    {
+      "operation": "status"
+    }
+  ],
+  "lab_errors": [
+    {
+      "operation": "commit",
+      "error": {
+        "code": "CONFIG_NOT_BACKTESTED",
+        "cause": "Backtest this configuration on all three current folds before committing it.",
+        "details": {}
+      },
+      "budget": {
+        "numerical_limit": 60,
+        "numerical_attempts": 4,
+        "numerical_remaining": 56,
+        "reserved_final_fits": 1,
+        "backtest_batches_remaining": 18,
+        "agent_requests_remaining": 2,
+        "phase": "selection",
+        "exploration_requests_remaining": 0,
+        "next_action": "commit a tested configuration; no new exploration",
+        "seconds_remaining_approx": 372.5,
+        "agent_budget_basis": "host metered API requests; time from parent launch"
+      },
+      "numerical_calls_started": 0
+    }
+  ]
+}

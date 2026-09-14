@@ -1,5 +1,5 @@
 {
-  "status": "new_incomplete_workflow_live_observation",
+  "status": "new_incomplete_workflow_independently_audited",
   "new_cases": [
     {
       "file": "plain/item_1457251_store_14/round-24/grade.json",
@@ -59,17 +59,49 @@
     }
   ],
   "incomplete_workflows_by_arm": {
-    "plain": 6,
+    "plain": 7,
     "gnomon": 5,
     "ledger": 0
   },
   "all_incomplete_have_valid_forecasts": true,
-  "scope": "Read-only live grades; full independent audit pending. All valid baseline forecasts remain scored. No rerun, exclusions or extra budget.",
+  "scope": "Final development audit includes both cases. Valid baseline forecasts remain scored; no rerun, exclusion or extra budget. Tool usage describes observed behavior, not internal reasoning.",
   "files": {
     "results/guarded-history-093-failure-monitor-006/command.json": "37cb80c5902986159fd5db8223997c0c56da4af7506be8c256bb9b1cbaddace6",
     "results/guarded-history-093-failure-monitor-006/stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "results/guarded-history-093-failure-monitor-006/stdout.json": "fd686ddd9a6e878a9391bc54242126104a1579b2fbf2f297b990868266e0390e",
-    "results/guarded-history-093-failure-monitor-006/query.py": "2cf594439aee17749cf3e06b5e5945adf715f56cf3adbbffdb9acf6d64a9eb5d"
+    "results/guarded-history-093-failure-monitor-006/query.py": "2cf594439aee17749cf3e06b5e5945adf715f56cf3adbbffdb9acf6d64a9eb5d",
+    "results/guarded-history-093-development-audit-024/snapshot/plain/item_1457251_store_14/round-24/grade.json": "c0a1a630301b0f833e4ebbba89d14c5f5f30cc5f5165c179d562a9c836dffed2",
+    "results/guarded-history-093-development-audit-024/snapshot/plain/item_1457251_store_14/round-24/boundary-events.jsonl": "784c71a09f8b1639684ce28ab002d6f036637b88c75ccb359e32479f1d086b9c"
   },
-  "target_met": false
+  "target_met": false,
+  "independent_audit_receipt": "benchmarks/ledger_optimization/evidence/guarded-agent-093-development-audit-024.json",
+  "requested_tools": {
+    "lab": 6,
+    "project_list": 1,
+    "evidence_read": 5,
+    "data_summary": 8,
+    "notes_write": 1
+  },
+  "lab_requests": [
+    {
+      "operation": "review"
+    },
+    {
+      "operation": "status"
+    },
+    {
+      "operation": "start"
+    },
+    {
+      "operation": "status"
+    },
+    {
+      "operation": "commit",
+      "execution_id": "a6bb027f-1808-4b9f-859d-a4934c511d9c"
+    },
+    {
+      "operation": "status"
+    }
+  ],
+  "lab_errors": []
 }

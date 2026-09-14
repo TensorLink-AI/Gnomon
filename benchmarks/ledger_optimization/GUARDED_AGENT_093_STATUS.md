@@ -1,8 +1,13 @@
 # Guarded pilot 093 — completed
 
-Latest audited continuation: 302/312 sessions, 100 matched cases (2026-09-14
-22:52 UTC). The pilot is complete; the full development continuation is active.
-See the twenty-third audit below. The 20% target remains unmet.
+All 312 development sessions finished on 2026-09-14 at 23:28 UTC.
+All 104 matched cases are independently audited: 87,285 checks, zero integrity
+failures. Ledger improves mean RMSLE by 2.61% versus Gnomon without ledger;
+the exploratory 95% interval is −2.01% to +6.42% and crosses zero. Full workflows
+are 97/104, 99/104 and 104/104 for plain/Gnomon/ledger. Costs are reconciled;
+controller archive packaging remains pending. The 20% target is unmet.
+See [complete development results](GUARDED_AGENT_093_DEVELOPMENT_RESULTS.md).
+The pilot and incremental receipts below remain part of the historical record.
 
 All 36 sessions finished. Every forecast is valid; plain Hermes completed 11/12 full workflows, Gnomon without ledger 12/12, ledger 12/12. The frozen completion gate passed. Independent local audit: 4,227 file hashes verified, 2,942 checks, zero integrity failures.
 
@@ -788,3 +793,18 @@ Plain Hermes has 32 sessions with saved native memory; availability does not
 prove causal use. This remains reused-development evidence, not held-out
 confirmation. The 20% target is unmet; final holdout remains unopened.
 Receipt: `evidence/guarded-agent-093-development-audit-023.json`.
+
+## Twenty-fourth continuation audit — all 312 sessions
+
+The final ten sessions passed 4,370 independent checks, with zero integrity
+failures or missing shutdown records. All 1,666 snapshot file hashes and 4,227
+original pilot file hashes verified; all ten retained experiment prefixes match.
+The 43,358,800-byte archive SHA-256 is
+`c428b368533431d69081748a690372d0ce582b66ab43cf586f4bd1fae36c6ba1`.
+Combined evidence includes the pilot once and disjoint batches 002 through 024:
+312 sessions, 104 matched tasks, 87,285 checks. The full remote audit agrees
+exactly with all 312 locally audited rows. The last two plain-Hermes sessions
+both exhausted the request budget with a valid baseline only; their scores and
+costs remain included. Final incomplete workflows: plain seven, Gnomon five,
+ledger zero. Receipt: `evidence/guarded-agent-093-development-audit-024.json`.
+The complete-results receipt separately reconciles usage and records uncertainty.
