@@ -1,0 +1,73 @@
+{
+  "experiment": "093",
+  "status": "live_pilot_partial_audit",
+  "at": "2026-09-14T15:16:50.115118+00:00",
+  "completed_sessions_audited": 10,
+  "planned": 36,
+  "snapshot_files_verified": 1018,
+  "archive_sha256": "aed2a5abf1afd3700f525100af3ff11593eb1be96fd9c6efd81be302e9859441",
+  "remote_archive": "/root/gnomon-ledger-ml-v3/code/results/guarded-history-093-pilot-audit-002/snapshot.tar.gz",
+  "audit_checks": 657,
+  "audit_failures": [],
+  "all_three_matched_cases": 3,
+  "all_three_matched_mean_rmsle": {
+    "plain": 0.4024792443358468,
+    "gnomon": 0.36688669757322157,
+    "ledger": 0.36145162637426587
+  },
+  "ledger_vs_gnomon_relative_reduction": 0.014814031783943249,
+  "arms": {
+    "plain": {
+      "tasks": 3,
+      "valid": 3,
+      "workflow_complete": 2,
+      "api_calls": 40,
+      "tokens": 482507,
+      "numerical_attempts": 29,
+      "usage_complete": true
+    },
+    "gnomon": {
+      "tasks": 4,
+      "valid": 4,
+      "workflow_complete": 4,
+      "api_calls": 56,
+      "tokens": 784675,
+      "numerical_attempts": 70,
+      "usage_complete": true
+    },
+    "ledger": {
+      "tasks": 3,
+      "valid": 3,
+      "workflow_complete": 3,
+      "api_calls": 32,
+      "tokens": 388574,
+      "numerical_attempts": 45,
+      "usage_complete": true
+    }
+  },
+  "failure_review": {
+    "case": "plain/item_1304243_store_32/round-0",
+    "valid_forecast": true,
+    "full_workflow": false,
+    "reason": "request_budget_exhausted_after_repeated_data_summaries",
+    "data_summary_calls": 19,
+    "recoverable_column_rejections": 1,
+    "numerical_attempts": 4,
+    "backtested_configurations": 1,
+    "api_calls": 16,
+    "evidence": "snapshot/plain/item_1304243_store_32/round-0/boundary-events.jsonl",
+    "interpretation": "Repeated exploration left only baseline selection; no engine failure or observed execution-boundary bypass."
+  },
+  "future_ux_followup": "Wrong data_summary column should report available columns and a task-preserving correction. Do not change tools during the frozen pilot.",
+  "final_holdout_accessed": false,
+  "main_or_pypi_changed": false,
+  "target_met": false,
+  "scope": "Small partial development pilot; unequal arm totals are not comparable. Matched scores retain baseline-only and failure outcomes. No efficacy conclusion.",
+  "files": {
+    "results/guarded-history-093-pilot-audit-002/snapshot.py": "82e9d56c34b3098750264b3a9b089a413b5c1975b19b002bacef09a06c986c72",
+    "results/guarded-history-093-pilot-audit-002/snapshot.json": "8213a93829a4810824152a4e3fb4d4b3019221ad4c26846d284e91c2af35d5cb",
+    "results/guarded-history-093-pilot-audit-002/analyze.stdout": "66ed366a487a08ca30e389ff2c2e71208144342c3744c0f5a4aa47449b86fca6",
+    "results/guarded-history-093-pilot-audit-002/analyze.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/guarded-history-093-pilot-audit-002/snapshot/report.json": "2303371ad44b7e8cfb5113792d73f44a6aa7967bab76d5d59f3e3031fa3a1cd6"
+  }
+}
