@@ -1,0 +1,4844 @@
+{
+  "scope": "Post-hoc future-aware selection bound over forecasts already executed across all three arms in audited partial development. Candidate availability is unequal between individual arms, so the union is not a fair executable treatment. This does not bound the full permitted configuration search or establish a usable policy. No new fits or final data.",
+  "matched_cases": 49,
+  "executed_forecasts_recomputed": 290,
+  "repeated_config_predictions_verified_equal": 127,
+  "selected_mean_rmsle": {
+    "plain": 0.4702764469969439,
+    "gnomon": 0.4893429167958916,
+    "ledger": 0.45031820189223404
+  },
+  "best_executed_union_mean_rmsle": 0.4289919894233861,
+  "union_hindsight_relative_reduction_vs_gnomon": 0.12333054245000596,
+  "within_arm_hindsight_mean_rmsle": {
+    "plain": 0.4527178569949786,
+    "gnomon": 0.4673456583896663,
+    "ledger": 0.4351002382344112
+  },
+  "future_outcomes_used": true,
+  "executable_policy": false,
+  "new_provider_calls": 0,
+  "engy_calls": 0,
+  "target_met": false,
+  "final_holdout_accessed": false,
+  "per_case": [
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 0,
+      "origin": "2016-08-16T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.6448454479465352,
+          "best_executed_rmsle": 0.6448454479465352
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.674599065104028,
+          "best_executed_rmsle": 0.631382901866092
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.6634934168762556,
+          "best_executed_rmsle": 0.6634934168762556
+        }
+      },
+      "unique_executed_configurations": 5,
+      "best_executed_union_rmsle": 0.631382901866092,
+      "best_config_ids": [
+        "fad629e67119d702"
+      ],
+      "unique_point_vectors": 5,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "0be8a1a4-5616-4eb8-905f-251a58eaa419",
+          "rmsle": 1.1780131359730208
+        },
+        {
+          "arm": "plain",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "7581b8db-a85f-4020-a3e0-5873bbebfbcf",
+          "rmsle": 0.6448454479465352
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "56aa262a-2caa-408c-b68c-07c4fe9b4ffa",
+          "rmsle": 1.1780131359730208
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "fad629e67119d702",
+          "config": {
+            "model": "ridge",
+            "window": 730,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "6f2e3d08-055f-4292-a037-bbd51272f620",
+          "rmsle": 0.631382901866092
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "badffa813c1d4e0d",
+          "config": {
+            "model": "ridge",
+            "window": 730,
+            "lags": 56,
+            "alpha": 10.0
+          },
+          "execution_id": "abd03350-72ad-42a5-b197-7cd111942599",
+          "rmsle": 0.674599065104028
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "ad158a33-d8f4-42d7-a97c-d801aa7078e6",
+          "rmsle": 1.1780131359730208
+        },
+        {
+          "arm": "ledger",
+          "config_id": "9827d2b47b48b72e",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 28,
+            "alpha": 10.0
+          },
+          "execution_id": "5644e724-0d1b-4a5e-b36c-b86579913c96",
+          "rmsle": 0.6634934168762556
+        }
+      ]
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 1,
+      "origin": "2016-08-30T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.4864351331180266,
+          "best_executed_rmsle": 0.4864351331180266
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.5306245884101985,
+          "best_executed_rmsle": 0.5222750564887934
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.4759519226469066,
+          "best_executed_rmsle": 0.4759519226469066
+        }
+      },
+      "unique_executed_configurations": 5,
+      "best_executed_union_rmsle": 0.4759519226469066,
+      "best_config_ids": [
+        "9827d2b47b48b72e"
+      ],
+      "unique_point_vectors": 5,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "62c90bbd-1873-4963-8483-2288c4c0c03e",
+          "rmsle": 0.6973999985520729
+        },
+        {
+          "arm": "plain",
+          "config_id": "282fcc20124e9244",
+          "config": {
+            "model": "ridge",
+            "window": 730,
+            "lags": 28,
+            "alpha": 1.0
+          },
+          "execution_id": "6c1039e6-546f-442a-a47b-9735f3a0e72a",
+          "rmsle": 0.4864351331180266
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "40aca34e-6bee-4845-b902-000a98091545",
+          "rmsle": 0.6973999985520729
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "600a4a0a2224bf26",
+          "config": {
+            "model": "random_forest",
+            "window": 730,
+            "lags": 56,
+            "depth": 12
+          },
+          "execution_id": "a94a2919-4ed2-424b-8ebd-2b7555914e26",
+          "rmsle": 0.5222750564887934
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "b83d18c6e1ca606b",
+          "config": {
+            "model": "random_forest",
+            "window": 730,
+            "lags": 56,
+            "depth": 16
+          },
+          "execution_id": "a51c2e0d-27e0-4163-99e3-8868ded70804",
+          "rmsle": 0.5306245884101985
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "26b00909-59ad-497a-a951-abe4333bf205",
+          "rmsle": 0.6973999985520729
+        },
+        {
+          "arm": "ledger",
+          "config_id": "9827d2b47b48b72e",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 28,
+            "alpha": 10.0
+          },
+          "execution_id": "b9dea702-4510-42bb-b1b5-48fe2c845162",
+          "rmsle": 0.4759519226469066
+        }
+      ]
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 2,
+      "origin": "2016-09-13T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 1.3889501090582914,
+          "best_executed_rmsle": 0.9341020335747072
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 1.595561382019127,
+          "best_executed_rmsle": 0.9341020335747072
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 1.3464383838470044,
+          "best_executed_rmsle": 0.9341020335747072
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.9341020335747072,
+      "best_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "unique_point_vectors": 4,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "f51295b5-fd80-44b1-acd3-bb10fef5d75b",
+          "rmsle": 0.9341020335747072
+        },
+        {
+          "arm": "plain",
+          "config_id": "dad9469f1ab8a4ce",
+          "config": {
+            "model": "ridge",
+            "window": 730,
+            "lags": 28,
+            "alpha": 10.0
+          },
+          "execution_id": "7b320bfb-7e56-4ade-9871-0d8ab7fc0d4c",
+          "rmsle": 1.3889501090582914
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "bf1f20dc-cd1f-4ee0-92a5-7e9079aa5a62",
+          "rmsle": 0.9341020335747072
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "b83d18c6e1ca606b",
+          "config": {
+            "model": "random_forest",
+            "window": 730,
+            "lags": 56,
+            "depth": 16
+          },
+          "execution_id": "87834eca-8ebb-4de3-a353-b7f672472a7d",
+          "rmsle": 1.595561382019127
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "710acf2e-e477-4cf1-a88f-093cba0c966f",
+          "rmsle": 0.9341020335747072
+        },
+        {
+          "arm": "ledger",
+          "config_id": "9827d2b47b48b72e",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 28,
+            "alpha": 10.0
+          },
+          "execution_id": "6456b6d9-b214-451b-a627-25f7c5e7c6b7",
+          "rmsle": 1.3464383838470044
+        }
+      ]
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 3,
+      "origin": "2016-09-27T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.8215182023789181,
+          "best_executed_rmsle": 0.8215182023789181
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 1.0373685734431994,
+          "best_executed_rmsle": 1.0373685734431994
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.7416496935359863,
+          "best_executed_rmsle": 0.7416496935359863
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.7416496935359863,
+      "best_config_ids": [
+        "5efb13c4e0462c0f"
+      ],
+      "unique_point_vectors": 4,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "4855aab3-f863-416a-bfa0-7ae1e96bf783",
+          "rmsle": 1.0416815173995755
+        },
+        {
+          "arm": "plain",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "16cc9bc3-b7c4-4d6d-8cab-717b5e5abd99",
+          "rmsle": 0.8215182023789181
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "4b6e1b11-1318-41e7-a9fd-95a5d4480352",
+          "rmsle": 1.0416815173995755
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "0e7c27e84da916b4",
+          "config": {
+            "model": "random_forest",
+            "window": 365,
+            "lags": 28,
+            "depth": 16
+          },
+          "execution_id": "8a5392c9-712e-405d-b108-61f74d4bdfd1",
+          "rmsle": 1.0373685734431994
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "b6c8a8a5-0d47-4124-9619-6c788e883e3b",
+          "rmsle": 1.0416815173995755
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5efb13c4e0462c0f",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 28,
+            "alpha": 500.0
+          },
+          "execution_id": "b581687b-0685-4486-ad66-784621c40f64",
+          "rmsle": 0.7416496935359863
+        }
+      ]
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 4,
+      "origin": "2016-10-11T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 1,
+          "selected_rmsle": 1.192335872503564,
+          "best_executed_rmsle": 1.192335872503564
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.7860871908606707,
+          "best_executed_rmsle": 0.7860871908606707
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.7609025895425133,
+          "best_executed_rmsle": 0.7609025895425133
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.7609025895425133,
+      "best_config_ids": [
+        "5e39c98eab372674"
+      ],
+      "unique_point_vectors": 3,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "7932eb20-f29a-49bf-b9db-b3030ffbb0f9",
+          "rmsle": 1.192335872503564
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "feee72c4-6820-4b9c-a15e-d0f0f48eeccd",
+          "rmsle": 1.192335872503564
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "b83d18c6e1ca606b",
+          "config": {
+            "model": "random_forest",
+            "window": 730,
+            "lags": 56,
+            "depth": 16
+          },
+          "execution_id": "34ac3630-35c6-4e8a-9262-2cc7bb0c8709",
+          "rmsle": 0.7860871908606707
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "ae94bb8d-2519-4201-ad3a-0099c80ee060",
+          "rmsle": 1.192335872503564
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5e39c98eab372674",
+          "config": {
+            "model": "ridge",
+            "window": 90,
+            "lags": 7,
+            "alpha": 300.0
+          },
+          "execution_id": "0848cf76-9b8a-421d-89cc-fef54f506536",
+          "rmsle": 0.7609025895425133
+        }
+      ]
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 5,
+      "origin": "2016-10-25T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.6117778576946146,
+          "best_executed_rmsle": 0.6117778576946146
+        },
+        "gnomon": {
+          "executed_forecasts": 1,
+          "selected_rmsle": 0.9964237171288391,
+          "best_executed_rmsle": 0.9964237171288391
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.6632545297880766,
+          "best_executed_rmsle": 0.6632545297880766
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.6117778576946146,
+      "best_config_ids": [
+        "8f9c5f473c244f4e"
+      ],
+      "unique_point_vectors": 3,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "a5490271-8f18-461c-8da9-024ce8a240a9",
+          "rmsle": 0.9964237171288391
+        },
+        {
+          "arm": "plain",
+          "config_id": "8f9c5f473c244f4e",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 30.0
+          },
+          "execution_id": "f960629f-a583-4648-adf9-adfe29a6b23c",
+          "rmsle": 0.6117778576946146
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "a08cc746-63c6-45cd-ae2d-ba63c7f6f09d",
+          "rmsle": 0.9964237171288391
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "60b7549a-ce53-45ed-bbdb-67f6750d4306",
+          "rmsle": 0.9964237171288391
+        },
+        {
+          "arm": "ledger",
+          "config_id": "8c818e6541003918",
+          "config": {
+            "model": "ridge",
+            "window": 120,
+            "lags": 14,
+            "alpha": 300.0
+          },
+          "execution_id": "2b0db2ff-f2ee-434d-9770-a4b922efdf74",
+          "rmsle": 0.6632545297880766
+        }
+      ]
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 6,
+      "origin": "2016-11-08T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.6571448105753518,
+          "best_executed_rmsle": 0.6571448105753518
+        },
+        "gnomon": {
+          "executed_forecasts": 1,
+          "selected_rmsle": 0.8413607061435259,
+          "best_executed_rmsle": 0.8413607061435259
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.6516591359760868,
+          "best_executed_rmsle": 0.6516591359760868
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.6516591359760868,
+      "best_config_ids": [
+        "4568ccc08588ff65"
+      ],
+      "unique_point_vectors": 3,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "750a52ac-4032-405b-b582-eed85c3b1959",
+          "rmsle": 0.8413607061435259
+        },
+        {
+          "arm": "plain",
+          "config_id": "c1db64c903a9ebe1",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 300.0
+          },
+          "execution_id": "06890b09-dc0d-4f1a-be6e-5f83fc209515",
+          "rmsle": 0.6571448105753518
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "e9c3a9c1-2bff-45c1-9d52-34e945722d7b",
+          "rmsle": 0.8413607061435259
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "6ef5469c-2bee-4d1b-b733-0a7c3553d7f9",
+          "rmsle": 0.8413607061435259
+        },
+        {
+          "arm": "ledger",
+          "config_id": "4568ccc08588ff65",
+          "config": {
+            "model": "ridge",
+            "window": 90,
+            "lags": 14,
+            "alpha": 300.0
+          },
+          "execution_id": "48762e5f-c7bf-4d9c-83cc-842b6b71052a",
+          "rmsle": 0.6516591359760868
+        }
+      ]
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 7,
+      "origin": "2016-11-22T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.7500384962091119,
+          "best_executed_rmsle": 0.7500384962091119
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.7961130714424927,
+          "best_executed_rmsle": 0.7961130714424927
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.7371041072937277,
+          "best_executed_rmsle": 0.7371041072937277
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.7371041072937277,
+      "best_config_ids": [
+        "4568ccc08588ff65"
+      ],
+      "unique_point_vectors": 4,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "cd23d195-ced7-4d96-b22a-428a8d2b5e8f",
+          "rmsle": 1.0448794775589014
+        },
+        {
+          "arm": "plain",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "97dfec93-3b64-4fac-bf1b-7509499d3519",
+          "rmsle": 0.7500384962091119
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "36f8460f-7d4a-455f-b428-c32f5fec2d9b",
+          "rmsle": 1.0448794775589014
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "fad629e67119d702",
+          "config": {
+            "model": "ridge",
+            "window": 730,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "edfaa614-7b4f-4e86-a621-0ef0b31739db",
+          "rmsle": 0.7961130714424927
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "bcdce226-5df5-43ea-8c17-0c5015d6ab13",
+          "rmsle": 1.0448794775589014
+        },
+        {
+          "arm": "ledger",
+          "config_id": "4568ccc08588ff65",
+          "config": {
+            "model": "ridge",
+            "window": 90,
+            "lags": 14,
+            "alpha": 300.0
+          },
+          "execution_id": "fc7ddac4-e4bc-4365-9329-9862107ff0e4",
+          "rmsle": 0.7371041072937277
+        }
+      ]
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 8,
+      "origin": "2016-12-06T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.6806092537734244,
+          "best_executed_rmsle": 0.6806092537734244
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.7041375017780611,
+          "best_executed_rmsle": 0.7041375017780611
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.5854657200704801,
+          "best_executed_rmsle": 0.5854657200704801
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.5854657200704801,
+      "best_config_ids": [
+        "c7a7a31e2fa9db47"
+      ],
+      "unique_point_vectors": 4,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "f24005be-f5a6-4170-9ca7-6940f15d6841",
+          "rmsle": 0.8177982873676286
+        },
+        {
+          "arm": "plain",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "83217131-8b8c-4777-bd30-0832739b7e70",
+          "rmsle": 0.6806092537734244
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "93e66dd5-1108-43f8-a311-56947c4ca22e",
+          "rmsle": 0.8177982873676286
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "9827d2b47b48b72e",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 28,
+            "alpha": 10.0
+          },
+          "execution_id": "84d0f740-2a23-42af-9b42-79ffbc82fd3a",
+          "rmsle": 0.7041375017780611
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "f5be3c97-398a-4522-b186-25bb25f50f8a",
+          "rmsle": 0.8177982873676286
+        },
+        {
+          "arm": "ledger",
+          "config_id": "c7a7a31e2fa9db47",
+          "config": {
+            "model": "random_forest",
+            "window": 365,
+            "lags": 14,
+            "depth": 8
+          },
+          "execution_id": "c7a2d719-bad9-43d4-933e-efc1d1a0ea5c",
+          "rmsle": 0.5854657200704801
+        }
+      ]
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 9,
+      "origin": "2016-12-20T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 1.0015995348034232,
+          "best_executed_rmsle": 1.0015995348034232
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 1.0923889504682804,
+          "best_executed_rmsle": 1.0923889504682804
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 1.0221609550159385,
+          "best_executed_rmsle": 1.0221609550159385
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 1.0015995348034232,
+      "best_config_ids": [
+        "52b1ac5596c56103"
+      ],
+      "unique_point_vectors": 4,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "18e6c5d4-a5d3-4e41-804c-b7d767ff883d",
+          "rmsle": 1.4551268874763426
+        },
+        {
+          "arm": "plain",
+          "config_id": "52b1ac5596c56103",
+          "config": {
+            "model": "random_forest",
+            "window": 365,
+            "lags": 28,
+            "depth": 12
+          },
+          "execution_id": "d5050284-0c64-4e2a-9d47-18032dcaaf9c",
+          "rmsle": 1.0015995348034232
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "01e2ca85-cf74-4555-b7ad-aaa713b541a6",
+          "rmsle": 1.4551268874763426
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "dad9469f1ab8a4ce",
+          "config": {
+            "model": "ridge",
+            "window": 730,
+            "lags": 28,
+            "alpha": 10.0
+          },
+          "execution_id": "12939582-3e46-4cb7-9d44-4296a6f22da8",
+          "rmsle": 1.0923889504682804
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "5fc36b16-9e48-45e5-8138-cb8522447fee",
+          "rmsle": 1.4551268874763426
+        },
+        {
+          "arm": "ledger",
+          "config_id": "c7a7a31e2fa9db47",
+          "config": {
+            "model": "random_forest",
+            "window": 365,
+            "lags": 14,
+            "depth": 8
+          },
+          "execution_id": "7cb5a084-cf68-4529-b4ec-b6bb7a417c20",
+          "rmsle": 1.0221609550159385
+        }
+      ]
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 10,
+      "origin": "2017-01-03T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.6308698773461942,
+          "best_executed_rmsle": 0.6308698773461942
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.6038984960166986,
+          "best_executed_rmsle": 0.6038984960166986
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.6202692748873436,
+          "best_executed_rmsle": 0.6202692748873436
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.6038984960166986,
+      "best_config_ids": [
+        "7e7c8878062b5286"
+      ],
+      "unique_point_vectors": 4,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "234e86da-50a2-46f3-8f57-36ba70225334",
+          "rmsle": 1.135870842132941
+        },
+        {
+          "arm": "plain",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "b80b0930-ad6c-4f02-a017-536fc8c18851",
+          "rmsle": 0.6308698773461942
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "7e9f76d3-bb9c-40f6-aba2-86218c72dc50",
+          "rmsle": 1.135870842132941
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "7e7c8878062b5286",
+          "config": {
+            "model": "random_forest",
+            "window": 365,
+            "lags": 28,
+            "depth": 8
+          },
+          "execution_id": "a5d6e446-8345-4b48-8131-60bf48888ce6",
+          "rmsle": 0.6038984960166986
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "1e043be0-aa33-45ab-aefa-071b1de9effd",
+          "rmsle": 1.135870842132941
+        },
+        {
+          "arm": "ledger",
+          "config_id": "c7a7a31e2fa9db47",
+          "config": {
+            "model": "random_forest",
+            "window": 365,
+            "lags": 14,
+            "depth": 8
+          },
+          "execution_id": "1d7d9756-19d8-44e6-b407-f8ae3796a4fa",
+          "rmsle": 0.6202692748873436
+        }
+      ]
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 11,
+      "origin": "2017-01-17T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.5516992785248077,
+          "best_executed_rmsle": 0.5516992785248077
+        },
+        "gnomon": {
+          "executed_forecasts": 1,
+          "selected_rmsle": 0.6816747850483945,
+          "best_executed_rmsle": 0.6816747850483945
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.5516992785248077,
+          "best_executed_rmsle": 0.5516992785248077
+        }
+      },
+      "unique_executed_configurations": 2,
+      "best_executed_union_rmsle": 0.5516992785248077,
+      "best_config_ids": [
+        "c7a7a31e2fa9db47"
+      ],
+      "unique_point_vectors": 2,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "b2d114ba-6a55-4a64-bd87-b81115e1bb67",
+          "rmsle": 0.6816747850483945
+        },
+        {
+          "arm": "plain",
+          "config_id": "c7a7a31e2fa9db47",
+          "config": {
+            "model": "random_forest",
+            "window": 365,
+            "lags": 14,
+            "depth": 8
+          },
+          "execution_id": "dedcd77c-4bc1-4074-bdf5-3bf043d7bf43",
+          "rmsle": 0.5516992785248077
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "68848c38-19ee-426c-ad54-65e41572cbe8",
+          "rmsle": 0.6816747850483945
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "18bf2b96-24ab-4592-b877-faeefc2f0a75",
+          "rmsle": 0.6816747850483945
+        },
+        {
+          "arm": "ledger",
+          "config_id": "c7a7a31e2fa9db47",
+          "config": {
+            "model": "random_forest",
+            "window": 365,
+            "lags": 14,
+            "depth": 8
+          },
+          "execution_id": "79648c9c-0307-4702-a972-18c318222171",
+          "rmsle": 0.5516992785248077
+        }
+      ]
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 12,
+      "origin": "2017-01-31T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.7780532232181163,
+          "best_executed_rmsle": 0.7780532232181163
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.7844919885213906,
+          "best_executed_rmsle": 0.7844919885213906
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.7780532232181163,
+          "best_executed_rmsle": 0.7780532232181163
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.7780532232181163,
+      "best_config_ids": [
+        "8d2f9dbe780b7f75"
+      ],
+      "unique_point_vectors": 3,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "29c5383a-ddb8-4569-9065-f6342a7126de",
+          "rmsle": 1.0653011486256434
+        },
+        {
+          "arm": "plain",
+          "config_id": "8d2f9dbe780b7f75",
+          "config": {
+            "model": "random_forest",
+            "window": 365,
+            "lags": 14,
+            "depth": 12
+          },
+          "execution_id": "599e475a-0f0c-4cd9-b5d7-063285feb6bf",
+          "rmsle": 0.7780532232181163
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "93b57d45-a85a-4043-9f74-312c4ec321bb",
+          "rmsle": 1.0653011486256434
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "2a65062ca5c97964",
+          "config": {
+            "model": "random_forest",
+            "window": 730,
+            "lags": 28,
+            "depth": 16
+          },
+          "execution_id": "beb07e65-532b-45d5-a4d6-884790380262",
+          "rmsle": 0.7844919885213906
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "05418ee8-a134-4d44-8636-59e634317c38",
+          "rmsle": 1.0653011486256434
+        },
+        {
+          "arm": "ledger",
+          "config_id": "8d2f9dbe780b7f75",
+          "config": {
+            "model": "random_forest",
+            "window": 365,
+            "lags": 14,
+            "depth": 12
+          },
+          "execution_id": "492012c5-0e5b-40db-84b2-ba1b4333a840",
+          "rmsle": 0.7780532232181163
+        }
+      ]
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 13,
+      "origin": "2017-02-14T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.8096285626848085,
+          "best_executed_rmsle": 0.8096285626848085
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.7565529450311874,
+          "best_executed_rmsle": 0.7565529450311874
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.7844362433253078,
+          "best_executed_rmsle": 0.7844362433253078
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.7565529450311874,
+      "best_config_ids": [
+        "2a65062ca5c97964"
+      ],
+      "unique_point_vectors": 4,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "8444c88d-cca0-4fd9-874b-0c7d173ae5ab",
+          "rmsle": 0.8147093459653165
+        },
+        {
+          "arm": "plain",
+          "config_id": "1cce6ffe78ec6fe6",
+          "config": {
+            "model": "random_forest",
+            "window": 365,
+            "lags": 14,
+            "depth": 6
+          },
+          "execution_id": "cd95dd47-2019-4405-9fd7-a47cebe78bf0",
+          "rmsle": 0.8096285626848085
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "9808cd12-c886-4c16-b550-7d9c09e75707",
+          "rmsle": 0.8147093459653165
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "2a65062ca5c97964",
+          "config": {
+            "model": "random_forest",
+            "window": 730,
+            "lags": 28,
+            "depth": 16
+          },
+          "execution_id": "e2530729-c35a-4905-a812-20469bf8df17",
+          "rmsle": 0.7565529450311874
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "9848856b-641d-497c-ba4a-3b66b99bc3d0",
+          "rmsle": 0.8147093459653165
+        },
+        {
+          "arm": "ledger",
+          "config_id": "9827d2b47b48b72e",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 28,
+            "alpha": 10.0
+          },
+          "execution_id": "80731afe-440a-4c22-8226-2e1d390c0053",
+          "rmsle": 0.7844362433253078
+        }
+      ]
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 14,
+      "origin": "2017-02-28T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.7213800155807936,
+          "best_executed_rmsle": 0.7213800155807936
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.755832500017342,
+          "best_executed_rmsle": 0.755832500017342
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.7074115660974852,
+          "best_executed_rmsle": 0.7074115660974852
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.7074115660974852,
+      "best_config_ids": [
+        "9827d2b47b48b72e"
+      ],
+      "unique_point_vectors": 4,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "dde299bd-0bed-4c09-afec-936c5a793ec3",
+          "rmsle": 1.0412461604773167
+        },
+        {
+          "arm": "plain",
+          "config_id": "8d2f9dbe780b7f75",
+          "config": {
+            "model": "random_forest",
+            "window": 365,
+            "lags": 14,
+            "depth": 12
+          },
+          "execution_id": "8e43f82c-8b51-43d8-937a-c7f7f579cf19",
+          "rmsle": 0.7213800155807936
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "1461e89d-e65f-4bf9-96ac-02e277b9ce9e",
+          "rmsle": 1.0412461604773167
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "4e41e048d5d137e0",
+          "config": {
+            "model": "random_forest",
+            "window": 730,
+            "lags": 28,
+            "depth": 12
+          },
+          "execution_id": "419895dc-bc02-49b5-be8d-a19df9445fa9",
+          "rmsle": 0.755832500017342
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "12262929-ffb3-438a-8b38-bb77088fce45",
+          "rmsle": 1.0412461604773167
+        },
+        {
+          "arm": "ledger",
+          "config_id": "9827d2b47b48b72e",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 28,
+            "alpha": 10.0
+          },
+          "execution_id": "5adbb30b-9cae-4789-9b7d-a64384ac7697",
+          "rmsle": 0.7074115660974852
+        }
+      ]
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 15,
+      "origin": "2017-03-14T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.8144540883161808,
+          "best_executed_rmsle": 0.8144540883161808
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.7531606194016192,
+          "best_executed_rmsle": 0.7531606194016192
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.7531606194016192,
+          "best_executed_rmsle": 0.7531606194016192
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.7531606194016192,
+      "best_config_ids": [
+        "9827d2b47b48b72e"
+      ],
+      "unique_point_vectors": 3,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "512685c8-29e2-49f1-9c0f-8c7adc6fdd65",
+          "rmsle": 1.2300550080718335
+        },
+        {
+          "arm": "plain",
+          "config_id": "05a0f36713b56b19",
+          "config": {
+            "model": "ridge",
+            "window": 730,
+            "lags": 28,
+            "alpha": 100.0
+          },
+          "execution_id": "fa90691d-9ea9-4bd7-8803-21d757a58bcc",
+          "rmsle": 0.8144540883161808
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "bce5a6b1-129f-4d14-9616-dfb0d138089d",
+          "rmsle": 1.2300550080718335
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "9827d2b47b48b72e",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 28,
+            "alpha": 10.0
+          },
+          "execution_id": "69c61c7f-06ca-4a25-80fb-b69cef4892a2",
+          "rmsle": 0.7531606194016192
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "24f76702-4728-4709-97fb-dc99c2c1da3c",
+          "rmsle": 1.2300550080718335
+        },
+        {
+          "arm": "ledger",
+          "config_id": "9827d2b47b48b72e",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 28,
+            "alpha": 10.0
+          },
+          "execution_id": "62bdf719-f990-489b-8542-2abded9f2b7e",
+          "rmsle": 0.7531606194016192
+        }
+      ]
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 16,
+      "origin": "2017-03-28T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.5292732612967299,
+          "best_executed_rmsle": 0.5292732612967299
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.49658253867484003,
+          "best_executed_rmsle": 0.49658253867484003
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.49658253867484003,
+          "best_executed_rmsle": 0.49658253867484003
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.49658253867484003,
+      "best_config_ids": [
+        "9827d2b47b48b72e"
+      ],
+      "unique_point_vectors": 3,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "b0eb18ec-d4fd-4526-b4d1-c6aa86dadbba",
+          "rmsle": 0.9412254606171595
+        },
+        {
+          "arm": "plain",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "f5b67c17-99c0-471b-973b-6609595717f0",
+          "rmsle": 0.5292732612967299
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "e7c8f74c-8ad4-4250-afd3-696e5dd55188",
+          "rmsle": 0.9412254606171595
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "9827d2b47b48b72e",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 28,
+            "alpha": 10.0
+          },
+          "execution_id": "bcc5cc55-a492-4397-bdc3-d294fd090660",
+          "rmsle": 0.49658253867484003
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "a93fbe9b-762b-4531-86fc-2d959ee5a67b",
+          "rmsle": 0.9412254606171595
+        },
+        {
+          "arm": "ledger",
+          "config_id": "9827d2b47b48b72e",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 28,
+            "alpha": 10.0
+          },
+          "execution_id": "d2ea25bb-d8f6-4cb6-9393-ac7d9d9a0361",
+          "rmsle": 0.49658253867484003
+        }
+      ]
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 17,
+      "origin": "2017-04-11T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.5713200425216378,
+          "best_executed_rmsle": 0.557677685849829
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.5111265063516371,
+          "best_executed_rmsle": 0.5111265063516371
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.512341541881074,
+          "best_executed_rmsle": 0.512341541881074
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.5111265063516371,
+      "best_config_ids": [
+        "9827d2b47b48b72e"
+      ],
+      "unique_point_vectors": 4,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "f08b97b5-1c24-49fe-bb5b-c1214eb00cf6",
+          "rmsle": 0.557677685849829
+        },
+        {
+          "arm": "plain",
+          "config_id": "1cce6ffe78ec6fe6",
+          "config": {
+            "model": "random_forest",
+            "window": 365,
+            "lags": 14,
+            "depth": 6
+          },
+          "execution_id": "252d1bee-412d-4126-b8b0-034f9ba62895",
+          "rmsle": 0.5713200425216378
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "ad5a5ca7-ce08-4a35-8a3d-64738ee0c6e2",
+          "rmsle": 0.557677685849829
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "9827d2b47b48b72e",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 28,
+            "alpha": 10.0
+          },
+          "execution_id": "f2101806-fe66-443a-9cae-e3d1f65b125e",
+          "rmsle": 0.5111265063516371
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "d7ecebe1-198a-4e77-8413-ca6106996f6f",
+          "rmsle": 0.557677685849829
+        },
+        {
+          "arm": "ledger",
+          "config_id": "7185e2f665759f9f",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 28,
+            "alpha": 3.0
+          },
+          "execution_id": "fcc90134-a1f1-4fa0-a2f1-7fb35f19f494",
+          "rmsle": 0.512341541881074
+        }
+      ]
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 18,
+      "origin": "2017-04-25T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.7362162775303083,
+          "best_executed_rmsle": 0.5194654915980826
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.7091764178906809,
+          "best_executed_rmsle": 0.5194654915980826
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.7091764178906809,
+          "best_executed_rmsle": 0.5194654915980826
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.5194654915980826,
+      "best_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "unique_point_vectors": 3,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "a1e5dfdb-2ff4-41f4-a693-8b62a8e34a72",
+          "rmsle": 0.5194654915980826
+        },
+        {
+          "arm": "plain",
+          "config_id": "dad9469f1ab8a4ce",
+          "config": {
+            "model": "ridge",
+            "window": 730,
+            "lags": 28,
+            "alpha": 10.0
+          },
+          "execution_id": "c0c80a6a-6e24-495e-8ebe-3ddffd6df80a",
+          "rmsle": 0.7362162775303083
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "d47833a8-3824-48ad-a295-91a1aa2279af",
+          "rmsle": 0.5194654915980826
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "9827d2b47b48b72e",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 28,
+            "alpha": 10.0
+          },
+          "execution_id": "596239c0-d88b-4f2e-a11d-bc8620f3d556",
+          "rmsle": 0.7091764178906809
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "8ecfedd6-acf2-49fa-8806-de9bba51ae84",
+          "rmsle": 0.5194654915980826
+        },
+        {
+          "arm": "ledger",
+          "config_id": "9827d2b47b48b72e",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 28,
+            "alpha": 10.0
+          },
+          "execution_id": "78ae2fa0-da46-475a-a70b-d40dcfc42ed7",
+          "rmsle": 0.7091764178906809
+        }
+      ]
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 19,
+      "origin": "2017-05-09T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.7246044053065896,
+          "best_executed_rmsle": 0.7246044053065896
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.7985428014656182,
+          "best_executed_rmsle": 0.7985428014656182
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.7177286723083012,
+          "best_executed_rmsle": 0.7177286723083012
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.7177286723083012,
+      "best_config_ids": [
+        "0e7c27e84da916b4"
+      ],
+      "unique_point_vectors": 4,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "2e31a3f3-a4ca-48fa-8470-775c5cf6e056",
+          "rmsle": 0.9171803316507771
+        },
+        {
+          "arm": "plain",
+          "config_id": "52b1ac5596c56103",
+          "config": {
+            "model": "random_forest",
+            "window": 365,
+            "lags": 28,
+            "depth": 12
+          },
+          "execution_id": "2cb4ee09-63bd-4b31-8640-c8a39af8af81",
+          "rmsle": 0.7246044053065896
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "2e6c8588-f9b6-44b2-af94-4c26ef3d6131",
+          "rmsle": 0.9171803316507771
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "2a65062ca5c97964",
+          "config": {
+            "model": "random_forest",
+            "window": 730,
+            "lags": 28,
+            "depth": 16
+          },
+          "execution_id": "00de4d3d-fa02-45ae-8fb1-a70f22beebb5",
+          "rmsle": 0.7985428014656182
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "39db4e73-f34a-4e8f-88a5-31f32b88a815",
+          "rmsle": 0.9171803316507771
+        },
+        {
+          "arm": "ledger",
+          "config_id": "0e7c27e84da916b4",
+          "config": {
+            "model": "random_forest",
+            "window": 365,
+            "lags": 28,
+            "depth": 16
+          },
+          "execution_id": "7bdc125f-31e6-4669-8e3a-2436d109a538",
+          "rmsle": 0.7177286723083012
+        }
+      ]
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 0,
+      "origin": "2016-08-16T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 1,
+          "selected_rmsle": 0.32086479593153566,
+          "best_executed_rmsle": 0.32086479593153566
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.1791339731170725,
+          "best_executed_rmsle": 0.1791339731170725
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.1791339731170725,
+          "best_executed_rmsle": 0.1791339731170725
+        }
+      },
+      "unique_executed_configurations": 2,
+      "best_executed_union_rmsle": 0.1791339731170725,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 2,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "ea7621c6-f5ac-4bd2-a900-93b233a35648",
+          "rmsle": 0.32086479593153566
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "10fccf1e-0ce3-4d75-a6ea-9c6ba714e29e",
+          "rmsle": 0.32086479593153566
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "c5f2ccf3-695d-47a9-82c3-bd87564d890e",
+          "rmsle": 0.1791339731170725
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "2d7c896d-8f82-4941-aed7-d13ddd586512",
+          "rmsle": 0.32086479593153566
+        },
+        {
+          "arm": "ledger",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "b5892c87-8047-482f-8ca2-9390b6dae701",
+          "rmsle": 0.1791339731170725
+        }
+      ]
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 1,
+      "origin": "2016-08-30T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.24172748912946956,
+          "best_executed_rmsle": 0.24172748912946956
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.2469270544985641,
+          "best_executed_rmsle": 0.2469270544985641
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.24172748912946956,
+          "best_executed_rmsle": 0.24172748912946956
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.24172748912946956,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 3,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "12d5b6a1-1861-42b6-b7ec-d7b5b57f2049",
+          "rmsle": 0.3705027526090929
+        },
+        {
+          "arm": "plain",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "61f4f4a0-1e7d-410d-86bc-02cf1504658a",
+          "rmsle": 0.24172748912946956
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "de68c5fe-152b-4269-a34f-4a32eb33bbdc",
+          "rmsle": 0.3705027526090929
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "068b05c6ceeacb55",
+          "config": {
+            "model": "ridge",
+            "window": 180,
+            "lags": 14,
+            "alpha": 100.0
+          },
+          "execution_id": "1526a7b9-eb5e-4e9a-92db-564c58d0ef42",
+          "rmsle": 0.2469270544985641
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "fbf3cfdc-6a5f-412d-8f6c-4307efcc213f",
+          "rmsle": 0.3705027526090929
+        },
+        {
+          "arm": "ledger",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "13d327c0-439c-421e-8756-95f408e1269b",
+          "rmsle": 0.24172748912946956
+        }
+      ]
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 2,
+      "origin": "2016-09-13T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.1802660412158594,
+          "best_executed_rmsle": 0.1802660412158594
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.1802660412158594,
+          "best_executed_rmsle": 0.1802660412158594
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.1802660412158594,
+          "best_executed_rmsle": 0.1802660412158594
+        }
+      },
+      "unique_executed_configurations": 2,
+      "best_executed_union_rmsle": 0.1802660412158594,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 2,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "d2255d20-e249-4bae-a655-b00c4da18c3d",
+          "rmsle": 0.32086479593153566
+        },
+        {
+          "arm": "plain",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "fbd2c7aa-0696-419a-8255-720399dc1c3d",
+          "rmsle": 0.1802660412158594
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "18b94c6a-4216-4bea-bcec-579201ff5f1a",
+          "rmsle": 0.32086479593153566
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "997a5800-f961-4282-a37a-a32d1323c67e",
+          "rmsle": 0.1802660412158594
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "1a431552-6734-4655-a649-c8b24dfcd35c",
+          "rmsle": 0.32086479593153566
+        },
+        {
+          "arm": "ledger",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "d26850e5-ea1a-41c9-a982-287d97f8f627",
+          "rmsle": 0.1802660412158594
+        }
+      ]
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 3,
+      "origin": "2016-09-27T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.42899561467006525,
+          "best_executed_rmsle": 0.42899561467006525
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.4524307462574608,
+          "best_executed_rmsle": 0.4524307462574608
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.42899561467006525,
+          "best_executed_rmsle": 0.42899561467006525
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.42899561467006525,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 3,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "d7e8e7f8-0570-4bfe-a714-13253f72c5db",
+          "rmsle": 0.4727398118933461
+        },
+        {
+          "arm": "plain",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "a07fe44c-43bb-4cc7-a5f1-42fdb589ec19",
+          "rmsle": 0.42899561467006525
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "a2ba5975-fd1f-42b3-9962-b3a96f453e74",
+          "rmsle": 0.4727398118933461
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "282fcc20124e9244",
+          "config": {
+            "model": "ridge",
+            "window": 730,
+            "lags": 28,
+            "alpha": 1.0
+          },
+          "execution_id": "ec76ba4b-9344-4823-96e9-daf45e4e2db7",
+          "rmsle": 0.4524307462574608
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "a2ff662f-fed8-4bec-ae65-425e901ccbb1",
+          "rmsle": 0.4727398118933461
+        },
+        {
+          "arm": "ledger",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "0afb219c-beb4-4a40-aadd-3ec238c5a066",
+          "rmsle": 0.42899561467006525
+        }
+      ]
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 4,
+      "origin": "2016-10-11T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.08624727007343573,
+          "best_executed_rmsle": 0.08624727007343573
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.08624727007343573,
+          "best_executed_rmsle": 0.08624727007343573
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.08624727007343573,
+          "best_executed_rmsle": 0.08624727007343573
+        }
+      },
+      "unique_executed_configurations": 2,
+      "best_executed_union_rmsle": 0.08624727007343573,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 2,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "016c4aac-d4d2-4469-84ae-fc7b20586437",
+          "rmsle": 0.49097599224558874
+        },
+        {
+          "arm": "plain",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "53f6946c-2361-4746-a063-22cb4cc3c298",
+          "rmsle": 0.08624727007343573
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "9f70cbf7-1370-42ad-8d83-bf267813b186",
+          "rmsle": 0.49097599224558874
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "d1cd89f3-08fc-42a4-8809-010efd6f721f",
+          "rmsle": 0.08624727007343573
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "86eb9b1f-496d-4539-8e0a-814a1fb02e2a",
+          "rmsle": 0.49097599224558874
+        },
+        {
+          "arm": "ledger",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "8647d7cc-09e7-4cf4-9d09-4ed298fd57fd",
+          "rmsle": 0.08624727007343573
+        }
+      ]
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 5,
+      "origin": "2016-10-25T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.3161985889739919,
+          "best_executed_rmsle": 0.3161985889739919
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.363960739836787,
+          "best_executed_rmsle": 0.363960739836787
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.36132735979231284,
+          "best_executed_rmsle": 0.36132735979231284
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.3161985889739919,
+      "best_config_ids": [
+        "9827d2b47b48b72e"
+      ],
+      "unique_point_vectors": 4,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "ec83445a-536a-4b78-ab11-739b0dac6a77",
+          "rmsle": 0.39350576222400974
+        },
+        {
+          "arm": "plain",
+          "config_id": "9827d2b47b48b72e",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 28,
+            "alpha": 10.0
+          },
+          "execution_id": "ef23ee0d-1fbd-406d-889c-3ebfbe73abef",
+          "rmsle": 0.3161985889739919
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "4475cc03-bf18-4384-a7b8-d2cefb2f8b33",
+          "rmsle": 0.39350576222400974
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "6483a97739e1c4f4",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 1000.0
+          },
+          "execution_id": "07788eea-8cd1-4d8b-8f1f-121994b49897",
+          "rmsle": 0.363960739836787
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "535f8396-0650-4ef7-9add-176d2be40f09",
+          "rmsle": 0.39350576222400974
+        },
+        {
+          "arm": "ledger",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "02754f1d-a78c-4c4d-b430-2360afc0ea2f",
+          "rmsle": 0.36132735979231284
+        }
+      ]
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 6,
+      "origin": "2016-11-08T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.08667261285506467,
+          "best_executed_rmsle": 0.08667261285506467
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.09564293742623686,
+          "best_executed_rmsle": 0.09564293742623686
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.07262704181327873,
+          "best_executed_rmsle": 0.07262704181327873
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.07262704181327873,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 4,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "6d4fe0ae-1715-44eb-a69f-fc0856b6f4d2",
+          "rmsle": 0.5565011858091569
+        },
+        {
+          "arm": "plain",
+          "config_id": "9827d2b47b48b72e",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 28,
+            "alpha": 10.0
+          },
+          "execution_id": "229b3a9e-629f-4180-b647-eefa7fc7f1dd",
+          "rmsle": 0.08667261285506467
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "fb1d2d65-a0eb-4d3b-8fdb-b2df5acd88cd",
+          "rmsle": 0.5565011858091569
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "05a0f36713b56b19",
+          "config": {
+            "model": "ridge",
+            "window": 730,
+            "lags": 28,
+            "alpha": 100.0
+          },
+          "execution_id": "643da53f-70a9-478e-96ef-6b266273ccbb",
+          "rmsle": 0.09564293742623686
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "c6732905-454d-4423-8ecc-20240f8be442",
+          "rmsle": 0.5565011858091569
+        },
+        {
+          "arm": "ledger",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "08881145-6347-4946-a8b2-b8fbcbb841c5",
+          "rmsle": 0.07262704181327873
+        }
+      ]
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 7,
+      "origin": "2016-11-22T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.0874874198712929,
+          "best_executed_rmsle": 0.0
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.0874874198712929,
+          "best_executed_rmsle": 0.0
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.06684794055026877,
+          "best_executed_rmsle": 0.0
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.0,
+      "best_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "unique_point_vectors": 3,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "8ab42c40-094f-413c-9dca-e0408f03e4e8",
+          "rmsle": 0.0
+        },
+        {
+          "arm": "plain",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "41d9116b-c6c3-402f-8abf-aca40c3e7527",
+          "rmsle": 0.0874874198712929
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "598b5fc8-8271-49e1-988a-2b11602951e5",
+          "rmsle": 0.0
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "b2eb0673-e084-48fc-a60b-42152b498723",
+          "rmsle": 0.0874874198712929
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "e63c90ef-35c6-46d9-b9e2-62a7256452be",
+          "rmsle": 0.0
+        },
+        {
+          "arm": "ledger",
+          "config_id": "93756bc2cfca137b",
+          "config": {
+            "model": "ridge",
+            "window": 730,
+            "lags": 21,
+            "alpha": 30.0
+          },
+          "execution_id": "fac5b8d5-18cd-4028-a381-caf7198c0ea3",
+          "rmsle": 0.06684794055026877
+        }
+      ]
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 8,
+      "origin": "2016-12-06T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.2478543641963791,
+          "best_executed_rmsle": 0.2478543641963791
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.24516739253215175,
+          "best_executed_rmsle": 0.24516739253215175
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.24113211634221124,
+          "best_executed_rmsle": 0.24113211634221124
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.24113211634221124,
+      "best_config_ids": [
+        "93756bc2cfca137b"
+      ],
+      "unique_point_vectors": 4,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "8cb5df00-e3d3-4f6e-bc02-06c9851cba35",
+          "rmsle": 0.2619850088181714
+        },
+        {
+          "arm": "plain",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "9e140385-59a7-4cb4-abe2-f970643f6665",
+          "rmsle": 0.2478543641963791
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "c5033211-0c85-4c14-afe8-4851047faad4",
+          "rmsle": 0.2619850088181714
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "05a0f36713b56b19",
+          "config": {
+            "model": "ridge",
+            "window": 730,
+            "lags": 28,
+            "alpha": 100.0
+          },
+          "execution_id": "d289195f-8aab-40ee-bd27-ddffadad1782",
+          "rmsle": 0.24516739253215175
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "c9730e40-eb6a-4394-8a6f-57cd9174a09a",
+          "rmsle": 0.2619850088181714
+        },
+        {
+          "arm": "ledger",
+          "config_id": "93756bc2cfca137b",
+          "config": {
+            "model": "ridge",
+            "window": 730,
+            "lags": 21,
+            "alpha": 30.0
+          },
+          "execution_id": "31171e8b-08a1-4c99-9c98-008aa706022a",
+          "rmsle": 0.24113211634221124
+        }
+      ]
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 9,
+      "origin": "2016-12-20T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.17757463170041507,
+          "best_executed_rmsle": 0.17757463170041507
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.17779249055512253,
+          "best_executed_rmsle": 0.17779249055512253
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.17757463170041507,
+          "best_executed_rmsle": 0.17757463170041507
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.17757463170041507,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 3,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "e515b385-ffcf-4786-a1de-f171249beeb6",
+          "rmsle": 0.32086479593153566
+        },
+        {
+          "arm": "plain",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "6b2b83c4-9545-4119-891c-1ceb5ef242ca",
+          "rmsle": 0.17757463170041507
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "b21da0dd-929e-4b8d-b71e-038c099c9fea",
+          "rmsle": 0.32086479593153566
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "8f9c5f473c244f4e",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 30.0
+          },
+          "execution_id": "6c414766-4ea9-4099-83b6-f90d3fcddb62",
+          "rmsle": 0.17779249055512253
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "dbd79f55-c89f-48ec-98bc-48574f0db86f",
+          "rmsle": 0.32086479593153566
+        },
+        {
+          "arm": "ledger",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "b20bf58d-6347-433f-8e34-9190c9d15fa5",
+          "rmsle": 0.17757463170041507
+        }
+      ]
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 10,
+      "origin": "2017-01-03T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.08764227213738825,
+          "best_executed_rmsle": 0.0
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.08764227213738825,
+          "best_executed_rmsle": 0.0
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.07678500211815623,
+          "best_executed_rmsle": 0.0
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.0,
+      "best_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "unique_point_vectors": 3,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "175e6c5c-64d2-4466-9b1c-9f5eac51dc13",
+          "rmsle": 0.0
+        },
+        {
+          "arm": "plain",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "4889bf54-6eb2-47cd-a8f4-25b9563174fa",
+          "rmsle": 0.08764227213738825
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "a231f0b2-7d15-49c4-b6de-fc0de1614319",
+          "rmsle": 0.0
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "a71d7a74-30d2-4795-90a8-a5947749296a",
+          "rmsle": 0.08764227213738825
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "6c313fa9-e780-4721-aa74-70e48b2387e7",
+          "rmsle": 0.0
+        },
+        {
+          "arm": "ledger",
+          "config_id": "93756bc2cfca137b",
+          "config": {
+            "model": "ridge",
+            "window": 730,
+            "lags": 21,
+            "alpha": 30.0
+          },
+          "execution_id": "c1c86583-2760-40bf-b004-0edba974b642",
+          "rmsle": 0.07678500211815623
+        }
+      ]
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 11,
+      "origin": "2017-01-17T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.1264543061353607,
+          "best_executed_rmsle": 0.1264543061353607
+        },
+        "gnomon": {
+          "executed_forecasts": 1,
+          "selected_rmsle": 0.2936164846496898,
+          "best_executed_rmsle": 0.2936164846496898
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.13121210626786844,
+          "best_executed_rmsle": 0.13121210626786844
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.1264543061353607,
+      "best_config_ids": [
+        "fad629e67119d702"
+      ],
+      "unique_point_vectors": 3,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "93d37fb4-a17b-45d0-9054-fee57f7f5e29",
+          "rmsle": 0.2936164846496898
+        },
+        {
+          "arm": "plain",
+          "config_id": "fad629e67119d702",
+          "config": {
+            "model": "ridge",
+            "window": 730,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "4bb494c0-9a73-4e16-9f06-63ed0827e481",
+          "rmsle": 0.1264543061353607
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "cde8f001-1a0d-41a8-8427-2d1bc1b65c23",
+          "rmsle": 0.2936164846496898
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "609f864e-3071-48a0-9390-d1d63873aadd",
+          "rmsle": 0.2936164846496898
+        },
+        {
+          "arm": "ledger",
+          "config_id": "93756bc2cfca137b",
+          "config": {
+            "model": "ridge",
+            "window": 730,
+            "lags": 21,
+            "alpha": 30.0
+          },
+          "execution_id": "59bbff0a-54f9-4c29-96c3-6c35d242aee9",
+          "rmsle": 0.13121210626786844
+        }
+      ]
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 12,
+      "origin": "2017-01-31T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.09026621714209752,
+          "best_executed_rmsle": 0.09026621714209752
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.09026621714209752,
+          "best_executed_rmsle": 0.09026621714209752
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.09026621714209752,
+          "best_executed_rmsle": 0.09026621714209752
+        }
+      },
+      "unique_executed_configurations": 2,
+      "best_executed_union_rmsle": 0.09026621714209752,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 2,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "37d1f622-73fd-4cf8-803f-a5b884c3614a",
+          "rmsle": 0.5247623246616215
+        },
+        {
+          "arm": "plain",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "5e6e268f-d85f-4741-94a3-bf19bfe1f4ba",
+          "rmsle": 0.09026621714209752
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "5faec398-e2a2-4868-9473-4a4eab444bc0",
+          "rmsle": 0.5247623246616215
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "31d9b140-6c60-4004-aef7-b21a936a317d",
+          "rmsle": 0.09026621714209752
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "48cb8601-c25a-4916-bc1a-732d71044738",
+          "rmsle": 0.5247623246616215
+        },
+        {
+          "arm": "ledger",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "fdc55a77-434b-4d03-96ee-8f5d8c45f259",
+          "rmsle": 0.09026621714209752
+        }
+      ]
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 13,
+      "origin": "2017-02-14T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.18041460968544915,
+          "best_executed_rmsle": 0.18041460968544915
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.18041460968544915,
+          "best_executed_rmsle": 0.18041460968544915
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.18041460968544915,
+          "best_executed_rmsle": 0.18041460968544915
+        }
+      },
+      "unique_executed_configurations": 2,
+      "best_executed_union_rmsle": 0.18041460968544915,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 2,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "03203bc4-463f-4ae3-b6fa-fe785c9e27e4",
+          "rmsle": 0.18525137630454644
+        },
+        {
+          "arm": "plain",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "48af2c2e-a099-43ad-8152-3cecae0da961",
+          "rmsle": 0.18041460968544915
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "138234ff-fba9-4e19-9cf7-d5631d074815",
+          "rmsle": 0.18525137630454644
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "0b4fe005-7cf9-4118-b40a-0f27e1412114",
+          "rmsle": 0.18041460968544915
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "d633d37b-29df-4536-bd52-7f3adadd50f6",
+          "rmsle": 0.18525137630454644
+        },
+        {
+          "arm": "ledger",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "2db2cbd4-a98a-49e0-8583-34d3ea70d888",
+          "rmsle": 0.18041460968544915
+        }
+      ]
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 14,
+      "origin": "2017-02-28T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.23715677982813074,
+          "best_executed_rmsle": 0.23715677982813074
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.23737124651383817,
+          "best_executed_rmsle": 0.23737124651383817
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.23715677982813074,
+          "best_executed_rmsle": 0.23715677982813074
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.23715677982813074,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 3,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "140e833e-b6c6-4b24-80bf-9047ce355e70",
+          "rmsle": 0.2619850088181714
+        },
+        {
+          "arm": "plain",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "46fbd039-dfb6-4c45-a731-cad4dd536138",
+          "rmsle": 0.23715677982813074
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "60900804-dc40-4637-a6e6-ce3eaf02a6b2",
+          "rmsle": 0.2619850088181714
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "8f9c5f473c244f4e",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 30.0
+          },
+          "execution_id": "bf78969c-a811-4e27-9065-fa9e9b458372",
+          "rmsle": 0.23737124651383817
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "fe9ee1f4-b9e2-4f44-91f9-7bcc78c94fcb",
+          "rmsle": 0.2619850088181714
+        },
+        {
+          "arm": "ledger",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "7a7b0f4f-1a89-49e3-aadf-7457c1d3e21c",
+          "rmsle": 0.23715677982813074
+        }
+      ]
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 15,
+      "origin": "2017-03-14T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.40879943104405025,
+          "best_executed_rmsle": 0.40879943104405025
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.40770765673984444,
+          "best_executed_rmsle": 0.40770765673984444
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.40879943104405025,
+          "best_executed_rmsle": 0.40879943104405025
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.40770765673984444,
+      "best_config_ids": [
+        "8f9c5f473c244f4e"
+      ],
+      "unique_point_vectors": 3,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "468de663-332f-4d7a-b7ab-e05dd28c06b6",
+          "rmsle": 0.49012907173427356
+        },
+        {
+          "arm": "plain",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "4e36bbc8-4b90-4208-8967-b70fa03e792f",
+          "rmsle": 0.40879943104405025
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "2a66d871-9461-4421-beb9-674df7cb930d",
+          "rmsle": 0.49012907173427356
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "8f9c5f473c244f4e",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 30.0
+          },
+          "execution_id": "872552f7-9cd9-4c60-86f5-bb37c6e9a1c1",
+          "rmsle": 0.40770765673984444
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "582fb27b-459e-436f-94cb-8f636b11dcde",
+          "rmsle": 0.49012907173427356
+        },
+        {
+          "arm": "ledger",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "b284c8e7-d409-4d46-a7b5-d9d49a3374d4",
+          "rmsle": 0.40879943104405025
+        }
+      ]
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 16,
+      "origin": "2017-03-28T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.2574450186399509,
+          "best_executed_rmsle": 0.2574450186399509
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.25096439273352317,
+          "best_executed_rmsle": 0.25096439273352317
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.2574450186399509,
+          "best_executed_rmsle": 0.2574450186399509
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.25096439273352317,
+      "best_config_ids": [
+        "0023e07aa55166e2"
+      ],
+      "unique_point_vectors": 3,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "80699650-eb1f-4360-96f1-f11c5eef92fc",
+          "rmsle": 0.2619850088181714
+        },
+        {
+          "arm": "plain",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "3d873043-e701-4481-8099-c17b43da4358",
+          "rmsle": 0.2574450186399509
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "29d59ec3-62a3-4d8c-8f59-b2b2ba3c30d8",
+          "rmsle": 0.2619850088181714
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "0023e07aa55166e2",
+          "config": {
+            "model": "ridge",
+            "window": 730,
+            "lags": 14,
+            "alpha": 100.0
+          },
+          "execution_id": "ac4183f7-52c8-4391-8bcb-2458867a1bbb",
+          "rmsle": 0.25096439273352317
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "1f7bf4d3-648c-4fad-a726-33a718564284",
+          "rmsle": 0.2619850088181714
+        },
+        {
+          "arm": "ledger",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "2e74ae53-ac78-4379-bc36-09cd1a6f8dc7",
+          "rmsle": 0.2574450186399509
+        }
+      ]
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 17,
+      "origin": "2017-04-11T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.32188019445646304,
+          "best_executed_rmsle": 0.32188019445646304
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.33373270638576574,
+          "best_executed_rmsle": 0.33373270638576574
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.32188019445646304,
+          "best_executed_rmsle": 0.32188019445646304
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.32188019445646304,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 3,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "361e6ab7-0bfe-45ee-9c79-d13f3ebc1ed3",
+          "rmsle": 0.4349308649960676
+        },
+        {
+          "arm": "plain",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "31594774-3022-46d5-9726-1ba8333b5dad",
+          "rmsle": 0.32188019445646304
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "7edb5bf1-2fbb-45ca-bf49-1d4b2166e053",
+          "rmsle": 0.4349308649960676
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "05a0f36713b56b19",
+          "config": {
+            "model": "ridge",
+            "window": 730,
+            "lags": 28,
+            "alpha": 100.0
+          },
+          "execution_id": "e31340dc-07c7-4bb3-a2ca-dca5bc4d0ad9",
+          "rmsle": 0.33373270638576574
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "f10dd1ef-5db6-4766-a902-3c8fcc1adc39",
+          "rmsle": 0.4349308649960676
+        },
+        {
+          "arm": "ledger",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "57fd1a1d-408e-455b-a5e5-8d56878da569",
+          "rmsle": 0.32188019445646304
+        }
+      ]
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 18,
+      "origin": "2017-04-25T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.2550126616928281,
+          "best_executed_rmsle": 0.2550126616928281
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.23549183513961858,
+          "best_executed_rmsle": 0.23549183513961858
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.2550126616928281,
+          "best_executed_rmsle": 0.2550126616928281
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.23549183513961858,
+      "best_config_ids": [
+        "05a0f36713b56b19"
+      ],
+      "unique_point_vectors": 3,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "9361a137-c485-4fc0-806b-4984ba0be6cf",
+          "rmsle": 0.49097599224558874
+        },
+        {
+          "arm": "plain",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "0fd24264-c5cc-4d1a-bec5-3a7ce1b356a6",
+          "rmsle": 0.2550126616928281
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "68fee9ca-9b03-4b76-afea-231e98278653",
+          "rmsle": 0.49097599224558874
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "05a0f36713b56b19",
+          "config": {
+            "model": "ridge",
+            "window": 730,
+            "lags": 28,
+            "alpha": 100.0
+          },
+          "execution_id": "3c6e14a0-caa3-4900-9705-6663abe6b81a",
+          "rmsle": 0.23549183513961858
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "c1149400-f5c6-47f5-aaa0-436ba3606224",
+          "rmsle": 0.49097599224558874
+        },
+        {
+          "arm": "ledger",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "bf1331e4-5fcf-4a96-9eb7-b348e71b19c4",
+          "rmsle": 0.2550126616928281
+        }
+      ]
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 19,
+      "origin": "2017-05-09T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.07402803553578559,
+          "best_executed_rmsle": 0.07402803553578559
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.07521083371088463,
+          "best_executed_rmsle": 0.07521083371088463
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.07402803553578559,
+          "best_executed_rmsle": 0.07402803553578559
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.07402803553578559,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 3,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "9af1c6e3-9fd9-4451-ba6f-74bd7d9d3443",
+          "rmsle": 0.2619850088181714
+        },
+        {
+          "arm": "plain",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "300f6458-616f-4d1e-9702-bc33b82f210e",
+          "rmsle": 0.07402803553578559
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "6c8fe981-3d6e-4366-b756-bfe773ae630f",
+          "rmsle": 0.2619850088181714
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "282fcc20124e9244",
+          "config": {
+            "model": "ridge",
+            "window": 730,
+            "lags": 28,
+            "alpha": 1.0
+          },
+          "execution_id": "896daa11-1392-4cf4-8630-7a8553e3095f",
+          "rmsle": 0.07521083371088463
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "7e4f2dd6-4190-4a56-8069-070694cc8632",
+          "rmsle": 0.2619850088181714
+        },
+        {
+          "arm": "ledger",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "153e134e-4f84-4e3f-b87c-a0f8dded9357",
+          "rmsle": 0.07402803553578559
+        }
+      ]
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 20,
+      "origin": "2017-05-23T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.2420346316949476,
+          "best_executed_rmsle": 0.2420346316949476
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.23022048413004337,
+          "best_executed_rmsle": 0.23022048413004337
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.23996283159753026,
+          "best_executed_rmsle": 0.23996283159753026
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.23022048413004337,
+      "best_config_ids": [
+        "282fcc20124e9244"
+      ],
+      "unique_point_vectors": 4,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "3817ac96-7b79-44fd-818b-4589ee191f8c",
+          "rmsle": 0.2619850088181714
+        },
+        {
+          "arm": "plain",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "14b676c1-f29c-41ed-bd5e-f76f80436145",
+          "rmsle": 0.2420346316949476
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "ba3dc1cd-b3fe-4733-946a-ba2cf55453f6",
+          "rmsle": 0.2619850088181714
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "282fcc20124e9244",
+          "config": {
+            "model": "ridge",
+            "window": 730,
+            "lags": 28,
+            "alpha": 1.0
+          },
+          "execution_id": "ebd9cb84-4d34-4895-9c71-f227c7d9a620",
+          "rmsle": 0.23022048413004337
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "9b867e4b-0453-4536-b660-b2dc8baee300",
+          "rmsle": 0.2619850088181714
+        },
+        {
+          "arm": "ledger",
+          "config_id": "93756bc2cfca137b",
+          "config": {
+            "model": "ridge",
+            "window": 730,
+            "lags": 21,
+            "alpha": 30.0
+          },
+          "execution_id": "1683050d-70a1-4802-9904-751c1534a714",
+          "rmsle": 0.23996283159753026
+        }
+      ]
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 21,
+      "origin": "2017-06-06T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.20492272563629804,
+          "best_executed_rmsle": 0.20492272563629804
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.2027384119446657,
+          "best_executed_rmsle": 0.2027384119446657
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.187396195976406,
+          "best_executed_rmsle": 0.187396195976406
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.187396195976406,
+      "best_config_ids": [
+        "d697af36c186fcc1"
+      ],
+      "unique_point_vectors": 4,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "a71fcd1d-9460-41da-9348-45f75916dfed",
+          "rmsle": 0.4142346703423596
+        },
+        {
+          "arm": "plain",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "abf93db0-9ce2-4a7a-b1e8-6f1d41a198ce",
+          "rmsle": 0.20492272563629804
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "b5c6cc69-23bf-4ac7-a8b1-23e99595a6ca",
+          "rmsle": 0.4142346703423596
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "282fcc20124e9244",
+          "config": {
+            "model": "ridge",
+            "window": 730,
+            "lags": 28,
+            "alpha": 1.0
+          },
+          "execution_id": "89216793-58d0-4877-bf29-062b36b8a0bc",
+          "rmsle": 0.2027384119446657
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "0d7d252f-f617-4ad5-9d4d-6bd0f9eb0e3e",
+          "rmsle": 0.4142346703423596
+        },
+        {
+          "arm": "ledger",
+          "config_id": "d697af36c186fcc1",
+          "config": {
+            "model": "random_forest",
+            "window": 730,
+            "lags": 21,
+            "depth": 6
+          },
+          "execution_id": "6ef14b95-c017-4bed-9494-e6967af8b0fe",
+          "rmsle": 0.187396195976406
+        }
+      ]
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 22,
+      "origin": "2017-06-20T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.3964206129942935,
+          "best_executed_rmsle": 0.3964206129942935
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.394271490305918,
+          "best_executed_rmsle": 0.394271490305918
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.4025678248899537,
+          "best_executed_rmsle": 0.4025678248899537
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.394271490305918,
+      "best_config_ids": [
+        "282fcc20124e9244"
+      ],
+      "unique_point_vectors": 4,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "55699ebd-75e9-4f0c-8f2e-9cca61bc2fdb",
+          "rmsle": 0.49012907173427356
+        },
+        {
+          "arm": "plain",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "cc504882-0b6d-4452-8f11-68ca48ab2be4",
+          "rmsle": 0.3964206129942935
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "9ce03099-2353-4a6e-8292-9fd618d923e5",
+          "rmsle": 0.49012907173427356
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "282fcc20124e9244",
+          "config": {
+            "model": "ridge",
+            "window": 730,
+            "lags": 28,
+            "alpha": 1.0
+          },
+          "execution_id": "e6141ae6-78c5-4bcd-ba8a-cb1d33e93552",
+          "rmsle": 0.394271490305918
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "bc14075b-76b1-495f-ad87-13ddd8648137",
+          "rmsle": 0.49012907173427356
+        },
+        {
+          "arm": "ledger",
+          "config_id": "d697af36c186fcc1",
+          "config": {
+            "model": "random_forest",
+            "window": 730,
+            "lags": 21,
+            "depth": 6
+          },
+          "execution_id": "29ad0ca5-66ba-4caf-a2f9-998e3e6908a6",
+          "rmsle": 0.4025678248899537
+        }
+      ]
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 0,
+      "origin": "2016-08-16T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.5724006373904262,
+          "best_executed_rmsle": 0.5724006373904262
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.5724006373904262,
+          "best_executed_rmsle": 0.5724006373904262
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.5724006373904262,
+          "best_executed_rmsle": 0.5724006373904262
+        }
+      },
+      "unique_executed_configurations": 2,
+      "best_executed_union_rmsle": 0.5724006373904262,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 2,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "989cc057-48fb-4c4c-8c2c-c694c54c7f41",
+          "rmsle": 0.9117494568388227
+        },
+        {
+          "arm": "plain",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "9cbd169a-08a7-4528-9633-d596cf832a8e",
+          "rmsle": 0.5724006373904262
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "fa88ca84-b6b6-4372-ba41-834008427790",
+          "rmsle": 0.9117494568388227
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "4a5c6c31-e983-461d-bf6a-c1d045be2e3e",
+          "rmsle": 0.5724006373904262
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "5b12cc4e-4ef9-4463-8e0a-693f5a7ecbf6",
+          "rmsle": 0.9117494568388227
+        },
+        {
+          "arm": "ledger",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "e70e2f85-6df6-4383-83e6-450a3b60c25c",
+          "rmsle": 0.5724006373904262
+        }
+      ]
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 1,
+      "origin": "2016-08-30T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.5002340471868708,
+          "best_executed_rmsle": 0.5002340471868708
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.5214333194856963,
+          "best_executed_rmsle": 0.5214333194856963
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.49466504964387814,
+          "best_executed_rmsle": 0.49466504964387814
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.49466504964387814,
+      "best_config_ids": [
+        "1cce6ffe78ec6fe6"
+      ],
+      "unique_point_vectors": 4,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "58cf5de3-b17d-496a-8d6e-1741dc00715b",
+          "rmsle": 0.607776958381726
+        },
+        {
+          "arm": "plain",
+          "config_id": "c3e70a3c91f9075b",
+          "config": {
+            "model": "random_forest",
+            "window": 365,
+            "lags": 14,
+            "depth": 4
+          },
+          "execution_id": "d3be72d5-9308-4d41-aa16-258087c43ec6",
+          "rmsle": 0.5002340471868708
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "b2f55dfb-01df-498d-b2fa-ff697c8bcb98",
+          "rmsle": 0.607776958381726
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "dc6ed0e0-1dcc-46eb-8ba6-cbf38201c853",
+          "rmsle": 0.5214333194856963
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "639545eb-3646-44e6-8632-ce924801162c",
+          "rmsle": 0.607776958381726
+        },
+        {
+          "arm": "ledger",
+          "config_id": "1cce6ffe78ec6fe6",
+          "config": {
+            "model": "random_forest",
+            "window": 365,
+            "lags": 14,
+            "depth": 6
+          },
+          "execution_id": "c057106e-cdb3-4881-bd51-fce2c72e885c",
+          "rmsle": 0.49466504964387814
+        }
+      ]
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 2,
+      "origin": "2016-09-13T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.31032515446341663,
+          "best_executed_rmsle": 0.31032515446341663
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.3833855406964031,
+          "best_executed_rmsle": 0.3833855406964031
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.31032515446341663,
+          "best_executed_rmsle": 0.31032515446341663
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.31032515446341663,
+      "best_config_ids": [
+        "282fcc20124e9244"
+      ],
+      "unique_point_vectors": 3,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "6b064aaa-ab0d-4f3d-a4ea-6cb2b87a384d",
+          "rmsle": 0.49097599224558874
+        },
+        {
+          "arm": "plain",
+          "config_id": "282fcc20124e9244",
+          "config": {
+            "model": "ridge",
+            "window": 730,
+            "lags": 28,
+            "alpha": 1.0
+          },
+          "execution_id": "5c1bb17f-9859-438a-a449-56c15df4f312",
+          "rmsle": 0.31032515446341663
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "608dc432-e29f-4d28-a245-366ee8ea3b1f",
+          "rmsle": 0.49097599224558874
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "3f3999609dae0266",
+          "config": {
+            "model": "ridge",
+            "window": 180,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "b0e519cc-514b-439c-b6e5-22c69515979c",
+          "rmsle": 0.3833855406964031
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "1e3b5941-001f-47cb-95fd-a1bf8d7ed252",
+          "rmsle": 0.49097599224558874
+        },
+        {
+          "arm": "ledger",
+          "config_id": "282fcc20124e9244",
+          "config": {
+            "model": "ridge",
+            "window": 730,
+            "lags": 28,
+            "alpha": 1.0
+          },
+          "execution_id": "3fd040e9-c104-45be-8a91-d7f00b8d9ea2",
+          "rmsle": 0.31032515446341663
+        }
+      ]
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 0,
+      "origin": "2016-08-16T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.5026168607130874,
+          "best_executed_rmsle": 0.5026168607130874
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.48748573016812163,
+          "best_executed_rmsle": 0.48748573016812163
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.5026168607130874,
+          "best_executed_rmsle": 0.5026168607130874
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.48748573016812163,
+      "best_config_ids": [
+        "03c5c6ff404b1d50"
+      ],
+      "unique_point_vectors": 3,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "9a5afae9-ec20-4e26-bc89-ef8634e4f17c",
+          "rmsle": 0.6629978564722295
+        },
+        {
+          "arm": "plain",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "10fb563b-9a5a-4cf7-a2e6-2f29768405da",
+          "rmsle": 0.5026168607130874
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "7d950b07-d753-402b-979c-be3a3b5811be",
+          "rmsle": 0.6629978564722295
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "03c5c6ff404b1d50",
+          "config": {
+            "model": "ridge",
+            "window": 730,
+            "lags": 21,
+            "alpha": 1.0
+          },
+          "execution_id": "9fc298be-c4d7-49a4-9f92-ffbbc9c2a5e5",
+          "rmsle": 0.48748573016812163
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "c9fe4799-904f-4b3d-9298-eb3ca5a8eaa6",
+          "rmsle": 0.6629978564722295
+        },
+        {
+          "arm": "ledger",
+          "config_id": "02279b66149d6867",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 14,
+            "alpha": 10.0
+          },
+          "execution_id": "03ccbcdd-5f2d-499d-a684-0cf371dcd153",
+          "rmsle": 0.5026168607130874
+        }
+      ]
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 1,
+      "origin": "2016-08-30T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.47872090375707876,
+          "best_executed_rmsle": 0.47872090375707876
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.48310843618625327,
+          "best_executed_rmsle": 0.48310843618625327
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.4822582615046281,
+          "best_executed_rmsle": 0.4822582615046281
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.47872090375707876,
+      "best_config_ids": [
+        "9827d2b47b48b72e"
+      ],
+      "unique_point_vectors": 4,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "31351184-5d2b-42a5-971a-d86c09eaacfc",
+          "rmsle": 0.5277451801069839
+        },
+        {
+          "arm": "plain",
+          "config_id": "9827d2b47b48b72e",
+          "config": {
+            "model": "ridge",
+            "window": 365,
+            "lags": 28,
+            "alpha": 10.0
+          },
+          "execution_id": "e6ee77ae-bc35-40bd-998d-e9b7b080cb9f",
+          "rmsle": 0.47872090375707876
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "513113f2-85b8-4250-9b94-52dc5a2ca65f",
+          "rmsle": 0.5277451801069839
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "03c5c6ff404b1d50",
+          "config": {
+            "model": "ridge",
+            "window": 730,
+            "lags": 21,
+            "alpha": 1.0
+          },
+          "execution_id": "a9794258-7bb0-47b9-9bd3-2573d201b87e",
+          "rmsle": 0.48310843618625327
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "961f9b1f-78c5-42b5-93e9-876cbab8af06",
+          "rmsle": 0.5277451801069839
+        },
+        {
+          "arm": "ledger",
+          "config_id": "c7a7a31e2fa9db47",
+          "config": {
+            "model": "random_forest",
+            "window": 365,
+            "lags": 14,
+            "depth": 8
+          },
+          "execution_id": "91ca0adf-18a5-4642-9dd1-677c332173a2",
+          "rmsle": 0.4822582615046281
+        }
+      ]
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 2,
+      "origin": "2016-09-13T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.5201282237113892,
+          "best_executed_rmsle": 0.5201282237113892
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.4895802072512463,
+          "best_executed_rmsle": 0.4895802072512463
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.5255797109224214,
+          "best_executed_rmsle": 0.5255797109224214
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.4895802072512463,
+      "best_config_ids": [
+        "73175b13d0a848e1"
+      ],
+      "unique_point_vectors": 4,
+      "executions": [
+        {
+          "arm": "plain",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "63be2ffa-affd-4435-a109-c8e393fae0ed",
+          "rmsle": 0.6755861788815326
+        },
+        {
+          "arm": "plain",
+          "config_id": "7e7c8878062b5286",
+          "config": {
+            "model": "random_forest",
+            "window": 365,
+            "lags": 28,
+            "depth": 8
+          },
+          "execution_id": "be66d4a1-41b6-401b-aeea-6908cc1836fe",
+          "rmsle": 0.5201282237113892
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "0b9efa76-6153-4c80-9169-d243d5c17313",
+          "rmsle": 0.6755861788815326
+        },
+        {
+          "arm": "gnomon",
+          "config_id": "73175b13d0a848e1",
+          "config": {
+            "model": "random_forest",
+            "window": 730,
+            "lags": 21,
+            "depth": 8
+          },
+          "execution_id": "f0b4c37b-1b15-43e8-9fc8-eadeafaa9555",
+          "rmsle": 0.4895802072512463
+        },
+        {
+          "arm": "ledger",
+          "config_id": "5ee336af9243f066",
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "execution_id": "e30be224-2984-48c6-9d21-4d65fd486f95",
+          "rmsle": 0.6755861788815326
+        },
+        {
+          "arm": "ledger",
+          "config_id": "c3e70a3c91f9075b",
+          "config": {
+            "model": "random_forest",
+            "window": 365,
+            "lags": 14,
+            "depth": 4
+          },
+          "execution_id": "717ef64f-8bb9-4b8e-84bc-b725df91f4b2",
+          "rmsle": 0.5255797109224214
+        }
+      ]
+    }
+  ],
+  "source_files": {
+    "results/guarded-history-093-pilot-final-001/independent-audit/report.json": "0cf1ae70883b38aebb2cc3a376e8e299ab93ec638944abebe7dd5f0de155f816",
+    "results/guarded-history-093-development-audit-002/audit/report.json": "52498eb8b2767388568d2ac9126139a82105129a2372deff8aa6cac552dce271",
+    "results/guarded-history-093-development-audit-003/audit/report.json": "08c6ca07a14bfbd1be0f87d69d717e4dbed3045381394bd739296f05051fc08b",
+    "results/guarded-history-093-development-audit-004/audit/report.json": "b8c61b2f1fd2be7f92fe8eef372c1c587f6338e3163e44cf1ae4367070fbdd35",
+    "results/guarded-history-093-development-audit-005/audit/report.json": "edebe3c6e8bd23ce49c229a4ef735fe668dbcb9a916994089dff6c38f775f9f0",
+    "results/guarded-history-093-development-audit-006/audit/report.json": "9addd32a3471b019ba06023afc8b0e46d40da5cd8fe8ca282711b6cc8e8e7998",
+    "results/guarded-history-093-development-audit-007/audit/report.json": "6a15675c79321d35df07b7f989ed9a00bc7a558071257792bc107a0b54e56893",
+    "results/guarded-history-093-development-audit-008/audit/report.json": "a3a30062e324d5a705b173bc07fa89be8bf9734229c28d68825f67edcf0f1efb",
+    "results/guarded-history-093-development-audit-008/snapshot/host-jobs.json": "380261912295bbe21f3c998a8c6f7048cde1fb0869d37bb4db44ad3a72b28f25",
+    "results/guarded-history-093-pilot-final-001/original/plain/item_1047756_store_23/round-0/project/experiments.jsonl": "f0ccea01bc6090e9f4692446110b540e3ce17ec23d2afa1e4d00d66e1a81046d",
+    "results/guarded-history-093-pilot-final-001/original/gnomon/item_1047756_store_23/round-0/project/experiments.jsonl": "2e32692e9ce0eaeddb3c3d016178cd268334d17b10f91b6e2905b4a79b0a59aa",
+    "results/guarded-history-093-pilot-final-001/original/ledger/item_1047756_store_23/round-0/project/experiments.jsonl": "0192cd0a3653e776530a5bb5dd08ac0d13747862c8f64f8f179c1d9727416b87",
+    "results/guarded-history-093-pilot-final-001/original/plain/item_1047756_store_23/round-1/project/experiments.jsonl": "d8f292b45690668abe0648d3dcd31b945a25d15564ee6855c6ea89a3dca7477c",
+    "results/guarded-history-093-pilot-final-001/original/gnomon/item_1047756_store_23/round-1/project/experiments.jsonl": "fc6c30aa4515736dd11b4d13f8c07ace06aac0cf95fa791d323c8a345adc6d6e",
+    "results/guarded-history-093-pilot-final-001/original/ledger/item_1047756_store_23/round-1/project/experiments.jsonl": "491ed181516ca2c83d068b9693a91548bbd04672ee4a4821ed31d872c9cf1e1d",
+    "results/guarded-history-093-pilot-final-001/original/plain/item_1047756_store_23/round-2/project/experiments.jsonl": "4add8aab272dc3e448d3438b2e7c0156d528ac329f977a74abab8d5628e6f29d",
+    "results/guarded-history-093-pilot-final-001/original/gnomon/item_1047756_store_23/round-2/project/experiments.jsonl": "0276447bae4786d1e21d67d5ead47478772ae713022f0b5bfec5616c51ec7aeb",
+    "results/guarded-history-093-pilot-final-001/original/ledger/item_1047756_store_23/round-2/project/experiments.jsonl": "4551b08e818702f17e16db0fd76faa1bec79b5550afac4fd73da4f46ff3038a9",
+    "results/guarded-history-093-development-audit-002/snapshot/plain/item_1047756_store_23/round-3/project/experiments.jsonl": "f7178e44867e8e6db113d14938354545bb293f361168ce7325635f683fbbf473",
+    "results/guarded-history-093-development-audit-002/snapshot/gnomon/item_1047756_store_23/round-3/project/experiments.jsonl": "a951da9161ed83b985b0b99c2f443426fa1b0a5857b4b8197d4857e38a9a1947",
+    "results/guarded-history-093-development-audit-002/snapshot/ledger/item_1047756_store_23/round-3/project/experiments.jsonl": "194a32343875e3c28ed94e1c6a9608634497ea13af5ceee8b2bd22169907b808",
+    "results/guarded-history-093-development-audit-002/snapshot/plain/item_1047756_store_23/round-4/project/experiments.jsonl": "3bf9b65ab1ea975169bf60a22f79d27f96e882d2a7a206eb91cba261c596ef1d",
+    "results/guarded-history-093-development-audit-002/snapshot/gnomon/item_1047756_store_23/round-4/project/experiments.jsonl": "d566c279df14831b0817ce8fb586b4bef9a8b5b6a48365e9d6ca5d6850e4a0c1",
+    "results/guarded-history-093-development-audit-002/snapshot/ledger/item_1047756_store_23/round-4/project/experiments.jsonl": "ab4b4db3bd406fcfd5ed64affc3a03af9bbc79d2675848c192dfee2184404e03",
+    "results/guarded-history-093-development-audit-002/snapshot/plain/item_1047756_store_23/round-5/project/experiments.jsonl": "3499cb808e42150099340a138b2ea105c09d4a27e4ee98b8b5497ff551941102",
+    "results/guarded-history-093-development-audit-002/snapshot/gnomon/item_1047756_store_23/round-5/project/experiments.jsonl": "941a1368742ab6f60569c302013d64a5e4e40daf748a448c54d977011a479675",
+    "results/guarded-history-093-development-audit-002/snapshot/ledger/item_1047756_store_23/round-5/project/experiments.jsonl": "0e4809d507c3e0776aead315eeaa8803097dcb835e11d42793832d039b268440",
+    "results/guarded-history-093-development-audit-003/snapshot/plain/item_1047756_store_23/round-6/project/experiments.jsonl": "507cb75409d6268a448ac892fca41c7e0139a93e987ddcaa92c4024b6af60f6b",
+    "results/guarded-history-093-development-audit-003/snapshot/gnomon/item_1047756_store_23/round-6/project/experiments.jsonl": "fb5ea00b2e482c9302192b0bb76fb31bacf93f1c603dc778229e3929e52d5d0f",
+    "results/guarded-history-093-development-audit-003/snapshot/ledger/item_1047756_store_23/round-6/project/experiments.jsonl": "9ca2f69fa5163f21fc0e0444ce2f6fc6e5d80e9af5de15215e452c9e50372173",
+    "results/guarded-history-093-development-audit-003/snapshot/plain/item_1047756_store_23/round-7/project/experiments.jsonl": "5aa204287b6cfe93717b2c0b754d442fe7b12187e289841b50bd95d5c6c07a2f",
+    "results/guarded-history-093-development-audit-003/snapshot/gnomon/item_1047756_store_23/round-7/project/experiments.jsonl": "e5d6e26be1c19d888a5a7fb4c850b69035a695d8d7ed6c304db0bd35ecd7244e",
+    "results/guarded-history-093-development-audit-003/snapshot/ledger/item_1047756_store_23/round-7/project/experiments.jsonl": "4a15e91165adbf83939fe3f802bd3b8eda3a9d7364be4afddadd741c2707a8d7",
+    "results/guarded-history-093-development-audit-004/snapshot/plain/item_1047756_store_23/round-8/project/experiments.jsonl": "fbe111d69fc8dcaa94780af75296543509a4728bf43b5916ceaf0b31a5daf998",
+    "results/guarded-history-093-development-audit-004/snapshot/gnomon/item_1047756_store_23/round-8/project/experiments.jsonl": "6fc11bdd77783ee655e344a4016bcb5ab41f173a9987e2cad4e8ce5af593edf7",
+    "results/guarded-history-093-development-audit-004/snapshot/ledger/item_1047756_store_23/round-8/project/experiments.jsonl": "c7597db7f3f8c4e3ce485240e7a734ab93b04fc85cb569b34e842695c6d3b912",
+    "results/guarded-history-093-development-audit-004/snapshot/plain/item_1047756_store_23/round-9/project/experiments.jsonl": "801038e52857f8c79bb12829db27eebaf02f925061262f7694c9576f52408d9a",
+    "results/guarded-history-093-development-audit-004/snapshot/gnomon/item_1047756_store_23/round-9/project/experiments.jsonl": "fba9d08e658dcd7bef9b4c2539f8a5e592e16781826fd270f9c4ebd15341f712",
+    "results/guarded-history-093-development-audit-004/snapshot/ledger/item_1047756_store_23/round-9/project/experiments.jsonl": "417a550afdfea83e63ff24e98961e5ca08bb50c5cd5757abfa763f54b9a7a3a6",
+    "results/guarded-history-093-development-audit-004/snapshot/plain/item_1047756_store_23/round-10/project/experiments.jsonl": "980925292eb0bad9caaae45c99128d647447d18f4e75b300293ad43ab8fcfc32",
+    "results/guarded-history-093-development-audit-004/snapshot/gnomon/item_1047756_store_23/round-10/project/experiments.jsonl": "56fd6485d6a8614cb5ce1bd3aadafaf626c534802411c699491a64d1acd9e9c9",
+    "results/guarded-history-093-development-audit-004/snapshot/ledger/item_1047756_store_23/round-10/project/experiments.jsonl": "fde88d86d59e998e9c0d96d090a60545300297b0ad6f48f8499c8da71c606b32",
+    "results/guarded-history-093-development-audit-004/snapshot/plain/item_1047756_store_23/round-11/project/experiments.jsonl": "fec3b8ee317d7f3c48e6a8a54a34b9e11becb2f7dc416d5a5316941f7749d826",
+    "results/guarded-history-093-development-audit-004/snapshot/gnomon/item_1047756_store_23/round-11/project/experiments.jsonl": "7b40a67afe9c81e7da629e720de87d01c6b5a464ad91fd5b609516a4fd36cf6c",
+    "results/guarded-history-093-development-audit-004/snapshot/ledger/item_1047756_store_23/round-11/project/experiments.jsonl": "e88e1f3c98ea95da8fbf95cdf72aa02a7c67a883b922b88be7fc1e9caabf60d6",
+    "results/guarded-history-093-development-audit-004/snapshot/plain/item_1047756_store_23/round-12/project/experiments.jsonl": "7adbc9885e918181294b8a843f3aeb5f711b7fc5f735ee7cbf5846c3a78ca8ff",
+    "results/guarded-history-093-development-audit-004/snapshot/gnomon/item_1047756_store_23/round-12/project/experiments.jsonl": "db73ec4f3948494e2ecb7b5a686f8398f954465a0c6b1d4774e9ffcf1044779d",
+    "results/guarded-history-093-development-audit-005/snapshot/ledger/item_1047756_store_23/round-12/project/experiments.jsonl": "11787c096a72c47649ef25c25b1c7bb07f294a45a2839ebf1e100917896365ae",
+    "results/guarded-history-093-development-audit-005/snapshot/plain/item_1047756_store_23/round-13/project/experiments.jsonl": "c432708dae34d9a4ba690f967532281f583bcf88539fe82d17bcfc5779a0d31a",
+    "results/guarded-history-093-development-audit-005/snapshot/gnomon/item_1047756_store_23/round-13/project/experiments.jsonl": "c9bbc0efbcdd535d1156674d33e8cb96d0f7861fe0afb8d6ca61497be7912a3d",
+    "results/guarded-history-093-development-audit-005/snapshot/ledger/item_1047756_store_23/round-13/project/experiments.jsonl": "ec5f396d0144dc3b11dde5dbf3c9c7600a5d4c04eb80508903440e0ac21e35fe",
+    "results/guarded-history-093-development-audit-005/snapshot/plain/item_1047756_store_23/round-14/project/experiments.jsonl": "e0fd806fedfba92b76f7275ffcfa3ea33938b7b1538ad35c9aaf23dad70c9bcb",
+    "results/guarded-history-093-development-audit-006/snapshot/gnomon/item_1047756_store_23/round-14/project/experiments.jsonl": "3ea40b0270b9a7022c249d5c981be947d9d87ee0dce997ae29e9386d13365b11",
+    "results/guarded-history-093-development-audit-005/snapshot/ledger/item_1047756_store_23/round-14/project/experiments.jsonl": "0b8941e5a296fffd3f35904e2dd0de62d859cf7b48902606e62da0bb77794d04",
+    "results/guarded-history-093-development-audit-006/snapshot/plain/item_1047756_store_23/round-15/project/experiments.jsonl": "bb068bea53c5ba10b2db63caa55d62a07f9e2ab76d1b79ed44ce4b58f75f8666",
+    "results/guarded-history-093-development-audit-006/snapshot/gnomon/item_1047756_store_23/round-15/project/experiments.jsonl": "f9ff5eda1a6f03013039fb380f65fd3f6598e73d8c79bb5d0842a565b90c9249",
+    "results/guarded-history-093-development-audit-006/snapshot/ledger/item_1047756_store_23/round-15/project/experiments.jsonl": "ba8a8a40647bc49359c060374f050c69981c75020ab575ef1a54fb3f87cc39b7",
+    "results/guarded-history-093-development-audit-006/snapshot/plain/item_1047756_store_23/round-16/project/experiments.jsonl": "0a04b6f92bf21bd62d19d151ff1ff66d898b1d28ceff012839525bbecd26e161",
+    "results/guarded-history-093-development-audit-006/snapshot/gnomon/item_1047756_store_23/round-16/project/experiments.jsonl": "7124d8d5e079415de78594d7e45ad238609aeb9b45ba984fdc11a117d5788382",
+    "results/guarded-history-093-development-audit-006/snapshot/ledger/item_1047756_store_23/round-16/project/experiments.jsonl": "7ec1193a97abe5acb0586895f66b0a86d387eb75f2c102041c7f7038efced7c7",
+    "results/guarded-history-093-development-audit-007/snapshot/plain/item_1047756_store_23/round-17/project/experiments.jsonl": "59b90e5d4f5f629984756cb65b7a696ab29d5723730831caeec6b90faa39b2d7",
+    "results/guarded-history-093-development-audit-007/snapshot/gnomon/item_1047756_store_23/round-17/project/experiments.jsonl": "e80d67fe5355beaa3f839a82f5032b406eeb5891bc320438fe1f1afd3f18a118",
+    "results/guarded-history-093-development-audit-007/snapshot/ledger/item_1047756_store_23/round-17/project/experiments.jsonl": "6f6cd555e0e94c49bd992b719d40ba21d838927bda5e5393b923bd94f0626798",
+    "results/guarded-history-093-development-audit-007/snapshot/plain/item_1047756_store_23/round-18/project/experiments.jsonl": "e1c615021fa7422423c4adafd3997deb346cd2a1d4071725bea1111727b8e4a4",
+    "results/guarded-history-093-development-audit-007/snapshot/gnomon/item_1047756_store_23/round-18/project/experiments.jsonl": "9e2dccb135b32dee97c6d59515aa634dbe7381a6917718ebad718153e05e9594",
+    "results/guarded-history-093-development-audit-007/snapshot/ledger/item_1047756_store_23/round-18/project/experiments.jsonl": "35dba93395779893f437a0e584aa14a27566060ae9531cd043340ff5f1283104",
+    "results/guarded-history-093-development-audit-008/snapshot/plain/item_1047756_store_23/round-19/project/experiments.jsonl": "517deec715901ae31139d06d86af71b7de098bd1fdf848d9efd1f2bb36fe3cea",
+    "results/guarded-history-093-development-audit-008/snapshot/gnomon/item_1047756_store_23/round-19/project/experiments.jsonl": "50d407ad8637dabbb632ac06a122151f6e60ebd3f0b46d9416d773e18aa4ce60",
+    "results/guarded-history-093-development-audit-008/snapshot/ledger/item_1047756_store_23/round-19/project/experiments.jsonl": "a9096f8e6a95ddb304687ff225c81c4ccc6cdd7b66ae47a0f6879dc270df19f6",
+    "results/guarded-history-093-pilot-final-001/original/plain/item_1304243_store_32/round-0/project/experiments.jsonl": "6638a31af7a739d574ec985db41717f2150514cecf10c68518d7e0658d8f1e67",
+    "results/guarded-history-093-pilot-final-001/original/gnomon/item_1304243_store_32/round-0/project/experiments.jsonl": "9e52442b8df9a7681b346953f6e9e1eee549fec71b8571d93b0f3be7a2d73421",
+    "results/guarded-history-093-pilot-final-001/original/ledger/item_1304243_store_32/round-0/project/experiments.jsonl": "02d3f2d79ce09fb4073da7c32ab0858e7c0178bf94cbfaeaf0d6eb214bc5740b",
+    "results/guarded-history-093-pilot-final-001/original/plain/item_1304243_store_32/round-1/project/experiments.jsonl": "81f05206fd90ed202109261ed7beca5d2ca4218f658c65eb75226c281d44f0cf",
+    "results/guarded-history-093-pilot-final-001/original/gnomon/item_1304243_store_32/round-1/project/experiments.jsonl": "c2f85832c17804d3b95844f51ec34c38470cfda890c83925fb0b065cdaad3583",
+    "results/guarded-history-093-pilot-final-001/original/ledger/item_1304243_store_32/round-1/project/experiments.jsonl": "fd18baf84220ee0b19b14ffac3525d37dfe8bae1c94c397f450969c8127618b5",
+    "results/guarded-history-093-pilot-final-001/original/plain/item_1304243_store_32/round-2/project/experiments.jsonl": "cdf33894468e58bcda16304f5724a6c617e52ffd7912e7a21488487e438ad68e",
+    "results/guarded-history-093-pilot-final-001/original/gnomon/item_1304243_store_32/round-2/project/experiments.jsonl": "7b10aff10e26e21de76e8e991aa61d2afacb3016ef3d58cf7b57de4bffcf9b2c",
+    "results/guarded-history-093-pilot-final-001/original/ledger/item_1304243_store_32/round-2/project/experiments.jsonl": "b72a8b11e1ef14617f4c58a3d0857cefe6abd076355a4ce02e64af496814d5fd",
+    "results/guarded-history-093-development-audit-002/snapshot/plain/item_1304243_store_32/round-3/project/experiments.jsonl": "f173225a3fc1751f11a7097afc6087ca2ca9e4866ccb9a8f1dbcf9af722d9fdd",
+    "results/guarded-history-093-development-audit-002/snapshot/gnomon/item_1304243_store_32/round-3/project/experiments.jsonl": "dcf5d835811d3c76af0e4bf5c4f44625c3a539337a44c6a8b01407df4f620ec2",
+    "results/guarded-history-093-development-audit-002/snapshot/ledger/item_1304243_store_32/round-3/project/experiments.jsonl": "25f87947638ce812612e5173bc80e729faeca889130537f500bbb3ed52173e96",
+    "results/guarded-history-093-development-audit-002/snapshot/plain/item_1304243_store_32/round-4/project/experiments.jsonl": "27762a7decc57dd6a966ae87d69be1864d16936ca2638c70fac3b050d53cd532",
+    "results/guarded-history-093-development-audit-002/snapshot/gnomon/item_1304243_store_32/round-4/project/experiments.jsonl": "bd97c69f431cada08284e052daa47c9dd624eac2572bd5eaf700a9594748213f",
+    "results/guarded-history-093-development-audit-002/snapshot/ledger/item_1304243_store_32/round-4/project/experiments.jsonl": "b45b29a1ea4162d1b1234a807a9e5410967d95964f3642abd1f48e7b92a50f98",
+    "results/guarded-history-093-development-audit-002/snapshot/plain/item_1304243_store_32/round-5/project/experiments.jsonl": "daa198922c9b8a7a19d8b5a22c081bccfd1732868215957027bf704ed570a673",
+    "results/guarded-history-093-development-audit-002/snapshot/gnomon/item_1304243_store_32/round-5/project/experiments.jsonl": "6ab490a021327abb599ba3cd80e7cd6e23140754f4faf02087fc82b06e32ae49",
+    "results/guarded-history-093-development-audit-002/snapshot/ledger/item_1304243_store_32/round-5/project/experiments.jsonl": "049b52c52a5bb108647ffd202b6093ed8ac458c5a52bb85fc2d406660cd2e714",
+    "results/guarded-history-093-development-audit-003/snapshot/plain/item_1304243_store_32/round-6/project/experiments.jsonl": "30f5f31460a203b8f7db9f42f5ae2b4c7297b6e79f2733920dbd430885dae064",
+    "results/guarded-history-093-development-audit-002/snapshot/gnomon/item_1304243_store_32/round-6/project/experiments.jsonl": "dd0a42902077bba8af13d4ba852c70d664acccc18d56d5aac79dc9b324d3590d",
+    "results/guarded-history-093-development-audit-002/snapshot/ledger/item_1304243_store_32/round-6/project/experiments.jsonl": "d40a0f01a10d94d9ee2548c3a8f10d21c7a6f03e0e81a057b1b7df770e078257",
+    "results/guarded-history-093-development-audit-003/snapshot/plain/item_1304243_store_32/round-7/project/experiments.jsonl": "ba61e00509416bfd018684b5c3169cb53641a0890c8914141fad0638802fd5dc",
+    "results/guarded-history-093-development-audit-003/snapshot/gnomon/item_1304243_store_32/round-7/project/experiments.jsonl": "4ecd59a51dd152a96179f754f96f41d55ac14a870fbec2d03d905b4665d97397",
+    "results/guarded-history-093-development-audit-003/snapshot/ledger/item_1304243_store_32/round-7/project/experiments.jsonl": "55ed8a7a90cad869a48c33d5aefa4414722e31dcdbccae5777478f1f27b33924",
+    "results/guarded-history-093-development-audit-003/snapshot/plain/item_1304243_store_32/round-8/project/experiments.jsonl": "9ed57c403f44763981d72d32ed684fd31df0ec13819a481dc313566473bdec7b",
+    "results/guarded-history-093-development-audit-003/snapshot/gnomon/item_1304243_store_32/round-8/project/experiments.jsonl": "b93554abbd5676f56b1ab6dc60384e034f6beaa5622f8947ef5eae015ccd5cc5",
+    "results/guarded-history-093-development-audit-003/snapshot/ledger/item_1304243_store_32/round-8/project/experiments.jsonl": "7a3a1ae1a9b0e455e928c67d69690203572a054dba2cf2d207be9090c063dc97",
+    "results/guarded-history-093-development-audit-004/snapshot/plain/item_1304243_store_32/round-9/project/experiments.jsonl": "f67e5462b3a3d3198b40f4c0acfcd6d920a273c481e9bbfb3dda86d5abc25b1d",
+    "results/guarded-history-093-development-audit-004/snapshot/gnomon/item_1304243_store_32/round-9/project/experiments.jsonl": "d42cac18cc95b2f7a5e8dc205fe9ecc88cccc3ef826a822c84a5ad89f04da8df",
+    "results/guarded-history-093-development-audit-004/snapshot/ledger/item_1304243_store_32/round-9/project/experiments.jsonl": "9708dd7d60aaaf7c2727dec6f93c5c668cddb8f965e61461cc055af21f905254",
+    "results/guarded-history-093-development-audit-004/snapshot/plain/item_1304243_store_32/round-10/project/experiments.jsonl": "c7c0902189cb9fe13e5c5705a32deb40ff3a194ffcb12d369e4511edd44c231b",
+    "results/guarded-history-093-development-audit-004/snapshot/gnomon/item_1304243_store_32/round-10/project/experiments.jsonl": "4decfcc20f67a0ce311f8fcdc4d3a910fb48de804dad84dfd83cde9bc2f26dd1",
+    "results/guarded-history-093-development-audit-004/snapshot/ledger/item_1304243_store_32/round-10/project/experiments.jsonl": "c3c481092e4c17b8cf20fc29fa6f6a511396cc64795262d933a4e4e43b0ef055",
+    "results/guarded-history-093-development-audit-004/snapshot/plain/item_1304243_store_32/round-11/project/experiments.jsonl": "e7107571e7485d29af80053141556a6276642b97ac64a37e3e6b1fbe2039cced",
+    "results/guarded-history-093-development-audit-004/snapshot/gnomon/item_1304243_store_32/round-11/project/experiments.jsonl": "83ed9a0d8196ddaf26afe970340b14090d22b4ab3b0f291d8d096c96b39c72f6",
+    "results/guarded-history-093-development-audit-004/snapshot/ledger/item_1304243_store_32/round-11/project/experiments.jsonl": "f688c900a5681edc75ef83a9ff4f2de917aa4f6811d51bdf393d84453dac09b6",
+    "results/guarded-history-093-development-audit-004/snapshot/plain/item_1304243_store_32/round-12/project/experiments.jsonl": "80ba3ca962f6e4c517d48c5149c02b24a1e18e58fa2844dbd2c2a60e758b3208",
+    "results/guarded-history-093-development-audit-004/snapshot/gnomon/item_1304243_store_32/round-12/project/experiments.jsonl": "a205e67c6bfbb2c0aa1733e5d4e75e8b04bcecb3fd781208bbd1ceb46083c32a",
+    "results/guarded-history-093-development-audit-004/snapshot/ledger/item_1304243_store_32/round-12/project/experiments.jsonl": "904bce8032e442eabd2e261ccf44f6d4dc7a79c2f5b82e98abab9e1e251993d3",
+    "results/guarded-history-093-development-audit-004/snapshot/plain/item_1304243_store_32/round-13/project/experiments.jsonl": "7c4c66913240b609504de4df3ff9161ebc0c34c4dc05d83cb534f5c8186fd8b4",
+    "results/guarded-history-093-development-audit-005/snapshot/gnomon/item_1304243_store_32/round-13/project/experiments.jsonl": "210ef4584b936df869defccc01bbc94369ee1a8bde1e5a33c4e3eeb9ef5665bf",
+    "results/guarded-history-093-development-audit-004/snapshot/ledger/item_1304243_store_32/round-13/project/experiments.jsonl": "0c3009ed346eafd18a96a639025626a65e9e77068085b448f31a649b5e8c8e2d",
+    "results/guarded-history-093-development-audit-005/snapshot/plain/item_1304243_store_32/round-14/project/experiments.jsonl": "7f488a28e6ffcdcae92053de5e768cb079f45ad2ebfec765f7a1639366ab1aee",
+    "results/guarded-history-093-development-audit-005/snapshot/gnomon/item_1304243_store_32/round-14/project/experiments.jsonl": "a807a34037401e04d6189c7beeb063200c2972c1192d3f3b3fced90853272f8d",
+    "results/guarded-history-093-development-audit-005/snapshot/ledger/item_1304243_store_32/round-14/project/experiments.jsonl": "11d5ff19b1af0ebfe80c3b60969bb079d3bf6a9262131be3f036ec1a86753b3e",
+    "results/guarded-history-093-development-audit-005/snapshot/plain/item_1304243_store_32/round-15/project/experiments.jsonl": "873ec88f2bdaabe393ee45246e36d87637a1450cad19144137a5387fc4c3629a",
+    "results/guarded-history-093-development-audit-005/snapshot/gnomon/item_1304243_store_32/round-15/project/experiments.jsonl": "fcbc3f07d51bfd1985c16780f1cc051394f4ea5c6d39b07f67f728c70873a1df",
+    "results/guarded-history-093-development-audit-005/snapshot/ledger/item_1304243_store_32/round-15/project/experiments.jsonl": "6602096e470d915ea60f562e119e8bc73aba28ed006832369bc6c2ec046607fc",
+    "results/guarded-history-093-development-audit-006/snapshot/plain/item_1304243_store_32/round-16/project/experiments.jsonl": "671c1ada4a0a862230f01eac8239f15914e4c30416cdb8c93db8ddacd0dacdca",
+    "results/guarded-history-093-development-audit-006/snapshot/gnomon/item_1304243_store_32/round-16/project/experiments.jsonl": "32438101ae80254772d3d73190fbe9181798bd7845e71890d3bde2fc4f595dc4",
+    "results/guarded-history-093-development-audit-005/snapshot/ledger/item_1304243_store_32/round-16/project/experiments.jsonl": "e2e68bd93bdb891f739508407fe802f3e374d1caefa0fae3b29c679d9ab11115",
+    "results/guarded-history-093-development-audit-006/snapshot/plain/item_1304243_store_32/round-17/project/experiments.jsonl": "e1c47c852caa8fee6b9612603f85a454eb6f9b96b0447660770e31d6eeb57033",
+    "results/guarded-history-093-development-audit-006/snapshot/gnomon/item_1304243_store_32/round-17/project/experiments.jsonl": "752f3be74880ece36638e4ad23f53425da2a1517abf8dc3c18d2f32b95954291",
+    "results/guarded-history-093-development-audit-006/snapshot/ledger/item_1304243_store_32/round-17/project/experiments.jsonl": "3787ab365ccb9786a35f6066242476d410ced276ea79183d6b0e3499a7865d14",
+    "results/guarded-history-093-development-audit-007/snapshot/plain/item_1304243_store_32/round-18/project/experiments.jsonl": "a10788c44eaf36e2a26bde89b5fcf89249210e8ea9a893d4cd186d64747ae3f8",
+    "results/guarded-history-093-development-audit-006/snapshot/gnomon/item_1304243_store_32/round-18/project/experiments.jsonl": "5d9078ada0d32f25f388cbef3d070219c8b474cf823e633db316010f5367dccc",
+    "results/guarded-history-093-development-audit-006/snapshot/ledger/item_1304243_store_32/round-18/project/experiments.jsonl": "fdd2b57796d32e08e5cd19089e7b24e77fe1d37290d1faccfd4be25b9e50f723",
+    "results/guarded-history-093-development-audit-007/snapshot/plain/item_1304243_store_32/round-19/project/experiments.jsonl": "5a0e9dcb80390214d9a995bfb13f9532a939dff1b391efa255d8db33dd3b50e3",
+    "results/guarded-history-093-development-audit-007/snapshot/gnomon/item_1304243_store_32/round-19/project/experiments.jsonl": "f2de4a65cd0b4c9a30a378e4f795451e2e96f0d8e4f78fc59b8c2852f47e3606",
+    "results/guarded-history-093-development-audit-007/snapshot/ledger/item_1304243_store_32/round-19/project/experiments.jsonl": "f0f6ef5fde25bfa7671e65272a6dd58eef0e764c52bf5e12505745be917f0021",
+    "results/guarded-history-093-development-audit-007/snapshot/plain/item_1304243_store_32/round-20/project/experiments.jsonl": "4f14f940d73a90079503dd9dca0e9183c4a022564cfc78a4448f61dd8cafc861",
+    "results/guarded-history-093-development-audit-007/snapshot/gnomon/item_1304243_store_32/round-20/project/experiments.jsonl": "be08d2981e558c34e56a8e0e471e7f8ee2f7b31dcc3017da140f84dabc4e7301",
+    "results/guarded-history-093-development-audit-007/snapshot/ledger/item_1304243_store_32/round-20/project/experiments.jsonl": "a1a6ea5fedb0267738ee0e0a9446efd3c15195320acb6c7a93dffa01c4c17102",
+    "results/guarded-history-093-development-audit-008/snapshot/plain/item_1304243_store_32/round-21/project/experiments.jsonl": "8b800b01d82cee5aefa50f7d4170df0c603931ffe5b0009452ee6892bda030b3",
+    "results/guarded-history-093-development-audit-008/snapshot/gnomon/item_1304243_store_32/round-21/project/experiments.jsonl": "57e5cef590e03a6ae6f8c1189442a6f29c09d616ddf96fb7d3ee6f9b9f3e916a",
+    "results/guarded-history-093-development-audit-008/snapshot/ledger/item_1304243_store_32/round-21/project/experiments.jsonl": "26dc05089edbafdc03de0b40b4cd6f36c1ba35b9309a6ae389b8317425e6d597",
+    "results/guarded-history-093-development-audit-008/snapshot/plain/item_1304243_store_32/round-22/project/experiments.jsonl": "36b363431d629417470e9b8cdc825802d0414ea30ac52a624967c659a13d7fd0",
+    "results/guarded-history-093-development-audit-008/snapshot/gnomon/item_1304243_store_32/round-22/project/experiments.jsonl": "e996f15f0c4aa3e63e5f3d773495a4e4d2fa1f31492360b3a7672404a8ab353c",
+    "results/guarded-history-093-development-audit-008/snapshot/ledger/item_1304243_store_32/round-22/project/experiments.jsonl": "bdd1a06168561f5984801416bc6a646880f763def40d5b1caade33b82e7cc67d",
+    "results/guarded-history-093-pilot-final-001/original/plain/item_1372862_store_12/round-0/project/experiments.jsonl": "3f2d8c611803d253466c36023821edab8359031dc0ea1934bd62922166d3c6a3",
+    "results/guarded-history-093-pilot-final-001/original/gnomon/item_1372862_store_12/round-0/project/experiments.jsonl": "875a0dde5446381d99cbbf575d61ba62d290a5866f7e488c98df009d2e86168d",
+    "results/guarded-history-093-pilot-final-001/original/ledger/item_1372862_store_12/round-0/project/experiments.jsonl": "3fd6cbfca3ae4e807298ac101a91ffe4b22b3a5e4808fb80d6232e5d2f4d213b",
+    "results/guarded-history-093-pilot-final-001/original/plain/item_1372862_store_12/round-1/project/experiments.jsonl": "673efc8e6cf6353601401328748fc705155eb5371d0d841891fd86abdb8b1291",
+    "results/guarded-history-093-pilot-final-001/original/gnomon/item_1372862_store_12/round-1/project/experiments.jsonl": "44f9f9bbd8e2ced6dffbb32d5466ee32661a590a78762f0451de0ff9a06a3b86",
+    "results/guarded-history-093-pilot-final-001/original/ledger/item_1372862_store_12/round-1/project/experiments.jsonl": "4f1d80f3bdc8e4a3586df7b5ef618c4956eeb23e6ebbfa0152e9bfc192a87e36",
+    "results/guarded-history-093-pilot-final-001/original/plain/item_1372862_store_12/round-2/project/experiments.jsonl": "25e3461131c1fab15113caefab5f3b80381910caef1f8f749498f106d5b13b5c",
+    "results/guarded-history-093-pilot-final-001/original/gnomon/item_1372862_store_12/round-2/project/experiments.jsonl": "f109d9befa9a2603f40051796f39996e47158fb37d9f24d2cc189fe8c5dd0cb7",
+    "results/guarded-history-093-pilot-final-001/original/ledger/item_1372862_store_12/round-2/project/experiments.jsonl": "26579f45a8a52a70fddf344af392d70375603236338fec85c3cef79f8fc48898",
+    "results/guarded-history-093-pilot-final-001/original/plain/item_1457251_store_14/round-0/project/experiments.jsonl": "9ad0eed611e652ef65a0c95d7e842c02d335f161d8136988e9f39793cbc61935",
+    "results/guarded-history-093-pilot-final-001/original/gnomon/item_1457251_store_14/round-0/project/experiments.jsonl": "010f26d3fe536934c2b377f0389c891621c7349fa3746c8343414aed2d55d33d",
+    "results/guarded-history-093-pilot-final-001/original/ledger/item_1457251_store_14/round-0/project/experiments.jsonl": "3f1214103a0aada118e037d66c8051ef478c66ccef44e6c0a658305f8437e632",
+    "results/guarded-history-093-pilot-final-001/original/plain/item_1457251_store_14/round-1/project/experiments.jsonl": "d63eb4fec8ab2b07c9c2bc27d92ff548909bf3416d8134eb9293f160e9b1fc76",
+    "results/guarded-history-093-pilot-final-001/original/gnomon/item_1457251_store_14/round-1/project/experiments.jsonl": "117266d419da3dd7eacf487029565478a5e330a8ffe98d5ed657e77b34674924",
+    "results/guarded-history-093-pilot-final-001/original/ledger/item_1457251_store_14/round-1/project/experiments.jsonl": "aab2757089bc6ab12f40d37afc446c4e4aace38a10c09a490e298fe99838bd93",
+    "results/guarded-history-093-pilot-final-001/original/plain/item_1457251_store_14/round-2/project/experiments.jsonl": "bff5b28ecfd5423976b45d558cb64b1957d52fc6d3bda753185ff7997d68ae88",
+    "results/guarded-history-093-pilot-final-001/original/gnomon/item_1457251_store_14/round-2/project/experiments.jsonl": "41bbe18ac8e30c5cfa1e6f1f7eaee181e36b792a954390fb6e1ff378af6a77a7",
+    "results/guarded-history-093-pilot-final-001/original/ledger/item_1457251_store_14/round-2/project/experiments.jsonl": "59b05725f7afe17f484cedd5efc3871a06e4c61e092a45fe54564c51de90d85c"
+  },
+  "verification_script": {
+    "path": "results/guarded-history-093-executed-opportunity-002/analyze.py",
+    "sha256": "b0478530892b6d76b5eb0ca60f49ba55b7c905e4a59ed9c511d075e9e049f418"
+  }
+}

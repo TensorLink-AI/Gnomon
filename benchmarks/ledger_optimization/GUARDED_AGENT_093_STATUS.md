@@ -322,3 +322,24 @@ effect. Ledger evidence was available in
 its native-memory note in 11 sessions; persisted copies are not new writes.
 The 20% target is unmet and the final holdout remains closed.
 Receipt: `evidence/guarded-agent-093-development-audit-008.json`.
+
+## Expanded executed-forecast opportunity diagnostic — 49 matched cases
+
+Recomputed all 290 production forecasts already executed across the audited
+49 matched cases, verifying 127 repeated configurations have identical points.
+The future-aware union minimum is mean RMSLE 0.428992, only 12.33% below
+Gnomon's selected 0.489343. Within-arm hindsight means are plain 0.452718,
+Gnomon 0.467346 and ledger 0.435100. This includes failures and uses the
+original fixed targets; it neither runs new forecasts nor opens final data.
+
+This union uses future outcomes and predictions from unequal arm-specific
+searches. It is not an executable policy or a fourth comparison arm. It bounds
+only selections among these already executed predictions, not the entire
+permitted configuration space or the unfinished development run. On this
+subset, merely choosing better among existing predictions cannot meet 20%.
+A subsequent ledger candidate must therefore be evaluated for whether it
+helps the agent discover better configurations using the same permitted
+model families and budgets; display compression alone is insufficient evidence
+of progress toward the numerical objective. Do not modify the active runner
+or change the frozen final target in response to this diagnostic.
+Receipt: `evidence/guarded-agent-093-executed-opportunity-002.json`.
