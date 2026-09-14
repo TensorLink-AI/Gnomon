@@ -1,0 +1,182 @@
+{
+  "status": "local_exact_runtime_hermes_collection_integration_passed",
+  "integration_checks": 142,
+  "independent_audit_checks": 385,
+  "cases": [
+    {
+      "arm": "gnomon",
+      "round": 0,
+      "valid": true,
+      "workflow_complete": true,
+      "api_calls": 5,
+      "numerical_attempts": 8,
+      "seconds": 11.455473686990445,
+      "collection_audit": {
+        "admitted_batches": 2,
+        "failed_or_unfinished_attempts": 0,
+        "numerical_attempts": 8,
+        "production_results": 2,
+        "successful_results": 8
+      }
+    },
+    {
+      "arm": "gnomon",
+      "round": 1,
+      "valid": true,
+      "workflow_complete": true,
+      "api_calls": 5,
+      "numerical_attempts": 8,
+      "seconds": 11.922201845998643,
+      "collection_audit": {
+        "admitted_batches": 2,
+        "failed_or_unfinished_attempts": 0,
+        "numerical_attempts": 8,
+        "production_results": 2,
+        "successful_results": 8
+      }
+    },
+    {
+      "arm": "ledger",
+      "round": 0,
+      "valid": true,
+      "workflow_complete": true,
+      "api_calls": 5,
+      "numerical_attempts": 8,
+      "seconds": 11.793307309999363,
+      "collection_audit": {
+        "admitted_batches": 2,
+        "failed_or_unfinished_attempts": 0,
+        "numerical_attempts": 8,
+        "production_results": 2,
+        "successful_results": 8
+      }
+    },
+    {
+      "arm": "ledger",
+      "round": 1,
+      "valid": true,
+      "workflow_complete": true,
+      "api_calls": 5,
+      "numerical_attempts": 8,
+      "seconds": 12.233000186999561,
+      "collection_audit": {
+        "admitted_batches": 2,
+        "failed_or_unfinished_attempts": 0,
+        "numerical_attempts": 8,
+        "production_results": 2,
+        "successful_results": 8
+      }
+    },
+    {
+      "arm": "plain",
+      "round": 0,
+      "valid": true,
+      "workflow_complete": true,
+      "api_calls": 5,
+      "numerical_attempts": 8,
+      "seconds": 10.688912710000295,
+      "collection_audit": {
+        "admitted_batches": 2,
+        "failed_or_unfinished_attempts": 0,
+        "numerical_attempts": 8,
+        "production_results": 2,
+        "successful_results": 8
+      }
+    },
+    {
+      "arm": "plain",
+      "round": 1,
+      "valid": true,
+      "workflow_complete": true,
+      "api_calls": 5,
+      "numerical_attempts": 8,
+      "seconds": 11.513525875998312,
+      "collection_audit": {
+        "admitted_batches": 2,
+        "failed_or_unfinished_attempts": 0,
+        "numerical_attempts": 8,
+        "production_results": 2,
+        "successful_results": 8
+      }
+    }
+  ],
+  "scripted_model_responses": 30,
+  "real_numerical_attempts": 48,
+  "all_collection_integration_fits_retained": 161,
+  "gnomon_version": "1.2.0",
+  "hermes_version": "0.21.1",
+  "hermes_python_files_verified": 5815,
+  "local_packages_match_live_pod": true,
+  "engy_calls": 0,
+  "final_holdout_accessed": false,
+  "target_met": false,
+  "scope": "Actual local Hermes worker and proxy transport with scripted upstream replies. Real numerical models and published 1.2.0 storage, native memory and full audits. No learned agent decision or predictive efficacy claim.",
+  "gates_remaining": [
+    "Existing paid run terminal and evidence preserved",
+    "Queued seed integration completed and verified",
+    "Pre-dispatch runtime and source re-verification",
+    "Fresh prospective arm state and launch receipt"
+  ],
+  "archive": {
+    "path": "/root/Gnomon/results/collection-096-local-worker-001/evidence.tar.gz",
+    "bytes": 2101075,
+    "sha256": "58b5479780b1453b645a2f3fc60d8e9bd946e5fd56b23c5128df7f2e4a0ba271",
+    "files": 542
+  },
+  "files": {
+    "/root/Gnomon/results/collection-096-local-worker-001/passed.json": "eaf2783012c7d9bdf4f6e3555c36c360229cf0a28c3323945ac5c22b19c21679",
+    "/root/Gnomon/results/collection-096-local-worker-001/report.json": "523189b6663174a2b39f5d8550ce699454447c35d3bebd8581f9d4eaf4a8d54f",
+    "/root/Gnomon/results/collection-096-local-worker-001/probe-evidence.json": "02f1d3c5f043d1bff91cd992305708c508614b77e057f2c68ed30b5f97a90c43",
+    "/root/Gnomon/results/collection-096-local-worker-001/SHA256SUMS.json": "b917a6cfe75e899cf7b1d4d973fc2e4703a5995286b81d6f5653334c719e270f",
+    "/root/Gnomon/results/collection-096-local-worker-001/driver-command.json": "0bdfe459774560792dd30ca91d08e6120a729d75599dbf2ae4454889ea51eccb",
+    "/root/Gnomon/results/collection-096-local-worker-001/driver-exit.json": "fbc2724935a13b44bf0de5980a618b57e4fdf8115686f6d5bafffdc10363d2b2",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/verified.json": "27c7f4361f8936397f77a11e93e79a738f3f77279ddd8f9e6dd8225fbe6e6c3c",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/transfer.json": "d583e0f15a9fca08190afbb2f8ec525bd6b524a1189a66771d1f84cd3c1b266c",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/live-runtime-packages.json": "7accb4ad6e45ee6cef3c2f4a6d76af1b23d02132fbaf15db943ccba60f9f351e",
+    "benchmarks/ledger_optimization/probe_collection_worker_096.py": "016840ef414bf179122d23107753590c60c9fc0f485056c7c7c10f2ca407073c"
+  },
+  "runtime_setup_files": {
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/plain-hermes.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/plain-install.stdout": "c30a0074ef10b557bf65d75a20549b1b4eb66aa10f76b2e21a63f39d9efb0117",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/plain-install-command.json": "25480ff635928e9e23d1d89b9203563e0ad633a27ca557ed312650184716b07d",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/install-extras.py": "a32d595309df1d7991b99a40b35348d0163873b5fb7dcbc3ec1a5ccdeeeb5df0",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/gnomon-extras.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/install-hermes.py": "c7f32569746887644f4ede2e3f90016a1c4f1786dc0e2cdb775c1205602af2ad",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/plain-runtime.json": "ebf4b35ddf533eae2e23f5a6932584f1d76be9e38d169a1be2029c7779d5d761",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/gnomon-install-command.json": "49ba20e102051e27a787be110821eb9d0b1bed383a1cb9411f98cd1f80fadaf1",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/requirements-matched.txt": "2c50e03e5a012e7c87dc4bbf0017899a447b4fa193da02a48accc8d66095af6d",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/plain-extras.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/plain-venv.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/gnomon-extras-command.json": "5f51d31038372eef0dba5c04bb601d5d58157bfd22048708f980feb1aca2b907",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/gnomon-venv.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/gnomon-extras-exit.json": "fbc2724935a13b44bf0de5980a618b57e4fdf8115686f6d5bafffdc10363d2b2",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/gnomon-extras.stdout": "9df14c2b6a4cc586f65677a59b410403c1745a3b5d369bece87d114aeccc49f0",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/plain-venv.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/verify.py": "87054d0ff44fdc467dc5684114504d55fef5a1c44c00feff7a7f88e7d4b5a468",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/plain-hermes-command.json": "d878e3d84dddd554693499e487652918970134499ece46d0efbf5f6e1f10b674",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/install.py": "26adfa3131f899993ca244b73bad5f8a442f5229c04ab22685cd710fcb7066b3",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/plain-hermes.stdout": "e4d5385a9c99eade6847cb84f9856ae0e1aa54cbf5c88df5c0450ef0e65bea4e",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/gnomon-venv.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/plain-extras-exit.json": "fbc2724935a13b44bf0de5980a618b57e4fdf8115686f6d5bafffdc10363d2b2",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/gnomon-runtime.json": "46b9a394f937c3b06eb42d2086ecc7926a921070b9a486382d6f5ab7d059610a",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/transfer.json": "d583e0f15a9fca08190afbb2f8ec525bd6b524a1189a66771d1f84cd3c1b266c",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/gnomon-install.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/plain-install.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/live_inventory.py": "73a9c8bc549f8f1ba6609f9cc3b3637e8417495b72561fa48840bacbd9c876c5",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/gnomon-hermes.stdout": "b4d39612efb071066ab399514eb3fec0c670575f9ac3e7cb65559c4acad35114",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/gnomon-hermes-exit.json": "fbc2724935a13b44bf0de5980a618b57e4fdf8115686f6d5bafffdc10363d2b2",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/plain-install-exit.json": "fbc2724935a13b44bf0de5980a618b57e4fdf8115686f6d5bafffdc10363d2b2",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/fetch.py": "bf5fb93a28d07ac0a0af79de18c1e4e5f7f6963df359cd659b72ffd8482eb727",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/plain-extras-command.json": "c148ff039faf2a152136b8984c5b41f713473c4ad7cc87c7686afabc7854fd7f",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/gnomon-hermes.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/plain-extras.stdout": "2e5cfbe6d303a09b4e954a2a5e7ab31fb6feac589ad34e4f576eed9ac37219b3",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/gnomon-install.stdout": "2db80e6cfed36c6a50ec8c8e1db51d065d56c94064aa0c56def923b79a550600",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/plain-hermes-exit.json": "fbc2724935a13b44bf0de5980a618b57e4fdf8115686f6d5bafffdc10363d2b2",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/gnomon-hermes-command.json": "c7c28547eab50fa32c152bc496e6813c236352c008c946bc126d7be3177df1c1",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/live-runtime-packages.json": "7accb4ad6e45ee6cef3c2f4a6d76af1b23d02132fbaf15db943ccba60f9f351e",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/verified.json": "27c7f4361f8936397f77a11e93e79a738f3f77279ddd8f9e6dd8225fbe6e6c3c",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/gnomon-install-exit.json": "fbc2724935a13b44bf0de5980a618b57e4fdf8115686f6d5bafffdc10363d2b2",
+    "/root/Gnomon/results/collection-096-hermes-runtime-001/requirements-local.txt": "2c50e03e5a012e7c87dc4bbf0017899a447b4fa193da02a48accc8d66095af6d"
+  },
+  "protocol_note": "Earlier plan anticipated using idle pod runtime for this test. Exact isolated local reproduction cleared the same worker checks without pod mutation; paid dispatch still waits for the original run and queued test."
+}

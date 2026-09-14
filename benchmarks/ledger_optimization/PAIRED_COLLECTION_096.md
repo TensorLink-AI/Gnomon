@@ -188,7 +188,7 @@ and a frozen prospective dispatch manifest remain outstanding. The candidate
 remains undeployed, the running 093 experiment is unchanged, and the final
 holdout remains closed.
 
-## Hermes transport probe prepared, not run
+## Hermes transport probe preparation (historical)
 
 `probe_collection_worker_096.py` uses the same frozen run/worker interface with
 scripted upstream replies, no real Engy calls and no credentials. Across two
@@ -228,3 +228,36 @@ The current paid controller, queued seed integration, exact-source Hermes probe,
 runtime verification and fresh-state checks must finish before paid dispatch.
 Receipt: `evidence/collection-096-prospective-plan-001.json`. The final holdout
 remains closed and still requires the separately frozen multi-seed protocol.
+
+## Exact local Hermes worker integration passed
+
+The earlier plan anticipated testing on an idle pod. Instead, an isolated local
+runtime was reproduced from the frozen Hermes archive and the live pod package
+inventory. This clears the actual-worker checks without modifying or competing
+with the running pod. The paid launch prerequisite remains unchanged: finish
+and preserve the current run and queued seed integration first.
+
+Hermes archive SHA-256:
+`e91f16fa0791926a91324814454d2530785100ab2793c62aa9dc7c84d1f03924`.
+All 5,815 archived Python files match the local source. The 93 plain and 94
+Gnomon package versions match the pod exactly; Gnomon 1.2.0 is the sole package
+difference between local arms. Four additional live dependency pins were applied
+after detecting their absence from the older asset requirements. Commands,
+installation outputs and hash-verified transfer receipts are retained.
+
+The real local Hermes worker, guarded tool boundary and proxy transport completed
+six synthetic workflows across two origins and all arms. There were 30 scripted
+upstream responses, 48 real fits, 142 integration assertions and 385 independent
+audit checks, all passing. Agents received the updated task and tool descriptions.
+Repeated backtests and commits added no duplicate fits; collection left the
+explicit baseline selected; selected and unselected forecasts both matured at
+the next origin. Native memory persisted within an arm and stayed absent from
+other arms. All 161 actual fits across the collection integration attempts remain
+accounted for, including the original failed attempt.
+
+No Engy calls, real-data forecasts or learned agent selection were tested here.
+This is worker reliability evidence, not an accuracy or token-efficiency result.
+A 542-file evidence archive and per-session wall times are retained under
+`results/collection-096-local-worker-001`. Receipt:
+`evidence/collection-096-local-worker-001.json`. Pre-dispatch runtime/source checks,
+fresh arm state, the original terminal audit and queued seed test remain required.
