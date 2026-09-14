@@ -1359,3 +1359,21 @@ audit6.034s; all inherited066model/search costs and045anchor fits disclosed.
 No paid confirmation justified. Result archived/receipted; main/PyPI unchanged.
 Goal remains active and unproven; next work should explain residual shortcomings
 rather than repeating arbitrary tuning or redefining the20%success criterion.
+
+## Blend error geometry069: read-only residual diagnostic complete
+
+Previous goal turn made progress: ran/audited/pushed068at9b37e13. Revalidated
+source/protocol and prior calibration/headroom results. Froze069at053d1d7, then
+computed exact range projection/error decomposition for all416cases and both
+arms, including three observed CV-fold ranges. No policies, fits or API calls.
+
+Ledger actual mean RMSLE.2510782; hindsight independent-step range floor.1044105;
+CVrange floor.1177599.6608/9984points inside range. Irreducible range contribution
+23.5603%of pooled squared log error, blend displacement52.5869%, cross23.8528%.
+These are not percentages of mean case RMSLE or causal attributions. Projection
+uses future outcomes and a more flexible action than068; no deployable gain.
+
+Four tests and independent33,816checks passed. Fullvectors/hasharchive retained.
+Run1.406s,0fits/API; inherited costs unchanged. Next test finer temporal blending
+only after freezing common action/solver and unchanged strong guards. No final
+or055validation access, main/PyPI change or paid confirmation. Goal active/unmet.
