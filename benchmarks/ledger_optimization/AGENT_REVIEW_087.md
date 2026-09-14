@@ -42,3 +42,13 @@ not the20% forecast objective. Future matched agent testing must use the pinned
 1.2.0 build/DeepSeekv4.1-flash, equal raw evidence opportunities and budgets,
 unchanged completion/fallback semantics and frozen development/final gates.
 Main/PyPI remain unchanged. Do not launch paid confirmation on this UX result.
+
+## Pagination correction before adoption
+
+Initial b7ca1d7 replay covered100saved default-size reviews. Subsequent interface
+review found the proposed next call always used limit12, which would expand a
+caller-requested smaller page. Preserve the current page size instead and reject
+inconsistent next offsets. This is a task-preservation correction, not a changed
+ranking, evidence query or scoring policy. Preserve initial001 artifacts/source
+and run a separately frozen002replay. Check every default-review view is unchanged;
+retain a regression for a limit1next call and the original source/cost evidence.

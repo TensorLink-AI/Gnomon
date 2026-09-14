@@ -42,11 +42,13 @@ class AgentReviewTest(unittest.TestCase):
         self.assertEqual(self.render()['cards'][0]['windows']['last_4_origins']['lowest_error_config_ids'],['ca','cb'])
 
     def test_pagination_not_completion(self):
-        self.full.update(total_pairs=20,next_offset=12)
+        self.full.update(total_pairs=20,next_offset=1)
         r=self.render();self.assertFalse(r['pagination']['all_pairs_included'])
-        self.assertEqual(r['pagination']['next_call']['arguments'],{'offset':12,'limit':12})
+        self.assertEqual(r['pagination']['next_call']['arguments'],{'offset':1,'limit':1})
         self.assertEqual(r['pagination']['next_call']['valid_for_origin'],self.task['origin'])
         self.assertFalse(r['forecast_selection_made'])
+        self.full['next_offset']=12
+        with self.assertRaises(ValueError):self.render()
 
     def test_missing_support_is_not_zero_error(self):
         for w in self.full['cards'][0]['windows'].values():
@@ -56,6 +58,15 @@ class AgentReviewTest(unittest.TestCase):
         self.assertEqual(w['scores'],{})
         self.assertEqual(w['lowest_error_config_ids'],[])
         self.assertIsNone(r['cards'][0]['recent_lifetime_disagreement'])
+
+    def test_cold_start_has_no_invented_comparison(self):
+        self.full.update(status='insufficient_evidence',configuration_index={},cards=[],
+                         global_past_origins=[],total_pairs=0)
+        result=self.render()
+        self.assertEqual(result['status'],'insufficient_evidence')
+        self.assertEqual(result['cards'],[])
+        self.assertTrue(result['pagination']['all_pairs_included'])
+        self.assertFalse(result['forecast_selection_made'])
 
     def test_reject_invalid_identity_counts_values_cutoff_and_execution(self):
         original=copy.deepcopy(self.full)

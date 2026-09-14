@@ -69,7 +69,7 @@ def audit(root,output):
             expected_complete=full['offset']==0 and full['next_offset'] is None and len(full['cards'])==full['total_pairs']
             check(p['all_pairs_included']==expected_complete,'Summary pagination is not full evidence completion')
             if full['next_offset'] is None:check(p['next_call'] is None,'No spurious next page')
-            else:check(p['next_call']=={'operation':'review','arguments':{'offset':full['next_offset'],'limit':12},'valid_for_origin':at},'Exact origin-bound next page')
+            else:check(p['next_call']=={'operation':'review','arguments':{'offset':full['next_offset'],'limit':len(full['cards'])},'valid_for_origin':at},'Exact origin-bound next page')
             check(view['ledger_queries']==full['ledger_queries'] and view['provider_calls']==0 and view['forecast_selection_made'] is False,'No query or forecast action change')
             rows.append({'series_id':series,'origin':at,'packet_index':packet_index,'source':name,
                 'original_logged_bytes':len(compact_bytes(packet)),'baseline_bytes':len(compact_bytes(baseline)),

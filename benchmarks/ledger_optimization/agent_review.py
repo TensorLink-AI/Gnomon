@@ -59,8 +59,10 @@ def brief(full, task, evidence_path, evidence_sha256):
                 'evidence_pointer':pointer}
         cards.append(item)
     page_complete=full['offset']==0 and full['next_offset'] is None and len(cards)==full['total_pairs']
+    if full['next_offset'] is not None and (not cards or full['next_offset']!=full['offset']+len(cards)):
+        raise ValueError('Inconsistent next-page offset')
     next_call=None if full['next_offset'] is None else {
-        'operation':'review','arguments':{'offset':full['next_offset'],'limit':12},
+        'operation':'review','arguments':{'offset':full['next_offset'],'limit':len(cards)},
         'valid_for_origin':task['origin']}
     return {'schema_version':'agent-review-087','status':full['status'],'metric':'rmsle',
         'query':{k:task[k] for k in ('series_id','unit','horizon','origin')},
