@@ -1,0 +1,344 @@
+{
+  "freeze_commit": "16c1457",
+  "root": "results/risk-transfer-082-001",
+  "archive": "results/risk-transfer-082-001.tar.gz",
+  "archive_sha256": "1b1fdf1922769f8771fae3ecb242c5a0569dd3b05da95c7450607692e7b0ae80",
+  "files": {
+    "audit.log": "28cb1ec610d88c81d4bcfde3269c3b8bec03262184b17f9ac2580a050d1fe47a",
+    "execution.log": "edb6ecb723cf6d332d182b97b80d817dda28e80af0e644a0115915ab3b93ed77",
+    "manifest.json": "63a26ed4bd8404273cc28625c2d10d4c67d935a1f01e564f3a7682b3ec11f6fd",
+    "report.json": "edb6ecb723cf6d332d182b97b80d817dda28e80af0e644a0115915ab3b93ed77",
+    "rows.json": "b00f07411c2c5e0d88ab09ae77acceea226384f1067d83e1d2fb72c35a8272b7",
+    "verification.json": "28cb1ec610d88c81d4bcfde3269c3b8bec03262184b17f9ac2580a050d1fe47a"
+  },
+  "report": {
+    "overall": {
+      "cases": 416,
+      "arms": {
+        "control": {
+          "anchor_gain": {
+            "cases": 416,
+            "mean_predicted_gain": 0.008860783861621492,
+            "mean_realised_gain": 0.003013662210901254,
+            "realised_positive": 219,
+            "realised_negative": 196,
+            "realised_ties": 1,
+            "sign_agreement": 220,
+            "pearson": 0.4714513603457132,
+            "predicted_positive": 415,
+            "realised_positive_when_predicted_positive": 219
+          },
+          "ledger_vs_control": {
+            "cases": 416,
+            "mean_predicted_gain": -0.01967536452526775,
+            "mean_realised_gain": 0.003966789018133194,
+            "realised_positive": 272,
+            "realised_negative": 144,
+            "realised_ties": 0,
+            "sign_agreement": 144,
+            "pearson": 0.24186942461525088,
+            "predicted_positive": 0,
+            "realised_positive_when_predicted_positive": 0
+          },
+          "mean_predicted_loss": 0.10051046232749254,
+          "mean_realised_loss": 0.11592423921260794
+        },
+        "ledger": {
+          "anchor_gain": {
+            "cases": 416,
+            "mean_predicted_gain": 0.012978041636667504,
+            "mean_realised_gain": 0.006980451229034448,
+            "realised_positive": 260,
+            "realised_negative": 156,
+            "realised_ties": 0,
+            "sign_agreement": 260,
+            "pearson": 0.08411161416349179,
+            "predicted_positive": 416,
+            "realised_positive_when_predicted_positive": 260
+          },
+          "ledger_vs_control": {
+            "cases": 416,
+            "mean_predicted_gain": 0.012683817864640764,
+            "mean_realised_gain": 0.003966789018133194,
+            "realised_positive": 272,
+            "realised_negative": 144,
+            "realised_ties": 0,
+            "sign_agreement": 272,
+            "pearson": -0.12672754157963517,
+            "predicted_positive": 416,
+            "realised_positive_when_predicted_positive": 272
+          },
+          "mean_predicted_loss": 0.08674543614940868,
+          "mean_realised_loss": 0.11195745019447474
+        }
+      },
+      "mean_realised_ledger_vs_incumbent": -0.002202541514387272
+    },
+    "domains": {
+      "electricity": {
+        "cases": 208,
+        "arms": {
+          "control": {
+            "anchor_gain": {
+              "cases": 208,
+              "mean_predicted_gain": 0.0012098291831650844,
+              "mean_realised_gain": 0.000275493622880829,
+              "realised_positive": 109,
+              "realised_negative": 99,
+              "realised_ties": 0,
+              "sign_agreement": 109,
+              "pearson": -0.3029368325701968,
+              "predicted_positive": 208,
+              "realised_positive_when_predicted_positive": 109
+            },
+            "ledger_vs_control": {
+              "cases": 208,
+              "mean_predicted_gain": -0.010260514139025649,
+              "mean_realised_gain": 0.000417908680834521,
+              "realised_positive": 137,
+              "realised_negative": 71,
+              "realised_ties": 0,
+              "sign_agreement": 71,
+              "pearson": 0.5537600080717051,
+              "predicted_positive": 0,
+              "realised_positive_when_predicted_positive": 0
+            },
+            "mean_predicted_loss": 0.017721233832386944,
+            "mean_realised_loss": 0.022017184782428964
+          },
+          "ledger": {
+            "anchor_gain": {
+              "cases": 208,
+              "mean_predicted_gain": 0.004802896638233373,
+              "mean_realised_gain": 0.0006934023037153497,
+              "realised_positive": 139,
+              "realised_negative": 69,
+              "realised_ties": 0,
+              "sign_agreement": 139,
+              "pearson": -0.40138546565303995,
+              "predicted_positive": 208,
+              "realised_positive_when_predicted_positive": 139
+            },
+            "ledger_vs_control": {
+              "cases": 208,
+              "mean_predicted_gain": 0.004149096027722462,
+              "mean_realised_gain": 0.000417908680834521,
+              "realised_positive": 137,
+              "realised_negative": 71,
+              "realised_ties": 0,
+              "sign_agreement": 137,
+              "pearson": -0.6485410964293207,
+              "predicted_positive": 208,
+              "realised_positive_when_predicted_positive": 137
+            },
+            "mean_predicted_loss": 0.015307944863866142,
+            "mean_realised_loss": 0.021599276101594442
+          }
+        },
+        "mean_realised_ledger_vs_incumbent": -0.0019533408386858274
+      },
+      "pedestrian": {
+        "cases": 208,
+        "arms": {
+          "control": {
+            "anchor_gain": {
+              "cases": 208,
+              "mean_predicted_gain": 0.0165117385400779,
+              "mean_realised_gain": 0.005751830798921679,
+              "realised_positive": 110,
+              "realised_negative": 97,
+              "realised_ties": 1,
+              "sign_agreement": 111,
+              "pearson": 0.49595965191410374,
+              "predicted_positive": 207,
+              "realised_positive_when_predicted_positive": 110
+            },
+            "ledger_vs_control": {
+              "cases": 208,
+              "mean_predicted_gain": -0.029090214911509853,
+              "mean_realised_gain": 0.007515669355431866,
+              "realised_positive": 135,
+              "realised_negative": 73,
+              "realised_ties": 0,
+              "sign_agreement": 73,
+              "pearson": 0.07907519832236565,
+              "predicted_positive": 0,
+              "realised_positive_when_predicted_positive": 0
+            },
+            "mean_predicted_loss": 0.18329969082259814,
+            "mean_realised_loss": 0.2098312936427869
+          },
+          "ledger": {
+            "anchor_gain": {
+              "cases": 208,
+              "mean_predicted_gain": 0.021153186635101635,
+              "mean_realised_gain": 0.013267500154353545,
+              "realised_positive": 121,
+              "realised_negative": 87,
+              "realised_ties": 0,
+              "sign_agreement": 121,
+              "pearson": 0.23883282781149995,
+              "predicted_positive": 208,
+              "realised_positive_when_predicted_positive": 121
+            },
+            "ledger_vs_control": {
+              "cases": 208,
+              "mean_predicted_gain": 0.021218539701559066,
+              "mean_realised_gain": 0.007515669355431866,
+              "realised_positive": 135,
+              "realised_negative": 73,
+              "realised_ties": 0,
+              "sign_agreement": 135,
+              "pearson": 0.00782507983245663,
+              "predicted_positive": 208,
+              "realised_positive_when_predicted_positive": 135
+            },
+            "mean_predicted_loss": 0.15818292743495124,
+            "mean_realised_loss": 0.20231562428735506
+          }
+        },
+        "mean_realised_ledger_vs_incumbent": -0.0024517421900887163
+      }
+    },
+    "phases": {
+      "early_0_7": {
+        "cases": 128,
+        "arms": {
+          "control": {
+            "anchor_gain": {
+              "cases": 128,
+              "mean_predicted_gain": 0.008230983094526353,
+              "mean_realised_gain": 0.0009944826206703741,
+              "realised_positive": 64,
+              "realised_negative": 63,
+              "realised_ties": 1,
+              "sign_agreement": 65,
+              "pearson": 0.07500741932107693,
+              "predicted_positive": 127,
+              "realised_positive_when_predicted_positive": 64
+            },
+            "ledger_vs_control": {
+              "cases": 128,
+              "mean_predicted_gain": -0.016474241841043815,
+              "mean_realised_gain": 0.0025602002421473958,
+              "realised_positive": 83,
+              "realised_negative": 45,
+              "realised_ties": 0,
+              "sign_agreement": 45,
+              "pearson": -0.24990922904525342,
+              "predicted_positive": 0,
+              "realised_positive_when_predicted_positive": 0
+            },
+            "mean_predicted_loss": 0.09259408715889793,
+            "mean_realised_loss": 0.10427205318792337
+          },
+          "ledger": {
+            "anchor_gain": {
+              "cases": 128,
+              "mean_predicted_gain": 0.010952521506829776,
+              "mean_realised_gain": 0.0035546828628177703,
+              "realised_positive": 73,
+              "realised_negative": 55,
+              "realised_ties": 0,
+              "sign_agreement": 73,
+              "pearson": 0.25205524255222983,
+              "predicted_positive": 128,
+              "realised_positive_when_predicted_positive": 73
+            },
+            "ledger_vs_control": {
+              "cases": 128,
+              "mean_predicted_gain": 0.009309649942886489,
+              "mean_realised_gain": 0.0025602002421473958,
+              "realised_positive": 83,
+              "realised_negative": 45,
+              "realised_ties": 0,
+              "sign_agreement": 83,
+              "pearson": 0.2207331473529676,
+              "predicted_positive": 128,
+              "realised_positive_when_predicted_positive": 83
+            },
+            "mean_predicted_loss": 0.07417482606857514,
+            "mean_realised_loss": 0.10171185294577598
+          }
+        },
+        "mean_realised_ledger_vs_incumbent": -0.004979447054124888
+      },
+      "later_8_25": {
+        "cases": 288,
+        "arms": {
+          "control": {
+            "anchor_gain": {
+              "cases": 288,
+              "mean_predicted_gain": 0.009140695313663776,
+              "mean_realised_gain": 0.003911075362114979,
+              "realised_positive": 155,
+              "realised_negative": 133,
+              "realised_ties": 0,
+              "sign_agreement": 155,
+              "pearson": 0.5774149101189361,
+              "predicted_positive": 288,
+              "realised_positive_when_predicted_positive": 155
+            },
+            "ledger_vs_control": {
+              "cases": 288,
+              "mean_predicted_gain": -0.02109808571825617,
+              "mean_realised_gain": 0.004591939585237992,
+              "realised_positive": 189,
+              "realised_negative": 99,
+              "realised_ties": 0,
+              "sign_agreement": 99,
+              "pearson": 0.30153980602324043,
+              "predicted_positive": 0,
+              "realised_positive_when_predicted_positive": 0
+            },
+            "mean_predicted_loss": 0.10402885129131238,
+            "mean_realised_loss": 0.1211029885569122
+          },
+          "ledger": {
+            "anchor_gain": {
+              "cases": 288,
+              "mean_predicted_gain": 0.013878272805484274,
+              "mean_realised_gain": 0.00850301494735297,
+              "realised_positive": 187,
+              "realised_negative": 101,
+              "realised_ties": 0,
+              "sign_agreement": 187,
+              "pearson": 0.04548651716184565,
+              "predicted_positive": 288,
+              "realised_positive_when_predicted_positive": 187
+            },
+            "ledger_vs_control": {
+              "cases": 288,
+              "mean_predicted_gain": 0.014183448052087108,
+              "mean_realised_gain": 0.004591939585237992,
+              "realised_positive": 189,
+              "realised_negative": 99,
+              "realised_ties": 0,
+              "sign_agreement": 189,
+              "pearson": -0.16185690815414128,
+              "predicted_positive": 288,
+              "realised_positive_when_predicted_positive": 189
+            },
+            "mean_predicted_loss": 0.09233237396311249,
+            "mean_realised_loss": 0.1165110489716742
+          }
+        },
+        "mean_realised_ledger_vs_incumbent": -0.000968361274503887
+      }
+    },
+    "seconds": 0.8786996449998696,
+    "new_fits": 0,
+    "api_calls": 0,
+    "scope": "Descriptive squared-log risk transfer on reused development cases; no new selection or held-out claim."
+  },
+  "verification": {
+    "checks": 8554,
+    "failures": 0,
+    "cases": 416,
+    "seconds": 0.9050408900002367,
+    "new_fits": 0,
+    "api_calls": 0,
+    "verifier_sha256": "aa99657427448bda4ffd5e8ee829d87beef361ec13bce9be25f441777c5fe016",
+    "scope": "All416source hashes, risk quadratic forms, realised losses, comparison counts and correlations; descriptive only."
+  }
+}

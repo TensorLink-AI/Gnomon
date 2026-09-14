@@ -1695,3 +1695,22 @@ winner.068remains the promotion reference. No paid/protected confirmation.
 remain disclosed. Main/PyPI unchanged. Actual1.2.0/DeepSeek agent objective
 remains active/unmet. Next diagnostic should inspect conditional-risk transfer
 and the electricity regression, not silently assemble post-hoc domain winners.
+
+## Risk-transfer082: identify calibration limitation before another learner
+
+After preserving081atcda75ef, froze diagnostic16c1457 with three tests. Only416
+hash-verified081case outputs used; no new source data, fit, forecasts/API or
+protected access. Independent8,554checks pass. Runtime0.879s/audit0.905s.
+
+Each arm's risk model prefers its own weights on all416cases, as expected from
+its own optimization. Ledger actually improves272and worsens144. Its predicted
+paired squared-loss gain0.0126838 versus realised0.00396679; correlation-0.126728.
+Electricity correlation-0.648541, predicted0.00414910 versus realised0.000417909;
+pedestrian correlation0.007825. These are descriptive squared-loss diagnostics,
+not RMSLE gains, independent confidence evidence or a new selection policy.
+
+The conditional-risk magnitude is poorly calibrated for benefit prediction,
+particularly in electricity. Preserve rather than invert this relationship on
+seen outcomes. Next work should address prospective transfer validation and
+training-objective mismatch, acknowledging078guards/074strength tests already
+failed. Main/PyPI unchanged, no final/promotion, active20%goal still unmet.
