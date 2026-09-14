@@ -1,0 +1,23 @@
+{
+  "status": "cost_accounting_tested_controller_prepared_not_launched",
+  "local_tests": 2,
+  "independent_per_arm_reconciliation_checks": 9,
+  "snapshot_sessions": 10,
+  "reported_agent_tokens": 1655756,
+  "readiness_reported_tokens": 140,
+  "unknown_usage": 0,
+  "billing_dollars": null,
+  "source_hashes": {
+    "benchmarks/ledger_optimization/costs_guarded_093.py": "70e09ac8c27e193ebc40dbc5f65e4cc7b6c91e46e166e93677ecf598d93c5d86",
+    "benchmarks/tests/test_costs_guarded_093.py": "b8c6c36f16c02b1e25dda85c0570563e8e66027fb285269fe4727eba43f6a2f0"
+  },
+  "controller_launched": false,
+  "synthetic_continuation_preflight_still_required": true,
+  "pilot_changed": false,
+  "files": {
+    "results/continuation-093-preflight-001/cost-source-upload.json": "01111a5d694d78133366ceef0be9668dacc8dd1906dff0c688aac3d69f465bd2",
+    "results/continuation-093-preflight-001/cost-tests.txt": "959f9acc389bd6db532baf47de0109d8b16d444d5718ee4abfccb243a485d012",
+    "results/continuation-093-preflight-001/development-controller.py": "87596c9064de75b0ff55e030fbe13a479eada224bf94af4e773038fedc479ce4",
+    "results/guarded-history-093-pilot-audit-002/reconciled-costs.json": "2982970aa053e269ee8a2c1e4f72f4292813048c6c741aa44a222a33444ada28"
+  }
+}
