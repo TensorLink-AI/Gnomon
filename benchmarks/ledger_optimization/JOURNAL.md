@@ -1111,3 +1111,19 @@ Archive/receipts retain original failure, uniform correction, costs and all
 resamples. No new Hermes trial; earlier agent gain remains1.14% inconclusive.
 Final-reserved observations/main/PyPI unchanged. No paid confirmation or further
 tuning on these validation series. Goal remains active and unachieved.
+
+## Observed error-profile retrieval056: negative development result
+
+Previous turn made progress: completed corrected055 validation, independently
+audited it and pushed d57e0b9. Revalidated current state, then returned only to
+the original development panel. Freeze6d9fa45 defines48 signed/RMS CV error
+features across model/lead blocks, equal-weighted as a family with the original
+12 context features. This changes indexing, not candidate forecasts.
+
+All416 tasks complete:0.2538065087 RMSLE,1.90% better than matched CV but0.15%
+worse than incumbent050. Both domains are slightly worse than the incumbent.
+Four new/four inherited tests and207,907 independent checks pass.416 weight fits,
+23,908 iterations,4.224s;0 new original forecast/API calls. Full records retained
+under receipt056. Gate failed; no promotion or paid follow-up. Validation and
+final-reserved observations were not used in this experiment; main/PyPI unchanged.
+The20% final matched-agent objective remains unachieved.
