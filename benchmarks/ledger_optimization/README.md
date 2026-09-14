@@ -4,6 +4,13 @@ Branch: `dev/ledger-optimization`. **The 20% target has not been achieved.**
 Development and a complete frozen confirmation are retained here. No release or
 forecast-superiority claim is established.
 
+Latest ledger-interface work: [concise agent review087](AGENT_REVIEW_087_RESULT.md)
+preserves the100saved review packets' metrics and evidence references while
+reducing mean per-review compact UTF-8 bytes by56.2%. Pinned1.2.0public-runtime
+checks passed, including temporal revision visibility and pagination. This is
+presentation fidelity/size evidence, not measured token, completion or accuracy
+gain. Original agent results and final-evaluation gates are unchanged.
+
 Latest completed numerical comparison: [case-norm risk086](NORM_RISK_086_RESULT.md)
 scored0.249618mean-case RMSLE versus0.257140for its matched control, a2.93%gain.
 It failed the20%target and electricity guards. Its0.061% lower mean than

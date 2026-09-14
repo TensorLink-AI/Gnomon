@@ -1790,3 +1790,40 @@ remain disclosed. Main/PyPI/protected data unchanged. Objective scaling alone
 has not materially helped. Another arbitrary scale/feature sweep is not justified;
 next work needs a new, testable source of transferable decision evidence.
 Actual1.2.0/DeepSeek20%/95% final objective remains active and unmet.
+
+## Agent-review087: return to ledger infrastructure, preserve semantic facts
+
+Previous turn was progress:086negative numerical result audited/pushed599b99d.
+Reviewed completed030agent path and existing024/026cards: pairwise RMSLE cohorts
+already work; do not duplicate them or claim all-config intersection is necessary.
+A late review's24KB output prompted a frozen full-corpus presentation experiment,
+not a new forecast model or a changed accuracy gate. Adapter frozenb7ca1d7.
+
+All100persisted reviews (25per series) replayed; four round0tasks lack full
+review artifacts and are explicitly listed. Existing summaries1,851,512bytes,
+brief792,153bytes; median21,618->9,255; mean per-review reduction56.2052%.
+1,978identical full windows referenced once. Same scores/counts/ties/identities,
+cohort semantics, exclusions and resolvable SHA/pointers.33,670checks pass across
+105hash-pinned source files; originals unchanged. No forecast scores changed.
+
+Found and preserved a new-helper pagination issue: next call always used12,
+expanding custom smaller pages. Correction930f87f preserves current page size
+and rejects inconsistent offsets. Separate002replay passes33,670checks, and all
+100default views equal001exactly. Original sources/results retained. Eight unit
+tests pass. Published1.2.0/a38cd0c probes verify actual public query, immutable
+full evidence, limit1next call, zero provider calls/ledger mutation during review,
+and unchanged earlier evidence after a hidden future actual revision.
+
+Synthetic setup costs: old card regression30forecast executions, initial new
+probe6, corrected probe9, total45; no API calls. Both complete replays and runtime
+artifacts/logs archived. Byte reduction is not token savings, reasoning success
+or improved forecast accuracy. No new Hermes evaluation/paid confirmation.
+Main/PyPI/final data unchanged;20%/95%goal remains active/unmet. Next integration
+must be prospectively frozen and preserve equal raw evidence access, tools,
+budgets, typed completion and all failed historical results.
+
+The bundled source subset was independently replayed into a new output directory:
+33,670checks passed and all100view artifacts are byte-identical. Final archive
+includes this proof and original inputs. Initial6forecast probe lacks a saved
+contemporaneous harness hash; its outputs/ledger are preserved and the corrected
+9forecast runtime harness is committed/reproducible. This limitation is disclosed.
