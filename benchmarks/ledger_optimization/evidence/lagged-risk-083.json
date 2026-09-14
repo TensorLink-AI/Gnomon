@@ -1,0 +1,43 @@
+{
+  "freeze_commit": "6f9c43c",
+  "root": "results/lagged-risk-083-001",
+  "archive": "results/lagged-risk-083-001.tar.gz",
+  "archive_sha256": "3abc16450aba27a6f98ef8515e5d2ad71fb882bc918ad0f7b0a1999f4df40a9b",
+  "files": {
+    "audit.log": "a14bbe41a80d4b9f0e9fb42f85ea24a52bad054d3bb74d42ae39aa5c8fcc0865",
+    "execution.log": "97d37fcdf3cdb5c384a9d7e4bbb3175acb4bf432ed4627e1ede2951cf8640d80",
+    "manifest.json": "cce9511526cf5d463a85edbeadb534da1028baff06bd59cd851f3b23d38aca55",
+    "model.json": "371f00824626c0e3f066af69c5168bbfdec816f09621bd878cd9cd5da0c1c2c6",
+    "query.json": "78fbddd2af8e1d48a31dc16ad89012ffe292b8dc5fbb278334c7033294a74354",
+    "report.json": "97d37fcdf3cdb5c384a9d7e4bbb3175acb4bf432ed4627e1ede2951cf8640d80",
+    "training.json": "977aedde103388af52ff982e88d8b04edfbbb86b1faf6740fa07bbffe6ce8f6a",
+    "verification.json": "a14bbe41a80d4b9f0e9fb42f85ea24a52bad054d3bb74d42ae39aa5c8fcc0865"
+  },
+  "report": {
+    "synthetic_only": true,
+    "training_cases": 6,
+    "training_rows": 144,
+    "features": 17,
+    "forest_fits": 1,
+    "trees": 32,
+    "weight_fits": 24,
+    "weight_iterations": 180,
+    "seconds": 0.039919727998494636,
+    "api_calls": 0,
+    "base_forecasts": 0,
+    "source_evaluation_status": "not_started"
+  },
+  "verification": {
+    "checks": 1345,
+    "failures": 0,
+    "trees": 32,
+    "training_rows": 144,
+    "feature_count": 17,
+    "query_steps": 24,
+    "certified_weight_fits": 24,
+    "new_forests_or_weight_fits": 0,
+    "api_calls": 0,
+    "synthetic_only": true,
+    "verifier_sha256": "c1e5332f8e40a54042ab7087f39cb2ddbf8fa930a3c3c12cc29cee3dd5646371"
+  }
+}

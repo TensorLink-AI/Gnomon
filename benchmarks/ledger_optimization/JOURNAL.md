@@ -1714,3 +1714,21 @@ particularly in electricity. Preserve rather than invert this relationship on
 seen outcomes. Next work should address prospective transfer validation and
 training-objective mismatch, acknowledging078guards/074strength tests already
 failed. Main/PyPI unchanged, no final/promotion, active20%goal still unmet.
+
+## Prior-error context083: synthetic preparation
+
+Previous goal turn was progress:081result and082diagnostic audited/pushed at
+1bd698b. Revalidated branch and reviewed048/051/062/074/078/079 before defining
+this context change. Keep081learner/action, append each model's preceding
+matured backtest signed error and a presence flag. Same inputs/capabilities both
+arms; ledger additionally learns past production episodes with their own prior
+backtest contexts. This is nonlinear joint-risk conditioning, not079linear
+correction or another post-hoc trust filter. Squared-log surrogate remains a
+limitation; no claim it exactly optimizes mean-case RMSLE.
+
+Frozen6f9c43c after five tests, synthetic6cases/144rows/17features. One32-tree
+forest,24quadratic solves,180iterations,0.0399s. Independent1,345checks pass,
+including metadata maturity/configuration checks, every weighted node,PSD and
+24convex certificates. No source data, paid/API calls or accuracy result. Full
+archive and member hashes preserved. Separate084driver freeze required before
+source execution. Main/PyPI unchanged;20%held-out actual-agent goal remains unmet.
