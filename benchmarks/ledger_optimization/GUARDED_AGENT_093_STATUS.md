@@ -1,8 +1,8 @@
 # Guarded pilot 093 — completed
 
-Latest audited continuation: 276/312 sessions, 91 matched cases (2026-09-14
-21:56 UTC). The pilot is complete; the full development continuation is active.
-See the nineteenth audit below. The 20% target remains unmet.
+Latest audited continuation: 282/312 sessions, 93 matched cases (2026-09-14
+22:08 UTC). The pilot is complete; the full development continuation is active.
+See the twentieth audit below. The 20% target remains unmet.
 
 All 36 sessions finished. Every forecast is valid; plain Hermes completed 11/12 full workflows, Gnomon without ledger 12/12, ledger 12/12. The frozen completion gate passed. Independent local audit: 4,227 file hashes verified, 2,942 checks, zero integrity failures.
 
@@ -694,3 +694,29 @@ no next pilot has launched and no final holdout data has been opened.
 The 20% target remains unmet.
 
 Receipt: `evidence/guarded-agent-093-development-audit-019.json`.
+
+## Twentieth continuation audit — 2026-09-14 22:08 UTC
+
+Six additional disjoint sessions passed 1,920 independent checks. All 885 new
+file hashes and 4,227 pilot hashes verified. No audit failures. Combined evidence
+contains 282 audited sessions and 93 all-three matched cases.
+
+| Arm | Matched RMSLE | Reported tokens | Model requests | Fits | Full matched workflows |
+|---|---:|---:|---:|---:|---:|
+| Hermes | 0.471188 | 26,152,682 | 1,297 | 1,337 | 90/93 |
+| Gnomon | 0.477405 | 25,898,561 | 1,269 | 1,373 | 88/93 |
+| Ledger | 0.461183 | 20,295,598 | 1,097 | 1,472 | 93/93 |
+
+Ledger has 3.40% lower RMSLE and 21.63% fewer reported tokens than Gnomon without
+ledger; numerical fit count is higher. Full audited inventory: 94/95/93 valid
+forecasts and 90/90/93 complete workflows. All failures remain included.
+Receipt: `evidence/guarded-agent-093-development-audit-020.json`.
+
+The newest incomplete plain case (item_1457251_store_14, round 18) is now audited.
+It requested thirteen data summaries and seven evidence reads, then requested
+Ridge after the protected selection phase began. That backtest correctly started
+zero fits, and the agent recommitted its baseline. Native memory was present;
+this is not evidence that memory caused the failure. It remains in the experiment
+and will enter all-three scores when the matching arms complete. Receipt:
+`evidence/guarded-agent-093-failure-monitor-004.json`.
+The trial remains active, final holdout closed, and the 20% objective unmet.

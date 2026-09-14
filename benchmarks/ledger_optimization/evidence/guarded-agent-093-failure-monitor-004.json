@@ -1,5 +1,5 @@
 {
-  "status": "live_incomplete_workflow_identified",
+  "status": "new_incomplete_workflow_independently_audited",
   "new_case": {
     "api_calls": 16,
     "api_errors": 0,
@@ -60,12 +60,145 @@
   },
   "all_incomplete_have_valid_forecasts": true,
   "all_incomplete_stop_reason": "request_budget_exhausted",
-  "scope": "Read-only live grades; newest session not yet independently archived/audited. All nine incomplete workflows have valid baseline forecasts retained in scoring. No rerun, exclusion or extra budget. No cause of agent behavior inferred from the stop reason alone.",
+  "scope": "New case is now in independently verified audit-020 (1,920 checks, no audit failures across six sessions). It requested Ridge after exploration closed, received SELECTION_PHASE_RESERVED with zero new fits, and recommitted the baseline. The failure remains scored. Saved native memory was present; no causal memory effect is inferred. Original live observations remain preserved.",
   "files": {
     "results/guarded-history-093-failure-monitor-004/command.json": "3b3b3e01d08ffb54a5b16d4e0943bd1db0a6446f576fdae0231fa92dcbf4d5e9",
     "results/guarded-history-093-failure-monitor-004/query.py": "2cf594439aee17749cf3e06b5e5945adf715f56cf3adbbffdb9acf6d64a9eb5d",
     "results/guarded-history-093-failure-monitor-004/stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "results/guarded-history-093-failure-monitor-004/stdout.json": "2aca7bd05bcf3029f6f8a9f73a6ab8c3c48c15e8711dc41626b5be514e92c760"
+    "results/guarded-history-093-failure-monitor-004/stdout.json": "2aca7bd05bcf3029f6f8a9f73a6ab8c3c48c15e8711dc41626b5be514e92c760",
+    "results/guarded-history-093-development-audit-020/snapshot/plain/item_1457251_store_14/round-18/boundary-events.jsonl": "6b0d6876913a3c8df3e94d0f40662a6165727763d41b844611f2dfab8336a120",
+    "results/guarded-history-093-development-audit-020/snapshot/plain/item_1457251_store_14/round-18/memory.json": "8d96c2806a8ed5f2aecd66863abcb03d615246dedfcf95df8459d67188533d19"
   },
-  "target_met": false
+  "target_met": false,
+  "independent_audit_receipt": "benchmarks/ledger_optimization/evidence/guarded-agent-093-development-audit-020.json",
+  "new_case_lab_results": [
+    {
+      "operation": "review",
+      "status": "ok",
+      "error": null,
+      "budget": {
+        "numerical_limit": 60,
+        "numerical_attempts": 0,
+        "numerical_remaining": 60,
+        "reserved_final_fits": 1,
+        "backtest_batches_remaining": 19,
+        "agent_requests_remaining": 15,
+        "phase": "exploration",
+        "exploration_requests_remaining": 11,
+        "next_action": "compare and commit early; last four requests are reserved",
+        "seconds_remaining_approx": 469.8,
+        "agent_budget_basis": "host metered API requests; time from parent launch"
+      },
+      "numerical_calls_started": 0
+    },
+    {
+      "operation": "status",
+      "status": "ok",
+      "error": null,
+      "budget": {
+        "numerical_limit": 60,
+        "numerical_attempts": 0,
+        "numerical_remaining": 60,
+        "reserved_final_fits": 1,
+        "backtest_batches_remaining": 19,
+        "agent_requests_remaining": 13,
+        "phase": "exploration",
+        "exploration_requests_remaining": 9,
+        "next_action": "compare and commit early; last four requests are reserved",
+        "seconds_remaining_approx": 456.5,
+        "agent_budget_basis": "host metered API requests; time from parent launch"
+      },
+      "numerical_calls_started": 0
+    },
+    {
+      "operation": "status",
+      "status": "ok",
+      "error": null,
+      "budget": {
+        "numerical_limit": 60,
+        "numerical_attempts": 0,
+        "numerical_remaining": 60,
+        "reserved_final_fits": 1,
+        "backtest_batches_remaining": 19,
+        "agent_requests_remaining": 3,
+        "phase": "selection",
+        "exploration_requests_remaining": 0,
+        "next_action": "commit a tested configuration; no new exploration",
+        "seconds_remaining_approx": 404.3,
+        "agent_budget_basis": "host metered API requests; time from parent launch"
+      },
+      "numerical_calls_started": 0
+    },
+    {
+      "operation": "start",
+      "status": "ok",
+      "error": null,
+      "budget": {
+        "numerical_limit": 60,
+        "numerical_attempts": 4,
+        "numerical_remaining": 56,
+        "reserved_final_fits": 1,
+        "backtest_batches_remaining": 18,
+        "agent_requests_remaining": 2,
+        "phase": "selection",
+        "exploration_requests_remaining": 0,
+        "next_action": "commit a tested configuration; no new exploration",
+        "seconds_remaining_approx": 382.2,
+        "agent_budget_basis": "host metered API requests; time from parent launch"
+      },
+      "numerical_calls_started": 4
+    },
+    {
+      "operation": "backtest",
+      "status": "error",
+      "error": {
+        "code": "SELECTION_PHASE_RESERVED",
+        "cause": "New exploration is closed. Explicitly commit a previously tested configuration.",
+        "details": {
+          "numerical_calls_started": 0,
+          "next_call": {
+            "argv": [
+              "python",
+              "lab.py",
+              "status"
+            ]
+          }
+        }
+      },
+      "budget": {
+        "numerical_limit": 60,
+        "numerical_attempts": 4,
+        "numerical_remaining": 56,
+        "reserved_final_fits": 1,
+        "backtest_batches_remaining": 18,
+        "agent_requests_remaining": 1,
+        "phase": "selection",
+        "exploration_requests_remaining": 0,
+        "next_action": "commit a tested configuration; no new exploration",
+        "seconds_remaining_approx": 372.1,
+        "agent_budget_basis": "host metered API requests; time from parent launch"
+      },
+      "numerical_calls_started": 0
+    },
+    {
+      "operation": "commit",
+      "status": "ok",
+      "error": null,
+      "budget": {
+        "numerical_limit": 60,
+        "numerical_attempts": 4,
+        "numerical_remaining": 56,
+        "reserved_final_fits": 1,
+        "backtest_batches_remaining": 18,
+        "agent_requests_remaining": 0,
+        "phase": "selection",
+        "exploration_requests_remaining": 0,
+        "next_action": "commit a tested configuration; no new exploration",
+        "seconds_remaining_approx": 361.8,
+        "agent_budget_basis": "host metered API requests; time from parent launch"
+      },
+      "numerical_calls_started": 0
+    }
+  ],
+  "native_memory_present": true
 }
