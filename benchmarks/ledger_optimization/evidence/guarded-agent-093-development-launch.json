@@ -1,0 +1,54 @@
+{
+  "status": "development_continuation_live",
+  "launch": {
+    "pid": 3981368,
+    "start_ticks": "1554537629",
+    "boot_id": "998193f3-2771-4162-80e8-1a4887370f60",
+    "at": "2026-09-14T15:49:28.583190+00:00",
+    "controller_sha256": "87596c9064de75b0ff55e030fbe13a479eada224bf94af4e773038fedc479ce4",
+    "source_commit": "d034bbf",
+    "continuation_source_sha256": "6ea588139648e818fd3c6f7ed807a5042a978c665e8775464739ba77028c900c",
+    "preflight_sha256": "321d3741997dbd2b69b14c9afad043226818ee79427e300b9b7933fa417799af",
+    "cost_source_sha256": "70e09ac8c27e193ebc40dbc5f65e4cc7b6c91e46e166e93677ecf598d93c5d86",
+    "planned_total": 312,
+    "retained_pilot_sessions": 36,
+    "new_sessions_planned": 276,
+    "original_pilot_immutable": true,
+    "model": "deepseek-v4.1-flash",
+    "gnomon": "1.2.0",
+    "final_holdout_accessed": false,
+    "automatic_final_dispatch": false
+  },
+  "verified_live": true,
+  "verified_at": "2026-09-14T15:49:42.292057+00:00",
+  "total_completed_at_verification": 36,
+  "retained_pilot_sessions": 36,
+  "new_sessions_completed": 0,
+  "new_model_requests_at_verification": 1,
+  "paid_continuation_launched": true,
+  "gate_accuracy_based": false,
+  "target_met": false,
+  "final_holdout_accessed": false,
+  "main_or_pypi_changed": false,
+  "remote_root": "/root/gnomon-ledger-ml-v3/code/results/guarded-history-093-development-001",
+  "remote_launch": "/root/gnomon-ledger-ml-v3/code/results/guarded-history-093-development-launch-001",
+  "runtime_reverification": {
+    "passed": true,
+    "counts": {
+      "hermes_archive_files": 12173,
+      "gnomon_wheel_files": 40
+    },
+    "mismatches": [],
+    "assets": {
+      "hermes-frozen.tar.gz": "e91f16fa0791926a91324814454d2530785100ab2793c62aa9dc7c84d1f03924",
+      "gnomon_forecast-1.2.0-py3-none-any.whl": "030a5cd063c424482bebdc2a522aa98a8f4bf88285bab31c4e47ddc9afa04f2f"
+    },
+    "scope": "Read-only runtime source comparison to frozen archive and published wheel."
+  },
+  "files": {
+    "results/continuation-093-preflight-001/development-launch.json": "73bec4b195a4f58e91f08925a1f6863df899a867f2f45425619d0a1a05e9774c",
+    "results/continuation-093-preflight-001/development-launch-script.py": "27a8f6167eb7fb49186da5cf48f7379b163e9ac7cdd5c55ca57890b08698fd34",
+    "results/continuation-093-preflight-001/development-controller.py": "87596c9064de75b0ff55e030fbe13a479eada224bf94af4e773038fedc479ce4",
+    "results/continuation-093-preflight-001/runtime-reverified.json": "0532ff51475969c533de48a96a0e7d3312be3ba81b81100981936f2b0f1695c5"
+  }
+}
