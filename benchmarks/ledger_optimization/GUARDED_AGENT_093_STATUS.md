@@ -1,8 +1,8 @@
 # Guarded pilot 093 — completed
 
-Latest audited continuation: 266/312 sessions, 88 matched cases (2026-09-14
-21:40 UTC). The pilot is complete; the full development continuation is active.
-See the eighteenth audit below. The 20% target remains unmet.
+Latest audited continuation: 276/312 sessions, 91 matched cases (2026-09-14
+21:56 UTC). The pilot is complete; the full development continuation is active.
+See the nineteenth audit below. The 20% target remains unmet.
 
 All 36 sessions finished. Every forecast is valid; plain Hermes completed 11/12 full workflows, Gnomon without ledger 12/12, ledger 12/12. The frozen completion gate passed. Independent local audit: 4,227 file hashes verified, 2,942 checks, zero integrity failures.
 
@@ -673,3 +673,24 @@ Mature and later overlap, and phase cohorts differ. This does not identify a
 causal accumulation effect or justify expecting the 20% target from longer
 history alone. The run continues through its full frozen schedule.
 Receipt: `evidence/guarded-agent-093-phases-007.json`.
+
+## Nineteenth continuation audit — 2026-09-14 21:56 UTC
+
+Ten additional disjoint sessions passed 3,606 independent checks. All 1,545 new
+file hashes and 4,227 original pilot file hashes verified, with zero audit failures.
+Combined evidence contains 276 audited sessions and 91 all-three matched cases.
+
+| Arm | Matched RMSLE | Reported tokens | Model requests | Fits | Full matched workflows |
+|---|---:|---:|---:|---:|---:|
+| Hermes | 0.469607 | 25,535,612 | 1,269 | 1,312 | 88/91 |
+| Gnomon | 0.476038 | 25,474,038 | 1,247 | 1,348 | 86/91 |
+| Ledger | 0.459232 | 19,714,326 | 1,072 | 1,435 | 91/91 |
+
+Ledger RMSLE is 3.53% lower and reported tokens 22.61% fewer than Gnomon without
+ledger, while numerical fit count is higher. All failures remain included.
+Full audited inventory: 93/91/92 valid forecasts and 90/86/92 complete workflows.
+These are partial reused-development results. The paid controller remains active;
+no next pilot has launched and no final holdout data has been opened.
+The 20% target remains unmet.
+
+Receipt: `evidence/guarded-agent-093-development-audit-019.json`.
