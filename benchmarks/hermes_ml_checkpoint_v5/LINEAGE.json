@@ -1,0 +1,29 @@
+{
+  "experiment": "092",
+  "parent": "checkpoint-v4 / original030",
+  "parent_commit": "b05fce7",
+  "unchanged_numerical_and_workflow_sources": {
+    "numerical.py": "a71b75f06ad69fcca06275046c5e74565b15d7d6dd2538df0fe827c448fc0413",
+    "lab.py": "9470d1745d2db6fae6bc0afd434448bb3211e522038cfaabd50cd211638835cd",
+    "policy.py": "bacdcca6f79af92813802871f0d5e0655fe5ac45db47b40fee166da380eec6bb",
+    "maturation.py": "6e3728f08ad7a5e551fafedae872afc4b470ccb3eacb41082405b71923b24875",
+    "worker.py": "4187519f6312a3c0709c1ca54a252d16fd35aa614a0b0f0b879e20ba77439e46",
+    "transport.py": "c048c8b9a28fc0006d56f4692b4215cb0f6d17a0d92d7976f0adb8b78bb2530b",
+    "service_admission.py": "722c252bd0519cbded723e5e5bd174790623def9392e211d6ce6c14d98f1b664",
+    "check_forecast.py": "21f035381c5f51a4f4dfb9bda3e5e19400c7b7d5c9abe63df5f539b42c8994a9",
+    "dev_evidence_summary.py": "a5dea6cdb20808016991e5a2fdf83e337822d4a4d21db25a5e527bd296453f62",
+    "ledger_cards.py": "d997fa096900ba7129e5d693959fdf7e46ef5a97f3bf1a3b0c26908ef6c712c8",
+    "test_orchestration.py": "5b23a408ceb7e3f0cb28837871240df6f7f826df7c62bac50861cfbd601cf40b",
+    "test_maturation.py": "11ac74d138ed25ab15dca373bce0507c4f437c2741a97abf504bc2a313f2f1d3",
+    "restore_runtime.py": "12d6310ec0e82ed71fcfce5dc958a421131983bd2b5996c173fd9960137d8413"
+  },
+  "helper_source_hashes": {
+    "agent_review.py": "effd694a1f72a76dfe8bd1d68f6624c9de5a018542d3447e03f86ae3294b840b",
+    "visible_agent_review.py": "ce80c0c53751050a4d7908f141880e0edd4454c5d689a1ac608007d94f3779f7",
+    "ml_ledger_cards.py": "d997fa096900ba7129e5d693959fdf7e46ef5a97f3bf1a3b0c26908ef6c712c8",
+    "history_091.py": "82fbac7134d17e3c4dfb1d091f10f59a7b5cb73555f435c7007fcc97d8ea3f42"
+  },
+  "helper_adaptation": "Only package-relative imports changed to flat project imports. history_091 byte-identical.",
+  "protected_validation_accessed": false,
+  "paid_trial_started": false
+}
