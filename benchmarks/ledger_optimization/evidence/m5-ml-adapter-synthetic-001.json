@@ -1,0 +1,34 @@
+{
+  "status": "synthetic_adapter_checks_passed",
+  "tests": 8,
+  "synthetic_series": 8,
+  "synthetic_tasks": 208,
+  "history_rows": 730,
+  "first_history_day": 848,
+  "first_origin_day": 1577,
+  "last_target_day": 1941,
+  "original_selection_window": [
+    1212,
+    1577
+  ],
+  "reserved_selection_changed": false,
+  "real_archive_opened": false,
+  "real_reserved_targets_accessed": false,
+  "provider_calls": 0,
+  "engy_calls": 0,
+  "live_run_modified": false,
+  "target_met": false,
+  "limitations": [
+    "No preparation against the real archive in this checkpoint.",
+    "No reserved export CLI, final fitting or final scoring.",
+    "A passing development candidate and complete final host integration remain required."
+  ],
+  "rerun": "python3 -m unittest benchmarks.tests.test_m5_ml_adapter -v",
+  "source_and_evidence_hashes": {
+    "benchmarks/ledger_optimization/m5_ml_adapter.py": "733b2a3593a5a30641bd1407390ae1cd4fe745facf5b474c04a3579361137371",
+    "benchmarks/ledger_optimization/M5_ML_ADAPTER.md": "93509d2d022445a8083511251ce4b956d4fd3d51e25f2e4a7111f65d76b7a013",
+    "benchmarks/ledger_optimization/m5_prepare.py": "3ac1b25471c405fea8c4ffa7aa115e396ab1e5f64885b2642328630826937eff",
+    "benchmarks/tests/test_m5_ml_adapter.py": "c2e8e9c10e7f36b952e7acddf6d57d210828a4e7adf11c5b5e477c85ace9cc9f",
+    "results/m5-ml-adapter-synthetic-001/tests.txt": "17e56eeec1a691e2a444d6fbbe826ed028487d755fdefac075122e32d5c72a9c"
+  }
+}
