@@ -1,0 +1,4240 @@
+{
+  "freeze_commit": "11af992",
+  "exit_status": 0,
+  "report": {
+    "overall": {
+      "cases": 416,
+      "mean_rmsle": {
+        "global_cv": 0.26063159842148664,
+        "block_cv": 0.2587110657586681,
+        "block_ledger": 0.25342472590179593
+      },
+      "primary_reduction": 0.020433373583654046,
+      "reduction_vs_global_guard": 0.027651568586998243,
+      "control_reduction_vs_global": 0.007368763704977632
+    },
+    "domains": {
+      "electricity": {
+        "cases": 208,
+        "mean_rmsle": {
+          "global_cv": 0.11122640184939629,
+          "block_cv": 0.10748648550251698,
+          "block_ledger": 0.10734393402408889
+        },
+        "primary_reduction": 0.001326226992739099,
+        "reduction_vs_global_guard": 0.034905991390105195,
+        "control_reduction_vs_global": 0.03362435792846441
+      },
+      "pedestrian": {
+        "cases": 208,
+        "mean_rmsle": {
+          "global_cv": 0.410036794993577,
+          "block_cv": 0.40993564601481913,
+          "block_ledger": 0.39950551777950294
+        },
+        "primary_reduction": 0.025443330768408323,
+        "reduction_vs_global_guard": 0.02568373702715876,
+        "control_reduction_vs_global": 0.00024668268797545245
+      }
+    },
+    "rows": [
+      {
+        "series_id": "electricity:T15",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.06066115113206595,
+          "block_cv": 0.06160900104739665,
+          "block_ledger": 0.06049494215873013
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.056202371199024444,
+          "block_cv": 0.044313125570491364,
+          "block_ledger": 0.04951052467928254
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.05269772113726944,
+          "block_cv": 0.05523755818929788,
+          "block_ledger": 0.05318934275560229
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.0724466167512979,
+          "block_cv": 0.08072661891367984,
+          "block_ledger": 0.0789117571783465
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.4288510937576709,
+          "block_cv": 0.32362680116494974,
+          "block_ledger": 0.326672569141929
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.08607934884683702,
+          "block_cv": 0.0882728564100184,
+          "block_ledger": 0.08315839340228551
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.03593306426089553,
+          "block_cv": 0.037870903613403645,
+          "block_ledger": 0.03674600349271992
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.07520522704253656,
+          "block_cv": 0.07429105908867253,
+          "block_ledger": 0.07373424256753248
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.046632815357186254,
+          "block_cv": 0.05067904492238935,
+          "block_ledger": 0.04917530092171109
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.1724234832397517,
+          "block_cv": 0.17674596017101202,
+          "block_ledger": 0.14560916740126306
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.05850608318304607,
+          "block_cv": 0.06815976852213566,
+          "block_ledger": 0.06786572381531596
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.08524448856788609,
+          "block_cv": 0.0831742296771376,
+          "block_ledger": 0.07128482584166554
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.2493003692126086,
+          "block_cv": 0.18469231021363935,
+          "block_ledger": 0.17852939151915082
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.039619996500856104,
+          "block_cv": 0.03356929345724833,
+          "block_ledger": 0.048047203887067264
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.06984451386000115,
+          "block_cv": 0.06932846951028966,
+          "block_ledger": 0.06984022234118795
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.04902215127360433,
+          "block_cv": 0.05201265541760011,
+          "block_ledger": 0.0553318495243964
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.06765232197675139,
+          "block_cv": 0.06806172485268294,
+          "block_ledger": 0.06779840703426426
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.05980672984756677,
+          "block_cv": 0.06842146186310544,
+          "block_ledger": 0.07022529378738479
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.06284955598505745,
+          "block_cv": 0.060792468250157126,
+          "block_ledger": 0.05995678859588105
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.05017911239646841,
+          "block_cv": 0.051217609619034446,
+          "block_ledger": 0.0466142293599887
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.16823418040689805,
+          "block_cv": 0.12878335733609445,
+          "block_ledger": 0.12055676856716559
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.36080522147017313,
+          "block_cv": 0.38821415816624844,
+          "block_ledger": 0.30602866499812714
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.04883603336811313,
+          "block_cv": 0.045743695289590436,
+          "block_ledger": 0.04534554052621206
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.06953551085747896,
+          "block_cv": 0.0639918314782017,
+          "block_ledger": 0.06500051460336641
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.07836916971272005,
+          "block_cv": 0.07718618049719504,
+          "block_ledger": 0.07672361653778564
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.13597836009993425,
+          "block_cv": 0.14181451193424127,
+          "block_ledger": 0.13495636854248444
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.11158896093492011,
+          "block_cv": 0.11489430086316613,
+          "block_ledger": 0.10427285387510042
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.08431687191797656,
+          "block_cv": 0.08422753493696039,
+          "block_ledger": 0.07878448128327965
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.1457916934437135,
+          "block_cv": 0.13686758695823528,
+          "block_ledger": 0.12747852062311815
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.04833359200342159,
+          "block_cv": 0.05213323124787845,
+          "block_ledger": 0.07194814409954646
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.07359210825845318,
+          "block_cv": 0.07537694985797243,
+          "block_ledger": 0.07259238595016684
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.09716822450823029,
+          "block_cv": 0.09510767932177694,
+          "block_ledger": 0.0939546837593201
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.03938722368455046,
+          "block_cv": 0.03771703346784466,
+          "block_ledger": 0.03506458107395333
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.031536631812972477,
+          "block_cv": 0.03334330714955738,
+          "block_ledger": 0.02950396632696945
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.039763414093225466,
+          "block_cv": 0.03657729395262615,
+          "block_ledger": 0.03025125770632483
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.04338648575573039,
+          "block_cv": 0.030931969919530993,
+          "block_ledger": 0.05372146436651287
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.25955242893004116,
+          "block_cv": 0.21038240865518548,
+          "block_ledger": 0.20664801111459968
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.28522003251455913,
+          "block_cv": 0.24838297848278315,
+          "block_ledger": 0.23925200700601512
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.06367627243373009,
+          "block_cv": 0.06126463199313161,
+          "block_ledger": 0.05932830922132025
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.06815058130474816,
+          "block_cv": 0.07240706791162214,
+          "block_ledger": 0.06996344763926618
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.0631418018677945,
+          "block_cv": 0.06436103582180507,
+          "block_ledger": 0.06247296956467593
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.10658909290408848,
+          "block_cv": 0.10671995736389711,
+          "block_ledger": 0.10441901596551163
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.05857628427055999,
+          "block_cv": 0.060907174378022094,
+          "block_ledger": 0.0632329257068468
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.2189701515491504,
+          "block_cv": 0.21585944937133678,
+          "block_ledger": 0.21531062909646753
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.344155564006727,
+          "block_cv": 0.2624846127762673,
+          "block_ledger": 0.24507224118972248
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.6065529130324203,
+          "block_cv": 0.608047459254162,
+          "block_ledger": 0.6124622959248927
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.06551818790331634,
+          "block_cv": 0.06277450821000136,
+          "block_ledger": 0.06295851290421692
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.04796172682106906,
+          "block_cv": 0.044922500829809205,
+          "block_ledger": 0.04558056020486466
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.06995347055193057,
+          "block_cv": 0.0709095274151682,
+          "block_ledger": 0.07098952613711061
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.039604319814314684,
+          "block_cv": 0.039520598529350234,
+          "block_ledger": 0.03837687445769359
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.032328672623958304,
+          "block_cv": 0.03200216895324023,
+          "block_ledger": 0.038186540513719704
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.17927434671676565,
+          "block_cv": 0.18712622526149206,
+          "block_ledger": 0.16044559892230761
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.25798388401880484,
+          "block_cv": 0.2803661235412062,
+          "block_ledger": 0.2799884451220363
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.1165357401936142,
+          "block_cv": 0.09004473185463453,
+          "block_ledger": 0.11253274211133667
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.06339013508345008,
+          "block_cv": 0.06196666562621551,
+          "block_ledger": 0.06133384672984166
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.06854871028998077,
+          "block_cv": 0.06842574935849685,
+          "block_ledger": 0.06710581178247622
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 7,
+        "scores": {
+          "global_cv": 0.05744461357854151,
+          "block_cv": 0.048462277330493034,
+          "block_ledger": 0.051627007632305724
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 7,
+        "scores": {
+          "global_cv": 0.05397160953019584,
+          "block_cv": 0.05282243143103834,
+          "block_ledger": 0.05299780720481616
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 7,
+        "scores": {
+          "global_cv": 0.04640636382959542,
+          "block_cv": 0.04620683022376429,
+          "block_ledger": 0.044779645645065924
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 7,
+        "scores": {
+          "global_cv": 0.06274178801334417,
+          "block_cv": 0.07160611389936637,
+          "block_ledger": 0.06810703964713667
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 7,
+        "scores": {
+          "global_cv": 0.18917870780683332,
+          "block_cv": 0.18293557633768448,
+          "block_ledger": 0.18301347744550228
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 7,
+        "scores": {
+          "global_cv": 0.36955576026613574,
+          "block_cv": 0.35692381221283687,
+          "block_ledger": 0.33693855445013454
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 7,
+        "scores": {
+          "global_cv": 0.04647487285681306,
+          "block_cv": 0.04964622154372483,
+          "block_ledger": 0.04664005445416261
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 7,
+        "scores": {
+          "global_cv": 0.05339586409155034,
+          "block_cv": 0.04548204555310495,
+          "block_ledger": 0.04809562003386001
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.07888440786565235,
+          "block_cv": 0.08264521637070578,
+          "block_ledger": 0.07066169460249322
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.10407936406504052,
+          "block_cv": 0.11916041684579814,
+          "block_ledger": 0.11192159429632471
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.03882588405856653,
+          "block_cv": 0.038968421063483735,
+          "block_ledger": 0.0395211197036335
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.0949901961559341,
+          "block_cv": 0.10681087360386124,
+          "block_ledger": 0.0957301528345144
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.1658745692822896,
+          "block_cv": 0.15308825505515952,
+          "block_ledger": 0.15807659595514453
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.37567987307090367,
+          "block_cv": 0.3901582016777009,
+          "block_ledger": 0.3997958243246276
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.039918461549312285,
+          "block_cv": 0.03697582265383989,
+          "block_ledger": 0.03792928149123877
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.049750800672968866,
+          "block_cv": 0.04995092881537737,
+          "block_ledger": 0.04836462896052794
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.06437843344809807,
+          "block_cv": 0.0628288573214011,
+          "block_ledger": 0.05848493073941348
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.07114333280476606,
+          "block_cv": 0.06854324894610608,
+          "block_ledger": 0.07061536638829093
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.04466832751355744,
+          "block_cv": 0.04519037359479307,
+          "block_ledger": 0.04523270055553251
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.13767519925215252,
+          "block_cv": 0.14629568339852472,
+          "block_ledger": 0.13651305978087408
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.22825830387742124,
+          "block_cv": 0.21312861470030228,
+          "block_ledger": 0.20898695117233268
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.10019421624131694,
+          "block_cv": 0.1024734592177274,
+          "block_ledger": 0.12331273308078268
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.06413693532629722,
+          "block_cv": 0.063390831409734,
+          "block_ledger": 0.06179829549976934
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.0769979875697196,
+          "block_cv": 0.07760318883489228,
+          "block_ledger": 0.07363842907543401
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.07113706401678464,
+          "block_cv": 0.0694014034648334,
+          "block_ledger": 0.06589239426905383
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.13005099832224473,
+          "block_cv": 0.1146984378024021,
+          "block_ledger": 0.10502757567044495
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.04352568493854511,
+          "block_cv": 0.044701834650704556,
+          "block_ledger": 0.04939587287973008
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.0739899220604834,
+          "block_cv": 0.08245260979432212,
+          "block_ledger": 0.07527167410410729
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.20017374625367754,
+          "block_cv": 0.20778202248069494,
+          "block_ledger": 0.19879667237580667
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.08155812567344979,
+          "block_cv": 0.08057197460362482,
+          "block_ledger": 0.08677629260262451
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.05151293631320808,
+          "block_cv": 0.047394634007455055,
+          "block_ledger": 0.043744269290766635
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.06173979235023994,
+          "block_cv": 0.058416542754735776,
+          "block_ledger": 0.06091356123319951
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.06503663742804071,
+          "block_cv": 0.061774637367149075,
+          "block_ledger": 0.058804613961021324
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.054419526852589536,
+          "block_cv": 0.05933813770976338,
+          "block_ledger": 0.05633403338183552
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.06499619135321098,
+          "block_cv": 0.06198236251773933,
+          "block_ledger": 0.06152549371629486
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.07116743332872198,
+          "block_cv": 0.07269051596825721,
+          "block_ledger": 0.07210711447765285
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.24836392584190012,
+          "block_cv": 0.20675928183957926,
+          "block_ledger": 0.18698616661877313
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.06683130337314776,
+          "block_cv": 0.06028475518328712,
+          "block_ledger": 0.060197084170586265
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.06515373798783712,
+          "block_cv": 0.06247227344919517,
+          "block_ledger": 0.06050940174415692
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.10642157243252194,
+          "block_cv": 0.1095177404694523,
+          "block_ledger": 0.10713145564148806
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.05226760478023696,
+          "block_cv": 0.05440616548765075,
+          "block_ledger": 0.054908068617147816
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.05531516781214155,
+          "block_cv": 0.05345014589308469,
+          "block_ledger": 0.0439207180624217
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.02642110628245015,
+          "block_cv": 0.028047707652249017,
+          "block_ledger": 0.02724132529728396
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.04517387325658199,
+          "block_cv": 0.04978913722520004,
+          "block_ledger": 0.04600611431224589
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.23220802543346902,
+          "block_cv": 0.21867396939340938,
+          "block_ledger": 0.22261450184498893
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.07880689073264684,
+          "block_cv": 0.0702748402157422,
+          "block_ledger": 0.06777852350031771
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.04527567314049014,
+          "block_cv": 0.044087318850784915,
+          "block_ledger": 0.042142453435673674
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.07696706191755744,
+          "block_cv": 0.07570799529702352,
+          "block_ledger": 0.07327036848438524
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.09487305120490108,
+          "block_cv": 0.09582948599206458,
+          "block_ledger": 0.09350123840528025
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.0479458171977368,
+          "block_cv": 0.058591421279387046,
+          "block_ledger": 0.05423541703702365
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.029877277821118813,
+          "block_cv": 0.029562632405923047,
+          "block_ledger": 0.030819923032590756
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.03963445383180434,
+          "block_cv": 0.03088830595598871,
+          "block_ledger": 0.03347770716602185
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.21163985306015365,
+          "block_cv": 0.21396752612432535,
+          "block_ledger": 0.21545050764668128
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.09656159241004955,
+          "block_cv": 0.095760558120181,
+          "block_ledger": 0.09423763672502229
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.06478853620473336,
+          "block_cv": 0.06405525097591382,
+          "block_ledger": 0.06241691141350802
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.0702952290338137,
+          "block_cv": 0.06839688484365467,
+          "block_ledger": 0.06731489912949452
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.05341933944565275,
+          "block_cv": 0.05430588163210742,
+          "block_ledger": 0.05407660550067975
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.06155384622233233,
+          "block_cv": 0.0824217120413675,
+          "block_ledger": 0.07560460396515828
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.06509888356573112,
+          "block_cv": 0.07032175312912373,
+          "block_ledger": 0.06707118718782354
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.051495468625193885,
+          "block_cv": 0.04241894963505979,
+          "block_ledger": 0.04658560983440304
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.5114248169627399,
+          "block_cv": 0.4750855805283352,
+          "block_ledger": 0.464879602407219
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.056726664096517616,
+          "block_cv": 0.06184195515444948,
+          "block_ledger": 0.05969620822390128
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.05982078223140003,
+          "block_cv": 0.05613328308101827,
+          "block_ledger": 0.055203199553449246
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.06328221615902559,
+          "block_cv": 0.062133999821587176,
+          "block_ledger": 0.06034594494374906
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.05935300980939745,
+          "block_cv": 0.0544756547897442,
+          "block_ledger": 0.05371132965214539
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.08367857879364045,
+          "block_cv": 0.057148538602546727,
+          "block_ledger": 0.05334048853231178
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.02697711373706223,
+          "block_cv": 0.027869142369025997,
+          "block_ledger": 0.027477175902782813
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.12249447592972329,
+          "block_cv": 0.18569813567153196,
+          "block_ledger": 0.18097760402836827
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.45794928001456414,
+          "block_cv": 0.29966044521739643,
+          "block_ledger": 0.2960673357305793
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.09308064886236114,
+          "block_cv": 0.08059705509609993,
+          "block_ledger": 0.07872973920025372
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.04984062476556525,
+          "block_cv": 0.049284302225399014,
+          "block_ledger": 0.04712865048761026
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.05146881460736361,
+          "block_cv": 0.051807090105857594,
+          "block_ledger": 0.05118652373708233
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.055250407789280254,
+          "block_cv": 0.04515807949831443,
+          "block_ledger": 0.04698982276429029
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.07323008154856882,
+          "block_cv": 0.0917208545021911,
+          "block_ledger": 0.08493683111015589
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.04325286359198642,
+          "block_cv": 0.04171162854564787,
+          "block_ledger": 0.04339821987412043
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.029519129755569716,
+          "block_cv": 0.027787355607977474,
+          "block_ledger": 0.026629958805875136
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.24618094038690247,
+          "block_cv": 0.1754607543760682,
+          "block_ledger": 0.16739273950441882
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.07349113417886308,
+          "block_cv": 0.07124065278996683,
+          "block_ledger": 0.06768615840340583
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.054472908531480506,
+          "block_cv": 0.049482852358886775,
+          "block_ledger": 0.04596653791291017
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.058419633522408344,
+          "block_cv": 0.055351320476365956,
+          "block_ledger": 0.057712794498814404
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.08588505802472637,
+          "block_cv": 0.08185344142478958,
+          "block_ledger": 0.0817398891218555
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.09639855312197615,
+          "block_cv": 0.06558325897937275,
+          "block_ledger": 0.07439711471823743
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.06868035692817606,
+          "block_cv": 0.07006717428790595,
+          "block_ledger": 0.06949895965927708
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.0741762942537145,
+          "block_cv": 0.053206310794523384,
+          "block_ledger": 0.06186455911036295
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.4123330206445143,
+          "block_cv": 0.27467221185063223,
+          "block_ledger": 0.2957970023821579
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.08836185458737139,
+          "block_cv": 0.09386239007355879,
+          "block_ledger": 0.09324300474130122
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.06461396115906634,
+          "block_cv": 0.07021932293869684,
+          "block_ledger": 0.06187194139053471
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.07840134976623415,
+          "block_cv": 0.07939508783967789,
+          "block_ledger": 0.07662539225694251
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.07665801532933385,
+          "block_cv": 0.07271300417493964,
+          "block_ledger": 0.06992689739887807
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.06027462649220753,
+          "block_cv": 0.05263427799336952,
+          "block_ledger": 0.047413494463647544
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.06790584550276202,
+          "block_cv": 0.06889123591544484,
+          "block_ledger": 0.06802339189636891
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.09271450214900974,
+          "block_cv": 0.10164871176439268,
+          "block_ledger": 0.09321000265810338
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.24567402687187623,
+          "block_cv": 0.20866403366868597,
+          "block_ledger": 0.2078908643367597
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.07565278553337294,
+          "block_cv": 0.08508257710512436,
+          "block_ledger": 0.08705768737954529
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.0765925071169177,
+          "block_cv": 0.07283694736375512,
+          "block_ledger": 0.07084554358240444
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.06546832376920304,
+          "block_cv": 0.06854119119809098,
+          "block_ledger": 0.06158844060939987
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.05694702261885529,
+          "block_cv": 0.06135864736941215,
+          "block_ledger": 0.05881109887838695
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.05466286570354147,
+          "block_cv": 0.044350901586756475,
+          "block_ledger": 0.04819294919593809
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.04311136378712038,
+          "block_cv": 0.04109127767108118,
+          "block_ledger": 0.039541887060695224
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.2679303222134808,
+          "block_cv": 0.2606859884267011,
+          "block_ledger": 0.25401051223374504
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.25623486401082823,
+          "block_cv": 0.26655526508120997,
+          "block_ledger": 0.24622065402835563
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.06890879934906555,
+          "block_cv": 0.0655602744428268,
+          "block_ledger": 0.0637659550174811
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.07809319520880849,
+          "block_cv": 0.08380397401773215,
+          "block_ledger": 0.08077187748150023
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.06750442252722631,
+          "block_cv": 0.07046478624668812,
+          "block_ledger": 0.06812912165898671
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.07047306807704419,
+          "block_cv": 0.06824623568897618,
+          "block_ledger": 0.0680139728360584
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.02832069578091482,
+          "block_cv": 0.03688557298414486,
+          "block_ledger": 0.03226754031644111
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.07929267280502943,
+          "block_cv": 0.07898534433273792,
+          "block_ledger": 0.0780760156741015
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.12707716416472747,
+          "block_cv": 0.13843776606476846,
+          "block_ledger": 0.12526422062678347
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.2440205121859544,
+          "block_cv": 0.19572078879591961,
+          "block_ledger": 0.1972614489747608
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.07828834729555113,
+          "block_cv": 0.0865563486616146,
+          "block_ledger": 0.07912312083346883
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.07309911856189401,
+          "block_cv": 0.06830532445817944,
+          "block_ledger": 0.07252360267769163
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.04623507015188663,
+          "block_cv": 0.048475573252534335,
+          "block_ledger": 0.04690850435103797
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.04150937183440541,
+          "block_cv": 0.04197090162398425,
+          "block_ledger": 0.04319709695557104
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.03937816578589433,
+          "block_cv": 0.03207645377869826,
+          "block_ledger": 0.02546971783128151
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.048773171411726844,
+          "block_cv": 0.05335474669688451,
+          "block_ledger": 0.04944482388498034
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.10451158303498685,
+          "block_cv": 0.10595284185406474,
+          "block_ledger": 0.10552993937998488
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.37721178264744354,
+          "block_cv": 0.2874983400429587,
+          "block_ledger": 0.3472932654613059
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.1287592529991038,
+          "block_cv": 0.12473252215323087,
+          "block_ledger": 0.12122476954483549
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.06593544537443985,
+          "block_cv": 0.0626106924680364,
+          "block_ledger": 0.062196029703267174
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.05420778927686679,
+          "block_cv": 0.05593448559140145,
+          "block_ledger": 0.05512964356915351
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.0701982762192351,
+          "block_cv": 0.06646065758950742,
+          "block_ledger": 0.07119885825638338
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.03528723533664726,
+          "block_cv": 0.028261478501600802,
+          "block_ledger": 0.028654284919867185
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.08640713347695486,
+          "block_cv": 0.09576982179805693,
+          "block_ledger": 0.09706926369278646
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.048802407119661176,
+          "block_cv": 0.052290737501680645,
+          "block_ledger": 0.05032725456017234
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.28398232256221856,
+          "block_cv": 0.25926450019951613,
+          "block_ledger": 0.2501400013995046
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.1498295310743224,
+          "block_cv": 0.14706783346900756,
+          "block_ledger": 0.12933502883169012
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.05752028158706359,
+          "block_cv": 0.060089097024709416,
+          "block_ledger": 0.06270293316931026
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.07201366024697993,
+          "block_cv": 0.07182424729584393,
+          "block_ledger": 0.0684016945172373
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.039379435041946756,
+          "block_cv": 0.043071006127668766,
+          "block_ledger": 0.044422100628735695
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.029744465425615374,
+          "block_cv": 0.029816769577819334,
+          "block_ledger": 0.03014149837200005
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.03766765513528504,
+          "block_cv": 0.03284064480532846,
+          "block_ledger": 0.03197793220896655
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.07151954647390817,
+          "block_cv": 0.06502822027485715,
+          "block_ledger": 0.064113600713277
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.30530519693166963,
+          "block_cv": 0.3011212840664513,
+          "block_ledger": 0.229753503621777
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.09715989727123216,
+          "block_cv": 0.08752959701602633,
+          "block_ledger": 0.08919089774798852
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.059809718713641685,
+          "block_cv": 0.05433946213462767,
+          "block_ledger": 0.05388822310768405
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.05168508269901122,
+          "block_cv": 0.04046027340695825,
+          "block_ledger": 0.038916695051469344
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.11710332492784134,
+          "block_cv": 0.1275706135029085,
+          "block_ledger": 0.12667095399344322
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.41007939012909467,
+          "block_cv": 0.40982424892228586,
+          "block_ledger": 0.4096755876916003
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.15753267555397193,
+          "block_cv": 0.15984283515777692,
+          "block_ledger": 0.16173396141705715
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.2775136317512737,
+          "block_cv": 0.27030473087232004,
+          "block_ledger": 0.27239447579151366
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.2662521580041093,
+          "block_cv": 0.2620649807484212,
+          "block_ledger": 0.6644712895597198
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.13006259600643674,
+          "block_cv": 0.14087499479419474,
+          "block_ledger": 0.1528143830273469
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.16993623339214534,
+          "block_cv": 0.16737415401429337,
+          "block_ledger": 0.16596747517344346
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.1796659503351879,
+          "block_cv": 0.18065216377391358,
+          "block_ledger": 0.18091453673393296
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.10454031871874397,
+          "block_cv": 0.09087081203532674,
+          "block_ledger": 0.09529419175074318
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.30128739930813064,
+          "block_cv": 0.302219691157484,
+          "block_ledger": 0.3057399172356969
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.12815613195261025,
+          "block_cv": 0.12825051367041185,
+          "block_ledger": 0.1284931398888732
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.1309156362604472,
+          "block_cv": 0.13838651988196718,
+          "block_ledger": 0.12388178333600273
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.3479635760700211,
+          "block_cv": 0.6021494167462996,
+          "block_ledger": 0.6109745625176902
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.20302289236992183,
+          "block_cv": 0.20662699898211628,
+          "block_ledger": 0.2019012208286737
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.0901419546732147,
+          "block_cv": 0.10079058112924617,
+          "block_ledger": 0.09914644853013016
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.08262515865388328,
+          "block_cv": 0.0779315601688459,
+          "block_ledger": 0.07900089431106426
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.36052041464340784,
+          "block_cv": 0.3294995494909943,
+          "block_ledger": 0.33331967937854357
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.1437334249225066,
+          "block_cv": 0.143181644113219,
+          "block_ledger": 0.1463775110330091
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.463727086993004,
+          "block_cv": 0.4188542584155602,
+          "block_ledger": 0.42951724391824303
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.3073317829793073,
+          "block_cv": 0.37376456697036164,
+          "block_ledger": 0.3434731566616855
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.22981351121555924,
+          "block_cv": 0.23377800674264151,
+          "block_ledger": 0.23550209999398042
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.5729685346459491,
+          "block_cv": 0.6517624003786725,
+          "block_ledger": 0.6348354306583869
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.3149842595821647,
+          "block_cv": 0.3230024951591681,
+          "block_ledger": 0.3262013556562922
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.2243636036464745,
+          "block_cv": 0.2348153526648878,
+          "block_ledger": 0.2336435006236773
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.34777055432147735,
+          "block_cv": 0.3452583729863481,
+          "block_ledger": 0.35397474822882613
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.08830189246209776,
+          "block_cv": 0.08830189246209776,
+          "block_ledger": 0.08784248762412686
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.5386112571391954,
+          "block_cv": 0.5577662805463526,
+          "block_ledger": 0.5686376545855416
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.31513708611848085,
+          "block_cv": 0.2818906794917435,
+          "block_ledger": 0.28761002329471763
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.28288822084873133,
+          "block_cv": 0.26383504000982944,
+          "block_ledger": 0.2470874468973446
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.5434578409112719,
+          "block_cv": 0.6591465835929706,
+          "block_ledger": 0.5653734357766887
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.2923451343575455,
+          "block_cv": 0.29434644498896145,
+          "block_ledger": 0.2988482334951862
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.20720752773500217,
+          "block_cv": 0.22037509727604346,
+          "block_ledger": 0.21050434560796075
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.3548855473893033,
+          "block_cv": 0.32804941094861334,
+          "block_ledger": 0.3444537378318221
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.2161265145306797,
+          "block_cv": 0.23168929500000304,
+          "block_ledger": 0.22141198154945532
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.7489157981639176,
+          "block_cv": 0.7656091394596561,
+          "block_ledger": 0.7763813981008025
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.4585123248740271,
+          "block_cv": 0.4527019955471752,
+          "block_ledger": 0.5014349726531601
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.24335726897677173,
+          "block_cv": 0.2594167870780741,
+          "block_ledger": 0.2579435024247176
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.7105071039236556,
+          "block_cv": 0.8176031003570753,
+          "block_ledger": 0.7579478922252182
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.2783838035385205,
+          "block_cv": 0.28496642414414036,
+          "block_ledger": 0.3289637877822681
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.2827563191256288,
+          "block_cv": 0.28403429937011354,
+          "block_ledger": 0.2756275613171649
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.31726510618047926,
+          "block_cv": 0.34982606283067214,
+          "block_ledger": 0.32600892880153715
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.27592913870766617,
+          "block_cv": 0.26741251976215036,
+          "block_ledger": 0.2665416491383617
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.5132130370760288,
+          "block_cv": 0.4887583524136241,
+          "block_ledger": 0.4865162528685316
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.44870539364476725,
+          "block_cv": 0.42567971625170337,
+          "block_ledger": 0.4232420869995546
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.2544784113526361,
+          "block_cv": 0.27260555471655545,
+          "block_ledger": 0.2690079246512123
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.42200392985654506,
+          "block_cv": 0.34831265932170896,
+          "block_ledger": 0.3533474168162509
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.3159604547642928,
+          "block_cv": 0.3564743568327996,
+          "block_ledger": 0.3470324245323775
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.2225679720801505,
+          "block_cv": 0.21715032077029942,
+          "block_ledger": 0.2212781625221887
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.22312628552392494,
+          "block_cv": 0.21677709443784313,
+          "block_ledger": 0.21866535277072222
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.15698344450238957,
+          "block_cv": 0.15785013732384648,
+          "block_ledger": 0.1526668634491367
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.3529068240660271,
+          "block_cv": 0.362968640802158,
+          "block_ledger": 0.33806093572399043
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.23106543826191012,
+          "block_cv": 0.23078956434826026,
+          "block_ledger": 0.20469083531476512
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.22428779205046506,
+          "block_cv": 0.21809041191869943,
+          "block_ledger": 0.21538313923065347
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.5053078098391969,
+          "block_cv": 0.4722806734543106,
+          "block_ledger": 0.4977364130487185
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.23448939959731485,
+          "block_cv": 0.22317483824332235,
+          "block_ledger": 0.21065239042252
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.16582362853768887,
+          "block_cv": 0.16878468425771556,
+          "block_ledger": 0.16189294640249444
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.2966722399413006,
+          "block_cv": 0.2902401051736613,
+          "block_ledger": 0.2847798551770175
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.16315091783406413,
+          "block_cv": 0.16536137285534233,
+          "block_ledger": 0.16995317809532498
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.8546256335055462,
+          "block_cv": 0.857936440736972,
+          "block_ledger": 0.8172933457602428
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.2999444972821044,
+          "block_cv": 0.3306429094382808,
+          "block_ledger": 0.31369843225249966
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.26230587907512276,
+          "block_cv": 0.23495880389816126,
+          "block_ledger": 0.24288969138363392
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.5016790138028528,
+          "block_cv": 0.5059186504313646,
+          "block_ledger": 0.48661638172642735
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.16046995734107858,
+          "block_cv": 0.17537720505325785,
+          "block_ledger": 0.16869098323741888
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.1578233703372351,
+          "block_cv": 0.15497479127346522,
+          "block_ledger": 0.15776890026139131
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.2763710143982665,
+          "block_cv": 0.26826246124626346,
+          "block_ledger": 0.2709301592350741
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.17556214729415262,
+          "block_cv": 0.15532996449228303,
+          "block_ledger": 0.15953472247423928
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.47748536509115297,
+          "block_cv": 0.5271602886767228,
+          "block_ledger": 0.5058835703852586
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.26441973976570754,
+          "block_cv": 0.21667625105373706,
+          "block_ledger": 0.25571569270937683
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.2315261465772042,
+          "block_cv": 0.2473513716472547,
+          "block_ledger": 0.25364350289633336
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.23940186516035908,
+          "block_cv": 0.25345760456561406,
+          "block_ledger": 0.24854156700587177
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.13096411991992785,
+          "block_cv": 0.18147279236250977,
+          "block_ledger": 0.14874052463205714
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.15382515780096861,
+          "block_cv": 0.1784989645659065,
+          "block_ledger": 0.1666198420677382
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 7,
+        "scores": {
+          "global_cv": 1.003450273594198,
+          "block_cv": 0.9603639243631578,
+          "block_ledger": 0.9305148498232629
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 7,
+        "scores": {
+          "global_cv": 0.2981097051608369,
+          "block_cv": 0.2764675632087062,
+          "block_ledger": 0.26673345274949795
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 7,
+        "scores": {
+          "global_cv": 0.559030870522363,
+          "block_cv": 0.6324645487498073,
+          "block_ledger": 0.5390172096539633
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 7,
+        "scores": {
+          "global_cv": 0.5816900353682849,
+          "block_cv": 0.6910360663315247,
+          "block_ledger": 0.5799054843389215
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 7,
+        "scores": {
+          "global_cv": 1.2884355112353862,
+          "block_cv": 1.2515774661732755,
+          "block_ledger": 0.9530937273353193
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 7,
+        "scores": {
+          "global_cv": 0.7897096655068768,
+          "block_cv": 0.8436767227125731,
+          "block_ledger": 0.7724523900142929
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 7,
+        "scores": {
+          "global_cv": 0.6608560518445027,
+          "block_cv": 0.6066636518038957,
+          "block_ledger": 0.5427685423953391
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 7,
+        "scores": {
+          "global_cv": 0.40110295803629387,
+          "block_cv": 0.47143963586576415,
+          "block_ledger": 0.4878138461874138
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.8252268118030279,
+          "block_cv": 0.7147737022977765,
+          "block_ledger": 0.7420323042913688
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.54826501219431,
+          "block_cv": 0.6029325721704141,
+          "block_ledger": 0.6365842916038479
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.4724081883353938,
+          "block_cv": 0.5975485703349458,
+          "block_ledger": 0.565206916267715
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.8526965977447435,
+          "block_cv": 0.9013840018569659,
+          "block_ledger": 0.8976282768800846
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.7521917349228786,
+          "block_cv": 0.8010470564332003,
+          "block_ledger": 0.7984719381407351
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 8,
+        "scores": {
+          "global_cv": 1.1303568460016438,
+          "block_cv": 1.1122299426703632,
+          "block_ledger": 1.1089455292245245
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.7314383311884238,
+          "block_cv": 0.6164320454363305,
+          "block_ledger": 0.626315547709816
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.49207401256990685,
+          "block_cv": 0.5191640750346098,
+          "block_ledger": 0.521148309348907
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.368946950706617,
+          "block_cv": 0.37305068851906276,
+          "block_ledger": 0.35717824410367083
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.13766506960293573,
+          "block_cv": 0.18233753261309005,
+          "block_ledger": 0.16875551751350368
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.5107367685040316,
+          "block_cv": 0.5024076247221582,
+          "block_ledger": 0.5238502113084373
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.367613197804607,
+          "block_cv": 0.3921575529448878,
+          "block_ledger": 0.31556047277601457
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.3370253455755198,
+          "block_cv": 0.4233496246904694,
+          "block_ledger": 0.4045328776769593
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.526794509102318,
+          "block_cv": 0.5177874487097885,
+          "block_ledger": 0.5364712502704622
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.4087554974553438,
+          "block_cv": 0.3286426105762663,
+          "block_ledger": 0.2903225432647271
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.26643885933881284,
+          "block_cv": 0.2499767874516853,
+          "block_ledger": 0.2604604793153472
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.2651036381853473,
+          "block_cv": 0.4035968190350982,
+          "block_ledger": 0.3593424054376068
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.33581669948563836,
+          "block_cv": 0.3245056209383761,
+          "block_ledger": 0.32067324712501233
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.49824585561239054,
+          "block_cv": 0.613038370396337,
+          "block_ledger": 0.546474739431458
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.4737558564959667,
+          "block_cv": 0.5234720936427356,
+          "block_ledger": 0.5106545602846834
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.2973146727421286,
+          "block_cv": 0.3171604190663477,
+          "block_ledger": 0.3091672870329937
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.3022700324459624,
+          "block_cv": 0.3529824483471749,
+          "block_ledger": 0.33570253536329425
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.23810334492751603,
+          "block_cv": 0.2226523238267365,
+          "block_ledger": 0.20429785369684875
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.2998847593311248,
+          "block_cv": 0.323368141726034,
+          "block_ledger": 0.2686474492656873
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.19710717654997598,
+          "block_cv": 0.1819327680549981,
+          "block_ledger": 0.19352632918874865
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.28612578811065065,
+          "block_cv": 0.26653093718757803,
+          "block_ledger": 0.2512424543084554
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.5143774504631312,
+          "block_cv": 0.5920115923562826,
+          "block_ledger": 0.5590320963451231
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.43460897392046566,
+          "block_cv": 0.35471746972185353,
+          "block_ledger": 0.3861631170825996
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.3130308037563687,
+          "block_cv": 0.21501738045700516,
+          "block_ledger": 0.22030967939575447
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.3268096061286638,
+          "block_cv": 0.31005334936645035,
+          "block_ledger": 0.29325726600527713
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.44099843245959996,
+          "block_cv": 0.38599542614588495,
+          "block_ledger": 0.3959007647361534
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.32168978076868693,
+          "block_cv": 0.3023611146477254,
+          "block_ledger": 0.3093283086050497
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.2584114262514173,
+          "block_cv": 0.28449733139953787,
+          "block_ledger": 0.27940942196762525
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.2490003454963324,
+          "block_cv": 0.2636308812987161,
+          "block_ledger": 0.2551368557700779
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.7493048022593443,
+          "block_cv": 0.6691518834059815,
+          "block_ledger": 0.6699847923324713
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.45407536410309635,
+          "block_cv": 0.43575638976629594,
+          "block_ledger": 0.44559772113476026
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.15064954935167385,
+          "block_cv": 0.14682507031306416,
+          "block_ledger": 0.15220015847889884
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.4262640986414526,
+          "block_cv": 0.4123022333085525,
+          "block_ledger": 0.3940193762552524
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.2852925951597585,
+          "block_cv": 0.284471574226421,
+          "block_ledger": 0.28603355535046954
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.2998733204962464,
+          "block_cv": 0.28991603170907365,
+          "block_ledger": 0.28608416901334965
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.17027523702975922,
+          "block_cv": 0.17746418974170072,
+          "block_ledger": 0.17960535536573738
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.1305516259051207,
+          "block_cv": 0.13072770599539185,
+          "block_ledger": 0.12894327034808498
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.37934903305773177,
+          "block_cv": 0.3635750371132361,
+          "block_ledger": 0.4053752116544944
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.46412763148850056,
+          "block_cv": 0.5219989507737178,
+          "block_ledger": 0.534600682318345
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.3490790027209929,
+          "block_cv": 0.37046282426872923,
+          "block_ledger": 0.3620872617556686
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.5956162036506067,
+          "block_cv": 0.6020295118870611,
+          "block_ledger": 0.5774623833268756
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.3400296927331552,
+          "block_cv": 0.3383933864328404,
+          "block_ledger": 0.3247548833398517
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.23792652879974208,
+          "block_cv": 0.2518544880089928,
+          "block_ledger": 0.2414420794860329
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.25494074414184503,
+          "block_cv": 0.2495305820648642,
+          "block_ledger": 0.2528949359758783
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.1721398267553966,
+          "block_cv": 0.15519029889399577,
+          "block_ledger": 0.1440337202920189
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.2864212326834347,
+          "block_cv": 0.26720099770978634,
+          "block_ledger": 0.27294926188261986
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.36010913618027923,
+          "block_cv": 0.3446096152940157,
+          "block_ledger": 0.3468765653353838
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.23077961502658198,
+          "block_cv": 0.22685539083290068,
+          "block_ledger": 0.22917541363817714
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.49274015547222816,
+          "block_cv": 0.48081590894034965,
+          "block_ledger": 0.46866349027982185
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.25384709532858,
+          "block_cv": 0.2418530350926215,
+          "block_ledger": 0.23713275855608762
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.3575520849924485,
+          "block_cv": 0.35834495036520364,
+          "block_ledger": 0.36345853683689167
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.17900706377554806,
+          "block_cv": 0.19562165689100064,
+          "block_ledger": 0.16811051143510863
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.16305676526913757,
+          "block_cv": 0.16205323128388396,
+          "block_ledger": 0.16089806960547778
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.6670958840824144,
+          "block_cv": 0.657923637054023,
+          "block_ledger": 0.5584748646925767
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.7136373648364036,
+          "block_cv": 0.6807289808951021,
+          "block_ledger": 0.6236554940196196
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.2142499394866238,
+          "block_cv": 0.20994501300135635,
+          "block_ledger": 0.20896115771935905
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.39283782085723673,
+          "block_cv": 0.41027269190709836,
+          "block_ledger": 0.4029998503771805
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.33085400515261737,
+          "block_cv": 0.34636603786714226,
+          "block_ledger": 0.33635988150794327
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.3072755124016845,
+          "block_cv": 0.27435581762678124,
+          "block_ledger": 0.2707282496907063
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.17542729575677599,
+          "block_cv": 0.17158672285073603,
+          "block_ledger": 0.19516297578298797
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.1823458526064433,
+          "block_cv": 0.17263231747114743,
+          "block_ledger": 0.16588448487634172
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.24291763463399413,
+          "block_cv": 0.23938377585831336,
+          "block_ledger": 0.23140686766369944
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.4261956776148876,
+          "block_cv": 0.36767265022982004,
+          "block_ledger": 0.3626302488163898
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.28169888838479373,
+          "block_cv": 0.24662620315936482,
+          "block_ledger": 0.23659675812404143
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.6734670675001091,
+          "block_cv": 0.6491693890624664,
+          "block_ledger": 0.6241844247657017
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.19669726126418713,
+          "block_cv": 0.17659179893832086,
+          "block_ledger": 0.1652095530154857
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.3173536211134197,
+          "block_cv": 0.31845932964113627,
+          "block_ledger": 0.3396330231221152
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.2616314460215939,
+          "block_cv": 0.26218388674093523,
+          "block_ledger": 0.2537695448957538
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.20339541581317444,
+          "block_cv": 0.20205974640799226,
+          "block_ledger": 0.20455851496464283
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.8311975896592412,
+          "block_cv": 0.8361646895970962,
+          "block_ledger": 0.8204538248333155
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.8821461289371102,
+          "block_cv": 0.8811455479718506,
+          "block_ledger": 0.8962532840595913
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.3166836110268636,
+          "block_cv": 0.31531038239536596,
+          "block_ledger": 0.30810699165240885
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 17,
+        "scores": {
+          "global_cv": 1.053313291240497,
+          "block_cv": 0.882339834404576,
+          "block_ledger": 0.8669956345701918
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.29910080870783895,
+          "block_cv": 0.2811056218665186,
+          "block_ledger": 0.3026971729355463
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.30448035999850986,
+          "block_cv": 0.22130743846534134,
+          "block_ledger": 0.23640272882129287
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.2370143849209474,
+          "block_cv": 0.2261884764915574,
+          "block_ledger": 0.2381849667462608
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.2131590012291655,
+          "block_cv": 0.21395429790013576,
+          "block_ledger": 0.21248420026113116
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.38261709865381344,
+          "block_cv": 0.4531333225764274,
+          "block_ledger": 0.43424952547655254
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.6909858807222244,
+          "block_cv": 0.5785404526046894,
+          "block_ledger": 0.6211550875524018
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.32023376252488234,
+          "block_cv": 0.31872521223415035,
+          "block_ledger": 0.30420628108421205
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.8197573756891967,
+          "block_cv": 0.7761964267137933,
+          "block_ledger": 0.7799952782052545
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.19935649319391321,
+          "block_cv": 0.178592786550571,
+          "block_ledger": 0.18900460315472742
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.3252858312933104,
+          "block_cv": 0.3306314405581043,
+          "block_ledger": 0.300220972067458
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.3979398683111448,
+          "block_cv": 0.27213097805461833,
+          "block_ledger": 0.2796725282747477
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.528961719464849,
+          "block_cv": 0.4570716671247347,
+          "block_ledger": 0.4647888652888451
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.6469972424631143,
+          "block_cv": 0.6340274426567881,
+          "block_ledger": 0.6356180175095414
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.5321595579123426,
+          "block_cv": 0.4781427193298059,
+          "block_ledger": 0.46867455657294366
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.7610421400953086,
+          "block_cv": 0.5750598984047431,
+          "block_ledger": 0.6152523515965748
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.8235831690422518,
+          "block_cv": 0.6290495168038157,
+          "block_ledger": 0.6650357713460602
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.43412689722987824,
+          "block_cv": 0.40413182581311285,
+          "block_ledger": 0.40365531147789474
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.6024353726851039,
+          "block_cv": 0.4838551703069468,
+          "block_ledger": 0.49405350348144556
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.603334726921985,
+          "block_cv": 0.6349587293039214,
+          "block_ledger": 0.5948449191699929
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.2943245672156618,
+          "block_cv": 0.3037134242816596,
+          "block_ledger": 0.2965067782757438
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.5140228433147188,
+          "block_cv": 0.5204611342884625,
+          "block_ledger": 0.4767470844901048
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.39506565884168604,
+          "block_cv": 0.3895080133956613,
+          "block_ledger": 0.4642980313290392
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.5420242267419423,
+          "block_cv": 0.6065142345274264,
+          "block_ledger": 0.5717631751141441
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.7708603671263327,
+          "block_cv": 0.8027621733744095,
+          "block_ledger": 0.7221726997707593
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.2768339588461262,
+          "block_cv": 0.2656424085470901,
+          "block_ledger": 0.33167667843649457
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.4771679455681668,
+          "block_cv": 0.4956173670977079,
+          "block_ledger": 0.36762085705000186
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.6675639926455557,
+          "block_cv": 0.6300540330498681,
+          "block_ledger": 0.6279111233825053
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.1367475979498286,
+          "block_cv": 0.13639019885326173,
+          "block_ledger": 0.13593782311796537
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 21,
+        "scores": {
+          "global_cv": 1.2025668109214693,
+          "block_cv": 1.1359741975303201,
+          "block_ledger": 1.0474928516770248
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.6593247200112793,
+          "block_cv": 0.7077137907835209,
+          "block_ledger": 0.7225130532923323
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.49054684662174,
+          "block_cv": 0.4759607290391908,
+          "block_ledger": 0.45714582289242855
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.5241290571619687,
+          "block_cv": 0.520172969565199,
+          "block_ledger": 0.5500846795336184
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.5918410099622519,
+          "block_cv": 0.6308803994428988,
+          "block_ledger": 0.5928077051922227
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.4418226282567524,
+          "block_cv": 0.4496680551241514,
+          "block_ledger": 0.4420779514385022
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.3689971435980756,
+          "block_cv": 0.3249094801446551,
+          "block_ledger": 0.34316486531951523
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.16202922245930015,
+          "block_cv": 0.18994803963095425,
+          "block_ledger": 0.16675144382283122
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.36577173349372505,
+          "block_cv": 0.5642228021828699,
+          "block_ledger": 0.5570569266803309
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.5123659187025238,
+          "block_cv": 0.5073135432002038,
+          "block_ledger": 0.47895016155778036
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.44619647801195544,
+          "block_cv": 0.4475308084718053,
+          "block_ledger": 0.45369907276173566
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.46485423436024564,
+          "block_cv": 0.48730986606106813,
+          "block_ledger": 0.5037487980075214
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 22,
+        "scores": {
+          "global_cv": 1.279750360059539,
+          "block_cv": 1.3556507343394786,
+          "block_ledger": 1.3532718338061047
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.2674513507896709,
+          "block_cv": 0.34363396002229096,
+          "block_ledger": 0.30504280590893973
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.2875785712465276,
+          "block_cv": 0.2619824150379639,
+          "block_ledger": 0.27512074899935474
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.24291972956326036,
+          "block_cv": 0.25633304224813,
+          "block_ledger": 0.23601877618944092
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.36145617365648186,
+          "block_cv": 0.3293683934530414,
+          "block_ledger": 0.3405088308852125
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.505756202476075,
+          "block_cv": 0.4950049641158515,
+          "block_ledger": 0.500645701970705
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.4806871473295176,
+          "block_cv": 0.5063572381890895,
+          "block_ledger": 0.49029466118155807
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.4289629464403844,
+          "block_cv": 0.39615970901883785,
+          "block_ledger": 0.3868309726522543
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.4965969582804497,
+          "block_cv": 0.8461698598465084,
+          "block_ledger": 0.5758268101299608
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.34993908800612283,
+          "block_cv": 0.34277500657295246,
+          "block_ledger": 0.3364105010037224
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.2676767775475676,
+          "block_cv": 0.2510167221003301,
+          "block_ledger": 0.2548360097522781
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.210634106131256,
+          "block_cv": 0.18843090646676552,
+          "block_ledger": 0.19506765794538605
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.363758217299807,
+          "block_cv": 0.4046421979943226,
+          "block_ledger": 0.3918675274915785
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.3781737743137771,
+          "block_cv": 0.3928487895383942,
+          "block_ledger": 0.37870964656360573
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.42191393737798555,
+          "block_cv": 0.2897116059374036,
+          "block_ledger": 0.2906126095567879
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.49221761359295685,
+          "block_cv": 0.4898002415148665,
+          "block_ledger": 0.48587647808401596
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.35292303355287363,
+          "block_cv": 0.554456306273998,
+          "block_ledger": 0.36727373071182784
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.3031181426002449,
+          "block_cv": 0.30869604463684874,
+          "block_ledger": 0.3188396919097066
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.38557575444867037,
+          "block_cv": 0.3789013947309357,
+          "block_ledger": 0.3884454158631858
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.21214013120870748,
+          "block_cv": 0.20691736391185275,
+          "block_ledger": 0.20632580740088916
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.44326739972658186,
+          "block_cv": 0.5220703464687957,
+          "block_ledger": 0.6167533752599816
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.42771934045550686,
+          "block_cv": 0.3392207126060423,
+          "block_ledger": 0.3443543736922025
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.5354107678238085,
+          "block_cv": 0.5097781651376063,
+          "block_ledger": 0.5219418036629332
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.5937906005965425,
+          "block_cv": 0.5385070645704945,
+          "block_ledger": 0.5684562681654152
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.4783552461094033,
+          "block_cv": 0.44336381570251143,
+          "block_ledger": 0.34722085643760703
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.4382002302826439,
+          "block_cv": 0.42718229525784684,
+          "block_ledger": 0.4308929430503385
+        }
+      }
+    ],
+    "weight_fits": 832,
+    "optimizer_iterations": 45874,
+    "seconds": 6.250749782000639,
+    "cpu_seconds": 6.0623317,
+    "certificate_refinements": 0,
+    "api_calls": 0,
+    "provider_fits": 0,
+    "inherited_forecast_computations": 12984,
+    "development_gate_passed": false
+  },
+  "verification": {
+    "checks": 60485,
+    "failures": 0,
+    "cases": 416,
+    "verified_weight_fits": 832,
+    "report_sha256": "e618944b3d9da47f480514e1fe4779f3cd6ac0141ccd711c7da06fee0f85019e",
+    "verifier_sha256": "72de6d25f2a816a79f9bc2d7411675e0261d900602b23886534f46a693633c7e",
+    "scope": "Independent scalar objectives, gradients, gap and smoothing bounds; all weights, derived forecasts, scores, time/phase constraints, source hashes and comparator gates. Real-data fits needed no certificate refinements; that path has synthetic coverage only."
+  },
+  "synthetic_tests": {
+    "tests": 4,
+    "failures": 0,
+    "module": "benchmarks.tests.test_intraday_ensemble",
+    "pre_freeze_failures": "INTRADAY_050_SYNTHETIC_NOTES.md"
+  },
+  "files": {
+    "RERUN.md": "5e7dea31413acc52832d5b60351a81ebbe2999c198c9b2ef6593f3cfc9b75c4b",
+    "electricity:T15-00.json": "895b8bb59f6f8bf79f6b459fbf8fcf710b239e56c4f7d0965bbcb7c6fd1cea49",
+    "electricity:T15-01.json": "8d0094f6a94434197a4dd07d5b10af4fc87057205ab883007b0e1749369174e5",
+    "electricity:T15-02.json": "6011fedd5b9996bb71889f3b3d6150428e7536ebddf47a251a8e46fa07c5a81d",
+    "electricity:T15-03.json": "b1eb337f4ea1c04bb0219397d5ccf5eeb3e938cbfb1850816ed29cbfbd495d16",
+    "electricity:T15-04.json": "512e4dd385955eb1327d3128c5da4180e688cb3e34ef6557f44c296a472bc774",
+    "electricity:T15-05.json": "e2ea4ce6b9a905ca3417beb0b3cef9eb72a0dcb5381a40981456807e1de272e7",
+    "electricity:T15-06.json": "823bec517a663e7a0164b7c61a1f46d5ad108f4c90ee47211019baac7541cbf0",
+    "electricity:T15-07.json": "803a72158cf34425bb53e6280d0a54400d836093798b6c4635bb25680e095d4c",
+    "electricity:T15-08.json": "55dd98360b06f04689250806e72ea17d7cb0cfd64d7c1fa531b1ca0a5725f8c1",
+    "electricity:T15-09.json": "558414db5afa035877cb6f2399f1e3a5834ff95b3e80ae2953d5bbd6d5a2586e",
+    "electricity:T15-10.json": "df7b0873a1d28865b20127ced914726205c365ff9979b2a0c654f7dec16d1ff6",
+    "electricity:T15-11.json": "018efa910bc971e97381e1fa7fd122cd3e65033e40038b106277b2334853f6bd",
+    "electricity:T15-12.json": "c3f3b899afd7f8da44c21cac3b6f7e58149bcac360a6346ddc6fbe5caad284e6",
+    "electricity:T15-13.json": "947fb4c328a571c125c68a970df4667c0ef2e5c0d358b7c49935191efee049b2",
+    "electricity:T15-14.json": "07c432f45cbb3a0551042e5bfcb105dde20e865a63d6bb628d35a120dc6e3e77",
+    "electricity:T15-15.json": "bad69d63ba8d339db3f2094659a14a6afd35b4eb5d2d0dcd2429e7e18a6c8059",
+    "electricity:T15-16.json": "a84994eab68d949eefaff6fc16c0d4e51b255d54876b93efdc1287edfd56cff7",
+    "electricity:T15-17.json": "9056343dcb98b3be3d50df39a8d228259bc92b30bfd7353391ec7b2011406152",
+    "electricity:T15-18.json": "4f3ee98261e38952bd3c9a8577836f06b61f37196864ff21a421a4cdc0fab800",
+    "electricity:T15-19.json": "b3f74ca91e07f848bac1654124b14c70030d6c9c381aa5581aa6993353c96880",
+    "electricity:T15-20.json": "d1d8a9aac15ff583f8d0f05a65661d8110386ffe69c9539708b62d97d651359b",
+    "electricity:T15-21.json": "00bbc4d047533498437b396ee9d7254bc5002a7f087efc1775d3bf7e894a1003",
+    "electricity:T15-22.json": "34042e4caf0ec7e1d1d42a6d4f592593f5cd43ece200a04992ba757f185ae51a",
+    "electricity:T15-23.json": "903fb6a19a8f5926bf54dcd1ed357c1b9d8c241147f394f2c571193cd5721860",
+    "electricity:T15-24.json": "d1fab48a5eaa773df843abd3085e2d09adf361a984ccfc0509e8d87a53e71eda",
+    "electricity:T15-25.json": "29a8363d2778559e263a6298e7bbfa12c5c9d50660943d648a123682b1930eae",
+    "electricity:T174-00.json": "2d3a8ce6c850e92111bd7493d2fe15a23eb23eb4f052345e22f74c8671dbacef",
+    "electricity:T174-01.json": "00f948e02a6504bf26be7b27823df8fcd256fef117935a12396ebafbff458b99",
+    "electricity:T174-02.json": "8b7e39329f123aaa20561e9c103a8a94f65eafe16aa5937570d43f6aeeba58e0",
+    "electricity:T174-03.json": "c9aeaf3fd0c5aa9ad6223f29f8aedb851882bc7d9fbb7d37de064061e6aaddbf",
+    "electricity:T174-04.json": "208315f6a1582479f897d12ee5069cba7e3eca90e69afce81a005952f28c5117",
+    "electricity:T174-05.json": "362a97ec49d73ee974c59758e473e820baf050178b31f2227c125aeaa01f4cbf",
+    "electricity:T174-06.json": "0424c6b80a7eff40548e5a6a3f308c911a447d4c67796a7115800c1a2f7add2a",
+    "electricity:T174-07.json": "5f81874a3ec0e2c6a6f087c0975448b59b82f7250cb6369115c9a0751daf1596",
+    "electricity:T174-08.json": "0f13ac733eddc0a0ead294ca2c2cdb092f593ce788531b64f5b60d5bf66bd51c",
+    "electricity:T174-09.json": "f7ec6bd8ef8dcabd2418081d501e6524426f14f8ebb7014f3435e4f5c55a0a34",
+    "electricity:T174-10.json": "a6e9ef6700f3ca4a1b67fa7168d0774c0f2c53c4c58fb978ccd08c0af592974f",
+    "electricity:T174-11.json": "d1324fbf4c34a8ec0080690486830a13b63a29ea0f3ef4793ce19ae2824735ab",
+    "electricity:T174-12.json": "c67719a06f171c552b35796eea629fe12f75e26e4a9119c232144a6b2b25cf78",
+    "electricity:T174-13.json": "d45a7af135822cda939d98d69a9f19599bd84c9f3d893d17ecd6a17c8426db9b",
+    "electricity:T174-14.json": "22de095d1e8c1c5f9f0a7a7f263d633c7a5be89b916e36d14a0c6cfd25b7362d",
+    "electricity:T174-15.json": "02966b7a8b0f6b8cad57dbe69c004aba3987987f1c08c690e0e0367705829be1",
+    "electricity:T174-16.json": "e8da7933f4ec659a6880399cc8fea142c4214d54d7c64429d962e78513b33be4",
+    "electricity:T174-17.json": "29fb77564ed92a726fa7a4d35045edaf1ef1f5c9edd3a38a4fa982e8271e7191",
+    "electricity:T174-18.json": "138ff5dfe50fe94cb54a0cebd72de4e00cf095b4524b7cca18ba57b77d79bdfb",
+    "electricity:T174-19.json": "561299920305904bea686f65036e1c8ff39ac7008311f13df0fd2e2c13ca1fb7",
+    "electricity:T174-20.json": "421ba5f33e4cddf1aad2edd407a665bac34ce65dadc1e940de60b0581520cdc9",
+    "electricity:T174-21.json": "d3699204f1915cbaf95eb037a8c135d5c91263c904344524cfbbf9eb0f963121",
+    "electricity:T174-22.json": "f3c37d310be9f564ad1bcdbcde85833484097559d19b5adfa8b1e6d01d2a8fa7",
+    "electricity:T174-23.json": "4c3f839bc5cc61d894883a5e01224d3623afbdedd994a7be6c787066a67aab40",
+    "electricity:T174-24.json": "047c5f29d6fa40d58c3f74d509301a92aa2e45cc00aec8a38b3d2a1507a2441f",
+    "electricity:T174-25.json": "27e686dbcc349d7156bd2a9ea70c3e31f7c4b307441e37006c63426c85b079d7",
+    "electricity:T217-00.json": "7dc7adb0d8802e83919d944986f7a140e43b8c38d5d395f76af7db154f1aded3",
+    "electricity:T217-01.json": "ad2fb2b3eb9fff7f6f9bc92a014139532fdcc35530429661a5fe83f1b92f6798",
+    "electricity:T217-02.json": "0945f0903340e774989cda95ccfc1aa770c2ba2d7ef17a8d408fec38531c4fa7",
+    "electricity:T217-03.json": "06d604217d14b3d4e661c7e7376e217907115a84b411824a72dacb26d5073a46",
+    "electricity:T217-04.json": "eed39717ecf19345df7a02b538e379b6dc16fe802a536427cf72285a4b4bcb06",
+    "electricity:T217-05.json": "09028b3155472d05be33544c1b6231ab0c9327c233baa825edaf7a768d9a7629",
+    "electricity:T217-06.json": "08df8e148154173f138e1f925a0785527f56ff44abea71d0ab6915c3217e0936",
+    "electricity:T217-07.json": "26ae44257499505ba3152b105800a52f9380226838928d03969ad61ebb73cc19",
+    "electricity:T217-08.json": "7094d9e3aeeaddeed976281b1bf59dbccfef5d0647c28c05fa6aa0150eaed19b",
+    "electricity:T217-09.json": "42049f85106ad247fb59831cfb967ec9f5985f411922bd4106f4c6558b71055a",
+    "electricity:T217-10.json": "0850ca07acf570e5c95f8e73d36bc5f6c53143e2ca5f8f5cbbead2d0172dfbfd",
+    "electricity:T217-11.json": "e6dc0ff2a73c731a571e48097a422f275f155353cfcb5b3d5f666906696e5bcd",
+    "electricity:T217-12.json": "e92bd8a4ea589d324c97c58b2b1022e4944007fcff5a3c6fc7becd5f4fbd0a9e",
+    "electricity:T217-13.json": "df6f560352d20546f608b39ab7917e03b84a3f9aa4f8a912697fb88b553b1cac",
+    "electricity:T217-14.json": "45189d058d2675cff2350f53bcf846f46dd60b19dea87f545e6a02990e1347fd",
+    "electricity:T217-15.json": "d5426e1a0710133221925c30d616f83a1de2a5aea8878e74fd29fdb10268c5f5",
+    "electricity:T217-16.json": "88f65155287fa9b12a66b0ab5b0c60ec0a8ba1face7ed0f77c6b729bf0aa734c",
+    "electricity:T217-17.json": "9ab3518becf8557b819740c9b1b4607e64250a8659130620265f205e7b13b855",
+    "electricity:T217-18.json": "56d33186ea3da3d9be3a40ff2d20378b88e49d26c980c168cf102dfed2ebdd01",
+    "electricity:T217-19.json": "a1b0984877703c3bd06b9a1d01f4eb14ce6d1ac5e012c9126c8c34178949e669",
+    "electricity:T217-20.json": "2e4961e425742d3dce6353d93100324565163ec176583d78086d0bec2582fe3c",
+    "electricity:T217-21.json": "c78512f23d72c42f9ef576bfce8b94909bffdaa4d6d747e8fb4e4aed998cba37",
+    "electricity:T217-22.json": "9c2ffa2fce7e05d7f6cff88360fdd3565821e93999a4573d5ea65f29cac7971d",
+    "electricity:T217-23.json": "4b17702f6b206d786bdebff70a7517961ecf4e5d659f8fc6e7aee2b71b5f6445",
+    "electricity:T217-24.json": "c54e5267231a4e94b53709e9b5f71c3e8ea4110509d312d965774493152307c6",
+    "electricity:T217-25.json": "6af047bfa93cbc2b62b693d57b11ab316a8409405780d51b83b3cf6641c48ce8",
+    "electricity:T286-00.json": "f7ce59d184dc31a8a56a1c6eb6712c41b06cddb38fb4073df5dbf4491967244f",
+    "electricity:T286-01.json": "5eef2f1e02d0f9da6145c8efce66f1b0b58be1e0315ee0f268c1129678871d87",
+    "electricity:T286-02.json": "ba9d4727dd971d4175950699454efece14a44ba5a0a7ecb22550b7c67db9acb8",
+    "electricity:T286-03.json": "25cf2b1d390b8177691d9309a8d4b2a157057d11b72a71380612f3602e4eaa39",
+    "electricity:T286-04.json": "3a9a20f4c6797d178d5cb2dcefce3815b0512457c3769238b61618a6334eae88",
+    "electricity:T286-05.json": "475d8a12e94ad4b29979913724e7a7083f6f7c607171a691d51d0e3cc8885643",
+    "electricity:T286-06.json": "74e247b7f03d5ceaec9e7241adbba99d762c657df99ce3ab1c5ede2fcd46538d",
+    "electricity:T286-07.json": "45193459075029bb1bf4bb54b83ff94e7d2b54a214f883d4756020ff07c8b5af",
+    "electricity:T286-08.json": "a9ba42b5c100db84067c08c9c97880b3cc95db39fb5a1d4b1149c9405f85171f",
+    "electricity:T286-09.json": "fd82495cb195867fff9da9282d45ddf18dc43caaeb5f26162c55b554500580ad",
+    "electricity:T286-10.json": "8c24c360f30e013d57d015cef1cbd4325c1f2e24530fe3379f13dd8e53ab292f",
+    "electricity:T286-11.json": "3a3c6469bea927e7ce2e3fbddc829abf8b6626526930c0cd4013026c68dc87f7",
+    "electricity:T286-12.json": "027469641abe15041ae3e93e763082103499d99f2b2d411b7f9e44fa3269aac7",
+    "electricity:T286-13.json": "705ddcb2dab0c184e820afe48170693860afbda2cbfd35b316f956606fe48f1e",
+    "electricity:T286-14.json": "05c9faa52aa55a86e681a28b1edc0f892f350005a440051c725aeffd43851f3f",
+    "electricity:T286-15.json": "5e65f467664c9ef20f8b0feeca66a56ebeb6cf912b67f864149cf04b399bad16",
+    "electricity:T286-16.json": "4ce781470832dcea504a6a98be49a16fea81ae661799b566053ace537eb8e0c3",
+    "electricity:T286-17.json": "a8745f85b8059cf998baa1eef9f6a6069e43c38265d4d4ad62998a643ed3a56f",
+    "electricity:T286-18.json": "4bbe6ae6eb85a0b248768eae8336514ee446e91882dbf2d51bc5d29045b677e8",
+    "electricity:T286-19.json": "65eead19bf0e0cd05c81ae0919ece022833e9ee2cd5bbf21c2bc086f81b37e95",
+    "electricity:T286-20.json": "70fe1452565be306df4c6019a01c734632376c8d73a816275a5a82dc6b8456ae",
+    "electricity:T286-21.json": "b6eadb255269c82ec423632280e657c0eeed9683bfe0b25b4220b544419e3d0d",
+    "electricity:T286-22.json": "87a77657628c5bb4e75ead0f4ba73b115ad285c0419e721b436bbaefd70eaf15",
+    "electricity:T286-23.json": "ae33b97f3640a8dc48c2244859cd84743662c19a44a9a5b9ea2cfdf15acf7067",
+    "electricity:T286-24.json": "0c7301ee63648cfbf71c1c0fa2459eb21f118fc663d5db7e825a5e63c6f4cfab",
+    "electricity:T286-25.json": "d2df2c4b7c52a72f87b3600e7be681825a50086f72121592fd7f51bfd89c9a3b",
+    "electricity:T318-00.json": "928a48b27a01f640157bd62c1b6ea296d286b7290da1e7334535eb5c6fddb814",
+    "electricity:T318-01.json": "35abd60c969dc5434587df4972ce9144849eed97549825fe0bf3ab674ed9e621",
+    "electricity:T318-02.json": "2a634201378916493434980b38d8412836763fec92eacff88a33e1db30cc6e3e",
+    "electricity:T318-03.json": "38e211499aaff2eee9b132a08bb6a167a8119ad27c55bf73e0bb7d1987fabb70",
+    "electricity:T318-04.json": "056fcdc7685dfc967239b207b7ee71f5f2951c74677285f80243aa445a411c7a",
+    "electricity:T318-05.json": "665caec395d1f1ba4ee83e662e4bb7625c170fae0f7e2be720cd6d5fdec2b176",
+    "electricity:T318-06.json": "dabf299465f4e7ca7b66031101fa10d82517351bcc78b52e52301b7676e20ce2",
+    "electricity:T318-07.json": "01cbc326ac5b35ec7c57f85f77e2208f927daa753864f5bc0ef9b425a3f487d0",
+    "electricity:T318-08.json": "445ee4159b4a0350a697f60e641da9f4c9bfab5412db30e7284cd416242353aa",
+    "electricity:T318-09.json": "b16d0943bdd77f35236cacf8aa16a013adce068e7073e16df279dc3c428e3a17",
+    "electricity:T318-10.json": "b30d18903aa8574f15477f8af7a2344bfb36eab72bd5321caf805505a9f306ae",
+    "electricity:T318-11.json": "b3350e1142fdfb4f0c9bb78b955669921dfe88d8fc51513a10c754c7bb36f236",
+    "electricity:T318-12.json": "ffac23dba4ae809fe99da7a02528159e071776565418258630fb46a9b0dd52f8",
+    "electricity:T318-13.json": "e4f992130acc349a1b76295fdc883018586407d969e0e88a45f850d58aaf09fc",
+    "electricity:T318-14.json": "2d314408733bd5906e3cd0e41dedc8d50e4e84f7ec48098661d14475fa3b9176",
+    "electricity:T318-15.json": "1e56918f5bc866dad9c256deef3ff4406278099fdacaa0e5254ffc60699e5a12",
+    "electricity:T318-16.json": "e2f5e91b4574cd6451a28a9839883098865a60a2d555aae33d6931d6b2df8150",
+    "electricity:T318-17.json": "3deefc1010f8c9421dcd2c70c2786c78e444c9ffb5a7f9f35283872025a62dea",
+    "electricity:T318-18.json": "8f484a4771ba9ac855bbea814d9f3570c94d396bc79cd26d1c7760d6693d2f74",
+    "electricity:T318-19.json": "672ca02e4c488dcdbc8f8e74bc387479629c12d2d6c1053a4e6c0ece872531b8",
+    "electricity:T318-20.json": "653e7f1ef2fc34b2f29b5c47650aac3c9cd70fb2e9d5274b4949e0d472cec362",
+    "electricity:T318-21.json": "3190a48a418c5551031a238775f28a319d4336d161f6579f71cb46b78c8ca095",
+    "electricity:T318-22.json": "664a16a224ca023500c928b9b986c266fd6c801b66e69cfc231edeea67eaca02",
+    "electricity:T318-23.json": "659b836338362336cf2c920ade9be42f7d6d9b090e4a70a8db5f701362424521",
+    "electricity:T318-24.json": "3786c390a9a565bb6cf4594b86fc936216c6a668178e298fdc52eb3e3a67dc5a",
+    "electricity:T318-25.json": "421c13ed34bc4b571cd1d08b3ad3db32b81a597546ee75d3fe9f06c03b6a0898",
+    "electricity:T47-00.json": "b68cfa9395e56bdc72192d87763fce7849822d81d47e509e3b4a7a1daec4c96e",
+    "electricity:T47-01.json": "f2483e0a1e595c56a50ccbe7ccc452fa70446843d8ef59fe4790bf8d6192ee73",
+    "electricity:T47-02.json": "23384581ce39a2eb393badd74e84599fb5e1b130ef27d6b67d068e0505a6b895",
+    "electricity:T47-03.json": "8baf93e807686ec1fe87f77030cb3113da01a18d443b92aa1fef0d2693aa5e06",
+    "electricity:T47-04.json": "165e6097ba3c56367c814e7874a20a24237f76f2ad3b05f761dc6caf4e9078a7",
+    "electricity:T47-05.json": "6b85d220c33a0869acbf7465eca772f1b38af241e2d42e1bc4a3546a1a457dd0",
+    "electricity:T47-06.json": "b255a275277724feef124f31ef6393ab8568c910c8cb47618dd82a408a306082",
+    "electricity:T47-07.json": "3e487c712cf52f8d5bbc66f672f6c59e784e29918d0d3a5078b487c88b337661",
+    "electricity:T47-08.json": "228746a9a6a621d13c2e25278f632257242456108dae8ed49f6e26f9e8734539",
+    "electricity:T47-09.json": "8599e84c79c74c1b1d1e3dbec2a75c1ba138e3e6d92a8cb7406399e8b9bb680b",
+    "electricity:T47-10.json": "e6d55af50a5c4816896c4e5df0302b8f58828782f6375dc1098499e607aad706",
+    "electricity:T47-11.json": "e482e0d01ab27aa1e0bd30b322744d07644ccef47993ec80168399eb08472927",
+    "electricity:T47-12.json": "1f9ccfd5b2372b603cff9e74de0b55a84097c7a7454b57776c4015c30c7ca2a8",
+    "electricity:T47-13.json": "d299713149252512e02cf2a09e85b8f109691efadafa05d7458009fcbba81123",
+    "electricity:T47-14.json": "ea0dc670f02e3deb7332f8e22ee25d2a3d78411fba885f95a3cfe8866192436e",
+    "electricity:T47-15.json": "09dd05eb030721d040720ad10a69c4c42127668b4ee2400f557ae9c29303f861",
+    "electricity:T47-16.json": "b6862567a321cb90034d6d1317e00f3ca91f870da93fab49b31359b13b1fa53b",
+    "electricity:T47-17.json": "8f800f254c1f0b8b3abc41ba6f8ff4c37202973c253a1eed8dae7ad15356a9fb",
+    "electricity:T47-18.json": "68f0b94533ee338724f60cbd744d851a57691eda45d74426fb5b4575c86faf6f",
+    "electricity:T47-19.json": "50ab41f7a1682b4bd189e85dd6c99f36c46459640ffd5dfbdae7de791dce7409",
+    "electricity:T47-20.json": "13fc3034a01155becf92af5f484c9f182dc0db74c42de59597028544fcbb5822",
+    "electricity:T47-21.json": "6779d8e7369f143a8aa3d83288ef6d7a176b1c7e2cbe6580345361ac0fd82124",
+    "electricity:T47-22.json": "3c4fefc2a72981838ffb2a8f9bab2f9123ba6e21bdd42024bacd4c64f04e1dbb",
+    "electricity:T47-23.json": "b9578263bb9fa807a58c794fa4dd33b31f52a4be4c8509f0288e7de1a2e8e0a4",
+    "electricity:T47-24.json": "675dedcb4bb53156700b60a24e6d3f9782eac1587e5dafa4ee0b63f78f7b29be",
+    "electricity:T47-25.json": "81e8371b1b23e2fb10081da8083c9324abf762c8b0a91ce3d4aeff35005348dc",
+    "electricity:T63-00.json": "980ad314a4208e867d71bcbf8b9f5d44f93f60434e5003930ab41d6dcacb0a2f",
+    "electricity:T63-01.json": "3f996cac4551c9c60d86e83ffefd20bd88759e1766c524db8b987e23c79798bf",
+    "electricity:T63-02.json": "13b16bafdc6248fcd37fb13886074573dcd20b12039ee2f6662ea196809c0a60",
+    "electricity:T63-03.json": "363af6c2b37a71d9b33cb89adc2274561df3b0bf6be3ea0353f10ed900977726",
+    "electricity:T63-04.json": "728f4c6667f0492bf8a8e797bdc92c2d264991e69c3a453ca7d04ab72d0c207c",
+    "electricity:T63-05.json": "aa4a982f39e60cfa04365269cf49b6837bafda7ac4db9d229422714bcac7f53c",
+    "electricity:T63-06.json": "792cf7531fab41e9c7f0cd192d07b95bcb9f6604bf4fbdd464de29627e9b2c74",
+    "electricity:T63-07.json": "312e7f616e5cc944c7a4d2498b8ea9af383f353a259f55824b82ba660bf15b99",
+    "electricity:T63-08.json": "f7bc75262fb99e8eeb732aba04f406bf72e872e0b515ac9f45bf9131446dd409",
+    "electricity:T63-09.json": "072d2430aa180faa71c4a062a28bfc548ce7bf0cc6424faf7d6e862bde03beb7",
+    "electricity:T63-10.json": "af23c0f31ac9a5fbed94f2f6c1bf6d4d3ef7982b0a2b7da2f28260a2f6b2358b",
+    "electricity:T63-11.json": "7f5b9641bf4fd747c5bcbb21ad18133fe841d3f2803220827792692ac89ef819",
+    "electricity:T63-12.json": "a4523ed404a03a20a6161ff30d1436e2e9ddde02cb3646a00bcc152b12e1c8f4",
+    "electricity:T63-13.json": "e150bfa37561a6a2fafb33e4700c5e891cb2ad452ce90318e4774b565c5a525d",
+    "electricity:T63-14.json": "69fbdfb5f908aef77acd7aa5e203fd50fddffe081f4d2ebc1cd4580a8f8f4490",
+    "electricity:T63-15.json": "6883d0b889d621c9d6fa9de0004694ec64f420afab006594553a4e768f24d5a1",
+    "electricity:T63-16.json": "a0ecb81f22e8952459f925a5100aaa4da3f7529c4a4385def65c5b99be4186ba",
+    "electricity:T63-17.json": "751d3c3247d3a774b48111d675daf3af341bfd58e8e81b7053ac0a58d7bb6331",
+    "electricity:T63-18.json": "965b94738eb0c60714c8d9a547ec381b4ca38ee2026646ec91cb494917237dd7",
+    "electricity:T63-19.json": "0b4d60501390ee9c280c69166407343839b4a3f4b1facf838549ac104d3a3124",
+    "electricity:T63-20.json": "c8906724462ef57f5888c4ab8c3b1f34f26cd4d51823c7e3f96de81cb29de9be",
+    "electricity:T63-21.json": "d10b1347264888b99ae403f948d7e092539de21f84b179ef5f5b6d38dfbd5c71",
+    "electricity:T63-22.json": "f058a0a63c7eed704706a67eda59f2c17e33ea98609c4d6567cef407024dc3b0",
+    "electricity:T63-23.json": "8cb5fdd10e5f9c29fc5b284eb6f1469c5e6fe39158219b91f7ebd198077025ca",
+    "electricity:T63-24.json": "e3f2ab22632acf778fbaba3d8335ebcbb67fdd4998242dfebaf308ec0fbcbc08",
+    "electricity:T63-25.json": "ab35f8c4c1347c3d39e6471f422b3ce4f4e04f37f634784629a401ada36cfa8a",
+    "electricity:T8-00.json": "81fd14ea0997a4e40141dc05454dec7412b25f0f4d1c73c32d63ba4c29990979",
+    "electricity:T8-01.json": "b2f6fb7d9dd746248c8f86440bd993934a0698836fafcb5d5222b788c3855cd1",
+    "electricity:T8-02.json": "1a6a29e9dcbac5d8983b4c0b5eda00c7fa7767842f2fffd60400f67590bf11cf",
+    "electricity:T8-03.json": "915e8d43c5afb55a2c7a7694b59e8b5d62b30249bc2e8f9205a682a56b9c3d92",
+    "electricity:T8-04.json": "3dc901c59dbe2c9dd60ff340dadd3734e13f394d8caf6616966a44ff56528a8d",
+    "electricity:T8-05.json": "06231bdc2411919a64c7a8d01f23f3a08e030266f142d3ea0267bce21620e6bd",
+    "electricity:T8-06.json": "fe00a4749d9bdafceb59147fa9813b889aecd515ee0e4a3c6ba3d805102bb2fc",
+    "electricity:T8-07.json": "26af447addb789c7ae3206b222951235dcd1a63dc68455a5542b3871b9af2501",
+    "electricity:T8-08.json": "77996ad8bc29383f15f9a8c1b442920b00138be9501fbf55be0114638536e122",
+    "electricity:T8-09.json": "7ce81915124624a7cecb047e5bc061b1ee34dbf2311a917777eae68f27ab3e57",
+    "electricity:T8-10.json": "163b9f98ad85830e68318133957ead6f731be6ec7a0c435c3327fbbbf84928a0",
+    "electricity:T8-11.json": "a9e5d563c6494be9308c427c3e27329a4cdbc9d8c38c0355d7b5c07b5c214540",
+    "electricity:T8-12.json": "7f8c12abccd717261dce0ebbe2732c294b5317ba2f75d2f357dcf02410ee0406",
+    "electricity:T8-13.json": "d2f0fd0b311ff450cbf5e1d49b71d72b231505e4e2a5cbea96620b51d7447f9d",
+    "electricity:T8-14.json": "3d99f8861c1d08a918f2fb1bb50443dfcd6b6d8ab8a9d01b0f9d022e58e6662c",
+    "electricity:T8-15.json": "3c2644f7602ee7de6ce6109f6c359b444881adbddee972202e6c7f8d64c78ecd",
+    "electricity:T8-16.json": "3d050fbe35c19a488188851ad5e18c4570c5d1e361d50d90d3d23249cf8d79ed",
+    "electricity:T8-17.json": "da7ca884e4ca11d1b674d2d61bdbadf47125442849e47495ab39a3d010e7293c",
+    "electricity:T8-18.json": "a46506ed6df852cf46c26603e0dd23bc8fa56e1f2b3e4871ef3ffbb215da0f3f",
+    "electricity:T8-19.json": "213bf37f923a3fa884139dd27812eed5a1f45dce81453601d0af1d42b69c153b",
+    "electricity:T8-20.json": "32bf6d7c33989fb82b45be527a3cc944f232cf5bdfa698bd988c303811394df5",
+    "electricity:T8-21.json": "8f694fdd175667b3379a6c878cadc52ec95d6f7cef872333e6fa138f6fde9cdc",
+    "electricity:T8-22.json": "3d40cf314e85ac0f969bd02216517267b75cd7c1584fc76da33bbb15a9152180",
+    "electricity:T8-23.json": "54b98409f8f57db43ee2807b77012a07e5c1bb76a0a32e022ec200829d14ecf6",
+    "electricity:T8-24.json": "5db15d62f3616c8cafb49c43bfbcea2894b3f8134b815b7191f32c055269c654",
+    "electricity:T8-25.json": "b20366ff4cee227d0b11e58b9378a0045e392d0db0d2d6bfd8081b923b8a574d",
+    "manifest.json": "5f2d7f9b0903cc1de90633bff1559f3dee4982200b0aa958493fc99ecf2eae60",
+    "pedestrian:sensor_1-00.json": "83956bdf8b8dbdadcbce9144958311473c63d75da7f980b0820092164ff057f7",
+    "pedestrian:sensor_1-01.json": "0fbc3bdaaf865c7f50b80a96a3743a4b513e023a4c8d5853b7eedca065e98b96",
+    "pedestrian:sensor_1-02.json": "4c895dcafac126e3b4f2463a723e3fefff849617b594ab571a037ff724cea577",
+    "pedestrian:sensor_1-03.json": "d582874bd7163fd7558e0f99e2ba369fb4e490dc8aafb922ac88f5e2e769974b",
+    "pedestrian:sensor_1-04.json": "b73d3f455444b0671de9ff19edc383b52369640220deb605453e081a16f51251",
+    "pedestrian:sensor_1-05.json": "bd066e7493f798ae8c959e64c9d7e6df1ce821457285543c8d181b90cdc76110",
+    "pedestrian:sensor_1-06.json": "e71c0df06be719d0f911b3b16ad7b093c69031c80aadff4748e68f12baf34cde",
+    "pedestrian:sensor_1-07.json": "355dab8b8a28424d97fc1b877039b08731c2a978ff31d4a657cfca1f994be68e",
+    "pedestrian:sensor_1-08.json": "d977a6e25924f015592e13b5547defe34b5d61c8038dcd2673bdbdb2989a9e99",
+    "pedestrian:sensor_1-09.json": "d0f3b30ec12d706372407d87412d2342b07d2f09958fa51a2afa367220157be6",
+    "pedestrian:sensor_1-10.json": "606a5d220c066d4842194cf04ba11807e55ba4b0b2d1160e32ca31747f21c725",
+    "pedestrian:sensor_1-11.json": "e437335d72a12f559283b4a8173ffdca09c7dd8c9dda99af387688798a1c9b84",
+    "pedestrian:sensor_1-12.json": "e7f769c87e8f4131ef8b8f628980aab7eb95a2f9144df19ca55351328586fae6",
+    "pedestrian:sensor_1-13.json": "ec434e167838409fb70d8e0dc667ff1ddf201d82e127bf83790a855085145cfc",
+    "pedestrian:sensor_1-14.json": "10b45f0f89c9daf68238a46e977b7722b78c6458dba8bd4fb0cd4385cc27218c",
+    "pedestrian:sensor_1-15.json": "3b274136f3d85a0623a8f92273306bfec81a48a48b12c57bcc218921f029d48a",
+    "pedestrian:sensor_1-16.json": "2431069504a4cc01037fb11338c2967b809fe41619ece827433d50b3b30be8ce",
+    "pedestrian:sensor_1-17.json": "1b9f85ccf2fe3bc17daa37d1cd01ddb33c8d28111e074ae9ab6c3f91f311f1a1",
+    "pedestrian:sensor_1-18.json": "f15c503e1443a8ab956bd0128242a0736a52a3d1aa51d41bf4e324b189b32894",
+    "pedestrian:sensor_1-19.json": "8f0b36f2ca10236502054f1f4d12a9ed2f97efeb0cbc49a609f4fe7cb7ff34ee",
+    "pedestrian:sensor_1-20.json": "a889497aabb9c8e4cfb0506280358eded4efd5052a0b662eefca141a02ba479a",
+    "pedestrian:sensor_1-21.json": "06dfd4954044cfaea414dfc19d5ba0aac8eac512d2cd520f733b9d7de7a46238",
+    "pedestrian:sensor_1-22.json": "641d559c4cfe0248b9904f69a1eccc57fd4c3bf1f9d46cd0b941c915b32022be",
+    "pedestrian:sensor_1-23.json": "4ca11872a829bb29d3fbc0d95493d89623bb4dfd36ecb2272e58cb3248ccd060",
+    "pedestrian:sensor_1-24.json": "51e160918dd5409f124902540695b3ee9084e47e6d070b821d05dcc61e85311d",
+    "pedestrian:sensor_1-25.json": "1295e035a3aeeb5b341dc6044ffb0173dded6b6c43a73ef5b6cbc7b429d70053",
+    "pedestrian:sensor_24-00.json": "d80bff1402908d95f9ad3da0d14057fda9ca0c7b1ce2d5c7841c2d9a4e6bcf7b",
+    "pedestrian:sensor_24-01.json": "d30fd59e55323e1a2912def306f1e8cdb18161e66739f1e6c206d595d95bb574",
+    "pedestrian:sensor_24-02.json": "a4655315c3446ad451dc81565d1ba62c882931e9ab17c12de6ea25967d7acf58",
+    "pedestrian:sensor_24-03.json": "8518b5c1c812abd26af57b3dcf11a043a9779b0052a793b86f7595f93fcc87c1",
+    "pedestrian:sensor_24-04.json": "63ce286181d45e4c57e3f9d9169cd73ca4b991bff62690acc0c2c722502ef0b3",
+    "pedestrian:sensor_24-05.json": "5a735fb1ac9187b4241752ae65f66e260f566b7f923d6060a77d3f3e5f3ba4a4",
+    "pedestrian:sensor_24-06.json": "19fa15a985443a16ad69ee3232052130a43199799ffc54ea3efce8b28ac49622",
+    "pedestrian:sensor_24-07.json": "37e5689994cf43ab67d29a8293f028d03f56c5e605d3968484bd2c6bfbf32506",
+    "pedestrian:sensor_24-08.json": "fd428c4d0e486ad0a4ec7fdf6ac45f2322ed8c36f70a18f1eee6afeb21c2bd76",
+    "pedestrian:sensor_24-09.json": "6a57aa8f0f357866de9df697c275b0251281553f11a1f7aaac9a0707333df281",
+    "pedestrian:sensor_24-10.json": "9c2239607875fded3763cb53275e6259e8f7b1a7c8d4f3a3d50ae2a50db3bcb5",
+    "pedestrian:sensor_24-11.json": "a8c2cab88a202b1da0ed21255362398fa463ec76dc2173ae6800fa938d5e5998",
+    "pedestrian:sensor_24-12.json": "0718939e17c5726495ae13b1e366fd4ec0337d8af6a9d5e9c8df12e8325fadf5",
+    "pedestrian:sensor_24-13.json": "e37161a1322e917b033244d19a133ebe0ff1d4748bd5c9287d0311670935af9c",
+    "pedestrian:sensor_24-14.json": "5ff41fdca434a577a7d0522831b5c08129c7201711df9af29ae6858d681ea359",
+    "pedestrian:sensor_24-15.json": "0abea384c5f67411ee9aa56e847d83537c1dd1902750074b04c03f5718dfe6bd",
+    "pedestrian:sensor_24-16.json": "f7bb7eeb57a14635b3f42e9144139c016dbe9abfab1c6d24ab7ad8ebb9cfb96f",
+    "pedestrian:sensor_24-17.json": "10e286f5f5864061c3d1df7e1aace3a851eb53bc166d15f17587736c95dda5c2",
+    "pedestrian:sensor_24-18.json": "139635473c7932e377943a048c720e1de4ce10fdce76031eece9015cd2d64174",
+    "pedestrian:sensor_24-19.json": "340497ef67c9bb8742a005d5e621d7f2d4cc289b500f1d000be6a1a3b0381511",
+    "pedestrian:sensor_24-20.json": "2cb04d3b54e2c782a9e3d7573fbddda2803f06c940323f8ab94dd319ff5b2b4a",
+    "pedestrian:sensor_24-21.json": "a1412a6da3e2dd6cda96d559c376446166e54b9b5d5380c6225ec0e72e2d65a3",
+    "pedestrian:sensor_24-22.json": "f99f965b6f008cdaf403a4732d445fe90f1f702e0b81993045627eb6fb76f02b",
+    "pedestrian:sensor_24-23.json": "8a433e3c7754fd95e50d5621bda2ff74fa077dc5742842718fce5e2c402d31bb",
+    "pedestrian:sensor_24-24.json": "6132c948a8faad837556673162896ab57ce9f8251245d08e89ee6be42f7e43b6",
+    "pedestrian:sensor_24-25.json": "0d515b427eb0ed036881b27b5b216405950eec09758139dac6f4554d8706831e",
+    "pedestrian:sensor_29-00.json": "b3f92cf68a2ae62eecb199012fc693c3f220f35e58d89af9882f7b5793e5e119",
+    "pedestrian:sensor_29-01.json": "39637662e1418ec8f69f32dd51b2d921526aaf741f6cab4b6f95544c2713747c",
+    "pedestrian:sensor_29-02.json": "996e2fb0a5e2345bd5a7601ad193958df4a9363fcc871492877b7c41e3aa59d0",
+    "pedestrian:sensor_29-03.json": "8defaff27b53540107003282f164368af38ec565571f99f2be4b8b6b30438b4a",
+    "pedestrian:sensor_29-04.json": "afe391828d8e8c21c0649c8d67c15b8b261e664ba9cb5a0fc3d39fe0307d818f",
+    "pedestrian:sensor_29-05.json": "f5cbe9bf89be11e3a0be54567c57eba1ad14f82f952360d016e35055773dc8a0",
+    "pedestrian:sensor_29-06.json": "ab2d934681bcd38473cdfa31aa753c8da7c5c9318ac681fe510d58e221b670b0",
+    "pedestrian:sensor_29-07.json": "4193305c92098e81eebd03211043dcf5afcdb89ae93a58bd33a81b9b01ab74fe",
+    "pedestrian:sensor_29-08.json": "64361219e7673600ad16bb17d56b8fb35f26fc2bc2c804824f30cab73e2dadc7",
+    "pedestrian:sensor_29-09.json": "3d2c7db737f2677e976523535cbf4c6bcc04d30fd47f1f0472bec7245be523d1",
+    "pedestrian:sensor_29-10.json": "b60d712c6dc632bf1711ef670eb6de4f70a1b67a852c5b2f1bab01be1726fbcc",
+    "pedestrian:sensor_29-11.json": "ecdd264f4b3aa43f11ad947d1911a99d5ac488dce14589643702a21b49c8bb20",
+    "pedestrian:sensor_29-12.json": "6933f7a3d38f5ec63a636efb5700a9fcda913d19fc9f762a242290adfefe1c20",
+    "pedestrian:sensor_29-13.json": "2db9611d77170f51055a160978f73c2e062871f157ed15807bb219d3417b9038",
+    "pedestrian:sensor_29-14.json": "1e66c0022d6dd9bd102265fb383856dd03c2621fb91ea4da15cd7e1c78c30798",
+    "pedestrian:sensor_29-15.json": "4e1dd1e5854a9e40d4c059873a76680fc0682da36b1aed8771b225dbd025fe53",
+    "pedestrian:sensor_29-16.json": "a872d6cd89363bf19dd9360325a19303d627803bf89327296412d29f0f189ebb",
+    "pedestrian:sensor_29-17.json": "7881ccafb663e51f3d4127a06c664d9333d4af817f20e451beca7a0d2e6a6fe8",
+    "pedestrian:sensor_29-18.json": "20161cace095ed49935522df881776bab22add9ef4e05f2e586d6c63ce964d00",
+    "pedestrian:sensor_29-19.json": "e6ea12af754f4915a2298f923733ab847d2a0e63d468faf4addd046d32d0f0f3",
+    "pedestrian:sensor_29-20.json": "865a88575469bd1fa337bf586f3cedee60cd623aebc968da2deaabe7c9ab5bea",
+    "pedestrian:sensor_29-21.json": "76d3272cde39eef099cfe61555ef3a1e2b0d0ad616329299ec56358948e054d9",
+    "pedestrian:sensor_29-22.json": "ffb4bafc086e146e0913b881c1ea15eb4b804f7d0066a4f78ce3945635b6e731",
+    "pedestrian:sensor_29-23.json": "541ab52c551f4269c25aca9927b18af41f0893f69f2aa1c024e55e683df66da3",
+    "pedestrian:sensor_29-24.json": "f1d7839bfd7d60bec7ae181f779f677a110b22ee6a06a17b12d8365bae217f83",
+    "pedestrian:sensor_29-25.json": "04979aad9157b6985e2806d87c07bb819227e87ef8716110ea9c35fcbb624162",
+    "pedestrian:sensor_34-00.json": "91c1d70bf15a7dd0ee7f353b99f7465d43fe4f44323b5985beb59568be4ad1ee",
+    "pedestrian:sensor_34-01.json": "be6ee7132d286cf6c0b741caea19ed130055b8430dc2bd5cc8534fbfaf924576",
+    "pedestrian:sensor_34-02.json": "5c02b179e0be8e0bea436a9acd823bcf1bbea242c03e768c6546e481c31c2c51",
+    "pedestrian:sensor_34-03.json": "95491c330bc10a98b045e473450d48793afce370547afcf370df4c3e52bb21eb",
+    "pedestrian:sensor_34-04.json": "ea59377348a8def1bf8773851a0defb6fd7892562961bd8c7533edd734b9de13",
+    "pedestrian:sensor_34-05.json": "32317b3f4b6e7e0fe3fe73d4de2d6f2f9b3e0f87eb6c474aa253ee9887767bea",
+    "pedestrian:sensor_34-06.json": "562ac58006c0c29b946dd9d5b32b9406650656b20510db426a62edd980016c01",
+    "pedestrian:sensor_34-07.json": "ac5a19bad5255616b85a34f4f0dc8515ec9b6d6e129ffb0ec11101919c30a975",
+    "pedestrian:sensor_34-08.json": "fd77199a79980f75e446ff323252199c8c2982eac6b051a5d1ff9fe963382ad7",
+    "pedestrian:sensor_34-09.json": "df3124083c45c9c5165dd3b8677d89e61f5d093ef4baca2bf18e01e80288d5b2",
+    "pedestrian:sensor_34-10.json": "e89e9bf63e2fa0bab67a7af65fb7eb676cd32c38465fbde0541427f833e56c91",
+    "pedestrian:sensor_34-11.json": "534d2b5c57b447e2a0b54b6a6dca5ee0178ed7642a88c00f6b3c697fb2801413",
+    "pedestrian:sensor_34-12.json": "b9379e558b0a876403ed6b0ee14c075b7e40691a731ee59af9c42cdd4bc67f37",
+    "pedestrian:sensor_34-13.json": "ba3e160fcd424266de650e046e327026f52657fdc8455d2dd34980192a9613b9",
+    "pedestrian:sensor_34-14.json": "36b123532ba1bda17884cad37ebf270625de8a96ea3152454ae6479d15bb1513",
+    "pedestrian:sensor_34-15.json": "90a1e55f1ca440daed2f36bd53bd411f67f2678350a6b2b57f8c2bedeb20305e",
+    "pedestrian:sensor_34-16.json": "afbc82bde5496591eed81e7803f2db987faf3a040ad6a3f9c70e1bb08927a68a",
+    "pedestrian:sensor_34-17.json": "a381cfd9b331e35c4ec997412edf72b8324c7467a28c71e4c486e17bb0a3baf3",
+    "pedestrian:sensor_34-18.json": "d8d35a8860affd9639ce9ff5e757a69f7ce3c33d41dd1c5a4b01ac8be7cc2dcb",
+    "pedestrian:sensor_34-19.json": "86d7dcfa1c040e6c5b882908228df0e36e81a9c4f2a8b7fd450b96baa0ceadc4",
+    "pedestrian:sensor_34-20.json": "90c106336958d1998bdb5043b749def12909d3fa2dc86ae8b5c1db87faf5bd28",
+    "pedestrian:sensor_34-21.json": "04927beab2ae9c9abece70785da7bc64584752458995f6a7f4bf2ac60b93a1fb",
+    "pedestrian:sensor_34-22.json": "2da1865a80947e5e900a2f2194d7e83075adc0fbde45b15cc1db476c8c4894cd",
+    "pedestrian:sensor_34-23.json": "2364343262f5d37482ca895a2b869bcc74e62327e243ba66df1309105603b02d",
+    "pedestrian:sensor_34-24.json": "c78bd4004a41d8e508be34515bed70f412ddd937082f55eb36744f0c41ba3ea7",
+    "pedestrian:sensor_34-25.json": "699472bccc1a7e629f5b0c7be9c641d098d6d23e0e22c4a534a960430067a6a1",
+    "pedestrian:sensor_40-00.json": "63906862cf582adda87ae3b8899224ff32b9a660662315c5a87a00081a005bdc",
+    "pedestrian:sensor_40-01.json": "d2483d071f33d118d64779dbfa1f0eb8070d980d6e618aa3aea97b9b47eae772",
+    "pedestrian:sensor_40-02.json": "7b6148cede6c4c906a1b8ce84b759809ae65f2ae876866bdbab1b0e09b9714c5",
+    "pedestrian:sensor_40-03.json": "522fa4d1042617987f694d3458f5ff4a861aed7ed569323189920246eb1b2d64",
+    "pedestrian:sensor_40-04.json": "01faaee02414d52367201515341884da3d290d06d0e35f848599b4d6d2a60073",
+    "pedestrian:sensor_40-05.json": "e639fbb4d6b7aae207ece0e11c7e61dec6f9fb1d152ac2994a06b84be4792b6b",
+    "pedestrian:sensor_40-06.json": "f332431a681f98d1827d50e2031d640908fa22103b197901ca337bf63985a334",
+    "pedestrian:sensor_40-07.json": "408a8756daf66d1a9e16ff687f60c4e66485b0c2ec5668681544e44566adb4f5",
+    "pedestrian:sensor_40-08.json": "c3db7ea20f88a4a0cc6a8eb4ff58a4ebdbdf4020131b38443e6c49ba2975c586",
+    "pedestrian:sensor_40-09.json": "dd3fe28fc16ccd2684344034feae71f178d686091b055549e7673e56b98dda27",
+    "pedestrian:sensor_40-10.json": "9178647639031c310a6941af1b53963ed4ce8a60e9124bc1b888fc3a93c431a7",
+    "pedestrian:sensor_40-11.json": "6272a949a292a109ea28e986a50cdd4476311a02d18fb868f9b67056e7c9cfde",
+    "pedestrian:sensor_40-12.json": "dab86df17df0f729d272e6eff0a772bcc7d4ee221e7f6fc91647db7c1618afa1",
+    "pedestrian:sensor_40-13.json": "05f8da5822604d013d4ac88fde27c919b994ebc328b7037ae9ac5e0eec666aa1",
+    "pedestrian:sensor_40-14.json": "1b5c89706d5d6eb2810bd95baf0b77bc9f3fc93053daa48a62de7e867ef750e8",
+    "pedestrian:sensor_40-15.json": "1f75730ae1c981d5986c05d663ccd917ea4577a733825bd8289e5fe5dc85ed33",
+    "pedestrian:sensor_40-16.json": "02f5c8c2d8a977ceaedb201d9bfa8b36dcc2cd257460258c8d39613ee165a061",
+    "pedestrian:sensor_40-17.json": "9605b4cffe29db7d984643cea33fe7fbee96a20ce1e36bb2c861a2cca295bb4f",
+    "pedestrian:sensor_40-18.json": "af33f750267a603c5dc094a5faf9d4f0386a9c90fc9c341915cc2798aed54334",
+    "pedestrian:sensor_40-19.json": "2d4cc0ca8426036af20723d90ae1d929f68959a59e68b6e732c3ab5a1a7c3544",
+    "pedestrian:sensor_40-20.json": "51170228c0961db10e203258710844df72b950c2ed1bbfed3d3266f6937261cd",
+    "pedestrian:sensor_40-21.json": "225604ac21472d371bc817621a64b997b0f1f94c3d2e991f5eaa32371bfc1c27",
+    "pedestrian:sensor_40-22.json": "8320a68579bed27ea7bccdfcf469b2bfa78ca03ca0b7421b0b3071054b3aa543",
+    "pedestrian:sensor_40-23.json": "c26375480d88f9a7015ed8ce00424ca343f855ff44747c9f44e97a71769ce85d",
+    "pedestrian:sensor_40-24.json": "3a3534c4db8153af2c702698fb6168595b1d34b55f60fd7567d94ca5f7f8dc9a",
+    "pedestrian:sensor_40-25.json": "0d1ace4304a2c0d7da25362efb5cf89de1f94d75fbba083944b00562514dd418",
+    "pedestrian:sensor_43-00.json": "783b5a780548721a869de26ee6a01c745700f6ba244997fd348ea58d7bc600a2",
+    "pedestrian:sensor_43-01.json": "bdf1c8083aac69161d7bd9531cdfa6c97ed061552d7872d9adecf0e0658406b4",
+    "pedestrian:sensor_43-02.json": "a0c31892d981e8a840ab58bfd0d13a78299f4c91d08eec06107db1ac06c1d143",
+    "pedestrian:sensor_43-03.json": "e0a77b8c6bca55c858255dc63858419b5af779c7281530c8584bf9d9c81afc8e",
+    "pedestrian:sensor_43-04.json": "8bf01dd338d8987476739170cbca7aac2a72e3f37c586ae6c2cc63127aba57d1",
+    "pedestrian:sensor_43-05.json": "00bbcd6d83b20f15e77277da0260fd3d3b855930cc0a47fc2af9e2ba3d23c99e",
+    "pedestrian:sensor_43-06.json": "8f080bb50ad8bbb6d824a882edd47430ac5bed2414d5b3cc86fe4f2366e20db1",
+    "pedestrian:sensor_43-07.json": "1aab94f6a51750eb590fa2689c73c13d9c29a1ce32d74e7db3906b739fda48a5",
+    "pedestrian:sensor_43-08.json": "4462555587f1fc56a1c304c8c0d8914532f350f719a6b12e675341d89433a8f0",
+    "pedestrian:sensor_43-09.json": "b002e24ea1bd77a470655d441225e546b7623f79b00c92e9f840a5d8a78fb11b",
+    "pedestrian:sensor_43-10.json": "c3dfcb12889d95ed61a1f1b183d5972fb99f37321be621f4c5a375c3e64aae65",
+    "pedestrian:sensor_43-11.json": "8d70f1fd136c001906820eaf816b0b9cae401148d89adb874537fc6db56340d2",
+    "pedestrian:sensor_43-12.json": "96456797e7acb108e9aacb896665b1c2a193978c6521382cb3f6fcb5210d5794",
+    "pedestrian:sensor_43-13.json": "c995027c94cc009f1450147660bed0cf6a4c458596e6b240ae30235be7fa0c67",
+    "pedestrian:sensor_43-14.json": "0c6e04ce239c244386072105c2897282fca964e0be512e1e63a3f6554aa5db13",
+    "pedestrian:sensor_43-15.json": "8c00b3466aff7e9084f93eedf0bde7022e2bf6292896a7479e20bd6d32f25538",
+    "pedestrian:sensor_43-16.json": "ce2495cad851f66f0c26203171f986c6290238947576e89d794913e269804fd3",
+    "pedestrian:sensor_43-17.json": "2eb27721b923c693f4439a7a0f22696735ea92f367d0b738c7b22307229afd8f",
+    "pedestrian:sensor_43-18.json": "7f579309469262a9c692f11995bad8276afa2b78865cba808504946bed7180e8",
+    "pedestrian:sensor_43-19.json": "075d8cbe775319aa81a4ea2765e62dd1a64cfae9048aed5afed171cc5e29344a",
+    "pedestrian:sensor_43-20.json": "2e73ac4d2abb5aaf17bba28f9b0a0cebcf930cdf3f42485a56f2bc3bc5b582ba",
+    "pedestrian:sensor_43-21.json": "4194698a038d827d08baf49aa060a044e4d3749c2d5a34a9eafc0eaa043f1439",
+    "pedestrian:sensor_43-22.json": "05e7b0fe87c4476639cf851e893a26dc432ec8b375fd5f5ab1cfa56419b9eebe",
+    "pedestrian:sensor_43-23.json": "0e94fc6dfd3472215dbe812f3470394f0c17fb1ad2068bf4ea23e799ee8718be",
+    "pedestrian:sensor_43-24.json": "dba1935f266edba2a3af438352d4168ad14bf13669db8bd89b1e2ece0ca34bec",
+    "pedestrian:sensor_43-25.json": "0dd75cc45002f7fe875077146240394eff13611db2d9265eb98cf06e6f55bcce",
+    "pedestrian:sensor_48-00.json": "51b6024c633e2b4d83cc6a98a8e01dd7bc1ffaa2287d6c77e89c70f1b1f53972",
+    "pedestrian:sensor_48-01.json": "2e7543d5caad1c0ff91a22bcd0f1dad7142383a84cde9f882cdb7ed26001d9b1",
+    "pedestrian:sensor_48-02.json": "83b33d6c3cf95b2c8b5ceab7f35215d8c4e9f24b6a721b36881806eb6e145fef",
+    "pedestrian:sensor_48-03.json": "6dfb0888c9c14b492ce2eb19c653a12c76c6ad5c10a120113adee93f4737ec43",
+    "pedestrian:sensor_48-04.json": "e16cb496eda40da55376491160e063ee5cb41e7f5e41a4656afd51db282be525",
+    "pedestrian:sensor_48-05.json": "71998dde7736e787398ac9a9838a3ca0faa15a546fed5d4572ff419cba4eba5a",
+    "pedestrian:sensor_48-06.json": "85138679eca684fc41d3bf48a27127f50b192ffe828cd0c1b2e289aba6b2b12b",
+    "pedestrian:sensor_48-07.json": "5562fd297dceaac5b99b6b8515aa132c81977150264426a8d0c5ee0809d7d384",
+    "pedestrian:sensor_48-08.json": "fe870c9de3975a16ac4721d3be8c8743b4a9ac3f08a11ea69b0d5971a1f18549",
+    "pedestrian:sensor_48-09.json": "2395a81640eeb0b510b649a1648d415921dfed1d4ad39f8131f7114ae2a4bc99",
+    "pedestrian:sensor_48-10.json": "eec2372861b1b3f347b477afe3fc4f9ac4599f54521f902c83f87cb61791bd2f",
+    "pedestrian:sensor_48-11.json": "798575566953be2396bf7cf4813af2c013e50e6d7440d749ed8366a3c07fed77",
+    "pedestrian:sensor_48-12.json": "53522cc6c40f429268d917b3f70542ad2c21f200a410a47971477a8a9876df71",
+    "pedestrian:sensor_48-13.json": "7d98b1b6e3a565c0191912e87f7c0f7d908158d8ac898423cd3c895d075361b3",
+    "pedestrian:sensor_48-14.json": "7634e45d11915201f3b9eb1ad1cad5808eccbb44690ca2661e8bc1a37777c492",
+    "pedestrian:sensor_48-15.json": "3e6c487c3440f9ac5f67c901274ccfbb1bace64bccc11b4c8e1f9429f40c8c50",
+    "pedestrian:sensor_48-16.json": "9b9ae1f34f8d4100e07f1a7c2bda84a289207a5aaccdce217ae09c445b15b15e",
+    "pedestrian:sensor_48-17.json": "590f926e4410c0cf53131ee45857a0738cd3309c6960fdd3a41bfa8d43c25355",
+    "pedestrian:sensor_48-18.json": "e5a55a2ac1f8a4f6cbf7d27c466dce2a4f9ece74c31d2bbf5b9d3893a36ada33",
+    "pedestrian:sensor_48-19.json": "965fff382b28898cca941c9492097330c3c2cff0859ace5f4f17c8912478f11b",
+    "pedestrian:sensor_48-20.json": "5eba4c080658811525c0cdb29e3d6702c74f9d9a4243e4a118a4f0c340ef9280",
+    "pedestrian:sensor_48-21.json": "28d2c868c00ed6b0ea96f59979bbf15f3823c22977d6b52b8927dfa4b32d141f",
+    "pedestrian:sensor_48-22.json": "c2573016603c7dcf9ac43e9aaf2c16e09d7b259c1df7ae6c6a372c5f1df7155c",
+    "pedestrian:sensor_48-23.json": "e9d7cc1bfd2fd8fbb43b279f3e0504c9636c5f7094b526f25f5132f64cb9de67",
+    "pedestrian:sensor_48-24.json": "edfeffc0cc3e8881c081e0a56a61d92239d7b30b867f27c7ee2766fa34b331b3",
+    "pedestrian:sensor_48-25.json": "094a2e6a61c283228f2ef460e08a6365c8df6ec279236e6b6a71f487efb18092",
+    "pedestrian:sensor_61-00.json": "c2f0c97a1d145a2bb674485bc5fff842af1910d8b02bfb7694af0e31ab8b7066",
+    "pedestrian:sensor_61-01.json": "3b33b29d3d4f5ba1a9574d16ad0030a11f7693e9a70fade18148406455132d98",
+    "pedestrian:sensor_61-02.json": "5e281e531248328c7846c41940a54fa19fb8505b3a6227e237a0fa80b2110c7a",
+    "pedestrian:sensor_61-03.json": "223aa793f1a4f259c89eb425f7450154ec86e689956525c151d84ae47fefe9cb",
+    "pedestrian:sensor_61-04.json": "a1259bbff7f25eca61fc88b9dd366e58fa488b33ba678a3723b0cf1fe36f964f",
+    "pedestrian:sensor_61-05.json": "3d6696c183a25a919b2ae9f40e87b201168d7008efb252a125b06558c4d38c22",
+    "pedestrian:sensor_61-06.json": "a774fca892d49dbc3605df61fda834162df95d03f37a3f845e1c053d460f0fd8",
+    "pedestrian:sensor_61-07.json": "a2b22e0b0e85f398c2b479e5f5f0a5c123691ca85284b21961c87d8cab412b9e",
+    "pedestrian:sensor_61-08.json": "e14cebbc5b692fa5568d4c583fc909c823f5222601758e08f0d42f06da7896fa",
+    "pedestrian:sensor_61-09.json": "f14b8f8eb273e587be7a532b43da4831402e9d83cd9506855e9fc506420f59db",
+    "pedestrian:sensor_61-10.json": "e6de8fa05a40e5924a5e79fb786fb0582f937b2f0ee64dbbd556a5c39ad22548",
+    "pedestrian:sensor_61-11.json": "0c6b55ef8a20b9ad09a2cb76c2fc1f6d549e2265837668c29e41f4e8b904b5fd",
+    "pedestrian:sensor_61-12.json": "ceb90f96e9957a37c1ae24266e668aaee0632c4616dff4e063101af7340da9fe",
+    "pedestrian:sensor_61-13.json": "49395058b4722416da35ae55f840b4f70ae815246f82a8b8cf612e8f76fa6772",
+    "pedestrian:sensor_61-14.json": "7e78d5932fcbc88ef491c5162971950f97bacc475c6eb5152ff8dbbc2d97c1c1",
+    "pedestrian:sensor_61-15.json": "2ae6ff6bae1ebcd27f113ebb04423c813800d342abcb8ec348722eabccfeea66",
+    "pedestrian:sensor_61-16.json": "ac3de7f372b61a288e3bcaf1007240f6727b32a0553b3b7414ef887ba6d8b0a7",
+    "pedestrian:sensor_61-17.json": "694b62e8a7fa7034d22db1ddb1bb8581f0a4f6826755a3fcb5c1a5848258681b",
+    "pedestrian:sensor_61-18.json": "d96f33fe35464ab0a44d21616ecaa7d8591d9db7fa9816d7c57c4b0de05cb87d",
+    "pedestrian:sensor_61-19.json": "0bff8fee272bc7b5373afe91ca6e8916f856a695465b804a17782f5a4eca5ed2",
+    "pedestrian:sensor_61-20.json": "0f11cd2d1f0592ebd822e2870a87af9a417bb4d1b84160268868b9ec4ed678c8",
+    "pedestrian:sensor_61-21.json": "eb28f543ea2e9423f144985d92b2d3ea28ae8558308c6137031448f3324b04f1",
+    "pedestrian:sensor_61-22.json": "7a77ade8363bf47ab1779154318da9bd00c89a3e739c2d47823c8679cc95cde2",
+    "pedestrian:sensor_61-23.json": "492756b7f06e769c11af188eba7706e0129ac118ec4c56445af3e45ead57952d",
+    "pedestrian:sensor_61-24.json": "c15fbfc5d08de979df6203208078a28664dfa78a8e7cac58113db118397ca4a4",
+    "pedestrian:sensor_61-25.json": "9d15ecf03df0feb34e450b198cb352da109ed7a7c673844e479a551e35805028",
+    "report.json": "e618944b3d9da47f480514e1fe4779f3cd6ac0141ccd711c7da06fee0f85019e",
+    "status.json": "a710bb929fc11a06e194db8a7bcbbff1fac21871b8e37f980aa96bf5a30a1996",
+    "verification.json": "cee08e535f5c9c5513f5eb893b0a4e45df3b174601b5f68fa72905e2dbeaf2e6"
+  },
+  "archive": {
+    "path": "results/broad-intraday-050-001.tar.gz",
+    "bytes": 720717,
+    "sha256": "c93eefb1d0bbac4a04c25b895e9ec8b197853c52df9e26804f95a8649481d18e",
+    "verified_files": 421
+  }
+}

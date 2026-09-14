@@ -26,6 +26,13 @@ additional control exposed degradation caused by CV-only correction. All 416
 tasks and 832 vector fits were audited (38,434 checks), with zero new API/provider
 calls. No final data were opened and no rule was promoted.
 
+[Shared intraday mixtures 050](BROAD_INTRADAY_050_RESULT.md) improved **2.04%**
+against the equally capable intraday CV control (2.77% versus the older global
+mixture). The ledger gain was 0.13% for electricity and 2.54% for pedestrians.
+All 416 tasks and 832 fits completed; 60,485 independent checks passed. No new
+provider/API calls or final-data access. This remains a failed 20% promotion
+gate and a development prototype, not a new Hermes comparison.
+
 ## Latest completed comparison: Gnomon 1.2.0 and Hermes
 
 DeepSeek **deepseek-v4.1-flash** through Engy; 104 tasks per arm, four retail

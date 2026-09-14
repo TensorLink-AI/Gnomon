@@ -1011,3 +1011,20 @@ claim. All 416 tasks, 832 fits, 1.3831s processing; four synthetic tests and
 disclosed. No provider fits/API/final reads; all inherited costs retained.
 Receipt 049 preserves corrections, residuals, hashes, scores and archive.
 No promotion or paid confirmation. Target remains unmet, with main/PyPI unchanged.
+
+## Shared intraday mixtures 050: gate failed
+
+Prior turn was progress: complete049 experiment, independent audit and push
+6f48eb7. Revalidated current state, then expanded the mixture primitive equally
+for both arms. Synthetic exact-fit certificates initially failed; preserved
+notes explain smoothing and bounded refinement before freezing at11af992.
+No development outcomes were used to choose those numerical corrections.
+
+Four six-hour mixtures with common045 anchor and fixed0.01 penalty improve
+2.04% versus equally capable CV control,2.77% versus global guard. Domain gains
+against the matched control are0.13% electricity and2.54% pedestrians. All416
+tasks/832 fits complete,45,874 iterations,6.2507s processing; no certificate
+refinements needed on real data. Four tests and60,485 independent checks pass.
+No provider/API calls, hindsight weights, or reserved reads. Preserve receipt050,
+full forecast/weight evidence and all prior costs. No promotion or paid follow-up;
+the20% held-out agent objective remains unproven.
