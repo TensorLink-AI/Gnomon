@@ -1,0 +1,49 @@
+{
+  "status": "live_grade_diagnostic",
+  "scope": "Read-only stored grade inspection, not yet the next independent session audit. No retry, score filtering, budget change or extra provider call.",
+  "new_incomplete_workflow": {
+    "api_calls": 16,
+    "api_errors": 0,
+    "arm": "gnomon",
+    "backtested_configurations": 1,
+    "baseline_checkpoint_only": true,
+    "blocked_api_requests": 0,
+    "cause": null,
+    "checkpoint_publications": 2,
+    "config": {
+      "model": "seasonal",
+      "season": 7
+    },
+    "corrections": 0,
+    "decision_summary_present": false,
+    "execution_id": "824b8848-d76e-41eb-89e2-1da7c9e7d69f",
+    "exit_code": 0,
+    "fallback_used": false,
+    "ledger_reviews": 0,
+    "numerical_attempts": 4,
+    "numerical_successes": 4,
+    "orchestration_stop": "request_budget_exhausted",
+    "origin": "2016-09-27T00:00:00+00:00",
+    "prior_outcomes": 3,
+    "responses": 16,
+    "review_calls": 1,
+    "rmsle": 0.0,
+    "round": 3,
+    "seconds": 109.78807766363025,
+    "selection_after_comparison": false,
+    "selection_interventions": 4,
+    "series_id": "item_1372862_store_12",
+    "tokens": 258928,
+    "usage_complete": true,
+    "valid": true,
+    "workflow_complete": false
+  },
+  "total_incomplete_workflows": 5,
+  "interpretation": "Request budget exhausted after only one distinct backtested configuration and four numerical attempts. The valid seasonal checkpoint remains scored. RMSLE is zero, so incomplete workflow must not be conflated with forecast error or an engine failure.",
+  "files": {
+    "results/guarded-history-093-failure-monitor-002/capture.py": "4cd1b6ad117aa6379d211aabf314de83835963853c3c80b6baf18adefbf3ed91",
+    "results/guarded-history-093-failure-monitor-002/stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/guarded-history-093-failure-monitor-002/report.json": "b9662a1364b71ec9d1c094129be584d1df1c14506e182310541106cafbf60ea6"
+  },
+  "target_met": false
+}

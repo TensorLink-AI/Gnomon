@@ -370,3 +370,16 @@ a population-level late-phase conclusion is established.
 Receipts: `evidence/guarded-agent-093-development-audit-009.json` and
 `evidence/guarded-agent-093-phases-003.json`. The 20% target remains unmet;
 no final targets, active-run sources, main or PyPI were changed.
+
+## Live diagnostic — first resumed third-series Gnomon workflow
+
+The stored grade for gnomon/item_1372862_store_12/round-3 reports a valid
+seasonal checkpoint but an incomplete workflow: 16 requests exhausted,
+one distinct backtested configuration, four numerical attempts and no
+selection after comparison. All requests succeeded and usage is complete
+(258,928 reported tokens). Its forecast RMSLE is zero, so the incomplete
+workflow is not an inaccurate forecast or an engine failure. It remains
+in the matched scores. This adds one incomplete workflow to the four
+previously retained cases. Raw grade inspection is preserved separately
+from the pending independent session audit; no run changes were made.
+Receipt: `evidence/guarded-agent-093-failure-monitor-002.json`.
