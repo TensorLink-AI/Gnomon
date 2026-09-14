@@ -29,6 +29,21 @@ earlier snapshots, and must not be added to their totals. Pilot costs are separa
 Receipt and reproduction script hashes:
 `evidence/corrected-agent-092-development-audit-003.json`.
 
+An offline coverage diagnostic of all 18 ledger sessions in snapshot003 passed
+185 checks. All 16 nonopening sessions saved one review with usable history;
+each review represents every prior origin somewhere in its returned comparisons.
+Exact configuration pairs have at most four matched origins, however. Nine later
+selections have matched prior evidence in returned cards and seven do not.
+All seven are also absent from the complete eligible configuration catalogue,
+which is not paginated: additional pair pages would not supply those exact
+configurations. Thus the page limit does not explain these seven selections.
+Three reviews advertise additional pages, without a second review in those
+session logs. Absence from returned cards is not proof of absence from the ledger.
+This diagnoses saved evidence coverage, not whether the agent read or used it,
+and does not establish the cause of the score difference. No database queries,
+forecasts or API calls were made for this diagnostic, and the live trial is unchanged.
+Receipt: `evidence/corrected-agent-092-development-coverage-001.json`.
+
 ## Earlier snapshots and incidents
 
 At 2026-09-14 09:24 UTC, the development evaluation was running.

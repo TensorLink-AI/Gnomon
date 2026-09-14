@@ -1,0 +1,44 @@
+{
+  "experiment": "092",
+  "phase": "development",
+  "diagnostic": "coverage-001",
+  "based_on_snapshot": "development-audit-003",
+  "scope": "All eighteen completed ledger sessions in development snapshot003, including two opening sessions without history. Saved review availability only, not a claim that the agent read or used it, and not a causal explanation of accuracy. Missing support in returned cards does not establish absence from the ledger, especially where next_offset is supplied.",
+  "summary": {
+    "sessions": 18,
+    "reviews": 16,
+    "reviews_with_evidence": 16,
+    "selected_with_matched_prior_in_returned_cards": 9,
+    "selected_without_matched_prior_in_returned_cards_after_opening": 7,
+    "selected_with_matched_prior_in_returned_cards_by_round": {
+      "0": 0,
+      "1": 2,
+      "2": 0,
+      "3": 1,
+      "4": 1,
+      "5": 1,
+      "6": 1,
+      "7": 2,
+      "8": 1
+    },
+    "largest_matched_pair_origin_count": 4,
+    "reviews_with_more_pages_available": 3
+  },
+  "checks": 185,
+  "passed": true,
+  "all_prior_origins_represented_in_each_review": true,
+  "unsupported_selections_outside_complete_configuration_catalog": 7,
+  "interpretation": "History accumulates across all visible prior origins in these saved reviews, but exact configuration-pair comparisons are sparse. Seven later selected configurations lack matching prior evidence in returned cards. All seven are also absent from the complete eligible configuration catalogue, which is not paginated: extra pair pages would not supply these exact configurations. Three reviews have further pages available and no repeated review in the session log, but this does not explain the seven unsupported selections. No product defect, causal evidence use, or accuracy effect is established.",
+  "evidence_root": "results/corrected-history-092-development-coverage-001",
+  "files": {
+    "audit.py": "b010b8383b919810070da8d7d178d175a76fbd20145e2803bb7a8c0687986279",
+    "result.json": "3d0f333e589209a0ce3b3351d503bd0276096ab2753f8cf2d5d5abe0d903b9cc",
+    "make_receipt.py": "5aeb7d144abe7d24df7f75cb46a8e73655587493494741f32a4002ba20c579a0"
+  },
+  "snapshot_manifest_sha256": "4a53c5097ca038892ba9563ce6e9b9fe36ffeb5a007b37ebaecce9cc07579ea0",
+  "api_calls": 0,
+  "provider_calls": 0,
+  "database_queries": 0,
+  "live_trial_changed": false,
+  "final_holdout_accessed": false
+}
