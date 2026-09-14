@@ -1,16 +1,33 @@
 # 092: corrected-history agent trial
 
-Status at 2026-09-14 08:54 UTC: **pilot complete; development evaluation running**.
-The first development snapshot includes 19 completed sessions and passes 1,544
-independent checks, with all sessions complete and valid. Its six fully matched
-cases (two series, origins 0-2) give mean RMSLE 0.4944 for Hermes, 0.4831 for
-Gnomon without ledger and 0.5053 for ledger: ledger is 4.6% worse than Gnomon.
-This is an early, selected completed subset, not a mature-history or final result.
-The other cases remain in the run; no settings or completion handling changed.
-See `evidence/corrected-agent-092-development-audit-001.json` for preserved raw
-snapshot hashes and costs. These 19 sessions consumed 257 agent requests and
-4,550,750 tokens, plus separately counted readiness probes. Do not add later
-cumulative snapshots to these costs.
+Status at 2026-09-14 09:24 UTC: **pilot complete; development evaluation running**.
+The second development snapshot includes 39 completed sessions and passes 4,677
+independent checks, with all sessions complete and valid. Its 13 fully matched
+cases (two series, origins 0-5 and 0-6 respectively) give mean RMSLE 0.483503490
+for Hermes, 0.481951446 for Gnomon without ledger and 0.484421208 for ledger:
+ledger is **0.51% worse** than Gnomon. This is a small completed subset, not a
+mature-history or final result. Do not interpret changes from earlier snapshots
+as treatment improvement: their case composition differs. The other cases
+remain in the run; no settings or completion handling changed.
+
+See `evidence/corrected-agent-092-development-audit-002.json` for retained snapshot
+hashes, failures and costs. These 39 sessions consumed 529 agent requests and
+9,827,684 tokens. Readiness probes added 39 requests and 546 tokens. All 529 agent
+responses identified deepseek-v4.1-flash; the wire audit passed 1,665 checks.
+Billed dollars remain unavailable. These cumulative costs include audit001's
+19 sessions; do not add the snapshots together. Pilot costs remain separate.
+
+The initial streamed archive download reported exit 0 but failed gzip end-of-stream
+validation during extraction. Its bytes and the failure are preserved, and no
+scores from that damaged copy were used. A fresh all-completed-session snapshot
+was saved remotely, transferred with rsync, and verified against its remote
+SHA-256 (`e69e6f22915837f4d9fcbd1ada3f687d6e0770e9b2100f46018351fa0f5bcd97`).
+All 4,261 enclosed source files matched their inventory. The recovery reran no
+evaluation sessions and made no agent or provider calls.
+
+Audit001 remains in `evidence/corrected-agent-092-development-audit-001.json`:
+19 sessions, 1,544 checks; six matched early cases gave ledger 4.6% worse than
+Gnomon. Neither provisional snapshot establishes the 20% target.
 
 The fresh 312-session development evaluation continues. See the
 [complete pilot result](CORRECTED_AGENT_092_PILOT.md) for the separate pilot's
