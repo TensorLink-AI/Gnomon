@@ -1827,3 +1827,27 @@ The bundled source subset was independently replayed into a new output directory
 includes this proof and original inputs. Initial6forecast probe lacks a saved
 contemporaneous harness hash; its outputs/ledger are preserved and the corrected
 9forecast runtime harness is committed/reproducible. This limitation is disclosed.
+
+
+## Development088: recording-visible review catalogue
+
+Frozen feaa1f5 synthetic probe reproduced future-recorded execution metadata
+changing an earlier first page from evidence_available (a/b,3pairs) to
+insufficient_evidence (late_d/late_e,10pairs). Public comparison correctly
+excluded their scores. Separate visible_agent_review adapter43b21f4 reads public
+execution recording times before discovery, validates visible request/envelope
+identity and counts extra reads. Old adapters and historical results unchanged.
+
+The initial verifier failed its final source-byte invariant after the published
+ledger constructor changed database bytes. This failed check and the now-mutated
+initial synthetic source database are preserved; its original byte hash cannot
+be claimed intact. Revised checker82c1810 opens a copy and separately confirms
+constructor logical-dump equality, query byte immutability and complete original
+source immutability. Fresh reproduction again showed the old failure; all38new
+integration checks and17unit tests passed. Each of two probes used11synthetic
+forecasts (22total), zero API calls. Final check counted120execution,8comparison,
+7actuals reads. Failed-check total read count unavailable. Pinned1.2.0runtime.
+
+This is a synthetic infrastructure correction, not demonstrated030contamination
+or an accuracy improvement. No final data, paid confirmation, new agent trial,
+main merge or release. See REVIEW_VISIBILITY_088_RESULT.md and the088receipt.

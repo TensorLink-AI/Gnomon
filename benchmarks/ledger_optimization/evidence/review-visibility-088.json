@@ -1,0 +1,279 @@
+{
+  "experiment": "review-visibility-088",
+  "source_freeze": "feaa1f5",
+  "adapter_freeze": "43b21f4",
+  "checker_correction": "82c1810",
+  "archive": "results/review-visibility-088-bundle.tar.gz",
+  "archive_sha256": "76b8a131bcde7cd58ee798086815522d065157655e27580b6439635f976c955f",
+  "archive_bytes": 76707,
+  "verified_members": 75,
+  "files": {
+    "initial-command-statuses.json": "99915c63eab1708fd95fccc2b3c4fff365194ac5dcd324403dae084fd13b74bd",
+    "failed-check-source.py": "f0d301b546ed7aaf8f2ff453882a43301821687bdd07b1bdb5a9aa4d84a568c2",
+    "README.md": "cd3aa9d8a68d47ab4b51dcab4618084eb8df5374abc7a8b0aa306897b3e0f6c7",
+    "review-visibility-088-checked/inclusive.json": "6ebf4b336254f2ced0482487b94a929bea6fb91aea7048994b69e884530d4a8c",
+    "review-visibility-088-checked/expected-2.json": "4097380a716a9d14cc2ca4ac7d7c9190afde9e80c49f1d1bd34a053588c022ed",
+    "review-visibility-088-checked/full-0.json": "1aacdfc807ae04e776c8d4121567fa2496eb814e239d7180e00a9d8e05046500",
+    "review-visibility-088-checked/expected-1.json": "1bb7e86f014c80909f54ddf04cb5804fe05a303bb9b3a60afa672d95e60545bf",
+    "review-visibility-088-checked/full-1.json": "f39c57e14da3f6111e8bf0aefb379483391ec0f221666ba75f9708764a7e0d39",
+    "review-visibility-088-checked/full-2.json": "663e80efcb876f841904c5d9843eb97ffd414b6c82346795515ff2d84dad006f",
+    "review-visibility-088-checked/expected-0.json": "dce20a0b86154e6ac2d8edf9ebebc6af8eaec19fe506d325f46b0ffe532614ae",
+    "review-visibility-088-fresh/brief-before.json": "971b7a9dc1b3c20cf37556341cf77464cabbbab7c5226c0059e06797d182a521",
+    "review-visibility-088-fresh/records.json": "6ac27a11b862e6b9a4c2d8eadc12e9188c36c2109e50769e449026c7a3af51c0",
+    "review-visibility-088-fresh/after.json": "a630bda5c3c433a0fe06c9e54764e37123f811270ed8b5091640dd1109be2f55",
+    "review-visibility-088-fresh/brief-after.json": "d88acdb259a7b5bb5e9280ada3cbc144d6e133594b07c630b682b25e798198a4",
+    "review-visibility-088-fresh/report.json": "1fbf1d22bce21f89ff96365c1ae67e96ecf321407472eb30459d9d205fb6d05e",
+    "review-visibility-088-fresh/before.json": "f44c508d8defb76ce8648316bb16f3e201d91200617fc045ab2a226fe50bf58d",
+    "review-visibility-088-fresh/task.json": "9beb90c4a3ff756c8ac5c58655eb6b7d83b9bc42a8818f085a32de86d822593b",
+    "review-visibility-088-checked-002/inclusive.json": "aeab697278737b0d3c813de12136f505859828463d58289ef837ef58d9e4b11b",
+    "review-visibility-088-checked-002/packets.json": "9b8113c3625757d7a5a188367ed5e6611445e5429012ad8ce01667d3f1a20ab4",
+    "review-visibility-088-checked-002/expected-2.json": "deed5a1585945918ca6a113a1f068ca91b79ed64e2937a1a32ec79d4d7c0c0b5",
+    "review-visibility-088-checked-002/full-0.json": "834237510591f1e8f576fcf888073ee5e707443f7d1857f5b54f5f9bc2801246",
+    "review-visibility-088-checked-002/expected-1.json": "e79f2b1d05da5f32356201641bb8deed2208388c33b8e68fa766681640053d6d",
+    "review-visibility-088-checked-002/full-1.json": "d7c74dcdff00c69a44b8afbf388fb6bcd9a1932132e13d04037a1a94b9c6e9bc",
+    "review-visibility-088-checked-002/report.json": "b0a0726dd5a63379ff63906cc48216c9ac793d309a67166311f08e756734cc92",
+    "review-visibility-088-checked-002/ledger.db": "661491d9c405ffe08f2e2037afd44adc9b0ae1e4bff8a2bff30880a65f9e9523",
+    "review-visibility-088-checked-002/full-2.json": "17a2eedbb8876c635664fa81503f9bfefa4d6c3befb55b07813f3bf9ec9c392b",
+    "review-visibility-088-checked-002/expected-0.json": "f44c508d8defb76ce8648316bb16f3e201d91200617fc045ab2a226fe50bf58d",
+    "review-visibility-088-initial/brief-before.json": "3c81948ec957fd8f1f565b11125ca1b3edc9bc8190ab9ca19ae018d434aacabe",
+    "review-visibility-088-initial/records.json": "8c531bf1cb3df876158b83b35e6fac4b753f2fbf9fc7e06c691a899cf89e6d51",
+    "review-visibility-088-initial/after.json": "a630bda5c3c433a0fe06c9e54764e37123f811270ed8b5091640dd1109be2f55",
+    "review-visibility-088-initial/brief-after.json": "5047a09c0ec5caec446dddbaef4a19dbc528df9d9a282fe19bc69736dbc66478",
+    "review-visibility-088-initial/report.json": "b2230ea48daf117b516b21f6ba1323a11bae558ab5d75cd502d0a00aa2769ee3",
+    "review-visibility-088-initial/before.json": "dce20a0b86154e6ac2d8edf9ebebc6af8eaec19fe506d325f46b0ffe532614ae",
+    "review-visibility-088-initial/task.json": "9beb90c4a3ff756c8ac5c58655eb6b7d83b9bc42a8818f085a32de86d822593b",
+    "review-visibility-088-logs/fresh-check.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "review-visibility-088-logs/fresh-probe.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "review-visibility-088-logs/check.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "review-visibility-088-logs/initial.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "review-visibility-088-logs/fresh-probe.stdout": "1fbf1d22bce21f89ff96365c1ae67e96ecf321407472eb30459d9d205fb6d05e",
+    "review-visibility-088-logs/fresh-probe.command.json": "707738e32366c70b14c2e5906cbe622801d6a1f28be347fd3695bf4d4ca9d1e5",
+    "review-visibility-088-logs/initial.stdout": "b2230ea48daf117b516b21f6ba1323a11bae558ab5d75cd502d0a00aa2769ee3",
+    "review-visibility-088-logs/check.stderr": "a814beea8f93037a386cf02bdc2494b057bcbb3404d7743c067c7065ad08490b",
+    "review-visibility-088-logs/fresh-check.command.json": "ff962644c261cac0d0e5fccaaed613ac1f575c3f7473ab58a6610b18c193439c",
+    "review-visibility-088-logs/fresh-check.stdout": "b0a0726dd5a63379ff63906cc48216c9ac793d309a67166311f08e756734cc92",
+    "review-visibility-088-fresh/base/brief-before.json": "fad97018a8884ea68ecdf3f55c071e2a8524aa6abe8756081fd1307e4267ac40",
+    "review-visibility-088-fresh/base/records.json": "cee7f32cc2ea9ded571e159179ce68b382b0a97f7e18ffc0688b979ad174e05c",
+    "review-visibility-088-fresh/base/brief-after.json": "933b98f0bb01c74711cc73b557cf3f2f319a05599fb5912208d86d5b4e89dd6e",
+    "review-visibility-088-fresh/base/brief-next.json": "07745b759d77fade85278ae48cc0bc804277da07cf76502272cbbe35a0368e0a",
+    "review-visibility-088-fresh/base/full-after.json": "f44c508d8defb76ce8648316bb16f3e201d91200617fc045ab2a226fe50bf58d",
+    "review-visibility-088-fresh/base/full-next.json": "e79f2b1d05da5f32356201641bb8deed2208388c33b8e68fa766681640053d6d",
+    "review-visibility-088-fresh/base/report.json": "990e9ed45f0b03f2640009a507d839ffdf93e597f56c33e6100c67c5313761c4",
+    "review-visibility-088-fresh/base/ledger.db": "766a2ba13b84bdcbb0c80d025728fb1963fd917f081dd93f218e1e27c5967ee7",
+    "review-visibility-088-fresh/base/task.json": "9beb90c4a3ff756c8ac5c58655eb6b7d83b9bc42a8818f085a32de86d822593b",
+    "review-visibility-088-fresh/base/full-before.json": "f44c508d8defb76ce8648316bb16f3e201d91200617fc045ab2a226fe50bf58d",
+    "review-visibility-088-initial/base/brief-before.json": "450f40fdab7ac8cff4076f89f3b5df26212f7f4e4796be0c793fc76fdf316e64",
+    "review-visibility-088-initial/base/records.json": "cd4a6ad7ad556b84594497d8ebd3889bd01769656839586941e06216d4453c52",
+    "review-visibility-088-initial/base/brief-after.json": "d17bfd0dfd0fe2381e4fea4638043fcdb9842f9f33168414d1f6fe024b3926b7",
+    "review-visibility-088-initial/base/brief-next.json": "ace7b42e5fb4b68dc5f65c798941561a08079e365deb32f527e65a1674d0a866",
+    "review-visibility-088-initial/base/full-after.json": "dce20a0b86154e6ac2d8edf9ebebc6af8eaec19fe506d325f46b0ffe532614ae",
+    "review-visibility-088-initial/base/full-next.json": "1bb7e86f014c80909f54ddf04cb5804fe05a303bb9b3a60afa672d95e60545bf",
+    "review-visibility-088-initial/base/report.json": "990e9ed45f0b03f2640009a507d839ffdf93e597f56c33e6100c67c5313761c4",
+    "review-visibility-088-initial/base/ledger.db": "e2b04f4a6fd394102b94e922f3a69250e0566925b420598e1be84bd4ac201590",
+    "review-visibility-088-initial/base/task.json": "9beb90c4a3ff756c8ac5c58655eb6b7d83b9bc42a8818f085a32de86d822593b",
+    "review-visibility-088-initial/base/full-before.json": "dce20a0b86154e6ac2d8edf9ebebc6af8eaec19fe506d325f46b0ffe532614ae",
+    "source/benchmarks/tests/test_agent_review.py": "5f3bed7e6f0d665ac503313cf0e0fa747f190b674800c5386a8b127db593c47a",
+    "source/benchmarks/tests/test_visible_agent_review.py": "7403392048f7e29073f2ad75037afed8246f99737c5c07012f3de90f186c1843",
+    "source/benchmarks/ledger_optimization/review_visibility_check.py": "177447807bc8b84c6ba677396edf7cbd72db74833f729e2f13fdda9f85c6be88",
+    "source/benchmarks/ledger_optimization/agent_review.py": "effd694a1f72a76dfe8bd1d68f6624c9de5a018542d3447e03f86ae3294b840b",
+    "source/benchmarks/ledger_optimization/review_visibility_probe.py": "184e2d7be69a365451f9d5fa2bcf005c920a9502701cd151c7877934432bf1cf",
+    "source/benchmarks/ledger_optimization/agent_review_runtime.py": "a36e6594f8c2d7e993733dcdeac2fed175493c400494c9c5a1bf21401f34ca1a",
+    "source/benchmarks/ledger_optimization/ml_ledger_cards.py": "d997fa096900ba7129e5d693959fdf7e46ef5a97f3bf1a3b0c26908ef6c712c8",
+    "source/benchmarks/ledger_optimization/REVIEW_VISIBILITY_088_RESULT.md": "02cf7b92ad22352ef8b5a17f9482b4abac941ca5f5193cca60d6a5df1c23d6fe",
+    "source/benchmarks/ledger_optimization/visible_agent_review.py": "21acbded522e072eb846ab5de36ac185a6937e03cf5948965bb26cac1d79f517",
+    "source/benchmarks/ledger_optimization/REVIEW_VISIBILITY_088.md": "4c8194468359f7624292ff49f4192a00bc3fb13a69c349dc1377bef94aca5caf",
+    "source/benchmarks/hermes_ml_checkpoint_v4/dev_evidence_summary.py": "a5dea6cdb20808016991e5a2fdf83e337822d4a4d21db25a5e527bd296453f62"
+  },
+  "verification": {
+    "passed": true,
+    "checks": [
+      {
+        "name": "eleven frozen synthetic forecasts",
+        "passed": true
+      },
+      {
+        "name": "constructor preserves logical database contents",
+        "passed": true
+      },
+      {
+        "name": "future-recorded events excluded",
+        "passed": true
+      },
+      {
+        "name": "page0 exact read accounting",
+        "passed": true
+      },
+      {
+        "name": "page0 no provider calls",
+        "passed": true
+      },
+      {
+        "name": "page0 full hash",
+        "passed": true
+      },
+      {
+        "name": "page0 hidden providers absent",
+        "passed": true
+      },
+      {
+        "name": "page0 visible pair count",
+        "passed": true
+      },
+      {
+        "name": "page0 exact original cards",
+        "passed": true
+      },
+      {
+        "name": "page0 exact original pagination",
+        "passed": true
+      },
+      {
+        "name": "page0 original global windows",
+        "passed": true
+      },
+      {
+        "name": "page1 exact read accounting",
+        "passed": true
+      },
+      {
+        "name": "page1 no provider calls",
+        "passed": true
+      },
+      {
+        "name": "page1 full hash",
+        "passed": true
+      },
+      {
+        "name": "page1 hidden providers absent",
+        "passed": true
+      },
+      {
+        "name": "page1 visible pair count",
+        "passed": true
+      },
+      {
+        "name": "page1 exact original cards",
+        "passed": true
+      },
+      {
+        "name": "page1 exact original pagination",
+        "passed": true
+      },
+      {
+        "name": "page1 original global windows",
+        "passed": true
+      },
+      {
+        "name": "page2 exact read accounting",
+        "passed": true
+      },
+      {
+        "name": "page2 no provider calls",
+        "passed": true
+      },
+      {
+        "name": "page2 full hash",
+        "passed": true
+      },
+      {
+        "name": "page2 hidden providers absent",
+        "passed": true
+      },
+      {
+        "name": "page2 visible pair count",
+        "passed": true
+      },
+      {
+        "name": "page2 exact original cards",
+        "passed": true
+      },
+      {
+        "name": "page2 exact original pagination",
+        "passed": true
+      },
+      {
+        "name": "page2 original global windows",
+        "passed": true
+      },
+      {
+        "name": "cards unchanged from before late insertions",
+        "passed": true
+      },
+      {
+        "name": "origin membership unchanged",
+        "passed": true
+      },
+      {
+        "name": "first page remains useful",
+        "passed": true
+      },
+      {
+        "name": "pagination terminates",
+        "passed": true
+      },
+      {
+        "name": "recording boundary inclusive",
+        "passed": true
+      },
+      {
+        "name": "visible late forecasts do not become eligible scores",
+        "passed": true
+      },
+      {
+        "name": "public comparison explains late forecast exclusion",
+        "passed": true
+      },
+      {
+        "name": "tampering rejected before evidence save",
+        "passed": true
+      },
+      {
+        "name": "existing evidence immutable",
+        "passed": true
+      },
+      {
+        "name": "queries leave initialized working ledger byte-identical",
+        "passed": true
+      },
+      {
+        "name": "all original source artifacts and ledger byte-identical",
+        "passed": true
+      }
+    ],
+    "check_count": 38,
+    "runtime_build": {
+      "build_id": "1.2.0+ga38cd0cad353.s9723394ccb6d",
+      "commit": "a38cd0cad35383e5f10021abf3aa20d4c16923be",
+      "dirty": false,
+      "fingerprint_scope": "gnomon_python_sources",
+      "package_version": "1.2.0",
+      "provenance": "git",
+      "source_sha256": "9723394ccb6d9e11991b312e01bac47c767c69407b6b33d36971cb6e48b6a22e"
+    },
+    "public_reads": {
+      "execution": 120,
+      "compare_history": 8,
+      "actuals_as_of": 7
+    },
+    "new_provider_calls": 0,
+    "api_calls": 0,
+    "constructor_before_sha256": "766a2ba13b84bdcbb0c80d025728fb1963fd917f081dd93f218e1e27c5967ee7",
+    "constructor_after_sha256": "661491d9c405ffe08f2e2037afd44adc9b0ae1e4bff8a2bff30880a65f9e9523",
+    "constructor_changed_file_bytes": true,
+    "constructor_changed_logical_contents": false,
+    "protected_access": false,
+    "accuracy_claim": false
+  },
+  "synthetic_setup_forecasts": 22,
+  "api_calls": 0,
+  "paid_spend": 0,
+  "accuracy_claim": false,
+  "main_pypi_changed": false,
+  "protected_access": false,
+  "limitations": [
+    "Initial synthetic ledger file bytes were changed by the first checker constructor; that invariant failed and is preserved.",
+    "No aggregate read count retained for failed check.",
+    "Synthetic metadata contamination does not establish it occurred in original030.",
+    "This is a development adapter, not a shipped product change."
+  ]
+}

@@ -4,6 +4,13 @@ Branch: `dev/ledger-optimization`. **The 20% target has not been achieved.**
 Development and a complete frozen confirmation are retained here. No release or
 forecast-superiority claim is established.
 
+Latest boundary check: [recording-visible review088](REVIEW_VISIBILITY_088_RESULT.md)
+confirmed and fixed a development-adapter catalogue issue: future-recorded
+executions could reorder an earlier query's first page despite correctly excluded
+scores. The separate adapter validates public execution records before discovery.
+All38integration checks and17unit tests passed. A failed constructor-byte audit
+is preserved; the corrected verifier opens a copy. No accuracy gain is claimed.
+
 Latest ledger-interface work: [concise agent review087](AGENT_REVIEW_087_RESULT.md)
 preserves the100saved review packets' metrics and evidence references while
 reducing mean per-review compact UTF-8 bytes by56.2%. Pinned1.2.0public-runtime
