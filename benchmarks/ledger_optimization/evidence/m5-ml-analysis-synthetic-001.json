@@ -1,0 +1,30 @@
+{
+  "status": "synthetic_analysis_tests_passed",
+  "tests": 6,
+  "synthetic_decisions_per_full_grid": 3744,
+  "bootstrap_replicates": 5000,
+  "bootstrap_seed": 20260912,
+  "cluster": "store; three items and both seeds retained",
+  "shared_origin_block_length": 4,
+  "analysis_has_file_or_network_access": false,
+  "reserved_targets_accessed": false,
+  "provider_calls": 0,
+  "engy_calls": 0,
+  "live_experiment_changed": false,
+  "final_gate_opened": false,
+  "target_established": false,
+  "command": [
+    "python3",
+    "-m",
+    "unittest",
+    "benchmarks.tests.test_m5_ml_analysis",
+    "-v"
+  ],
+  "exit_status": 0,
+  "files": {
+    "benchmarks/ledger_optimization/m5_ml_analysis.py": "863ffed4261d0eec7af687aff9a96366043ae867b62e0aa063c94d34d4965dea",
+    "benchmarks/ledger_optimization/M5_ML_ANALYSIS.md": "bfdb79e1b12de382fd4a8cab44690484523eba07859eb8b49c260d65fd76ada2",
+    "benchmarks/tests/test_m5_ml_analysis.py": "5daa13249a34692458f907795a0fdadae965755d87c3caf0f627259d2e40b5c4",
+    "results/m5-ml-analysis-synthetic-001/tests.txt": "ebd1a4a74f51ce4f63a2ba15a1aab7be1c5c286190ccdd90bd7bfcee3d31a556"
+  }
+}
