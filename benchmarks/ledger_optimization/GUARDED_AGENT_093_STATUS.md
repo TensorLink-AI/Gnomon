@@ -1,8 +1,8 @@
 # Guarded pilot 093 — completed
 
-Latest audited continuation: 295/312 sessions, 97 matched cases (2026-09-14
-22:30 UTC). The pilot is complete; the full development continuation is active.
-See the twenty-second audit below. The 20% target remains unmet.
+Latest audited continuation: 302/312 sessions, 100 matched cases (2026-09-14
+22:52 UTC). The pilot is complete; the full development continuation is active.
+See the twenty-third audit below. The 20% target remains unmet.
 
 All 36 sessions finished. Every forecast is valid; plain Hermes completed 11/12 full workflows, Gnomon without ledger 12/12, ledger 12/12. The frozen completion gate passed. Independent local audit: 4,227 file hashes verified, 2,942 checks, zero integrity failures.
 
@@ -765,3 +765,26 @@ and `evidence/guarded-agent-093-failure-monitor-005.json`.
 
 The run remains active. These are partial development results; the 20% target is
 unmet and final holdout remains closed. No next paid trial has launched.
+
+## Twenty-third continuation audit — 2026-09-14 22:52 UTC
+
+Seven additional disjoint sessions passed 3,310 independent checks, with zero
+integrity failures or missing shutdown records. All 1,163 snapshot file hashes
+and 4,227 original pilot file hashes verified; all seven retained experiment
+prefixes matched. The 31,186,510-byte archive SHA-256 is
+`487bbef659ecd43491ce204f4b54012d103cbfe7bf925325045df5087b536c95`.
+
+The combined audit covers 302/312 sessions and 100 all-three matched cases.
+Mean RMSLE is plain 0.479246, Gnomon 0.480084, ledger 0.466106: ledger is
+2.91% lower than Gnomon without ledger. Matched reported tokens are
+28,608,527 / 27,489,264 / 22,268,315 respectively (18.99% fewer ledger tokens
+versus Gnomon); numerical attempts are 1,427 / 1,465 / 1,615, so the token
+reduction does not imply fewer fits. Full matched workflows are 95/100,
+95/100 and 100/100. All incomplete workflows remain in the scores.
+
+Ledger evidence was available in 97/101 audited ledger sessions; 15 sessions
+received recent-versus-lifetime disagreement, with at most 25 prior origins.
+Plain Hermes has 32 sessions with saved native memory; availability does not
+prove causal use. This remains reused-development evidence, not held-out
+confirmation. The 20% target is unmet; final holdout remains unopened.
+Receipt: `evidence/guarded-agent-093-development-audit-023.json`.
