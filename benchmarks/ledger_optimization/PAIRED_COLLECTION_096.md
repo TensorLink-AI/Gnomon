@@ -33,8 +33,9 @@ source hashes, configurations, costs and per-case counts are retained there.
 
 ## Candidate change and fairness constraints
 
-After the existing 093 run and queued seed integration finish, investigate a
-new frozen common lab variant. A successful three-fold backtest would also
+An offline capsule can be prepared while 093 continues. After the existing run
+and queued seed integration finish, investigate actual-worker integration and
+a new frozen common lab variant. A successful three-fold backtest would also
 produce and retain one current-origin forecast for that configuration. This is
 an evidence-collection change, not a new model or a ledger-only free execution.
 
@@ -86,3 +87,34 @@ does not establish accuracy improvement. If the added collection consumes the
 budget without useful evidence or harms completion, retain that result instead
 of enlarging the ledger-only budget. The 20% final objective remains unchanged
 and the final holdout stays closed until a defensible development candidate exists.
+
+## Offline capsule prepared
+
+`collection_capsule_096.build` verifies the complete original 24-file 093 source
+inventory before creating a fresh directory. It replaces only `lab.backtest`
+using `collection_backtest_096.py`; all original files stay unchanged. The
+manifest explicitly says `offline_prototype_not_dispatch_ready`. It retains
+the old task descriptions and analyzer, so it must not be used for paid dispatch
+without completing those outstanding changes and integration checks.
+
+The replacement validates exact task/configuration/provider revision identity
+on both new and reused executions, retains successful partial CV fits, and
+produces an unselected current-origin forecast. A complete repeat fits nothing.
+A failed fourth fit leaves three reusable CV results; an explicit retry during
+the same admissible exploration period fits only the missing forecast. Initial
+baseline collection may consume its four reserved fits; other batches retain
+one final-fit reserve. A deadline is checked before every new fit. No code
+extends deadlines or request/fit budgets. Explicit commit reuses the resulting
+execution; collection alone does not publish or replace a checkpoint.
+
+Nine tests load the generated lab with a synthetic core and controlled budgets.
+They cover full/reused collection, failed CV/production fits, budget/deadline
+stops, identity/future-actual rejection, invalid new forecasts, explicit commit
+reuse and immutable source inventory. A synthetic deadline-resume test resets
+its fake clock solely to exercise reuse; actual expired sessions are not allowed
+to reset time. These are state-machine tests, not actual numerical execution,
+filesystem checkpoint durability, guarded-worker or maturation validation.
+
+The retained capsule and receipt are in `results/collection-capsule-096-offline-001`.
+Committed receipt: `evidence/collection-capsule-096-offline-001.json`. No paid
+trial, actual model fit, package release or final-data access occurred.

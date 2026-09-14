@@ -1,0 +1,89 @@
+{
+  "status": "readiness_retry_recovered",
+  "case": "gnomon/item_1457251_store_14/round-6",
+  "probes": [
+    {
+      "number": 1,
+      "at": "2026-09-14T20:03:36.040010+00:00",
+      "status": 504,
+      "seconds": 30.033021857962012,
+      "usage": null,
+      "ready": false,
+      "retryable": true,
+      "cause": "service_unavailable"
+    },
+    {
+      "number": 2,
+      "at": "2026-09-14T20:04:37.282209+00:00",
+      "status": 200,
+      "seconds": 1.2402421068400145,
+      "usage": {
+        "prompt_tokens": 11,
+        "completion_tokens": 3,
+        "total_tokens": 14,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      "ready": true,
+      "retryable": false,
+      "cause": "completion_received"
+    }
+  ],
+  "completed_grade": {
+    "api_calls": 15,
+    "api_errors": 0,
+    "arm": "gnomon",
+    "backtested_configurations": 4,
+    "baseline_checkpoint_only": false,
+    "blocked_api_requests": 0,
+    "cause": null,
+    "checkpoint_publications": 2,
+    "config": {
+      "depth": 12,
+      "lags": 21,
+      "model": "random_forest",
+      "window": 730
+    },
+    "corrections": 0,
+    "decision_summary_present": true,
+    "execution_id": "980e04af-104b-40cb-b777-2c66af99a6a2",
+    "exit_code": 0,
+    "fallback_used": false,
+    "ledger_reviews": 0,
+    "numerical_attempts": 14,
+    "numerical_successes": 14,
+    "orchestration_stop": "checkpoint_workflow_complete",
+    "origin": "2016-11-08T00:00:00+00:00",
+    "prior_outcomes": 6,
+    "responses": 15,
+    "review_calls": 1,
+    "rmsle": 0.40723186296338276,
+    "round": 6,
+    "seconds": 204.25747115537524,
+    "selection_after_comparison": true,
+    "selection_interventions": 3,
+    "series_id": "item_1457251_store_14",
+    "tokens": 543978,
+    "usage_complete": true,
+    "valid": true,
+    "workflow_complete": true
+  },
+  "scope": "Read-only live probe and grade evidence, not a new independent full session audit. Existing retry policy recovered before task execution; no restart, extra task budget or score replacement.",
+  "unknown_readiness_usage_this_incident": 1,
+  "total_observed_unknown_readiness_usage": 2,
+  "files": {
+    "results/guarded-history-093-readiness-incident-002/exit.json": "273e544435f3441c4d90d8d104f8a28065a7b55721f5eab48536ceee186f36d6",
+    "results/guarded-history-093-readiness-incident-002/stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/guarded-history-093-readiness-incident-002/recovery.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/guarded-history-093-readiness-incident-002/recovery.json": "162e9c35bcc8bd390bc3466b824b43997fe5748caf027f51ea9c3802b5af419b",
+    "results/guarded-history-093-readiness-incident-002/recovery.py": "8117a39ab102155bfb2327beb77e8a70e7eadd783476f4e1abc6bebb48abe765",
+    "results/guarded-history-093-readiness-incident-002/recovery-exit.json": "273e544435f3441c4d90d8d104f8a28065a7b55721f5eab48536ceee186f36d6",
+    "results/guarded-history-093-readiness-incident-002/stdout.json": "cf8a1d23eb0316df3b8735423c3bdd0c5acf857a8b8bf4444f8f657726ef5f6d",
+    "results/guarded-history-093-readiness-incident-002/query.py": "4a5d324d47ca15769de29debec02a9f00139c60f264fdd73248eaa8c6a083fe6"
+  },
+  "target_met": false
+}

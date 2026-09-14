@@ -524,3 +524,15 @@ to every arm. See `PAIRED_COLLECTION_096.md` and
 `evidence/guarded-agent-093-collection-opportunity-001.json`. It is an undeployed
 proposal, with no new fits or efficacy result. The live run remains unchanged,
 the queued seed integration remains pending, and the final holdout stays closed.
+
+## Second recovered readiness timeout
+
+Gnomon/item_1457251_store_14/round-6 encountered HTTP 504 on its first
+task-free readiness probe at 20:03:36 UTC (30.03 seconds, usage unknown).
+The existing retry returned HTTP 200 at 20:04:37 UTC (14 reported tokens).
+The subsequent grade is valid/full with 15 model requests/responses, zero
+forecast API errors, 14 numerical attempts and 543,978 reported task tokens.
+This is a live-grade diagnostic pending full session audit. No restart or
+extra agent budget occurred. There are now two unknown readiness-usage
+entries in the run; neither is assigned zero usage. Receipt:
+`evidence/guarded-agent-093-readiness-incident-002.json`.
