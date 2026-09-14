@@ -1,8 +1,8 @@
 # Guarded pilot 093 — completed
 
-Latest audited continuation: 221/312 sessions, 73 matched cases (2026-09-14
-20:23 UTC). The pilot is complete; the full development continuation is active.
-See the fourteenth audit below. The 20% target remains unmet.
+Latest audited continuation: 234/312 sessions, 77 matched cases (2026-09-14
+20:42 UTC). The pilot is complete; the full development continuation is active.
+See the fifteenth audit below. The 20% target remains unmet.
 
 All 36 sessions finished. Every forecast is valid; plain Hermes completed 11/12 full workflows, Gnomon without ledger 12/12, ledger 12/12. The frozen completion gate passed. Independent local audit: 4,227 file hashes verified, 2,942 checks, zero integrity failures.
 
@@ -562,3 +562,28 @@ failed integration (17 fits) is preserved; its new-prototype tuple/list validati
 bug was corrected. No Engy call or live runtime change occurred. Hermes worker
 and paid efficacy gates remain outstanding. See `PAIRED_COLLECTION_096.md` and
 `evidence/collection-096-local-integration-001.json`.
+
+## Fifteenth continuation audit — 2026-09-14 20:42 UTC
+
+Thirteen additional sessions passed 3,729 independent checks, with 1,656 new
+file hashes verified and all 4,227 original pilot files reverified. There were
+no audit failures or missing shutdown records. Combined evidence contains 234
+audited sessions and 77 matched cases, including every incomplete workflow.
+
+| Arm | Matched RMSLE | Reported tokens | Model requests | Fits | Full matched workflows |
+|---|---:|---:|---:|---:|---:|
+| Hermes | 0.466916 | 20,864,580 | 1,067 | 1,095 | 74/77 |
+| Gnomon | 0.475420 | 21,570,211 | 1,061 | 1,155 | 72/77 |
+| Ledger | 0.455577 | 16,843,645 | 921 | 1,194 | 77/77 |
+
+Ledger error is 4.17% lower and reported tokens 21.91% fewer than Gnomon without
+ledger. More numerical fits were used, so this is not a claim of lower total
+compute cost. The full audited inventory has 77/78/79 valid forecasts and
+74/73/79 full workflows respectively; only matched cases are compared above.
+These are partial reused-development results, not final efficacy evidence.
+The 20% target remains unmet and the holdout remains unopened.
+
+Receipt: `evidence/guarded-agent-093-development-audit-015.json`. The original
+run remains unchanged. The next collection prototype passed local admission,
+real-fit, maturation and metric checks, but remains undeployed pending Hermes
+transport integration and a prospective dispatch freeze; see PAIRED_COLLECTION_096.md.
