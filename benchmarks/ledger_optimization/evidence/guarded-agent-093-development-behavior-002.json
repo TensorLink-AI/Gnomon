@@ -1,0 +1,197 @@
+{
+  "path": "/root/gnomon-ledger-ml-v3/code/results/guarded-history-093-development-001/gnomon/item_1372862_store_12/round-5",
+  "calls": [
+    {
+      "response": "api-01-response.json",
+      "name": "lab",
+      "arguments": "{\"operation\": \"review\"}"
+    },
+    {
+      "response": "api-01-response.json",
+      "name": "project_list",
+      "arguments": "{}"
+    },
+    {
+      "response": "api-02-response.json",
+      "name": "evidence_read",
+      "arguments": "{\"path\": \"TASK.md\"}"
+    },
+    {
+      "response": "api-02-response.json",
+      "name": "evidence_read",
+      "arguments": "{\"path\": \"task.json\"}"
+    },
+    {
+      "response": "api-02-response.json",
+      "name": "evidence_read",
+      "arguments": "{\"path\": \"previous_runs.json\"}"
+    },
+    {
+      "response": "api-03-response.json",
+      "name": "evidence_read",
+      "arguments": "{\"path\": \"previous_runs.json\", \"offset\": 4096, \"max_chars\": 8192}"
+    },
+    {
+      "response": "api-03-response.json",
+      "name": "data_summary",
+      "arguments": "{\"column\": \"unit_sales\", \"start_row\": 600, \"end_row\": 730}"
+    },
+    {
+      "response": "api-04-response.json",
+      "name": "evidence_read",
+      "arguments": "{\"max_chars\": 600, \"path\": \"history.csv\"}"
+    },
+    {
+      "response": "api-04-response.json",
+      "name": "evidence_read",
+      "arguments": "{\"max_chars\": 600, \"path\": \"future.csv\"}"
+    },
+    {
+      "response": "api-05-response.json",
+      "name": "data_summary",
+      "arguments": "{\"column\": \"value\", \"start_row\": 600, \"end_row\": 730}"
+    },
+    {
+      "response": "api-05-response.json",
+      "name": "data_summary",
+      "arguments": "{\"column\": \"value\", \"start_row\": 0, \"end_row\": 730, \"group_by\": \"onpromotion\"}"
+    },
+    {
+      "response": "api-06-response.json",
+      "name": "data_summary",
+      "arguments": "{\"column\": \"value\", \"end_row\": 730, \"start_row\": 0}"
+    },
+    {
+      "response": "api-06-response.json",
+      "name": "data_summary",
+      "arguments": "{\"column\": \"value\", \"end_row\": 730, \"group_by\": \"dow_sin\", \"start_row\": 0}"
+    },
+    {
+      "response": "api-07-response.json",
+      "name": "data_summary",
+      "arguments": "{\"column\": \"value\", \"end_row\": 730, \"group_by\": \"onpromotion\", \"start_row\": 0}"
+    },
+    {
+      "response": "api-07-response.json",
+      "name": "data_summary",
+      "arguments": "{\"column\": \"onpromotion\", \"end_row\": 730, \"start_row\": 0}"
+    },
+    {
+      "response": "api-08-response.json",
+      "name": "data_summary",
+      "arguments": "{\"column\": \"value\", \"end_row\": 730, \"group_by\": \"dow_cos\", \"start_row\": 0}"
+    },
+    {
+      "response": "api-08-response.json",
+      "name": "data_summary",
+      "arguments": "{\"column\": \"value\", \"end_row\": 600, \"start_row\": 500}"
+    },
+    {
+      "response": "api-09-response.json",
+      "name": "data_summary",
+      "arguments": "{\"column\": \"value\", \"end_row\": 500, \"start_row\": 400}"
+    },
+    {
+      "response": "api-09-response.json",
+      "name": "data_summary",
+      "arguments": "{\"column\": \"value\", \"end_row\": 400, \"start_row\": 300}"
+    },
+    {
+      "response": "api-09-response.json",
+      "name": "data_summary",
+      "arguments": "{\"column\": \"value\", \"end_row\": 300, \"start_row\": 200}"
+    },
+    {
+      "response": "api-09-response.json",
+      "name": "data_summary",
+      "arguments": "{\"column\": \"value\", \"end_row\": 200, \"start_row\": 100}"
+    },
+    {
+      "response": "api-09-response.json",
+      "name": "data_summary",
+      "arguments": "{\"column\": \"value\", \"end_row\": 100, \"start_row\": 0}"
+    },
+    {
+      "response": "api-10-response.json",
+      "name": "data_summary",
+      "arguments": "{\"column\": \"value\", \"end_row\": 730, \"group_by\": \"dow_sin\", \"start_row\": 600}"
+    },
+    {
+      "response": "api-10-response.json",
+      "name": "data_summary",
+      "arguments": "{\"column\": \"value\", \"end_row\": 730, \"group_by\": \"dow_sin\", \"start_row\": 365}"
+    },
+    {
+      "response": "api-11-response.json",
+      "name": "data_summary",
+      "arguments": "{\"column\": \"value\", \"end_row\": 730, \"group_by\": \"dow_sin\", \"start_row\": 180}"
+    },
+    {
+      "response": "api-11-response.json",
+      "name": "data_summary",
+      "arguments": "{\"column\": \"value\", \"end_row\": 730, \"group_by\": \"dow_sin\", \"start_row\": 90}"
+    },
+    {
+      "response": "api-12-response.json",
+      "name": "data_summary",
+      "arguments": "{\"column\": \"value\", \"end_row\": 730, \"group_by\": \"dow_sin\", \"start_row\": 0}"
+    },
+    {
+      "response": "api-12-response.json",
+      "name": "data_summary",
+      "arguments": "{\"column\": \"value\", \"end_row\": 730, \"group_by\": \"dow_sin\", \"start_row\": 540}"
+    },
+    {
+      "response": "api-13-response.json",
+      "name": "lab",
+      "arguments": "{\"operation\": \"status\"}"
+    },
+    {
+      "response": "api-14-response.json",
+      "name": "lab",
+      "arguments": "{\"operation\": \"start\"}"
+    },
+    {
+      "response": "api-15-response.json",
+      "name": "lab",
+      "arguments": "{\"operation\": \"commit\", \"config\": {\"model\": \"ridge\", \"window\": 365, \"lags\": 14, \"alpha\": 10}}"
+    },
+    {
+      "response": "api-16-response.json",
+      "name": "lab",
+      "arguments": "{\"config\": {\"model\": \"seasonal\", \"season\": 7}, \"operation\": \"commit\"}"
+    }
+  ],
+  "counts": {
+    "lab": 5,
+    "project_list": 1,
+    "evidence_read": 6,
+    "data_summary": 20
+  },
+  "response_sha256": {
+    "api-01-response.json": "8c8b4ccbf5789a39aec373ba8a5e2eaf4a7bf0469b9162d3a655c80b6c5d1e8a",
+    "api-02-response.json": "fbc43dec009e6d8b2619653dfc22b97dc20b3c0ac0bf87df2f9b1fbd996c66a0",
+    "api-03-response.json": "e3b025b8c371bdd79b21da97288137639cbd47944546f2f378b15e64744a81bc",
+    "api-04-response.json": "e2ee359ba15d3839d93f73cdedfb7cda3fa71adbd634a0ca04a6f51811b4ba12",
+    "api-05-response.json": "6c5801cb4fa0872ac62ef8d3490b6ba3147026ef8ba3f4c5248926f83bb26e20",
+    "api-06-response.json": "4d85e825bd03ee5d9e730a8fd9977c2aaead324e0546991c29e70eebd5ec5262",
+    "api-07-response.json": "85174dd031fd730336fcfe1c2ebfb3cc5cafea3147aa3b06eccc43838e7fd09b",
+    "api-08-response.json": "007691a6735f75ef1d09788eef7d417b8225aa03a169afa62ba76beb0cf2a4f5",
+    "api-09-response.json": "4a7407a693343a4e9aacb755738705a342887507c1224596ae9dc446fc98a3ac",
+    "api-10-response.json": "dcf025a9c55798890da2d01c333a822655c6ea4fdbaa6a6bce02ff366d72f6cd",
+    "api-11-response.json": "b6c5847a2ed7ad8cb0ed2767234bbe90fd2f294efaec8a9057b7572dfc09e8c2",
+    "api-12-response.json": "0636cfd310ffd7bc9450c360029d994b3db428ae3b750b90a7646f7ce44bc6f2",
+    "api-13-response.json": "cd221dc2674a7b26e40ecdbe230a73218e05d32dd03d003ee18ab1c2fa22d4bc",
+    "api-14-response.json": "41a7440b179b6c071148b8cda64225e43cfed8b8e83f4ba2132f190e93e54dbd",
+    "api-15-response.json": "96fc2fcb7b5fa2a0a1002fbae088afea52ce1e7e7a6714f423f8487688492fb9",
+    "api-16-response.json": "00cc85845cb5f189e9a7682c83262b832212725b33e9efc829a511b5e0f4751c"
+  },
+  "scope": "Read-only tool-call sequence from saved model responses, not yet the full independent session audit. Counts are requested tool calls, not API requests or confirmed successful tool executions.",
+  "interpretation": "Twenty data_summary calls were requested before the selection phase. No lab backtest operation was requested; the late Ridge commit followed status/start without a comparison. This repeats the inspection-heavy budget-exhaustion pattern; it is not an API failure. No live runner or budgets changed.",
+  "files": {
+    "results/guarded-history-093-development-behavior-002/exit.json": "fbc2724935a13b44bf0de5980a618b57e4fdf8115686f6d5bafffdc10363d2b2",
+    "results/guarded-history-093-development-behavior-002/stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/guarded-history-093-development-behavior-002/stdout.json": "a771f89a65c505d01d0d5eb18e6d36c95a9bf2beeee40206081a5640852d3f6b",
+    "results/guarded-history-093-development-behavior-002/query.py": "5680e90c1789c1f7fc20d697dbc31cb9e7492da040c9ea20a2bec22cb3688c44"
+  }
+}
