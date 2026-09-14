@@ -1,0 +1,50 @@
+{
+  "status": "live_grade_diagnostic",
+  "scope": "Read-only stored grade inspection; the new session is not yet independently audited. All cases retained, no runtime changes or additional provider calls.",
+  "new_incomplete_workflow": {
+    "api_calls": 16,
+    "api_errors": 0,
+    "arm": "plain",
+    "backtested_configurations": 1,
+    "baseline_checkpoint_only": true,
+    "blocked_api_requests": 0,
+    "cause": null,
+    "checkpoint_publications": 2,
+    "config": {
+      "model": "seasonal",
+      "season": 7
+    },
+    "corrections": 0,
+    "decision_summary_present": true,
+    "execution_id": "d4e0ebb4-c25f-4ab2-ba12-9502149362cc",
+    "exit_code": 0,
+    "fallback_used": false,
+    "ledger_reviews": 0,
+    "numerical_attempts": 4,
+    "numerical_successes": 4,
+    "orchestration_stop": "request_budget_exhausted",
+    "origin": "2016-10-11T00:00:00+00:00",
+    "prior_outcomes": 4,
+    "responses": 16,
+    "review_calls": 1,
+    "rmsle": 0.6845275957360197,
+    "round": 4,
+    "seconds": 110.95862982422113,
+    "selection_after_comparison": false,
+    "selection_interventions": 4,
+    "series_id": "item_1457251_store_14",
+    "tokens": 259877,
+    "usage_complete": true,
+    "valid": true,
+    "workflow_complete": false
+  },
+  "total_incomplete_workflows": 8,
+  "interpretation": "Model request budget exhausted with a valid seasonal checkpoint, only one backtested configuration and four numerical attempts. No API errors; the required comparison was not completed.",
+  "files": {
+    "results/guarded-history-093-failure-monitor-003/capture.py": "4cd1b6ad117aa6379d211aabf314de83835963853c3c80b6baf18adefbf3ed91",
+    "results/guarded-history-093-failure-monitor-003/exit.json": "273e544435f3441c4d90d8d104f8a28065a7b55721f5eab48536ceee186f36d6",
+    "results/guarded-history-093-failure-monitor-003/report.json": "822b0a63b3f5c9d4618ee652c96217a4cfa2e25c30395cc528afd5543a5bbca0",
+    "results/guarded-history-093-failure-monitor-003/stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "target_met": false
+}

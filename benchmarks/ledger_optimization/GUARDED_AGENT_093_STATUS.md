@@ -1,8 +1,8 @@
 # Guarded pilot 093 — completed
 
-Latest audited continuation: 185/312 sessions, 61 matched cases (2026-09-14
-19:32 UTC). The pilot is complete; the full development continuation is active.
-See the eleventh audit below. The 20% target remains unmet.
+Latest audited continuation: 196/312 sessions, 65 matched cases (2026-09-14
+19:48 UTC). The pilot is complete; the full development continuation is active.
+See the twelfth audit below. The 20% target remains unmet.
 
 All 36 sessions finished. Every forecast is valid; plain Hermes completed 11/12 full workflows, Gnomon without ledger 12/12, ledger 12/12. The frozen completion gate passed. Independent local audit: 4,227 file hashes verified, 2,942 checks, zero integrity failures.
 
@@ -449,3 +449,49 @@ and cover different origins. Preserve the unfavorable evidence.
 Receipts: `evidence/guarded-agent-093-development-audit-011.json` and
 `evidence/guarded-agent-093-phases-004.json`. The 20% target is unmet and
 final holdout access remains closed. No main/PyPI or active-run changes.
+
+## Twelfth continuation audit — 2026-09-14 19:48 UTC
+
+Eleven additional sessions passed 2,969 independent checks with zero failures or
+missing shutdown records. Verified the complete archive, 1,414 extracted files,
+all 4,227 original pilot files and every retained pilot log prefix. Combined
+evidence: 196 audited sessions, 65 all-three matched cases. RMSLE: plain
+0.465816, Gnomon 0.479740, ledger 0.454924. Ledger has 5.17% lower error and
+22.06% fewer reported tokens than Gnomon without ledger. Full workflows are
+63/65, 60/65 and 65/65; every forecast is valid and every case remains scored.
+Numerical attempts are 916/978/1002, so token savings do not mean fewer fits.
+Receipt: `evidence/guarded-agent-093-development-audit-012.json`.
+
+Both initial series now have all 26 matched origins audited. Under the frozen
+phase definitions, their 32 mature cases give only 1.36% lower ledger error;
+their final eight cases give 3.14% HIGHER ledger error. All eight latter
+workflows completed. This preserves unfavorable evidence and does not support
+a growing-history accuracy claim. Phases contain different origins; they do
+not identify a causal accumulation effect. The other two series are unfinished.
+Receipt: `evidence/guarded-agent-093-phases-005.json`.
+
+A subsequent live grade records another incomplete plain-Hermes workflow at
+item_1457251_store_14 round 4: 16 model requests, zero API errors, four numerical
+attempts and a single backtested configuration. Its valid seasonal checkpoint
+RMSLE is 0.684528 and remains included. This brings observed incompletions to
+eight (plain three, Gnomon five, ledger zero). This new grade still needs full
+session audit. Receipt: `evidence/guarded-agent-093-failure-monitor-003.json`.
+
+The 20% objective remains unmet. No final data accessed or live sources changed.
+
+## Expanded executed-forecast bound — 65 audited matched cases
+
+Independently recomputed 382 already-executed production forecasts and verified
+166 repeated configuration predictions agree. A future-aware choice from the
+union across all arms yields RMSLE 0.425652, only 11.27% lower than the matched
+Gnomon control (0.479740). Ledger's own executed-set hindsight mean is 0.435550
+versus its selected 0.454924. This is not an executable policy: it uses future
+outcomes and candidates unequally available to individual arms. It does not
+bound the entire allowed configuration space or the unfinished experiment.
+
+Nevertheless, selection-only changes cannot reach 20% on this already-executed
+subset. A prospective infrastructure candidate must support better exploration
+within unchanged common models and budgets, as well as faithful evidence use.
+Do not change the live run or promote the sparse-display prototype on this
+result. No new fits, API calls or final data access. Receipt:
+`evidence/guarded-agent-093-executed-opportunity-003.json`.
