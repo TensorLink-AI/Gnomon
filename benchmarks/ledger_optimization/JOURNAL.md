@@ -1193,3 +1193,27 @@ unchanged-pool cases with exactly matching060 predictions/training hashes.
 retained. Archive/receipt061 committed. No promotion, paid confirmation, main or
 PyPI change. Separate validation/final reserves unchanged. Goal remains active
 and unachieved; no running agent job.
+
+## Learned historical relevance062: audited negative result
+
+Previous turn was a status restatement, classified no progress. Revalidated
+authoritative worktree and061 completion, then took the next safe action:
+freeze062 at e5f6d01 and test outcome-supervised historical retrieval on the
+same1066 episodes/416 original development tasks. No held-out access or API use.
+
+Fixed051 ExtraTrees settings learn centered matured production-minus-CV RMSLE
+contrasts from the twelve existing predecision features. Leaf memberships supply
+historical case weights to the unchanged050 block objective. All five control
+and ledger comparators preserved exactly. Four synthetic tests pass, including
+unavailable-label lookup exclusion and independent leaf-weight reconstruction.
+
+All416 tasks complete: RMSLE0.2525668248,2.3749% below matched CV, but0.2308%
+worse than lifetime061. Electricity also slightly worsens matched CV. Gate fails;
+no paid confirmation or promotion.52 evidence forests/3328 trees,416 mixture
+fits/23638 iterations,20.50s wall; inherited forecast costs fully retained.
+
+Independent audit14,185,041 assertions, zero failures (primarily repeated tree
+traversal checks, not independent statistical evidence). Result/trees/weights/
+costs preserved in receipt/archive062. The best original-development ledger
+remains061;055's separate validation result and Hermes results are unchanged.
+Main/PyPI unchanged.20% final matched-agent goal remains active and unmet.
