@@ -325,3 +325,13 @@ missing/audit-failed evidence, spawn failures, fresh paths and symlink rejection
 They used zero Engy calls and zero numerical fits. This is local lifecycle
 verification; no paid pilot has launched. Receipt:
 `evidence/collection-096-controller-checks-001.json`.
+
+A follow-up handoff review found the original paid controller's pre-archive
+credential scan was missing from the new wrapper. The wrapper now performs that
+scan only after an accepted-launch receipt establishes that the child passed
+its pre-credential gates. Rejected launches do not read credentials. Detected
+credentials or an unavailable scan withhold the archive and `FINISHED.json`,
+while retaining raw evidence locally. Four additional synthetic-key tests passed,
+bringing the combined controller/launcher suite to 21 tests. No real keys, Engy
+calls or numerical fits were used. Receipt:
+`evidence/collection-096-controller-checks-002.json`.

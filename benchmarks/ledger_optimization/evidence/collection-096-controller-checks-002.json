@@ -1,0 +1,17 @@
+{
+  "status": "local_controller_credential_archive_tests_passed",
+  "tests": 21,
+  "engy_calls": 0,
+  "numerical_fits": 0,
+  "paid_pilot_launched": false,
+  "scope": "Twelve lifecycle/archive tests and nine unchanged launcher tests. Only synthetic credentials. Rejected launches do not read credential files; accepted launch evidence is scanned before packaging; missing keys or detected keys withhold the archive. No real paid pilot or final data accessed.",
+  "files": {
+    "benchmarks/ledger_optimization/control_collection_096.py": "295782f161171c45fc81dc1f4b124bf4dff94d167ac23d05dfedf4829f94bc0d",
+    "benchmarks/tests/test_collection_control_096.py": "898850d5a44e42b68f66a05e2f18f3262b7fb3f98160012ab6ac2adace7332d8",
+    "benchmarks/ledger_optimization/launch_collection_096.py": "9b10bf70329be2d6d96baeedc7962f4e8e067c9be10345f4a513b2b2a7ff9a11",
+    "benchmarks/tests/test_collection_launch_096.py": "4d6e80a796305330f9fb74ee124ee2703d7746fb67cf57a2de1cc8e067f2c41b",
+    "results/collection-096-controller-checks-002/command.json": "c4ed81b93c49e9313de5f57679533f1f6674d3fa46b845eb042584a87fba571f",
+    "results/collection-096-controller-checks-002/stderr": "10aa3ef8f8c9012518703974e1eb1dd7fecf0a05c1ea829db7c77b48d5269839",
+    "results/collection-096-controller-checks-002/stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

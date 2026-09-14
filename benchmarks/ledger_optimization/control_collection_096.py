@@ -48,7 +48,7 @@ def completion(output, exit_status):
                 'exit_status':exit_status}
 
 
-def archive_evidence(launch, output):
+def archive_evidence(launch, output, forbidden=()):
     files={}
     for prefix,root in (('launch',launch),('pilot',output)):
         if not root.exists():
@@ -59,6 +59,8 @@ def archive_evidence(launch, output):
                 raise ValueError('Evidence contains an unarchived symlink')
             if path.is_file():
                 files[f'{prefix}/{path.relative_to(root)}']=path
+    if any(value in path.read_bytes() for path in files.values() for value in forbidden):
+        raise ValueError('Credential scan failed; archive withheld')
     inventory={name:sha(path) for name,path in files.items()}
     dump(launch/'SHA256SUMS.json',inventory)
     with tarfile.open(launch/'evidence.tar.gz','x:gz') as archive:
@@ -69,7 +71,7 @@ def archive_evidence(launch, output):
             'inventory_sha256':sha(launch/'SHA256SUMS.json'),'files':len(files)}
 
 
-def supervise(command, launch, output):
+def supervise(command, launch, output, credentials_file=None):
     launch,output=Path(launch).absolute(),Path(output).absolute()
     if (launch==output or launch in output.parents or output in launch.parents
             or launch.exists() or launch.is_symlink() or output.exists() or output.is_symlink()):
@@ -95,7 +97,17 @@ def supervise(command, launch, output):
     dump(launch/'AUDITED.json',result)
     if not result['complete']:
         dump(launch/'INCOMPLETE.json',result)
-    archived=archive_evidence(launch,output)
+    forbidden=[]
+    # The launcher creates this receipt only after prerequisite/build validation,
+    # immediately before reading the key. Rejected launches never read it here.
+    if credentials_file is not None and (output/'accepted-launch.json').exists():
+        for line in Path(credentials_file).read_text().splitlines():
+            if line.startswith('ENGY_API_KEY='):
+                value=line.split('=',1)[1].strip().strip('"').strip("'")
+                if value:forbidden.append(value.encode())
+        if not forbidden:
+            raise ValueError('Credential scan unavailable; archive withheld')
+    archived=archive_evidence(launch,output,forbidden)
     dump(launch/'FINISHED.json',{**result,**archived,
          'at':datetime.now(timezone.utc).isoformat(),'continuation_launched':False})
     return result
@@ -112,7 +124,7 @@ def main():
     command=[sys.executable,'-m','benchmarks.ledger_optimization.launch_collection_096']
     for field in fields:
         command+=['--'+field,str(getattr(args,field.replace('-','_')).absolute())]
-    result=supervise(command,args.launch_directory,args.output)
+    result=supervise(command,args.launch_directory,args.output,args.credentials_file)
     print(json.dumps(result))
     if not result['complete']:
         raise SystemExit(1)

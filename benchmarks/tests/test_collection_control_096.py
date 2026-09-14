@@ -14,7 +14,7 @@ class CollectionControlTests(unittest.TestCase):
         temp=tempfile.TemporaryDirectory();self.addCleanup(temp.cleanup)
         self.root=Path(temp.name);self.launch=self.root/'launch';self.output=self.root/'pilot'
 
-    def run_child(self, tail='', gate=True):
+    def run_child(self, tail='', gate=True, credentials_file=None):
         script='''import json,sys
 from pathlib import Path
 p=Path(sys.argv[1]);p.mkdir()
@@ -25,7 +25,7 @@ print('retained stdout')
 print('retained stderr',file=sys.stderr)
 '''
         script=script.replace("'passed':GATE", "'passed':"+repr(gate))
-        return supervise([sys.executable,'-c',script+tail,str(self.output)],self.launch,self.output)
+        return supervise([sys.executable,'-c',script+tail,str(self.output)],self.launch,self.output,credentials_file)
 
     def verify_archive(self):
         inventory=json.loads((self.launch/'SHA256SUMS.json').read_text())
@@ -83,6 +83,32 @@ print('retained stderr',file=sys.stderr)
             self.run_child("\n(p/'outside').symlink_to('/etc/passwd')\n")
         self.assertFalse((self.launch/'FINISHED.json').exists())
         self.assertFalse((self.launch/'evidence.tar.gz').exists())
+
+    def test_credentials_not_read_without_accepted_launch(self):
+        result=self.run_child(credentials_file=self.root/'nonexistent-credentials')
+        self.assertTrue(result['complete']);self.verify_archive()
+
+    def test_credential_in_evidence_blocks_archive(self):
+        key=self.root/'credentials';key.write_text('ENGY_API_KEY=synthetic-test-secret\n')
+        with self.assertRaisesRegex(ValueError,'Credential scan failed'):
+            self.run_child("\n(p/'accepted-launch.json').write_text('{}');(p/'leak').write_text('synthetic-test-secret')\n",credentials_file=key)
+        self.assertFalse((self.launch/'evidence.tar.gz').exists())
+        self.assertFalse((self.launch/'FINISHED.json').exists())
+
+    def test_accepted_launch_scanned_without_copying_credentials(self):
+        key=self.root/'credentials';key.write_text('ENGY_API_KEY=synthetic-test-secret\n')
+        self.assertTrue(self.run_child("\n(p/'accepted-launch.json').write_text('{}')\n",credentials_file=key)['complete'])
+        self.verify_archive()
+        with tarfile.open(self.launch/'evidence.tar.gz') as archive:
+            for item in archive.getmembers():
+                self.assertNotIn(b'synthetic-test-secret',archive.extractfile(item).read())
+
+    def test_missing_key_after_accepted_launch_withholds_archive(self):
+        key=self.root/'credentials';key.write_text('ENGY_API_KEY=\n')
+        with self.assertRaisesRegex(ValueError,'scan unavailable'):
+            self.run_child("\n(p/'accepted-launch.json').write_text('{}')\n",credentials_file=key)
+        self.assertFalse((self.launch/'evidence.tar.gz').exists())
+        self.assertFalse((self.launch/'FINISHED.json').exists())
 
 
 if __name__=='__main__':
