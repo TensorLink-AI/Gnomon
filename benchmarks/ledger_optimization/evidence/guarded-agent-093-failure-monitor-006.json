@@ -1,0 +1,75 @@
+{
+  "status": "new_incomplete_workflow_live_observation",
+  "new_cases": [
+    {
+      "file": "plain/item_1457251_store_14/round-24/grade.json",
+      "grade": {
+        "api_calls": 16,
+        "api_errors": 0,
+        "arm": "plain",
+        "backtested_configurations": 1,
+        "baseline_checkpoint_only": true,
+        "blocked_api_requests": 0,
+        "cause": null,
+        "checkpoint_publications": 2,
+        "config": {
+          "model": "seasonal",
+          "season": 7
+        },
+        "corrections": 0,
+        "decision_summary_present": true,
+        "execution_id": "a6bb027f-1808-4b9f-859d-a4934c511d9c",
+        "exit_code": 0,
+        "fallback_used": false,
+        "ledger_reviews": 0,
+        "numerical_attempts": 4,
+        "numerical_successes": 4,
+        "orchestration_stop": "request_budget_exhausted",
+        "origin": "2017-07-18T00:00:00+00:00",
+        "point": [
+          0.0,
+          0.0,
+          0.0,
+          6.0,
+          4.0,
+          5.0,
+          3.0,
+          0.0,
+          0.0,
+          0.0,
+          6.0,
+          4.0,
+          5.0,
+          3.0
+        ],
+        "prior_outcomes": 24,
+        "responses": 16,
+        "review_calls": 1,
+        "rmsle": 0.8714767970964467,
+        "round": 24,
+        "seconds": 148.61011718958616,
+        "selection_after_comparison": false,
+        "selection_interventions": 4,
+        "series_id": "item_1457251_store_14",
+        "tokens": 276146,
+        "usage_complete": true,
+        "valid": true,
+        "workflow_complete": false
+      }
+    }
+  ],
+  "incomplete_workflows_by_arm": {
+    "plain": 6,
+    "gnomon": 5,
+    "ledger": 0
+  },
+  "all_incomplete_have_valid_forecasts": true,
+  "scope": "Read-only live grades; full independent audit pending. All valid baseline forecasts remain scored. No rerun, exclusions or extra budget.",
+  "files": {
+    "results/guarded-history-093-failure-monitor-006/command.json": "37cb80c5902986159fd5db8223997c0c56da4af7506be8c256bb9b1cbaddace6",
+    "results/guarded-history-093-failure-monitor-006/stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/guarded-history-093-failure-monitor-006/stdout.json": "fd686ddd9a6e878a9391bc54242126104a1579b2fbf2f297b990868266e0390e",
+    "results/guarded-history-093-failure-monitor-006/query.py": "2cf594439aee17749cf3e06b5e5945adf715f56cf3adbbffdb9acf6d64a9eb5d"
+  },
+  "target_met": false
+}
