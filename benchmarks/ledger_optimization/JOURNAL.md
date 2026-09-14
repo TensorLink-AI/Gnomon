@@ -1377,3 +1377,30 @@ Four tests and independent33,816checks passed. Fullvectors/hasharchive retained.
 Run1.406s,0fits/API; inherited costs unchanged. Next test finer temporal blending
 only after freezing common action/solver and unchanged strong guards. No final
 or055validation access, main/PyPI change or paid confirmation. Goal active/unmet.
+
+## Hourly blend070: frozen and live, not yet scored completely
+
+Previous goal turn made progress: diagnostic069audited/pushed8586def. Revalidated
+that state. Prepared24one-hour blends as the common action, with unchanged068
+sources, anchors, evidence retrieval, masses, solver tolerances/certificates and
+cost accounting. Added068incumbent guard in addition to strong050and061.
+
+Four synthetic tests passed before freeze1aedb8b: repeated four-block objective/
+forecast equivalence, hourly-gradient finite differences, full168-weight fit
+certificate, wrong-shape rejection. One initial test import had a syntax typo;
+it was corrected before tests/freeze/source execution, with no forecast calls.
+One synthetic mixture fit completed. No source-data choice informed parameters.
+
+Started original process session70210:
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 python3 -m
+benchmarks.ledger_optimization.lead_ensemble_run
+results/configuration-search-066-001 results/broad-ensemble-045-001
+results/search-ensemble-068-001 results/lead-ensemble-070-001
+
+Specific handle confirmed live after50seconds;13/416tasks completed,26fits,
+5715iterations, no failure artifact. Higher168-weight dimension makes each fit
+slower than068; no restart or solver change was made. Full070independent audit
+prepared while it runs. Final accuracy/gate unknown; no partial score promoted.
+Process stdout/stderr at/tmp/gnomon-lead-ensemble-070.log; checkpoint/status and
+failure artifacts under result root. Poll same handle; do not restart on timeout.
+Main/PyPI/protected reserves untouched; no API/new raw forecast calls. Goal active.
