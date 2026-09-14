@@ -1,0 +1,111 @@
+{
+  "experiment": "092",
+  "audit": "003",
+  "cumulative": true,
+  "includes_prior_audits": [
+    "001",
+    "002"
+  ],
+  "snapshot_at": "2026-09-14T08:04:04.146000+00:00",
+  "selection": "All sessions with grade.json and final memory.json present before snapshot; no score-based filter.",
+  "completed_sessions": 20,
+  "planned_pilot_sessions": 36,
+  "scope": "All 20 complete sessions at snapshot time. Six fully matched cases; two series have completed all three pilot origins. Partial run, not a final evaluation.",
+  "independent_checks": 1620,
+  "integrity_failures": [],
+  "wire_checks": {
+    "scope": "Twenty completed sessions only, excludes live sessions and separately counted readiness probes.",
+    "checks": 829,
+    "passed": true,
+    "model_counts": {
+      "deepseek-v4.1-flash": 263
+    },
+    "agent_requests": 263,
+    "prompt_tokens": 4573688,
+    "completion_tokens": 67366,
+    "total_tokens": 4641054,
+    "billing_dollars": null
+  },
+  "largest_loss_diagnostic": {
+    "selection": "Largest ledger-versus-gnomon loss among the first six fully matched pilot cases; post-hoc diagnostic only.",
+    "case": {
+      "series_id": "item_1047756_store_23",
+      "round": 2
+    },
+    "rows": [
+      {
+        "arm": "gnomon",
+        "selected_config": {
+          "alpha": 300.0,
+          "lags": 21,
+          "model": "ridge",
+          "window": 730
+        },
+        "selected_cv": 0.48653826028089714,
+        "lowest_tested_cv": 0.48653826028089714,
+        "selected_lowest_tested_cv": true,
+        "tested_configs": 9,
+        "realized_rmsle": 1.035544232799116,
+        "fallback_used": false
+      },
+      {
+        "arm": "ledger",
+        "selected_config": {
+          "depth": 8,
+          "lags": 56,
+          "model": "random_forest",
+          "window": 730
+        },
+        "selected_cv": 0.5086426912224077,
+        "lowest_tested_cv": 0.5086426912224077,
+        "selected_lowest_tested_cv": true,
+        "tested_configs": 11,
+        "realized_rmsle": 1.5697724189972626,
+        "fallback_used": false
+      },
+      {
+        "arm": "plain",
+        "selected_config": {
+          "alpha": 300.0,
+          "lags": 28,
+          "model": "ridge",
+          "window": 730
+        },
+        "selected_cv": 0.49630189329357594,
+        "lowest_tested_cv": 0.49630189329357594,
+        "selected_lowest_tested_cv": true,
+        "tested_configs": 5,
+        "realized_rmsle": 1.0325316590791407,
+        "fallback_used": false
+      }
+    ],
+    "provider_calls": 0,
+    "api_calls": 0,
+    "trial_settings_changed": false
+  },
+  "full_workflows": 20,
+  "valid_forecasts": 20,
+  "http_errors": 0,
+  "numerical_attempts": 424,
+  "numerical_successes": 424,
+  "readiness_requests": 20,
+  "readiness_tokens": 280,
+  "evidence_root": "results/corrected-history-092-live-audit-003",
+  "files": {
+    "snapshot.tar.gz": "8dca9555819cbf68035d5cb07a39454d117ae3f557969d41f2b645a97df52584",
+    "snapshot-script.py": "330d41580f7e0be32f99972e411b8014280805bf8e54e2e8c63fd3b4b883838c",
+    "snapshot/snapshot-manifest.json": "24c1c2ce87efc2ec0a5cb088108959e0ded38821aa04054121e506e1f5842711",
+    "snapshot/report.json": "8ca036a21b71ddfe6b5d7425862b36228da4ceb752bf27c017098df51ac91139",
+    "audit.stdout": "09ecdc71370283ef1444a9b444892f568d3d0a8c15da64d9a677f4c9b797f3f8",
+    "audit.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "audit_wire.py": "fbc81ef0b54131811425c74f482cb812a977f1ee856b3a48a027fa09554c6330",
+    "wire-audit.json": "2da7b6119569fa6417c11c52ea42481d5fb1447dbae44af497d7664cb911775b",
+    "largest-loss-diagnostic.json": "e75930fb222c1d30614c95ba7d27ee738ca98d4a19e45b16a3e1731f7fb293ad",
+    "verify_loss.py": "3870c3c36b8d3343738653e85e8b0d437c602b6883fc4d721aa2c69239e7c7f1",
+    "loss-verification.json": "d38711d508d1bc695eeca33fb4027ee36eee8a47e2344ad30164b9ad1425a62e"
+  },
+  "snapshot_files_verified": 2060,
+  "trial_settings_changed": false,
+  "final_reserve_accessed": false,
+  "interpretation": "The largest observed loss is a valid executed forecast selected by lowest CV within that arm\u2019s tested portfolio. Does not establish that ledger caused the choice or the loss."
+}
