@@ -1,5 +1,5 @@
 {
-  "status": "live_incomplete_workflow_identified",
+  "status": "new_incomplete_workflow_independently_audited",
   "new_cases": [
     {
       "file": "plain/item_1372862_store_12/round-25/grade.json",
@@ -64,12 +64,80 @@
     "ledger": 0
   },
   "all_incomplete_have_valid_forecasts": true,
-  "scope": "Read-only live grades. New session not yet independently archived/audited; all failures retained in scores. No rerun or extra budget. Stop reason is not a causal explanation for agent behavior.",
+  "scope": "New case included in audit-022: 2,128 checks with no audit failures across six sessions. Valid baseline forecast remains scored. Original live observation preserved; no rerun, score exclusion or extra budget. Tool usage is descriptive, not a causal explanation of model reasoning.",
   "files": {
     "results/guarded-history-093-failure-monitor-005/command.json": "3b3b3e01d08ffb54a5b16d4e0943bd1db0a6446f576fdae0231fa92dcbf4d5e9",
     "results/guarded-history-093-failure-monitor-005/query.py": "2cf594439aee17749cf3e06b5e5945adf715f56cf3adbbffdb9acf6d64a9eb5d",
     "results/guarded-history-093-failure-monitor-005/stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "results/guarded-history-093-failure-monitor-005/stdout.json": "7c35977ae8dfdbedcf2ea148fc23208c73e32a487b77e86ab8da72f4f7876c03"
+    "results/guarded-history-093-failure-monitor-005/stdout.json": "7c35977ae8dfdbedcf2ea148fc23208c73e32a487b77e86ab8da72f4f7876c03",
+    "results/guarded-history-093-development-audit-022/snapshot/plain/item_1372862_store_12/round-25/boundary-events.jsonl": "f847d1faddce696a67016655866107f0aaff3e7ff53fbb0c520a39d8b019c671"
   },
-  "target_met": false
+  "target_met": false,
+  "independent_audit_receipt": "benchmarks/ledger_optimization/evidence/guarded-agent-093-development-audit-022.json",
+  "requested_tools": {
+    "project_list": 1,
+    "lab": 6,
+    "evidence_read": 6,
+    "data_summary": 15
+  },
+  "lab_requests": [
+    {
+      "operation": "review"
+    },
+    {
+      "operation": "status"
+    },
+    {
+      "operation": "start"
+    },
+    {
+      "operation": "status"
+    },
+    {
+      "operation": "backtest",
+      "config": {
+        "model": "ridge",
+        "window": 365,
+        "lags": 14,
+        "alpha": 10
+      }
+    },
+    {
+      "operation": "commit",
+      "execution_id": "c29383d9-68fa-4886-9961-4a531474ada9"
+    }
+  ],
+  "lab_errors": [
+    {
+      "operation": "backtest",
+      "error": {
+        "code": "SELECTION_PHASE_RESERVED",
+        "cause": "New exploration is closed. Explicitly commit a previously tested configuration.",
+        "details": {
+          "numerical_calls_started": 0,
+          "next_call": {
+            "argv": [
+              "python",
+              "lab.py",
+              "status"
+            ]
+          }
+        }
+      },
+      "budget": {
+        "numerical_limit": 60,
+        "numerical_attempts": 4,
+        "numerical_remaining": 56,
+        "reserved_final_fits": 1,
+        "backtest_batches_remaining": 18,
+        "agent_requests_remaining": 1,
+        "phase": "selection",
+        "exploration_requests_remaining": 0,
+        "next_action": "commit a tested configuration; no new exploration",
+        "seconds_remaining_approx": 348.7,
+        "agent_budget_basis": "host metered API requests; time from parent launch"
+      },
+      "numerical_calls_started": 0
+    }
+  ]
 }

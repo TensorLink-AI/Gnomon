@@ -1,8 +1,8 @@
 # Guarded pilot 093 — completed
 
-Latest audited continuation: 289/312 sessions, 96 matched cases (2026-09-14
-22:19 UTC). The pilot is complete; the full development continuation is active.
-See the twenty-first audit below. The 20% target remains unmet.
+Latest audited continuation: 295/312 sessions, 97 matched cases (2026-09-14
+22:30 UTC). The pilot is complete; the full development continuation is active.
+See the twenty-second audit below. The 20% target remains unmet.
 
 All 36 sessions finished. Every forecast is valid; plain Hermes completed 11/12 full workflows, Gnomon without ledger 12/12, ledger 12/12. The frozen completion gate passed. Independent local audit: 4,227 file hashes verified, 2,942 checks, zero integrity failures.
 
@@ -741,3 +741,27 @@ results, not final efficacy evidence. The controller remains active; no new
 trial or final holdout access has occurred. The 20% target remains unmet.
 
 Receipt: `evidence/guarded-agent-093-development-audit-021.json`.
+
+## Twenty-second continuation audit — 2026-09-14 22:30 UTC
+
+Six additional disjoint sessions passed 2,128 independent checks. Verified 956
+new file hashes and all 4,227 pilot files; zero audit failures. Combined evidence
+contains 295 audited sessions and 97 all-three matched cases.
+
+| Arm | Matched RMSLE | Reported tokens | Model requests | Fits | Full matched workflows |
+|---|---:|---:|---:|---:|---:|
+| Hermes | 0.475218 | 27,505,083 | 1,354 | 1,380 | 93/97 |
+| Gnomon | 0.478757 | 26,781,469 | 1,314 | 1,423 | 92/97 |
+| Ledger | 0.463696 | 21,216,442 | 1,138 | 1,546 | 97/97 |
+
+Ledger error is 3.15% lower and reported tokens 20.78% fewer than Gnomon without
+ledger, with more numerical fits. Full audited inventory has 99/98/98 valid
+forecasts and 94/93/98 full workflows. All failures remain included. The newest
+plain failure (item_1372862_store_12, round 25) is now audited: fifteen summaries,
+six evidence reads, a Ridge backtest rejected after exploration closed, and a
+baseline commit. It remains retained and will join matched scores when the other
+arms complete. Receipts: `evidence/guarded-agent-093-development-audit-022.json`
+and `evidence/guarded-agent-093-failure-monitor-005.json`.
+
+The run remains active. These are partial development results; the 20% target is
+unmet and final holdout remains closed. No next paid trial has launched.
