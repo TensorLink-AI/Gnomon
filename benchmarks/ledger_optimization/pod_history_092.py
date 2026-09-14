@@ -33,7 +33,7 @@ for name,launch in [('preflight','corrected-history-092-setup-002/preflight-laun
     value[name]={'launched':True,'process_verified_live':live,'launch':record}
 root=base/'corrected-history-092-run-001'
 for name in ('pipeline-status.json','GATE.json','FINISHED.json','BLOCKED.json','INCOMPLETE.json',
-             'pilot/status.json','evaluation/status.json'):
+             'INTEGRITY_STOP.json','pilot/status.json','evaluation/status.json'):
     file=root/name
     if file.exists():value[name]=json.loads(file.read_text())
 preflight=base/'corrected-history-092-preflight-001/passed.json'

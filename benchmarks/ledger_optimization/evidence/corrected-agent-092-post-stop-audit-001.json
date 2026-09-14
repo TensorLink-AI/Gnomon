@@ -1,0 +1,315 @@
+{
+  "experiment": "092",
+  "status": "stopped_integrity_defect",
+  "current_run_costs": {
+    "pilot": {
+      "totals": {
+        "sessions": 36,
+        "completed": 36,
+        "valid_completed": 36,
+        "workflow_completed": 36,
+        "api_requests": 467,
+        "reported_tokens": 7989810,
+        "unknown_usage_attempts": 0,
+        "api_response_errors": 0,
+        "response_missing": 0,
+        "readiness_requests": 36,
+        "readiness_reported_tokens": 504,
+        "readiness_unknown_usage": 0
+      },
+      "arms": {
+        "plain": {
+          "sessions": 12,
+          "completed": 12,
+          "valid_completed": 12,
+          "workflow_completed": 12,
+          "api_requests": 159,
+          "reported_tokens": 2703314,
+          "unknown_usage_attempts": 0,
+          "api_response_errors": 0,
+          "response_missing": 0,
+          "readiness_requests": 12,
+          "readiness_reported_tokens": 168,
+          "readiness_unknown_usage": 0
+        },
+        "gnomon": {
+          "sessions": 12,
+          "completed": 12,
+          "valid_completed": 12,
+          "workflow_completed": 12,
+          "api_requests": 151,
+          "reported_tokens": 2726055,
+          "unknown_usage_attempts": 0,
+          "api_response_errors": 0,
+          "response_missing": 0,
+          "readiness_requests": 12,
+          "readiness_reported_tokens": 168,
+          "readiness_unknown_usage": 0
+        },
+        "ledger": {
+          "sessions": 12,
+          "completed": 12,
+          "valid_completed": 12,
+          "workflow_completed": 12,
+          "api_requests": 157,
+          "reported_tokens": 2560441,
+          "unknown_usage_attempts": 0,
+          "api_response_errors": 0,
+          "response_missing": 0,
+          "readiness_requests": 12,
+          "readiness_reported_tokens": 168,
+          "readiness_unknown_usage": 0
+        }
+      }
+    },
+    "evaluation": {
+      "totals": {
+        "sessions": 167,
+        "completed": 165,
+        "valid_completed": 165,
+        "workflow_completed": 164,
+        "api_requests": 2178,
+        "reported_tokens": 39285345,
+        "unknown_usage_attempts": 4,
+        "api_response_errors": 2,
+        "response_missing": 2,
+        "readiness_requests": 168,
+        "readiness_reported_tokens": 2338,
+        "readiness_unknown_usage": 1
+      },
+      "arms": {
+        "plain": {
+          "sessions": 56,
+          "completed": 55,
+          "valid_completed": 55,
+          "workflow_completed": 55,
+          "api_requests": 752,
+          "reported_tokens": 13337219,
+          "unknown_usage_attempts": 1,
+          "api_response_errors": 0,
+          "response_missing": 1,
+          "readiness_requests": 56,
+          "readiness_reported_tokens": 784,
+          "readiness_unknown_usage": 0
+        },
+        "gnomon": {
+          "sessions": 55,
+          "completed": 55,
+          "valid_completed": 55,
+          "workflow_completed": 54,
+          "api_requests": 731,
+          "reported_tokens": 13505365,
+          "unknown_usage_attempts": 1,
+          "api_response_errors": 1,
+          "response_missing": 0,
+          "readiness_requests": 55,
+          "readiness_reported_tokens": 770,
+          "readiness_unknown_usage": 0
+        },
+        "ledger": {
+          "sessions": 56,
+          "completed": 55,
+          "valid_completed": 55,
+          "workflow_completed": 55,
+          "api_requests": 695,
+          "reported_tokens": 12442761,
+          "unknown_usage_attempts": 2,
+          "api_response_errors": 1,
+          "response_missing": 1,
+          "readiness_requests": 57,
+          "readiness_reported_tokens": 784,
+          "readiness_unknown_usage": 1
+        }
+      }
+    }
+  },
+  "all_current_reported_tokens_including_pilot_and_readiness": 47277997,
+  "all_current_api_and_readiness_requests": 2849,
+  "current_agent_attempts_with_unknown_usage": 4,
+  "current_readiness_attempts_with_unknown_usage": 1,
+  "billing_dollars": null,
+  "unknown_usage_is_not_zero": true,
+  "manual_candidate_review": [
+    {
+      "experiment": "092",
+      "phase": "evaluation",
+      "session": "gnomon/item_1372862_store_12/round-2",
+      "attempt": "api-09",
+      "candidate_index": 0,
+      "classification": "confirmed_unmetered_numerical_execution",
+      "source_candidate_sha256": "d8117e39cac61d3e2519ecf958771c43ed1126b9368c0b293b782fd5e226925b"
+    },
+    {
+      "experiment": "092",
+      "phase": "evaluation",
+      "session": "gnomon/item_1372862_store_12/round-2",
+      "attempt": "api-10",
+      "candidate_index": 1,
+      "classification": "confirmed_unmetered_numerical_execution",
+      "source_candidate_sha256": "328e6ccc246dc8c8dece99f53c6fb39ce0935a0e79d38f3dc57694f044f1dffc"
+    },
+    {
+      "experiment": "092",
+      "phase": "evaluation",
+      "session": "gnomon/item_1372862_store_12/round-2",
+      "attempt": "api-11",
+      "candidate_index": 2,
+      "classification": "confirmed_unmetered_numerical_execution",
+      "source_candidate_sha256": "cdccaff6decef0623f3af398d4f39033c4491b817fb297cd7b26f273e1fe8197"
+    },
+    {
+      "experiment": "092",
+      "phase": "evaluation",
+      "session": "gnomon/item_1372862_store_12/round-2",
+      "attempt": "api-12",
+      "candidate_index": 3,
+      "classification": "confirmed_unmetered_numerical_execution",
+      "source_candidate_sha256": "412909ca820cce3793cd32ed4c8855b84fb1b0d88449ced2e81368f4fe1f269e"
+    },
+    {
+      "experiment": "030",
+      "phase": "pilot",
+      "session": "plain/item_1304243_store_32/round-2",
+      "attempt": "api-11",
+      "candidate_index": 0,
+      "classification": "confirmed_unmetered_numerical_execution",
+      "source_candidate_sha256": "1acc2d8a4962f0a36c1ff279a7ff4de52f36659ddc515b058e8d6fc2a1d5b538"
+    },
+    {
+      "experiment": "030",
+      "phase": "pilot",
+      "session": "plain/item_1304243_store_32/round-2",
+      "attempt": "api-12",
+      "candidate_index": 1,
+      "classification": "confirmed_unmetered_numerical_execution",
+      "source_candidate_sha256": "72a801dfa777747c26607ae46492079e6818ce78ac6291acc857b197a7face4d"
+    },
+    {
+      "experiment": "030",
+      "phase": "evaluation",
+      "session": "gnomon/item_1372862_store_12/round-2",
+      "attempt": "api-11",
+      "candidate_index": 2,
+      "classification": "confirmed_unmetered_numerical_execution",
+      "source_candidate_sha256": "52bed936f04866b28a11b9e6651f37cc3236b897ea889e1ec5f4b0afa000ffd8"
+    },
+    {
+      "experiment": "030",
+      "phase": "evaluation",
+      "session": "ledger/item_1457251_store_14/round-1",
+      "attempt": "api-08",
+      "candidate_index": 3,
+      "classification": "confirmed_unmetered_numerical_execution",
+      "source_candidate_sha256": "ecac7751d2bcba9de02c6d255c6003dc51b88e9d2f9a1085ee5648c986db5d30"
+    },
+    {
+      "experiment": "030",
+      "phase": "evaluation",
+      "session": "ledger/item_1457251_store_14/round-1",
+      "attempt": "api-09",
+      "candidate_index": 4,
+      "classification": "confirmed_unmetered_numerical_execution",
+      "source_candidate_sha256": "cccba2e1fb4e9aa30650718bd3d569a6dc034c707e13ed15e1767d9a3bd53484"
+    },
+    {
+      "experiment": "030",
+      "phase": "evaluation",
+      "session": "ledger/item_1457251_store_14/round-1",
+      "attempt": "api-10",
+      "candidate_index": 5,
+      "classification": "confirmed_unmetered_numerical_execution",
+      "source_candidate_sha256": "321437cc111c23d60dc2a72259244da285716d7dbbca56d21b6e3b5e13b6f5cf"
+    },
+    {
+      "experiment": "030",
+      "phase": "evaluation",
+      "session": "ledger/item_1457251_store_14/round-1",
+      "attempt": "api-11",
+      "candidate_index": 6,
+      "classification": "confirmed_unmetered_numerical_execution",
+      "source_candidate_sha256": "77292542560278f38657831638666dc2c2a24ca3c20382bcaacef3df251fc679"
+    },
+    {
+      "experiment": "030",
+      "phase": "evaluation",
+      "session": "ledger/item_1457251_store_14/round-1",
+      "attempt": "api-12",
+      "candidate_index": 7,
+      "classification": "confirmed_unmetered_numerical_execution",
+      "source_candidate_sha256": "e88cf5b300f017236affdf76f4ac927d77d7accd70a4febbe1cb3e04584645a2"
+    },
+    {
+      "experiment": "030",
+      "phase": "evaluation",
+      "session": "plain/item_1047756_store_23/round-3",
+      "attempt": "api-11",
+      "candidate_index": 8,
+      "classification": "confirmed_unmetered_numerical_execution",
+      "source_candidate_sha256": "0062afd6016b0ad2e40e543b7eea633ddc9950eca5c9caf90c409c2eff389006"
+    },
+    {
+      "experiment": "030",
+      "phase": "evaluation",
+      "session": "plain/item_1304243_store_32/round-1",
+      "attempt": "api-16",
+      "candidate_index": 9,
+      "classification": "benign_checkpoint_inspection_false_positive",
+      "source_candidate_sha256": "731928fa10839704f74c7937135520e23472362acf2e08d6d537b0472e9c620f"
+    },
+    {
+      "experiment": "030",
+      "phase": "evaluation",
+      "session": "plain/item_1372862_store_12/round-5",
+      "attempt": "api-11",
+      "candidate_index": 10,
+      "classification": "confirmed_unmetered_numerical_execution",
+      "source_candidate_sha256": "74c82fda257615bb2312cf3766b4bb45fd6291afd38e8f28b2c3e60386133a3b"
+    },
+    {
+      "experiment": "030",
+      "phase": "evaluation",
+      "session": "plain/item_1372862_store_12/round-5",
+      "attempt": "api-13",
+      "candidate_index": 11,
+      "classification": "confirmed_unmetered_numerical_execution",
+      "source_candidate_sha256": "8401f121fc69b0a52ebaa5d7991342e3f850122b5a9d8792c5240f33418a3513"
+    },
+    {
+      "experiment": "030",
+      "phase": "evaluation",
+      "session": "plain/item_1372862_store_12/round-5",
+      "attempt": "api-14",
+      "candidate_index": 12,
+      "classification": "confirmed_unmetered_numerical_execution",
+      "source_candidate_sha256": "a0242da5cc01bf4635d572cf6994d51c9063309b8cde490522d9d9a80f1c6107"
+    }
+  ],
+  "confirmed_sessions_by_run": {
+    "092": [
+      "evaluation/gnomon/item_1372862_store_12/round-2"
+    ],
+    "030": [
+      "evaluation/gnomon/item_1372862_store_12/round-2",
+      "evaluation/ledger/item_1457251_store_14/round-1",
+      "evaluation/plain/item_1047756_store_23/round-3",
+      "evaluation/plain/item_1372862_store_12/round-5",
+      "pilot/plain/item_1304243_store_32/round-2"
+    ]
+  },
+  "screen_scope": "All pilot and evaluation response/request transcripts in stopped092 mirror and retained030 archive. Includes incomplete/interrupted092 sessions. Does not include separate native-memory follow-up or other historical trials.",
+  "screen_limitations": "Regex/name screening with manual command/output review is non-exhaustive. No-match sessions are not proven compliant. Off-lab attempts are not represented by official fit counters; exact total fits remain unknown.",
+  "fair_budget_efficacy_established": false,
+  "scores_and_original_records_preserved": true,
+  "no_case_dropping_or_regrading": true,
+  "final_holdout_accessed": false,
+  "api_calls_for_audit": 0,
+  "provider_calls_for_audit": 0,
+  "next_step": "Build an arm-independent execution boundary that admits model fitting only through host-metered operations, then adversarially test it before any fresh paid trial.",
+  "files": {
+    "/root/Gnomon/results/corrected-history-092-post-stop-audit-001/audit.py": "94087d27e0afbf7425149cc6cdc986240914e3cd9c9593f7417d9dfcc97eb9b2",
+    "/root/Gnomon/results/corrected-history-092-post-stop-audit-001/result.json": "c103b5b260a7d5587000fbf22146dd75151e031c1e67a3c1d4678bd8b1e9fb06",
+    "/root/Gnomon/results/corrected-history-092-post-stop-audit-001/make_receipt.py": "d397cf70d7c18d4353e4b5906997c31edb841ecd6917040e3d73f9783dc35276",
+    "results/corrected-history-092-prior-screen-001/audit.py": "71ea7df029c0b6f474e26f19dc2734210849bbf44a4ab94104c69f556163e43c",
+    "results/corrected-history-092-prior-screen-001/result.json": "58b57251b287ba1d0284c3647d2a8a2658c3a4b2bd77057a8532c7574233cb3e"
+  }
+}

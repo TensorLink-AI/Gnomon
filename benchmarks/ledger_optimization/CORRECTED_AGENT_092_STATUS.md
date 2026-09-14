@@ -51,6 +51,40 @@ budgets, dropping cases, or rerunning selected failures.
 Receipts: `evidence/corrected-agent-092-development-audit-008.json` and
 `evidence/corrected-agent-092-unmetered-incident-001.json`.
 
+## Post-stop accounting and prior-run audit
+
+The stopped mirror contains 165 completed development sessions: 165 valid
+forecasts, 164 full workflows, and two additional interrupted sessions. Development
+agent calls total 2,178, with 39,285,345 reported tokens, two response errors, and
+two interrupted requests without responses. Four agent attempts have unknown
+usage. Development readiness adds 168 requests, 2,338 reported tokens, and one
+unknown-usage deadline failure. The separate 36-session pilot adds 467 agent
+requests / 7,989,810 tokens and 36 readiness requests / 504 tokens. Together:
+**2,849 requests and 47,277,997 reported tokens**, with five unknown-usage
+attempts across agent and readiness calls. Dollars remain unknown. These totals
+supersede, and must not be added to, the cumulative partial snapshots.
+
+All pilot/evaluation API transcripts in both stopped092 and retained030 were
+screened for direct model code and invocation of agent-written fitting helpers.
+Manual review confirmed the known092 session and five earlier030 sessions:
+one plain pilot session, one Gnomon development session, one ledger development
+session, and two plain development sessions. A checkpoint-inspection false
+positive was explicitly rejected. Some searches ran hundreds of configurations;
+others were smaller off-lab forecasts. Exact total numerical work remains unknown.
+The screen is non-exhaustive, and no-match sessions are not proven compliant.
+The separate native-memory follow-up and other older trials have not been screened.
+
+Thus the previous030 ledger result also cannot establish a fair-budget benefit.
+Original scores and records remain unchanged. Dropping the identified sessions
+would not restore fairness, because off-lab evidence can influence later choices
+and memory. No model/API calls were made for this audit. Receipt:
+`evidence/corrected-agent-092-post-stop-audit-001.json`.
+
+The next implementation must enforce the already-declared requirement to perform
+modelling through the supplied lab, equally for every arm. A prompt-only rule or
+a counter inside a callable model module is insufficient while arbitrary shell
+and Python execution remain available. No replacement paid trial has started.
+
 ## Snapshot007 — historical, qualified by the budget defect above
 
 Status at 2026-09-14 12:58:57 UTC: **pilot complete; development evaluation running**.
