@@ -1,6 +1,49 @@
 # 092: corrected-history agent trial
 
-Status at 2026-09-14 09:48 UTC: **pilot complete; development evaluation running**.
+Status at 2026-09-14 10:32 UTC: **pilot complete; development evaluation running**.
+Snapshot004 captures 77 completed sessions, all valid and workflow-complete,
+including both sessions with agent API errors. It passes 13,929 independent
+numerical/evidence checks and verifies all 8,828 archived files against their
+inventory. The remotely saved and locally transferred 137,840,124-byte archive
+has SHA-256 `b174257ffe261c0894209ca3e6517dca33f198e7608c9989878617fe99e68c7c`.
+All 27 trial source hashes match the frozen manifest. No live settings changed.
+
+The 25 cases completed by all three arms give mean RMSLE:
+
+| Arm | Mean RMSLE | Matched reported tokens | Forwarded attempts |
+|---|---:|---:|---:|
+| Hermes | 0.459180492 | 6,299,423 | 343 |
+| Gnomon without ledger | 0.455882680 | 6,326,711 | 333 |
+| Ledger | 0.462747145 | 5,270,241 | 311 |
+
+Ledger is **1.51% worse** than Gnomon without ledger. Matching requires all arms
+to have finished a case, irrespective of validity; all happen to be successful
+here. The two unmatched sessions remain in the archive and cost accounting.
+These are still only two reused development series, not held-out results.
+
+Using the frozen phase thresholds, the eight cold cases give ledger 2.15% worse,
+the twelve origins-4–9 cases give 0.42% worse, and the first five mature cases
+(origins 10–12) give 3.82% worse. Mature RMSLE is 0.313852545 Hermes,
+0.313264519 Gnomon, 0.325227598 ledger. There are no late cases (origin 22+) yet.
+These small subsets do not establish a phase effect, a trend or the 20% target.
+
+All 77 completed sessions together made 1,011 agent API attempts: 1,009 successful
+flash responses and two failures with unknown usage. Reported agent tokens total
+18,295,380. Readiness made a separate 78 probes with 1,078 reported tokens: one
+probe reached its 30-second wall-clock deadline, logged a local 504 marker and
+unknown usage, then the predeclared readiness retry admitted the session. This
+is not an established upstream HTTP 504 or a failed agent workflow. Both Gnomon
+arms' matched token totals above exclude unknown failed-attempt usage; billed
+dollars are unavailable. One additional agent request was blocked locally and
+not forwarded. No free agent retry, rerun or case exclusion was introduced.
+
+These totals include prior development snapshots; do not add their costs.
+Pilot costs remain separate. Snapshot and reproducible audit receipt:
+`evidence/corrected-agent-092-development-audit-004.json`.
+
+## Snapshot003 and subsequent coverage/incident checks
+
+At 2026-09-14 09:48 UTC, the development evaluation was running.
 The third snapshot contains 54 completed sessions, all valid and workflow-complete,
 and passes 7,787 independent numerical/evidence checks. All 5,978 archived files
 match their inventory; the remotely saved archive and its transferred copy share
