@@ -1,0 +1,147 @@
+{
+  "status": "case_study_verified",
+  "arm": "plain",
+  "series_id": "item_1047756_store_23",
+  "round": 10,
+  "forecast_origin": "2017-01-03T00:00:00+00:00",
+  "saved_note": "Series item_1047756_store_23 (unit_sales, daily, 730 rows): low-count intermittent retail demand. Matured outcomes across 2016-08..2017-01 show ridge(window=365,lags=14,alpha=10) is the most consistent low-RMSLE choice (0.51-0.82); seasonal(7) is much worse (0.89-1.60); RF depth 8-12 unstable (0.59-1.00).",
+  "visible_review_before_write": {
+    "returned": 20,
+    "total": 139,
+    "kinds": {
+      "backtest": 18,
+      "matured_forecast": 2
+    },
+    "summary_limited": true
+  },
+  "matured_executions_recomputed": 19,
+  "max_rmsle_delta": 0.0,
+  "matured_configurations": [
+    {
+      "config": {
+        "alpha": 1.0,
+        "lags": 28,
+        "model": "ridge",
+        "window": 730
+      },
+      "executions": 1,
+      "origins": [
+        "2016-08-30T00:00:00+00:00"
+      ],
+      "rmsle_min": 0.4864351331180266,
+      "rmsle_max": 0.4864351331180266
+    },
+    {
+      "config": {
+        "alpha": 10.0,
+        "lags": 14,
+        "model": "ridge",
+        "window": 365
+      },
+      "executions": 4,
+      "origins": [
+        "2016-08-16T00:00:00+00:00",
+        "2016-09-27T00:00:00+00:00",
+        "2016-11-22T00:00:00+00:00",
+        "2016-12-06T00:00:00+00:00"
+      ],
+      "rmsle_min": 0.6448454479465352,
+      "rmsle_max": 0.8215182023789181
+    },
+    {
+      "config": {
+        "alpha": 10.0,
+        "lags": 28,
+        "model": "ridge",
+        "window": 730
+      },
+      "executions": 1,
+      "origins": [
+        "2016-09-13T00:00:00+00:00"
+      ],
+      "rmsle_min": 1.3889501090582914,
+      "rmsle_max": 1.3889501090582914
+    },
+    {
+      "config": {
+        "alpha": 30.0,
+        "lags": 14,
+        "model": "ridge",
+        "window": 365
+      },
+      "executions": 1,
+      "origins": [
+        "2016-10-25T00:00:00+00:00"
+      ],
+      "rmsle_min": 0.6117778576946146,
+      "rmsle_max": 0.6117778576946146
+    },
+    {
+      "config": {
+        "alpha": 300.0,
+        "lags": 14,
+        "model": "ridge",
+        "window": 365
+      },
+      "executions": 1,
+      "origins": [
+        "2016-11-08T00:00:00+00:00"
+      ],
+      "rmsle_min": 0.6571448105753518,
+      "rmsle_max": 0.6571448105753518
+    },
+    {
+      "config": {
+        "depth": 12,
+        "lags": 28,
+        "model": "random_forest",
+        "window": 365
+      },
+      "executions": 1,
+      "origins": [
+        "2016-12-20T00:00:00+00:00"
+      ],
+      "rmsle_min": 1.0015995348034232,
+      "rmsle_max": 1.0015995348034232
+    },
+    {
+      "config": {
+        "model": "seasonal",
+        "season": 7
+      },
+      "executions": 10,
+      "origins": [
+        "2016-08-16T00:00:00+00:00",
+        "2016-08-30T00:00:00+00:00",
+        "2016-09-13T00:00:00+00:00",
+        "2016-09-27T00:00:00+00:00",
+        "2016-10-11T00:00:00+00:00",
+        "2016-10-25T00:00:00+00:00",
+        "2016-11-08T00:00:00+00:00",
+        "2016-11-22T00:00:00+00:00",
+        "2016-12-06T00:00:00+00:00",
+        "2016-12-20T00:00:00+00:00"
+      ],
+      "rmsle_min": 0.6973999985520729,
+      "rmsle_max": 1.4551268874763426
+    }
+  ],
+  "findings": [
+    "The saved note labels the ranges as matured outcomes, but its 0.51 Ridge endpoint and 1.60 seasonal endpoint occur in backtest rows, outside their matured forecast ranges.",
+    "The exact Ridge configuration has four matured origins and seasonal has ten. Unequal support cannot establish a matched ranking or most-consistent claim.",
+    "The first review disclosed 20 of 139 records and mixed backtest with matured_forecast kinds. The agent also paged previous_runs.json before writing the note.",
+    "Numerical values recompute correctly and all matured records were visible by the current origin. This is an agent summary interpretation issue, not an observed metric or visibility bug."
+  ],
+  "scope": "One post-hoc case study; no prevalence, causal memory effect, or treatment superiority inference. No live edits, new fits, API calls, or final data access.",
+  "files": {
+    "snapshot/plain/item_1047756_store_23/round-10/boundary-events.jsonl": "39f8a48b6b7ad53d59d7fa3b5adde73d009173bcdb70ed6d8d80ad83aa380abf",
+    "snapshot/plain/item_1047756_store_23/round-10/project/experiments.jsonl": "980925292eb0bad9caaae45c99128d647447d18f4e75b300293ad43ab8fcfc32",
+    "snapshot/plain/item_1047756_store_23/round-10/project/task.json": "5e98c13911e2b4dac4702fb992d1d2648526cfb81407aabfd4ff55cb007bdc60",
+    "snapshot/plain/item_1047756_store_23/round-10/memory.json": "766462a0f3f52eb346eff0a83cc6fdc4a7bc35bdca95bcb450126428ef8fcc83"
+  },
+  "verification_script": {
+    "path": "results/guarded-history-093-development-audit-004/audit_memory_claims.py",
+    "sha256": "4121d71a2bb7a0e05ad168571fe53b4b0da3ba4bdbc2d493444c4d00f4e2c615"
+  },
+  "snapshot_receipt": "benchmarks/ledger_optimization/evidence/guarded-agent-093-development-audit-004.json"
+}

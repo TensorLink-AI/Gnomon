@@ -132,3 +132,23 @@ recent/lifetime disagreements. No held-out targets accessed; live treatment,
 main and PyPI unchanged. Receipt:
 `evidence/guarded-agent-093-development-audit-004.json`; memory verification:
 `evidence/guarded-agent-093-native-memory-001.json`.
+
+## Native memory claim audit — one observed note
+
+The plain-arm note above calls its ranges "matured outcomes", but combines
+backtest and matured forecast evidence. The exact Ridge configuration has four
+matured forecasts ranging 0.644845–0.821518 RMSLE; the note's 0.51 lower endpoint
+comes from a backtest. Seasonal has ten matured forecasts ranging
+0.697400–1.455127; the note says 0.89–1.60, with the 1.60 endpoint again coming
+from a backtest. Its first review returned 18 backtests and two matured
+forecasts out of 139 raw records, explicitly labelled as a limited summary.
+The agent also read pages of its previous submissions before writing the note.
+
+All 19 matured forecast metrics independently recompute with zero difference;
+their outcome recording times are at or before the current origin. This is a
+single observed agent interpretation error, not a numerical or visibility defect
+and not an estimated failure rate. It motivates keeping evidence type, matched
+support and numerical references attached to any persisted lesson. It does not
+prove that structured ledger evidence prevents the same error or improves
+accuracy. Live prompts and tools remain frozen. Receipt:
+`evidence/guarded-agent-093-memory-claims-001.json`.
