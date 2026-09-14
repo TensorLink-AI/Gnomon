@@ -102,6 +102,7 @@ arms: each backtested configuration also produces a metered current forecast,
 so more comparable outcomes can mature later. It uses fresh controls and state;
 093 outcomes are not reused as 096 controls. This tests a measured evidence
 coverage gap rather than assuming that longer history alone will improve
-selection. The controller, queued validation and remote read-only launch checks have
-passed; the paid pilot remains unlaunched at this report revision. The untouched final holdout remains closed, the **20%
+selection. The controller, queued validation and remote read-only launch checks passed.
+The prospective 36-session pilot launched at 2026-09-14 23:53 UTC; see
+[collection pilot status](PAIRED_COLLECTION_096_STATUS.md). The untouched final holdout remains closed, the **20%
 objective is unmet**, and main/PyPI are unchanged.
