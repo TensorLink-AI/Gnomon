@@ -1,0 +1,49 @@
+{
+  "freeze_commit": "e9cab63",
+  "prepared_manifest_sha256": "e6bd48312fa9bc06e9e59e987abeb1ea6447714aa91ffed0359d7ec2fb7b239b",
+  "cases": 16,
+  "sessions": 64,
+  "preflight_checks": 96,
+  "mean_original_bytes": 17310.3125,
+  "mean_brief_bytes": 7352.5625,
+  "largest_expected_answer_bytes": 1156,
+  "api_calls_before_freeze": 0,
+  "manifest": {
+    "source_inventory": "722c105f0466ff56a87d9a90776739a4832871abdd50ac73700da2ae7a42902c",
+    "source_access": {
+      "evaluation/host-jobs.json": "380261912295bbe21f3c998a8c6f7048cde1fb0869d37bb4db44ad3a72b28f25",
+      "evaluation/ledger/item_1047756_store_23/round-25/project/review-log.jsonl": "58016f43609f7ff702a2a87440b0e1eeeb69cbdb3398dc537127f4f8aa105cb2",
+      "evaluation/ledger/item_1047756_store_23/round-25/project/review-evidence/000000.json": "ca401561557e4455ce1a375ce51c85f46c6899cb786ee2e2bb5a14434d8d154c",
+      "evaluation/ledger/item_1047756_store_23/round-25/project/review-evidence/000008.json": "bf54d13f5a9cb98b2948c0cb762dc37081352a63b6fb8d0c819db1d723b2ec6a",
+      "evaluation/ledger/item_1047756_store_23/round-25/project/review-evidence/000016.json": "af285dd04e1666424a76e1dd54d0ff8360f529e1b66c05d1918b932c15f51a57",
+      "evaluation/ledger/item_1047756_store_23/round-25/project/review-evidence/000024.json": "b074f01437ed2626e05b8d55ade2878fbd2e0038aca23e27510627256bf11698",
+      "evaluation/ledger/item_1304243_store_32/round-25/project/review-log.jsonl": "9ccbfc9c6b1835b7cd22c0bf7efa057389414ede31ac52ffa31db8d6b8e04ea0",
+      "evaluation/ledger/item_1304243_store_32/round-25/project/review-evidence/000000.json": "ce17f1d2a4d76608012bcada0d01535286c66fbb018f0804d60fe1ea47bc4740",
+      "evaluation/ledger/item_1304243_store_32/round-25/project/review-evidence/000008.json": "8979c75d654c5947290062dbe4af9f3da637423e75bca7ee10759e96237df1a4",
+      "evaluation/ledger/item_1304243_store_32/round-25/project/review-evidence/000016.json": "6443e736c0819f18e57866ef11a9a789027e5518f1546818c5b3430a0669b715",
+      "evaluation/ledger/item_1304243_store_32/round-25/project/review-evidence/000024.json": "abeb8ae796c12ba3535a879c111fd9349a6e6940e8abc8e46f53884e69788099",
+      "evaluation/ledger/item_1372862_store_12/round-25/project/review-log.jsonl": "8de55f1ab2e8139f65200c6c9a39c3749179646524432cdee3693e910a48c6ad",
+      "evaluation/ledger/item_1372862_store_12/round-25/project/review-evidence/000000.json": "be01111e7feb1cb135fe8164e7c7e7df17e17a7b19bc9e781a60db835268efa5",
+      "evaluation/ledger/item_1372862_store_12/round-25/project/review-evidence/000008.json": "98cbf309414c69a87b05810cd3e3569465a9ee317265a96a56727006270bd3fe",
+      "evaluation/ledger/item_1372862_store_12/round-25/project/review-evidence/000016.json": "ccb4cab8ccddd46fcb13a49ff9c85098099c53e7d4cb41afb4455fc269431289",
+      "evaluation/ledger/item_1372862_store_12/round-25/project/review-evidence/000024.json": "87cef5a327346e9c438d9ee92bb7e4bf959f9f7be3118f32c2ded1008a2e45ab",
+      "evaluation/ledger/item_1457251_store_14/round-25/project/review-log.jsonl": "ae539779c761e656c6234fdcc303dbd2ac037c664dba757b61b9b0d5e0967b28",
+      "evaluation/ledger/item_1457251_store_14/round-25/project/review-evidence/000000.json": "d966a2ce480b896e541effb580765fb94e9b48869eae42720572265d03ce64e3",
+      "evaluation/ledger/item_1457251_store_14/round-25/project/review-evidence/000008.json": "70204081502b78d13c2d6418c97512e920e6edf70d4d8dd3d72d89720cf339d7",
+      "evaluation/ledger/item_1457251_store_14/round-25/project/review-evidence/000016.json": "1349fafac0146eb1c4c4176d42d1a06a6cfce3498fcca4b86251a297a26fe4aa",
+      "evaluation/ledger/item_1457251_store_14/round-25/project/review-evidence/000024.json": "399e951ffd7dcf70b3010f43099712abac4b225ff9c171e2fbb0cb85869883b6"
+    },
+    "cases_sha256": "5324596a3528d4288fcc85b8d8998d8291db518a1216931c1b08fe0269f7d517",
+    "schedule_sha256": "96becd76f05653b06a0b7102abe2310529a9d3c7d8a4178c907f10361333b2b5",
+    "code": {
+      "/root/Gnomon/benchmarks/ledger_optimization/agent_fidelity.py": "03543337ca235429c182f40536b7ddd4850804971c9e7bd7536f7329ae3f8cc7",
+      "/root/Gnomon/benchmarks/ledger_optimization/AGENT_FIDELITY_089.md": "80d001bc853f9494b4952e6ad37a42a1a6c5bf0ad66ff81cbccbe6026b1c6bf3",
+      "/root/Gnomon/benchmarks/ledger_optimization/agent_review.py": "effd694a1f72a76dfe8bd1d68f6624c9de5a018542d3447e03f86ae3294b840b",
+      "/root/Gnomon/benchmarks/ledger_optimization/ml_ledger_cards.py": "d997fa096900ba7129e5d693959fdf7e46ef5a97f3bf1a3b0c26908ef6c712c8"
+    },
+    "model": "deepseek-v4.1-flash",
+    "max_upstream_requests": 128,
+    "accuracy_trial": false,
+    "protected_access": false
+  }
+}
