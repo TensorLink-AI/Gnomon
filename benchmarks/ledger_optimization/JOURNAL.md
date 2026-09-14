@@ -1876,3 +1876,38 @@ reported the requested model and usage. Results and adoption gate remain pending
 until every scheduled session is terminal and raw-response audit completes.
 An interface success cannot establish the20%forecasting objective or bypass its
 unchanged final gates. Cost will use actual receipts; no billing price is assumed.
+
+
+## Development089 completed: same factual accuracy, lower measured input tokens
+
+64/64sessions terminal,32per format, all requested facts correct in every
+session, no corrections/service failures. All64responses reported
+ deepseek-v4.1-flash. Original216640input/17845output/234485total tokens;
+brief108312input/17574output/125886total. Paired mean input-token reduction50.0037%,
+mean per-pair fraction47.7629%, total46.3138%. No billing receipt available.
+Actual64requests, no forecasts.1,288raw-response audit checks and712independent
+answer-key/source checks passed;10runner/scorer/auditor tests passed. Original
+source and experiment inputs/outputs unchanged. Interface adoption screen passed,
+not an accuracy gate or statistical superiority claim. Original agent scores,
+20%/95%objective, final gate and main/PyPI unchanged.
+
+## Development090: compatibility fix, real-ledger replay not passed
+
+Frozen735b46aprobe found both session and live engine envelopes rejected by
+088: missing embedded request and tuple/list representation respectively.
+33349cfchecks public stored identity with canonical sequences/numbers, optional
+embedded request, all supplied semantic inputs, and stored config metadata when
+present. Corrected probe accepts both,23unit tests and38public-runtime visibility
+regression checks pass. Initial/corrected probes each2forecasts (4total), no API.
+
+Frozen320acb9real-source replay stopped on query1/16. Original copied final ledger
+has retrospective August30backtests at the August16origin alongside valid
+August16production forecasts. Public compare_history checks fingerprint ambiguity
+across all recording-visible runs before ex-ante eligibility of only its first
+selected run; valid original comparison becomes ambiguous_inputs_at_origin.
+Original review preceded the backtests, all sharing the same synthetic-origin
+clock. Corrected catalogue identities matched, cards/status did not. Preserve
+failure, source hashes and copied ledger. Remaining15queries untested; no scope
+or gate relaxation. Next work must filter ineligible executions before ambiguity
+while retaining genuine prospective conflicts. No original forecast/study score
+was rewritten.089presentation success does not pass090integration or20%accuracy.

@@ -4,6 +4,18 @@ Branch: `dev/ledger-optimization`. **The 20% target has not been achieved.**
 Development and a complete frozen confirmation are retained here. No release or
 forecast-superiority claim is established.
 
+Latest measured interface result: [agent evidence reading089](AGENT_FIDELITY_089_RESULT.md)
+completed64Engy sessions with deepseek-v4.1-flash. Both formats were correct32/32;
+brief used50.0%fewer input tokens and46.3%fewer total tokens. This is factual
+extraction, not a Hermes forecasting or accuracy result. All raw evidence is
+retained, with no billing-cost estimate.
+
+[Session integration090](SESSION_REVIEW_090_RESULT.md) corrected session/engine
+envelope differences, but the real-ledger replay gate failed on its first query:
+retrospective backtests made earlier prospective forecasts appear ambiguous.
+The failure is preserved and the full integration is not promoted. This is the
+next substantive ledger-evidence issue to resolve;089does not override its gate.
+
 Latest boundary check: [recording-visible review088](REVIEW_VISIBILITY_088_RESULT.md)
 confirmed and fixed a development-adapter catalogue issue: future-recorded
 executions could reorder an earlier query's first page despite correctly excluded
