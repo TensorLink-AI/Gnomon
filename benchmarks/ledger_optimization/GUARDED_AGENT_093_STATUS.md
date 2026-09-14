@@ -1,8 +1,8 @@
 # Guarded pilot 093 — completed
 
-Latest audited continuation: 257/312 sessions, 85 matched cases (2026-09-14
-21:21 UTC). The pilot is complete; the full development continuation is active.
-See the seventeenth audit below. The 20% target remains unmet.
+Latest audited continuation: 266/312 sessions, 88 matched cases (2026-09-14
+21:40 UTC). The pilot is complete; the full development continuation is active.
+See the eighteenth audit below. The 20% target remains unmet.
 
 All 36 sessions finished. Every forecast is valid; plain Hermes completed 11/12 full workflows, Gnomon without ledger 12/12, ledger 12/12. The frozen completion gate passed. Independent local audit: 4,227 file hashes verified, 2,942 checks, zero integrity failures.
 
@@ -640,3 +640,24 @@ holdout remains unopened. Live controller and queued seed integration must finis
 before the prospective collection pilot can launch.
 
 Receipt: `evidence/guarded-agent-093-development-audit-017.json`.
+
+## Eighteenth continuation audit — 2026-09-14 21:40 UTC
+
+Nine additional disjoint sessions passed 3,169 independent checks. Verified
+1,327 new file hashes and all 4,227 original pilot files, with no audit failures.
+Combined evidence contains 266 audited sessions and 88 all-three matched cases.
+
+| Arm | Matched RMSLE | Reported tokens | Model requests | Fits | Full matched workflows |
+|---|---:|---:|---:|---:|---:|
+| Hermes | 0.467093 | 24,489,123 | 1,222 | 1,276 | 85/88 |
+| Gnomon | 0.474639 | 24,567,140 | 1,206 | 1,309 | 83/88 |
+| Ledger | 0.456730 | 19,205,933 | 1,044 | 1,390 | 88/88 |
+
+Ledger RMSLE is 3.77% lower and reported tokens 21.82% fewer than Gnomon without
+ledger. Numerical fit count is higher. Incomplete workflows remain in scores;
+all audited forecasts are valid. Full inventory has 88/89/89 sessions and
+85/84/89 complete workflows respectively. The current trial remains active;
+these are partial reused-development results, not final efficacy evidence.
+The 20% target remains unmet and final holdout remains unopened.
+
+Receipt: `evidence/guarded-agent-093-development-audit-018.json`.
