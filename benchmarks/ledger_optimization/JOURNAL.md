@@ -1911,3 +1911,24 @@ failure, source hashes and copied ledger. Remaining15queries untested; no scope
 or gate relaxation. Next work must filter ineligible executions before ambiguity
 while retaining genuine prospective conflicts. No original forecast/study score
 was rewritten.089presentation success does not pass090integration or20%accuracy.
+
+
+## Development091: restored ex-ante production history
+
+Frozen6629297excludes each target-late execution before grouping fingerprints,
+with per-execution recording/first-target diagnostics. Genuine eligible input
+or provider identity conflicts remain rejected; valid retries stay duplicates.
+Product ledger regression69passes, context/decision/summary28passes (97total).
+Pinned1.2.0comparison port is separately identified development code; installed
+storage/forecast runtime unchanged. No main/PyPI release.
+
+All16original090query dates passed the new091protocol. Copied-final baseline
+has0matched pair/origin entries, originally saved views18, corrected queries204.
+All18original entries retained identically;186additional entries versus those
+saved views. Counts repeat origins across queries/pairs, not204independent data.
+Per-series original/corrected:4/52,4/52,4/47,6/53.19,856independent checks passed,
+69.178seconds, zero new forecasts/API calls. Comparison and filter reads1224
+executions/284history/16actuals; independent verification396executions/16actuals.
+Every source/working ledger stayed byte-identical after constructor initialization.
+090failure stays preserved. Original agent scores unchanged; restored coverage
+is not a measured accuracy improvement or relaxation of the20%/95%final goal.

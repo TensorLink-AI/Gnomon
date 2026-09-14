@@ -68,3 +68,17 @@ raw information and numerical budget. Freeze the cohort rule before another
 development evaluation; do not select a portfolio using future outcomes or
 reinterpret this run as evidence of a 20% gain. Main, PyPI and the untouched
 final evaluation remain unchanged.
+
+
+## Later development diagnosis: historical coverage was impaired
+
+Experiment091replayed16prespecified original query dates after090identified
+retrospective-backtest contamination of compare_history. The original saved
+reviews contained18matched pair/origin entries across those query pages; a
+corrected per-execution ex-ante filter recovers204while preserving every originally
+scored entry exactly. Counts repeat origins across query dates and provider pairs.
+This is evidence of impaired accumulated-history coverage in the sampled workflow,
+not a new agent result or a rewrite of the scores above. It weakens any inference
+that this original treatment fully exercised useful long-term ledger evidence.
+A prospective agent comparison is still required to measure the fix's value.
+See PROSPECTIVE_HISTORY_091_RESULT.md for the frozen scope, raw evidence and limits.

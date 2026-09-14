@@ -4,6 +4,15 @@ Branch: `dev/ledger-optimization`. **The 20% target has not been achieved.**
 Development and a complete frozen confirmation are retained here. No release or
 forecast-superiority claim is established.
 
+Latest ledger correctness result: [prospective history091](PROSPECTIVE_HISTORY_091_RESULT.md)
+filters late retrospective executions before checking production-run ambiguity.
+Across16frozen development queries, valid lifetime pair/origin entries increased
+from18in the originally saved reviews to204; every original scored entry was
+preserved. These counts repeat evidence across queries, not independent samples.
+The replay passed19,856checks and the product regressions97tests. No new forecasts
+or agent calls ran. This restores accumulated evidence but does not demonstrate
+better agent choices or meet the20%target. Main/PyPI remain unchanged.
+
 Latest measured interface result: [agent evidence reading089](AGENT_FIDELITY_089_RESULT.md)
 completed64Engy sessions with deepseek-v4.1-flash. Both formats were correct32/32;
 brief used50.0%fewer input tokens and46.3%fewer total tokens. This is factual
@@ -13,8 +22,8 @@ retained, with no billing-cost estimate.
 [Session integration090](SESSION_REVIEW_090_RESULT.md) corrected session/engine
 envelope differences, but the real-ledger replay gate failed on its first query:
 retrospective backtests made earlier prospective forecasts appear ambiguous.
-The failure is preserved and the full integration is not promoted. This is the
-next substantive ledger-evidence issue to resolve;089does not override its gate.
+The failure remains preserved.091subsequently restores valid historical comparisons
+under a new correctness protocol; neither result establishes agent accuracy.
 
 Latest boundary check: [recording-visible review088](REVIEW_VISIBILITY_088_RESULT.md)
 confirmed and fixed a development-adapter catalogue issue: future-recorded
