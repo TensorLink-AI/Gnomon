@@ -1,0 +1,41 @@
+{
+  "status": "verified",
+  "arm": "plain",
+  "series_id": "item_1047756_store_23",
+  "memory_write_round": 10,
+  "successful_memory_writes": 1,
+  "memory_sha256": "4bd314595dbabada8e466f5a6e2901bec16f7dca30e2951733be910f68d2bac4",
+  "rounds": [
+    {
+      "round": 10,
+      "identical_saved_memory": true,
+      "memory_in_first_forwarded_request": false
+    },
+    {
+      "round": 11,
+      "identical_saved_memory": true,
+      "memory_in_first_forwarded_request": true
+    },
+    {
+      "round": 12,
+      "identical_saved_memory": true,
+      "memory_in_first_forwarded_request": true
+    }
+  ],
+  "files": {
+    "snapshot/plain/item_1047756_store_23/round-10/memory.json": "766462a0f3f52eb346eff0a83cc6fdc4a7bc35bdca95bcb450126428ef8fcc83",
+    "snapshot/plain/item_1047756_store_23/round-10/api-01-forwarded.json": "b9a2053cc729e75727c9455f5ac52f9c1d6194d1f36c1ba4786684e8d63b13a8",
+    "snapshot/plain/item_1047756_store_23/round-11/memory.json": "766462a0f3f52eb346eff0a83cc6fdc4a7bc35bdca95bcb450126428ef8fcc83",
+    "snapshot/plain/item_1047756_store_23/round-11/api-01-forwarded.json": "f30093331314bf9ad7d477003fda8ad7182fc9103149f5e028df72435e7cfef8",
+    "snapshot/plain/item_1047756_store_23/round-12/memory.json": "766462a0f3f52eb346eff0a83cc6fdc4a7bc35bdca95bcb450126428ef8fcc83",
+    "snapshot/plain/item_1047756_store_23/round-12/api-01-forwarded.json": "f30093331314bf9ad7d477003fda8ad7182fc9103149f5e028df72435e7cfef8",
+    "snapshot/plain/item_1047756_store_23/round-10/boundary-events.jsonl": "39f8a48b6b7ad53d59d7fa3b5adde73d009173bcdb70ed6d8d80ad83aa380abf"
+  },
+  "scope": "One saved note, carried into two later origins. Does not verify its claims or establish accuracy benefit. Three saved-memory sessions are not three writes.",
+  "verification_script": {
+    "path": "results/guarded-history-093-development-audit-004/verify_native_memory.py",
+    "sha256": "55b44f0b3ea89d842cf33e66f1dd12d624421699de8bf0a7f758315f11a859d7"
+  },
+  "snapshot_receipt": "benchmarks/ledger_optimization/evidence/guarded-agent-093-development-audit-004.json",
+  "final_holdout_accessed": false
+}

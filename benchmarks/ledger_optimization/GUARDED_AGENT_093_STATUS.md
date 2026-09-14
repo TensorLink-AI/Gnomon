@@ -1,5 +1,9 @@
 # Guarded pilot 093 — completed
 
+Latest audited continuation: 97/312 sessions, 31 matched cases (2026-09-14
+17:06 UTC). The pilot is complete; the full development continuation is active.
+See the fourth audit below. The 20% target remains unmet.
+
 All 36 sessions finished. Every forecast is valid; plain Hermes completed 11/12 full workflows, Gnomon without ledger 12/12, ledger 12/12. The frozen completion gate passed. Independent local audit: 4,227 file hashes verified, 2,942 checks, zero integrity failures.
 
 | Arm | Mean per-case RMSLE | Reported tokens | Model requests |
@@ -95,3 +99,36 @@ that would require prospective development evidence. The full scheduled run
 continues unchanged. Do not stop it, remove cases, change model families or open
 the final set on the strength of this partial bound. Receipt:
 `evidence/guarded-agent-093-executed-opportunity-001.json`.
+
+## Fourth continuation audit — 2026-09-14 17:06 UTC
+
+Twenty-eight additional disjoint sessions passed 7,173 independent checks, with
+zero integrity failures or shutdown gaps. Verified 3,584 snapshot files, all
+4,227 original pilot files and 28 retained pilot log prefixes. The original pilot
+plus audit-002, 003 and 004 contain 97 sessions and 31 all-three matched cases.
+
+| Arm | Matched mean RMSLE | Matched reported tokens | Full workflows, matched |
+|---|---:|---:|---:|
+| plain | 0.476790 | 6,623,719 | 30/31 |
+| gnomon | 0.511749 | 8,594,138 | 28/31 |
+| ledger | 0.452969 | 6,010,877 | 31/31 |
+
+Ledger error is 11.49% lower and reported tokens 30.06% lower than Gnomon without
+ledger on this partial development set. Numerical attempts are 405/432/491;
+ledger uses more fits despite fewer tokens. All incomplete workflows remain in
+scores. Across all 97 sessions, full completion is 32/33, 29/32 and 32/32.
+
+Native memory is now used: plain Hermes saved one note in
+item_1047756_store_23/round-10. Its exact text appears in the first forwarded
+model request of rounds 11 and 12. Three sessions retaining memory represent one
+write and two carried-forward copies, not three writes. Plain made two memory
+calls and one skills-list call; Gnomon made one skills-list call but saved no
+native memory; ledger made no native memory/skill calls. This supersedes the
+earlier observation of no native use. It does not verify the note's factual
+claims or establish a causal memory benefit.
+
+Ledger evidence was available in 28 sessions, with up to 13 past origins and two
+recent/lifetime disagreements. No held-out targets accessed; live treatment,
+main and PyPI unchanged. Receipt:
+`evidence/guarded-agent-093-development-audit-004.json`; memory verification:
+`evidence/guarded-agent-093-native-memory-001.json`.

@@ -1,0 +1,95 @@
+{
+  "status": "incremental_development_audit_passed",
+  "at": "2026-09-14T17:06:08.989544+00:00",
+  "new_sessions": 28,
+  "new_independent_checks": 7173,
+  "new_audit_failures": [],
+  "new_snapshot_files_verified": 3584,
+  "original_pilot_files_reverified": 4227,
+  "new_pilot_prefixes_preserved": 28,
+  "combined_audited_sessions": 97,
+  "matched_cases": 31,
+  "matched_arms": {
+    "plain": {
+      "mean_rmsle": 0.4767903653286093,
+      "reported_tokens": 6623719,
+      "model_requests": 410,
+      "numerical_attempts": 405,
+      "full_workflows": 30
+    },
+    "gnomon": {
+      "mean_rmsle": 0.5117488044630588,
+      "reported_tokens": 8594138,
+      "model_requests": 442,
+      "numerical_attempts": 432,
+      "full_workflows": 28
+    },
+    "ledger": {
+      "mean_rmsle": 0.45296895117985475,
+      "reported_tokens": 6010877,
+      "model_requests": 372,
+      "numerical_attempts": 491,
+      "full_workflows": 31
+    }
+  },
+  "ledger_vs_gnomon_relative_reduction": 0.1148607534997127,
+  "ledger_vs_gnomon_reported_token_reduction": 0.30058407253874675,
+  "behavior": {
+    "plain": {
+      "sessions": 33,
+      "native_tool_calls": 3,
+      "sessions_with_native_memory_saved": 3,
+      "sessions_with_ledger_evidence_available": 0,
+      "sessions_with_recent_lifetime_disagreement": 0,
+      "max_ledger_past_origins": 0
+    },
+    "gnomon": {
+      "sessions": 32,
+      "native_tool_calls": 1,
+      "sessions_with_native_memory_saved": 0,
+      "sessions_with_ledger_evidence_available": 0,
+      "sessions_with_recent_lifetime_disagreement": 0,
+      "max_ledger_past_origins": 0
+    },
+    "ledger": {
+      "sessions": 32,
+      "native_tool_calls": 0,
+      "sessions_with_native_memory_saved": 0,
+      "sessions_with_ledger_evidence_available": 28,
+      "sessions_with_recent_lifetime_disagreement": 2,
+      "max_ledger_past_origins": 13
+    }
+  },
+  "max_completed_round": 13,
+  "completion": {
+    "plain": {
+      "valid": 33,
+      "full": 32,
+      "sessions": 33
+    },
+    "gnomon": {
+      "valid": 32,
+      "full": 29,
+      "sessions": 32
+    },
+    "ledger": {
+      "valid": 32,
+      "full": 32,
+      "sessions": 32
+    }
+  },
+  "transfer_method": "Individually hashed 2 MiB chunks, then verified whole archive and every extracted file. No failed transfer in this batch.",
+  "scope": "Combine immutable pilot + audit-002 + disjoint audit-003 + disjoint audit-004; audit-001 is superseded. All outcomes included; partial reused-development scores, not final evidence. Reported tokens are not billed dollars.",
+  "target_met": false,
+  "final_holdout_accessed": false,
+  "files": {
+    "results/guarded-history-093-development-audit-004/snapshot.py": "b0f379d9ad5b9ecfc1495b94015c99229b422c74f76c5020357e8a453ddf1328",
+    "results/guarded-history-093-development-audit-004/snapshot.json": "4202d5dd01f1f1daea08aa22ea35c877c26c1ad88107ddec091cc2b640271944",
+    "results/guarded-history-093-development-audit-004/snapshot.tar.gz": "bfdf986ee04194500765f1b55a783f8b241d3bd209dcbadcec3c9add695fd77c",
+    "results/guarded-history-093-development-audit-004/remote.json": "f27d86c2ec324dfb8e8064206c250998ef8eb0b2aaa4f1a66df3b311f714a865",
+    "results/guarded-history-093-development-audit-004/transfer.json": "548de733c465ae9364b5f8f036e48c867ebfb81067437ad06474e18300e45263",
+    "results/guarded-history-093-development-audit-004/summarize.py": "64f92c005d4f7878da46d704ea66e31ff36e8167aa7b4ea736cc4c3783477f9e",
+    "results/guarded-history-093-development-audit-004/behavior.json": "edefb25e54029859f8ddd420ac1b0e8a085f1d5e8e1feaeec364de74169dfe1b",
+    "results/guarded-history-093-development-audit-004/audit/report.json": "b8c61b2f1fd2be7f92fe8eef372c1c587f6338e3163e44cf1ae4367070fbdd35"
+  }
+}
