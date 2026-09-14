@@ -1,0 +1,89 @@
+{
+  "at": "2026-09-14T21:43:54.836861+00:00",
+  "stages": {
+    "retained_pilot": {
+      "sessions": 36,
+      "forwarded_requests": 456,
+      "returned_responses": 456,
+      "reported_tokens": 6182852,
+      "requests_without_reported_usage": 0,
+      "api_errors": 0,
+      "readiness_requests": 36,
+      "readiness_reported_tokens": 504,
+      "readiness_unknown_usage": 0,
+      "orphan_responses": 0
+    },
+    "continuation": {
+      "sessions": 235,
+      "forwarded_requests": 3085,
+      "returned_responses": 3084,
+      "reported_tokens": 63482758,
+      "requests_without_reported_usage": 1,
+      "api_errors": 0,
+      "readiness_requests": 237,
+      "readiness_reported_tokens": 3276,
+      "readiness_unknown_usage": 3,
+      "orphan_responses": 0
+    }
+  },
+  "deduplicated_total": {
+    "sessions": 271,
+    "forwarded_requests": 3541,
+    "returned_responses": 3540,
+    "reported_tokens": 69665610,
+    "requests_without_reported_usage": 1,
+    "api_errors": 0,
+    "readiness_requests": 273,
+    "readiness_reported_tokens": 3780,
+    "readiness_unknown_usage": 3,
+    "orphan_responses": 0
+  },
+  "arms": {
+    "plain": {
+      "sessions": 90,
+      "forwarded_requests": 1237,
+      "returned_responses": 1237,
+      "reported_tokens": 24785098,
+      "requests_without_reported_usage": 0,
+      "api_errors": 0,
+      "readiness_requests": 89,
+      "readiness_reported_tokens": 1246,
+      "readiness_unknown_usage": 0,
+      "orphan_responses": 0
+    },
+    "gnomon": {
+      "sessions": 90,
+      "forwarded_requests": 1233,
+      "returned_responses": 1233,
+      "reported_tokens": 25210445,
+      "requests_without_reported_usage": 0,
+      "api_errors": 0,
+      "readiness_requests": 92,
+      "readiness_reported_tokens": 1260,
+      "readiness_unknown_usage": 2,
+      "orphan_responses": 0
+    },
+    "ledger": {
+      "sessions": 91,
+      "forwarded_requests": 1071,
+      "returned_responses": 1070,
+      "reported_tokens": 19670067,
+      "requests_without_reported_usage": 1,
+      "api_errors": 0,
+      "readiness_requests": 92,
+      "readiness_reported_tokens": 1274,
+      "readiness_unknown_usage": 1,
+      "orphan_responses": 0
+    }
+  },
+  "billing_dollars": null,
+  "status": "live_cost_reconciliation",
+  "scope": "Read-only snapshot of an active run. Session counts include initialized/in-progress folders, not completed workflows. Unequal arm coverage must not be used for treatment token comparisons. The copied 36-session pilot is counted exactly once; unknown usage is not zero. Terminal reconciliation is still required.",
+  "files": {
+    "results/guarded-history-093-live-costs-001/command.json": "3b3b3e01d08ffb54a5b16d4e0943bd1db0a6446f576fdae0231fa92dcbf4d5e9",
+    "results/guarded-history-093-live-costs-001/query.py": "2c19c668c7f9d8ef0b780266ccf7c0f1c97692a907e5befee249ce3dcd09b41e",
+    "results/guarded-history-093-live-costs-001/stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/guarded-history-093-live-costs-001/stdout.json": "47d6992b954810aaa055cd137f26504bde9293003170f33d9cabf646b5095889"
+  },
+  "target_met": false
+}
