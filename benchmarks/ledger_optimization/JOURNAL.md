@@ -1628,3 +1628,27 @@ Verified archive/receipt preserve all fits, stage evidence, predictions/costs an
 the audit incident. Goal remains active/unmet, main/PyPI unchanged.068remains
 incumbent. More guard/model complexity alone has not improved it; next work must
 identify transferable residual structure rather than assume flexibility suffices.
+
+## Daily error-transition079: audited negative source result
+
+Previous turn was progress:078negative result/audit preserved at65e5ba2. Checked
+previous039/043calibration and049/076/078corrections before freezing a distinct
+recent signed-error input at5b9e858. Four synthetic tests passed. Same six fixed
+models and045blend weights both arms; two current daily CV transitions plus
+ledger-only all mature same-domain last-CV->production error transitions. No
+current production label in training, no protected data or new base/API calls.
+
+All416paired cases complete. Control.264309110935229,ledger.2570543652966738:
+2.74480%matched gain, but only.64037%over050and2.38020%worse068. Both domains
+worsen068; electricity also worsens050.20%and incumbent/domain gates fail.
+A higher matched percentage versus weaker corrected control is not a new best.
+No promotion/paid confirmation;068remains incumbent.
+
+832fits/4,992two-variable systems,525historical transitions;15.660s wall/14.469CPU.
+Independent622,614checks, zero failures,15.487s; signed errors, source/config/
+phase/availability, analytic normal equations, corrections/clips and score
+aggregates.134control/111ledger clipped model-leads. Source/inherited costs,
+full artifacts and archive hashes preserved. Main/PyPI unchanged, goal active.
+Recent-error correction still has not demonstrated a benefit over the strongest
+blend; future work should address a measured remaining limitation rather than
+assuming an untested variant or current20%feasibility.
