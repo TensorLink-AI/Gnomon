@@ -314,9 +314,10 @@ Matched full workflows are 48/49, 46/49, 49/49. All incomplete outcomes remain
 in the numerical scores. Numerical attempts are 681/714/767; token savings
 do not imply fewer fits.
 
-The first round-22 ledger execution is present, but late-phase comparisons
-require all three arms at the same origin; no late-phase improvement is
-claimed from this individual execution. Ledger evidence was available in
+The first complete round-22 three-arm case is present (item_1304243_store_32).
+RMSLE is plain 0.396421, Gnomon 0.394271, ledger 0.402568: ledger is worse
+on this one case. One origin from one series does not establish a late-phase
+effect. Ledger evidence was available in
 46 of its 50 audited sessions, up to 22 prior origins. Plain Hermes retains
 its native-memory note in 11 sessions; persisted copies are not new writes.
 The 20% target is unmet and the final holdout remains closed.
