@@ -1,0 +1,206 @@
+{
+  "status": "collection_worker_project_checks_validated",
+  "positive_checks": 39,
+  "rejected_mutations": [
+    {
+      "case": "missing_unselected",
+      "cause": "/tmp/tmp00wkmnjq: exactly two collected production forecasts"
+    },
+    {
+      "case": "premature_actual",
+      "cause": "/tmp/tmpptdt4xsq: no current outcomes exposed"
+    },
+    {
+      "case": "duplicate_attempt",
+      "cause": "/tmp/tmpkr8qcb7r: repeated backtest fits nothing"
+    },
+    {
+      "case": "selected_collection",
+      "cause": "/tmp/tmppoor8qni: explicit baseline selection survives Ridge collection"
+    },
+    {
+      "case": "changed_matured",
+      "cause": "/tmp/tmpktv23_rx: matured points preserve executions"
+    }
+  ],
+  "checks": [
+    {
+      "assertion": "results/collection-096-local-integration-003/plain/round-0/project: exactly two collected production forecasts",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/plain/round-0/project: collection retained seasonal and Ridge",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/plain/round-0/project: no current outcomes exposed",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/plain/round-0/project: repeated backtest fits nothing",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/plain/round-0/project: explicit baseline selection survives Ridge collection",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/plain/round-1/project: exactly two collected production forecasts",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/plain/round-1/project: collection retained seasonal and Ridge",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/plain/round-1/project: no current outcomes exposed",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/plain/round-1/project: repeated backtest fits nothing",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/plain/round-1/project: explicit baseline selection survives Ridge collection",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/plain/round-1/project: both previous forecasts matured",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/plain/round-1/project: only one previous forecast selected",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/plain/round-1/project: matured points preserve executions",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/gnomon/round-0/project: exactly two collected production forecasts",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/gnomon/round-0/project: collection retained seasonal and Ridge",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/gnomon/round-0/project: no current outcomes exposed",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/gnomon/round-0/project: repeated backtest fits nothing",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/gnomon/round-0/project: explicit baseline selection survives Ridge collection",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/gnomon/round-1/project: exactly two collected production forecasts",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/gnomon/round-1/project: collection retained seasonal and Ridge",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/gnomon/round-1/project: no current outcomes exposed",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/gnomon/round-1/project: repeated backtest fits nothing",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/gnomon/round-1/project: explicit baseline selection survives Ridge collection",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/gnomon/round-1/project: both previous forecasts matured",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/gnomon/round-1/project: only one previous forecast selected",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/gnomon/round-1/project: matured points preserve executions",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/ledger/round-0/project: exactly two collected production forecasts",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/ledger/round-0/project: collection retained seasonal and Ridge",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/ledger/round-0/project: no current outcomes exposed",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/ledger/round-0/project: repeated backtest fits nothing",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/ledger/round-0/project: explicit baseline selection survives Ridge collection",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/ledger/round-1/project: exactly two collected production forecasts",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/ledger/round-1/project: collection retained seasonal and Ridge",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/ledger/round-1/project: no current outcomes exposed",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/ledger/round-1/project: repeated backtest fits nothing",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/ledger/round-1/project: explicit baseline selection survives Ridge collection",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/ledger/round-1/project: both previous forecasts matured",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/ledger/round-1/project: only one previous forecast selected",
+      "passed": true
+    },
+    {
+      "assertion": "results/collection-096-local-integration-003/ledger/round-1/project: matured points preserve executions",
+      "passed": true
+    }
+  ],
+  "actual_worker_exercised": false,
+  "new_fits": 0,
+  "engy_calls": 0,
+  "final_holdout_accessed": false,
+  "driver_sha256": "016840ef414bf179122d23107753590c60c9fc0f485056c7c7c10f2ca407073c",
+  "input_files": {
+    "results/collection-096-local-integration-003/gnomon/round-0/project/experiments.jsonl": "376e0db191270fbef7586eeaac25ea67e5efc2dceeb3465013ee546726c8c7cd",
+    "results/collection-096-local-integration-003/gnomon/round-0/project/checkpoint.json": "ed5e65a3737ddb87fb05ca7bffe2e151e85bbbc0b9c8a70cec5456d8033aeb32",
+    "results/collection-096-local-integration-003/gnomon/round-1/project/experiments.jsonl": "8d74c8127f156fb1dae3c5c9c788ba79d9de73cf144b467411efa08fab41d905",
+    "results/collection-096-local-integration-003/gnomon/round-1/project/checkpoint.json": "b32a90f302271735a5db897f030da612b5f1b22494218f22c983cbdd2cb3f9ef",
+    "results/collection-096-local-integration-003/plain/round-0/project/experiments.jsonl": "dded299d49516a0c53c3196d36a7fec7e929d5d65a0ade0befc65337d664b0e5",
+    "results/collection-096-local-integration-003/plain/round-0/project/checkpoint.json": "2970859298bd19a731b13e037be40f8e9038e5536b9a520d10cb3cb2cf3f311e",
+    "results/collection-096-local-integration-003/plain/round-1/project/experiments.jsonl": "8f6c95dcf3b4d0d3605542185b885a98a9bd0e3c9595dfe666f303742028d161",
+    "results/collection-096-local-integration-003/plain/round-1/project/checkpoint.json": "ba5877604436e3b2393f1047a702d6ac27c31b6731c23cea221c32778c5e9328",
+    "results/collection-096-local-integration-003/ledger/round-0/project/experiments.jsonl": "85007099abc2ecfaf11f7ce3137d84525875d93088087953fbd8a26e6681beda",
+    "results/collection-096-local-integration-003/ledger/round-0/project/checkpoint.json": "3ed23744173808c25d87838e085906ed9ad57a1e83089046a035b4b588673c25",
+    "results/collection-096-local-integration-003/ledger/round-1/project/experiments.jsonl": "0c50278ddd854e91b9b8bdc13e5486216d3026a0c7176063d1ff9f76c5839966",
+    "results/collection-096-local-integration-003/ledger/round-1/project/checkpoint.json": "724b4fd30aa0dc605ddae4f52a98c600fb314b09bdf51cdd2d3f22cf72a4d1bc"
+  },
+  "scope": "Project evidence validation only: 39 positive checks on six retained real local projects and five deliberate corrupted copies rejected. The full new Hermes worker driver has not run.",
+  "worker_command": "python3 benchmarks/ledger_optimization/probe_collection_worker_096.py --capsule <fresh-096-capsule> --runtime <pinned-Hermes-1.2.0-runtime> --output <new-evidence-directory>",
+  "dispatch_condition": "Only after the current paid controller and queued seed integration finish; freeze and test before new paid dispatch."
+}

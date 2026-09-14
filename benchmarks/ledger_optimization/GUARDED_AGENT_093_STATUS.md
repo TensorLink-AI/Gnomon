@@ -587,3 +587,13 @@ Receipt: `evidence/guarded-agent-093-development-audit-015.json`. The original
 run remains unchanged. The next collection prototype passed local admission,
 real-fit, maturation and metric checks, but remains undeployed pending Hermes
 transport integration and a prospective dispatch freeze; see PAIRED_COLLECTION_096.md.
+
+## Updated accumulation diagnostic on 77 matched cases
+
+Using unchanged phase definitions, ledger has 1.21% lower error on 37 matched
+cases after at least ten prior origins. The latest-eight-case subset from the
+two completed series still has 3.14% higher ledger error. Cold cases remain
+5.66% better. Mature and later overlap, and their series/origin composition
+differs; this does not establish a causal benefit or harm of accumulating history.
+It also does not support promising that more history alone will reach 20%.
+All negative outcomes are retained. Receipt: `evidence/guarded-agent-093-phases-006.json`.

@@ -187,3 +187,20 @@ Receipt: `evidence/collection-096-local-integration-002.json`; raw evidence:
 and a frozen prospective dispatch manifest remain outstanding. The candidate
 remains undeployed, the running 093 experiment is unchanged, and the final
 holdout remains closed.
+
+## Hermes transport probe prepared, not run
+
+`probe_collection_worker_096.py` uses the same frozen run/worker interface with
+scripted upstream replies, no real Engy calls and no credentials. Across two
+synthetic origins and three arms it requests review/start, Ridge backtesting,
+exact repeat, explicit baseline commit, and a prose final. It expects 30 scripted
+responses and 48 fits, own-arm native memory persistence, no cross-arm memory,
+and a complete independent audit. Initial API requests must contain the updated
+four-fit task instructions and collection tool schema.
+
+The project validator was checked on all six retained local integration projects
+(39 assertions). Five corrupted copies—missing unselected forecast, premature
+actual, duplicate fit, unintended Ridge selection and altered matured points—
+were rejected. These checks validate the checker, not Hermes transport. The
+actual worker run remains gated on the existing controller and queued seed test
+finishing. Receipt: `evidence/collection-096-worker-preparation-001.json`.
