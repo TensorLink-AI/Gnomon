@@ -1217,3 +1217,28 @@ traversal checks, not independent statistical evidence). Result/trees/weights/
 costs preserved in receipt/archive062. The best original-development ledger
 remains061;055's separate validation result and Hermes results are unchanged.
 Main/PyPI unchanged.20% final matched-agent goal remains active and unmet.
+
+## Proposal headroom063: selector-only path ruled out for saved predictions
+
+Previous turn made progress: froze, completed, audited and pushed062 at6b83b3e.
+Revalidated the plan and prior048/046 limitations. Rather than blindly retuning
+retrieval, freeze063 at4c3eaa3 to determine the numerical ceiling for selecting
+among the exact existing proposals. All416 development tasks retained; no fits,
+API calls, new observations or protected-data access.
+
+Hindsight choice among062's six saved arms yields7.9141% max gain over matched
+block CV. Among the six underlying providers,14.7680%. Among their union,
+18.0039%, still below20% overall and in both domains/early and late phases.
+This rules out a selector-only solution using those exact saved predictions,
+not every possible causal mixture or model search. The pointwise envelope's
+59.2225% gain is outside the common block action space and is not deployable.
+The weaker single-provider CV baseline remains explicitly separate; no swapping
+the control to manufacture success. Current Hermes evidence remains unchanged.
+
+Five tests pass (pre-freeze floating-point assertion corrected); independent
+audit22,654 checks, zero failures. Diagnostic cost0.1345s, zero provider/API or
+weight fits; archive/receipt063 preserves all per-case choices and future-aware
+labels. Stop another gate-only comparison over these saved proposals. The next
+candidate must improve causal evidence use within a prospectively frozen common
+action/budget protocol, potentially the user-authorized model-iteration task.
+No paid confirmation or final access justified. Goal remains active and unmet.
