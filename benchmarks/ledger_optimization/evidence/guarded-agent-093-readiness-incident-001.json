@@ -1,0 +1,63 @@
+{
+  "status": "verified_completed_recovery",
+  "arm": "ledger",
+  "series_id": "item_1304243_store_32",
+  "round": 19,
+  "valid": true,
+  "workflow_complete": true,
+  "cost": {
+    "sessions": 1,
+    "forwarded_requests": 14,
+    "returned_responses": 14,
+    "reported_tokens": 333196,
+    "requests_without_reported_usage": 0,
+    "api_errors": 0,
+    "readiness_requests": 2,
+    "readiness_reported_tokens": 14,
+    "readiness_unknown_usage": 1,
+    "orphan_responses": 0
+  },
+  "probes": [
+    {
+      "number": 1,
+      "at": "2026-09-14T17:53:27.869393+00:00",
+      "status": 504,
+      "seconds": 30.01043663546443,
+      "usage": null,
+      "ready": false,
+      "retryable": true
+    },
+    {
+      "number": 2,
+      "at": "2026-09-14T17:54:29.106228+00:00",
+      "status": 200,
+      "seconds": 1.2341117672622204,
+      "usage": {
+        "prompt_tokens": 11,
+        "completion_tokens": 3,
+        "total_tokens": 14,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      "ready": true,
+      "retryable": false
+    }
+  ],
+  "files": {
+    "results/guarded-history-093-development-001/ledger/item_1304243_store_32/round-19/service-admission/probe-01-receipt.json": "71d7f593bac85bd2fc91facd49ad6b615959bba3677dbdb9d49e003ec825e03a",
+    "results/guarded-history-093-development-001/ledger/item_1304243_store_32/round-19/service-admission/probe-02-receipt.json": "c8718c146eb23285fc77e79098d630df070e79ed20d8594089bc3a9132272584",
+    "results/guarded-history-093-development-001/ledger/item_1304243_store_32/round-19/grade.json": "4be4a6559d9e51e9a622bf52eb351b54a4a2f274a04e0cb63699d08821b8765b",
+    "results/guarded-history-093-development-001/ledger/item_1304243_store_32/round-19/service-admission/status.json": "9df76b5bd30fbad47aa69d5de8d7e44005aafa93c03065a15eaf0bb2c65b8500",
+    "benchmarks/ledger_optimization/costs_guarded_093.py": "70e09ac8c27e193ebc40dbc5f65e4cc7b6c91e46e166e93677ecf598d93c5d86"
+  },
+  "scope": "Task-free admission failed once, then passed before the forecast session. Unknown failed-probe usage is retained separately, not counted as zero. Agent calls retain their normal budget; no run restart or score change.",
+  "verification_script": {
+    "path": "results/guarded-history-093-readiness-incident-001/capture.py",
+    "sha256": "2f1b3ff2640ff7bd29ef83e71ebe1f2eaf3a067f5f21af1c3c29ded4757f79f5"
+  },
+  "final_holdout_accessed": false
+}

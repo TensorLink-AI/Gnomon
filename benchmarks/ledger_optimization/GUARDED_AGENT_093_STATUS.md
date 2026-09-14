@@ -246,3 +246,16 @@ writes were observed. Ledger evidence was available in 38 sessions, with at
 most 18 past origins. Later-phase origins (22+) are not yet represented by this
 audit. No change to live sources, main, PyPI or final-data access. Receipt:
 `evidence/guarded-agent-093-development-audit-006.json`.
+
+## Readiness timeout and recovered session
+
+Before ledger/item_1304243_store_32/round-19, a task-free readiness probe returned
+HTTP 504 after 30.01 seconds, with no reported usage. The second probe passed
+before agent execution. The unchanged session then completed its full workflow:
+14/14 forecast-call responses, 333,196 reported tokens, zero forecast API errors
+and zero missing forecast usage. Readiness remains separately counted: two
+requests, 14 reported tokens from the successful probe, one unknown-usage probe.
+Unknown usage is not zero. The production cost helper correctly preserves this
+distinction; its frozen source hash matches. No run restart, extra agent budget
+or score substitution occurred. Receipt:
+`evidence/guarded-agent-093-readiness-incident-001.json`.
