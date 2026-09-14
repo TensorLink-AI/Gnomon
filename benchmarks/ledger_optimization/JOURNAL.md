@@ -1293,3 +1293,28 @@ accuracy result exists and the last numerical development gain is2.60%.
 Next: freeze the source task runner, verify common logical/physical budget and
 chronological history exposure, then run the original416 tasks/125 warm-ups.
 Main/PyPI and protected datasets unchanged. Goal remains active and unmet.
+
+## Real configuration search066: completed, audited, gate failed
+
+Previous status turn made progress by verifying original source session31926
+terminated exit0 and reading its complete report. This turn completed independent
+source audit and retained its scope/costs. No restart or additional paid run.
+
+416 scored tasks+125 warm-ups/arm;1,082/1,082 completed. Ledger-search RMSLE
+.2740828435805278 vs matched current-only .27513740193270925:0.38328% lower.
+Strong block-CV .2587110657586681 and incumbent lifetime061 .25198521475530405
+remain substantially better. Early gain1.21%, later0.04%. Frozen gate failed.
+This is a standalone numerical proxy, not new Hermes/Gnomon/API performance.
+
+Equal31,378 logical attempts and5,951 surrogate solves per arm;24,032 combined
+new physical fits;1,353.04s wall time; inherited preparation costs preserved.
+Independent audit2,404,902 repeated/structural assertions0 failures, all11,902
+proposals reconstructed with separate block-Cholesky algebra. Replayed78 saved
+requests across all used configs (75 estimator fits), recorded separately.
+Audit60.83s. Full source/cost/forecast/proposal evidence retained by receipt066.
+
+User requested results and task explanation; clearly reported negative20% gate,
+0.38% matched gain, stronger previous approaches and no new Hermes trial.
+No paid confirmation, no protected validation/final access, no main/PyPI change.
+Goal active/unmet. Next investigate search-to-ensemble bottleneck before freezing
+another candidate; do not weaken the control or redefine the success threshold.
