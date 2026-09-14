@@ -1,8 +1,8 @@
 # Guarded pilot 093 — completed
 
-Latest audited continuation: 149/312 sessions, 49 matched cases (2026-09-14
-18:31 UTC). The pilot is complete; the full development continuation is active.
-See the eighth audit below. The 20% target remains unmet.
+Latest audited continuation: 161/312 sessions, 53 matched cases (2026-09-14
+18:53 UTC). The pilot is complete; the full development continuation is active.
+See the ninth audit below. The 20% target remains unmet.
 
 All 36 sessions finished. Every forecast is valid; plain Hermes completed 11/12 full workflows, Gnomon without ledger 12/12, ledger 12/12. The frozen completion gate passed. Independent local audit: 4,227 file hashes verified, 2,942 checks, zero integrity failures.
 
@@ -343,3 +343,30 @@ model families and budgets; display compression alone is insufficient evidence
 of progress toward the numerical objective. Do not modify the active runner
 or change the frozen final target in response to this diagnostic.
 Receipt: `evidence/guarded-agent-093-executed-opportunity-002.json`.
+
+## Ninth continuation audit — 2026-09-14 18:53 UTC
+
+Twelve disjoint new sessions passed 5,120 independent checks, zero failures
+or missing shutdown records. All 1,837 snapshot file hashes, the whole
+43,540,000-byte archive, 4,227 original pilot files and 12 retained pilot
+experiment prefixes were verified. All outcomes are preserved.
+
+Across 53 matched cases, mean RMSLE is plain 0.470273, Gnomon 0.487109,
+ledger 0.451556: a 7.30% ledger reduction. Matched reported tokens are
+13,788,858 / 14,891,549 / 11,047,158 (25.82% fewer for ledger), and full
+workflows are 52/53, 50/53, 53/53. Numerical attempts are 740/770/847.
+The complete audited inventory has 161 sessions; unequal per-arm counts
+are not used as a matched performance comparison.
+
+The expanded phase diagnostic has 27 mature matched cases (round >= 10),
+with 2.98% lower ledger RMSLE. Its first three later cases (round >= 22)
+all belong to item_1304243_store_32: plain 0.347320, Gnomon 0.344929,
+ledger 0.344582, only 0.10% lower ledger error. Later reported tokens are
+657,013 / 476,367 / 572,271, so ledger uses more tokens than Gnomon on
+this small subset. Mature and later overlap; their series/origin coverage
+differs from the cold phase. Neither a growing accumulation benefit nor
+a population-level late-phase conclusion is established.
+
+Receipts: `evidence/guarded-agent-093-development-audit-009.json` and
+`evidence/guarded-agent-093-phases-003.json`. The 20% target remains unmet;
+no final targets, active-run sources, main or PyPI were changed.

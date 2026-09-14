@@ -1,0 +1,96 @@
+{
+  "status": "incremental_development_audit_passed",
+  "at": "2026-09-14T18:53:48.691345+00:00",
+  "new_sessions": 12,
+  "new_independent_checks": 5120,
+  "new_audit_failures": [],
+  "new_snapshot_files_verified": 1837,
+  "original_pilot_files_reverified": 4227,
+  "new_pilot_prefixes_preserved": 12,
+  "combined_audited_sessions": 161,
+  "matched_cases": 53,
+  "matched_arms": {
+    "plain": {
+      "mean_rmsle": 0.47027319743375856,
+      "reported_tokens": 13788858,
+      "model_requests": 724,
+      "numerical_attempts": 740,
+      "full_workflows": 52
+    },
+    "gnomon": {
+      "mean_rmsle": 0.4871092081165813,
+      "reported_tokens": 14891549,
+      "model_requests": 733,
+      "numerical_attempts": 770,
+      "full_workflows": 50
+    },
+    "ledger": {
+      "mean_rmsle": 0.4515562692405672,
+      "reported_tokens": 11047158,
+      "model_requests": 623,
+      "numerical_attempts": 847,
+      "full_workflows": 53
+    }
+  },
+  "ledger_vs_gnomon_relative_reduction": 0.07298761403727172,
+  "ledger_vs_gnomon_reported_token_reduction": 0.2581592418626162,
+  "behavior": {
+    "plain": {
+      "sessions": 53,
+      "native_tool_calls": 3,
+      "sessions_with_native_memory_saved": 12,
+      "sessions_with_ledger_evidence_available": 0,
+      "sessions_with_recent_lifetime_disagreement": 0,
+      "max_ledger_past_origins": 0
+    },
+    "gnomon": {
+      "sessions": 54,
+      "native_tool_calls": 2,
+      "sessions_with_native_memory_saved": 0,
+      "sessions_with_ledger_evidence_available": 0,
+      "sessions_with_recent_lifetime_disagreement": 0,
+      "max_ledger_past_origins": 0
+    },
+    "ledger": {
+      "sessions": 54,
+      "native_tool_calls": 1,
+      "sessions_with_native_memory_saved": 0,
+      "sessions_with_ledger_evidence_available": 50,
+      "sessions_with_recent_lifetime_disagreement": 4,
+      "max_ledger_past_origins": 24
+    }
+  },
+  "max_completed_round": 24,
+  "completion": {
+    "plain": {
+      "valid": 53,
+      "full": 52,
+      "sessions": 53
+    },
+    "gnomon": {
+      "valid": 54,
+      "full": 51,
+      "sessions": 54
+    },
+    "ledger": {
+      "valid": 54,
+      "full": 54,
+      "sessions": 54
+    }
+  },
+  "transfer_method": "Individually hashed 2 MiB chunks, then verified whole archive and every extracted file. No failed transfer in this batch.",
+  "scope": "Combine immutable pilot + audit-002 + disjoint audit-003 + disjoint audit-004 + disjoint audit-005 + disjoint audit-006 + disjoint audit-007 + disjoint audit-008 + disjoint audit-009; audit-001 is superseded. All outcomes included; partial reused-development scores, not final evidence. Reported tokens are not billed dollars.",
+  "target_met": false,
+  "final_holdout_accessed": false,
+  "files": {
+    "results/guarded-history-093-development-audit-009/collect.py": "9f3c67b4b6daec0859a6adfd3a5f795a5bc4c4d99d8973e58cc71ee5c4c2930b",
+    "results/guarded-history-093-development-audit-009/snapshot.py": "5bdef5c51b708299279d338b72a2b3a2eb687d0244ca2625016ccff3a770fbf5",
+    "results/guarded-history-093-development-audit-009/snapshot.json": "035fb7b96647cf3452f05a2582cee2c286c1a74a230b0118bc40a0d0280ab9c6",
+    "results/guarded-history-093-development-audit-009/snapshot.tar.gz": "2ed67f123f9cbbb78a8272b2a52f154e46404b1ebc7b6dc78e16b6d4c35da8dd",
+    "results/guarded-history-093-development-audit-009/remote.json": "9873628ab2261308b0cb57c81832617659857a7d5cd98057a361422d0e89fb07",
+    "results/guarded-history-093-development-audit-009/transfer.json": "c66007290adc0756f10f18e61963e91e193b5cd530cf30c2b00bdee100962d48",
+    "results/guarded-history-093-development-audit-009/summarize.py": "bdcd9f18b8c299f7c05f34de86869f073cbc8581a0ffa8db6f70ef521d3060de",
+    "results/guarded-history-093-development-audit-009/behavior.json": "22f9306fa5292ef26aac9ef6421db2ff4e415369d69d6167a5754e7af8f1d042",
+    "results/guarded-history-093-development-audit-009/audit/report.json": "bca05a82fc208578926e3cf1d73515aa86cb37de280c896e67fa5934437c87d4"
+  }
+}
