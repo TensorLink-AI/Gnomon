@@ -1,0 +1,121 @@
+{
+  "scope": "development_only_730_row_ml_adapter",
+  "series": 8,
+  "tasks": 208,
+  "history": 730,
+  "horizon": 14,
+  "rounds": 26,
+  "first_history_day": 848,
+  "first_origin_day": 1577,
+  "last_target_day": 1941,
+  "manifest_sha256": "6343970b713d8ccc49c5f3d6a633e3c876511ef4fd16c19f832d34a792243dd9",
+  "source_sha256": "cc704ba15d6802f8262e6ec7d4c6041e4ad6366a94365e8c84f721e450eed774",
+  "jobs_sha256": "dd608a2a0188cbe7e0e684127c4e5abbc77019982fdd14aabbb6e635064c164b",
+  "selection_changed": false,
+  "reserved_targets_numeric_inspection": false,
+  "provider_calls": 0,
+  "engy_calls": 0,
+  "availability": "Assumed period-end source and recording availability; complete scores mature at horizon close.",
+  "promotion": "unavailable_assumed_zero; not an observed absence of promotions",
+  "source_files": {
+    "m5_ml_adapter.py": "803c8ec8344692a50689c0034dc0a9b34d96487caf0dffd9913858a2b8816f97",
+    "m5_prepare.py": "3ac1b25471c405fea8c4ffa7aa115e396ab1e5f64885b2642328630826937eff",
+    "M5_ML_ADAPTER.md": "c6a6e01eedf38276794edc6cdfb3a039d5c9268188bc3f0ec6a4e3094644853d"
+  },
+  "status": "development_ml_preparation_and_host_checks_passed",
+  "verification": {
+    "status": "development_preparation_verified",
+    "series": 8,
+    "tasks": 208,
+    "assertion_checks": 309088,
+    "prior_development_overlap_values_checked": 112528,
+    "jobs_sha256": "dd608a2a0188cbe7e0e684127c4e5abbc77019982fdd14aabbb6e635064c164b",
+    "source_selection_unchanged": true,
+    "reserved_targets_accessed": false,
+    "provider_calls": 0,
+    "engy_calls": 0,
+    "final_gate_opened": false
+  },
+  "host_verification": {
+    "status": "host_input_preparation_verified",
+    "tasks": 16,
+    "preparations": 96,
+    "checks": 832,
+    "scope": "First and last origin of all eight development series. Preparation only; empty prior supplied intentionally. Does not validate a resumed run or execute models.",
+    "provider_calls": 0,
+    "engy_calls": 0,
+    "reserved_targets_accessed": false
+  },
+  "boundaries": [
+    {
+      "series_id": "FOODS_2_313_CA_3",
+      "first_history": "2013-05-26T00:00:00+00:00",
+      "first_origin": "2015-05-25T00:00:00+00:00",
+      "last_origin": "2016-05-09T00:00:00+00:00",
+      "last_target": "2016-05-23T00:00:00+00:00"
+    },
+    {
+      "series_id": "FOODS_3_035_CA_3",
+      "first_history": "2013-05-26T00:00:00+00:00",
+      "first_origin": "2015-05-25T00:00:00+00:00",
+      "last_origin": "2016-05-09T00:00:00+00:00",
+      "last_target": "2016-05-23T00:00:00+00:00"
+    },
+    {
+      "series_id": "FOODS_3_488_WI_2",
+      "first_history": "2013-05-26T00:00:00+00:00",
+      "first_origin": "2015-05-25T00:00:00+00:00",
+      "last_origin": "2016-05-09T00:00:00+00:00",
+      "last_target": "2016-05-23T00:00:00+00:00"
+    },
+    {
+      "series_id": "FOODS_3_498_WI_2",
+      "first_history": "2013-05-26T00:00:00+00:00",
+      "first_origin": "2015-05-25T00:00:00+00:00",
+      "last_origin": "2016-05-09T00:00:00+00:00",
+      "last_target": "2016-05-23T00:00:00+00:00"
+    },
+    {
+      "series_id": "HOBBIES_1_030_WI_2",
+      "first_history": "2013-05-26T00:00:00+00:00",
+      "first_origin": "2015-05-25T00:00:00+00:00",
+      "last_origin": "2016-05-09T00:00:00+00:00",
+      "last_target": "2016-05-23T00:00:00+00:00"
+    },
+    {
+      "series_id": "HOUSEHOLD_1_050_WI_2",
+      "first_history": "2013-05-26T00:00:00+00:00",
+      "first_origin": "2015-05-25T00:00:00+00:00",
+      "last_origin": "2016-05-09T00:00:00+00:00",
+      "last_target": "2016-05-23T00:00:00+00:00"
+    },
+    {
+      "series_id": "HOUSEHOLD_1_522_CA_3",
+      "first_history": "2013-05-26T00:00:00+00:00",
+      "first_origin": "2015-05-25T00:00:00+00:00",
+      "last_origin": "2016-05-09T00:00:00+00:00",
+      "last_target": "2016-05-23T00:00:00+00:00"
+    },
+    {
+      "series_id": "HOUSEHOLD_2_034_CA_3",
+      "first_history": "2013-05-26T00:00:00+00:00",
+      "first_origin": "2015-05-25T00:00:00+00:00",
+      "last_origin": "2016-05-09T00:00:00+00:00",
+      "last_target": "2016-05-23T00:00:00+00:00"
+    }
+  ],
+  "final_gate_opened": false,
+  "target_established": false,
+  "live_experiment_changed": false,
+  "files": {
+    "results/m5-ml-development-prepare-001/command.json": "81cb5909244ec1024c9feb25a66a72e63222eb93ca2fe30bf928d2472fa26482",
+    "results/m5-ml-development-prepare-001/stdout.txt": "a965d06ffb36436ec415156dec814d9d400edeff532f3b06d627f9d48db1ab07",
+    "results/m5-ml-development-prepare-001/stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/m5-ml-development-prepare-001/prepared/manifest.json": "a965d06ffb36436ec415156dec814d9d400edeff532f3b06d627f9d48db1ab07",
+    "results/m5-ml-development-prepare-001/prepared/development-jobs.json": "dd608a2a0188cbe7e0e684127c4e5abbc77019982fdd14aabbb6e635064c164b",
+    "results/m5-ml-development-prepare-001/verify.py": "ca029be70a514914ad3dcbfa4c6de2e89eec832069370ae1663dce411d7eccc5",
+    "results/m5-ml-development-prepare-001/verification.json": "89409ddc035aa0461ae85b7ea1f9a61e124598c59dd6bc1fc5905ca875854ac3",
+    "results/m5-ml-development-prepare-001/verify_host.py": "14680ffa3a4b98070d4b55ca5361e8297e0ad7156254695f45569c6edcbb3693",
+    "results/m5-ml-development-prepare-001/host-verification.json": "40edb4a86fd3bbe7de6958684eaa08c29cc83fd6e0f64aa015e3484b4cb606b3"
+  }
+}

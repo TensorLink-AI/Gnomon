@@ -56,3 +56,26 @@ three-arm amendments in `PLAN.md` supersede historical 1.1.9/fixed-recipe wordin
 Do not present synthetic adapter tests, the cold-start pilot, or development
 scores as proof that the final accuracy objective has been achieved. Main and
 PyPI remain unchanged.
+
+## First real development preparation
+
+After synthetic checks and before any M5 ML model execution, prepared the original
+8 development series from the hash-pinned archive using the unchanged constructor.
+All 208 jobs satisfy the 730-row history contract. Original development overlap:
+112,528 history-value comparisons match the retained original export; all future
+horizons and original selection hashes match. Calendar boundaries are 2013-05-26
+first history, 2015-05-25 first origin, 2016-05-09 last origin and 2016-05-23 last
+target, expressed as period-end UTC. The earlier dates in synthetic fixtures
+belong only to those fixtures and are not real M5 date claims.
+
+The frozen v6 host prepared the first and last origin of each development series
+in all three arms, plus host-only future-target perturbations: 96 preparations,
+832 checks. Arm-visible numerical inputs agree byte-for-byte, and changing future
+sales changes none of them. This is preparation-only with empty prior records,
+not a model, resumed-history or accuracy test. No provider/Engy requests occurred,
+no reserved-target numerical cells were accessed, and the running Favorita trial
+was unchanged. Receipt: `evidence/m5-ml-development-prepare-001.json`.
+
+The development input file is retained under ignored experiment storage, with
+its source and output hashes; it is not a new selected panel and is not a paid
+run launch. The final gate remains closed.
