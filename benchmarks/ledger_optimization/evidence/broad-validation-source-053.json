@@ -1,0 +1,36 @@
+{
+  "root": "results/broad-validation-source-053-001",
+  "archive": "results/broad-validation-source-053-001.tar.gz",
+  "archive_sha256": "cb8e82185080d06c2d2c014276794aa39f32d6a29610732aba2573a3bde0a7a4",
+  "frozen_extractor_commit": "0604e78",
+  "files": {
+    "COMPLETED.json": "969226bbe9985932cbc29ad000e6e986b5590c7e90a09b2da4394da5c5a06172",
+    "manifest.json": "4b1b1c166f84f64b7d3ee3701fc2dc9a7715661fbc423f316ce93071ce1efa22",
+    "metadata-coverage.json": "2e7dc061d6ffdc9bf022c035879e85562c922d708cabaca6766b5e374e203310",
+    "scored-spans.json": "3e2b770072b1eb131ce357c99486d099b528d7ab088c5173217f53e9dc298f69",
+    "status.json": "ba3519fd3b967a39efa0ce619931436c5e7e0fbbdfcfdbf6521e435eebfe78aa",
+    "verification.json": "b2e36c4bb7c5b9719e5048c15b29ec83ab5f34e51235d92a6fb913b561387da1",
+    "warmup-boundaries.json": "3674468d5f9dc057e8ae1aa9274cd842cbd43761d4a5d7c8f0496db41e5c9c77",
+    "warmup-spans.json": "96b8add8915217011c610486a30dc432c7099653291e0f763e40729de99d1485"
+  },
+  "result": {
+    "validation_series": 16,
+    "planned_scored_cases": 416,
+    "warmup_attempts": 128,
+    "usable_warmup_cases": 117,
+    "unavailable_warmup_cases": 11,
+    "scored_spans_sha256": "3e2b770072b1eb131ce357c99486d099b528d7ab088c5173217f53e9dc298f69",
+    "warmup_spans_sha256": "96b8add8915217011c610486a30dc432c7099653291e0f763e40729de99d1485",
+    "reserved_future_values_parsed": 0,
+    "forecast_computations": 0,
+    "api_calls": 0,
+    "seconds": 18.491281765000167
+  },
+  "verification": {
+    "checks": 1046,
+    "failures": 0,
+    "usable_warmup_cases": 117,
+    "scored_cases": 416,
+    "scope": "Identity, initial-prefix hashes, geometry, missingness, overlap and temporal boundaries; no model scores computed."
+  }
+}
