@@ -261,3 +261,16 @@ A 542-file evidence archive and per-session wall times are retained under
 `results/collection-096-local-worker-001`. Receipt:
 `evidence/collection-096-local-worker-001.json`. Pre-dispatch runtime/source checks,
 fresh arm state, the original terminal audit and queued seed test remain required.
+
+## Pilot preflight compatibility
+
+`collection_preflight_096.accept` verifies the saved worker proof against its
+committed receipt, all 542 raw evidence files, the current capsule, all six
+matched grades and the complete independent audit. It emits the `tested_sources`
+receipt consumed by the frozen pilot runner; the stronger two-origin integration
+is reused, rather than fitting models again just to rename a result field.
+Five altered-evidence/source/overwrite probes were rejected. No new fits or
+Engy calls were made. Tested runtime inventory and build are retained for
+pre-dispatch comparison. This receipt explicitly does not authorize dispatch;
+predecessor terminal, fresh-state and runtime checks still apply.
+Receipt: `evidence/collection-096-preflight-001.json`.
