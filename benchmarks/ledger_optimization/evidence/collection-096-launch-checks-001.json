@@ -1,0 +1,62 @@
+{
+  "status": "collection_pilot_launcher_prepared_and_dry_checked",
+  "unit_tests": {
+    "passed": 9,
+    "command": "python3 -m unittest benchmarks.tests.test_collection_launch_096 -v"
+  },
+  "check_only": {
+    "argv": [
+      "python3",
+      "-m",
+      "benchmarks.ledger_optimization.launch_collection_096",
+      "--capsule",
+      "results/collection-capsule-096-offline-003/capsule",
+      "--plan",
+      "results/collection-096-prospective-plan-002/plan.json",
+      "--preflight",
+      "results/collection-096-preflight-001/passed.json",
+      "--task-source",
+      "results/ledger-ml-continuous-022/export-002/host-jobs.json",
+      "--runtime",
+      "/tmp/gnomon-collection-096-hermes-runtime-001",
+      "--paid-predecessor",
+      "/tmp/tmp64zk5bs9/paid",
+      "--seed-predecessor",
+      "/tmp/tmp64zk5bs9/seed",
+      "--output",
+      "/tmp/tmp64zk5bs9/never-created",
+      "--check-only"
+    ],
+    "exit_status": 0,
+    "stdout": "{\"checks_passed\": true, \"paid_calls\": 0, \"output_created\": false, \"scope\": \"Read-only launch prerequisites; no dispatch.\"}\n",
+    "stderr": "",
+    "predecessors": "Synthetic terminal metadata; actual source, proof, jobs and local runtimes"
+  },
+  "live_predecessor_check": {
+    "exit_status": 0,
+    "stdout": "{\"launch_checks\": \"rejected\", \"cause\": \"Predecessor process is still live\", \"credentials_read\": false, \"paid_calls\": 0}\n",
+    "stderr": "",
+    "launcher_sha256": "9b10bf70329be2d6d96baeedc7962f4e8e067c9be10345f4a513b2b2a7ff9a11"
+  },
+  "failure_preserved": {
+    "root": "results/collection-096-launch-checks-001",
+    "cause": "Module invocation had loaded the regular repository benchmarks parent; new imports resolved original source rather than capsule. Guard rejected before output/credentials. Fixed by pinning parent child-import path to capsule.",
+    "new_fits": 0,
+    "paid_calls": 0
+  },
+  "scope": "Actual check-only path with real capsule, evidence, development-source hashes and local runtimes, using synthetic terminal metadata; independent read-only check rejects the real live predecessor. Paid pilot dispatch has not run.",
+  "files": {
+    "results/collection-096-launch-checks-001/check.py": "efcfa33a2089a980ccc9f640d03555528d78faeb9aae39f8a58c4362cd6b0c80",
+    "results/collection-096-launch-checks-001/check-only.json": "cfba68dae5be4cb82fc6963257336ed84e655e93cc016ef8b7d7164395c13bc6",
+    "results/collection-096-launch-checks-002/check.py": "efcfa33a2089a980ccc9f640d03555528d78faeb9aae39f8a58c4362cd6b0c80",
+    "results/collection-096-launch-checks-002/check-only.json": "ef50a6f96ea8f658e65fd3d682a40206b01dd779b0be1b85072b9d98515121b9",
+    "results/collection-096-launch-checks-002/live-predecessor.json": "5848e469c11571782a9eae0bfb3e916e14905e1c4c08d893dfaccddd0094ec66",
+    "results/collection-096-launch-checks-002/remote-read-only.py": "8589f0c752f4fcf0366579e8ebc78dbc5347ca67b2a827f01c73a45a83f18fb5",
+    "benchmarks/ledger_optimization/launch_collection_096.py": "9b10bf70329be2d6d96baeedc7962f4e8e067c9be10345f4a513b2b2a7ff9a11",
+    "benchmarks/tests/test_collection_launch_096.py": "4d6e80a796305330f9fb74ee124ee2703d7746fb67cf57a2de1cc8e067f2c41b"
+  },
+  "new_fits": 0,
+  "engy_calls": 0,
+  "final_gate_opened": false,
+  "dispatch_started": false
+}

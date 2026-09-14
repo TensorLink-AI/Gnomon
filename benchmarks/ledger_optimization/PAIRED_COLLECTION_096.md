@@ -274,3 +274,29 @@ Engy calls were made. Tested runtime inventory and build are retained for
 pre-dispatch comparison. This receipt explicitly does not authorize dispatch;
 predecessor terminal, fresh-state and runtime checks still apply.
 Receipt: `evidence/collection-096-preflight-001.json`.
+
+## Pilot launcher prepared and dry checked
+
+`launch_collection_096.py` checks terminal identities for the paid controller,
+its child, the seed controller and both seed children before accepting their
+completion/exit/audit receipts. It then binds the plan and worker preflight to
+current source and task hashes and compares runtime package versions. Credentials
+are read only after these checks and the frozen runner's published-build check.
+It records plan, source and predecessor references before the first API call.
+It runs only the 36-session pilot and its independent audit; it never starts the
+276-session continuation or final holdout automatically.
+
+An actual check-only invocation exposed a launcher import-path bug: running the
+launcher as a module had already loaded the repository's regular benchmarks
+parent, so child imports ignored the new capsule path. The location check
+rejected this before a run directory or credential access. The corrected launcher
+pins subsequent child imports to the verified capsule. Nine tests now pass,
+including this import-path regression and live controller/child, failed or changed
+evidence, source/task mismatch and PID-reuse checks.
+
+The corrected check-only command passed against real local runtimes, the actual
+collection capsule and proof, and synthetic terminal predecessor metadata. A
+separate read-only check against the real pod correctly rejected launch because
+the original controller remains live. Both failed and passing checks are kept.
+No additional fits or Engy calls occurred. Receipt:
+`evidence/collection-096-launch-checks-001.json`. Actual paid launch remains pending.
