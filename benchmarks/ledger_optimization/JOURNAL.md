@@ -1768,3 +1768,25 @@ PSD and24convex certificates. Near-zero anchor handling also tested. No source
 records, source performance score, paid/provider/API or protected access. Full
 archive/member hashes retained. Separate086source freeze required. Main/PyPI
 unchanged; actual1.2.0/DeepSeek final objective remains active/unmet.
+
+## Case-norm risk086: audited near-tie, failed promotion
+
+After085preparation7d8084e, froze086at12879f3. All416paired cases complete with
+832forests/26,624trees/70,096case scales/19,968weight fits/279,614iterations.
+141.482s wall128.961CPU. No scale clipping, source solver retry, tolerance change
+or excluded case. Independent2,324,657checks pass,85.172s; all training scales,
+tangent values/gradients, full tree support/weighted targets, convex certificates,
+source/temporal/config identities, forecasts/comparisons/metrics/costs verified.
+
+Ledger.24961817893132554 versus matchedcontrol.25713977227119794:2.92510%gain;
+3.51469%over050, but only0.06087%lower mean than081. Electricity worsens081by
+1.15097% and068by2.18674%; pedestrian improves081by0.38694%. Both20%requirements
+and domain guards fail. Tiny reused-development difference is not established
+improvement. No final/paid promotion; repeated variants/costs remain preserved.
+
+Archive and member hashes retain complete085/086evidence. README latest pointer
+updated.0new base/APIcalls; inherited49,616raw and anchor/search/comparison costs
+remain disclosed. Main/PyPI/protected data unchanged. Objective scaling alone
+has not materially helped. Another arbitrary scale/feature sweep is not justified;
+next work needs a new, testable source of transferable decision evidence.
+Actual1.2.0/DeepSeek20%/95% final objective remains active and unmet.

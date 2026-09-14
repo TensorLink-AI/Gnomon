@@ -4,14 +4,14 @@ Branch: `dev/ledger-optimization`. **The 20% target has not been achieved.**
 Development and a complete frozen confirmation are retained here. No release or
 forecast-superiority claim is established.
 
-Latest completed numerical comparison: [prior-error context084](LAGGED_RISK_084_RESULT.md)
-scored0.250163mean-case RMSLE versus0.259160for its matched control, a3.47%gain.
-It failed the20%target and electricity guards, and worsened the previous method.
-The lowest predeclared development mean remains [conditional risk081](LOCAL_RISK_081_RESULT.md),
-0.249770versus0.257687matchedcontrol (3.07%gain), also below the promotion bar.
-These are repeated-development numerical proxies, not new agent/API evaluations,
-held-out evidence or shipped ledger features. The latest actual-agent results
-remain [experiment030](ML_COMPLETED_030.md). No experiment is currently approved
+Latest completed numerical comparison: [case-norm risk086](NORM_RISK_086_RESULT.md)
+scored0.249618mean-case RMSLE versus0.257140for its matched control, a2.93%gain.
+It failed the20%target and electricity guards. Its0.061% lower mean than
+[conditional risk081](LOCAL_RISK_081_RESULT.md) is tiny and not established as a
+reliable improvement. [Prior-error context084](LAGGED_RISK_084_RESULT.md) also
+failed. These are repeated-development numerical proxies, not new agent/API
+evaluations, held-out evidence or shipped ledger features. The latest actual-agent
+results remain [experiment030](ML_COMPLETED_030.md). No experiment is approved
 for final confirmation; the final goal remains unmet.
 
 The [risk-transfer diagnostic082](RISK_TRANSFER_082_RESULT.md) explains a current
