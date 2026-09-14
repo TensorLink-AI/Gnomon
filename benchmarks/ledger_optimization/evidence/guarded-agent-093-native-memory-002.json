@@ -1,0 +1,75 @@
+{
+  "status": "audited_native_memory_write",
+  "arm": "plain",
+  "series_id": "item_1457251_store_14",
+  "round": 6,
+  "observed": "One skills_list request, one rejected malformed memory request, then one successful memory add. Saved MEMORY.md agrees with the successful request content.",
+  "scope": "Tool use and persisted note only. Numerical/explanatory claims in the note are not endorsed; subsequent restoration is not yet verified in this diagnostic. No causal efficacy conclusion.",
+  "files": {
+    "results/guarded-history-093-development-audit-013/snapshot/plain/item_1457251_store_14/round-6/boundary-events.jsonl": "ece68a2d36257e66e38c70401ac7f78130ac7466d531c8c4b727bb43adebf378",
+    "results/guarded-history-093-development-audit-013/snapshot/plain/item_1457251_store_14/round-6/memory.json": "8d96c2806a8ed5f2aecd66863abcb03d615246dedfcf95df8459d67188533d19"
+  },
+  "events": [
+    {
+      "at": 1789416063.826927,
+      "stage": "requested",
+      "tool_call_id": "call_fcb3069374564749acf0dbec",
+      "tool": "skills_list",
+      "raw_arguments": "{}"
+    },
+    {
+      "at": 1789416063.8280194,
+      "stage": "returned",
+      "tool_call_id": "call_fcb3069374564749acf0dbec",
+      "tool": "skills_list",
+      "result": {
+        "status": "ok",
+        "result": "{\"success\": true, \"skills\": [], \"categories\": [], \"message\": \"No skills found in skills/ directory.\"}",
+        "scope": "native_text_memory"
+      }
+    },
+    {
+      "at": 1789416066.649433,
+      "stage": "requested",
+      "tool_call_id": "call_1b241378e4874d27a8ffa8a2",
+      "tool": "memory",
+      "raw_arguments": "{\"target\": \"memory\"}"
+    },
+    {
+      "at": 1789416066.6495576,
+      "stage": "returned",
+      "tool_call_id": "call_1b241378e4874d27a8ffa8a2",
+      "tool": "memory",
+      "result": {
+        "status": "error",
+        "error": {
+          "code": "EXECUTION_BOUNDARY_REJECTED",
+          "message": "Unexpected or missing fields; use the declared tool schema."
+        },
+        "execution_started": false
+      }
+    },
+    {
+      "at": 1789416073.6225114,
+      "stage": "requested",
+      "tool_call_id": "call_34bacd95bad847d8bf7ccdf8",
+      "tool": "memory",
+      "raw_arguments": "{\"target\": \"memory\", \"action\": \"add\", \"content\": \"Series item_1457251_store_14 (unit_sales, weekly seasonality, low counts ~2-8/day). Matured outcomes: ridge w365 lags14 a10 rmsle 0.503 (Aug16 origin); ridge w365 lags28 0.479 (Aug30); RF w365 lags28 d8 0.520 (Sep13); RF w730 lags28 d8 0.488 (Sep27) and 0.641 (Oct25); seasonal s7 0.685 (Oct11). Ridge w365 lags14/28 is the most consistent performer; RF w730 unstable.\"}"
+    },
+    {
+      "at": 1789416073.6329927,
+      "stage": "returned",
+      "tool_call_id": "call_34bacd95bad847d8bf7ccdf8",
+      "tool": "memory",
+      "result": {
+        "status": "ok",
+        "result": "{\"success\": true, \"done\": true, \"target\": \"memory\", \"usage\": \"16% \u2014 368/2,200 chars\", \"entry_count\": 1, \"message\": \"Entry added.\", \"note\": \"Write saved. This update is complete \u2014 do not repeat it.\"}",
+        "scope": "native_text_memory"
+      }
+    }
+  ],
+  "saved_memory": {
+    "MEMORY.md": "Series item_1457251_store_14 (unit_sales, weekly seasonality, low counts ~2-8/day). Matured outcomes: ridge w365 lags14 a10 rmsle 0.503 (Aug16 origin); ridge w365 lags28 0.479 (Aug30); RF w365 lags28 d8 0.520 (Sep13); RF w730 lags28 d8 0.488 (Sep27) and 0.641 (Oct25); seasonal s7 0.685 (Oct11). Ridge w365 lags14/28 is the most consistent performer; RF w730 unstable."
+  },
+  "target_met": false
+}

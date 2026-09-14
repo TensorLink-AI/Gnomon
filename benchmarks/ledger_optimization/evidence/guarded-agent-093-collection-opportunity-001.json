@@ -1,0 +1,5242 @@
+{
+  "status": "collection_coverage_audit_passed",
+  "matched_cases": 65,
+  "arms": {
+    "plain": {
+      "sessions": 65,
+      "backtested_config_origin_count": 263,
+      "forecasted_config_origin_count": 127,
+      "backtested_without_production_count": 136,
+      "sessions_with_unforecasted_backtests": 54,
+      "hypothetical_extra_forecast_fits": 136,
+      "original_numerical_attempts": 916,
+      "sessions_exceeding_60_if_added": 0,
+      "observed_config_pair_origin_count": 62,
+      "hypothetical_config_pair_origin_count": 495,
+      "observed_series_config_pairs_with_at_least_3_origins": 6,
+      "hypothetical_series_config_pairs_with_at_least_3_origins": 44
+    },
+    "gnomon": {
+      "sessions": 65,
+      "backtested_config_origin_count": 284,
+      "forecasted_config_origin_count": 126,
+      "backtested_without_production_count": 158,
+      "sessions_with_unforecasted_backtests": 57,
+      "hypothetical_extra_forecast_fits": 158,
+      "original_numerical_attempts": 978,
+      "sessions_exceeding_60_if_added": 0,
+      "observed_config_pair_origin_count": 63,
+      "hypothetical_config_pair_origin_count": 570,
+      "observed_series_config_pairs_with_at_least_3_origins": 8,
+      "hypothetical_series_config_pairs_with_at_least_3_origins": 48
+    },
+    "ledger": {
+      "sessions": 65,
+      "backtested_config_origin_count": 291,
+      "forecasted_config_origin_count": 129,
+      "backtested_without_production_count": 162,
+      "sessions_with_unforecasted_backtests": 63,
+      "hypothetical_extra_forecast_fits": 162,
+      "original_numerical_attempts": 1002,
+      "sessions_exceeding_60_if_added": 0,
+      "observed_config_pair_origin_count": 64,
+      "hypothetical_config_pair_origin_count": 586,
+      "observed_series_config_pairs_with_at_least_3_origins": 7,
+      "hypothetical_series_config_pairs_with_at_least_3_origins": 47
+    }
+  },
+  "rows": [
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 0,
+      "origin": "2016-08-16T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 0,
+      "origin": "2016-08-16T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "ab33ecb653037898",
+        "badffa813c1d4e0d",
+        "c7a7a31e2fa9db47",
+        "dad9469f1ab8a4ce",
+        "fad629e67119d702"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "badffa813c1d4e0d",
+        "fad629e67119d702"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "ab33ecb653037898",
+        "c7a7a31e2fa9db47",
+        "dad9469f1ab8a4ce"
+      ],
+      "original_numerical_attempts": 24,
+      "hypothetical_extra_forecast_fits": 4,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 3,
+      "hypothetical_pairs_if_all_backtested_forecasted": 21
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 0,
+      "origin": "2016-08-16T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "9827d2b47b48b72e",
+        "c7a7a31e2fa9db47",
+        "e3ddc5be16649793"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "9827d2b47b48b72e"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "c7a7a31e2fa9db47",
+        "e3ddc5be16649793"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 1,
+      "origin": "2016-08-30T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "282fcc20124e9244",
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "282fcc20124e9244",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 1,
+      "origin": "2016-08-30T00:00:00+00:00",
+      "backtested_config_ids": [
+        "45b0430039bbaa2a",
+        "5ee336af9243f066",
+        "600a4a0a2224bf26",
+        "b83d18c6e1ca606b",
+        "badffa813c1d4e0d"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "600a4a0a2224bf26",
+        "b83d18c6e1ca606b"
+      ],
+      "backtested_without_production": [
+        "45b0430039bbaa2a",
+        "badffa813c1d4e0d"
+      ],
+      "original_numerical_attempts": 18,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 3,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 1,
+      "origin": "2016-08-30T00:00:00+00:00",
+      "backtested_config_ids": [
+        "5ee336af9243f066",
+        "7e7c8878062b5286",
+        "9827d2b47b48b72e"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "9827d2b47b48b72e"
+      ],
+      "backtested_without_production": [
+        "7e7c8878062b5286"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 2,
+      "origin": "2016-09-13T00:00:00+00:00",
+      "backtested_config_ids": [
+        "282fcc20124e9244",
+        "5ee336af9243f066",
+        "dad9469f1ab8a4ce"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "dad9469f1ab8a4ce"
+      ],
+      "backtested_without_production": [
+        "282fcc20124e9244"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 2,
+      "origin": "2016-09-13T00:00:00+00:00",
+      "backtested_config_ids": [
+        "4e41e048d5d137e0",
+        "5ee336af9243f066",
+        "b83d18c6e1ca606b",
+        "badffa813c1d4e0d"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "b83d18c6e1ca606b"
+      ],
+      "backtested_without_production": [
+        "4e41e048d5d137e0",
+        "badffa813c1d4e0d"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 2,
+      "origin": "2016-09-13T00:00:00+00:00",
+      "backtested_config_ids": [
+        "3f3999609dae0266",
+        "5ee336af9243f066",
+        "7e7c8878062b5286",
+        "9827d2b47b48b72e"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "9827d2b47b48b72e"
+      ],
+      "backtested_without_production": [
+        "3f3999609dae0266",
+        "7e7c8878062b5286"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 3,
+      "origin": "2016-09-27T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [],
+      "original_numerical_attempts": 8,
+      "hypothetical_extra_forecast_fits": 0,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 1
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 3,
+      "origin": "2016-09-27T00:00:00+00:00",
+      "backtested_config_ids": [
+        "0e7c27e84da916b4",
+        "5ee336af9243f066",
+        "a5a4d29ce2dc7413",
+        "b83d18c6e1ca606b",
+        "badffa813c1d4e0d",
+        "c70b51481ce9e705"
+      ],
+      "forecasted_config_ids": [
+        "0e7c27e84da916b4",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "a5a4d29ce2dc7413",
+        "b83d18c6e1ca606b",
+        "badffa813c1d4e0d",
+        "c70b51481ce9e705"
+      ],
+      "original_numerical_attempts": 20,
+      "hypothetical_extra_forecast_fits": 4,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 15
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 3,
+      "origin": "2016-09-27T00:00:00+00:00",
+      "backtested_config_ids": [
+        "0458b141cc35a377",
+        "2b3832b5df691b69",
+        "5ee336af9243f066",
+        "5efb13c4e0462c0f",
+        "7e7c8878062b5286",
+        "9827d2b47b48b72e",
+        "a77b83b611746c84",
+        "d35ed2ecce76775c"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "5efb13c4e0462c0f"
+      ],
+      "backtested_without_production": [
+        "0458b141cc35a377",
+        "2b3832b5df691b69",
+        "7e7c8878062b5286",
+        "9827d2b47b48b72e",
+        "a77b83b611746c84",
+        "d35ed2ecce76775c"
+      ],
+      "original_numerical_attempts": 26,
+      "hypothetical_extra_forecast_fits": 6,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 28
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 4,
+      "origin": "2016-10-11T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47",
+        "dad9469f1ab8a4ce"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "c7a7a31e2fa9db47",
+        "dad9469f1ab8a4ce"
+      ],
+      "original_numerical_attempts": 13,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 0,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 4,
+      "origin": "2016-10-11T00:00:00+00:00",
+      "backtested_config_ids": [
+        "0e7c27e84da916b4",
+        "5ee336af9243f066",
+        "b83d18c6e1ca606b",
+        "badffa813c1d4e0d"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "b83d18c6e1ca606b"
+      ],
+      "backtested_without_production": [
+        "0e7c27e84da916b4",
+        "badffa813c1d4e0d"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 4,
+      "origin": "2016-10-11T00:00:00+00:00",
+      "backtested_config_ids": [
+        "4568ccc08588ff65",
+        "480acb6232a82265",
+        "5e39c98eab372674",
+        "5ee336af9243f066",
+        "7e7c8878062b5286",
+        "87aae5c329241c9d",
+        "9827d2b47b48b72e",
+        "a070380f4b3962fd"
+      ],
+      "forecasted_config_ids": [
+        "5e39c98eab372674",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "4568ccc08588ff65",
+        "480acb6232a82265",
+        "7e7c8878062b5286",
+        "87aae5c329241c9d",
+        "9827d2b47b48b72e",
+        "a070380f4b3962fd"
+      ],
+      "original_numerical_attempts": 26,
+      "hypothetical_extra_forecast_fits": 6,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 28
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 5,
+      "origin": "2016-10-25T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "29a2f9eaf6467062",
+        "5ee336af9243f066",
+        "8f9c5f473c244f4e",
+        "dad9469f1ab8a4ce"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "8f9c5f473c244f4e"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "29a2f9eaf6467062",
+        "dad9469f1ab8a4ce"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 5,
+      "origin": "2016-10-25T00:00:00+00:00",
+      "backtested_config_ids": [
+        "5ee336af9243f066",
+        "badffa813c1d4e0d"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "badffa813c1d4e0d"
+      ],
+      "original_numerical_attempts": 7,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 0,
+      "hypothetical_pairs_if_all_backtested_forecasted": 1
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 5,
+      "origin": "2016-10-25T00:00:00+00:00",
+      "backtested_config_ids": [
+        "068b05c6ceeacb55",
+        "5ee336af9243f066",
+        "8c818e6541003918",
+        "9827d2b47b48b72e",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "8c818e6541003918"
+      ],
+      "backtested_without_production": [
+        "068b05c6ceeacb55",
+        "9827d2b47b48b72e",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 6,
+      "origin": "2016-11-08T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "221b35eed2a5d209",
+        "282fcc20124e9244",
+        "5ee336af9243f066",
+        "6483a97739e1c4f4",
+        "8f9c5f473c244f4e",
+        "c1db64c903a9ebe1",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "c1db64c903a9ebe1"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "221b35eed2a5d209",
+        "282fcc20124e9244",
+        "6483a97739e1c4f4",
+        "8f9c5f473c244f4e",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 26,
+      "hypothetical_extra_forecast_fits": 6,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 28
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 6,
+      "origin": "2016-11-08T00:00:00+00:00",
+      "backtested_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [],
+      "original_numerical_attempts": 4,
+      "hypothetical_extra_forecast_fits": 0,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 0,
+      "hypothetical_pairs_if_all_backtested_forecasted": 0
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 6,
+      "origin": "2016-11-08T00:00:00+00:00",
+      "backtested_config_ids": [
+        "4568ccc08588ff65",
+        "5ee336af9243f066",
+        "8c818e6541003918",
+        "9827d2b47b48b72e",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "4568ccc08588ff65",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "8c818e6541003918",
+        "9827d2b47b48b72e",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 7,
+      "origin": "2016-11-22T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [],
+      "original_numerical_attempts": 8,
+      "hypothetical_extra_forecast_fits": 0,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 1
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 7,
+      "origin": "2016-11-22T00:00:00+00:00",
+      "backtested_config_ids": [
+        "5ee336af9243f066",
+        "b83d18c6e1ca606b",
+        "dad9469f1ab8a4ce",
+        "fad629e67119d702"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "fad629e67119d702"
+      ],
+      "backtested_without_production": [
+        "b83d18c6e1ca606b",
+        "dad9469f1ab8a4ce"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 7,
+      "origin": "2016-11-22T00:00:00+00:00",
+      "backtested_config_ids": [
+        "4568ccc08588ff65",
+        "5ee336af9243f066",
+        "9827d2b47b48b72e",
+        "98944f38ac20eb9d",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "4568ccc08588ff65",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "9827d2b47b48b72e",
+        "98944f38ac20eb9d",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 8,
+      "origin": "2016-12-06T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "dad9469f1ab8a4ce"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "dad9469f1ab8a4ce"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 8,
+      "origin": "2016-12-06T00:00:00+00:00",
+      "backtested_config_ids": [
+        "5ee336af9243f066",
+        "9827d2b47b48b72e",
+        "b83d18c6e1ca606b",
+        "badffa813c1d4e0d",
+        "e1c6bc26b450344d"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "9827d2b47b48b72e"
+      ],
+      "backtested_without_production": [
+        "b83d18c6e1ca606b",
+        "badffa813c1d4e0d",
+        "e1c6bc26b450344d"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 8,
+      "origin": "2016-12-06T00:00:00+00:00",
+      "backtested_config_ids": [
+        "4568ccc08588ff65",
+        "52b1ac5596c56103",
+        "5ee336af9243f066",
+        "9827d2b47b48b72e",
+        "c7a7a31e2fa9db47",
+        "f7e9dfb9ccb13449"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "backtested_without_production": [
+        "4568ccc08588ff65",
+        "52b1ac5596c56103",
+        "9827d2b47b48b72e",
+        "f7e9dfb9ccb13449"
+      ],
+      "original_numerical_attempts": 20,
+      "hypothetical_extra_forecast_fits": 4,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 15
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 9,
+      "origin": "2016-12-20T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "282fcc20124e9244",
+        "52b1ac5596c56103",
+        "5ee336af9243f066",
+        "7e7c8878062b5286",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "52b1ac5596c56103",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "282fcc20124e9244",
+        "7e7c8878062b5286",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 20,
+      "hypothetical_extra_forecast_fits": 4,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 15
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 9,
+      "origin": "2016-12-20T00:00:00+00:00",
+      "backtested_config_ids": [
+        "5ee336af9243f066",
+        "b83d18c6e1ca606b",
+        "badffa813c1d4e0d",
+        "dad9469f1ab8a4ce",
+        "fad629e67119d702"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "dad9469f1ab8a4ce"
+      ],
+      "backtested_without_production": [
+        "b83d18c6e1ca606b",
+        "badffa813c1d4e0d",
+        "fad629e67119d702"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 9,
+      "origin": "2016-12-20T00:00:00+00:00",
+      "backtested_config_ids": [
+        "5ee336af9243f066",
+        "9827d2b47b48b72e",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "backtested_without_production": [
+        "9827d2b47b48b72e"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 10,
+      "origin": "2017-01-03T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [],
+      "original_numerical_attempts": 8,
+      "hypothetical_extra_forecast_fits": 0,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 1
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 10,
+      "origin": "2017-01-03T00:00:00+00:00",
+      "backtested_config_ids": [
+        "0e7c27e84da916b4",
+        "5ee336af9243f066",
+        "7e7c8878062b5286",
+        "9973b8be26758430",
+        "b83d18c6e1ca606b",
+        "badffa813c1d4e0d"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "7e7c8878062b5286"
+      ],
+      "backtested_without_production": [
+        "0e7c27e84da916b4",
+        "9973b8be26758430",
+        "b83d18c6e1ca606b",
+        "badffa813c1d4e0d"
+      ],
+      "original_numerical_attempts": 20,
+      "hypothetical_extra_forecast_fits": 4,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 15
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 10,
+      "origin": "2017-01-03T00:00:00+00:00",
+      "backtested_config_ids": [
+        "4568ccc08588ff65",
+        "52b1ac5596c56103",
+        "5ee336af9243f066",
+        "9827d2b47b48b72e",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "backtested_without_production": [
+        "4568ccc08588ff65",
+        "52b1ac5596c56103",
+        "9827d2b47b48b72e"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 11,
+      "origin": "2017-01-17T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "282fcc20124e9244",
+        "52b1ac5596c56103",
+        "5ee336af9243f066",
+        "a7319ab3b571caba",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "282fcc20124e9244",
+        "52b1ac5596c56103",
+        "a7319ab3b571caba"
+      ],
+      "original_numerical_attempts": 20,
+      "hypothetical_extra_forecast_fits": 4,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 15
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 11,
+      "origin": "2017-01-17T00:00:00+00:00",
+      "backtested_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [],
+      "original_numerical_attempts": 4,
+      "hypothetical_extra_forecast_fits": 0,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 0,
+      "hypothetical_pairs_if_all_backtested_forecasted": 0
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 11,
+      "origin": "2017-01-17T00:00:00+00:00",
+      "backtested_config_ids": [
+        "4568ccc08588ff65",
+        "5ee336af9243f066",
+        "9827d2b47b48b72e",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "backtested_without_production": [
+        "4568ccc08588ff65",
+        "9827d2b47b48b72e"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 12,
+      "origin": "2017-01-31T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "282fcc20124e9244",
+        "3865957a478117e9",
+        "5ee336af9243f066",
+        "8d2f9dbe780b7f75",
+        "c70b51481ce9e705",
+        "c7a7a31e2fa9db47",
+        "d697af36c186fcc1"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "8d2f9dbe780b7f75"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "282fcc20124e9244",
+        "3865957a478117e9",
+        "c70b51481ce9e705",
+        "c7a7a31e2fa9db47",
+        "d697af36c186fcc1"
+      ],
+      "original_numerical_attempts": 26,
+      "hypothetical_extra_forecast_fits": 6,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 28
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 12,
+      "origin": "2017-01-31T00:00:00+00:00",
+      "backtested_config_ids": [
+        "2a65062ca5c97964",
+        "5ee336af9243f066",
+        "dad9469f1ab8a4ce"
+      ],
+      "forecasted_config_ids": [
+        "2a65062ca5c97964",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "dad9469f1ab8a4ce"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 12,
+      "origin": "2017-01-31T00:00:00+00:00",
+      "backtested_config_ids": [
+        "5ee336af9243f066",
+        "8c818e6541003918",
+        "8d2f9dbe780b7f75",
+        "9827d2b47b48b72e",
+        "c70b51481ce9e705",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "8d2f9dbe780b7f75"
+      ],
+      "backtested_without_production": [
+        "8c818e6541003918",
+        "9827d2b47b48b72e",
+        "c70b51481ce9e705",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 20,
+      "hypothetical_extra_forecast_fits": 4,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 15
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 13,
+      "origin": "2017-02-14T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "52b1ac5596c56103",
+        "5ee336af9243f066",
+        "63172a8addc3ba7b",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "1cce6ffe78ec6fe6",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "52b1ac5596c56103",
+        "63172a8addc3ba7b",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 20,
+      "hypothetical_extra_forecast_fits": 4,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 15
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 13,
+      "origin": "2017-02-14T00:00:00+00:00",
+      "backtested_config_ids": [
+        "2a65062ca5c97964",
+        "5ee336af9243f066",
+        "b83d18c6e1ca606b",
+        "badffa813c1d4e0d"
+      ],
+      "forecasted_config_ids": [
+        "2a65062ca5c97964",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "b83d18c6e1ca606b",
+        "badffa813c1d4e0d"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 13,
+      "origin": "2017-02-14T00:00:00+00:00",
+      "backtested_config_ids": [
+        "05a0f36713b56b19",
+        "4568ccc08588ff65",
+        "5ee336af9243f066",
+        "9827d2b47b48b72e",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "9827d2b47b48b72e"
+      ],
+      "backtested_without_production": [
+        "05a0f36713b56b19",
+        "4568ccc08588ff65",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 14,
+      "origin": "2017-02-28T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "282fcc20124e9244",
+        "3dc36f77ed04e304",
+        "52b1ac5596c56103",
+        "5ee336af9243f066",
+        "8d2f9dbe780b7f75",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "8d2f9dbe780b7f75"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "282fcc20124e9244",
+        "3dc36f77ed04e304",
+        "52b1ac5596c56103",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 23,
+      "hypothetical_extra_forecast_fits": 5,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 21
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 14,
+      "origin": "2017-02-28T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "2a65062ca5c97964",
+        "4e41e048d5d137e0",
+        "5ee336af9243f066",
+        "a7319ab3b571caba",
+        "dad9469f1ab8a4ce"
+      ],
+      "forecasted_config_ids": [
+        "4e41e048d5d137e0",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "2a65062ca5c97964",
+        "a7319ab3b571caba",
+        "dad9469f1ab8a4ce"
+      ],
+      "original_numerical_attempts": 20,
+      "hypothetical_extra_forecast_fits": 4,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 15
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 14,
+      "origin": "2017-02-28T00:00:00+00:00",
+      "backtested_config_ids": [
+        "05a0f36713b56b19",
+        "5ee336af9243f066",
+        "60b8f52fd35a6d29",
+        "7185e2f665759f9f",
+        "9827d2b47b48b72e",
+        "c7a7a31e2fa9db47",
+        "e1c6bc26b450344d"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "9827d2b47b48b72e"
+      ],
+      "backtested_without_production": [
+        "05a0f36713b56b19",
+        "60b8f52fd35a6d29",
+        "7185e2f665759f9f",
+        "c7a7a31e2fa9db47",
+        "e1c6bc26b450344d"
+      ],
+      "original_numerical_attempts": 23,
+      "hypothetical_extra_forecast_fits": 5,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 21
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 15,
+      "origin": "2017-03-14T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "05a0f36713b56b19",
+        "5ee336af9243f066",
+        "63172a8addc3ba7b",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "05a0f36713b56b19",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "63172a8addc3ba7b",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 15,
+      "origin": "2017-03-14T00:00:00+00:00",
+      "backtested_config_ids": [
+        "2a65062ca5c97964",
+        "5ee336af9243f066",
+        "9827d2b47b48b72e",
+        "dad9469f1ab8a4ce"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "9827d2b47b48b72e"
+      ],
+      "backtested_without_production": [
+        "2a65062ca5c97964",
+        "dad9469f1ab8a4ce"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 15,
+      "origin": "2017-03-14T00:00:00+00:00",
+      "backtested_config_ids": [
+        "05a0f36713b56b19",
+        "492e6d5663de5a5a",
+        "4e41e048d5d137e0",
+        "5ee336af9243f066",
+        "8c818e6541003918",
+        "9827d2b47b48b72e",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "9827d2b47b48b72e"
+      ],
+      "backtested_without_production": [
+        "05a0f36713b56b19",
+        "492e6d5663de5a5a",
+        "4e41e048d5d137e0",
+        "8c818e6541003918",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 23,
+      "hypothetical_extra_forecast_fits": 5,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 21
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 16,
+      "origin": "2017-03-28T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 16,
+      "origin": "2017-03-28T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "2a65062ca5c97964",
+        "492e6d5663de5a5a",
+        "5ee336af9243f066",
+        "9827d2b47b48b72e",
+        "c7f47955a78f26d4"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "9827d2b47b48b72e"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "2a65062ca5c97964",
+        "492e6d5663de5a5a",
+        "c7f47955a78f26d4"
+      ],
+      "original_numerical_attempts": 20,
+      "hypothetical_extra_forecast_fits": 4,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 15
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 16,
+      "origin": "2017-03-28T00:00:00+00:00",
+      "backtested_config_ids": [
+        "492e6d5663de5a5a",
+        "52b1ac5596c56103",
+        "5ee336af9243f066",
+        "9827d2b47b48b72e"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "9827d2b47b48b72e"
+      ],
+      "backtested_without_production": [
+        "492e6d5663de5a5a",
+        "52b1ac5596c56103"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 17,
+      "origin": "2017-04-11T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "52b1ac5596c56103",
+        "5ee336af9243f066",
+        "8f9c5f473c244f4e",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "1cce6ffe78ec6fe6",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "52b1ac5596c56103",
+        "8f9c5f473c244f4e",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 20,
+      "hypothetical_extra_forecast_fits": 4,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 15
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 17,
+      "origin": "2017-04-11T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "9827d2b47b48b72e",
+        "b83d18c6e1ca606b"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "9827d2b47b48b72e"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "b83d18c6e1ca606b"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 17,
+      "origin": "2017-04-11T00:00:00+00:00",
+      "backtested_config_ids": [
+        "3865957a478117e9",
+        "492e6d5663de5a5a",
+        "5ee336af9243f066",
+        "7185e2f665759f9f",
+        "9827d2b47b48b72e",
+        "c7a7a31e2fa9db47",
+        "dc7950beb9e1f342"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "7185e2f665759f9f"
+      ],
+      "backtested_without_production": [
+        "3865957a478117e9",
+        "492e6d5663de5a5a",
+        "9827d2b47b48b72e",
+        "c7a7a31e2fa9db47",
+        "dc7950beb9e1f342"
+      ],
+      "original_numerical_attempts": 23,
+      "hypothetical_extra_forecast_fits": 5,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 21
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 18,
+      "origin": "2017-04-25T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "282fcc20124e9244",
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47",
+        "dad9469f1ab8a4ce"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "dad9469f1ab8a4ce"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "282fcc20124e9244",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 18,
+      "origin": "2017-04-25T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "7e7c8878062b5286",
+        "9827d2b47b48b72e"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "9827d2b47b48b72e"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "7e7c8878062b5286"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 18,
+      "origin": "2017-04-25T00:00:00+00:00",
+      "backtested_config_ids": [
+        "5ee336af9243f066",
+        "9827d2b47b48b72e",
+        "c7a7a31e2fa9db47",
+        "dad9469f1ab8a4ce"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "9827d2b47b48b72e"
+      ],
+      "backtested_without_production": [
+        "c7a7a31e2fa9db47",
+        "dad9469f1ab8a4ce"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 19,
+      "origin": "2017-05-09T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "282fcc20124e9244",
+        "52b1ac5596c56103",
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "52b1ac5596c56103",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "282fcc20124e9244",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 19,
+      "origin": "2017-05-09T00:00:00+00:00",
+      "backtested_config_ids": [
+        "2a65062ca5c97964",
+        "4e41e048d5d137e0",
+        "5ee336af9243f066",
+        "9827d2b47b48b72e"
+      ],
+      "forecasted_config_ids": [
+        "2a65062ca5c97964",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "4e41e048d5d137e0",
+        "9827d2b47b48b72e"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 19,
+      "origin": "2017-05-09T00:00:00+00:00",
+      "backtested_config_ids": [
+        "0e7c27e84da916b4",
+        "5ee336af9243f066",
+        "8d2f9dbe780b7f75",
+        "9827d2b47b48b72e",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "0e7c27e84da916b4",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "8d2f9dbe780b7f75",
+        "9827d2b47b48b72e",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 20,
+      "origin": "2017-05-23T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "282fcc20124e9244",
+        "4e41e048d5d137e0",
+        "52b1ac5596c56103",
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "52b1ac5596c56103",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "282fcc20124e9244",
+        "4e41e048d5d137e0",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 20,
+      "hypothetical_extra_forecast_fits": 4,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 15
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 20,
+      "origin": "2017-05-23T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "0e7c27e84da916b4",
+        "5ee336af9243f066",
+        "7e7c8878062b5286",
+        "9827d2b47b48b72e"
+      ],
+      "forecasted_config_ids": [
+        "0e7c27e84da916b4",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "7e7c8878062b5286",
+        "9827d2b47b48b72e"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 20,
+      "origin": "2017-05-23T00:00:00+00:00",
+      "backtested_config_ids": [
+        "0e7c27e84da916b4",
+        "52b1ac5596c56103",
+        "5391551d1e755fdf",
+        "5ee336af9243f066",
+        "7185e2f665759f9f",
+        "9827d2b47b48b72e",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "52b1ac5596c56103",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "0e7c27e84da916b4",
+        "5391551d1e755fdf",
+        "7185e2f665759f9f",
+        "9827d2b47b48b72e",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 23,
+      "hypothetical_extra_forecast_fits": 5,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 21
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 21,
+      "origin": "2017-06-06T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "52b1ac5596c56103",
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "52b1ac5596c56103"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 21,
+      "origin": "2017-06-06T00:00:00+00:00",
+      "backtested_config_ids": [
+        "5ee336af9243f066",
+        "dad9469f1ab8a4ce"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "dad9469f1ab8a4ce"
+      ],
+      "backtested_without_production": [],
+      "original_numerical_attempts": 8,
+      "hypothetical_extra_forecast_fits": 0,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 1
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 21,
+      "origin": "2017-06-06T00:00:00+00:00",
+      "backtested_config_ids": [
+        "0e7c27e84da916b4",
+        "1cce6ffe78ec6fe6",
+        "52b1ac5596c56103",
+        "58449a6362ebe389",
+        "5ee336af9243f066",
+        "7e7c8878062b5286",
+        "9827d2b47b48b72e",
+        "c3e70a3c91f9075b",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "1cce6ffe78ec6fe6",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "0e7c27e84da916b4",
+        "52b1ac5596c56103",
+        "58449a6362ebe389",
+        "7e7c8878062b5286",
+        "9827d2b47b48b72e",
+        "c3e70a3c91f9075b",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 29,
+      "hypothetical_extra_forecast_fits": 7,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 36
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 22,
+      "origin": "2017-06-20T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 22,
+      "origin": "2017-06-20T00:00:00+00:00",
+      "backtested_config_ids": [
+        "4e41e048d5d137e0",
+        "5ee336af9243f066",
+        "740a013bebeb1d52",
+        "a7319ab3b571caba",
+        "dad9469f1ab8a4ce"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "a7319ab3b571caba"
+      ],
+      "backtested_without_production": [
+        "4e41e048d5d137e0",
+        "740a013bebeb1d52",
+        "dad9469f1ab8a4ce"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 22,
+      "origin": "2017-06-20T00:00:00+00:00",
+      "backtested_config_ids": [
+        "0e7c27e84da916b4",
+        "52b1ac5596c56103",
+        "5ee336af9243f066",
+        "9827d2b47b48b72e"
+      ],
+      "forecasted_config_ids": [
+        "0e7c27e84da916b4",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "52b1ac5596c56103",
+        "9827d2b47b48b72e"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 23,
+      "origin": "2017-07-04T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "52b1ac5596c56103",
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "52b1ac5596c56103"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 23,
+      "origin": "2017-07-04T00:00:00+00:00",
+      "backtested_config_ids": [
+        "5ee336af9243f066",
+        "600a4a0a2224bf26",
+        "a1bcf0b0964b2442",
+        "b83d18c6e1ca606b",
+        "badffa813c1d4e0d",
+        "e1c6bc26b450344d"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "b83d18c6e1ca606b"
+      ],
+      "backtested_without_production": [
+        "600a4a0a2224bf26",
+        "a1bcf0b0964b2442",
+        "badffa813c1d4e0d",
+        "e1c6bc26b450344d"
+      ],
+      "original_numerical_attempts": 20,
+      "hypothetical_extra_forecast_fits": 4,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 15
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 23,
+      "origin": "2017-07-04T00:00:00+00:00",
+      "backtested_config_ids": [
+        "52b1ac5596c56103",
+        "5ee336af9243f066",
+        "9827d2b47b48b72e"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "9827d2b47b48b72e"
+      ],
+      "backtested_without_production": [
+        "52b1ac5596c56103"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 24,
+      "origin": "2017-07-18T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "05a0f36713b56b19",
+        "4e41e048d5d137e0",
+        "5ee336af9243f066",
+        "b8b6fe650551e813",
+        "c7a7a31e2fa9db47",
+        "dad9469f1ab8a4ce"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "b8b6fe650551e813"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "05a0f36713b56b19",
+        "4e41e048d5d137e0",
+        "c7a7a31e2fa9db47",
+        "dad9469f1ab8a4ce"
+      ],
+      "original_numerical_attempts": 23,
+      "hypothetical_extra_forecast_fits": 5,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 21
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 24,
+      "origin": "2017-07-18T00:00:00+00:00",
+      "backtested_config_ids": [
+        "05a0f36713b56b19",
+        "5ee336af9243f066",
+        "a7319ab3b571caba",
+        "c035223b9f7d67fd",
+        "dad9469f1ab8a4ce",
+        "e1c6bc26b450344d"
+      ],
+      "forecasted_config_ids": [
+        "05a0f36713b56b19",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "a7319ab3b571caba",
+        "c035223b9f7d67fd",
+        "dad9469f1ab8a4ce",
+        "e1c6bc26b450344d"
+      ],
+      "original_numerical_attempts": 20,
+      "hypothetical_extra_forecast_fits": 4,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 15
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 24,
+      "origin": "2017-07-18T00:00:00+00:00",
+      "backtested_config_ids": [
+        "0e7c27e84da916b4",
+        "52b1ac5596c56103",
+        "5ee336af9243f066",
+        "7185e2f665759f9f",
+        "9827d2b47b48b72e"
+      ],
+      "forecasted_config_ids": [
+        "52b1ac5596c56103",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "0e7c27e84da916b4",
+        "7185e2f665759f9f",
+        "9827d2b47b48b72e"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 25,
+      "origin": "2017-08-01T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "05a0f36713b56b19",
+        "5ee336af9243f066",
+        "63172a8addc3ba7b",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "05a0f36713b56b19",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "63172a8addc3ba7b",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 25,
+      "origin": "2017-08-01T00:00:00+00:00",
+      "backtested_config_ids": [
+        "05a0f36713b56b19",
+        "0e7c27e84da916b4",
+        "19cdf96e1a691933",
+        "5ee336af9243f066",
+        "9827d2b47b48b72e",
+        "b16d912e0d413aab",
+        "b23b5efe13216618",
+        "b83d18c6e1ca606b",
+        "b8b6fe650551e813"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "b16d912e0d413aab"
+      ],
+      "backtested_without_production": [
+        "05a0f36713b56b19",
+        "0e7c27e84da916b4",
+        "19cdf96e1a691933",
+        "9827d2b47b48b72e",
+        "b23b5efe13216618",
+        "b83d18c6e1ca606b",
+        "b8b6fe650551e813"
+      ],
+      "original_numerical_attempts": 29,
+      "hypothetical_extra_forecast_fits": 7,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 36
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 25,
+      "origin": "2017-08-01T00:00:00+00:00",
+      "backtested_config_ids": [
+        "2a65062ca5c97964",
+        "52b1ac5596c56103",
+        "5ee336af9243f066",
+        "7e7c8878062b5286",
+        "9827d2b47b48b72e"
+      ],
+      "forecasted_config_ids": [
+        "52b1ac5596c56103",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "2a65062ca5c97964",
+        "7e7c8878062b5286",
+        "9827d2b47b48b72e"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 0,
+      "origin": "2016-08-16T00:00:00+00:00",
+      "backtested_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [],
+      "original_numerical_attempts": 4,
+      "hypothetical_extra_forecast_fits": 0,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 0,
+      "hypothetical_pairs_if_all_backtested_forecasted": 0
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 0,
+      "origin": "2016-08-16T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "282fcc20124e9244",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "282fcc20124e9244"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 0,
+      "origin": "2016-08-16T00:00:00+00:00",
+      "backtested_config_ids": [
+        "0023e07aa55166e2",
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "b508b90f44a42de6",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "0023e07aa55166e2",
+        "b508b90f44a42de6",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 1,
+      "origin": "2016-08-30T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "3f3999609dae0266",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "1cce6ffe78ec6fe6",
+        "3f3999609dae0266"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 1,
+      "origin": "2016-08-30T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "068b05c6ceeacb55",
+        "1cce6ffe78ec6fe6",
+        "282fcc20124e9244",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "068b05c6ceeacb55",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "282fcc20124e9244"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 1,
+      "origin": "2016-08-30T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "1cce6ffe78ec6fe6"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 2,
+      "origin": "2016-09-13T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "282fcc20124e9244",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "1cce6ffe78ec6fe6",
+        "282fcc20124e9244"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 2,
+      "origin": "2016-09-13T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "282fcc20124e9244",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "1cce6ffe78ec6fe6",
+        "282fcc20124e9244"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 2,
+      "origin": "2016-09-13T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "282fcc20124e9244",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "1cce6ffe78ec6fe6",
+        "282fcc20124e9244"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 3,
+      "origin": "2016-09-27T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "282fcc20124e9244",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "282fcc20124e9244"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 3,
+      "origin": "2016-09-27T00:00:00+00:00",
+      "backtested_config_ids": [
+        "282fcc20124e9244",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "282fcc20124e9244",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [],
+      "original_numerical_attempts": 8,
+      "hypothetical_extra_forecast_fits": 0,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 1
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 3,
+      "origin": "2016-09-27T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "3f3999609dae0266",
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "3f3999609dae0266",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 4,
+      "origin": "2016-10-11T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "3f3999609dae0266",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "1cce6ffe78ec6fe6",
+        "3f3999609dae0266"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 4,
+      "origin": "2016-10-11T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "282fcc20124e9244",
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "282fcc20124e9244",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 4,
+      "origin": "2016-10-11T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [],
+      "original_numerical_attempts": 8,
+      "hypothetical_extra_forecast_fits": 0,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 1
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 5,
+      "origin": "2016-10-25T00:00:00+00:00",
+      "backtested_config_ids": [
+        "5ee336af9243f066",
+        "9827d2b47b48b72e"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "9827d2b47b48b72e"
+      ],
+      "backtested_without_production": [],
+      "original_numerical_attempts": 8,
+      "hypothetical_extra_forecast_fits": 0,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 1
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 5,
+      "origin": "2016-10-25T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "221b35eed2a5d209",
+        "282fcc20124e9244",
+        "5ee336af9243f066",
+        "6483a97739e1c4f4"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "6483a97739e1c4f4"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "221b35eed2a5d209",
+        "282fcc20124e9244"
+      ],
+      "original_numerical_attempts": 20,
+      "hypothetical_extra_forecast_fits": 4,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 15
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 5,
+      "origin": "2016-10-25T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 6,
+      "origin": "2016-11-08T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "9827d2b47b48b72e"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "9827d2b47b48b72e"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 6,
+      "origin": "2016-11-08T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "05a0f36713b56b19",
+        "10b92ef135624402",
+        "5ee336af9243f066",
+        "b16d912e0d413aab",
+        "b8b6fe650551e813"
+      ],
+      "forecasted_config_ids": [
+        "05a0f36713b56b19",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "10b92ef135624402",
+        "b16d912e0d413aab",
+        "b8b6fe650551e813"
+      ],
+      "original_numerical_attempts": 20,
+      "hypothetical_extra_forecast_fits": 4,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 15
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 6,
+      "origin": "2016-11-08T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "1cce6ffe78ec6fe6"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 7,
+      "origin": "2016-11-22T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "3f3999609dae0266",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "1cce6ffe78ec6fe6",
+        "3f3999609dae0266"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 7,
+      "origin": "2016-11-22T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "221b35eed2a5d209",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "221b35eed2a5d209"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 7,
+      "origin": "2016-11-22T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "05a0f36713b56b19",
+        "5ee336af9243f066",
+        "93756bc2cfca137b",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "93756bc2cfca137b"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "05a0f36713b56b19",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 8,
+      "origin": "2016-12-06T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "1cce6ffe78ec6fe6"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 8,
+      "origin": "2016-12-06T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "05a0f36713b56b19",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "05a0f36713b56b19",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 8,
+      "origin": "2016-12-06T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "93756bc2cfca137b",
+        "d697af36c186fcc1"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "93756bc2cfca137b"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "d697af36c186fcc1"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 9,
+      "origin": "2016-12-20T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [],
+      "original_numerical_attempts": 8,
+      "hypothetical_extra_forecast_fits": 0,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 1
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 9,
+      "origin": "2016-12-20T00:00:00+00:00",
+      "backtested_config_ids": [
+        "1cce6ffe78ec6fe6",
+        "221b35eed2a5d209",
+        "5ee336af9243f066",
+        "8f9c5f473c244f4e",
+        "b16d912e0d413aab"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "8f9c5f473c244f4e"
+      ],
+      "backtested_without_production": [
+        "1cce6ffe78ec6fe6",
+        "221b35eed2a5d209",
+        "b16d912e0d413aab"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 9,
+      "origin": "2016-12-20T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "5ee336af9243f066",
+        "93756bc2cfca137b"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "1cce6ffe78ec6fe6",
+        "93756bc2cfca137b"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 10,
+      "origin": "2017-01-03T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "1cce6ffe78ec6fe6"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 10,
+      "origin": "2017-01-03T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "1cce6ffe78ec6fe6"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 10,
+      "origin": "2017-01-03T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "05a0f36713b56b19",
+        "5ee336af9243f066",
+        "93756bc2cfca137b",
+        "d697af36c186fcc1"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "93756bc2cfca137b"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "05a0f36713b56b19",
+        "d697af36c186fcc1"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 11,
+      "origin": "2017-01-17T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "5ee336af9243f066",
+        "fad629e67119d702"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "fad629e67119d702"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 11,
+      "origin": "2017-01-17T00:00:00+00:00",
+      "backtested_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [],
+      "original_numerical_attempts": 4,
+      "hypothetical_extra_forecast_fits": 0,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 0,
+      "hypothetical_pairs_if_all_backtested_forecasted": 0
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 11,
+      "origin": "2017-01-17T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "5ee336af9243f066",
+        "93756bc2cfca137b"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "93756bc2cfca137b"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 12,
+      "origin": "2017-01-31T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "282fcc20124e9244",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "1cce6ffe78ec6fe6",
+        "282fcc20124e9244"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 12,
+      "origin": "2017-01-31T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [],
+      "original_numerical_attempts": 8,
+      "hypothetical_extra_forecast_fits": 0,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 1
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 12,
+      "origin": "2017-01-31T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "93756bc2cfca137b",
+        "d697af36c186fcc1"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "93756bc2cfca137b",
+        "d697af36c186fcc1"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 13,
+      "origin": "2017-02-14T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "282fcc20124e9244",
+        "3f3999609dae0266",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "1cce6ffe78ec6fe6",
+        "282fcc20124e9244",
+        "3f3999609dae0266"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 13,
+      "origin": "2017-02-14T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "068b05c6ceeacb55",
+        "1cce6ffe78ec6fe6",
+        "282fcc20124e9244",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "068b05c6ceeacb55",
+        "1cce6ffe78ec6fe6",
+        "282fcc20124e9244"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 13,
+      "origin": "2017-02-14T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "93756bc2cfca137b"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "93756bc2cfca137b"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 14,
+      "origin": "2017-02-28T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "1cce6ffe78ec6fe6"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 14,
+      "origin": "2017-02-28T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "05a0f36713b56b19",
+        "5ee336af9243f066",
+        "76759dc457ba2660",
+        "8f9c5f473c244f4e",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "8f9c5f473c244f4e"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "05a0f36713b56b19",
+        "76759dc457ba2660",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 20,
+      "hypothetical_extra_forecast_fits": 4,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 15
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 14,
+      "origin": "2017-02-28T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "5ee336af9243f066",
+        "93756bc2cfca137b"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "1cce6ffe78ec6fe6",
+        "93756bc2cfca137b"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 15,
+      "origin": "2017-03-14T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "1cce6ffe78ec6fe6"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 15,
+      "origin": "2017-03-14T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "8f9c5f473c244f4e"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "8f9c5f473c244f4e"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 15,
+      "origin": "2017-03-14T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "1cce6ffe78ec6fe6"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 16,
+      "origin": "2017-03-28T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "5ee336af9243f066",
+        "9827d2b47b48b72e"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "1cce6ffe78ec6fe6",
+        "9827d2b47b48b72e"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 16,
+      "origin": "2017-03-28T00:00:00+00:00",
+      "backtested_config_ids": [
+        "0023e07aa55166e2",
+        "02279b66149d6867",
+        "05a0f36713b56b19",
+        "5ee336af9243f066",
+        "6483a97739e1c4f4",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "0023e07aa55166e2",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "05a0f36713b56b19",
+        "6483a97739e1c4f4",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 20,
+      "hypothetical_extra_forecast_fits": 4,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 15
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 16,
+      "origin": "2017-03-28T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "1cce6ffe78ec6fe6"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 17,
+      "origin": "2017-04-11T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "29a2f9eaf6467062",
+        "5ee336af9243f066",
+        "9827d2b47b48b72e"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "29a2f9eaf6467062",
+        "9827d2b47b48b72e"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 17,
+      "origin": "2017-04-11T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "05a0f36713b56b19",
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "05a0f36713b56b19",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 17,
+      "origin": "2017-04-11T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 18,
+      "origin": "2017-04-25T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "b508b90f44a42de6",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "b508b90f44a42de6",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 18,
+      "origin": "2017-04-25T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "05a0f36713b56b19",
+        "221b35eed2a5d209",
+        "5ee336af9243f066",
+        "8f9c5f473c244f4e",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "05a0f36713b56b19",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "221b35eed2a5d209",
+        "8f9c5f473c244f4e",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 20,
+      "hypothetical_extra_forecast_fits": 4,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 15
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 18,
+      "origin": "2017-04-25T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "93756bc2cfca137b",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "93756bc2cfca137b",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 19,
+      "origin": "2017-05-09T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "5ee336af9243f066",
+        "cc64ba131bc52d77"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "1cce6ffe78ec6fe6",
+        "cc64ba131bc52d77"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 19,
+      "origin": "2017-05-09T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "282fcc20124e9244",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "282fcc20124e9244",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 19,
+      "origin": "2017-05-09T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [],
+      "original_numerical_attempts": 8,
+      "hypothetical_extra_forecast_fits": 0,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 1
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 20,
+      "origin": "2017-05-23T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "1cce6ffe78ec6fe6"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 20,
+      "origin": "2017-05-23T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "282fcc20124e9244",
+        "5ee336af9243f066",
+        "7e92de576e73d368"
+      ],
+      "forecasted_config_ids": [
+        "282fcc20124e9244",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "7e92de576e73d368"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 20,
+      "origin": "2017-05-23T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "93756bc2cfca137b",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "93756bc2cfca137b"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 21,
+      "origin": "2017-06-06T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [],
+      "original_numerical_attempts": 8,
+      "hypothetical_extra_forecast_fits": 0,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 1
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 21,
+      "origin": "2017-06-06T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "10b92ef135624402",
+        "282fcc20124e9244",
+        "5ee336af9243f066",
+        "7e92de576e73d368",
+        "a1bcf0b0964b2442"
+      ],
+      "forecasted_config_ids": [
+        "282fcc20124e9244",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "10b92ef135624402",
+        "7e92de576e73d368",
+        "a1bcf0b0964b2442"
+      ],
+      "original_numerical_attempts": 20,
+      "hypothetical_extra_forecast_fits": 4,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 15
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 21,
+      "origin": "2017-06-06T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "93756bc2cfca137b",
+        "d697af36c186fcc1"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "d697af36c186fcc1"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "93756bc2cfca137b"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 22,
+      "origin": "2017-06-20T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "29a2f9eaf6467062",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "29a2f9eaf6467062"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 22,
+      "origin": "2017-06-20T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "282fcc20124e9244",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "282fcc20124e9244",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 22,
+      "origin": "2017-06-20T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "93756bc2cfca137b",
+        "c7a7a31e2fa9db47",
+        "d697af36c186fcc1"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "d697af36c186fcc1"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "93756bc2cfca137b",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 23,
+      "origin": "2017-07-04T00:00:00+00:00",
+      "backtested_config_ids": [
+        "10b92ef135624402",
+        "5ee336af9243f066",
+        "dad9469f1ab8a4ce"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "dad9469f1ab8a4ce"
+      ],
+      "backtested_without_production": [
+        "10b92ef135624402"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 23,
+      "origin": "2017-07-04T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "05a0f36713b56b19",
+        "221b35eed2a5d209",
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "05a0f36713b56b19",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "221b35eed2a5d209",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 23,
+      "origin": "2017-07-04T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "cda5caea7d78d02b",
+        "d697af36c186fcc1"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "d697af36c186fcc1"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "cda5caea7d78d02b"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 24,
+      "origin": "2017-07-18T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "5ee336af9243f066",
+        "ab33ecb653037898"
+      ],
+      "forecasted_config_ids": [
+        "1cce6ffe78ec6fe6",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "ab33ecb653037898"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 24,
+      "origin": "2017-07-18T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "05a0f36713b56b19",
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "05a0f36713b56b19",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 24,
+      "origin": "2017-07-18T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "93756bc2cfca137b",
+        "d697af36c186fcc1"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "d697af36c186fcc1"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "93756bc2cfca137b"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 25,
+      "origin": "2017-08-01T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "b508b90f44a42de6",
+        "dad9469f1ab8a4ce"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "b508b90f44a42de6",
+        "dad9469f1ab8a4ce"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 25,
+      "origin": "2017-08-01T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "05a0f36713b56b19",
+        "29a2f9eaf6467062",
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "05a0f36713b56b19",
+        "29a2f9eaf6467062",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 25,
+      "origin": "2017-08-01T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "d697af36c186fcc1"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "d697af36c186fcc1"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1372862_store_12",
+      "round": 0,
+      "origin": "2016-08-16T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "3e4981edd4b4c3dc",
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47",
+        "e1c6bc26b450344d"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "3e4981edd4b4c3dc",
+        "c7a7a31e2fa9db47",
+        "e1c6bc26b450344d"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1372862_store_12",
+      "round": 0,
+      "origin": "2016-08-16T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "221b35eed2a5d209",
+        "3f3999609dae0266",
+        "5ee336af9243f066",
+        "9827d2b47b48b72e"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "1cce6ffe78ec6fe6",
+        "221b35eed2a5d209",
+        "3f3999609dae0266",
+        "9827d2b47b48b72e"
+      ],
+      "original_numerical_attempts": 20,
+      "hypothetical_extra_forecast_fits": 4,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 15
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1372862_store_12",
+      "round": 0,
+      "origin": "2016-08-16T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "3f3999609dae0266",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "1cce6ffe78ec6fe6",
+        "3f3999609dae0266"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1372862_store_12",
+      "round": 1,
+      "origin": "2016-08-30T00:00:00+00:00",
+      "backtested_config_ids": [
+        "10b92ef135624402",
+        "5ee336af9243f066",
+        "c3e70a3c91f9075b",
+        "cc64ba131bc52d77"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "c3e70a3c91f9075b"
+      ],
+      "backtested_without_production": [
+        "10b92ef135624402",
+        "cc64ba131bc52d77"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1372862_store_12",
+      "round": 1,
+      "origin": "2016-08-30T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "221b35eed2a5d209",
+        "3f3999609dae0266",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "1cce6ffe78ec6fe6",
+        "221b35eed2a5d209",
+        "3f3999609dae0266"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1372862_store_12",
+      "round": 1,
+      "origin": "2016-08-30T00:00:00+00:00",
+      "backtested_config_ids": [
+        "1cce6ffe78ec6fe6",
+        "3f3999609dae0266",
+        "5ee336af9243f066",
+        "84d544e7bb383439",
+        "dbd8360f9be4642b"
+      ],
+      "forecasted_config_ids": [
+        "1cce6ffe78ec6fe6",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "3f3999609dae0266",
+        "84d544e7bb383439",
+        "dbd8360f9be4642b"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1372862_store_12",
+      "round": 2,
+      "origin": "2016-09-13T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "282fcc20124e9244",
+        "3e4981edd4b4c3dc",
+        "5ee336af9243f066",
+        "7e92de576e73d368",
+        "c3e70a3c91f9075b"
+      ],
+      "forecasted_config_ids": [
+        "282fcc20124e9244",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "3e4981edd4b4c3dc",
+        "7e92de576e73d368",
+        "c3e70a3c91f9075b"
+      ],
+      "original_numerical_attempts": 20,
+      "hypothetical_extra_forecast_fits": 4,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 15
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1372862_store_12",
+      "round": 2,
+      "origin": "2016-09-13T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "3f3999609dae0266",
+        "5ee336af9243f066",
+        "e1c6bc26b450344d"
+      ],
+      "forecasted_config_ids": [
+        "3f3999609dae0266",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "e1c6bc26b450344d"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1372862_store_12",
+      "round": 2,
+      "origin": "2016-09-13T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "03c5c6ff404b1d50",
+        "1cce6ffe78ec6fe6",
+        "282fcc20124e9244",
+        "5ee336af9243f066",
+        "c3e70a3c91f9075b",
+        "cda5caea7d78d02b",
+        "df2853ab0b056341",
+        "e44cbeeb831ec9c6"
+      ],
+      "forecasted_config_ids": [
+        "282fcc20124e9244",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "03c5c6ff404b1d50",
+        "1cce6ffe78ec6fe6",
+        "c3e70a3c91f9075b",
+        "cda5caea7d78d02b",
+        "df2853ab0b056341",
+        "e44cbeeb831ec9c6"
+      ],
+      "original_numerical_attempts": 29,
+      "hypothetical_extra_forecast_fits": 7,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 36
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1372862_store_12",
+      "round": 3,
+      "origin": "2016-09-27T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "282fcc20124e9244",
+        "5ee336af9243f066",
+        "c01fbfc5a26b44a4",
+        "c3e70a3c91f9075b"
+      ],
+      "forecasted_config_ids": [
+        "282fcc20124e9244",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "c01fbfc5a26b44a4",
+        "c3e70a3c91f9075b"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1372862_store_12",
+      "round": 3,
+      "origin": "2016-09-27T00:00:00+00:00",
+      "backtested_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [],
+      "original_numerical_attempts": 4,
+      "hypothetical_extra_forecast_fits": 0,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 0,
+      "hypothetical_pairs_if_all_backtested_forecasted": 0
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1372862_store_12",
+      "round": 3,
+      "origin": "2016-09-27T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "282fcc20124e9244",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "282fcc20124e9244",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1372862_store_12",
+      "round": 4,
+      "origin": "2016-10-11T00:00:00+00:00",
+      "backtested_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [],
+      "original_numerical_attempts": 4,
+      "hypothetical_extra_forecast_fits": 0,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 0,
+      "hypothetical_pairs_if_all_backtested_forecasted": 0
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1372862_store_12",
+      "round": 4,
+      "origin": "2016-10-11T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "221b35eed2a5d209",
+        "3f3999609dae0266",
+        "5ee336af9243f066",
+        "9827d2b47b48b72e"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "221b35eed2a5d209",
+        "3f3999609dae0266",
+        "9827d2b47b48b72e"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1372862_store_12",
+      "round": 4,
+      "origin": "2016-10-11T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "282fcc20124e9244",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "282fcc20124e9244"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1372862_store_12",
+      "round": 5,
+      "origin": "2016-10-25T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [],
+      "original_numerical_attempts": 8,
+      "hypothetical_extra_forecast_fits": 0,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 1
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1372862_store_12",
+      "round": 5,
+      "origin": "2016-10-25T00:00:00+00:00",
+      "backtested_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [],
+      "original_numerical_attempts": 4,
+      "hypothetical_extra_forecast_fits": 0,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 0,
+      "hypothetical_pairs_if_all_backtested_forecasted": 0
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1372862_store_12",
+      "round": 5,
+      "origin": "2016-10-25T00:00:00+00:00",
+      "backtested_config_ids": [
+        "282fcc20124e9244",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "282fcc20124e9244"
+      ],
+      "original_numerical_attempts": 7,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 0,
+      "hypothetical_pairs_if_all_backtested_forecasted": 1
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1372862_store_12",
+      "round": 6,
+      "origin": "2016-11-08T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "3f3999609dae0266",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "3f3999609dae0266"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1372862_store_12",
+      "round": 6,
+      "origin": "2016-11-08T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "221b35eed2a5d209",
+        "5ee336af9243f066",
+        "e1c6bc26b450344d"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "221b35eed2a5d209",
+        "e1c6bc26b450344d"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1372862_store_12",
+      "round": 6,
+      "origin": "2016-11-08T00:00:00+00:00",
+      "backtested_config_ids": [
+        "10b92ef135624402",
+        "282fcc20124e9244",
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "10b92ef135624402",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "282fcc20124e9244",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1372862_store_12",
+      "round": 7,
+      "origin": "2016-11-22T00:00:00+00:00",
+      "backtested_config_ids": [
+        "282fcc20124e9244",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "282fcc20124e9244",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [],
+      "original_numerical_attempts": 8,
+      "hypothetical_extra_forecast_fits": 0,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 1
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1372862_store_12",
+      "round": 7,
+      "origin": "2016-11-22T00:00:00+00:00",
+      "backtested_config_ids": [
+        "00af330f3e9ccbf4",
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "4e41e048d5d137e0",
+        "5ee336af9243f066",
+        "84db4f01c7d3d348",
+        "9827d2b47b48b72e"
+      ],
+      "forecasted_config_ids": [
+        "00af330f3e9ccbf4",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "4e41e048d5d137e0",
+        "84db4f01c7d3d348",
+        "9827d2b47b48b72e"
+      ],
+      "original_numerical_attempts": 23,
+      "hypothetical_extra_forecast_fits": 5,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 21
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1372862_store_12",
+      "round": 7,
+      "origin": "2016-11-22T00:00:00+00:00",
+      "backtested_config_ids": [
+        "10b92ef135624402",
+        "282fcc20124e9244",
+        "3dc36f77ed04e304",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "3dc36f77ed04e304",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "10b92ef135624402",
+        "282fcc20124e9244"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1372862_store_12",
+      "round": 8,
+      "origin": "2016-12-06T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "282fcc20124e9244",
+        "5ee336af9243f066",
+        "c3e70a3c91f9075b"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "282fcc20124e9244",
+        "c3e70a3c91f9075b"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1372862_store_12",
+      "round": 8,
+      "origin": "2016-12-06T00:00:00+00:00",
+      "backtested_config_ids": [
+        "00bb28230219d73d",
+        "02279b66149d6867",
+        "221b35eed2a5d209",
+        "3f3999609dae0266",
+        "5ee336af9243f066",
+        "6483a97739e1c4f4"
+      ],
+      "forecasted_config_ids": [
+        "00bb28230219d73d",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "221b35eed2a5d209",
+        "3f3999609dae0266",
+        "6483a97739e1c4f4"
+      ],
+      "original_numerical_attempts": 20,
+      "hypothetical_extra_forecast_fits": 4,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 15
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1372862_store_12",
+      "round": 8,
+      "origin": "2016-12-06T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "282fcc20124e9244",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "1cce6ffe78ec6fe6",
+        "282fcc20124e9244"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1457251_store_14",
+      "round": 0,
+      "origin": "2016-08-16T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "3865957a478117e9",
+        "3f3999609dae0266",
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "3865957a478117e9",
+        "3f3999609dae0266",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 17,
+      "hypothetical_extra_forecast_fits": 3,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 10
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1457251_store_14",
+      "round": 0,
+      "origin": "2016-08-16T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "03c5c6ff404b1d50",
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "03c5c6ff404b1d50",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1457251_store_14",
+      "round": 0,
+      "origin": "2016-08-16T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "b508b90f44a42de6"
+      ],
+      "forecasted_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "b508b90f44a42de6"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1457251_store_14",
+      "round": 1,
+      "origin": "2016-08-30T00:00:00+00:00",
+      "backtested_config_ids": [
+        "5ee336af9243f066",
+        "9827d2b47b48b72e"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "9827d2b47b48b72e"
+      ],
+      "backtested_without_production": [],
+      "original_numerical_attempts": 8,
+      "hypothetical_extra_forecast_fits": 0,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 1
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1457251_store_14",
+      "round": 1,
+      "origin": "2016-08-30T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "03c5c6ff404b1d50",
+        "5ee336af9243f066"
+      ],
+      "forecasted_config_ids": [
+        "03c5c6ff404b1d50",
+        "5ee336af9243f066"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1457251_store_14",
+      "round": 1,
+      "origin": "2016-08-30T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "3df33682b95204d5",
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "3df33682b95204d5"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1457251_store_14",
+      "round": 2,
+      "origin": "2016-09-13T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "7e7c8878062b5286",
+        "9827d2b47b48b72e"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "7e7c8878062b5286"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "9827d2b47b48b72e"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1457251_store_14",
+      "round": 2,
+      "origin": "2016-09-13T00:00:00+00:00",
+      "backtested_config_ids": [
+        "03c5c6ff404b1d50",
+        "5ee336af9243f066",
+        "723e651adebd40dc",
+        "73175b13d0a848e1"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "73175b13d0a848e1"
+      ],
+      "backtested_without_production": [
+        "03c5c6ff404b1d50",
+        "723e651adebd40dc"
+      ],
+      "original_numerical_attempts": 14,
+      "hypothetical_extra_forecast_fits": 2,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 6
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1457251_store_14",
+      "round": 2,
+      "origin": "2016-09-13T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "3df33682b95204d5",
+        "5ee336af9243f066",
+        "c3e70a3c91f9075b",
+        "c7a7a31e2fa9db47",
+        "e44cbeeb831ec9c6"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "c3e70a3c91f9075b"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "1cce6ffe78ec6fe6",
+        "3df33682b95204d5",
+        "c7a7a31e2fa9db47",
+        "e44cbeeb831ec9c6"
+      ],
+      "original_numerical_attempts": 23,
+      "hypothetical_extra_forecast_fits": 5,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 21
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1457251_store_14",
+      "round": 3,
+      "origin": "2016-09-27T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "0e7c27e84da916b4",
+        "4e41e048d5d137e0",
+        "52b1ac5596c56103",
+        "5ee336af9243f066",
+        "600a4a0a2224bf26",
+        "7e7c8878062b5286",
+        "9827d2b47b48b72e",
+        "a7319ab3b571caba",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "a7319ab3b571caba"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867",
+        "0e7c27e84da916b4",
+        "4e41e048d5d137e0",
+        "52b1ac5596c56103",
+        "600a4a0a2224bf26",
+        "7e7c8878062b5286",
+        "9827d2b47b48b72e",
+        "c7a7a31e2fa9db47"
+      ],
+      "original_numerical_attempts": 32,
+      "hypothetical_extra_forecast_fits": 8,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 45
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1457251_store_14",
+      "round": 3,
+      "origin": "2016-09-27T00:00:00+00:00",
+      "backtested_config_ids": [
+        "03c5c6ff404b1d50",
+        "1cce6ffe78ec6fe6",
+        "4ee64993e41db5c0",
+        "5ee336af9243f066",
+        "723e651adebd40dc",
+        "c7a7a31e2fa9db47",
+        "dad9469f1ab8a4ce"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "723e651adebd40dc"
+      ],
+      "backtested_without_production": [
+        "03c5c6ff404b1d50",
+        "1cce6ffe78ec6fe6",
+        "4ee64993e41db5c0",
+        "c7a7a31e2fa9db47",
+        "dad9469f1ab8a4ce"
+      ],
+      "original_numerical_attempts": 23,
+      "hypothetical_extra_forecast_fits": 5,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 21
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1457251_store_14",
+      "round": 3,
+      "origin": "2016-09-27T00:00:00+00:00",
+      "backtested_config_ids": [
+        "02279b66149d6867",
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "forecasted_config_ids": [
+        "5ee336af9243f066",
+        "c7a7a31e2fa9db47"
+      ],
+      "backtested_without_production": [
+        "02279b66149d6867"
+      ],
+      "original_numerical_attempts": 11,
+      "hypothetical_extra_forecast_fits": 1,
+      "fits_within_original_60_limit": true,
+      "observed_pairs_at_origin": 1,
+      "hypothetical_pairs_if_all_backtested_forecasted": 3
+    }
+  ],
+  "scope": "Observed exact-config production coverage versus HYPOTHETICAL forecasts of every configuration that completed three current backtests. Does not generate missing predictions, recover missed historical evidence, score a policy or prove wall-clock/agent-budget feasibility. Pair counts reuse configurations and origins and are not independent samples. Counts do not imply those outcomes would already be mature at each future query.",
+  "temporal_rule": "Never insert new forecasts retroactively at their old origin; missing ex-ante executions stay missing. Any new collection rule requires a fresh prospective trial and all three arms must pay the same per-fit cost.",
+  "source_files": {
+    "results/guarded-history-093-pilot-final-001/independent-audit/report.json": "0cf1ae70883b38aebb2cc3a376e8e299ab93ec638944abebe7dd5f0de155f816",
+    "results/guarded-history-093-development-audit-002/audit/report.json": "52498eb8b2767388568d2ac9126139a82105129a2372deff8aa6cac552dce271",
+    "results/guarded-history-093-development-audit-003/audit/report.json": "08c6ca07a14bfbd1be0f87d69d717e4dbed3045381394bd739296f05051fc08b",
+    "results/guarded-history-093-development-audit-004/audit/report.json": "b8c61b2f1fd2be7f92fe8eef372c1c587f6338e3163e44cf1ae4367070fbdd35",
+    "results/guarded-history-093-development-audit-005/audit/report.json": "edebe3c6e8bd23ce49c229a4ef735fe668dbcb9a916994089dff6c38f775f9f0",
+    "results/guarded-history-093-development-audit-006/audit/report.json": "9addd32a3471b019ba06023afc8b0e46d40da5cd8fe8ca282711b6cc8e8e7998",
+    "results/guarded-history-093-development-audit-007/audit/report.json": "6a15675c79321d35df07b7f989ed9a00bc7a558071257792bc107a0b54e56893",
+    "results/guarded-history-093-development-audit-008/audit/report.json": "a3a30062e324d5a705b173bc07fa89be8bf9734229c28d68825f67edcf0f1efb",
+    "results/guarded-history-093-development-audit-009/audit/report.json": "bca05a82fc208578926e3cf1d73515aa86cb37de280c896e67fa5934437c87d4",
+    "results/guarded-history-093-development-audit-010/audit/report.json": "9d2d3bfb6273cbc319230d1dda8f97802184acf59979b02922e0f59ca8ac1405",
+    "results/guarded-history-093-development-audit-011/audit/report.json": "c969e0fe6abb8aaea3bedb5aef28585ebf3384153de09f657af2217f16421b58",
+    "results/guarded-history-093-development-audit-012/audit/report.json": "df1e525d81978fbd036742707124b07c76773e0e46979a3d0ef9ef9039db3212",
+    "results/guarded-history-093-pilot-final-001/original/plain/item_1047756_store_23/round-0/project/experiments.jsonl": "f0ccea01bc6090e9f4692446110b540e3ce17ec23d2afa1e4d00d66e1a81046d",
+    "results/guarded-history-093-pilot-final-001/original/gnomon/item_1047756_store_23/round-0/project/experiments.jsonl": "2e32692e9ce0eaeddb3c3d016178cd268334d17b10f91b6e2905b4a79b0a59aa",
+    "results/guarded-history-093-pilot-final-001/original/ledger/item_1047756_store_23/round-0/project/experiments.jsonl": "0192cd0a3653e776530a5bb5dd08ac0d13747862c8f64f8f179c1d9727416b87",
+    "results/guarded-history-093-pilot-final-001/original/plain/item_1047756_store_23/round-1/project/experiments.jsonl": "d8f292b45690668abe0648d3dcd31b945a25d15564ee6855c6ea89a3dca7477c",
+    "results/guarded-history-093-pilot-final-001/original/gnomon/item_1047756_store_23/round-1/project/experiments.jsonl": "fc6c30aa4515736dd11b4d13f8c07ace06aac0cf95fa791d323c8a345adc6d6e",
+    "results/guarded-history-093-pilot-final-001/original/ledger/item_1047756_store_23/round-1/project/experiments.jsonl": "491ed181516ca2c83d068b9693a91548bbd04672ee4a4821ed31d872c9cf1e1d",
+    "results/guarded-history-093-pilot-final-001/original/plain/item_1047756_store_23/round-2/project/experiments.jsonl": "4add8aab272dc3e448d3438b2e7c0156d528ac329f977a74abab8d5628e6f29d",
+    "results/guarded-history-093-pilot-final-001/original/gnomon/item_1047756_store_23/round-2/project/experiments.jsonl": "0276447bae4786d1e21d67d5ead47478772ae713022f0b5bfec5616c51ec7aeb",
+    "results/guarded-history-093-pilot-final-001/original/ledger/item_1047756_store_23/round-2/project/experiments.jsonl": "4551b08e818702f17e16db0fd76faa1bec79b5550afac4fd73da4f46ff3038a9",
+    "results/guarded-history-093-development-audit-002/snapshot/plain/item_1047756_store_23/round-3/project/experiments.jsonl": "f7178e44867e8e6db113d14938354545bb293f361168ce7325635f683fbbf473",
+    "results/guarded-history-093-development-audit-002/snapshot/gnomon/item_1047756_store_23/round-3/project/experiments.jsonl": "a951da9161ed83b985b0b99c2f443426fa1b0a5857b4b8197d4857e38a9a1947",
+    "results/guarded-history-093-development-audit-002/snapshot/ledger/item_1047756_store_23/round-3/project/experiments.jsonl": "194a32343875e3c28ed94e1c6a9608634497ea13af5ceee8b2bd22169907b808",
+    "results/guarded-history-093-development-audit-002/snapshot/plain/item_1047756_store_23/round-4/project/experiments.jsonl": "3bf9b65ab1ea975169bf60a22f79d27f96e882d2a7a206eb91cba261c596ef1d",
+    "results/guarded-history-093-development-audit-002/snapshot/gnomon/item_1047756_store_23/round-4/project/experiments.jsonl": "d566c279df14831b0817ce8fb586b4bef9a8b5b6a48365e9d6ca5d6850e4a0c1",
+    "results/guarded-history-093-development-audit-002/snapshot/ledger/item_1047756_store_23/round-4/project/experiments.jsonl": "ab4b4db3bd406fcfd5ed64affc3a03af9bbc79d2675848c192dfee2184404e03",
+    "results/guarded-history-093-development-audit-002/snapshot/plain/item_1047756_store_23/round-5/project/experiments.jsonl": "3499cb808e42150099340a138b2ea105c09d4a27e4ee98b8b5497ff551941102",
+    "results/guarded-history-093-development-audit-002/snapshot/gnomon/item_1047756_store_23/round-5/project/experiments.jsonl": "941a1368742ab6f60569c302013d64a5e4e40daf748a448c54d977011a479675",
+    "results/guarded-history-093-development-audit-002/snapshot/ledger/item_1047756_store_23/round-5/project/experiments.jsonl": "0e4809d507c3e0776aead315eeaa8803097dcb835e11d42793832d039b268440",
+    "results/guarded-history-093-development-audit-003/snapshot/plain/item_1047756_store_23/round-6/project/experiments.jsonl": "507cb75409d6268a448ac892fca41c7e0139a93e987ddcaa92c4024b6af60f6b",
+    "results/guarded-history-093-development-audit-003/snapshot/gnomon/item_1047756_store_23/round-6/project/experiments.jsonl": "fb5ea00b2e482c9302192b0bb76fb31bacf93f1c603dc778229e3929e52d5d0f",
+    "results/guarded-history-093-development-audit-003/snapshot/ledger/item_1047756_store_23/round-6/project/experiments.jsonl": "9ca2f69fa5163f21fc0e0444ce2f6fc6e5d80e9af5de15215e452c9e50372173",
+    "results/guarded-history-093-development-audit-003/snapshot/plain/item_1047756_store_23/round-7/project/experiments.jsonl": "5aa204287b6cfe93717b2c0b754d442fe7b12187e289841b50bd95d5c6c07a2f",
+    "results/guarded-history-093-development-audit-003/snapshot/gnomon/item_1047756_store_23/round-7/project/experiments.jsonl": "e5d6e26be1c19d888a5a7fb4c850b69035a695d8d7ed6c304db0bd35ecd7244e",
+    "results/guarded-history-093-development-audit-003/snapshot/ledger/item_1047756_store_23/round-7/project/experiments.jsonl": "4a15e91165adbf83939fe3f802bd3b8eda3a9d7364be4afddadd741c2707a8d7",
+    "results/guarded-history-093-development-audit-004/snapshot/plain/item_1047756_store_23/round-8/project/experiments.jsonl": "fbe111d69fc8dcaa94780af75296543509a4728bf43b5916ceaf0b31a5daf998",
+    "results/guarded-history-093-development-audit-004/snapshot/gnomon/item_1047756_store_23/round-8/project/experiments.jsonl": "6fc11bdd77783ee655e344a4016bcb5ab41f173a9987e2cad4e8ce5af593edf7",
+    "results/guarded-history-093-development-audit-004/snapshot/ledger/item_1047756_store_23/round-8/project/experiments.jsonl": "c7597db7f3f8c4e3ce485240e7a734ab93b04fc85cb569b34e842695c6d3b912",
+    "results/guarded-history-093-development-audit-004/snapshot/plain/item_1047756_store_23/round-9/project/experiments.jsonl": "801038e52857f8c79bb12829db27eebaf02f925061262f7694c9576f52408d9a",
+    "results/guarded-history-093-development-audit-004/snapshot/gnomon/item_1047756_store_23/round-9/project/experiments.jsonl": "fba9d08e658dcd7bef9b4c2539f8a5e592e16781826fd270f9c4ebd15341f712",
+    "results/guarded-history-093-development-audit-004/snapshot/ledger/item_1047756_store_23/round-9/project/experiments.jsonl": "417a550afdfea83e63ff24e98961e5ca08bb50c5cd5757abfa763f54b9a7a3a6",
+    "results/guarded-history-093-development-audit-004/snapshot/plain/item_1047756_store_23/round-10/project/experiments.jsonl": "980925292eb0bad9caaae45c99128d647447d18f4e75b300293ad43ab8fcfc32",
+    "results/guarded-history-093-development-audit-004/snapshot/gnomon/item_1047756_store_23/round-10/project/experiments.jsonl": "56fd6485d6a8614cb5ce1bd3aadafaf626c534802411c699491a64d1acd9e9c9",
+    "results/guarded-history-093-development-audit-004/snapshot/ledger/item_1047756_store_23/round-10/project/experiments.jsonl": "fde88d86d59e998e9c0d96d090a60545300297b0ad6f48f8499c8da71c606b32",
+    "results/guarded-history-093-development-audit-004/snapshot/plain/item_1047756_store_23/round-11/project/experiments.jsonl": "fec3b8ee317d7f3c48e6a8a54a34b9e11becb2f7dc416d5a5316941f7749d826",
+    "results/guarded-history-093-development-audit-004/snapshot/gnomon/item_1047756_store_23/round-11/project/experiments.jsonl": "7b40a67afe9c81e7da629e720de87d01c6b5a464ad91fd5b609516a4fd36cf6c",
+    "results/guarded-history-093-development-audit-004/snapshot/ledger/item_1047756_store_23/round-11/project/experiments.jsonl": "e88e1f3c98ea95da8fbf95cdf72aa02a7c67a883b922b88be7fc1e9caabf60d6",
+    "results/guarded-history-093-development-audit-004/snapshot/plain/item_1047756_store_23/round-12/project/experiments.jsonl": "7adbc9885e918181294b8a843f3aeb5f711b7fc5f735ee7cbf5846c3a78ca8ff",
+    "results/guarded-history-093-development-audit-004/snapshot/gnomon/item_1047756_store_23/round-12/project/experiments.jsonl": "db73ec4f3948494e2ecb7b5a686f8398f954465a0c6b1d4774e9ffcf1044779d",
+    "results/guarded-history-093-development-audit-005/snapshot/ledger/item_1047756_store_23/round-12/project/experiments.jsonl": "11787c096a72c47649ef25c25b1c7bb07f294a45a2839ebf1e100917896365ae",
+    "results/guarded-history-093-development-audit-005/snapshot/plain/item_1047756_store_23/round-13/project/experiments.jsonl": "c432708dae34d9a4ba690f967532281f583bcf88539fe82d17bcfc5779a0d31a",
+    "results/guarded-history-093-development-audit-005/snapshot/gnomon/item_1047756_store_23/round-13/project/experiments.jsonl": "c9bbc0efbcdd535d1156674d33e8cb96d0f7861fe0afb8d6ca61497be7912a3d",
+    "results/guarded-history-093-development-audit-005/snapshot/ledger/item_1047756_store_23/round-13/project/experiments.jsonl": "ec5f396d0144dc3b11dde5dbf3c9c7600a5d4c04eb80508903440e0ac21e35fe",
+    "results/guarded-history-093-development-audit-005/snapshot/plain/item_1047756_store_23/round-14/project/experiments.jsonl": "e0fd806fedfba92b76f7275ffcfa3ea33938b7b1538ad35c9aaf23dad70c9bcb",
+    "results/guarded-history-093-development-audit-006/snapshot/gnomon/item_1047756_store_23/round-14/project/experiments.jsonl": "3ea40b0270b9a7022c249d5c981be947d9d87ee0dce997ae29e9386d13365b11",
+    "results/guarded-history-093-development-audit-005/snapshot/ledger/item_1047756_store_23/round-14/project/experiments.jsonl": "0b8941e5a296fffd3f35904e2dd0de62d859cf7b48902606e62da0bb77794d04",
+    "results/guarded-history-093-development-audit-006/snapshot/plain/item_1047756_store_23/round-15/project/experiments.jsonl": "bb068bea53c5ba10b2db63caa55d62a07f9e2ab76d1b79ed44ce4b58f75f8666",
+    "results/guarded-history-093-development-audit-006/snapshot/gnomon/item_1047756_store_23/round-15/project/experiments.jsonl": "f9ff5eda1a6f03013039fb380f65fd3f6598e73d8c79bb5d0842a565b90c9249",
+    "results/guarded-history-093-development-audit-006/snapshot/ledger/item_1047756_store_23/round-15/project/experiments.jsonl": "ba8a8a40647bc49359c060374f050c69981c75020ab575ef1a54fb3f87cc39b7",
+    "results/guarded-history-093-development-audit-006/snapshot/plain/item_1047756_store_23/round-16/project/experiments.jsonl": "0a04b6f92bf21bd62d19d151ff1ff66d898b1d28ceff012839525bbecd26e161",
+    "results/guarded-history-093-development-audit-006/snapshot/gnomon/item_1047756_store_23/round-16/project/experiments.jsonl": "7124d8d5e079415de78594d7e45ad238609aeb9b45ba984fdc11a117d5788382",
+    "results/guarded-history-093-development-audit-006/snapshot/ledger/item_1047756_store_23/round-16/project/experiments.jsonl": "7ec1193a97abe5acb0586895f66b0a86d387eb75f2c102041c7f7038efced7c7",
+    "results/guarded-history-093-development-audit-007/snapshot/plain/item_1047756_store_23/round-17/project/experiments.jsonl": "59b90e5d4f5f629984756cb65b7a696ab29d5723730831caeec6b90faa39b2d7",
+    "results/guarded-history-093-development-audit-007/snapshot/gnomon/item_1047756_store_23/round-17/project/experiments.jsonl": "e80d67fe5355beaa3f839a82f5032b406eeb5891bc320438fe1f1afd3f18a118",
+    "results/guarded-history-093-development-audit-007/snapshot/ledger/item_1047756_store_23/round-17/project/experiments.jsonl": "6f6cd555e0e94c49bd992b719d40ba21d838927bda5e5393b923bd94f0626798",
+    "results/guarded-history-093-development-audit-007/snapshot/plain/item_1047756_store_23/round-18/project/experiments.jsonl": "e1c615021fa7422423c4adafd3997deb346cd2a1d4071725bea1111727b8e4a4",
+    "results/guarded-history-093-development-audit-007/snapshot/gnomon/item_1047756_store_23/round-18/project/experiments.jsonl": "9e2dccb135b32dee97c6d59515aa634dbe7381a6917718ebad718153e05e9594",
+    "results/guarded-history-093-development-audit-007/snapshot/ledger/item_1047756_store_23/round-18/project/experiments.jsonl": "35dba93395779893f437a0e584aa14a27566060ae9531cd043340ff5f1283104",
+    "results/guarded-history-093-development-audit-008/snapshot/plain/item_1047756_store_23/round-19/project/experiments.jsonl": "517deec715901ae31139d06d86af71b7de098bd1fdf848d9efd1f2bb36fe3cea",
+    "results/guarded-history-093-development-audit-008/snapshot/gnomon/item_1047756_store_23/round-19/project/experiments.jsonl": "50d407ad8637dabbb632ac06a122151f6e60ebd3f0b46d9416d773e18aa4ce60",
+    "results/guarded-history-093-development-audit-008/snapshot/ledger/item_1047756_store_23/round-19/project/experiments.jsonl": "a9096f8e6a95ddb304687ff225c81c4ccc6cdd7b66ae47a0f6879dc270df19f6",
+    "results/guarded-history-093-development-audit-008/snapshot/plain/item_1047756_store_23/round-20/project/experiments.jsonl": "bd7768eabb5331cfe6a35e4a572380a6dd6afa380f7873ed6b6a3f69c2e986b7",
+    "results/guarded-history-093-development-audit-009/snapshot/gnomon/item_1047756_store_23/round-20/project/experiments.jsonl": "284af7a317c1477e01df8ae063a004e95768f0e405fad9673df4f03b2cbf524c",
+    "results/guarded-history-093-development-audit-008/snapshot/ledger/item_1047756_store_23/round-20/project/experiments.jsonl": "80e2e150517402f8b2a339b3f9d8edfada6c755bf6063ef5ffa432b7d3e97a80",
+    "results/guarded-history-093-development-audit-009/snapshot/plain/item_1047756_store_23/round-21/project/experiments.jsonl": "aac8875d3cebb97347f8a3719e9817feec718333180643f20378fff6c857d00d",
+    "results/guarded-history-093-development-audit-009/snapshot/gnomon/item_1047756_store_23/round-21/project/experiments.jsonl": "ae50f574290ba53e142fda16e20c37e82f30fc1a5f3a48401b524a289ea77d3f",
+    "results/guarded-history-093-development-audit-009/snapshot/ledger/item_1047756_store_23/round-21/project/experiments.jsonl": "b34f598abce9727773d84ebe22b772026db8b90a306801c089e3fb19cc1af80a",
+    "results/guarded-history-093-development-audit-010/snapshot/plain/item_1047756_store_23/round-22/project/experiments.jsonl": "27d63b49d34abf9d39085f76304d1f42d3e6e7357d091e289689faee41c3000b",
+    "results/guarded-history-093-development-audit-009/snapshot/gnomon/item_1047756_store_23/round-22/project/experiments.jsonl": "65d3012cc4d48ac250dd51c011698c0b28a4886f549e5b617f767bbf5e893ca8",
+    "results/guarded-history-093-development-audit-009/snapshot/ledger/item_1047756_store_23/round-22/project/experiments.jsonl": "14e1aad6bde4446ca7cc06c96ebca1fc29a6e7ba447e3636844190508587e44b",
+    "results/guarded-history-093-development-audit-010/snapshot/plain/item_1047756_store_23/round-23/project/experiments.jsonl": "f5143e49bbd3302ccc34f9c843e3bbe7e098c086edf92c73bb42558a14174d33",
+    "results/guarded-history-093-development-audit-010/snapshot/gnomon/item_1047756_store_23/round-23/project/experiments.jsonl": "1a8f207340572d32caa3775cba0a534ff14d67f4e294b5e2f608af1b1c4593e9",
+    "results/guarded-history-093-development-audit-010/snapshot/ledger/item_1047756_store_23/round-23/project/experiments.jsonl": "48778a77febc244536a57c38a315dc6db319b42b27f1bd71476ef43775fa79ac",
+    "results/guarded-history-093-development-audit-011/snapshot/plain/item_1047756_store_23/round-24/project/experiments.jsonl": "3bb6281b53308b1ab0a459d7aa3204b45942b4fe71b1aed3ef7efc2e814aa89f",
+    "results/guarded-history-093-development-audit-011/snapshot/gnomon/item_1047756_store_23/round-24/project/experiments.jsonl": "fac4e278598199090cfe3fdad004b6d8b353cd72a7aa7466c895f3240a3cecb3",
+    "results/guarded-history-093-development-audit-011/snapshot/ledger/item_1047756_store_23/round-24/project/experiments.jsonl": "e43a5426bad654d0acaba23e640058b46e040b2d30b34d634c21c5bfcb8b04aa",
+    "results/guarded-history-093-development-audit-012/snapshot/plain/item_1047756_store_23/round-25/project/experiments.jsonl": "d40d3250687a440ca02262db0a830f637fa287d0fdc8333866166e2567d986f8",
+    "results/guarded-history-093-development-audit-011/snapshot/gnomon/item_1047756_store_23/round-25/project/experiments.jsonl": "afa32a8787a0f36f36ae362b6d5c283cebc9c8b250010300a9859b0bedee4022",
+    "results/guarded-history-093-development-audit-012/snapshot/ledger/item_1047756_store_23/round-25/project/experiments.jsonl": "06ea0fbe97538ef796f7e0de7b267af216c63c85ea557ef83fb3a55585de0c1f",
+    "results/guarded-history-093-pilot-final-001/original/plain/item_1304243_store_32/round-0/project/experiments.jsonl": "6638a31af7a739d574ec985db41717f2150514cecf10c68518d7e0658d8f1e67",
+    "results/guarded-history-093-pilot-final-001/original/gnomon/item_1304243_store_32/round-0/project/experiments.jsonl": "9e52442b8df9a7681b346953f6e9e1eee549fec71b8571d93b0f3be7a2d73421",
+    "results/guarded-history-093-pilot-final-001/original/ledger/item_1304243_store_32/round-0/project/experiments.jsonl": "02d3f2d79ce09fb4073da7c32ab0858e7c0178bf94cbfaeaf0d6eb214bc5740b",
+    "results/guarded-history-093-pilot-final-001/original/plain/item_1304243_store_32/round-1/project/experiments.jsonl": "81f05206fd90ed202109261ed7beca5d2ca4218f658c65eb75226c281d44f0cf",
+    "results/guarded-history-093-pilot-final-001/original/gnomon/item_1304243_store_32/round-1/project/experiments.jsonl": "c2f85832c17804d3b95844f51ec34c38470cfda890c83925fb0b065cdaad3583",
+    "results/guarded-history-093-pilot-final-001/original/ledger/item_1304243_store_32/round-1/project/experiments.jsonl": "fd18baf84220ee0b19b14ffac3525d37dfe8bae1c94c397f450969c8127618b5",
+    "results/guarded-history-093-pilot-final-001/original/plain/item_1304243_store_32/round-2/project/experiments.jsonl": "cdf33894468e58bcda16304f5724a6c617e52ffd7912e7a21488487e438ad68e",
+    "results/guarded-history-093-pilot-final-001/original/gnomon/item_1304243_store_32/round-2/project/experiments.jsonl": "7b10aff10e26e21de76e8e991aa61d2afacb3016ef3d58cf7b57de4bffcf9b2c",
+    "results/guarded-history-093-pilot-final-001/original/ledger/item_1304243_store_32/round-2/project/experiments.jsonl": "b72a8b11e1ef14617f4c58a3d0857cefe6abd076355a4ce02e64af496814d5fd",
+    "results/guarded-history-093-development-audit-002/snapshot/plain/item_1304243_store_32/round-3/project/experiments.jsonl": "f173225a3fc1751f11a7097afc6087ca2ca9e4866ccb9a8f1dbcf9af722d9fdd",
+    "results/guarded-history-093-development-audit-002/snapshot/gnomon/item_1304243_store_32/round-3/project/experiments.jsonl": "dcf5d835811d3c76af0e4bf5c4f44625c3a539337a44c6a8b01407df4f620ec2",
+    "results/guarded-history-093-development-audit-002/snapshot/ledger/item_1304243_store_32/round-3/project/experiments.jsonl": "25f87947638ce812612e5173bc80e729faeca889130537f500bbb3ed52173e96",
+    "results/guarded-history-093-development-audit-002/snapshot/plain/item_1304243_store_32/round-4/project/experiments.jsonl": "27762a7decc57dd6a966ae87d69be1864d16936ca2638c70fac3b050d53cd532",
+    "results/guarded-history-093-development-audit-002/snapshot/gnomon/item_1304243_store_32/round-4/project/experiments.jsonl": "bd97c69f431cada08284e052daa47c9dd624eac2572bd5eaf700a9594748213f",
+    "results/guarded-history-093-development-audit-002/snapshot/ledger/item_1304243_store_32/round-4/project/experiments.jsonl": "b45b29a1ea4162d1b1234a807a9e5410967d95964f3642abd1f48e7b92a50f98",
+    "results/guarded-history-093-development-audit-002/snapshot/plain/item_1304243_store_32/round-5/project/experiments.jsonl": "daa198922c9b8a7a19d8b5a22c081bccfd1732868215957027bf704ed570a673",
+    "results/guarded-history-093-development-audit-002/snapshot/gnomon/item_1304243_store_32/round-5/project/experiments.jsonl": "6ab490a021327abb599ba3cd80e7cd6e23140754f4faf02087fc82b06e32ae49",
+    "results/guarded-history-093-development-audit-002/snapshot/ledger/item_1304243_store_32/round-5/project/experiments.jsonl": "049b52c52a5bb108647ffd202b6093ed8ac458c5a52bb85fc2d406660cd2e714",
+    "results/guarded-history-093-development-audit-003/snapshot/plain/item_1304243_store_32/round-6/project/experiments.jsonl": "30f5f31460a203b8f7db9f42f5ae2b4c7297b6e79f2733920dbd430885dae064",
+    "results/guarded-history-093-development-audit-002/snapshot/gnomon/item_1304243_store_32/round-6/project/experiments.jsonl": "dd0a42902077bba8af13d4ba852c70d664acccc18d56d5aac79dc9b324d3590d",
+    "results/guarded-history-093-development-audit-002/snapshot/ledger/item_1304243_store_32/round-6/project/experiments.jsonl": "d40a0f01a10d94d9ee2548c3a8f10d21c7a6f03e0e81a057b1b7df770e078257",
+    "results/guarded-history-093-development-audit-003/snapshot/plain/item_1304243_store_32/round-7/project/experiments.jsonl": "ba61e00509416bfd018684b5c3169cb53641a0890c8914141fad0638802fd5dc",
+    "results/guarded-history-093-development-audit-003/snapshot/gnomon/item_1304243_store_32/round-7/project/experiments.jsonl": "4ecd59a51dd152a96179f754f96f41d55ac14a870fbec2d03d905b4665d97397",
+    "results/guarded-history-093-development-audit-003/snapshot/ledger/item_1304243_store_32/round-7/project/experiments.jsonl": "55ed8a7a90cad869a48c33d5aefa4414722e31dcdbccae5777478f1f27b33924",
+    "results/guarded-history-093-development-audit-003/snapshot/plain/item_1304243_store_32/round-8/project/experiments.jsonl": "9ed57c403f44763981d72d32ed684fd31df0ec13819a481dc313566473bdec7b",
+    "results/guarded-history-093-development-audit-003/snapshot/gnomon/item_1304243_store_32/round-8/project/experiments.jsonl": "b93554abbd5676f56b1ab6dc60384e034f6beaa5622f8947ef5eae015ccd5cc5",
+    "results/guarded-history-093-development-audit-003/snapshot/ledger/item_1304243_store_32/round-8/project/experiments.jsonl": "7a3a1ae1a9b0e455e928c67d69690203572a054dba2cf2d207be9090c063dc97",
+    "results/guarded-history-093-development-audit-004/snapshot/plain/item_1304243_store_32/round-9/project/experiments.jsonl": "f67e5462b3a3d3198b40f4c0acfcd6d920a273c481e9bbfb3dda86d5abc25b1d",
+    "results/guarded-history-093-development-audit-004/snapshot/gnomon/item_1304243_store_32/round-9/project/experiments.jsonl": "d42cac18cc95b2f7a5e8dc205fe9ecc88cccc3ef826a822c84a5ad89f04da8df",
+    "results/guarded-history-093-development-audit-004/snapshot/ledger/item_1304243_store_32/round-9/project/experiments.jsonl": "9708dd7d60aaaf7c2727dec6f93c5c668cddb8f965e61461cc055af21f905254",
+    "results/guarded-history-093-development-audit-004/snapshot/plain/item_1304243_store_32/round-10/project/experiments.jsonl": "c7c0902189cb9fe13e5c5705a32deb40ff3a194ffcb12d369e4511edd44c231b",
+    "results/guarded-history-093-development-audit-004/snapshot/gnomon/item_1304243_store_32/round-10/project/experiments.jsonl": "4decfcc20f67a0ce311f8fcdc4d3a910fb48de804dad84dfd83cde9bc2f26dd1",
+    "results/guarded-history-093-development-audit-004/snapshot/ledger/item_1304243_store_32/round-10/project/experiments.jsonl": "c3c481092e4c17b8cf20fc29fa6f6a511396cc64795262d933a4e4e43b0ef055",
+    "results/guarded-history-093-development-audit-004/snapshot/plain/item_1304243_store_32/round-11/project/experiments.jsonl": "e7107571e7485d29af80053141556a6276642b97ac64a37e3e6b1fbe2039cced",
+    "results/guarded-history-093-development-audit-004/snapshot/gnomon/item_1304243_store_32/round-11/project/experiments.jsonl": "83ed9a0d8196ddaf26afe970340b14090d22b4ab3b0f291d8d096c96b39c72f6",
+    "results/guarded-history-093-development-audit-004/snapshot/ledger/item_1304243_store_32/round-11/project/experiments.jsonl": "f688c900a5681edc75ef83a9ff4f2de917aa4f6811d51bdf393d84453dac09b6",
+    "results/guarded-history-093-development-audit-004/snapshot/plain/item_1304243_store_32/round-12/project/experiments.jsonl": "80ba3ca962f6e4c517d48c5149c02b24a1e18e58fa2844dbd2c2a60e758b3208",
+    "results/guarded-history-093-development-audit-004/snapshot/gnomon/item_1304243_store_32/round-12/project/experiments.jsonl": "a205e67c6bfbb2c0aa1733e5d4e75e8b04bcecb3fd781208bbd1ceb46083c32a",
+    "results/guarded-history-093-development-audit-004/snapshot/ledger/item_1304243_store_32/round-12/project/experiments.jsonl": "904bce8032e442eabd2e261ccf44f6d4dc7a79c2f5b82e98abab9e1e251993d3",
+    "results/guarded-history-093-development-audit-004/snapshot/plain/item_1304243_store_32/round-13/project/experiments.jsonl": "7c4c66913240b609504de4df3ff9161ebc0c34c4dc05d83cb534f5c8186fd8b4",
+    "results/guarded-history-093-development-audit-005/snapshot/gnomon/item_1304243_store_32/round-13/project/experiments.jsonl": "210ef4584b936df869defccc01bbc94369ee1a8bde1e5a33c4e3eeb9ef5665bf",
+    "results/guarded-history-093-development-audit-004/snapshot/ledger/item_1304243_store_32/round-13/project/experiments.jsonl": "0c3009ed346eafd18a96a639025626a65e9e77068085b448f31a649b5e8c8e2d",
+    "results/guarded-history-093-development-audit-005/snapshot/plain/item_1304243_store_32/round-14/project/experiments.jsonl": "7f488a28e6ffcdcae92053de5e768cb079f45ad2ebfec765f7a1639366ab1aee",
+    "results/guarded-history-093-development-audit-005/snapshot/gnomon/item_1304243_store_32/round-14/project/experiments.jsonl": "a807a34037401e04d6189c7beeb063200c2972c1192d3f3b3fced90853272f8d",
+    "results/guarded-history-093-development-audit-005/snapshot/ledger/item_1304243_store_32/round-14/project/experiments.jsonl": "11d5ff19b1af0ebfe80c3b60969bb079d3bf6a9262131be3f036ec1a86753b3e",
+    "results/guarded-history-093-development-audit-005/snapshot/plain/item_1304243_store_32/round-15/project/experiments.jsonl": "873ec88f2bdaabe393ee45246e36d87637a1450cad19144137a5387fc4c3629a",
+    "results/guarded-history-093-development-audit-005/snapshot/gnomon/item_1304243_store_32/round-15/project/experiments.jsonl": "fcbc3f07d51bfd1985c16780f1cc051394f4ea5c6d39b07f67f728c70873a1df",
+    "results/guarded-history-093-development-audit-005/snapshot/ledger/item_1304243_store_32/round-15/project/experiments.jsonl": "6602096e470d915ea60f562e119e8bc73aba28ed006832369bc6c2ec046607fc",
+    "results/guarded-history-093-development-audit-006/snapshot/plain/item_1304243_store_32/round-16/project/experiments.jsonl": "671c1ada4a0a862230f01eac8239f15914e4c30416cdb8c93db8ddacd0dacdca",
+    "results/guarded-history-093-development-audit-006/snapshot/gnomon/item_1304243_store_32/round-16/project/experiments.jsonl": "32438101ae80254772d3d73190fbe9181798bd7845e71890d3bde2fc4f595dc4",
+    "results/guarded-history-093-development-audit-005/snapshot/ledger/item_1304243_store_32/round-16/project/experiments.jsonl": "e2e68bd93bdb891f739508407fe802f3e374d1caefa0fae3b29c679d9ab11115",
+    "results/guarded-history-093-development-audit-006/snapshot/plain/item_1304243_store_32/round-17/project/experiments.jsonl": "e1c47c852caa8fee6b9612603f85a454eb6f9b96b0447660770e31d6eeb57033",
+    "results/guarded-history-093-development-audit-006/snapshot/gnomon/item_1304243_store_32/round-17/project/experiments.jsonl": "752f3be74880ece36638e4ad23f53425da2a1517abf8dc3c18d2f32b95954291",
+    "results/guarded-history-093-development-audit-006/snapshot/ledger/item_1304243_store_32/round-17/project/experiments.jsonl": "3787ab365ccb9786a35f6066242476d410ced276ea79183d6b0e3499a7865d14",
+    "results/guarded-history-093-development-audit-007/snapshot/plain/item_1304243_store_32/round-18/project/experiments.jsonl": "a10788c44eaf36e2a26bde89b5fcf89249210e8ea9a893d4cd186d64747ae3f8",
+    "results/guarded-history-093-development-audit-006/snapshot/gnomon/item_1304243_store_32/round-18/project/experiments.jsonl": "5d9078ada0d32f25f388cbef3d070219c8b474cf823e633db316010f5367dccc",
+    "results/guarded-history-093-development-audit-006/snapshot/ledger/item_1304243_store_32/round-18/project/experiments.jsonl": "fdd2b57796d32e08e5cd19089e7b24e77fe1d37290d1faccfd4be25b9e50f723",
+    "results/guarded-history-093-development-audit-007/snapshot/plain/item_1304243_store_32/round-19/project/experiments.jsonl": "5a0e9dcb80390214d9a995bfb13f9532a939dff1b391efa255d8db33dd3b50e3",
+    "results/guarded-history-093-development-audit-007/snapshot/gnomon/item_1304243_store_32/round-19/project/experiments.jsonl": "f2de4a65cd0b4c9a30a378e4f795451e2e96f0d8e4f78fc59b8c2852f47e3606",
+    "results/guarded-history-093-development-audit-007/snapshot/ledger/item_1304243_store_32/round-19/project/experiments.jsonl": "f0f6ef5fde25bfa7671e65272a6dd58eef0e764c52bf5e12505745be917f0021",
+    "results/guarded-history-093-development-audit-007/snapshot/plain/item_1304243_store_32/round-20/project/experiments.jsonl": "4f14f940d73a90079503dd9dca0e9183c4a022564cfc78a4448f61dd8cafc861",
+    "results/guarded-history-093-development-audit-007/snapshot/gnomon/item_1304243_store_32/round-20/project/experiments.jsonl": "be08d2981e558c34e56a8e0e471e7f8ee2f7b31dcc3017da140f84dabc4e7301",
+    "results/guarded-history-093-development-audit-007/snapshot/ledger/item_1304243_store_32/round-20/project/experiments.jsonl": "a1a6ea5fedb0267738ee0e0a9446efd3c15195320acb6c7a93dffa01c4c17102",
+    "results/guarded-history-093-development-audit-008/snapshot/plain/item_1304243_store_32/round-21/project/experiments.jsonl": "8b800b01d82cee5aefa50f7d4170df0c603931ffe5b0009452ee6892bda030b3",
+    "results/guarded-history-093-development-audit-008/snapshot/gnomon/item_1304243_store_32/round-21/project/experiments.jsonl": "57e5cef590e03a6ae6f8c1189442a6f29c09d616ddf96fb7d3ee6f9b9f3e916a",
+    "results/guarded-history-093-development-audit-008/snapshot/ledger/item_1304243_store_32/round-21/project/experiments.jsonl": "26dc05089edbafdc03de0b40b4cd6f36c1ba35b9309a6ae389b8317425e6d597",
+    "results/guarded-history-093-development-audit-008/snapshot/plain/item_1304243_store_32/round-22/project/experiments.jsonl": "36b363431d629417470e9b8cdc825802d0414ea30ac52a624967c659a13d7fd0",
+    "results/guarded-history-093-development-audit-008/snapshot/gnomon/item_1304243_store_32/round-22/project/experiments.jsonl": "e996f15f0c4aa3e63e5f3d773495a4e4d2fa1f31492360b3a7672404a8ab353c",
+    "results/guarded-history-093-development-audit-008/snapshot/ledger/item_1304243_store_32/round-22/project/experiments.jsonl": "bdd1a06168561f5984801416bc6a646880f763def40d5b1caade33b82e7cc67d",
+    "results/guarded-history-093-development-audit-009/snapshot/plain/item_1304243_store_32/round-23/project/experiments.jsonl": "27266c24e134fb2880e6ef9acb17b3d5ec2734c4c68412e5e9ab7cb64e0e647d",
+    "results/guarded-history-093-development-audit-009/snapshot/gnomon/item_1304243_store_32/round-23/project/experiments.jsonl": "4add7010b205b91b0e7d758c527cfbc09d90b749c6ab516bc6f4dd1310f55944",
+    "results/guarded-history-093-development-audit-009/snapshot/ledger/item_1304243_store_32/round-23/project/experiments.jsonl": "82c379debcb7b4cd16a5771208c310de3d271a3bcfa1dd6b2d0d713446f14b7c",
+    "results/guarded-history-093-development-audit-009/snapshot/plain/item_1304243_store_32/round-24/project/experiments.jsonl": "12ca65b29168eb7625bf60d8edf148e258b498e3d76b3cee34abdd3f89e253f2",
+    "results/guarded-history-093-development-audit-009/snapshot/gnomon/item_1304243_store_32/round-24/project/experiments.jsonl": "cef90f1526eccac9340e08d389434e6471949c99c34c1826515d4857722f8022",
+    "results/guarded-history-093-development-audit-009/snapshot/ledger/item_1304243_store_32/round-24/project/experiments.jsonl": "9ffa3cc4999e6304d7f9523ffe1d44fe2d1b931184eacc2b2cddf7aa99e07cc5",
+    "results/guarded-history-093-development-audit-010/snapshot/plain/item_1304243_store_32/round-25/project/experiments.jsonl": "a71a311636a94259cc8698910d7d4360dff424291e43aaa50dff6aacd65a09d2",
+    "results/guarded-history-093-development-audit-010/snapshot/gnomon/item_1304243_store_32/round-25/project/experiments.jsonl": "2b21285462345de29dee818407661f0fe04124b4c9c1c453ccec2721bb420794",
+    "results/guarded-history-093-development-audit-010/snapshot/ledger/item_1304243_store_32/round-25/project/experiments.jsonl": "670f8078f4cb5900cd67131738f550b9df4a0f7a73ddbfc3ab5fa589ed9833fb",
+    "results/guarded-history-093-pilot-final-001/original/plain/item_1372862_store_12/round-0/project/experiments.jsonl": "3f2d8c611803d253466c36023821edab8359031dc0ea1934bd62922166d3c6a3",
+    "results/guarded-history-093-pilot-final-001/original/gnomon/item_1372862_store_12/round-0/project/experiments.jsonl": "875a0dde5446381d99cbbf575d61ba62d290a5866f7e488c98df009d2e86168d",
+    "results/guarded-history-093-pilot-final-001/original/ledger/item_1372862_store_12/round-0/project/experiments.jsonl": "3fd6cbfca3ae4e807298ac101a91ffe4b22b3a5e4808fb80d6232e5d2f4d213b",
+    "results/guarded-history-093-pilot-final-001/original/plain/item_1372862_store_12/round-1/project/experiments.jsonl": "673efc8e6cf6353601401328748fc705155eb5371d0d841891fd86abdb8b1291",
+    "results/guarded-history-093-pilot-final-001/original/gnomon/item_1372862_store_12/round-1/project/experiments.jsonl": "44f9f9bbd8e2ced6dffbb32d5466ee32661a590a78762f0451de0ff9a06a3b86",
+    "results/guarded-history-093-pilot-final-001/original/ledger/item_1372862_store_12/round-1/project/experiments.jsonl": "4f1d80f3bdc8e4a3586df7b5ef618c4956eeb23e6ebbfa0152e9bfc192a87e36",
+    "results/guarded-history-093-pilot-final-001/original/plain/item_1372862_store_12/round-2/project/experiments.jsonl": "25e3461131c1fab15113caefab5f3b80381910caef1f8f749498f106d5b13b5c",
+    "results/guarded-history-093-pilot-final-001/original/gnomon/item_1372862_store_12/round-2/project/experiments.jsonl": "f109d9befa9a2603f40051796f39996e47158fb37d9f24d2cc189fe8c5dd0cb7",
+    "results/guarded-history-093-pilot-final-001/original/ledger/item_1372862_store_12/round-2/project/experiments.jsonl": "26579f45a8a52a70fddf344af392d70375603236338fec85c3cef79f8fc48898",
+    "results/guarded-history-093-development-audit-010/snapshot/plain/item_1372862_store_12/round-3/project/experiments.jsonl": "00a766c272db388f1fdda4e3f63cb95c7117c9e3d03a1c52f5214a7a1df3a35e",
+    "results/guarded-history-093-development-audit-010/snapshot/gnomon/item_1372862_store_12/round-3/project/experiments.jsonl": "93736f70eb28b0b3b254c80bda26093ddd4e54eb6b930fe781be0209ba5ffc72",
+    "results/guarded-history-093-development-audit-010/snapshot/ledger/item_1372862_store_12/round-3/project/experiments.jsonl": "40dce966fb7e7d11eae2ed44faf3e371e7565115f5ce6e8372ab709c11dab106",
+    "results/guarded-history-093-development-audit-010/snapshot/plain/item_1372862_store_12/round-4/project/experiments.jsonl": "9789f1a3b48bdf619ba8e64527fbb47d150f747bbabb9a3d4ec98e97a6dc47a8",
+    "results/guarded-history-093-development-audit-010/snapshot/gnomon/item_1372862_store_12/round-4/project/experiments.jsonl": "cbca9b2856b4b4dea8b5f2a5d5aee65c2d7fdfc9345c7cb9adc0624feeb05792",
+    "results/guarded-history-093-development-audit-011/snapshot/ledger/item_1372862_store_12/round-4/project/experiments.jsonl": "6f15cc4c776e16f86143255fe56036f7763208c9039547a44f06b5d99e32bebe",
+    "results/guarded-history-093-development-audit-011/snapshot/plain/item_1372862_store_12/round-5/project/experiments.jsonl": "e6ee00a1136ec1fb38545f55163f884cf80d5a7e9fdfb57f9f795db1cfe81230",
+    "results/guarded-history-093-development-audit-011/snapshot/gnomon/item_1372862_store_12/round-5/project/experiments.jsonl": "d5a84c396efca4f561c77ec14a5367136c12c1a571fc20383c46653fba6fd78b",
+    "results/guarded-history-093-development-audit-011/snapshot/ledger/item_1372862_store_12/round-5/project/experiments.jsonl": "2f63f58e34f9be6cf4825c0ddd4af4cbda4ac0a96286614482bcfeb876f0e978",
+    "results/guarded-history-093-development-audit-011/snapshot/plain/item_1372862_store_12/round-6/project/experiments.jsonl": "bfccbe488c42f251b2848bd85b665994ec295c8675e526ab5e42dc75b50371e2",
+    "results/guarded-history-093-development-audit-011/snapshot/gnomon/item_1372862_store_12/round-6/project/experiments.jsonl": "d47531ae901cbedb653aacef47d818444556f8fd9f85c92d9b8de4e2d96b3f95",
+    "results/guarded-history-093-development-audit-011/snapshot/ledger/item_1372862_store_12/round-6/project/experiments.jsonl": "b80a78184f3a9f3df4eeb84cd545bb53708cc9e392cdf10cdc968e6ec5978e5a",
+    "results/guarded-history-093-development-audit-011/snapshot/plain/item_1372862_store_12/round-7/project/experiments.jsonl": "e4e44f992a3e9797220f0639ca42d54eb8611a68176bb1e271acd4985b893f1a",
+    "results/guarded-history-093-development-audit-012/snapshot/gnomon/item_1372862_store_12/round-7/project/experiments.jsonl": "fc4d584d14ab40d856190986382b1187a77a8fd03512a5986ff935594a5ef468",
+    "results/guarded-history-093-development-audit-012/snapshot/ledger/item_1372862_store_12/round-7/project/experiments.jsonl": "90ca2185fc28a61d279c26e0c508465f46ed0e799ff5a99bc9e61f3b8e1ef837",
+    "results/guarded-history-093-development-audit-012/snapshot/plain/item_1372862_store_12/round-8/project/experiments.jsonl": "67b48ce6ba1dbb45f4ddd3da64cef452eff42f7cf81921138c368fec4b71b790",
+    "results/guarded-history-093-development-audit-012/snapshot/gnomon/item_1372862_store_12/round-8/project/experiments.jsonl": "b0ba8761e9e8ce9cac5ab59ca7690c2be8744ba41dc67a3b57d322ccf27da79d",
+    "results/guarded-history-093-development-audit-012/snapshot/ledger/item_1372862_store_12/round-8/project/experiments.jsonl": "23e007b80d60bc6476ff9442054a8157973e8e2194cf859436ab9baba4f612ba",
+    "results/guarded-history-093-pilot-final-001/original/plain/item_1457251_store_14/round-0/project/experiments.jsonl": "9ad0eed611e652ef65a0c95d7e842c02d335f161d8136988e9f39793cbc61935",
+    "results/guarded-history-093-pilot-final-001/original/gnomon/item_1457251_store_14/round-0/project/experiments.jsonl": "010f26d3fe536934c2b377f0389c891621c7349fa3746c8343414aed2d55d33d",
+    "results/guarded-history-093-pilot-final-001/original/ledger/item_1457251_store_14/round-0/project/experiments.jsonl": "3f1214103a0aada118e037d66c8051ef478c66ccef44e6c0a658305f8437e632",
+    "results/guarded-history-093-pilot-final-001/original/plain/item_1457251_store_14/round-1/project/experiments.jsonl": "d63eb4fec8ab2b07c9c2bc27d92ff548909bf3416d8134eb9293f160e9b1fc76",
+    "results/guarded-history-093-pilot-final-001/original/gnomon/item_1457251_store_14/round-1/project/experiments.jsonl": "117266d419da3dd7eacf487029565478a5e330a8ffe98d5ed657e77b34674924",
+    "results/guarded-history-093-pilot-final-001/original/ledger/item_1457251_store_14/round-1/project/experiments.jsonl": "aab2757089bc6ab12f40d37afc446c4e4aace38a10c09a490e298fe99838bd93",
+    "results/guarded-history-093-pilot-final-001/original/plain/item_1457251_store_14/round-2/project/experiments.jsonl": "bff5b28ecfd5423976b45d558cb64b1957d52fc6d3bda753185ff7997d68ae88",
+    "results/guarded-history-093-pilot-final-001/original/gnomon/item_1457251_store_14/round-2/project/experiments.jsonl": "41bbe18ac8e30c5cfa1e6f1f7eaee181e36b792a954390fb6e1ff378af6a77a7",
+    "results/guarded-history-093-pilot-final-001/original/ledger/item_1457251_store_14/round-2/project/experiments.jsonl": "59b05725f7afe17f484cedd5efc3871a06e4c61e092a45fe54564c51de90d85c",
+    "results/guarded-history-093-development-audit-012/snapshot/plain/item_1457251_store_14/round-3/project/experiments.jsonl": "ac5d1af9d6de1a1e2bfa10797761742c17deed049c24e01c4730c9b0a39255e1",
+    "results/guarded-history-093-development-audit-012/snapshot/gnomon/item_1457251_store_14/round-3/project/experiments.jsonl": "159942a921974421e2ac4c7a4b582e0a01954068abe73c010d0e0c05d694133c",
+    "results/guarded-history-093-development-audit-012/snapshot/ledger/item_1457251_store_14/round-3/project/experiments.jsonl": "49064111f10955339b206e4f841669482aa39fa3224b47dd98dd0b62785360c7"
+  },
+  "new_provider_calls": 0,
+  "engy_calls": 0,
+  "future_target_values_used": false,
+  "live_sources_changed": false,
+  "target_met": false,
+  "final_holdout_accessed": false,
+  "verification_script": {
+    "path": "results/guarded-history-093-collection-opportunity-001/analyze.py",
+    "sha256": "d76b6b460aef70a2131e057244d1c0495af74b5fbbb9f7c062f593c1fa94bcbc"
+  },
+  "report_sha256": "d121f3d6e205b40cce678e81ccc45d3d82cf4ed25885e894bef5a7514394670f"
+}

@@ -1,8 +1,8 @@
 # Guarded pilot 093 — completed
 
-Latest audited continuation: 196/312 sessions, 65 matched cases (2026-09-14
-19:48 UTC). The pilot is complete; the full development continuation is active.
-See the twelfth audit below. The 20% target remains unmet.
+Latest audited continuation: 208/312 sessions, 69 matched cases (2026-09-14
+20:04 UTC). The pilot is complete; the full development continuation is active.
+See the thirteenth audit below. The 20% target remains unmet.
 
 All 36 sessions finished. Every forecast is valid; plain Hermes completed 11/12 full workflows, Gnomon without ledger 12/12, ledger 12/12. The frozen completion gate passed. Independent local audit: 4,227 file hashes verified, 2,942 checks, zero integrity failures.
 
@@ -495,3 +495,32 @@ within unchanged common models and budgets, as well as faithful evidence use.
 Do not change the live run or promote the sparse-display prototype on this
 result. No new fits, API calls or final data access. Receipt:
 `evidence/guarded-agent-093-executed-opportunity-003.json`.
+
+## Thirteenth continuation audit — 2026-09-14 20:04 UTC
+
+Twelve new sessions passed 2,073 independent checks, zero failures or missing
+shutdown records. The archive and all 1,463 extracted file hashes verified;
+4,227 original pilot files and all new retained pilot prefixes reverified.
+Combined evidence: 208 sessions, 69 all-three matched cases. Mean RMSLE is
+plain 0.464389, Gnomon 0.475823, ledger 0.452283: 4.95% lower ledger error.
+Matched reported tokens are 18,519,814 / 19,197,225 / 14,895,320, a 22.41%
+ledger reduction versus Gnomon. Full workflows: 66/69, 64/69, 69/69. All
+forecasts remain valid and all cases remain scored. The eighth observed
+incomplete workflow (plain item_1457251 round 4) is now independently audited.
+Receipt: `evidence/guarded-agent-093-development-audit-013.json`.
+
+Plain Hermes also used native memory on item_1457251_store_14 round 6: one
+skills-list request, one malformed memory request rejected, then one successful
+memory add. Its saved note exactly matches the add content. This is a second
+series with a native note, not proof of correct interpretation or improvement.
+Subsequent restoration remains to be checked. Receipt:
+`evidence/guarded-agent-093-native-memory-002.json`.
+
+The collection audit on the earlier 65 matched cases found 162 ledger-arm
+configuration/origins with complete current backtests but no production forecast.
+These cannot become historical forecast evidence retrospectively. Common
+prospective collection could increase paired coverage while charging all fits
+to every arm. See `PAIRED_COLLECTION_096.md` and
+`evidence/guarded-agent-093-collection-opportunity-001.json`. It is an undeployed
+proposal, with no new fits or efficacy result. The live run remains unchanged,
+the queued seed integration remains pending, and the final holdout stays closed.
