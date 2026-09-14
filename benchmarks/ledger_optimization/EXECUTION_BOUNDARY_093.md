@@ -146,6 +146,10 @@ completion and integrity findings are in `GUARDED_AGENT_093_STATUS.md`.
 
 `CONTINUATION_093.md` records a conditional longer development run that retains
 every pilot session rather than rerunning the same prefix. The separate host
-continuation runner passes seven local tests. Its actual three-arm resumed-worker
-preflight is queued behind termination of the live pilot; it has not yet passed
-and no paid continuation is launched. This does not alter the frozen v6 package.
+continuation runner passes seven local tests. After the pilot terminated, its
+actual three-arm resumed-worker preflight passed 41 integration assertions and
+1,011 independent audit checks. All 96 numerical attempts and 48 scripted model
+responses were retained; zero Engy calls were made. Native memory survived the
+copy and entered each resumed model request. Receipt:
+`evidence/continuation-093-preflight-passed.json`. No paid continuation has launched
+at this checkpoint. This does not alter the frozen v6 package.

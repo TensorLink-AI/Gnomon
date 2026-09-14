@@ -1,0 +1,52 @@
+{
+  "status": "synthetic_continuation_preflight_passed",
+  "engy_calls": 0,
+  "local_gate_tests": 7,
+  "integration_checks": 41,
+  "independent_audit_checks": 1011,
+  "verified_files": 1691,
+  "resumed_arms": [
+    "plain",
+    "gnomon",
+    "ledger"
+  ],
+  "numerical_attempts": 96,
+  "scripted_responses": 48,
+  "continuation_source_sha256": "6ea588139648e818fd3c6f7ed807a5042a978c665e8775464739ba77028c900c",
+  "frozen_worker_sources": {
+    "PROTOCOL.md": "013b339646c93d9fe8d8d5f4b53584bd0b000f28fe511e8946074f10efe77608",
+    "TASK.md": "86e403a1ab919b391ad4f412d8681876b7976f4e515bd72ab92b48131d32eaea",
+    "agent_review.py": "bf21b9de4ec4c0389badf909c6b27565439456f0f92b82e8936ea1e8839eb6a7",
+    "analyze.py": "c8d0d4ca6c971be6d39315278e1da020b28836d0fbef02c918a9fb176c14c995",
+    "boundary_schemas_093.py": "a839a3727db20d487818fb318081e0e8bfc3434ccfc5f54b510807f60f833db9",
+    "check_forecast.py": "21f035381c5f51a4f4dfb9bda3e5e19400c7b7d5c9abe63df5f539b42c8994a9",
+    "core.py": "d6a6ae0b9cf0c46b2c840cf02e8705aefb64fda12c63ba946cebef6efdc55661",
+    "dev_evidence_summary.py": "a5dea6cdb20808016991e5a2fdf83e337822d4a4d21db25a5e527bd296453f62",
+    "execution_boundary_093.py": "bb96ab9dc4018b0a5a8daddf4ee19410b4aa9fed12006248e246f50ef36118fb",
+    "hermes_boundary_093.py": "0fd740aba17b96913bf97f9a19b6307b2e2f298429b8ae024569647116065051",
+    "history_091.py": "82fbac7134d17e3c4dfb1d091f10f59a7b5cb73555f435c7007fcc97d8ea3f42",
+    "lab.py": "9470d1745d2db6fae6bc0afd434448bb3211e522038cfaabd50cd211638835cd",
+    "ledger_cards.py": "d997fa096900ba7129e5d693959fdf7e46ef5a97f3bf1a3b0c26908ef6c712c8",
+    "maturation.py": "6e3728f08ad7a5e551fafedae872afc4b470ccb3eacb41082405b71923b24875",
+    "ml_ledger_cards.py": "d997fa096900ba7129e5d693959fdf7e46ef5a97f3bf1a3b0c26908ef6c712c8",
+    "numerical.py": "a71b75f06ad69fcca06275046c5e74565b15d7d6dd2538df0fe827c448fc0413",
+    "policy.py": "dc652bb974b744d00b325b4c1336fe72b3583b01a8730a1c04d79622a605ef5c",
+    "preflight.py": "46d24f148dd370eee6e83bb4de0f1fcc89091b6c69ede6cebcaeccbcce7ba7e7",
+    "review_bridge.py": "419494cb699ed22b2963e2eb519084b3f285d83df20c53b2f0b9ca22dc940f5c",
+    "run.py": "73e2c383d131a42bf1cf6c47e6cc8beb3b66e1a0f39ca75511dca1411cd3942e",
+    "service_admission.py": "722c252bd0519cbded723e5e5bd174790623def9392e211d6ce6c14d98f1b664",
+    "transport.py": "9cfeb25fb2471707e1a2b83484a72abf3f566f1613035e66b0ee3e46267cffbc",
+    "visible_agent_review.py": "9620b0466e846023841e9a52b2359d28f4dd19e8f1c5f14a9b4525654a74c788",
+    "worker.py": "7d990fdb0fbd1a90d2771e6adfd4a7df152c6a7758b98fc9791c815296e01fd0"
+  },
+  "preflight_path": "/root/gnomon-ledger-ml-v3/code/results/continuation-093-preflight-001/passed.json",
+  "preflight_sha256": "321d3741997dbd2b69b14c9afad043226818ee79427e300b9b7933fa417799af",
+  "archive_sha256": "7bdb469934ca91f163c3a22fbdae0c3839836826eed6e2f36985b111a23dd167",
+  "paid_continuation_launched": false,
+  "target_met": false,
+  "files": {
+    "results/continuation-093-preflight-001/remote-completion.json": "2625a096c6513e82e889a2a7ce160527e047537e073b1c2a9b587e6aaa58b86d",
+    "results/continuation-093-preflight-001/remote-evidence.tar.gz": "7bdb469934ca91f163c3a22fbdae0c3839836826eed6e2f36985b111a23dd167",
+    "results/continuation-093-preflight-001/development-controller.py": "87596c9064de75b0ff55e030fbe13a479eada224bf94af4e773038fedc479ce4"
+  }
+}
