@@ -1,0 +1,373 @@
+{
+  "scope": "Post-hoc descriptive tool usage on first ten completed development sessions. Reading evidence does not establish causal use or forecast benefit. No running sources changed.",
+  "rows": [
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 0,
+      "workflow_complete": true,
+      "selected_config": {
+        "alpha": 10.0,
+        "lags": 56,
+        "model": "ridge",
+        "window": 730
+      },
+      "tool_calls": {
+        "project_list": 1,
+        "lab": 14,
+        "evidence_read": 5,
+        "data_summary": 2,
+        "notes_write": 1
+      },
+      "rejections": [
+        {
+          "tool": "data_summary",
+          "message": "Choose exact available history columns."
+        }
+      ],
+      "reviews": [
+        {
+          "status": null,
+          "global_past_origin_count": null,
+          "shown_pairs": 0,
+          "provider_calls": null
+        }
+      ],
+      "native_memory_saved": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 1,
+      "workflow_complete": true,
+      "selected_config": {
+        "depth": 16,
+        "lags": 56,
+        "model": "random_forest",
+        "window": 730
+      },
+      "tool_calls": {
+        "project_list": 1,
+        "lab": 11,
+        "evidence_read": 5,
+        "data_summary": 4,
+        "notes_write": 1
+      },
+      "rejections": [
+        {
+          "tool": "data_summary",
+          "message": "Choose exact available history columns."
+        },
+        {
+          "tool": "data_summary",
+          "message": "Choose exact available history columns."
+        }
+      ],
+      "reviews": [
+        {
+          "status": null,
+          "global_past_origin_count": null,
+          "shown_pairs": 0,
+          "provider_calls": null
+        }
+      ],
+      "native_memory_saved": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 0,
+      "workflow_complete": true,
+      "selected_config": {
+        "alpha": 10.0,
+        "lags": 14,
+        "model": "ridge",
+        "window": 365
+      },
+      "tool_calls": {
+        "project_list": 1,
+        "lab": 7,
+        "evidence_read": 5,
+        "data_summary": 5,
+        "notes_write": 1
+      },
+      "rejections": [
+        {
+          "tool": "data_summary",
+          "message": "Choose exact available history columns."
+        }
+      ],
+      "reviews": [
+        {
+          "status": null,
+          "global_past_origin_count": null,
+          "shown_pairs": 0,
+          "provider_calls": null
+        }
+      ],
+      "native_memory_saved": false
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 1,
+      "workflow_complete": true,
+      "selected_config": {
+        "alpha": 100.0,
+        "lags": 14,
+        "model": "ridge",
+        "window": 180
+      },
+      "tool_calls": {
+        "project_list": 1,
+        "lab": 8,
+        "evidence_read": 6,
+        "data_summary": 2,
+        "notes_write": 1
+      },
+      "rejections": [
+        {
+          "tool": "data_summary",
+          "message": "Choose exact available history columns."
+        }
+      ],
+      "reviews": [
+        {
+          "status": null,
+          "global_past_origin_count": null,
+          "shown_pairs": 0,
+          "provider_calls": null
+        }
+      ],
+      "native_memory_saved": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 0,
+      "workflow_complete": true,
+      "selected_config": {
+        "alpha": 10.0,
+        "lags": 28,
+        "model": "ridge",
+        "window": 365
+      },
+      "tool_calls": {
+        "project_list": 1,
+        "lab": 9,
+        "evidence_read": 5,
+        "data_summary": 2,
+        "notes_write": 1
+      },
+      "rejections": [
+        {
+          "tool": "data_summary",
+          "message": "Choose exact available history columns."
+        }
+      ],
+      "reviews": [
+        {
+          "status": "insufficient_evidence",
+          "global_past_origin_count": null,
+          "shown_pairs": 0,
+          "provider_calls": 0
+        }
+      ],
+      "native_memory_saved": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 0,
+      "workflow_complete": true,
+      "selected_config": {
+        "alpha": 10.0,
+        "lags": 14,
+        "model": "ridge",
+        "window": 365
+      },
+      "tool_calls": {
+        "project_list": 1,
+        "lab": 9,
+        "evidence_read": 5,
+        "data_summary": 1,
+        "notes_write": 1
+      },
+      "rejections": [],
+      "reviews": [
+        {
+          "status": "insufficient_evidence",
+          "global_past_origin_count": null,
+          "shown_pairs": 0,
+          "provider_calls": 0
+        }
+      ],
+      "native_memory_saved": false
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 1,
+      "workflow_complete": true,
+      "selected_config": {
+        "alpha": 10.0,
+        "lags": 14,
+        "model": "ridge",
+        "window": 365
+      },
+      "tool_calls": {
+        "project_list": 1,
+        "lab": 7,
+        "evidence_read": 5,
+        "data_summary": 3,
+        "notes_write": 1
+      },
+      "rejections": [
+        {
+          "tool": "data_summary",
+          "message": "Choose exact available history columns."
+        }
+      ],
+      "reviews": [
+        {
+          "status": "evidence_available",
+          "global_past_origin_count": 1,
+          "shown_pairs": 1,
+          "provider_calls": 0,
+          "full_evidence_hash_matches": true,
+          "windows": [
+            {
+              "last_4_origins": {
+                "status": "ok",
+                "matched_origins": 1,
+                "n": 14,
+                "start": "2016-08-16T00:00:00.000000+00:00",
+                "end": "2016-08-16T00:00:00.000000+00:00",
+                "scores": {
+                  "02279b66149d6867": 0.1791339731170725,
+                  "5ee336af9243f066": 0.32086479593153566
+                },
+                "lowest_error_config_ids": [
+                  "02279b66149d6867"
+                ],
+                "evidence_pointer": "/cards/0/windows/last_4_origins"
+              }
+            }
+          ]
+        }
+      ],
+      "native_memory_saved": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 0,
+      "workflow_complete": true,
+      "selected_config": {
+        "alpha": 10.0,
+        "lags": 14,
+        "model": "ridge",
+        "window": 365
+      },
+      "tool_calls": {
+        "lab": 7,
+        "project_list": 1,
+        "evidence_read": 5,
+        "data_summary": 4,
+        "notes_write": 1
+      },
+      "rejections": [
+        {
+          "tool": "data_summary",
+          "message": "Choose exact available history columns."
+        }
+      ],
+      "reviews": [
+        {
+          "status": null,
+          "global_past_origin_count": null,
+          "shown_pairs": 0,
+          "provider_calls": null
+        }
+      ],
+      "native_memory_saved": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 0,
+      "workflow_complete": false,
+      "selected_config": {
+        "model": "seasonal",
+        "season": 7
+      },
+      "tool_calls": {
+        "project_list": 1,
+        "lab": 4,
+        "evidence_read": 6,
+        "data_summary": 19,
+        "notes_write": 1
+      },
+      "rejections": [
+        {
+          "tool": "data_summary",
+          "message": "Choose exact available history columns."
+        }
+      ],
+      "reviews": [
+        {
+          "status": null,
+          "global_past_origin_count": null,
+          "shown_pairs": 0,
+          "provider_calls": null
+        }
+      ],
+      "native_memory_saved": false
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 1,
+      "workflow_complete": true,
+      "selected_config": {
+        "alpha": 10.0,
+        "lags": 14,
+        "model": "ridge",
+        "window": 365
+      },
+      "tool_calls": {
+        "project_list": 1,
+        "lab": 8,
+        "evidence_read": 5,
+        "data_summary": 3,
+        "notes_write": 1
+      },
+      "rejections": [
+        {
+          "tool": "data_summary",
+          "message": "Choose exact available history columns."
+        }
+      ],
+      "reviews": [
+        {
+          "status": null,
+          "global_past_origin_count": null,
+          "shown_pairs": 0,
+          "provider_calls": null
+        }
+      ],
+      "native_memory_saved": false
+    }
+  ],
+  "evidence_file": "results/guarded-history-093-pilot-audit-002/behavior.json",
+  "evidence_sha256": "4f8214af3319f076e0bc6f8d4322d3752e1a1b3afaee77daeb8bbd8932678ce8",
+  "snapshot_receipt": "guarded-agent-093-pilot-audit-002.json",
+  "native_memory_tool_calls": 0,
+  "native_skill_tool_calls": 0,
+  "limitations": [
+    "Only ten completed development sessions audited.",
+    "No claim that reading cards caused a model choice or improved accuracy.",
+    "Native memory was enabled but unused in this snapshot; persistent numerical history and decision notes are separate mechanisms.",
+    "Review statuses absent on raw-history arms are not engine errors."
+  ]
+}
