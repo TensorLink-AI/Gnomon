@@ -1,0 +1,106 @@
+{
+  "status": "first_mature_matched_development_case_observed",
+  "at": "2026-09-14T16:44:24.209261+00:00",
+  "completed_stable": 81,
+  "phases": {
+    "all": {
+      "matched_cases": 27,
+      "series": 4,
+      "mean_rmsle": {
+        "plain": 0.49560043133475656,
+        "gnomon": 0.5257317390925164,
+        "ledger": 0.46846631887975476
+      },
+      "ledger_relative_reduction_vs_gnomon": 0.10892517220209952
+    },
+    "cold": {
+      "matched_cases": 14,
+      "series": 4,
+      "mean_rmsle": {
+        "plain": 0.528430618619355,
+        "gnomon": 0.5595932353745469,
+        "ledger": 0.5103930149768913
+      },
+      "ledger_relative_reduction_vs_gnomon": 0.08792139948712019
+    },
+    "mature": {
+      "matched_cases": 1,
+      "series": 1,
+      "mean_rmsle": {
+        "plain": 0.08764227213738825,
+        "gnomon": 0.08764227213738825,
+        "ledger": 0.07678500211815623
+      },
+      "ledger_relative_reduction_vs_gnomon": 0.12388165841036314
+    },
+    "later": {
+      "matched_cases": 0,
+      "series": 0,
+      "mean_rmsle": {
+        "plain": null,
+        "gnomon": null,
+        "ledger": null
+      },
+      "ledger_relative_reduction_vs_gnomon": null
+    }
+  },
+  "mature_cases": [
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 10,
+      "arms": {
+        "plain": {
+          "config": {
+            "alpha": 10.0,
+            "lags": 14,
+            "model": "ridge",
+            "window": 365
+          },
+          "rmsle": 0.08764227213738825,
+          "valid": true,
+          "workflow_complete": true,
+          "prior_outcomes": 10,
+          "ledger_reviews": 0,
+          "tokens": 285981
+        },
+        "gnomon": {
+          "config": {
+            "alpha": 10.0,
+            "lags": 14,
+            "model": "ridge",
+            "window": 365
+          },
+          "rmsle": 0.08764227213738825,
+          "valid": true,
+          "workflow_complete": true,
+          "prior_outcomes": 10,
+          "ledger_reviews": 0,
+          "tokens": 257601
+        },
+        "ledger": {
+          "config": {
+            "alpha": 30.0,
+            "lags": 21,
+            "model": "ridge",
+            "window": 730
+          },
+          "rmsle": 0.07678500211815623,
+          "valid": true,
+          "workflow_complete": true,
+          "prior_outcomes": 10,
+          "ledger_reviews": 1,
+          "tokens": 268161
+        }
+      }
+    }
+  ],
+  "scores_independently_recomputed": 81,
+  "scope": "Lifecycle monitoring, not full session-integrity audit. A single ten-prior-origin case does not establish mature-history or causal ledger benefit. Full primary retains cold starts and incomplete workflows. No held-out claim.",
+  "target_met": false,
+  "final_holdout_accessed": false,
+  "files": {
+    "results/guarded-history-093-lifecycle-002/query.py": "2af7dae1d7c17aeccbfaf5754600c05a8694b98efc637cea698352aac9e34854",
+    "results/guarded-history-093-lifecycle-002/snapshot.json": "5343fd993953e7220857aa8e9e4d6ef7af632b191435b24af469d855f5eb894b",
+    "results/guarded-history-093-development-audit-003/snapshot/host-jobs.json": "380261912295bbe21f3c998a8c6f7048cde1fb0869d37bb4db44ad3a72b28f25"
+  }
+}
