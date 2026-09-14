@@ -1,0 +1,210 @@
+{
+  "scope": "Post-hoc descriptive decomposition of audited partial development results. Full-workflow subset is selected by outcomes and cannot estimate an unbiased treatment effect. No change to the primary all-case metric or final gate.",
+  "all_matched": {
+    "matched_cases": 23,
+    "mean_rmsle": {
+      "plain": 0.4971211284184251,
+      "gnomon": 0.5275128582851778,
+      "ledger": 0.4689827956890604
+    },
+    "ledger_relative_reduction_vs_gnomon": 0.11095476001549054
+  },
+  "all_three_full_workflow_subset": {
+    "matched_cases": 21,
+    "mean_rmsle": {
+      "plain": 0.49789411176747095,
+      "gnomon": 0.5291571933951662,
+      "ledger": 0.47408624722643955
+    },
+    "ledger_relative_reduction_vs_gnomon": 0.10407294251332333
+  },
+  "per_series": [
+    {
+      "series_id": "item_1047756_store_23",
+      "matched_cases": 8,
+      "mean_rmsle": {
+        "plain": 0.8191307411855517,
+        "gnomon": 0.9072672868190101,
+        "ledger": 0.7550567224383197
+      },
+      "ledger_relative_reduction_vs_gnomon": 0.16776816114946602,
+      "absolute_mean_error_difference": 0.1522105643806905,
+      "contribution_to_current_pooled_difference": 0.0529428050019793,
+      "all_three_full_workflows": {
+        "matched_cases": 7,
+        "mean_rmsle": {
+          "plain": 0.8422715884155803,
+          "gnomon": 0.9166825126297936,
+          "ledger": 0.7698278062186387
+        },
+        "ledger_relative_reduction_vs_gnomon": 0.16020236492769535
+      }
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "matched_cases": 9,
+      "mean_rmsle": {
+        "plain": 0.22181268854634378,
+        "gnomon": 0.21525150831431789,
+        "ledger": 0.20647831630044156
+      },
+      "ledger_relative_reduction_vs_gnomon": 0.04075786545042648,
+      "absolute_mean_error_difference": 0.00877319201387634,
+      "contribution_to_current_pooled_difference": 0.003432988179342916,
+      "all_three_full_workflows": {
+        "matched_cases": 8,
+        "mean_rmsle": {
+          "plain": 0.2094311751231948,
+          "gnomon": 0.21976620021397358,
+          "ledger": 0.2098963591983627
+        },
+        "ledger_relative_reduction_vs_gnomon": 0.04491064142712209
+      }
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "matched_cases": 3,
+      "mean_rmsle": {
+        "plain": 0.46098661301357124,
+        "gnomon": 0.4924064991908419,
+        "ledger": 0.4591302804992403
+      },
+      "ledger_relative_reduction_vs_gnomon": 0.06757875606086328,
+      "absolute_mean_error_difference": 0.03327621869160154,
+      "contribution_to_current_pooled_difference": 0.004340376351078462,
+      "all_three_full_workflows": {
+        "matched_cases": 3,
+        "mean_rmsle": {
+          "plain": 0.46098661301357124,
+          "gnomon": 0.4924064991908419,
+          "ledger": 0.4591302804992403
+        },
+        "ledger_relative_reduction_vs_gnomon": 0.06757875606086328
+      }
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "matched_cases": 3,
+      "mean_rmsle": {
+        "plain": 0.5004886627271852,
+        "gnomon": 0.48672479120187373,
+        "ledger": 0.5034849443800457
+      },
+      "ledger_relative_reduction_vs_gnomon": -0.034434558257831815,
+      "absolute_mean_error_difference": -0.016760153178171904,
+      "contribution_to_current_pooled_difference": -0.0021861069362832915,
+      "all_three_full_workflows": {
+        "matched_cases": 3,
+        "mean_rmsle": {
+          "plain": 0.5004886627271852,
+          "gnomon": 0.48672479120187373,
+          "ledger": 0.5034849443800457
+        },
+        "ledger_relative_reduction_vs_gnomon": -0.034434558257831815
+      }
+    }
+  ],
+  "not_full_workflow_cases": [
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 6,
+      "arms": {
+        "plain": {
+          "valid": true,
+          "workflow_complete": true,
+          "config": {
+            "alpha": 300.0,
+            "lags": 14,
+            "model": "ridge",
+            "window": 365
+          },
+          "rmsle": 0.6571448105753518,
+          "orchestration_stop": "checkpoint_workflow_complete",
+          "tokens": 287953
+        },
+        "gnomon": {
+          "valid": true,
+          "workflow_complete": false,
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "rmsle": 0.8413607061435259,
+          "orchestration_stop": "request_budget_exhausted",
+          "tokens": 770432
+        },
+        "ledger": {
+          "valid": true,
+          "workflow_complete": true,
+          "config": {
+            "alpha": 300.0,
+            "lags": 14,
+            "model": "ridge",
+            "window": 90
+          },
+          "rmsle": 0.6516591359760868,
+          "orchestration_stop": "checkpoint_workflow_complete",
+          "tokens": 240116
+        }
+      }
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 0,
+      "arms": {
+        "plain": {
+          "valid": true,
+          "workflow_complete": false,
+          "config": {
+            "model": "seasonal",
+            "season": 7
+          },
+          "rmsle": 0.32086479593153566,
+          "orchestration_stop": "request_budget_exhausted",
+          "tokens": 211920
+        },
+        "gnomon": {
+          "valid": true,
+          "workflow_complete": true,
+          "config": {
+            "alpha": 10.0,
+            "lags": 14,
+            "model": "ridge",
+            "window": 365
+          },
+          "rmsle": 0.1791339731170725,
+          "orchestration_stop": "checkpoint_workflow_complete",
+          "tokens": 132026
+        },
+        "ledger": {
+          "valid": true,
+          "workflow_complete": true,
+          "config": {
+            "alpha": 10.0,
+            "lags": 14,
+            "model": "ridge",
+            "window": 365
+          },
+          "rmsle": 0.1791339731170725,
+          "orchestration_stop": "checkpoint_workflow_complete",
+          "tokens": 132363
+        }
+      }
+    }
+  ],
+  "pooled_absolute_error_difference": 0.05853006259611739,
+  "incomplete_workflow_cases_contribution_to_pooled_difference": 0.008247894355106046,
+  "fraction_of_pooled_difference_from_incomplete_workflow_cases": 0.14091723106500098,
+  "case_balance_warning": "Partial series counts differ; completed final grid must have equal scheduled origins. Do not project this interim weighted mix onto the final result.",
+  "files": {
+    "results/guarded-history-093-pilot-final-001/independent-audit/report.json": "0cf1ae70883b38aebb2cc3a376e8e299ab93ec638944abebe7dd5f0de155f816",
+    "results/guarded-history-093-development-audit-002/audit/report.json": "52498eb8b2767388568d2ac9126139a82105129a2372deff8aa6cac552dce271",
+    "results/guarded-history-093-development-audit-003/audit/report.json": "08c6ca07a14bfbd1be0f87d69d717e4dbed3045381394bd739296f05051fc08b"
+  },
+  "target_met": false,
+  "final_holdout_accessed": false,
+  "analysis_files": {
+    "results/guarded-history-093-completion-contrast-001/analyze.py": "8488da627c2df36237b38e346e2d64d736d5c3747bc0acdcb0c6324d2eaed81c",
+    "results/guarded-history-093-completion-contrast-001/report.json": "3e055d6449ae9668b154d65d63fb974b95d89fec6b6a3f3cd8f983835433aab3"
+  }
+}

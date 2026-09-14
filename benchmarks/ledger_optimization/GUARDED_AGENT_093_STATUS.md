@@ -58,3 +58,21 @@ Receipt: `evidence/guarded-agent-093-development-audit-003.json`. Audit-003 is a
 disjoint delta to audit-002, not a replacement; audit-001 remains superseded by
 002. Main/PyPI/live sources unchanged; the 20% target is unmet and final data is
 unopened. These partial results cannot establish general ledger superiority.
+
+## Completion and series concentration diagnostic
+
+On the same 23 fully audited matched cases (not the newer live-only counts),
+ledger improves 11.10% versus Gnomon overall. Restricting to the 21 cases where
+all three arms completed the full workflow gives 10.41%. This outcome-selected
+subset is a diagnostic, not a replacement primary estimate or unbiased causal
+comparison. The two incomplete-workflow cases contribute 14.1% of the observed
+net absolute error difference; the improvement is not solely their contribution.
+
+Most of the current net difference comes from item_1047756_store_23: contribution
+0.05294 to pooled difference 0.05853, about 90%. Its ledger error is 16.78% lower
+across eight matched origins. Other series show +4.08% (nine origins), +6.76%
+(three), and -3.44% (three). Positive means lower ledger error. The unequal
+interim series counts and concentration make projection to the complete run
+unsafe. Keep the full scheduled grid and all failures; do not reweight or remove
+cases to improve the result. Receipt:
+`evidence/guarded-agent-093-completion-contrast-001.json`.
