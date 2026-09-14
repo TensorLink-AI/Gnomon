@@ -152,3 +152,25 @@ support and numerical references attached to any persisted lesson. It does not
 prove that structured ledger evidence prevents the same error or improves
 accuracy. Live prompts and tools remain frozen. Receipt:
 `evidence/guarded-agent-093-memory-claims-001.json`.
+
+## Matched comparison support audit
+
+Across the 32 audited ledger sessions, 28 queried available evidence and 20 had
+at least one returned pair with three or more shared lifetime origins. An
+additional 1,724 checks verified that returned origin rows contain both expected
+provider/revision identities, complete horizons, unique origins and past-only
+origin times. Earlier batch audits independently recomputed their scores.
+
+Deduplicating a returned pair within each session leaves 139 pair/session
+comparisons: 74 have no lifetime overlap, 32 have one origin, nine have two and
+24 have at least three. Recent-four support is sparser: 88 have no overlap.
+These counts reuse origins across sessions and cannot be treated as independent
+statistical samples. No cross-pair ranking was constructed.
+
+The current display already orders pairs by most recent shared origin. A
+candidate for a later frozen experiment is to compress zero-overlap comparisons
+into an explicit count with exact retrieval pointers, preserving all supported
+comparisons regardless of score or support size. This would reduce empty-card
+output without hiding losses or claiming unsupported rankings. It has not been
+implemented in the live trial or shown to improve accuracy. Receipt:
+`evidence/guarded-agent-093-pair-support-001.json`.
