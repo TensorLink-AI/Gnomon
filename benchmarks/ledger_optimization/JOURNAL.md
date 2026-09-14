@@ -1028,3 +1028,21 @@ refinements needed on real data. Four tests and60,485 independent checks pass.
 No provider/API calls, hindsight weights, or reserved reads. Preserve receipt050,
 full forecast/weight evidence and all prior costs. No promotion or paid follow-up;
 the20% held-out agent objective remains unproven.
+
+## Learned conditional historical risk 051: gate failed
+
+Previous turn made progress: completed050 mechanism screen, independent audit
+and push c7208f1. Revalidated current state and installed numerical packages
+before freezing051 at5edde93. The user asked for status during implementation;
+reported best2.04% development gain and no new paid Hermes run, then continued.
+
+051 learns historical error Gram matrices with fixed ExtraTrees over all visible
+same-domain contexts. Query predictions retain exact prior-record weights.
+Primary gain1.72% versus quadratic CV,1.68% versus global guard,0.95% versus
+intraday guard. Electricity worsens2.32% against intraday CV. All416 cases/52
+forests/3,328 trees/832 weight fits completed;11,980 optimizer iterations and
+7.1360s measured processing. Four synthetic tests and independent tree/matrix/
+forecast audit pass. Its6,721,431 assertions mostly cover repeated tree traversal;
+not independent statistical observations. Preserve receipt051 and all models,
+inputs, scores and costs. No provider/API calls, hindsight weights or reserved
+reads. Negative gate; no promotion, paid confirmation, main or PyPI changes.

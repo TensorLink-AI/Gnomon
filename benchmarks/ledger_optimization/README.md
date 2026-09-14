@@ -33,6 +33,13 @@ All 416 tasks and 832 fits completed; 60,485 independent checks passed. No new
 provider/API calls or final-data access. This remains a failed 20% promotion
 gate and a development prototype, not a new Hermes comparison.
 
+[Learned historical risk 051](BROAD_CONDITIONAL_RISK_051_RESULT.md) did not improve
+the best rule: 1.72% better than its matched quadratic control, but only0.95%
+better than the stronger intraday control and2.32% worse on electricity against
+that control. All416 tasks,52 evidence models and832 weight fits passed the
+independent saved-model audit. No new forecasting-provider/API calls or final
+access. The20% promotion gate failed; no paid agent confirmation was launched.
+
 ## Latest completed comparison: Gnomon 1.2.0 and Hermes
 
 DeepSeek **deepseek-v4.1-flash** through Engy; 104 tasks per arm, four retail

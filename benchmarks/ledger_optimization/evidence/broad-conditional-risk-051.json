@@ -1,0 +1,4718 @@
+{
+  "freeze_commit": "5edde93",
+  "exit_status": 0,
+  "report": {
+    "overall": {
+      "cases": 416,
+      "mean_rmsle": {
+        "global_cv": 0.26063159842148664,
+        "intraday_cv": 0.2587110657586681,
+        "gram_cv": 0.26074711308112886,
+        "gram_ledger": 0.25625292083645224
+      },
+      "reductions": {
+        "gram_cv": 0.01723582743283647,
+        "global_cv": 0.016800256037847405,
+        "intraday_cv": 0.009501506690513417
+      }
+    },
+    "domains": {
+      "electricity": {
+        "cases": 208,
+        "mean_rmsle": {
+          "global_cv": 0.11122640184939629,
+          "intraday_cv": 0.10748648550251698,
+          "gram_cv": 0.11130722479115944,
+          "gram_ledger": 0.10998348966568407
+        },
+        "reductions": {
+          "gram_cv": 0.011892625370536702,
+          "global_cv": 0.011174614687213924,
+          "intraday_cv": -0.023230866201394473
+        }
+      },
+      "pedestrian": {
+        "cases": 208,
+        "mean_rmsle": {
+          "global_cv": 0.410036794993577,
+          "intraday_cv": 0.40993564601481913,
+          "gram_cv": 0.41018700137109826,
+          "gram_ledger": 0.4025223520072204
+        },
+        "reductions": {
+          "gram_cv": 0.018685744156342943,
+          "global_cv": 0.01832626505256507,
+          "intraday_cv": 0.01808404338502123
+        }
+      }
+    },
+    "rows": [
+      {
+        "series_id": "electricity:T15",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.06066115113206595,
+          "intraday_cv": 0.06160900104739665,
+          "gram_cv": 0.06050574087625765,
+          "gram_ledger": 0.05886880556084216
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.056202371199024444,
+          "intraday_cv": 0.044313125570491364,
+          "gram_cv": 0.053880400352414565,
+          "gram_ledger": 0.04939490093292255
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.05269772113726944,
+          "intraday_cv": 0.05523755818929788,
+          "gram_cv": 0.05260511455669432,
+          "gram_ledger": 0.05323006742457532
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.0724466167512979,
+          "intraday_cv": 0.08072661891367984,
+          "gram_cv": 0.0687932005563161,
+          "gram_ledger": 0.07310888045668623
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.4288510937576709,
+          "intraday_cv": 0.32362680116494974,
+          "gram_cv": 0.4189404136723563,
+          "gram_ledger": 0.44891399925423614
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.08607934884683702,
+          "intraday_cv": 0.0882728564100184,
+          "gram_cv": 0.08655008195149891,
+          "gram_ledger": 0.0816135569920082
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.03593306426089553,
+          "intraday_cv": 0.037870903613403645,
+          "gram_cv": 0.036451631296263824,
+          "gram_ledger": 0.035587041834003554
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.07520522704253656,
+          "intraday_cv": 0.07429105908867253,
+          "gram_cv": 0.07481600680714397,
+          "gram_ledger": 0.06923038407792088
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.046632815357186254,
+          "intraday_cv": 0.05067904492238935,
+          "gram_cv": 0.04640770588048734,
+          "gram_ledger": 0.04898088411163115
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.1724234832397517,
+          "intraday_cv": 0.17674596017101202,
+          "gram_cv": 0.16843781739875824,
+          "gram_ledger": 0.14846330089211168
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.05850608318304607,
+          "intraday_cv": 0.06815976852213566,
+          "gram_cv": 0.058062464098216235,
+          "gram_ledger": 0.05825659137763764
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.08524448856788609,
+          "intraday_cv": 0.0831742296771376,
+          "gram_cv": 0.08642419956950875,
+          "gram_ledger": 0.0722459554486637
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.2493003692126086,
+          "intraday_cv": 0.18469231021363935,
+          "gram_cv": 0.24937466424983742,
+          "gram_ledger": 0.2488920245993659
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.039619996500856104,
+          "intraday_cv": 0.03356929345724833,
+          "gram_cv": 0.04639183842137815,
+          "gram_ledger": 0.044343208022573515
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.06984451386000115,
+          "intraday_cv": 0.06932846951028966,
+          "gram_cv": 0.06968704195692454,
+          "gram_ledger": 0.06954452114778954
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.04902215127360433,
+          "intraday_cv": 0.05201265541760011,
+          "gram_cv": 0.05308069687793819,
+          "gram_ledger": 0.05281639152026499
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.06765232197675139,
+          "intraday_cv": 0.06806172485268294,
+          "gram_cv": 0.06766133311440069,
+          "gram_ledger": 0.06860897282920413
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.05980672984756677,
+          "intraday_cv": 0.06842146186310544,
+          "gram_cv": 0.059172007688277135,
+          "gram_ledger": 0.06373591625830756
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.06284955598505745,
+          "intraday_cv": 0.060792468250157126,
+          "gram_cv": 0.06328389325414219,
+          "gram_ledger": 0.06285156199230738
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.05017911239646841,
+          "intraday_cv": 0.051217609619034446,
+          "gram_cv": 0.05010123996294593,
+          "gram_ledger": 0.03762174660667489
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.16823418040689805,
+          "intraday_cv": 0.12878335733609445,
+          "gram_cv": 0.1673390250998055,
+          "gram_ledger": 0.15064541854776006
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.36080522147017313,
+          "intraday_cv": 0.38821415816624844,
+          "gram_cv": 0.35591963998123866,
+          "gram_ledger": 0.22849319637151752
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.04883603336811313,
+          "intraday_cv": 0.045743695289590436,
+          "gram_cv": 0.050031169996835684,
+          "gram_ledger": 0.047163349061753373
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.06953551085747896,
+          "intraday_cv": 0.0639918314782017,
+          "gram_cv": 0.06979318886254048,
+          "gram_ledger": 0.06753096184136341
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.07836916971272005,
+          "intraday_cv": 0.07718618049719504,
+          "gram_cv": 0.07838936163287663,
+          "gram_ledger": 0.07782860500531154
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.13597836009993425,
+          "intraday_cv": 0.14181451193424127,
+          "gram_cv": 0.13448172457508012,
+          "gram_ledger": 0.11468413498828284
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.11158896093492011,
+          "intraday_cv": 0.11489430086316613,
+          "gram_cv": 0.11100728517669109,
+          "gram_ledger": 0.1045067441041922
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.08431687191797656,
+          "intraday_cv": 0.08422753493696039,
+          "gram_cv": 0.08460391862329088,
+          "gram_ledger": 0.07483861759436414
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.1457916934437135,
+          "intraday_cv": 0.13686758695823528,
+          "gram_cv": 0.14812142993945324,
+          "gram_ledger": 0.15669223482142122
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.04833359200342159,
+          "intraday_cv": 0.05213323124787845,
+          "gram_cv": 0.04866539378558915,
+          "gram_ledger": 0.0774001572590257
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.07359210825845318,
+          "intraday_cv": 0.07537694985797243,
+          "gram_cv": 0.07330837974617356,
+          "gram_ledger": 0.07263135039789582
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.09716822450823029,
+          "intraday_cv": 0.09510767932177694,
+          "gram_cv": 0.09715688816102774,
+          "gram_ledger": 0.09877653722468958
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.03938722368455046,
+          "intraday_cv": 0.03771703346784466,
+          "gram_cv": 0.04132089496615587,
+          "gram_ledger": 0.03742511979538238
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.031536631812972477,
+          "intraday_cv": 0.03334330714955738,
+          "gram_cv": 0.03056693078464526,
+          "gram_ledger": 0.03332324165882217
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.039763414093225466,
+          "intraday_cv": 0.03657729395262615,
+          "gram_cv": 0.038703743473039245,
+          "gram_ledger": 0.03442287995547461
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.04338648575573039,
+          "intraday_cv": 0.030931969919530993,
+          "gram_cv": 0.043137192707445,
+          "gram_ledger": 0.050244122950943285
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.25955242893004116,
+          "intraday_cv": 0.21038240865518548,
+          "gram_cv": 0.23512490791644108,
+          "gram_ledger": 0.23125842590181303
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.28522003251455913,
+          "intraday_cv": 0.24838297848278315,
+          "gram_cv": 0.2574389745870451,
+          "gram_ledger": 0.21611171761454134
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.06367627243373009,
+          "intraday_cv": 0.06126463199313161,
+          "gram_cv": 0.0634392380445012,
+          "gram_ledger": 0.06175013038379009
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.06815058130474816,
+          "intraday_cv": 0.07240706791162214,
+          "gram_cv": 0.06810935042936503,
+          "gram_ledger": 0.06795518525895282
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.0631418018677945,
+          "intraday_cv": 0.06436103582180507,
+          "gram_cv": 0.06318794988211875,
+          "gram_ledger": 0.06267811527672293
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.10658909290408848,
+          "intraday_cv": 0.10671995736389711,
+          "gram_cv": 0.10616965015223268,
+          "gram_ledger": 0.10003185571319671
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.05857628427055999,
+          "intraday_cv": 0.060907174378022094,
+          "gram_cv": 0.05862181588742602,
+          "gram_ledger": 0.05919685289498605
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.2189701515491504,
+          "intraday_cv": 0.21585944937133678,
+          "gram_cv": 0.21794900427393687,
+          "gram_ledger": 0.22059015249213337
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.344155564006727,
+          "intraday_cv": 0.2624846127762673,
+          "gram_cv": 0.34595999253704895,
+          "gram_ledger": 0.31818644240703287
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.6065529130324203,
+          "intraday_cv": 0.608047459254162,
+          "gram_cv": 0.5935646345485148,
+          "gram_ledger": 0.6143383952957332
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.06551818790331634,
+          "intraday_cv": 0.06277450821000136,
+          "gram_cv": 0.06543670545619135,
+          "gram_ledger": 0.06527945509016071
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.04796172682106906,
+          "intraday_cv": 0.044922500829809205,
+          "gram_cv": 0.04795249879931077,
+          "gram_ledger": 0.05263227518281231
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.06995347055193057,
+          "intraday_cv": 0.0709095274151682,
+          "gram_cv": 0.07032865270043354,
+          "gram_ledger": 0.07071198039677126
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.039604319814314684,
+          "intraday_cv": 0.039520598529350234,
+          "gram_cv": 0.040342888478374694,
+          "gram_ledger": 0.03853987633763769
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.032328672623958304,
+          "intraday_cv": 0.03200216895324023,
+          "gram_cv": 0.03173330274258087,
+          "gram_ledger": 0.03626001058379415
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.17927434671676565,
+          "intraday_cv": 0.18712622526149206,
+          "gram_cv": 0.14906459477988032,
+          "gram_ledger": 0.14843066889157766
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.25798388401880484,
+          "intraday_cv": 0.2803661235412062,
+          "gram_cv": 0.25761741248425435,
+          "gram_ledger": 0.2534387344795717
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.1165357401936142,
+          "intraday_cv": 0.09004473185463453,
+          "gram_cv": 0.12702275973514612,
+          "gram_ledger": 0.12778799978291386
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.06339013508345008,
+          "intraday_cv": 0.06196666562621551,
+          "gram_cv": 0.06394818486197426,
+          "gram_ledger": 0.06338466612161205
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.06854871028998077,
+          "intraday_cv": 0.06842574935849685,
+          "gram_cv": 0.06857216385554454,
+          "gram_ledger": 0.06545869459462852
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 7,
+        "scores": {
+          "global_cv": 0.05744461357854151,
+          "intraday_cv": 0.048462277330493034,
+          "gram_cv": 0.05788120416306494,
+          "gram_ledger": 0.057970157256931304
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 7,
+        "scores": {
+          "global_cv": 0.05397160953019584,
+          "intraday_cv": 0.05282243143103834,
+          "gram_cv": 0.0536341163130481,
+          "gram_ledger": 0.043180128864948056
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 7,
+        "scores": {
+          "global_cv": 0.04640636382959542,
+          "intraday_cv": 0.04620683022376429,
+          "gram_cv": 0.046269774403558464,
+          "gram_ledger": 0.04542787958620765
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 7,
+        "scores": {
+          "global_cv": 0.06274178801334417,
+          "intraday_cv": 0.07160611389936637,
+          "gram_cv": 0.06338363404094145,
+          "gram_ledger": 0.06369220221232963
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 7,
+        "scores": {
+          "global_cv": 0.18917870780683332,
+          "intraday_cv": 0.18293557633768448,
+          "gram_cv": 0.18961632679019463,
+          "gram_ledger": 0.19128594128771906
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 7,
+        "scores": {
+          "global_cv": 0.36955576026613574,
+          "intraday_cv": 0.35692381221283687,
+          "gram_cv": 0.37474553487171886,
+          "gram_ledger": 0.40032153039201673
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 7,
+        "scores": {
+          "global_cv": 0.04647487285681306,
+          "intraday_cv": 0.04964622154372483,
+          "gram_cv": 0.0465824739779134,
+          "gram_ledger": 0.04405485851350514
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 7,
+        "scores": {
+          "global_cv": 0.05339586409155034,
+          "intraday_cv": 0.04548204555310495,
+          "gram_cv": 0.05350492617978904,
+          "gram_ledger": 0.04810173468344853
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.07888440786565235,
+          "intraday_cv": 0.08264521637070578,
+          "gram_cv": 0.07825875153132691,
+          "gram_ledger": 0.06691119343557099
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.10407936406504052,
+          "intraday_cv": 0.11916041684579814,
+          "gram_cv": 0.10184297005118273,
+          "gram_ledger": 0.10165829859110231
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.03882588405856653,
+          "intraday_cv": 0.038968421063483735,
+          "gram_cv": 0.0387859639782018,
+          "gram_ledger": 0.0385572562341495
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.0949901961559341,
+          "intraday_cv": 0.10681087360386124,
+          "gram_cv": 0.0960797164777062,
+          "gram_ledger": 0.09846401602535249
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.1658745692822896,
+          "intraday_cv": 0.15308825505515952,
+          "gram_cv": 0.16333821161974763,
+          "gram_ledger": 0.14644065760848596
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.37567987307090367,
+          "intraday_cv": 0.3901582016777009,
+          "gram_cv": 0.3838507275295012,
+          "gram_ledger": 0.3650135184462788
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.039918461549312285,
+          "intraday_cv": 0.03697582265383989,
+          "gram_cv": 0.04009484280438482,
+          "gram_ledger": 0.04238200395429712
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.049750800672968866,
+          "intraday_cv": 0.04995092881537737,
+          "gram_cv": 0.04997178890734673,
+          "gram_ledger": 0.04829416819434585
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.06437843344809807,
+          "intraday_cv": 0.0628288573214011,
+          "gram_cv": 0.06400933934020903,
+          "gram_ledger": 0.060414706737191674
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.07114333280476606,
+          "intraday_cv": 0.06854324894610608,
+          "gram_cv": 0.07163366822947038,
+          "gram_ledger": 0.07197855817451408
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.04466832751355744,
+          "intraday_cv": 0.04519037359479307,
+          "gram_cv": 0.044674890948626846,
+          "gram_ledger": 0.04468968606511403
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.13767519925215252,
+          "intraday_cv": 0.14629568339852472,
+          "gram_cv": 0.1387831916946675,
+          "gram_ledger": 0.10828043654088829
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.22825830387742124,
+          "intraday_cv": 0.21312861470030228,
+          "gram_cv": 0.23034248153210454,
+          "gram_ledger": 0.22503016375433477
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.10019421624131694,
+          "intraday_cv": 0.1024734592177274,
+          "gram_cv": 0.1000402324399388,
+          "gram_ledger": 0.20526758666779138
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.06413693532629722,
+          "intraday_cv": 0.063390831409734,
+          "gram_cv": 0.06480432148010146,
+          "gram_ledger": 0.06173357794566083
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.0769979875697196,
+          "intraday_cv": 0.07760318883489228,
+          "gram_cv": 0.07771340647238013,
+          "gram_ledger": 0.07563897035733433
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.07113706401678464,
+          "intraday_cv": 0.0694014034648334,
+          "gram_cv": 0.07106630896878831,
+          "gram_ledger": 0.06729114879738793
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.13005099832224473,
+          "intraday_cv": 0.1146984378024021,
+          "gram_cv": 0.10577930671776958,
+          "gram_ledger": 0.08598529318677955
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.04352568493854511,
+          "intraday_cv": 0.044701834650704556,
+          "gram_cv": 0.043977461816106976,
+          "gram_ledger": 0.046643179761341115
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.0739899220604834,
+          "intraday_cv": 0.08245260979432212,
+          "gram_cv": 0.07461229375982727,
+          "gram_ledger": 0.06824373371089353
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.20017374625367754,
+          "intraday_cv": 0.20778202248069494,
+          "gram_cv": 0.2011185166915291,
+          "gram_ledger": 0.20119464759469644
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.08155812567344979,
+          "intraday_cv": 0.08057197460362482,
+          "gram_cv": 0.08181335331031515,
+          "gram_ledger": 0.08165106466988883
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.05151293631320808,
+          "intraday_cv": 0.047394634007455055,
+          "gram_cv": 0.04899965694620985,
+          "gram_ledger": 0.04708088986181157
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.06173979235023994,
+          "intraday_cv": 0.058416542754735776,
+          "gram_cv": 0.06177504894923555,
+          "gram_ledger": 0.05751750728937765
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.06503663742804071,
+          "intraday_cv": 0.061774637367149075,
+          "gram_cv": 0.06505075030349868,
+          "gram_ledger": 0.06021926033521949
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.054419526852589536,
+          "intraday_cv": 0.05933813770976338,
+          "gram_cv": 0.053236295589132655,
+          "gram_ledger": 0.05410135974657458
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.06499619135321098,
+          "intraday_cv": 0.06198236251773933,
+          "gram_cv": 0.06463022887488434,
+          "gram_ledger": 0.06353892435672112
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.07116743332872198,
+          "intraday_cv": 0.07269051596825721,
+          "gram_cv": 0.06332387062185853,
+          "gram_ledger": 0.07646780912846782
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.24836392584190012,
+          "intraday_cv": 0.20675928183957926,
+          "gram_cv": 0.24783967500281823,
+          "gram_ledger": 0.23093648630665276
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.06683130337314776,
+          "intraday_cv": 0.06028475518328712,
+          "gram_cv": 0.06656659167191593,
+          "gram_ledger": 0.06807442194493847
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.06515373798783712,
+          "intraday_cv": 0.06247227344919517,
+          "gram_cv": 0.06513241125983933,
+          "gram_ledger": 0.06049518007391687
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.10642157243252194,
+          "intraday_cv": 0.1095177404694523,
+          "gram_cv": 0.10634949236390712,
+          "gram_ledger": 0.10316925829940247
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.05226760478023696,
+          "intraday_cv": 0.05440616548765075,
+          "gram_cv": 0.05218164917231549,
+          "gram_ledger": 0.05137898619879024
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.05531516781214155,
+          "intraday_cv": 0.05345014589308469,
+          "gram_cv": 0.056883234649105156,
+          "gram_ledger": 0.046996677764451114
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.02642110628245015,
+          "intraday_cv": 0.028047707652249017,
+          "gram_cv": 0.0258942221554991,
+          "gram_ledger": 0.024619981111127044
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.04517387325658199,
+          "intraday_cv": 0.04978913722520004,
+          "gram_cv": 0.04540930394001914,
+          "gram_ledger": 0.04048941459002095
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.23220802543346902,
+          "intraday_cv": 0.21867396939340938,
+          "gram_cv": 0.2329355346390023,
+          "gram_ledger": 0.2410968984827479
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.07880689073264684,
+          "intraday_cv": 0.0702748402157422,
+          "gram_cv": 0.08001266155132432,
+          "gram_ledger": 0.06058799517096147
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.04527567314049014,
+          "intraday_cv": 0.044087318850784915,
+          "gram_cv": 0.04611174267457963,
+          "gram_ledger": 0.04338133754903463
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.07696706191755744,
+          "intraday_cv": 0.07570799529702352,
+          "gram_cv": 0.07699833159069225,
+          "gram_ledger": 0.07182253767688022
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.09487305120490108,
+          "intraday_cv": 0.09582948599206458,
+          "gram_cv": 0.09484361619518701,
+          "gram_ledger": 0.09177349801530135
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.0479458171977368,
+          "intraday_cv": 0.058591421279387046,
+          "gram_cv": 0.04805814560978713,
+          "gram_ledger": 0.04675740475677297
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.029877277821118813,
+          "intraday_cv": 0.029562632405923047,
+          "gram_cv": 0.03340860506985734,
+          "gram_ledger": 0.03135610121698627
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.03963445383180434,
+          "intraday_cv": 0.03088830595598871,
+          "gram_cv": 0.041025699138219525,
+          "gram_ledger": 0.03686969018107289
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.21163985306015365,
+          "intraday_cv": 0.21396752612432535,
+          "gram_cv": 0.2114950637795693,
+          "gram_ledger": 0.20644529002047968
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.09656159241004955,
+          "intraday_cv": 0.095760558120181,
+          "gram_cv": 0.09679615553899666,
+          "gram_ledger": 0.09255397516953087
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.06478853620473336,
+          "intraday_cv": 0.06405525097591382,
+          "gram_cv": 0.06467112115077749,
+          "gram_ledger": 0.06137978148288987
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.0702952290338137,
+          "intraday_cv": 0.06839688484365467,
+          "gram_cv": 0.07049352232850391,
+          "gram_ledger": 0.06984433754121191
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.05341933944565275,
+          "intraday_cv": 0.05430588163210742,
+          "gram_cv": 0.053424531323653573,
+          "gram_ledger": 0.05340114737299956
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.06155384622233233,
+          "intraday_cv": 0.0824217120413675,
+          "gram_cv": 0.0601897764010255,
+          "gram_ledger": 0.06134081976201018
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.06509888356573112,
+          "intraday_cv": 0.07032175312912373,
+          "gram_cv": 0.067274241106187,
+          "gram_ledger": 0.059420769958711275
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.051495468625193885,
+          "intraday_cv": 0.04241894963505979,
+          "gram_cv": 0.0514868151010083,
+          "gram_ledger": 0.05364935697710529
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.5114248169627399,
+          "intraday_cv": 0.4750855805283352,
+          "gram_cv": 0.5078189366404106,
+          "gram_ledger": 0.5123292402144349
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.056726664096517616,
+          "intraday_cv": 0.06184195515444948,
+          "gram_cv": 0.057057769068828645,
+          "gram_ledger": 0.05674633771647261
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.05982078223140003,
+          "intraday_cv": 0.05613328308101827,
+          "gram_cv": 0.0593019572809228,
+          "gram_ledger": 0.05868676058280179
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.06328221615902559,
+          "intraday_cv": 0.062133999821587176,
+          "gram_cv": 0.06332887738798774,
+          "gram_ledger": 0.061134867244174065
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.05935300980939745,
+          "intraday_cv": 0.0544756547897442,
+          "gram_cv": 0.05981459987690198,
+          "gram_ledger": 0.05609871998451953
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.08367857879364045,
+          "intraday_cv": 0.057148538602546727,
+          "gram_cv": 0.07768785370894761,
+          "gram_ledger": 0.060682438216253166
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.02697711373706223,
+          "intraday_cv": 0.027869142369025997,
+          "gram_cv": 0.027289316009965543,
+          "gram_ledger": 0.026512393925211555
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.12249447592972329,
+          "intraday_cv": 0.18569813567153196,
+          "gram_cv": 0.12366622900774932,
+          "gram_ledger": 0.11402379476856578
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.45794928001456414,
+          "intraday_cv": 0.29966044521739643,
+          "gram_cv": 0.4617379326029994,
+          "gram_ledger": 0.45833878328842353
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.09308064886236114,
+          "intraday_cv": 0.08059705509609993,
+          "gram_cv": 0.09194012838928814,
+          "gram_ledger": 0.08047441493519097
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.04984062476556525,
+          "intraday_cv": 0.049284302225399014,
+          "gram_cv": 0.050048159137384605,
+          "gram_ledger": 0.04651853277715499
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.05146881460736361,
+          "intraday_cv": 0.051807090105857594,
+          "gram_cv": 0.05134423891751522,
+          "gram_ledger": 0.05037540681273431
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.055250407789280254,
+          "intraday_cv": 0.04515807949831443,
+          "gram_cv": 0.05455152926769473,
+          "gram_ledger": 0.0535638557146348
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.07323008154856882,
+          "intraday_cv": 0.0917208545021911,
+          "gram_cv": 0.07237103058480317,
+          "gram_ledger": 0.07332756993384319
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.04325286359198642,
+          "intraday_cv": 0.04171162854564787,
+          "gram_cv": 0.04278624999655203,
+          "gram_ledger": 0.04036727325623414
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.029519129755569716,
+          "intraday_cv": 0.027787355607977474,
+          "gram_cv": 0.029560545632915238,
+          "gram_ledger": 0.027667047399911108
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.24618094038690247,
+          "intraday_cv": 0.1754607543760682,
+          "gram_cv": 0.24235419027946234,
+          "gram_ledger": 0.22204075938216183
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.07349113417886308,
+          "intraday_cv": 0.07124065278996683,
+          "gram_cv": 0.0731796491695444,
+          "gram_ledger": 0.06394036181152762
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.054472908531480506,
+          "intraday_cv": 0.049482852358886775,
+          "gram_cv": 0.05440776247169834,
+          "gram_ledger": 0.04817066539532614
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.058419633522408344,
+          "intraday_cv": 0.055351320476365956,
+          "gram_cv": 0.058990300702869314,
+          "gram_ledger": 0.05641316993952605
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.08588505802472637,
+          "intraday_cv": 0.08185344142478958,
+          "gram_cv": 0.08601161632333428,
+          "gram_ledger": 0.08160281620139086
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.09639855312197615,
+          "intraday_cv": 0.06558325897937275,
+          "gram_cv": 0.09427398999099758,
+          "gram_ledger": 0.08049215093845778
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.06868035692817606,
+          "intraday_cv": 0.07006717428790595,
+          "gram_cv": 0.06718286817840916,
+          "gram_ledger": 0.07113352392800913
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.0741762942537145,
+          "intraday_cv": 0.053206310794523384,
+          "gram_cv": 0.0750522891623979,
+          "gram_ledger": 0.07520620424585511
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.4123330206445143,
+          "intraday_cv": 0.27467221185063223,
+          "gram_cv": 0.37540961590235733,
+          "gram_ledger": 0.405959615446215
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.08836185458737139,
+          "intraday_cv": 0.09386239007355879,
+          "gram_cv": 0.08787607261200416,
+          "gram_ledger": 0.09009866536872682
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.06461396115906634,
+          "intraday_cv": 0.07021932293869684,
+          "gram_cv": 0.06474244245679547,
+          "gram_ledger": 0.06253965157467066
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.07840134976623415,
+          "intraday_cv": 0.07939508783967789,
+          "gram_cv": 0.07854079256295704,
+          "gram_ledger": 0.0773434032670017
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.07665801532933385,
+          "intraday_cv": 0.07271300417493964,
+          "gram_cv": 0.07848161072535062,
+          "gram_ledger": 0.07422359901513538
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.06027462649220753,
+          "intraday_cv": 0.05263427799336952,
+          "gram_cv": 0.08001223929777428,
+          "gram_ledger": 0.06279859027834792
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.06790584550276202,
+          "intraday_cv": 0.06889123591544484,
+          "gram_cv": 0.06797786406343766,
+          "gram_ledger": 0.06794590216759197
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.09271450214900974,
+          "intraday_cv": 0.10164871176439268,
+          "gram_cv": 0.08933083455177618,
+          "gram_ledger": 0.0787299383362025
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.24567402687187623,
+          "intraday_cv": 0.20866403366868597,
+          "gram_cv": 0.24979385772725574,
+          "gram_ledger": 0.2617518553867614
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.07565278553337294,
+          "intraday_cv": 0.08508257710512436,
+          "gram_cv": 0.07486539696729355,
+          "gram_ledger": 0.0788791104669275
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.0765925071169177,
+          "intraday_cv": 0.07283694736375512,
+          "gram_cv": 0.07664153320833807,
+          "gram_ledger": 0.0748737724318887
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.06546832376920304,
+          "intraday_cv": 0.06854119119809098,
+          "gram_cv": 0.06529923701550676,
+          "gram_ledger": 0.06421938021509264
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.05694702261885529,
+          "intraday_cv": 0.06135864736941215,
+          "gram_cv": 0.05702657373624715,
+          "gram_ledger": 0.0560057362181094
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.05466286570354147,
+          "intraday_cv": 0.044350901586756475,
+          "gram_cv": 0.05393404619796076,
+          "gram_ledger": 0.05204151950876197
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.04311136378712038,
+          "intraday_cv": 0.04109127767108118,
+          "gram_cv": 0.042490224074726066,
+          "gram_ledger": 0.04277623927282346
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.2679303222134808,
+          "intraday_cv": 0.2606859884267011,
+          "gram_cv": 0.2681057349602842,
+          "gram_ledger": 0.26459493841771703
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.25623486401082823,
+          "intraday_cv": 0.26655526508120997,
+          "gram_cv": 0.25833793531874993,
+          "gram_ledger": 0.2523756059109909
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.06890879934906555,
+          "intraday_cv": 0.0655602744428268,
+          "gram_cv": 0.06862004144987657,
+          "gram_ledger": 0.06637992805375795
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.07809319520880849,
+          "intraday_cv": 0.08380397401773215,
+          "gram_cv": 0.07745230525333288,
+          "gram_ledger": 0.074353419823515
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.06750442252722631,
+          "intraday_cv": 0.07046478624668812,
+          "gram_cv": 0.06771288559143805,
+          "gram_ledger": 0.06440693569129585
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.07047306807704419,
+          "intraday_cv": 0.06824623568897618,
+          "gram_cv": 0.0711258285984752,
+          "gram_ledger": 0.0656839791314125
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.02832069578091482,
+          "intraday_cv": 0.03688557298414486,
+          "gram_cv": 0.027647941306074075,
+          "gram_ledger": 0.027944035058664725
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.07929267280502943,
+          "intraday_cv": 0.07898534433273792,
+          "gram_cv": 0.07906385505611786,
+          "gram_ledger": 0.07924258306979058
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.12707716416472747,
+          "intraday_cv": 0.13843776606476846,
+          "gram_cv": 0.13644183498391724,
+          "gram_ledger": 0.10591294086499263
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.2440205121859544,
+          "intraday_cv": 0.19572078879591961,
+          "gram_cv": 0.24594816238777917,
+          "gram_ledger": 0.24856742605909593
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.07828834729555113,
+          "intraday_cv": 0.0865563486616146,
+          "gram_cv": 0.07841226462695138,
+          "gram_ledger": 0.0804135337601786
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.07309911856189401,
+          "intraday_cv": 0.06830532445817944,
+          "gram_cv": 0.07338867105985052,
+          "gram_ledger": 0.07017391601536187
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.04623507015188663,
+          "intraday_cv": 0.048475573252534335,
+          "gram_cv": 0.046127214266631016,
+          "gram_ledger": 0.04545734695459049
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.04150937183440541,
+          "intraday_cv": 0.04197090162398425,
+          "gram_cv": 0.041472272950872115,
+          "gram_ledger": 0.04241428389310391
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.03937816578589433,
+          "intraday_cv": 0.03207645377869826,
+          "gram_cv": 0.03818702468037505,
+          "gram_ledger": 0.03655588171077349
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.048773171411726844,
+          "intraday_cv": 0.05335474669688451,
+          "gram_cv": 0.04899783405922311,
+          "gram_ledger": 0.04462847845188572
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.10451158303498685,
+          "intraday_cv": 0.10595284185406474,
+          "gram_cv": 0.1031057013517762,
+          "gram_ledger": 0.10157137044232874
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.37721178264744354,
+          "intraday_cv": 0.2874983400429587,
+          "gram_cv": 0.36586399428897237,
+          "gram_ledger": 0.34760483598401326
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.1287592529991038,
+          "intraday_cv": 0.12473252215323087,
+          "gram_cv": 0.12802317139429842,
+          "gram_ledger": 0.12438687128981431
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.06593544537443985,
+          "intraday_cv": 0.0626106924680364,
+          "gram_cv": 0.06586890116351113,
+          "gram_ledger": 0.06403281574441563
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.05420778927686679,
+          "intraday_cv": 0.05593448559140145,
+          "gram_cv": 0.05403079844671775,
+          "gram_ledger": 0.05179991730563251
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.0701982762192351,
+          "intraday_cv": 0.06646065758950742,
+          "gram_cv": 0.07035041870256702,
+          "gram_ledger": 0.06874206660570094
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.03528723533664726,
+          "intraday_cv": 0.028261478501600802,
+          "gram_cv": 0.03891306797984702,
+          "gram_ledger": 0.03601016655494367
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.08640713347695486,
+          "intraday_cv": 0.09576982179805693,
+          "gram_cv": 0.08532010319923357,
+          "gram_ledger": 0.08777400909551794
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.048802407119661176,
+          "intraday_cv": 0.052290737501680645,
+          "gram_cv": 0.04843049236832138,
+          "gram_ledger": 0.04712038761791546
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.28398232256221856,
+          "intraday_cv": 0.25926450019951613,
+          "gram_cv": 0.27873429446869397,
+          "gram_ledger": 0.2809387410248495
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.1498295310743224,
+          "intraday_cv": 0.14706783346900756,
+          "gram_cv": 0.15683305719589058,
+          "gram_ledger": 0.1442391709131692
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.05752028158706359,
+          "intraday_cv": 0.060089097024709416,
+          "gram_cv": 0.05712535290450315,
+          "gram_ledger": 0.05714175963049851
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.07201366024697993,
+          "intraday_cv": 0.07182424729584393,
+          "gram_cv": 0.06924296530777935,
+          "gram_ledger": 0.06388002251833737
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.039379435041946756,
+          "intraday_cv": 0.043071006127668766,
+          "gram_cv": 0.039400118438826515,
+          "gram_ledger": 0.04214984544674384
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.029744465425615374,
+          "intraday_cv": 0.029816769577819334,
+          "gram_cv": 0.0298228568493611,
+          "gram_ledger": 0.03201521043244855
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.03766765513528504,
+          "intraday_cv": 0.03284064480532846,
+          "gram_cv": 0.03767805341089153,
+          "gram_ledger": 0.03793664931623601
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.07151954647390817,
+          "intraday_cv": 0.06502822027485715,
+          "gram_cv": 0.07135395205814582,
+          "gram_ledger": 0.07019701204287729
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.30530519693166963,
+          "intraday_cv": 0.3011212840664513,
+          "gram_cv": 0.29534516695688684,
+          "gram_ledger": 0.2696282651861854
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.09715989727123216,
+          "intraday_cv": 0.08752959701602633,
+          "gram_cv": 0.09693029383480314,
+          "gram_ledger": 0.0987347671186001
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.059809718713641685,
+          "intraday_cv": 0.05433946213462767,
+          "gram_cv": 0.05986051180724528,
+          "gram_ledger": 0.059070104617655356
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.05168508269901122,
+          "intraday_cv": 0.04046027340695825,
+          "gram_cv": 0.0505572711113931,
+          "gram_ledger": 0.04656955195646338
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.11710332492784134,
+          "intraday_cv": 0.1275706135029085,
+          "gram_cv": 0.11889096138634002,
+          "gram_ledger": 0.1209538014411142
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.41007939012909467,
+          "intraday_cv": 0.40982424892228586,
+          "gram_cv": 0.41018208287681324,
+          "gram_ledger": 0.40808949801611066
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.15753267555397193,
+          "intraday_cv": 0.15984283515777692,
+          "gram_cv": 0.15774237298686208,
+          "gram_ledger": 0.1594256474933551
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.2775136317512737,
+          "intraday_cv": 0.27030473087232004,
+          "gram_cv": 0.277448852280554,
+          "gram_ledger": 0.2773058173563245
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.2662521580041093,
+          "intraday_cv": 0.2620649807484212,
+          "gram_cv": 0.3465269927799257,
+          "gram_ledger": 0.5357815905262212
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.13006259600643674,
+          "intraday_cv": 0.14087499479419474,
+          "gram_cv": 0.13140046143409076,
+          "gram_ledger": 0.13581922209726285
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.16993623339214534,
+          "intraday_cv": 0.16737415401429337,
+          "gram_cv": 0.16968662043027605,
+          "gram_ledger": 0.16100808073736306
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.1796659503351879,
+          "intraday_cv": 0.18065216377391358,
+          "gram_cv": 0.17956858417954866,
+          "gram_ledger": 0.17860798826509627
+        }
+      },
+      {
+        "series_id": "electricity:T15",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.10454031871874397,
+          "intraday_cv": 0.09087081203532674,
+          "gram_cv": 0.10321587301919348,
+          "gram_ledger": 0.10565000224701021
+        }
+      },
+      {
+        "series_id": "electricity:T174",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.30128739930813064,
+          "intraday_cv": 0.302219691157484,
+          "gram_cv": 0.3011125820816296,
+          "gram_ledger": 0.3060006554566771
+        }
+      },
+      {
+        "series_id": "electricity:T217",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.12815613195261025,
+          "intraday_cv": 0.12825051367041185,
+          "gram_cv": 0.12855434331756474,
+          "gram_ledger": 0.12562755839714923
+        }
+      },
+      {
+        "series_id": "electricity:T286",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.1309156362604472,
+          "intraday_cv": 0.13838651988196718,
+          "gram_cv": 0.1313486527132479,
+          "gram_ledger": 0.12832131769262653
+        }
+      },
+      {
+        "series_id": "electricity:T318",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.3479635760700211,
+          "intraday_cv": 0.6021494167462996,
+          "gram_cv": 0.43032259438707465,
+          "gram_ledger": 0.4793771750333046
+        }
+      },
+      {
+        "series_id": "electricity:T47",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.20302289236992183,
+          "intraday_cv": 0.20662699898211628,
+          "gram_cv": 0.20393074487297128,
+          "gram_ledger": 0.19366971758756296
+        }
+      },
+      {
+        "series_id": "electricity:T63",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.0901419546732147,
+          "intraday_cv": 0.10079058112924617,
+          "gram_cv": 0.089245048772572,
+          "gram_ledger": 0.09541748346055252
+        }
+      },
+      {
+        "series_id": "electricity:T8",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.08262515865388328,
+          "intraday_cv": 0.0779315601688459,
+          "gram_cv": 0.08324720441748391,
+          "gram_ledger": 0.11932503816502463
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.36052041464340784,
+          "intraday_cv": 0.3294995494909943,
+          "gram_cv": 0.35234429566153586,
+          "gram_ledger": 0.35559236622984686
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.1437334249225066,
+          "intraday_cv": 0.143181644113219,
+          "gram_cv": 0.1609416248355125,
+          "gram_ledger": 0.15026686487808447
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.463727086993004,
+          "intraday_cv": 0.4188542584155602,
+          "gram_cv": 0.4736010079607921,
+          "gram_ledger": 0.4594093119665603
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.3073317829793073,
+          "intraday_cv": 0.37376456697036164,
+          "gram_cv": 0.3247713323906188,
+          "gram_ledger": 0.3362736956087487
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.22981351121555924,
+          "intraday_cv": 0.23377800674264151,
+          "gram_cv": 0.22742257406357128,
+          "gram_ledger": 0.23397247394573728
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.5729685346459491,
+          "intraday_cv": 0.6517624003786725,
+          "gram_cv": 0.5750809750946295,
+          "gram_ledger": 0.5659412288929456
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.3149842595821647,
+          "intraday_cv": 0.3230024951591681,
+          "gram_cv": 0.3154094193738936,
+          "gram_ledger": 0.32644088668264365
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 0,
+        "scores": {
+          "global_cv": 0.2243636036464745,
+          "intraday_cv": 0.2348153526648878,
+          "gram_cv": 0.2173596023283667,
+          "gram_ledger": 0.21515923499695638
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.34777055432147735,
+          "intraday_cv": 0.3452583729863481,
+          "gram_cv": 0.3482811260086976,
+          "gram_ledger": 0.34727616170967607
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.08830189246209776,
+          "intraday_cv": 0.08830189246209776,
+          "gram_cv": 0.08830189246209776,
+          "gram_ledger": 0.08908196139412851
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.5386112571391954,
+          "intraday_cv": 0.5577662805463526,
+          "gram_cv": 0.5339327311104245,
+          "gram_ledger": 0.5424585704089799
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.31513708611848085,
+          "intraday_cv": 0.2818906794917435,
+          "gram_cv": 0.31955905078600116,
+          "gram_ledger": 0.3085659701641068
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.28288822084873133,
+          "intraday_cv": 0.26383504000982944,
+          "gram_cv": 0.28288822084873133,
+          "gram_ledger": 0.2674543239747012
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.5434578409112719,
+          "intraday_cv": 0.6591465835929706,
+          "gram_cv": 0.5163300700538979,
+          "gram_ledger": 0.5276024075742182
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.2923451343575455,
+          "intraday_cv": 0.29434644498896145,
+          "gram_cv": 0.2889933419749772,
+          "gram_ledger": 0.29102508463326276
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 1,
+        "scores": {
+          "global_cv": 0.20720752773500217,
+          "intraday_cv": 0.22037509727604346,
+          "gram_cv": 0.20661455439497342,
+          "gram_ledger": 0.20563015351140687
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.3548855473893033,
+          "intraday_cv": 0.32804941094861334,
+          "gram_cv": 0.358704492076091,
+          "gram_ledger": 0.34164721039210005
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.2161265145306797,
+          "intraday_cv": 0.23168929500000304,
+          "gram_cv": 0.21825243744823183,
+          "gram_ledger": 0.22142865435969866
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.7489157981639176,
+          "intraday_cv": 0.7656091394596561,
+          "gram_cv": 0.7323499534193204,
+          "gram_ledger": 0.6943757555481043
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.4585123248740271,
+          "intraday_cv": 0.4527019955471752,
+          "gram_cv": 0.46197797529796575,
+          "gram_ledger": 0.4538072996165777
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.24335726897677173,
+          "intraday_cv": 0.2594167870780741,
+          "gram_cv": 0.2446955805037218,
+          "gram_ledger": 0.24229854969017456
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.7105071039236556,
+          "intraday_cv": 0.8176031003570753,
+          "gram_cv": 0.7096296646436151,
+          "gram_ledger": 0.7087143112589348
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.2783838035385205,
+          "intraday_cv": 0.28496642414414036,
+          "gram_cv": 0.2747212310536888,
+          "gram_ledger": 0.2683150028870076
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 2,
+        "scores": {
+          "global_cv": 0.2827563191256288,
+          "intraday_cv": 0.28403429937011354,
+          "gram_cv": 0.2839612204428775,
+          "gram_ledger": 0.26879705099231566
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.31726510618047926,
+          "intraday_cv": 0.34982606283067214,
+          "gram_cv": 0.3203214569235828,
+          "gram_ledger": 0.3079496363852808
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.27592913870766617,
+          "intraday_cv": 0.26741251976215036,
+          "gram_cv": 0.28842913562018335,
+          "gram_ledger": 0.2674519895739785
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.5132130370760288,
+          "intraday_cv": 0.4887583524136241,
+          "gram_cv": 0.5024724143773083,
+          "gram_ledger": 0.4271950323521414
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.44870539364476725,
+          "intraday_cv": 0.42567971625170337,
+          "gram_cv": 0.45152894220037854,
+          "gram_ledger": 0.44020420303880375
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.2544784113526361,
+          "intraday_cv": 0.27260555471655545,
+          "gram_cv": 0.2562796274114297,
+          "gram_ledger": 0.25420635860712293
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.42200392985654506,
+          "intraday_cv": 0.34831265932170896,
+          "gram_cv": 0.42741638845872326,
+          "gram_ledger": 0.40935901537254077
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.3159604547642928,
+          "intraday_cv": 0.3564743568327996,
+          "gram_cv": 0.312454597950145,
+          "gram_ledger": 0.2937656744493575
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 3,
+        "scores": {
+          "global_cv": 0.2225679720801505,
+          "intraday_cv": 0.21715032077029942,
+          "gram_cv": 0.22720819703428125,
+          "gram_ledger": 0.20894599822149065
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.22312628552392494,
+          "intraday_cv": 0.21677709443784313,
+          "gram_cv": 0.22707253017457163,
+          "gram_ledger": 0.21200739340907518
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.15698344450238957,
+          "intraday_cv": 0.15785013732384648,
+          "gram_cv": 0.1570054392847154,
+          "gram_ledger": 0.1492390757365877
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.3529068240660271,
+          "intraday_cv": 0.362968640802158,
+          "gram_cv": 0.3581094585071591,
+          "gram_ledger": 0.35015590559559173
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.23106543826191012,
+          "intraday_cv": 0.23078956434826026,
+          "gram_cv": 0.22976017555236458,
+          "gram_ledger": 0.22149984020098748
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.22428779205046506,
+          "intraday_cv": 0.21809041191869943,
+          "gram_cv": 0.2216373407715037,
+          "gram_ledger": 0.22203580269372653
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.5053078098391969,
+          "intraday_cv": 0.4722806734543106,
+          "gram_cv": 0.49901864520448924,
+          "gram_ledger": 0.5112951076290382
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.23448939959731485,
+          "intraday_cv": 0.22317483824332235,
+          "gram_cv": 0.23499315282406188,
+          "gram_ledger": 0.2196963062052522
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 4,
+        "scores": {
+          "global_cv": 0.16582362853768887,
+          "intraday_cv": 0.16878468425771556,
+          "gram_cv": 0.1683821273634169,
+          "gram_ledger": 0.16792981045022537
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.2966722399413006,
+          "intraday_cv": 0.2902401051736613,
+          "gram_cv": 0.2959975435192396,
+          "gram_ledger": 0.2856321152055029
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.16315091783406413,
+          "intraday_cv": 0.16536137285534233,
+          "gram_cv": 0.16841723920595797,
+          "gram_ledger": 0.17424029932408444
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.8546256335055462,
+          "intraday_cv": 0.857936440736972,
+          "gram_cv": 0.8268940840234046,
+          "gram_ledger": 0.8026111715739389
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.2999444972821044,
+          "intraday_cv": 0.3306429094382808,
+          "gram_cv": 0.2980080593987947,
+          "gram_ledger": 0.30032266983847655
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.26230587907512276,
+          "intraday_cv": 0.23495880389816126,
+          "gram_cv": 0.26240697249175493,
+          "gram_ledger": 0.2620056271243838
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.5016790138028528,
+          "intraday_cv": 0.5059186504313646,
+          "gram_cv": 0.5036863055177032,
+          "gram_ledger": 0.45950941160927916
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.16046995734107858,
+          "intraday_cv": 0.17537720505325785,
+          "gram_cv": 0.17829176382482317,
+          "gram_ledger": 0.17972815055871388
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 5,
+        "scores": {
+          "global_cv": 0.1578233703372351,
+          "intraday_cv": 0.15497479127346522,
+          "gram_cv": 0.16080206483774606,
+          "gram_ledger": 0.15803079705277087
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.2763710143982665,
+          "intraday_cv": 0.26826246124626346,
+          "gram_cv": 0.2780845936170997,
+          "gram_ledger": 0.27323923600037386
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.17556214729415262,
+          "intraday_cv": 0.15532996449228303,
+          "gram_cv": 0.1780742062229528,
+          "gram_ledger": 0.1745161821196688
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.47748536509115297,
+          "intraday_cv": 0.5271602886767228,
+          "gram_cv": 0.48585964919584873,
+          "gram_ledger": 0.44552781861349405
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.26441973976570754,
+          "intraday_cv": 0.21667625105373706,
+          "gram_cv": 0.24873238073059095,
+          "gram_ledger": 0.2359954408450842
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.2315261465772042,
+          "intraday_cv": 0.2473513716472547,
+          "gram_cv": 0.2333625426842786,
+          "gram_ledger": 0.20358067298700436
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.23940186516035908,
+          "intraday_cv": 0.25345760456561406,
+          "gram_cv": 0.23912641062879064,
+          "gram_ledger": 0.23739189272138242
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.13096411991992785,
+          "intraday_cv": 0.18147279236250977,
+          "gram_cv": 0.1313712951449793,
+          "gram_ledger": 0.12812660094552789
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 6,
+        "scores": {
+          "global_cv": 0.15382515780096861,
+          "intraday_cv": 0.1784989645659065,
+          "gram_cv": 0.15507031300803747,
+          "gram_ledger": 0.16009110559411924
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 7,
+        "scores": {
+          "global_cv": 1.003450273594198,
+          "intraday_cv": 0.9603639243631578,
+          "gram_cv": 1.012303326092133,
+          "gram_ledger": 1.0203712185272422
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 7,
+        "scores": {
+          "global_cv": 0.2981097051608369,
+          "intraday_cv": 0.2764675632087062,
+          "gram_cv": 0.2561628122307075,
+          "gram_ledger": 0.25328066328995696
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 7,
+        "scores": {
+          "global_cv": 0.559030870522363,
+          "intraday_cv": 0.6324645487498073,
+          "gram_cv": 0.5530852203625364,
+          "gram_ledger": 0.5748007538041006
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 7,
+        "scores": {
+          "global_cv": 0.5816900353682849,
+          "intraday_cv": 0.6910360663315247,
+          "gram_cv": 0.5755634035771706,
+          "gram_ledger": 0.5897800746539946
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 7,
+        "scores": {
+          "global_cv": 1.2884355112353862,
+          "intraday_cv": 1.2515774661732755,
+          "gram_cv": 1.405153694908889,
+          "gram_ledger": 1.1284408055961614
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 7,
+        "scores": {
+          "global_cv": 0.7897096655068768,
+          "intraday_cv": 0.8436767227125731,
+          "gram_cv": 0.7915159030565218,
+          "gram_ledger": 0.7422102601981909
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 7,
+        "scores": {
+          "global_cv": 0.6608560518445027,
+          "intraday_cv": 0.6066636518038957,
+          "gram_cv": 0.6541034061417828,
+          "gram_ledger": 0.6511119231653102
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 7,
+        "scores": {
+          "global_cv": 0.40110295803629387,
+          "intraday_cv": 0.47143963586576415,
+          "gram_cv": 0.3758760404422796,
+          "gram_ledger": 0.5048966280785356
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.8252268118030279,
+          "intraday_cv": 0.7147737022977765,
+          "gram_cv": 0.8224379879267326,
+          "gram_ledger": 0.8714866648237587
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.54826501219431,
+          "intraday_cv": 0.6029325721704141,
+          "gram_cv": 0.5362391148075348,
+          "gram_ledger": 0.7420770934897354
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.4724081883353938,
+          "intraday_cv": 0.5975485703349458,
+          "gram_cv": 0.4843186977534678,
+          "gram_ledger": 0.47877990265333475
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.8526965977447435,
+          "intraday_cv": 0.9013840018569659,
+          "gram_cv": 0.8215355722945493,
+          "gram_ledger": 0.843752063350633
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.7521917349228786,
+          "intraday_cv": 0.8010470564332003,
+          "gram_cv": 0.7537921695637855,
+          "gram_ledger": 0.7698778095986737
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 8,
+        "scores": {
+          "global_cv": 1.1303568460016438,
+          "intraday_cv": 1.1122299426703632,
+          "gram_cv": 1.1112920378976145,
+          "gram_ledger": 1.1254711897487053
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.7314383311884238,
+          "intraday_cv": 0.6164320454363305,
+          "gram_cv": 0.7278067618089905,
+          "gram_ledger": 0.7330952874128553
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 8,
+        "scores": {
+          "global_cv": 0.49207401256990685,
+          "intraday_cv": 0.5191640750346098,
+          "gram_cv": 0.500903847102676,
+          "gram_ledger": 0.6544130401676446
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.368946950706617,
+          "intraday_cv": 0.37305068851906276,
+          "gram_cv": 0.38402010537187,
+          "gram_ledger": 0.45334170324320006
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.13766506960293573,
+          "intraday_cv": 0.18233753261309005,
+          "gram_cv": 0.17276303827936018,
+          "gram_ledger": 0.19472098406217758
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.5107367685040316,
+          "intraday_cv": 0.5024076247221582,
+          "gram_cv": 0.5240434076956713,
+          "gram_ledger": 0.57225306675858
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.367613197804607,
+          "intraday_cv": 0.3921575529448878,
+          "gram_cv": 0.3688639582970342,
+          "gram_ledger": 0.36308126255760104
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.3370253455755198,
+          "intraday_cv": 0.4233496246904694,
+          "gram_cv": 0.35662631755561536,
+          "gram_ledger": 0.3666447953788245
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.526794509102318,
+          "intraday_cv": 0.5177874487097885,
+          "gram_cv": 0.5105185172144827,
+          "gram_ledger": 0.47350494786198283
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.4087554974553438,
+          "intraday_cv": 0.3286426105762663,
+          "gram_cv": 0.3768867636407708,
+          "gram_ledger": 0.3224554470598204
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 9,
+        "scores": {
+          "global_cv": 0.26643885933881284,
+          "intraday_cv": 0.2499767874516853,
+          "gram_cv": 0.2658926903337719,
+          "gram_ledger": 0.27384321610075324
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.2651036381853473,
+          "intraday_cv": 0.4035968190350982,
+          "gram_cv": 0.2699537653459981,
+          "gram_ledger": 0.27832785849934805
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.33581669948563836,
+          "intraday_cv": 0.3245056209383761,
+          "gram_cv": 0.3405873508397988,
+          "gram_ledger": 0.32856041838282896
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.49824585561239054,
+          "intraday_cv": 0.613038370396337,
+          "gram_cv": 0.5237331071561339,
+          "gram_ledger": 0.4471732216288548
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.4737558564959667,
+          "intraday_cv": 0.5234720936427356,
+          "gram_cv": 0.46820467731675636,
+          "gram_ledger": 0.4813445982286248
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.2973146727421286,
+          "intraday_cv": 0.3171604190663477,
+          "gram_cv": 0.29639755549817787,
+          "gram_ledger": 0.3260824409948999
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.3022700324459624,
+          "intraday_cv": 0.3529824483471749,
+          "gram_cv": 0.29572004420005626,
+          "gram_ledger": 0.33898751101605473
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.23810334492751603,
+          "intraday_cv": 0.2226523238267365,
+          "gram_cv": 0.23731624047226066,
+          "gram_ledger": 0.23143999369278026
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 10,
+        "scores": {
+          "global_cv": 0.2998847593311248,
+          "intraday_cv": 0.323368141726034,
+          "gram_cv": 0.30274210011574515,
+          "gram_ledger": 0.3096555327577083
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.19710717654997598,
+          "intraday_cv": 0.1819327680549981,
+          "gram_cv": 0.1970473115234258,
+          "gram_ledger": 0.20234109545250256
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.28612578811065065,
+          "intraday_cv": 0.26653093718757803,
+          "gram_cv": 0.27897871508007094,
+          "gram_ledger": 0.26382954904444045
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.5143774504631312,
+          "intraday_cv": 0.5920115923562826,
+          "gram_cv": 0.5163662723224602,
+          "gram_ledger": 0.5093180649339328
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.43460897392046566,
+          "intraday_cv": 0.35471746972185353,
+          "gram_cv": 0.468766998322054,
+          "gram_ledger": 0.49475356517758307
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.3130308037563687,
+          "intraday_cv": 0.21501738045700516,
+          "gram_cv": 0.32316308553904216,
+          "gram_ledger": 0.2956905268635984
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.3268096061286638,
+          "intraday_cv": 0.31005334936645035,
+          "gram_cv": 0.3277826871611788,
+          "gram_ledger": 0.31431505116838115
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.44099843245959996,
+          "intraday_cv": 0.38599542614588495,
+          "gram_cv": 0.4437400184855133,
+          "gram_ledger": 0.45019038846961545
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 11,
+        "scores": {
+          "global_cv": 0.32168978076868693,
+          "intraday_cv": 0.3023611146477254,
+          "gram_cv": 0.32124759234349903,
+          "gram_ledger": 0.30672005277621434
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.2584114262514173,
+          "intraday_cv": 0.28449733139953787,
+          "gram_cv": 0.25814837080472425,
+          "gram_ledger": 0.28100781917105555
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.2490003454963324,
+          "intraday_cv": 0.2636308812987161,
+          "gram_cv": 0.2410769004724171,
+          "gram_ledger": 0.24564339717965977
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.7493048022593443,
+          "intraday_cv": 0.6691518834059815,
+          "gram_cv": 0.7518425903979552,
+          "gram_ledger": 0.7198050021008141
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.45407536410309635,
+          "intraday_cv": 0.43575638976629594,
+          "gram_cv": 0.4754065617857981,
+          "gram_ledger": 0.4676745696950396
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.15064954935167385,
+          "intraday_cv": 0.14682507031306416,
+          "gram_cv": 0.17597704602547803,
+          "gram_ledger": 0.1702327665676508
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.4262640986414526,
+          "intraday_cv": 0.4123022333085525,
+          "gram_cv": 0.42563842395776263,
+          "gram_ledger": 0.3920292392029482
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.2852925951597585,
+          "intraday_cv": 0.284471574226421,
+          "gram_cv": 0.2934725469584417,
+          "gram_ledger": 0.3102865552766538
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 12,
+        "scores": {
+          "global_cv": 0.2998733204962464,
+          "intraday_cv": 0.28991603170907365,
+          "gram_cv": 0.2984964520940625,
+          "gram_ledger": 0.2941386386147808
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.17027523702975922,
+          "intraday_cv": 0.17746418974170072,
+          "gram_cv": 0.1704247956477251,
+          "gram_ledger": 0.16935597348755005
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.1305516259051207,
+          "intraday_cv": 0.13072770599539185,
+          "gram_cv": 0.1305516259051207,
+          "gram_ledger": 0.1305516259051207
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.37934903305773177,
+          "intraday_cv": 0.3635750371132361,
+          "gram_cv": 0.38343929039586794,
+          "gram_ledger": 0.35431216114472125
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.46412763148850056,
+          "intraday_cv": 0.5219989507737178,
+          "gram_cv": 0.4896469996452491,
+          "gram_ledger": 0.47610225552651975
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.3490790027209929,
+          "intraday_cv": 0.37046282426872923,
+          "gram_cv": 0.3490790027209929,
+          "gram_ledger": 0.35065617428064033
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.5956162036506067,
+          "intraday_cv": 0.6020295118870611,
+          "gram_cv": 0.5956162036506067,
+          "gram_ledger": 0.5793353230140559
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.3400296927331552,
+          "intraday_cv": 0.3383933864328404,
+          "gram_cv": 0.3400296927331552,
+          "gram_ledger": 0.32767989574959355
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 13,
+        "scores": {
+          "global_cv": 0.23792652879974208,
+          "intraday_cv": 0.2518544880089928,
+          "gram_cv": 0.24500107476419059,
+          "gram_ledger": 0.23555312585444324
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.25494074414184503,
+          "intraday_cv": 0.2495305820648642,
+          "gram_cv": 0.2586637180050123,
+          "gram_ledger": 0.23867686807183824
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.1721398267553966,
+          "intraday_cv": 0.15519029889399577,
+          "gram_cv": 0.17317589991934174,
+          "gram_ledger": 0.16401428586183683
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.2864212326834347,
+          "intraday_cv": 0.26720099770978634,
+          "gram_cv": 0.2852422596019968,
+          "gram_ledger": 0.2779091334423196
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.36010913618027923,
+          "intraday_cv": 0.3446096152940157,
+          "gram_cv": 0.3396179801835604,
+          "gram_ledger": 0.3524210956643339
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.23077961502658198,
+          "intraday_cv": 0.22685539083290068,
+          "gram_cv": 0.23484580512512593,
+          "gram_ledger": 0.21666727890189233
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.49274015547222816,
+          "intraday_cv": 0.48081590894034965,
+          "gram_cv": 0.49324195168553564,
+          "gram_ledger": 0.47986258463522646
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.25384709532858,
+          "intraday_cv": 0.2418530350926215,
+          "gram_cv": 0.2586511834472151,
+          "gram_ledger": 0.23792166493443842
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 14,
+        "scores": {
+          "global_cv": 0.3575520849924485,
+          "intraday_cv": 0.35834495036520364,
+          "gram_cv": 0.35916140985144274,
+          "gram_ledger": 0.35560917804607417
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.17900706377554806,
+          "intraday_cv": 0.19562165689100064,
+          "gram_cv": 0.18196588342878633,
+          "gram_ledger": 0.1721268471942664
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.16305676526913757,
+          "intraday_cv": 0.16205323128388396,
+          "gram_cv": 0.16402884117631603,
+          "gram_ledger": 0.16212257853588202
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.6670958840824144,
+          "intraday_cv": 0.657923637054023,
+          "gram_cv": 0.666455281497783,
+          "gram_ledger": 0.6098122781895613
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.7136373648364036,
+          "intraday_cv": 0.6807289808951021,
+          "gram_cv": 0.7157580777946364,
+          "gram_ledger": 0.648653688060575
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.2142499394866238,
+          "intraday_cv": 0.20994501300135635,
+          "gram_cv": 0.2110627884799803,
+          "gram_ledger": 0.21183837515612025
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.39283782085723673,
+          "intraday_cv": 0.41027269190709836,
+          "gram_cv": 0.3925362373652691,
+          "gram_ledger": 0.3969047387616083
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.33085400515261737,
+          "intraday_cv": 0.34636603786714226,
+          "gram_cv": 0.3180933024109453,
+          "gram_ledger": 0.32079256695722796
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 15,
+        "scores": {
+          "global_cv": 0.3072755124016845,
+          "intraday_cv": 0.27435581762678124,
+          "gram_cv": 0.30914711646104237,
+          "gram_ledger": 0.29475459973165397
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.17542729575677599,
+          "intraday_cv": 0.17158672285073603,
+          "gram_cv": 0.17421560354458118,
+          "gram_ledger": 0.1822210822881991
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.1823458526064433,
+          "intraday_cv": 0.17263231747114743,
+          "gram_cv": 0.1828692157479529,
+          "gram_ledger": 0.17441201743877047
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.24291763463399413,
+          "intraday_cv": 0.23938377585831336,
+          "gram_cv": 0.24442930475448124,
+          "gram_ledger": 0.23655130278669345
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.4261956776148876,
+          "intraday_cv": 0.36767265022982004,
+          "gram_cv": 0.44052547666014696,
+          "gram_ledger": 0.413572993684225
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.28169888838479373,
+          "intraday_cv": 0.24662620315936482,
+          "gram_cv": 0.2809159593544975,
+          "gram_ledger": 0.2697538825272071
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.6734670675001091,
+          "intraday_cv": 0.6491693890624664,
+          "gram_cv": 0.6755618347802694,
+          "gram_ledger": 0.6778632830901783
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.19669726126418713,
+          "intraday_cv": 0.17659179893832086,
+          "gram_cv": 0.19669726126418713,
+          "gram_ledger": 0.1892755931379131
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 16,
+        "scores": {
+          "global_cv": 0.3173536211134197,
+          "intraday_cv": 0.31845932964113627,
+          "gram_cv": 0.3171445973178674,
+          "gram_ledger": 0.31276397607458073
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.2616314460215939,
+          "intraday_cv": 0.26218388674093523,
+          "gram_cv": 0.26168175768532,
+          "gram_ledger": 0.254520670338487
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.20339541581317444,
+          "intraday_cv": 0.20205974640799226,
+          "gram_cv": 0.20595032607034033,
+          "gram_ledger": 0.2068926342505379
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.8311975896592412,
+          "intraday_cv": 0.8361646895970962,
+          "gram_cv": 0.8324604981984693,
+          "gram_ledger": 0.8387309989372154
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.8821461289371102,
+          "intraday_cv": 0.8811455479718506,
+          "gram_cv": 0.8837300334309106,
+          "gram_ledger": 0.8806652835847326
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.3166836110268636,
+          "intraday_cv": 0.31531038239536596,
+          "gram_cv": 0.3159027006066353,
+          "gram_ledger": 0.31130699716305904
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 17,
+        "scores": {
+          "global_cv": 1.053313291240497,
+          "intraday_cv": 0.882339834404576,
+          "gram_cv": 1.0742362874408076,
+          "gram_ledger": 1.007478996037649
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.29910080870783895,
+          "intraday_cv": 0.2811056218665186,
+          "gram_cv": 0.299515866952203,
+          "gram_ledger": 0.3040790630500377
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 17,
+        "scores": {
+          "global_cv": 0.30448035999850986,
+          "intraday_cv": 0.22130743846534134,
+          "gram_cv": 0.30395668327812425,
+          "gram_ledger": 0.30246249524073976
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.2370143849209474,
+          "intraday_cv": 0.2261884764915574,
+          "gram_cv": 0.23691200188638417,
+          "gram_ledger": 0.24924471236971502
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.2131590012291655,
+          "intraday_cv": 0.21395429790013576,
+          "gram_cv": 0.22172139261720886,
+          "gram_ledger": 0.23426863981281343
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.38261709865381344,
+          "intraday_cv": 0.4531333225764274,
+          "gram_cv": 0.36559820963598294,
+          "gram_ledger": 0.283479525146134
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.6909858807222244,
+          "intraday_cv": 0.5785404526046894,
+          "gram_cv": 0.6725210691346322,
+          "gram_ledger": 0.6148395127488558
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.32023376252488234,
+          "intraday_cv": 0.31872521223415035,
+          "gram_cv": 0.3134126199471059,
+          "gram_ledger": 0.27738016847236574
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.8197573756891967,
+          "intraday_cv": 0.7761964267137933,
+          "gram_cv": 0.8152222418759709,
+          "gram_ledger": 0.756918476126505
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.19935649319391321,
+          "intraday_cv": 0.178592786550571,
+          "gram_cv": 0.20761616752568243,
+          "gram_ledger": 0.21493796567820536
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 18,
+        "scores": {
+          "global_cv": 0.3252858312933104,
+          "intraday_cv": 0.3306314405581043,
+          "gram_cv": 0.31354266817255305,
+          "gram_ledger": 0.2742588908992045
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.3979398683111448,
+          "intraday_cv": 0.27213097805461833,
+          "gram_cv": 0.4483883215801219,
+          "gram_ledger": 0.39163625218979026
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.528961719464849,
+          "intraday_cv": 0.4570716671247347,
+          "gram_cv": 0.5259872743649023,
+          "gram_ledger": 0.47149738370348415
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.6469972424631143,
+          "intraday_cv": 0.6340274426567881,
+          "gram_cv": 0.6406314049070435,
+          "gram_ledger": 0.6781882195381592
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.5321595579123426,
+          "intraday_cv": 0.4781427193298059,
+          "gram_cv": 0.5296252695629968,
+          "gram_ledger": 0.48281158907464805
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.7610421400953086,
+          "intraday_cv": 0.5750598984047431,
+          "gram_cv": 0.7180820115869573,
+          "gram_ledger": 0.6798787678406304
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.8235831690422518,
+          "intraday_cv": 0.6290495168038157,
+          "gram_cv": 0.7812116921314561,
+          "gram_ledger": 0.721431256622945
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.43412689722987824,
+          "intraday_cv": 0.40413182581311285,
+          "gram_cv": 0.44203078565744125,
+          "gram_ledger": 0.4021036417617563
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 19,
+        "scores": {
+          "global_cv": 0.6024353726851039,
+          "intraday_cv": 0.4838551703069468,
+          "gram_cv": 0.5869075248151495,
+          "gram_ledger": 0.5218252074761454
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.603334726921985,
+          "intraday_cv": 0.6349587293039214,
+          "gram_cv": 0.5778133936137806,
+          "gram_ledger": 0.4491145948329631
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.2943245672156618,
+          "intraday_cv": 0.3037134242816596,
+          "gram_cv": 0.3057632199565955,
+          "gram_ledger": 0.4010640741671623
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.5140228433147188,
+          "intraday_cv": 0.5204611342884625,
+          "gram_cv": 0.5291602665201125,
+          "gram_ledger": 0.5021190063590196
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.39506565884168604,
+          "intraday_cv": 0.3895080133956613,
+          "gram_cv": 0.40200160148260755,
+          "gram_ledger": 0.47346287711157975
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.5420242267419423,
+          "intraday_cv": 0.6065142345274264,
+          "gram_cv": 0.5559123009678557,
+          "gram_ledger": 0.569221879962519
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.7708603671263327,
+          "intraday_cv": 0.8027621733744095,
+          "gram_cv": 0.7681376433134068,
+          "gram_ledger": 0.7594912377640514
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.2768339588461262,
+          "intraday_cv": 0.2656424085470901,
+          "gram_cv": 0.27866967280555616,
+          "gram_ledger": 0.21879387918428758
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 20,
+        "scores": {
+          "global_cv": 0.4771679455681668,
+          "intraday_cv": 0.4956173670977079,
+          "gram_cv": 0.48537271556973605,
+          "gram_ledger": 0.3601307806275996
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.6675639926455557,
+          "intraday_cv": 0.6300540330498681,
+          "gram_cv": 0.6734205132971423,
+          "gram_ledger": 0.6893263579321196
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.1367475979498286,
+          "intraday_cv": 0.13639019885326173,
+          "gram_cv": 0.13497942791233758,
+          "gram_ledger": 0.1789283035164441
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 21,
+        "scores": {
+          "global_cv": 1.2025668109214693,
+          "intraday_cv": 1.1359741975303201,
+          "gram_cv": 1.1975135241341817,
+          "gram_ledger": 1.1714268646046762
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.6593247200112793,
+          "intraday_cv": 0.7077137907835209,
+          "gram_cv": 0.6607175404279665,
+          "gram_ledger": 0.7830919338430118
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.49054684662174,
+          "intraday_cv": 0.4759607290391908,
+          "gram_cv": 0.49009164054316817,
+          "gram_ledger": 0.48105497072005654
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.5241290571619687,
+          "intraday_cv": 0.520172969565199,
+          "gram_cv": 0.5246963548934032,
+          "gram_ledger": 0.5240874760750853
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.5918410099622519,
+          "intraday_cv": 0.6308803994428988,
+          "gram_cv": 0.5988183947957418,
+          "gram_ledger": 0.5783935746082717
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 21,
+        "scores": {
+          "global_cv": 0.4418226282567524,
+          "intraday_cv": 0.4496680551241514,
+          "gram_cv": 0.4420238582091333,
+          "gram_ledger": 0.47505043935526764
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.3689971435980756,
+          "intraday_cv": 0.3249094801446551,
+          "gram_cv": 0.35586966141619186,
+          "gram_ledger": 0.3311610134185435
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.16202922245930015,
+          "intraday_cv": 0.18994803963095425,
+          "gram_cv": 0.14850984765104833,
+          "gram_ledger": 0.1550259670692849
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.36577173349372505,
+          "intraday_cv": 0.5642228021828699,
+          "gram_cv": 0.364178152899454,
+          "gram_ledger": 0.40740051168990515
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.5123659187025238,
+          "intraday_cv": 0.5073135432002038,
+          "gram_cv": 0.5095663654385868,
+          "gram_ledger": 0.4591269515010377
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.44619647801195544,
+          "intraday_cv": 0.4475308084718053,
+          "gram_cv": 0.4506004783275254,
+          "gram_ledger": 0.4344777658185989
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.46485423436024564,
+          "intraday_cv": 0.48730986606106813,
+          "gram_cv": 0.46773009763473516,
+          "gram_ledger": 0.4357394486781173
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 22,
+        "scores": {
+          "global_cv": 1.279750360059539,
+          "intraday_cv": 1.3556507343394786,
+          "gram_cv": 1.2936884650792602,
+          "gram_ledger": 1.3264907115486335
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 22,
+        "scores": {
+          "global_cv": 0.2674513507896709,
+          "intraday_cv": 0.34363396002229096,
+          "gram_cv": 0.2738180613789291,
+          "gram_ledger": 0.2942766100214918
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.2875785712465276,
+          "intraday_cv": 0.2619824150379639,
+          "gram_cv": 0.29048140052688043,
+          "gram_ledger": 0.28877417347222983
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.24291972956326036,
+          "intraday_cv": 0.25633304224813,
+          "gram_cv": 0.25050608741844343,
+          "gram_ledger": 0.2087997974024472
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.36145617365648186,
+          "intraday_cv": 0.3293683934530414,
+          "gram_cv": 0.3629771098250072,
+          "gram_ledger": 0.3658386782454506
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.505756202476075,
+          "intraday_cv": 0.4950049641158515,
+          "gram_cv": 0.5060286349813207,
+          "gram_ledger": 0.48973796164705186
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.4806871473295176,
+          "intraday_cv": 0.5063572381890895,
+          "gram_cv": 0.4932078221406839,
+          "gram_ledger": 0.5072394146843827
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.4289629464403844,
+          "intraday_cv": 0.39615970901883785,
+          "gram_cv": 0.4294687474974942,
+          "gram_ledger": 0.4290169899636874
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.4965969582804497,
+          "intraday_cv": 0.8461698598465084,
+          "gram_cv": 0.46603674457769834,
+          "gram_ledger": 0.3834393855634901
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 23,
+        "scores": {
+          "global_cv": 0.34993908800612283,
+          "intraday_cv": 0.34277500657295246,
+          "gram_cv": 0.3539448660437174,
+          "gram_ledger": 0.3436238181792003
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.2676767775475676,
+          "intraday_cv": 0.2510167221003301,
+          "gram_cv": 0.26772236547406975,
+          "gram_ledger": 0.25452443872896596
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.210634106131256,
+          "intraday_cv": 0.18843090646676552,
+          "gram_cv": 0.22741905079545116,
+          "gram_ledger": 0.20497081304270265
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.363758217299807,
+          "intraday_cv": 0.4046421979943226,
+          "gram_cv": 0.35456511509065697,
+          "gram_ledger": 0.3551219199608834
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.3781737743137771,
+          "intraday_cv": 0.3928487895383942,
+          "gram_cv": 0.37922805741007654,
+          "gram_ledger": 0.37558663484640364
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.42191393737798555,
+          "intraday_cv": 0.2897116059374036,
+          "gram_cv": 0.42297720685654194,
+          "gram_ledger": 0.38247883360037704
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.49221761359295685,
+          "intraday_cv": 0.4898002415148665,
+          "gram_cv": 0.49130282362551286,
+          "gram_ledger": 0.4680944541316032
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.35292303355287363,
+          "intraday_cv": 0.554456306273998,
+          "gram_cv": 0.2824719922309457,
+          "gram_ledger": 0.25602082705240253
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 24,
+        "scores": {
+          "global_cv": 0.3031181426002449,
+          "intraday_cv": 0.30869604463684874,
+          "gram_cv": 0.30339349673177535,
+          "gram_ledger": 0.31089412577402736
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_1",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.38557575444867037,
+          "intraday_cv": 0.3789013947309357,
+          "gram_cv": 0.37899119894226957,
+          "gram_ledger": 0.3656998703291483
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_24",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.21214013120870748,
+          "intraday_cv": 0.20691736391185275,
+          "gram_cv": 0.2159883054382051,
+          "gram_ledger": 0.2066796412967447
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_29",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.44326739972658186,
+          "intraday_cv": 0.5220703464687957,
+          "gram_cv": 0.4224923974715403,
+          "gram_ledger": 0.4863648240791646
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_34",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.42771934045550686,
+          "intraday_cv": 0.3392207126060423,
+          "gram_cv": 0.40838320051955435,
+          "gram_ledger": 0.38830259530447686
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_40",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.5354107678238085,
+          "intraday_cv": 0.5097781651376063,
+          "gram_cv": 0.536144862761697,
+          "gram_ledger": 0.5272110238320113
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_43",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.5937906005965425,
+          "intraday_cv": 0.5385070645704945,
+          "gram_cv": 0.5945488361619077,
+          "gram_ledger": 0.5906787169997159
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_48",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.4783552461094033,
+          "intraday_cv": 0.44336381570251143,
+          "gram_cv": 0.4689881779480566,
+          "gram_ledger": 0.34313954264601465
+        }
+      },
+      {
+        "series_id": "pedestrian:sensor_61",
+        "round": 25,
+        "scores": {
+          "global_cv": 0.4382002302826439,
+          "intraday_cv": 0.42718229525784684,
+          "gram_cv": 0.4320234655458848,
+          "gram_ledger": 0.42480819828078376
+        }
+      }
+    ],
+    "evidence_forest_fits": 52,
+    "evidence_trees": 3328,
+    "weight_fits": 832,
+    "optimizer_iterations": 11980,
+    "seconds": 7.135996095999872,
+    "cpu_seconds": 6.899544199999999,
+    "api_calls": 0,
+    "forecast_provider_fits": 0,
+    "inherited_forecast_computations": 12984,
+    "development_gate_passed": false
+  },
+  "verification": {
+    "checks": 6721431,
+    "failures": 0,
+    "cases": 416,
+    "verified_evidence_forests": 52,
+    "verified_weight_fits": 832,
+    "report_sha256": "ed2ba9a73f88e24690dc445ab650b18e65f7d54884d0cb97311559205160a75a",
+    "verifier_sha256": "db72fbfb152950e70013d414c04d776bba17128faf7e5d8e5c45e4d066f98e15",
+    "scope": "Independent scalar Gram entries, saved-tree traversal, leaf support and record-weight predictions; temporal eligibility, quadratic certificates, forecasts and scores. Does not independently implement or prove optimal tree split training. No new provider fits or reserved access."
+  },
+  "synthetic_tests": {
+    "tests": 4,
+    "failures": 0,
+    "module": "benchmarks.tests.test_conditional_risk"
+  },
+  "files": {
+    "RERUN.md": "494d7546c088aa26bdb91260f1449eb90e182e3eba306931e4e0f029e6698f46",
+    "electricity:T15-00.json": "18831b6d1e19302b8d5305c9e999faf6396d22037e27d359c67daa375850b223",
+    "electricity:T15-01.json": "3b7665725ed430aefdecc59821953c35b1e13235f7b43d0d42d49ce39b886b00",
+    "electricity:T15-02.json": "26f8dd014eafd57aeabe8a6c9927f738466ae328f7ab66835bdee1329303355e",
+    "electricity:T15-03.json": "a44740815e0dd3e5cacda4f1f76d41231c7f2895da78639474e9f9cb8a7cc296",
+    "electricity:T15-04.json": "d089ab854b23eced8ce2b857567ef2e2c39292710de5b58c9960a8775dd6a350",
+    "electricity:T15-05.json": "a1b933804d75e34c74f6e3bd6e7be12cd59dd29d3c89fe451100c68ee6bc2485",
+    "electricity:T15-06.json": "618bac6b14fc9ac954a3fcfb57b7531c60c41ad380e5aee58393d3d785411925",
+    "electricity:T15-07.json": "e8137dbcd126790888754144daf7cf605d26197ab830433c591ff7a0d107b717",
+    "electricity:T15-08.json": "8fe37ff2a6647a27476901cb7264b3e284a53ae53cf5c6c7135a36b5b1605d21",
+    "electricity:T15-09.json": "01245084765649bddb383e6005900faafe5239a2c387d39c302dc3a792a612ff",
+    "electricity:T15-10.json": "d9df9e6f9f941beaa642947ba234c12fcc8040deddea5e0453285b794b27fd02",
+    "electricity:T15-11.json": "c8a81678170852e181d42621b6eb4c73d352395d3138a0be88dd8373e2451879",
+    "electricity:T15-12.json": "f76bfe37f42ab692631e01167225077f533832269faf6606ab743e0a5043a9c1",
+    "electricity:T15-13.json": "bd62664461a017bba31e9b1e9188bb6e9e48a8833c88289d0fe905af7a9dc5fb",
+    "electricity:T15-14.json": "dee2604d3968f89c737de576be166484f66ea5df8bf53ff47cfd970c2ffc5da8",
+    "electricity:T15-15.json": "a5e9ef70c7c892f4c7e15c0bd7ef19b4aea410a2c5f092961e97dcb3a15e6cb0",
+    "electricity:T15-16.json": "8b6f4f01564911e63b4ca191db6d1f82a42471683239808df84797ad652404aa",
+    "electricity:T15-17.json": "d06f95cb1a689daae830d7d06adfc9c5b2bad1e2ab87d3a185700ff46b5a0be7",
+    "electricity:T15-18.json": "ff4312b90c2e3ad635f6859d945408a3bb4cfc2c668d450ca65fee19c772ea01",
+    "electricity:T15-19.json": "cd800203825f3dfac9f93b1a6858bf25affb71a12b87f4cdd0e0d507fc3c930f",
+    "electricity:T15-20.json": "6effe5a21ed09e9593f0084e5ec4fded1fb00dc44ed729c5fffd87fe85b0d5c4",
+    "electricity:T15-21.json": "64195809f33b4a428bedc2ec67c4a1d836c5db971b4bbad834fa87caa762fbf9",
+    "electricity:T15-22.json": "ef852cfc66152cee800250e93fa9faed76cc9914fb8176f8ec2cc25ce19bd163",
+    "electricity:T15-23.json": "2de131e3373e91621aa47c403b0b39014320151e2f270a05f47189425ebaef44",
+    "electricity:T15-24.json": "cf8c8d4609a2dc1952fd317408d36ed73cb283d5ce11bf2a1f8521ea41981b8a",
+    "electricity:T15-25.json": "7adfe0c886aee2c3705fc45d63c7b94ccb9a40bb4d042f35bff228dcda7cd0fb",
+    "electricity:T174-00.json": "fdc6aaa12dff095d83bc962b5a3e82e640ea861719d55129a2440f8d7b799742",
+    "electricity:T174-01.json": "e40f29cde56e040d342c1f610b02f36197594dd18c3c33fe0f9d5e8aebfeeb39",
+    "electricity:T174-02.json": "c784930ba1ab737b11833d2a130824c1c65fd239f6f6a914f450a1fce128338d",
+    "electricity:T174-03.json": "532f2ad4bf5f8121ad6f64033bd787d1489b3e5d19869a215e93ec9e9bb50566",
+    "electricity:T174-04.json": "ae545b31e4b2f91583a10691c16ee2c102b3ede3885be9e376af4e8b3bd2bfe2",
+    "electricity:T174-05.json": "1741d4f37cd37b7322ecc93239bfcb2fa746fb3bad2f26180cbb632aded11dc1",
+    "electricity:T174-06.json": "acf603bfd9eb694f255b9901b403aa1c31fa7142f99eedc2964336c83209732e",
+    "electricity:T174-07.json": "88968b5ed6ca467093a107e6cb68154830d912c59cb9cf25e4bb5c496b25cbc5",
+    "electricity:T174-08.json": "ceaba4dad2670646b097e2dffc3fa5716aa999c79731210cb20c4cb78e025b35",
+    "electricity:T174-09.json": "4cdbaa2ac55b1b486c2b77bfb77c2eb084bc292342d210a5663a1b630d8c84a2",
+    "electricity:T174-10.json": "1f585e4723063f24b25e68fd945ad2c8b6d82d9afb03e1684be1b7a23f7719f0",
+    "electricity:T174-11.json": "edf1dc482104ca6ab9d6e135b1e6e99b6ea9d86d2be8622bd6ad26f1c1d087e6",
+    "electricity:T174-12.json": "92b2c8d557559602e5d65ff54d55c42104f0e74ccdce99495152ffbde4351c2a",
+    "electricity:T174-13.json": "3ffe40ff78a20360065fc5aff191418b3d1a6d360f9a5509ffc97d03deae72d8",
+    "electricity:T174-14.json": "e81872923965f657efece6870aae1242bed8da817ab7900413a3a3750e5c52e7",
+    "electricity:T174-15.json": "102a5cb182d5b9c7b40a2c70a595becf178ad675ba4fb5a31510fd62766eddf9",
+    "electricity:T174-16.json": "366782842d7f9f001f1bec127e68cd9fadd750d459d1b7e58eea1a4b7f8f689a",
+    "electricity:T174-17.json": "5dc9883f8f5fc9dfd4a6bc5802cfca01e2ab82497fdcc2e1bccf1fb7669f4dd0",
+    "electricity:T174-18.json": "94bdcaf29bdac87ed86791720da91b122b22f161e661a784c91a7640daf8dddb",
+    "electricity:T174-19.json": "5ac924053937fff4c0c7a4fd3a7dd67538fdde36f28601ff70c4de78f92594a4",
+    "electricity:T174-20.json": "2408143c04288ca369a3184e4837dcbfeab39143100104dd0564d2c97b9fbec6",
+    "electricity:T174-21.json": "f3e58228a9869b2777caf102419831ddaa1367d4fd3f158400a570ca244bb16c",
+    "electricity:T174-22.json": "d312b17b1c57d956d927759c376d8b7ca0147cd64cf1281f0adaee225b38dda7",
+    "electricity:T174-23.json": "2e79740beebcf8416d44767c79a6d09f5a9bc483c5c971e468035aa6378a903b",
+    "electricity:T174-24.json": "4f61a6e6bfce2204f604e0ba351c4759aef8f65a0b2bf03061851a864b710561",
+    "electricity:T174-25.json": "21155b5cff315f850fcef0bd87da77e38c389aac252bbd36e3e2267e00aaecf3",
+    "electricity:T217-00.json": "bef7de4f534981b9ad4b8af1ee5dfb96de909d23d95cb5a25d2fbb3947082a45",
+    "electricity:T217-01.json": "1bbf6536c9287d7fb18a6391a76692cd812ead4d29451bf43ad385758a8aa67e",
+    "electricity:T217-02.json": "bd09e42a533bcedc25bcd021a4414e3b061c41478831abc590d6dc4844e937d3",
+    "electricity:T217-03.json": "2adf4008daf3b71ff0239624443ae216858c149fe81bb61595f8bd34edee01e6",
+    "electricity:T217-04.json": "b0d7fcc05489d1a77052d620c47b395ddf5edbddd6ffed11415cb309e1d1db4e",
+    "electricity:T217-05.json": "561f5a80d3c291584c921fd5600ec8d9dbf804ee93e64cd05c6ff3a9bd829d41",
+    "electricity:T217-06.json": "09fe487ffe2e4220a3991b04e91251e7cf4fba8c156b626b4c17c51557c0ea5b",
+    "electricity:T217-07.json": "7a973ec5992012687a1d79375797ebce6f69f0214193baa1f97701acb693a24b",
+    "electricity:T217-08.json": "ff6bccaa0ac60cece0b824c3c4730cbd901d59588edbd3c924b97ee2d7153000",
+    "electricity:T217-09.json": "4c112514006e68097a7b72b9e45a521c3c6af0dd5de9472cf521f8efe14c8518",
+    "electricity:T217-10.json": "9133c2c95f2e3d55380ec79896bf3413a836f5219732747203cbafcc69aaa18e",
+    "electricity:T217-11.json": "9cf9ecf2302bee4895d28f38a7db7cf58be800b3ae47f48c63c11ee83bd3a78a",
+    "electricity:T217-12.json": "56697dfc53649fbfbda2b9dc339002abcbc2300ab3573d969e2d2b9b0eb2ff03",
+    "electricity:T217-13.json": "54e046f588894c6a35708ae9ae75c33b166cc46ec5a861eb05acf13748d44349",
+    "electricity:T217-14.json": "7a9dced002480e3095d1faec81d4ec51a653ba39ed41e01ab6ee5e48f8ae9d79",
+    "electricity:T217-15.json": "1fa93aab2f42044b4eb99456deae20ae4b792dd5cb75f5e0ca06c87345476c1a",
+    "electricity:T217-16.json": "d69786e8606d41158fec1de4eca777f18595b957fe17c3a57e111ecaac86f335",
+    "electricity:T217-17.json": "2f5202fa96f92468695a968c3dc10509f5e45fcca14ff4cd842e49e21f06852a",
+    "electricity:T217-18.json": "4296f040f1d2559329fb4eb35c8db4387ecaae7ad490961229d5d2e5a5b48ef4",
+    "electricity:T217-19.json": "132d1e064b64a70bc6874ec27b1d4b3a8dfdc9858e05cfb4aec2408fe48f519d",
+    "electricity:T217-20.json": "53d257e2df86cdfff67b654434a64d43009bdb1ab42a5616f096c5a393d4172e",
+    "electricity:T217-21.json": "119d2f8d1b491138eceb300f4755ef3c080dfe384804c79e7504986fc7bd4c22",
+    "electricity:T217-22.json": "4ad99b684c7b18b87b46b188e432b3b359d567c9b9cb5ed63bad7add6bb0355b",
+    "electricity:T217-23.json": "4303f9a553618f7657119b26e08128c3babbfd933182f8c74cb2e0f8900a5adf",
+    "electricity:T217-24.json": "778802f48d642dceda17b09720130a4c4b74ad20d657b204a035d1472aa26f7f",
+    "electricity:T217-25.json": "3095fac82ff6fe0a84c7d9639bbfdfd99e58549c451415aeba8864ac2eb3ab70",
+    "electricity:T286-00.json": "ef260527b51948191759b8bdffd719c750921d935aea181858b64d8bf1864800",
+    "electricity:T286-01.json": "e00a3a8404b08f1970fba6bd5b00b979a282c4d5321df2332fcaab0708905b93",
+    "electricity:T286-02.json": "294abac67bb2b35bcff8025bb4c7481553dbfa4e2f568f53e69616fb6c63114e",
+    "electricity:T286-03.json": "477abef7a1bfdff43f3b7dd6481feea064ebce2d2a46b4d118ac43abed8b4eeb",
+    "electricity:T286-04.json": "25fe1a2090a1bea15216756a64c59769351a973f2565a654c52267e9a526dba5",
+    "electricity:T286-05.json": "91649741040efded6e4764510c9afd90492556b4ab0e19d95a4f29baea309be9",
+    "electricity:T286-06.json": "1ed3ab436d12a8c81f89312a607b752823bf32588362678b82b24486b3bd4d45",
+    "electricity:T286-07.json": "8f4b3bf1b11769e590dc1222a9180a2375dbb881cb95dbeddc26069b4d52ed75",
+    "electricity:T286-08.json": "39ee4f9efcdd7a1520c026a90ee5a4d3b0492b3ddb5fd8285570d832951d8fe1",
+    "electricity:T286-09.json": "f7fcc1e53416ff719a6e39050901757c5daaca18e99b2c7d962273cedc98beab",
+    "electricity:T286-10.json": "ea8121f484667acf0af3a3f269654805f901cf28baf3e79f4d529d0581ea88e0",
+    "electricity:T286-11.json": "b4009a93c43224970d482b0c2145ab6b221a739e9536c64d17f09b630d092dff",
+    "electricity:T286-12.json": "31d3146194ecb1681718f9973c493002d926b09845e17616ace7e6cb1c4cb621",
+    "electricity:T286-13.json": "72a983da0d912f8083e2a31b018276351baabe5737d91f29b93c99880b98f5b9",
+    "electricity:T286-14.json": "6af00832f5556442c30ba32770e20ca1b024694331ec653fe952222d651a9134",
+    "electricity:T286-15.json": "6ad4af2044d16df62fc2f70164f726c6d7c5c7f90d335c9c5f9c2d49367fd638",
+    "electricity:T286-16.json": "cfecb2a39206b5b083d2682ff4e59f54172b4be44d4718baf29da1905c673413",
+    "electricity:T286-17.json": "9612e2a61c9631844f1907924885207888237d312a21875706aaeff6bebab440",
+    "electricity:T286-18.json": "9facf8f57490f11562694ce473dae6004c754d658c9310cb82deaa20ec90a96c",
+    "electricity:T286-19.json": "6bfe609182af56bc14e7c75d40791b693738b61dd2d93696b0ef092bbc01798a",
+    "electricity:T286-20.json": "6497a921818204ab0a45805e67fab6b8a852b5216c012fe010de85d2c02aa700",
+    "electricity:T286-21.json": "9c20db661bf8d68aed57ce212656099369864b72f5802b9c481a56844bba2694",
+    "electricity:T286-22.json": "54c1aa6900452b46ea9ba009c71c9ede9f75e95a83b4b9d8dda54f9e660ae5ab",
+    "electricity:T286-23.json": "c48fd21d2561c0b145e1050a952c1bc0ab46dd940d6df9441a4326b17653b86d",
+    "electricity:T286-24.json": "a92242a73e398c32552d231ef86b260d5fad2b0249141faa37a7bf9861b9090a",
+    "electricity:T286-25.json": "4ca92f32505c8522b61e4af9e7086fc761709f16478402c84543e544704dca24",
+    "electricity:T318-00.json": "bba8722bfd24fd6cedbe8f020ce27512995e1de881f57a72f2cfac741f436c3b",
+    "electricity:T318-01.json": "c9470257d397f77325c736d5f11c513a288b91204fe611eeed4582768fa88ff5",
+    "electricity:T318-02.json": "d8ce4cd7a9b767bab360c3aeb0780ef64b05c222e31bbe6c53e8a71e217a456d",
+    "electricity:T318-03.json": "5344233b659799952673ecda256906a369c6405fdf96cb6530a63f021775841f",
+    "electricity:T318-04.json": "59ef71ebbfb591085bc7316ce722527ac77e9829e1250e3daae960dff75b1008",
+    "electricity:T318-05.json": "625c80e3668519f807cba40fab06c96aa68b9fe06e5b2dce0e43a11e0536affb",
+    "electricity:T318-06.json": "adf83f7fd13b992099eb9af6323b6dae2f5c39ca57f64e16bbcac1c21be40137",
+    "electricity:T318-07.json": "ec3b9b190b1b73ffed7c629f41a4bd9aa0c2656dc6b6b0d773e46c3567f202b1",
+    "electricity:T318-08.json": "35027b2940e8da23ca0f933c98e3a065b245fa0c73a9ddfb45982c24de15899b",
+    "electricity:T318-09.json": "e2d9a6b3cfd3072c6cc6efa31523763e6f85b1bb26e13f42f86797ccfc077fcd",
+    "electricity:T318-10.json": "ac82921da6e451e041f8c15141c16d59132a65b6b3d18c3ff7a88231197ca56c",
+    "electricity:T318-11.json": "b813254dedc6150886e69342ae328a9e80a8d856fc13ee92734ca7088ff73e1f",
+    "electricity:T318-12.json": "650463bd7710ff76afe6fcd560daa332d1ba9957b3762e183deaace2afec8889",
+    "electricity:T318-13.json": "e594d30817e6d81a791d56931e30c654bc0c3f668d1e3c830d0fc2b3921cb4bd",
+    "electricity:T318-14.json": "fbb02676c5d6aad732672e904acf673754c6c05f31097567af6a0f232bf3fe51",
+    "electricity:T318-15.json": "3ff3afb5ca4db5d8ff3aa41707193fd88f8e08fc66da512093f644203940ee35",
+    "electricity:T318-16.json": "0207fd75bad7a5f40e29757946d4ca2e78484b9dab57822498822097d6d9d66b",
+    "electricity:T318-17.json": "1e0285e772b6ee240e9366a239dff590e53a0e50c6bdcf1d8e105c12eb6ed7fc",
+    "electricity:T318-18.json": "5344c890a31231486d960780ec35d25ca2603e2121f5dffa3b640b2837ac4f42",
+    "electricity:T318-19.json": "8906f24ff99c49346d8780c6421b67a587f58019fdffd42fa7f14f0a5a131a60",
+    "electricity:T318-20.json": "a2601ff316d36bc8f1a2fcb19dff6fa5ac12a67c4900240edb45415414c0bbcd",
+    "electricity:T318-21.json": "a9e2c546277441ab8666c711cd9a7f446e26e2f1721e249e27eb887a4839cd99",
+    "electricity:T318-22.json": "be742aa5891ec92eaa08a981a544d302090cd8c50ff212cfa8402a9fe1bd09e7",
+    "electricity:T318-23.json": "4a95233f9d3b248270d4006b288dd5170af34fc5847fdabcc9810b2dfcd1125a",
+    "electricity:T318-24.json": "7a4668dcf2385fc9ef9325c77b72cfbad005c320d237dbb03a0b4bb361a28d31",
+    "electricity:T318-25.json": "062bcfe6d1b3008171fee242debddce9b208fbc9a566ced4c32dc070356d0d84",
+    "electricity:T47-00.json": "a4654e479e359aadd4758d1bce052f33813a0aec642beaf6671ce76c39f988b4",
+    "electricity:T47-01.json": "c502dd06a80434f51749ef0bab5fde2aa0abea27d28c011c96f5dc26d797b44c",
+    "electricity:T47-02.json": "50b6618c3324103a1793ccf16cb0e2268bd6a0d3bee7bd54515fcce9bc65fc90",
+    "electricity:T47-03.json": "ea34b5ad044fb83da7645dd185d0588bc8371c93c7af14c19b73dc41b45687c5",
+    "electricity:T47-04.json": "8765e132ab3792af0d3d3e93a89b340f38117d65db2eacf9b23c474cf9c82f2e",
+    "electricity:T47-05.json": "f90e6c3c8d8325e12e822aec32555d627d43b9ec0c99ee24f509d46203f704f1",
+    "electricity:T47-06.json": "18c188cf893dad05b3b77f805e37ca678c5987d96d6051e39b3b130f40485fda",
+    "electricity:T47-07.json": "ced84625ac1b5ed40a799c031acd0ad9308a9f493895f270ac3aa462201a18a5",
+    "electricity:T47-08.json": "1b74486fd5e3e52bd7de82e869801ced5492c9de1331ad2c8445cb0c7dbbff98",
+    "electricity:T47-09.json": "8d6d7014c815c9325fdcfd088b061f04c1e906689d7d2882798a525b6419adcb",
+    "electricity:T47-10.json": "54a8532dc57625a2a710206253d9272f84fe628fd2c2808a32abf359b396c76d",
+    "electricity:T47-11.json": "39f28c3a0dc69b80aa7039323d6ef3f7272624c75b22ae1c172e62ddc4584d41",
+    "electricity:T47-12.json": "f0a4a2bcf59821f56181d7f3018b4db24b7280f1bb1fe458662397eacdbaf27f",
+    "electricity:T47-13.json": "8b2c3aa9d37b2befabbe3f464b913deabd8e7290de8139ca7a55dbaac4c6b727",
+    "electricity:T47-14.json": "5400d4e2b34eeacc6640f7b1b90a37dc9ae68367b4b5666fe1ea7a9b8ced57b2",
+    "electricity:T47-15.json": "7e626b31edbd712f92712034eee14f48177b4af9c306a2e587f1502d8b78f7d6",
+    "electricity:T47-16.json": "b795adffd044fe2eca0af5017dc62538abe98859532cba08617be55a3551793a",
+    "electricity:T47-17.json": "f928630fc6c79cac7f5fe5d2bdab32ed7323a1372f508537e09a4d4b1ddc72a0",
+    "electricity:T47-18.json": "6f57004318d5e7f137cee380556d9da2d470fd4c15d962680897501009ed7e65",
+    "electricity:T47-19.json": "e9a46494c858e963e0eecb53a4f2bdfae140cf228449893d25d35f7be71fb8fc",
+    "electricity:T47-20.json": "941c908494c51d2cf4e5b7e2e7cf780ac3b8f72f55728d151b7cfc1d89ab0bb8",
+    "electricity:T47-21.json": "ab8ffebc0c77feef50ab5032b564c58b288e0f52bb5f131b0c80b219e07ed27b",
+    "electricity:T47-22.json": "1f531dbbbd2a548bd4ead7df0b15d44f270d09c2b341f446386f636450cf346a",
+    "electricity:T47-23.json": "4dc6ab83ff954cec952e90d340c358b003301bf5dbabfbd343e63295ee4e7ec0",
+    "electricity:T47-24.json": "a1e31ad76da9e5bfc85253be4ebc270b36526c04f61bec91aee7311df3a2faa8",
+    "electricity:T47-25.json": "3d1dc8555e2adc7c7039b65f127c218f32b11f7b45f06b11f70d23d3ec8b3c5e",
+    "electricity:T63-00.json": "530fb405fb466297ca326b3850d87bbd34ed9a0f3847061a46f580de59acae9d",
+    "electricity:T63-01.json": "d82885dbad2b6f9a7c90970be555f2c4d2e738aa28eaa102eb7490d9ebae1399",
+    "electricity:T63-02.json": "9cd137fc55161fb2f45c6e57d0dcfaa6a211dac3d559c091f2205f78ada2c3f4",
+    "electricity:T63-03.json": "bd67d59d323782fe2c20302036d8caa62881f828f55b951e43b592531fba0909",
+    "electricity:T63-04.json": "d8e4e48d828d71c4dd83cdd2e0aa12fc5b9151ebce0042010a57b40edce9de7f",
+    "electricity:T63-05.json": "43995b3bdeed212fbc685dbcbc63301e2b3915f383750214276bf4955cd8031d",
+    "electricity:T63-06.json": "a1a4f6a1fc5336027a964b156afadf3fb79c4172bf79170b116a6f1ab0f2c2ae",
+    "electricity:T63-07.json": "2c5446d9c72806bbf721fed323f56a3bb8aa632e3431a9afb60c605430996b40",
+    "electricity:T63-08.json": "98e104e62a04037eaf4c2377b335a069b59d32370523cf9b2103a385b3b8d729",
+    "electricity:T63-09.json": "acc7af36b7df9a1e8ab2ccfa3e750ad57ef68cdf5d76d54887e3b40ee98fe47f",
+    "electricity:T63-10.json": "43d87bd16122973849d5b876a88c2cdbb5a3676ca74281dd9513ba9bbc0f656b",
+    "electricity:T63-11.json": "6adcce4d31dc6d77610f4c7f9bfa4b6f85263d3ea80a3774367ffb982ba28aeb",
+    "electricity:T63-12.json": "b818efe140c3b4faec94e1e273faea0891fca6582bd7070d2dd58857fd6ca3bb",
+    "electricity:T63-13.json": "0563dedb2b84ddb04ab111b4ecf22396bc7173a4764ca60840a4102053827b6c",
+    "electricity:T63-14.json": "b93aa63c0d4fcdd5a6ac496cef977fef0a0442f603b36490d70a70a4e9dac8c5",
+    "electricity:T63-15.json": "b47111e7cede4853e6e9511d7960a8dc674f2035395aa1ffe60df7ee44f18255",
+    "electricity:T63-16.json": "fe6091835c8607bb6fc3168dcea5ff02c0b5e44cfbb9862f8172aac71e592c19",
+    "electricity:T63-17.json": "9ae0356d083ef9b208af0f55812244d0de84ecaa2315a88b1ac29de8244baf3f",
+    "electricity:T63-18.json": "90c2865791d1ff67c66a0721d6272ee1e2d35dfa5decab4bb32c5665a44a56ff",
+    "electricity:T63-19.json": "3a08385c46f185696757c2bdf3e4f3aa8f89f8a583079d8ea645e98085491f24",
+    "electricity:T63-20.json": "c4d09667f197cca734cfecadcf2aaeb5d122d97b1be0c9ff44047f6b84375890",
+    "electricity:T63-21.json": "25c8852c1b42b5736e3f227cd9787bf59130070ad7499c785cd2226a854fcc2c",
+    "electricity:T63-22.json": "c3f202d2d32f8c03bb49a129869127a33389452c544c3130b2bc811dd49feeee",
+    "electricity:T63-23.json": "6e2a2faa2787848995ccba026f8fbcc50d80f2facd30b271072fc3b4f8d1ee74",
+    "electricity:T63-24.json": "a8a25b0b1089f1aeb18ebb51dad9419936fc7aac1ab1dc370445bd805b9ecee0",
+    "electricity:T63-25.json": "d695c03eba30206eda6daa97deac3d81689b3a00f6ab6ad8b3d2229e19d46f2d",
+    "electricity:T8-00.json": "0e7728c99e28e874a7b9c7765f925fd76dd06b18868d7c45c494a5c418b216fa",
+    "electricity:T8-01.json": "db53251cf4941a146d5690d57dd0ab8b627abbd6ce6dbc97adf7445752ae19c8",
+    "electricity:T8-02.json": "cb02565c157eaa9e4f985e29c461d2491387afc18e01a9287bfa0e9af21a6cb7",
+    "electricity:T8-03.json": "08a713c50518ae1da26a43cc89ec048f83071eeca382cead5bcf58158a549504",
+    "electricity:T8-04.json": "f5b228ba9bba065fdf860b1eee7c215ef1e550b0d85d6a72cf545d40b584c764",
+    "electricity:T8-05.json": "39beee602283a8bf2a859096d95589ab78dcbddb2510f249cb251983c260ae8e",
+    "electricity:T8-06.json": "a431381aa8efcd6ecb0283cffac076d6a88394d1277ed353dba4d51fcb22d445",
+    "electricity:T8-07.json": "23797e2054516192d0751fdc1f59818290ec11c640c15f09dc2c1a4c3b2a2822",
+    "electricity:T8-08.json": "78b164a8d5c0af0a78451c15b800535054db2acfec57651176666cb52af8cd38",
+    "electricity:T8-09.json": "6c8506ab191580d5dee414fcd6fe3fdc4f18d7a982883f06b7dc243b1ca17b98",
+    "electricity:T8-10.json": "b869d2766655383e1aa128a4d79249015db283fd51ae159448b2e9a7b54ed5ac",
+    "electricity:T8-11.json": "1ab5b555ae4f38459eb27fe334eea83569448c549677a79b42c7b186d890bf94",
+    "electricity:T8-12.json": "114b0130c7f357328c6221fa053c351defa91094478d6c66b990033a703110ce",
+    "electricity:T8-13.json": "b61026a25d7930d69abf9d3c889aa98ae50b3a40375121e78caf99be9231df73",
+    "electricity:T8-14.json": "807de8c96b384816a296dff97ed668641b33214d6852f5d02243afa45a88c6e6",
+    "electricity:T8-15.json": "f26575aa445a6894adc0009a327c734c96e7b90884671433af31e6d4d18374a7",
+    "electricity:T8-16.json": "7d5ef539a0e64b9377e73afa500f9f5fb5918c31ac80c8036cd97783badef6eb",
+    "electricity:T8-17.json": "52520901e11dcbcb1522abda73ec29e81cac9681e54d29ee08a1ac0d5ee85453",
+    "electricity:T8-18.json": "94a28ecfbb3e9b43a4bc853478553f2a5c8d85f22afe12cad90031c0d28a0665",
+    "electricity:T8-19.json": "0c8b7ee5637a99f12ce881508b707743f687eb3c76eb1593a86b1de865f2ed1a",
+    "electricity:T8-20.json": "c0898c15045ec2b177ed0a3376f67ecc9b7f681d22d986ffb6342f786998c6bc",
+    "electricity:T8-21.json": "72849e3565f1618b32c2d9e7d68c9e1e2f3ed5b396ec96f62b724b3c17490506",
+    "electricity:T8-22.json": "c4384f24e6d02fe749885d187c82c1b3c67a69a92fb50bb445714455f72abe31",
+    "electricity:T8-23.json": "93a3a4b6125ae0b4b86589d73b62358d29f071c2898a14584dc48062648e660c",
+    "electricity:T8-24.json": "f4e66755724a90f2be5cd41053ce94a0f3ee2bec25dd82fe882385e560129d35",
+    "electricity:T8-25.json": "a318dee2d1078554e2b83c57f6ff369e44431c010974f96fb170039c3ba61c85",
+    "forest-electricity-00.json": "85cfe5f250e6729af3e94fae51bd3bda440c1c79e674d87c34e31d5324558be9",
+    "forest-electricity-01.json": "aeae172d9b04868235e459ee0b7a0f74d20bdb73677eda32e4e45d3316886dd5",
+    "forest-electricity-02.json": "42a92e7a2358223ee2bbccc37c109b4d2f0c975c1b41004c2db03b81dbc15476",
+    "forest-electricity-03.json": "1e81ac3d1c409d290fa2ba0e0aeaea52df61b5243bd48bb79bd72a74cd43c052",
+    "forest-electricity-04.json": "4ba1a6209ae29d8e7fe288686fc0eda6b11e8fe54bc9eb2683d92cf1134a7623",
+    "forest-electricity-05.json": "cbaa04b2edd956e9caa178e6c22fe8a30a2508be1a1c355d70d498ec9ee63589",
+    "forest-electricity-06.json": "5c5c872961e683ddc84a98abf17380aa448fe00d4dac3dd500e2fa872ae99172",
+    "forest-electricity-07.json": "1ea463634b58aa4a90a4e8ceb3aab8ced5d02c125b78cfcd2a9d769fd29b8544",
+    "forest-electricity-08.json": "18c40fae828830b669439bd5df94a00039743c9294ada29c724923a4a727555f",
+    "forest-electricity-09.json": "60ca29ec8f6bb122e19c52708df1d2e9530f174a43e60f719ce9f8c842738cdb",
+    "forest-electricity-10.json": "41d77c315f885ed8c2545a51ef1283e631bcfd311aba23b5ad99fd8d197573a9",
+    "forest-electricity-11.json": "5bc5e1cf183ade6465f9415bcc31eacdf5a531b9c23851260b018cc6626e5e01",
+    "forest-electricity-12.json": "4be0badb914ef08bdc5c47b95acf43514fd6e4438c65aa515f8f1bc85beea39d",
+    "forest-electricity-13.json": "a8f28791032e6d78156468fb52ebabf901285ddd7a7c8ea3d2708cca725a5c32",
+    "forest-electricity-14.json": "349edcd1cb00ecb7f20bc266c3d92b87c898c2d255780504e1fa534fbb7112ac",
+    "forest-electricity-15.json": "ff641bf2233ffd8fa26c97195e5b66ed2a2e946d1934fd4c248d72c09b17dab1",
+    "forest-electricity-16.json": "4f8892df8d6f54b1a59e922b23e583dc0ebe977f540f40404512ac951179e763",
+    "forest-electricity-17.json": "b3a611d86d9b31de3708a4ab9cac0d3fd026626ca051f1a3940a49097e6d40de",
+    "forest-electricity-18.json": "f04da3961d8ac77b3f684bf0e01bd2644a6ad19fa636145c3ced6025b1f29fef",
+    "forest-electricity-19.json": "f8d220389fca4f711fe31bbee887af17622f7b88dd283729090c5df5888495b6",
+    "forest-electricity-20.json": "9b0a62d78ad81ac76ac9f7ae9c54ca5f15a0da73de1d3d558647a5202d6bfe81",
+    "forest-electricity-21.json": "bfe33de81235d4587aa3416d2677c8bc8d6a08d7caf0c867f1418ea42b231182",
+    "forest-electricity-22.json": "435d88f2f81d5e97c9db3e9f0da48278b3506004c4a000cce53ca7c2d1bc15ca",
+    "forest-electricity-23.json": "a47a62b50c9349907280fc33c4d13ff16984f3ae77777a3e6bf25e029a952f58",
+    "forest-electricity-24.json": "d592872c757733beb3949571a9b41a040623095c9ba71f4b4b9370d14dfb22f3",
+    "forest-electricity-25.json": "c879c0e7ba4aae43c86c97b952735dbc78b7270651bf5a5cc14dac8542e63580",
+    "forest-pedestrian-00.json": "9c3fad889b3c253e69963fd7ed937227ee3db9e289512280ac5700d28bb900fe",
+    "forest-pedestrian-01.json": "b92ccd1ba4b1cc1c94119d67b15072ce295a6de74768dcb6c32a6e3806408776",
+    "forest-pedestrian-02.json": "2808e5d97c28d5f4643ee1ea88c731335d9f67e88590dbca511381d880faa992",
+    "forest-pedestrian-03.json": "d8c8a1bafe7c22826286457cea2a2455c13b732ef0bf55276af41ba0c9f17cc4",
+    "forest-pedestrian-04.json": "3352aeb1d6fd4e839c9a0a0ec662269fec8bcb0c88fdcd1fc6402fd3ad81a40c",
+    "forest-pedestrian-05.json": "eb9487f079bcc86296f1456cec64a130fc3bb0ddf9412ca9bf3c5749f8430501",
+    "forest-pedestrian-06.json": "ee37d684bf53e6935f0e1c3b254dff1bf086155d039302dc44040c085634d832",
+    "forest-pedestrian-07.json": "f45481970b8156fc98f76c2b953908d19f8a279479b67d092cc885cca11cfffd",
+    "forest-pedestrian-08.json": "bcce8edc0e2b689bfc486ba3e569170a8bd9f07f6a344b41c9d4bf46ecd92dfb",
+    "forest-pedestrian-09.json": "f198f8324e5a97d28721c911a00422379e855b4d1b0e8a8d4c0071b664670b42",
+    "forest-pedestrian-10.json": "3184bffdb48c4e2950cfac8d14bcf49e5f0d24d9fe654e04e2d18b080163c81b",
+    "forest-pedestrian-11.json": "030570abcc0ec999da085f38704afcc28b64f4757a3d844b8aaf4595f96ed7e6",
+    "forest-pedestrian-12.json": "f258465c92c5dfef4cb8a13664a2fe53bb01be2a57f88c322b0365e52d4b1492",
+    "forest-pedestrian-13.json": "94538e7a648e62563ba034246201db0520da9753c1049e9c64d5eadec8548d99",
+    "forest-pedestrian-14.json": "4340de1e2f67f80d56f772a96eebb29115a9ea51c7d3d5e42c1e86c08b68473d",
+    "forest-pedestrian-15.json": "a47b9d9c574309b5847187196e0f8fe9703d6ac598f1c9a34138de8efae2fca8",
+    "forest-pedestrian-16.json": "d4117d7718d8817c295369a8c9679e87002ec08dd0ba54dfef8053adae51c6e7",
+    "forest-pedestrian-17.json": "776c3b81eb14612fa685d1656a5e8dd4e2b099b379f7d1ab0dc8af7faa79319b",
+    "forest-pedestrian-18.json": "605596158d87fe21bb82ed6ec026bf022f1aa81483d790374ace088d131be267",
+    "forest-pedestrian-19.json": "f11b435db4faf4777564920681676a80dbe9314de595461c7475ef5762b6f462",
+    "forest-pedestrian-20.json": "4aea1a8cece011f3fd8b4e11cd1d97e25b5d618785f0ccd6a50bc877504a4238",
+    "forest-pedestrian-21.json": "453cc5981a02336f1f1b8530f01c86b375d2df54827ce9263fdc57bee883561c",
+    "forest-pedestrian-22.json": "e1db410467e3cc0acdef044087ca70ce45735d61277517ec61b1912587b14028",
+    "forest-pedestrian-23.json": "fb0d42075b766e5b000a3d21de17648e6eb491c2783ad526a1d3d00f206cfe78",
+    "forest-pedestrian-24.json": "9c14657b2e66b4bb00acd68e4a91e66f8329c48db1edd23fe184bb9b5d94e63d",
+    "forest-pedestrian-25.json": "0b6645d3c1516a6d155390bcec50965835d73fa075cc93fc8a224da051bbb03b",
+    "manifest.json": "52bcba3bedfc642d9eb2026a704ac2585b97a7c73962513f58a2f0a839024337",
+    "pedestrian:sensor_1-00.json": "11e81ffdb81c3c910f89e7fb1722ece93af1767f3687f1221b7781d352b185b3",
+    "pedestrian:sensor_1-01.json": "9de4a9741e94829718dfe10dfa4a6aeb222900efe792bb8099c6431eaa778bc1",
+    "pedestrian:sensor_1-02.json": "1e906c89bbf92b6f0a3497f05c8ed63dd96c28c4bed9cab9b883c6dcae0fc79b",
+    "pedestrian:sensor_1-03.json": "676d6b5b11e12f5701495a44e14fa676075f44becf7012ac2e74f3c4b8064411",
+    "pedestrian:sensor_1-04.json": "6120346f12b06fc9f0d0ede9ebeefbc62f1db415b22b848b43c9a8631bd135fd",
+    "pedestrian:sensor_1-05.json": "9fce63717e02796ebec5ce1464e0ac3754fb24da167f755d2a7eb0b40ea6e332",
+    "pedestrian:sensor_1-06.json": "ad531bbe97eaa424d18b3dfd035d62519fccf1ee3ab880ac924d10ea519d7c5a",
+    "pedestrian:sensor_1-07.json": "f766574f2c7a013d469aeef5bbae4fc987857dfc236c8a0c4afa7772a3b637c3",
+    "pedestrian:sensor_1-08.json": "c91b6cdf259b9303146397cf7f52ea86847228e12bfd1b2cd9b23123f9a9f80d",
+    "pedestrian:sensor_1-09.json": "df0c4d8767864155e1010dfc39e40a02da00b1f32f10c73db647f145ceae4df4",
+    "pedestrian:sensor_1-10.json": "691504f746668da322a0f6c19adae699ed2ecbab9138955b39e3044547ec6f11",
+    "pedestrian:sensor_1-11.json": "dacaaf552e0f6cd207adb1291d99933c8c66eba301424f37d77c969667f6f6c5",
+    "pedestrian:sensor_1-12.json": "f336a767b6adc803e4f03f8a42d8e76c2f9649344ba969b7e8a90748d6749630",
+    "pedestrian:sensor_1-13.json": "54d0c8621081d8572ebfd4e0cf60bc72e3a4cea35026b9d31e1f348ddedc42e7",
+    "pedestrian:sensor_1-14.json": "e1d1980ed331e62b1c1b436798b4de15c2930747166277c877d9f57962837071",
+    "pedestrian:sensor_1-15.json": "0d1fa86ea3f389c51de74aaaebb2b0ec2d62d1ccea45b45e068aed5542131467",
+    "pedestrian:sensor_1-16.json": "f2a9b6be42ed31ec3b7cb133a7b86c9c5383838e904eb934be18071069e2a942",
+    "pedestrian:sensor_1-17.json": "e6843eebb7ac18effabc711c136ee6765061f5bfbf24b85a5c664e6ec8906aeb",
+    "pedestrian:sensor_1-18.json": "9fd739e1e0116cfe92945c25f5510a319417fcbaa9dbe0fa174142ecc39c91aa",
+    "pedestrian:sensor_1-19.json": "9c4aa0c7501a1e237328a1a0260a4f42323bb5baa88b42c4876dabf9d62e5467",
+    "pedestrian:sensor_1-20.json": "5277b1cf5d26b635190c46d658692edf4639314d0f73a4d1c75f34bc2c1a4a6e",
+    "pedestrian:sensor_1-21.json": "eaa9258d0dc0683feb2d0d3897b1c8ae92c372cdc5e46066d472036ac57b8696",
+    "pedestrian:sensor_1-22.json": "be6b76135e52c7b739e6b4d3c28e21c1f33ebdc369a1fb1a43822c2e97f8317b",
+    "pedestrian:sensor_1-23.json": "de98084b7985646b67b7c0e89b95834d4a7930b7fa24b6a997789cc5045f68e5",
+    "pedestrian:sensor_1-24.json": "180f477944dd9f684ef89886fcbaec3bcdf73e1bbf3a289f9a6d6e335ec46e11",
+    "pedestrian:sensor_1-25.json": "b8f63d9e14188322b3d2359af6855e3396b4e410dbaa09da57c37dc8ffc94f00",
+    "pedestrian:sensor_24-00.json": "f8d9dd5cfdf17e20c659ce990f85a2c8028047ef0eb9b867da03d73005e2d44b",
+    "pedestrian:sensor_24-01.json": "932e12036980cdbe53ba8a28125efe56c69d0e2f75a66a735c4d6b539ae38388",
+    "pedestrian:sensor_24-02.json": "5f5e0700f3e31513ad3461af19f0ce456a0d8eb8c3d0c38437d8a090d303117f",
+    "pedestrian:sensor_24-03.json": "e031c3d43f015a5ed1067f4c31e83c280c66d656d8cbf69f04a59095703561cb",
+    "pedestrian:sensor_24-04.json": "b16b668d2a2b7dfed33b20041cca1b3c91b20f1a1f157c58a72b6ebdf2c4e8bc",
+    "pedestrian:sensor_24-05.json": "523b023194e04f13ff03f6d68c1401d396bfbb5019a139e020a9a24ecba7d099",
+    "pedestrian:sensor_24-06.json": "bd978274074aaa1f527c1bb2d3d8b1ce0c796ffd98dac61b382302a72498f61e",
+    "pedestrian:sensor_24-07.json": "05f0f4749ecf449e40567746163d23b3b80e8771efc7752ca91a6881ffb2cea2",
+    "pedestrian:sensor_24-08.json": "6dcd3f351e1117c0cbbe288f9de048a15640ab9ab5f9a0b3812e94ab72692a9a",
+    "pedestrian:sensor_24-09.json": "8cc96e936197f69efbdd683e21b5b31db5d92e3fa2ac3e6d83b212d11c45a9b0",
+    "pedestrian:sensor_24-10.json": "b9c9ac809d533851c352164ff2ed22b358dff88edac841b4739a20922cf3ddee",
+    "pedestrian:sensor_24-11.json": "b97ae6ba202bb0581882552616bd28253bfab153bc299853ad8400b1167ce4c9",
+    "pedestrian:sensor_24-12.json": "8e913b3d46e0d7e2ea4f531c45133bc1bd1abfc407b1ecc82e6af6b6e2652013",
+    "pedestrian:sensor_24-13.json": "51f131b5d53ffb029519ecda02cf16be98cb6bb0f52a87af1dee1a17c15f7726",
+    "pedestrian:sensor_24-14.json": "d1016e47c72d072a79a8f81fbee35a944407b3856dcfdfca37f17961f3a7cb8b",
+    "pedestrian:sensor_24-15.json": "c6287d33dcd575a5e9a1d5d205f5428dc4d4da93629c66e77dbc733e39af5717",
+    "pedestrian:sensor_24-16.json": "ff4c803e493213fd3f222698a66eba09ea4f3707ce4ac6429ab5c278ab248e5a",
+    "pedestrian:sensor_24-17.json": "d6044ae2f38c94928b62eacb6f5f027c2f116a0314339d266b5db573ec2f3e75",
+    "pedestrian:sensor_24-18.json": "4d968ae02a2a102bf201fde9616cb81309d4b95b9dca52f7fad6e89c1758fc23",
+    "pedestrian:sensor_24-19.json": "910f1c760a8f77927ec03addc61c5f70e4a510e0a87e268fb870c0551bb7b716",
+    "pedestrian:sensor_24-20.json": "f820395509af74a1af2d78b29174b687b0882c18d049033788306ad0e7c3469c",
+    "pedestrian:sensor_24-21.json": "60202bccf977301af4f4f73c82b27e9a84b990d8cd49219141654391aef2ff0d",
+    "pedestrian:sensor_24-22.json": "7aaa51cdbe630c8715019104f4a2716531309911d9cb38879a99eee17dd13cea",
+    "pedestrian:sensor_24-23.json": "2ff6dd804353b46e5ac819e31324ecf0c3396c1f32e6fad78832c94b6f80b6e0",
+    "pedestrian:sensor_24-24.json": "f84b6efe4f77b3ccb173c99a7dbe21d0a4f6721119a4a7b9e765cbb1f6bfeed4",
+    "pedestrian:sensor_24-25.json": "88f5b04be9f48a0959abb508b8f74f231a3f7d579eb7d558f2c719627439c8e0",
+    "pedestrian:sensor_29-00.json": "46b01183c6078dd5495cb374364a6d4bfdb81d53dfcb84645c5b86310d97d88a",
+    "pedestrian:sensor_29-01.json": "2c59d78c64f7e1400d1fc37e8dd0e862f652a32a6e0762d866969fb425bf078b",
+    "pedestrian:sensor_29-02.json": "739a141365632fe7c123afa81eea2972327073f888a9181eccd5360df5560e6d",
+    "pedestrian:sensor_29-03.json": "3cdffd3518d09c086198c149e584c35751423d1cf3a3e31949b3a100ad6b8046",
+    "pedestrian:sensor_29-04.json": "4de80a78cbc8b57ea4088d06ad752ee9dbd54fab8ad5226b0e756d352719572e",
+    "pedestrian:sensor_29-05.json": "1e810b4d645b898c8f2160ce524bdd4b072f2e1c436fbace9dfb00cf57428bdc",
+    "pedestrian:sensor_29-06.json": "76a64eeda54ea251b4fd4c7a445573e83ceec03adbec71a73c59f122434df454",
+    "pedestrian:sensor_29-07.json": "534d860bec2c1a28cc8324340e26834327fc6db26a0925d1e2e9896c4e5f4da6",
+    "pedestrian:sensor_29-08.json": "ed89291e68893c20a71464b8a9e240710b25b6cb4374d124d6a3d7b76312ffb9",
+    "pedestrian:sensor_29-09.json": "143e3b935551c8bd82da878a7ba481544f21a8ca7a0844b86b5565c84f7a3a28",
+    "pedestrian:sensor_29-10.json": "336f2b1916b364bdf1fed4dab8c0d2572ca69889ae11134655d63853ff617e55",
+    "pedestrian:sensor_29-11.json": "95870ed676bd311976043336003759fc1d9347ec8cfca9cf95ed868bd61ecbbd",
+    "pedestrian:sensor_29-12.json": "da4057727bdc11baeb64ab824fdc10131d67ef826350ef05eda0060b7430bb64",
+    "pedestrian:sensor_29-13.json": "021dc218b11f5aff9fcbfa5570c9f01bb7442e14e803fd9b7cee673cf63a1798",
+    "pedestrian:sensor_29-14.json": "dbd6c001c7dc727a7fe2e256e68dcb69eaa4a3ab4c0d7f4fcec0453c9c43f731",
+    "pedestrian:sensor_29-15.json": "7848be3835c78ab28eeb3e9cec9e77a39f520af3249d26cc3d49188ad9d23072",
+    "pedestrian:sensor_29-16.json": "764d9315c3978e6c4f57614a1bac92fa3fb11111d970497d7bed5aefb88353b1",
+    "pedestrian:sensor_29-17.json": "512b8302be9b1b2405d72acb3dbb3a68906d71b54c90145acf7def482f755345",
+    "pedestrian:sensor_29-18.json": "5f4c8abbc118d2677d94a9fc478c68d9090a898564f7fe1c87fd528abe01e9da",
+    "pedestrian:sensor_29-19.json": "e924253910bf958305873e51616e45a2952df2af9f99f7ce57e15d44833fc9e7",
+    "pedestrian:sensor_29-20.json": "3ef2c2574412e9a2cbef9d59ddbdf58501d6ab5640d79ebbe140dcaf0ed641c9",
+    "pedestrian:sensor_29-21.json": "ec1013b27d666bc19d1f431228ee25935833b28b6e9a61a32b97b7896fc8ba17",
+    "pedestrian:sensor_29-22.json": "b9f0b72a2c97e1f0d380b4e07ada4e48cae563bc15f434a8269be86b56cc7af4",
+    "pedestrian:sensor_29-23.json": "291a7f21729c009c408d46a9eae942c9c5f4b907cff31a34e126417ab278377b",
+    "pedestrian:sensor_29-24.json": "804c2de391bd64191efd8786943e3fb53a7bcd996a9532ceca1c9d849d40d29b",
+    "pedestrian:sensor_29-25.json": "601a37c1e54ea691e5f6fbb0ace040e0ece2f6a1ddf762c5c5339db24c867102",
+    "pedestrian:sensor_34-00.json": "dbf699430232bce62378e3e3ac4309db993573d3fa91b98459f21054fa14e0e4",
+    "pedestrian:sensor_34-01.json": "087c0a9c1c2919d5dac7d36d6eaa0d80a2dd90cade73321fa872831a47a5b2ea",
+    "pedestrian:sensor_34-02.json": "da2ffe7f3151e7555bba28e0683502cc4fff5680d94794cff2aab5615dcca975",
+    "pedestrian:sensor_34-03.json": "181628db64b741a7bebdaf762ac4a309ec0b8c9d2c3ecdca1abef0710239f696",
+    "pedestrian:sensor_34-04.json": "85d21338c2539038185f6d2a0e8e4a1737623c7fdc5728830c4f33cefdeabf3c",
+    "pedestrian:sensor_34-05.json": "c11138b0db1588d05ce3f0231abe67e8a07d9fa41531cc9b9ad8b88219e12da9",
+    "pedestrian:sensor_34-06.json": "7a8f412808ff873c34adf2ec03f10539af5704dbde8e329c0d367e29a016fd92",
+    "pedestrian:sensor_34-07.json": "faaf22c4906145d6621b28481b4e58dd475bf91a6aa340e06692229cd8e644c0",
+    "pedestrian:sensor_34-08.json": "4d7799b5839a3f8095535067dad5f7221a96d830ed57640272c8d570c031d8e5",
+    "pedestrian:sensor_34-09.json": "45c8ca4f6e3c6fc522b16ff0511ce414c819122508e0e02428f8e6d3b114392f",
+    "pedestrian:sensor_34-10.json": "8fe2fcc5484e8c899bc123f2cf1e0fa21e0edb5f28ba054787d3858b08a74e08",
+    "pedestrian:sensor_34-11.json": "c52b213993a2bafb8df0513b82ba32ccbe917add86348fd9c523ef96176ecf94",
+    "pedestrian:sensor_34-12.json": "455d081a6dac27a48b645a458843a284edcb04f47c3efd5aa40b30a5f1f9b869",
+    "pedestrian:sensor_34-13.json": "7d3bb15cba66c7dc93cd1160beaee5598060878732685cc39ae09f1566c56fa6",
+    "pedestrian:sensor_34-14.json": "aab020e62b4bda530d7c7605d63932e468c1ed9cc5447a59409633dfc027cc2a",
+    "pedestrian:sensor_34-15.json": "b53eef8bafa6fac872c8d190b65061c7845c476b554d7dc760ce7cc2ad24739d",
+    "pedestrian:sensor_34-16.json": "63740015aa5ebe149d9a3bab01311a12cf8d2d26134c5c25ace82488a31dcbff",
+    "pedestrian:sensor_34-17.json": "fce32f555cca9d40354e5703f4225128294487430aec123420abf48c41016a6c",
+    "pedestrian:sensor_34-18.json": "5c1ef5b44506b27dc4a3ef13c36cf1620081bf31ea41a16db8f271f0f0f6110f",
+    "pedestrian:sensor_34-19.json": "157ef608496b2902c317581fa6f5d7647b77ad6056b40e04bbf7144b619f25f8",
+    "pedestrian:sensor_34-20.json": "3f9acac0a0580e09dfd702dd0a7817b8b05c9213138f76cae8e2e325327a2fc8",
+    "pedestrian:sensor_34-21.json": "0a9b02acd189dce189a54864af2569aef41cf35b1ec5054247947b235aec1c91",
+    "pedestrian:sensor_34-22.json": "1cc4dbf830eb7cdb9d7bcee1d1cc5d052bc6960b1152d9a758ddb71a7020afec",
+    "pedestrian:sensor_34-23.json": "e02128fc70075c1d1c1bfff5a9b2c4c88303f329600cc9a66baeee70d9d4671e",
+    "pedestrian:sensor_34-24.json": "7f564fc3782e7b18191c012d369bd3cd378f43cb9c79579207033ec06c4e4715",
+    "pedestrian:sensor_34-25.json": "79c7d015156ff21225a79ccda54d7f6ff142ab507cc92355f14f4839d435fd2d",
+    "pedestrian:sensor_40-00.json": "d44108cddaa8e4e48642c21a8ea03c3da7cb32c343eacf7b3e68fd51f7be103a",
+    "pedestrian:sensor_40-01.json": "c5f8f931f53d4dc2a17bcc12cc662d170de9755d12ccec756ad9314f84796b90",
+    "pedestrian:sensor_40-02.json": "24ee1254f556116756641739d1b70d467f3d9c4efcd2c05fd82e67e630bb0f84",
+    "pedestrian:sensor_40-03.json": "cc1e043d13bebf8a18b5b91fa7b438a80f54179eae8e43a889bf5d135069554b",
+    "pedestrian:sensor_40-04.json": "d2eb46868e8531b6f7ebfd1bdbfc9bf4cbbd83d7126f065bed985f97ca8a2e57",
+    "pedestrian:sensor_40-05.json": "209f175d58a10988e93e17ee3b8a906dd4dd417a7fdde543f325b1d927a2d901",
+    "pedestrian:sensor_40-06.json": "a4fb501215f6ab508f98b5c592342d5485a5a5bc06b55367b63778fa82fe0395",
+    "pedestrian:sensor_40-07.json": "c2572edd2d9431ad07c486d634b5cc5b2414c17ec2228abe5c55d188b7be21d8",
+    "pedestrian:sensor_40-08.json": "43ad828262cd3c8daafcb0161c5b61a4f7cdba12a6fea426e334b21d96253937",
+    "pedestrian:sensor_40-09.json": "1ce80f0a9aaa7c93510c7efba88cf43a140d7da0cfd34d2f922c6ae9344c265b",
+    "pedestrian:sensor_40-10.json": "b428615ef73caef28001a18d9c5ba5ef55fece8b9da6aaf55fa75bd5b2f91800",
+    "pedestrian:sensor_40-11.json": "4e10f3bcbd9b657b869f8ed032f9631f183aa8cb8bdb784d862071c86690065b",
+    "pedestrian:sensor_40-12.json": "a6b3176afd6f159b26b49eea4aa0fa5f7e3684fdfd17baf1d617fdd5a5c62a7b",
+    "pedestrian:sensor_40-13.json": "c839fde2140487e3a943946ecd234b7089abcb7b4e7a9e49758b2c02db8c36fc",
+    "pedestrian:sensor_40-14.json": "f4aaf1fd76f644392bc507995c17dc21666c265e1a9b1cef25074fcbc10ce63c",
+    "pedestrian:sensor_40-15.json": "7de76135400033c1bb70692b1aaa2ea4a6b910e59173bdeaa9232a57f56d697b",
+    "pedestrian:sensor_40-16.json": "004b60456060f07a096e33dede89b8555bae794b22b8bdbd4e82135de64fa269",
+    "pedestrian:sensor_40-17.json": "f7bb959ed894246432bb10f07eb65a695fad133d0e18bfd0abf6e71a96ca9af8",
+    "pedestrian:sensor_40-18.json": "ccc1d9ba5605623b143f35550452fe0fabe26a72d92e1c9205a5a3e4d0415d18",
+    "pedestrian:sensor_40-19.json": "90bc0b473c00d860ca4ebd197acf84cb3b3e810df50d5025dfaad5a88b267096",
+    "pedestrian:sensor_40-20.json": "be22811d35eeb3db844a70a469d5b572db1f31f34e5025ba42681363cfe2ed37",
+    "pedestrian:sensor_40-21.json": "05c08fc6f7c2683ffb10b5b1f805e88e344398f9ddeeb460cc8fb340c001279c",
+    "pedestrian:sensor_40-22.json": "07468add588dd95ad41f04d0698399954d229335802b84461017bbf81ff841f7",
+    "pedestrian:sensor_40-23.json": "28372ccd5c98f73f399638ee7efb8238e7ae6046b01899035915d9729134134e",
+    "pedestrian:sensor_40-24.json": "6811a450eff7990b49ee5d75b72f38b26467f7d9a072dfa9505a474f38081efd",
+    "pedestrian:sensor_40-25.json": "d8baa8c8b28c6db9491fb07a24a1f04dc1a8726035f01e70f40e66d05d5c1e98",
+    "pedestrian:sensor_43-00.json": "7fefd5da7100ac54b4a27bca80885407591486af494074a678d490c601df91a5",
+    "pedestrian:sensor_43-01.json": "fc36ee65893a54c59af4464a1b3f11ab8d1e7c6f3c438bb25e92550fd4ff384c",
+    "pedestrian:sensor_43-02.json": "cc28e1caa2cffed930276f4f9c3843a9398144f9a71fed2f186e2628cf882956",
+    "pedestrian:sensor_43-03.json": "25d328bbb20e0a54ed0e66d7a0c0f500f1abd506b8a3de525edd0305ee335568",
+    "pedestrian:sensor_43-04.json": "f8fed583be46e08426ea2e68e78cd43deac38959c15041fbdebe6233dba696de",
+    "pedestrian:sensor_43-05.json": "b8c2ba5f498c6a8629421f2edbb262044818859019ec13f55f7c874fdc57869e",
+    "pedestrian:sensor_43-06.json": "c18f4038c99825088401cc2348b340617eb9c238bc1e1393c42420f661331642",
+    "pedestrian:sensor_43-07.json": "87a87a6d9466e02f7240243204fead8594a62d0fa9da7ec8194206d2a9a06877",
+    "pedestrian:sensor_43-08.json": "32d6d12e83ad644a136a1281e9657ac647fd4c7c5f41490be7ccbbadad8cab88",
+    "pedestrian:sensor_43-09.json": "65927c724d4353ee03700bc9c45b250979206382fca66244a5263a5459bc468e",
+    "pedestrian:sensor_43-10.json": "a3e60b00b78b67337e6fb1cf994ca22743091fe7580cf374b5387b8e866ee8c9",
+    "pedestrian:sensor_43-11.json": "815c9e37f2bde41d301a3e342aeba3bdc2371a31567c0b303bffb89e20e8d0fa",
+    "pedestrian:sensor_43-12.json": "987feca766211a5f6aefc4a35f3ba9b5b9ef58363aafbe5f3c201a0c500f5040",
+    "pedestrian:sensor_43-13.json": "278dd735509e17d4d92c30166c481b73d4ba652104b8fa90a08d5f0f005e1ca5",
+    "pedestrian:sensor_43-14.json": "478e5c1a060b87bb823ea28b0fc792cc268884b86631996942f671268020c0e8",
+    "pedestrian:sensor_43-15.json": "a5a17310719a92836bec526c5dc3f59ddab1e5b16b356cf3ba04dbd2d147ea31",
+    "pedestrian:sensor_43-16.json": "37073ce9eb415b1d04ed4b560b43a737e4c8dc203948b4b5152fa077469b33d0",
+    "pedestrian:sensor_43-17.json": "1434c0b4901d428f5052b55f3c729368e45b350f0f78bd9917f37f1421143367",
+    "pedestrian:sensor_43-18.json": "4fa686fe073576592ce727563fcd6daf4c80a72d241f6c027d58d6dee7d10c03",
+    "pedestrian:sensor_43-19.json": "42d80b470a9ead0bc6dc1965672fa79be2ac051402257bce60e7195107a13085",
+    "pedestrian:sensor_43-20.json": "0b979c2503298174de044a727011f620ceb468075a342348c68c99c99b38e668",
+    "pedestrian:sensor_43-21.json": "9bdfa3edc874ec2d759c158783bfe5491467412a59b40506a381ad355cd49a18",
+    "pedestrian:sensor_43-22.json": "36a2c5e2dd3d31baf97e676c1f0c6a20b8f353c326f7ea9b5e36bbfc14af0ba9",
+    "pedestrian:sensor_43-23.json": "5185cbb2b5227f4f496be0b48d96eb26971fd5519ce028353384a3eac96332d5",
+    "pedestrian:sensor_43-24.json": "b90a34cba59e25a0690f2e236bee26b9ec60858b4ba5a20de32b5a4fff0781fa",
+    "pedestrian:sensor_43-25.json": "672d65a89569151f68962cbfe1f66fe9b362106e95ca89406ea15e3ed293dadc",
+    "pedestrian:sensor_48-00.json": "5185d2c67fb8fa16633566961d5c6a7734b08d5b1300218c9803057e5ac16e55",
+    "pedestrian:sensor_48-01.json": "74eb4b5752b84e404e4f81c4f10eec77adab42ecc40e67ec8198907b8cfff6df",
+    "pedestrian:sensor_48-02.json": "86c8596749c598074535cb5d225a5f91b1194e63ccf6c036adff04cec211d5dc",
+    "pedestrian:sensor_48-03.json": "58ae3e3e5e594faef5f20fd8f4844ef50808911637392711ede0b2fa4d384fc2",
+    "pedestrian:sensor_48-04.json": "bfded0257baa4d5c7ff5e5ad8e0a2b870dd51366ecb6b39cd0960a9a33bc8b39",
+    "pedestrian:sensor_48-05.json": "150f540294ab3c757108c960a4ae0bc9733e5318ae79bf11767802a05d8001a6",
+    "pedestrian:sensor_48-06.json": "65fb1ff23fc8d262d11f0062c78689116df825bfd5391298168a294265a4db2f",
+    "pedestrian:sensor_48-07.json": "f3f5db144709ca290a30f5951e432301ea47e2f5321f17a6af56bac835ced20a",
+    "pedestrian:sensor_48-08.json": "3df774d4deda5e1e3d6da485e17d9df7dc35fe613607a4591c02057fa27f5bc5",
+    "pedestrian:sensor_48-09.json": "d4c26213291a840847da7664caf59e35accca3e5c4138844c8b047f5dac162ec",
+    "pedestrian:sensor_48-10.json": "9e20d103aa970f9f78d1204c02147d747fdadbc83ff21cd2892cfa3c995d6520",
+    "pedestrian:sensor_48-11.json": "efeb5cefda5c13ce00b54c8944226786ea6da35aee24e6ba6e390ff9953f38de",
+    "pedestrian:sensor_48-12.json": "6938f4f8d7c4b0d50b517cd55a88bc72c4bafca65b33598a8c4361200740fde8",
+    "pedestrian:sensor_48-13.json": "8917cfb71292f7b024d028b9fb4ff9d7ffcf2b365e4b37f457f110da5dca8f11",
+    "pedestrian:sensor_48-14.json": "5ac5b3d3fda1d3a34ef75c583009010c06fbbc2896e92e1425e414375eae6ff0",
+    "pedestrian:sensor_48-15.json": "db8782b8cb57a358adab782d4e468f4d6f6994f5463d824a6846224a4ac2d1f3",
+    "pedestrian:sensor_48-16.json": "b9bc68e90026db66fa9b9eb5d3e092de259b5580018bff907ddee0fa23bed692",
+    "pedestrian:sensor_48-17.json": "5f366b1eb8a0ddeccf946ecdca82f48b3c2cc0deff1d84b95f7c80d88a4ddf8a",
+    "pedestrian:sensor_48-18.json": "e4729392fb394033b00f5eb0ebb8b1704e5f3ae6a290f38ad5398eec01c919d4",
+    "pedestrian:sensor_48-19.json": "17317e881e3b4f30f25cd8d0c4b60de46a2f850932b907a4e37bfa0472b4b939",
+    "pedestrian:sensor_48-20.json": "bbf150712c412df4c71bc4b087116ebc53d4af109f28efac2701b4afcec00d38",
+    "pedestrian:sensor_48-21.json": "c90689bda550e8ee10058ba95ead76317cd462c232ed558730b297c0cba9dffc",
+    "pedestrian:sensor_48-22.json": "f83aafb9a5570e85c251018ce39d1c6ab87fd176f0ffbf24437a3939e2222185",
+    "pedestrian:sensor_48-23.json": "74e91b20360c58cfb35c557792c0070517df195935aa71189f58aa1553417019",
+    "pedestrian:sensor_48-24.json": "5ea47c6d6fa66467e44137342e80004a677b63c7898c6bc9f813d03242c10f11",
+    "pedestrian:sensor_48-25.json": "5a7261193da33edcbbd5d2b124f4aefc9f7807c1cefcfaa61ef8101db759c0ef",
+    "pedestrian:sensor_61-00.json": "d408aca0349710f7bfe3d106d169615c2a908bd965a5c5bae944d13dfc92f4ae",
+    "pedestrian:sensor_61-01.json": "ec5e528b705365564fe840cba8b517d7f07d7bec528cdcbe6e33e4665038709b",
+    "pedestrian:sensor_61-02.json": "093f1e7e66d540c9c0f655edce7a8d0ca7ed58f4cb7a0f683099a5d40a71ce55",
+    "pedestrian:sensor_61-03.json": "6377ec54ab3693b5e69f8c76f3ec280daa869c6cc04ff0579b5e88d303b2e21c",
+    "pedestrian:sensor_61-04.json": "d1e35eca541abc8cdc173a0f147a1ab721668763b2d2e070dfc19e5723c6eae2",
+    "pedestrian:sensor_61-05.json": "1c6e8d68938ea8d910b24b921026eec3d57ad5b446c580df3c50be0939886cb9",
+    "pedestrian:sensor_61-06.json": "ce7ad422477fe483b01723fa13589e0fb00a75fce7845311423005dc384e48da",
+    "pedestrian:sensor_61-07.json": "a78a8f53d27985a09177dfd8829f6308b2edd84847509513eb8633c2fe92d0ad",
+    "pedestrian:sensor_61-08.json": "65e6d1b3e2f53582b37cadcbe515aa75d990c6919a9215dd0ca34b9de084e835",
+    "pedestrian:sensor_61-09.json": "80e9766917a395561356d7bdd70009958e394c5c1299c39b1b47c7e6d028498b",
+    "pedestrian:sensor_61-10.json": "12f142cc5d4e399e9498863e5baf112d5e69be77d527650ad95b825aea1c7278",
+    "pedestrian:sensor_61-11.json": "a17e1e6dc78d139886ec229a73672b50db27746d3468a2a967431e6a3a438e0a",
+    "pedestrian:sensor_61-12.json": "2eacc5ed76d49cc96a3fb3d45ff9e5a0da7a787108ad9bf37c8461a38e857f0f",
+    "pedestrian:sensor_61-13.json": "8de84f0fce59221709a9be808bf502d8a1427cf1bad21f7aac49a7dd63cc1125",
+    "pedestrian:sensor_61-14.json": "da8de6da9714d83d815eba1ab635542a8cefbe529ee1f13bf7bb05602f1c389c",
+    "pedestrian:sensor_61-15.json": "a8f75bfa399119c2f8f6bada91a314e09d8a6405c54d4acbc631d3cfcf40d1ff",
+    "pedestrian:sensor_61-16.json": "3e2f6fd5f96cc8e6df4b520613abb5dfc8e71d1745240197803796057cadfc71",
+    "pedestrian:sensor_61-17.json": "eef714ade05308ebdffdd7c3f742861529e0761388076963b90f16079cc598d4",
+    "pedestrian:sensor_61-18.json": "2fd33d35425b5b3e5ead070dcd0fd797b00e9f6b77b76940a27b1e5d3768fd48",
+    "pedestrian:sensor_61-19.json": "9a5592c092853ddda001c1c99215c4c8adafdd2b2e5b3bd3937271bb5ab0e6ea",
+    "pedestrian:sensor_61-20.json": "a53bd1b0b83a906bab9b8ac03ae227ea56b60581c3994e4e935c99740323b738",
+    "pedestrian:sensor_61-21.json": "067cf85dda7fd9a782378e00ab94dbb40da80d8d8b130393fe23371df9c141e4",
+    "pedestrian:sensor_61-22.json": "16147c024151f17fca96cb00b7e5b5e6fc5e23e66d12e6c9c272b37448f7c76b",
+    "pedestrian:sensor_61-23.json": "1c898ebba26d84c3058f4736c4f65b42f6a7b196f8b7f4b42548c8daa10bfcae",
+    "pedestrian:sensor_61-24.json": "2a5dfff0d4c9eb6b07078c872698a48895280aa03162d9cd39ea571d5bc99c84",
+    "pedestrian:sensor_61-25.json": "fccf016efaacc4c4d4d514e49faeb877384ed1b16f2a936c5cec3fe33685688a",
+    "report.json": "ed2ba9a73f88e24690dc445ab650b18e65f7d54884d0cb97311559205160a75a",
+    "status.json": "8670533fa7683a7542bc2791ec1c09807d076de271244e05fb0b3e9f7b5a3c9b",
+    "verification.json": "10ed57fc0093597f3c0a6deafec4695d8ae24ff176d62dbceeb6f852969d3cdb"
+  },
+  "archive": {
+    "path": "results/broad-conditional-risk-051-001.tar.gz",
+    "bytes": 5049570,
+    "sha256": "fd2c826ba0badd91e67bdcc21148993743017a3c05f15f219faf6f026260067c",
+    "verified_files": 473
+  }
+}
