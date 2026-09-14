@@ -4,6 +4,12 @@ Branch: `dev/ledger-optimization`. **The 20% target has not been achieved.**
 Development and a complete frozen confirmation are retained here. No release or
 forecast-superiority claim is established.
 
+Latest matched agent result: [092 completed pilot](CORRECTED_AGENT_092_PILOT.md).
+All 36 workflows completed, but ledger mean RMSLE was 0.5456 versus 0.4564 for
+Gnomon without ledger: **19.5% worse**. The 312-session development evaluation
+started with fresh memory after the predeclared completion gate passed. Accuracy
+was not a promotion criterion. Neither stage accesses untouched confirmation.
+
 Latest ledger correctness result: [prospective history091](PROSPECTIVE_HISTORY_091_RESULT.md)
 filters late retrospective executions before checking production-run ambiguity.
 Across16frozen development queries, valid lifetime pair/origin entries increased

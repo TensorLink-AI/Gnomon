@@ -1,0 +1,209 @@
+{
+  "experiment": "092",
+  "stage": "completed_pilot",
+  "sessions": 36,
+  "sealed_original_files": 4205,
+  "archive_files_verified": 4215,
+  "archive": "results/corrected-history-092-pilot-bundle.tar.gz",
+  "archive_sha256": "965bee06d7a3a4a367a0339df3ecb7281ba4d468aae6d2943d50a8240dc2e231",
+  "archive_bytes": 40184620,
+  "wire_audit": {
+    "scope": "All 36 pilot sessions; no filtering. Readiness probes separately counted.",
+    "checks": 1473,
+    "passed": true,
+    "model_counts": {
+      "deepseek-v4.1-flash": 467
+    },
+    "agent_requests": 467,
+    "prompt_tokens": 7870063,
+    "completion_tokens": 119747,
+    "total_tokens": 7989810,
+    "billing_dollars": null
+  },
+  "independent_audit": {
+    "passed": true,
+    "independent_checks": 3014,
+    "sessions": 36,
+    "report_matches_remote_exactly": true,
+    "gate_matches": true,
+    "source_hashes_match": true,
+    "provider_calls": 0,
+    "api_calls": 0
+  },
+  "gate": {
+    "accuracy_used_for_promotion": false,
+    "arms": {
+      "gnomon": {
+        "completed": 12,
+        "tasks": 12
+      },
+      "ledger": {
+        "completed": 12,
+        "tasks": 12
+      },
+      "plain": {
+        "completed": 12,
+        "tasks": 12
+      }
+    },
+    "integrity_passed": true,
+    "passed": true,
+    "required_per_arm": "11 of 12 full workflows",
+    "threshold": 0.9
+  },
+  "arms": {
+    "gnomon": {
+      "admission_api_calls": 12,
+      "admission_reported_tokens": 168,
+      "admission_wait_seconds": 19.060270784422755,
+      "api_calls": 151,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 0,
+      "checkpoint_publications": 24,
+      "cold_rmsle": 0.4564223671832658,
+      "corrections": 0,
+      "distinct_configs_per_task": 5.75,
+      "dollars": null,
+      "http_errors": 0,
+      "later_rmsle": null,
+      "ledger_reviews": 0,
+      "mature_rmsle": null,
+      "mean_rmsle": 0.4564223671832658,
+      "numerical_attempts": 231,
+      "numerical_successes": 231,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 12
+      },
+      "per_series": {
+        "item_1047756_store_23": 0.7071365646110295,
+        "item_1304243_store_32": 0.20037583448746715,
+        "item_1372862_store_12": 0.4544860442030835,
+        "item_1457251_store_14": 0.46369102543148316
+      },
+      "review_calls": 12,
+      "seconds": 1730.1113007217646,
+      "tasks": 12,
+      "tokens": 2726055,
+      "usage_complete": true,
+      "valid": 12,
+      "valid_only_rmsle": 0.4564223671832658,
+      "workflow_complete": 12
+    },
+    "ledger": {
+      "admission_api_calls": 12,
+      "admission_reported_tokens": 168,
+      "admission_wait_seconds": 16.177987242117524,
+      "api_calls": 157,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 0,
+      "checkpoint_publications": 25,
+      "cold_rmsle": 0.5455574624896177,
+      "corrections": 0,
+      "distinct_configs_per_task": 7.333333333333333,
+      "dollars": null,
+      "http_errors": 0,
+      "later_rmsle": null,
+      "ledger_reviews": 8,
+      "mature_rmsle": null,
+      "mean_rmsle": 0.5455574624896177,
+      "numerical_attempts": 288,
+      "numerical_successes": 288,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 12
+      },
+      "per_series": {
+        "item_1047756_store_23": 0.9170334483860565,
+        "item_1304243_store_32": 0.20072877669700095,
+        "item_1372862_store_12": 0.5838307632919254,
+        "item_1457251_store_14": 0.4806368615834879
+      },
+      "review_calls": 12,
+      "seconds": 1912.448483709246,
+      "tasks": 12,
+      "tokens": 2560441,
+      "usage_complete": true,
+      "valid": 12,
+      "valid_only_rmsle": 0.5455574624896177,
+      "workflow_complete": 12
+    },
+    "plain": {
+      "admission_api_calls": 12,
+      "admission_reported_tokens": 168,
+      "admission_wait_seconds": 16.669544948264956,
+      "api_calls": 159,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 0,
+      "checkpoint_publications": 24,
+      "cold_rmsle": 0.4655678757536753,
+      "corrections": 0,
+      "distinct_configs_per_task": 6.416666666666667,
+      "dollars": null,
+      "http_errors": 0,
+      "later_rmsle": null,
+      "ledger_reviews": 0,
+      "mature_rmsle": null,
+      "mean_rmsle": 0.4655678757536753,
+      "numerical_attempts": 255,
+      "numerical_successes": 255,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 12
+      },
+      "per_series": {
+        "item_1047756_store_23": 0.7159339531250176,
+        "item_1304243_store_32": 0.20072877669700095,
+        "item_1372862_store_12": 0.4734663242027032,
+        "item_1457251_store_14": 0.47214244898997954
+      },
+      "review_calls": 12,
+      "seconds": 1776.2083383332938,
+      "tasks": 12,
+      "tokens": 2703314,
+      "usage_complete": true,
+      "valid": 12,
+      "valid_only_rmsle": 0.4655678757536753,
+      "workflow_complete": 12
+    }
+  },
+  "contrasts": {
+    "gnomon_vs_plain": {
+      "exploratory_series_bootstrap_95_interval": [
+        0.008852271643726484,
+        0.03455261946242505
+      ],
+      "losses": 4,
+      "pairs": 12,
+      "relative_rmsle_reduction": 0.01964377064376377,
+      "warning": "Only four reused development series, one requested seed: not confirmatory.",
+      "wins": 4
+    },
+    "ledger_vs_gnomon": {
+      "exploratory_series_bootstrap_95_interval": [
+        -0.29204115027530064,
+        -0.0260497540317699
+      ],
+      "losses": 7,
+      "pairs": 12,
+      "relative_rmsle_reduction": -0.19529081332370768,
+      "warning": "Only four reused development series, one requested seed: not confirmatory.",
+      "wins": 4
+    },
+    "ledger_vs_plain": {
+      "exploratory_series_bootstrap_95_interval": [
+        -0.2618663710504938,
+        -0.012624128167816773
+      ],
+      "losses": 5,
+      "pairs": 12,
+      "relative_rmsle_reduction": -0.1718107947341787,
+      "warning": "Only four reused development series, one requested seed: not confirmatory.",
+      "wins": 3
+    }
+  },
+  "readiness_requests": 36,
+  "readiness_tokens": 504,
+  "total_requests_including_readiness": 503,
+  "total_tokens_including_readiness": 7990314,
+  "final_holdout_accessed": false,
+  "trial_settings_changed": false,
+  "prior_live_audits_overlap": true
+}

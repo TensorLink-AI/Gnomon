@@ -1,6 +1,8 @@
 # 092: corrected-history agent trial
 
-Status at launch, 2026-09-14 07:37 UTC: **pilot running; no accuracy conclusion**.
+Status at 2026-09-14 08:34 UTC: **pilot complete; ledger accuracy worse**.
+The fresh 312-session development evaluation is running (five sessions completed
+at the latest process-verified check). See the [complete pilot result](CORRECTED_AGENT_092_PILOT.md).
 This is development data. The 20% held-out objective remains unproven.
 
 The new checkpoint-v5 trial keeps 13 common numerical, orchestration and tool
