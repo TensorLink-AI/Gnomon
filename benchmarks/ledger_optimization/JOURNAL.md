@@ -1472,3 +1472,25 @@ comparison costs retained. Complete archive/receipt preserves the negative resul
 Goal active/unmet;068remains lowest original-development mean and only2.54%
 matched gain. Future work must test predictability of useful evidence rather
 than treating hindsight headroom as a practical improvement guarantee.
+
+## Observed-shape context072: negative audited retrieval result
+
+Previous turn completed/audited/pushed071atad32634. This turn revalidated state,
+froze072at3bc13ea after four tests, and ran all416cases. Added predecision31shape
+features (24hourly,7weekday) from672observed hours to the unchanged12coarse
+context features. Same16neighbors, maturity filters, four-block learner and
+source forecasts. No output-derived descriptor, source fit, API or protected-data
+access; exact control parity with068verified.
+
+Ledger.2523721891779636vs control.2576259533432357:2.03930%gain.068incumbent
+.2510782023798801remains better by0.51537%;072worsens both domains and both
+phase comparisons.20%and incumbent/domain gates fail. No promotion/paid/final
+confirmation justified by this reused-development experiment.
+
+832fits,51,497iterations,14.401s wall/13.526CPU. Independent57,974checks0fail,
+all541profiles, calendar coverage and hashes, temporal exclusions/distance rules,
+832objective certificates, forecasts/control parity and scores. Audit7.963s.
+All inherited model/search/preparation costs retained in archived evidence.
+Goal active/unmet;068remains bestdevelopment with only2.54%matched gain.
+Main/PyPI unchanged. Future candidate must address an identified mechanism of
+learning useful evidence, not assume added retrieval descriptors guarantee gains.
