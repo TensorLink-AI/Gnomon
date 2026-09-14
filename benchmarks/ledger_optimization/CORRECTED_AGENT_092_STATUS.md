@@ -44,6 +44,19 @@ and does not establish the cause of the score difference. No database queries,
 forecasts or API calls were made for this diagnostic, and the live trial is unchanged.
 Receipt: `evidence/corrected-agent-092-development-coverage-001.json`.
 
+At the 70-session live check (10:18 UTC), all completed workflows remained valid
+and complete with no budget violations. A second API incident occurred in ledger
+`item_1047756_store_23`, round 11: request 2 returned HTTP 429 with the message
+`per-model concurrency limit exceeded, retry shortly`. It counted against the
+same 16-request budget. The session received 15 successful flash responses and
+completed 23 numerical attempts and the final workflow, with no additional
+correction turn, session rerun or exclusion. Its 294,606 reported tokens exclude
+the rejected attempt's unknown usage; no zero-cost or billing assumption is made.
+The 48-check wire audit and original failure payload are retained in
+`evidence/corrected-agent-092-service-incident-002.json`. This reports a service
+concurrency limit, not a demonstrated forecasting defect; it does not identify
+the source of other concurrent traffic. Earlier score snapshots remain unchanged.
+
 ## Earlier snapshots and incidents
 
 At 2026-09-14 09:24 UTC, the development evaluation was running.
