@@ -124,7 +124,7 @@ These are synthetic integration results, not ledger accuracy evidence. No Engy
 calls were made. Evidence roots: `results/execution-boundary-093-backends-001`
 and `results/execution-boundary-093-worker-001`.
 
-Still required before a new paid trial: integrate the worker into the prospective
+At that checkpoint, remaining work before a new paid trial was to integrate the worker into the prospective
 host runner; update the transport's selection-phase notice to structured syntax;
 verify profile isolation, deployment manifests, service admission and cost logs;
 freeze all matched settings and run the fresh pilot gate. The original092 process
@@ -134,3 +134,18 @@ passing integration checks.
 The exact overall number of fits in old trials remains unknown. Pattern screening
 and manual inspection found confirmed bypasses, but no-match sessions are not
 proven compliant. Original artifacts and scores remain preserved and qualified.
+
+## Frozen host and live pilot checkpoint
+
+The subsequent host integration and exact-source synthetic preflight passed;
+receipts are `evidence/execution-boundary-093-host-001.json` and
+`evidence/guarded-agent-093-launch.json`. The guarded 36-session pilot launched
+from commit `26ceaff` on published Gnomon 1.2.0 and DeepSeek v4.1 Flash. It has
+not changed the original092 run or the reserved final data. Current observed
+completion and integrity findings are in `GUARDED_AGENT_093_STATUS.md`.
+
+`CONTINUATION_093.md` records a conditional longer development run that retains
+every pilot session rather than rerunning the same prefix. The separate host
+continuation runner passes seven local tests. Its actual three-arm resumed-worker
+preflight is queued behind termination of the live pilot; it has not yet passed
+and no paid continuation is launched. This does not alter the frozen v6 package.

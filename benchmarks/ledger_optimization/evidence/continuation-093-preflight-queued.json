@@ -1,0 +1,32 @@
+{
+  "status": "local_checks_passed_remote_integration_queued",
+  "local_tests": 7,
+  "source_hashes": {
+    "benchmarks/ledger_optimization/continue_guarded_093.py": "6ea588139648e818fd3c6f7ed807a5042a978c665e8775464739ba77028c900c",
+    "benchmarks/ledger_optimization/probe_continuation_093.py": "50ced02d00f465b1a64c65ecce0feba0ebc7c28b15b80bf69c8fcee571fc7b55",
+    "benchmarks/tests/test_continuation_093.py": "dd64fa2507afe232a3276d0a5547bfe03dccb145e901d8368f9b1a02d06a9d34"
+  },
+  "launch": {
+    "pid": 3977997,
+    "start_ticks": "1554437512",
+    "boot_id": "998193f3-2771-4162-80e8-1a4887370f60",
+    "at": "2026-09-14T15:32:47.395633+00:00",
+    "controller_sha256": "cf964f5fb3fd0234a9f66611727d9324caf593949402da0a61b34075f767081e",
+    "waits_for_pilot_termination": true,
+    "engy_calls": 0,
+    "automatic_paid_dispatch": false
+  },
+  "remote_launch_root": "/root/gnomon-ledger-ml-v3/code/results/continuation-093-preflight-launch-001",
+  "remote_output": "/root/gnomon-ledger-ml-v3/code/results/continuation-093-preflight-001",
+  "paid_continuation_launched": false,
+  "pilot_source_modified": false,
+  "integration_passed": false,
+  "target_met": false,
+  "files": {
+    "results/continuation-093-preflight-001/source-hashes.json": "7da3d5a0e7621a2b4e2fcb1764fe41fccd05488c9acd290952b440dc6979bd2f",
+    "results/continuation-093-preflight-001/launch.json": "e176728d4b30c5bb2b7087dd117938f44ba14e713baa0fa86590ce712776644f",
+    "results/continuation-093-preflight-001/local-tests.txt": "c2fe00643f7fbafd96fc8a58c1606b5ba76a60f70534567c232629552af7ff2f",
+    "results/continuation-093-preflight-001/controller.py": "cf964f5fb3fd0234a9f66611727d9324caf593949402da0a61b34075f767081e",
+    "results/continuation-093-preflight-001/upload.json": "b0b7b7efd94c9f2fcc90470f61c7e4b35673fdb71229a4b56e604bc5a0224913"
+  }
+}
