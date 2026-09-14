@@ -1,0 +1,102 @@
+{
+  "status": "incremental_development_audit_passed",
+  "at": "2026-09-14T19:32:07.346206+00:00",
+  "new_sessions": 12,
+  "new_independent_checks": 3024,
+  "new_audit_failures": [],
+  "new_snapshot_files_verified": 1648,
+  "original_pilot_files_reverified": 4227,
+  "new_pilot_prefixes_preserved": 12,
+  "combined_audited_sessions": 185,
+  "matched_cases": 61,
+  "matched_arms": {
+    "plain": {
+      "mean_rmsle": 0.4701866321940601,
+      "reported_tokens": 16374508,
+      "model_requests": 841,
+      "numerical_attempts": 845,
+      "full_workflows": 59
+    },
+    "gnomon": {
+      "mean_rmsle": 0.4837782595075683,
+      "reported_tokens": 16791982,
+      "model_requests": 846,
+      "numerical_attempts": 883,
+      "full_workflows": 56
+    },
+    "ledger": {
+      "mean_rmsle": 0.4570963440817405,
+      "reported_tokens": 13005663,
+      "model_requests": 723,
+      "numerical_attempts": 946,
+      "full_workflows": 61
+    }
+  },
+  "ledger_vs_gnomon_relative_reduction": 0.055153192400557605,
+  "ledger_vs_gnomon_reported_token_reduction": 0.22548374575437258,
+  "behavior": {
+    "plain": {
+      "sessions": 62,
+      "native_tool_calls": 3,
+      "sessions_with_native_memory_saved": 15,
+      "sessions_with_ledger_evidence_available": 0,
+      "sessions_with_recent_lifetime_disagreement": 0,
+      "max_ledger_past_origins": 0
+    },
+    "gnomon": {
+      "sessions": 62,
+      "native_tool_calls": 2,
+      "sessions_with_native_memory_saved": 0,
+      "sessions_with_ledger_evidence_available": 0,
+      "sessions_with_recent_lifetime_disagreement": 0,
+      "max_ledger_past_origins": 0
+    },
+    "ledger": {
+      "sessions": 61,
+      "native_tool_calls": 1,
+      "sessions_with_native_memory_saved": 0,
+      "sessions_with_ledger_evidence_available": 57,
+      "sessions_with_recent_lifetime_disagreement": 6,
+      "max_ledger_past_origins": 25
+    }
+  },
+  "max_completed_round": 25,
+  "completion": {
+    "plain": {
+      "valid": 62,
+      "full": 60,
+      "sessions": 62
+    },
+    "gnomon": {
+      "valid": 62,
+      "full": 57,
+      "sessions": 62
+    },
+    "ledger": {
+      "valid": 61,
+      "full": 61,
+      "sessions": 61
+    }
+  },
+  "transfer_method": "Individually hashed 2 MiB chunks, then verified whole archive and every extracted file. No failed transfer in this batch.",
+  "scope": "Combine immutable pilot + audit-002 + disjoint audit-003 + disjoint audit-004 + disjoint audit-005 + disjoint audit-006 + disjoint audit-007 + disjoint audit-008 + disjoint audit-009 + disjoint audit-010 + disjoint audit-011; audit-001 is superseded. All outcomes included; partial reused-development scores, not final evidence. Reported tokens are not billed dollars.",
+  "target_met": false,
+  "final_holdout_accessed": false,
+  "auditor": {
+    "path": "benchmarks/ledger_optimization/analyze_guarded_093.py",
+    "sha256": "d14cd92502abe853c57f4c7fd6fe971073f0d6264e9a14edb5c8a559eef3947c",
+    "frozen_source_sha256": "c8d0d4ca6c971be6d39315278e1da020b28836d0fbef02c918a9fb176c14c995",
+    "change": "Local-only zero-control bootstrap reporting fix; identical session checks and scores; frozen live analyzer untouched. Original failure and parity evidence retained in audit-010."
+  },
+  "files": {
+    "results/guarded-history-093-development-audit-011/collect.py": "9f3c67b4b6daec0859a6adfd3a5f795a5bc4c4d99d8973e58cc71ee5c4c2930b",
+    "results/guarded-history-093-development-audit-011/snapshot.py": "8250520dc2734d22609447123fb85aeee9f80ec5f47d42354dd9c4df96de4e82",
+    "results/guarded-history-093-development-audit-011/snapshot.json": "e011eac77d4e133a86037348070e7a92bbb1ff64c197c5ad9269fe85d718c42e",
+    "results/guarded-history-093-development-audit-011/snapshot.tar.gz": "46e6912cf50c9e672aece0179405351830d86b10a456cd87a361220ccce2ad5f",
+    "results/guarded-history-093-development-audit-011/remote.json": "0e09edb66b35ff142ddaf7c8467b8227a3749eb6e15e2611045e690a8a8c6c4d",
+    "results/guarded-history-093-development-audit-011/transfer.json": "8085da61b135990d73320ef0c8e0bb87467ebf8fd9c279a1e3cccb48efe9686a",
+    "results/guarded-history-093-development-audit-011/summarize.py": "4e723aab97414b6407cea00719ee1d0d9d6c5c895330fdfb95291b11de4708bb",
+    "results/guarded-history-093-development-audit-011/behavior.json": "4a89e27dee18aeeb447c25a04e515fcacc25a0ae4bed0528b0ba5d9684f6eb0e",
+    "results/guarded-history-093-development-audit-011/audit/report.json": "c969e0fe6abb8aaea3bedb5aef28585ebf3384153de09f657af2217f16421b58"
+  }
+}

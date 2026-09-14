@@ -1,8 +1,8 @@
 # Guarded pilot 093 — completed
 
-Latest audited continuation: 173/312 sessions, 57 matched cases (2026-09-14
-19:11 UTC). The pilot is complete; the full development continuation is active.
-See the tenth audit below. The 20% target remains unmet.
+Latest audited continuation: 185/312 sessions, 61 matched cases (2026-09-14
+19:32 UTC). The pilot is complete; the full development continuation is active.
+See the eleventh audit below. The 20% target remains unmet.
 
 All 36 sessions finished. Every forecast is valid; plain Hermes completed 11/12 full workflows, Gnomon without ledger 12/12, ledger 12/12. The frozen completion gate passed. Independent local audit: 4,227 file hashes verified, 2,942 checks, zero integrity failures.
 
@@ -419,3 +419,33 @@ local incremental audits should use the new local analyzer, with its source
 hash retained in their receipts. No forecast was rerun, no outcomes excluded
 and no final holdout opened. The 20% target remains unmet.
 Receipt: `evidence/guarded-agent-093-development-audit-010.json`.
+
+## Eleventh continuation audit — 2026-09-14 19:32 UTC
+
+Twelve disjoint new sessions passed 3,024 independent checks with no audit
+failures or missing shutdown records. All 1,648 snapshot hashes, the whole
+28,537,812-byte archive, 4,227 original pilot files and 12 retained pilot
+prefixes were verified. The local zero-control-aware auditor was used and
+its hash retained; the frozen live source remains unchanged.
+
+The combined 185 audited sessions contain 61 all-three matched cases. Mean
+RMSLE is plain 0.470187, Gnomon 0.483778, ledger 0.457096: 5.52% lower
+ledger error. Matched tokens are 16,374,508 / 16,791,982 / 13,005,663
+(22.55% fewer for ledger), full workflows 59/61, 56/61, 61/61 and numerical
+attempts 845/883/946. All outcomes remain included. The complete inventory
+retains seven incomplete workflows: plain two, Gnomon five, ledger zero.
+The new Gnomon round-5 third-series budget failure is independently audited.
+
+Expanded frozen-phase results: cold 15 matched cases, 6.99% lower ledger
+error; mature 31 cases, 1.43% lower; later seven cases, 3.77% HIGHER ledger
+error. Later RMSLE is plain 0.551889, Gnomon 0.538083, ledger 0.558356.
+Later tokens are 2,308,988 / 1,339,976 / 1,623,899, also higher for ledger
+than Gnomon. Those seven later cases cover only the first two series, and
+all complete the workflow. This contradicts a claim of established
+late-history benefit in the observed subset; it does not establish a
+general negative effect or causally isolate accumulation. Phases overlap
+and cover different origins. Preserve the unfavorable evidence.
+
+Receipts: `evidence/guarded-agent-093-development-audit-011.json` and
+`evidence/guarded-agent-093-phases-004.json`. The 20% target is unmet and
+final holdout access remains closed. No main/PyPI or active-run changes.
