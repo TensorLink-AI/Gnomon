@@ -1,0 +1,790 @@
+{
+  "status": "frozen_development_plan_not_dispatch_authorization",
+  "plan": {
+    "status": "frozen_development_plan_not_dispatch_authorization",
+    "candidate": "096_common_prospective_forecast_collection",
+    "task_source_sha256": "cf7bdd21e216e84809edb8653710e0c0755402864201400c5749a8dbff00f561",
+    "capsule": {
+      "status": "offline_prototype_not_dispatch_ready",
+      "base_sources": {
+        "maturation.py": "6e3728f08ad7a5e551fafedae872afc4b470ccb3eacb41082405b71923b24875",
+        "execution_boundary_093.py": "bb96ab9dc4018b0a5a8daddf4ee19410b4aa9fed12006248e246f50ef36118fb",
+        "ledger_cards.py": "d997fa096900ba7129e5d693959fdf7e46ef5a97f3bf1a3b0c26908ef6c712c8",
+        "dev_evidence_summary.py": "a5dea6cdb20808016991e5a2fdf83e337822d4a4d21db25a5e527bd296453f62",
+        "agent_review.py": "bf21b9de4ec4c0389badf909c6b27565439456f0f92b82e8936ea1e8839eb6a7",
+        "boundary_schemas_093.py": "a839a3727db20d487818fb318081e0e8bfc3434ccfc5f54b510807f60f833db9",
+        "lab.py": "9470d1745d2db6fae6bc0afd434448bb3211e522038cfaabd50cd211638835cd",
+        "service_admission.py": "722c252bd0519cbded723e5e5bd174790623def9392e211d6ce6c14d98f1b664",
+        "transport.py": "9cfeb25fb2471707e1a2b83484a72abf3f566f1613035e66b0ee3e46267cffbc",
+        "policy.py": "dc652bb974b744d00b325b4c1336fe72b3583b01a8730a1c04d79622a605ef5c",
+        "check_forecast.py": "21f035381c5f51a4f4dfb9bda3e5e19400c7b7d5c9abe63df5f539b42c8994a9",
+        "ml_ledger_cards.py": "d997fa096900ba7129e5d693959fdf7e46ef5a97f3bf1a3b0c26908ef6c712c8",
+        "core.py": "d6a6ae0b9cf0c46b2c840cf02e8705aefb64fda12c63ba946cebef6efdc55661",
+        "numerical.py": "a71b75f06ad69fcca06275046c5e74565b15d7d6dd2538df0fe827c448fc0413",
+        "review_bridge.py": "419494cb699ed22b2963e2eb519084b3f285d83df20c53b2f0b9ca22dc940f5c",
+        "PROTOCOL.md": "013b339646c93d9fe8d8d5f4b53584bd0b000f28fe511e8946074f10efe77608",
+        "worker.py": "7d990fdb0fbd1a90d2771e6adfd4a7df152c6a7758b98fc9791c815296e01fd0",
+        "run.py": "73e2c383d131a42bf1cf6c47e6cc8beb3b66e1a0f39ca75511dca1411cd3942e",
+        "analyze.py": "c8d0d4ca6c971be6d39315278e1da020b28836d0fbef02c918a9fb176c14c995",
+        "preflight.py": "46d24f148dd370eee6e83bb4de0f1fcc89091b6c69ede6cebcaeccbcce7ba7e7",
+        "history_091.py": "82fbac7134d17e3c4dfb1d091f10f59a7b5cb73555f435c7007fcc97d8ea3f42",
+        "TASK.md": "86e403a1ab919b391ad4f412d8681876b7976f4e515bd72ab92b48131d32eaea",
+        "hermes_boundary_093.py": "0fd740aba17b96913bf97f9a19b6307b2e2f298429b8ae024569647116065051",
+        "visible_agent_review.py": "9620b0466e846023841e9a52b2359d28f4dd19e8f1c5f14a9b4525654a74c788"
+      },
+      "sources": {
+        "maturation.py": "6e3728f08ad7a5e551fafedae872afc4b470ccb3eacb41082405b71923b24875",
+        "execution_boundary_093.py": "bb96ab9dc4018b0a5a8daddf4ee19410b4aa9fed12006248e246f50ef36118fb",
+        "ledger_cards.py": "d997fa096900ba7129e5d693959fdf7e46ef5a97f3bf1a3b0c26908ef6c712c8",
+        "dev_evidence_summary.py": "a5dea6cdb20808016991e5a2fdf83e337822d4a4d21db25a5e527bd296453f62",
+        "agent_review.py": "bf21b9de4ec4c0389badf909c6b27565439456f0f92b82e8936ea1e8839eb6a7",
+        "boundary_schemas_093.py": "10c092c7a532c96335782ea6796b18d6663ef6cd67865e5ad241b02f52e9f1b4",
+        "lab.py": "d3a292dad02c5b882da20e92d7e0fa179b1db5dde47a3d28acd215944020296b",
+        "service_admission.py": "722c252bd0519cbded723e5e5bd174790623def9392e211d6ce6c14d98f1b664",
+        "transport.py": "9cfeb25fb2471707e1a2b83484a72abf3f566f1613035e66b0ee3e46267cffbc",
+        "policy.py": "dc652bb974b744d00b325b4c1336fe72b3583b01a8730a1c04d79622a605ef5c",
+        "check_forecast.py": "21f035381c5f51a4f4dfb9bda3e5e19400c7b7d5c9abe63df5f539b42c8994a9",
+        "ml_ledger_cards.py": "d997fa096900ba7129e5d693959fdf7e46ef5a97f3bf1a3b0c26908ef6c712c8",
+        "core.py": "d6a6ae0b9cf0c46b2c840cf02e8705aefb64fda12c63ba946cebef6efdc55661",
+        "numerical.py": "a71b75f06ad69fcca06275046c5e74565b15d7d6dd2538df0fe827c448fc0413",
+        "review_bridge.py": "419494cb699ed22b2963e2eb519084b3f285d83df20c53b2f0b9ca22dc940f5c",
+        "PROTOCOL.md": "42bd92f7ec23c7c06495d335f7d89d5a042c042d793c1ef6e491f1c967962fff",
+        "worker.py": "7d990fdb0fbd1a90d2771e6adfd4a7df152c6a7758b98fc9791c815296e01fd0",
+        "run.py": "73e2c383d131a42bf1cf6c47e6cc8beb3b66e1a0f39ca75511dca1411cd3942e",
+        "analyze.py": "8162c6588dc0c28e61dd3d6db9be0d75a0557933cfb5f7bed8c6a7ba8e8c5e2e",
+        "preflight.py": "46d24f148dd370eee6e83bb4de0f1fcc89091b6c69ede6cebcaeccbcce7ba7e7",
+        "history_091.py": "82fbac7134d17e3c4dfb1d091f10f59a7b5cb73555f435c7007fcc97d8ea3f42",
+        "TASK.md": "e484302db3e5edf7b2416bd5ea22753e4e79c21dd095fd45b1016cc8d007c896",
+        "hermes_boundary_093.py": "0fd740aba17b96913bf97f9a19b6307b2e2f298429b8ae024569647116065051",
+        "visible_agent_review.py": "9620b0466e846023841e9a52b2359d28f4dd19e8f1c5f14a9b4525654a74c788"
+      },
+      "base_inventory_sha256": "4ead8b05a2b15b2e9cb2a03c33fd7555dc04d1b985d23db2b5993cba1b61b121",
+      "changed_files": [
+        "boundary_schemas_093.py",
+        "lab.py",
+        "PROTOCOL.md",
+        "analyze.py",
+        "TASK.md"
+      ],
+      "fragment_sha256": "77736e5f8dfa8fb7b382f4d79556c0770fee8494e4ca719239adfb017c0c6bfd",
+      "audit_fragment_sha256": "85d18738476d7da276daa89a399861dd8e93bd15734898bed1c950a2d9731b7e",
+      "base_local_auditor_sha256": "d14cd92502abe853c57f4c7fd6fe971073f0d6264e9a14edb5c8a559eef3947c",
+      "common_to_all_arms": true,
+      "engy_calls": 0,
+      "provider_calls": 0,
+      "outstanding": [
+        "Hermes worker/API-transport integration with the updated capsule",
+        "Frozen prospective protocol and passing dispatch gate"
+      ],
+      "final_gate_opened": false
+    },
+    "capsule_sha256": "1935bfc673c4cc71b314d18c86ee732254fb68e07aadb1e91e55b377f39eaaed",
+    "arms": [
+      "plain",
+      "gnomon",
+      "ledger"
+    ],
+    "cases": [
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 0,
+        "origin": "2016-08-16T00:00:00+00:00",
+        "stage": "pilot"
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 1,
+        "origin": "2016-08-30T00:00:00+00:00",
+        "stage": "pilot"
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 2,
+        "origin": "2016-09-13T00:00:00+00:00",
+        "stage": "pilot"
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 3,
+        "origin": "2016-09-27T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 4,
+        "origin": "2016-10-11T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 5,
+        "origin": "2016-10-25T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 6,
+        "origin": "2016-11-08T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 7,
+        "origin": "2016-11-22T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 8,
+        "origin": "2016-12-06T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 9,
+        "origin": "2016-12-20T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 10,
+        "origin": "2017-01-03T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 11,
+        "origin": "2017-01-17T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 12,
+        "origin": "2017-01-31T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 13,
+        "origin": "2017-02-14T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 14,
+        "origin": "2017-02-28T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 15,
+        "origin": "2017-03-14T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 16,
+        "origin": "2017-03-28T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 17,
+        "origin": "2017-04-11T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 18,
+        "origin": "2017-04-25T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 19,
+        "origin": "2017-05-09T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 20,
+        "origin": "2017-05-23T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 21,
+        "origin": "2017-06-06T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 22,
+        "origin": "2017-06-20T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 23,
+        "origin": "2017-07-04T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 24,
+        "origin": "2017-07-18T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 25,
+        "origin": "2017-08-01T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 0,
+        "origin": "2016-08-16T00:00:00+00:00",
+        "stage": "pilot"
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 1,
+        "origin": "2016-08-30T00:00:00+00:00",
+        "stage": "pilot"
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 2,
+        "origin": "2016-09-13T00:00:00+00:00",
+        "stage": "pilot"
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 3,
+        "origin": "2016-09-27T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 4,
+        "origin": "2016-10-11T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 5,
+        "origin": "2016-10-25T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 6,
+        "origin": "2016-11-08T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 7,
+        "origin": "2016-11-22T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 8,
+        "origin": "2016-12-06T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 9,
+        "origin": "2016-12-20T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 10,
+        "origin": "2017-01-03T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 11,
+        "origin": "2017-01-17T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 12,
+        "origin": "2017-01-31T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 13,
+        "origin": "2017-02-14T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 14,
+        "origin": "2017-02-28T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 15,
+        "origin": "2017-03-14T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 16,
+        "origin": "2017-03-28T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 17,
+        "origin": "2017-04-11T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 18,
+        "origin": "2017-04-25T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 19,
+        "origin": "2017-05-09T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 20,
+        "origin": "2017-05-23T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 21,
+        "origin": "2017-06-06T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 22,
+        "origin": "2017-06-20T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 23,
+        "origin": "2017-07-04T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 24,
+        "origin": "2017-07-18T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 25,
+        "origin": "2017-08-01T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 0,
+        "origin": "2016-08-16T00:00:00+00:00",
+        "stage": "pilot"
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 1,
+        "origin": "2016-08-30T00:00:00+00:00",
+        "stage": "pilot"
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 2,
+        "origin": "2016-09-13T00:00:00+00:00",
+        "stage": "pilot"
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 3,
+        "origin": "2016-09-27T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 4,
+        "origin": "2016-10-11T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 5,
+        "origin": "2016-10-25T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 6,
+        "origin": "2016-11-08T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 7,
+        "origin": "2016-11-22T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 8,
+        "origin": "2016-12-06T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 9,
+        "origin": "2016-12-20T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 10,
+        "origin": "2017-01-03T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 11,
+        "origin": "2017-01-17T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 12,
+        "origin": "2017-01-31T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 13,
+        "origin": "2017-02-14T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 14,
+        "origin": "2017-02-28T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 15,
+        "origin": "2017-03-14T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 16,
+        "origin": "2017-03-28T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 17,
+        "origin": "2017-04-11T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 18,
+        "origin": "2017-04-25T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 19,
+        "origin": "2017-05-09T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 20,
+        "origin": "2017-05-23T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 21,
+        "origin": "2017-06-06T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 22,
+        "origin": "2017-06-20T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 23,
+        "origin": "2017-07-04T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 24,
+        "origin": "2017-07-18T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 25,
+        "origin": "2017-08-01T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 0,
+        "origin": "2016-08-16T00:00:00+00:00",
+        "stage": "pilot"
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 1,
+        "origin": "2016-08-30T00:00:00+00:00",
+        "stage": "pilot"
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 2,
+        "origin": "2016-09-13T00:00:00+00:00",
+        "stage": "pilot"
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 3,
+        "origin": "2016-09-27T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 4,
+        "origin": "2016-10-11T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 5,
+        "origin": "2016-10-25T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 6,
+        "origin": "2016-11-08T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 7,
+        "origin": "2016-11-22T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 8,
+        "origin": "2016-12-06T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 9,
+        "origin": "2016-12-20T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 10,
+        "origin": "2017-01-03T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 11,
+        "origin": "2017-01-17T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 12,
+        "origin": "2017-01-31T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 13,
+        "origin": "2017-02-14T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 14,
+        "origin": "2017-02-28T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 15,
+        "origin": "2017-03-14T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 16,
+        "origin": "2017-03-28T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 17,
+        "origin": "2017-04-11T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 18,
+        "origin": "2017-04-25T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 19,
+        "origin": "2017-05-09T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 20,
+        "origin": "2017-05-23T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 21,
+        "origin": "2017-06-06T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 22,
+        "origin": "2017-06-20T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 23,
+        "origin": "2017-07-04T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 24,
+        "origin": "2017-07-18T00:00:00+00:00",
+        "stage": "continuation"
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 25,
+        "origin": "2017-08-01T00:00:00+00:00",
+        "stage": "continuation"
+      }
+    ],
+    "seed": 7,
+    "agent": {
+      "model": "deepseek-v4.1-flash",
+      "temperature": 0.2,
+      "max_tokens": 3072
+    },
+    "gnomon": {
+      "version": "1.2.0",
+      "build_source_sha256": "9723394ccb6d9e11991b312e01bac47c767c69407b6b33d36971cb6e48b6a22e"
+    },
+    "planned": {
+      "pilot_sessions": 36,
+      "continuation_sessions": 276,
+      "total_sessions": 312
+    },
+    "budgets": {
+      "numerical_attempts": 60,
+      "model_requests": 16,
+      "corrections": 2,
+      "exploration_requests": 12,
+      "selection_requests": 4,
+      "selection_seconds": 90,
+      "agent_seconds": 480,
+      "host_seconds": 520,
+      "parallel_series": 2,
+      "fresh_collection_fits": 4,
+      "final_fit_reserve": 1
+    },
+    "pilot_gate": {
+      "valid_per_arm": 12,
+      "full_workflows_at_least_per_arm": 11,
+      "audit_failures": 0,
+      "accuracy_threshold": null,
+      "retain_pilot_once_in_continuation": true
+    },
+    "comparison": {
+      "primary": "ledger versus gnomon within this new run",
+      "secondary": "ledger versus plain within this new run",
+      "metric": "arithmetic mean per-case RMSLE",
+      "include_failures": true,
+      "old_093_controls_allowed": false,
+      "no_shared_memory_between_arms": true,
+      "reuse_old_093_state": false,
+      "advance_after_all_arms_at_origin": true
+    },
+    "launch_prerequisites": [
+      "093 paid controller terminal and evidence preserved",
+      "queued seed integration complete and independently verified",
+      "exact-capsule Hermes worker/transport integration passes",
+      "runtime and capsule hashes reverified",
+      "fresh independent arm homes and run directory"
+    ],
+    "efficacy_scope": "Reused development cohort; not final evidence. No accuracy-dependent continuation or partial-run promotion.",
+    "final_target": {
+      "relative_rmsle_reduction": 0.2,
+      "paired_95_interval_excludes_zero": true,
+      "untouched_final_required": true
+    },
+    "final_gate_opened": false,
+    "engy_calls": 0
+  },
+  "tests": {
+    "command": "python3 -m unittest benchmarks.tests.test_collection_plan_096 -v",
+    "passed": 5,
+    "exit_status": 0
+  },
+  "supersedes": "results/collection-096-prospective-plan-001/plan.json",
+  "change": "Adds explicit protected selection budget and verifies the complete frozen base and changed-file set; no prior plan was dispatched.",
+  "files": {
+    "results/collection-096-prospective-plan-002/plan.json": "7422b334e3fe6b44c3d0a89f86aa7443a58b98ec732a523a575e8472fea31e0c",
+    "results/collection-096-prospective-plan-001/plan.json": "fb86580c6e07b9cdc7fc75a9ff3db2d619526edff1347b4b7f7cc8f1bd854761",
+    "benchmarks/ledger_optimization/collection_plan_096.py": "6321cdec47f99b0456384cc9db54300669fad8d9269a4425aa1e549393ea44a1",
+    "benchmarks/tests/test_collection_plan_096.py": "5a575bdd085b5b8d39807b7bc3f836d0d4cb6ee3e6a27dec2bc91f560cfb703d"
+  },
+  "engy_calls": 0,
+  "new_fits": 0,
+  "final_gate_opened": false
+}

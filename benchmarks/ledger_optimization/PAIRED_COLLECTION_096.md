@@ -204,3 +204,27 @@ actual, duplicate fit, unintended Ridge selection and altered matured points—
 were rejected. These checks validate the checker, not Hermes transport. The
 actual worker run remains gated on the existing controller and queued seed test
 finishing. Receipt: `evidence/collection-096-worker-preparation-001.json`.
+
+## Prospective development schedule frozen
+
+`collection_plan_096.freeze` verifies the exact original development source and
+the capsule's complete frozen base, declared changes and file hashes before
+writing a fresh plan. Plan-002 adds explicit protected selection budgets and
+stronger inventory validation; the earlier unlaunched plan remains preserved.
+Five tests cover the matched schedule, source/capsule drift, missing source
+entries and overwrite rejection.
+
+The schedule contains all four reused Favorita development series and 26 origins,
+with three freshly initialized arms and seed 7. First three origins: 36 sessions;
+conditional remainder: 276. Pilot continuation requires all 12 forecasts valid
+and at least 11/12 full workflows per arm, plus a clean independent audit.
+There is no pilot accuracy threshold. Retain pilot results exactly once and
+include every failure; never substitute old 093 controls or old arm memory.
+The collection rule, model families and 60-fit/16-request/480-second limits are
+identical across arms. Compare accuracy within this new experiment only.
+
+This is a development plan, not dispatch authorization or final efficacy evidence.
+The current paid controller, queued seed integration, exact-source Hermes probe,
+runtime verification and fresh-state checks must finish before paid dispatch.
+Receipt: `evidence/collection-096-prospective-plan-001.json`. The final holdout
+remains closed and still requires the separately frozen multi-seed protocol.
