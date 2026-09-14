@@ -1548,3 +1548,25 @@ changes next action: stop tuning a selector over these five fixed outputs. A
 forecast-conditioned correction with matched primitives/guards could generate
 new outputs;049onlytested fixed shrunken lead residuals. Any next rule must be
 frozen and evaluated before claims; no protected or paid confirmation warranted.
+
+## Conditional correction076: flexible output worsens held-forward development risk
+
+Previous goal turn was progress:075diagnostic audited/pushed at023dc25showed
+five-output selection insufficient for20%. This turn froze076at25330ad after
+five tests and ran416paired cases. Shared regularized11-feature correction uses
+model disagreement/base level/lead cycles and the original068arm-specific
+training pairs. No future labels enter scaling/fitting; no protected-data access.
+
+Corrected control.292136730254824;ledger.2585750050995435.11.48836%relative
+ledger gain reflects a much weaker corrected control. Ledger itself worsens
+2.98584%versus068(.2510782023798801), in both domains. Strong050gain only.05259%.
+20%and incumbent/domain gates fail. Expanded action exercised on2,212control
+and899ledger leads beyond raw model range; no practical accuracy improvement.
+
+832correction fits,21,267iterations,24,859function evaluations;3.796s wall/3.519CPU.
+Independent29,198checks, zero failures,3.010s, all832strong-convexity certificates,
+training scalers/gradients, sources/visibility, outputs/clips and summaries.
+No new model/API calls, all inherited raw/search/blend/anchor costs retained.
+Verified complete archive/receipt preserved. Main/PyPI unchanged, goal active.
+Next method must retain an uncorrected option and learn whether corrections
+transfer, rather than assume more flexible error functions improve forecasting.
