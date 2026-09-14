@@ -1127,3 +1127,26 @@ Four new/four inherited tests and207,907 independent checks pass.416 weight fits
 under receipt056. Gate failed; no promotion or paid follow-up. Validation and
 final-reserved observations were not used in this experiment; main/PyPI unchanged.
 The20% final matched-agent objective remains unachieved.
+
+## Added-memory breadth057/058 prepared; generation059 running
+
+Previous turn made progress: completed negative056 retrieval experiment,
+independent audit and push d19e1be. Revalidated current state and changed the
+next hypothesis from adding query features to increasing accumulated episode
+breadth with the same047 retrieval rule. No new validation tuning.
+
+Freeze6d3d072 defines metadata hash positions32:40 as eight additional training
+series per domain. Named IDs committed at8fe7724 after40 independent checks;
+all disjoint from original scored, validation and final-reserved identities.
+Source extraction frozen at a72d06e, then completed16 bounded spans/400 main
+training tasks plus125 usable warm-up cases (three unavailable). Independent
+source audit:1,468 checks. No imputation/replacement or scored-task changes.
+
+Generator frozen at c1114fa after seven identity/source/worker tests. It uses two
+spawned local workers and one numerical thread per worker, exactly the original
+six recipes and deterministic seeds. Planned12,600 additional forecast calls/
+6,300 estimator fits; common historical evidence costs are explicitly retained.
+Live shell92906 has completed74/525 episodes with no reported failure. No agent
+or comparative accuracy result yet; continue that handle, do not restart on
+poll timeout. Independent forecast/source/role/cost verifier prepared while it
+runs. Main/PyPI/final-reserved data unchanged,0 paid API calls. Goal still unmet.
