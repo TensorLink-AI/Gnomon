@@ -1,8 +1,8 @@
 # Guarded pilot 093 — completed
 
-Latest audited continuation: 125/312 sessions, 41 matched cases (2026-09-14
-17:51 UTC). The pilot is complete; the full development continuation is active.
-See the sixth audit below. The 20% target remains unmet.
+Latest audited continuation: 138/312 sessions, 46 matched cases (2026-09-14
+18:13 UTC). The pilot is complete; the full development continuation is active.
+See the seventh audit below. The 20% target remains unmet.
 
 All 36 sessions finished. Every forecast is valid; plain Hermes completed 11/12 full workflows, Gnomon without ledger 12/12, ledger 12/12. The frozen completion gate passed. Independent local audit: 4,227 file hashes verified, 2,942 checks, zero integrity failures.
 
@@ -259,3 +259,26 @@ Unknown usage is not zero. The production cost helper correctly preserves this
 distinction; its frozen source hash matches. No run restart, extra agent budget
 or score substitution occurred. Receipt:
 `evidence/guarded-agent-093-readiness-incident-001.json`.
+
+## Seventh continuation audit — 2026-09-14 18:13 UTC
+
+Thirteen new, disjoint sessions passed 4,643 independent checks, zero integrity
+failures and zero missing shutdown records. Verified the 38,504,251-byte archive,
+all 1,911 snapshot files, 4,227 original pilot files and 13 retained pilot log
+prefixes. The batch includes the completed readiness-timeout recovery described
+above. Combined audited evidence has 138 sessions, all 46 cases matched across
+the three arms, with every incomplete workflow retained.
+
+| Arm | Mean RMSLE | Reported tokens | Model requests | Full workflows |
+|---|---:|---:|---:|---:|
+| plain | 0.472122 | 11,660,653 | 626 | 45/46 |
+| gnomon | 0.490918 | 13,258,494 | 652 | 43/46 |
+| ledger | 0.451259 | 9,599,332 | 545 | 46/46 |
+
+Ledger error is 8.08% lower and reported token use 27.60% lower than Gnomon
+without ledger. Numerical attempts are 645/669/719; this remains fewer tokens
+with more fits. All forecasts are valid. The plain-arm note persists across nine
+sessions, with no additional native-memory write. Ledger evidence is available
+in 42 sessions, with up to 20 past origins. Later-phase origins are still absent
+from this audit. No live changes or final-data access. The 20% objective remains
+unmet. Receipt: `evidence/guarded-agent-093-development-audit-007.json`.
