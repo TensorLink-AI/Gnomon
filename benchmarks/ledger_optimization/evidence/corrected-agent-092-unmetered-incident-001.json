@@ -1,0 +1,123 @@
+{
+  "experiment": "092",
+  "classification": "confirmed_evaluation_budget_enforcement_defect",
+  "session": "gnomon/item_1372862_store_12/round-2",
+  "checks": 16,
+  "source_evidence_hashes": {
+    "api-10-response.json": "04dcb6d0f2720b3ff0bd6c951e522364f22cc5ee689883fc46bc7d142e97d6ee",
+    "api-08-response.json": "1e158f0b5e200de0c9ecebb9f84344c95166415b82bc42b2eb8ade73d7cf5caa",
+    "api-11-request.json": "93b55f97a4d9730854d1ebe5cc48d97c9929b1e4aaee3eb93d67586c5aca22ce",
+    "grade.json": "fee896995f5ed3e65a781c33edef1c0616d20475019910a284fa975c84e1cc68"
+  },
+  "lab_recorded_attempts": 4,
+  "observed_ridge_grid_configurations": 100,
+  "folds_per_configuration": 3,
+  "unmetered_ridge_fits_inferred_from_completed_loop": 300,
+  "fit_count_basis": "Executed command loops, saved direct-predict helper, and successful returned results; not independent process instrumentation. Additional observed searches not included in this lower bound.",
+  "declared_fit_budget": 60,
+  "task_comparison_completed": false,
+  "valid_checkpoint_retained": true,
+  "full_run_fair_budget_comparison_established": false,
+  "earlier_no_budget_violations_claim": "Qualified: only recorded lab/API counters were checked. This does not establish actual total numerical work.",
+  "trial_stop": {
+    "at": "2026-09-14T13:53:24.453756+00:00",
+    "reason": "Confirmed unmetered numerical model searches violate declared equal 60-fit budget.",
+    "evidence": "gnomon/item_1372862_store_12/round-2/api-10-response.json and api-11-request.json: 100 ridge configurations times three folds executed outside lab counter.",
+    "action": "Stop only verified trial process and descendants; preserve all files; no restart.",
+    "launch_identity": {
+      "pid": 3757757,
+      "boot_id": "998193f3-2771-4162-80e8-1a4887370f60",
+      "start_ticks": "1551585042",
+      "argv": [
+        "/root/gnomon-ledger-ml-v3/runtime/gnomon-venv/bin/python",
+        "-m",
+        "benchmarks.hermes_ml_checkpoint_v5.pipeline",
+        "--root",
+        "/root/gnomon-ledger-ml-v3/code/results/corrected-history-092-run-001",
+        "--preflight",
+        "/root/gnomon-ledger-ml-v3/code/results/corrected-history-092-preflight-001/passed.json"
+      ],
+      "source_commit": "5c05bd0d6fcd9522cf36846b8e7f068bad3b2abb",
+      "launched_at": "2026-09-14T07:37:22.683812+00:00",
+      "pilot_sessions": 36,
+      "conditional_development_sessions": 312,
+      "final_holdout": false,
+      "model": "deepseek-v4.1-flash",
+      "engine": "published Gnomon 1.2.0",
+      "comparison": "development-history-091"
+    },
+    "status_before": {
+      "at": "2026-09-14T13:51:40.973354+00:00",
+      "completed": 165,
+      "last": {
+        "arm": "plain",
+        "round": 25,
+        "series_id": "item_1047756_store_23",
+        "valid": true,
+        "workflow_complete": true
+      },
+      "planned": 312
+    },
+    "processes": [
+      {
+        "pid": 3757757,
+        "ppid": 1,
+        "state": "S",
+        "start_ticks": "1551585042"
+      },
+      {
+        "pid": 3757770,
+        "ppid": 3757757,
+        "state": "S",
+        "start_ticks": "1551585049"
+      },
+      {
+        "pid": 3789460,
+        "ppid": 3757770,
+        "state": "S",
+        "start_ticks": "1551874798"
+      },
+      {
+        "pid": 3942381,
+        "ppid": 3789460,
+        "state": "S",
+        "start_ticks": "1553827745"
+      },
+      {
+        "pid": 3942621,
+        "ppid": 3789460,
+        "state": "S",
+        "start_ticks": "1553831159"
+      }
+    ],
+    "completed_at": "2026-09-14T13:53:30.064793+00:00",
+    "forced_pids": [],
+    "remaining_live_processes": [],
+    "all_tracked_stopped": true
+  },
+  "audited_scores_diagnostic_only": true,
+  "prior_artifacts_preserved": true,
+  "final_holdout_accessed": false,
+  "provider_calls_for_verification": 0,
+  "api_calls_for_verification": 0,
+  "next_required_work": [
+    "Preserve stopped-run artifacts, including interrupted sessions and unknown API usage.",
+    "Audit all arms and prior runs for off-lab model fitting before any accuracy claim.",
+    "Enforce or independently account for numerical execution outside the lab, with equal rules and a fresh frozen trial."
+  ],
+  "reproduction_root": "results/corrected-history-092-development-audit-008",
+  "files": {
+    "verify-unmetered.py": "d62acba926b33eea5899e2306f6617addb546fb04d82ae3aa441c902ab5ce95f",
+    "unmetered-verification.json": "6b0ee01c3af87ce456e5d5374f7c0fb11db75d1704c81a720174f2725b06e7b4",
+    "stop-integrity.py": "6fcebe3ac3b74663099eee15b6531d219cd988c9348143e152fcb14cceeabe56",
+    "stop-integrity-process.json": "97735c0de521c5c6a76eefa6cdf384702da3749622825080f36db92be31c90b3"
+  },
+  "post_stop_preservation": {
+    "mirror_completed": true,
+    "files_hashed": 26285,
+    "inventory_path": "results/corrected-history-092-development-audit-008/post-stop-inventory.json",
+    "inventory_sha256": "142444c3470cb8beb477f0337af60dfb25c04821b5e56afc51d0569f9d7722bd",
+    "includes_interrupted_sessions": true,
+    "full_cost_audit_pending": true
+  }
+}

@@ -1,5 +1,58 @@
 # 092: corrected-history agent trial
 
+Status at 2026-09-14 13:53:30 UTC: **development trial stopped for a confirmed
+numerical-budget enforcement defect. No restart. Goal unmet.**
+
+The Gnomon-without-ledger session `item_1372862_store_12/round-2` ran a local
+100-configuration ridge grid through `numerical.predict`, with three folds per
+configuration, outside the lab counter. The executed loop and successful returned
+output imply at least 300 unmetered ridge fits, exceeding the declared 60-attempt
+budget; the lab recorded only four attempts. Additional random-forest searches
+were also observed. This is a benchmark enforcement defect, not a demonstrated
+Gnomon numerical or ledger defect. Earlier statements of “no budget violations”
+only checked recorded lab/API counters and were too broad. All previous scores
+are now qualified pending an off-lab modelling audit across arms and prior runs.
+
+The affected session made 16 successful API requests, retained a valid seasonal
+checkpoint, and did not complete model comparison/selection. It was not replaced
+with a fallback or removed from the evidence. All five verified trial processes
+were stopped, with no forced kills or tracked processes remaining live. The stop
+receipt reports 165 completed sessions; artifacts from interrupted sessions are
+mirrored, with 26,285 local files hashed; final cost accounting is pending. Main/PyPI and the final
+holdout remain untouched.
+
+Snapshot008, captured before the stop, contains 162 valid forecasts and 161 fully
+completed workflows. Its 44,400 recorded numerical/evidence checks passed, as did
+20,783 file hashes and 27 frozen source hashes. Those checks did NOT establish
+completeness of model-fit accounting. The archive is 461,464,449 bytes, SHA-256
+`cce6fc32aa354e6829c841f2846f01695174e662765966ab555a8fcd3add4e1a`.
+
+Diagnostic-only scores for 53 cases completed by all arms (no success filter):
+
+| Arm | Mean RMSLE | Matched reported tokens | Forwarded attempts |
+|---|---:|---:|---:|
+| Hermes | 0.473854501 | 12,515,339 | 709 |
+| Gnomon without ledger | 0.477075188 | 12,937,617 | 704 |
+| Ledger | 0.484329018 | 11,677,447 | 656 |
+
+The 1.52% higher ledger error is retained, not promoted as a fair-budget efficacy
+comparison. The incomplete session remains in all-session reporting; matched
+scores require only that every arm finished that case, not workflow success.
+Across the 162 archived sessions, 2,108 forwarded agent attempts include 2,106
+successful flash responses, two failures with unknown usage, and 37,939,641
+reported tokens. These costs are cumulative with snapshots001–007, not additive.
+Pilot, readiness, and the remaining stopped-run costs need separate accounting.
+
+Next: preserve and account for every stopped-run artifact, audit off-lab model
+fitting across arms, and enforce or independently account for actual modelling
+before freezing a fresh fair trial. Do not repair this run by silently changing
+budgets, dropping cases, or rerunning selected failures.
+
+Receipts: `evidence/corrected-agent-092-development-audit-008.json` and
+`evidence/corrected-agent-092-unmetered-incident-001.json`.
+
+## Snapshot007 — historical, qualified by the budget defect above
+
 Status at 2026-09-14 12:58:57 UTC: **pilot complete; development evaluation running**.
 Snapshot007 captures 142 completed sessions, all valid and workflow-complete.
 It passes 37,648 independent numerical/evidence checks and verifies all 17,951
