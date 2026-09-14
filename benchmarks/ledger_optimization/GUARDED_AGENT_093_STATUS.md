@@ -1,8 +1,8 @@
 # Guarded pilot 093 — completed
 
-Latest audited continuation: 138/312 sessions, 46 matched cases (2026-09-14
-18:13 UTC). The pilot is complete; the full development continuation is active.
-See the seventh audit below. The 20% target remains unmet.
+Latest audited continuation: 149/312 sessions, 49 matched cases (2026-09-14
+18:31 UTC). The pilot is complete; the full development continuation is active.
+See the eighth audit below. The 20% target remains unmet.
 
 All 36 sessions finished. Every forecast is valid; plain Hermes completed 11/12 full workflows, Gnomon without ledger 12/12, ledger 12/12. The frozen completion gate passed. Independent local audit: 4,227 file hashes verified, 2,942 checks, zero integrity failures.
 
@@ -298,3 +298,26 @@ that the ledger advantage increases with history. The earlier phase
 receipt is preserved; this is an expanded diagnostic, not a new experiment.
 Receipt: `evidence/guarded-agent-093-phases-002.json`. Live run and final
 holdout are unchanged; the 20% target remains unmet.
+
+## Eighth continuation audit — 2026-09-14 18:31 UTC
+
+Eleven additional disjoint sessions passed 4,524 independent checks, with zero
+failures or missing shutdown records. All 1,704 copied file hashes and the
+whole 37,721,965-byte archive match. All 4,227 original pilot files and the
+11 retained experiment prefixes were reverified.
+
+Combined evidence now contains 149 audited sessions and 49 all-three matched
+cases. Mean RMSLE is plain 0.470276, Gnomon 0.489343, ledger 0.450318, a 7.97%
+ledger reduction versus Gnomon without ledger. Matched reported tokens are
+12,675,534 / 13,900,263 / 10,260,890, respectively: 26.18% fewer for ledger.
+Matched full workflows are 48/49, 46/49, 49/49. All incomplete outcomes remain
+in the numerical scores. Numerical attempts are 681/714/767; token savings
+do not imply fewer fits.
+
+The first round-22 ledger execution is present, but late-phase comparisons
+require all three arms at the same origin; no late-phase improvement is
+claimed from this individual execution. Ledger evidence was available in
+46 of its 50 audited sessions, up to 22 prior origins. Plain Hermes retains
+its native-memory note in 11 sessions; persisted copies are not new writes.
+The 20% target is unmet and the final holdout remains closed.
+Receipt: `evidence/guarded-agent-093-development-audit-008.json`.
