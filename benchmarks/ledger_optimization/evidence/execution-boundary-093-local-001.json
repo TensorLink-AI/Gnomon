@@ -1,0 +1,38 @@
+{
+  "experiment": "093",
+  "status": "local_prototype_only",
+  "tests": {
+    "command": [
+      "python3",
+      "-m",
+      "unittest",
+      "benchmarks.tests.test_execution_boundary_093",
+      "-v"
+    ],
+    "exit_code": 0,
+    "passed": 13,
+    "real_lab_numerical_attempts": 60,
+    "further_fitting_rejected": true,
+    "paid_api_calls": 0,
+    "hermes_integration_tested": false,
+    "pinned_published_gnomon_all_arm_integration_tested": false
+  },
+  "environment": {
+    "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+    "executable": "/usr/bin/python3",
+    "numpy": "2.4.4",
+    "scikit_learn": "1.9.0"
+  },
+  "files": {
+    "benchmarks/ledger_optimization/execution_boundary_093.py": "c68e54d273a4b88227f4579d24434d27c143cc930feeb2c89413b33d0a7cc8d2",
+    "benchmarks/tests/test_execution_boundary_093.py": "fb71d25122e86a72557869cf7e2b1adcb36a53a25c37302e63c8fec5665acaa4",
+    "benchmarks/ledger_optimization/EXECUTION_BOUNDARY_093.md": "73e1f2aeafdbbe43a7a58b434082cf7beac1dd3f7693c367254b22e82b04d034"
+  },
+  "test_log": "results/execution-boundary-093-local-001/tests.txt",
+  "test_log_sha256": "90b7bda106ec46af8bc0dd6faff36eb3a8e8838e1c9e92e2d7f9acae2919f7e3",
+  "live_trial_changed": false,
+  "replacement_trial_launched": false,
+  "final_holdout_accessed": false,
+  "objective_established": false,
+  "limits": "Local tests validate the dispatcher and a synthetic plain-arm lab. Complete Hermes dispatch interception, native memory/skills, pinned all-arm integration, and fresh protocol freeze remain required before paid evaluation."
+}
