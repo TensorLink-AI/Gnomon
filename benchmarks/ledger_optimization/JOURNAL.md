@@ -1652,3 +1652,25 @@ full artifacts and archive hashes preserved. Main/PyPI unchanged, goal active.
 Recent-error correction still has not demonstrated a benefit over the strongest
 blend; future work should address a measured remaining limitation rather than
 assuming an untested variant or current20%feasibility.
+
+## Forecast-step conditional risk080: prepared, not source evaluated
+
+Previous turn was progress:079negative source result preserved at50ad818. This
+turn inspected051to avoid repeating case-global risk learning. Froze080atf459576
+after four tests. New target is each lead's6x6raw error Gram conditioned on077's
+ten forecast-only features, sharing evidence across leads. Same forest and
+per-lead simplex action both arms; no signed correction. Predictors average
+observed PSD matrices and retain nonnegative model weights. This differs from
+051whole-day Gram/globalweights and070independent lead weights without context.
+
+Synthetic preparation: sixcases/144rows, one32-tree forest,24quadratic solves,
+336iterations,0.0658s. Independent1,213checks, zero failures: node sample support/
+weighted36-output means, all24predicted PSD matrices, convex certificates and
+in-range predictions. Correct double-threshold comparison retained from078audit
+fix. No source model/API calls, source outcomes, protected data or accuracy claim.
+Verified full archive/receipt preserved. Source runner081must be frozen separately.
+
+Next execute080's fixed rule over416original cases, all mature same-domain
+history, unchanged045anchors and050/061/068guards. Record832forests/26,624trees,
+up to19,968weight solves and failures. No source/paid confirmation justified by
+this synthetic pass. Main/PyPI unchanged;20%/95%actual-agent goal remains unmet.

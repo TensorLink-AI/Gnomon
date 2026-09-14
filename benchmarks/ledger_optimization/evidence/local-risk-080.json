@@ -1,0 +1,39 @@
+{
+  "freeze_commit": "f459576",
+  "root": "results/local-risk-080-001",
+  "archive": "results/local-risk-080-001.tar.gz",
+  "archive_sha256": "1a9c5b7a54df60cd0ac3e89c824f9be62863d77d7e86a0883a7e8064a654ce77",
+  "files": {
+    "manifest.json": "508d44a87052050c722f749423c22568df4cc46531c26d9385f6a26ec02b8c4b",
+    "model.json": "661cfd0e4641146e2e046c7fa4b09f5bf9dca2621fd442733a997fabed1f655d",
+    "query.json": "773a0b426aa41715e9dd6a6cb20e6eba191e65f7ab4adc5307d21de9d6ae25e0",
+    "report.json": "ab1d877a838c89bb58891d74fa8fdef8145ae1cce9213cd48018e5ce92227814",
+    "training.json": "22d759dab7fc57e138187905c80c1d0eff23d411422a0184ce2c23827d5b9cbc",
+    "verification.json": "99fc703b31123cd59ec0bda34d3cad9e9049dc67c16453ca169c97cb495cc16e"
+  },
+  "report": {
+    "synthetic_only": true,
+    "training_cases": 6,
+    "training_rows": 144,
+    "forest_fits": 1,
+    "trees": 32,
+    "weight_fits": 24,
+    "weight_iterations": 336,
+    "seconds": 0.06584002900126507,
+    "api_calls": 0,
+    "base_forecasts": 0,
+    "source_evaluation_status": "not_started"
+  },
+  "verification": {
+    "checks": 1213,
+    "failures": 0,
+    "trees": 32,
+    "training_rows": 144,
+    "query_steps": 24,
+    "certified_weight_fits": 24,
+    "new_forests_or_weight_fits": 0,
+    "api_calls": 0,
+    "synthetic_only": true,
+    "verifier_sha256": "f2f60126272fbe47849de40fa5e119b30ab6935aa49dfd16b836ff7b10b1359a"
+  }
+}
