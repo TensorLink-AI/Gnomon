@@ -300,3 +300,28 @@ separate read-only check against the real pod correctly rejected launch because
 the original controller remains live. Both failed and passing checks are kept.
 No additional fits or Engy calls occurred. Receipt:
 `evidence/collection-096-launch-checks-001.json`. Actual paid launch remains pending.
+
+## Pilot process and archive controller
+
+`control_collection_096.py` wraps the gated launcher in one tracked subprocess.
+It records controller and child PID/start-time/boot identities, exact argv, source
+hash, stdout/stderr and exit status. It never restarts the child, increases its
+budgets, copies credentials or starts the continuation. Launch and pilot paths
+must be separate fresh directories. The child retains all existing predecessor,
+source, runtime and build checks before credential access.
+
+After child exit, the controller requires matching runner, audit and gate
+receipts. A fully audited pilot that fails its workflow-completion gate remains
+a completed experiment with `continuation_gate_passed=false`. A process failure,
+missing receipt or audit failure produces `INCOMPLETE.json`. Both completed and
+incomplete runs are archived with individual file hashes and an archive hash;
+`FINISHED.json` describes archival completion and must be read with its
+`complete` field and `INCOMPLETE.json`, not treated as automatic success.
+External symlinks reject archiving instead of following runtime paths.
+
+Eight subprocess/archive tests and the nine existing launcher tests passed.
+Tests verify archived bytes, failing exits despite successful-looking receipts,
+missing/audit-failed evidence, spawn failures, fresh paths and symlink rejection.
+They used zero Engy calls and zero numerical fits. This is local lifecycle
+verification; no paid pilot has launched. Receipt:
+`evidence/collection-096-controller-checks-001.json`.

@@ -1,0 +1,28 @@
+{
+  "status": "local_controller_tests_passed",
+  "tests": 17,
+  "engy_calls": 0,
+  "numerical_fits": 0,
+  "paid_pilot_launched": false,
+  "scope": "Local subprocess lifecycle and archive tests plus existing prerequisite/launcher tests. Not a real paid pilot or predictive-performance result. Original paid controller and queued integration remain prerequisites.",
+  "checks": [
+    "terminal child exit recorded",
+    "failed process cannot be overridden by successful receipts",
+    "audit failures and missing receipts remain incomplete",
+    "completion-gate failure preserved as completed experiment",
+    "archive hash and every stored file independently checked",
+    "fresh non-overlapping directories required",
+    "spawn failures preserved without retry",
+    "external symlinks rejected before archive completion",
+    "live predecessor and source/runtime gates unchanged"
+  ],
+  "files": {
+    "benchmarks/ledger_optimization/control_collection_096.py": "96b1b5356cc062b66a9908cde1d09fb347294897f09208a278e7aa4df3781f9c",
+    "benchmarks/tests/test_collection_control_096.py": "398893dd23db755f1476aa04c6a2d729cdc8281801c576892d0b91ee4ea00e5a",
+    "benchmarks/ledger_optimization/launch_collection_096.py": "9b10bf70329be2d6d96baeedc7962f4e8e067c9be10345f4a513b2b2a7ff9a11",
+    "benchmarks/tests/test_collection_launch_096.py": "4d6e80a796305330f9fb74ee124ee2703d7746fb67cf57a2de1cc8e067f2c41b",
+    "results/collection-096-controller-checks-001/command.json": "c4ed81b93c49e9313de5f57679533f1f6674d3fa46b845eb042584a87fba571f",
+    "results/collection-096-controller-checks-001/stderr": "beda931322198f01e7bef05a50d80f8c411aa1c56c31a887ea3dcbf7e613453f",
+    "results/collection-096-controller-checks-001/stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}
