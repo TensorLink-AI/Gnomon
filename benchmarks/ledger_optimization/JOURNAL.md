@@ -1732,3 +1732,22 @@ including metadata maturity/configuration checks, every weighted node,PSD and
 24convex certificates. No source data, paid/API calls or accuracy result. Full
 archive and member hashes preserved. Separate084driver freeze required before
 source execution. Main/PyPI unchanged;20%held-out actual-agent goal remains unmet.
+
+## Predecessor-context084: audited negative source result
+
+After083preparation3427e07, froze084driver at5e99bc8. All416paired cases complete,
+832forests/26,624trees/19,968weight fits/328,417iterations,150.535s wall133.826CPU.
+Independent1,816,368checks, zero failures,76.116s: every predecessor's ownCV
+identity and visibility,17features,36targets, full trees and convex certificates,
+all source/comparison hashes, predictions/scores/costs. No numerical/audit retry.
+
+Ledger.2501629167711588 versus matchedcontrol.2591598621124356:3.47158%gain,
+but0.15722%worse081. Electricity worsens081by2.26594% and068by3.31312%, also
+worse050/061. Pedestrian improves081by0.41017%. Higher matched gain partly
+reflects weaker control and is not a new best.20%/incumbent/domain gates fail.
+
+Full archives/member hashes/receipts preserve preparation,source,audit andlogs.
+No new base/API calls; all inherited049616raw/anchor/search/comparison costs
+remain disclosed. Updated README's stale latest-result pointer. Main/PyPI and
+protected datasets unchanged. Actual-agent final goal remains active/unmet;
+081remains lowest predeclared development mean,068comparison reference retained.

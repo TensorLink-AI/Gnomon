@@ -4,7 +4,23 @@ Branch: `dev/ledger-optimization`. **The 20% target has not been achieved.**
 Development and a complete frozen confirmation are retained here. No release or
 forecast-superiority claim is established.
 
-Latest offline mechanism test: [context-matched ensemble 047](BROAD_CONTEXT_ENSEMBLE_047_RESULT.md)
+Latest completed numerical comparison: [prior-error context084](LAGGED_RISK_084_RESULT.md)
+scored0.250163mean-case RMSLE versus0.259160for its matched control, a3.47%gain.
+It failed the20%target and electricity guards, and worsened the previous method.
+The lowest predeclared development mean remains [conditional risk081](LOCAL_RISK_081_RESULT.md),
+0.249770versus0.257687matchedcontrol (3.07%gain), also below the promotion bar.
+These are repeated-development numerical proxies, not new agent/API evaluations,
+held-out evidence or shipped ledger features. The latest actual-agent results
+remain [experiment030](ML_COMPLETED_030.md). No experiment is currently approved
+for final confirmation; the final goal remains unmet.
+
+The [risk-transfer diagnostic082](RISK_TRANSFER_082_RESULT.md) explains a current
+limitation: risk estimates systematically prefer their own fitted actions, and
+estimated benefit magnitudes do not reliably predict realised improvements.
+All later source results, negative variants, costs and audit receipts are retained
+in [JOURNAL.md](JOURNAL.md). Historical checkpoints follow.
+
+Earlier offline mechanism test: [context-matched ensemble 047](BROAD_CONTEXT_ENSEMBLE_047_RESULT.md)
 improved mean RMSLE **1.90%** against the equally capable CV ensemble on 416
 development tasks (electricity 0.90%, pedestrians 2.17%). All 97,777 audit checks
 passed; zero new provider/API calls. This is a small prototype gain, not a new
