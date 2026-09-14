@@ -1,0 +1,23 @@
+{
+  "root": "results/lead-ensemble-070-001",
+  "freeze_commit": "1aedb8b",
+  "run_still_incomplete": true,
+  "checkpoint_file": "checkpoint-verification-070.json",
+  "checkpoint_sha256": "0956eb4ea2d632cb03dd9aee86f3865415ceee46194c0fa40e9e21f8d92420dd",
+  "verification": {
+    "status": "verified_completed_prefix_only",
+    "full_run_verified": false,
+    "completed_cases_audited": 70,
+    "expected_total_cases": 416,
+    "weight_fits_audited": 140,
+    "checks": 2378,
+    "failures": 0,
+    "maximum_recomputed_gap": 1.4720934126688512e-06,
+    "seconds": 1.3264964260015404,
+    "provider_calls": 0,
+    "api_calls": 0,
+    "verifier_sha256": "99c66d4b38ed75d50970cf57a267bbaa132a988ad674dace78182b1e3cad038c",
+    "incumbent_receipt_sha256": "3f90cdbb021024c98b2db4802e9e0c7c8f48bd02707f7e08329da192d11395cf",
+    "scope": "Completed chronological prefix only. Identical audited068 evidence, independent hourly objective and certificate, forecast/score reconstruction. No aggregate score or final gate claim."
+  }
+}

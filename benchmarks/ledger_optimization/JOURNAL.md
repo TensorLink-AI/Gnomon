@@ -1404,3 +1404,24 @@ prepared while it runs. Final accuracy/gate unknown; no partial score promoted.
 Process stdout/stderr at/tmp/gnomon-lead-ensemble-070.log; checkpoint/status and
 failure artifacts under result root. Poll same handle; do not restart on timeout.
 Main/PyPI/protected reserves untouched; no API/new raw forecast calls. Goal active.
+
+## Hourly070 live checkpoint: first70cases independently verified
+
+Previous turn made progress: froze1aedb8b, started source session70210 and pushed
+full audit preparation6ec7d9a. This turn re-polled that same confirmed-live handle;
+no restart. Added a completed-prefix audit that never emits a full-run pass or
+an aggregate performance claim. Runner writes cases before checkpoint count;
+auditor captures that immutable prefix and verifies file stability while read.
+
+At captured70cases, all140fits passed2,378independent checks: identical068
+source evidence/config IDs/masses/anchors, independent hourly objectives and
+convex gaps, forecast/score reconstruction, and unchanged comparison forecasts.
+Maximum recomputed gap1.47209e-6, below frozen1e-5. Audit1.3265s,0provider/API.
+The full run remains unverified; complete070audit and gate still required.
+
+Subsequent70210poll confirmed live at78/416cases,156fits,32,723iterations,
+292.08seconds. No FAILED/amendment-failure artifacts. No partial accuracy reported.
+Checkpoint evidence:results/lead-ensemble-070-001/checkpoint-verification-070.json.
+Runtime stderr/stdout:/tmp/gnomon-lead-ensemble-070.log. Continue polling original
+handle; do not restart because an observation yields no output. Main/PyPI and
+protected data unchanged; goal active/unmet. This turn is concrete audit progress.
