@@ -1526,3 +1526,25 @@ cost accounting, predictions and summaries. Audit20.928s, no provider/API calls.
 Full archive verified member-by-member and receipt preserved. No promotion or
 paid/final confirmation. Goal active/unmet; main/PyPI unchanged. Next diagnose
 historical-to-future strength rank transfer before designing another selector.
+
+## Strength-transfer075: finite-family headroom ruled out
+
+Previous goal turn was progress: audited/pushed074at85c9701. Revalidated that
+terminal result, froze075at8e0f57dafter four synthetic tests, then completed the
+read-only diagnostic. Mean perfect-hindsight five-output minimum.23560441374594301
+is only8.54787%better than matched.2576259533432357; cannot reach20%on these
+416cases. Not a bound on new predictions, other datasets or all ledger methods.
+
+Past/future pairwise rank agreement2,387/4,160(57.3798%);1,773disagreements.
+Selected-versus-.5past advantage.00349247 becomes future disadvantage.00299827.
+190wins,184losses,42ties. Fixed.75has lower overall mean.24974688445687024but
+worsens electricity; post-hoc diagnostic, no promotion or target claim.
+
+11,167independent checks, zero failures,2,080candidate risks; full source hashes,
+all pairs/regrets and domain/phase/choice summaries audited. No forecasts,
+weight fits or API calls; upstream074costs retained. Source/read-only archive
+verified and receipt saved. Goal active/unmet, main/PyPI unchanged. This evidence
+changes next action: stop tuning a selector over these five fixed outputs. A
+forecast-conditioned correction with matched primitives/guards could generate
+new outputs;049onlytested fixed shrunken lead residuals. Any next rule must be
+frozen and evaluated before claims; no protected or paid confirmation warranted.
