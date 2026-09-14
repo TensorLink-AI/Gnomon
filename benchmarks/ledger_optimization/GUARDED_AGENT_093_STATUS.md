@@ -1,8 +1,8 @@
 # Guarded pilot 093 — completed
 
-Latest audited continuation: 234/312 sessions, 77 matched cases (2026-09-14
-20:42 UTC). The pilot is complete; the full development continuation is active.
-See the fifteenth audit below. The 20% target remains unmet.
+Latest audited continuation: 247/312 sessions, 81 matched cases (2026-09-14
+21:03 UTC). The pilot is complete; the full development continuation is active.
+See the sixteenth audit below. The 20% target remains unmet.
 
 All 36 sessions finished. Every forecast is valid; plain Hermes completed 11/12 full workflows, Gnomon without ledger 12/12, ledger 12/12. The frozen completion gate passed. Independent local audit: 4,227 file hashes verified, 2,942 checks, zero integrity failures.
 
@@ -597,3 +597,23 @@ two completed series still has 3.14% higher ledger error. Cold cases remain
 differs; this does not establish a causal benefit or harm of accumulating history.
 It also does not support promising that more history alone will reach 20%.
 All negative outcomes are retained. Receipt: `evidence/guarded-agent-093-phases-006.json`.
+
+## Sixteenth continuation audit — 2026-09-14 21:03 UTC
+
+Thirteen additional sessions passed 3,495 independent checks, with 1,760 new
+file hashes and all 4,227 pilot file hashes verified. No audit failures or missing
+shutdown records. Combined evidence: 247 audited sessions, 81 matched cases.
+
+| Arm | Matched RMSLE | Reported tokens | Model requests | Fits | Full matched workflows |
+|---|---:|---:|---:|---:|---:|
+| Hermes | 0.464906 | 22,029,452 | 1,119 | 1,160 | 78/81 |
+| Gnomon | 0.472722 | 22,775,054 | 1,118 | 1,214 | 76/81 |
+| Ledger | 0.454642 | 17,594,361 | 961 | 1,247 | 81/81 |
+
+Ledger RMSLE is 3.82% lower, with 22.75% fewer reported tokens than Gnomon
+without ledger; fit count is higher. Failures remain in the denominator. These
+are partial development results, not reliable final efficacy evidence. The full
+audited inventory has 82/83/82 valid forecasts and 79/78/82 complete workflows;
+only the matched subset is compared above. The current controller remains active,
+and the queued seed test was independently confirmed live/waiting at 21:04 UTC.
+Receipt: `evidence/guarded-agent-093-development-audit-016.json`.
