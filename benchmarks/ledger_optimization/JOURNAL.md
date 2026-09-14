@@ -1494,3 +1494,13 @@ All inherited model/search/preparation costs retained in archived evidence.
 Goal active/unmet;068remains bestdevelopment with only2.54%matched gain.
 Main/PyPI unchanged. Future candidate must address an identified mechanism of
 learning useful evidence, not assume added retrieval descriptors guarantee gains.
+
+## Memory-strength073 synthetic preparation
+
+Freeze b8e254c; nine helper tests and independent1,107checks pass.25chronological
+synthetic queries, nine mature cohorts,45risk comparisons and10mass cases.
+No source forecasts, weight fits or API calls; no accuracy result claimed.
+Grid0,.25,.5,.75,1 uses only prior executed candidates with mature outcomes.
+Archive/receipt retained. Next freeze source runner074 before new candidate fits.
+Previous conversational clarification changed no experiment state; this turn
+revalidated the completed audit and preserves it before the source experiment.

@@ -1,0 +1,35 @@
+{
+  "freeze_commit": "b8e254c",
+  "root": "results/memory-strength-073-001",
+  "archive": "results/memory-strength-073-001.tar.gz",
+  "archive_sha256": "aae0561e6b94cd1dabec9fe9616ed6285cf2e60fe5f1a62a9718c59e7f25801f",
+  "files": {
+    "manifest.json": "05945e0aaf05fa8b4c3756d7f7b1001afc7b8a5c24e6c9722fbeff4f7760ec36",
+    "mass-cases.json": "965710c442f4489f9ad0034a499387a3af95a9bbe35f1f35f9dd2b6d9ee3240a",
+    "records.json": "126300ed8079a2a57758e1ec99d15f32ca22e58bfcbe709910338f6e520155ae",
+    "report.json": "d39f1f52d941f9a17191476d3afba3de890caa01b008128b1f48fe6ed2f75948",
+    "traces.json": "071fbb18437b03bb84859b5139b43ac301cdeb56e800502f3a3d19a66f6e40a5",
+    "verification.json": "d3e7d88cb65f05d5973a1b7d94f3f8a50d6b68526232f84de897e5aa89b95542"
+  },
+  "report": {
+    "status": "synthetic_selection_prepared_not_source_evaluated",
+    "chronological_queries": 25,
+    "mature_queries": 9,
+    "mass_cases": 10,
+    "provider_calls": 0,
+    "weight_fits": 0,
+    "api_calls": 0,
+    "seconds": 0.008557643999665743
+  },
+  "verification": {
+    "checks": 1107,
+    "failures": 0,
+    "chronological_queries": 25,
+    "candidate_risk_comparisons": 45,
+    "provider_calls": 0,
+    "weight_fits": 0,
+    "api_calls": 0,
+    "synthetic_only": true,
+    "verifier_sha256": "c328ceaa8919bebb1e9e75c5a9a190b9e20e00939784dc5b39412c338e96e819"
+  }
+}
