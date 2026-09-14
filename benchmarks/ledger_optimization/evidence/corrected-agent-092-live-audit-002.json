@@ -1,0 +1,100 @@
+{
+  "experiment": "092",
+  "audit": "002",
+  "cumulative": true,
+  "includes_prior_audit_001": true,
+  "snapshot_at": "2026-09-14T07:48:01.398054+00:00",
+  "selection": "All sessions with grade.json and final memory.json present before snapshot; no score-based filter.",
+  "completed_sessions": 8,
+  "planned_pilot_sessions": 36,
+  "scope": "Eight completed sessions, including one ledger session with mature outcomes. Partial run; no accuracy claim.",
+  "independent_checks": 521,
+  "integrity_failures": [],
+  "wire_checks": {
+    "scope": "Eight completed sessions only, excludes live sessions and separately counted readiness probes.",
+    "checks": 307,
+    "passed": true,
+    "model_counts": {
+      "deepseek-v4.1-flash": 97
+    },
+    "agent_requests": 97,
+    "prompt_tokens": 1446292,
+    "completion_tokens": 23827,
+    "total_tokens": 1470119,
+    "billing_dollars": null
+  },
+  "history_check": {
+    "saved_pair_origins": 1,
+    "unmodified_final_snapshot_pair_origins": 0,
+    "corrected_final_snapshot_pair_origins": 1,
+    "saved_window_evidence_preserved_exactly": true,
+    "source_unchanged": true,
+    "query_copy_unchanged_after_initialization": true,
+    "source_sha256": "352016db27023b4c1f4d838aa4e0eb7b11dc7cf41b25823cd620dae7e3e25927",
+    "provider_calls": 0,
+    "api_calls": 0,
+    "catalog_reads": 4,
+    "scope": "One completed round-1 ledger project; diagnosis, not forecasting accuracy."
+  },
+  "review_exposure": {
+    "series_id": "item_1304243_store_32",
+    "round": 1,
+    "origin": "2016-08-30T00:00:00+00:00",
+    "ledger_review_calls": 1,
+    "prior_outcomes": 1,
+    "saved_reviews": [
+      {
+        "status": "evidence_available",
+        "provider_calls": 0,
+        "ledger_queries": 6,
+        "record_count": 2,
+        "full_evidence": {
+          "path": "review-evidence/000000.json",
+          "sha256": "1abd3485489cae20d5d81cfa49f6c0e556c9db0f063b0d65c77d1c4a3427ff05"
+        },
+        "comparison_implementation": "development-history-091"
+      }
+    ],
+    "forwarded_requests_with_review_tool_result": [
+      "api-02-forwarded.json",
+      "api-03-forwarded.json",
+      "api-04-forwarded.json",
+      "api-05-forwarded.json",
+      "api-06-forwarded.json",
+      "api-07-forwarded.json",
+      "api-08-forwarded.json",
+      "api-09-forwarded.json",
+      "api-10-forwarded.json",
+      "api-11-forwarded.json",
+      "api-12-forwarded.json",
+      "api-13-forwarded.json"
+    ],
+    "interpretation": "Shows the review tool result entered subsequent model requests; does not prove the model used it correctly."
+  },
+  "full_workflows": 8,
+  "valid_forecasts": 8,
+  "http_errors": 0,
+  "readiness_requests": 8,
+  "readiness_tokens": 112,
+  "evidence_root": "results/corrected-history-092-live-audit-002",
+  "files": {
+    "snapshot.tar.gz": "2fdf52b717fca14826c4c660cbabfb5c04b1e1b7c01940b7e94aade484edfb6a",
+    "snapshot-script.py": "330d41580f7e0be32f99972e411b8014280805bf8e54e2e8c63fd3b4b883838c",
+    "snapshot/snapshot-manifest.json": "bd7ab1fe0072e3b7b3e5d41d7b4bf1ac78a939f6ca2e360514b137a5463c5c8a",
+    "snapshot/report.json": "6a4e10548f765f95a85ef2c2d4e62844c3ac381aac73b91c52479e73ea290cd7",
+    "audit.stdout": "68edd2a2bc32ce9ac774091bf52c00d68d64a53b5a7cfb0ab65c86c8b4f1442e",
+    "audit.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "audit_wire.py": "1a802ebccbf1ac9a22c8fcd9d4b8ac47c772f65e848b40e5cdcb37a847dfeea2",
+    "wire-audit.json": "ab6f8605f5566ee925a38bee3aac781ebb5fe5c5aeb7e4a0536ec7a221620e8a",
+    "check_history.py": "1198c1a3d7ffb6cbdabbd5b2a86bbae2a7282c4399908ff1bb54615de31bbb1f",
+    "history.stdout": "55e83f7be519ba496121da2adecad017492811ccc8e513a743d19b225c6f2a46",
+    "history.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "history-check.json": "5aa40c10717a85ec0d22bb55ec8092adde4da47d17ddf3a5b52ea4bedb13bf63",
+    "unmodified-comparison.json": "028a918f151f9f2f19b444068a5fc98f1d420cc18ad0f32c5e5d092d1534f2fc",
+    "corrected-comparison.json": "f253411ec66c3d625d45836419f9f7a35f142c4ff3b68c2577143a52ad44a004",
+    "review-exposure.json": "2b51f30cbb686bd4b9476e9b3cd2818a042465144e3777d0606aa2bb13fed455"
+  },
+  "snapshot_files_verified": 775,
+  "trial_settings_changed": false,
+  "final_reserve_accessed": false
+}
