@@ -1,0 +1,41 @@
+{
+  "freeze_commit": "490e4da",
+  "root": "results/guarded-correction-077-001",
+  "archive": "results/guarded-correction-077-001.tar.gz",
+  "archive_sha256": "abc5e006396c73700dedc0ac04f05b58e252285a10bcde315c7383a139ea2c48",
+  "files": {
+    "held_back.json": "8b49873e351f2164aaf27d41537cb834c22a70f3f15fe09cb45156038bf74d68",
+    "manifest.json": "d7290199f2c049215882cb955f2c91f04673e73207c10d1ea81c59a61fedb10a",
+    "model.json": "7da8eb9828409c84bcd4c51b6a01f71d9b4a559ea3cd4cbd958a20130f0ecb62",
+    "report.json": "ca4e2515df685030c249cb9f4a0eaa0ebde9790430db8ed4aa6cfe5ea6f284db",
+    "training.json": "1dd23eb0254eb7834927021c068c393a9c5605f447cd1ef6b0f07b640cbc053a",
+    "verification.json": "4ee7dcff256d9d08c52e0b7e0a96657c061f39089512f70a0a0afd2501b21f18"
+  },
+  "report": {
+    "synthetic_only": true,
+    "forest_fits": 1,
+    "trees": 32,
+    "training_cases": 6,
+    "training_rows": 144,
+    "held_back_rows": 24,
+    "positive_correction_enabled": true,
+    "negative_correction_enabled": false,
+    "tie_correction_enabled": false,
+    "api_calls": 0,
+    "source_forecasts": 0,
+    "seconds": 0.02158642900030827,
+    "source_evaluation_status": "not_started"
+  },
+  "verification": {
+    "checks": 1787,
+    "failures": 0,
+    "trees": 32,
+    "training_rows": 144,
+    "held_back_rows": 24,
+    "independent_leaf_predictions": 768,
+    "new_forest_fits": 0,
+    "api_calls": 0,
+    "synthetic_only": true,
+    "verifier_sha256": "41dbf621db7e19c3486f182cf7c78361344b17e87176df810bb24d965094300b"
+  }
+}

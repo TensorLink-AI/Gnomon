@@ -1570,3 +1570,33 @@ No new model/API calls, all inherited raw/search/blend/anchor costs retained.
 Verified complete archive/receipt preserved. Main/PyPI unchanged, goal active.
 Next method must retain an uncorrected option and learn whether corrections
 transfer, rather than assume more flexible error functions improve forecasting.
+
+## Guarded accumulated-error077: prepared, source evaluation not started
+
+Previous turn was progress:076negative result audited/pushed ata2d3e25. This
+turn revalidated source state and earlier scope/protocol amendments. Frozen077
+at490e4da after seven synthetic tests. Shared32-tree shallow error model,
+chronological third-CV-fold enable/disable gate, preserved uncorrected baseline.
+All-domain historical production records are maturity-filtered before payload
+access; control has only current CV. No new source/model/API data were used.
+
+Important validation design correction before source execution: exclude066's
+search-selected seventh model because its configuration selection used all three
+CV folds. Guard training uses only fixed six models, first two CV folds and
+historical outcomes mature by t-24h. Validation baseline also fits first two
+folds only. Production baseline uses frozen045full-three-fold weights. This
+retains a proper held-back fold instead of reusing it through selection/weights.
+
+Synthetic preparation fits one32-tree forest on144rows/sixcases. Independent
+1,787checks, zero failures, all tree-node counts/weighted means and768held-back
+leaf predictions reconstructed. Corrector accepted on favorable synthetic
+validation, rejected on unfavorable and tied validation.0.0216s prep, zero
+source forecasts/API. Complete archive/receipt preserved. This is not a source
+accuracy result; real runner078must be frozen before computing source outcomes.
+
+Final20%goal remains unmet; no protected-data access or main/PyPI changes.
+Next build078chronological source driver with explicit first-two-fold guard
+baseline, two stage cutoffs, all eligible raw historical pairs, independent
+tree/cost audit and all existing strong guards. No paid confirmation authorized
+by a synthetic pass. Numerical corrections remain common-arm development tools,
+not a claim of changed/shipped Gnomon ledger performance or agent improvement.
