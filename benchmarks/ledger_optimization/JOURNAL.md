@@ -1242,3 +1242,29 @@ labels. Stop another gate-only comparison over these saved proposals. The next
 candidate must improve causal evidence use within a prospectively frozen common
 action/budget protocol, potentially the user-authorized model-iteration task.
 No paid confirmation or final access justified. Goal remains active and unmet.
+
+## Common model-iteration catalogue064: prepared, not scored
+
+Previous turn made progress: audited/pushed063 at aedafaf. Revalidated the user's
+later ML-task authorization and existing60-attempt/three-fold lab contract.
+063 rules out a selector-only route over the saved forecasts, so return to the
+common model-configuration search task rather than another threshold adjustment.
+
+Freeze064 at4024164:78 common hourly configurations, retaining the same numerical
+implementations, calendar/lag features and clipping guard. Three seasonal recipes,
+63 Ridge combinations and12 Random Forest combinations; all original six remain.
+No candidate parameter chosen by observing its source-data score. Both arms keep
+the same catalogue/budget, and strong050 control/061 incumbent remain guards.
+
+Synthetic-only preparation completed. Four tests;12 exact original/configured
+parity pairs across658/730 history lengths;four novel configuration smoke calls.
+Independent255-check audit includes AST equality of numerical bodies, canonical
+identity, catalogue completeness, phase validation and full cost accounting.
+52 synthetic forecast computations/28 estimator fits,5.1469s; no source forecasts
+or API calls. Archive/receipt064 retains all outputs.
+
+No new accuracy result. Common sequential search and historical-access policies
+must be frozen/tested before running expanded configurations on development data.
+Only executed backtests and genuinely matured production evidence may enter the
+ledger; historical preparation costs and all current attempts must be charged.
+Main/PyPI, validation055 and final reserves unchanged. Goal active and unmet.

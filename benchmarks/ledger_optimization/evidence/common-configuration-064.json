@@ -1,0 +1,39 @@
+{
+  "freeze_commit": "4024164",
+  "root": "results/common-configuration-064-001",
+  "archive": "results/common-configuration-064-001.tar.gz",
+  "archive_sha256": "1063c324d394b99a6c08e32f5f21d449f4fa7319a4be6d075d8c1d638d1e76f8",
+  "files": {
+    "attempts.json": "9aa46992102c14463d76e11e8488370c770e9b2996eaa23a2a64c0f99bdf634d",
+    "catalogue.json": "e5650d95a4775ada81a04aef91dc6d3ad5baefef0fedf8c1009e7fa688903c1a",
+    "manifest.json": "c6a349c8c8241a08c08d9d0514e80ee37bc68733eb09c7a07331bde2ab65d22b",
+    "novel-synthetic.json": "af869601a8dc0ba81d06da094f3eac76962db10becfecf3de084e34a83d47195",
+    "parity.json": "bc7c2129ce88da3ff5474cbeee15b224a33dade64091323115300657f8e778a3",
+    "report.json": "e489df7ce892e9f2c8b305dbca9841febd180d42e23dc16f8e04091ef6e2cb35",
+    "tests.txt": "1d03f7c8fbe700335a688b44d3ecb23c0b91a8405f667ffb42e6c4dc4407705e",
+    "verification.json": "268476f919ee7dfde5b1044910c86de085bb8be1ad4024b6c40b43ef870be6e0"
+  },
+  "report": {
+    "status": "prepared_not_evaluated",
+    "configurations": 78,
+    "tests": 4,
+    "test_failures": 0,
+    "exact_parity_requests": 12,
+    "new_synthetic_requests": 4,
+    "synthetic_forecast_computations": 52,
+    "synthetic_estimator_fits": 28,
+    "completed_computations": 52,
+    "source_forecast_computations": 0,
+    "api_calls": 0,
+    "seconds": 5.146892102002312,
+    "cpu_seconds": 4.8835643,
+    "limitation": "Common configuration preparation only; no scored source task, search policy or ledger accuracy result."
+  },
+  "verification": {
+    "checks": 255,
+    "failures": 0,
+    "report_sha256": "e489df7ce892e9f2c8b305dbca9841febd180d42e23dc16f8e04091ef6e2cb35",
+    "verifier_sha256": "8eee2da17e56cdc899164ae65e43eedd580e0845cf2e6c219cc04951ab3fc19f",
+    "scope": "Independent full parameter inventory, canonical identities, AST numerical-body equality, synthetic parity records, seasonal arithmetic and complete cost accounting. No real-series scores or ledger benefit tested."
+  }
+}
