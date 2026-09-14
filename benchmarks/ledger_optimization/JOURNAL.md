@@ -1851,3 +1851,28 @@ forecasts (22total), zero API calls. Final check counted120execution,8comparison
 This is a synthetic infrastructure correction, not demonstrated030contamination
 or an accuracy improvement. No final data, paid confirmation, new agent trial,
 main merge or release. See REVIEW_VISIBILITY_088_RESULT.md and the088receipt.
+
+
+## Development089 launched: paired agent evidence reading
+
+Frozen protocol/runner/scoring e9cab63; exact16review/64session cohort and
+input/code hashes1e50c55. Four original030series at rounds1,9,17,25, two fixed
+seeds7/19, same facts in original and087brief formats. Modeldeepseek-v4.1-flash
+through Engy; up to2requests/session, one syntax-only correction, no correctness
+feedback. This is not Hermes forecasting, no-ledger comparison, rescoring or
+final confirmation. It tests actual evidence-reading correctness and API token
+usage after087's byte-only evidence. No original or final targets are changed.
+
+Prepared roots results/agent-fidelity-089-prepared and active outputs
+results/agent-fidelity-089-run; stdout/stderr in results/agent-fidelity-089-logs.
+The dispatch is single-worker, frozen shuffle17,64sessions,128maximum upstream
+requests. It stops on3consecutive service failures. No automatic restart is
+allowed. Presence of a started request without result requires live-process
+reconciliation. Do not label missing sessions as agent failures.
+
+All8runner/grader tests passed before launch;2independent audit tests passed
+while the unchanged frozen runner continued. Completed responses initially
+reported the requested model and usage. Results and adoption gate remain pending
+until every scheduled session is terminal and raw-response audit completes.
+An interface success cannot establish the20%forecasting objective or bypass its
+unchanged final gates. Cost will use actual receipts; no billing price is assumed.
