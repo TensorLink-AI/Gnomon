@@ -1,0 +1,71 @@
+{
+  "status": "live_incomplete_workflow_identified",
+  "new_case": {
+    "api_calls": 16,
+    "api_errors": 0,
+    "arm": "plain",
+    "backtested_configurations": 1,
+    "baseline_checkpoint_only": true,
+    "blocked_api_requests": 0,
+    "cause": null,
+    "checkpoint_publications": 2,
+    "config": {
+      "model": "seasonal",
+      "season": 7
+    },
+    "corrections": 0,
+    "decision_summary_present": false,
+    "execution_id": "a2e575e7-b9f5-4447-a432-c6aaa585bb2c",
+    "exit_code": 0,
+    "fallback_used": false,
+    "ledger_reviews": 0,
+    "numerical_attempts": 4,
+    "numerical_successes": 4,
+    "orchestration_stop": "request_budget_exhausted",
+    "origin": "2017-04-25T00:00:00+00:00",
+    "point": [
+      1.0,
+      3.0,
+      5.0,
+      1.0,
+      7.0,
+      3.0,
+      6.0,
+      1.0,
+      3.0,
+      5.0,
+      1.0,
+      7.0,
+      3.0,
+      6.0
+    ],
+    "prior_outcomes": 18,
+    "responses": 16,
+    "review_calls": 1,
+    "rmsle": 0.7568001857175404,
+    "round": 18,
+    "seconds": 129.66111719235778,
+    "selection_after_comparison": false,
+    "selection_interventions": 4,
+    "series_id": "item_1457251_store_14",
+    "tokens": 399579,
+    "usage_complete": true,
+    "valid": true,
+    "workflow_complete": false
+  },
+  "incomplete_workflows_by_arm": {
+    "plain": 4,
+    "gnomon": 5,
+    "ledger": 0
+  },
+  "all_incomplete_have_valid_forecasts": true,
+  "all_incomplete_stop_reason": "request_budget_exhausted",
+  "scope": "Read-only live grades; newest session not yet independently archived/audited. All nine incomplete workflows have valid baseline forecasts retained in scoring. No rerun, exclusion or extra budget. No cause of agent behavior inferred from the stop reason alone.",
+  "files": {
+    "results/guarded-history-093-failure-monitor-004/command.json": "3b3b3e01d08ffb54a5b16d4e0943bd1db0a6446f576fdae0231fa92dcbf4d5e9",
+    "results/guarded-history-093-failure-monitor-004/query.py": "2cf594439aee17749cf3e06b5e5945adf715f56cf3adbbffdb9acf6d64a9eb5d",
+    "results/guarded-history-093-failure-monitor-004/stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/guarded-history-093-failure-monitor-004/stdout.json": "2aca7bd05bcf3029f6f8a9f73a6ab8c3c48c15e8711dc41626b5be514e92c760"
+  },
+  "target_met": false
+}

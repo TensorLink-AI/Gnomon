@@ -335,3 +335,19 @@ while retaining raw evidence locally. Four additional synthetic-key tests passed
 bringing the combined controller/launcher suite to 21 tests. No real keys, Engy
 calls or numerical fits were used. Receipt:
 `evidence/collection-096-controller-checks-002.json`.
+
+## Relocatable dispatch bundle prepared locally
+
+`results/collection-096-dispatch-bundle-001/dispatch.tar.gz` contains 32 exact
+files: the tested capsule, frozen plan, preflight receipt, development task
+manifest and controller/launcher package. It contains no credentials, mutable
+arm state or final holdout. Archive SHA-256:
+`e8dff0dc8a2f9de2428d347396e6ddec6c66a3e10c4c0c3ff88bc617947ff254`.
+
+An independently extracted copy passed every file hash and the launcher's
+check-only path with the real local runtimes and synthetic terminal predecessor
+metadata. No output run was created and no fits or Engy calls occurred. The
+bundle has not been uploaded or launched. Before using it, recheck the real
+predecessor completion receipts and the remote runtime/source identities;
+synthetic terminal metadata is solely a local relocation test. Receipt:
+`evidence/collection-096-dispatch-bundle-001.json`.
