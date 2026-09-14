@@ -1,0 +1,37 @@
+{
+  "status": "offline_display_candidate_only",
+  "iterations": [
+    {
+      "status": "offline_preservation_checks_passed",
+      "reviews": 33,
+      "original_compact_utf8_bytes": 160867,
+      "prototype_compact_utf8_bytes": 143611,
+      "byte_reduction": 0.1072687375285174,
+      "larger_payloads": 9,
+      "scope": "Saved development payloads only. Bytes are not model tokens, cost, accuracy or agent completion. No live deployment, API calls, fits or final data."
+    },
+    {
+      "status": "offline_preservation_checks_passed",
+      "reviews": 33,
+      "original_compact_utf8_bytes": 160867,
+      "prototype_compact_utf8_bytes": 142522,
+      "byte_reduction": 0.11403830493513278,
+      "larger_payloads": 0,
+      "scope": "Saved development payloads only. Bytes are not model tokens, cost, accuracy or agent completion. No live deployment, API calls, fits or final data."
+    }
+  ],
+  "regression_tests_passed": 6,
+  "frozen_live_source_files_verified": 24,
+  "engy_calls": 0,
+  "provider_fits": 0,
+  "live_deployed": false,
+  "target_established": false,
+  "final_holdout_accessed": false,
+  "files": {
+    "benchmarks/ledger_optimization/sparse_review_094.py": "3bb6849226d3690438671a0ed6c820bb127168c51d923ba29b22e85264672d8a",
+    "benchmarks/tests/test_sparse_review_094.py": "152b3719e3cb573d432dbce2b0319990a0d9529effa7d736340f06c90d839269",
+    "results/sparse-review-094-offline-001/SHA256SUMS.json": "a684385b4d8cdbcb742706a4d76593d7d75fb7cbf10885919be2a73b2593715c",
+    "results/sparse-review-094-offline-002/SHA256SUMS.json": "6d5c126f69a7e8a49e0aec37df6f8af20660ca6cef6d85adc342fa01fae2e993"
+  },
+  "scope": "Two preserved offline iterations on identical already-audited payloads. Prototype one expanded nine responses; prototype two keeps originals when compression would not shorten compact UTF-8. No accuracy, completion, token or billing benefit established."
+}
