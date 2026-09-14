@@ -1674,3 +1674,24 @@ Next execute080's fixed rule over416original cases, all mature same-domain
 history, unchanged045anchors and050/061/068guards. Record832forests/26,624trees,
 up to19,968weight solves and failures. No source/paid confirmation justified by
 this synthetic pass. Main/PyPI unchanged;20%/95%actual-agent goal remains unmet.
+
+## Conditional-risk081: audited lower mean, failed domain and20% gates
+
+Previous user-facing turn was no progress toward implementation: it read and
+summarized066/068 results. Revalidated081terminal source report and frozen50bf8c1
+without restarting the completed run; launched the missing independent audit.
+All416cases verified with1,937,682assertions, zero failures,70.126seconds,
+including832forests/26,624trees and19,968quadratic certificates. No audit fix
+or numerical policy change was required. Full archive/member hashes preserved.
+
+Ledger.24977022394038842 versus matchedcontrol.25768712397413296:3.07229%gain;
+3.45592%over strong050,0.52094%over068overall. Electricity worsens068by1.02398%;
+pedestrian improves0.92860%. Both20%requirements and domain guard fail. Overall
+mean is a new lower predeclared development result, not a promoted or held-out
+winner.068remains the promotion reference. No paid/protected confirmation.
+
+832forests/19,968weight solves/313,736iterations,141.322s wall126.652CPU;
+0new base/APIcalls. Inherited49,616raw computations and anchor/search costs
+remain disclosed. Main/PyPI unchanged. Actual1.2.0/DeepSeek agent objective
+remains active/unmet. Next diagnostic should inspect conditional-risk transfer
+and the electricity regression, not silently assemble post-hoc domain winners.
