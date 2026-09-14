@@ -1,0 +1,288 @@
+{
+  "experiment": "092",
+  "phase": "development",
+  "audit": "003",
+  "cumulative": true,
+  "includes_prior_audits": [
+    "001",
+    "002"
+  ],
+  "snapshot": {
+    "at": "2026-09-14T09:48:00.350382+00:00",
+    "completed_sessions": 54,
+    "integrity_checks": 7787,
+    "integrity_failures": [],
+    "verified_files": 5978,
+    "matched_cases": 17,
+    "matched_mean_rmsle": {
+      "plain": 0.469529764882087,
+      "gnomon": 0.471083976863846,
+      "ledger": 0.47332795566371205
+    },
+    "complete": false,
+    "remote_transfer_verified": {
+      "remote_archive": "/root/gnomon-ledger-ml-v3/code/results/corrected-history-092-development-audit-003/snapshot.tar.gz",
+      "sha256": "e164fb4c7aef20c36b020c38395868ad0a18834f7eca58a3be97b73ba1348885",
+      "bytes": 79156241,
+      "snapshot": "2026-09-14T09:48:00.350382+00:00",
+      "sessions": 54,
+      "credential_scan_passed": true
+    },
+    "provider_calls_for_audit": 0,
+    "api_calls_for_audit": 0,
+    "transfer_method": "Saved remotely, rsync transferred, and archive/file hashes verified before analysis. No evaluation sessions rerun or excluded by score."
+  },
+  "scope": "All completed sessions, no success or score filtering. Matched comparisons require all three arms to have finished that case, regardless of validity. All 54 are valid and full workflow here. No mature origins yet. Two reused series; no held-out inference.",
+  "matched_cases": [
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 0
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 1
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 2
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 3
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 4
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 5
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 6
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 7
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 0
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 1
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 2
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 3
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 4
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 5
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 6
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 7
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 8
+    }
+  ],
+  "matched_mean_rmsle": {
+    "plain": 0.469529764882087,
+    "gnomon": 0.471083976863846,
+    "ledger": 0.47332795566371205
+  },
+  "matched_ledger_relative_improvement": -0.004763436903129081,
+  "matched_costs": {
+    "plain": {
+      "sessions": 17,
+      "reported_tokens": 4515422,
+      "forwarded_requests": 240,
+      "usage_complete": true
+    },
+    "gnomon": {
+      "sessions": 17,
+      "reported_tokens": 4484226,
+      "forwarded_requests": 234,
+      "usage_complete": false
+    },
+    "ledger": {
+      "sessions": 17,
+      "reported_tokens": 3342292,
+      "forwarded_requests": 205,
+      "usage_complete": true
+    }
+  },
+  "wire_audit": {
+    "scope": "All completed folders in supplied snapshot; no success-based exclusions.",
+    "passed": true,
+    "model_counts": {
+      "deepseek-v4.1-flash": 714
+    },
+    "forwarded_attempts": 715,
+    "successful_responses": 714,
+    "failed_responses": 1,
+    "reported_total_tokens": 12960369,
+    "attempts_without_usage": 1,
+    "usage_complete": false,
+    "missing_usage_not_assumed_zero": true,
+    "billing_dollars": null,
+    "readiness_probes_included": false,
+    "audit_api_calls": 0,
+    "audit_provider_calls": 0,
+    "reported_prompt_tokens": 12775428,
+    "reported_completion_tokens": 184941
+  },
+  "arms": {
+    "gnomon": {
+      "admission_api_calls": 18,
+      "admission_reported_tokens": 252,
+      "admission_wait_seconds": 63.19645237363875,
+      "api_calls": 244,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 1,
+      "checkpoint_publications": 36,
+      "cold_rmsle": 0.5080809287072852,
+      "corrections": 0,
+      "distinct_configs_per_task": 6.222222222222222,
+      "dollars": null,
+      "http_errors": 1,
+      "later_rmsle": null,
+      "ledger_reviews": 0,
+      "mature_rmsle": null,
+      "mean_rmsle": 0.45652265101029976,
+      "numerical_attempts": 371,
+      "numerical_successes": 371,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 18
+      },
+      "per_series": {
+        "item_1047756_store_23": 0.7894714217452685,
+        "item_1304243_store_32": 0.19016363442232476
+      },
+      "review_calls": 18,
+      "seconds": 3169.8353635240346,
+      "tasks": 18,
+      "tokens": 4653658,
+      "usage_complete": false,
+      "valid": 18,
+      "valid_only_rmsle": 0.45652265101029976,
+      "workflow_complete": 18
+    },
+    "ledger": {
+      "admission_api_calls": 18,
+      "admission_reported_tokens": 252,
+      "admission_wait_seconds": 30.24626649543643,
+      "api_calls": 219,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 0,
+      "checkpoint_publications": 36,
+      "cold_rmsle": 0.5189922757240519,
+      "corrections": 0,
+      "distinct_configs_per_task": 6.333333333333333,
+      "dollars": null,
+      "http_errors": 0,
+      "later_rmsle": null,
+      "ledger_reviews": 16,
+      "mature_rmsle": null,
+      "mean_rmsle": 0.4801617873034647,
+      "numerical_attempts": 378,
+      "numerical_successes": 378,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 18
+      },
+      "per_series": {
+        "item_1047756_store_23": 0.7504099082969772,
+        "item_1304243_store_32": 0.2099136663099522
+      },
+      "review_calls": 18,
+      "seconds": 2988.8250328674912,
+      "tasks": 18,
+      "tokens": 3598834,
+      "usage_complete": true,
+      "valid": 18,
+      "valid_only_rmsle": 0.4801617873034647,
+      "workflow_complete": 18
+    },
+    "plain": {
+      "admission_api_calls": 18,
+      "admission_reported_tokens": 252,
+      "admission_wait_seconds": 29.705450601875782,
+      "api_calls": 252,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 0,
+      "checkpoint_publications": 36,
+      "cold_rmsle": 0.521150176130206,
+      "corrections": 0,
+      "distinct_configs_per_task": 6.111111111111111,
+      "dollars": null,
+      "http_errors": 0,
+      "later_rmsle": null,
+      "ledger_reviews": 0,
+      "mature_rmsle": null,
+      "mean_rmsle": 0.4782825724391428,
+      "numerical_attempts": 366,
+      "numerical_successes": 366,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 18
+      },
+      "per_series": {
+        "item_1047756_store_23": 0.7340086146161127,
+        "item_1304243_store_32": 0.22255653026217292
+      },
+      "review_calls": 18,
+      "seconds": 3319.1419024951756,
+      "tasks": 18,
+      "tokens": 4707877,
+      "usage_complete": true,
+      "valid": 18,
+      "valid_only_rmsle": 0.4782825724391428,
+      "workflow_complete": 18
+    }
+  },
+  "blocked_requests": [
+    {
+      "path": "gnomon/item_1304243_store_32/round-7/blocked-request-17.json",
+      "cause": "request_budget_exhausted",
+      "forwarded": false,
+      "sha256": "3642ec99c0d2ada9b309c79a0334c24e0903549ce2026af2a50d151ace1de1a3"
+    }
+  ],
+  "readiness_requests": 54,
+  "readiness_reported_tokens": 756,
+  "source_hashes_match": true,
+  "source_files_verified": 27,
+  "evidence_root": "results/corrected-history-092-development-audit-003",
+  "live_trial_changed": false,
+  "final_holdout_accessed": false,
+  "audit_api_calls": 0,
+  "audit_provider_calls": 0,
+  "files": {
+    "snapshot.tar.gz": "e164fb4c7aef20c36b020c38395868ad0a18834f7eca58a3be97b73ba1348885",
+    "snapshot-script.py": "d199d439d90d4fd6231537f09a242ec345435a8fd8af31f4e218d3a10b805436",
+    "snapshot_local.py": "2ce4298036ee6ebc6bf06f624c80dbc477ec1060402557b7f72dec8e24dce492",
+    "remote-script.py": "2b7a7fcbecf556976769403740d96e3c9931397cc06c6d76c780323dd6d23db7",
+    "transfer-process.json": "e907ff6fa805607015aeda76b06e1e40b68b9d6f9c4b0be2fb0a1a3c63fcb493",
+    "snapshot/snapshot-manifest.json": "4a53c5097ca038892ba9563ce6e9b9fe36ffeb5a007b37ebaecce9cc07579ea0",
+    "snapshot/report.json": "8cc0b2a72d60acbf7f02dc9ca8e8e64a5f35e5706f88b8a83f0f8e668e2d2c7b",
+    "verification.json": "7a1ef5fe55cccba9fbb5b51a5714d8d338161d6e07513c3efe7fc99160c8fdc7",
+    "wire-audit.json": "650bfd12c902efc030424fa063504d1c182b9cab7ae38d621e2b0767023c3bc9",
+    "make_receipt.py": "06254f54ace8ddb433e0287ed7698f0b6943a6b873b56cc5b04dbf354c71e0bb"
+  }
+}

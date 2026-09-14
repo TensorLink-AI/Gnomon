@@ -1,6 +1,37 @@
 # 092: corrected-history agent trial
 
-Status at 2026-09-14 09:24 UTC: **pilot complete; development evaluation running**.
+Status at 2026-09-14 09:48 UTC: **pilot complete; development evaluation running**.
+The third snapshot contains 54 completed sessions, all valid and workflow-complete,
+and passes 7,787 independent numerical/evidence checks. All 5,978 archived files
+match their inventory; the remotely saved archive and its transferred copy share
+SHA-256 `e164fb4c7aef20c36b020c38395868ad0a18834f7eca58a3be97b73ba1348885`.
+All 27 trial source hashes still match the frozen manifest.
+
+The 17 cases completed by all three arms give mean RMSLE **0.469529765 Hermes,
+0.471083977 Gnomon without ledger, 0.473327956 ledger**. Ledger is **0.48% worse**
+than Gnomon. Matching here uses completion presence, not success or score; every
+completed workflow happened to be successful. The other three sessions remain
+in the audit and cost totals. These are two reused series at origins 0–7 and
+0–8, with no mature-history cases yet. This does not establish the 20% target.
+
+The failure-aware wire audit retains 715 forwarded attempts: 714 successful
+flash responses and the previously recorded proxy failure. Reported agent
+usage is 12,960,369 tokens; the failed attempt has unknown usage, so this is
+not a complete token total. Readiness adds 54 requests and 756 reported tokens.
+A seventeenth request in that same session was blocked locally and never
+forwarded. The session still completed its typed workflow within 16 forwarded
+requests. No free retry, rerun or score exclusion was introduced.
+
+On the same 17 matched cases, reported tokens are 4,515,422 Hermes, 4,484,226
+Gnomon, and 3,342,292 ledger; Gnomon's failed-attempt usage remains unknown.
+Billing is unavailable. These are cumulative development costs, including
+earlier snapshots, and must not be added to their totals. Pilot costs are separate.
+Receipt and reproduction script hashes:
+`evidence/corrected-agent-092-development-audit-003.json`.
+
+## Earlier snapshots and incidents
+
+At 2026-09-14 09:24 UTC, the development evaluation was running.
 The second development snapshot includes 39 completed sessions and passes 4,677
 independent checks, with all sessions complete and valid. Its 13 fully matched
 cases (two series, origins 0-5 and 0-6 respectively) give mean RMSLE 0.483503490
