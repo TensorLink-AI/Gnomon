@@ -1600,3 +1600,31 @@ baseline, two stage cutoffs, all eligible raw historical pairs, independent
 tree/cost audit and all existing strong guards. No paid confirmation authorized
 by a synthetic pass. Numerical corrections remain common-arm development tools,
 not a claim of changed/shipped Gnomon ledger performance or agent improvement.
+
+## Guarded accumulated-error078: audited negative source result
+
+Previous goal turn was progress:077helper/preflight preserved at634b517. This
+turn froze078at88835b9and ran416paired tasks, fixed six forecasts only. Guard
+baseline fits two CV folds; third-fold scores gate a production forest using
+full-three-fold045baseline. Historical source/recording closure is bounded at
+t-24hfor guard and t for production. No seventh-slot selection leakage or
+protected-data/API access. Same primitive/upper budget in both arms.
+
+Guarded control.26104146582467785;ledger.2578173225002649,1.23511%gain. Strong050
+gain.34546%, but2.68407%worse068and2.31446%worse061. Both domains worsen068;
+electricity worsens050.20%and incumbent/domain gates fail. Enabled195control
+and207ledger production corrections; baseline retained otherwise. No promotion.
+
+416guard baseline solves/5,994iterations;832guardforests+402productionforests,
+39,488trees.57.447s wall/50.859CPU. No base-model/API calls. Original raw/search/
+anchor/blend costs retained. Full independent audit2,551,857checks, zero failures
+(mostly tree-node checks, not statistical observations),1,234forests and416baseline
+certificates,44.871s. First two audit attempts failed at a node-support mismatch:
+NumPy weak-scalar comparison rounded double split threshold to float32. Byte-equal
+features and double-precision comparisons recovered exact support. Two audit
+boundary tests pass. Learner/experiment outputs unchanged; logs/diagnostic retained.
+
+Verified archive/receipt preserve all fits, stage evidence, predictions/costs and
+the audit incident. Goal remains active/unmet, main/PyPI unchanged.068remains
+incumbent. More guard/model complexity alone has not improved it; next work must
+identify transferable residual structure rather than assume flexibility suffices.
