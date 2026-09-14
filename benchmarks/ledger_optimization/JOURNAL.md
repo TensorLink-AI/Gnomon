@@ -1425,3 +1425,29 @@ Checkpoint evidence:results/lead-ensemble-070-001/checkpoint-verification-070.js
 Runtime stderr/stdout:/tmp/gnomon-lead-ensemble-070.log. Continue polling original
 handle; do not restart because an observation yields no output. Main/PyPI and
 protected data unchanged; goal active/unmet. This turn is concrete audit progress.
+
+## Hourly070 complete: gate failed; prior068remains lower error
+
+Several prior goal turns were verified waits on original live session70210;
+additional completed-prefix audits202and310were retained without changing the
+run. This turn observed original process exit0,416/416cases,832fits, and then
+completed the full independent audit. No restart, failure suppression or
+post-score numerical tuning. Settings remain freeze1aedb8b.
+
+Hourly control RMSLE.26656241115338347; hourly ledger.25593164388707146,
+3.98810%matched gain. Strong guard.2587110657586681, only1.07433%gain. Prior061
+.25198521475530405and068.2510782023798801both better.070is1.93304%worse than068
+and worsens each domain. Hourly control itself3.46877%worse than068control.
+Do not mistake increased relative memory gain for improved absolute forecasts.
+20%and incumbent/domain gates fail; no paid/final confirmation justified.
+
+Full51,689checks0fail across all832independent objective/gradient certificates,
+causal evidence, forecast/config IDs and aggregate/guard comparisons. Run1603.45s
+wall/1502.05CPU,174,620iterations; audit6.913s.0provider/APIcalls, all inherited
+search/preparation/comparison costs preserved. Prefix verification70/202/310
+explicitly remained partial until full audit. Full root/archive/receipt retained.
+
+Main/PyPI and protected data unchanged. Latest numerical development best stays
+068(.2510782;2.54%matched gain), not070or hindsight floor. Goal active/unmet.
+Next focus must specify how to generalize past experience better; simply giving
+more unconstrained hourly weights did not improve prospective performance.
