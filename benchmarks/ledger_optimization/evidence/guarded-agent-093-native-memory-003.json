@@ -1,0 +1,17 @@
+{
+  "status": "native_memory_restoration_verified",
+  "arm": "plain",
+  "series_id": "item_1457251_store_14",
+  "written_round": 6,
+  "restored_round": 7,
+  "note_sha256": "91ae4fbfe37ed18c96dc16b3dde2cd54cf8f9f8af0068cc07c5703d6f3f746e1",
+  "identical_saved_note": true,
+  "present_in_first_forwarded_request": true,
+  "scope": "Persistence and actual model exposure, not verification of the note claims, causal reliance or accuracy benefit. This is one prior write, not a new write in round 7.",
+  "files": {
+    "results/guarded-history-093-development-audit-013/snapshot/plain/item_1457251_store_14/round-6/memory.json": "8d96c2806a8ed5f2aecd66863abcb03d615246dedfcf95df8459d67188533d19",
+    "results/guarded-history-093-development-audit-014/snapshot/plain/item_1457251_store_14/round-7/memory.json": "8d96c2806a8ed5f2aecd66863abcb03d615246dedfcf95df8459d67188533d19",
+    "results/guarded-history-093-development-audit-014/snapshot/plain/item_1457251_store_14/round-7/api-01-forwarded.json": "f86b9d0b70154d494960ad978528d420bb004a4193f8391906ebbd3e1dec81bc"
+  },
+  "target_met": false
+}

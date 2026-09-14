@@ -175,6 +175,22 @@ class CollectionCapsuleTests(unittest.TestCase):
         self.assertEqual(len(self.calls), 4)
         self.assertEqual(self.selected, {'original': 'checkpoint'})
 
+    def test_typed_tuple_result_and_persisted_list_both_valid(self):
+        original = self.lab.core.execute
+        def execute(*args):
+            row = original(*args)
+            row['point'] = tuple(row['point'])
+            row['execution']['result']['point'] = row['point']
+            return row
+        self.lab.core.execute = execute
+        first = self.lab.backtest(self.config)
+        self.assertEqual(first['collection']['new_fits'], 4)
+        # Simulate the JSON roundtrip in actual core.logs between lab processes.
+        self.events[:] = json.loads(json.dumps(self.events))
+        second = self.lab.backtest(self.config)
+        self.assertTrue(second['reused'])
+        self.assertEqual(len(self.calls), 4)
+
     def test_initial_baseline_can_use_four_remaining_fits(self):
         self.padding = 56
         r = self.lab.backtest(self.config, initial_baseline=True)

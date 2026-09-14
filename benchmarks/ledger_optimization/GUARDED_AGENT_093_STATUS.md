@@ -1,8 +1,8 @@
 # Guarded pilot 093 — completed
 
-Latest audited continuation: 208/312 sessions, 69 matched cases (2026-09-14
-20:04 UTC). The pilot is complete; the full development continuation is active.
-See the thirteenth audit below. The 20% target remains unmet.
+Latest audited continuation: 221/312 sessions, 73 matched cases (2026-09-14
+20:23 UTC). The pilot is complete; the full development continuation is active.
+See the fourteenth audit below. The 20% target remains unmet.
 
 All 36 sessions finished. Every forecast is valid; plain Hermes completed 11/12 full workflows, Gnomon without ledger 12/12, ledger 12/12. The frozen completion gate passed. Independent local audit: 4,227 file hashes verified, 2,942 checks, zero integrity failures.
 
@@ -536,3 +536,29 @@ This is a live-grade diagnostic pending full session audit. No restart or
 extra agent budget occurred. There are now two unknown readiness-usage
 entries in the run; neither is assigned zero usage. Receipt:
 `evidence/guarded-agent-093-readiness-incident-002.json`.
+
+## Fourteenth continuation audit — 2026-09-14 20:23 UTC
+
+Thirteen new sessions passed 3,228 independent checks, zero failures or missing
+shutdown records. Verified archive hash and all 1,702 extracted files, all
+4,227 original pilot files and every new retained log prefix. Combined evidence:
+221 audited sessions, 73 all-three matched cases. Mean RMSLE: plain 0.462408,
+Gnomon 0.472225, ledger 0.450759, a 4.55% ledger reduction. Matched tokens:
+19,801,723 / 20,511,635 / 15,992,019, a 22.03% ledger reduction versus Gnomon.
+Full workflows: 70/73, 68/73, 73/73. Every forecast is valid; all cases stay
+in the comparison. The 20% target remains unmet. Receipt:
+`evidence/guarded-agent-093-development-audit-014.json`.
+
+The native note written by plain Hermes on item_1457251 round 6 is verified
+unchanged in round 7 and present in its first actual forwarded model request.
+This proves restoration/exposure on a second series, not correct memory claims
+or a causal accuracy benefit. Receipt: `evidence/guarded-agent-093-native-memory-003.json`.
+
+Separate local 096 integration now passes with published Gnomon 1.2.0 and the
+frozen numerical package versions. Real models and guarded lab subprocesses
+completed 48 fits across two synthetic origins and all three arms; 175 checks
+passed, plus 213 independent metric/visibility/installed-file checks. Original
+failed integration (17 fits) is preserved; its new-prototype tuple/list validation
+bug was corrected. No Engy call or live runtime change occurred. Hermes worker
+and paid efficacy gates remain outstanding. See `PAIRED_COLLECTION_096.md` and
+`evidence/collection-096-local-integration-001.json`.

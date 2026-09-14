@@ -1,0 +1,171 @@
+{
+  "status": "real_local_collection_integration_passed",
+  "passing_integration_checks": 175,
+  "independent_checks": 213,
+  "independent_metrics_recomputed": 42,
+  "wheel_files_verified": 46,
+  "gnomon_build": {
+    "build_id": "1.2.0+ga38cd0cad353.s9723394ccb6d",
+    "commit": "a38cd0cad35383e5f10021abf3aa20d4c16923be",
+    "dirty": false,
+    "fingerprint_scope": "gnomon_python_sources",
+    "package_version": "1.2.0",
+    "provenance": "git",
+    "source_sha256": "9723394ccb6d9e11991b312e01bac47c767c69407b6b33d36971cb6e48b6a22e"
+  },
+  "runtime": {
+    "plain": {
+      "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+      "gnomon": false,
+      "packages": {
+        "joblib": "1.6.0",
+        "numpy": "2.5.3",
+        "scipy": "1.18.1",
+        "pip": "24.0",
+        "scikit-learn": "1.9.1",
+        "cloudpickle": "3.1.2",
+        "narwhals": "2.26.0",
+        "threadpoolctl": "3.6.0"
+      }
+    },
+    "gnomon": {
+      "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+      "gnomon": true,
+      "packages": {
+        "joblib": "1.6.0",
+        "numpy": "2.5.3",
+        "scipy": "1.18.1",
+        "pip": "24.0",
+        "scikit-learn": "1.9.1",
+        "gnomon-forecast": "1.2.0",
+        "cloudpickle": "3.1.2",
+        "narwhals": "2.26.0",
+        "threadpoolctl": "3.6.0"
+      }
+    }
+  },
+  "capsule": {
+    "status": "offline_prototype_not_dispatch_ready",
+    "base_sources": {
+      "maturation.py": "6e3728f08ad7a5e551fafedae872afc4b470ccb3eacb41082405b71923b24875",
+      "execution_boundary_093.py": "bb96ab9dc4018b0a5a8daddf4ee19410b4aa9fed12006248e246f50ef36118fb",
+      "ledger_cards.py": "d997fa096900ba7129e5d693959fdf7e46ef5a97f3bf1a3b0c26908ef6c712c8",
+      "dev_evidence_summary.py": "a5dea6cdb20808016991e5a2fdf83e337822d4a4d21db25a5e527bd296453f62",
+      "agent_review.py": "bf21b9de4ec4c0389badf909c6b27565439456f0f92b82e8936ea1e8839eb6a7",
+      "boundary_schemas_093.py": "a839a3727db20d487818fb318081e0e8bfc3434ccfc5f54b510807f60f833db9",
+      "lab.py": "9470d1745d2db6fae6bc0afd434448bb3211e522038cfaabd50cd211638835cd",
+      "service_admission.py": "722c252bd0519cbded723e5e5bd174790623def9392e211d6ce6c14d98f1b664",
+      "transport.py": "9cfeb25fb2471707e1a2b83484a72abf3f566f1613035e66b0ee3e46267cffbc",
+      "policy.py": "dc652bb974b744d00b325b4c1336fe72b3583b01a8730a1c04d79622a605ef5c",
+      "check_forecast.py": "21f035381c5f51a4f4dfb9bda3e5e19400c7b7d5c9abe63df5f539b42c8994a9",
+      "ml_ledger_cards.py": "d997fa096900ba7129e5d693959fdf7e46ef5a97f3bf1a3b0c26908ef6c712c8",
+      "core.py": "d6a6ae0b9cf0c46b2c840cf02e8705aefb64fda12c63ba946cebef6efdc55661",
+      "numerical.py": "a71b75f06ad69fcca06275046c5e74565b15d7d6dd2538df0fe827c448fc0413",
+      "review_bridge.py": "419494cb699ed22b2963e2eb519084b3f285d83df20c53b2f0b9ca22dc940f5c",
+      "PROTOCOL.md": "013b339646c93d9fe8d8d5f4b53584bd0b000f28fe511e8946074f10efe77608",
+      "worker.py": "7d990fdb0fbd1a90d2771e6adfd4a7df152c6a7758b98fc9791c815296e01fd0",
+      "run.py": "73e2c383d131a42bf1cf6c47e6cc8beb3b66e1a0f39ca75511dca1411cd3942e",
+      "analyze.py": "c8d0d4ca6c971be6d39315278e1da020b28836d0fbef02c918a9fb176c14c995",
+      "preflight.py": "46d24f148dd370eee6e83bb4de0f1fcc89091b6c69ede6cebcaeccbcce7ba7e7",
+      "history_091.py": "82fbac7134d17e3c4dfb1d091f10f59a7b5cb73555f435c7007fcc97d8ea3f42",
+      "TASK.md": "86e403a1ab919b391ad4f412d8681876b7976f4e515bd72ab92b48131d32eaea",
+      "hermes_boundary_093.py": "0fd740aba17b96913bf97f9a19b6307b2e2f298429b8ae024569647116065051",
+      "visible_agent_review.py": "9620b0466e846023841e9a52b2359d28f4dd19e8f1c5f14a9b4525654a74c788"
+    },
+    "sources": {
+      "maturation.py": "6e3728f08ad7a5e551fafedae872afc4b470ccb3eacb41082405b71923b24875",
+      "execution_boundary_093.py": "bb96ab9dc4018b0a5a8daddf4ee19410b4aa9fed12006248e246f50ef36118fb",
+      "ledger_cards.py": "d997fa096900ba7129e5d693959fdf7e46ef5a97f3bf1a3b0c26908ef6c712c8",
+      "dev_evidence_summary.py": "a5dea6cdb20808016991e5a2fdf83e337822d4a4d21db25a5e527bd296453f62",
+      "agent_review.py": "bf21b9de4ec4c0389badf909c6b27565439456f0f92b82e8936ea1e8839eb6a7",
+      "boundary_schemas_093.py": "a839a3727db20d487818fb318081e0e8bfc3434ccfc5f54b510807f60f833db9",
+      "lab.py": "ebe98bf552a9d8891f7b43b6e450ce642d673ee67bbab48d57600abe6dc29d3e",
+      "service_admission.py": "722c252bd0519cbded723e5e5bd174790623def9392e211d6ce6c14d98f1b664",
+      "transport.py": "9cfeb25fb2471707e1a2b83484a72abf3f566f1613035e66b0ee3e46267cffbc",
+      "policy.py": "dc652bb974b744d00b325b4c1336fe72b3583b01a8730a1c04d79622a605ef5c",
+      "check_forecast.py": "21f035381c5f51a4f4dfb9bda3e5e19400c7b7d5c9abe63df5f539b42c8994a9",
+      "ml_ledger_cards.py": "d997fa096900ba7129e5d693959fdf7e46ef5a97f3bf1a3b0c26908ef6c712c8",
+      "core.py": "d6a6ae0b9cf0c46b2c840cf02e8705aefb64fda12c63ba946cebef6efdc55661",
+      "numerical.py": "a71b75f06ad69fcca06275046c5e74565b15d7d6dd2538df0fe827c448fc0413",
+      "review_bridge.py": "419494cb699ed22b2963e2eb519084b3f285d83df20c53b2f0b9ca22dc940f5c",
+      "PROTOCOL.md": "013b339646c93d9fe8d8d5f4b53584bd0b000f28fe511e8946074f10efe77608",
+      "worker.py": "7d990fdb0fbd1a90d2771e6adfd4a7df152c6a7758b98fc9791c815296e01fd0",
+      "run.py": "73e2c383d131a42bf1cf6c47e6cc8beb3b66e1a0f39ca75511dca1411cd3942e",
+      "analyze.py": "c8d0d4ca6c971be6d39315278e1da020b28836d0fbef02c918a9fb176c14c995",
+      "preflight.py": "46d24f148dd370eee6e83bb4de0f1fcc89091b6c69ede6cebcaeccbcce7ba7e7",
+      "history_091.py": "82fbac7134d17e3c4dfb1d091f10f59a7b5cb73555f435c7007fcc97d8ea3f42",
+      "TASK.md": "86e403a1ab919b391ad4f412d8681876b7976f4e515bd72ab92b48131d32eaea",
+      "hermes_boundary_093.py": "0fd740aba17b96913bf97f9a19b6307b2e2f298429b8ae024569647116065051",
+      "visible_agent_review.py": "9620b0466e846023841e9a52b2359d28f4dd19e8f1c5f14a9b4525654a74c788"
+    },
+    "base_inventory_sha256": "4ead8b05a2b15b2e9cb2a03c33fd7555dc04d1b985d23db2b5993cba1b61b121",
+    "changed_files": [
+      "lab.py"
+    ],
+    "fragment_sha256": "1aa71b409a706446b77e448df6f97ee1b6f06ff507e7c845e3199f91ef0243be",
+    "common_to_all_arms": true,
+    "engy_calls": 0,
+    "provider_calls": 0,
+    "outstanding": [
+      "Actual worker/model and maturation integration",
+      "Agent-visible task/budget descriptions and analyzer admission support",
+      "Frozen prospective protocol and passing dispatch gate"
+    ],
+    "final_gate_opened": false
+  },
+  "tests": {
+    "command": "python3 -m unittest benchmarks.tests.test_collection_capsule_096 -v",
+    "exit_status": 0,
+    "passed": 10
+  },
+  "actual_fits": {
+    "failed_attempt_001": 17,
+    "successful_attempt_002": 48,
+    "total_retained": 65
+  },
+  "engy_calls": 0,
+  "agent_sessions": 0,
+  "scope": "Real models, guarded lab subprocesses, checkpoint files and published 1.2.0 storage. Synthetic inputs and scripted tool calls, no Hermes agent/API transport or efficacy comparison. Pod worker integration and final dispatch gates remain outstanding.",
+  "failures_preserved": [
+    "Initial public index did not offer Gnomon 1.2.0; recovered using the exact hash-verified pod wheel.",
+    "First integration rejected valid typed tuple points in the new prototype; fixed and regression tested, original 17 fits retained.",
+    "First independent verifier mishandled wheel data-file relocation; corrected without changing installed files or rerunning fits."
+  ],
+  "files": {
+    "results/collection-096-local-integration-002/passed.json": "887f0d0dd3535d3bf832cba770ca6738a7fed4a5690e45c9362c8f24d762bd08",
+    "results/collection-096-local-integration-002/verification.json": "1c0a8e51634cbad32ce26a918c8ca352a097b48a52ec44d80c089cc8b13c0ea9",
+    "results/collection-096-local-integration-002/checks.json": "8fd5bd14628170cf4e719e3ecf3a58103da41ae3f0315c9453cdb1a9c3925689",
+    "results/collection-096-local-integration-002/calls.json": "9dc1aa32abbfb5cca31bc86afa3b08d47ff9be30971447d9fcedabe67b224fb5",
+    "results/collection-096-local-integration-002/host-jobs.json": "0dece7474efcb9ff3c81fb748a621135fb7f608c02485746bbf727426a7e68ce",
+    "results/collection-096-local-integration-002/verify.py": "4fae8075a56bf172fb50d625b01cd55334f31198c62f17316eac6a42b50a761c",
+    "results/collection-096-local-integration-002/verify-attempt-001.py": "758187daf9d36c8ca14e45d2a7eec5060a2b32743c74555e61989dab72189fe4",
+    "results/collection-096-local-integration-002/verify-attempt-001-failure.json": "08a5d77dfe81b3855ec98baf7ee13eb9dec6b9a6cc111fa25ae8a5344aff82cc",
+    "results/collection-096-local-integration-001/failure.json": "e233e32045bf3d3de7b6697378f3e67658f034b541cc69b824cd584bcf02a5c9",
+    "results/collection-096-local-integration-001/calls.json": "9f2267107a70b1c77b6048518f27ef56bab05f1c1e1e8c79109e7ee355c345f7",
+    "results/collection-capsule-096-offline-002/capsule/capsule.json": "08d6b95ddbdd127a020a4ce16b517420e38fcd7266b230daa88bd1a1172d3d1f",
+    "benchmarks/ledger_optimization/probe_collection_local_096.py": "3a26241e5947ca7a761f7f430e74d6557b88ec72a593a42978ed029e87fc991d",
+    "benchmarks/ledger_optimization/collection_backtest_096.py": "1aa71b409a706446b77e448df6f97ee1b6f06ff507e7c845e3199f91ef0243be",
+    "benchmarks/tests/test_collection_capsule_096.py": "db4a14fa1cdd22e190a29dfa1854d3257b802357ec8a33e604502984dd700d5e",
+    "results/collection-096-local-runtime-001/fetch-wheel.py": "a82fba7e5be9f19f731d399f17dbbef46349227f95058f107e93e227166441c7",
+    "results/collection-096-local-runtime-001/install-exit.json": "12f089661ef416ff4f4c772281bc318a45fd254b17f1aa52ccea6e22cc95100e",
+    "results/collection-096-local-runtime-001/plain-install.stdout": "f314215fbf91103f39c5110d5817aebaf51330d6c6f0e877271d7a1f9f55907f",
+    "results/collection-096-local-runtime-001/install-002-exit.json": "273e544435f3441c4d90d8d104f8a28065a7b55721f5eab48536ceee186f36d6",
+    "results/collection-096-local-runtime-001/plain-install-command.json": "085258becb3b193a86150c75eb7b4389f001eb4e652ff1cc82ca1619fe0cdc33",
+    "results/collection-096-local-runtime-001/gnomon_forecast-1.2.0-py3-none-any.whl": "030a5cd063c424482bebdc2a522aa98a8f4bf88285bab31c4e47ddc9afa04f2f",
+    "results/collection-096-local-runtime-001/install.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/collection-096-local-runtime-001/install-002.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/collection-096-local-runtime-001/install.stderr": "2ec39a7718eae1c4a51ad0c289dcd939932ae8a85afc95c304968d6dbf896599",
+    "results/collection-096-local-runtime-001/fetch-wheel.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/collection-096-local-runtime-001/venv.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/collection-096-local-runtime-001/plain-install.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/collection-096-local-runtime-001/wheel-transfer.json": "650311630ab2c55324c2b8e8dd2d42779c5a31f0a94b725e6d5c640aacc09d6a",
+    "results/collection-096-local-runtime-001/install-002-command.json": "46f7669cfa50c5c1cbdd1f4ee1f3e4b75e8f60863e2e30536cc5dc72665beab9",
+    "results/collection-096-local-runtime-001/plain-install-exit.json": "273e544435f3441c4d90d8d104f8a28065a7b55721f5eab48536ceee186f36d6",
+    "results/collection-096-local-runtime-001/install-002.stdout": "90269f529d479809021e70da36092785ed8cb39083903756f67276cfd0c5b113",
+    "results/collection-096-local-runtime-001/venv.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/collection-096-local-runtime-001/install-command.json": "e616243092cf01540d5cb72ba85bfb14dd6c1763e486d4e1afc51a0ff3a5cee0"
+  },
+  "target_met": false,
+  "final_holdout_accessed": false,
+  "live_sources_changed": false
+}

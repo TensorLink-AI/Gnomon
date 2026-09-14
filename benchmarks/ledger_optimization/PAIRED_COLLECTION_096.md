@@ -118,3 +118,43 @@ filesystem checkpoint durability, guarded-worker or maturation validation.
 The retained capsule and receipt are in `results/collection-capsule-096-offline-001`.
 Committed receipt: `evidence/collection-capsule-096-offline-001.json`. No paid
 trial, actual model fit, package release or final-data access occurred.
+
+## Local real-model integration completed
+
+`probe_collection_local_096.py` now runs scripted guarded lab subprocesses on
+two synthetic origins for all three arms, using separate local plain/Gnomon
+venvs. Plain has no Gnomon installation; all other local package versions match.
+NumPy 2.5.3, SciPy 1.18.1 and scikit-learn 1.9.1 match the frozen pod numerical
+versions. This runs locally, without modifying or competing with the pod runtime.
+
+The public index initially offered Gnomon only through 1.1.9. No older version
+was substituted. The exact pod 1.2.0 wheel was copied read-only and verified
+against SHA-256 `030a5cd063c424482bebdc2a522aa98a8f4bf88285bab31c4e47ddc9afa04f2f`.
+The local installed build matches source SHA-256
+`9723394ccb6d9e11991b312e01bac47c767c69407b6b33d36971cb6e48b6a22e`.
+
+The first integration exposed a prototype bug: an in-memory typed forecast
+point tuple was rejected because the new validator required a list. Both are
+valid public representations. The corrected capsule accepts both and includes
+a tuple-to-persisted-list regression. Ten local unit tests now pass. Original
+capsule and failed integration (17 actual fits) remain preserved.
+
+The corrected integration completed 48 real fits: eight per origin in each arm.
+175 integration assertions passed. Collection did not select a forecast; exact
+repeats and explicit commits reused executions. At the second origin, both the
+selected baseline and unselected Ridge forecast matured, with unchanged points
+and matched ledger evidence. Predictions agree across all three arms.
+
+A separate verifier passed 213 checks, recomputing 42 metric records, checking
+source and recorded cutoff visibility, confirming read-only ledger queries
+left the database bytes unchanged, and comparing 46 installed files to the
+verified wheel. Its first attempt mislocated wheel data entries under
+site-packages; that verifier failure is retained, with the corrected relocation
+check. No fits were rerun for that correction.
+
+Total real fits retained across failed/successful integration: 65. Engy calls:
+zero. No Hermes agent or API transport was exercised, no predictive-performance
+claim follows, and the full pod worker/dispatch gates remain outstanding. The
+live 093 run and queued seed integration are unchanged. The evidence root is
+`results/collection-096-local-integration-002`; receipt:
+`evidence/collection-096-local-integration-001.json`.

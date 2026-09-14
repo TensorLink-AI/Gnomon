@@ -22,7 +22,7 @@ def backtest(config, *, initial_baseline=False):
                 or ex.get('provider') != config['model'] + '_' + cid
                 or ex.get('revision') != 'ml-lab-v1:' + cid
                 or not ex.get('execution_id') or ex.get('result', {}).get('point') != point
-                or not isinstance(point, list) or len(point) != expected[end]['horizon']
+                or not isinstance(point, (list, tuple)) or len(point) != expected[end]['horizon']
                 or any(type(v) not in (int, float) or not math.isfinite(v) or v < 0 for v in point)):
             raise Rejected('COLLECTION_IDENTITY_MISMATCH', 'Stored execution does not match the current task and configuration.')
         if end == 730 and (row.get('actual') is not None or row.get('metrics') is not None):
