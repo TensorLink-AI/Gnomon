@@ -87,6 +87,46 @@ class VisibilityTest(unittest.TestCase):
         rows, excluded, reads = visible_records(self.db, [self.row], self.task)
         self.assertEqual((rows, excluded, reads), ([], [], 0))
 
+    def test_session_envelope_without_request_resolves_through_ledger(self):
+        self.row['execution'].pop('request')
+        rows, excluded, reads = visible_records(self.db, [self.row], self.task)
+        self.assertEqual(rows[0]['request'], self.execution['request'])
+        self.assertEqual((excluded, reads), ([], 1))
+
+    def test_tuple_arrays_and_integral_floats_are_equivalent(self):
+        self.row['execution']['request']['history'] = (1.0, 2.0)
+        self.row['execution']['result']['point'] = (2.0,)
+        rows, _, _ = visible_records(self.db, [self.row], self.task)
+        self.assertEqual(len(rows), 1)
+
+    def test_boolean_is_not_numeric_identity(self):
+        self.row['execution']['request']['history'][0] = True
+        with self.assertRaisesRegex(ValueError, 'history'):
+            visible_records(self.db, [self.row], self.task)
+
+    def test_all_supplied_semantic_fields_are_checked(self):
+        for key, correct, wrong in [('season', 7, 1), ('frequency', 'D', 'H'),
+                                    ('known_time_cutoff', '2026-01-02T00:00:00+00:00', '2026-01-01T00:00:00+00:00'),
+                                    ('past_covariates', [[1]], [[2]])]:
+            row = copy.deepcopy(self.row)
+            stored = copy.deepcopy(self.execution)
+            stored['request'][key] = correct
+            row['execution']['request'][key] = correct
+            row['request'][key] = wrong
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, key):
+                visible_records(Ledger(stored), [row], self.task)
+
+    def test_stored_configuration_metadata_is_authoritative(self):
+        self.execution['result']['metadata'] = {'config': {'model': 'constant'}}
+        self.row['execution']['result'] = copy.deepcopy(self.execution['result'])
+        with self.assertRaisesRegex(ValueError, 'config'):
+            visible_records(self.db, [self.row], self.task)
+
+    def test_unknown_supplied_request_field_is_rejected(self):
+        self.row['request']['invented'] = 1
+        with self.assertRaisesRegex(ValueError, 'invented'):
+            visible_records(self.db, [self.row], self.task)
+
 
 if __name__ == '__main__':
     unittest.main()
