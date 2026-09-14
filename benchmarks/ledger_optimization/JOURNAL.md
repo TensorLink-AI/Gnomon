@@ -1046,3 +1046,19 @@ forecast audit pass. Its6,721,431 assertions mostly cover repeated tree traversa
 not independent statistical observations. Preserve receipt051 and all models,
 inputs, scores and costs. No provider/API calls, hindsight weights or reserved
 reads. Negative gate; no promotion, paid confirmation, main or PyPI changes.
+
+## Locked disjoint-series validation 052: identities only
+
+Previous turn made progress: completed 051 experiment, independent audit and
+push bf9a42f. Revalidated reports, then froze validation protocol/code at 7e2abe1
+before choosing identities. Retain 050 as the locked strongest rule; do not
+continue tuning it on the same 416 cases for this validation.
+
+Using only 037 eligibility metadata, verified original hash ordering and selected
+positions 24–31 per domain. Sixteen new identities are disjoint from original
+development and all 32 final-reserved series. Three tests and 41 independent
+checks pass; selection hash 7940935335b7a924965f5974e861701d488fa961af893d4085c290b7a78de92d.
+The protocol fixes 416 tasks, dates, code hashes, cold-start rule and paired
+cluster/circular-block intervals before outcome reads. No new count values,
+forecast calls, API calls or scores at this stage. Receipt 052 preserves named
+IDs before source preparation. Goal remains unmet; final panel untouched.

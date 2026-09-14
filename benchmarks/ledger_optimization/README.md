@@ -40,6 +40,12 @@ that control. All416 tasks,52 evidence models and832 weight fits passed the
 independent saved-model audit. No new forecasting-provider/API calls or final
 access. The20% promotion gate failed; no paid agent confirmation was launched.
 
+[Disjoint-series validation 052](BROAD_VALIDATION_052_MANIFEST.md) now locks the
+050 rule and sixteen additional series selected by the original hash order.
+Identity preparation passed 41 independent checks; no new-series scored outcomes
+were read. Original final-reserved series remain untouched. Forecast execution
+and validation scoring have not yet occurred; this is preparation, not a result.
+
 ## Latest completed comparison: Gnomon 1.2.0 and Hermes
 
 DeepSeek **deepseek-v4.1-flash** through Engy; 104 tasks per arm, four retail
