@@ -77,9 +77,15 @@ was not supplied. No sessions were rerun and no failures were removed.
 Disjoint local audits cover all 312 sessions with **87,285 checks**, zero
 integrity failures and no missing shutdown records. Every transferred file was
 hash checked, retained pilot prefixes were verified, and all 312 rows agree
-exactly with the remote full audit. The experiment process exited 0. Controller
-archive packaging is still pending at this report revision; the queued
-synthetic seed validation has not been accepted as passed.
+exactly with the remote full audit. The experiment process exited 0. The controller finished cleanly and archived all evidence. All 43,356 final
+inventory files match the local assembled copy. Two transfers of the original
+compressed archive were truncated; those failed attempts remain retained. The
+original 763,498,084-byte archive remains on the pod, SHA-256
+`3fa9c33e97578025c77ae4b6eabd6a639b52feba2c01fdfe4a49d934832d8af1`.
+Local assembly reused 43,328 verified files and fetched 28 missing final files;
+it does not claim the original compressed archive was fully downloaded.
+Both queued synthetic seed validations passed: 96 fits, 758 independent
+checks, zero Engy calls, and 1,098 archive files verified.
 
 Authoritative receipts:
 
@@ -96,6 +102,6 @@ arms: each backtested configuration also produces a metered current forecast,
 so more comparable outcomes can mature later. It uses fresh controls and state;
 093 outcomes are not reused as 096 controls. This tests a measured evidence
 coverage gap rather than assuming that longer history alone will improve
-selection. It remains unlaunched until the controller and queued validation
-finish successfully. The untouched final holdout remains closed, the **20%
+selection. The controller, queued validation and remote read-only launch checks have
+passed; the paid pilot remains unlaunched at this report revision. The untouched final holdout remains closed, the **20%
 objective is unmet**, and main/PyPI are unchanged.

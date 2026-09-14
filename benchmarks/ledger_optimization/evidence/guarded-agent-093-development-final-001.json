@@ -1,5 +1,5 @@
 {
-  "status": "all_sessions_audited_costs_reconciled_controller_archive_pending",
+  "status": "completed_development_evidence_fully_verified",
   "sessions": 312,
   "matched_cases": 104,
   "independent_checks": 87285,
@@ -973,7 +973,7 @@
     "readiness_unknown_usage": 3,
     "orphan_responses": 0
   },
-  "controller_archive_finished": false,
+  "controller_archive_finished": true,
   "remote_local_audit_rows_identical": true,
   "runtime": {
     "distribution": "gnomon-forecast==1.2.0",
@@ -1002,6 +1002,88 @@
     "results/guarded-history-093-development-final-001/terminal/controller.py": "87596c9064de75b0ff55e030fbe13a479eada224bf94af4e773038fedc479ce4",
     "results/guarded-history-093-development-final-001/terminal/report.json": "3b32888bc5572ef18fe0dc9d34c80a6627c2f63646bc70a00f6ddf8554fb5c9c",
     "results/guarded-history-093-development-final-001/terminal/AUDITED.json": "efa2e9b6504acd219908a9050180f69877a5ee83ce4a2f50518a4889bb845e5d",
-    "results/guarded-history-093-development-final-001/terminal/RESULTS.md": "09b97195da9f01a881f526b5535da55d3fc54b3421b58e1f6f29b446601c5096"
-  }
+    "results/guarded-history-093-development-final-001/terminal/RESULTS.md": "09b97195da9f01a881f526b5535da55d3fc54b3421b58e1f6f29b446601c5096",
+    "results/guarded-history-093-development-final-001/terminal/FINISHED.json": "7cedd700da25861a2bc028bef5040589dc5739ba2ae661e5d9d52c2ecfd0df72",
+    "results/guarded-history-093-development-final-001/terminal/SHA256SUMS.json": "b1d825c5b3e15013e4ad4047cec04fa88b6cfb7ef9a7f93ee274d636b3b62221",
+    "results/guarded-history-093-development-final-001/inventory-transfer.json": "eb5d27894ebf09cf7f74bbf1365c3989075834bf9358b408431f2322151bf654",
+    "results/guarded-history-093-development-final-001/inventory-assembly.json": "01d5fe1381e4f644071a23a43ec0c118aa3559668093d3c2e43337ecbe4b504a",
+    "results/guarded-history-093-development-final-001/inventory-local-sources.json": "815dbb4b76d7d14b83c1ea4ee3e7a544c9cef11f3195bf33aa98f85fef18b999",
+    "results/guarded-history-093-development-final-001/inventory-missing.json": "df39e63af5ecb2701bbb034111a94a0ce1a9b33cf41d9e3e3e95a01096f282c0",
+    "results/guarded-history-093-development-final-001/missing.tar.gz": "7ce74246f6facd84b85723ee45b6b233f80165a5b58e7f14b202e2443ac74997",
+    "results/guarded-history-093-development-final-001/missing-remote.json": "359fff74ae970991d0f935a76b2636103cf4b15281d16a5445e2cb9b93825186",
+    "results/guarded-history-093-development-final-001/assemble-inventory.py": "3e1c3af3e2782c251a54cdce35e79f11342cbbce0b8054a98f980defa01f5b59",
+    "results/guarded-history-093-development-final-001/collect-missing.py": "11150cfbef2410b73f91067f10fc9784c083182bf6ba06e9db5a6a7bf8006d81",
+    "results/guarded-history-093-development-final-001/prepare-missing.py": "c44a5a825754fb6e4e25dc2adb3d7029641df4a036928b3b431d661c95c55dc9",
+    "results/guarded-history-093-development-final-001/collect-archive.py": "4ca383690f00a75056c923caf2bdbb41e6d016500d9aa2b95412919dac474b66",
+    "results/guarded-history-093-development-final-001/collect-archive-retry.py": "b34366082bf8c772d4da9eadaace3616d5eddc877c7da88eb4f9d5681ba3c3cb",
+    "results/guarded-history-093-development-final-001/archive-attempt-001-failure.json": "f1ee5be5acb26573f5cd54d31cfe90776e5b623f25fa51a58e57ff9b2d5b2f6c",
+    "results/guarded-history-093-development-final-001/archive-attempt-002-chunks.json": "6cdab0b8208fff29eb727e6cc96721a611e29fa1199c52f5effc088f47513db6",
+    "results/guarded-history-093-development-final-001/archive-retry-failed-27262976.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/guarded-history-093-development-final-001/archive-retry-failed-27262976.stdout": "a33af8291ab873222b7e9bf37e535555458eb21f5cc733f1cbd472605629f0f9"
+  },
+  "final_inventory": {
+    "status": "all_final_inventory_files_verified",
+    "files_verified": 43356,
+    "retained_local_files": 43328,
+    "fetched_missing_files": 28,
+    "missing_archive": {
+      "archive": "/root/gnomon-ledger-ml-v3/code/results/guarded-history-093-final-missing-001/missing.tar.gz",
+      "bytes": 222949,
+      "sha256": "7ce74246f6facd84b85723ee45b6b233f80165a5b58e7f14b202e2443ac74997",
+      "files": {
+        "complete.json": "c054162404b317d699dea4a4d1827afc41f3c98ca0b8ad54cd5707f69e5c43e8",
+        "status.json": "09da5fc6658be49b96ade935b2e64ac67d2308ebc969a1b71ecdced41e093acf",
+        "gnomon/item_1457251_store_14/home/cache/local_endpoint_probes.json": "b3da9cfef8f43d1a4645d92112a4bcb2d873f4e7954678e7e995e9cff6dd1acd",
+        "gnomon/item_1457251_store_14/home/logs/agent.log": "a2a78dfc6f925e8de5677187432995f3219475620a5b87038a602df76e9832ae",
+        "gnomon/item_1047756_store_23/home/cache/local_endpoint_probes.json": "5366aa96281eae0e2247578964fa9d72195e616d544b02e2e612ee90c6684634",
+        "gnomon/item_1047756_store_23/home/logs/agent.log": "fc1bd48e92aa7590f0f35ef6263f535e02bcddb2d8a03f1b0ad886264a3c205c",
+        "gnomon/item_1372862_store_12/home/cache/local_endpoint_probes.json": "bb187e33dfc9921e57f06c4ce2d81e5ec0fc50bd2502af51da1ea1e35e17f198",
+        "gnomon/item_1372862_store_12/home/logs/agent.log": "8d9aad79a14f8bbc43bca877fd5a066186aab681c54cd3c5eee8bfa6d7148d37",
+        "gnomon/item_1304243_store_32/home/cache/local_endpoint_probes.json": "5d5ebdbd7c328545aa69873616d331f28570f513b26eafc35422e3dc6c123351",
+        "gnomon/item_1304243_store_32/home/logs/agent.log": "5bf3c63ae9f5ac3c137f9929a1dd0c2030e8518f46cc08e7d08c166361900b7f",
+        "plain/item_1457251_store_14/home/cache/local_endpoint_probes.json": "450b6bdf74690dee17226daf5f3aac3d6bbf650b53e6636fe1ffae91794426ec",
+        "plain/item_1457251_store_14/home/memories/MEMORY.md": "91ae4fbfe37ed18c96dc16b3dde2cd54cf8f9f8af0068cc07c5703d6f3f746e1",
+        "plain/item_1457251_store_14/home/logs/agent.log": "ae2937b20d79c3e99db9b2767dc640098eba1e1382a4d98d54ab8ff232f306db",
+        "plain/item_1047756_store_23/home/cache/local_endpoint_probes.json": "07dd5ff57ab19f12c1df59d6c6773b09def76879ae53e8661a2e3caa73feadcb",
+        "plain/item_1047756_store_23/home/memories/MEMORY.md": "4bd314595dbabada8e466f5a6e2901bec16f7dca30e2951733be910f68d2bac4",
+        "plain/item_1047756_store_23/home/logs/agent.log": "b988672c460c054cefb3928c6697f34c61172c1dd5e770ad462a0d7235b40698",
+        "plain/item_1372862_store_12/home/cache/local_endpoint_probes.json": "9d6bf735a0cccad7a7830c57d1781acb6e7bc38f46db0957128edc54e1f7cacd",
+        "plain/item_1372862_store_12/home/logs/agent.log": "a55c34ca49c83cbea0224485fb8878eea3d3614cbadf71b66a852fca5beb6fc0",
+        "plain/item_1304243_store_32/home/cache/local_endpoint_probes.json": "357e518306fc17612e5772b1ddc28b9858719fb4bd706fe7e6f057dfd235243f",
+        "plain/item_1304243_store_32/home/logs/agent.log": "41bf54620da4bcbe4e9ab908a39a92288611f25abd4d52cfa954cdd888bb7fb0",
+        "ledger/item_1457251_store_14/home/cache/local_endpoint_probes.json": "5072bb90432b91ffa311699ea065c6fad41687f05ecd369336a8c291ae71c86e",
+        "ledger/item_1457251_store_14/home/logs/agent.log": "30711c18262dcbc170b0dbbc9f8a62de13322067e512d70c5c09edfd1a499ce6",
+        "ledger/item_1047756_store_23/home/cache/local_endpoint_probes.json": "28833efec981c40f5b332f84d867176856b6c44dba5bbe54467afab8d23dac0b",
+        "ledger/item_1047756_store_23/home/logs/agent.log": "140eac2e68eb2e6d3947711dbea8a186e62accebedbdbc3f11ac85c0a3ad8707",
+        "ledger/item_1372862_store_12/home/cache/local_endpoint_probes.json": "e9c3cf4d9bcdfed9ba72476baf25443fa11f0537e682643ff1d174b65ed1189a",
+        "ledger/item_1372862_store_12/home/logs/agent.log": "33a1e3fd1a7c208e6378fd6bb14807e04c90ea400fbc4cf14f7e79421cf1edd1",
+        "ledger/item_1304243_store_32/home/cache/local_endpoint_probes.json": "8bf25dd07d3f0e73505e8783bacaa314429d7270fe7f5ee75d298a28f4e11bb1",
+        "ledger/item_1304243_store_32/home/logs/agent.log": "95ad7d7e4e607e09a7c8121dba7982dd09b45fe41d2ba38c804243e1a46437aa"
+      }
+    },
+    "chunks": [
+      {
+        "offset": 0,
+        "sha256": "7ce74246f6facd84b85723ee45b6b233f80165a5b58e7f14b202e2443ac74997"
+      }
+    ],
+    "original_archive": {
+      "archive": "/root/gnomon-ledger-ml-v3/code/results/guarded-history-093-development-launch-001/evidence.tar.gz",
+      "bytes": 763498084,
+      "sha256": "3fa9c33e97578025c77ae4b6eabd6a639b52feba2c01fdfe4a49d934832d8af1"
+    },
+    "original_archive_download_complete": false,
+    "original_archive_preserved_on_pod": true,
+    "method": "Complete byte-verified inventory assembled from retained session copies and 28 fetched final files; original compressed archive is remote. Two failed full-transfer attempts retained.",
+    "forecast_reruns": 0
+  },
+  "controller_finished": {
+    "at": "2026-09-14T23:42:26.183987+00:00",
+    "development_exit_status": 0,
+    "archive_sha256": "3fa9c33e97578025c77ae4b6eabd6a639b52feba2c01fdfe4a49d934832d8af1",
+    "final_holdout_accessed": false,
+    "automatic_final_dispatch": false
+  },
+  "seed_integration_receipt": "benchmarks/ledger_optimization/evidence/seed-integration-093-completed-001.json",
+  "transfer_limitations": "Two original-archive transfers failed on truncated SSH stdout: first 16 MiB chunk, then a 2 MiB chunk during four concurrent reads. Failed drivers, partial files and second failure stdout/stderr retained. All final file bytes independently verified from retained copies and a 222,949-byte missing-files archive; original compressed archive retained remotely, not claimed downloaded."
 }

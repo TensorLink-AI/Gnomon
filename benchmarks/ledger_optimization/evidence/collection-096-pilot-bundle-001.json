@@ -1,0 +1,19 @@
+{
+  "archive_sha256": "e8dff0dc8a2f9de2428d347396e6ddec6c66a3e10c4c0c3ff88bc617947ff254",
+  "files_verified": 32,
+  "exit_status": 0,
+  "stdout": "{\"checks_passed\": true, \"paid_calls\": 0, \"output_created\": false, \"scope\": \"Read-only launch prerequisites; no dispatch.\"}\n",
+  "stderr": "",
+  "paid_calls": 0,
+  "run_exists": false,
+  "bundle": "/root/gnomon-ledger-ml-v3/code/results/collection-096-pilot-bundle-001/payload",
+  "status": "remote_bundle_and_read_only_launch_checks_passed",
+  "files": {
+    "results/collection-096-pilot-bundle-001/command.json": "3b3b3e01d08ffb54a5b16d4e0943bd1db0a6446f576fdae0231fa92dcbf4d5e9",
+    "results/collection-096-pilot-bundle-001/stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/collection-096-pilot-bundle-001/deploy.py": "73553ba1860b705fdf0434e684bf21d7b0b3a7094ef6fd7df558646a5fe6b5d5",
+    "results/collection-096-pilot-bundle-001/stdout.json": "3d064686dd1e926fbfcb50541fd0809cb8478abb7e9d1d80c1378d0e85abcefb"
+  },
+  "predecessors_completed": true,
+  "paid_pilot_launched": false
+}

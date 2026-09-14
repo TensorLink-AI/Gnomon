@@ -5,7 +5,7 @@ All 104 matched cases are independently audited: 87,285 checks, zero integrity
 failures. Ledger improves mean RMSLE by 2.61% versus Gnomon without ledger;
 the exploratory 95% interval is −2.01% to +6.42% and crosses zero. Full workflows
 are 97/104, 99/104 and 104/104 for plain/Gnomon/ledger. Costs are reconciled;
-controller archive packaging remains pending. The 20% target is unmet.
+all 43,356 final inventory files and queued seed validations are verified. The 20% target is unmet.
 See [complete development results](GUARDED_AGENT_093_DEVELOPMENT_RESULTS.md).
 The pilot and incremental receipts below remain part of the historical record.
 

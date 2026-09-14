@@ -1,0 +1,67 @@
+{
+  "status": "verified",
+  "archive": {
+    "archive": "/root/gnomon-ledger-ml-v3/code/results/seed-integration-093-queued-001/evidence.tar.gz",
+    "bytes": 3489540,
+    "sha256": "f4853951ba01364e3ebaefba34dd567cf2fce3a2037176fd4d6ccabe60b483e0",
+    "finished": {
+      "at": "2026-09-14T23:45:19.684357+00:00",
+      "archive_sha256": "f4853951ba01364e3ebaefba34dd567cf2fce3a2037176fd4d6ccabe60b483e0",
+      "passed_sha256": "ec4d82d90f80b9f819088d00536d2ff56c38f07d82e507eee3bd0a7d680a20ab"
+    }
+  },
+  "chunks": [
+    {
+      "offset": 0,
+      "sha256": "85106ef3e2bff1dc90cfd9bbc552d6e728e044d801e6931fb51c9d73b3fb93d1"
+    },
+    {
+      "offset": 1048576,
+      "sha256": "5bfab9a4b5b0947882d31aaa373e33b342345ec5966bcb1bc7dea8516cee54f7"
+    },
+    {
+      "offset": 2097152,
+      "sha256": "58dffb7ea79df175d84b49ad75034fe0f9f4c6e8843da9e9e2ec6d719f71b5e5"
+    },
+    {
+      "offset": 3145728,
+      "sha256": "980981a7272d64c7c27cef5ea1d87645388039132ac6ef8d72d31a35c35ec0e9"
+    }
+  ],
+  "files_verified": 1098,
+  "passed": {
+    "passed": true,
+    "results": [
+      {
+        "seed": 7,
+        "passed_sha256": "35283becdfdc140bfeecf1c0e6a4d2ad3424dcbea75ae14aad44da7abadc8f65",
+        "independent_audit_checks": 379,
+        "numerical_attempts": 48
+      },
+      {
+        "seed": 19,
+        "passed_sha256": "544342e534581fbec9bba0c61600d09da79ccf093a109e8d6b8b266569c9046e",
+        "independent_audit_checks": 379,
+        "numerical_attempts": 48
+      }
+    ],
+    "engy_calls": 0,
+    "synthetic_model_responses": 48,
+    "numerical_attempts": 96,
+    "final_gate_opened": false
+  },
+  "forecast_reruns": 0,
+  "files": {
+    "results/seed-integration-093-completed-001/collect.py": "1a00317f6e8f88c2bf1e75f595bbc88a6076374eef8457fa39121dc66e11ec02",
+    "results/seed-integration-093-completed-001/remote.json": "f110b8e9a48cadb2c991ac6ff31aaacee992ce3ddfbe73db41a6457ca5888b30",
+    "results/seed-integration-093-completed-001/FINISHED.json": "8add4c21ea06ca5bd8cf37922cab5191830528340567270f9591fee04c3286a0",
+    "results/seed-integration-093-completed-001/evidence.tar.gz": "f4853951ba01364e3ebaefba34dd567cf2fce3a2037176fd4d6ccabe60b483e0",
+    "results/seed-integration-093-completed-001/transfer.json": "d4ff5a8f2d58acb44aa9431e165c0d877f903e460ac3c11d311a1c738823a66e",
+    "results/seed-integration-093-completed-001/original/passed.json": "ec4d82d90f80b9f819088d00536d2ff56c38f07d82e507eee3bd0a7d680a20ab",
+    "results/seed-integration-093-completed-001/original/exit-7.json": "81868a6e94ffc0178bf833deb1c9013d9fab4ee95ddb876a5e8ec4f1d26376d2",
+    "results/seed-integration-093-completed-001/original/exit-19.json": "81868a6e94ffc0178bf833deb1c9013d9fab4ee95ddb876a5e8ec4f1d26376d2",
+    "results/seed-integration-093-completed-001/original/integration-7/passed.json": "35283becdfdc140bfeecf1c0e6a4d2ad3424dcbea75ae14aad44da7abadc8f65",
+    "results/seed-integration-093-completed-001/original/integration-19/passed.json": "544342e534581fbec9bba0c61600d09da79ccf093a109e8d6b8b266569c9046e"
+  },
+  "scope": "Both queued synthetic worker integrations exited 0; 96 real numerical fits, 48 scripted responses, 758 independent checks, zero Engy calls. Native memory and seed isolation verified. No efficacy or provider seed-support claim."
+}
