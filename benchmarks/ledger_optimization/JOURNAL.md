@@ -1077,3 +1077,12 @@ passed before execution. It started after d2bd571 was pushed. Raw forecasts are
 running in shell session60594; no accuracy result is claimed yet. An independent
 verifier is prepared while forecasting proceeds; its scalar arithmetic tests
 also pass. Main/PyPI/final-reserved data remain unchanged. No paid agent job.
+
+Adapter regression additionally reproduces050's frozen mixtures on the first
+previously scored electricity:T15 and pedestrian:sensor_1 cases, all three arms,
+with zero forecast difference. Six weight fits,0 provider computations/API calls,
+0.265 seconds; receipt retained separately from validation costs. Live session
+60594 was polled successfully at210/533 raw cases; no failure or validation
+score yet. This checkpoint is progress plus a verified wait, not a completed
+accuracy experiment. Continue the same process handle; do not restart it merely
+because a polling call yields.

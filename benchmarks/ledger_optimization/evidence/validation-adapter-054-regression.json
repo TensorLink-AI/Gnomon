@@ -1,0 +1,20 @@
+{
+  "purpose": "Adapter equivalence to frozen050 on two previously scored development cases, not validation",
+  "cases": [
+    {
+      "series_id": "electricity:T15",
+      "round": 0,
+      "forecast_max_delta": 0.0
+    },
+    {
+      "series_id": "pedestrian:sensor_1",
+      "round": 0,
+      "forecast_max_delta": 0.0
+    }
+  ],
+  "weight_fits": 6,
+  "forecast_computations": 0,
+  "api_calls": 0,
+  "seconds": 0.2646696970004996,
+  "adapter_sha256": "d4c2de4641ec2519e002856c2b4f382654850358afa6353169331c526e821c1e"
+}
