@@ -1,0 +1,616 @@
+{
+  "experiment": "092",
+  "phase": "development",
+  "audit": "006",
+  "cumulative": true,
+  "includes_prior_audits": [
+    "001",
+    "002",
+    "003",
+    "004",
+    "005"
+  ],
+  "snapshot": {
+    "at": "2026-09-14T12:00:09.981521+00:00",
+    "completed_sessions": 120,
+    "integrity_checks": 28200,
+    "integrity_failures": [],
+    "verified_files": 14631,
+    "matched_cases": 39,
+    "matched_mean_rmsle": {
+      "plain": 0.46071074341660057,
+      "gnomon": 0.4645567076313543,
+      "ledger": 0.4702435750459196
+    },
+    "complete": false,
+    "remote_transfer_verified": {
+      "remote_archive": "/root/gnomon-ledger-ml-v3/code/results/corrected-history-092-development-audit-006/snapshot.tar.gz",
+      "sha256": "6d620fe945064f7b363454277458f859da70ea2a7198dfaa8e893aa848ebc664",
+      "bytes": 284413719,
+      "snapshot": "2026-09-14T12:00:09.981521+00:00",
+      "sessions": 120,
+      "credential_scan_passed": true
+    },
+    "provider_calls_for_audit": 0,
+    "api_calls_for_audit": 0,
+    "transfer_method": "Saved remotely, rsync transferred, and archive/file hashes verified before analysis. No evaluation sessions rerun or excluded by score."
+  },
+  "scope": "All completed sessions, no success or score filtering. Matched comparisons require all three arms to have finished that case, regardless of validity. Early and mature cases are reported separately using the frozen round thresholds. Reused development series; no held-out inference.",
+  "matched_cases": [
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 0
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 1
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 2
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 3
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 4
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 5
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 6
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 7
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 8
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 9
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 10
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 11
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 12
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 13
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 14
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 15
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 16
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 17
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 18
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 0
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 1
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 2
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 3
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 4
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 5
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 6
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 7
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 8
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 9
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 10
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 11
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 12
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 13
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 14
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 15
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 16
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 17
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 18
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 19
+    }
+  ],
+  "matched_mean_rmsle": {
+    "plain": 0.46071074341660057,
+    "gnomon": 0.4645567076313543,
+    "ledger": 0.4702435750459196
+  },
+  "matched_ledger_relative_improvement": -0.012241492418785693,
+  "matched_costs": {
+    "plain": {
+      "sessions": 39,
+      "reported_tokens": 9265376,
+      "forwarded_requests": 519,
+      "usage_complete": true
+    },
+    "gnomon": {
+      "sessions": 39,
+      "reported_tokens": 9700024,
+      "forwarded_requests": 516,
+      "usage_complete": false
+    },
+    "ledger": {
+      "sessions": 39,
+      "reported_tokens": 8212738,
+      "forwarded_requests": 476,
+      "usage_complete": false
+    }
+  },
+  "wire_audit": {
+    "scope": "All completed folders in supplied snapshot; no success-based exclusions.",
+    "passed": true,
+    "model_counts": {
+      "deepseek-v4.1-flash": 1550
+    },
+    "forwarded_attempts": 1552,
+    "successful_responses": 1550,
+    "failed_responses": 2,
+    "reported_total_tokens": 27863986,
+    "attempts_without_usage": 2,
+    "usage_complete": false,
+    "missing_usage_not_assumed_zero": true,
+    "billing_dollars": null,
+    "readiness_probes_included": false,
+    "audit_api_calls": 0,
+    "audit_provider_calls": 0,
+    "reported_prompt_tokens": 27468405,
+    "reported_completion_tokens": 395581
+  },
+  "arms": {
+    "gnomon": {
+      "admission_api_calls": 41,
+      "admission_reported_tokens": 574,
+      "admission_wait_seconds": 93.24188873358071,
+      "api_calls": 545,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 1,
+      "checkpoint_publications": 83,
+      "cold_rmsle": 0.5080809287072852,
+      "corrections": 0,
+      "distinct_configs_per_task": 6.073170731707317,
+      "dollars": null,
+      "http_errors": 1,
+      "later_rmsle": null,
+      "ledger_reviews": 0,
+      "mature_rmsle": 0.4409844314870235,
+      "mean_rmsle": 0.4656443283338076,
+      "numerical_attempts": 828,
+      "numerical_successes": 828,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 41
+      },
+      "per_series": {
+        "item_1047756_store_23": 0.7424230161182106,
+        "item_1304243_store_32": 0.20204557806294757
+      },
+      "review_calls": 41,
+      "seconds": 8602.925474500284,
+      "tasks": 41,
+      "tokens": 10194883,
+      "usage_complete": false,
+      "valid": 41,
+      "valid_only_rmsle": 0.4656443283338076,
+      "workflow_complete": 41
+    },
+    "ledger": {
+      "admission_api_calls": 40,
+      "admission_reported_tokens": 546,
+      "admission_wait_seconds": 147.91612675599754,
+      "api_calls": 476,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 0,
+      "checkpoint_publications": 78,
+      "cold_rmsle": 0.5189922757240519,
+      "corrections": 0,
+      "distinct_configs_per_task": 6.153846153846154,
+      "dollars": null,
+      "http_errors": 1,
+      "later_rmsle": null,
+      "ledger_reviews": 37,
+      "mature_rmsle": 0.4419451994776101,
+      "mean_rmsle": 0.4702435750459196,
+      "numerical_attempts": 798,
+      "numerical_successes": 798,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 39
+      },
+      "per_series": {
+        "item_1047756_store_23": 0.7425030899472188,
+        "item_1304243_store_32": 0.21159703588968537
+      },
+      "review_calls": 39,
+      "seconds": 7898.232787957415,
+      "tasks": 39,
+      "tokens": 8212738,
+      "usage_complete": false,
+      "valid": 39,
+      "valid_only_rmsle": 0.4702435750459196,
+      "workflow_complete": 39
+    },
+    "plain": {
+      "admission_api_calls": 40,
+      "admission_reported_tokens": 560,
+      "admission_wait_seconds": 58.67432167567313,
+      "api_calls": 531,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 0,
+      "checkpoint_publications": 80,
+      "cold_rmsle": 0.521150176130206,
+      "corrections": 0,
+      "distinct_configs_per_task": 5.9,
+      "dollars": null,
+      "http_errors": 0,
+      "later_rmsle": null,
+      "ledger_reviews": 0,
+      "mature_rmsle": 0.41442357061072077,
+      "mean_rmsle": 0.45496802443846257,
+      "numerical_attempts": 788,
+      "numerical_successes": 788,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 40
+      },
+      "per_series": {
+        "item_1047756_store_23": 0.721723994628192,
+        "item_1304243_store_32": 0.213617384742993
+      },
+      "review_calls": 40,
+      "seconds": 8360.538836114109,
+      "tasks": 40,
+      "tokens": 9456365,
+      "usage_complete": true,
+      "valid": 40,
+      "valid_only_rmsle": 0.45496802443846257,
+      "workflow_complete": 40
+    }
+  },
+  "blocked_requests": [
+    {
+      "path": "gnomon/item_1304243_store_32/round-7/blocked-request-17.json",
+      "cause": "request_budget_exhausted",
+      "forwarded": false,
+      "sha256": "3642ec99c0d2ada9b309c79a0334c24e0903549ce2026af2a50d151ace1de1a3"
+    }
+  ],
+  "readiness_requests": 121,
+  "readiness_reported_tokens": 1680,
+  "source_hashes_match": true,
+  "source_files_verified": 27,
+  "evidence_root": "results/corrected-history-092-development-audit-006",
+  "live_trial_changed": false,
+  "final_holdout_accessed": false,
+  "audit_api_calls": 0,
+  "audit_provider_calls": 0,
+  "completion": {
+    "sessions": 120,
+    "valid": 120,
+    "full_workflow": 120
+  },
+  "matched_phases": {
+    "cold": {
+      "cases_per_arm": 8,
+      "cases": [
+        {
+          "series_id": "item_1047756_store_23",
+          "round": 0
+        },
+        {
+          "series_id": "item_1047756_store_23",
+          "round": 1
+        },
+        {
+          "series_id": "item_1047756_store_23",
+          "round": 2
+        },
+        {
+          "series_id": "item_1047756_store_23",
+          "round": 3
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 0
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 1
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 2
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 3
+        }
+      ],
+      "mean_rmsle": {
+        "plain": 0.521150176130206,
+        "gnomon": 0.5080809287072852,
+        "ledger": 0.5189922757240519
+      },
+      "ledger_relative_improvement_vs_gnomon": -0.02147560831407036,
+      "interpretation": "Descriptive partial-run subset on reused development series; not confirmation. Late is a subset of mature."
+    },
+    "developing": {
+      "cases_per_arm": 12,
+      "cases": [
+        {
+          "series_id": "item_1047756_store_23",
+          "round": 4
+        },
+        {
+          "series_id": "item_1047756_store_23",
+          "round": 5
+        },
+        {
+          "series_id": "item_1047756_store_23",
+          "round": 6
+        },
+        {
+          "series_id": "item_1047756_store_23",
+          "round": 7
+        },
+        {
+          "series_id": "item_1047756_store_23",
+          "round": 8
+        },
+        {
+          "series_id": "item_1047756_store_23",
+          "round": 9
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 4
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 5
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 6
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 7
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 8
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 9
+        }
+      ],
+      "mean_rmsle": {
+        "plain": 0.47842067969020324,
+        "gnomon": 0.48050808090002795,
+        "ledger": 0.4825502025769882
+      },
+      "ledger_relative_improvement_vs_gnomon": -0.004249921610340435,
+      "interpretation": "Descriptive partial-run subset on reused development series; not confirmation. Late is a subset of mature."
+    },
+    "mature": {
+      "cases_per_arm": 19,
+      "cases": [
+        {
+          "series_id": "item_1047756_store_23",
+          "round": 10
+        },
+        {
+          "series_id": "item_1047756_store_23",
+          "round": 11
+        },
+        {
+          "series_id": "item_1047756_store_23",
+          "round": 12
+        },
+        {
+          "series_id": "item_1047756_store_23",
+          "round": 13
+        },
+        {
+          "series_id": "item_1047756_store_23",
+          "round": 14
+        },
+        {
+          "series_id": "item_1047756_store_23",
+          "round": 15
+        },
+        {
+          "series_id": "item_1047756_store_23",
+          "round": 16
+        },
+        {
+          "series_id": "item_1047756_store_23",
+          "round": 17
+        },
+        {
+          "series_id": "item_1047756_store_23",
+          "round": 18
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 10
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 11
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 12
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 13
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 14
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 15
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 16
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 17
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 18
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 19
+        }
+      ],
+      "mean_rmsle": {
+        "plain": 0.4240773383117545,
+        "gnomon": 0.4361561682718001,
+        "ledger": 0.4419451994776101
+      },
+      "ledger_relative_improvement_vs_gnomon": -0.01327284038822163,
+      "interpretation": "Descriptive partial-run subset on reused development series; not confirmation. Late is a subset of mature."
+    },
+    "late_subset": {
+      "cases_per_arm": 0,
+      "cases": [],
+      "mean_rmsle": {
+        "plain": null,
+        "gnomon": null,
+        "ledger": null
+      },
+      "ledger_relative_improvement_vs_gnomon": null,
+      "interpretation": "Descriptive partial-run subset on reused development series; not confirmation. Late is a subset of mature."
+    }
+  },
+  "readiness_audit": {
+    "probes": 121,
+    "ready": 120,
+    "failed_probes": [
+      {
+        "path": "ledger/item_1304243_store_32/round-10/service-admission/probe-01-receipt.json",
+        "number": 1,
+        "at": "2026-09-14T09:52:50.496112+00:00",
+        "status": 504,
+        "seconds": 30.009278347715735,
+        "usage": null,
+        "ready": false,
+        "retryable": true,
+        "cause": "service_unavailable",
+        "response": {
+          "error": {
+            "type": "upstream_error",
+            "message": "probe_wall_clock_deadline_exceeded"
+          }
+        }
+      }
+    ],
+    "attempts_without_usage": 1,
+    "usage_complete": false,
+    "reported_tokens": 1680,
+    "scope": "Task-free readiness probes before session admission; separate from agent budgets. All probes count in experiment costs. Missing usage is unknown, not zero."
+  },
+  "files": {
+    "snapshot.tar.gz": "6d620fe945064f7b363454277458f859da70ea2a7198dfaa8e893aa848ebc664",
+    "snapshot-script.py": "d199d439d90d4fd6231537f09a242ec345435a8fd8af31f4e218d3a10b805436",
+    "snapshot_local.py": "ea7e146ae8bbc4a87286ebe27c59a90020c46197193d6ad7d5044260872316a2",
+    "remote-script.py": "0c9e3bc6d5ce5c41e1039169951820b16aa86f268f11e9a3652f0d806c8d490b",
+    "transfer-process.json": "0caaa7fb98a50aa00324a018bf22f82a2c4abfcb49dec288bf2d461607d20993",
+    "snapshot/snapshot-manifest.json": "cffda9f1ffdf48beedb82c4a3add99c5df692d187cfc463132fd621bbeaa7c13",
+    "snapshot/report.json": "25559efd2b3c537f5a116da72ed8c91129c5318a6db3d93f97590ed610c4a562",
+    "verification.json": "96d874a93feccdeb307e94a01a90236f9a4e042f1f07758bf99a158e652d382f",
+    "wire-audit.json": "6756952e4857506f55e8e4afead5697338ee8707cc6e745b68a2a0c6f1aa2626",
+    "make_receipt.py": "b97b63d6ec198465053f49fd9ca748f2a33a28a76b3591a55366825130b99ef1"
+  }
+}
