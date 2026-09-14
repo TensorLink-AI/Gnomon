@@ -1172,3 +1172,24 @@ memory used408/416 cases,5.976 of16 neighbors on average. Gate fails.
 all results/costs under receipt060. No promotion or paid confirmation. Separate
 055 validation and final reserves remain untouched; main/PyPI unchanged. Both
 jobs terminal, no agent run in flight.20% final matched-agent goal remains unmet.
+
+## Lifetime evidence retention061: modest development gain, gate failed
+
+Previous turn made progress: audited059 historical generation and060 comparison,
+retained costs and pushed dd0c055. Revalidated state before freezing061 at
+1807fb5. The single hypothesis removes the hard eight-origin eligibility filter
+while retaining the same1066 contexts, models, nearest16 retrieval and fitting
+rules. No new validation/final observations or forecast calls.
+
+All416 tasks complete. Lifetime RMSLE0.2519852148:2.60% better than matched CV,
+0.57% better than original ledger,0.108% better than expanded recent ledger.
+Electricity effectively ties original ledger but measured0.00126% worse; the
+unchanged per-domain/20% gate fails. Older evidence used396/416 cases,7.935 of16
+neighbors on average; actual use does not establish a large benefit.
+
+Three new/four inherited tests and177,489 independent checks pass, plus16
+unchanged-pool cases with exactly matching060 predictions/training hashes.
+416 weight fits/24,065 iterations/5.173s,0 forecast/API calls; all inherited costs
+retained. Archive/receipt061 committed. No promotion, paid confirmation, main or
+PyPI change. Separate validation/final reserves unchanged. Goal remains active
+and unachieved; no running agent job.
