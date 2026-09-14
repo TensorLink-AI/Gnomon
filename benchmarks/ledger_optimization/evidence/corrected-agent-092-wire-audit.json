@@ -1,0 +1,39 @@
+{
+  "experiment": "092",
+  "change": "Offline failure-aware wire audit only; no live source or settings changes.",
+  "tests": {
+    "command": "python3 -m unittest benchmarks.tests.test_wire_092 -v",
+    "passed": 6
+  },
+  "real_incident": {
+    "forwarded_attempts": 16,
+    "successful_responses": 15,
+    "failed_responses": 1,
+    "reported_total_tokens": 254269,
+    "attempts_without_usage": 1,
+    "usage_complete": false
+  },
+  "prior_snapshot": {
+    "forwarded_attempts": 529,
+    "successful_responses": 529,
+    "failed_responses": 0,
+    "reported_total_tokens": 9827684,
+    "usage_complete": true
+  },
+  "incident_files_match_remote_hashes": 48,
+  "source_hashes": {
+    "benchmarks/ledger_optimization/audits/wire_092.py": "bbf8920b942e33066fd2f8c982a17397b66270e8339e69990cf81fa55771bce2",
+    "benchmarks/tests/test_wire_092.py": "f5332354f4e1ec7602760442f84b5a383cf23696f04cd9f1bdd7c3cf5986ba88"
+  },
+  "evidence_files": {
+    "results/corrected-history-092-service-incident-001/new-wire-verification.json": "64268b02b2df95a48295f57cb774bb2714f3996ad4a1c147d5ffce6a9ef44b5c",
+    "results/corrected-history-092-service-incident-001/prior-success-snapshot-verification.json": "bcc4bac1304f4fe6a3800e059e72c7013d97a5e96c49b0a57358f5fa8879b684",
+    "results/corrected-history-092-service-incident-001/wire-download.json": "0765c95806b10addb2925536a0666d0b35b8703c31ba49a46d8b52c83412f8be",
+    "results/corrected-history-092-service-incident-001/wire-files.txt": "3f87198062d8f87c1c844795a022a1fbb03d9e0b191146cb5a0bc719bf96a9b3",
+    "results/corrected-history-092-service-incident-001/wire-fixture/snapshot-manifest.json": "5dfd221806559f6708fb77d9dd3e86046af65b5c7cd154582cd0775587cc9cc9"
+  },
+  "audit_api_calls": 0,
+  "audit_provider_calls": 0,
+  "trial_restarted": false,
+  "main_or_pypi_changed": false
+}

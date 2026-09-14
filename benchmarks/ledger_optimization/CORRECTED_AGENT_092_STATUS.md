@@ -41,6 +41,22 @@ No session was rerun and no forecast-engine defect was established. Later audits
 must include failed responses explicitly; earlier all-success wire checks are
 snapshot-specific assertions, not a rule for excluding failures.
 
+The offline `audits/wire_092.py` now handles both successful and failed attempts,
+retains incomplete workflows, and reports `usage_complete` and
+`attempts_without_usage`. It rejects missing receipts, dropped attempts, changed
+model settings and inconsistent usage arithmetic. Six regression tests pass.
+It reproduced the prior 529-successful-request snapshot exactly and verified the
+actual 16-attempt incident, including its one unknown-usage failure. This audit
+change does not alter the frozen trial. Receipt: `evidence/corrected-agent-092-wire-audit.json`.
+
+```sh
+python3 -m benchmarks.ledger_optimization.audits.wire_092 /path/to/snapshot --output /tmp/wire-audit-new.json
+```
+
+Use a new output path. Readiness probes are separately accounted for; the wire
+audit's token totals include only reported usage, never an estimate for missing
+responses or billed dollars.
+
 The fresh 312-session development evaluation continues. See the
 [complete pilot result](CORRECTED_AGENT_092_PILOT.md) for the separate pilot's
 worse ledger accuracy; pilot and development scores are not pooled.
