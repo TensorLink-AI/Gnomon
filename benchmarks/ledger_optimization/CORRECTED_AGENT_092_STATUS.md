@@ -1,8 +1,20 @@
 # 092: corrected-history agent trial
 
-Status at 2026-09-14 08:34 UTC: **pilot complete; ledger accuracy worse**.
-The fresh 312-session development evaluation is running (five sessions completed
-at the latest process-verified check). See the [complete pilot result](CORRECTED_AGENT_092_PILOT.md).
+Status at 2026-09-14 08:54 UTC: **pilot complete; development evaluation running**.
+The first development snapshot includes 19 completed sessions and passes 1,544
+independent checks, with all sessions complete and valid. Its six fully matched
+cases (two series, origins 0-2) give mean RMSLE 0.4944 for Hermes, 0.4831 for
+Gnomon without ledger and 0.5053 for ledger: ledger is 4.6% worse than Gnomon.
+This is an early, selected completed subset, not a mature-history or final result.
+The other cases remain in the run; no settings or completion handling changed.
+See `evidence/corrected-agent-092-development-audit-001.json` for preserved raw
+snapshot hashes and costs. These 19 sessions consumed 257 agent requests and
+4,550,750 tokens, plus separately counted readiness probes. Do not add later
+cumulative snapshots to these costs.
+
+The fresh 312-session development evaluation continues. See the
+[complete pilot result](CORRECTED_AGENT_092_PILOT.md) for the separate pilot's
+worse ledger accuracy; pilot and development scores are not pooled.
 This is development data. The 20% held-out objective remains unproven.
 
 The new checkpoint-v5 trial keeps 13 common numerical, orchestration and tool

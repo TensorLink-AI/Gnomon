@@ -1,0 +1,190 @@
+{
+  "experiment": "092",
+  "phase": "development",
+  "audit": "001",
+  "snapshot": {
+    "at": "2026-09-14T08:53:38.593917+00:00",
+    "completed_sessions": 19,
+    "integrity_checks": 1544,
+    "integrity_failures": [],
+    "verified_files": 1996,
+    "matched_cases": 6,
+    "matched_mean_rmsle": {
+      "plain": 0.4943965280548367,
+      "gnomon": 0.48314358778465955,
+      "ledger": 0.5053367170282039
+    },
+    "complete": false,
+    "provider_calls_for_audit": 0,
+    "api_calls_for_audit": 0
+  },
+  "scope": "All 19 complete sessions at snapshot time. Six fully matched cases from two of four reused series, origins 0-2. Not pooled with pilot; not final or mature-history evidence.",
+  "selected_successful_subset": true,
+  "all_completed_sessions_full_workflows": true,
+  "matched_cases": [
+    {
+      "round": 0,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "round": 1,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "round": 2,
+      "series_id": "item_1047756_store_23"
+    },
+    {
+      "round": 0,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "round": 1,
+      "series_id": "item_1304243_store_32"
+    },
+    {
+      "round": 2,
+      "series_id": "item_1304243_store_32"
+    }
+  ],
+  "matched_ledger_relative_improvement": -0.045934852090877776,
+  "wire_audit": {
+    "scope": "Completed sessions in the first development snapshot only, excludes live sessions and separately counted readiness probes.",
+    "checks": 809,
+    "passed": true,
+    "model_counts": {
+      "deepseek-v4.1-flash": 257
+    },
+    "agent_requests": 257,
+    "prompt_tokens": 4482391,
+    "completion_tokens": 68359,
+    "total_tokens": 4550750,
+    "billing_dollars": null
+  },
+  "arms": {
+    "gnomon": {
+      "admission_api_calls": 7,
+      "admission_reported_tokens": 98,
+      "admission_wait_seconds": 9.221083160489798,
+      "api_calls": 94,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 0,
+      "checkpoint_publications": 14,
+      "cold_rmsle": 0.47540816305400324,
+      "corrections": 0,
+      "distinct_configs_per_task": 5.714285714285714,
+      "dollars": null,
+      "http_errors": 0,
+      "later_rmsle": null,
+      "ledger_reviews": 0,
+      "mature_rmsle": null,
+      "mean_rmsle": 0.47540816305400324,
+      "numerical_attempts": 134,
+      "numerical_successes": 134,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 7
+      },
+      "per_series": {
+        "item_1047756_store_23": 0.765911341081852,
+        "item_1304243_store_32": 0.25753077953311665
+      },
+      "review_calls": 7,
+      "seconds": 1075.3975505437702,
+      "tasks": 7,
+      "tokens": 1703718,
+      "usage_complete": true,
+      "valid": 7,
+      "valid_only_rmsle": 0.47540816305400324,
+      "workflow_complete": 7
+    },
+    "ledger": {
+      "admission_api_calls": 6,
+      "admission_reported_tokens": 84,
+      "admission_wait_seconds": 7.846456810832024,
+      "api_calls": 81,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 0,
+      "checkpoint_publications": 12,
+      "cold_rmsle": 0.5053367170282039,
+      "corrections": 0,
+      "distinct_configs_per_task": 7.5,
+      "dollars": null,
+      "http_errors": 0,
+      "later_rmsle": null,
+      "ledger_reviews": 4,
+      "mature_rmsle": null,
+      "mean_rmsle": 0.5053367170282039,
+      "numerical_attempts": 147,
+      "numerical_successes": 147,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 6
+      },
+      "per_series": {
+        "item_1047756_store_23": 0.8104233628788929,
+        "item_1304243_store_32": 0.20025007117751495
+      },
+      "review_calls": 6,
+      "seconds": 952.3358153868467,
+      "tasks": 6,
+      "tokens": 1277670,
+      "usage_complete": true,
+      "valid": 6,
+      "valid_only_rmsle": 0.5053367170282039,
+      "workflow_complete": 6
+    },
+    "plain": {
+      "admission_api_calls": 6,
+      "admission_reported_tokens": 84,
+      "admission_wait_seconds": 7.506396731361747,
+      "api_calls": 82,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 0,
+      "checkpoint_publications": 12,
+      "cold_rmsle": 0.4943965280548367,
+      "corrections": 0,
+      "distinct_configs_per_task": 4.833333333333333,
+      "dollars": null,
+      "http_errors": 0,
+      "later_rmsle": null,
+      "ledger_reviews": 0,
+      "mature_rmsle": null,
+      "mean_rmsle": 0.4943965280548367,
+      "numerical_attempts": 99,
+      "numerical_successes": 99,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 6
+      },
+      "per_series": {
+        "item_1047756_store_23": 0.7885493835261675,
+        "item_1304243_store_32": 0.2002436725835058
+      },
+      "review_calls": 6,
+      "seconds": 981.2372851576656,
+      "tasks": 6,
+      "tokens": 1569362,
+      "usage_complete": true,
+      "valid": 6,
+      "valid_only_rmsle": 0.4943965280548367,
+      "workflow_complete": 6
+    }
+  },
+  "readiness_requests": 19,
+  "readiness_reported_tokens": 266,
+  "source_hashes_match": true,
+  "evidence_root": "results/corrected-history-092-development-audit-001",
+  "files": {
+    "snapshot.tar.gz": "eb8cf30340ae1643d83043e6d05c13dbd1652eae96ad1076db10bb6f1d8060cd",
+    "snapshot-script.py": "d199d439d90d4fd6231537f09a242ec345435a8fd8af31f4e218d3a10b805436",
+    "snapshot_local.py": "f1ce01a76f28555bb95b44c45e5c5a25f4f4ae7c35db5863dc5f27acd19df1f6",
+    "download.json": "0734f70e8e81d0427abd5b257f2876a36dda78aa3701eb0073f24689a6eccd1b",
+    "snapshot/snapshot-manifest.json": "b32e5143b104c9ebf337428163f610dfff838cd6c3ee1a02f40577418e6fb19e",
+    "snapshot/report.json": "14bd36b950a976d4ef9b82c20915d6ce786e6306d907c5da14dbf3d02b17f3b2",
+    "verification.json": "9a7bf8346366c4c5bd444d91293b5cb5518ecb81d68143876a663bd0f821177d",
+    "audit_wire.py": "e9be90250997709184bf9383e32c2f1d036c971a4a1fbf65bbb07dfcf43b5f08",
+    "wire-audit.json": "4a13524d3de992f4423d55230cbf96ca8daa0dec3e4e53e851cf20d33272c953"
+  },
+  "live_trial_changed": false,
+  "final_holdout_accessed": false,
+  "audit_api_calls": 0,
+  "audit_provider_calls": 0
+}
