@@ -1,0 +1,46 @@
+{
+  "status": "retained_failure_diagnostic",
+  "scope": "One completed development session; observed tool-call sequence, not prevalence or causal proof. Live sources/prompts/budgets unchanged.",
+  "session": {
+    "arm": "gnomon",
+    "series_id": "item_1047756_store_23",
+    "round": 6,
+    "origin": "2016-11-08T00:00:00+00:00",
+    "valid": true,
+    "workflow_complete": false,
+    "orchestration_stop": "request_budget_exhausted",
+    "api_calls": 16,
+    "tokens": 770432,
+    "numerical_attempts": 4,
+    "backtested_configurations": 1,
+    "baseline_checkpoint_only": true,
+    "rmsle": 0.8413607061435259
+  },
+  "returned_tool_call_counts": {
+    "project_list": 1,
+    "lab": 6,
+    "evidence_read": 6,
+    "data_summary": 13
+  },
+  "observations": [
+    "Thirteen data_summary calls, including unit_sales then sales then value column requests.",
+    "Repeated grouping by onpromotion, dow_sin, dow_cos and timestamp before any nonbaseline backtest.",
+    "Selection phase attempted committing a Ridge configuration that had not been backtested; final model response requested lab start.",
+    "Request budget exhausted with a valid seasonal baseline. Outcome stays in all primary scores."
+  ],
+  "future_variant_candidates": [
+    "Expose exact valid column mappings in data_summary rejection.",
+    "Review timestamp grouping output size and repeated summary behavior; any common-boundary change must be prospective and equal across arms."
+  ],
+  "not_changed": [
+    "Current frozen worker/tools",
+    "Current run budgets",
+    "Retained failed forecast and score",
+    "Held-out access gate"
+  ],
+  "files": {
+    "results/guarded-history-093-development-behavior-001/response-calls.json": "589ae6f48a7a353506c2f7e29aae72255af986599cc1659cd5b5de63805611f5",
+    "results/guarded-history-093-development-behavior-001/query.py": "0a4cfa2fb2571da523dbc04a9d51df911b080199f3faaf635942448fb72ee971",
+    "results/guarded-history-093-development-behavior-001/incomplete-workflows.jsonl": "3279de349dffd5989815667a0bc0f04d11353d369ad1d3d01c1d5034b6bdfbb3"
+  }
+}
