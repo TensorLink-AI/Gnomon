@@ -1,0 +1,50 @@
+{
+  "freeze_commit": "aadab1c",
+  "root": "results/common-search-065-001",
+  "archive": "results/common-search-065-001.tar.gz",
+  "archive_sha256": "90b8cd2a433f460c19c42261ce461098b334caa746de886b8da40ce3cdb2692d",
+  "files": {
+    "control.json": "6483e447eaa53777109b0487ea834cdca136e9f0db23f976fb79dbb09e36640e",
+    "ledger.json": "27e7e3478874299339dc740a4913376f80b94412a8277f5ddf6434b1344b1419",
+    "manifest.json": "54799145351fb46e71201a70297a044d6e992ee4952c6569e2e5bf9ea32455d8",
+    "report.json": "96513c610235b2b97577828e545b0e3fe576c37177864826122940b42ef54242",
+    "solves.json": "61f9233ea4ac97bb3caa1f7b571069b1ae2a9117ce38c38051aae3c98338498c",
+    "synthetic-inputs.json": "f8ddf5a267649138c5dc1a3034dc61aac8ca8c8506ece0d80585d0f550c8facc",
+    "tests.txt": "87f349c9e355d395222daff83c5c698303eb42bf2a6bb6d7f078dd8e71c11c32",
+    "verification.json": "06414d79005aaa349ddaafdfbc4c96f5f5d0335ef22f6c5230aa5e80041aca72"
+  },
+  "report": {
+    "status": "search_prepared_not_source_evaluated",
+    "tests": 8,
+    "test_failures": 0,
+    "arms": {
+      "control": {
+        "steps": 11,
+        "tested_configurations": 17,
+        "simulated_attempts": 58,
+        "selected_config_id": "a39a0139ecace5c8cba51ba8304bf945261d3aee76ae44ca1135c17ef2633884"
+      },
+      "ledger": {
+        "steps": 11,
+        "tested_configurations": 17,
+        "simulated_attempts": 58,
+        "selected_config_id": "a39a0139ecace5c8cba51ba8304bf945261d3aee76ae44ca1135c17ef2633884"
+      }
+    },
+    "surrogate_solves": 30,
+    "completed_solves": 30,
+    "provider_calls": 0,
+    "api_calls": 0,
+    "seconds": 0.6291478650018689,
+    "cpu_seconds": 0.590957,
+    "limitation": "Synthetic labels exercise acquisition, maturity and budget plumbing. No source-data model search or ledger accuracy result."
+  },
+  "verification": {
+    "checks": 3537,
+    "failures": 0,
+    "independent_cholesky_solves": 22,
+    "report_sha256": "96513c610235b2b97577828e545b0e3fe576c37177864826122940b42ef54242",
+    "verifier_sha256": "e7358f3f5940aeccba9e17d04b62807dd9ce4f4d90b82a37879767e3f2be92ad",
+    "scope": "Independent synthetic labels, neighbor/scaling/mass reconstruction, training hashes, scalar kernels plus Cholesky posteriors, full acquisitions, final CV choices and simulated budgets. No source-data accuracy result."
+  }
+}

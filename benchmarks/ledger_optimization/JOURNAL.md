@@ -1268,3 +1268,28 @@ must be frozen/tested before running expanded configurations on development data
 Only executed backtests and genuinely matured production evidence may enter the
 ledger; historical preparation costs and all current attempts must be charged.
 Main/PyPI, validation055 and final reserves unchanged. Goal active and unmet.
+
+## Shared sequential search065: synthetic preflight passed
+
+Previous turn made progress: prepared/audited/pushed the common78-configuration
+adapter064 at6bcc440. Revalidated that freeze and the60-attempt contract, then
+froze065 at aadab1c before the retained synthetic search run. No new real-source
+configuration scores were accessed to choose acquisition parameters.
+
+One common weighted kernel/acquisition rule, current-only versus eligible prior
+backtest evidence. Current observed CV determines final selection in both arms.
+The retrieval path filters domain/arm, strictly earlier study origin, source and
+recording availability and implementation revision before reading labels. No
+unexecuted configuration or production outcome is used as a tuning label.
+
+Eight unit tests pass. Both synthetic traces complete11 proposals/17 tested
+configs/58 simulated numerical attempts; all22 acquisitions independently
+reproduced with scalar kernels and Cholesky solves.3537 audit checks pass.
+30 actual preflight surrogate solves,22 independent audit solves,0 provider/API
+calls,0.6291s preflight wall time. All synthetic records/choices/costs archived.
+
+The user requested status during this work; reported clearly that no new
+accuracy result exists and the last numerical development gain is2.60%.
+Next: freeze the source task runner, verify common logical/physical budget and
+chronological history exposure, then run the original416 tasks/125 warm-ups.
+Main/PyPI and protected datasets unchanged. Goal remains active and unmet.
