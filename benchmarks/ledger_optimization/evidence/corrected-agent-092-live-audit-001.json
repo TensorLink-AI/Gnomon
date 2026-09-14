@@ -1,0 +1,45 @@
+{
+  "experiment": "092",
+  "audit": "001",
+  "snapshot_at": "2026-09-14T07:42:13.575530+00:00",
+  "selection": "All sessions with grade.json and final memory.json present before snapshot; no score-based filter.",
+  "completed_sessions": 4,
+  "planned_pilot_sessions": 36,
+  "scope": "Opening origin only; partial run, no accumulated-history or accuracy claim.",
+  "independent_checks": 232,
+  "integrity_failures": [],
+  "wire_checks": {
+    "scope": "Four completed sessions only, excludes live sessions and separately counted readiness probes.",
+    "checks": 155,
+    "passed": true,
+    "model_counts": {
+      "deepseek-v4.1-flash": 49
+    },
+    "agent_requests": 49,
+    "prompt_tokens": 695724,
+    "completion_tokens": 11930,
+    "total_tokens": 707654,
+    "billing_dollars": null
+  },
+  "full_workflows": 4,
+  "valid_forecasts": 4,
+  "http_errors": 0,
+  "readiness_requests": 4,
+  "readiness_tokens": 56,
+  "process_verified_live": true,
+  "evidence_root": "results/corrected-history-092-live-audit-001",
+  "files": {
+    "snapshot.tar.gz": "b3588b8ec47a7772f4e17fa91a67c40023007ac91f3c73e3bfd7c43a8db90e96",
+    "snapshot-script.py": "330d41580f7e0be32f99972e411b8014280805bf8e54e2e8c63fd3b4b883838c",
+    "snapshot/snapshot-manifest.json": "3f36625326fb8b2d8f92a50d2664f2121306d416ca946096091dfbad0eb973a4",
+    "snapshot/report.json": "a5a614a03688b95f6b05d08d3d8eaa3697d717c4d5a84379fdb2f26ae1ecc559",
+    "audit.stdout": "aa897cb07d95e97b5d0dc1d617dc6fffe8af0d33e49e2513c440febd37bb355c",
+    "audit.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "audit_wire.py": "030d1d42ccc33f083a43f0208f35e0041684946b4b36b6c1a53c70fa3f3679f6",
+    "wire-audit.json": "93d5c85349ae65a8ad742a61a050617815eee7a5979a327616ef9504648e5b7b",
+    "live-status.json": "bfaecd8dbd64228ef96259f6b1fe584d0c07619bbda95f18e62cadb680f00b8d"
+  },
+  "snapshot_files_verified": 388,
+  "trial_settings_changed": false,
+  "final_reserve_accessed": false
+}
