@@ -76,3 +76,22 @@ interim series counts and concentration make projection to the complete run
 unsafe. Keep the full scheduled grid and all failures; do not reweight or remove
 cases to improve the result. Receipt:
 `evidence/guarded-agent-093-completion-contrast-001.json`.
+
+## Executed-forecast opportunity diagnostic
+
+Recomputed all 136 current-origin production forecasts across the same 23 audited
+matched cases; verified equality of 58 repeated configuration predictions across
+executions/arms. Perfect future-aware selection from their union gives mean RMSLE
+0.440175, versus Gnomon selected 0.527513: 16.56% reduction. Thus changing selection
+among these particular already-executed forecasts cannot achieve the 20% target
+on this subset. Ledger's own executed-set hindsight mean is 0.448149, versus its
+selected 0.468983. No additional model fits were made.
+
+This is a deliberately future-aware diagnostic, not a policy or a fair extra
+arm. It pools forecasts not individually executed by every arm and does not
+bound the entire permitted parameter search. A ledger-assisted agent could
+potentially discover different configurations within the same allowed tools;
+that would require prospective development evidence. The full scheduled run
+continues unchanged. Do not stop it, remove cases, change model families or open
+the final set on the strength of this partial bound. Receipt:
+`evidence/guarded-agent-093-executed-opportunity-001.json`.

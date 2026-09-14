@@ -1,0 +1,29 @@
+{
+  "scope": "Post-hoc future-aware selection bound over forecasts already executed across all three arms in audited partial development. Candidate availability is unequal between individual arms, so the union is not a fair executable treatment. This does not bound the full permitted configuration search or establish a usable policy. No new fits or final data.",
+  "matched_cases": 23,
+  "executed_forecasts_recomputed": 136,
+  "repeated_config_predictions_verified_equal": 58,
+  "selected_mean_rmsle": {
+    "plain": 0.4971211284184251,
+    "gnomon": 0.5275128582851778,
+    "ledger": 0.4689827956890604
+  },
+  "best_executed_union_mean_rmsle": 0.4401754808756603,
+  "union_hindsight_relative_reduction_vs_gnomon": 0.1655644521982481,
+  "within_arm_hindsight_mean_rmsle": {
+    "plain": 0.47354132427256085,
+    "gnomon": 0.4927079685688711,
+    "ledger": 0.4481486960880793
+  },
+  "future_outcomes_used": true,
+  "executable_policy": false,
+  "new_provider_calls": 0,
+  "engy_calls": 0,
+  "target_met": false,
+  "final_holdout_accessed": false,
+  "source_report_files": 73,
+  "files": {
+    "results/guarded-history-093-executed-opportunity-001/analyze.py": "86717e3bf704f4da3392d2c30b5476028ec94f1c4b704083935f7d37ba07ae77",
+    "results/guarded-history-093-executed-opportunity-001/report.json": "a1e307be5ac9557a0bc13cd638f1c6b4ba2e8889739f4218dab2269b772a8bfe"
+  }
+}
