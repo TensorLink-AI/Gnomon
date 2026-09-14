@@ -68,8 +68,9 @@ class CollectionCapsuleTests(unittest.TestCase):
             return {'execution_id': self.selected}
         self.lab.publish = publish
 
-    def test_only_lab_changes_and_source_is_immutable(self):
-        self.assertEqual(self.manifest['changed_files'], ['lab.py'])
+    def test_declared_capsule_changes_and_source_is_immutable(self):
+        self.assertEqual(set(self.manifest['changed_files']),
+                         {'lab.py', 'TASK.md', 'boundary_schemas_093.py', 'PROTOCOL.md', 'analyze.py'})
         self.assertEqual(len(self.manifest['sources']), 24)
         for name, digest in self.manifest['base_sources'].items():
             self.assertEqual(hashlib.sha256((SOURCE / name).read_bytes()).hexdigest(), digest)

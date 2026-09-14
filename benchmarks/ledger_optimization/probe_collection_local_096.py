@@ -27,12 +27,13 @@ def probe(capsule, plain_python, output):
     sys.path.insert(0, str(capsule))
     from benchmarks.hermes_ml_checkpoint_v6 import run
     from benchmarks.hermes_ml_checkpoint_v6.execution_boundary_093 import LabBoundary
+    from benchmarks.hermes_ml_checkpoint_v6.analyze import audit_collection_events
     assert run.HERE == package
     from gnomon.build_info import build_info
     info = build_info()
     assert info['package_version'] == '1.2.0' and info['source_sha256'] == run.BUILD_SHA
     output.mkdir(parents=True, exist_ok=False)
-    checks, calls, results = [], [], {}
+    checks, calls, results, collection_audits = [], [], {}, []
 
     def check(name, passed):
         checks.append({'assertion': name, 'passed': bool(passed)})
@@ -106,8 +107,16 @@ def probe(capsule, plain_python, output):
                 check(f'{arm}/{n}: explicit baseline selection completed comparison', selected['selection_after_comparison'] and selected['config']['model'] == 'seasonal')
                 status = call('status')
                 check(f'{arm}/{n}: total eight actual attempts', status['budget']['numerical_attempts'] == 8)
+                check(f'{arm}/{n}: four-fit capacity disclosed',
+                      status['budget']['fresh_backtest_fits'] == 4
+                      and status['budget']['backtest_batches_remaining'] == (60-8-1)//4)
                 review = call('review')
                 events = run.records(work)
+                audit = audit_collection_events(events, job)
+                collection_audits.append({'arm': arm, 'round': n, **audit})
+                check(f'{arm}/{n}: admission accounting matches actual executions',
+                      audit == {'admitted_batches': 2, 'numerical_attempts': 8, 'successful_results': 8,
+                                'failed_or_unfinished_attempts': 0, 'production_results': 2})
                 forecasts = [r for r in events if r['event'] == 'result' and r['kind'] == 'forecast' and r['task_origin'] == job['origin']]
                 check(f'{arm}/{n}: two unscored current forecasts', len(forecasts) == 2 and all(r['actual'] is None and r['metrics'] is None for r in forecasts))
                 check(f'{arm}/{n}: old event prefix unchanged', (work / 'experiments.jsonl').read_bytes().startswith(prefix))
@@ -130,6 +139,7 @@ def probe(capsule, plain_python, output):
         for name, digest in manifest['sources'].items():
             check(f'Source unchanged: {name}', run.sha(package / name) == digest)
         report = {'status': 'local_guarded_collection_integration_passed', 'checks': checks,
+                  'collection_audits': collection_audits,
                   'runtime': inventory, 'gnomon_build': info, 'actual_numerical_attempts': 48,
                   'engy_calls': 0, 'agent_sessions': 0, 'synthetic_origins': 2,
                   'scope': 'Real models, guarded lab subprocesses, checkpoint files and published 1.2.0 storage. Synthetic inputs and scripted tool calls, no Hermes agent/API transport or efficacy comparison. Pod worker integration and final dispatch gates remain outstanding.',

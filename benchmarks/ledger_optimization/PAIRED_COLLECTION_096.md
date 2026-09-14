@@ -88,7 +88,7 @@ budget without useful evidence or harms completion, retain that result instead
 of enlarging the ledger-only budget. The 20% final objective remains unchanged
 and the final holdout stays closed until a defensible development candidate exists.
 
-## Offline capsule prepared
+## Initial offline capsule (preserved)
 
 `collection_capsule_096.build` verifies the complete original 24-file 093 source
 inventory before creating a fresh directory. It replaces only `lab.backtest`
@@ -158,3 +158,32 @@ claim follows, and the full pod worker/dispatch gates remain outstanding. The
 live 093 run and queued seed integration are unchanged. The evidence root is
 `results/collection-096-local-integration-002`; receipt:
 `evidence/collection-096-local-integration-001.json`.
+
+## Updated budget descriptions and admission audit
+
+Capsule 003 changes five declared files in its generated copy: lab.py, TASK.md,
+boundary_schemas_093.py, PROTOCOL.md and analyze.py. The original 24-file
+inventory remains unchanged. Task and tool descriptions now disclose the four
+fresh fits, unselected collection, reuse and reserve; remaining-batch capacity
+uses four fits. The generated analyzer retains the corrected local 093 audit
+and adds sequential collection admission checks.
+
+The additional audit reconciles admitted missing origins against actual fits,
+charges unsuccessful attempts, rejects duplicate successful executions and
+checks phase, remaining budget, final-fit reserve and task/configuration identity.
+The parent analyzer remains responsible for guarded-call, selection, numerical
+and visibility checks. Six audit tests and ten capsule tests passed.
+
+The updated capsule passed 187 guarded integration assertions with another
+48 real fits across two synthetic origins and all three arms. Its separate
+verifier passed 213 checks, recomputed 42 metric records and verified 46 installed
+wheel files. Both selected and unselected forecasts matured; original execution
+points survived, and current forecasts remained unscored. All 113 fits across
+the original failed and two successful integrations are retained. No Engy calls
+or Hermes agent sessions were made.
+
+Receipt: `evidence/collection-096-local-integration-002.json`; raw evidence:
+`results/collection-096-local-integration-003`. Actual Hermes worker/API transport
+and a frozen prospective dispatch manifest remain outstanding. The candidate
+remains undeployed, the running 093 experiment is unchanged, and the final
+holdout remains closed.

@@ -59,9 +59,9 @@ def backtest(config, *, initial_baseline=False):
         admit(len(missing), reserve=reserve)
         core.append('experiments.jsonl', {
             'event': 'collection_batch_admitted', 'task_origin': task['origin'],
-            'config_id': cid, 'fits': len(missing), 'missing_ends': missing,
+            'config_id': cid, 'config': config, 'fits': len(missing), 'missing_ends': missing,
             'remaining_before': budget()['numerical_remaining'], 'reserve': reserve,
-            'initial_baseline': initial_baseline, 'selection_changed': False})
+            'phase': budget()['phase'], 'initial_baseline': initial_baseline, 'selection_changed': False})
         for end in missing:
             seconds = budget()['seconds_remaining_approx']
             if seconds is None or seconds <= 0:
