@@ -1,8 +1,8 @@
 # Guarded pilot 093 — completed
 
-Latest audited continuation: 247/312 sessions, 81 matched cases (2026-09-14
-21:03 UTC). The pilot is complete; the full development continuation is active.
-See the sixteenth audit below. The 20% target remains unmet.
+Latest audited continuation: 257/312 sessions, 85 matched cases (2026-09-14
+21:21 UTC). The pilot is complete; the full development continuation is active.
+See the seventeenth audit below. The 20% target remains unmet.
 
 All 36 sessions finished. Every forecast is valid; plain Hermes completed 11/12 full workflows, Gnomon without ledger 12/12, ledger 12/12. The frozen completion gate passed. Independent local audit: 4,227 file hashes verified, 2,942 checks, zero integrity failures.
 
@@ -617,3 +617,26 @@ audited inventory has 82/83/82 valid forecasts and 79/78/82 complete workflows;
 only the matched subset is compared above. The current controller remains active,
 and the queued seed test was independently confirmed live/waiting at 21:04 UTC.
 Receipt: `evidence/guarded-agent-093-development-audit-016.json`.
+
+## Seventeenth continuation audit — 2026-09-14 21:21 UTC
+
+Ten additional disjoint sessions passed 3,541 independent checks. Verified 1,451
+new file hashes and all 4,227 original pilot files; zero audit failures.
+Combined evidence contains 257 audited sessions and 85 all-three matched cases.
+
+| Arm | Matched RMSLE | Reported tokens | Model requests | Fits | Full matched workflows |
+|---|---:|---:|---:|---:|---:|
+| Hermes | 0.465160 | 23,440,529 | 1,179 | 1,237 | 82/85 |
+| Gnomon | 0.472986 | 23,945,351 | 1,172 | 1,267 | 80/85 |
+| Ledger | 0.454785 | 18,341,702 | 1,001 | 1,324 | 85/85 |
+
+Ledger has 3.85% lower RMSLE and 23.40% fewer reported tokens than Gnomon
+without ledger, while using more numerical fits. All incomplete workflows remain
+in scores. Full audited inventory: 86/85/86 valid forecasts and 83/80/86 complete
+workflows; only matched cases are compared above. Native memory was available to
+all arms, with saved plain-Hermes memory present in 24 audited sessions.
+These are reused-development results; the 20% target remains unmet and final
+holdout remains unopened. Live controller and queued seed integration must finish
+before the prospective collection pilot can launch.
+
+Receipt: `evidence/guarded-agent-093-development-audit-017.json`.

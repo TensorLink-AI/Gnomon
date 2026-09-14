@@ -1,0 +1,51 @@
+{
+  "status": "readiness_retry_recovered_task_in_progress",
+  "case": "gnomon/item_1372862_store_12/round-20",
+  "probes": [
+    {
+      "number": 1,
+      "at": "2026-09-14T21:29:25.085259+00:00",
+      "status": 504,
+      "seconds": 30.03425530716777,
+      "usage": null,
+      "ready": false,
+      "retryable": true,
+      "cause": "service_unavailable"
+    },
+    {
+      "number": 2,
+      "at": "2026-09-14T21:30:34.839807+00:00",
+      "status": 200,
+      "seconds": 9.752671109512448,
+      "usage": {
+        "prompt_tokens": 11,
+        "completion_tokens": 3,
+        "total_tokens": 14,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      "ready": true,
+      "retryable": false,
+      "cause": "completion_received"
+    }
+  ],
+  "completed_grade": null,
+  "unknown_readiness_usage_this_incident": 1,
+  "total_observed_unknown_readiness_usage": 3,
+  "scope": "Read-only readiness receipts. Existing retry policy recovered before task execution. Task grade was not yet available at observation; no assertion of task completion. No restart, extra task budget or score replacement.",
+  "files": {
+    "results/guarded-history-093-readiness-incident-003/exit.json": "124fd50cb6d223cdd18fedc166d00af7254199b6e6dedf9be82f71db87af6d01",
+    "results/guarded-history-093-readiness-incident-003/query.py": "4a5d324d47ca15769de29debec02a9f00139c60f264fdd73248eaa8c6a083fe6",
+    "results/guarded-history-093-readiness-incident-003/recovery-exit.json": "124fd50cb6d223cdd18fedc166d00af7254199b6e6dedf9be82f71db87af6d01",
+    "results/guarded-history-093-readiness-incident-003/recovery.json": "e4ad86c775b734b2d524da5c77af172413e4a17ac140edd794af0ef70cbbc628",
+    "results/guarded-history-093-readiness-incident-003/recovery.py": "6091ab98c71771bd4d20ea406aabf4407b5fcb0924ec74613c7f09cee4d270fc",
+    "results/guarded-history-093-readiness-incident-003/recovery.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/guarded-history-093-readiness-incident-003/stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/guarded-history-093-readiness-incident-003/stdout.json": "b5200035435a9bfafbe70cf68a186fc6ba292920b3d99f1d88b721eeb261584b"
+  },
+  "target_met": false
+}
