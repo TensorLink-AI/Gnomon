@@ -1,8 +1,8 @@
 # Guarded pilot 093 — completed
 
-Latest audited continuation: 111/312 sessions, 36 matched cases (2026-09-14
-17:28 UTC). The pilot is complete; the full development continuation is active.
-See the fifth audit below. The 20% target remains unmet.
+Latest audited continuation: 125/312 sessions, 41 matched cases (2026-09-14
+17:51 UTC). The pilot is complete; the full development continuation is active.
+See the sixth audit below. The 20% target remains unmet.
 
 All 36 sessions finished. Every forecast is valid; plain Hermes completed 11/12 full workflows, Gnomon without ledger 12/12, ledger 12/12. The frozen completion gate passed. Independent local audit: 4,227 file hashes verified, 2,942 checks, zero integrity failures.
 
@@ -221,3 +221,28 @@ interpretation of the phase difference. Mature full workflows are 10/10 plain,
 Continue the complete scheduled grid unchanged. Do not discard cold starts,
 change the mature threshold or claim an accumulated-history benefit from this
 partial diagnostic. Receipt: `evidence/guarded-agent-093-phases-001.json`.
+
+## Sixth continuation audit — 2026-09-14 17:51 UTC
+
+Fourteen additional disjoint sessions passed 4,510 independent checks with zero
+integrity failures and zero shutdown gaps. The 38,241,006-byte archive, all 2,031
+snapshot files, 4,227 original pilot files and 14 retained pilot prefixes passed
+hash/prefix verification. Original outcomes and all incomplete workflows remain
+in the cumulative analysis: 125 audited sessions, 41 all-three matched cases.
+
+| Arm | Matched mean RMSLE | Matched reported tokens | Model requests | Full matched workflows |
+|---|---:|---:|---:|---:|
+| plain | 0.483878 | 10,360,044 | 558 | 40/41 |
+| gnomon | 0.507830 | 11,926,787 | 585 | 38/41 |
+| ledger | 0.462619 | 8,592,963 | 492 | 41/41 |
+
+Ledger has 8.90% lower error and 27.95% fewer reported tokens than Gnomon without
+ledger. Numerical attempts remain higher: 569/593/646 respectively. Across all
+audited sessions, full completion is 40/41 plain, 39/42 Gnomon and 42/42 ledger;
+all forecasts are valid. These unbalanced totals are not the matched comparison.
+
+The one plain-arm native note is retained in seven sessions; no new memory
+writes were observed. Ledger evidence was available in 38 sessions, with at
+most 18 past origins. Later-phase origins (22+) are not yet represented by this
+audit. No change to live sources, main, PyPI or final-data access. Receipt:
+`evidence/guarded-agent-093-development-audit-006.json`.
