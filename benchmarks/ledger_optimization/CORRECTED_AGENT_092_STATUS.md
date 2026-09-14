@@ -42,6 +42,27 @@ add snapshots together. Pilot costs remain separate. Reproduction and hashes:
 `evidence/corrected-agent-092-development-audit-005.json`.
 The final holdout remains unopened and the target remains unmet.
 
+## Snapshot005 coverage diagnostic
+
+An offline diagnostic of all 32 saved ledger sessions passes 409 checks against
+the snapshot inventory. The two opening sessions have no history; all 30 later
+sessions have one review whose union of comparisons represents every prior
+origin. Exact configuration-pair support now reaches nine matched origins.
+Eighteen later selected configurations have matching prior evidence in returned
+cards; twelve do not. All twelve are also outside the complete eligible
+configuration catalogue, so additional pair pages would not supply those exact
+configurations. Nine reviews advertise further pair pages, but this does not
+explain these twelve unsupported choices.
+
+Among the twelve mature ledger sessions captured in this snapshot, eight select
+a configuration with matching prior comparisons and four select one outside
+the catalogue. This is a ledger-session coverage diagnostic, not the eleven-case
+all-arm matched accuracy subset above. The diagnostic establishes saved evidence
+availability only; it does not establish whether the agent used it, a product
+bug, or the cause of forecast error. The trial remains unchanged. No database
+queries, provider executions or API calls were made. Receipt and script hashes:
+`evidence/corrected-agent-092-development-coverage-002.json`.
+
 ## Snapshot004
 
 Status at 2026-09-14 10:32 UTC: **pilot complete; development evaluation running**.

@@ -1,0 +1,69 @@
+{
+  "experiment": "092",
+  "phase": "development",
+  "diagnostic": "coverage-002",
+  "based_on_snapshot": "development-audit-005",
+  "scope": "All completed ledger sessions in development snapshot005, including two opening sessions without history. Saved review availability only, not a claim that the agent read or used it, and not a causal explanation of accuracy. Missing support in returned cards does not establish absence from the ledger, especially where next_offset is supplied.",
+  "summary": {
+    "sessions": 32,
+    "reviews": 30,
+    "reviews_with_evidence": 30,
+    "selected_with_matched_prior_in_returned_cards": 18,
+    "selected_without_matched_prior_in_returned_cards_after_opening": 12,
+    "selected_with_matched_prior_in_returned_cards_by_round": {
+      "0": 0,
+      "1": 2,
+      "2": 0,
+      "3": 1,
+      "4": 1,
+      "5": 1,
+      "6": 1,
+      "7": 2,
+      "8": 1,
+      "9": 1,
+      "10": 1,
+      "11": 0,
+      "12": 2,
+      "13": 2,
+      "14": 2,
+      "15": 1,
+      "16": 0
+    },
+    "largest_matched_pair_origin_count": 9,
+    "reviews_with_more_pages_available": 9
+  },
+  "checks": 409,
+  "passed": true,
+  "all_prior_origins_represented_in_each_review": true,
+  "unsupported_selections_outside_complete_configuration_catalog": 12,
+  "interpretation": "All 30 nonopening sessions have saved reviews representing every prior origin. Eighteen selected configurations have matching prior evidence in returned cards; twelve do not. All twelve are outside the complete eligible configuration catalogue, so additional pair pages would not supply those exact configurations. Exact configuration-pair comparisons now reach nine matched origins. This establishes evidence availability and configuration support only, not whether the agent used the evidence or why accuracy differs. No product defect or causal accuracy effect is established.",
+  "evidence_root": "results/corrected-history-092-development-coverage-002",
+  "files": {
+    "audit.py": "815b960a6dfc4cff6335880522531026f802d930911d2472c0d13295d21f5788",
+    "result.json": "8eff692b84b03c84b5b2d82954e5b1fe97a82ef4fe5d0bbf8df7ca1b3af9e456",
+    "make_receipt.py": "ed1c8eb636bee4da58673782f2e3eaa6300a69c761de1f1385c7c851e0920051"
+  },
+  "snapshot_manifest_sha256": "6aa098178d89cd694840ac746252eface5780745a1b01298094fe616a2e0ca73",
+  "api_calls": 0,
+  "provider_calls": 0,
+  "database_queries": 0,
+  "live_trial_changed": false,
+  "final_holdout_accessed": false,
+  "phase_support": {
+    "cold_after_opening": {
+      "sessions": 6,
+      "selected_with_matched_prior_in_returned_cards": 3,
+      "selected_outside_complete_configuration_catalog": 3
+    },
+    "developing": {
+      "sessions": 12,
+      "selected_with_matched_prior_in_returned_cards": 7,
+      "selected_outside_complete_configuration_catalog": 5
+    },
+    "mature": {
+      "sessions": 12,
+      "selected_with_matched_prior_in_returned_cards": 8,
+      "selected_outside_complete_configuration_catalog": 4
+    }
+  }
+}
