@@ -1,0 +1,75 @@
+{
+  "status": "live_incomplete_workflow_identified",
+  "new_cases": [
+    {
+      "file": "plain/item_1372862_store_12/round-25/grade.json",
+      "grade": {
+        "api_calls": 16,
+        "api_errors": 0,
+        "arm": "plain",
+        "backtested_configurations": 1,
+        "baseline_checkpoint_only": true,
+        "blocked_api_requests": 0,
+        "cause": null,
+        "checkpoint_publications": 2,
+        "config": {
+          "model": "seasonal",
+          "season": 7
+        },
+        "corrections": 0,
+        "decision_summary_present": false,
+        "execution_id": "c29383d9-68fa-4886-9961-4a531474ada9",
+        "exit_code": 0,
+        "fallback_used": false,
+        "ledger_reviews": 0,
+        "numerical_attempts": 4,
+        "numerical_successes": 4,
+        "orchestration_stop": "request_budget_exhausted",
+        "origin": "2017-08-01T00:00:00+00:00",
+        "point": [
+          0.0,
+          0.0,
+          1.0,
+          2.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          2.0,
+          0.0,
+          1.0,
+          0.0
+        ],
+        "prior_outcomes": 25,
+        "responses": 16,
+        "review_calls": 1,
+        "rmsle": 0.6685550534532758,
+        "round": 25,
+        "seconds": 155.89883391559124,
+        "selection_after_comparison": false,
+        "selection_interventions": 4,
+        "series_id": "item_1372862_store_12",
+        "tokens": 495124,
+        "usage_complete": true,
+        "valid": true,
+        "workflow_complete": false
+      }
+    }
+  ],
+  "incomplete_workflows_by_arm": {
+    "plain": 5,
+    "gnomon": 5,
+    "ledger": 0
+  },
+  "all_incomplete_have_valid_forecasts": true,
+  "scope": "Read-only live grades. New session not yet independently archived/audited; all failures retained in scores. No rerun or extra budget. Stop reason is not a causal explanation for agent behavior.",
+  "files": {
+    "results/guarded-history-093-failure-monitor-005/command.json": "3b3b3e01d08ffb54a5b16d4e0943bd1db0a6446f576fdae0231fa92dcbf4d5e9",
+    "results/guarded-history-093-failure-monitor-005/query.py": "2cf594439aee17749cf3e06b5e5945adf715f56cf3adbbffdb9acf6d64a9eb5d",
+    "results/guarded-history-093-failure-monitor-005/stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/guarded-history-093-failure-monitor-005/stdout.json": "7c35977ae8dfdbedcf2ea148fc23208c73e32a487b77e86ab8da72f4f7876c03"
+  },
+  "target_met": false
+}
