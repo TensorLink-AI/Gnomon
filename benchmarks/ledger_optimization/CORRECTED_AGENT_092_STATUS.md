@@ -1,5 +1,49 @@
 # 092: corrected-history agent trial
 
+Status at 2026-09-14 12:58:57 UTC: **pilot complete; development evaluation running**.
+Snapshot007 captures 142 completed sessions, all valid and workflow-complete.
+It passes 37,648 independent numerical/evidence checks and verifies all 17,951
+archived files and 27 frozen trial source hashes. The remotely saved and locally
+verified archive is 385,186,223 bytes, SHA-256
+`fa4ad0caaea29ef96c478c2fa313916d1e2b425859ef19776a64a8ff014bbb73`.
+
+The 47 cases completed by all three arms give:
+
+| Arm | Mean RMSLE | Matched reported tokens | Forwarded attempts |
+|---|---:|---:|---:|
+| Hermes | 0.464976479 | 11,062,933 | 624 |
+| Gnomon without ledger | 0.468758493 | 11,555,257 | 623 |
+| Ledger | 0.475862922 | 10,118,182 | 574 |
+
+Ledger is **1.52% worse** than Gnomon without ledger, using approximately 12.4%
+fewer reported tokens. Each Gnomon arm has one failed attempt with unknown usage;
+reported tokens are incomplete. Matching requires all three arms to have finished
+the case regardless of validity; all happen to be successful. The one unmatched
+session remains in the archive and total costs. These are two reused development
+series, not held-out results.
+
+The 27 matched mature cases (origins >=10) give mean RMSLE 0.442357221 Hermes,
+0.451885363 Gnomon, 0.460111729 ledger: ledger is 1.82% worse. Cold and origins-4–9
+subsets remain 2.15% and 0.42% worse. The first three matched late cases (origins
+>=22, a subset of mature) give 0.521574428 Hermes, 0.531904009 Gnomon, and
+0.513726183 ledger: 3.42% lower ledger error. Three late cases do not establish
+a phase effect, improvement trend, or the 20% target. No passing claim is made.
+
+All 142 sessions made 1,836 forwarded agent attempts: 1,834 successful flash
+responses and the same two previously preserved failures. Reported agent usage
+is 32,999,704 tokens, excluding unknown failed-attempt usage. Readiness adds
+143 probes and 1,988 reported tokens, retaining the existing local deadline
+failure with unknown usage. The previously blocked extra agent request remains
+retained and was not forwarded. No new failure, free retry, rerun, score exclusion,
+or live trial change was introduced. The audit made zero API/provider calls.
+
+These are cumulative development costs including snapshots001–006; do not add
+them together. Pilot costs remain separate. Receipt and reproduction hashes:
+`evidence/corrected-agent-092-development-audit-007.json`.
+The final holdout remains unopened and the objective remains unmet.
+
+## Snapshot006
+
 Status at 2026-09-14 12:00 UTC: **pilot complete; development evaluation running**.
 Snapshot006 captures 120 completed sessions, all valid and workflow-complete.
 It passes 28,200 independent numerical/evidence checks and verifies all 14,631
