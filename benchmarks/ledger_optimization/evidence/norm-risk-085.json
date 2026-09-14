@@ -1,0 +1,41 @@
+{
+  "freeze_commit": "6b51690",
+  "root": "results/norm-risk-085-001",
+  "archive": "results/norm-risk-085-001.tar.gz",
+  "archive_sha256": "6fafcca32d7ea1e9bd8048af4a9f6e05e1b1832197f118fe5f051a7037b4e890",
+  "files": {
+    "audit.log": "42caae2e489b3566586e8c8c2a82e36771bf30e65f7f779ad8c532a38af59bd7",
+    "execution.log": "cc6437e26a56661a67ea326c4c339abd988226820c8047dc9c10a7e7161c42ff",
+    "manifest.json": "2fd4b9b23b2d719d76d5a7cf374b339e2879c7c5269a13029112609474d12876",
+    "model.json": "625679d4fdccba99327d645bbd3dee9ddc8b7464a26488ae0c7d17e5963e577b",
+    "query.json": "7ca3d8d1b17aa02d64a98fefa4ee46f23284ad524fa3f82241f89262df9841b7",
+    "report.json": "cc6437e26a56661a67ea326c4c339abd988226820c8047dc9c10a7e7161c42ff",
+    "training.json": "22d759dab7fc57e138187905c80c1d0eff23d411422a0184ce2c23827d5b9cbc",
+    "verification.json": "42caae2e489b3566586e8c8c2a82e36771bf30e65f7f779ad8c532a38af59bd7"
+  },
+  "report": {
+    "synthetic_only": true,
+    "training_cases": 6,
+    "training_rows": 144,
+    "forest_fits": 1,
+    "trees": 32,
+    "weight_fits": 24,
+    "weight_iterations": 289,
+    "seconds": 0.06102366399863968,
+    "api_calls": 0,
+    "base_forecasts": 0,
+    "source_evaluation_status": "not_started"
+  },
+  "verification": {
+    "checks": 1301,
+    "failures": 0,
+    "trees": 32,
+    "training_rows": 144,
+    "query_steps": 24,
+    "certified_weight_fits": 24,
+    "new_forests_or_weight_fits": 0,
+    "api_calls": 0,
+    "synthetic_only": true,
+    "verifier_sha256": "a4ca3752cb1d1055875a986be44297dd521da936bcfa2600c43acd59fc77426a"
+  }
+}

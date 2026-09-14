@@ -1751,3 +1751,20 @@ No new base/API calls; all inherited049616raw/anchor/search/comparison costs
 remain disclosed. Updated README's stale latest-result pointer. Main/PyPI and
 protected datasets unchanged. Actual-agent final goal remains active/unmet;
 081remains lowest predeclared development mean,068comparison reference retained.
+
+## Case-norm-scaled risk085: mathematical and synthetic preparation
+
+Previous goal turn was progress:084negative result audited/pushed fbfc6ee.
+Revalidated existing squared-risk objectives and checked for prior norm-scaling
+experiments. Frozen6b51690 after four tests. Return to081's10features and scale
+training Gram targets by1/(2*smoothed anchor RMSLE), rather than adding084context.
+Case-level quadratic upper bound matches smoothed norm and its gradient at the
+anchor; conditional learned query matrices are NOT guaranteed query-loss bounds.
+No claim of exact future mean-case RMSLE optimization or a proven20%advantage.
+
+Six synthetic cases/144rows,32trees,24weight fits,289iterations,0.0610s. Independent
+1,301checks pass: all case scales, bound/tangency/gradient, full weighted nodes,
+PSD and24convex certificates. Near-zero anchor handling also tested. No source
+records, source performance score, paid/provider/API or protected access. Full
+archive/member hashes retained. Separate086source freeze required. Main/PyPI
+unchanged; actual1.2.0/DeepSeek final objective remains active/unmet.
