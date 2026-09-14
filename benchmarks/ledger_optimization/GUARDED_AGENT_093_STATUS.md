@@ -29,3 +29,32 @@ Nine additional sessions independently audited: all nine valid and full workflow
 Twenty continuation sessions audited, all valid/full: 2,337 snapshot hashes verified, 2,984 independent checks, zero failures or missing shutdown records. All 4,227 original pilot inventory files reverified, and retained pilot experiment prefixes match in every new session. This supersedes the first continuation audit; do not add both batches.
 
 Combined evidence contains 56 audited sessions and 18 all-three matched cases. Matched mean RMSLE: plain 0.533588, Gnomon 0.559279, ledger 0.500957. Matched reported tokens: plain 3,385,740, Gnomon 4,243,690, ledger 3,166,221. Ledger has 10.43% lower error and 25.39% fewer reported tokens versus Gnomon without ledger in this partial set. Numerical attempts are 229/274/294 respectively, so token reduction is not fewer model fits. All outcomes remain included; plain's baseline-only pilot case is retained. No held-out data accessed, no final claim; the 20% target remains unmet. Receipt: `evidence/guarded-agent-093-development-audit-002.json`.
+
+## Third continuation audit — 2026-09-14 16:28 UTC
+
+Thirteen additional, disjoint sessions passed 2,479 independent checks. Combined
+with the original pilot and audit-002: 69 audited sessions, 23 matched tasks per
+arm. Mean RMSLE is plain 0.497121, Gnomon 0.527513, ledger 0.468983: 11.10% lower
+ledger error versus Gnomon without ledger. Matched reported tokens are 4,646,863 /
+6,006,112 / 4,174,077 respectively, a 30.50% ledger reduction versus Gnomon. Fits
+are 299 / 334 / 370: fewer tokens do not imply fewer numerical executions.
+
+All forecasts are valid. Full workflows: plain 22/23, Gnomon 22/23, ledger 23/23.
+Both baseline-only outcomes remain in scores. Each arm had zero native memory or
+skill calls and no saved native memory. Native persistence is available and was
+synthetically verified, but this run has not demonstrated agents using it.
+Ledger evidence was available in 19/23 ledger sessions, including two displaying
+recent/lifetime disagreement. The longest audited history has eight past origins;
+there is no mature-history (ten-plus origins) efficacy evidence yet. Reading a
+card does not establish causal reliance or a causal explanation for improved error.
+
+Transfer caveat: the first SSH archive stream returned exit 0 but its local file
+was truncated. Its hash check failed. The pod's unchanged original archive was
+rechecked; a second transfer verified each 2 MiB chunk, the full archive and all
+1,573 extracted file hashes. Both attempts are retained. No failed copy was used
+for analysis. All 4,227 original pilot files and new log prefixes reverified.
+
+Receipt: `evidence/guarded-agent-093-development-audit-003.json`. Audit-003 is a
+disjoint delta to audit-002, not a replacement; audit-001 remains superseded by
+002. Main/PyPI/live sources unchanged; the 20% target is unmet and final data is
+unopened. These partial results cannot establish general ledger superiority.
