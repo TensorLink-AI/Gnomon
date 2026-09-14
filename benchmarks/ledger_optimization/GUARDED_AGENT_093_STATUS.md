@@ -282,3 +282,19 @@ sessions, with no additional native-memory write. Ledger evidence is available
 in 42 sessions, with up to 20 past origins. Later-phase origins are still absent
 from this audit. No live changes or final-data access. The 20% objective remains
 unmet. Receipt: `evidence/guarded-agent-093-development-audit-007.json`.
+
+## Updated phase diagnostic — 138 audited sessions
+
+The frozen phase definitions applied to the original pilot and disjoint audits
+002–007 give 14 cold matched cases (round < 4), 20 mature matched cases
+(round >= 10), and no later matched cases (round >= 22). Ledger RMSLE is
+8.79% lower than Gnomon without ledger in the cold subset and 3.41% lower
+in the mature subset. Mature mean RMSLE is plain 0.421201, Gnomon 0.423757,
+ledger 0.409305; full workflows are 20/20, 18/20, 20/20 respectively, with
+every outcome retained in the scores. Mature coverage currently contains
+only two of four series, and different phases contain different origins.
+This does not identify a causal accumulation effect or support a claim
+that the ledger advantage increases with history. The earlier phase
+receipt is preserved; this is an expanded diagnostic, not a new experiment.
+Receipt: `evidence/guarded-agent-093-phases-002.json`. Live run and final
+holdout are unchanged; the 20% target remains unmet.
