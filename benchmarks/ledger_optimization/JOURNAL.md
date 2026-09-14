@@ -1504,3 +1504,25 @@ Grid0,.25,.5,.75,1 uses only prior executed candidates with mature outcomes.
 Archive/receipt retained. Next freeze source runner074 before new candidate fits.
 Previous conversational clarification changed no experiment state; this turn
 revalidated the completed audit and preserves it before the source experiment.
+
+## Adaptive memory-strength074: audited negative source result
+
+This turn preserved073preparation, froze source runner atea5b863and executed
+all541tasks/416scored with causal candidate histories. The five-strength grid
+has5,410logical requests,2,586physical blend fits,2,824cache hits and125warm
+anchor fits.40.069s wall/37.303CPU;166,598blend iterations/2,007anchor iterations.
+No new raw forecasts/API or protected-data access. All inherited costs retained.
+
+Adaptive ledger.2540764722213029versus matched.2576259533432357:1.37777%gain.
+Worse068(.2510782023798801)by1.19416%, worse061by0.82991%;20%and domain/incumbent
+guards fail. Exact fixed.5/control parity with068verified; no protocol/runtime
+failure. All416candidate cohorts mature. Chosen strength0/.25/.5/.75/1 counts
+36/6/42/137/195; earlier risk rankings often favor heavier history but do not
+transfer into an improvement over068on these later cases.
+
+Independent151,783checks, zero failures;2,586blend and125warm-anchor convex
+certificates, causal source/trial identity, allcandidate means/ties, cache and
+cost accounting, predictions and summaries. Audit20.928s, no provider/API calls.
+Full archive verified member-by-member and receipt preserved. No promotion or
+paid/final confirmation. Goal active/unmet; main/PyPI unchanged. Next diagnose
+historical-to-future strength rank transfer before designing another selector.
