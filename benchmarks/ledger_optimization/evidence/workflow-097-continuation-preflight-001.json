@@ -1,0 +1,57 @@
+{
+  "status": "synthetic_continuation_and_controller_verified_not_dispatched",
+  "numerical_attempts": 96,
+  "scripted_responses": 48,
+  "probe_checks": 59,
+  "independent_audit_checks": 1491,
+  "engy_calls": 0,
+  "continuation_sources": {
+    "continue_collection_096.py": "feb4b9f9379f3eb9bc8ca148eaec2504b4fa29f308d86702878313eae00a5d05",
+    "continue_guarded_093.py": "6ea588139648e818fd3c6f7ed807a5042a978c665e8775464739ba77028c900c",
+    "launch_collection_096.py": "9b10bf70329be2d6d96baeedc7962f4e8e067c9be10345f4a513b2b2a7ff9a11"
+  },
+  "frozen_sources": {
+    "PROTOCOL.md": "341887bbdde9fe81f1c6a8ab938260679844e0c897e626c0af5748718fdff5af",
+    "TASK.md": "6e834a5d6e6d67542045bf65df02aaaeb66d2d4d870179932501b22fd2cc0500",
+    "agent_review.py": "bf21b9de4ec4c0389badf909c6b27565439456f0f92b82e8936ea1e8839eb6a7",
+    "analyze.py": "191fea23c2af746c5ef21f7fb7f0ef166103d15da2f1dba61902cf2d0246d1df",
+    "boundary_schemas_093.py": "10c092c7a532c96335782ea6796b18d6663ef6cd67865e5ad241b02f52e9f1b4",
+    "check_forecast.py": "21f035381c5f51a4f4dfb9bda3e5e19400c7b7d5c9abe63df5f539b42c8994a9",
+    "core.py": "d6a6ae0b9cf0c46b2c840cf02e8705aefb64fda12c63ba946cebef6efdc55661",
+    "dev_evidence_summary.py": "a5dea6cdb20808016991e5a2fdf83e337822d4a4d21db25a5e527bd296453f62",
+    "execution_boundary_093.py": "bb96ab9dc4018b0a5a8daddf4ee19410b4aa9fed12006248e246f50ef36118fb",
+    "hermes_boundary_093.py": "0fd740aba17b96913bf97f9a19b6307b2e2f298429b8ae024569647116065051",
+    "history_091.py": "82fbac7134d17e3c4dfb1d091f10f59a7b5cb73555f435c7007fcc97d8ea3f42",
+    "lab.py": "d3a292dad02c5b882da20e92d7e0fa179b1db5dde47a3d28acd215944020296b",
+    "ledger_cards.py": "d997fa096900ba7129e5d693959fdf7e46ef5a97f3bf1a3b0c26908ef6c712c8",
+    "maturation.py": "6e3728f08ad7a5e551fafedae872afc4b470ccb3eacb41082405b71923b24875",
+    "ml_ledger_cards.py": "d997fa096900ba7129e5d693959fdf7e46ef5a97f3bf1a3b0c26908ef6c712c8",
+    "numerical.py": "a71b75f06ad69fcca06275046c5e74565b15d7d6dd2538df0fe827c448fc0413",
+    "policy.py": "dc652bb974b744d00b325b4c1336fe72b3583b01a8730a1c04d79622a605ef5c",
+    "preflight.py": "46d24f148dd370eee6e83bb4de0f1fcc89091b6c69ede6cebcaeccbcce7ba7e7",
+    "review_bridge.py": "419494cb699ed22b2963e2eb519084b3f285d83df20c53b2f0b9ca22dc940f5c",
+    "run.py": "73e2c383d131a42bf1cf6c47e6cc8beb3b66e1a0f39ca75511dca1411cd3942e",
+    "service_admission.py": "722c252bd0519cbded723e5e5bd174790623def9392e211d6ce6c14d98f1b664",
+    "transport.py": "a1db44b2d6c91b32d460002fcd540618e7fc8534b1d02ffd7b5b20ad088ed9c5",
+    "visible_agent_review.py": "9620b0466e846023841e9a52b2359d28f4dd19e8f1c5f14a9b4525654a74c788",
+    "worker.py": "7d990fdb0fbd1a90d2771e6adfd4a7df152c6a7758b98fc9791c815296e01fd0"
+  },
+  "proof_sha256": "2aadec799ab8bbc653c8cf6d79792f59e14a9cfeb95d250b4394f8b66a15c01e",
+  "archive_sha256": "2fb1bb65340d4ad3e89725e450e14381928a3d5a8cff3ee5a890a970811dd2b8",
+  "archive_bytes": 6530658,
+  "files": 1784,
+  "controller_sha256": "cd028917ab7ee9561b2c8c5ee22f248f1028f801bdcee9b022209db20ecd11d4",
+  "tests": {
+    "path": "results/workflow-097-continuation-control-checks-001",
+    "count": 25,
+    "exit_status": 0
+  },
+  "scope": "Actual Hermes resumes all three synthetic arm states from three origins into a fourth; selected and unselected forecasts mature without refitting old evidence. Controller tests verify unique prefix accounting and preserve failed calls. No Engy traffic or efficacy claim.",
+  "remaining_prerequisites": [
+    "Full 097 pilot gate passes",
+    "terminal pilot/archive independently verified",
+    "fresh continuation directory",
+    "exact source/runtime and gate checked again on pod"
+  ],
+  "final_gate_opened": false
+}

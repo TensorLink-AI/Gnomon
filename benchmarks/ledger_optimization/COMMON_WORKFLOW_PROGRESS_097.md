@@ -27,6 +27,17 @@ The gate remains 12 valid forecasts and at least 11 full workflows per arm,
 with zero audit failures. No accuracy threshold determines continuation. The
 controller never automatically launches a continuation or final evaluation.
 
+The conditional continuation has been checked locally against this exact capsule:
+12 synthetic Hermes sessions, 96 numerical fits, preserved three-origin prefixes,
+and a fourth origin resumed for each arm. `continue_collection_096.py` is reused
+with the new capsule and its new exact-source proof; its filename does not select
+the worker version. `control_continuation_097.py` preserves the process, archives
+evidence and counts all requests once, including failures. It records the 36
+retained and 276 new sessions separately. Its archive uses the existing helper's
+`pilot/` container name for the entire run; the manifest identifies both stages.
+See `evidence/workflow-097-continuation-preflight-001.json`. No continuation has
+been dispatched; the paid pilot must pass and finish before its state can be copied.
+
 The completed 096 pilot failed its predeclared full-workflow threshold: two plain
 Hermes sessions spent their exploration requests inspecting data/source files,
 then could only retain the baseline. All failures stay in the completed pilot;
