@@ -1,0 +1,123 @@
+{
+  "status": "continuation_running_after_independent_pilot_audit",
+  "dispatch": {
+    "pid": 173958,
+    "start_ticks": "1560915223",
+    "boot_id": "998193f3-2771-4162-80e8-1a4887370f60",
+    "at": "2026-09-15T09:32:24.501959+00:00",
+    "argv": [
+      "/usr/bin/python3",
+      "-u",
+      "-m",
+      "benchmarks.ledger_optimization.control_continuation_097",
+      "--launch-directory",
+      "/root/gnomon-ledger-ml-v3/code/results/contrast-100-continuation-launch-001",
+      "--capsule",
+      "/root/gnomon-ledger-ml-v3/code/results/contrast-100-dispatch-bundle-002/payload/capsule",
+      "--plan",
+      "/root/gnomon-ledger-ml-v3/code/results/contrast-100-dispatch-bundle-002/payload/plan.json",
+      "--preflight",
+      "/root/gnomon-ledger-ml-v3/code/results/contrast-100-dispatch-bundle-002/payload/preflight.json",
+      "--task-source",
+      "/root/gnomon-ledger-ml-v3/code/results/contrast-100-dispatch-bundle-002/payload/host-jobs.json",
+      "--runtime",
+      "/root/gnomon-ledger-ml-v3/runtime",
+      "--pilot-root",
+      "/root/gnomon-ledger-ml-v3/code/results/contrast-100-pilot-001",
+      "--pilot-launch",
+      "/root/gnomon-ledger-ml-v3/code/results/contrast-100-pilot-launch-001",
+      "--continuation-preflight",
+      "/root/gnomon-ledger-ml-v3/code/results/contrast-100-dispatch-bundle-002/payload/continuation-preflight.json",
+      "--output",
+      "/root/gnomon-ledger-ml-v3/code/results/contrast-100-development-001",
+      "--credentials-file",
+      "/root/gnomon-ledger-ml-v3/code/.env"
+    ],
+    "cwd": "/root/gnomon-ledger-ml-v3/code/results/contrast-100-dispatch-bundle-002/payload/code",
+    "bundle_sha256": "a18612bcd7ed3b3dc58b8803cb2471654916cfef7d05f2f7c3b352f29f40a052",
+    "pilot_archive_sha256": "f36ee81f8229ec88a8c8c9c84b2ed9ac7e110c79c8bad420524d16a437fb8737",
+    "local_independent_audit": {
+      "audit_report_sha256": "03ed955f9b55b56606f1974780bd33ae50a86a5e38b709c3ee92b8f46aaa57b0",
+      "summary_sha256": "0de87cf527143e960321580b7182fa287c201af2ad09b44a325de1b9dd31ceb9",
+      "archive_sha256": "f36ee81f8229ec88a8c8c9c84b2ed9ac7e110c79c8bad420524d16a437fb8737",
+      "independent_audit_checks": 32914,
+      "sessions": 36
+    },
+    "retained_sessions": 36,
+    "new_sessions": 276,
+    "total_sessions": 312,
+    "final_gate_opened": false,
+    "automatic_retry": false
+  },
+  "observation": {
+    "at": "2026-09-15T09:34:55.815625+00:00",
+    "controller": {
+      "pid": 173958,
+      "start_ticks": "1560915223",
+      "boot_id": "998193f3-2771-4162-80e8-1a4887370f60",
+      "at": "2026-09-15T09:32:24.600094+00:00",
+      "controller_sha256": "cd028917ab7ee9561b2c8c5ee22f248f1028f801bdcee9b022209db20ecd11d4",
+      "archive_helper_sha256": "295782f161171c45fc81dc1f4b124bf4dff94d167ac23d05dfedf4829f94bc0d",
+      "cost_accounting_sha256": "70e09ac8c27e193ebc40dbc5f65e4cc7b6c91e46e166e93677ecf598d93c5d86",
+      "automatic_retry": false,
+      "final_gate_opened": false,
+      "live": true
+    },
+    "worker": {
+      "pid": 173989,
+      "start_ticks": "1560915237",
+      "boot_id": "998193f3-2771-4162-80e8-1a4887370f60",
+      "live": true
+    },
+    "accepted_launch": {
+      "continuation_preflight_sha256": "5c9c666997e165880e1d02db9b429cce4c4bdbef5f0a9d554a6f748ff020dca4",
+      "continuation_sources": {
+        "continue_collection_096.py": "feb4b9f9379f3eb9bc8ca148eaec2504b4fa29f308d86702878313eae00a5d05",
+        "continue_guarded_093.py": "6ea588139648e818fd3c6f7ed807a5042a978c665e8775464739ba77028c900c",
+        "launch_collection_096.py": "9b10bf70329be2d6d96baeedc7962f4e8e067c9be10345f4a513b2b2a7ff9a11"
+      },
+      "final_gate_opened": false,
+      "new_sessions": 276,
+      "pilot_finished_sha256": "a61eec052ac5eca51b2de52df8b89ac2ae99e33c4faad598c8e5b29a56a83cc1",
+      "plan_sha256": "0d6e759270e23db8d54f5cc7a5a0009a8af366e8d9ace23cf66beb648b76bc27",
+      "retained_sessions": 36
+    },
+    "development_exit": null,
+    "finished": null,
+    "incomplete": null,
+    "pilot_files_unchanged": 3863,
+    "completed": 38,
+    "new_completed": 2,
+    "new_forwarded_requests": 28,
+    "stderr": ""
+  },
+  "gate": {
+    "gate_passed": true,
+    "provider_calls": 0,
+    "engy_calls": 0,
+    "output_created": false,
+    "launch_created": false,
+    "gate_check_sha256": "c70f14bc4e2926cb8c45e1e2afa726729b8623136648ed35e44cfe0f3f742579",
+    "fields_sha256": "380c8ecde5678ab0e9bf93125d04040bf20c4b71474da113068af6108473332f",
+    "pilot_archive_sha256": "f36ee81f8229ec88a8c8c9c84b2ed9ac7e110c79c8bad420524d16a437fb8737",
+    "files_verified": 79,
+    "at": "2026-09-15T09:31:03.733090+00:00"
+  },
+  "scope": "Exactly 36 retained candidate-100 pilot sessions plus 276 new later-origin sessions; no accuracy-dependent promotion, no pilot or failed-session reruns, no final/protected data access. Full pilot and copied canonical session bytes remain unchanged. Live counts are not independently audited new-session scores.",
+  "objective_established": false,
+  "final_gate_opened": false,
+  "evidence": {
+    "results/contrast-100-continuation-launch-001/check.py": "49c24d56838a25d4a01610a8be6b1d7ee82bfbb664fac2cbea1afbf33417f803",
+    "results/contrast-100-continuation-launch-001/check.exit.json": "9391321df0de1f2ab5bc0d0e34ad0bcfd8967aa49557b081ddcedfd2b348d448",
+    "results/contrast-100-continuation-launch-001/check.stdout": "c41e75baf20d87207ac544e5e1983e1e6ba4d74bb725a5228c495bf96676b6f7",
+    "results/contrast-100-continuation-launch-001/launch.exit.json": "9391321df0de1f2ab5bc0d0e34ad0bcfd8967aa49557b081ddcedfd2b348d448",
+    "results/contrast-100-continuation-launch-001/launch.py": "4c4e262ef78a029bf314dfd0c24f5aabd5499e1001e255d6ff3c3ed4b4bc301c",
+    "results/contrast-100-continuation-launch-001/launch.stdout": "a9b032d364ec036f233a973bf639153654ca0920ac52460330053811c464984b",
+    "results/contrast-100-continuation-launch-001/launch.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/contrast-100-continuation-launch-001/observe.py": "9e2be5d66d4ca4375bc000ee16c2335d52e2ec299cb88f997abad453413f7dfa",
+    "results/contrast-100-continuation-launch-001/observation-001.exit.json": "9391321df0de1f2ab5bc0d0e34ad0bcfd8967aa49557b081ddcedfd2b348d448",
+    "results/contrast-100-continuation-launch-001/observation-001.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/contrast-100-continuation-launch-001/check.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/contrast-100-continuation-launch-001/observation-001.stdout": "0c71405839c7fd8cc9e99b8a3045029e751d0c1d498a5b7f5553b504fd5bddd9"
+  }
+}

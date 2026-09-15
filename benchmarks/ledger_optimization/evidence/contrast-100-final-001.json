@@ -1,0 +1,249 @@
+{
+  "complete": true,
+  "arms": {
+    "plain": {
+      "tasks": 12,
+      "valid": 12,
+      "workflow_complete": 12,
+      "corrections": 0,
+      "blocked_api_requests": 0,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 12
+      },
+      "baseline_checkpoint_only": 0,
+      "checkpoint_publications": 24,
+      "review_calls": 12,
+      "mean_rmsle": 0.497227503562332,
+      "valid_only_rmsle": 0.497227503562332,
+      "admission_api_calls": 12,
+      "admission_reported_tokens": 168,
+      "admission_wait_seconds": 18.846357367932796,
+      "tokens": 1470749,
+      "api_calls": 105,
+      "usage_complete": true,
+      "seconds": 1019.9881807807833,
+      "http_errors": 0,
+      "ledger_reviews": 0,
+      "numerical_attempts": 144,
+      "numerical_successes": 144,
+      "distinct_configs_per_task": 3,
+      "per_series": {
+        "item_1047756_store_23": 0.8394988822615643,
+        "item_1304243_store_32": 0.20037583448746715,
+        "item_1372862_store_12": 0.4451701019535055,
+        "item_1457251_store_14": 0.503865195546791
+      },
+      "dollars": null,
+      "cold_rmsle": 0.497227503562332,
+      "mature_rmsle": null,
+      "later_rmsle": null
+    },
+    "gnomon": {
+      "tasks": 12,
+      "valid": 12,
+      "workflow_complete": 12,
+      "corrections": 0,
+      "blocked_api_requests": 0,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 12
+      },
+      "baseline_checkpoint_only": 0,
+      "checkpoint_publications": 24,
+      "review_calls": 12,
+      "mean_rmsle": 0.5033531246240042,
+      "valid_only_rmsle": 0.5033531246240042,
+      "admission_api_calls": 12,
+      "admission_reported_tokens": 168,
+      "admission_wait_seconds": 14.409033738076687,
+      "tokens": 1431909,
+      "api_calls": 103,
+      "usage_complete": true,
+      "seconds": 1104.354328919202,
+      "http_errors": 0,
+      "ledger_reviews": 0,
+      "numerical_attempts": 128,
+      "numerical_successes": 128,
+      "distinct_configs_per_task": 2.6666666666666665,
+      "per_series": {
+        "item_1047756_store_23": 0.8426710448585784,
+        "item_1304243_store_32": 0.20037583448746715,
+        "item_1372862_store_12": 0.4451701019535055,
+        "item_1457251_store_14": 0.5251955171964655
+      },
+      "dollars": null,
+      "cold_rmsle": 0.5033531246240042,
+      "mature_rmsle": null,
+      "later_rmsle": null
+    },
+    "ledger": {
+      "tasks": 12,
+      "valid": 12,
+      "workflow_complete": 12,
+      "corrections": 0,
+      "blocked_api_requests": 0,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 12
+      },
+      "baseline_checkpoint_only": 0,
+      "checkpoint_publications": 24,
+      "review_calls": 12,
+      "mean_rmsle": 0.5090340748626667,
+      "valid_only_rmsle": 0.5090340748626667,
+      "admission_api_calls": 12,
+      "admission_reported_tokens": 168,
+      "admission_wait_seconds": 32.25429116003215,
+      "tokens": 1417739,
+      "api_calls": 102,
+      "usage_complete": true,
+      "seconds": 1048.570894209668,
+      "http_errors": 0,
+      "ledger_reviews": 8,
+      "numerical_attempts": 132,
+      "numerical_successes": 132,
+      "distinct_configs_per_task": 2.75,
+      "per_series": {
+        "item_1047756_store_23": 0.8491864676556786,
+        "item_1304243_store_32": 0.20037583448746715,
+        "item_1372862_store_12": 0.45733771703104176,
+        "item_1457251_store_14": 0.5292362802764795
+      },
+      "dollars": null,
+      "cold_rmsle": 0.5090340748626667,
+      "mature_rmsle": null,
+      "later_rmsle": null
+    }
+  },
+  "contrasts": {
+    "ledger_vs_gnomon": {
+      "pairs": 12,
+      "relative_rmsle_reduction": -0.011286212324411737,
+      "relative_rmsle_status": "defined",
+      "wins": 1,
+      "losses": 5,
+      "exploratory_series_bootstrap_95_interval": [
+        -0.021789370361626093,
+        -0.004512695212692375
+      ],
+      "relative_interval_status": "defined",
+      "bootstrap_draws": 2000,
+      "undefined_relative_draws": 0,
+      "absolute_rmsle_reduction": -0.005680950238662552,
+      "exploratory_absolute_series_bootstrap_95_interval": [
+        -0.010135902078155734,
+        -0.001628855699275067
+      ],
+      "warning": "Only four reused development series, one requested seed: not confirmatory. No zero-control draw was discarded or assigned a relative improvement. Absolute differences are diagnostic, not a substitute target."
+    },
+    "ledger_vs_plain": {
+      "pairs": 12,
+      "relative_rmsle_reduction": -0.02374480738846474,
+      "relative_rmsle_status": "defined",
+      "wins": 2,
+      "losses": 4,
+      "exploratory_series_bootstrap_95_interval": [
+        -0.04445941868522696,
+        -0.009316108217729102
+      ],
+      "relative_interval_status": "defined",
+      "bootstrap_draws": 2000,
+      "undefined_relative_draws": 0,
+      "absolute_rmsle_reduction": -0.011806571300334745,
+      "exploratory_absolute_series_bootstrap_95_interval": [
+        -0.021450209895794936,
+        -0.003041903769384069
+      ],
+      "warning": "Only four reused development series, one requested seed: not confirmatory. No zero-control draw was discarded or assigned a relative improvement. Absolute differences are diagnostic, not a substitute target."
+    },
+    "gnomon_vs_plain": {
+      "pairs": 12,
+      "relative_rmsle_reduction": -0.012319553962292673,
+      "relative_rmsle_status": "defined",
+      "wins": 3,
+      "losses": 2,
+      "exploratory_series_bootstrap_95_interval": [
+        -0.03270241568626808,
+        0.0
+      ],
+      "relative_interval_status": "defined",
+      "bootstrap_draws": 2000,
+      "undefined_relative_draws": 0,
+      "absolute_rmsle_reduction": -0.006125621061672193,
+      "exploratory_absolute_series_bootstrap_95_interval": [
+        -0.01599774123725589,
+        0.0
+      ],
+      "warning": "Only four reused development series, one requested seed: not confirmatory. No zero-control draw was discarded or assigned a relative improvement. Absolute differences are diagnostic, not a substitute target."
+    }
+  },
+  "audit_checks": 32914,
+  "audit_failures": [],
+  "interpretation": "A supported ML iteration workflow comparison; no causal/business or general ledger superiority claim.",
+  "shutdown_record_gaps": [],
+  "sessions": 36,
+  "pilot_gate_passed": true,
+  "costs": {
+    "sessions": 36,
+    "forwarded_requests": 310,
+    "returned_responses": 310,
+    "reported_tokens": 4320397,
+    "requests_without_reported_usage": 0,
+    "api_errors": 0,
+    "readiness_requests": 36,
+    "readiness_reported_tokens": 504,
+    "readiness_unknown_usage": 0,
+    "orphan_responses": 0
+  },
+  "final_gate_opened": false,
+  "scope": "Completed reused development pilot, not confirmatory efficacy evidence.",
+  "status": "terminal_pilot_independently_verified",
+  "annotation_audits": {
+    "plain": {
+      "annotations": 84,
+      "checks": 9105
+    },
+    "gnomon": {
+      "annotations": 80,
+      "checks": 8136
+    },
+    "ledger": {
+      "annotations": 81,
+      "checks": 8551
+    }
+  },
+  "transfer": {
+    "passed": true,
+    "files_verified": 4580,
+    "archive_sha256": "f36ee81f8229ec88a8c8c9c84b2ed9ac7e110c79c8bad420524d16a437fb8737",
+    "archive_bytes": 23595964,
+    "finished": {
+      "complete": true,
+      "cause": null,
+      "continuation_gate_passed": true,
+      "continuation_launched": false,
+      "exit_status": 0,
+      "archive_sha256": "f36ee81f8229ec88a8c8c9c84b2ed9ac7e110c79c8bad420524d16a437fb8737",
+      "inventory_sha256": "97568fed414e6905e1c1130e7b59f6f430d3af3f69364bcb9f10e51cacc466ec",
+      "files": 4580,
+      "at": "2026-09-15T07:29:08.286951+00:00"
+    },
+    "chunk_bytes": 1048576,
+    "chunks": 23,
+    "forecast_restarts": 0
+  },
+  "objective_established": false,
+  "evidence": {
+    "results/contrast-100-final-001/collect.py": "1874f21178b30aea9fa868c4aee67584fff6ed8e395ba49104672fdd05a1670d",
+    "results/contrast-100-final-001/analyze_local.py": "0025488c4a58da794bdccc6da1d4e77455e00e99e899e400392f33bd0b5e0aa9",
+    "results/contrast-100-final-001/preparation.json": "a47fe975811cc6f7bb30c40028cac913aa9e1af547050045e43070c563c2ba72",
+    "results/contrast-100-final-001/metadata.json": "4f0cc8a0e3ae2eb3d77de98e255e786a07e4ae34e821ed0d719a6d590cf27a36",
+    "results/contrast-100-final-001/chunks.json": "49dadf2b695e956fcbf23bd7082a52499aa3c7c44c8372d45ef47b064352d09d",
+    "results/contrast-100-final-001/transfer.json": "8e971de75e6f9128926a33967483f5cc2fb26e0cab3ddaedbc4d746f406b12ba",
+    "results/contrast-100-final-001/summary.json": "0de87cf527143e960321580b7182fa287c201af2ad09b44a325de1b9dd31ceb9",
+    "results/contrast-100-final-001/audit/report.json": "03ed955f9b55b56606f1974780bd33ae50a86a5e38b709c3ee92b8f46aaa57b0",
+    "results/contrast-100-final-001/collect.stdout": "da2154f60cee716d11c9ae71fbf17d0ab29316e849afc9ac16c2834aa4dadf4f",
+    "results/contrast-100-final-001/collect.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/contrast-100-final-001/analyze.stdout": "0de87cf527143e960321580b7182fa287c201af2ad09b44a325de1b9dd31ceb9",
+    "results/contrast-100-final-001/analyze.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/contrast-100-final-001/execution-status.json": "710d12d4b16c6c3fc0a00497e8390864ed1b22cb0c3ed6c7c1a134cd46a12768"
+  }
+}

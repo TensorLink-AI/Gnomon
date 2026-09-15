@@ -1,5 +1,12 @@
 # Current staging: corrected three-arm bundle 002
 
+The pilot has now completed and passed independent terminal audit. Its ledger
+arm had 1.13% higher RMSLE than no-ledger Gnomon on 12 matched cold-start cases.
+The accuracy-independent completion gate passed, and the later-origin
+continuation was dispatched. See `CURRENT_HISTORY_CONTRAST_100_PILOT_RESULTS.md`
+and `evidence/contrast-100-final-001.json`. The observations below retain the
+earlier staging and live-audit history; they are not the current run status.
+
 The active candidate uses `results/contrast-100-dispatch-bundle-002` locally and
 on the pod, with frozen plan 003. It restores the user-corrected three-arm 1.2.0
 protocol; the old 1.1.9/four-arm requirement was accidentally reintroduced as a
