@@ -1,0 +1,44 @@
+{
+  "status": "launch_units_and_real_synthetic_continuation_passed_not_dispatched",
+  "unit_tests": 19,
+  "continuation_probe_checks": 59,
+  "continuation_audit_checks": 6715,
+  "synthetic_sessions": 12,
+  "numerical_attempts": 96,
+  "scripted_responses": 48,
+  "engy_calls": 0,
+  "predecessor_prefix_recheck": {
+    "sessions": 36,
+    "audit_checks": 8135,
+    "rows_and_arms_equal": true
+  },
+  "passed_sha256": "5c9c666997e165880e1d02db9b429cce4c4bdbef5f0a9d554a6f748ff020dca4",
+  "preflight_sha256": "472a89ddf5e723791487e0adcdeb9a431b0341ad3cdc7966cbc52753b6f64259",
+  "inventories": {
+    "results/contrast-100-launch-integration-001-inventory.json": {
+      "files": 19,
+      "sha256": "636b3c30bf65fcd9d5ef44b10e6ff982519d290645e3c4cb6a46d017569ace0e"
+    },
+    "results/contrast-100-continuation-preflight-001-inventory.json": {
+      "files": 2051,
+      "sha256": "af2da9fbf5f1ee5f4daf5495fbddd934f83f52342f24bfbf50ccb4a25f015869"
+    }
+  },
+  "sources": {
+    "benchmarks/ledger_optimization/launch_contrast_100.py": "51c069557dc43552cf7cd2ffa0f023f9ccc90a7fc67637a2205cdf43395f221d",
+    "benchmarks/ledger_optimization/control_contrast_100.py": "767ea7ab2bee0a5327fcced6a179ac1b19b45348f9f58608a0f6fc55e7c0d915",
+    "benchmarks/ledger_optimization/recheck_predecessor_100.py": "a03b464355f257c7c8cf8ac185d4be056a9911fe16b59c096e4f629318f2a316",
+    "benchmarks/ledger_optimization/CONTRAST_LAUNCH_100.md": "051571d1e83d138394bb8f304449c68280040fd9f692ad1c56b4576220fb6485",
+    "benchmarks/ledger_optimization/probe_continuation_096.py": "d3d8b4ef0ea0877681847c5b16df0b9f64b5e83d1258a2e32a2305be322a7abf",
+    "benchmarks/tests/test_launch_contrast_100.py": "ef1e43776005860cc45c5695b15d7e01d8febd492e93bc9780b277563a4bd32c",
+    "benchmarks/tests/test_control_contrast_100.py": "7e34eb2741dbde709bd743638b71c6ea6036bd8915442096c586a804d003d6b8"
+  },
+  "final_gate_opened": false,
+  "objective_established": false,
+  "remaining": [
+    "Original 097 terminal evidence",
+    "Full 312-session re-audit and exact runtime/launch verification",
+    "Fresh candidate pilot, followed by completion-gated continuation"
+  ],
+  "scope": "Lifecycle integration with scripted agents and real local numerical models. No paid candidate calls or efficacy claim."
+}
