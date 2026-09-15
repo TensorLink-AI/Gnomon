@@ -1,0 +1,697 @@
+{
+  "experiment": "105",
+  "scope": "Fixed-grid numerical development diagnostic, not an agent arm or a causal ledger-value estimate.",
+  "complete": true,
+  "objective_established": false,
+  "final_gate_opened": false,
+  "promoted": false,
+  "protocol_freeze_commit": "a79734bb",
+  "runner_commit": "95e990be",
+  "aggregates": {
+    "all": {
+      "cases": 208,
+      "mean_rmsle": {
+        "current_cv": 0.5946509097128154,
+        "recent_history": 0.59699847622481,
+        "lifetime_history": 0.5954143046908895,
+        "lifetime_support": 0.5963418875209167,
+        "hindsight": 0.5015048269748527
+      },
+      "reduction_vs_current_cv": {
+        "current_cv": 0.0,
+        "recent_history": -0.00394780613911494,
+        "lifetime_history": -0.0012837699658825308,
+        "lifetime_support": -0.0028436478957341027,
+        "hindsight": 0.15663993986479785
+      }
+    },
+    "cold_0_to_3": {
+      "cases": 32,
+      "mean_rmsle": {
+        "current_cv": 0.477389233088251,
+        "recent_history": 0.477389233088251,
+        "lifetime_history": 0.477389233088251,
+        "lifetime_support": 0.477389233088251,
+        "hindsight": 0.3976667611906857
+      },
+      "reduction_vs_current_cv": {
+        "current_cv": 0.0,
+        "recent_history": 0.0,
+        "lifetime_history": 0.0,
+        "lifetime_support": 0.0,
+        "hindsight": 0.16699679500904796
+      }
+    },
+    "later_4_to_25": {
+      "cases": 176,
+      "mean_rmsle": {
+        "current_cv": 0.6159712145536452,
+        "recent_history": 0.618745611340548,
+        "lifetime_history": 0.6168734086186419,
+        "lifetime_support": 0.6179696428723104,
+        "hindsight": 0.5203844752992467
+      },
+      "reduction_vs_current_cv": {
+        "current_cv": 0.0,
+        "recent_history": -0.004504101362777346,
+        "lifetime_history": -0.0014646691983009053,
+        "lifetime_support": -0.003244353423419666,
+        "hindsight": 0.15518052953767347
+      }
+    },
+    "by_series": {
+      "FOODS_2_313_CA_3": {
+        "cases": 26,
+        "mean_rmsle": {
+          "current_cv": 0.24423069998810013,
+          "recent_history": 0.2488741365085558,
+          "lifetime_history": 0.23757761251441636,
+          "lifetime_support": 0.2368011504834765,
+          "hindsight": 0.19582403178851485
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": -0.019012501379564117,
+          "lifetime_history": 0.027240995804409196,
+          "lifetime_support": 0.030420211320630997,
+          "hindsight": 0.19820058740340118
+        }
+      },
+      "FOODS_3_035_CA_3": {
+        "cases": 26,
+        "mean_rmsle": {
+          "current_cv": 0.5183523076442708,
+          "recent_history": 0.5208322970372983,
+          "lifetime_history": 0.5117417737581057,
+          "lifetime_support": 0.5159528183511686,
+          "hindsight": 0.4801261197810768
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": -0.004784370314271813,
+          "lifetime_history": 0.012752974740688705,
+          "lifetime_support": 0.004629070340222863,
+          "hindsight": 0.07374557284584804
+        }
+      },
+      "FOODS_3_488_WI_2": {
+        "cases": 26,
+        "mean_rmsle": {
+          "current_cv": 0.5833922424690247,
+          "recent_history": 0.5979402995755088,
+          "lifetime_history": 0.5666894006657323,
+          "lifetime_support": 0.5708097080734141,
+          "hindsight": 0.48819895041618794
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": -0.02493700815237787,
+          "lifetime_history": 0.02863055177525653,
+          "lifetime_support": 0.02156788088638084,
+          "hindsight": 0.16317202239433448
+        }
+      },
+      "FOODS_3_498_WI_2": {
+        "cases": 26,
+        "mean_rmsle": {
+          "current_cv": 1.687507083710515,
+          "recent_history": 1.685970904822481,
+          "lifetime_history": 1.7363326732959683,
+          "lifetime_support": 1.7363326732959683,
+          "hindsight": 1.2940610217441526
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": 0.0009103244086279272,
+          "lifetime_history": -0.028933561261322183,
+          "lifetime_support": -0.028933561261322183,
+          "hindsight": 0.23315224319014272
+        }
+      },
+      "HOBBIES_1_030_WI_2": {
+        "cases": 26,
+        "mean_rmsle": {
+          "current_cv": 0.641489711689644,
+          "recent_history": 0.642124225513032,
+          "lifetime_history": 0.6415308634860409,
+          "lifetime_support": 0.6418184894033366,
+          "hindsight": 0.5878797520279118
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": -0.000989125486855924,
+          "lifetime_history": -6.415036071039104e-05,
+          "lifetime_support": -0.0005125221927981816,
+          "hindsight": 0.08357103580122416
+        }
+      },
+      "HOUSEHOLD_1_050_WI_2": {
+        "cases": 26,
+        "mean_rmsle": {
+          "current_cv": 0.6061129386828111,
+          "recent_history": 0.6039442537644064,
+          "lifetime_history": 0.5913351710460181,
+          "lifetime_support": 0.5913351710460181,
+          "hindsight": 0.5446857933049528
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": 0.003578021157439104,
+          "lifetime_history": 0.024381211311719775,
+          "lifetime_support": 0.024381211311719775,
+          "hindsight": 0.10134603876193471
+        }
+      },
+      "HOUSEHOLD_1_522_CA_3": {
+        "cases": 26,
+        "mean_rmsle": {
+          "current_cv": 0.19825762745688882,
+          "recent_history": 0.19972350944236192,
+          "lifetime_history": 0.2024542767464582,
+          "lifetime_support": 0.2024542767464582,
+          "hindsight": 0.17735666154546295
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": -0.007393823906179042,
+          "lifetime_history": -0.021167656162343285,
+          "lifetime_support": -0.021167656162343285,
+          "hindsight": 0.10542326254746892
+        }
+      },
+      "HOUSEHOLD_2_034_CA_3": {
+        "cases": 26,
+        "mean_rmsle": {
+          "current_cv": 0.27786466606126864,
+          "recent_history": 0.2765781831348357,
+          "lifetime_history": 0.27565266601437594,
+          "lifetime_support": 0.2752308127674927,
+          "hindsight": 0.24390628519056168
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": 0.004629890315558494,
+          "lifetime_history": 0.007960710076051813,
+          "lifetime_support": 0.009478906876181026,
+          "hindsight": 0.12221194350496944
+        }
+      }
+    },
+    "by_round": {
+      "0": {
+        "cases": 8,
+        "mean_rmsle": {
+          "current_cv": 0.5385582038961393,
+          "recent_history": 0.5385582038961393,
+          "lifetime_history": 0.5385582038961393,
+          "lifetime_support": 0.5385582038961393,
+          "hindsight": 0.42430850395166475
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": 0.0,
+          "lifetime_history": 0.0,
+          "lifetime_support": 0.0,
+          "hindsight": 0.2121399304995223
+        }
+      },
+      "1": {
+        "cases": 8,
+        "mean_rmsle": {
+          "current_cv": 0.47056642489371836,
+          "recent_history": 0.47056642489371836,
+          "lifetime_history": 0.47056642489371836,
+          "lifetime_support": 0.47056642489371836,
+          "hindsight": 0.33768987440106407
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": 0.0,
+          "lifetime_history": 0.0,
+          "lifetime_support": 0.0,
+          "hindsight": 0.2823757570945816
+        }
+      },
+      "2": {
+        "cases": 8,
+        "mean_rmsle": {
+          "current_cv": 0.44246529470113716,
+          "recent_history": 0.44246529470113716,
+          "lifetime_history": 0.44246529470113716,
+          "lifetime_support": 0.44246529470113716,
+          "hindsight": 0.4139701795018366
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": 0.0,
+          "lifetime_history": 0.0,
+          "lifetime_support": 0.0,
+          "hindsight": 0.06440079152094302
+        }
+      },
+      "3": {
+        "cases": 8,
+        "mean_rmsle": {
+          "current_cv": 0.4579670088620091,
+          "recent_history": 0.4579670088620091,
+          "lifetime_history": 0.4579670088620091,
+          "lifetime_support": 0.4579670088620091,
+          "hindsight": 0.4146984869081774
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": 0.0,
+          "lifetime_history": 0.0,
+          "lifetime_support": 0.0,
+          "hindsight": 0.09447956100887822
+        }
+      },
+      "4": {
+        "cases": 8,
+        "mean_rmsle": {
+          "current_cv": 0.440092936780477,
+          "recent_history": 0.4472500877594326,
+          "lifetime_history": 0.4472500877594326,
+          "lifetime_support": 0.4472500877594326,
+          "hindsight": 0.4113480076040815
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": -0.01626281719337297,
+          "lifetime_history": -0.01626281719337297,
+          "lifetime_support": -0.01626281719337297,
+          "hindsight": 0.06531558853609543
+        }
+      },
+      "5": {
+        "cases": 8,
+        "mean_rmsle": {
+          "current_cv": 0.5532598201084971,
+          "recent_history": 0.5510215906022301,
+          "lifetime_history": 0.5550000366546046,
+          "lifetime_support": 0.5558860650150257,
+          "hindsight": 0.523617036266498
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": 0.004045530553489329,
+          "lifetime_history": -0.003145387542811795,
+          "lifetime_support": -0.0047468563793655605,
+          "hindsight": 0.053578414272314134
+        }
+      },
+      "6": {
+        "cases": 8,
+        "mean_rmsle": {
+          "current_cv": 0.4964440197652351,
+          "recent_history": 0.547366578342773,
+          "lifetime_history": 0.5367093160497087,
+          "lifetime_support": 0.5367093160497087,
+          "hindsight": 0.454058241259615
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": -0.10257462382489546,
+          "lifetime_history": -0.08110742537197813,
+          "lifetime_support": -0.08110742537197813,
+          "hindsight": 0.0853787674301405
+        }
+      },
+      "7": {
+        "cases": 8,
+        "mean_rmsle": {
+          "current_cv": 0.5570642412527856,
+          "recent_history": 0.5593619401065621,
+          "lifetime_history": 0.5682909044204744,
+          "lifetime_support": 0.5660338530076829,
+          "hindsight": 0.44523875577667177
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": -0.004124656877291466,
+          "lifetime_history": -0.020153264805583326,
+          "lifetime_support": -0.016101575169724658,
+          "hindsight": 0.2007407354394688
+        }
+      },
+      "8": {
+        "cases": 8,
+        "mean_rmsle": {
+          "current_cv": 0.6543498735423298,
+          "recent_history": 0.6581000790436065,
+          "lifetime_history": 0.6827657868967953,
+          "lifetime_support": 0.6827657868967953,
+          "hindsight": 0.4954119462439829
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": -0.005731193132161749,
+          "lifetime_history": -0.04342617688704631,
+          "lifetime_support": -0.04342617688704631,
+          "hindsight": 0.24289441126951672
+        }
+      },
+      "9": {
+        "cases": 8,
+        "mean_rmsle": {
+          "current_cv": 0.46255283632568867,
+          "recent_history": 0.47807253116661586,
+          "lifetime_history": 0.48223178408367967,
+          "lifetime_support": 0.48223178408367967,
+          "hindsight": 0.44009082135440813
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": -0.033552263919098824,
+          "lifetime_history": -0.0425442159523044,
+          "lifetime_support": -0.0425442159523044,
+          "hindsight": 0.04856097121727465
+        }
+      },
+      "10": {
+        "cases": 8,
+        "mean_rmsle": {
+          "current_cv": 0.4850363041554198,
+          "recent_history": 0.4850399792846241,
+          "lifetime_history": 0.4876771887454645,
+          "lifetime_support": 0.4876771887454645,
+          "hindsight": 0.4070038139824633
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": -7.577018818594183e-06,
+          "lifetime_history": -0.0054447153077401556,
+          "lifetime_support": -0.0054447153077401556,
+          "hindsight": 0.16087968983854162
+        }
+      },
+      "11": {
+        "cases": 8,
+        "mean_rmsle": {
+          "current_cv": 0.669327689070776,
+          "recent_history": 0.6926057992486361,
+          "lifetime_history": 0.6703994077805298,
+          "lifetime_support": 0.6678759061799752,
+          "hindsight": 0.4884843136091909
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": -0.0347783463286524,
+          "lifetime_history": -0.0016011868734155943,
+          "lifetime_support": 0.0021690166334166205,
+          "hindsight": 0.2701866042814529
+        }
+      },
+      "12": {
+        "cases": 8,
+        "mean_rmsle": {
+          "current_cv": 0.6171859807864599,
+          "recent_history": 0.6821914879041868,
+          "lifetime_history": 0.6486150064041628,
+          "lifetime_support": 0.6486150064041628,
+          "hindsight": 0.578429812566421
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": -0.10532563788129545,
+          "lifetime_history": -0.05092310356378138,
+          "lifetime_support": -0.05092310356378138,
+          "hindsight": 0.06279495877507324
+        }
+      },
+      "13": {
+        "cases": 8,
+        "mean_rmsle": {
+          "current_cv": 0.6400635247980295,
+          "recent_history": 0.5848740037345703,
+          "lifetime_history": 0.5721608532565976,
+          "lifetime_support": 0.5956433060555005,
+          "hindsight": 0.5096065344795471
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": 0.08622506817721587,
+          "lifetime_history": 0.10608739431427283,
+          "lifetime_support": 0.06939970334436052,
+          "hindsight": 0.20381881682704517
+        }
+      },
+      "14": {
+        "cases": 8,
+        "mean_rmsle": {
+          "current_cv": 0.6118244180490364,
+          "recent_history": 0.6153868100699141,
+          "lifetime_history": 0.5589796744232185,
+          "lifetime_support": 0.5649932319198567,
+          "hindsight": 0.538469491804439
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": -0.005822572482865773,
+          "lifetime_history": 0.08637240042548044,
+          "lifetime_support": 0.07654350618844752,
+          "hindsight": 0.11989538841635139
+        }
+      },
+      "15": {
+        "cases": 8,
+        "mean_rmsle": {
+          "current_cv": 0.6509238741463509,
+          "recent_history": 0.6537699852755783,
+          "lifetime_history": 0.6019795692602138,
+          "lifetime_support": 0.6019795692602138,
+          "hindsight": 0.40721529281189656
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": -0.004372417793032879,
+          "lifetime_history": 0.0751920567521428,
+          "lifetime_support": 0.0751920567521428,
+          "hindsight": 0.37440412160955705
+        }
+      },
+      "16": {
+        "cases": 8,
+        "mean_rmsle": {
+          "current_cv": 0.5380493073510602,
+          "recent_history": 0.546369318965541,
+          "lifetime_history": 0.523721677920347,
+          "lifetime_support": 0.523721677920347,
+          "hindsight": 0.4687823867366861
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": -0.015463288402771447,
+          "lifetime_history": 0.026628840953724864,
+          "lifetime_support": 0.026628840953724864,
+          "hindsight": 0.12873712440109064
+        }
+      },
+      "17": {
+        "cases": 8,
+        "mean_rmsle": {
+          "current_cv": 0.405986892958813,
+          "recent_history": 0.40887190486410646,
+          "lifetime_history": 0.49956863174097005,
+          "lifetime_support": 0.5005034159721812,
+          "hindsight": 0.28440995338252606
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": -0.007106170064426598,
+          "lifetime_history": -0.23050433500485146,
+          "lifetime_support": -0.2328068335520299,
+          "hindsight": 0.299460257670488
+        }
+      },
+      "18": {
+        "cases": 8,
+        "mean_rmsle": {
+          "current_cv": 0.7461979843342545,
+          "recent_history": 0.7470077090793714,
+          "lifetime_history": 0.7204240589447193,
+          "lifetime_support": 0.7204240589447193,
+          "hindsight": 0.6679722482018347
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": -0.0010851339217154976,
+          "lifetime_history": 0.03454033102559284,
+          "lifetime_support": 0.03454033102559284,
+          "hindsight": 0.10483241415106692
+        }
+      },
+      "19": {
+        "cases": 8,
+        "mean_rmsle": {
+          "current_cv": 0.9116368966615804,
+          "recent_history": 0.8455866410356899,
+          "lifetime_history": 0.8572237964088609,
+          "lifetime_support": 0.8572237964088609,
+          "hindsight": 0.7040396947310538
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": 0.07245237206585964,
+          "lifetime_history": 0.05968725097895944,
+          "lifetime_support": 0.05968725097895944,
+          "hindsight": 0.22771917491574645
+        }
+      },
+      "20": {
+        "cases": 8,
+        "mean_rmsle": {
+          "current_cv": 0.679956311329402,
+          "recent_history": 0.6785391974186795,
+          "lifetime_history": 0.6944278242459974,
+          "lifetime_support": 0.6944278242459974,
+          "hindsight": 0.6175815448304349
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": 0.0020841249461335254,
+          "lifetime_history": -0.021283004033452846,
+          "lifetime_support": -0.021283004033452846,
+          "hindsight": 0.09173349149008769
+        }
+      },
+      "21": {
+        "cases": 8,
+        "mean_rmsle": {
+          "current_cv": 0.6722931810987751,
+          "recent_history": 0.6777925449977995,
+          "lifetime_history": 0.6585080140183524,
+          "lifetime_support": 0.6585080140183524,
+          "hindsight": 0.5954507029940856
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": -0.008180008445179299,
+          "lifetime_history": 0.020504695671452078,
+          "lifetime_support": 0.020504695671452078,
+          "hindsight": 0.11429905919780492
+        }
+      },
+      "22": {
+        "cases": 8,
+        "mean_rmsle": {
+          "current_cv": 0.702821488433172,
+          "recent_history": 0.6986781614817422,
+          "lifetime_history": 0.7074603738722787,
+          "lifetime_support": 0.713076716744581,
+          "hindsight": 0.6246459421831497
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": 0.005895276424553675,
+          "lifetime_history": -0.006600375081655896,
+          "lifetime_support": -0.014591512183657507,
+          "hindsight": 0.11123101318985307
+        }
+      },
+      "23": {
+        "cases": 8,
+        "mean_rmsle": {
+          "current_cv": 0.6632248563077515,
+          "recent_history": 0.6681739645786036,
+          "lifetime_history": 0.7050396696823286,
+          "lifetime_support": 0.7050396696823286,
+          "hindsight": 0.5634356352639991
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": -0.007462187557933708,
+          "lifetime_history": -0.06304771749262361,
+          "lifetime_support": -0.06304771749262361,
+          "hindsight": 0.15046061693056922
+        }
+      },
+      "24": {
+        "cases": 8,
+        "mean_rmsle": {
+          "current_cv": 0.6387007850937123,
+          "recent_history": 0.6379082088364931,
+          "lifetime_history": 0.6466426710827009,
+          "lifetime_support": 0.6466426710827009,
+          "hindsight": 0.5588175806283565
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": 0.0012409194973870274,
+          "lifetime_history": -0.012434439058695235,
+          "lifetime_support": -0.012434439058695235,
+          "hindsight": 0.12507140484199508
+        }
+      },
+      "25": {
+        "cases": 8,
+        "mean_rmsle": {
+          "current_cv": 0.7543734978305892,
+          "recent_history": 0.7484349256952985,
+          "lifetime_history": 0.7461386559586849,
+          "lifetime_support": 0.738103196793262,
+          "hindsight": 0.6643486998720843
+        },
+        "reduction_vs_current_cv": {
+          "current_cv": 0.0,
+          "recent_history": 0.007872190834339654,
+          "lifetime_history": 0.010916133580495369,
+          "lifetime_support": 0.021567964786828986,
+          "hindsight": 0.11933716947559292
+        }
+      }
+    }
+  },
+  "costs": {
+    "numerical_attempts": 9152,
+    "numerical_successes": 9152,
+    "numerical_failures": 0,
+    "estimator_fits": 6656,
+    "seconds": 173.9300763659994,
+    "engy_calls": 0,
+    "gnomon_engine_calls": 0,
+    "api_billing_dollars": 0,
+    "local_compute_billing_dollars": null
+  },
+  "preflight_costs": {
+    "numerical_attempts": 220,
+    "estimator_fits": 160,
+    "engy_calls": 0
+  },
+  "audit": {
+    "passed": true,
+    "cases": 208,
+    "checks": 87314,
+    "refits": 0,
+    "engy_calls": 0,
+    "final_gate_opened": false,
+    "objective_established": false,
+    "scope": "Independent saved-request, metric, temporal-choice, seasonal-arithmetic and accounting audit. ML outputs are tied to frozen implementation and runtime; they are not refitted."
+  },
+  "archive": {
+    "passed": true,
+    "files": 2152,
+    "archive_members": 2153,
+    "archive_bytes": 6301128,
+    "archive_sha256": "b4caf0a47ed9a0d21f8a0bc03918387e16808b6bb7cbee61609a2c9a395f76b3",
+    "inventory_sha256": "f2e65046b226b07818f00a99c93510591c6ee0030c573325581bec24a90e981f",
+    "originals_unchanged": true,
+    "engy_calls": 0,
+    "refits": 0,
+    "final_gate_opened": false
+  },
+  "evidence_sha256": {
+    "results/m5-ml-search-screen-105-development-001/report.json": "083f53fd7806a0b9c6f9819fbba34fce08c870d84890d11820cc445ce054db58",
+    "results/m5-ml-search-screen-105-development-001/launch.json": "866050ae1a8adbdea844d1ff8478dc088f9c133f3a2be66d2cab09ac42324274",
+    "results/m5-ml-search-screen-105-development-001/FINISHED.json": "b0b394abe850f29ccaebb0998bee7952aa15af6c0e8350b766c1703d06b71699",
+    "results/m5-ml-search-screen-105-launch-001/exit.json": "770e879600a976549776d1b5d008e4d7b49e447a1ce18b7e8ffd2178a84e804f",
+    "results/m5-ml-search-screen-105-audit-001/audit.json": "5c1ccadcc040c220955614a346eac6e0830877c5e31a9143ede588ebdf340e52",
+    "results/m5-ml-search-screen-105-audit-001/command.json": "b26cb914d849207eba42e548b48c216a1f214e38a2fa7901c895453f64b00868",
+    "results/m5-ml-search-screen-105-auditor-001/report.json": "d14215aecbccf8671ee8914edadb1f421417021f7b4332a2bfb6f85c6116f647",
+    "results/m5-ml-search-screen-105-auditor-002/report.json": "f3b5b5b9b5cb8d5670ac5b14863576be3b5e6e77408de96bdfe5d5a6e3fa91f3",
+    "results/m5-ml-search-screen-105-preflight-001/probe.json": "49cde494b94479a256d53fa536b94328e099151b9e73d91b9c34bb8a8dd5767e",
+    "results/m5-ml-search-screen-105-archive-001/receipt.json": "2e93ded311c91eb3c8e0d4e9f229a0f4f7cabc80515507d63e312db344e1e191",
+    "results/m5-ml-search-screen-105-archive-001/SHA256SUMS.json": "f2e65046b226b07818f00a99c93510591c6ee0030c573325581bec24a90e981f"
+  },
+  "auditor_sha256": "da5bffe2fc13c0aad6b35b7aa6cf3bbe98c69011623f30605a5b253e19ca7e3f"
+}
