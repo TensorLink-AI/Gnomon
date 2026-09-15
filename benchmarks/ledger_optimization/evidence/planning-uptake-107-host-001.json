@@ -1,0 +1,48 @@
+{
+  "status": "descriptive_analysis_complete",
+  "sessions": 312,
+  "arms": {
+    "gnomon": {
+      "sessions": 104,
+      "sessions_exposed_to_plans": 0,
+      "sessions_with_suggested_recipes": 0,
+      "sessions_testing_a_previously_suggested_recipe": 0,
+      "sessions_selecting_a_previously_suggested_and_tested_recipe": 0,
+      "suggested_checkpoints_published": 0
+    },
+    "ledger": {
+      "sessions": 104,
+      "sessions_exposed_to_plans": 104,
+      "sessions_with_suggested_recipes": 88,
+      "sessions_testing_a_previously_suggested_recipe": 88,
+      "sessions_selecting_a_previously_suggested_and_tested_recipe": 88,
+      "suggested_checkpoints_published": 88
+    },
+    "plain": {
+      "sessions": 104,
+      "sessions_exposed_to_plans": 0,
+      "sessions_with_suggested_recipes": 0,
+      "sessions_testing_a_previously_suggested_recipe": 0,
+      "sessions_selecting_a_previously_suggested_and_tested_recipe": 0,
+      "suggested_checkpoints_published": 0
+    }
+  },
+  "analyzer_sha256": "1c31c625694540144643c6df850673a165a440ff77fb06a0916e255a622fae17",
+  "session_results_sha256": "98057273503b88c0bd7b66b7196bbc0c888bf1ef58360068ead58f6d6ecd6f5d",
+  "input_hashes_sha256": "ded73df7e094cf4c1156ba625bf7d08f82da678624bd29f3190ff05e637fb668",
+  "original_inputs_unchanged": true,
+  "engy_calls": 0,
+  "provider_calls": 0,
+  "accuracy_gate_changed": false,
+  "final_gate_opened": false,
+  "limitations": [
+    "Requires separate full workflow and recipe audits.",
+    "A later matching action does not prove that the suggestion caused it.",
+    "Counts successful explicit backtest calls, not implicit work inside start/commit.",
+    "No inference from agent prose and no exclusion of failed sessions."
+  ],
+  "synthetic": true,
+  "paid_efficacy_established": false,
+  "full_host_terminal_proof_still_pending": true,
+  "report_sha256": "dbd808e257a04498e61b60f25fdfff493d901810d9ec520b99082fcd61ba7f83"
+}

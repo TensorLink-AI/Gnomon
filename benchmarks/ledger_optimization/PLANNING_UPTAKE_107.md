@@ -35,3 +35,12 @@ That failed attempt remains in `results/planning-uptake-107-worker-launch-001`.
 The corrected reader permits omission only for an empty cold view with no next
 action. Successful analysis is in `results/planning-uptake-107-worker-002` and
 tests are in `results/planning-uptake-107-tests-002`. No execution was rerun.
+
+The subsequent full synthetic host sequence also has a saved uptake analysis:
+`results/planning-uptake-107-host-001`. It includes all 312 session grades, 104
+per arm. All 88 ledger sessions after the four-origin support threshold exposed,
+tested and selected a suggested recipe; both controls have zero plan exposure.
+The task, grade and boundary inputs for all 312 sessions remained unchanged. This confirms the
+scripted sequence's temporal association, not real-agent adoption or improved
+forecasting. The host's final audit/archive proof was still pending when this
+separate analysis was recorded.
