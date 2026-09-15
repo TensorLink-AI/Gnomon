@@ -1,5 +1,28 @@
 # M5 ML host integration: remaining work
 
+## Verified development input contract
+
+`m5_ml_development_contract.authenticated_contract` now authenticates the exact
+original manifest and the previously prepared development jobs before parsing
+them. It verifies the eight selected series, all 26 origins, overlapping history,
+actuals, covariates and visibility cutoffs against the shared constructor. It
+rejects missing/replaced series and altered task identities and returns the
+72-pilot / 552-continuation / 624-total session counts per seed. It performs no
+file reads, dispatch or provider calls itself.
+
+The real existing development bytes passed this check. Twenty-four synthetic
+contract/adapter/panel tests also finished with `OK`, including mutations of
+history, targets, visibility and cohort identity. The original test tool's exit
+metadata was lost to output truncation; its complete terminal unittest summary
+was retained. The separate real-input verification exited 0. Receipt:
+`evidence/m5-ml-development-contract-001.json`.
+
+This completes input authentication, not the operational integration below.
+The output explicitly leaves execution unauthorized and the final gate closed.
+No archive or reserved numerical targets were opened by this verification.
+
+## Dispatch integration still required
+
 This is a code inspection of the current candidate-100 capsule and its existing
 launch helpers, together with the retained development-preparation receipt. It
 does not grant final access, launch M5 sessions, inspect reserved targets, or

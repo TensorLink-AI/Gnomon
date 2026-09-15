@@ -1,0 +1,59 @@
+{
+  "passed": true,
+  "inputs": [
+    "results/ledger-optimization/m5-panel-014/manifest.json",
+    "results/m5-ml-development-prepare-001/prepared/development-jobs.json"
+  ],
+  "input_identity": {
+    "manifest_sha256": "6343970b713d8ccc49c5f3d6a633e3c876511ef4fd16c19f832d34a792243dd9",
+    "development_jobs_sha256": "dd608a2a0188cbe7e0e684127c4e5abbc77019982fdd14aabbb6e635064c164b"
+  },
+  "contract_sha256": "9b26764e5ea4d61de28f0a594ced58b34c1617c62ce1ef679ce8cb3fe1690576",
+  "host_tasks": 208,
+  "decisions_per_seed": {
+    "pilot": 72,
+    "continuation": 552,
+    "total": 624
+  },
+  "engy_calls": 0,
+  "provider_calls": 0,
+  "reserved_numerical_inputs_read": false,
+  "scope": "Existing development jobs and original identity metadata only; no source archive opened, no dispatch.",
+  "schema_version": "m5-ml-development-contract-evidence-v1",
+  "status": "verified_development_inputs",
+  "command": {
+    "argv": [
+      "python3",
+      "-m",
+      "results.m5-ml-development-contract-authenticated-001.verify"
+    ],
+    "exit_status": 0,
+    "elapsed_seconds": 0.800651974000175
+  },
+  "artifacts": {
+    "results/m5-ml-development-contract-authenticated-001/verify.py": "01ef36f999d3fa2ec6e93f9444aef904fb2cb10bf073d1f3499b118db19786bc",
+    "results/m5-ml-development-contract-authenticated-001/contract.json": "9b26764e5ea4d61de28f0a594ced58b34c1617c62ce1ef679ce8cb3fe1690576",
+    "results/m5-ml-development-contract-authenticated-001/stdout": "21a4889341df9c7096f7d67e0fb59ffc78b0af8010fb09c26a9afa5e5ffd9ca0",
+    "results/m5-ml-development-contract-authenticated-001/stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "benchmarks/ledger_optimization/m5_ml_development_contract.py": "3720a1d767c54b6da24dc82f0bbf48cd37186c9590d2811aa5ceff41f721ac78",
+    "benchmarks/tests/test_m5_ml_development_contract.py": "05e92a4dc542f748dde0722fd4ac693401b9ceca99ddeaeff591bf8621be32fb"
+  },
+  "synthetic_tests": {
+    "command": [
+      "python3",
+      "-m",
+      "unittest",
+      "benchmarks.tests.test_m5_ml_development_contract",
+      "benchmarks.tests.test_m5_ml_adapter",
+      "benchmarks.tests.test_m5_ml_panel"
+    ],
+    "tests": 24,
+    "failures": 0,
+    "terminal_summary": "Ran 24 tests in 18.091s; OK",
+    "exit_status": null,
+    "exit_status_note": "Tool result was truncated before session/exit metadata could be recovered. Saved unittest terminal summary establishes completion; not rerun.",
+    "stderr_sha256": "1cec8c6e57c88b29184156b71ce45a1ad88b1d74d6150c2bba0e903a1132ea37"
+  },
+  "execution_authorized": false,
+  "final_gate_opened": false
+}
