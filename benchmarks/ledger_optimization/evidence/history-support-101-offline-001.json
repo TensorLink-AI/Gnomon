@@ -1,0 +1,169 @@
+{
+  "status": "descriptive_development_scan_complete",
+  "previous_goal_turn": "progress: corrected and staged the three-arm protocol, independently audited 24 additional sessions, and pushed both receipts.",
+  "counts": {
+    "sessions": 67,
+    "sessions_without_review_before_selection": 0,
+    "reviews_before_selection": 71,
+    "completed_current_pairs": 177,
+    "known_history_pairs": 150,
+    "unknown_history_causes": {
+      "config_not_in_last_catalog": 26,
+      "pair_not_in_returned_pages": 1
+    },
+    "sessions_with_unknown_history_pair": 10,
+    "windows": {
+      "last_4_origins": {
+        "known_pairs": 150,
+        "zero_origin_pairs": 18,
+        "one_origin_pairs": 43,
+        "at_least_two_origin_pairs": 89,
+        "sessions_with_at_least_two_origin_pair": 58,
+        "disagreeing_pairs": 19,
+        "disagreeing_one_origin_pairs": 10,
+        "disagreeing_at_least_two_origin_pairs": 9,
+        "sessions_with_supported_disagreement": 7
+      },
+      "last_12_origins": {
+        "known_pairs": 150,
+        "zero_origin_pairs": 6,
+        "one_origin_pairs": 27,
+        "at_least_two_origin_pairs": 117,
+        "sessions_with_at_least_two_origin_pair": 58,
+        "disagreeing_pairs": 19,
+        "disagreeing_one_origin_pairs": 6,
+        "disagreeing_at_least_two_origin_pairs": 13,
+        "sessions_with_supported_disagreement": 11
+      },
+      "lifetime": {
+        "known_pairs": 150,
+        "zero_origin_pairs": 3,
+        "one_origin_pairs": 25,
+        "at_least_two_origin_pairs": 122,
+        "sessions_with_at_least_two_origin_pair": 58,
+        "disagreeing_pairs": 19,
+        "disagreeing_one_origin_pairs": 5,
+        "disagreeing_at_least_two_origin_pairs": 14,
+        "sessions_with_supported_disagreement": 12
+      }
+    }
+  },
+  "additional_summary": {
+    "report_sha256": "612a43c02499230c57fabf2cd17017491506761a9ff14e7f8df6c2764ea3cb6e",
+    "sessions": 67,
+    "round_zero_sessions": 4,
+    "sessions_by_series": {
+      "item_1047756_store_23": 26,
+      "item_1304243_store_32": 26,
+      "item_1372862_store_12": 9,
+      "item_1457251_store_14": 6
+    },
+    "selected_configuration_pairs": 119,
+    "known_selected_configuration_pairs": 104,
+    "windows": {
+      "last_4_origins": {
+        "matched_origin_count_distribution": {
+          "0": 18,
+          "1": 43,
+          "2": 27,
+          "3": 25,
+          "4": 37
+        },
+        "known_pair_latest_origin_age_days": {
+          "minimum": 14.0,
+          "median": 14.0,
+          "maximum": 56.0
+        },
+        "selected_pairs_at_least_two_origins": 65,
+        "selected_pairs_disagreeing_at_least_two_origins": 8,
+        "sessions_with_selected_pair_disagreement_at_least_two_origins": 7
+      },
+      "last_12_origins": {
+        "matched_origin_count_distribution": {
+          "0": 6,
+          "1": 27,
+          "2": 30,
+          "3": 22,
+          "4": 16,
+          "5": 9,
+          "6": 5,
+          "7": 4,
+          "8": 4,
+          "9": 3,
+          "10": 2,
+          "11": 17,
+          "12": 5
+        },
+        "known_pair_latest_origin_age_days": {
+          "minimum": 14.0,
+          "median": 14.0,
+          "maximum": 154.0
+        },
+        "selected_pairs_at_least_two_origins": 82,
+        "selected_pairs_disagreeing_at_least_two_origins": 11,
+        "sessions_with_selected_pair_disagreement_at_least_two_origins": 10
+      },
+      "lifetime": {
+        "matched_origin_count_distribution": {
+          "0": 3,
+          "1": 25,
+          "2": 21,
+          "3": 20,
+          "4": 18,
+          "5": 14,
+          "6": 9,
+          "7": 5,
+          "8": 4,
+          "9": 4,
+          "10": 4,
+          "11": 3,
+          "12": 2,
+          "13": 2,
+          "14": 2,
+          "15": 2,
+          "16": 2,
+          "17": 2,
+          "18": 2,
+          "19": 1,
+          "20": 1,
+          "21": 1,
+          "22": 1,
+          "23": 1,
+          "24": 1
+        },
+        "known_pair_latest_origin_age_days": {
+          "minimum": 14.0,
+          "median": 14.0,
+          "maximum": 238.0
+        },
+        "selected_pairs_at_least_two_origins": 86,
+        "selected_pairs_disagreeing_at_least_two_origins": 13,
+        "sessions_with_selected_pair_disagreement_at_least_two_origins": 12
+      }
+    },
+    "scope": "Descriptive support conditional on observed exploration. Pair-level disagreement is not a global selection recommendation; agreement does not exclude an effect on exploration. Repeated pairs/windows/origins are not independent. No task-outcome scoring."
+  },
+  "source_files_verified_unchanged": 339,
+  "evidence": {
+    "results/history-support-101-offline-001/plan.json": "68753714e94c0af011fb6fe3db4a1946c6a28adc52817083683999a78961cd41",
+    "results/history-support-101-offline-001/analyze.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/history-support-101-offline-001/summary.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/history-support-101-offline-001/summary.json": "f388b3d43de8a8458f8943b4e383c81d705b8811bb1129ba466208a2ef1484da",
+    "results/history-support-101-offline-001/analyze.py": "6ff9ae59233e2f302a3abc694c53f27b509a4f706f9a1f8d5e09fdf1b36e422c",
+    "results/history-support-101-offline-001/summarize.py": "a5fcdbce5d96e8e24f27df9cbc8cde82e6cc805ee6dbbe9d90873ab00df51c2b",
+    "results/history-support-101-offline-001/summary.stdout": "9394f6bfabbc4bb840e3becd480cb938d83cb6eced618fb88af93a29299d55fa",
+    "results/history-support-101-offline-001/analyze.stdout": "41d76f227c519f8df09e7f755ed6d1909035f15fe672eeb875b7cc8dc044ad98",
+    "results/history-support-101-offline-001/report.json": "612a43c02499230c57fabf2cd17017491506761a9ff14e7f8df6c2764ea3cb6e",
+    "results/history-support-101-offline-001/plan.md": "051cb5c30c317b92322495793ee6822a24af291dc47f78c7591b31cdfca87aab",
+    "benchmarks/ledger_optimization/HISTORY_SUPPORT_DIAGNOSTIC_101.md": "051cb5c30c317b92322495793ee6822a24af291dc47f78c7591b31cdfca87aab",
+    "benchmarks/ledger_optimization/HISTORY_SUPPORT_DIAGNOSTIC_101_RESULTS.md": "159dbcb8087f031b5064ca60953ac9799802bd6b3cb4447644e363117e10040b"
+  },
+  "engy_calls": 0,
+  "provider_calls": 0,
+  "additional_ledger_queries": 0,
+  "host_targets_read": false,
+  "final_gate_opened": false,
+  "objective_established": false,
+  "live_experiment_changed": false,
+  "candidate_100_changed": false
+}
