@@ -33,6 +33,12 @@ pass separately; see `M5_ML_CONTINUATION.md`. These verify 18 retained plus six
 new synthetic workflows and the 72/552/624 stage boundaries. They do not yet
 cover the full dispatch/controller path or a second requested seed.
 
+The separate seed-19 full-worker integration now also passes; see
+`M5_ML_SEEDS.md`. It verifies six synthetic sessions, original and forwarded
+seed settings, unchanged model outputs, runtime equality, and wrong-seed audit
+rejection. The two-series resumed-state test above remains seed 7 only;
+seed-specific continuation admission still needs verification.
+
 This is a code inspection of the current candidate-100 capsule and its existing
 launch helpers, together with the retained development-preparation receipt. It
 does not grant final access, launch M5 sessions, inspect reserved targets, or

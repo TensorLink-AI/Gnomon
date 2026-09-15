@@ -1,0 +1,116 @@
+{
+  "status": "seed_19_synthetic_worker_verified_not_dispatch_admitted",
+  "requested_seed": 19,
+  "parent_capsule_sha256": "e4a51304b46c87c2f83546eae07d983747ef9139db4975064098ebda88fc1f81",
+  "capsule_sha256": "fd5130ceeda34e6524558acc14fc33b9846015b8fd31ceac45eca494a9af2f5a",
+  "seed_changed_files": [
+    "PROTOCOL.md",
+    "analyze.py",
+    "transport.py",
+    "worker.py"
+  ],
+  "sessions": 6,
+  "numerical_attempts": 48,
+  "scripted_model_responses": 30,
+  "integration_assertions": 187,
+  "independent_audit_checks": 3859,
+  "builder_test_count": 3,
+  "builder_tests": {
+    "argv": [
+      "python3",
+      "-m",
+      "unittest",
+      "benchmarks.tests.test_m5_ml_seed_capsule"
+    ],
+    "exit_status": 0,
+    "seconds": 0.1052861580001263
+  },
+  "integration_command": {
+    "argv": [
+      "python3",
+      "-m",
+      "benchmarks.ledger_optimization.probe_contrast_worker_100",
+      "--capsule",
+      "results/m5-ml-seed-19-offline-001/capsule",
+      "--runtime",
+      "results/m5-ml-runtime-restore-001/runtime",
+      "--output",
+      "results/m5-ml-seed-19-offline-001/probe"
+    ],
+    "exit_status": 0,
+    "seconds": 72.92897469700074
+  },
+  "seed_boundary_checks": {
+    "passed": true,
+    "original_worker_requests_seed_19": 30,
+    "forwarded_requests_seed_19": 30,
+    "same_scripted_forecasts_as_seed_7": 6,
+    "wrong_seed_copy_rejected": true,
+    "original_probe_unchanged": true,
+    "positive_progress_audit": {
+      "checks": 44,
+      "reminder_requests": [
+        4
+      ],
+      "audited_prefixes": 1,
+      "provider_calls_from_reminders": 0
+    },
+    "provider_calls": 0,
+    "engy_calls": 0,
+    "scope": "Additional offline seed-boundary and unchanged-model checks. Does not establish that an upstream model honors its requested seed."
+  },
+  "runtime_comparison": {
+    "passed": true,
+    "runtime_inventory_matches_seed_7": true,
+    "build_matches_seed_7": true,
+    "build": {
+      "build_id": "1.2.0+ga38cd0cad353.s9723394ccb6d",
+      "commit": "a38cd0cad35383e5f10021abf3aa20d4c16923be",
+      "dirty": false,
+      "fingerprint_scope": "gnomon_python_sources",
+      "package_version": "1.2.0",
+      "provenance": "git",
+      "source_sha256": "9723394ccb6d9e11991b312e01bac47c767c69407b6b33d36971cb6e48b6a22e"
+    },
+    "seed_19_manifest_sha256": "094e09cd0c0c7e1fa0591d062f506ef915a78820deaf1f55b9d76e0583e74fd9",
+    "seed_7_manifest_sha256": "123273702ac98c4eae16a2fde80043e252003ed95ce5b162de1cd44985077ebe"
+  },
+  "engy_calls": 0,
+  "reported_paid_tokens": 0,
+  "selected_final_candidate": false,
+  "execution_authorized": false,
+  "final_gate_opened": false,
+  "objective_established": false,
+  "remaining": [
+    "full cohort-aware dispatch/controller path",
+    "seed-specific resumed and cross-seed isolation gates",
+    "prospective plan and eligible development result"
+  ],
+  "evidence": {
+    "results/m5-ml-seed-19-offline-001/reconcile.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/m5-ml-seed-19-offline-001/tests.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/m5-ml-seed-19-offline-001/build.command.json": "7f8f9891fca6c6ae5fc8c76430f3e7f8c7e0e17032cf2f6333667ec90ae2904f",
+    "results/m5-ml-seed-19-offline-001/probe.stdout": "688a2887ad523fcc8198a80771374adccafd3343684762cae532534e74db95e3",
+    "results/m5-ml-seed-19-offline-001/build.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/m5-ml-seed-19-offline-001/reconcile.stdout": "3d1cfac37f25ebf26bc5939e641afcd95ea5c5ce623e0a8aa9170ba3734b059c",
+    "results/m5-ml-seed-19-offline-001/tests.command.json": "7fbbaf4088208eb0299f049734de907a67995f2c9c7bd2e2c3e41459075e191c",
+    "results/m5-ml-seed-19-offline-001/tests.stderr": "79897d011a1aaa76145e639592b1207fa563cb1187e00ac85c3ee31c86a0b15f",
+    "results/m5-ml-seed-19-offline-001/reconcile.command.json": "b4ee46b49cab19dbc054a47a957c3caafda13da3f2698f333bef2b739e7015ff",
+    "results/m5-ml-seed-19-offline-001/probe.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/m5-ml-seed-19-offline-001/reconciliation-sources.json": "f59243e31e731fd89bd2e8323d711f8015341302417fc94a5cee1cc212c77b50",
+    "results/m5-ml-seed-19-offline-001/reconcile.py": "4eba58162a14f79fa780ed632d67e2647cd5bd0a68b190ebe33a2ab186c7f790",
+    "results/m5-ml-seed-19-offline-001/reconciliation.json": "3d1cfac37f25ebf26bc5939e641afcd95ea5c5ce623e0a8aa9170ba3734b059c",
+    "results/m5-ml-seed-19-offline-001/probe.command.json": "b5455e3c43d54a452a775c7442f7432101e0bd488b9908a961b941578fff6a70",
+    "results/m5-ml-seed-19-offline-001/build.stdout": "fd5130ceeda34e6524558acc14fc33b9846015b8fd31ceac45eca494a9af2f5a",
+    "results/m5-ml-seed-19-offline-001/runtime-comparison.json": "68ccbc504c4b3265bfb8b7eb628b2a1f1c8e62c4baf501818b31c7350d9e4ec5",
+    "results/m5-ml-seed-19-offline-001/capsule/capsule.json": "fd5130ceeda34e6524558acc14fc33b9846015b8fd31ceac45eca494a9af2f5a",
+    "results/m5-ml-seed-19-offline-001/capsule/cohort-contract.json": "2dc46352ffa1df9fdb32538a4953204583875ca700d2e25d104e57e894873ae6",
+    "results/m5-ml-seed-19-offline-001/probe/passed.json": "9096b36c3dd5926ebf9661286c29c1ade29afc57431d89bee2d12a466ba84bd8",
+    "results/m5-ml-seed-19-offline-001/probe/probe-evidence.json": "d5c7e51fe7108b8fe7fdb5ff707978414860c0864facc496e965a432f8f93ca7",
+    "results/m5-ml-seed-19-offline-001/probe/report.json": "fb9ff094f0b2e54c3cafa04bad3513b045910a04d74b146c6e88b42383947097",
+    "results/m5-ml-seed-19-offline-001/probe/manifest.json": "094e09cd0c0c7e1fa0591d062f506ef915a78820deaf1f55b9d76e0583e74fd9",
+    "benchmarks/ledger_optimization/m5_ml_seed_capsule.py": "0b659dc28711d4191504f67d99f375d20e0b909d5f34d1ff591fe472c64636a6",
+    "benchmarks/ledger_optimization/probe_contrast_worker_100.py": "61162791d31ec4547d8a79bd498921a3c8fd41bcfe2ab55bfcd090b4446cfbb2",
+    "benchmarks/tests/test_m5_ml_seed_capsule.py": "e434ac412fa1a7bcc89bbe52bcd9b7dbeef553a3ed2f9bf7ce5b42b9ef0c2d2c"
+  }
+}

@@ -40,7 +40,9 @@ def probe(capsule, runtime, output):
     info = json.loads(subprocess.check_output([str(runtimes['gnomon']), '-I', '-c',
         'import json;from gnomon.build_info import build_info;print(json.dumps(build_info()))'], text=True))
     assert info['package_version'] == '1.2.0' and info['source_sha256'] == run.BUILD_SHA
-    jobs = synthetic_jobs(); series = jobs[0]['series_id']; seed = 7
+    jobs = synthetic_jobs(); series = jobs[0]['series_id']; seed = manifest.get('requested_seed', 7)
+    if type(seed) is not int or seed not in (7, 19):
+        raise ValueError('Unsupported requested agent seed')
     assert manifest['common_to_all_arms'] is True and 'workflow_audit_sha256' in manifest
     run.dump(output/'manifest.json', {'planned': 6, 'requested_seed': seed, 'synthetic': True,
                                      'sources': manifest['sources'], 'inventory': inventory, 'build': info})
