@@ -148,6 +148,14 @@ class OpenRouterClient:
     def _account(self, parsed: dict[str, Any]) -> None:
         usage = parsed.get("usage") or {}
         measured = _measured_usage(usage)
+        # Engy's explicit endpoint reports the actual charge outside usage.
+        # Its monetary convention is integer micro-USD (engy.ai/docs/agent-api).
+        # Do not infer cost from token counts or accept another origin's extension.
+        if self.base_url.rstrip("/") == "https://api.engy.ai/v1" and isinstance(usage, dict) and "cost" not in usage:
+            gateway = parsed.get("x_engy")
+            micro = gateway.get("charged_micro") if isinstance(gateway, dict) else None
+            if type(micro) is int and 0 <= micro <= 10**15:
+                measured["cost"] = micro / 1_000_000
         with self._usage_lock:
             self.unmeasured_usage_fields.update({"prompt_tokens", "completion_tokens", "cost"} - set(measured))
             self.total_prompt_tokens += measured.get("prompt_tokens", 0)

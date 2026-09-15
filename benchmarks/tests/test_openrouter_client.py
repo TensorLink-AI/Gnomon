@@ -8,6 +8,25 @@ import pytest
 from benchmarks.common.openrouter import OpenRouterClient, OpenRouterError
 
 
+def test_engy_gateway_charge_uses_reported_micro_usd_only():
+    client = OpenRouterClient("test", api_key="unused", base_url="https://api.engy.ai/v1")
+    client.total_transport_attempts = 1
+    client._account({"usage": {"prompt_tokens": 8, "completion_tokens": 4}, "x_engy": {"charged_micro": 7}})
+    assert client.usage_summary["cost_usd"] == pytest.approx(.000007)
+    other = OpenRouterClient("test", api_key="unused")
+    other.total_transport_attempts = 1
+    other._account({"usage": {"prompt_tokens": 8, "completion_tokens": 4}, "x_engy": {"charged_micro": 7}})
+    assert other.usage_summary["cost_usd"] is None
+
+
+@pytest.mark.parametrize("charge", [-1, True, 1.5, "7", None, 10**16])
+def test_invalid_engy_charge_stays_unknown(charge):
+    client = OpenRouterClient("test", api_key="unused", base_url="https://api.engy.ai/v1")
+    client.total_transport_attempts = 1
+    client._account({"usage": {"prompt_tokens": 8, "completion_tokens": 4}, "x_engy": {"charged_micro": charge}})
+    assert client.usage_summary["cost_usd"] is None
+
+
 def test_single_attempt_disables_truncation_and_missing_choice_retries(monkeypatch):
     requests = []
     replies = [{"choices": [], "usage": {"prompt_tokens": 1, "completion_tokens": 2, "cost": 0.1}},

@@ -124,9 +124,9 @@ def test_pid_one_lifetime_ends_without_host_cleanup(tmp_path):
     if not image:
         pytest.skip("explicit local image required")
     instance = SoftwareBackend(case=CASE, options={"image": image, "docker_host": "unix:///var/run/docker.sock"},
-                               workspace=tmp_path, timeout=3)
+                               workspace=tmp_path, timeout=10)
     try:
-        deadline = time.monotonic() + 7
+        deadline = time.monotonic() + 14
         while time.monotonic() < deadline:
             result = instance._command(["inspect", instance.container], cleanup=True)
             if result.returncode != 0:

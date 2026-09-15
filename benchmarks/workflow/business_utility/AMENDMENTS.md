@@ -55,3 +55,32 @@ Its /proc/meminfo reports the physical host, so the guard now uses the smaller o
 host available memory and memory.max minus memory.current. All existing thresholds
 remain unchanged; cache is treated conservatively as charged memory. No efficacy
 results preceded this correction or migration.
+
+2026-09-16, A8 (confirmed deployment and model, before trial outcomes): user
+confirmed gnomon-arena = wrk-kadzj08j3t1o, distinct from the ROI deployment.
+Use a fresh workspace on that original pod. Select the existing DeepSeek model
+configuration, deepseek-v4.1-flash via https://api.engy.ai/v1, for every arm.
+Immutable model weights/revision are unavailable and remain null. Registered
+generation/task/token/tool/round/retry limits are unchanged. Freeze a $5 reported
+service-charge stop per arm per evaluation ($45 across nine allocations); this is
+not a hard provider/account cap. One excluded task-free readiness request returned
+HTTP 200, 8 prompt and 4 completion tokens, and x_engy.charged_micro=1. The common
+transport now reads that integer charge using Engy's documented micro-USD monetary
+convention (https://engy.ai/docs/agent-api); absence/invalid values stay unknown.
+It accepts this field only for the explicitly configured Engy origin, never
+estimates prices from tokens, and preserves existing usage.cost when supplied.
+This is provider-reported accounting, not an independently verified invoice.
+No budget increase, model substitution or failed-task retry occurs automatically.
+
+The image stream between pods was interrupted before completion. Rebuild from the
+same existing pinned Dockerfiles/requirements and verified wheel on gnomon-arena;
+pin the resulting actual image IDs before dispatch. Local files are never used as
+an alternative execution host. The initial missing pyproject preflight log and
+interrupted transport remain infrastructure history, not agent task failures.
+
+2026-09-16, A9 (preflight fixture timing, before trial outcomes): remote container
+integration checks passed 52 tests and failed one because Docker startup exceeded
+the lifecycle fixture's three-second command timeout. Increase that test's lifetime
+to ten seconds and observation window to fourteen seconds, preserving its check
+that PID 1 terminates without host cleanup. This changes no live task limit;
+the registered 180-second task budget remains unchanged. Retain the initial log.

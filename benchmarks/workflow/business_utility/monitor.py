@@ -156,6 +156,9 @@ def run(args):
 
 
 if __name__ == "__main__":
+    def requested_stop(signum, frame):
+        raise KeyboardInterrupt("requested stop")
+    signal.signal(signal.SIGTERM, requested_stop)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--experiment", required=True)
     parser.add_argument("--cases", required=True)

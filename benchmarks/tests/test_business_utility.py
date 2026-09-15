@@ -238,3 +238,30 @@ def test_monitor_stops_owned_separate_session_not_unrelated_process():
         unrelated.terminate()
         unrelated.wait(timeout=3)
         root.stdout.close()
+
+
+@pytest.mark.parametrize("returncode,expected_passes,expected_state", [(2, 9, "complete"), (75, 0, "blocked")])
+def test_dispatch_keeps_graded_failures_and_never_retries_infrastructure(tmp_path, monkeypatch, returncode, expected_passes, expected_state):
+    from benchmarks.workflow.business_utility import dispatch, report
+    prepared = tmp_path / "prepared"
+    prepared.mkdir()
+    (prepared / "launch-plan.json").write_text(json.dumps({"status": "pending_commit_and_resource_preflight",
+        "evaluation_order": ["eval1", "eval2", "eval3"], "arm_order": ["full", "ordinary", "lean"]}))
+    calls = []
+    class Process:
+        def __init__(self, argv, **kwargs):
+            calls.append(argv)
+            destination = Path(argv[argv.index("--output-dir")+1])
+            destination.mkdir(parents=True)
+            if returncode == 2:
+                (destination / "summary.json").write_text("{}")
+        def wait(self, **kwargs): return returncode
+        def poll(self): return returncode
+    monkeypatch.setattr(dispatch.subprocess, "Popen", Process)
+    monkeypatch.setattr(report, "build_report", lambda *args: None)
+    dispatch.run(prepared, tmp_path / "out")
+    status = json.loads((tmp_path / "out/status.json").read_text())
+    assert status["state"] == expected_state
+    assert len(status["completed_passes"]) == expected_passes
+    assert len(calls) == (9 if expected_passes else 1)
+    assert all(argv[2] == "benchmarks.workflow.business_utility.monitor" for argv in calls)

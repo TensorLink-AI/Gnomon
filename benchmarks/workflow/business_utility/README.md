@@ -77,6 +77,11 @@ Native Codex-account transport is not implemented by this workflow driver; it
 currently expects its documented tool-calling chat-completions-compatible client.
 Reusing the old Ditto runner would violate the requested matched-runner constraint.
 
+For a durable sequential launch after freezing the inputs, `dispatch.py` invokes
+those same monitored commands in the committed order. Use
+`python -m benchmarks.workflow.business_utility.dispatch --help`. It never retries
+failed tasks and never substitutes another model or execution host.
+
 `monitor.py` launches exactly that existing workflow command with one worker and
 no retries, records CPU/available memory/owned-process RSS every two seconds, and
 stops its owned process group at the registered memory thresholds. It requires
