@@ -1,4 +1,14 @@
-# Prospective final analysis with a prior-ledger reference
+# Historical four-arm numerical experiment — not the active protocol
+
+This work mistakenly reintroduced a superseded requirement. PLAN.md and the user
+version correction (recorded in commit 47b46859) specify exactly three 1.2.0 arms.
+The analysis and synthetic evidence below are retained for reproducibility only;
+they neither authorize a fourth arm nor delay the corrected evaluation. No final
+data or paid candidate-100 outcomes were read to make this correction.
+
+The original planning rationale below is historical, not current authorization.
+
+## Original experimental rationale
 
 This closes a numerical-contract gap in the earlier three-arm helper. The goal
 also requires improvement over the prior ledger; plain Hermes is not that

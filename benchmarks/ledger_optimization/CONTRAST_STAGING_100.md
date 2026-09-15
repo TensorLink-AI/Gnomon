@@ -1,4 +1,20 @@
-# Candidate 100 staged without dispatch
+# Current staging: corrected three-arm bundle 002
+
+The active candidate uses `results/contrast-100-dispatch-bundle-002` locally and
+on the pod, with frozen plan 003. It restores the user-corrected three-arm 1.2.0
+protocol; the old 1.1.9/four-arm requirement was accidentally reintroduced as a
+future prerequisite and is not active. No candidate-100 paid session was launched
+with either plan. Bundle 001 is retained as superseded staging evidence.
+
+Bundle 002 contains the same 79-file layout and unchanged worker capsule. Archive
+SHA-256: `a18612bcd7ed3b3dc58b8803cb2471654916cfef7d05f2f7c3b352f29f40a052`.
+Plan SHA-256: `0d6e759270e23db8d54f5cc7a5a0009a8af366e8d9ace23cf66beb648b76bc27`.
+The pod verified its files and input contract. The launch check rejected the live
+predecessor before creating outputs or reading credentials. See
+`evidence/contrast-100-three-arm-correction-001.json` for the correction record.
+
+## Historical staging receipt for bundle 001
+
 
 The isolated pod bundle contains 79 files: candidate and original-predecessor
 capsules, frozen plans, development tasks, worker proofs, the continuation proof,

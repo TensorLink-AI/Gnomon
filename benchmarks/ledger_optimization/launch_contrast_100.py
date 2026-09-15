@@ -9,7 +9,7 @@ import sys
 from .contrast_plan_100 import read, sha, verify
 from .contrast_readiness_100 import verify_predecessor
 
-PLAN_SHA = '39ff335e1b9da4cd9ee25d12a5c752ebbe158549cf33f7b8a0439b9f1494cbe0'
+PLAN_SHA = '0d6e759270e23db8d54f5cc7a5a0009a8af366e8d9ace23cf66beb648b76bc27'
 
 
 def normalized_preflight(plan, worker):

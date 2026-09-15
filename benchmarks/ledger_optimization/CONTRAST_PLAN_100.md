@@ -52,21 +52,22 @@ receipts used in tests are fixtures, not evaluation outcomes.
 
 ## Evidence and remaining work
 
-- Plan: `results/contrast-100-prospective-plan-002/plan.json`.
-- Tests: the same directory's `tests.stdout` and `tests.stderr`.
-- Committed receipt: `evidence/contrast-100-prospective-plan-002.json`.
-- Plan 001 is retained and explicitly superseded before dispatch. Plan 002 adds
-  the original objective's prior-ledger comparison requirement; neither has paid
-  results. This is not an outcome-driven amendment.
+- Plan: `results/contrast-100-prospective-plan-003/plan.json`.
+- Tests: `results/contrast-100-three-arm-correction-001/tests.stdout` and
+  `tests.stderr`.
+- Committed receipt: `evidence/contrast-100-three-arm-correction-001.json`.
+- Plans 001 and 002 are retained. Plan 003 corrects the accidental reintroduction
+  of the superseded 1.1.9/four-arm requirement. The user correction and PLAN.md
+  specify exactly three 1.2.0 arms. No candidate-100 paid run preceded this change.
 
 Wait for 097's terminal archive and independent audit, then finish and test the
 exact launch/continuation integration. Current synthetic integration demonstrates
 correct summaries and transport, not a model's behavioral or accuracy response.
 
-The untouched final evaluation still requires at least 20% lower mean per-case
-RMSLE than matched no-ledger, a paired 95% interval excluding zero improvement,
-and improvement over a frozen pre-optimization ledger baseline. The goal's old
-1.1.9 baseline wording and the user's newer 1.2.0 runtime instruction must both
-be accounted for by freezing baseline behavior and its integration separately.
-Historical scores alone cannot satisfy that comparison. Final/protected data
-remain closed; main and PyPI remain unchanged.
+The untouched final evaluation requires at least 20% lower mean per-case RMSLE
+than matched no-ledger, with a paired 95% interval excluding zero improvement.
+The active protocol uses exactly the three corrected 1.2.0 arms; a fourth
+1.1.9/reference-ledger arm is not an admission prerequisite. See PLAN.md and its
+version-correction amendment 47b46859. The optional four-arm numerical experiment
+is retained as historical work, not the active final contract. Final/protected
+data remain closed; main and PyPI remain unchanged.

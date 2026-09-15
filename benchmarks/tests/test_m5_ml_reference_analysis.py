@@ -1,4 +1,4 @@
-"""Synthetic four-arm objective tests; no final data or runtime access."""
+"""Historical four-arm experiment tests; not the active three-arm protocol."""
 from copy import deepcopy
 import unittest
 
@@ -22,6 +22,7 @@ class ReferenceAnalysisTests(unittest.TestCase):
         self.assertFalse(result['numerical_all_objective_criteria_met'])
         self.assertFalse(result['contrasts']['ledger_vs_ledger_reference']['point_improvement_met'])
         self.assertFalse(result['target_established'])
+        self.assertFalse(result['active_protocol_eligible'])
         self.assertEqual(result['decisions'],4992)
         self.assertEqual(result['matched_cases_per_arm'],1248)
 
@@ -33,6 +34,7 @@ class ReferenceAnalysisTests(unittest.TestCase):
         self.assertAlmostEqual(ref['relative_rmsle_reduction'],1-.7/.9)
         self.assertEqual(ref['paired_95_interval'],[ref['relative_rmsle_reduction']]*2)
         self.assertFalse(result['target_established'])
+        self.assertFalse(result['active_protocol_eligible'])
         # Reference identity belongs to the hashed contract, even when scores match.
         identity={**IDENTITY,'policy_sha256':'b'*64}
         other=a.analyze(p,s,rows,reference_identity=identity)

@@ -9,7 +9,7 @@ from unittest.mock import patch
 from benchmarks.ledger_optimization.launch_contrast_100 import normalized_preflight, verify_inputs, pilot_gate, fresh_outputs, main, run_pilot
 from benchmarks.tests.test_contrast_plan_100 import PARENT,CAPSULE,WORKER,TASKS
 
-PLAN=Path('results/contrast-100-prospective-plan-002/plan.json')
+PLAN=Path('results/contrast-100-prospective-plan-003/plan.json')
 
 
 @unittest.skipUnless(PLAN.exists() and WORKER.exists(),'requires frozen candidate evidence')

@@ -1,7 +1,7 @@
-"""Prospective four-arm final numerical contract, tested with synthetic data only.
+"""Historical four-arm experiment; not the active corrected three-arm protocol.
 
 No I/O, dispatch, outcome lookup or declaration that the goal has been achieved.
-The original three-arm helper remains available for historical comparisons.
+The three-arm helper defines the active numerical comparison.
 """
 import hashlib
 import json
@@ -43,5 +43,6 @@ def analyze(panel, seeds, rows, *, reference_identity):
         {'rows_sha256':result['numerical_input_sha256'],'reference_identity':reference_identity},
         sort_keys=True,separators=(',',':')).encode()).hexdigest()
     result['scope']='Four-arm numerical analysis only; identity declarations, untouched status, provenance, fairness and costs require independent audits.'
+    result['active_protocol_eligible'] = False
     assert result['target_established'] is False
     return result

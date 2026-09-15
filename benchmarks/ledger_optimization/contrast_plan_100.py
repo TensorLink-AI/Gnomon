@@ -76,11 +76,10 @@ def freeze(parent_plan, capsule, worker, task_source, output):
             '097 complete 312-session archive, costs, source hashes and independent audit preserved; no audit failures or shutdown gaps.',
             'Exact candidate source, runtime, worker proof and new launch/continuation checks pass.',
             'Fresh arm homes and output directory; no prior experimental memory or execution state.'],
-        final_baseline_requirement={
-            'improvement_over_frozen_pre_optimization_ledger_required': True,
-            'historical_run_scores_sufficient': False,
-            'runtime_for_new_experiments': '1.2.0',
-            'note': 'The original goal names the 1.1.9 ledger baseline; later user direction requires runtime 1.2.0. Final baseline behavior and its fair integration must be frozen separately, not inferred from old scores.'},
+        active_comparison={
+            'runtime': '1.2.0', 'arms': ['plain', 'gnomon', 'ledger'],
+            'superseded_119_reference_required': False,
+            'authority': 'User version correction and PLAN.md comparison amendment 47b46859; exactly three arms.'},
         efficacy_scope='Reused development cohort. Only fresh matched candidate-100 arms establish within-run contrasts. No held-out claim or outcome-dependent continuation.',
         development_decision_rules={
             'continuation': 'Use inherited completion/audit pilot gate only; retain its 36 sessions exactly once.',
@@ -88,7 +87,7 @@ def freeze(parent_plan, capsule, worker, task_source, output):
             'costs': 'Report all attempts, unknown usage, readiness calls, tokens, fits and elapsed time; no zero imputation for missing usage.',
             'comparison_with_097': 'Descriptive prior-run reference, not a randomized estimate of the new overlay effect.',
             'next_candidate': 'Freeze a new plan before any change; do not alter this running protocol.',
-            'final_admission': 'Separate frozen final protocol and baseline comparison required; this plan never opens the final gate.'})
+            'final_admission': 'Separate frozen final protocol for the corrected three arms required; this plan never opens the final gate.'})
     # These requirements intentionally survive the amendment byte-for-byte.
     for field in ('arms', 'cases', 'seed', 'agent', 'gnomon', 'planned', 'budgets', 'pilot_gate', 'comparison', 'final_target', 'final_gate_opened', 'task_source_sha256'):
         if plan[field] != parent[field]: raise AssertionError('Changed fixed comparison: '+field)

@@ -1,0 +1,186 @@
+{
+  "status": "corrected_three_arm_plan_staged_not_launched",
+  "authority": "User Gnomon 1.2.0/exact-three-arms correction, recorded in PLAN.md at 47b46859",
+  "previous_goal_turn": "User-question evidence retrieval; no experiment or implementation progress. This turn corrects authoritative staging and verifies the live predecessor.",
+  "superseded": {
+    "plan": "contrast-100-prospective-plan-002",
+    "bundle": "contrast-100-dispatch-bundle-001",
+    "original_files_preserved": true
+  },
+  "active": {
+    "plan": "contrast-100-prospective-plan-003",
+    "bundle": "contrast-100-dispatch-bundle-002",
+    "runtime": "1.2.0",
+    "arms": [
+      "plain",
+      "gnomon",
+      "ledger"
+    ]
+  },
+  "worker_unchanged": true,
+  "worker_capsule_sha256": "ea0920fd92a5e888816a93ef3ef95c88dcea8482bd5a541bc987c7f78c082519",
+  "bundle": {
+    "status": "built_not_deployed_or_launched",
+    "files": 79,
+    "archive_bytes": 465654,
+    "archive_sha256": "a18612bcd7ed3b3dc58b8803cb2471654916cfef7d05f2f7c3b352f29f40a052",
+    "plan_sha256": "0d6e759270e23db8d54f5cc7a5a0009a8af366e8d9ace23cf66beb648b76bc27",
+    "continuation_preflight_sha256": "5c9c666997e165880e1d02db9b429cce4c4bdbef5f0a9d554a6f748ff020dca4",
+    "builder_sha256": "5af075cfe9a34b28a65d0692cffc76c02043ddc7bc0dcc80e3bac7070cfcf1be",
+    "help_import_checks": [
+      {
+        "argv": [
+          "/usr/bin/python3",
+          "-m",
+          "benchmarks.ledger_optimization.control_contrast_100",
+          "--help"
+        ],
+        "cwd": "/root/Gnomon/results/contrast-100-dispatch-bundle-002/payload/code",
+        "exit_status": 0
+      },
+      {
+        "argv": [
+          "/usr/bin/python3",
+          "-m",
+          "benchmarks.ledger_optimization.launch_contrast_100",
+          "--help"
+        ],
+        "cwd": "/root/Gnomon/results/contrast-100-dispatch-bundle-002/payload/code",
+        "exit_status": 0
+      },
+      {
+        "argv": [
+          "/usr/bin/python3",
+          "-m",
+          "benchmarks.ledger_optimization.recheck_predecessor_100",
+          "--help"
+        ],
+        "cwd": "/root/Gnomon/results/contrast-100-dispatch-bundle-002/payload/code",
+        "exit_status": 0
+      },
+      {
+        "argv": [
+          "/usr/bin/python3",
+          "-m",
+          "benchmarks.ledger_optimization.continue_collection_096",
+          "--help"
+        ],
+        "cwd": "/root/Gnomon/results/contrast-100-dispatch-bundle-002/payload/code",
+        "exit_status": 0
+      },
+      {
+        "argv": [
+          "/usr/bin/python3",
+          "-m",
+          "benchmarks.ledger_optimization.control_continuation_097",
+          "--help"
+        ],
+        "cwd": "/root/Gnomon/results/contrast-100-dispatch-bundle-002/payload/code",
+        "exit_status": 0
+      }
+    ],
+    "copied_input_validation": true,
+    "engy_calls": 0,
+    "final_gate_opened": false,
+    "requires": "terminal 097 evidence, independent re-audit, runtime and source checks before a fresh pilot"
+  },
+  "pod_check": {
+    "status": "staged_inputs_verified_live_predecessor_rejected",
+    "archive_sha256": "a18612bcd7ed3b3dc58b8803cb2471654916cfef7d05f2f7c3b352f29f40a052",
+    "files_verified": 79,
+    "input_check_exit_status": 0,
+    "launch_check_exit_status": 1,
+    "cause": "Predecessor process is still live",
+    "pilot_created": false,
+    "predecessor_audit_created": false,
+    "credentials_supplied": false,
+    "engy_calls": 0,
+    "final_gate_opened": false,
+    "remote_root": "/root/gnomon-ledger-ml-v3/code/results/contrast-100-dispatch-bundle-002"
+  },
+  "runtime_check": {
+    "exit_status": 0,
+    "stdout": "{\"runtime_inventory_matches\": true, \"provider_calls\": 0, \"engy_calls\": 0}\n",
+    "stderr": ""
+  },
+  "retired_remote_old_staging": {
+    "status": "superseded_do_not_dispatch",
+    "replacement": "contrast-100-dispatch-bundle-002",
+    "replacement_plan": "contrast-100-prospective-plan-003",
+    "reason": "Restore user-corrected three-arm Gnomon 1.2.0 protocol; old plan incorrectly added a fourth-arm future prerequisite.",
+    "original_payload_preserved": true
+  },
+  "validation": {
+    "plan_launch_readiness_controller_tests_passed": 19,
+    "historical_analysis_inactive_test_passed": 1
+  },
+  "engy_calls": 0,
+  "provider_calls": 0,
+  "primary_target_relative_improvement": 0.2,
+  "paired_95_interval_must_exclude_zero": true,
+  "final_gate_opened": false,
+  "objective_established": false,
+  "evidence": {
+    "results/contrast-100-dispatch-bundle-001/RETIRED.json": "172ccf0427249b4e6438db3ce0f642748274b94e4bee94ff690f6bc007a2ab05",
+    "results/contrast-100-dispatch-bundle-002/check-runtime.py": "a47ee072ee8c7517778c34d767691b557aeae48ecb2461cf3cefcd5a03dc1b8b",
+    "results/contrast-100-dispatch-bundle-002/continue_collection_096.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/contrast-100-dispatch-bundle-002/continue_collection_096.stdout": "92786580f147f15ac17978aa179c75a568d87abd8d4d11822eca3476de4652a5",
+    "results/contrast-100-dispatch-bundle-002/control_continuation_097.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/contrast-100-dispatch-bundle-002/control_continuation_097.stdout": "56d018c4812a74652b0d9f26861ac7a9d22ac05de57d1c4910876b963103e609",
+    "results/contrast-100-dispatch-bundle-002/control_contrast_100.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/contrast-100-dispatch-bundle-002/control_contrast_100.stdout": "5b00c5a8b6135a8273f2f5e9e38c267c1841031c38dab11b44959a0c75a6f5cd",
+    "results/contrast-100-dispatch-bundle-002/copied-inputs.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/contrast-100-dispatch-bundle-002/copied-inputs.stdout": "4a0b26b2fee2ff4ee0dde0882cc0d189ba5d4b86f1b198bdfc899f08508ff9ec",
+    "results/contrast-100-dispatch-bundle-002/deploy-exit.json": "fbc2724935a13b44bf0de5980a618b57e4fdf8115686f6d5bafffdc10363d2b2",
+    "results/contrast-100-dispatch-bundle-002/deploy.py": "744b467c8e5b63078fe08e4540eb806a1b15a9eac07353e4ba2f2f8e00264e40",
+    "results/contrast-100-dispatch-bundle-002/deploy.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/contrast-100-dispatch-bundle-002/deploy.stdout": "3b212d943e87aa9c007c5e4d40b4222a9ef505f6094a77305c06771702952d4a",
+    "results/contrast-100-dispatch-bundle-002/dispatch.tar.gz": "a18612bcd7ed3b3dc58b8803cb2471654916cfef7d05f2f7c3b352f29f40a052",
+    "results/contrast-100-dispatch-bundle-002/launch_contrast_100.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/contrast-100-dispatch-bundle-002/launch_contrast_100.stdout": "d78d17f736fe4b63696af09f4263eb143af2ff7d84beaffac386f5e1ff9ce8b3",
+    "results/contrast-100-dispatch-bundle-002/payload/SHA256SUMS.json": "e8d66eedd5413e61c445c088c9fa3e9605f07c9697744f7fd2d85e0b3d800580",
+    "results/contrast-100-dispatch-bundle-002/receipt.json": "d6ee1334e2ab612e899e70f693a00bb227fde350a818a3f31d7bf03046df8d1f",
+    "results/contrast-100-dispatch-bundle-002/recheck_predecessor_100.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/contrast-100-dispatch-bundle-002/recheck_predecessor_100.stdout": "0b67c80944fa00a03dce848965ae1ecd41fed205b0b75cf5bfcc0424107b0bd4",
+    "results/contrast-100-dispatch-bundle-002/runtime-check-exit.json": "fbc2724935a13b44bf0de5980a618b57e4fdf8115686f6d5bafffdc10363d2b2",
+    "results/contrast-100-dispatch-bundle-002/runtime-check.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/contrast-100-dispatch-bundle-002/runtime-check.stdout": "3677bf04c3a2537f925a4ef4a08dba1e260c2a29aee1e1d05825a33635625fef",
+    "results/contrast-100-prospective-plan-003/plan.json": "0d6e759270e23db8d54f5cc7a5a0009a8af366e8d9ace23cf66beb648b76bc27",
+    "results/contrast-100-three-arm-correction-001/build.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/contrast-100-three-arm-correction-001/build.stdout": "d6ee1334e2ab612e899e70f693a00bb227fde350a818a3f31d7bf03046df8d1f",
+    "results/contrast-100-three-arm-correction-001/deploy.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/contrast-100-three-arm-correction-001/deploy.stdout": "05a688aea3b217fb5b7f37a38797c9d0533bd5f1155741db2a4a686962ba97c4",
+    "results/contrast-100-three-arm-correction-001/historical-analysis-test.stderr": "dfded6ec21d2a43b9447560f1b153ade9f7971fa3c58b6d1160e3a7fc41c2f74",
+    "results/contrast-100-three-arm-correction-001/historical-analysis-test.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/contrast-100-three-arm-correction-001/original/CONTRAST_PLAN_100.md": "7dcb70200f0a238b103b4086ae24aea02de74a1fc69ca3d8fbf1195f30a053d3",
+    "results/contrast-100-three-arm-correction-001/original/M5_ML_ANALYSIS.md": "149164b8ef0f5d18f9ec2219618bde42c42f81ad7bcbba07fcff74cdcc77de05",
+    "results/contrast-100-three-arm-correction-001/original/M5_ML_REFERENCE_ANALYSIS.md": "d261631301e841be1dd6ac2f67b9ab4337c54afd3fdfc8c53a0d14a873fced0f",
+    "results/contrast-100-three-arm-correction-001/original/build_contrast_bundle_100.py": "b30257daff9643b2b7be74e6c2fb54233e1901182029c35e9f804e1a99a5e1bf",
+    "results/contrast-100-three-arm-correction-001/original/contrast_plan_100.py": "c878f1d678056067f5f791ec7866c7ecfcf110d9290bd339b560593294c48a60",
+    "results/contrast-100-three-arm-correction-001/original/launch_contrast_100.py": "51c069557dc43552cf7cd2ffa0f023f9ccc90a7fc67637a2205cdf43395f221d",
+    "results/contrast-100-three-arm-correction-001/original/m5_ml_reference_analysis.py": "07c3cf2f2ce8e309caba2904657b437418168e293138b38e0bbf29ac8105d5f3",
+    "results/contrast-100-three-arm-correction-001/original-sha256.json": "852518d3e1db0a9f32c076fcc12d7c50fadc5b3262009f02373b539d69d38e71",
+    "results/contrast-100-three-arm-correction-001/retire-exit.json": "fbc2724935a13b44bf0de5980a618b57e4fdf8115686f6d5bafffdc10363d2b2",
+    "results/contrast-100-three-arm-correction-001/retire-old-staging.py": "909823a7665075f1f13cd338983cb5a1285cac9c1a9c951019a3bf5bd199a2b7",
+    "results/contrast-100-three-arm-correction-001/retire.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/contrast-100-three-arm-correction-001/retire.stdout": "9d564852b6fdc4ad205e67a846e1821789ed5b0d2b9a52ba4156267a1872a279",
+    "results/contrast-100-three-arm-correction-001/runtime.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/contrast-100-three-arm-correction-001/runtime.stdout": "220936c828e678f65e28b810404922587c066c0735c99cfd10315d6e2d1a2ca5",
+    "results/contrast-100-three-arm-correction-001/tests.stderr": "6e49635dd1b9f8926670a45ae71d5c858d8c7ef694e9d053350f93c463ac917b",
+    "results/contrast-100-three-arm-correction-001/tests.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "source_files": {
+    "benchmarks/ledger_optimization/CONTRAST_PLAN_100.md": "16479521cb7da3840765c0afe6e334eb13b37a375ad54ada8a7b0fcfdcb76539",
+    "benchmarks/ledger_optimization/CONTRAST_STAGING_100.md": "ae85734afd19925fca29be558b0f7a8a5df55dd7e6494a22f8f3574871868d98",
+    "benchmarks/ledger_optimization/M5_ML_ANALYSIS.md": "27c26bf3fd843f1227dd558c2265576d8c3a9c870da9b0e7a9776f220645f8e4",
+    "benchmarks/ledger_optimization/M5_ML_REFERENCE_ANALYSIS.md": "0bdc289eefee6ca660c0b6bdf93b2d9da2524aca2ef54309e4a7d264d2d0b7fb",
+    "benchmarks/ledger_optimization/PLAN.md": "3d11abe5078542030e8ab08b54fca6e2bdbe76b76c8ac82cdf56d34f5be62079",
+    "benchmarks/ledger_optimization/build_contrast_bundle_100.py": "5af075cfe9a34b28a65d0692cffc76c02043ddc7bc0dcc80e3bac7070cfcf1be",
+    "benchmarks/ledger_optimization/contrast_plan_100.py": "d48c6d4f27f2e34c116610e13a4421c4040d5f482f63eefb3ef0fe9f87640bdd",
+    "benchmarks/ledger_optimization/launch_contrast_100.py": "1b49851045b4e03320965ec60cde0f27ba3a800345d852fa4856871661b59b85",
+    "benchmarks/ledger_optimization/m5_ml_reference_analysis.py": "f1fa2d4a5e2a4b4809443e2c1d75570039eaac5910531dfa9271030cb9886bb8",
+    "benchmarks/tests/test_contrast_plan_100.py": "fd3f562fd1cbc620d58dd331abb241d8bade448f762b7a83ab8eec8bb2442d4f",
+    "benchmarks/tests/test_launch_contrast_100.py": "8519c133566dd79b1e82adac8a83d94db84b1721bc7d471e62016d36f91cbad4",
+    "benchmarks/tests/test_m5_ml_reference_analysis.py": "c7be93cee443b19465e91e65645a2e9ce77b7b966e3915ef348c30a55f9552ab"
+  }
+}

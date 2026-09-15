@@ -22,8 +22,8 @@ class ContrastPlanTests(unittest.TestCase):
             for field in ('arms','cases','seed','agent','gnomon','planned','budgets','pilot_gate','final_target','final_gate_opened','task_source_sha256'):
                 self.assertEqual(plan[field],parent[field])
             self.assertEqual(plan['engy_calls'],0)
-            self.assertTrue(plan['final_baseline_requirement']['improvement_over_frozen_pre_optimization_ledger_required'])
-            self.assertFalse(plan['final_baseline_requirement']['historical_run_scores_sufficient'])
+            self.assertFalse(plan['active_comparison']['superseded_119_reference_required'])
+            self.assertEqual(plan['active_comparison']['arms'],['plain','gnomon','ledger'])
             self.assertFalse(plan['comparison']['old_097_controls_allowed'])
             self.assertFalse(plan['amendment']['old_run_predictions_and_memories_reused'])
             self.assertEqual(plan['comparison']['primary'],'ledger versus gnomon within the fresh candidate-100 run')

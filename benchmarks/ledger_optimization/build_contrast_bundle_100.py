@@ -29,7 +29,7 @@ def build(output):
     for source,name in copies.items():
         if any(p.is_symlink() for p in Path(source).rglob('*')):raise ValueError('Source contains symlink')
         shutil.copytree(source,payload/name,ignore=shutil.ignore_patterns('__pycache__','*.pyc'))
-    files={'results/contrast-100-prospective-plan-002/plan.json':'plan.json',
+    files={'results/contrast-100-prospective-plan-003/plan.json':'plan.json',
            'results/workflow-097-prospective-plan-001/plan.json':'parent-plan.json',
            'results/contrast-100-launch-integration-001/normalized-preflight.json':'preflight.json',
            'results/contrast-100-continuation-preflight-001/passed.json':'continuation-preflight.json',

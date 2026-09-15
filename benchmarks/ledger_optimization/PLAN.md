@@ -10,6 +10,12 @@ Hermes alone, Hermes + Gnomon 1.2.0 without ledger, and Hermes + Gnomon 1.2.0
 with the development ledger workflow. Do not launch a 1.1.9 arm. Historical
 protocols and compatibility results are retained as historical evidence only.
 
+The 2026-09-15 four-arm numerical experiment and candidate-100 plan 002
+accidentally reintroduced that superseded requirement. They are retained only as
+historical work. Active candidate-100 plan 003 and staged bundle 002 restore this
+three-arm protocol; no paid candidate run preceded the correction. The 20%
+primary target and untouched-final requirement are unchanged.
+
 ## Objective agreed before experiments
 
 Achieve at least **20% lower mean per-case RMSLE** than a matched no-ledger
