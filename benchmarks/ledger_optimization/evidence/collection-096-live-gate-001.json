@@ -1,0 +1,183 @@
+{
+  "status": "live_pilot_retained_continuation_threshold_unreachable",
+  "monitor": {
+    "at": "2026-09-15T00:10:19.038678+00:00",
+    "controller_live": true,
+    "pid": 4166086,
+    "finished": false,
+    "incomplete": false,
+    "completed": 17,
+    "planned": 36,
+    "arms": {
+      "plain": {
+        "completed": 6,
+        "valid": 6,
+        "full_workflows": 4
+      },
+      "gnomon": {
+        "completed": 6,
+        "valid": 6,
+        "full_workflows": 5
+      },
+      "ledger": {
+        "completed": 5,
+        "valid": 5,
+        "full_workflows": 5
+      }
+    },
+    "matched_cases": 5,
+    "matched_mean_rmsle": {
+      "plain": 0.6522609481536835,
+      "gnomon": 0.5958002635167965,
+      "ledger": 0.585080283533792
+    },
+    "forwarded_requests": 247,
+    "returned_responses": 245,
+    "api_errors": 0,
+    "reported_tokens": 3825898,
+    "attempts_without_reported_usage_including_inflight": 2,
+    "readiness_requests": 19,
+    "readiness_reported_tokens": 266,
+    "readiness_unknown_usage": 0,
+    "scope": "Development monitoring; matched cases require all three arms, without success filtering. Not final efficacy evidence."
+  },
+  "gate": {
+    "valid_per_arm": 12,
+    "full_workflows_required_per_arm": 11,
+    "plain_full_workflows_maximum": 10,
+    "accuracy_used": false,
+    "terminal_gate_pending": true,
+    "continuation_dispatch_allowed": false
+  },
+  "inspected_failures": [
+    {
+      "path": "plain/item_1047756_store_23/round-1",
+      "grade": {
+        "api_calls": 16,
+        "api_errors": 0,
+        "arm": "plain",
+        "backtested_configurations": 1,
+        "baseline_checkpoint_only": true,
+        "blocked_api_requests": 0,
+        "cause": null,
+        "checkpoint_publications": 2,
+        "config": {
+          "model": "seasonal",
+          "season": 7
+        },
+        "corrections": 0,
+        "decision_summary_present": false,
+        "execution_id": "17543ac6-453f-4e3d-b2e6-6312df03c65b",
+        "exit_code": 0,
+        "fallback_used": false,
+        "ledger_reviews": 0,
+        "numerical_attempts": 4,
+        "numerical_successes": 4,
+        "orchestration_stop": "request_budget_exhausted",
+        "origin": "2016-08-30T00:00:00+00:00",
+        "point": [
+          1.0,
+          1.0,
+          14.0,
+          2.0,
+          3.0,
+          3.0,
+          2.0,
+          1.0,
+          1.0,
+          14.0,
+          2.0,
+          3.0,
+          3.0,
+          2.0
+        ],
+        "prior_outcomes": 1,
+        "responses": 16,
+        "review_calls": 1,
+        "rmsle": 0.6973999985520729,
+        "round": 1,
+        "seconds": 91.39731645770371,
+        "selection_after_comparison": false,
+        "selection_interventions": 4,
+        "series_id": "item_1047756_store_23",
+        "tokens": 247751,
+        "usage_complete": true,
+        "valid": true,
+        "workflow_complete": false
+      },
+      "raw_response_count": 16
+    },
+    {
+      "path": "plain/item_1304243_store_32/round-0",
+      "grade": {
+        "api_calls": 16,
+        "api_errors": 0,
+        "arm": "plain",
+        "backtested_configurations": 1,
+        "baseline_checkpoint_only": true,
+        "blocked_api_requests": 0,
+        "cause": null,
+        "checkpoint_publications": 2,
+        "config": {
+          "model": "seasonal",
+          "season": 7
+        },
+        "corrections": 0,
+        "decision_summary_present": false,
+        "execution_id": "b1af9fd8-5f66-4593-aff3-724bf47f812d",
+        "exit_code": 0,
+        "fallback_used": false,
+        "ledger_reviews": 0,
+        "numerical_attempts": 4,
+        "numerical_successes": 4,
+        "orchestration_stop": "request_budget_exhausted",
+        "origin": "2016-08-16T00:00:00+00:00",
+        "point": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "prior_outcomes": 0,
+        "responses": 16,
+        "review_calls": 1,
+        "rmsle": 0.32086479593153566,
+        "round": 0,
+        "seconds": 81.55817048437893,
+        "selection_after_comparison": false,
+        "selection_interventions": 4,
+        "series_id": "item_1304243_store_32",
+        "tokens": 269743,
+        "usage_complete": true,
+        "valid": true,
+        "workflow_complete": false
+      },
+      "raw_response_count": 16
+    }
+  ],
+  "finding": "Both inspected plain sessions exhausted exploration requests reading files and summaries before an ML backtest. Baseline forecasts remain scored. No numerical/API failure in these two cases.",
+  "evidence_sha256": {
+    "results/collection-096-monitor-002/stdout.json": "cfb9a4dee3c08a4d7c980e4a15247c712647ad281ecc8174813d6748f3286d53",
+    "results/collection-096-monitor-002/command.json": "0418a12ee16005180d65892efca8d60e8343a648619562d7a615526f489ed0dc",
+    "results/collection-096-failure-monitor-001/stdout.json": "1ef0162918f0f3fe29384cc2059df4477751566c4f3a7ddfae93d5c1f4852724",
+    "results/collection-096-failure-monitor-002/stdout.json": "76e829a31c1d7b9a6839d179847aa422eb499901ed3480a07940c0e3185f5584",
+    "results/collection-096-failure-monitor-002/query.py": "e73589b1d0d57ec1cf7705ba52bc1a3b6f4a1c2f7b7cc82f283905c4f02f11e9",
+    "results/collection-096-failure-monitor-002/command.json": "bfed2f5e707aca4bca42f898991fbd2c045019ba7072db2f793bb6cb01e6b932",
+    "results/workflow-097-offline-001/capsule/capsule.json": "93ca187b1dd852b322ee54c936e37c445b7dc655243e8e76e63c83a05b902f44",
+    "results/continuation-workflow-local-checks-001/command.json": "324edffdf2b012dfb1bf56124c9ce9a2d4b74426c304085eb456ee794eeee915",
+    "results/continuation-workflow-local-checks-001/stderr": "28e907be986bfd9c6b53fb438c9321ab042b6346697515a1abf3e991eddaa644"
+  },
+  "followup": "Undeployed common progress reminders; independent audit and exact Hermes integration still required.",
+  "new_paid_calls_from_local_work": 0,
+  "final_gate_opened": false
+}

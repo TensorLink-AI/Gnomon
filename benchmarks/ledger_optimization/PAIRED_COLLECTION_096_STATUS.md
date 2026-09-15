@@ -1,4 +1,31 @@
-# Prospective paired collection pilot 096 — running
+# Prospective paired collection pilot 096 — running; continuation threshold unreachable
+
+At **2026-09-15 00:10:19 UTC**, the same controller was verified live: 17/36
+sessions completed, all forecasts valid, zero API errors. Full workflows were
+4/6 plain Hermes, 5/6 Gnomon, and 5/5 ledger. Two plain sessions already missed
+the full-workflow requirement, so that arm can reach at most 10/12. The frozen
+11/12 threshold is therefore unreachable. **Do not launch the 276-session
+continuation**, regardless of the eventual accuracy. Finish and audit all 36
+pilot sessions, retaining failures and costs. The terminal gate has not yet run.
+
+Five matched cases currently have RMSLE 0.652261 / 0.595800 / 0.585080 for
+plain / Gnomon / ledger. These early, reused-development scores are monitoring,
+not efficacy evidence or a basis for altering the gate. Full terminal analysis
+will supersede this snapshot.
+
+The two inspected plain failures used all 12 exploration requests on summaries
+and file reads, then reached the protected selection phase with no ML backtest.
+Both finished with a valid seasonal baseline, four numerical fits and 16 API
+requests, without an API error. One read several source files; the other mostly
+inspected history windows. They were not numerical-budget failures. Their full
+returned model messages are retained in
+`results/collection-096-failure-monitor-002/stdout.json`; exact commands and
+stderr accompany them. The independent completed-session audit is still pending.
+
+A continuation runner and exact-source synthetic resume proof were prepared
+locally, but remain undispatched. A separate, undeployed common progress-reminder
+prototype is described in `COMMON_WORKFLOW_PROGRESS_097.md`. No live worker,
+prompt, budget or gate was changed.
 
 The frozen 36-session pilot launched at **2026-09-14 23:53:33 UTC** after the
 093 controller finished cleanly, all 43,356 final evidence files were verified,

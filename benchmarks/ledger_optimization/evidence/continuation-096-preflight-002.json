@@ -1,0 +1,48 @@
+{
+  "status": "synthetic_resume_verified_paid_continuation_not_authorized",
+  "results": [
+    {
+      "path": "results/continuation-096-preflight-001",
+      "passed_sha256": "af4227a771865fb61ad80e51e03912f83613a3fcd7bb62b5b261b9d64d45caac",
+      "archive_sha256": "4976e20b2867aeaa406c9b81d54fd979e6dcb185169d3f0cbc3b0945bd84b9db",
+      "archive_bytes": 6421940,
+      "files": 1679,
+      "passed": true,
+      "checks": 59,
+      "independent_audit_checks": 1023,
+      "numerical_attempts": 96,
+      "scripted_responses": 48,
+      "engy_calls": 0,
+      "current_source_proof": false
+    },
+    {
+      "path": "results/continuation-096-preflight-002",
+      "passed_sha256": "cca6961ea7bded5f2e5861b941f0326c45fbe6143e3163e691e43b0cae8e6f7d",
+      "archive_sha256": "dafc4e25fa0d8c5f9ee43a8dd89f55a43c99a5d647c016d04fbbdbc7b02e7e1c",
+      "archive_bytes": 6421350,
+      "files": 1679,
+      "passed": true,
+      "checks": 59,
+      "independent_audit_checks": 1023,
+      "numerical_attempts": 96,
+      "scripted_responses": 48,
+      "engy_calls": 0,
+      "current_source_proof": true
+    }
+  ],
+  "continuation_sources": {
+    "continue_collection_096.py": "feb4b9f9379f3eb9bc8ca148eaec2504b4fa29f308d86702878313eae00a5d05",
+    "continue_guarded_093.py": "6ea588139648e818fd3c6f7ed807a5042a978c665e8775464739ba77028c900c",
+    "launch_collection_096.py": "9b10bf70329be2d6d96baeedc7962f4e8e067c9be10345f4a513b2b2a7ff9a11"
+  },
+  "total_synthetic_fits": 192,
+  "engy_calls": 0,
+  "scope": "Two preserved synthetic integrations. 001 preceded an added installed-build/runtime-location gate; 002 tests the current source. Actual Hermes, Gnomon 1.2.0, state copy and collection maturation. No agent efficacy inference.",
+  "paid_continuation": "096 pilot cannot reach its frozen full-workflow threshold; do not dispatch continuation.",
+  "local_tests": {
+    "path": "results/continuation-workflow-local-checks-001",
+    "count": 29,
+    "exit_status": 0
+  },
+  "final_gate_opened": false
+}
