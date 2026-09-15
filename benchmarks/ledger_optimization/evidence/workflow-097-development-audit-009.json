@@ -1,0 +1,466 @@
+{
+  "status": "incremental_batch_independently_verified",
+  "new_sessions": 25,
+  "independent_audit_checks": 15085,
+  "audit_failures": [],
+  "shutdown_record_gaps": [],
+  "new_arms": {
+    "gnomon": {
+      "admission_api_calls": 7,
+      "admission_reported_tokens": 98,
+      "admission_wait_seconds": 15.083223033696413,
+      "api_calls": 73,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 0,
+      "checkpoint_publications": 14,
+      "cold_rmsle": null,
+      "corrections": 0,
+      "distinct_configs_per_task": 3,
+      "dollars": null,
+      "http_errors": 0,
+      "later_rmsle": null,
+      "ledger_reviews": 0,
+      "mature_rmsle": 0.39969906914102693,
+      "mean_rmsle": 0.4305437507831059,
+      "numerical_attempts": 84,
+      "numerical_successes": 84,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 7
+      },
+      "per_series": {
+        "item_1372862_store_12": 0.2708487274518443,
+        "item_1457251_store_14": 0.5503150182815522
+      },
+      "review_calls": 11,
+      "seconds": 843.9616578500718,
+      "tasks": 7,
+      "tokens": 1236630,
+      "usage_complete": true,
+      "valid": 7,
+      "valid_only_rmsle": 0.4305437507831059,
+      "workflow_complete": 7
+    },
+    "ledger": {
+      "admission_api_calls": 9,
+      "admission_reported_tokens": 126,
+      "admission_wait_seconds": 10.941369229927659,
+      "api_calls": 89,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 0,
+      "checkpoint_publications": 18,
+      "cold_rmsle": null,
+      "corrections": 0,
+      "distinct_configs_per_task": 2.888888888888889,
+      "dollars": null,
+      "http_errors": 0,
+      "later_rmsle": null,
+      "ledger_reviews": 12,
+      "mature_rmsle": 0.416387390108132,
+      "mean_rmsle": 0.43594324389209205,
+      "numerical_attempts": 104,
+      "numerical_successes": 104,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 9
+      },
+      "per_series": {
+        "item_1372862_store_12": 0.3156593197902637,
+        "item_1457251_store_14": 0.5321703831735547
+      },
+      "review_calls": 12,
+      "seconds": 1068.4525958299637,
+      "tasks": 9,
+      "tokens": 1495724,
+      "usage_complete": true,
+      "valid": 9,
+      "valid_only_rmsle": 0.43594324389209205,
+      "workflow_complete": 9
+    },
+    "plain": {
+      "admission_api_calls": 9,
+      "admission_reported_tokens": 126,
+      "admission_wait_seconds": 11.653629943728447,
+      "api_calls": 90,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 0,
+      "checkpoint_publications": 18,
+      "cold_rmsle": null,
+      "corrections": 0,
+      "distinct_configs_per_task": 3,
+      "dollars": null,
+      "http_errors": 0,
+      "later_rmsle": null,
+      "ledger_reviews": 0,
+      "mature_rmsle": 0.45350896978756855,
+      "mean_rmsle": 0.41609941778538706,
+      "numerical_attempts": 108,
+      "numerical_successes": 108,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 9
+      },
+      "per_series": {
+        "item_1372862_store_12": 0.297032506984329,
+        "item_1457251_store_14": 0.5649330562867098
+      },
+      "review_calls": 12,
+      "seconds": 1059.464069193229,
+      "tasks": 9,
+      "tokens": 1388193,
+      "usage_complete": true,
+      "valid": 9,
+      "valid_only_rmsle": 0.41609941778538706,
+      "workflow_complete": 9
+    }
+  },
+  "combined_verified_sessions": 227,
+  "combined_matched_cases": 75,
+  "combined_matched": {
+    "plain": {
+      "mean_rmsle": 0.46676514113947265,
+      "tokens": 11533733,
+      "api_calls": 765,
+      "numerical_attempts": 892
+    },
+    "gnomon": {
+      "mean_rmsle": 0.46647744234080146,
+      "tokens": 11867389,
+      "api_calls": 755,
+      "numerical_attempts": 852
+    },
+    "ledger": {
+      "mean_rmsle": 0.4705877168040472,
+      "tokens": 11459545,
+      "api_calls": 716,
+      "numerical_attempts": 848
+    }
+  },
+  "combined_completion": {
+    "plain": {
+      "completed": 76,
+      "valid": 76,
+      "full_workflows": 76
+    },
+    "gnomon": {
+      "completed": 75,
+      "valid": 75,
+      "full_workflows": 75
+    },
+    "ledger": {
+      "completed": 76,
+      "valid": 76,
+      "full_workflows": 76
+    }
+  },
+  "decision_diagnostic": {
+    "plain": {
+      "sessions": 9,
+      "selected_current_cv_minimum": 9
+    },
+    "gnomon": {
+      "sessions": 7,
+      "selected_current_cv_minimum": 5
+    },
+    "ledger": {
+      "sessions": 9,
+      "selected_current_cv_minimum": 7
+    }
+  },
+  "non_minimum_cv_decisions": [
+    {
+      "arm": "gnomon",
+      "series_id": "item_1372862_store_12",
+      "round": 11,
+      "selected_config": {
+        "depth": 8,
+        "lags": 28,
+        "model": "random_forest",
+        "window": 730
+      },
+      "selected_cv_rmsle": 0.14073677798694414,
+      "minimum_tested_cv_rmsle": 0.11572415117221653,
+      "selected_current_cv_minimum": false,
+      "configs_at_selection": [
+        {
+          "model": "seasonal",
+          "season": 7,
+          "cv_rmsle": 0.11572415117221653
+        },
+        {
+          "model": "ridge",
+          "window": 730,
+          "lags": 28,
+          "alpha": 1.0,
+          "cv_rmsle": 0.1926952856190032
+        },
+        {
+          "model": "random_forest",
+          "window": 730,
+          "lags": 28,
+          "depth": 8,
+          "cv_rmsle": 0.14073677798694414
+        }
+      ],
+      "ledger_reviews": 0,
+      "event_log_sha256": "a675655fe1b8c94bd0a049056820c5924a3996793a5b67885964ef14a512cb50"
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1457251_store_14",
+      "round": 7,
+      "selected_config": {
+        "alpha": 10.0,
+        "lags": 14,
+        "model": "ridge",
+        "window": 365
+      },
+      "selected_cv_rmsle": 0.5553792825041663,
+      "minimum_tested_cv_rmsle": 0.5479312166636742,
+      "selected_current_cv_minimum": false,
+      "configs_at_selection": [
+        {
+          "model": "seasonal",
+          "season": 7,
+          "cv_rmsle": 0.8043597025197207
+        },
+        {
+          "model": "ridge",
+          "window": 365,
+          "lags": 14,
+          "alpha": 10.0,
+          "cv_rmsle": 0.5553792825041663
+        },
+        {
+          "model": "random_forest",
+          "window": 365,
+          "lags": 14,
+          "depth": 8,
+          "cv_rmsle": 0.5479312166636742
+        }
+      ],
+      "ledger_reviews": 0,
+      "event_log_sha256": "0e11e874a9d6699a3ee245f2a251f14fd613c93a92e0c8db4a0e18938275c60f"
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1372862_store_12",
+      "round": 11,
+      "selected_config": {
+        "depth": 8,
+        "lags": 14,
+        "model": "random_forest",
+        "window": 365
+      },
+      "selected_cv_rmsle": 0.14049085158564245,
+      "minimum_tested_cv_rmsle": 0.11572415117221653,
+      "selected_current_cv_minimum": false,
+      "configs_at_selection": [
+        {
+          "model": "seasonal",
+          "season": 7,
+          "cv_rmsle": 0.11572415117221653
+        },
+        {
+          "model": "ridge",
+          "window": 730,
+          "lags": 28,
+          "alpha": 1.0,
+          "cv_rmsle": 0.1926952856190032
+        },
+        {
+          "model": "random_forest",
+          "window": 365,
+          "lags": 14,
+          "depth": 8,
+          "cv_rmsle": 0.14049085158564245
+        }
+      ],
+      "ledger_reviews": 2,
+      "event_log_sha256": "b3e9bd9d8069f33baeb1b462064985aeff3d4871d249be160abf2608e09fb45c"
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1457251_store_14",
+      "round": 10,
+      "selected_config": {
+        "depth": 8,
+        "lags": 14,
+        "model": "random_forest",
+        "window": 365
+      },
+      "selected_cv_rmsle": 0.5846978623083972,
+      "minimum_tested_cv_rmsle": 0.5822743666436576,
+      "selected_current_cv_minimum": false,
+      "configs_at_selection": [
+        {
+          "model": "seasonal",
+          "season": 7,
+          "cv_rmsle": 0.695248368124453
+        },
+        {
+          "model": "random_forest",
+          "window": 365,
+          "lags": 14,
+          "depth": 8,
+          "cv_rmsle": 0.5846978623083972
+        },
+        {
+          "model": "random_forest",
+          "window": 730,
+          "lags": 28,
+          "depth": 12,
+          "cv_rmsle": 0.5822743666436576
+        }
+      ],
+      "ledger_reviews": 2,
+      "event_log_sha256": "09bb479e24cbcbbb6e4a30db7cedc18f044fca242513f58caa5bf2533e4daa81"
+    }
+  ],
+  "transfer": {
+    "status": "verified",
+    "archive": {
+      "bytes": 36908182,
+      "sessions": 25,
+      "archive": "/root/gnomon-ledger-ml-v3/code/results/workflow-097-development-audit-009/snapshot.tar.gz",
+      "sha256": "14f64fd44ae438f7e9ee34b14753013d61d4ba422f54daae6793a418517ba485"
+    },
+    "chunks": [
+      {
+        "offset": 0,
+        "bytes": 2097152,
+        "sha256": "1cb46257c0d0976895aa693ac5b1e57ed7b9e520021af40eaded8a427e0189cc"
+      },
+      {
+        "offset": 2097152,
+        "bytes": 2097152,
+        "sha256": "b4a64fbfd5e5ee598e3869034e09dc0d4abdf9386a9643d11cccc04b46834c60"
+      },
+      {
+        "offset": 4194304,
+        "bytes": 2097152,
+        "sha256": "13ec5d7b7b549891ea188f178bfa71bce0da7b2e603acf55b357f710e19490ac"
+      },
+      {
+        "offset": 6291456,
+        "bytes": 2097152,
+        "sha256": "2354d8823335d3485f861499375a6ae1e7235cc6f35723a05d612461d59515ce"
+      },
+      {
+        "offset": 8388608,
+        "bytes": 2097152,
+        "sha256": "b64099bbdb12fa99fcaf7867192f70ec3cb1711ad099ecc4b6682f83f5b4b612"
+      },
+      {
+        "offset": 10485760,
+        "bytes": 2097152,
+        "sha256": "fcbae68a9b2347565855efaff32867969cdf5bf31db531d13ab1204daa7ad3c3"
+      },
+      {
+        "offset": 12582912,
+        "bytes": 2097152,
+        "sha256": "a81ee1e86dc21a438d0d91448b82268aaa15f6fb414dffed15e198d2042d28eb"
+      },
+      {
+        "offset": 14680064,
+        "bytes": 2097152,
+        "sha256": "e191eeac646fbcfe5fe46d4ab3097b5db62fae3d8951c97baedfaea7b631820f"
+      },
+      {
+        "offset": 16777216,
+        "bytes": 2097152,
+        "sha256": "66fac0418ff6f0c80b81ac83222d0a082076c06c169da697fc57751c41b6c6a5"
+      },
+      {
+        "offset": 18874368,
+        "bytes": 2097152,
+        "sha256": "3b225d3323a91a60a3c1d40ee2cbf244d53ddac0c3e0123b32e4fb863a4752d4"
+      },
+      {
+        "offset": 20971520,
+        "bytes": 2097152,
+        "sha256": "c7f18246400ef25cd9c12a629a792e874f7d446ec53ddb2d14d7e111efcd0e0c"
+      },
+      {
+        "offset": 23068672,
+        "bytes": 2097152,
+        "sha256": "431d2aebbaf0a4368c9be89ef6fb18deea79725e0062c950dcde437537d3c514"
+      },
+      {
+        "offset": 25165824,
+        "bytes": 2097152,
+        "sha256": "00e6c28dfc557393dd0e0d7349ea9362cd264e2a612c5ada606a22e99f5b2696"
+      },
+      {
+        "offset": 27262976,
+        "bytes": 2097152,
+        "sha256": "847e29687f8c6ecb277aef96eb706440689cca7138c76844006fba2e9ed33ad9"
+      },
+      {
+        "offset": 29360128,
+        "bytes": 2097152,
+        "sha256": "912ebd0a260c5f053dfeb509c81ec78f9253983c1d24758dd1d5934db417584a"
+      },
+      {
+        "offset": 31457280,
+        "bytes": 2097152,
+        "sha256": "c76bfb589e425800ca55496206eb2e588d341281146f4cd19426bdf5c65140e7"
+      },
+      {
+        "offset": 33554432,
+        "bytes": 2097152,
+        "sha256": "ce8e8332b48d6182d57fa8094c03ba68655eac4f0f5fbb6353477f82819b2915"
+      },
+      {
+        "offset": 35651584,
+        "bytes": 1256598,
+        "sha256": "3280459271d80cf7160c2801c504cdb4f30cdb4bbc07e8cfe25a379ab4791ec9"
+      }
+    ],
+    "files_verified": 3087
+  },
+  "costs": {
+    "sessions": 25,
+    "forwarded_requests": 252,
+    "returned_responses": 252,
+    "reported_tokens": 4120547,
+    "requests_without_reported_usage": 0,
+    "api_errors": 0,
+    "readiness_requests": 25,
+    "readiness_reported_tokens": 350,
+    "readiness_unknown_usage": 0,
+    "orphan_responses": 0
+  },
+  "evidence": {
+    "results/workflow-097-final-001/audit/report.json": "f8d98586e2ddb64a7eaaf06c73f1450652800cfc567f0d2ea68f6a4b9dceb7c6",
+    "results/workflow-097-development-audit-001/audit/report.json": "c3ad8f526ed2dba07ed394877c0bbbcd21e9213903ffe4da5a05781514afd67d",
+    "results/workflow-097-development-audit-002/audit/report.json": "7532e5a7da6a1f15e5e486f48847940a7dfe4ccb4a71b9c006c983bfddaa3e2b",
+    "results/workflow-097-development-audit-003/audit/report.json": "df4e5b5e2da4d46e80f63825457093f1d29755d41ccbd4c458386fba1c95504a",
+    "results/workflow-097-development-audit-004/audit/report.json": "21ea30a132c94779f3fb52b5b30044da85e7c5f9200155d26a91b8bf2b9d12e7",
+    "results/workflow-097-development-audit-005/audit/report.json": "d0cfe3e4c59764899602aa6bdb91d259539b56bd614b77a14bd2378cb9f420f5",
+    "results/workflow-097-development-audit-006/audit/report.json": "8f6c62c8683ed3d57f4f0bb7f51db9650f9482e0d93fd2ccaec4921ff55eda16",
+    "results/workflow-097-development-audit-007/audit/report.json": "68045201be05f0dada5a30b681a7a169fb64727ad851354dc0e3c05bf0274c6b",
+    "results/workflow-097-development-audit-008/audit/report.json": "446ac78bff9cfca13ad30bbd9e7e77beb247f4ff82ab3e61911367cfd97e72fb",
+    "results/workflow-097-development-audit-009/audit/report.json": "70690b2f71d0e3f71a3f45296003cd6cdc12a2c1057878ae786ea9eeddd9a990",
+    "/root/Gnomon/results/workflow-097-development-audit-009/snapshot.py": "deb9dabc73f6fc1b205208ca1cb6c3fe62884ea189f97ab67d18289adbd13b78",
+    "/root/Gnomon/results/workflow-097-development-audit-009/collect.py": "9f3c67b4b6daec0859a6adfd3a5f795a5bc4c4d99d8973e58cc71ee5c4c2930b",
+    "/root/Gnomon/results/workflow-097-development-audit-009/analyze_local.py": "d414075f9f7a69f3dc057ec3b2495bfb7889bffdc5da5b580dfad10055df9516",
+    "/root/Gnomon/results/workflow-097-development-audit-009/summarize.py": "f5d6703de5edc84fcbdfbe091a32787fdc8ee6c539f854ecf98928a6cc775e58",
+    "/root/Gnomon/results/workflow-097-development-audit-009/decision_diagnostic.py": "2d7d1492c009d7e6062fed954a6f46cc0eb1dfb33b1be8c304a5d50d612f6cfe",
+    "/root/Gnomon/results/workflow-097-development-audit-009/decision-diagnostic.json": "82a74eb28fe05707996ec6b099585c9cd217d38a38a3edac5fa8fc1b5c485b23",
+    "/root/Gnomon/results/workflow-097-development-audit-009/analyze.stdout": "6ca8dbcb530cd63de69b78de83392d21bdd67cfe8ba933baf20093b5547227c7",
+    "/root/Gnomon/results/workflow-097-development-audit-009/analyze.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/root/Gnomon/results/workflow-097-development-audit-009/diagnostic-attempts.json": "ab56451a3dcc4149cd01295b94f50007a2883c333ba05e5c8d8ec57182614482",
+    "/root/Gnomon/results/workflow-097-development-audit-009/decision-diagnostic.stdout": "c62516a287c6345c5b84659627110f0a582ea63e4792d22836a47333765cbb41",
+    "/root/Gnomon/results/workflow-097-development-audit-009/decision-diagnostic.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "scope": "All newly finished post-pilot sessions excluding batches 001\u2013008. No success or accuracy filtering. Combined scores/costs use all-three intersection. Snapshots are subsets of the existing run, not additional paid experiments. CV agreement is descriptive, not causal evidence.",
+  "diagnostic_driver_attempts": [
+    {
+      "argv": [
+        "python3",
+        "results/workflow-097-development-audit-009/decision_diagnostic.py"
+      ],
+      "exit_status": 0
+    }
+  ],
+  "final_gate_opened": false,
+  "objective_established": false
+}

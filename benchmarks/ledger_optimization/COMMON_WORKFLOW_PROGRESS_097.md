@@ -319,3 +319,36 @@ original evidence remains retained. See PLAN.md and
 has started. The original 097 controller remains responsible for finishing its
 312 sessions; it has not been restarted. Final/protected data remain unopened,
 the 20% objective remains unestablished, and main/PyPI are unchanged.
+
+
+## Continuation audit 009
+
+The next 25 newly completed sessions passed 15,085 independent checks with no
+failures or shutdown gaps. The 36,908,182-byte archive and all 3,087 files were
+verified. Combined disjoint coverage is 227 sessions: plain 76, Gnomon 75, ledger
+76; every session is valid and a full workflow. Comparisons below use the same
+75 matched cases in all three arms, with no success or accuracy filtering.
+
+| Arm | Matched mean RMSLE | Reported tokens | API requests | Fits |
+|---|---:|---:|---:|---:|
+| Hermes | 0.466765 | 11,533,733 | 765 | 892 |
+| Hermes + Gnomon | 0.466477 | 11,867,389 | 755 | 852 |
+| Hermes + Gnomon + ledger | 0.470588 | 11,459,545 | 716 | 848 |
+
+Ledger has 0.88% higher error and 3.44% fewer reported tokens than Gnomon without
+ledger. The earlier missing-usage attempt remains in the combined evidence, so
+the token column does not establish complete billing. The new batch contains
+252 forwarded/returned requests and 4,120,547 reported tokens, no API errors or
+usage gaps, plus 25 readiness requests and 350 tokens. No sessions were rerun.
+
+Current-CV-minimum selections were 9/9 plain, 5/7 Gnomon and 7/9 ledger. The
+exceptions and all tested configurations remain in the receipt. These are
+behavioral descriptions; overriding CV is not itself an error or proof of a
+historical-evidence benefit. There is still no established accuracy improvement.
+
+Receipt: `evidence/workflow-097-development-audit-009.json`. The original run
+continues toward 312 sessions. The separately tested waiter is armed for the
+frozen candidate-100 pilot after successful predecessor completion and full
+independent audit; it cannot restart either trial or open final data. This audit
+changes no runtime, worker source, budget, cohort, prompt or candidate. Main/PyPI
+and the final/protected-data gate remain unchanged.
