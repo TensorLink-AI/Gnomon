@@ -44,3 +44,36 @@ Candidate 107 was prospectively frozen before paid execution and remains a
 separate proposed improvement in turning requested historical evidence into
 optional experiments. It must be measured with fresh matched agent sessions;
 this result cannot be removed or replaced by a later favorable run.
+
+## Completed boundary reconciliation
+
+The separate reconciliation subsequently passed all 397,019 checks over all
+312 sessions, with zero integrity failures and shutdown gaps. It reproduced
+the exact original cached-order failure before applying only the corrected
+offline annotation auditor. Original execution files, original failed status
+and costs stayed unchanged. Its process exited zero; no agents, forecasts or
+provider fits were rerun.
+
+The downloaded corrected report matches every independently checked grade and
+both ledger contrasts exactly. Its hash is
+`120c603885bc8e74beb4618de7b8c2fb29b496735267e3e014cfe11c23cec2ae`.
+The receipt is `evidence/contrast-100-reconciled-final-001.json`; the separate
+43-file reconciliation archive has SHA-256
+`f5ad72a97960348306ef85a5ece68d8f1f0aef3680b61e6899a8101be68257ec`.
+The earlier numerical report's pending-audit label is preserved as its state
+when created, rather than overwritten.
+
+The original SSH observation wrapper returned nonzero before the remote audit
+finished. Same-boot PID/start-time checks proved its controller and worker were
+still live, so neither was restarted. A later original-host check verified both
+terminal identities and the successful reconciliation exit. That observation
+failure is retained separately from the actual audit outcome. The first local
+verification invocation also failed to import the repository from its script
+directory; running the unchanged script through `runpy` from the repository
+completed successfully. Neither incident changed an execution or score.
+
+The completed report records 103 successful ledger reviews across 104 ledger
+sessions. Mean distinct tested configurations were 2.73 for ledger versus 2.95
+for no-ledger Gnomon. This is descriptive evidence that access to historical
+comparisons did not itself produce a better search or better forecasts here;
+it does not establish why agents made their choices.
