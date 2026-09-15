@@ -1,0 +1,134 @@
+{
+  "status": "armed_verified_wait_for_original_predecessor",
+  "previous_goal_turn": "progress: independently measured and preserved historical support across all 67 audited ledger sessions; current turn removes manual dispatch delay without altering the frozen candidate.",
+  "code_commit": "87790de3",
+  "tests_passed": 12,
+  "deployment": {
+    "pid": 77707,
+    "start_ticks": "1559111274",
+    "boot_id": "998193f3-2771-4162-80e8-1a4887370f60",
+    "at": "2026-09-15T04:31:45.016736+00:00",
+    "argv": [
+      "/usr/bin/python3",
+      "-u",
+      "/root/gnomon-ledger-ml-v3/code/results/contrast-100-waiter-001/waiter.py",
+      "--config",
+      "/root/gnomon-ledger-ml-v3/code/results/contrast-100-waiter-001/config.json",
+      "--state",
+      "/root/gnomon-ledger-ml-v3/code/results/contrast-100-waiter-001/wait-state"
+    ],
+    "cwd": "/root/gnomon-ledger-ml-v3/code/results/contrast-100-waiter-001",
+    "predecessor_live_at_start": [
+      true,
+      true
+    ],
+    "source": {
+      "commit": "87790de3",
+      "waiter_sha256": "a9ad2bf8b300a460d1f126659fb8ad199b1072003d52bdfd6a86a3299344c7cb",
+      "config_sha256": "f08d21551151ffe3e5b575d3121636c18df190b09b252e8d4ee1452fa7891854",
+      "bundle_sha256": "a18612bcd7ed3b3dc58b8803cb2471654916cfef7d05f2f7c3b352f29f40a052",
+      "engy_calls_before_terminal_gates": 0
+    },
+    "candidate_started_at_observation": false,
+    "continuation_authorized": false,
+    "final_gate_opened": false
+  },
+  "observation": {
+    "at": "2026-09-15T04:32:38.559428+00:00",
+    "waiter_live": true,
+    "waiter_process": {
+      "pid": 77707,
+      "start_ticks": "1559111274",
+      "boot_id": "998193f3-2771-4162-80e8-1a4887370f60",
+      "at": "2026-09-15T04:31:45.016736+00:00",
+      "argv": [
+        "/usr/bin/python3",
+        "-u",
+        "/root/gnomon-ledger-ml-v3/code/results/contrast-100-waiter-001/waiter.py",
+        "--config",
+        "/root/gnomon-ledger-ml-v3/code/results/contrast-100-waiter-001/config.json",
+        "--state",
+        "/root/gnomon-ledger-ml-v3/code/results/contrast-100-waiter-001/wait-state"
+      ],
+      "cwd": "/root/gnomon-ledger-ml-v3/code/results/contrast-100-waiter-001",
+      "predecessor_live_at_start": [
+        true,
+        true
+      ],
+      "source": {
+        "commit": "87790de3",
+        "waiter_sha256": "a9ad2bf8b300a460d1f126659fb8ad199b1072003d52bdfd6a86a3299344c7cb",
+        "config_sha256": "f08d21551151ffe3e5b575d3121636c18df190b09b252e8d4ee1452fa7891854",
+        "bundle_sha256": "a18612bcd7ed3b3dc58b8803cb2471654916cfef7d05f2f7c3b352f29f40a052",
+        "engy_calls_before_terminal_gates": 0
+      },
+      "candidate_started_at_observation": false,
+      "continuation_authorized": false,
+      "final_gate_opened": false
+    },
+    "accepted_wait": {
+      "at": "2026-09-15T04:31:45.126944+00:00",
+      "bundle_sha256": "a18612bcd7ed3b3dc58b8803cb2471654916cfef7d05f2f7c3b352f29f40a052",
+      "plan_sha256": "0d6e759270e23db8d54f5cc7a5a0009a8af366e8d9ace23cf66beb648b76bc27",
+      "waiter_sha256": "a9ad2bf8b300a460d1f126659fb8ad199b1072003d52bdfd6a86a3299344c7cb",
+      "predecessor_identity_hashes": {
+        "/root/gnomon-ledger-ml-v3/code/results/workflow-097-continuation-launch-001/launch.json": "4bddf9d55d02fd07cae74daa6645ad914d0ad711928828b7cd9861ee2dac947e",
+        "/root/gnomon-ledger-ml-v3/code/results/workflow-097-continuation-launch-001/development-process.json": "190e58c3a11585f1eb24b41500669c3da27d89d42b6996c5828e7a0b012bcfb0"
+      },
+      "automatic_retry": false,
+      "continuation_authorized": false,
+      "final_gate_opened": false
+    },
+    "poll_count": 2,
+    "latest_poll": {
+      "at": "2026-09-15T04:32:15.274334+00:00",
+      "controller_live": true,
+      "worker_live": true
+    },
+    "predecessor_live_now": [
+      true,
+      true
+    ],
+    "candidate_controller_exists": false,
+    "candidate_output_exists": false,
+    "waiter_stopped": null,
+    "waiter_finished": null,
+    "waiter_stderr": ""
+  },
+  "conditional_paid_pilot_authorized": true,
+  "pilot_sessions": 36,
+  "arms": [
+    "plain",
+    "gnomon",
+    "ledger"
+  ],
+  "runtime": "1.2.0",
+  "automatic_retry": false,
+  "automatic_continuation": false,
+  "engy_calls_so_far": 0,
+  "provider_calls_so_far": 0,
+  "final_gate_opened": false,
+  "objective_established": false,
+  "evidence": {
+    "results/contrast-100-waiter-001/deploy.stdout": "5d01c97e7943522ad24526a9416de5a0ace809703cb1dc4d0a913fc252cb8b51",
+    "results/contrast-100-waiter-001/remote-start.py": "5220f4da66438de1bc6e8d8514ec2a2f01d0112a386d337be39cc40ca1014601",
+    "results/contrast-100-waiter-001/source.json": "22bcdb9ab5b62719ec82d4a7c735e4e22c74ccaf386b3f978f5e08886f1274f4",
+    "results/contrast-100-waiter-001/waiter.py": "a9ad2bf8b300a460d1f126659fb8ad199b1072003d52bdfd6a86a3299344c7cb",
+    "results/contrast-100-waiter-001/observe.py": "8845165f3352f013a926fccf507f592b52fcc1240705a109a01453c08d23261d",
+    "results/contrast-100-waiter-001/observation-001.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/contrast-100-waiter-001/config.json": "f08d21551151ffe3e5b575d3121636c18df190b09b252e8d4ee1452fa7891854",
+    "results/contrast-100-waiter-001/deploy-exit.json": "fbc2724935a13b44bf0de5980a618b57e4fdf8115686f6d5bafffdc10363d2b2",
+    "results/contrast-100-waiter-001/deploy.py": "a01d8d9ca528a219b8d79fab5b5ee921a11fa62c978ba40faccb5cea34a0013f",
+    "results/contrast-100-waiter-001/deploy.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/contrast-100-waiter-001/observation-001.stdout": "40699593fa726e00dad09f6e4c41df9d90c79d0340a3014c4e24c6bdabc9f4b6",
+    "results/contrast-100-waiter-001/observation-001-exit.json": "fbc2724935a13b44bf0de5980a618b57e4fdf8115686f6d5bafffdc10363d2b2",
+    "results/contrast-100-waiter-tests-001/tests.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/contrast-100-waiter-tests-001/tests.stderr": "f6f3d57b2ccd2dae9e32a580e73dbbd2a82b070d7795cbfdea0af6d1e5b801cb",
+    "results/contrast-100-waiter-tests-001/tests-002.stderr": "3ba74d08b04055af196ea2518fa688945695f64b40fca664fb8ab3714f767e9a",
+    "results/contrast-100-waiter-tests-001/tests-002.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/contrast-100-waiter-tests-001/test_wait_contrast_100.py": "652c3a45ba8ee4261eb6ce531f046afeb736e2c2ed643e542ed16a8b213aa1f5",
+    "benchmarks/ledger_optimization/wait_contrast_100.py": "a9ad2bf8b300a460d1f126659fb8ad199b1072003d52bdfd6a86a3299344c7cb",
+    "benchmarks/ledger_optimization/CONTRAST_WAIT_100.md": "38a654b0b9dfe19a94c7ce9b14d267d4829acbb551c0a37f1a3e1004053b7160",
+    "benchmarks/ledger_optimization/CONTRAST_STAGING_100.md": "1fa16d91e650ddbc9c7659f6e43b89cb0cf0054b0dc54b20ce29b410ca3b6e10"
+  }
+}

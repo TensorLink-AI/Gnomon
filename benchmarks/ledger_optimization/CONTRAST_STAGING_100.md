@@ -13,6 +13,13 @@ The pod verified its files and input contract. The launch check rejected the liv
 predecessor before creating outputs or reading credentials. See
 `evidence/contrast-100-three-arm-correction-001.json` for the correction record.
 
+A separate one-shot waiter was armed on 2026-09-15 after its 12 tests passed.
+It waits for the real predecessor process identities to terminate successfully,
+then invokes the unchanged controller and full pre-provider audit gates. It does
+not launch continuation. See `CONTRAST_WAIT_100.md` and
+`evidence/contrast-100-waiter-001.json`. The historical no-waiter statement below
+describes the earlier bundle-001 staging observation, not the current state.
+
 ## Historical staging receipt for bundle 001
 
 

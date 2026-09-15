@@ -38,3 +38,25 @@ without retry, protected paths, PID reuse/zombies/boot changes, the actual stage
 bundle, simultaneous payload/inventory tampering and retirement. Synthetic tests
 mock the child controller; the paid launcher itself retains its separate tested
 gates. Starting a waiting process is not evidence that a pilot has launched.
+
+## Armed process
+
+The exact committed waiter was deployed at 2026-09-15 04:31:45 UTC under
+`/root/gnomon-ledger-ml-v3/code/results/contrast-100-waiter-001`.
+Process 77707 has start ticks 1559111274 and boot ID
+`998193f3-2771-4162-80e8-1a4887370f60`. Its full source/config hashes, command and
+process identity are retained in the deployment receipt. Never launch it again
+because a poll times out; inspect that identity and its retained state first.
+
+The independent observation at 04:32:38 UTC verified the waiter live, two recorded
+polls, both predecessor identities still live, no stderr, and no candidate pilot
+or controller directory. This is a verified wait, not a paid candidate outcome.
+The eventual outputs are `results/contrast-100-pilot-001` and
+`results/contrast-100-pilot-launch-001` on the pod. The waiter's `wait-state/`
+retains polls, dispatch reservation reference, controller output and exit or
+STOPPED/FINISHED receipts. The original 097 experiment remains unchanged.
+
+Evidence: `results/contrast-100-waiter-001/` and
+`results/contrast-100-waiter-tests-001/`; committed deployment receipt:
+`evidence/contrast-100-waiter-001.json`. Main/PyPI and the final-data gate are
+unchanged. The 20% efficacy objective is not established.
