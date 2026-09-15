@@ -1,0 +1,218 @@
+{
+  "observed_sessions": 186,
+  "all_matched": {
+    "matched_cases": 61,
+    "selected_mean_rmsle": {
+      "plain": 0.484505294939318,
+      "gnomon": 0.472588298951803,
+      "ledger": 0.48251191970730833
+    },
+    "own_hindsight_mean_rmsle": {
+      "plain": 0.45080412454096214,
+      "gnomon": 0.44457512787252645,
+      "ledger": 0.4475819581854251
+    },
+    "union_hindsight_mean_rmsle": 0.435841805436786,
+    "own_reduction_vs_actual_no_ledger": {
+      "plain": 0.04609545868816045,
+      "gnomon": 0.05927605728159058,
+      "ledger": 0.05291358423778525
+    },
+    "union_reduction_vs_actual_no_ledger": 0.07775582594093078,
+    "valid": {
+      "plain": 61,
+      "gnomon": 61,
+      "ledger": 61
+    },
+    "full_workflows": {
+      "plain": 61,
+      "gnomon": 61,
+      "ledger": 61
+    }
+  },
+  "by_series": {
+    "item_1047756_store_23": {
+      "matched_cases": 26,
+      "selected_mean_rmsle": {
+        "plain": 0.765745996745474,
+        "gnomon": 0.7372559048112857,
+        "ledger": 0.7565638160384827
+      },
+      "own_hindsight_mean_rmsle": {
+        "plain": 0.708813840137244,
+        "gnomon": 0.6946086888822631,
+        "ledger": 0.6993761017346557
+      },
+      "union_hindsight_mean_rmsle": 0.6792346910835586,
+      "own_reduction_vs_actual_no_ledger": {
+        "plain": 0.03857827992754015,
+        "gnomon": 0.05784587909124839,
+        "ledger": 0.051379450241671565
+      },
+      "union_reduction_vs_actual_no_ledger": 0.07869887965506184,
+      "valid": {
+        "plain": 26,
+        "gnomon": 26,
+        "ledger": 26
+      },
+      "full_workflows": {
+        "plain": 26,
+        "gnomon": 26,
+        "ledger": 26
+      }
+    },
+    "item_1304243_store_32": {
+      "matched_cases": 26,
+      "selected_mean_rmsle": {
+        "plain": 0.2302269632015805,
+        "gnomon": 0.23004211940852887,
+        "ledger": 0.2296146228784772
+      },
+      "own_hindsight_mean_rmsle": {
+        "plain": 0.22169094262406347,
+        "gnomon": 0.2204919603984129,
+        "ledger": 0.22067337048757799
+      },
+      "union_hindsight_mean_rmsle": 0.2179250048071185,
+      "own_reduction_vs_actual_no_ledger": {
+        "plain": 0.03630281622312237,
+        "gnomon": 0.04151482795703143,
+        "ledger": 0.04072623285265875
+      },
+      "union_reduction_vs_actual_no_ledger": 0.05267346098429804,
+      "valid": {
+        "plain": 26,
+        "gnomon": 26,
+        "ledger": 26
+      },
+      "full_workflows": {
+        "plain": 26,
+        "gnomon": 26,
+        "ledger": 26
+      }
+    },
+    "item_1372862_store_12": {
+      "matched_cases": 5,
+      "selected_mean_rmsle": {
+        "plain": 0.3068289609511323,
+        "gnomon": 0.29540047310845396,
+        "ledger": 0.3158660320524549
+      },
+      "own_hindsight_mean_rmsle": {
+        "plain": 0.25528025152849165,
+        "gnomon": 0.25870643264476506,
+        "ledger": 0.2672314253180209
+      },
+      "union_hindsight_mean_rmsle": 0.2481090466278875,
+      "own_reduction_vs_actual_no_ledger": {
+        "plain": 0.13581637550469494,
+        "gnomon": 0.12421794751228099,
+        "ledger": 0.0953588445340472
+      },
+      "union_reduction_vs_actual_no_ledger": 0.16009258882670707,
+      "valid": {
+        "plain": 5,
+        "gnomon": 5,
+        "ledger": 5
+      },
+      "full_workflows": {
+        "plain": 5,
+        "gnomon": 5,
+        "ledger": 5
+      }
+    },
+    "item_1457251_store_14": {
+      "matched_cases": 4,
+      "selected_mean_rmsle": {
+        "plain": 0.5313453069798297,
+        "gnomon": 0.5502838102006338,
+        "ledger": 0.5533143825106442
+      },
+      "own_hindsight_mean_rmsle": {
+        "plain": 0.5073814968905592,
+        "gnomon": 0.5082334389256781,
+        "ledger": 0.5112640112356885
+      },
+      "union_hindsight_mean_rmsle": 0.5049132013367262,
+      "own_reduction_vs_actual_no_ledger": {
+        "plain": 0.07796397516116704,
+        "gnomon": 0.07641578853578146,
+        "ledger": 0.070908498926615
+      },
+      "union_reduction_vs_actual_no_ledger": 0.08244947066017694,
+      "valid": {
+        "plain": 4,
+        "gnomon": 4,
+        "ledger": 4
+      },
+      "full_workflows": {
+        "plain": 4,
+        "gnomon": 4,
+        "ledger": 4
+      }
+    }
+  },
+  "target_established": false,
+  "final_gate_opened": false,
+  "executable_policy": false,
+  "scope": "Post-hoc hindsight over observed production forecasts plus the common fallback. The union combines arm search trajectories and is not a budget-matched agent. This neither estimates a past-only policy nor bounds untried configurations.",
+  "authentication_identity_score_checks": 14175,
+  "successful_production_forecasts": 516,
+  "negative_prediction_points_clipped": 0,
+  "source_hashes_unchanged": true,
+  "engy_calls": 0,
+  "provider_calls": 0,
+  "status": "diagnostic_completed_no_policy_dispatched",
+  "protocol_freeze_commit": "52c27353",
+  "tests_passed": 6,
+  "initial_loader_failures_retained": 2,
+  "pending": [
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 5,
+      "missing_arms": [
+        "plain",
+        "ledger"
+      ]
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 4,
+      "missing_arms": [
+        "plain"
+      ]
+    }
+  ],
+  "billing_dollars": null,
+  "scope_cost": "Offline diagnostic only; original paid experiment costs remain in its audit receipts.",
+  "evidence": {
+    "results/observed-search-ceiling-104-offline-001/run_contract.py": "5174ccc68133d782454c4131042af26e4586f8f09f5e8cba8376d37b227f0adf",
+    "results/observed-search-ceiling-104-offline-001/run.py": "58c7c28538b347eeab1ef15240fed96c9075832a9300bdd8f483a598d47ab430",
+    "results/observed-search-ceiling-104-offline-001/analyze.py": "918e81b813499e24baa23794dd342fdec481ff8ade55d5abe6cbf8ff67bfeff3",
+    "results/observed-search-ceiling-104-offline-001/run_corrected.py": "c3cfbd868c906d1f406d520d05c8a620a5cb6a6f6662f6eb0acd47c3a5bfadea",
+    "results/observed-search-ceiling-104-offline-001/analyze_contract.py": "901e99b392e6cfcc2a17b04831b75c6dfa58304df49bf190aadd5084f0971480",
+    "results/observed-search-ceiling-104-offline-001/analyze_corrected.py": "665cfef80e74dec06a51bda6d2acfd10fea33533d004d8f6b4d6c7e362758863",
+    "results/observed-search-ceiling-104-offline-001/analyze-corrected.command.json": "59233cf28a5208a6c035f1a4739865ef2340e4c52a0bb3e941cadf6b97766eda",
+    "results/observed-search-ceiling-104-offline-001/analyze.command.json": "ef396330f9be793ea699b3d970b75d7f08cdd142f5cc3caf5e48d362b7ac3408",
+    "results/observed-search-ceiling-104-offline-001/tests.command.json": "0303fff82eff5159f13674ac2eccfb935eae7830f2d0aaee49a1fae8e6c5faa5",
+    "results/observed-search-ceiling-104-offline-001/inputs.json": "5348bcb90016f5114d1ab3c682a26f2628d376b213b9075c8b41a660bbf7b7ea",
+    "results/observed-search-ceiling-104-offline-001/tests-expanded.command.json": "732a42ffada33d18a3bc1bab5d6c2a2ade6ce497200cc9a18de9f270ff9cbfd6",
+    "results/observed-search-ceiling-104-offline-001/report.json": "a64315bd05e118feedcd8907407944aa9c321fcbb172229fa25eee63d84d5002",
+    "results/observed-search-ceiling-104-offline-001/initial-input-receipt.json": "6e99d97c5e64a3a20e13deaeb79f94ae8e5301f31f29bb75432193f9d11da271",
+    "results/observed-search-ceiling-104-offline-001/analyze-contract.command.json": "7a4fdaef8bb8b3bc18a0e6985c96fd20fe8d038ccc294f377aa061e386c71bcd",
+    "results/observed-search-ceiling-104-offline-001/tests.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/observed-search-ceiling-104-offline-001/analyze-corrected.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/observed-search-ceiling-104-offline-001/tests-expanded.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/observed-search-ceiling-104-offline-001/analyze-contract.stdout": "aff9ceb940c6c4057267e411158dfc148cd243e6338bf30b208b6ccc11bfc274",
+    "results/observed-search-ceiling-104-offline-001/analyze.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/observed-search-ceiling-104-offline-001/analyze.stderr": "73f24769b6271a63ca5dbb6f0670108a925057950417f16c6288a2f1fc7345b7",
+    "results/observed-search-ceiling-104-offline-001/tests.stderr": "3b3860ba5cf557a26c6ccbc6fa245fe6ae81380aa82c5bb90a5c400b7793141f",
+    "results/observed-search-ceiling-104-offline-001/analyze-contract.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/observed-search-ceiling-104-offline-001/tests-expanded.stderr": "950d80b5cd6070d3a57216fbe19740933ea2412b656debbdfdea49cb9e62a1d2",
+    "results/observed-search-ceiling-104-offline-001/analyze-corrected.stderr": "a2c592effd80186f7351c439a1d5957289e4a289bcd1895d72c97ec54b0723cb",
+    "benchmarks/ledger_optimization/observed_search_ceiling_104.py": "912b105862204fcd4d9160486a76f3fe4f6bb4da3960e04f5396cd66010f77c7",
+    "benchmarks/tests/test_observed_search_ceiling_104.py": "2938a5c7f5939b7b9c2e6bd4368682e7775a45dfffba4d6fe834b30bf217b2bf"
+  },
+  "incremental_api_billing_dollars": 0,
+  "local_compute_billing_dollars": null
+}
