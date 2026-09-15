@@ -1,0 +1,259 @@
+{
+  "complete": true,
+  "arms": {
+    "plain": {
+      "tasks": 12,
+      "valid": 12,
+      "workflow_complete": 12,
+      "corrections": 0,
+      "blocked_api_requests": 0,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 12
+      },
+      "baseline_checkpoint_only": 0,
+      "checkpoint_publications": 24,
+      "review_calls": 14,
+      "mean_rmsle": 0.5032876172534677,
+      "valid_only_rmsle": 0.5032876172534677,
+      "admission_api_calls": 12,
+      "admission_reported_tokens": 168,
+      "admission_wait_seconds": 15.820071455091238,
+      "tokens": 1624834,
+      "api_calls": 121,
+      "usage_complete": true,
+      "seconds": 1149.295214144513,
+      "http_errors": 0,
+      "ledger_reviews": 0,
+      "numerical_attempts": 148,
+      "numerical_successes": 148,
+      "distinct_configs_per_task": 3.0833333333333335,
+      "per_series": {
+        "item_1047756_store_23": 0.8336014891100875,
+        "item_1304243_store_32": 0.20037583448746715,
+        "item_1372862_store_12": 0.4680530371131797,
+        "item_1457251_store_14": 0.5111201083031365
+      },
+      "dollars": null,
+      "cold_rmsle": 0.5032876172534677,
+      "mature_rmsle": null,
+      "later_rmsle": null
+    },
+    "gnomon": {
+      "tasks": 12,
+      "valid": 12,
+      "workflow_complete": 12,
+      "corrections": 0,
+      "blocked_api_requests": 0,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 12
+      },
+      "baseline_checkpoint_only": 0,
+      "checkpoint_publications": 24,
+      "review_calls": 16,
+      "mean_rmsle": 0.5010857356868814,
+      "valid_only_rmsle": 0.5010857356868814,
+      "admission_api_calls": 12,
+      "admission_reported_tokens": 168,
+      "admission_wait_seconds": 30.093410961329937,
+      "tokens": 1565731,
+      "api_calls": 121,
+      "usage_complete": true,
+      "seconds": 1279.0668614804745,
+      "http_errors": 0,
+      "ledger_reviews": 0,
+      "numerical_attempts": 136,
+      "numerical_successes": 136,
+      "distinct_configs_per_task": 2.8333333333333335,
+      "per_series": {
+        "item_1047756_store_23": 0.8336014891100875,
+        "item_1304243_store_32": 0.20037583448746715,
+        "item_1372862_store_12": 0.4451701019535055,
+        "item_1457251_store_14": 0.5251955171964655
+      },
+      "dollars": null,
+      "cold_rmsle": 0.5010857356868814,
+      "mature_rmsle": null,
+      "later_rmsle": null
+    },
+    "ledger": {
+      "tasks": 12,
+      "valid": 12,
+      "workflow_complete": 12,
+      "corrections": 0,
+      "blocked_api_requests": 0,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 12
+      },
+      "baseline_checkpoint_only": 0,
+      "checkpoint_publications": 24,
+      "review_calls": 14,
+      "mean_rmsle": 0.4983613111634521,
+      "valid_only_rmsle": 0.4983613111634521,
+      "admission_api_calls": 12,
+      "admission_reported_tokens": 168,
+      "admission_wait_seconds": 15.660199584439397,
+      "tokens": 1564855,
+      "api_calls": 119,
+      "usage_complete": true,
+      "seconds": 1286.474607983604,
+      "http_errors": 0,
+      "ledger_reviews": 10,
+      "numerical_attempts": 156,
+      "numerical_successes": 156,
+      "distinct_configs_per_task": 3.25,
+      "per_series": {
+        "item_1047756_store_23": 0.8426710448585784,
+        "item_1304243_store_32": 0.20037583448746715,
+        "item_1372862_store_12": 0.45733771703104176,
+        "item_1457251_store_14": 0.49306064827672114
+      },
+      "dollars": null,
+      "cold_rmsle": 0.4983613111634521,
+      "mature_rmsle": null,
+      "later_rmsle": null
+    }
+  },
+  "contrasts": {
+    "gnomon_vs_plain": {
+      "absolute_rmsle_reduction": 0.0022018815665862945,
+      "bootstrap_draws": 2000,
+      "exploratory_absolute_series_bootstrap_95_interval": [
+        -0.010556556669996775,
+        0.01716220136975566
+      ],
+      "exploratory_series_bootstrap_95_interval": [
+        -0.019782837886781257,
+        0.0342339119865932
+      ],
+      "losses": 2,
+      "pairs": 12,
+      "relative_interval_status": "defined",
+      "relative_rmsle_reduction": 0.004374996505184026,
+      "relative_rmsle_status": "defined",
+      "undefined_relative_draws": 0,
+      "warning": "Only four reused development series, one requested seed: not confirmatory. No zero-control draw was discarded or assigned a relative improvement. Absolute differences are diagnostic, not a substitute target.",
+      "wins": 1
+    },
+    "ledger_vs_gnomon": {
+      "absolute_rmsle_reduction": 0.002724424523429303,
+      "bootstrap_draws": 2000,
+      "exploratory_absolute_series_bootstrap_95_interval": [
+        -0.010618585413013637,
+        0.02183376275268556
+      ],
+      "exploratory_series_bootstrap_95_interval": [
+        -0.021009705948197732,
+        0.044289054198687006
+      ],
+      "losses": 3,
+      "pairs": 12,
+      "relative_interval_status": "defined",
+      "relative_rmsle_reduction": 0.005437042664355074,
+      "relative_rmsle_status": "defined",
+      "undefined_relative_draws": 0,
+      "warning": "Only four reused development series, one requested seed: not confirmatory. No zero-control draw was discarded or assigned a relative improvement. Absolute differences are diagnostic, not a substitute target.",
+      "wins": 5
+    },
+    "ledger_vs_plain": {
+      "absolute_rmsle_reduction": 0.0049263060900155975,
+      "bootstrap_draws": 2000,
+      "exploratory_absolute_series_bootstrap_95_interval": [
+        -0.004534777874245388,
+        0.014387390054276639
+      ],
+      "exploratory_series_bootstrap_95_interval": [
+        -0.00877152287724714,
+        0.031249495366176827
+      ],
+      "losses": 2,
+      "pairs": 12,
+      "relative_interval_status": "defined",
+      "relative_rmsle_reduction": 0.009788252126883945,
+      "relative_rmsle_status": "defined",
+      "undefined_relative_draws": 0,
+      "warning": "Only four reused development series, one requested seed: not confirmatory. No zero-control draw was discarded or assigned a relative improvement. Absolute differences are diagnostic, not a substitute target.",
+      "wins": 4
+    }
+  },
+  "audit_checks": 8135,
+  "audit_failures": [],
+  "interpretation": "A supported ML iteration workflow comparison; no causal/business or general ledger superiority claim.",
+  "shutdown_record_gaps": [],
+  "sessions": 36,
+  "pilot_gate_passed": true,
+  "costs": {
+    "sessions": 36,
+    "forwarded_requests": 361,
+    "returned_responses": 361,
+    "reported_tokens": 4755420,
+    "requests_without_reported_usage": 0,
+    "api_errors": 0,
+    "readiness_requests": 36,
+    "readiness_reported_tokens": 504,
+    "readiness_unknown_usage": 0,
+    "orphan_responses": 0
+  },
+  "final_gate_opened": false,
+  "scope": "Completed reused development pilot, not confirmatory efficacy evidence.",
+  "transfer": {
+    "passed": true,
+    "files_verified": 4237,
+    "archive_sha256": "28d8a56cb3ee7734a6d876bc3448132953dfab590c903604eec52d9a35e41062",
+    "archive_bytes": 24744697,
+    "finished": {
+      "complete": true,
+      "cause": null,
+      "continuation_gate_passed": true,
+      "continuation_launched": false,
+      "exit_status": 0,
+      "archive_sha256": "28d8a56cb3ee7734a6d876bc3448132953dfab590c903604eec52d9a35e41062",
+      "inventory_sha256": "ce63a63970488b822097f7818f4bf2d4290d9b597d377062322bad6a313f7f4e",
+      "files": 4237,
+      "at": "2026-09-15T01:07:15.199948+00:00"
+    },
+    "chunk_bytes": 1048576,
+    "chunks": 24,
+    "forecast_restarts": 0
+  },
+  "previous_pilot_comparison": {
+    "gnomon": {
+      "previous_full": 11,
+      "current_full": 12,
+      "previous_tokens": 3339287,
+      "current_tokens": 1565731,
+      "token_reduction_fraction": 0.5311181698368543,
+      "previous_rmsle": 0.5337224295314359,
+      "current_rmsle": 0.5010857356868814
+    },
+    "ledger": {
+      "previous_full": 12,
+      "current_full": 12,
+      "previous_tokens": 2458651,
+      "current_tokens": 1564855,
+      "token_reduction_fraction": 0.3635310582917217,
+      "previous_rmsle": 0.5004858191979707,
+      "current_rmsle": 0.4983613111634521
+    },
+    "plain": {
+      "previous_full": 10,
+      "current_full": 12,
+      "previous_tokens": 2663990,
+      "current_tokens": 1624834,
+      "token_reduction_fraction": 0.39007503781921105,
+      "previous_rmsle": 0.5477780821724288,
+      "current_rmsle": 0.5032876172534677
+    }
+  },
+  "comparison_scope": "Descriptive comparison of two frozen common-workflow variants on the same reused development cases. Not held-out evidence or an isolated ledger treatment effect.",
+  "reminder_prefixes_audited": 80,
+  "failed_workflows": [],
+  "evidence": {
+    "/root/Gnomon/results/workflow-097-final-001/audit/report.json": "f8d98586e2ddb64a7eaaf06c73f1450652800cfc567f0d2ea68f6a4b9dceb7c6",
+    "/root/Gnomon/results/workflow-097-final-001/summary.json": "1c9f58bdfae1f30bdf9fb5cf6230eef47599c05de292c9b5dc0a61acf404a352",
+    "/root/Gnomon/results/workflow-097-final-001/costs.json": "60b88d27d58de8bf139a0735f2aeebff2ffe768d1ba77fc7452cf6ac90b3d141",
+    "/root/Gnomon/results/workflow-097-final-001/transfer.json": "544065d706abcc4c4439937aa4766842393d6ab304ae4caac3db8cbd7afdd0bc",
+    "/root/Gnomon/results/workflow-097-final-001/report.py": "5a8bc905503f5f88af55db78baf6c60a6fd01567b78944c4423013df60917346"
+  },
+  "continuation_launched": false,
+  "objective_established": false
+}

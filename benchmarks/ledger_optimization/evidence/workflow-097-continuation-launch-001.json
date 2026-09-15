@@ -1,0 +1,99 @@
+{
+  "status": "continuation_live_verified",
+  "launch": {
+    "pid": 8358,
+    "start_ticks": "1557891833",
+    "boot_id": "998193f3-2771-4162-80e8-1a4887370f60",
+    "at": "2026-09-15T01:08:30.622032+00:00",
+    "argv": [
+      "/usr/bin/python3",
+      "-u",
+      "-m",
+      "benchmarks.ledger_optimization.control_continuation_097",
+      "--launch-directory",
+      "/root/gnomon-ledger-ml-v3/code/results/workflow-097-continuation-launch-001",
+      "--capsule",
+      "/root/gnomon-ledger-ml-v3/code/results/workflow-097-continuation-bundle-001/payload/capsule",
+      "--plan",
+      "/root/gnomon-ledger-ml-v3/code/results/workflow-097-continuation-bundle-001/payload/plan.json",
+      "--preflight",
+      "/root/gnomon-ledger-ml-v3/code/results/workflow-097-continuation-bundle-001/payload/preflight.json",
+      "--task-source",
+      "/root/gnomon-ledger-ml-v3/code/results/workflow-097-continuation-bundle-001/payload/host-jobs.json",
+      "--runtime",
+      "/root/gnomon-ledger-ml-v3/runtime",
+      "--pilot-root",
+      "/root/gnomon-ledger-ml-v3/code/results/workflow-097-pilot-001",
+      "--pilot-launch",
+      "/root/gnomon-ledger-ml-v3/code/results/workflow-097-pilot-launch-001",
+      "--continuation-preflight",
+      "/root/gnomon-ledger-ml-v3/code/results/workflow-097-continuation-bundle-001/payload/continuation-preflight.json",
+      "--output",
+      "/root/gnomon-ledger-ml-v3/code/results/workflow-097-development-001",
+      "--credentials-file",
+      "/root/gnomon-ledger-ml-v3/code/.env"
+    ],
+    "cwd": "/root/gnomon-ledger-ml-v3/code/results/workflow-097-continuation-bundle-001/payload/code",
+    "bundle_sha256": "75ef5e04c52bc201a76916ff5ba17ab704924aefa55182a2be28c0392b745c2b",
+    "pilot_archive_sha256": "28d8a56cb3ee7734a6d876bc3448132953dfab590c903604eec52d9a35e41062",
+    "retained_sessions": 36,
+    "new_sessions": 276,
+    "total_sessions": 312,
+    "final_gate_opened": false
+  },
+  "verification": {
+    "at": "2026-09-15T01:10:02.555143+00:00",
+    "identities": {
+      "launch.json": {
+        "pid": 8358,
+        "start_ticks": "1557891833",
+        "boot_id": "998193f3-2771-4162-80e8-1a4887370f60",
+        "at": "2026-09-15T01:08:30.709796+00:00",
+        "controller_sha256": "cd028917ab7ee9561b2c8c5ee22f248f1028f801bdcee9b022209db20ecd11d4",
+        "archive_helper_sha256": "295782f161171c45fc81dc1f4b124bf4dff94d167ac23d05dfedf4829f94bc0d",
+        "cost_accounting_sha256": "70e09ac8c27e193ebc40dbc5f65e4cc7b6c91e46e166e93677ecf598d93c5d86",
+        "automatic_retry": false,
+        "final_gate_opened": false,
+        "live": true
+      },
+      "development-process.json": {
+        "pid": 8389,
+        "start_ticks": "1557891848",
+        "boot_id": "998193f3-2771-4162-80e8-1a4887370f60",
+        "live": true
+      }
+    },
+    "manifest_planned": 312,
+    "accepted": {
+      "continuation_preflight_sha256": "2aadec799ab8bbc653c8cf6d79792f59e14a9cfeb95d250b4394f8b66a15c01e",
+      "continuation_sources": {
+        "continue_collection_096.py": "feb4b9f9379f3eb9bc8ca148eaec2504b4fa29f308d86702878313eae00a5d05",
+        "continue_guarded_093.py": "6ea588139648e818fd3c6f7ed807a5042a978c665e8775464739ba77028c900c",
+        "launch_collection_096.py": "9b10bf70329be2d6d96baeedc7962f4e8e067c9be10345f4a513b2b2a7ff9a11"
+      },
+      "final_gate_opened": false,
+      "new_sessions": 276,
+      "pilot_finished_sha256": "b3192361ebf825a100d1c64af53828779d792057d30235204b7a95d70614cac6",
+      "plan_sha256": "1398c649da651441d77a34ea3d5ea86ac5838170bb55c0d4690101b26a0b2665",
+      "retained_sessions": 36
+    },
+    "retained_unique_sessions": 36,
+    "retained_files_verified": 3702,
+    "original_pilot_unchanged": true,
+    "new_completed_sessions": 0,
+    "final_gate_opened": false
+  },
+  "evidence": {
+    "results/workflow-097-continuation-launch-001/launch-template.py": "22e65aff87a2d6f2f5fb7398b34cbac7207fd42d72e11d445ff829d835be61ca",
+    "results/workflow-097-continuation-launch-001/run.py": "28364b9ae6b8c35564556ed33324847ce7b2fc0da22e0bc8ee9814d575766f60",
+    "results/workflow-097-continuation-launch-001/launch.py": "b11f68063d28054f86286367402b2e5b60c87308cd4284fd68bef8abc4d26bbb",
+    "results/workflow-097-continuation-launch-001/stdout.json": "22668d712e4c6c6b64a34f1030fab3fed7906679256d8ce9d0ebc2789f3552c6",
+    "results/workflow-097-continuation-launch-001/command.json": "b5f67df02360aac23c7a8c6741068553d5bdc81365b270ed84335380349a64d0",
+    "results/workflow-097-continuation-launch-001/verify.py": "22db2948ea27dd7f5ebf7949de52f7b31bb2f9721c50b6595be4808121554590",
+    "results/workflow-097-continuation-launch-001/verification.stdout.json": "7e6da90fb3d041cea8d730b7b60fb514074b98c51e6ecfeb4ced53db3b33f3d8",
+    "results/workflow-097-continuation-launch-001/verification-command.json": "d10a0758ea80bf9667dcccf49dda49bf930a8b7f305cb3d1f2ad271b7837646d"
+  },
+  "final_gate_opened": false,
+  "objective_established": false,
+  "scope": "36 independently audited sessions retained once; 276 further development sessions launched with exact frozen worker and restored arm state. No success filtering or pilot rerun."
+}
