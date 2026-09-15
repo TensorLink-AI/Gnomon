@@ -1,0 +1,46 @@
+{
+  "status": "full_synthetic_host_preflight_running",
+  "candidate": 107,
+  "plan_path": "results/planning-inputs-107-freeze-001/plan.json",
+  "plan_sha256": "99683f980b5a4b31ff39886d385e57c87b1f0d0b5e714c638323638974c4cb48",
+  "host_commit": "7abb291b",
+  "plan_counts": {
+    "pilot_sessions": 72,
+    "continuation_sessions": 240,
+    "total_sessions": 312
+  },
+  "host_sources": {
+    "planning_host_107.py": "43c77bec028efad6e46182f21a734601f67dc1067447188faa3b96aa26f0d303",
+    "probe_planning_host_107.py": "c18cb13775ff1b5a42cebb313c397445b5b891c6330faee56d1845266622a89c",
+    "audit_planning_107.py": "b53acf6a1f5544a5e6b683901e594773a3cd01c3f92a9df1daa124e5462403af",
+    "contrast_audit_100.py": "6eac6aee07b4008da09bf0c1d5924264d019ceab3d6fd56a37a2805a9eaa6e0c",
+    "contrast_view_100.py": "0afcb164e0203b7ed4549006efdad8bf502e35a6dd241f1e2932b7baf56f1c57",
+    "paired_consistency_098.py": "8ce525b4d8786051d19c33fae2d83c68a8886c9995ec77dc8f5cc5ccf1665d1d",
+    "current_cv_pair_100.py": "c1669fb4c38fd9c91d8c1e5070ea8e8f951ba03d4a0920e3942b346ee9dedefe",
+    "current_history_contrast_100.py": "fe56cee775758570e8be0fe27301bad141d1cca5e6849b3dd997714e63d33ca5",
+    "continue_collection_096.py": "feb4b9f9379f3eb9bc8ca148eaec2504b4fa29f308d86702878313eae00a5d05",
+    "continue_guarded_093.py": "6ea588139648e818fd3c6f7ed807a5042a978c665e8775464739ba77028c900c",
+    "launch_collection_096.py": "9b10bf70329be2d6d96baeedc7962f4e8e067c9be10345f4a513b2b2a7ff9a11",
+    "control_collection_096.py": "295782f161171c45fc81dc1f4b124bf4dff94d167ac23d05dfedf4829f94bc0d",
+    "costs_guarded_093.py": "70e09ac8c27e193ebc40dbc5f65e4cc7b6c91e46e166e93677ecf598d93c5d86",
+    "m5_ml_terminal_prefix.py": "3b1ecb8d4efba74d989740602306ec8ce5555a61837f7d27cf857cebc0286137",
+    "m5_ml_stage_checks.py": "004e289ed866507f557eaeb7972d98fd4316440ad27dc2293327c3ca2e3002fd",
+    "m5_ml_development_contract.py": "3720a1d767c54b6da24dc82f0bbf48cd37186c9590d2811aa5ceff41f721ac78",
+    "m5_ml_prefix_identity.py": "5c6cc7e346f0ebb472f76319316c2c3bf3730ff98fa0ff96447ad131371000fb"
+  },
+  "preflight_root": "results/planning-host-107-synthetic-001",
+  "process_identity": {
+    "pid": 4,
+    "start_ticks": "1767107",
+    "boot_id": "d53c7482-9d6a-4f36-b9f1-cdf30229c86d",
+    "automatic_retry": false
+  },
+  "unit_tests": {
+    "path": "results/planning-host-107-unit-001/command.json",
+    "passed": 8
+  },
+  "engy_calls": 0,
+  "final_gate_opened": false,
+  "paid_dispatch_started": false,
+  "scope": "Launch receipt only; full completion remains unproven until passed.json and both terminal stage archives are verified."
+}
