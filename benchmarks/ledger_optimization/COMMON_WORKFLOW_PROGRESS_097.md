@@ -1,4 +1,31 @@
-# Common workflow progress 097 — tested; separate pilot ready
+# Common workflow progress 097 — pilot running
+
+The separately frozen 36-session pilot launched at **2026-09-15 00:33:52 UTC**.
+At 00:35:01 UTC, the controller and first forwarded/returned requests were
+verified; the accepted manifest matches the tested source and package inventory.
+No completed outcome was available at that initial verification.
+
+- Controller PID `4183838`, start ticks `1557684005`.
+- Worker PID `4183869`, start ticks `1557684021`.
+- Boot ID `998193f3-2771-4162-80e8-1a4887370f60`.
+- Run: `/root/gnomon-ledger-ml-v3/code/results/workflow-097-pilot-001`.
+- Controller/evidence: sibling `workflow-097-pilot-launch-001`.
+- Frozen bundle: sibling `workflow-097-pilot-bundle-001/payload`.
+- Bundle SHA-256 `8139f24620af984cb8bd3e71805426debebea1bceb7e83684ddf8b0fe9353158`.
+- Runtime: published Gnomon `1.2.0+ga38cd0cad353.s9723394ccb6d`; Engy
+  `deepseek-v4.1-flash`, requested seed 7.
+
+Launch receipt: `evidence/workflow-097-pilot-launch-001.json`. Monitor the same
+process, without restarting, using:
+
+```sh
+python3 -m benchmarks.ledger_optimization.pod_guarded_093 \
+  --run workflow-097-pilot-001 --launch workflow-097-pilot-launch-001
+```
+
+The gate remains 12 valid forecasts and at least 11 full workflows per arm,
+with zero audit failures. No accuracy threshold determines continuation. The
+controller never automatically launches a continuation or final evaluation.
 
 The completed 096 pilot failed its predeclared full-workflow threshold: two plain
 Hermes sessions spent their exploration requests inspecting data/source files,

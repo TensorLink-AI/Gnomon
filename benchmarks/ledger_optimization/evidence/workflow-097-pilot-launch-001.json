@@ -1,0 +1,109 @@
+{
+  "status": "pilot_running_verified",
+  "launch": {
+    "pid": 4183838,
+    "start_ticks": "1557684005",
+    "boot_id": "998193f3-2771-4162-80e8-1a4887370f60",
+    "at": "2026-09-15T00:33:52.341107+00:00",
+    "argv": [
+      "/usr/bin/python3",
+      "-u",
+      "-m",
+      "benchmarks.ledger_optimization.control_workflow_097",
+      "--launch-directory",
+      "/root/gnomon-ledger-ml-v3/code/results/workflow-097-pilot-launch-001",
+      "--capsule",
+      "/root/gnomon-ledger-ml-v3/code/results/workflow-097-pilot-bundle-001/payload/capsule",
+      "--plan",
+      "/root/gnomon-ledger-ml-v3/code/results/workflow-097-pilot-bundle-001/payload/plan.json",
+      "--preflight",
+      "/root/gnomon-ledger-ml-v3/code/results/workflow-097-pilot-bundle-001/payload/preflight.json",
+      "--task-source",
+      "/root/gnomon-ledger-ml-v3/code/results/workflow-097-pilot-bundle-001/payload/host-jobs.json",
+      "--runtime",
+      "/root/gnomon-ledger-ml-v3/runtime",
+      "--previous-pilot",
+      "/root/gnomon-ledger-ml-v3/code/results/collection-096-pilot-001",
+      "--previous-launch",
+      "/root/gnomon-ledger-ml-v3/code/results/collection-096-pilot-launch-001",
+      "--output",
+      "/root/gnomon-ledger-ml-v3/code/results/workflow-097-pilot-001",
+      "--credentials-file",
+      "/root/gnomon-ledger-ml-v3/code/.env"
+    ],
+    "cwd": "/root/gnomon-ledger-ml-v3/code/results/workflow-097-pilot-bundle-001/payload/code",
+    "source_commit": "4324969",
+    "bundle_sha256": "8139f24620af984cb8bd3e71805426debebea1bceb7e83684ddf8b0fe9353158",
+    "pilot_sessions": 36,
+    "fresh_arm_state": true,
+    "continuation_launched": false,
+    "final_holdout_opened": false
+  },
+  "verified_at": "2026-09-15T00:35:01.215311+00:00",
+  "controller": {
+    "pid": 4183838,
+    "start_ticks": "1557684005",
+    "boot_id": "998193f3-2771-4162-80e8-1a4887370f60",
+    "at": "2026-09-15T00:33:52.440123+00:00",
+    "controller_sha256": "295782f161171c45fc81dc1f4b124bf4dff94d167ac23d05dfedf4829f94bc0d",
+    "continuation_authorized": false
+  },
+  "child": {
+    "pid": 4183869,
+    "start_ticks": "1557684021",
+    "boot_id": "998193f3-2771-4162-80e8-1a4887370f60"
+  },
+  "accepted": {
+    "continuation_authorized": false,
+    "fresh_arm_state": true,
+    "launcher_sha256": "9cc6fb5dae361b5ec56393d0eadf059ee730a95ae1e643819ad7cfd8e9f71237",
+    "plan_sha256": "1398c649da651441d77a34ea3d5ea86ac5838170bb55c0d4690101b26a0b2665",
+    "predecessors": {
+      "accuracy_used_for_admission": false,
+      "previous_counts": {
+        "gnomon": {
+          "full": 11,
+          "rows": 12,
+          "valid": 12
+        },
+        "ledger": {
+          "full": 12,
+          "rows": 12,
+          "valid": 12
+        },
+        "plain": {
+          "full": 10,
+          "rows": 12,
+          "valid": 12
+        }
+      },
+      "previous_gate_passed": false,
+      "previous_pilot_finished_sha256": "02df82c0578fa320ff6a716c7a1460ff1f15d23163f4f16335c4e52efbb2d388",
+      "previous_report_sha256": "d26933e44aac0d8a14f895a78a4fc42db1656810d71713afe58bb3bd6f305096"
+    },
+    "preflight_sha256": "d82cf11ceadce063039f2cff03f4c694f1509346d672d9f9e58d52d65aa7d95b"
+  },
+  "build": {
+    "build_id": "1.2.0+ga38cd0cad353.s9723394ccb6d",
+    "commit": "a38cd0cad35383e5f10021abf3aa20d4c16923be",
+    "dirty": false,
+    "fingerprint_scope": "gnomon_python_sources",
+    "package_version": "1.2.0",
+    "provenance": "git",
+    "source_sha256": "9723394ccb6d9e11991b312e01bac47c767c69407b6b33d36971cb6e48b6a22e"
+  },
+  "model": "deepseek-v4.1-flash",
+  "planned": 36,
+  "forecast_requests": 18,
+  "forecast_responses": 16,
+  "completed_at_verification": 0,
+  "evidence": {
+    "results/workflow-097-pilot-launch-001/stdout.json": "3285e727117f71e8b34e2b71cf3ee99ecd778d6ce315f1f86bcea339558d9cf7",
+    "results/workflow-097-pilot-launch-001/launch.py": "6f4240dc5c4d70dcee3d853b0c01ff505732495e2f01c3958ad86031a7c77a1a",
+    "results/workflow-097-pilot-launch-001/command.json": "3b3b3e01d08ffb54a5b16d4e0943bd1db0a6446f576fdae0231fa92dcbf4d5e9",
+    "results/workflow-097-pilot-launch-001/verification.stdout.json": "fdf3b3ead22c630e0040d4b6b9533a416ea6be793e983aed6b3c1dc700200cf1",
+    "results/workflow-097-pilot-launch-001/verify.py": "79f9563fc3aa2516cb6a3775197dc4833533b8abd64c9229e2196737603d69aa"
+  },
+  "final_gate_opened": false,
+  "goal_achieved": false
+}
