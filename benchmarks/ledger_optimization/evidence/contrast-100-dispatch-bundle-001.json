@@ -1,0 +1,106 @@
+{
+  "status": "staged_not_launched",
+  "bundle": {
+    "status": "built_not_deployed_or_launched",
+    "files": 79,
+    "archive_bytes": 465793,
+    "archive_sha256": "873121d610b98adcc7e284ce88bb01634d131057641904ed9bd2050c284ee2af",
+    "plan_sha256": "39ff335e1b9da4cd9ee25d12a5c752ebbe158549cf33f7b8a0439b9f1494cbe0",
+    "continuation_preflight_sha256": "5c9c666997e165880e1d02db9b429cce4c4bdbef5f0a9d554a6f748ff020dca4",
+    "builder_sha256": "b30257daff9643b2b7be74e6c2fb54233e1901182029c35e9f804e1a99a5e1bf",
+    "help_import_checks": [
+      {
+        "argv": [
+          "/usr/bin/python3",
+          "-m",
+          "benchmarks.ledger_optimization.control_contrast_100",
+          "--help"
+        ],
+        "cwd": "/root/Gnomon/results/contrast-100-dispatch-bundle-001/payload/code",
+        "exit_status": 0
+      },
+      {
+        "argv": [
+          "/usr/bin/python3",
+          "-m",
+          "benchmarks.ledger_optimization.launch_contrast_100",
+          "--help"
+        ],
+        "cwd": "/root/Gnomon/results/contrast-100-dispatch-bundle-001/payload/code",
+        "exit_status": 0
+      },
+      {
+        "argv": [
+          "/usr/bin/python3",
+          "-m",
+          "benchmarks.ledger_optimization.recheck_predecessor_100",
+          "--help"
+        ],
+        "cwd": "/root/Gnomon/results/contrast-100-dispatch-bundle-001/payload/code",
+        "exit_status": 0
+      },
+      {
+        "argv": [
+          "/usr/bin/python3",
+          "-m",
+          "benchmarks.ledger_optimization.continue_collection_096",
+          "--help"
+        ],
+        "cwd": "/root/Gnomon/results/contrast-100-dispatch-bundle-001/payload/code",
+        "exit_status": 0
+      },
+      {
+        "argv": [
+          "/usr/bin/python3",
+          "-m",
+          "benchmarks.ledger_optimization.control_continuation_097",
+          "--help"
+        ],
+        "cwd": "/root/Gnomon/results/contrast-100-dispatch-bundle-001/payload/code",
+        "exit_status": 0
+      }
+    ],
+    "copied_input_validation": true,
+    "engy_calls": 0,
+    "final_gate_opened": false,
+    "requires": "terminal 097 evidence, independent re-audit, runtime and source checks before a fresh pilot"
+  },
+  "pod_check": {
+    "status": "staged_inputs_verified_live_predecessor_rejected",
+    "archive_sha256": "873121d610b98adcc7e284ce88bb01634d131057641904ed9bd2050c284ee2af",
+    "files_verified": 79,
+    "input_check_exit_status": 0,
+    "launch_check_exit_status": 1,
+    "cause": "Predecessor process is still live",
+    "pilot_created": false,
+    "predecessor_audit_created": false,
+    "credentials_supplied": false,
+    "engy_calls": 0,
+    "final_gate_opened": false,
+    "remote_root": "/root/gnomon-ledger-ml-v3/code/results/contrast-100-dispatch-bundle-001"
+  },
+  "runtime_check": {
+    "exit_status": 0,
+    "stdout": "{\"runtime_inventory_matches\": true, \"provider_calls\": 0, \"engy_calls\": 0}\n",
+    "stderr": ""
+  },
+  "evidence": {
+    "results/contrast-100-dispatch-bundle-001/receipt.json": "3a838c0f227591c9b6bf648caeef16de1ebcc4b6657d878ba04c638090a57cfb",
+    "results/contrast-100-dispatch-bundle-001/payload/SHA256SUMS.json": "922e58f8994027306ca52c9a64421d7e305a72f0d2133300b24a6c90a76d4426",
+    "results/contrast-100-dispatch-bundle-001/dispatch.tar.gz": "873121d610b98adcc7e284ce88bb01634d131057641904ed9bd2050c284ee2af",
+    "results/contrast-100-dispatch-bundle-001/deploy.py": "b22f91e526e1b775676b7bfc05eadcae51f13658dbc1e27395acd69ba87824c8",
+    "results/contrast-100-dispatch-bundle-001/deploy.stdout": "1ba36a626ac9b93845f48ea6c3b5289cadb1a9f3197e197277420da718caa4e5",
+    "results/contrast-100-dispatch-bundle-001/deploy.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/contrast-100-dispatch-bundle-001/deploy-exit.json": "fbc2724935a13b44bf0de5980a618b57e4fdf8115686f6d5bafffdc10363d2b2",
+    "results/contrast-100-dispatch-bundle-001/check-runtime.py": "7dfad5a5975a6cc6ff9c941d16cc575d3bb3c05ad278fa151b0e73322f5d922e",
+    "results/contrast-100-dispatch-bundle-001/runtime-check.stdout": "3677bf04c3a2537f925a4ef4a08dba1e260c2a29aee1e1d05825a33635625fef",
+    "results/contrast-100-dispatch-bundle-001/runtime-check.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/contrast-100-dispatch-bundle-001/runtime-check-exit.json": "fbc2724935a13b44bf0de5980a618b57e4fdf8115686f6d5bafffdc10363d2b2",
+    "benchmarks/ledger_optimization/build_contrast_bundle_100.py": "b30257daff9643b2b7be74e6c2fb54233e1901182029c35e9f804e1a99a5e1bf",
+    "benchmarks/ledger_optimization/CONTRAST_STAGING_100.md": "333eea4d87d0375d655b48e665508bbfb0b6fc303e567f458dd7c740df90c58d"
+  },
+  "engy_calls": 0,
+  "provider_calls": 0,
+  "final_gate_opened": false,
+  "objective_established": false
+}
