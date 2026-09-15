@@ -1,0 +1,52 @@
+{
+  "passed": true,
+  "reference_core_request_comparisons": 8,
+  "synthetic_cases": 5,
+  "totals": {
+    "numerical_attempts": 220,
+    "numerical_successes": 220,
+    "numerical_failures": 0,
+    "estimator_fit_attempts": 160,
+    "estimator_fits": 160,
+    "successful_estimator_fits": 160,
+    "unmatched_attempts": [],
+    "orphan_terminals": [],
+    "unparsed_call_lines": [],
+    "fit_count_basis": "One fitted forecasting estimator per successful non-seasonal call; failed/interrupted calls leave the exact fit count unknown."
+  },
+  "mature_history_policy_exercised": true,
+  "sources": {
+    "run_m5_ml_search_screen_105.py": "f45d4a011dca41a73009ad1d9b845d5f31491243e8461a3085d2a94cf9fe0a18",
+    "m5_ml_search_screen_105.py": "1b756e183c7b8257123e81be3d3d77fc28dc05e05ad32ca7057dacd6eeea098e",
+    "m5_ml_development_contract.py": "3720a1d767c54b6da24dc82f0bbf48cd37186c9590d2811aa5ceff41f721ac78",
+    "m5_ml_adapter.py": "803c8ec8344692a50689c0034dc0a9b34d96487caf0dffd9913858a2b8816f97",
+    "m5_ml_panel.py": "dee571c01271b42448383b41c937287acccb44ce034c562712a16c353a4b15dc",
+    "m5_prepare.py": "3ac1b25471c405fea8c4ffa7aa115e396ab1e5f64885b2642328630826937eff",
+    "M5_ML_SEARCH_SCREEN_105.md": "9c951471adf5574ec2a911ca5688069b18957ce03a4755cb251ecfc62e5e4242"
+  },
+  "numerical_sha256": "a71b75f06ad69fcca06275046c5e74565b15d7d6dd2538df0fe827c448fc0413",
+  "core_sha256": "d6a6ae0b9cf0c46b2c840cf02e8705aefb64fda12c63ba946cebef6efdc55661",
+  "engy_calls": 0,
+  "gnomon_engine_calls": 0,
+  "real_development_forecasts": 0,
+  "final_gate_opened": false,
+  "scope": "Synthetic runner and exact frozen request-builder correspondence; no real development or final performance claim.",
+  "status": "numerical_screen_preflight_passed",
+  "tests_passed": 9,
+  "protocol_freeze_commit": "a79734bb",
+  "objective_established": false,
+  "api_billing_dollars": 0,
+  "local_compute_billing_dollars": null,
+  "evidence": {
+    "results/m5-ml-search-screen-105-preflight-001/tests.command.json": "2c77c3e75d0977d8c7584919c14f2a6cfc2094ed439972fd7ebb2e31ee8081bf",
+    "results/m5-ml-search-screen-105-preflight-001/tests.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/m5-ml-search-screen-105-preflight-001/tests.stderr": "704de8d356aac443af0eb2e8187da93584b495e565a2bf1ec7ca3c93e2bd573f",
+    "results/m5-ml-search-screen-105-preflight-001/probe.py": "c920e6f44425ee7ef6a2ee6c2da00853c8a9f48fcfd048fb8f5aa4fda7f2a9bc",
+    "results/m5-ml-search-screen-105-preflight-001/run_probe.py": "c3602679cad49cf805c4ea29e1768593f3feb8c98bd8c138c797bb6a07398b2a",
+    "results/m5-ml-search-screen-105-preflight-001/probe.command.json": "5b06aa005d04367f51087c5b5ce83d7b168f0d87b3fa5e5b35919546e2cd204a",
+    "results/m5-ml-search-screen-105-preflight-001/probe.stdout": "49cde494b94479a256d53fa536b94328e099151b9e73d91b9c34bb8a8dd5767e",
+    "results/m5-ml-search-screen-105-preflight-001/probe.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/m5-ml-search-screen-105-preflight-001/probe.json": "49cde494b94479a256d53fa536b94328e099151b9e73d91b9c34bb8a8dd5767e",
+    "benchmarks/tests/test_m5_ml_search_screen_105.py": "01d46f0f6feb4d1131ca940548b86a5d8c1bd6ddd0162bea6bbb61c1fa7f185a"
+  }
+}
