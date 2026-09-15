@@ -424,3 +424,36 @@ are retained. Correcting the surface-specific check allowed the second
 analysis to complete; no agent session or forecast was repeated. Full execution
 references remain in the hashed original report, with compact per-case
 summaries in `evidence/workflow-097-executed-opportunity-001.json`.
+
+## Continuation audit 011
+
+The next 18 completed sessions passed 13,552 independent checks with no audit
+failures or shutdown gaps. The 41,611,160-byte archive and all 2,550 files were
+verified. Combined disjoint coverage is 269 sessions: 90 plain, 90 Gnomon, 89
+ledger; all are valid and full workflows. The table uses the same 89 matched
+cases in every arm, with no success or accuracy filtering.
+
+| Arm | Matched mean RMSLE | Reported tokens | API requests | Fits |
+|---|---:|---:|---:|---:|
+| Hermes | 0.471258 | 13,834,926 | 906 | 1,084 |
+| Hermes + Gnomon | 0.474632 | 14,129,651 | 894 | 996 |
+| Hermes + Gnomon + ledger | 0.474280 | 13,682,510 | 849 | 1,000 |
+
+Ledger has 0.07% lower error and 3.16% fewer reported tokens than Gnomon without
+ledger: essentially tied on accuracy, not evidence for the 20% target. The
+earlier missing-usage attempt remains in the combined evidence, so reported
+tokens do not establish complete billing. This batch contains 182 forwarded
+and returned requests, 3,096,968 reported tokens, no API errors or usage gaps,
+plus 18 readiness requests and 252 tokens. These are retained costs of the
+original run; no agent session or forecast was repeated.
+
+All 18 new decisions selected a current-CV minimum (6/6 per arm). This is a
+description of the explored configurations, not evidence of historical-data
+influence or a causal explanation. Audit and diagnostic each completed on
+their first execution. Receipt: `evidence/workflow-097-development-audit-011.json`.
+
+The independent live monitor at 2026-09-15 05:30:36 UTC showed the original
+controller live at 270/312, all completed sessions valid/full. This live count
+is separate from the immutable 269-session audited subset. Candidate 100 remains
+frozen behind the predecessor completion/audit gates. Final/protected data,
+main and PyPI remain unchanged; the objective is unestablished.
