@@ -1,0 +1,264 @@
+{
+  "candidate": "current-history-contrast-100-compact",
+  "deployed": false,
+  "report": {
+    "panels": 23,
+    "all_prior_detailed_results_equal": true,
+    "current_cv_equal_across_arms": true,
+    "sources_unchanged": true,
+    "compact_utf8_bytes": {
+      "old_detailed_bytes": 44130,
+      "common_view_bytes": 16922,
+      "ledger_view_bytes": 27458,
+      "additional_ledger_view_bytes": 10536
+    },
+    "relative_reduction_from_old_detailed": 0.3777928846589621,
+    "mean_ledger_view_bytes": 1193.8260869565217,
+    "max_ledger_view_bytes": 1498,
+    "mean_additional_ledger_view_bytes": 458.0869565217391,
+    "provider_calls": 0,
+    "engy_calls": 0,
+    "deployed": false,
+    "scope": "All 23 frozen offline panels. Byte measurement, not tokenizer/API cost or agent efficacy. Full artifact must be stored and made readable by integration before exposing reference. No new target access or fits."
+  },
+  "tests": {
+    "total": 24,
+    "failures": 0
+  },
+  "final_gate_opened": false,
+  "objective_established": false,
+  "files": {
+    "results/current-history-contrast-100-compact-001/tests.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "results/current-history-contrast-100-compact-001/replay.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "results/current-history-contrast-100-compact-001/views.json": {
+      "sha256": "d7a969fd23edc519693fb75bdff50782af6f580eb0c1762e419f39b4c78cd495",
+      "bytes": 72710
+    },
+    "results/current-history-contrast-100-compact-001/replay.stdout": {
+      "sha256": "86d992be3d4589b2b099e54c7274cfc310b5b43d8d7b3fe5086ad31a2ee696c8",
+      "bytes": 789
+    },
+    "results/current-history-contrast-100-compact-001/tests.stderr": {
+      "sha256": "b5037e2a75b4d09ea5a77c68071295ce7fc39b55b2518ea6f1e2f407338b0ed7",
+      "bytes": 123
+    },
+    "results/current-history-contrast-100-compact-001/report.json": {
+      "sha256": "597fe278489c64c9e36ea8886eec5fd66044fa11146ed222005a1ded2591f62a",
+      "bytes": 9489
+    },
+    "results/current-history-contrast-100-compact-001/replay.py": {
+      "sha256": "a6a2534890e8b3497c98a548636036453d5267328eabe326577e187fe751ba24",
+      "bytes": 4551
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/26093532f90819c97d4d5d9983833aeec11635fc7a876ed20769bd206a72b930.json": {
+      "sha256": "26093532f90819c97d4d5d9983833aeec11635fc7a876ed20769bd206a72b930",
+      "bytes": 4970
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/81d57d24fdf31515d923ba1bbdf10d80f5287c8af3830c0cdf823f1be17ef575.json": {
+      "sha256": "81d57d24fdf31515d923ba1bbdf10d80f5287c8af3830c0cdf823f1be17ef575",
+      "bytes": 4950
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/969c8cd1856b8e1b779d7e859a7102b338efabd93ee1f015ac207ed324569a2c.json": {
+      "sha256": "969c8cd1856b8e1b779d7e859a7102b338efabd93ee1f015ac207ed324569a2c",
+      "bytes": 2934
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/e54d2086cb226c2dd3ea9a98e8ea4d6a6ccb6078264061459f2644d7d4acfa75.json": {
+      "sha256": "e54d2086cb226c2dd3ea9a98e8ea4d6a6ccb6078264061459f2644d7d4acfa75",
+      "bytes": 4431
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/2c483d25ebf35fcf0730ae5f2508799549bd85bf5c8d90c387fee4be0aee9ab6.json": {
+      "sha256": "2c483d25ebf35fcf0730ae5f2508799549bd85bf5c8d90c387fee4be0aee9ab6",
+      "bytes": 2911
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/afa9424277352e6932c317e3815dde931fd7416b704d3f11dcd3ece86b2920c6.json": {
+      "sha256": "afa9424277352e6932c317e3815dde931fd7416b704d3f11dcd3ece86b2920c6",
+      "bytes": 4501
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/7b43147614eaf1a3e02edb03f290c3b60dc7661315128378458a6f3deff7a345.json": {
+      "sha256": "7b43147614eaf1a3e02edb03f290c3b60dc7661315128378458a6f3deff7a345",
+      "bytes": 4499
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/a0b71572b378daf43c9751379710b6b6d2044db39acb0b93989e67c08c20cdb1.json": {
+      "sha256": "a0b71572b378daf43c9751379710b6b6d2044db39acb0b93989e67c08c20cdb1",
+      "bytes": 2954
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/98d98f7729ac8afc449fd2cf0971d09cd17a1d334bacd076cb7a3eba609422d3.json": {
+      "sha256": "98d98f7729ac8afc449fd2cf0971d09cd17a1d334bacd076cb7a3eba609422d3",
+      "bytes": 4912
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/eb5b3e90723bf4e3e4ee7850e955ab73fceb1ace35eade7f78f9ceace97a80b1.json": {
+      "sha256": "eb5b3e90723bf4e3e4ee7850e955ab73fceb1ace35eade7f78f9ceace97a80b1",
+      "bytes": 2930
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/7029c0ace93edd957be70d51c081d93cc2345dd61415e1838eedb25cac81e4d5.json": {
+      "sha256": "7029c0ace93edd957be70d51c081d93cc2345dd61415e1838eedb25cac81e4d5",
+      "bytes": 2961
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/4fdceb35193017a25c489ff9739cc18a234c7c97a0f80af07908b2fec324f933.json": {
+      "sha256": "4fdceb35193017a25c489ff9739cc18a234c7c97a0f80af07908b2fec324f933",
+      "bytes": 4958
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/37c82eeb7786fc93f8f3f922bcb8e771bd5623c82536e8983c566d217f3d898d.json": {
+      "sha256": "37c82eeb7786fc93f8f3f922bcb8e771bd5623c82536e8983c566d217f3d898d",
+      "bytes": 4945
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/1a02bb1331efd13bf6ef18c7b992dd6443ffeee22e02690318be24d78daf08cf.json": {
+      "sha256": "1a02bb1331efd13bf6ef18c7b992dd6443ffeee22e02690318be24d78daf08cf",
+      "bytes": 4823
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/b29ce31f5b884436f473a95f704ac1d75f34c6c764f2540a449fce1c9fae2e1a.json": {
+      "sha256": "b29ce31f5b884436f473a95f704ac1d75f34c6c764f2540a449fce1c9fae2e1a",
+      "bytes": 4530
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/f34b90c9b2b210f4591127c241232217c837662adb17ce35ea029599245d1dbb.json": {
+      "sha256": "f34b90c9b2b210f4591127c241232217c837662adb17ce35ea029599245d1dbb",
+      "bytes": 4911
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/c7d404cd95195318e5c4f25d27451a8cc896c40758e30d8d891dad4d0bae5d38.json": {
+      "sha256": "c7d404cd95195318e5c4f25d27451a8cc896c40758e30d8d891dad4d0bae5d38",
+      "bytes": 2936
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/467c07505653149bad0d692faa77c6147835413767919177119954632faa1de9.json": {
+      "sha256": "467c07505653149bad0d692faa77c6147835413767919177119954632faa1de9",
+      "bytes": 2957
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/7e5542b35accb281d4fc51ac705315e88f9824915af89ff27cff06f63282d224.json": {
+      "sha256": "7e5542b35accb281d4fc51ac705315e88f9824915af89ff27cff06f63282d224",
+      "bytes": 5148
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/9e91ab50e665ab7c2baf37dde85018b1bd396b89e4dad3c129e74b113f2fd91b.json": {
+      "sha256": "9e91ab50e665ab7c2baf37dde85018b1bd396b89e4dad3c129e74b113f2fd91b",
+      "bytes": 2946
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/f423306be45572da5be99a4dfdfa6dad0a70d5e950c30ddd325ba1ed610a9cf5.json": {
+      "sha256": "f423306be45572da5be99a4dfdfa6dad0a70d5e950c30ddd325ba1ed610a9cf5",
+      "bytes": 2990
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/11987f8d2bc8cac34eddb1372e8ba181b94ee50765c9a2eb7e0b58e3086dd871.json": {
+      "sha256": "11987f8d2bc8cac34eddb1372e8ba181b94ee50765c9a2eb7e0b58e3086dd871",
+      "bytes": 2944
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/ff16a2d50e183f0ea13176149656d07c88d57f345caf6ea73fea5e7e89c08ab1.json": {
+      "sha256": "ff16a2d50e183f0ea13176149656d07c88d57f345caf6ea73fea5e7e89c08ab1",
+      "bytes": 2913
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/e0eec4b15de4becfb8682e3583102c71206276ff46d2d56f8731ed0e75e86cde.json": {
+      "sha256": "e0eec4b15de4becfb8682e3583102c71206276ff46d2d56f8731ed0e75e86cde",
+      "bytes": 2915
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/36d4320100e8f71598682eb5e5ceaec9b28ac5a36ba3c2805588792c28259ece.json": {
+      "sha256": "36d4320100e8f71598682eb5e5ceaec9b28ac5a36ba3c2805588792c28259ece",
+      "bytes": 2959
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/fd7624f66840e4fe177190bfc67740f226341fd77528478580e6234209731aae.json": {
+      "sha256": "fd7624f66840e4fe177190bfc67740f226341fd77528478580e6234209731aae",
+      "bytes": 4974
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/64bc8b9a368255d3fdb1b6d8cdba5c1ea673eee1cfc2d809b9d8a0cf3a053103.json": {
+      "sha256": "64bc8b9a368255d3fdb1b6d8cdba5c1ea673eee1cfc2d809b9d8a0cf3a053103",
+      "bytes": 5190
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/fa6d03b116c86d1ba3c2e3c00a401c7048dd320496b7a05eabe8830bdea92a3d.json": {
+      "sha256": "fa6d03b116c86d1ba3c2e3c00a401c7048dd320496b7a05eabe8830bdea92a3d",
+      "bytes": 5319
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/ce817a340779f4e2661c6eaa48837fe79579c526fd1be1e4bddc07d26042a18e.json": {
+      "sha256": "ce817a340779f4e2661c6eaa48837fe79579c526fd1be1e4bddc07d26042a18e",
+      "bytes": 5212
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/0f2d5dbfd57d1efc31c894e74e5e785d3348aed1fa20decc87daf66e9069553c.json": {
+      "sha256": "0f2d5dbfd57d1efc31c894e74e5e785d3348aed1fa20decc87daf66e9069553c",
+      "bytes": 2916
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/1ea87d019ed8ca26443d08ab99c83980b6456c196fea9d199c15e36d4516311c.json": {
+      "sha256": "1ea87d019ed8ca26443d08ab99c83980b6456c196fea9d199c15e36d4516311c",
+      "bytes": 2930
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/1c0e2e96490b8dd51f3685a8b352ad755582433027104115666917dd929a306b.json": {
+      "sha256": "1c0e2e96490b8dd51f3685a8b352ad755582433027104115666917dd929a306b",
+      "bytes": 4953
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/38dc563dc143c2da4542ae4bec9f56d4f9e78f38d206665ffa34c66d666a38dd.json": {
+      "sha256": "38dc563dc143c2da4542ae4bec9f56d4f9e78f38d206665ffa34c66d666a38dd",
+      "bytes": 2911
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/9872ef03359dbe63ef29056ea280d348655f60474335713564805643931dceb4.json": {
+      "sha256": "9872ef03359dbe63ef29056ea280d348655f60474335713564805643931dceb4",
+      "bytes": 4438
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/84bb084e812bb1ed2bb133f67103b8a22e98d212d2b97c43635611fc08682fd7.json": {
+      "sha256": "84bb084e812bb1ed2bb133f67103b8a22e98d212d2b97c43635611fc08682fd7",
+      "bytes": 2910
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/4d3b8c911d774d7334b3a60b8dc6baf30385b16bba7d9426a32d4212a276adc1.json": {
+      "sha256": "4d3b8c911d774d7334b3a60b8dc6baf30385b16bba7d9426a32d4212a276adc1",
+      "bytes": 4913
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/97764cc917ea08b10ae0eba4565e45f471af1ab31d03e22004c06c88618252d7.json": {
+      "sha256": "97764cc917ea08b10ae0eba4565e45f471af1ab31d03e22004c06c88618252d7",
+      "bytes": 2958
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/97a92732f5b6d9c4e31ade088a55691bdd69e4268d1f50b0827e1cd4bfb232d5.json": {
+      "sha256": "97a92732f5b6d9c4e31ade088a55691bdd69e4268d1f50b0827e1cd4bfb232d5",
+      "bytes": 4911
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/76002eefa18f38ce24689a4ad3ee4165a2aeb918f2b66c246af0da9a7a7d29af.json": {
+      "sha256": "76002eefa18f38ce24689a4ad3ee4165a2aeb918f2b66c246af0da9a7a7d29af",
+      "bytes": 2943
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/b9632804d961ac3ae89e8e28c16b7011cc9e5513f3a4a60b274917c6de454053.json": {
+      "sha256": "b9632804d961ac3ae89e8e28c16b7011cc9e5513f3a4a60b274917c6de454053",
+      "bytes": 4907
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/376b741764fd73ed25fb4328bcd789ae57235fbc7de058270bb45a4f1259ede9.json": {
+      "sha256": "376b741764fd73ed25fb4328bcd789ae57235fbc7de058270bb45a4f1259ede9",
+      "bytes": 2934
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/e1a7ae349cff071211f679b35a2542ac5d66013d745421d2bd33f3d8e290d8c2.json": {
+      "sha256": "e1a7ae349cff071211f679b35a2542ac5d66013d745421d2bd33f3d8e290d8c2",
+      "bytes": 4465
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/95524a5118d702f0eb3b645473dcc871ea31dc6a0de547091bcd1642fd720d1e.json": {
+      "sha256": "95524a5118d702f0eb3b645473dcc871ea31dc6a0de547091bcd1642fd720d1e",
+      "bytes": 5310
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/c6949759ca848189ea21435db1df4e4254d3057c605b9a29253a36753325959e.json": {
+      "sha256": "c6949759ca848189ea21435db1df4e4254d3057c605b9a29253a36753325959e",
+      "bytes": 2911
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/c27632a21df439608de1d83329b69daa7cd5417490e12b9b5726b496ac81a5c3.json": {
+      "sha256": "c27632a21df439608de1d83329b69daa7cd5417490e12b9b5726b496ac81a5c3",
+      "bytes": 2936
+    },
+    "results/current-history-contrast-100-compact-001/comparison-evidence/e4a58e5c522f3f180b29cb70d727a06c482141c64c5fc98447e4c503500703a3.json": {
+      "sha256": "e4a58e5c522f3f180b29cb70d727a06c482141c64c5fc98447e4c503500703a3",
+      "bytes": 2912
+    },
+    "benchmarks/ledger_optimization/current_cv_pair_100.py": {
+      "sha256": "c1669fb4c38fd9c91d8c1e5070ea8e8f951ba03d4a0920e3942b346ee9dedefe",
+      "bytes": 4419
+    },
+    "benchmarks/ledger_optimization/current_history_contrast_100.py": {
+      "sha256": "fe56cee775758570e8be0fe27301bad141d1cca5e6849b3dd997714e63d33ca5",
+      "bytes": 3124
+    },
+    "benchmarks/ledger_optimization/contrast_view_100.py": {
+      "sha256": "0afcb164e0203b7ed4549006efdad8bf502e35a6dd241f1e2932b7baf56f1c57",
+      "bytes": 3581
+    },
+    "benchmarks/ledger_optimization/CURRENT_HISTORY_CONTRAST_100_COMPACT.md": {
+      "sha256": "495394aeb4dac51190344a61dfa79c3d1518f0fb4a173e828d6b8c5a3ae43f43",
+      "bytes": 4837
+    },
+    "benchmarks/tests/test_contrast_view_100.py": {
+      "sha256": "231559ad9c95758228816eb16fb31fd86347eaa25960d3891199bf67ae98da27",
+      "bytes": 4462
+    }
+  }
+}
