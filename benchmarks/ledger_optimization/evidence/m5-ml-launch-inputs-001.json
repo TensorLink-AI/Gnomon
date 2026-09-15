@@ -1,0 +1,46 @@
+{
+  "status": "real_seed_plans_frozen_no_dispatch",
+  "tests_passed": 6,
+  "real_artifact_verification": {
+    "passed": true,
+    "seeds": [
+      7,
+      19
+    ],
+    "plan_sha256": {
+      "7": "2fbfc7716c3aaa027d9265a28e2d801c1c17423cbdd06644b8682aab3569e76a",
+      "19": "643ba1061dffcd2076cd409a311da3441edb52dd57444d1a85c7dc4d10686325"
+    },
+    "host_tasks_per_seed": 208,
+    "pilot_sessions_per_seed": 72,
+    "complete_sessions_per_seed": 624,
+    "common_runtime_build_budgets_cohort_verified": true,
+    "dispatch_reserved": false,
+    "engy_calls": 0,
+    "provider_calls": 0,
+    "final_gate_opened": false,
+    "scope": "Real fixed M5 development jobs and exact seed worker artifacts authenticated; prospective development plans only. No launch, host runtime reinspection or final targets."
+  },
+  "remaining": "Actual launcher integration, host runtime/build/predecessor inspection, copied-state audit and source-bound operational preflight before reservation or credentials.",
+  "engy_calls": 0,
+  "provider_calls": 0,
+  "final_gate_opened": false,
+  "objective_established": false,
+  "evidence": {
+    "results/m5-ml-launch-inputs-001/freeze.command.json": "c722692c6037ba9813ffa2dc50c8b57627c93d5f93f3dee88e7cd87fc00869ab",
+    "results/m5-ml-launch-inputs-001/freeze.py": "4cd93a02f3bfdfc73c9ccc73f4f03cce9650b6440414bff8248d1b0b38cc6f8f",
+    "results/m5-ml-launch-inputs-001/freeze.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/m5-ml-launch-inputs-001/freeze.stdout": "c439b1959c221603206188c3c784727c3399d3ccb47ca309cc64988c508071ac",
+    "results/m5-ml-launch-inputs-001/plan-seed-19.json": "643ba1061dffcd2076cd409a311da3441edb52dd57444d1a85c7dc4d10686325",
+    "results/m5-ml-launch-inputs-001/plan-seed-7.json": "2fbfc7716c3aaa027d9265a28e2d801c1c17423cbdd06644b8682aab3569e76a",
+    "results/m5-ml-launch-inputs-001/report.json": "c439b1959c221603206188c3c784727c3399d3ccb47ca309cc64988c508071ac",
+    "results/m5-ml-launch-inputs-001/sources.json": "4db64e5d457626772961b8c580ea25316a56ea5108c55b771a05214ea6daa524",
+    "results/m5-ml-launch-inputs-001/tests.command.json": "dbbec1834beac2801eeae0c54b03320274520c0e7cb1be3733c3c9e9d1416c94",
+    "results/m5-ml-launch-inputs-001/tests.stderr": "a2845d24d545d41b2949fdb5c5ba18a492cc99421fd29ea131d3e9bb8c950e41",
+    "results/m5-ml-launch-inputs-001/tests.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "benchmarks/ledger_optimization/m5_ml_launch_inputs.py": "c4b36361257ede605b90da1e4086fd2c66361d8c5b614243a314cf7507b301da",
+    "benchmarks/tests/test_m5_ml_launch_inputs.py": "86d34e75575765669f5466290c4b70b098bc50bec20219722accabdcf841f85e",
+    "benchmarks/ledger_optimization/M5_ML_LAUNCH_INPUTS.md": "bdd65fb6bab62cbc6c4eac5d861e9403008ac65182fa23f5aab3e0ffdd31cd42",
+    "benchmarks/ledger_optimization/M5_ML_HOST_READINESS.md": "de7970740689968be58dafda6b38dd84eb37ef24bd66360dd8f428b01266e90f"
+  }
+}

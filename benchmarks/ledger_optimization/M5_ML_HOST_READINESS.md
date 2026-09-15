@@ -83,6 +83,12 @@ request usage without retrying. Its durable success/failure probe uses synthetic
 receipts, not a real 72-session worker run. It still requires a separately
 admitted launcher command and the remaining integrated checks above.
 
+The real seed-7 and seed-19 input/budget plans are now frozen and verified; see
+`M5_ML_LAUNCH_INPUTS.md`. Atomic reservation tests reject competing attempts even
+with different output directories. No production reservation exists. The plans
+still require actual host runtime/predecessor admission, launcher source binding
+and integrated execution checks; the current paid run remains unchanged.
+
 This is a code inspection of the current candidate-100 capsule and its existing
 launch helpers, together with the retained development-preparation receipt. It
 does not grant final access, launch M5 sessions, inspect reserved targets, or
