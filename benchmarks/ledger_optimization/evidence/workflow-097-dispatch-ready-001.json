@@ -1,0 +1,34 @@
+{
+  "status": "remote_read_only_prerequisites_passed_not_dispatched",
+  "bundle": {
+    "bundle_sha256": "8139f24620af984cb8bd3e71805426debebea1bceb7e83684ddf8b0fe9353158",
+    "bundle_bytes": 358846,
+    "files": 34,
+    "plan_sha256": "1398c649da651441d77a34ea3d5ea86ac5838170bb55c0d4690101b26a0b2665",
+    "preflight_sha256": "d82cf11ceadce063039f2cff03f4c694f1509346d672d9f9e58d52d65aa7d95b",
+    "capsule_sha256": "3b2220767e916c8977317e3916c7bb39b9b68a0717dc43156797e1a982e45dd3",
+    "local_tests": "results/workflow-097-launch-checks-001",
+    "remote_prerequisite_check_pending": true,
+    "paid_dispatch": false
+  },
+  "remote": {
+    "archive_sha256": "8139f24620af984cb8bd3e71805426debebea1bceb7e83684ddf8b0fe9353158",
+    "files_verified": 34,
+    "exit_status": 0,
+    "stdout": "{\"checks_passed\": true, \"paid_calls\": 0, \"output_created\": false, \"scope\": \"Read-only launch prerequisites; no dispatch.\"}\n",
+    "stderr": "",
+    "paid_calls": 0,
+    "run_exists": false,
+    "bundle": "/root/gnomon-ledger-ml-v3/code/results/workflow-097-pilot-bundle-001/payload"
+  },
+  "files": {
+    "results/workflow-097-pilot-bundle-001/deploy.py": "b1b13ff66796f1880ceab6c863d316e7c4dbd0360a0120fad907de1a201453c1",
+    "results/workflow-097-pilot-bundle-001/stdout.json": "210bd77639a9b7e33ab9089c2bc768f898f9c38219592c2c5a921585a2776137",
+    "results/workflow-097-pilot-bundle-001/command.json": "3b3b3e01d08ffb54a5b16d4e0943bd1db0a6446f576fdae0231fa92dcbf4d5e9",
+    "results/workflow-097-prospective-plan-001/plan.json": "1398c649da651441d77a34ea3d5ea86ac5838170bb55c0d4690101b26a0b2665",
+    "results/workflow-097-preflight-001/passed.json": "d82cf11ceadce063039f2cff03f4c694f1509346d672d9f9e58d52d65aa7d95b"
+  },
+  "comparison": "Fresh matched 097 arms only. Same 096 population, budgets, options, seed, model and completion gate; common progress amendment only.",
+  "paid_calls": 0,
+  "final_gate_opened": false
+}

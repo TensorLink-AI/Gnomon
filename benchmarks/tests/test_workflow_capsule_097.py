@@ -27,7 +27,7 @@ class WorkflowCapsuleTests(unittest.TestCase):
         before = {str(p.relative_to(BASE)): digest(p.read_bytes()) for p in BASE.rglob('*')
                   if p.is_file() and '__pycache__' not in p.parts}
         result = build(BASE, self.root/'capsule')
-        self.assertEqual(result['changed_from_096'], ['PROTOCOL.md', 'TASK.md', 'transport.py'])
+        self.assertEqual(result['changed_from_096'], ['PROTOCOL.md', 'TASK.md', 'analyze.py', 'transport.py'])
         self.assertEqual(before, {str(p.relative_to(BASE)): digest(p.read_bytes()) for p in BASE.rglob('*')
                                  if p.is_file() and '__pycache__' not in p.parts})
         self.assertFalse(result['final_gate_opened'])

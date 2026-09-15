@@ -1,4 +1,40 @@
-# Prospective paired collection pilot 096 — running; continuation threshold unreachable
+# Prospective paired collection pilot 096 — complete; continuation gate failed
+
+**Terminal update, 2026-09-15 00:27:54 UTC:** all 36 sessions completed and the
+controller finished cleanly. The controller was subsequently verified dead.
+All 4,293 archive files were transferred and hash verified; the local independent
+audit passed 5,280 checks and exactly reproduced every remote result row.
+
+| Arm | Mean RMSLE | Valid forecasts | Full workflows | Tokens | Requests | Fits |
+|---|---:|---:|---:|---:|---:|---:|
+| Hermes | 0.547778 | 12/12 | 10/12 | 2,663,990 | 161 | 136 |
+| Hermes + Gnomon | 0.533722 | 12/12 | 11/12 | 3,339,287 | 163 | 160 |
+| Hermes + Gnomon + ledger | 0.500486 | 12/12 | 12/12 | 2,458,651 | 151 | 180 |
+
+Ledger reduces mean per-case RMSLE by **6.23%** versus Gnomon and **8.63%**
+versus plain Hermes. The exploratory four-series bootstrap interval versus
+Gnomon is **+2.84% to +13.32%**, with nine wins, one loss and two ties. These
+12 reused development cases cover only three early origins per series; they
+do not establish mature-history value, general superiority or the 20% goal.
+Ledger uses 26.37% fewer reported tokens than Gnomon but 12.5% more numerical
+fits. No aggregate dollar-cost claim is available.
+
+All 475 forecast requests have responses and usage: 8,461,928 reported tokens,
+zero API errors or unknown usage. Readiness added 36 requests and 504 tokens.
+The two plain and one Gnomon incomplete workflows remain scored. The frozen
+11/12-per-arm completion gate failed. **No continuation was launched.**
+
+An explicitly future-aware diagnostic selected the best actually executed
+forecast across all three arms for each case. That union achieved a 16.89%
+reduction versus the Gnomon submissions. It is an unequal-budget hindsight
+diagnostic, not a deployable policy or a bound over unexecuted configurations.
+It does not meet the target either. No untouched final targets were opened.
+
+Complete evidence: `evidence/collection-096-final-001.json` and
+`results/collection-096-final-001/`. Archive: 29,734,613 bytes, SHA-256
+`f0425ff3a972404842a8dc3681d775eb3a34958f18750d962e8e661551ef90fb`.
+The earlier live observations below are retained as history and superseded by
+these terminal results.
 
 At **2026-09-15 00:10:19 UTC**, the same controller was verified live: 17/36
 sessions completed, all forecasts valid, zero API errors. Full workflows were

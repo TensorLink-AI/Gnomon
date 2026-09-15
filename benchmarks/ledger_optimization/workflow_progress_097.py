@@ -4,6 +4,7 @@ This supplies no model choice, accuracy evidence, execution, or extra budget.
 It is intended for a new frozen three-arm experiment, never a live-run patch.
 """
 import csv
+import hashlib
 import json
 from pathlib import Path
 
@@ -37,10 +38,16 @@ def workflow_progress(work, request_number, remaining_seconds):
         folds, configs = {}, {}
         selection_after_comparison = False
         attempts = 0
+        prefix_hash = hashlib.sha256()
+        prefix_bytes = 0
+        events_read = 0
         events = work/'experiments.jsonl'
         if events.exists():
-            with events.open() as stream:
+            with events.open('rb') as stream:
                 for line in stream:
+                    prefix_hash.update(line)
+                    prefix_bytes += len(line)
+                    events_read += 1
                     event = json.loads(line)
                     if event.get('task_origin') != task['origin']:
                         continue
@@ -57,6 +64,8 @@ def workflow_progress(work, request_number, remaining_seconds):
         baseline = any(configs[cid]['model'] == 'seasonal' for cid in eligible)
         comparison = len(eligible) >= 2 and ml
         result.update(history_columns=columns, target_column='value',
+            evidence_prefix_bytes=prefix_bytes, evidence_prefix_sha256=prefix_hash.hexdigest(),
+            evidence_events_read=events_read,
             complete_current_configurations=len(eligible), ml_configuration_compared=ml,
             baseline_compared=baseline, numerical_attempts=attempts,
             numerical_attempts_remaining=max(0, 60-attempts),

@@ -1,0 +1,17 @@
+{
+  "status": "local_exact_runtime_hermes_collection_integration_passed",
+  "candidate": "097_common_workflow_progress",
+  "checks": 143,
+  "independent_audit_checks": 649,
+  "numerical_attempts": 48,
+  "engy_calls": 0,
+  "files": {
+    "results/workflow-097-local-worker-001/passed.json": "47a75d472f5fa11a9170255b66deb71eff742ad2de122299e33a507557c0bdc8",
+    "results/workflow-097-local-worker-001/report.json": "21461dc3cf8c5331ad6fc09b90a4f6939aca88cc817c879325eb41f56b824f14",
+    "results/workflow-097-local-worker-001/SHA256SUMS.json": "40d186d9e17ba346aaa329f196ff7f42bddc8d7d14a075d5a20cae9f9e354bc9"
+  },
+  "archive_sha256": "143c469a5ea13286a40afdc0cbe6a954ea4eecc8a84479edf33ca11e030361f4",
+  "archive_bytes": 2093665,
+  "evidence_files": 575,
+  "scope": "Exact 097 capsule, actual Hermes workers, published Gnomon 1.2.0, six synthetic workflows, scripted model responses. All six request-4 reminders independently audited. Requests 8/11 and exhaustion checked by local HTTP transport tests. No efficacy claim."
+}

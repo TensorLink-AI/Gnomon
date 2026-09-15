@@ -42,12 +42,27 @@ def build(source, output):
     if transport.count(marker) != 1:
         raise ValueError('Unexpected transport phase boundary')
     transport = transport.replace(marker, marker + '''        progress = workflow_progress(self.server.work, number, seconds) if self.server.work is not None else None
+        dump(str(prefix) + '-workflow-state.json', {'request_number':number,'seconds_remaining':seconds})
         if progress is not None:
             notice = json.dumps(progress, sort_keys=True, separators=(',', ':'))
             payload['messages'] = [*payload['messages'], {'role':'system','content':notice}]
             dump(str(prefix) + '-workflow-progress.json', {'progress':progress,'notice':notice})
 ''')
     content['transport.py'] = transport.encode()
+    auditor = Path(__file__).with_name('workflow_audit_097.py').read_text()
+    audit_node = next(n for n in ast.parse(auditor).body
+                      if isinstance(n, ast.FunctionDef) and n.name == 'audit_workflow_progress')
+    analyze = content['analyze.py'].decode()
+    marker = 'def analyze(root, output=None):'
+    if analyze.count(marker) != 1:
+        raise ValueError('Unexpected analyzer boundary')
+    analyze = analyze.replace(marker, ast.get_source_segment(auditor, audit_node)+'\n\n'+marker)
+    marker = "        r['http_errors']=sum(v['status']!=200 for v in receipt)\n"
+    if analyze.count(marker) != 1:
+        raise ValueError('Unexpected analyzer session boundary')
+    analyze = analyze.replace(marker, "        r['workflow_progress_audit']=audit_workflow_progress(p.parent,job)\n"
+                             "        checks+=r['workflow_progress_audit']['checks']\n"+marker)
+    content['analyze.py'] = analyze.encode()
     content['TASK.md'] += (
         '\nCommon progress reminders at requests 4, 8 and 11 report your current workflow\n'
         'and remaining budget before exploration closes. They use only your visible\n'
@@ -74,8 +89,9 @@ def build(source, output):
         'base_sources': base['base_sources'], 'sources': after,
         'changed_from_096': sorted(n for n in content if after[n] != base['sources'][n]),
         'fragment_sha256': digest(fragment.encode()), 'common_to_all_arms': True,
+        'workflow_audit_sha256': digest(auditor.encode()),
         'engy_calls': 0, 'provider_calls': 0, 'final_gate_opened': False,
-        'outstanding': ['independent reminder audit', 'exact worker and transport integration',
+        'outstanding': ['exact worker and transport integration',
                         'new prospective plan', 'terminal 096 evidence', 'new gated pilot'],
     }
     target = output/'benchmarks/hermes_ml_checkpoint_v6'
