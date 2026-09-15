@@ -5,6 +5,30 @@ sessions under the same three-arm Gnomon 1.2.0/DeepSeek v4.1 Flash protocol. The
 pilot's negative result remains in the denominator. This is reused development
 data, not the reserved final evaluation. The 20% target remains unestablished.
 
+## Third continuation audit: 93 verified sessions
+
+The next disjoint batch contains 33 completed, valid workflows and passes
+39,597 independent checks using the separately documented verifier correction.
+All 4,749 files and the 45,849,125-byte archive verified. Across the pilot and
+three batches, 93 sessions and 99,533 checks are now independently verified.
+This is an audit snapshot, not the latest live completion count.
+
+Thirty cases have all three arms. Their arithmetic mean per-case RMSLE is
+0.498401 (Hermes), 0.480151 (Gnomon), and 0.493400 (ledger): ledger is 2.76%
+worse than Gnomon without ledger. All 90 matched sessions completed the full
+workflow with no fallback. The three unmatched sessions remain pending; no
+success or accuracy filtering is used. The new batch's 269 agent calls report
+4,552,701 tokens, with no API errors or missing agent usage. Its 33 readiness
+calls report 462 tokens. Dollar costs are unknown. These costs belong to the
+existing experiment; collecting and analyzing it added no paid agent calls.
+
+The per-origin analysis and search diagnostics are documented in
+[CURRENT_HISTORY_CONTRAST_100_HISTORY_DIAGNOSTICS.md](CURRENT_HISTORY_CONTRAST_100_HISTORY_DIAGNOSTICS.md).
+They provide no clear accumulating accuracy advantage yet. They also show why
+three illustrative losses must not be generalized into less exploration by the
+ledger arm: both Gnomon arms average 2.87 complete CV configurations per task.
+Receipt: `evidence/contrast-100-development-audit-003.json`.
+
 ## Second continuation audit: 60 verified sessions
 
 An additional disjoint batch of 19 completed sessions passed 21,928 independent

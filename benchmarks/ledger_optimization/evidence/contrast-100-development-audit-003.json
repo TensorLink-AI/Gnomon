@@ -1,0 +1,152 @@
+{
+  "status": "new_continuation_sessions_independently_verified",
+  "new_sessions": 33,
+  "new_audit_checks": 39597,
+  "combined_verified_sessions": 93,
+  "combined_audit_checks": 99533,
+  "combined_matched": {
+    "matched_cases": 30,
+    "mean_rmsle": {
+      "plain": 0.4984007678118941,
+      "gnomon": 0.4801514301202997,
+      "ledger": 0.49339969249026283
+    },
+    "ledger_relative_improvement": -0.02759184194587072,
+    "relative_status": "defined",
+    "valid": {
+      "plain": 30,
+      "gnomon": 30,
+      "ledger": 30
+    },
+    "full_workflows": {
+      "plain": 30,
+      "gnomon": 30,
+      "ledger": 30
+    },
+    "fallbacks": {
+      "plain": 0,
+      "gnomon": 0,
+      "ledger": 0
+    }
+  },
+  "pending": [
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 12,
+      "missing_arms": [
+        "ledger"
+      ]
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 12,
+      "missing_arms": [
+        "plain",
+        "ledger"
+      ]
+    }
+  ],
+  "transfer": {
+    "status": "verified",
+    "archive": {
+      "bytes": 45849125,
+      "sessions": 33,
+      "archive": "/root/gnomon-ledger-ml-v3/code/results/contrast-100-development-audit-003/snapshot.tar.gz",
+      "sha256": "7300317ce14df18d6d2565bfe0eae8c384d6b4225cbc7bff3eeca0d2880f6bfb"
+    },
+    "files_verified": 4749
+  },
+  "new_costs": {
+    "sessions": 33,
+    "forwarded_requests": 269,
+    "returned_responses": 269,
+    "reported_tokens": 4552701,
+    "requests_without_reported_usage": 0,
+    "api_errors": 0,
+    "readiness_requests": 33,
+    "readiness_reported_tokens": 462,
+    "readiness_unknown_usage": 0,
+    "orphan_responses": 0
+  },
+  "billing_dollars": null,
+  "audit_amendment": "Uses the separately documented cache-replay correction from audit 002. Frozen running worker and original terminal auditor remain unchanged; retain and reconcile any original audit failure separately.",
+  "scope": "All finished sessions in this disjoint snapshot are included. Combined means require all three arms, without success filtering. Post-hoc search/history diagnostics do not establish efficacy or change live selection rules.",
+  "observed_search": {
+    "arms": {
+      "plain": {
+        "matched_sessions": 30,
+        "mean_complete_cv_configs": 2.7,
+        "family_exposure_sessions": {
+          "random_forest": 6,
+          "ridge": 30,
+          "seasonal": 30
+        },
+        "selected_cv_minimum_sessions": 30,
+        "selected_not_in_final_cv_sessions": 0
+      },
+      "gnomon": {
+        "matched_sessions": 30,
+        "mean_complete_cv_configs": 2.8666666666666667,
+        "family_exposure_sessions": {
+          "random_forest": 4,
+          "ridge": 30,
+          "seasonal": 30
+        },
+        "selected_cv_minimum_sessions": 28,
+        "selected_not_in_final_cv_sessions": 0
+      },
+      "ledger": {
+        "matched_sessions": 30,
+        "mean_complete_cv_configs": 2.8666666666666667,
+        "family_exposure_sessions": {
+          "random_forest": 5,
+          "ridge": 30,
+          "seasonal": 30
+        },
+        "selected_cv_minimum_sessions": 27,
+        "selected_not_in_final_cv_sessions": 0
+      }
+    },
+    "same_complete_cv_set_cases": 3,
+    "same_selected_config_cases": 15
+  },
+  "new_provider_calls": 0,
+  "new_engy_calls": 0,
+  "final_gate_opened": false,
+  "objective_established": false,
+  "evidence": {
+    "results/contrast-100-development-audit-003/collect.py": "babe306a552dad9827e5a1799c545c109553e9d01fa1364d37b6f9072ca360b7",
+    "results/contrast-100-development-audit-003/snapshot.py": "665a2c1dec8730448124b3b01d238af1ea6b6e37a290697fc142963d2d8881a1",
+    "results/contrast-100-development-audit-003/snapshot.json": "fcb649fafedb262a28ba9250b005b2660c46a985f01c3fbbcd22a0f7edb20f05",
+    "results/contrast-100-development-audit-003/transfer.json": "7f34a7ac218e9c8ad0f883dfacc3ca037432be14902e557ae9d92837bc902a93",
+    "results/contrast-100-development-audit-003/collect.exit.json": "106506a0288d746ae0f6ec580781a079128bc36bbaa976f593770757a1e64d43",
+    "results/contrast-100-development-audit-003/analyze_corrected.py": "b57c3258972647706375dbfe5ef53882f821053ab3090849b81e98c576c984da",
+    "results/contrast-100-development-audit-003/analyze-corrected.exit.json": "4df8eede62e7d9ec31c0453000c1785eb1eebb3898981e0a3bdabe59b3d24b20",
+    "results/contrast-100-development-audit-003/audit-cache-replay/report.json": "57886183684df0595f349a2abcf08532d39eb3cbf3fab474ad0bd0c779ae85f5",
+    "results/contrast-100-development-audit-003/costs.json": "cd720f7cb0f74c6ba03c73442ac081b4be9b630224852eace19868431f82bbb0",
+    "/root/Gnomon/results/contrast-100-history-progress-002/analyze.py": "0aad7bdadcab06d1e9fd063d01f1c359abeaef42ddaf2c1710ebfe140387000d",
+    "/root/Gnomon/results/contrast-100-history-progress-002/history.json": "36368f320e3b6c792402bd73b54b51c257c7e78df6b87de455940d836222ec4a",
+    "/root/Gnomon/results/contrast-100-history-progress-002/exploration.json": "db404bf0307aaade9bd3c48d4533b7c4c16b16e6170c6c35a4d58f0543f70441",
+    "/root/Gnomon/results/contrast-100-history-progress-002/sources.json": "f81fec0312d26e073dffd3c1aa3e0e7e257e31cd5aeb7eeeab43f7ef2580a233",
+    "/root/Gnomon/results/contrast-100-history-progress-002/tests.command.json": "f8a436a05d84a45886b1602836ab058a7dbde6ccef66031a158be9d59aa408dd",
+    "/root/Gnomon/results/contrast-100-history-progress-002/tests.stderr": "75ff54e727b57e4bd7b88956ed0c92c4b9a416e6f0976707e8fb54aa385ac0bd",
+    "/root/Gnomon/results/contrast-100-history-progress-002/analysis.command.json": "247fe62f85898f53dc5ff9d668fa5e0da0dfb9646431c7f32202ea438a7a2e87",
+    "results/contrast-100-history-progress-001/decision-diagnostics.json": "f7d13dab3da70ec83ad48594029bd1568a677035e4a8ef29f0bffe989e568d46",
+    "results/contrast-100-history-progress-001/decisions.py": "16726b4d2d7817abb55ed675a499e8053dc7b789251c8581966f87a17f71cb40",
+    "results/contrast-100-history-progress-001/history-progress-002.png": "44826b6479f012f5cd8629c6c4b84ca3d9ab2a9259df1d34f8cc8bf87c656e14",
+    "results/contrast-100-history-progress-001/history-progress-002.svg": "7374d7b8e9bd8e6a2f35656f009bd516d296ecb9edf23e1fab46d491ae5b9180",
+    "results/contrast-100-history-progress-001/plot-002.py": "e3ec2d2e1d2478eef8c5fbae8aef7196f911d8587b47e80b31d5c65fd3c50770",
+    "results/contrast-100-history-progress-001/plot-002.command.json": "8b4a55fc87df5ed555078af201fa64550848a22fc2978a55a405f74f7fb33d61",
+    "benchmarks/ledger_optimization/contrast_audit_100.py": "6eac6aee07b4008da09bf0c1d5924264d019ceab3d6fd56a37a2805a9eaa6e0c",
+    "benchmarks/ledger_optimization/contrast_history_progress_100.py": "68ca6019a01ee613706f46207e835b1408bbb66477abeb254cf4885c773cd8e5",
+    "benchmarks/ledger_optimization/contrast_exploration_100.py": "636c6d80ad9c5df87c550af92be0e72cea3547f096727965372194ade1ad895d",
+    "benchmarks/tests/test_contrast_history_progress_100.py": "f2684cd75e4081e36091dffc2ce4f4c428c636fdbcd6ca625014bdbc33454a75",
+    "benchmarks/tests/test_contrast_exploration_100.py": "609e2e042667ef8969b62c5887c9af5bf159990df251b2a4ff95a48a01f1dc0f"
+  },
+  "input_reports": {
+    "results/contrast-100-final-001/audit/report.json": "03ed955f9b55b56606f1974780bd33ae50a86a5e38b709c3ee92b8f46aaa57b0",
+    "results/contrast-100-development-audit-001/audit/report.json": "c19f0f8869a5aabf20d68b908a470c0a579605088d051e8210c69d9b065d4b2b",
+    "results/contrast-100-development-audit-002/audit-cache-replay/report.json": "6c952075073e7ebe9b02a24112532333091ac467c81ca87615e68f31fa36a0dd",
+    "results/contrast-100-development-audit-003/audit-cache-replay/report.json": "57886183684df0595f349a2abcf08532d39eb3cbf3fab474ad0bd0c779ae85f5"
+  }
+}

@@ -1,0 +1,506 @@
+{
+  "observed_sessions": 93,
+  "primary_all_matched": {
+    "matched_cases": 30,
+    "mean_rmsle": {
+      "plain": 0.4984007678118941,
+      "gnomon": 0.4801514301202997,
+      "ledger": 0.49339969249026283
+    },
+    "ledger_relative_improvement": -0.02759184194587072,
+    "relative_status": "defined",
+    "valid": {
+      "plain": 30,
+      "gnomon": 30,
+      "ledger": 30
+    },
+    "full_workflows": {
+      "plain": 30,
+      "gnomon": 30,
+      "ledger": 30
+    },
+    "fallbacks": {
+      "plain": 0,
+      "gnomon": 0,
+      "ledger": 0
+    }
+  },
+  "by_prior_outcomes": [
+    {
+      "prior_outcomes": 0,
+      "series": [
+        "item_1047756_store_23",
+        "item_1304243_store_32",
+        "item_1372862_store_12",
+        "item_1457251_store_14"
+      ],
+      "matched_cases": 4,
+      "mean_rmsle": {
+        "plain": 0.4776020921637642,
+        "gnomon": 0.4767402307042677,
+        "ledger": 0.4776020921637642
+      },
+      "ledger_relative_improvement": -0.0018078219625461411,
+      "relative_status": "defined",
+      "valid": {
+        "plain": 4,
+        "gnomon": 4,
+        "ledger": 4
+      },
+      "full_workflows": {
+        "plain": 4,
+        "gnomon": 4,
+        "ledger": 4
+      },
+      "fallbacks": {
+        "plain": 0,
+        "gnomon": 0,
+        "ledger": 0
+      }
+    },
+    {
+      "prior_outcomes": 1,
+      "series": [
+        "item_1047756_store_23",
+        "item_1304243_store_32",
+        "item_1372862_store_12",
+        "item_1457251_store_14"
+      ],
+      "matched_cases": 4,
+      "mean_rmsle": {
+        "plain": 0.43079055432766916,
+        "gnomon": 0.4415239371916595,
+        "ledger": 0.4335328369293229
+      },
+      "ledger_relative_improvement": 0.018098906059690667,
+      "relative_status": "defined",
+      "valid": {
+        "plain": 4,
+        "gnomon": 4,
+        "ledger": 4
+      },
+      "full_workflows": {
+        "plain": 4,
+        "gnomon": 4,
+        "ledger": 4
+      },
+      "fallbacks": {
+        "plain": 0,
+        "gnomon": 0,
+        "ledger": 0
+      }
+    },
+    {
+      "prior_outcomes": 2,
+      "series": [
+        "item_1047756_store_23",
+        "item_1304243_store_32",
+        "item_1372862_store_12",
+        "item_1457251_store_14"
+      ],
+      "matched_cases": 4,
+      "mean_rmsle": {
+        "plain": 0.5832898641955626,
+        "gnomon": 0.5917952059760853,
+        "ledger": 0.6159672954949131
+      },
+      "ledger_relative_improvement": -0.04084536217044765,
+      "relative_status": "defined",
+      "valid": {
+        "plain": 4,
+        "gnomon": 4,
+        "ledger": 4
+      },
+      "full_workflows": {
+        "plain": 4,
+        "gnomon": 4,
+        "ledger": 4
+      },
+      "fallbacks": {
+        "plain": 0,
+        "gnomon": 0,
+        "ledger": 0
+      }
+    },
+    {
+      "prior_outcomes": 3,
+      "series": [
+        "item_1047756_store_23",
+        "item_1304243_store_32"
+      ],
+      "matched_cases": 2,
+      "mean_rmsle": {
+        "plain": 0.6466354422267513,
+        "gnomon": 0.643974743320316,
+        "ledger": 0.6252569085244917
+      },
+      "ledger_relative_improvement": 0.02906610079040628,
+      "relative_status": "defined",
+      "valid": {
+        "plain": 2,
+        "gnomon": 2,
+        "ledger": 2
+      },
+      "full_workflows": {
+        "plain": 2,
+        "gnomon": 2,
+        "ledger": 2
+      },
+      "fallbacks": {
+        "plain": 0,
+        "gnomon": 0,
+        "ledger": 0
+      }
+    },
+    {
+      "prior_outcomes": 4,
+      "series": [
+        "item_1047756_store_23",
+        "item_1304243_store_32"
+      ],
+      "matched_cases": 2,
+      "mean_rmsle": {
+        "plain": 0.6392915712884999,
+        "gnomon": 0.4941996422452147,
+        "ledger": 0.6392915712884999
+      },
+      "ledger_relative_improvement": -0.2935897087746022,
+      "relative_status": "defined",
+      "valid": {
+        "plain": 2,
+        "gnomon": 2,
+        "ledger": 2
+      },
+      "full_workflows": {
+        "plain": 2,
+        "gnomon": 2,
+        "ledger": 2
+      },
+      "fallbacks": {
+        "plain": 0,
+        "gnomon": 0,
+        "ledger": 0
+      }
+    },
+    {
+      "prior_outcomes": 5,
+      "series": [
+        "item_1047756_store_23",
+        "item_1304243_store_32"
+      ],
+      "matched_cases": 2,
+      "mean_rmsle": {
+        "plain": 0.5113175328213867,
+        "gnomon": 0.48655260874346373,
+        "ledger": 0.48663279669659454
+      },
+      "ledger_relative_improvement": -0.00016480839212418275,
+      "relative_status": "defined",
+      "valid": {
+        "plain": 2,
+        "gnomon": 2,
+        "ledger": 2
+      },
+      "full_workflows": {
+        "plain": 2,
+        "gnomon": 2,
+        "ledger": 2
+      },
+      "fallbacks": {
+        "plain": 0,
+        "gnomon": 0,
+        "ledger": 0
+      }
+    },
+    {
+      "prior_outcomes": 6,
+      "series": [
+        "item_1047756_store_23",
+        "item_1304243_store_32"
+      ],
+      "matched_cases": 2,
+      "mean_rmsle": {
+        "plain": 0.34183646762404957,
+        "gnomon": 0.3421816747384193,
+        "ledger": 0.3578684852450236
+      },
+      "ledger_relative_improvement": -0.04584351432202238,
+      "relative_status": "defined",
+      "valid": {
+        "plain": 2,
+        "gnomon": 2,
+        "ledger": 2
+      },
+      "full_workflows": {
+        "plain": 2,
+        "gnomon": 2,
+        "ledger": 2
+      },
+      "fallbacks": {
+        "plain": 0,
+        "gnomon": 0,
+        "ledger": 0
+      }
+    },
+    {
+      "prior_outcomes": 7,
+      "series": [
+        "item_1047756_store_23",
+        "item_1304243_store_32"
+      ],
+      "matched_cases": 2,
+      "mean_rmsle": {
+        "plain": 0.4509661920449936,
+        "gnomon": 0.44972222579889837,
+        "ledger": 0.4187629580402024
+      },
+      "ledger_relative_improvement": 0.06884086661204947,
+      "relative_status": "defined",
+      "valid": {
+        "plain": 2,
+        "gnomon": 2,
+        "ledger": 2
+      },
+      "full_workflows": {
+        "plain": 2,
+        "gnomon": 2,
+        "ledger": 2
+      },
+      "fallbacks": {
+        "plain": 0,
+        "gnomon": 0,
+        "ledger": 0
+      }
+    },
+    {
+      "prior_outcomes": 8,
+      "series": [
+        "item_1047756_store_23",
+        "item_1304243_store_32"
+      ],
+      "matched_cases": 2,
+      "mean_rmsle": {
+        "plain": 0.5306448618835415,
+        "gnomon": 0.46423180898490174,
+        "ledger": 0.46423180898490174
+      },
+      "ledger_relative_improvement": 0.0,
+      "relative_status": "defined",
+      "valid": {
+        "plain": 2,
+        "gnomon": 2,
+        "ledger": 2
+      },
+      "full_workflows": {
+        "plain": 2,
+        "gnomon": 2,
+        "ledger": 2
+      },
+      "fallbacks": {
+        "plain": 0,
+        "gnomon": 0,
+        "ledger": 0
+      }
+    },
+    {
+      "prior_outcomes": 9,
+      "series": [
+        "item_1047756_store_23",
+        "item_1304243_store_32"
+      ],
+      "matched_cases": 2,
+      "mean_rmsle": {
+        "plain": 0.6354639233626529,
+        "gnomon": 0.5887532096431218,
+        "ledger": 0.6174339805019422
+      },
+      "ledger_relative_improvement": -0.04871441953786637,
+      "relative_status": "defined",
+      "valid": {
+        "plain": 2,
+        "gnomon": 2,
+        "ledger": 2
+      },
+      "full_workflows": {
+        "plain": 2,
+        "gnomon": 2,
+        "ledger": 2
+      },
+      "fallbacks": {
+        "plain": 0,
+        "gnomon": 0,
+        "ledger": 0
+      }
+    },
+    {
+      "prior_outcomes": 10,
+      "series": [
+        "item_1047756_store_23",
+        "item_1304243_store_32"
+      ],
+      "matched_cases": 2,
+      "mean_rmsle": {
+        "plain": 0.3592560747417912,
+        "gnomon": 0.3349898700763848,
+        "ledger": 0.3592560747417912
+      },
+      "ledger_relative_improvement": -0.07243862227796072,
+      "relative_status": "defined",
+      "valid": {
+        "plain": 2,
+        "gnomon": 2,
+        "ledger": 2
+      },
+      "full_workflows": {
+        "plain": 2,
+        "gnomon": 2,
+        "ledger": 2
+      },
+      "fallbacks": {
+        "plain": 0,
+        "gnomon": 0,
+        "ledger": 0
+      }
+    },
+    {
+      "prior_outcomes": 11,
+      "series": [
+        "item_1047756_store_23",
+        "item_1304243_store_32"
+      ],
+      "matched_cases": 2,
+      "mean_rmsle": {
+        "plain": 0.3772344298107522,
+        "gnomon": 0.37754692050975014,
+        "ledger": 0.3780563541544946
+      },
+      "ledger_relative_improvement": -0.0013493253873098077,
+      "relative_status": "defined",
+      "valid": {
+        "plain": 2,
+        "gnomon": 2,
+        "ledger": 2
+      },
+      "full_workflows": {
+        "plain": 2,
+        "gnomon": 2,
+        "ledger": 2
+      },
+      "fallbacks": {
+        "plain": 0,
+        "gnomon": 0,
+        "ledger": 0
+      }
+    }
+  ],
+  "pending": [
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 12,
+      "missing_arms": [
+        "ledger"
+      ]
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 12,
+      "missing_arms": [
+        "plain",
+        "ledger"
+      ]
+    }
+  ],
+  "cold_mature_threshold": null,
+  "threshold_predeclared": false,
+  "target_established": false,
+  "final_gate_opened": false,
+  "scope": "Descriptive reused-development monitoring only. Every completed three-arm group is included, including failures. Reporting by origin/prior-outcome count does not identify a causal memory benefit: calendar conditions and series coverage also change. No cold/mature cutoff or accuracy stopping rule is introduced.",
+  "independent_audit_checks": 99533,
+  "exploration": {
+    "primary_all_matched": {
+      "matched_cases": 30,
+      "mean_rmsle": {
+        "plain": 0.4984007678118941,
+        "gnomon": 0.4801514301202997,
+        "ledger": 0.49339969249026283
+      },
+      "ledger_relative_improvement": -0.02759184194587072,
+      "relative_status": "defined",
+      "valid": {
+        "plain": 30,
+        "gnomon": 30,
+        "ledger": 30
+      },
+      "full_workflows": {
+        "plain": 30,
+        "gnomon": 30,
+        "ledger": 30
+      },
+      "fallbacks": {
+        "plain": 0,
+        "gnomon": 0,
+        "ledger": 0
+      }
+    },
+    "arms": {
+      "plain": {
+        "matched_sessions": 30,
+        "mean_complete_cv_configs": 2.7,
+        "family_exposure_sessions": {
+          "random_forest": 6,
+          "ridge": 30,
+          "seasonal": 30
+        },
+        "selected_cv_minimum_sessions": 30,
+        "selected_not_in_final_cv_sessions": 0
+      },
+      "gnomon": {
+        "matched_sessions": 30,
+        "mean_complete_cv_configs": 2.8666666666666667,
+        "family_exposure_sessions": {
+          "random_forest": 4,
+          "ridge": 30,
+          "seasonal": 30
+        },
+        "selected_cv_minimum_sessions": 28,
+        "selected_not_in_final_cv_sessions": 0
+      },
+      "ledger": {
+        "matched_sessions": 30,
+        "mean_complete_cv_configs": 2.8666666666666667,
+        "family_exposure_sessions": {
+          "random_forest": 5,
+          "ridge": 30,
+          "seasonal": 30
+        },
+        "selected_cv_minimum_sessions": 27,
+        "selected_not_in_final_cv_sessions": 0
+      }
+    },
+    "same_complete_cv_set_cases": 3,
+    "same_selected_config_cases": 15,
+    "pending": [
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 12,
+        "missing_arms": [
+          "ledger"
+        ]
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 12,
+        "missing_arms": [
+          "plain",
+          "ledger"
+        ]
+      }
+    ],
+    "scope": "Post-hoc development search description. All matched cases retained, including failures. Final CV tables may postdate selection. Different search sets and scores are observed associations, not causal attribution to ledger memory. No hindsight selector, unexecuted forecast, final-data access or dispatch.",
+    "engy_calls": 0,
+    "provider_calls": 0,
+    "final_gate_opened": false,
+    "independent_audit_checks": 99533
+  },
+  "evidence_receipt": "contrast-100-development-audit-003.json"
+}

@@ -1,0 +1,89 @@
+# Candidate 100: accumulated history and search diagnostics
+
+These are post-hoc descriptions of 93 independently audited development
+sessions, with 30 complete three-arm cases. They do not change the running
+protocol, choose a mature-history cutoff, or open final data. Gnomon is the
+pinned published 1.2.0 build, with DeepSeek v4.1 Flash in all arms.
+
+## Does the observed advantage grow with history?
+
+Not clearly in this snapshot. The primary all-matched means are 0.480151 for
+Gnomon without ledger and 0.493400 for ledger, a 2.76% disadvantage. The two
+series with later observations have 12 matched origins each; the remaining two
+still have only their three pilot origins. Their cumulative curves do not show
+an established accumulating advantage. Later rounds therefore must not be
+compared with the four-series pilot as though the population were constant.
+
+`contrast_history_progress_100.summarize` reports each prior-outcome count and
+per-series cumulative results. All matched failures remain included; missing
+arms stay explicitly pending. Missing origins, duplicates, mismatched origins
+and invalid scores reject. A zero control mean makes relative improvement
+undefined, not zero or an invented benefit. The frozen plan did not specify a
+numeric cold/mature threshold; none is introduced here. The legacy analyzer's
+convenience cold/mature labels are not a preregistered decision rule.
+
+The standalone plot is retained as
+`results/contrast-100-history-progress-001/history-progress-002.png` and `.svg`.
+Each point uses every matched origin through that round for its series. Calendar
+conditions change alongside history length; this is not a causal memory curve.
+
+## Search behavior across every matched case
+
+`contrast_exploration_100.exploration` reads authenticated audit rows and their
+audited final current-CV tables. It recomputes configuration overlap and selected
+CV rank, rather than accepting an agent's narrative rank. These are end-of-session
+tables; a configuration in them is not assumed to predate an earlier decision.
+
+| Arm | Mean complete CV configurations | Sessions testing RF | Selected final CV minimum |
+|---|---:|---:|---:|
+| Hermes | 2.70 | 6/30 | 30/30 |
+| Hermes + Gnomon | 2.87 | 4/30 | 28/30 |
+| Hermes + Gnomon + ledger | 2.87 | 5/30 | 27/30 |
+
+All arms tested Ridge and seasonal configurations in all 30 cases. Gnomon and
+ledger tested identical complete configuration sets in only 3/30 cases, and
+selected the same exact configuration in 15/30. All selected configurations
+appear in the final complete-CV tables. Thus the outcome difference mixes
+configuration exploration with selection among explored candidates. The data
+do not support a general claim that ledger tested fewer configurations, or
+that following historical evidence necessarily caused a particular loss.
+
+Three largest observed ledger-minus-control errors were retained as explicitly
+post-hoc illustrations, with original public decision summaries and hashes:
+
+| Series / round | No-ledger selection and RMSLE | Ledger selection and RMSLE |
+|---|---|---|
+| item 1047756, store 23 / 4 | Ridge 365/28/alpha10: 0.902152 | Seasonal 7: 1.192336 |
+| item 1372862, store 12 / 2 | Ridge 365/14/alpha10: 0.241676 | Ridge 730/28/alpha1: 0.310325 |
+| item 1047756, store 23 / 9 | RF 365/28/depth8: 0.999932 | Ridge 365/14/alpha10: 1.057293 |
+
+Each was a valid execution without fallback. In round 9 the control tested RF
+and ledger did not; this is an example of different search, not evidence of an
+execution failure. Agent explanations are retained as explanations, not treated
+as verified causal or business facts. The three cases were chosen after seeing
+losses and cannot establish the frequency of any behavior.
+
+## Consequence for the next iteration
+
+Do not change candidate 100 while it runs or dispatch a new paid variant merely
+because of these interim losses. The next useful offline investigation is to
+measure which retrieved historical comparisons add evidence beyond the current
+three CV origins, and whether they cover the configurations actually considered.
+This distinguishes redundant evidence, missing comparable history and ignored
+history before designing a new ledger presentation. A proposed change must keep
+the common model space, raw evidence access and budgets, be frozen before paid
+evaluation, and preserve this negative development result.
+
+Eight regression tests pass for all-case retention, pending groups, origin
+validation, order invariance, undefined ratios, configuration overlap, exact CV
+ties, absent selections and malformed tables. Running the new analysis on all
+93 rows reproduces the previous matched metric exactly. Analysis and test logs,
+source hashes and full diagnostic outputs are under
+`results/contrast-100-history-progress-002/`; original plots and decision
+illustrations are under `results/contrast-100-history-progress-001/`.
+Compact committed data: `evidence/contrast-100-history-progress-001.json`.
+Audit and source receipt: `evidence/contrast-100-development-audit-003.json`.
+
+No forecasting policy changed, no additional provider or Engy calls were made,
+and the reserved M5 and other final targets remain unopened. The 20% objective
+and final uncertainty requirement remain unestablished.
