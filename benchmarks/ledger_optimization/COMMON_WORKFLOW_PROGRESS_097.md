@@ -466,3 +466,38 @@ outside this 269-session immutable audit and await the next full session audit.
 Together with the previously retained ledger HTTP 502, this gives three observed
 error attempts with unknown usage, not zero cost. No sessions were restarted.
 Receipt: `evidence/workflow-097-api-errors-002.json`.
+
+## Continuation audit 012
+
+The next 15 newly completed sessions passed 13,221 independent checks with no
+audit failures or shutdown gaps. The 41,514,739-byte archive and all 2,218 files
+were verified. Combined disjoint coverage is 284 sessions: 95 plain, 94 Gnomon,
+95 ledger; every session is valid and a full workflow. Comparisons use the same
+94 matched cases in every arm, with no success or accuracy filtering.
+
+| Arm | Matched mean RMSLE | Reported tokens | API requests | Fits |
+|---|---:|---:|---:|---:|
+| Hermes | 0.471813 | 14,608,936 | 957 | 1,164 |
+| Hermes + Gnomon | 0.475934 | 14,841,663 | 942 | 1,044 |
+| Hermes + Gnomon + ledger | 0.475263 | 14,415,955 | 895 | 1,056 |
+
+Ledger has 0.14% lower error and 2.87% fewer reported tokens than no-ledger
+Gnomon. This remains a near-tie, not evidence for the 20% target. Both newer
+HTTP 502-affected Gnomon sessions now passed full independent audit: store 14
+round 18 and store 12 round 20. Each completed a valid full workflow without
+fallback. Their missing usage remains unknown, not zero cost.
+
+This batch contains 145 forwarded/returned requests, 2,249,440 reported tokens,
+two API errors with unknown usage, plus 15 readiness requests and 210 tokens.
+Together with the earlier ledger error, the combined evidence retains three
+unknown-usage attempts. Reported tokens do not establish complete billing.
+No session or forecast was rerun. All new decisions selected a current-CV
+minimum: 5/5 plain, 4/4 Gnomon, 6/6 ledger. This describes observed exploration
+and does not identify a causal historical-evidence effect.
+
+Audit and diagnostic each completed on their first execution. Receipt:
+`evidence/workflow-097-development-audit-012.json`. A separate live observation
+at 2026-09-15 05:50:40 UTC showed 286/312 completed sessions and a live controller;
+all completed workflows were valid. This is distinct from the audited subset.
+The runtime, budgets, candidate-100 freeze, main/PyPI and unopened final-data
+gate remain unchanged. The objective is unestablished.

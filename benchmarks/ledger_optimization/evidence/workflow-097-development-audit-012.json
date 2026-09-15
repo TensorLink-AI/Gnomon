@@ -1,0 +1,330 @@
+{
+  "status": "incremental_batch_independently_verified",
+  "new_sessions": 15,
+  "independent_audit_checks": 13221,
+  "audit_failures": [],
+  "shutdown_record_gaps": [],
+  "new_arms": {
+    "gnomon": {
+      "admission_api_calls": 4,
+      "admission_reported_tokens": 56,
+      "admission_wait_seconds": 4.930501030758023,
+      "api_calls": 39,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 0,
+      "checkpoint_publications": 8,
+      "cold_rmsle": null,
+      "corrections": 0,
+      "distinct_configs_per_task": 2.5,
+      "dollars": null,
+      "http_errors": 2,
+      "later_rmsle": null,
+      "ledger_reviews": 0,
+      "mature_rmsle": 0.5542484678864956,
+      "mean_rmsle": 0.5542484678864956,
+      "numerical_attempts": 40,
+      "numerical_successes": 40,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 4
+      },
+      "per_series": {
+        "item_1372862_store_12": 0.5000286407305324,
+        "item_1457251_store_14": 0.6084682950424588
+      },
+      "review_calls": 5,
+      "seconds": 534.1093044541776,
+      "tasks": 4,
+      "tokens": 579313,
+      "usage_complete": false,
+      "valid": 4,
+      "valid_only_rmsle": 0.5542484678864956,
+      "workflow_complete": 4
+    },
+    "ledger": {
+      "admission_api_calls": 6,
+      "admission_reported_tokens": 84,
+      "admission_wait_seconds": 6.934470124542713,
+      "api_calls": 55,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 0,
+      "checkpoint_publications": 12,
+      "cold_rmsle": null,
+      "corrections": 0,
+      "distinct_configs_per_task": 2.8333333333333335,
+      "dollars": null,
+      "http_errors": 0,
+      "later_rmsle": null,
+      "ledger_reviews": 6,
+      "mature_rmsle": 0.49901646648304493,
+      "mean_rmsle": 0.49901646648304493,
+      "numerical_attempts": 68,
+      "numerical_successes": 68,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 6
+      },
+      "per_series": {
+        "item_1372862_store_12": 0.41294673718571867,
+        "item_1457251_store_14": 0.5850861957803712
+      },
+      "review_calls": 6,
+      "seconds": 891.0323187634349,
+      "tasks": 6,
+      "tokens": 902571,
+      "usage_complete": true,
+      "valid": 6,
+      "valid_only_rmsle": 0.49901646648304493,
+      "workflow_complete": 6
+    },
+    "plain": {
+      "admission_api_calls": 5,
+      "admission_reported_tokens": 70,
+      "admission_wait_seconds": 5.962172534316778,
+      "api_calls": 51,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 0,
+      "checkpoint_publications": 10,
+      "cold_rmsle": null,
+      "corrections": 0,
+      "distinct_configs_per_task": 4,
+      "dollars": null,
+      "http_errors": 0,
+      "later_rmsle": 0.5002534089129652,
+      "ledger_reviews": 0,
+      "mature_rmsle": 0.5338618039600719,
+      "mean_rmsle": 0.5338618039600719,
+      "numerical_attempts": 80,
+      "numerical_successes": 80,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 5
+      },
+      "per_series": {
+        "item_1372862_store_12": 0.4904769416102982,
+        "item_1457251_store_14": 0.5989390974847325
+      },
+      "review_calls": 7,
+      "seconds": 873.0513808671385,
+      "tasks": 5,
+      "tokens": 767556,
+      "usage_complete": true,
+      "valid": 5,
+      "valid_only_rmsle": 0.5338618039600719,
+      "workflow_complete": 5
+    }
+  },
+  "combined_verified_sessions": 284,
+  "combined_matched_cases": 94,
+  "combined_matched": {
+    "plain": {
+      "mean_rmsle": 0.47181348709366555,
+      "tokens": 14608936,
+      "api_calls": 957,
+      "numerical_attempts": 1164
+    },
+    "gnomon": {
+      "mean_rmsle": 0.47593373378044984,
+      "tokens": 14841663,
+      "api_calls": 942,
+      "numerical_attempts": 1044
+    },
+    "ledger": {
+      "mean_rmsle": 0.4752628846950905,
+      "tokens": 14415955,
+      "api_calls": 895,
+      "numerical_attempts": 1056
+    }
+  },
+  "combined_completion": {
+    "plain": {
+      "completed": 95,
+      "valid": 95,
+      "full_workflows": 95
+    },
+    "gnomon": {
+      "completed": 94,
+      "valid": 94,
+      "full_workflows": 94
+    },
+    "ledger": {
+      "completed": 95,
+      "valid": 95,
+      "full_workflows": 95
+    }
+  },
+  "decision_diagnostic": {
+    "plain": {
+      "sessions": 5,
+      "selected_current_cv_minimum": 5
+    },
+    "gnomon": {
+      "sessions": 4,
+      "selected_current_cv_minimum": 4
+    },
+    "ledger": {
+      "sessions": 6,
+      "selected_current_cv_minimum": 6
+    }
+  },
+  "non_minimum_cv_decisions": [],
+  "transfer": {
+    "status": "verified",
+    "archive": {
+      "bytes": 41514739,
+      "sessions": 15,
+      "archive": "/root/gnomon-ledger-ml-v3/code/results/workflow-097-development-audit-012/snapshot.tar.gz",
+      "sha256": "45992fd73c1a2f04fb37310216dfc2a4e497472048cd4c46b3e4fd82ca08c48d"
+    },
+    "chunks": [
+      {
+        "offset": 0,
+        "bytes": 2097152,
+        "sha256": "1cacb26f69987aea839162e2a8ba66bc51a5e4d8c037cd6e3913b06283258f9b"
+      },
+      {
+        "offset": 2097152,
+        "bytes": 2097152,
+        "sha256": "b1e53772336f0556c31b3b3d9ad55821185be3d3d529d9ba5cfd596d0443e825"
+      },
+      {
+        "offset": 4194304,
+        "bytes": 2097152,
+        "sha256": "55e401fa54d74a05dbaee230cc7231502d9657303f71ee3f7652b28d4657fcfc"
+      },
+      {
+        "offset": 6291456,
+        "bytes": 2097152,
+        "sha256": "2d91dd2fd779dcbe5f7b4261d2be7d2a358539bd017772078a7fb1b32b288505"
+      },
+      {
+        "offset": 8388608,
+        "bytes": 2097152,
+        "sha256": "13a7fca76c9c9e7f45e485b252caf9cedc05cecb6f182ad9266bf19b0c7d7857"
+      },
+      {
+        "offset": 10485760,
+        "bytes": 2097152,
+        "sha256": "1c5dee6e7cc1fdaa336d66345453949936c7413b0a394ab785912f4b441363c9"
+      },
+      {
+        "offset": 12582912,
+        "bytes": 2097152,
+        "sha256": "7418cbeeace30d26ccc64c6ade8e46bee25955a822a82f2038af522f366f571e"
+      },
+      {
+        "offset": 14680064,
+        "bytes": 2097152,
+        "sha256": "3e6882aff4311d7d2320b03bcb7bc26e9b5e61e7b55d7d5aef0770b188f41898"
+      },
+      {
+        "offset": 16777216,
+        "bytes": 2097152,
+        "sha256": "f1c6eb7bb3528bbff3ede0f39b4ac1c343f068baaab3551c2ebdb4aba3a87eb3"
+      },
+      {
+        "offset": 18874368,
+        "bytes": 2097152,
+        "sha256": "f8b4dbc99602475c46eb9efdd0fbb44fd9a487e3c26a54b247f00e905b85f372"
+      },
+      {
+        "offset": 20971520,
+        "bytes": 2097152,
+        "sha256": "81d7ec5a13191eb590054198df030945ef22af2e4890386ee7a0bd04fdc5d2a9"
+      },
+      {
+        "offset": 23068672,
+        "bytes": 2097152,
+        "sha256": "229f16ff98835bd7f7e77880983e9f6d9170d4ad5ca48286018d00656c0474e3"
+      },
+      {
+        "offset": 25165824,
+        "bytes": 2097152,
+        "sha256": "1a7b49349820fe6cdf21dc3aa4e8c59f32e90d923d06ceb1282de64c3e9ac2fa"
+      },
+      {
+        "offset": 27262976,
+        "bytes": 2097152,
+        "sha256": "6b686f605d1c70db69b8c1270bc996505c70453cf1ed59e83bdd109f40d0e00e"
+      },
+      {
+        "offset": 29360128,
+        "bytes": 2097152,
+        "sha256": "ecffee4252045c5e8c1b32b68e3030be4a75d58d57580f21295b1cb41783990f"
+      },
+      {
+        "offset": 31457280,
+        "bytes": 2097152,
+        "sha256": "633bf617e69748456b207db81bcb7f5f512670f81d0fe464ebd2f2b8fc4e9cc1"
+      },
+      {
+        "offset": 33554432,
+        "bytes": 2097152,
+        "sha256": "807e107f57be2104680dda7facc98b73a60780b4b25e49207d923bab6088ce69"
+      },
+      {
+        "offset": 35651584,
+        "bytes": 2097152,
+        "sha256": "35b4dd5607d4c80ac053e346019169939f7b92487c93138a7ae173fb69e71b28"
+      },
+      {
+        "offset": 37748736,
+        "bytes": 2097152,
+        "sha256": "b72c3b10b683b0da36a7fb5b2d336993638ef449bb03cc6e1742942385cbe34c"
+      },
+      {
+        "offset": 39845888,
+        "bytes": 1668851,
+        "sha256": "3f3685c495e38a61d5fe3dce345686d7afdc77b501b187706493d4695e2fa0ad"
+      }
+    ],
+    "files_verified": 2218
+  },
+  "costs": {
+    "sessions": 15,
+    "forwarded_requests": 145,
+    "returned_responses": 145,
+    "reported_tokens": 2249440,
+    "requests_without_reported_usage": 2,
+    "api_errors": 2,
+    "readiness_requests": 15,
+    "readiness_reported_tokens": 210,
+    "readiness_unknown_usage": 0,
+    "orphan_responses": 0
+  },
+  "evidence": {
+    "results/workflow-097-final-001/audit/report.json": "f8d98586e2ddb64a7eaaf06c73f1450652800cfc567f0d2ea68f6a4b9dceb7c6",
+    "results/workflow-097-development-audit-001/audit/report.json": "c3ad8f526ed2dba07ed394877c0bbbcd21e9213903ffe4da5a05781514afd67d",
+    "results/workflow-097-development-audit-002/audit/report.json": "7532e5a7da6a1f15e5e486f48847940a7dfe4ccb4a71b9c006c983bfddaa3e2b",
+    "results/workflow-097-development-audit-003/audit/report.json": "df4e5b5e2da4d46e80f63825457093f1d29755d41ccbd4c458386fba1c95504a",
+    "results/workflow-097-development-audit-004/audit/report.json": "21ea30a132c94779f3fb52b5b30044da85e7c5f9200155d26a91b8bf2b9d12e7",
+    "results/workflow-097-development-audit-005/audit/report.json": "d0cfe3e4c59764899602aa6bdb91d259539b56bd614b77a14bd2378cb9f420f5",
+    "results/workflow-097-development-audit-006/audit/report.json": "8f6c62c8683ed3d57f4f0bb7f51db9650f9482e0d93fd2ccaec4921ff55eda16",
+    "results/workflow-097-development-audit-007/audit/report.json": "68045201be05f0dada5a30b681a7a169fb64727ad851354dc0e3c05bf0274c6b",
+    "results/workflow-097-development-audit-008/audit/report.json": "446ac78bff9cfca13ad30bbd9e7e77beb247f4ff82ab3e61911367cfd97e72fb",
+    "results/workflow-097-development-audit-009/audit/report.json": "70690b2f71d0e3f71a3f45296003cd6cdc12a2c1057878ae786ea9eeddd9a990",
+    "results/workflow-097-development-audit-010/audit/report.json": "3932c1c4ac6f28e6fb47f6731e86ed68647c329cdc038ce2c1500e3505541a10",
+    "results/workflow-097-development-audit-011/audit/report.json": "3a39feb45d5199c4bbafb6f0ef67c3b590d9630536651e4ed445d56092d3683d",
+    "results/workflow-097-development-audit-012/audit/report.json": "4c48816cef9aed2b4c23c083d41d145b371ab1997247412515162c81d586e89e",
+    "/root/Gnomon/results/workflow-097-development-audit-012/snapshot.py": "b28d5bec40412dbd2f23751b415a4ba5807296246008b7310c6a8997e21f9943",
+    "/root/Gnomon/results/workflow-097-development-audit-012/collect.py": "9f3c67b4b6daec0859a6adfd3a5f795a5bc4c4d99d8973e58cc71ee5c4c2930b",
+    "/root/Gnomon/results/workflow-097-development-audit-012/analyze_local.py": "d414075f9f7a69f3dc057ec3b2495bfb7889bffdc5da5b580dfad10055df9516",
+    "/root/Gnomon/results/workflow-097-development-audit-012/summarize.py": "02fd4da4a53dca4ddc5a3a4556994ac2cb3a97b738034d6a9fb247b35881b3f4",
+    "/root/Gnomon/results/workflow-097-development-audit-012/decision_diagnostic.py": "2d7d1492c009d7e6062fed954a6f46cc0eb1dfb33b1be8c304a5d50d612f6cfe",
+    "/root/Gnomon/results/workflow-097-development-audit-012/decision-diagnostic.json": "ccd4c874c7ee61806ffa33c959003220df3714d4390d16f6b0768acc1bdc416a",
+    "/root/Gnomon/results/workflow-097-development-audit-012/analyze.stdout": "a235405940cdf48d25e155e1d596e7fa8f8206412d8b9bfe60a868121cbb459d",
+    "/root/Gnomon/results/workflow-097-development-audit-012/analyze.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/root/Gnomon/results/workflow-097-development-audit-012/diagnostic-attempts.json": "b926f7a38aab53b770bd421c18fb57e79060d368189550e35f59c8bd2e877fb2",
+    "/root/Gnomon/results/workflow-097-development-audit-012/decision-diagnostic.stdout": "7e6b829b72069b695946536cf136b8bb15b78cc903f59b40507be78dfacce27d",
+    "/root/Gnomon/results/workflow-097-development-audit-012/decision-diagnostic.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "scope": "All newly finished post-pilot sessions excluding batches 001\u2013011. No success or accuracy filtering. Combined scores/costs use all-three intersection. Snapshots are subsets of the existing run, not additional paid experiments. CV agreement is descriptive, not causal evidence.",
+  "diagnostic_driver_attempts": [
+    {
+      "argv": [
+        "python3",
+        "results/workflow-097-development-audit-012/decision_diagnostic.py"
+      ],
+      "exit_status": 0
+    }
+  ],
+  "final_gate_opened": false,
+  "objective_established": false
+}
