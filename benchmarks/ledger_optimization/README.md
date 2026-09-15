@@ -1,16 +1,51 @@
 # Ledger optimization checkpoint
 
 Branch: `dev/ledger-optimization`. **The 20% target has not been achieved.**
-Development and a complete frozen confirmation are retained here. No release or
-forecast-superiority claim is established.
+Development experiments and their evidence are retained here. No release or
+forecast-superiority claim is established. Main and PyPI remain unchanged.
 
-Latest matched agent result: [092 completed pilot](CORRECTED_AGENT_092_PILOT.md).
+## Current checkpoint — 15 September 2026 UTC
+
+Latest completed matched agent comparison: [candidate 100](CONTRAST_100_NUMERICAL_RESULTS.md),
+using published Gnomon 1.2.0 and DeepSeek v4.1 Flash through Engy. All 312
+workflows completed, with 104 matched cases per arm and no fallback forecasts.
+
+| Arm | Mean per-case RMSLE (lower is better) | Complete workflows |
+| --- | ---: | ---: |
+| Hermes | 0.489131 | 104/104 |
+| Hermes + Gnomon, no ledger | **0.477839** | 104/104 |
+| Hermes + Gnomon + ledger | 0.489304 | 104/104 |
+
+Ledger was **2.40% worse** than no-ledger Gnomon. The exploratory series-bootstrap
+95% improvement interval is [-4.25%, -0.84%]; these are four reused development
+series and one seed, not held-out confirmation. The independent arithmetic
+check and corrected 397,019-check full audit agree. The original cached-order
+audit failure remains preserved alongside its successful separate reconciliation.
+All costs and unknown usage are retained in the linked report.
+
+Next: [candidate 107's frozen experiment](PLANNING_SEQUENCE_107_DEVELOPMENT.md)
+adds optional, historically supported experiment suggestions after an actual
+history query. Its 312 synthetic host sessions have executed; full audit and
+terminal archive verification remain in progress at this checkpoint. That is
+infrastructure evidence, not measured agent improvement. The
+[dispatch gates](PLANNING_DISPATCH_107.md) require completed preflight proof and
+original-host checks before a fresh 72-session paid pilot. No paid candidate-107
+run or final-data access is authorized by a synthetic success alone.
+
+The separate M5 host preflight has completed its first 624-session synthetic
+seed and is running its second. These scripted runs establish no accuracy gain.
+Reserved final data remain closed. The 20% improvement target and uncertainty
+requirement are unchanged.
+
+## Earlier checkpoints retained for comparison
+
+Historical matched agent result: [092 completed pilot](CORRECTED_AGENT_092_PILOT.md).
 All 36 workflows completed, but ledger mean RMSLE was 0.5456 versus 0.4564 for
 Gnomon without ledger: **19.5% worse**. The 312-session development evaluation
 started with fresh memory after the predeclared completion gate passed. Accuracy
 was not a promotion criterion. Neither stage accesses untouched confirmation.
 
-Latest ledger correctness result: [prospective history091](PROSPECTIVE_HISTORY_091_RESULT.md)
+Ledger correctness result: [prospective history091](PROSPECTIVE_HISTORY_091_RESULT.md)
 filters late retrospective executions before checking production-run ambiguity.
 Across16frozen development queries, valid lifetime pair/origin entries increased
 from18in the originally saved reviews to204; every original scored entry was
@@ -19,7 +54,7 @@ The replay passed19,856checks and the product regressions97tests. No new forecas
 or agent calls ran. This restores accumulated evidence but does not demonstrate
 better agent choices or meet the20%target. Main/PyPI remain unchanged.
 
-Latest measured interface result: [agent evidence reading089](AGENT_FIDELITY_089_RESULT.md)
+Measured interface result: [agent evidence reading089](AGENT_FIDELITY_089_RESULT.md)
 completed64Engy sessions with deepseek-v4.1-flash. Both formats were correct32/32;
 brief used50.0%fewer input tokens and46.3%fewer total tokens. This is factual
 extraction, not a Hermes forecasting or accuracy result. All raw evidence is
@@ -31,28 +66,28 @@ retrospective backtests made earlier prospective forecasts appear ambiguous.
 The failure remains preserved.091subsequently restores valid historical comparisons
 under a new correctness protocol; neither result establishes agent accuracy.
 
-Latest boundary check: [recording-visible review088](REVIEW_VISIBILITY_088_RESULT.md)
+Boundary check: [recording-visible review088](REVIEW_VISIBILITY_088_RESULT.md)
 confirmed and fixed a development-adapter catalogue issue: future-recorded
 executions could reorder an earlier query's first page despite correctly excluded
 scores. The separate adapter validates public execution records before discovery.
 All38integration checks and17unit tests passed. A failed constructor-byte audit
 is preserved; the corrected verifier opens a copy. No accuracy gain is claimed.
 
-Latest ledger-interface work: [concise agent review087](AGENT_REVIEW_087_RESULT.md)
+Ledger-interface work: [concise agent review087](AGENT_REVIEW_087_RESULT.md)
 preserves the100saved review packets' metrics and evidence references while
 reducing mean per-review compact UTF-8 bytes by56.2%. Pinned1.2.0public-runtime
 checks passed, including temporal revision visibility and pagination. This is
 presentation fidelity/size evidence, not measured token, completion or accuracy
 gain. Original agent results and final-evaluation gates are unchanged.
 
-Latest completed numerical comparison: [case-norm risk086](NORM_RISK_086_RESULT.md)
+Completed numerical comparison: [case-norm risk086](NORM_RISK_086_RESULT.md)
 scored0.249618mean-case RMSLE versus0.257140for its matched control, a2.93%gain.
 It failed the20%target and electricity guards. Its0.061% lower mean than
 [conditional risk081](LOCAL_RISK_081_RESULT.md) is tiny and not established as a
 reliable improvement. [Prior-error context084](LAGGED_RISK_084_RESULT.md) also
 failed. These are repeated-development numerical proxies, not new agent/API
-evaluations, held-out evidence or shipped ledger features. The latest actual-agent
-results remain [experiment030](ML_COMPLETED_030.md). No experiment is approved
+evaluations, held-out evidence or shipped ledger features. Earlier actual-agent
+results include [experiment030](ML_COMPLETED_030.md). No experiment is approved
 for final confirmation; the final goal remains unmet.
 
 The [risk-transfer diagnostic082](RISK_TRANSFER_082_RESULT.md) explains a current
@@ -103,7 +138,7 @@ Identity preparation passed 41 independent checks; no new-series scored outcomes
 were read. Original final-reserved series remain untouched. Forecast execution
 and validation scoring have not yet occurred; this is preparation, not a result.
 
-## Latest completed comparison: Gnomon 1.2.0 and Hermes
+## Historical comparison 030: Gnomon 1.2.0 and Hermes
 
 DeepSeek **deepseek-v4.1-flash** through Engy; 104 tasks per arm, four retail
 series and 26 forecast origins. All forecasts were valid; full workflow counts
@@ -124,7 +159,7 @@ The main and follow-up audits passed 59,003 and 19,312 checks respectively,
 retaining one worker termination after a valid checkpoint. No agent evaluation
 remains running from these runs.
 
-**[Full latest results, costs, audit qualifications and evidence](ML_COMPLETED_030.md).**
+**[Full 030 results, costs, audit qualifications and evidence](ML_COMPLETED_030.md).**
 
 The subsequent [fixed-cohort numerical diagnostic](ML_COHORT_032.md) also failed
 the promotion gate: past selection improved error by 0.92%, while hindsight

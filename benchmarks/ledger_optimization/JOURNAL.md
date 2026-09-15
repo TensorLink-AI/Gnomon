@@ -1932,3 +1932,32 @@ executions/284history/16actuals; independent verification396executions/16actuals
 Every source/working ledger stayed byte-identical after constructor initialization.
 090failure stays preserved. Original agent scores unchanged; restored coverage
 is not a measured accuracy improvement or relaxation of the20%/95%final goal.
+
+## Current index update: candidate 100 completed, candidate 107 preflight
+
+The later protocols and receipts are retained in their individual experiment
+documents. The current matched agent checkpoint is now
+[candidate 100](CONTRAST_100_NUMERICAL_RESULTS.md): 312 complete workflows,
+104 matched cases per arm, no fallback forecasts. Mean RMSLE is 0.489131 Hermes,
+0.477839 Gnomon without ledger and 0.489304 Gnomon with ledger. Ledger is 2.40%
+worse; the exploratory improvement interval is [-4.25%, -0.84%]. The four reused
+development series and single requested seed do not establish general harm or
+benefit. The 20% target remains unmet; no final gate opens.
+
+The original terminal archive's 51,908 files were verified locally. The known
+cached-order audit failure was reproduced, then independently reconciled with
+397,019 successful checks and unchanged original scores/costs. A separate
+arithmetic check recomputed every forecast metric. The original nonzero audit
+status, failed launch syntax attempt and lost SSH observation are preserved;
+same-boot process checks prevented restarting a still-running remote audit.
+No agent or forecasting execution was rerun during reconciliation.
+
+[Candidate 107](PLANNING_SEQUENCE_107_DEVELOPMENT.md) is separately frozen before
+paid execution. It offers optional experiment suggestions supported by requested
+historical evidence, retaining the same tools, information access and budgets.
+All 312 synthetic host sessions have executed; final auditing/archiving remains
+active at this entry. Its paid launch requires completed proof and original-host
+admission. The predeclared uptake secondary is implemented in
+[PLANNING_UPTAKE_107.md](PLANNING_UPTAKE_107.md); successful scripted adoption is
+not a paid agent result or an accuracy gate. Main/PyPI and reserved final data
+remain unchanged.
