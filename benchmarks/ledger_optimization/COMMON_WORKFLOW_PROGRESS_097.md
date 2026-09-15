@@ -352,3 +352,37 @@ frozen candidate-100 pilot after successful predecessor completion and full
 independent audit; it cannot restart either trial or open final data. This audit
 changes no runtime, worker source, budget, cohort, prompt or candidate. Main/PyPI
 and the final/protected-data gate remain unchanged.
+
+## Continuation audit 010
+
+The next 24 newly completed sessions passed 14,887 independent checks with no
+audit failures or shutdown gaps. The 44,288,171-byte archive and all 3,131 files
+were verified. Combined disjoint coverage is 251 sessions: plain 84, Gnomon 84,
+ledger 83; all are valid and full workflows. The comparison uses the same 83
+matched cases in every arm, without success or accuracy filtering.
+
+| Arm | Matched mean RMSLE | Reported tokens | API requests | Fits |
+|---|---:|---:|---:|---:|
+| Hermes | 0.467539 | 12,768,684 | 843 | 996 |
+| Hermes + Gnomon | 0.470665 | 13,160,409 | 835 | 940 |
+| Hermes + Gnomon + ledger | 0.471187 | 12,641,928 | 789 | 928 |
+
+Ledger has 0.11% higher error and 3.94% fewer reported tokens than Gnomon without
+ledger. The historical missing-usage attempt remains in the combined evidence;
+reported tokens are not complete billing. This batch contains 234 forwarded and
+returned requests, 3,758,161 reported tokens, no API errors or usage gaps, plus
+24 readiness requests and 336 tokens. No forecast or agent session was rerun.
+
+All new decisions selected a current-CV minimum: 8/8 plain, 9/9 Gnomon, 7/7
+ledger. This describes the explored configurations and is not evidence of an
+accuracy gain or a causal explanation. The independent audit and diagnostic
+each completed on their first execution.
+
+Receipt: `evidence/workflow-097-development-audit-010.json`. At the separate live
+monitor observation on 2026-09-15 at 05:10:11 UTC, the original controller was live
+at 255/312 completed sessions; all completed sessions were valid/full workflows.
+The waiter observation at 05:09:46 UTC verified both predecessor processes and
+the waiter live, with no candidate-100 output or controller yet created. These
+live observations are distinct from the immutable 251-session audited subset.
+The candidate remains frozen, final/protected data remain unopened, and the
+20% objective remains unestablished. Main/PyPI are unchanged.
