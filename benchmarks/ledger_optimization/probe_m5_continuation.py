@@ -12,6 +12,7 @@ import urllib.request
 from unittest.mock import patch
 
 from benchmarks.ledger_optimization import continue_collection_096 as continuation
+from benchmarks.ledger_optimization.m5_ml_prefix_identity import check_prefix_identity
 
 
 def synthetic_jobs():
@@ -40,8 +41,12 @@ def main():
     source={p.name:c.digest(p) for p in c.run.HERE.iterdir() if p.is_file()}
     tested=continuation.source_identity();runtime=c.run.runtime_inventory()
     capsule=json.loads((args.capsule/'capsule.json').read_text())
-    if capsule.get('status') != 'offline_m5_development_worker_not_dispatch_ready':
+    if capsule.get('status') not in ('offline_m5_development_worker_not_dispatch_ready',
+                                     'offline_m5_seed_worker_not_dispatch_ready'):
         raise ValueError('Require the separately frozen M5 development worker')
+    seed=capsule.get('requested_seed',7)
+    if type(seed) is not int or seed not in (7,19):
+        raise ValueError('Require a declared supported agent seed')
     jobs={}
     for index in range(2):
         series=f'synthetic-m5-continuation-{index}'
@@ -53,7 +58,7 @@ def main():
             job['actual']=[v+index*100 for v in job['actual']]
         jobs[series]=records
     pilot=root/'pilot';pilot.mkdir()
-    c.run.dump(pilot/'manifest.json',{'planned':18,'requested_seed':7,'synthetic':True,'sources':source})
+    c.run.dump(pilot/'manifest.json',{'planned':18,'requested_seed':seed,'synthetic':True,'sources':source,'inventory':runtime})
     c.run.dump(pilot/'host-jobs.json',{s:v[:3] for s,v in jobs.items()})
     runtimes={a:c.run.OTHER/('plain-venv' if a=='plain' else 'gnomon-venv')/'bin/python' for a in c.run.ARMS}
     config={'model':'ridge','window':90,'lags':7,'alpha':10};current={};wire=[];checks=[]
@@ -73,12 +78,12 @@ def main():
         if request.full_url!='https://api.engy.ai/v1/chat/completions':
             raise AssertionError('Unexpected URL, no real network access permitted')
         payload=json.loads(request.data);current['n']+=1;n=current['n']
-        check('forwarded seed remains 7',payload['seed']==7)
+        check('forwarded requested seed',payload['seed']==seed)
         wire.append({'arm':current['arm'],'series_id':current['series'],'round':current['round'],'request':payload,'synthetic':True})
         if n>4:raise AssertionError('Unexpected extra model request')
         operations={1:[('lab',{'operation':'review'}),('lab',{'operation':'start'})],
             2:[('lab',{'operation':'backtest','config':config}),('memory',{'target':'memory','action':'add',
-                'content':f'Synthetic M5 seed 7 series {current["series"]} arm {current["arm"]} origin {current["round"]}: compared seasonal and ridge.'})],
+                'content':f'Synthetic M5 seed {seed} series {current["series"]} arm {current["arm"]} origin {current["round"]}: compared seasonal and ridge.'})],
             3:[('lab',{'operation':'commit','config':config}),('notes_write',{'path':'decision.json',
                 'text':'{"rationale":"synthetic continuation check"}'})],4:[]}[n]
         # Every call in a batch needs a unique ID, even two uses of lab.
@@ -113,8 +118,19 @@ def main():
             first=c.analyze(pilot)
             check('complete two-series prefix audit',first['complete'] and not first['audit_failures'])
             c.run.dump(pilot/'complete.json',{'completed':18})
+            prefix_manifest=c.read(pilot/'manifest.json')
+            binding=check_prefix_identity(prefix_manifest,capsule,runtime)
+            check('seed/source/runtime bound before copy',binding['seed_source_runtime_checks_passed'])
+            # Negative checks operate on metadata copies before output creation.
+            for name,field,value in [('other-seed','requested_seed',19 if seed==7 else 7),
+                                     ('other-source','sources',{}),('other-runtime','inventory',{})]:
+                invalid=deepcopy(prefix_manifest);invalid[field]=value
+                try:check_prefix_identity(invalid,capsule,runtime)
+                except ValueError:rejected=True
+                else:rejected=False
+                check(name+' prefix rejected before copying',rejected and not (root/'resumed').exists())
             before=c.inventory(pilot);resumed=root/'resumed';c.copy_prefix(pilot,resumed,before)
-            c.run.dump(resumed/'manifest.json',{'planned':24,'requested_seed':7,'synthetic':True,'sources':source})
+            c.run.dump(resumed/'manifest.json',{'planned':24,'requested_seed':seed,'synthetic':True,'sources':source,'inventory':runtime})
             c.run.dump(resumed/'host-jobs.json',jobs)
             result=[]
             for index,(series,values) in enumerate(sorted(jobs.items())):
@@ -129,7 +145,7 @@ def main():
                     check(label+': complete prefix file inventory unchanged',all(
                         c.digest(resumed/relative)==digest for relative,digest in before.items()
                         if relative.startswith(arm+'/'+series+'/round-')))
-                    own=f'Synthetic M5 seed 7 series {series} arm {arm} origin 2'
+                    own=f'Synthetic M5 seed {seed} series {series} arm {arm} origin 2'
                     messages=[json.dumps(w['request']['messages']) for w in wire
                               if w['arm']==arm and w['series_id']==series and w['round']==3]
                     check(label+': memory restored into resumed request',bool(messages) and any(own in m for m in messages))
@@ -137,9 +153,11 @@ def main():
                     for other_series in jobs:
                         for other_arm in c.run.ARMS:
                             if (other_series,other_arm)!=(series,arm):
-                                forbidden=f'Synthetic M5 seed 7 series {other_series} arm {other_arm} origin'
+                                forbidden=f'Synthetic M5 seed {seed} series {other_series} arm {other_arm} origin'
                                 check(label+': other memory absent '+other_series+' '+other_arm,
                                       all(forbidden not in m for m in messages))
+                    check(label+': other seed memory absent',all(
+                        f'Synthetic M5 seed {19 if seed==7 else 7} series ' not in m for m in messages))
                     project=resumed/arm/series/'round-3/project'
                     events=[json.loads(line) for line in (project/'experiments.jsonl').read_text().splitlines()]
                     matured=[e for e in events if e['event']=='matured']
@@ -156,8 +174,9 @@ def main():
             c.run.dump(root/'passed.json',{'passed':True,'engy_calls':0,'checks':checks,
                 'continuation_sources':tested,'tested_inventory':runtime,'probe_source_sha256':c.digest(Path(__file__)),
                 'frozen_sources':source,'resumed_arms':list(c.run.ARMS),'synthetic_responses':len(wire),
-                'numerical_attempts':192,'series':2,'sessions':24,'retained_sessions':18,'new_sessions':6,'requested_seed':7,'independent_audit_checks':report['audit_checks'],
-                'scope':'Two distinct synthetic series, seed 7, full workers, immutable state-copy, isolated native memory, ledger, temporal maturation and guarded execution. Not a paid launch gate, full eight-series pilot, second-seed test, or accuracy evidence.'})
+                'numerical_attempts':192,'series':2,'sessions':24,'retained_sessions':18,'new_sessions':6,'requested_seed':seed,'independent_audit_checks':report['audit_checks'],
+                'prefix_identity_checks':binding,
+                'scope':'Two distinct synthetic series, declared seed, full workers, immutable state-copy, isolated native memory, ledger, temporal maturation and guarded execution. Not a paid launch gate, full eight-series pilot, concurrency test, or accuracy evidence.'})
     finally:
         c.run.dump(root/'probe-evidence.json',{'checks':checks,'wire':wire,'engy_calls':0})
 

@@ -36,8 +36,11 @@ cover the full dispatch/controller path or a second requested seed.
 The separate seed-19 full-worker integration now also passes; see
 `M5_ML_SEEDS.md`. It verifies six synthetic sessions, original and forwarded
 seed settings, unchanged model outputs, runtime equality, and wrong-seed audit
-rejection. The two-series resumed-state test above remains seed 7 only;
-seed-specific continuation admission still needs verification.
+rejection. The two-series resumed-state test now also passes for seed 19, with
+cross-seed/source/runtime metadata rejection before copying. Joint prefix checks
+combine these identities with the complete 72-session cohort and score checks.
+Full operational continuation admission still needs terminal/archive, source-plan
+and one-shot controller verification; see `M5_ML_CONTINUATION.md`.
 
 This is a code inspection of the current candidate-100 capsule and its existing
 launch helpers, together with the retained development-preparation receipt. It

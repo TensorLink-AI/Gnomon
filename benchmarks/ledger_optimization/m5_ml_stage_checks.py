@@ -7,7 +7,8 @@ They never drop failed sessions from a complete development comparison.
 import json
 import math
 
-from .m5_ml_development_contract import authenticated_contract
+from .m5_ml_development_contract import authenticated_contract, DEVELOPMENT_JOBS_SHA
+from .m5_ml_prefix_identity import check_prefix_identity
 
 
 def _check_stage(cohort, jobs, grades, report, stage):
@@ -92,3 +93,23 @@ def _check_stage(cohort, jobs, grades, report, stage):
 def check_development_stage(manifest_bytes, jobs_bytes, grades, report, *, stage):
     cohort = authenticated_contract(manifest_bytes, jobs_bytes)
     return _check_stage(cohort, json.loads(jobs_bytes), grades, report, stage)
+
+
+def check_continuation_prefix(manifest_bytes, jobs_bytes, grades, report, *,
+                              pilot_manifest, capsule, runtime_inventory):
+    """Require seed/source/runtime binding and every fixed pilot task together.
+
+    Pure checks only. The caller must authenticate capsule/plan identity and
+    validate terminal processes, archives and independent audit provenance
+    before copying or dispatching any continuation.
+    """
+    binding = check_prefix_identity(pilot_manifest, capsule, runtime_inventory)
+    if type(pilot_manifest.get('planned')) is not int or pilot_manifest['planned'] != 72:
+        raise ValueError('Continuation requires the complete 72-session M5 pilot')
+    if pilot_manifest.get('source_jobs_sha256') != DEVELOPMENT_JOBS_SHA:
+        raise ValueError('Pilot was not bound to the fixed M5 development job source')
+    stage = check_development_stage(manifest_bytes, jobs_bytes, grades, report, stage='pilot')
+    return {**stage, 'prefix_identity': binding,
+            'scope': 'Joint fixed-cohort score/completion and seed/source/runtime checks. '
+                     'This does not replace terminal-process, source-plan authentication, '
+                     'immutable archive, copied-state or one-shot dispatch admission.'}

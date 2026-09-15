@@ -1,0 +1,88 @@
+{
+  "status": "seed_19_two_series_continuation_verified_not_dispatch_admitted",
+  "requested_seed": 19,
+  "series": 2,
+  "sessions": 24,
+  "retained_sessions": 18,
+  "new_sessions": 6,
+  "numerical_attempts": 192,
+  "scripted_responses": 96,
+  "engy_calls": 0,
+  "integration_assertions": 234,
+  "independent_audit_checks": 13430,
+  "capsule_sha256": "fd5130ceeda34e6524558acc14fc33b9846015b8fd31ceac45eca494a9af2f5a",
+  "unit_test_count": 13,
+  "unit_tests": {
+    "argv": [
+      "python3",
+      "-m",
+      "unittest",
+      "benchmarks.tests.test_m5_ml_prefix_identity",
+      "benchmarks.tests.test_m5_ml_stage_checks"
+    ],
+    "exit_status": 0,
+    "seconds": 2.1449260499994125
+  },
+  "worker_command": {
+    "argv": [
+      "python3",
+      "-m",
+      "benchmarks.ledger_optimization.probe_m5_continuation",
+      "--capsule",
+      "results/m5-ml-seed-19-offline-001/capsule",
+      "--runtime",
+      "results/m5-ml-runtime-restore-001/runtime",
+      "--output",
+      "results/m5-ml-seed-19-continuation-001/probe"
+    ],
+    "exit_status": 0,
+    "seconds": 278.8185757700003
+  },
+  "prefix_identity_checks": {
+    "execution_authorized": false,
+    "final_gate_opened": false,
+    "operational_gate_passed": false,
+    "requested_seed": 19,
+    "scope": "Seed, source and runtime identity only. Complete cohort, temporal evidence, terminal process, archive and one-shot dispatch checks remain required.",
+    "seed_source_runtime_checks_passed": true
+  },
+  "reconciliation": {
+    "passed": true,
+    "same_scripted_selections_and_forecasts_as_seed_7": 24,
+    "original_and_forwarded_seed_19_requests": 192,
+    "runtime_inventory_matches_seed_7": true,
+    "integrated_assertions": 234,
+    "independent_audit_checks": 13430,
+    "provider_calls": 0,
+    "engy_calls": 0,
+    "scope": "Offline reconciliation of two separately retained synthetic seed probes; not evidence of API seed determinism or forecast improvement."
+  },
+  "execution_authorized": false,
+  "final_gate_opened": false,
+  "objective_established": false,
+  "scope": "Two-series synthetic continuation and joint fixed-cohort/seed receipt checks. Full operational controller, terminal/archive, source-plan and one-shot admission remain required. Original paid run and reserved targets unchanged.",
+  "evidence": {
+    "/root/Gnomon/results/m5-ml-seed-19-continuation-001/tests.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/root/Gnomon/results/m5-ml-seed-19-continuation-001/probe.stdout": "e47e17435147a2a7664848224104bed66f4bc04794f7bf174bbafa8c4c7eab86",
+    "/root/Gnomon/results/m5-ml-seed-19-continuation-001/tests.command.json": "2155d5cf177e30c7e04a7a3895347e17df974cab4bd2c7b8df98348e2230a5fc",
+    "/root/Gnomon/results/m5-ml-seed-19-continuation-001/tests.stderr": "d8ce059572da0fcfdf9230ec60b98a723e14d5b1669510a9cf88645d7be93e7f",
+    "/root/Gnomon/results/m5-ml-seed-19-continuation-001/tests-002.stderr": "15e6572c41c00c947da4de36c7d86d403d9d68acbf0b8cd7330c6236de2112fd",
+    "/root/Gnomon/results/m5-ml-seed-19-continuation-001/probe.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/root/Gnomon/results/m5-ml-seed-19-continuation-001/reconcile.py": "4a926e92ad5ef3e695d026bba653ad1b56dc5558979360bd81565de4bd865140",
+    "/root/Gnomon/results/m5-ml-seed-19-continuation-001/tests-002.command.json": "950d8cab81d21b37e7eee4f0ddd793248fe8ed77372d91fa09d9ec1630efbb55",
+    "/root/Gnomon/results/m5-ml-seed-19-continuation-001/reconciliation.json": "feee38eb540087031b8059bd4b624e510977485f916b3f3b10db733bb7243284",
+    "/root/Gnomon/results/m5-ml-seed-19-continuation-001/probe.command.json": "618f10618d9984f1b7dcf2f8bf8199cfa4793f1d8c71f5bac7afbe386e3803a3",
+    "/root/Gnomon/results/m5-ml-seed-19-continuation-001/tests-002.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/root/Gnomon/results/m5-ml-seed-19-continuation-001/probe/passed.json": "19352c3d84e57ac6fa8c379aea0612f03f5c9069263f51a71c392310145b2dbd",
+    "/root/Gnomon/results/m5-ml-seed-19-continuation-001/probe/probe-evidence.json": "f94d2e05815ff821303a719c04d2b71e3fda6716f8b6f98d5d349f9b32faf192",
+    "/root/Gnomon/results/m5-ml-seed-19-continuation-001/probe/pilot/report.json": "3cef5e436cc146e128282d0ffb8fee8e14e0404007938716f78c85a977d421f1",
+    "/root/Gnomon/results/m5-ml-seed-19-continuation-001/probe/resumed/report.json": "8326d5cd01d955cee3dc16881c9f0b7895825819ad84e2c84067517fe15b502e",
+    "results/m5-ml-continuation-offline-001/probe/passed.json": "1e5166ebad62efa8da74c052fa38b335362bfa20bbcc0745b7614e5bf1b9deea",
+    "results/m5-ml-continuation-offline-001/probe/resumed/report.json": "fc77e6c2502ef999216d476f4d06ac719a3c2014c617978481f80e120d7be79e",
+    "benchmarks/ledger_optimization/probe_m5_continuation.py": "76509766afb57c690bdbc0a3e7a5c2c5650f570a55746d9e56bd9a272ef7a3d4",
+    "benchmarks/ledger_optimization/m5_ml_prefix_identity.py": "5c6cc7e346f0ebb472f76319316c2c3bf3730ff98fa0ff96447ad131371000fb",
+    "benchmarks/ledger_optimization/m5_ml_stage_checks.py": "aa0433298f3c6d097ea04058bd770e55223dc29129576089b88a01a9ed174182",
+    "benchmarks/tests/test_m5_ml_prefix_identity.py": "4ccd4851981c3b633e5f8da04003509d534f2dda676045cc5b08e766dfca2c50",
+    "benchmarks/tests/test_m5_ml_stage_checks.py": "58906c27e49162be041451396a7f878f9ca95482f09a25f6fbf5c5e894620633"
+  }
+}

@@ -51,6 +51,33 @@ class StageCoverageTests(unittest.TestCase):
             self.assertFalse(result['execution_authorized'])
             self.assertFalse(result['final_gate_opened'])
 
+    def test_joint_prefix_requires_identity_and_full_cohort(self):
+        rows,report=self.evidence('pilot')
+        capsule={'requested_seed':19,'sources':{'worker.py':'digest'}}
+        runtime={'gnomon':'1.2.0','plain':'no-gnomon'}
+        pilot={'requested_seed':19,'sources':capsule['sources'],'inventory':runtime,
+               'planned':72,'source_jobs_sha256':s.DEVELOPMENT_JOBS_SHA}
+        def check(pilot,rows=rows,report=report):
+            with patch.object(s,'authenticated_contract',return_value=self.cohort):
+                return s.check_continuation_prefix(b'authenticated by mock',json.dumps(self.jobs).encode(),
+                    rows,report,pilot_manifest=pilot,capsule=capsule,runtime_inventory=runtime)
+        out=check(pilot)
+        self.assertEqual(out['sessions'],72)
+        self.assertEqual(out['prefix_identity']['requested_seed'],19)
+        self.assertFalse(out['operational_gate_passed'])
+        for field,value in [('requested_seed',7),('sources',{}),('inventory',{}),
+                            ('planned',36),('source_jobs_sha256','other')]:
+            bad=deepcopy(pilot);bad[field]=value
+            with self.subTest(field=field),self.assertRaises(ValueError):check(bad)
+        with self.assertRaises(ValueError):check(pilot,rows[:-1],self.report(rows[:-1]))
+
+    def test_joint_prefix_rejects_cross_seed_before_reading_cohort(self):
+        capsule={'requested_seed':19,'sources':{'worker.py':'digest'}}
+        with patch.object(s,'authenticated_contract',side_effect=AssertionError('must not parse')):
+            with self.assertRaisesRegex(ValueError,'seed'):
+                s.check_continuation_prefix(b'',b'',[],{},pilot_manifest={'requested_seed':7},
+                    capsule=capsule,runtime_inventory={'gnomon':'1.2.0'})
+
     def test_half_pilot_or_missing_losing_rows_cannot_pass_even_if_report_agrees(self):
         rows, _ = self.evidence('pilot')
         for subset in (rows[:36], rows[:-1], rows+rows[:1]):

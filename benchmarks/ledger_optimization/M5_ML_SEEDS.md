@@ -40,11 +40,13 @@ capsules without a requested-seed field and accepts only seeds 7 or 19.
 
 ## Remaining admission work
 
-This removes the missing seed-19 full-worker integration prerequisite. It does
-not establish a second paid-seed result, full eight-series execution, concurrent
-series safety, or seed-specific resumed-state/controller admission. The existing
-two-series continuation probe covers seed 7; seed-specific source/runtime/plan
-checks must prevent a seed-7 prefix from being resumed under seed 19.
+The seed-19 two-series resumed-state probe also now passes; see
+`M5_ML_CONTINUATION.md`. It covers 18 retained and six new synthetic sessions,
+rejects cross-seed metadata before copying, and verifies isolated memory and
+unchanged historical forecasts. Neither probe establishes a second paid-seed
+result, full eight-series execution, concurrent series safety or the complete
+dispatch/controller admission path. The operational source/runtime/plan and
+terminal/archive checks remain required.
 
 Every paid seed needs separate process, project, ledger, native-memory and result
 roots and an authenticated requested-seed manifest. The 72-pilot / 552-new / 624
