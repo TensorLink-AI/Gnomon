@@ -1,0 +1,82 @@
+{
+  "candidate": "current-history-contrast-100",
+  "status": "offline_only_not_deployed",
+  "counts": {
+    "sessions": 30,
+    "reviews": 32,
+    "cold_reviews": 4,
+    "explicit_backtests": 57,
+    "verified_cv_fold_references": 171,
+    "pair_boundaries_without_returned_review": 10,
+    "panels": 23,
+    "pair_on_supplied_page": 17,
+    "distinct_window_summaries": 22,
+    "opposing_winner_windows": 3,
+    "single_origin_opposing_windows": 3,
+    "configuration_not_in_historical_catalog": 6
+  },
+  "bytes": {
+    "panels": 44130,
+    "mean_panel": 1918.695652173913,
+    "maximum_panel": 2360,
+    "original_response_per_panel_sum": 39714,
+    "relative_addition_per_panel": 1.111195044568666
+  },
+  "source_unchanged": true,
+  "tests": {
+    "new": 8,
+    "historical_consistency": 10,
+    "failures": 0
+  },
+  "engy_calls": 0,
+  "provider_calls": 0,
+  "final_gate_opened": false,
+  "target_achieved": false,
+  "files": {
+    "results/current-history-contrast-100-offline-001/tests.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "results/current-history-contrast-100-offline-001/replay.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "results/current-history-contrast-100-offline-001/replay.stdout": {
+      "sha256": "5dd409301300fa053bf377a699d1d48175a32c788e2c71a9989dbbd3ffba6168",
+      "bytes": 647
+    },
+    "results/current-history-contrast-100-offline-001/panels.json": {
+      "sha256": "0bd8baf0b0afd5285d3cf77212ae5b13f4c92d4eb9c73cd993cc7cb8e1f20629",
+      "bytes": 127589
+    },
+    "results/current-history-contrast-100-offline-001/tests.stderr": {
+      "sha256": "3a66af0080e75b337de5e23ea0ef2bd20487e15b70e4bb8bee04314b84afbb9a",
+      "bytes": 117
+    },
+    "results/current-history-contrast-100-offline-001/report.json": {
+      "sha256": "03c1137b057f8157b66ffd3dc89b7f188e9ec380bbf1d96fc45160be1920704b",
+      "bytes": 23762
+    },
+    "results/current-history-contrast-100-offline-001/replay.py": {
+      "sha256": "14c4007e737ce3ba7ec1043191ed822ca7a02a0150c61047c1ff84b2a4b152fc",
+      "bytes": 7750
+    },
+    "benchmarks/ledger_optimization/current_history_contrast_100.py": {
+      "sha256": "4018ed2b8a8e89d932893e1d748e986bb36d52d194213e95183cb483a2665a61",
+      "bytes": 6574
+    },
+    "benchmarks/tests/test_current_history_contrast_100.py": {
+      "sha256": "94c18c9dbe6559134baebc5e2be4170494df6efb7f2acabc622bc5be190d4b9d",
+      "bytes": 7160
+    },
+    "benchmarks/ledger_optimization/CURRENT_HISTORY_CONTRAST_100.md": {
+      "sha256": "66483c0b44e4ef9afec6d2d977de1a7c36755ebf59ce1177c41bcf30babb331e",
+      "bytes": 3415
+    },
+    "benchmarks/ledger_optimization/CURRENT_HISTORY_CONTRAST_100_RESULTS.md": {
+      "sha256": "68c96ede36624fe82dceb4489d9498251ef3e6b7c5d61f48e235cfe628ccd522",
+      "bytes": 3966
+    }
+  },
+  "limitations": "Observed development replay, not a prospective intervention. No accuracy improvement measured. Caller authenticates current evidence. Full panels have material payload overhead; compact view and actual boundary tests required before deployment."
+}
