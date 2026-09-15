@@ -1,0 +1,48 @@
+{
+  "status": "archival_controller_verified_not_dispatch_admission",
+  "tests_passed": 26,
+  "new_controller_tests": 6,
+  "probe": {
+    "passed": true,
+    "actual_child_processes": 2,
+    "child_exit_statuses": [
+      0,
+      9
+    ],
+    "success_complete": true,
+    "success_continuation_gate": true,
+    "failed_complete": false,
+    "failed_cause": "stage_process_failed",
+    "failed_unknown_usage_requests": 1,
+    "child_launch_counts": [
+      1,
+      1
+    ],
+    "retained_files": 289,
+    "provider_calls": 0,
+    "engy_calls": 0,
+    "final_gate_opened": false,
+    "scope": "Durable controller integration with actual success/failure child processes copying synthetic 72-session receipts, no model execution. Production cohort-hash authentication mocked as documented in tests. Not a real worker pilot or dispatch permission."
+  },
+  "remaining": "Cohort-aware launcher, frozen plan/budget/runtime/source/preflight admission, copied-prefix audit, one-shot launch and integrated multiple-series execution.",
+  "provider_calls": 0,
+  "engy_calls": 0,
+  "final_gate_opened": false,
+  "objective_established": false,
+  "evidence": {
+    "results/m5-ml-controller-001/probe-inventory.json": "72226b2845f85d81f1f3b56114f0905aa40b8064cbc909b597abf20b3f57d7e3",
+    "results/m5-ml-controller-001/probe-report.json": "07d49c9917cb6403eb17e1af03ccad52e4b563b9c2a1ca6e4696347e7891188b",
+    "results/m5-ml-controller-001/probe.command.json": "db238898efb7f1475ad733ac90b9aee6ae441a03976ae3cd576ef577e3c5e096",
+    "results/m5-ml-controller-001/probe.py": "07ae728996179fedec27a8c4a2acc7dc6fa6ef7f8e1d0191d303b27bce07ef7d",
+    "results/m5-ml-controller-001/probe.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/m5-ml-controller-001/probe.stdout": "07d49c9917cb6403eb17e1af03ccad52e4b563b9c2a1ca6e4696347e7891188b",
+    "results/m5-ml-controller-001/tests.command.json": "c2abfe78972f8bf0b932568064ce34050ee417533209777ae390a6797f809ff5",
+    "results/m5-ml-controller-001/tests.stderr": "3d35adee84a61d334a359abcf35528cce498d3b914fdbd8d760f89d977b812be",
+    "results/m5-ml-controller-001/tests.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "benchmarks/ledger_optimization/m5_ml_controller.py": "754446d1c50a6ef212bd372ba6f2b4cb79db72e44f2a04ad306bf8e7155a7aec",
+    "benchmarks/ledger_optimization/m5_ml_stage_checks.py": "004e289ed866507f557eaeb7972d98fd4316440ad27dc2293327c3ca2e3002fd",
+    "benchmarks/tests/test_m5_ml_controller.py": "ae38df2f97b0e3070b4e6a30479bda891588a53ac4cbcbbe5d4dbad347f334aa",
+    "benchmarks/ledger_optimization/M5_ML_CONTROLLER.md": "d934e3c4153495655f1da25a70e03d4d2faaa2d58cb1db41b3aa9e2674d9806e",
+    "benchmarks/ledger_optimization/M5_ML_HOST_READINESS.md": "9e36a94c531cae16b59dd32ad57c94e49a576696fa329b9d33d6e20e2e2ccd81"
+  }
+}

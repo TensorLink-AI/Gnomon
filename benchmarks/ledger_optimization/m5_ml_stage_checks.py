@@ -11,10 +11,12 @@ from .m5_ml_development_contract import authenticated_contract, DEVELOPMENT_JOBS
 from .m5_ml_prefix_identity import check_prefix_identity
 
 
-def _check_stage(cohort, jobs, grades, report, stage):
+def _check_stage(cohort, jobs, grades, report, stage, *, require_pilot_quality=True):
     """Pure structural/numerical check; public entry authenticates its inputs."""
     if stage not in ('pilot', 'complete'):
         raise ValueError('Development stage must be pilot or complete')
+    if type(require_pilot_quality) is not bool:
+        raise ValueError('Explicit pilot quality policy required')
     selected = [c for c in cohort['cases'] if stage == 'complete' or c['stage'] == 'pilot']
     expected = {(a, c['series_id'], c['round']): c for a in cohort['arms'] for c in selected}
     counts = cohort['decisions_per_seed']
@@ -74,7 +76,7 @@ def _check_stage(cohort, jobs, grades, report, stage):
             raise ValueError('Per-arm report counts disagree with retained rows')
         # Same 11/12 full-workflow proportion as the existing four-series pilot;
         # twice as many series means 22/24, with every forecast valid.
-        if stage == 'pilot' and (summary['valid'] != 24 or summary['workflow_complete'] < 22):
+        if stage == 'pilot' and require_pilot_quality and (summary['valid'] != 24 or summary['workflow_complete'] < 22):
             raise ValueError('Pilot needs 24 valid forecasts and at least 22 full workflows per arm')
         arms[arm] = summary
     return {'stage': stage, 'evidence_checks_passed': True,
@@ -82,6 +84,8 @@ def _check_stage(cohort, jobs, grades, report, stage):
             'retained_pilot_sessions': counts['pilot'],
             'continuation_sessions': counts['continuation'],
             'planned_total_sessions': counts['total'],
+            'pilot_quality_passed': (all(a['valid'] == 24 and a['workflow_complete'] >= 22
+                                         for a in arms.values()) if stage == 'pilot' else None),
             'scores_recomputed': len(raw), 'accuracy_used_for_completion': False,
             'operational_gate_passed': False, 'execution_authorized': False,
             'final_gate_opened': False,
@@ -90,9 +94,11 @@ def _check_stage(cohort, jobs, grades, report, stage):
                      'identity and prospective dispatch admission remain separate.'}
 
 
-def check_development_stage(manifest_bytes, jobs_bytes, grades, report, *, stage):
+def check_development_stage(manifest_bytes, jobs_bytes, grades, report, *, stage,
+                            require_pilot_quality=True):
     cohort = authenticated_contract(manifest_bytes, jobs_bytes)
-    return _check_stage(cohort, json.loads(jobs_bytes), grades, report, stage)
+    return _check_stage(cohort, json.loads(jobs_bytes), grades, report, stage,
+                        require_pilot_quality=require_pilot_quality)
 
 
 def check_continuation_prefix(manifest_bytes, jobs_bytes, grades, report, *,

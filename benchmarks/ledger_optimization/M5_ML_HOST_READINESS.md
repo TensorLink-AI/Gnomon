@@ -71,10 +71,17 @@ No new forecasts or Engy calls ran. Evidence:
 `evidence/m5-ml-terminal-prefix-001.json`.
 
 Still required: wire these checks into the cohort-aware pilot/continuation
-launcher and archival controller, authenticate the complete prospective runtime/
+launcher, authenticate the complete prospective runtime/
 budget/preflight bundle, reserve dispatch once, re-audit the copied prefix and
 test the integrated multi-series launch path before any paid M5 experiment.
 Do not equate a passing terminal-prefix checker with those remaining steps.
+
+The archival controller is now implemented and tested separately; see
+`M5_ML_CONTROLLER.md`. It checks 72/624 coverage, preserves a poor-but-complete
+pilot with continuation denied, and retains failed child status and unknown
+request usage without retrying. Its durable success/failure probe uses synthetic
+receipts, not a real 72-session worker run. It still requires a separately
+admitted launcher command and the remaining integrated checks above.
 
 This is a code inspection of the current candidate-100 capsule and its existing
 launch helpers, together with the retained development-preparation receipt. It
