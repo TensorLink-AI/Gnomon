@@ -1961,3 +1961,22 @@ admission. The predeclared uptake secondary is implemented in
 [PLANNING_UPTAKE_107.md](PLANNING_UPTAKE_107.md); successful scripted adoption is
 not a paid agent result or an accuracy gate. Main/PyPI and reserved final data
 remain unchanged.
+
+## Candidate 107 paid pilot started after full preflight
+
+The complete synthetic 72+240 host path passed with 312 complete workflows,
+231,836 original workflow checks and 40,492 recipe checks. Both terminal
+archives, the isolated 76-file bundle and actual original-host admission passed
+before the paid controller started at 2026-09-15 15:54:28 UTC. Subsequent checks
+confirmed the one-shot reservation and live controller/worker identities. No
+pilot scores were available at that first observation. See
+[PLANNING_HOST_107_RESULTS.md](PLANNING_HOST_107_RESULTS.md) for the immutable
+proof and bundle identities. The frozen 72-session completion/integrity gate
+controls the later 240-session continuation; accuracy is not a pilot gate.
+
+At the saved 16:03 UTC live observation, 10/72 paid sessions had completed, all
+valid and workflow-complete, with no fallback/API errors in completed sessions.
+The two fully matched cold-start cases tie in all arms (mean RMSLE 0.411990).
+Both controller and worker identities remained live. This checkpoint is retained
+in `evidence/planning-107-pilot-progress-001.json`; running-session usage and
+terminal integrity checks are not claimed complete.

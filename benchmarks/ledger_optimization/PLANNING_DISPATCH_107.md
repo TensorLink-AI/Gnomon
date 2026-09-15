@@ -35,12 +35,14 @@ Nine admission tests pass, including pilot-only proof rejection, source drift,
 missing terminal evidence, count-type errors, duplicate reservations/workers,
 changed bindings, indirect-import source binding and cross-stage reservation
 misuse. Raw attempts are retained under `results/planning-dispatch-107-tests-001`
-through `-003`; the latter two treat Python warnings as errors. These unit tests do not establish the full host
-preflight, which remains independently running.
+through `-003`; the latter two treat Python warnings as errors. These unit tests
+did not establish the full host preflight; it subsequently passed separately
+as recorded in [PLANNING_HOST_107_RESULTS.md](PLANNING_HOST_107_RESULTS.md).
 
-No paid candidate-107 reservation has been made at this commit. The complete
-host preflight and candidate-100 terminal reconciliation must exist before a
-source-bound admission manifest and dispatch bundle can be finalized.
+At the initial admission implementation checkpoint, no paid candidate-107
+reservation had been made. The completed host preflight and candidate-100
+terminal reconciliation subsequently allowed the source-bound admission
+manifest and dispatch bundle to be finalized.
 
 `build_planning_bundle_107.py` prepares that bundle only after the complete host
 proof and predecessor reconciliation exist. It verifies both original synthetic
@@ -54,5 +56,8 @@ and runtime checks remain required at dispatch.
 Six archive integrity tests reject changed bytes, duplicate/omitted/extra files
 and symlink substitutions. Together with the nine admission tests they pass
 with warnings treated as errors (`results/planning-bundle-107-tests-001`).
-The complete bundle build remains gated on the live host proof; these tests do
-not stand in for that proof or authorize a paid launch.
+These tests do not stand in for full host proof or authorize a paid launch.
+The full build, copied pod checks and inspected one-shot pilot admission have
+since completed; [the result](PLANNING_HOST_107_RESULTS.md) preserves their
+identities and the paid controller's start. This does not authorize automatic
+continuation, selective retries or access to final data.

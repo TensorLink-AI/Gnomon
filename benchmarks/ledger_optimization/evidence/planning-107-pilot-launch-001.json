@@ -1,0 +1,68 @@
+{
+  "status": "pilot_controller_started",
+  "bootstrap": {
+    "controller_started": true,
+    "immediate_exit_status": null,
+    "identity": {
+      "pid": 287675,
+      "start_ticks": "1563207594",
+      "boot_id": "998193f3-2771-4162-80e8-1a4887370f60"
+    },
+    "bootstrap": "/root/gnomon-ledger-ml-v3/code/results/planning-107-pilot-bootstrap-001",
+    "stage": "pilot",
+    "at": "2026-09-15T15:54:28.724346+00:00",
+    "automatic_continuation": false,
+    "automatic_retry": false,
+    "final_gate_opened": false
+  },
+  "bundle": {
+    "status": "built_not_deployed_or_launched",
+    "files": 76,
+    "archive_sha256": "5639c48768c7872018e8225f6bf9ed4edbc0d34eab9f8fd0cab75dcb5b8327c5",
+    "archive_bytes": 534039,
+    "plan_sha256": "99683f980b5a4b31ff39886d385e57c87b1f0d0b5e714c638323638974c4cb48",
+    "admission_sha256": "6997f77b47102ce1139a2cb91214b00ee69085317f0ae738e1d1e04a43aed039",
+    "builder_sha256": "dc44989d8473e329fff78f9783ebe339530d3131693ea5fae095c661f3edd3a3",
+    "verified_host_archive_files": {
+      "pilot": 7570,
+      "complete": 45431
+    },
+    "isolated_copied_inputs_verified": true,
+    "engy_calls": 0,
+    "reserved": false,
+    "final_gate_opened": false,
+    "remaining": "Original-host predecessor/process/archive and runtime checks before one-shot pilot admission."
+  },
+  "pod_preparation": {
+    "remote_root": "/root/gnomon-ledger-ml-v3/code/results/planning-107-dispatch-bundle-001",
+    "bundle_sha256": "5639c48768c7872018e8225f6bf9ed4edbc0d34eab9f8fd0cab75dcb5b8327c5",
+    "check_only": {
+      "checks_passed": true,
+      "reserved": false,
+      "credential_read": false,
+      "provider_calls": 0,
+      "engy_calls": 0,
+      "final_gate_opened": false
+    },
+    "reserved": false,
+    "paid_execution_started": false,
+    "final_gate_opened": false
+  },
+  "plan_sha256": "99683f980b5a4b31ff39886d385e57c87b1f0d0b5e714c638323638974c4cb48",
+  "stage": "pilot",
+  "planned_sessions": 72,
+  "arms": [
+    "plain",
+    "gnomon",
+    "ledger"
+  ],
+  "requested_seed": 7,
+  "model": "deepseek-v4.1-flash",
+  "gnomon_version": "1.2.0",
+  "pilot_quality_not_accuracy_controls_continuation": true,
+  "automatic_continuation": false,
+  "no_selective_reruns": true,
+  "final_gate_opened": false,
+  "objective_established": false,
+  "scores_available": false
+}

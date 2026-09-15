@@ -25,12 +25,15 @@ All costs and unknown usage are retained in the linked report.
 
 Next: [candidate 107's frozen experiment](PLANNING_SEQUENCE_107_DEVELOPMENT.md)
 adds optional, historically supported experiment suggestions after an actual
-history query. Its 312 synthetic host sessions have executed; full audit and
-terminal archive verification remain in progress at this checkpoint. That is
-infrastructure evidence, not measured agent improvement. The
-[dispatch gates](PLANNING_DISPATCH_107.md) require completed preflight proof and
-original-host checks before a fresh 72-session paid pilot. No paid candidate-107
-run or final-data access is authorized by a synthetic success alone.
+history query. Its [full synthetic host preflight and admission checks](PLANNING_HOST_107_RESULTS.md)
+passed, and the fresh 72-session paid pilot started at 15:54 UTC on September 15.
+At 16:03 UTC, 10 sessions had completed successfully, with no fallback or API
+errors in those completed sessions. The two fully matched cases tie at mean
+RMSLE 0.411990 in every arm; these cold-start observations establish no benefit.
+The saved checkpoint is `evidence/planning-107-pilot-progress-001.json`. The [dispatch gates](PLANNING_DISPATCH_107.md) verified
+source, runtime, archived preflight and original-host predecessor evidence.
+Continuation is governed by completion and integrity, not pilot accuracy.
+Synthetic success does not establish an accuracy improvement or open final data.
 
 The separate M5 host preflight has completed its first 624-session synthetic
 seed and is running its second. These scripted runs establish no accuracy gain.
