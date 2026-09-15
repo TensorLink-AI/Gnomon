@@ -1,0 +1,652 @@
+{
+  "arms": {
+    "plain": {
+      "sessions": 6,
+      "selected_current_cv_minimum": 6
+    },
+    "gnomon": {
+      "sessions": 5,
+      "selected_current_cv_minimum": 5
+    },
+    "ledger": {
+      "sessions": 6,
+      "selected_current_cv_minimum": 6
+    }
+  },
+  "rows": [
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 0,
+      "selected_config": {
+        "alpha": 10.0,
+        "lags": 14,
+        "model": "ridge",
+        "window": 365
+      },
+      "selected_cv_rmsle": 0.6000571041929428,
+      "minimum_tested_cv_rmsle": 0.6000571041929428,
+      "selected_current_cv_minimum": true,
+      "configs_at_selection": [
+        {
+          "model": "seasonal",
+          "season": 7,
+          "cv_rmsle": 1.2040470077958232
+        },
+        {
+          "model": "ridge",
+          "window": 365,
+          "lags": 14,
+          "alpha": 10.0,
+          "cv_rmsle": 0.6000571041929428
+        }
+      ],
+      "ledger_reviews": 0,
+      "event_log_sha256": "64c64342159cb5bf3af1098c953bbecca4c9151ebf2e93b5b9baa3407f65177f"
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 1,
+      "selected_config": {
+        "alpha": 10.0,
+        "lags": 14,
+        "model": "ridge",
+        "window": 365
+      },
+      "selected_cv_rmsle": 0.6007089767352878,
+      "minimum_tested_cv_rmsle": 0.6007089767352878,
+      "selected_current_cv_minimum": true,
+      "configs_at_selection": [
+        {
+          "model": "seasonal",
+          "season": 7,
+          "cv_rmsle": 1.222302565653541
+        },
+        {
+          "model": "ridge",
+          "window": 365,
+          "lags": 14,
+          "alpha": 10.0,
+          "cv_rmsle": 0.6007089767352878
+        },
+        {
+          "model": "random_forest",
+          "window": 365,
+          "lags": 14,
+          "depth": 8,
+          "cv_rmsle": 0.6515034337105515
+        }
+      ],
+      "ledger_reviews": 0,
+      "event_log_sha256": "0d53ab809ff104f0da31b83dbad857d7b9f8a7628f940732769f9c1eaa952249"
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 0,
+      "selected_config": {
+        "alpha": 10.0,
+        "lags": 14,
+        "model": "ridge",
+        "window": 365
+      },
+      "selected_cv_rmsle": 0.32251518757701575,
+      "minimum_tested_cv_rmsle": 0.32251518757701575,
+      "selected_current_cv_minimum": true,
+      "configs_at_selection": [
+        {
+          "model": "seasonal",
+          "season": 7,
+          "cv_rmsle": 0.52781336014285
+        },
+        {
+          "model": "ridge",
+          "window": 365,
+          "lags": 14,
+          "alpha": 10.0,
+          "cv_rmsle": 0.32251518757701575
+        },
+        {
+          "model": "random_forest",
+          "window": 365,
+          "lags": 14,
+          "depth": 8,
+          "cv_rmsle": 0.3318134433392326
+        }
+      ],
+      "ledger_reviews": 0,
+      "event_log_sha256": "e9f59529ee260960b6e059e04fd5a26ff9b8def2efb1429b55fff997402c5ffb"
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 1,
+      "selected_config": {
+        "alpha": 10.0,
+        "lags": 14,
+        "model": "ridge",
+        "window": 365
+      },
+      "selected_cv_rmsle": 0.32089511074683275,
+      "minimum_tested_cv_rmsle": 0.32089511074683275,
+      "selected_current_cv_minimum": true,
+      "configs_at_selection": [
+        {
+          "model": "seasonal",
+          "season": 7,
+          "cv_rmsle": 0.5730178333518463
+        },
+        {
+          "model": "ridge",
+          "window": 365,
+          "lags": 14,
+          "alpha": 10.0,
+          "cv_rmsle": 0.32089511074683275
+        },
+        {
+          "model": "random_forest",
+          "window": 365,
+          "lags": 14,
+          "depth": 8,
+          "cv_rmsle": 0.3242280480745615
+        }
+      ],
+      "ledger_reviews": 0,
+      "event_log_sha256": "6ebcd2381a08f53a022af205d78bef5ad4e01d731e40d08cd3a9fdad023216d6"
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 2,
+      "selected_config": {
+        "alpha": 10.0,
+        "lags": 14,
+        "model": "ridge",
+        "window": 365
+      },
+      "selected_cv_rmsle": 0.22234096222387353,
+      "minimum_tested_cv_rmsle": 0.22234096222387353,
+      "selected_current_cv_minimum": true,
+      "configs_at_selection": [
+        {
+          "model": "seasonal",
+          "season": 7,
+          "cv_rmsle": 0.5092800237945386
+        },
+        {
+          "model": "ridge",
+          "window": 365,
+          "lags": 14,
+          "alpha": 10.0,
+          "cv_rmsle": 0.22234096222387353
+        },
+        {
+          "model": "random_forest",
+          "window": 365,
+          "lags": 14,
+          "depth": 8,
+          "cv_rmsle": 0.23383286117678112
+        },
+        {
+          "model": "ridge",
+          "window": 730,
+          "lags": 21,
+          "alpha": 1.0,
+          "cv_rmsle": 0.23897723974617716
+        }
+      ],
+      "ledger_reviews": 0,
+      "event_log_sha256": "6d4d5057024ecc60dd683f9ff7af8b51e1250214a92771bea45d861e9cb3df24"
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 0,
+      "selected_config": {
+        "alpha": 10.0,
+        "lags": 28,
+        "model": "ridge",
+        "window": 730
+      },
+      "selected_cv_rmsle": 0.5751358345624518,
+      "minimum_tested_cv_rmsle": 0.5751358345624518,
+      "selected_current_cv_minimum": true,
+      "configs_at_selection": [
+        {
+          "model": "seasonal",
+          "season": 7,
+          "cv_rmsle": 1.2040470077958232
+        },
+        {
+          "model": "ridge",
+          "window": 365,
+          "lags": 14,
+          "alpha": 10.0,
+          "cv_rmsle": 0.6000571041929428
+        },
+        {
+          "model": "random_forest",
+          "window": 365,
+          "lags": 14,
+          "depth": 8,
+          "cv_rmsle": 0.6293542638254206
+        },
+        {
+          "model": "ridge",
+          "window": 730,
+          "lags": 28,
+          "alpha": 10.0,
+          "cv_rmsle": 0.5751358345624518
+        }
+      ],
+      "ledger_reviews": 0,
+      "event_log_sha256": "ed879268714cf73e37d75428f50f91ee247d64ab3a2943657e151834d069835c"
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 1,
+      "selected_config": {
+        "alpha": 10.0,
+        "lags": 28,
+        "model": "ridge",
+        "window": 730
+      },
+      "selected_cv_rmsle": 0.5770443004286526,
+      "minimum_tested_cv_rmsle": 0.5770443004286526,
+      "selected_current_cv_minimum": true,
+      "configs_at_selection": [
+        {
+          "model": "seasonal",
+          "season": 7,
+          "cv_rmsle": 1.222302565653541
+        },
+        {
+          "model": "ridge",
+          "window": 365,
+          "lags": 14,
+          "alpha": 10.0,
+          "cv_rmsle": 0.6007089767352878
+        },
+        {
+          "model": "ridge",
+          "window": 730,
+          "lags": 28,
+          "alpha": 10.0,
+          "cv_rmsle": 0.5770443004286526
+        }
+      ],
+      "ledger_reviews": 1,
+      "event_log_sha256": "46b27b986f31d2c06a2ca09c91c21f8659072431109f370c8590879063b9ea97"
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 2,
+      "selected_config": {
+        "alpha": 10.0,
+        "lags": 28,
+        "model": "ridge",
+        "window": 730
+      },
+      "selected_cv_rmsle": 0.542470844514041,
+      "minimum_tested_cv_rmsle": 0.542470844514041,
+      "selected_current_cv_minimum": true,
+      "configs_at_selection": [
+        {
+          "model": "seasonal",
+          "season": 7,
+          "cv_rmsle": 1.1582978539006283
+        },
+        {
+          "model": "ridge",
+          "window": 730,
+          "lags": 28,
+          "alpha": 10.0,
+          "cv_rmsle": 0.542470844514041
+        },
+        {
+          "model": "ridge",
+          "window": 365,
+          "lags": 14,
+          "alpha": 10.0,
+          "cv_rmsle": 0.5632561863572674
+        }
+      ],
+      "ledger_reviews": 1,
+      "event_log_sha256": "481892fb1ce1fd9110289ae62ef3c88d92ed5097d7e5b24f656c2af0f269277b"
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 0,
+      "selected_config": {
+        "alpha": 10.0,
+        "lags": 14,
+        "model": "ridge",
+        "window": 365
+      },
+      "selected_cv_rmsle": 0.32251518757701575,
+      "minimum_tested_cv_rmsle": 0.32251518757701575,
+      "selected_current_cv_minimum": true,
+      "configs_at_selection": [
+        {
+          "model": "seasonal",
+          "season": 7,
+          "cv_rmsle": 0.52781336014285
+        },
+        {
+          "model": "ridge",
+          "window": 365,
+          "lags": 14,
+          "alpha": 10.0,
+          "cv_rmsle": 0.32251518757701575
+        },
+        {
+          "model": "ridge",
+          "window": 180,
+          "lags": 28,
+          "alpha": 1.0,
+          "cv_rmsle": 0.34206231175648083
+        }
+      ],
+      "ledger_reviews": 0,
+      "event_log_sha256": "63f900c5ea07f8a56d31954ed98518e985480688482e4a7c3cf53f9f9b745828"
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 1,
+      "selected_config": {
+        "alpha": 10.0,
+        "lags": 14,
+        "model": "ridge",
+        "window": 365
+      },
+      "selected_cv_rmsle": 0.32089511074683275,
+      "minimum_tested_cv_rmsle": 0.32089511074683275,
+      "selected_current_cv_minimum": true,
+      "configs_at_selection": [
+        {
+          "model": "seasonal",
+          "season": 7,
+          "cv_rmsle": 0.5730178333518463
+        },
+        {
+          "model": "ridge",
+          "window": 365,
+          "lags": 14,
+          "alpha": 10.0,
+          "cv_rmsle": 0.32089511074683275
+        },
+        {
+          "model": "ridge",
+          "window": 180,
+          "lags": 28,
+          "alpha": 1.0,
+          "cv_rmsle": 0.3639649891761371
+        }
+      ],
+      "ledger_reviews": 1,
+      "event_log_sha256": "8a453ec5d93e7078d88cfb9cacaf2b5b2d97313ffaddbc232989a72410c0d189"
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 2,
+      "selected_config": {
+        "alpha": 10.0,
+        "lags": 14,
+        "model": "ridge",
+        "window": 365
+      },
+      "selected_cv_rmsle": 0.22234096222387353,
+      "minimum_tested_cv_rmsle": 0.22234096222387353,
+      "selected_current_cv_minimum": true,
+      "configs_at_selection": [
+        {
+          "model": "seasonal",
+          "season": 7,
+          "cv_rmsle": 0.5092800237945386
+        },
+        {
+          "model": "ridge",
+          "window": 365,
+          "lags": 14,
+          "alpha": 10.0,
+          "cv_rmsle": 0.22234096222387353
+        },
+        {
+          "model": "random_forest",
+          "window": 365,
+          "lags": 14,
+          "depth": 8,
+          "cv_rmsle": 0.23383286117678112
+        }
+      ],
+      "ledger_reviews": 2,
+      "event_log_sha256": "a8a9bd8bce0b9bdf80cd4af43829ed04a94ad0b04113a49ebee2e173cd807658"
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 0,
+      "selected_config": {
+        "alpha": 10.0,
+        "lags": 14,
+        "model": "ridge",
+        "window": 365
+      },
+      "selected_cv_rmsle": 0.6000571041929428,
+      "minimum_tested_cv_rmsle": 0.6000571041929428,
+      "selected_current_cv_minimum": true,
+      "configs_at_selection": [
+        {
+          "model": "seasonal",
+          "season": 7,
+          "cv_rmsle": 1.2040470077958232
+        },
+        {
+          "model": "ridge",
+          "window": 365,
+          "lags": 14,
+          "alpha": 10.0,
+          "cv_rmsle": 0.6000571041929428
+        },
+        {
+          "model": "ridge",
+          "window": 180,
+          "lags": 28,
+          "alpha": 1.0,
+          "cv_rmsle": 0.8297657322074188
+        }
+      ],
+      "ledger_reviews": 0,
+      "event_log_sha256": "46678725ab668e20d88c1da0c59c6d80eddbc7f10aabcc19255ba70df4465f71"
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 1,
+      "selected_config": {
+        "alpha": 10.0,
+        "lags": 14,
+        "model": "ridge",
+        "window": 365
+      },
+      "selected_cv_rmsle": 0.6007089767352878,
+      "minimum_tested_cv_rmsle": 0.6007089767352878,
+      "selected_current_cv_minimum": true,
+      "configs_at_selection": [
+        {
+          "model": "seasonal",
+          "season": 7,
+          "cv_rmsle": 1.222302565653541
+        },
+        {
+          "model": "ridge",
+          "window": 365,
+          "lags": 14,
+          "alpha": 10.0,
+          "cv_rmsle": 0.6007089767352878
+        },
+        {
+          "model": "random_forest",
+          "window": 365,
+          "lags": 14,
+          "depth": 8,
+          "cv_rmsle": 0.6515034337105515
+        }
+      ],
+      "ledger_reviews": 0,
+      "event_log_sha256": "0f01d7d87c182afd7ab112b393c62f29e390a6a30b6271e6a0efebff9a3cd69c"
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 2,
+      "selected_config": {
+        "alpha": 10.0,
+        "lags": 14,
+        "model": "ridge",
+        "window": 365
+      },
+      "selected_cv_rmsle": 0.5632561863572674,
+      "minimum_tested_cv_rmsle": 0.5632561863572674,
+      "selected_current_cv_minimum": true,
+      "configs_at_selection": [
+        {
+          "model": "seasonal",
+          "season": 7,
+          "cv_rmsle": 1.1582978539006283
+        },
+        {
+          "model": "ridge",
+          "window": 365,
+          "lags": 14,
+          "alpha": 10.0,
+          "cv_rmsle": 0.5632561863572674
+        }
+      ],
+      "ledger_reviews": 0,
+      "event_log_sha256": "7fb987db58517205d6e106cbc8d8ca98a9698e17d1c53b321b339d4b6965132e"
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 0,
+      "selected_config": {
+        "alpha": 10.0,
+        "lags": 14,
+        "model": "ridge",
+        "window": 365
+      },
+      "selected_cv_rmsle": 0.32251518757701575,
+      "minimum_tested_cv_rmsle": 0.32251518757701575,
+      "selected_current_cv_minimum": true,
+      "configs_at_selection": [
+        {
+          "model": "seasonal",
+          "season": 7,
+          "cv_rmsle": 0.52781336014285
+        },
+        {
+          "model": "ridge",
+          "window": 365,
+          "lags": 14,
+          "alpha": 10.0,
+          "cv_rmsle": 0.32251518757701575
+        },
+        {
+          "model": "ridge",
+          "window": 180,
+          "lags": 7,
+          "alpha": 1.0,
+          "cv_rmsle": 0.32974674427624634
+        }
+      ],
+      "ledger_reviews": 0,
+      "event_log_sha256": "b8bfe44e4217780d837f88aede53119654b05c858a6a4e24ddbfed4730386273"
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 1,
+      "selected_config": {
+        "alpha": 10.0,
+        "lags": 14,
+        "model": "ridge",
+        "window": 365
+      },
+      "selected_cv_rmsle": 0.32089511074683275,
+      "minimum_tested_cv_rmsle": 0.32089511074683275,
+      "selected_current_cv_minimum": true,
+      "configs_at_selection": [
+        {
+          "model": "seasonal",
+          "season": 7,
+          "cv_rmsle": 0.5730178333518463
+        },
+        {
+          "model": "ridge",
+          "window": 365,
+          "lags": 14,
+          "alpha": 10.0,
+          "cv_rmsle": 0.32089511074683275
+        },
+        {
+          "model": "random_forest",
+          "window": 365,
+          "lags": 14,
+          "depth": 6,
+          "cv_rmsle": 0.32490580160751426
+        }
+      ],
+      "ledger_reviews": 0,
+      "event_log_sha256": "60955b23793f59762259da4649775aa975353a032de2cfd3c63ca55d95533c3a"
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 2,
+      "selected_config": {
+        "alpha": 10.0,
+        "lags": 14,
+        "model": "ridge",
+        "window": 365
+      },
+      "selected_cv_rmsle": 0.22234096222387353,
+      "minimum_tested_cv_rmsle": 0.22234096222387353,
+      "selected_current_cv_minimum": true,
+      "configs_at_selection": [
+        {
+          "model": "seasonal",
+          "season": 7,
+          "cv_rmsle": 0.5092800237945386
+        },
+        {
+          "model": "ridge",
+          "window": 365,
+          "lags": 14,
+          "alpha": 10.0,
+          "cv_rmsle": 0.22234096222387353
+        },
+        {
+          "model": "random_forest",
+          "window": 365,
+          "lags": 14,
+          "depth": 6,
+          "cv_rmsle": 0.23249272029467521
+        }
+      ],
+      "ledger_reviews": 0,
+      "event_log_sha256": "d48cd31f057380e253f44fc7fec43c2a6f888072c69835cd961c28594b72c7f7"
+    }
+  ],
+  "scope": "Read-only diagnostic of all 17 independently audited development sessions. Uses only CV results recorded before the final selected checkpoint. Agreement with current CV does not show whether historical evidence influenced configuration exploration. No causal effect or efficacy claim, no new fits or agent calls.",
+  "evidence": {
+    "results/workflow-097-live-audit-001/decision_diagnostic.py": "b7b47816cbc53268daf02cc39da2e6127c1381aead98999da57b964e17869059",
+    "results/workflow-097-live-audit-001/decision-diagnostic.json": "12f4e22b138e6c6b787dff1281dafb913e6cb884f2158009a046f5370fd1a1d0"
+  }
+}

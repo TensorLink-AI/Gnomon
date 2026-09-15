@@ -1,0 +1,26 @@
+{
+  "receipt": {
+    "exit_status": 0,
+    "files_verified": 37,
+    "bundle_sha256": "75ef5e04c52bc201a76916ff5ba17ab704924aefa55182a2be28c0392b745c2b",
+    "deployed_only": true,
+    "continuation_launched": false,
+    "engy_calls": 0,
+    "final_gate_opened": false
+  },
+  "verification_stderr": "",
+  "verification": {
+    "source_and_runtime_checks_passed": true,
+    "installed_build": "1.2.0+ga38cd0cad353.s9723394ccb6d",
+    "pilot_gate_checked": false,
+    "continuation_authorized": false,
+    "reason": "Staging only; complete terminal pilot audit required before dispatch",
+    "engy_calls": 0
+  },
+  "evidence": {
+    "results/workflow-097-continuation-deploy-001/deploy.py": "01385a9c6a05ff1d52436a36a019985625009350de6132d9688f12283d100f68",
+    "results/workflow-097-continuation-deploy-001/run.py": "4125bc575a72d6034ad09048b66f99cac476dfff0bcf9efb4bcba7bc8f7f1f6a",
+    "results/workflow-097-continuation-deploy-001/stdout.json": "b9935eff72bc9609fad62fc792da49e55c8dc0d48fde7940c63aef811cfa229a",
+    "results/workflow-097-continuation-deploy-001/command.json": "c889547a6e7bc87e16bcccf86d1dd78cc59bc4da0aec499882eb8259c864ae6c"
+  }
+}
