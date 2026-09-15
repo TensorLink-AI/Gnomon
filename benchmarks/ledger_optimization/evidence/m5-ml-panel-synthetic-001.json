@@ -1,0 +1,32 @@
+{
+  "status": "synthetic_panel_constructor_verified_not_final_admission",
+  "previous_goal_turn": "verified_wait: original controller observed live across four polls and completed additional sessions; waiter independently verified live.",
+  "synthetic_tests_passed": 6,
+  "synthetic_reserved_series": 24,
+  "synthetic_tasks_per_panel": 624,
+  "shared_builder": "m5_ml_adapter.build_series_jobs",
+  "shared_builder_changed": false,
+  "declared_panel_reselected": false,
+  "real_source_or_manifest_read": false,
+  "final_targets_read": false,
+  "provider_calls": 0,
+  "engy_calls": 0,
+  "final_gate_opened": false,
+  "objective_established": false,
+  "existing_experiments_changed": false,
+  "evidence": {
+    "benchmarks/ledger_optimization/m5_ml_panel.py": "dee571c01271b42448383b41c937287acccb44ce034c562712a16c353a4b15dc",
+    "benchmarks/ledger_optimization/m5_ml_adapter.py": "803c8ec8344692a50689c0034dc0a9b34d96487caf0dffd9913858a2b8816f97",
+    "benchmarks/ledger_optimization/m5_prepare.py": "3ac1b25471c405fea8c4ffa7aa115e396ab1e5f64885b2642328630826937eff",
+    "benchmarks/ledger_optimization/M5_ML_PANEL.md": "e11a5665e981078f4541465b0d5ca67fa8c74a2a58b362dcade7639b5be99b8d",
+    "benchmarks/tests/test_m5_ml_panel.py": "581ae3c4535d37218ebacac8339838d67aa1049eb9d4fa7b599aab93f08485b1",
+    "results/m5-ml-panel-synthetic-001/tests.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/m5-ml-panel-synthetic-001/m5_ml_panel.py": "dee571c01271b42448383b41c937287acccb44ce034c562712a16c353a4b15dc",
+    "results/m5-ml-panel-synthetic-001/test_m5_ml_panel.py": "581ae3c4535d37218ebacac8339838d67aa1049eb9d4fa7b599aab93f08485b1",
+    "results/m5-ml-panel-synthetic-001/M5_ML_PANEL.md": "e11a5665e981078f4541465b0d5ca67fa8c74a2a58b362dcade7639b5be99b8d",
+    "results/m5-ml-panel-synthetic-001/m5_prepare.py": "3ac1b25471c405fea8c4ffa7aa115e396ab1e5f64885b2642328630826937eff",
+    "results/m5-ml-panel-synthetic-001/tests.stderr": "aacd56b3e471c387f6a90c368feacdfe4b84245e764e5b7a6719c8f5c1ab7df6",
+    "results/m5-ml-panel-synthetic-001/m5_ml_adapter.py": "803c8ec8344692a50689c0034dc0a9b34d96487caf0dffd9913858a2b8816f97"
+  },
+  "remaining": "Eligible development result, complete final freeze, authenticated operational access gate/archive reader, runtime/visibility validation and one-shot final dispatch."
+}
