@@ -386,3 +386,41 @@ the waiter live, with no candidate-100 output or controller yet created. These
 live observations are distinct from the immutable 251-session audited subset.
 The candidate remains frozen, final/protected data remain unopened, and the
 20% objective remains unestablished. Main/PyPI are unchanged.
+
+## Executed-forecast opportunity check on 83 audited matched cases
+
+Independently recomputed RMSLE for 716 already-executed production forecasts
+from the pilot and disjoint audits 001–010. Request histories, timestamps,
+forecast horizons, series, units and selected execution identities were checked
+against the development host jobs and audited selected forecasts. All 354
+repeated configuration predictions agreed within 1e-12. Source files were
+hashed before analysis and verified unchanged afterward. No new fits, API calls
+or final-data reads were made.
+
+| Arm | Selected mean RMSLE | Future-aware best within its executed set |
+|---|---:|---:|
+| Hermes | 0.467539 | 0.434848 |
+| Hermes + Gnomon | 0.470665 | 0.438738 |
+| Hermes + Gnomon + ledger | 0.471187 | 0.440151 |
+
+The future-aware best choice from the union of all three arms' executed
+forecasts has mean RMSLE 0.427823: only 9.10% lower than the matched no-ledger
+Gnomon result. Thus selection-only changes among these already-produced
+forecasts cannot yield the 20% target on this subset. This is an optimistic,
+non-executable diagnostic using future outcomes and unequally explored
+configurations; it is not a fair treatment, deployable policy, bound on the
+whole permitted model space, or conclusion about the unfinished run.
+
+The implication for development is to measure whether accumulated evidence
+also improves exploration within the unchanged common models and budgets.
+Candidate 100 already exposes current-versus-historical contrast during the
+workflow; its frozen intervention and pilot admission rules are unchanged by
+this post-hoc diagnostic. The observed bound is not used to select cases,
+remove failures, change tools or access the final holdout.
+
+The first diagnostic attempt incorrectly required Gnomon's top-level status
+field on plain Hermes execution records. That attempt and its source/output
+are retained. Correcting the surface-specific check allowed the second
+analysis to complete; no agent session or forecast was repeated. Full execution
+references remain in the hashed original report, with compact per-case
+summaries in `evidence/workflow-097-executed-opportunity-001.json`.

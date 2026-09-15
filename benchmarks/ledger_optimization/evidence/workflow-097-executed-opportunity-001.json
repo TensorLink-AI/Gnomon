@@ -1,0 +1,2648 @@
+{
+  "scope": "Post-hoc future-aware selection bound over forecasts already executed across all three arms in audited partial development. Candidate availability is unequal between individual arms, so the union is not a fair executable treatment. This does not bound the full permitted configuration search or establish a usable policy. No new fits or final data.",
+  "matched_cases": 83,
+  "executed_forecasts_recomputed": 716,
+  "repeated_config_predictions_verified_equal": 354,
+  "selected_mean_rmsle": {
+    "plain": 0.4675386132881845,
+    "gnomon": 0.47066534027382845,
+    "ledger": 0.47118688564628436
+  },
+  "best_executed_union_mean_rmsle": 0.427822879856242,
+  "union_hindsight_relative_reduction_vs_gnomon": 0.09102531406425873,
+  "within_arm_hindsight_mean_rmsle": {
+    "plain": 0.43484794439438806,
+    "gnomon": 0.43873840532616276,
+    "ledger": 0.4401508632353139
+  },
+  "future_outcomes_used": true,
+  "executable_policy": false,
+  "new_provider_calls": 0,
+  "engy_calls": 0,
+  "target_met": false,
+  "final_holdout_accessed": false,
+  "source_files": {
+    "results/workflow-097-final-001/audit/report.json": "f8d98586e2ddb64a7eaaf06c73f1450652800cfc567f0d2ea68f6a4b9dceb7c6",
+    "results/workflow-097-development-audit-001/audit/report.json": "c3ad8f526ed2dba07ed394877c0bbbcd21e9213903ffe4da5a05781514afd67d",
+    "results/workflow-097-development-audit-002/audit/report.json": "7532e5a7da6a1f15e5e486f48847940a7dfe4ccb4a71b9c006c983bfddaa3e2b",
+    "results/workflow-097-development-audit-003/audit/report.json": "df4e5b5e2da4d46e80f63825457093f1d29755d41ccbd4c458386fba1c95504a",
+    "results/workflow-097-development-audit-004/audit/report.json": "21ea30a132c94779f3fb52b5b30044da85e7c5f9200155d26a91b8bf2b9d12e7",
+    "results/workflow-097-development-audit-005/audit/report.json": "d0cfe3e4c59764899602aa6bdb91d259539b56bd614b77a14bd2378cb9f420f5",
+    "results/workflow-097-development-audit-006/audit/report.json": "8f6c62c8683ed3d57f4f0bb7f51db9650f9482e0d93fd2ccaec4921ff55eda16",
+    "results/workflow-097-development-audit-007/audit/report.json": "68045201be05f0dada5a30b681a7a169fb64727ad851354dc0e3c05bf0274c6b",
+    "results/workflow-097-development-audit-008/audit/report.json": "446ac78bff9cfca13ad30bbd9e7e77beb247f4ff82ab3e61911367cfd97e72fb",
+    "results/workflow-097-development-audit-009/audit/report.json": "70690b2f71d0e3f71a3f45296003cd6cdc12a2c1057878ae786ea9eeddd9a990",
+    "results/workflow-097-development-audit-010/audit/report.json": "3932c1c4ac6f28e6fb47f6731e86ed68647c329cdc038ce2c1500e3505541a10",
+    "results/workflow-097-development-audit-010/snapshot/host-jobs.json": "380261912295bbe21f3c998a8c6f7048cde1fb0869d37bb4db44ad3a72b28f25",
+    "results/workflow-097-final-001/original/pilot/plain/item_1047756_store_23/round-0/project/experiments.jsonl": "46678725ab668e20d88c1da0c59c6d80eddbc7f10aabcc19255ba70df4465f71",
+    "results/workflow-097-final-001/original/pilot/gnomon/item_1047756_store_23/round-0/project/experiments.jsonl": "64c64342159cb5bf3af1098c953bbecca4c9151ebf2e93b5b9baa3407f65177f",
+    "results/workflow-097-final-001/original/pilot/ledger/item_1047756_store_23/round-0/project/experiments.jsonl": "ed879268714cf73e37d75428f50f91ee247d64ab3a2943657e151834d069835c",
+    "results/workflow-097-final-001/original/pilot/plain/item_1047756_store_23/round-1/project/experiments.jsonl": "0f01d7d87c182afd7ab112b393c62f29e390a6a30b6271e6a0efebff9a3cd69c",
+    "results/workflow-097-final-001/original/pilot/gnomon/item_1047756_store_23/round-1/project/experiments.jsonl": "0d53ab809ff104f0da31b83dbad857d7b9f8a7628f940732769f9c1eaa952249",
+    "results/workflow-097-final-001/original/pilot/ledger/item_1047756_store_23/round-1/project/experiments.jsonl": "46b27b986f31d2c06a2ca09c91c21f8659072431109f370c8590879063b9ea97",
+    "results/workflow-097-final-001/original/pilot/plain/item_1047756_store_23/round-2/project/experiments.jsonl": "7fb987db58517205d6e106cbc8d8ca98a9698e17d1c53b321b339d4b6965132e",
+    "results/workflow-097-final-001/original/pilot/gnomon/item_1047756_store_23/round-2/project/experiments.jsonl": "9fed5ffe1872137eeb0ce1da7116ec8ca64e8f3c63947b0f51406caf7e95fbf5",
+    "results/workflow-097-final-001/original/pilot/ledger/item_1047756_store_23/round-2/project/experiments.jsonl": "481892fb1ce1fd9110289ae62ef3c88d92ed5097d7e5b24f656c2af0f269277b",
+    "results/workflow-097-development-audit-001/snapshot/plain/item_1047756_store_23/round-3/project/experiments.jsonl": "fb17d3938e889781efa6c49c35424baf24797611549642b513ff4863d8f5d394",
+    "results/workflow-097-development-audit-001/snapshot/gnomon/item_1047756_store_23/round-3/project/experiments.jsonl": "5e63cca1396928293b73d3ef5a68b035867a20043d0b7bc3ff140a7aca1cef88",
+    "results/workflow-097-development-audit-001/snapshot/ledger/item_1047756_store_23/round-3/project/experiments.jsonl": "38a73c95bd3877d61439cbe8f6ecf2d897fe72f031a59a6f185d7486ef5e3a78",
+    "results/workflow-097-development-audit-002/snapshot/plain/item_1047756_store_23/round-4/project/experiments.jsonl": "2b2ecad61d2ad6edcbd9b41854807710b3c5b06431fdba71e85f41ec23ec3a76",
+    "results/workflow-097-development-audit-002/snapshot/gnomon/item_1047756_store_23/round-4/project/experiments.jsonl": "acdf8e23f7651e4c61d0784f7a558c412d3d8c266fb125f9ac7c4f030c690f12",
+    "results/workflow-097-development-audit-002/snapshot/ledger/item_1047756_store_23/round-4/project/experiments.jsonl": "d10d225bb429d6cb24428c7cb80fa6413cfd4de715cfd8f599a7b1cf4bf3adb3",
+    "results/workflow-097-development-audit-002/snapshot/plain/item_1047756_store_23/round-5/project/experiments.jsonl": "779a640cd9484424bbff806a02ca516eaa5c5104edeacffcd99383996b21e51d",
+    "results/workflow-097-development-audit-002/snapshot/gnomon/item_1047756_store_23/round-5/project/experiments.jsonl": "ff40da2ecc69f1234cc98e699f6d22cfaef885f84a458a1bed0e796b9ed85f85",
+    "results/workflow-097-development-audit-002/snapshot/ledger/item_1047756_store_23/round-5/project/experiments.jsonl": "bdbabb5646596e93b4b19657d068a9b44b132573a0dda7b33fedc4148bde22c9",
+    "results/workflow-097-development-audit-002/snapshot/plain/item_1047756_store_23/round-6/project/experiments.jsonl": "4e1440909edc070802577bce3bf5f6e160350713f4f0d4807b833a83445cbe61",
+    "results/workflow-097-development-audit-003/snapshot/gnomon/item_1047756_store_23/round-6/project/experiments.jsonl": "1f6fff7bae4d99b509714400c9bdefc8fc2db3fbfd0be092ffdd67563d56099c",
+    "results/workflow-097-development-audit-003/snapshot/ledger/item_1047756_store_23/round-6/project/experiments.jsonl": "f045b1a7d121e5f20b1f958bf041a3a53b823601d760f9d5ef7d5838a0037b38",
+    "results/workflow-097-development-audit-003/snapshot/plain/item_1047756_store_23/round-7/project/experiments.jsonl": "51e0f238042ccce88a32fcdd1283e11127e618cc33568af3328e5fb09d949dff",
+    "results/workflow-097-development-audit-003/snapshot/gnomon/item_1047756_store_23/round-7/project/experiments.jsonl": "05fca5c150eda6d1df7a73f4488bd1d4e348cc5de62a0ee08c42ab0a00024cc8",
+    "results/workflow-097-development-audit-003/snapshot/ledger/item_1047756_store_23/round-7/project/experiments.jsonl": "4ef76dd1f21e61b181708b14f4ea5bbfece4831175232d703d9a66665ddf2886",
+    "results/workflow-097-development-audit-004/snapshot/plain/item_1047756_store_23/round-8/project/experiments.jsonl": "1cc28dbd1d5642512eaad60cdadef215b6f2e11aead2994835b1421bdfff984f",
+    "results/workflow-097-development-audit-004/snapshot/gnomon/item_1047756_store_23/round-8/project/experiments.jsonl": "9594cbdf237a85e1e4a13666676ce31539d3bb5b4a6d7eb913fae2f42ac85d77",
+    "results/workflow-097-development-audit-003/snapshot/ledger/item_1047756_store_23/round-8/project/experiments.jsonl": "05543f8d4190ee5ec2b6b16f85bb9bfd18805536a0d9cc02349b9c69c92871cd",
+    "results/workflow-097-development-audit-004/snapshot/plain/item_1047756_store_23/round-9/project/experiments.jsonl": "184c18a2677831b011c202e35574e6cb7288696f5d1f85fb7fba4afcd0688e4d",
+    "results/workflow-097-development-audit-004/snapshot/gnomon/item_1047756_store_23/round-9/project/experiments.jsonl": "5a794d1fa6afe8f9031e82e6e77219f03a6763fffab20e6628e23f4a99a9b680",
+    "results/workflow-097-development-audit-004/snapshot/ledger/item_1047756_store_23/round-9/project/experiments.jsonl": "221f74a723f82a82105a57ed94203f643cef892ced6b84a80c3ffd6a9192d5dc",
+    "results/workflow-097-development-audit-004/snapshot/plain/item_1047756_store_23/round-10/project/experiments.jsonl": "3fe4828428495f0137d29a0497c2f29023d2165cf5ada188e9f25520d09e0843",
+    "results/workflow-097-development-audit-004/snapshot/gnomon/item_1047756_store_23/round-10/project/experiments.jsonl": "e85f1241a878f582fab0221c1bb75c2f9e7b80d60ea167af2e874ae61b2e78fe",
+    "results/workflow-097-development-audit-004/snapshot/ledger/item_1047756_store_23/round-10/project/experiments.jsonl": "bc494c54587e07382b278d3e1193a1f0769ec561195bef60b1c609a14b27d23a",
+    "results/workflow-097-development-audit-004/snapshot/plain/item_1047756_store_23/round-11/project/experiments.jsonl": "15348cfebc2ae61510e1d32faedf4b8963cc09c35a005ae04265e99fce1fb117",
+    "results/workflow-097-development-audit-005/snapshot/gnomon/item_1047756_store_23/round-11/project/experiments.jsonl": "b1ee94e78338188cc627c4e9f6e4e438bc2faa4fde7d8661869ab5869a696690",
+    "results/workflow-097-development-audit-004/snapshot/ledger/item_1047756_store_23/round-11/project/experiments.jsonl": "71058ec3141a86512cc2c0287a8ef38009a9fc025b8ad6cf93d52dcd07469e19",
+    "results/workflow-097-development-audit-005/snapshot/plain/item_1047756_store_23/round-12/project/experiments.jsonl": "70660023d6c19943c718f3dca95512560b9bfb52ae540e667feaa221b39c0bd4",
+    "results/workflow-097-development-audit-005/snapshot/gnomon/item_1047756_store_23/round-12/project/experiments.jsonl": "630d8394d803f103d66ba3fa5e850915a95bc9ecd28d172b6a989e62539ecc24",
+    "results/workflow-097-development-audit-005/snapshot/ledger/item_1047756_store_23/round-12/project/experiments.jsonl": "9a83e527ad10f86f7f6eb52fb30aaf91fe9c57fae8df80b9aa81d58fbedcb14a",
+    "results/workflow-097-development-audit-005/snapshot/plain/item_1047756_store_23/round-13/project/experiments.jsonl": "e76d1f3e31a9dea8fb6eae886e2b632d4431966a005b3a7a8a1da479aa1d6e84",
+    "results/workflow-097-development-audit-005/snapshot/gnomon/item_1047756_store_23/round-13/project/experiments.jsonl": "7e60aeabda07cecf42f5b0ff8e1d4183fffbd2f950dc1b6758a7ce2783cd808d",
+    "results/workflow-097-development-audit-005/snapshot/ledger/item_1047756_store_23/round-13/project/experiments.jsonl": "408f543a38e374947c99642617207b8b13d2a94728593773651c9a46cd028729",
+    "results/workflow-097-development-audit-005/snapshot/plain/item_1047756_store_23/round-14/project/experiments.jsonl": "8df3caff36f84baa6189d79eb2e2fb4f12c026233ae45286f9b354aa122626fa",
+    "results/workflow-097-development-audit-005/snapshot/gnomon/item_1047756_store_23/round-14/project/experiments.jsonl": "1608e207543addf699cfaf0d383703e40e7f0a172fec5b5524e6150c57014a91",
+    "results/workflow-097-development-audit-005/snapshot/ledger/item_1047756_store_23/round-14/project/experiments.jsonl": "686659fac5b5f83c223e927699538f45cd5e6ab203d0d56095ae429d61731a04",
+    "results/workflow-097-development-audit-006/snapshot/plain/item_1047756_store_23/round-15/project/experiments.jsonl": "a5ed8653fb9775cc17c238d0964c1599f02ae2b5506291db3545e054ef514641",
+    "results/workflow-097-development-audit-006/snapshot/gnomon/item_1047756_store_23/round-15/project/experiments.jsonl": "8be16b3695c16d7e523ed800e39d81cf58f5a136d91700dd8447139ffa2e999e",
+    "results/workflow-097-development-audit-006/snapshot/ledger/item_1047756_store_23/round-15/project/experiments.jsonl": "4ddec36a499b29cf8c352dd28ee9e2790e31413afd75aa50c6b204fd9f56ad4f",
+    "results/workflow-097-development-audit-006/snapshot/plain/item_1047756_store_23/round-16/project/experiments.jsonl": "09c4e11511b530397ed2380c47089e1d31c66016c5892e89bf380fb3251efd97",
+    "results/workflow-097-development-audit-006/snapshot/gnomon/item_1047756_store_23/round-16/project/experiments.jsonl": "48daf25ec79fe1ea93a99372dccc8facf1b07f4316cfe4fdc5353f19353d8b7c",
+    "results/workflow-097-development-audit-006/snapshot/ledger/item_1047756_store_23/round-16/project/experiments.jsonl": "11d1108e395afdf27143a2899f2ee70aee1be02dc06b6453a3965db92bca6380",
+    "results/workflow-097-development-audit-006/snapshot/plain/item_1047756_store_23/round-17/project/experiments.jsonl": "91941eecd93d76137fdef892423612cef46e2200cac8e0b00577aad55363c473",
+    "results/workflow-097-development-audit-006/snapshot/gnomon/item_1047756_store_23/round-17/project/experiments.jsonl": "349476a61c87307028e4c8a9062fbdf07b1d593e84398a244cd7c999225114a8",
+    "results/workflow-097-development-audit-006/snapshot/ledger/item_1047756_store_23/round-17/project/experiments.jsonl": "59a9f64e4f527b06679e2fe4c9ff2471c6b4af7424ee6d764f5863b847d2bbe8",
+    "results/workflow-097-development-audit-006/snapshot/plain/item_1047756_store_23/round-18/project/experiments.jsonl": "e919f814f8a60776ea52ed9ff08048c3de3c140ddb9e9d677e19e1222fec6397",
+    "results/workflow-097-development-audit-006/snapshot/gnomon/item_1047756_store_23/round-18/project/experiments.jsonl": "038592db67dac6d0a06d1746395ccbe3e234e6254fd7780dfac7498c5b92f982",
+    "results/workflow-097-development-audit-006/snapshot/ledger/item_1047756_store_23/round-18/project/experiments.jsonl": "6ccbf666fc9f1ab51fa94ae85c7edce88301a4f49411df97419abd6e92eac972",
+    "results/workflow-097-development-audit-006/snapshot/plain/item_1047756_store_23/round-19/project/experiments.jsonl": "1af9e0de2a2df402512df1d8abdf0a02810248f8bc76a12b87500a635fcdf8ab",
+    "results/workflow-097-development-audit-006/snapshot/gnomon/item_1047756_store_23/round-19/project/experiments.jsonl": "003797c18a1031cf55445650702ef7869e4f668b9d4de7731ce8a891a8f485eb",
+    "results/workflow-097-development-audit-006/snapshot/ledger/item_1047756_store_23/round-19/project/experiments.jsonl": "1e055f72d5163b50d0951820699c4bac563dde19075a60484788fd272d79f77e",
+    "results/workflow-097-development-audit-007/snapshot/plain/item_1047756_store_23/round-20/project/experiments.jsonl": "bb722599a89cbc57d7d264cbdf6e9f2f123d09ff28145015bfb50553027e17a9",
+    "results/workflow-097-development-audit-007/snapshot/gnomon/item_1047756_store_23/round-20/project/experiments.jsonl": "aadedb3f1a5c3fdbb3ebf12af0f1546efa68a7fc23f2ad2258f79669da6a3cdc",
+    "results/workflow-097-development-audit-007/snapshot/ledger/item_1047756_store_23/round-20/project/experiments.jsonl": "398744e1380e3419095148152a2bd8b309e6dcaf9b6919289bfc41039e1786c4",
+    "results/workflow-097-development-audit-007/snapshot/plain/item_1047756_store_23/round-21/project/experiments.jsonl": "e4fe7ef060de37fa01108991ea0ba65d28a02d793b07ac6c1949ce41c2fd4ab9",
+    "results/workflow-097-development-audit-007/snapshot/gnomon/item_1047756_store_23/round-21/project/experiments.jsonl": "f4fea988a906f1dc12a1dfb66f1473f7d779f00270245716efa0989f90783f2a",
+    "results/workflow-097-development-audit-007/snapshot/ledger/item_1047756_store_23/round-21/project/experiments.jsonl": "333dd1fb1f3438229847d0e96dc3f511e63c4b082231295db16cec10b75a9ab8",
+    "results/workflow-097-development-audit-007/snapshot/plain/item_1047756_store_23/round-22/project/experiments.jsonl": "6fbd4d4d0968313daf3853878434a0084b89e5e2de564c5574b7b138ae1fc3c3",
+    "results/workflow-097-development-audit-007/snapshot/gnomon/item_1047756_store_23/round-22/project/experiments.jsonl": "33dec1f4cd2cc625d692433d499f4aa7adf618be869725bd028a25b6bd829daf",
+    "results/workflow-097-development-audit-007/snapshot/ledger/item_1047756_store_23/round-22/project/experiments.jsonl": "00be1057c0796b57a0ba7f1710818eda490c852475670312390737c852e227ee",
+    "results/workflow-097-development-audit-007/snapshot/plain/item_1047756_store_23/round-23/project/experiments.jsonl": "843a1cfe051b25ee3331743326e960cc3c2ca73e61efe75b69ce5c01e922282d",
+    "results/workflow-097-development-audit-007/snapshot/gnomon/item_1047756_store_23/round-23/project/experiments.jsonl": "a6b275544e56d28093f4ab91f3d5bc3b7e5b2c579b1ab0c1c4ed7af826ddb5ed",
+    "results/workflow-097-development-audit-007/snapshot/ledger/item_1047756_store_23/round-23/project/experiments.jsonl": "a1bc2f4c8dbc3bd0baec589eb5d2e16afe9c6930874af797ce0d58a09b30ab40",
+    "results/workflow-097-development-audit-007/snapshot/plain/item_1047756_store_23/round-24/project/experiments.jsonl": "cc94e9cac51c402dad4618708643837c6cd11c66db690057e3006feb157b90a3",
+    "results/workflow-097-development-audit-007/snapshot/gnomon/item_1047756_store_23/round-24/project/experiments.jsonl": "f96f9593ea3b9b6668ae07a5e9205d8288aa6fd182fd7d2962de76126f8e1970",
+    "results/workflow-097-development-audit-007/snapshot/ledger/item_1047756_store_23/round-24/project/experiments.jsonl": "f4b711832450004336a6ddeaf04604de87830c87f8a6fe1f63db713992b02e01",
+    "results/workflow-097-development-audit-008/snapshot/plain/item_1047756_store_23/round-25/project/experiments.jsonl": "7914a00f67eb114780562a360b2dca9a1833f73a08099f77432c6a8fa3045bd7",
+    "results/workflow-097-development-audit-007/snapshot/gnomon/item_1047756_store_23/round-25/project/experiments.jsonl": "d6d0a0dbfc130a2f8c5ab75a97dcb477f940161c43774ab763bf19e5429af292",
+    "results/workflow-097-development-audit-008/snapshot/ledger/item_1047756_store_23/round-25/project/experiments.jsonl": "2919c848fd40b233dc952a6a7cdc2bf24583558c77ab7932ab35207691689bed",
+    "results/workflow-097-final-001/original/pilot/plain/item_1304243_store_32/round-0/project/experiments.jsonl": "b8bfe44e4217780d837f88aede53119654b05c858a6a4e24ddbfed4730386273",
+    "results/workflow-097-final-001/original/pilot/gnomon/item_1304243_store_32/round-0/project/experiments.jsonl": "e9f59529ee260960b6e059e04fd5a26ff9b8def2efb1429b55fff997402c5ffb",
+    "results/workflow-097-final-001/original/pilot/ledger/item_1304243_store_32/round-0/project/experiments.jsonl": "63f900c5ea07f8a56d31954ed98518e985480688482e4a7c3cf53f9f9b745828",
+    "results/workflow-097-final-001/original/pilot/plain/item_1304243_store_32/round-1/project/experiments.jsonl": "60955b23793f59762259da4649775aa975353a032de2cfd3c63ca55d95533c3a",
+    "results/workflow-097-final-001/original/pilot/gnomon/item_1304243_store_32/round-1/project/experiments.jsonl": "6ebcd2381a08f53a022af205d78bef5ad4e01d731e40d08cd3a9fdad023216d6",
+    "results/workflow-097-final-001/original/pilot/ledger/item_1304243_store_32/round-1/project/experiments.jsonl": "8a453ec5d93e7078d88cfb9cacaf2b5b2d97313ffaddbc232989a72410c0d189",
+    "results/workflow-097-final-001/original/pilot/plain/item_1304243_store_32/round-2/project/experiments.jsonl": "d48cd31f057380e253f44fc7fec43c2a6f888072c69835cd961c28594b72c7f7",
+    "results/workflow-097-final-001/original/pilot/gnomon/item_1304243_store_32/round-2/project/experiments.jsonl": "6d4d5057024ecc60dd683f9ff7af8b51e1250214a92771bea45d861e9cb3df24",
+    "results/workflow-097-final-001/original/pilot/ledger/item_1304243_store_32/round-2/project/experiments.jsonl": "a8a9bd8bce0b9bdf80cd4af43829ed04a94ad0b04113a49ebee2e173cd807658",
+    "results/workflow-097-development-audit-001/snapshot/plain/item_1304243_store_32/round-3/project/experiments.jsonl": "3be4680a04c1223a82c2e5400bf13d04702cd17080033fd57bf4ef27aa67413f",
+    "results/workflow-097-development-audit-001/snapshot/gnomon/item_1304243_store_32/round-3/project/experiments.jsonl": "b160d2e1022426f26cd4d892c511178c757d768e622113710b3e85beb3df4591",
+    "results/workflow-097-development-audit-001/snapshot/ledger/item_1304243_store_32/round-3/project/experiments.jsonl": "bdbcb566a14f13cfc879fe80e9faad0cd57f7b8c0358e56981ac1bde30dcdd24",
+    "results/workflow-097-development-audit-002/snapshot/plain/item_1304243_store_32/round-4/project/experiments.jsonl": "2c4933653e18890fae2d19312b4b61bfd9966a191431b6f7c0bb72568446f121",
+    "results/workflow-097-development-audit-002/snapshot/gnomon/item_1304243_store_32/round-4/project/experiments.jsonl": "5bbf296a11eb800a542cba5ec18e679f3bfb72496b3ff713da844d779ab7d31e",
+    "results/workflow-097-development-audit-002/snapshot/ledger/item_1304243_store_32/round-4/project/experiments.jsonl": "75e20f4810d6fbb98efdafc4e1f3265cf0339d9d4b36b999106b8a15906dcdcd",
+    "results/workflow-097-development-audit-002/snapshot/plain/item_1304243_store_32/round-5/project/experiments.jsonl": "07731101542d05e6ac144df954fbb5551aafc020eea5706eb9b7b78efc720bc2",
+    "results/workflow-097-development-audit-002/snapshot/gnomon/item_1304243_store_32/round-5/project/experiments.jsonl": "83f6b684bd8129dd9a175ce60c195db95b13d7a6a16d4eea1e48c0a1f75e1cb1",
+    "results/workflow-097-development-audit-002/snapshot/ledger/item_1304243_store_32/round-5/project/experiments.jsonl": "882f77fb4ba24b9c591dd24f6767ef30b471c2022677d40f28a16865d1d5e32e",
+    "results/workflow-097-development-audit-003/snapshot/plain/item_1304243_store_32/round-6/project/experiments.jsonl": "0ea7dd4f867c827933b7fbd7f8fdfc61754849549a84d7f94960c90ff79700a9",
+    "results/workflow-097-development-audit-002/snapshot/gnomon/item_1304243_store_32/round-6/project/experiments.jsonl": "2e2ec35551d5d848a3cf514ecc9471f3eb3df3d058aebb083270825b1bd27f23",
+    "results/workflow-097-development-audit-002/snapshot/ledger/item_1304243_store_32/round-6/project/experiments.jsonl": "efc046a191fb1a380a6ceb51ffde40fd71f71adc2a094b2b1f54fcde9531bec4",
+    "results/workflow-097-development-audit-003/snapshot/plain/item_1304243_store_32/round-7/project/experiments.jsonl": "ae5610c3e41672823b3dd2ac68be928085ae43aaf3d0edb47050d3f79bd292bb",
+    "results/workflow-097-development-audit-003/snapshot/gnomon/item_1304243_store_32/round-7/project/experiments.jsonl": "ba55ca0e4f4551f220046c9e37d2bb34af5878f32c839e8ac4aa9d89b0aa8fa3",
+    "results/workflow-097-development-audit-003/snapshot/ledger/item_1304243_store_32/round-7/project/experiments.jsonl": "eb2843c5c613edba5524cf007726e6cf6b8ec01494075e98970b88841669cf24",
+    "results/workflow-097-development-audit-003/snapshot/plain/item_1304243_store_32/round-8/project/experiments.jsonl": "56b22da55665f78a4f4402db2afa59210c53b3a2c0d6c762f8f620df247c578f",
+    "results/workflow-097-development-audit-004/snapshot/gnomon/item_1304243_store_32/round-8/project/experiments.jsonl": "a3b4499534466e9fe5ed1ffa7fa5ac1367b80f151d320d8359ac2fa30de47cce",
+    "results/workflow-097-development-audit-004/snapshot/ledger/item_1304243_store_32/round-8/project/experiments.jsonl": "cd0a198646a10f5b334cf6914071bf850f63764bcf655ded39b6bc4aa1d05f1e",
+    "results/workflow-097-development-audit-004/snapshot/plain/item_1304243_store_32/round-9/project/experiments.jsonl": "1a37a30df36a4c3807847695887f172f2decf0e2ea1e7f3857383391e8768065",
+    "results/workflow-097-development-audit-004/snapshot/gnomon/item_1304243_store_32/round-9/project/experiments.jsonl": "8fc22525e8fa433bf327dc67b5d9d56e1a727e79973d8c14afb418efb86e867e",
+    "results/workflow-097-development-audit-004/snapshot/ledger/item_1304243_store_32/round-9/project/experiments.jsonl": "854aa30dec880cef47852b0b4b7f758e36ee19b85b9d38a7426483540caef042",
+    "results/workflow-097-development-audit-004/snapshot/plain/item_1304243_store_32/round-10/project/experiments.jsonl": "77f9af1bd17b69f2cb3e4e3093592d51a920334adecea4c905a3fdc24e23ebc4",
+    "results/workflow-097-development-audit-004/snapshot/gnomon/item_1304243_store_32/round-10/project/experiments.jsonl": "bed6e89a0e4683168ea6aab876ac9732f8c9a5208f4fd0664f6026d76fb34d6b",
+    "results/workflow-097-development-audit-004/snapshot/ledger/item_1304243_store_32/round-10/project/experiments.jsonl": "6a3136ddeddd54b1d51a02c4dcfc939fbe3ec5caf28d19bd882dfc4e0b93ea88",
+    "results/workflow-097-development-audit-004/snapshot/plain/item_1304243_store_32/round-11/project/experiments.jsonl": "0c7eb4cf78086ba00379f8d10a92758d0e43800769f45846b67f9da8c1682d26",
+    "results/workflow-097-development-audit-004/snapshot/gnomon/item_1304243_store_32/round-11/project/experiments.jsonl": "044805b3c8b56f1020e1d2f002ff525c882b33530ccb238c1b13bc86ac136eec",
+    "results/workflow-097-development-audit-004/snapshot/ledger/item_1304243_store_32/round-11/project/experiments.jsonl": "19ceee24cda7f845175b829e7a7519a2e089345096b73c33b807eab6c7aa98fc",
+    "results/workflow-097-development-audit-005/snapshot/plain/item_1304243_store_32/round-12/project/experiments.jsonl": "e77510d89dbc71ad03c9fc6d31a32016c12b518be782c3e0facb4fd4ef1b40f2",
+    "results/workflow-097-development-audit-005/snapshot/gnomon/item_1304243_store_32/round-12/project/experiments.jsonl": "463bcb866a620adb7d359996c9785323f86209dff19b024cbb22d7608e08e75a",
+    "results/workflow-097-development-audit-005/snapshot/ledger/item_1304243_store_32/round-12/project/experiments.jsonl": "5a60bddd9c1e9913f2f0ee6b323e23ba1512ebae0bb8354b4057525a87b02481",
+    "results/workflow-097-development-audit-005/snapshot/plain/item_1304243_store_32/round-13/project/experiments.jsonl": "1bd218a32ab7aba0978db48e07343f14cdb3f4b85572b2117c0ccb68fcfe8a81",
+    "results/workflow-097-development-audit-005/snapshot/gnomon/item_1304243_store_32/round-13/project/experiments.jsonl": "83b37ae03aa4f26b11b7a30f5a11a008cca14ec09d504976286d451aec3459df",
+    "results/workflow-097-development-audit-005/snapshot/ledger/item_1304243_store_32/round-13/project/experiments.jsonl": "a7c71c10709da23ec00dfcbaeddb63a2dc90786878e98edfb79d9312302e32a2",
+    "results/workflow-097-development-audit-005/snapshot/plain/item_1304243_store_32/round-14/project/experiments.jsonl": "1938fe56b0d0a9d9a4e444dd412d0f5a54dd9e4738fe1e26ae75a6477beced51",
+    "results/workflow-097-development-audit-005/snapshot/gnomon/item_1304243_store_32/round-14/project/experiments.jsonl": "b99fd5ab8f4ca185cecc1f00b0ebc735182e94a96198cb6270f0912fff7af026",
+    "results/workflow-097-development-audit-005/snapshot/ledger/item_1304243_store_32/round-14/project/experiments.jsonl": "2ace6648e1f9d3d7107daacd1f2a274c64c6460b72a99701febabd575a048550",
+    "results/workflow-097-development-audit-006/snapshot/plain/item_1304243_store_32/round-15/project/experiments.jsonl": "7371db96ae6fda57ca650cc5cee0b5b827373dd5f5e7b97086a0770c51cbcf11",
+    "results/workflow-097-development-audit-005/snapshot/gnomon/item_1304243_store_32/round-15/project/experiments.jsonl": "e1e601d2245042068a1f2fba9c8cfb542566166913ed47ec4966cc157ad5dee9",
+    "results/workflow-097-development-audit-005/snapshot/ledger/item_1304243_store_32/round-15/project/experiments.jsonl": "f112975b96e4ededa4d6eb7c39dd7b85fd28bcb8bde558b9b727e4d549cd5943",
+    "results/workflow-097-development-audit-006/snapshot/plain/item_1304243_store_32/round-16/project/experiments.jsonl": "af2824a0e0e6b54d717ce129fdc31829a29efa2a98f5e6afd1fd3040ba6bff61",
+    "results/workflow-097-development-audit-006/snapshot/gnomon/item_1304243_store_32/round-16/project/experiments.jsonl": "8052cc03de83d423303018ea78a2b99bb68bff8dd0a034ae7a592d3b08e370e9",
+    "results/workflow-097-development-audit-006/snapshot/ledger/item_1304243_store_32/round-16/project/experiments.jsonl": "a1052a1e9628d2bfbaa51f5e19028491bbc89870bd5bc2d58351e27b1488cb02",
+    "results/workflow-097-development-audit-006/snapshot/plain/item_1304243_store_32/round-17/project/experiments.jsonl": "4dbdcebdbab5ed4513d41047408d253ea76502d010dd89e30f085b1da5be4c68",
+    "results/workflow-097-development-audit-006/snapshot/gnomon/item_1304243_store_32/round-17/project/experiments.jsonl": "17f9bef638d3ffbde30861c064c78b7660d5a9e598ce8b61329495aafd42e7d2",
+    "results/workflow-097-development-audit-006/snapshot/ledger/item_1304243_store_32/round-17/project/experiments.jsonl": "5a14014b530642362b48d9b58895ab79d21b7a848cb9d2c27fde2b9e3da39dad",
+    "results/workflow-097-development-audit-006/snapshot/plain/item_1304243_store_32/round-18/project/experiments.jsonl": "72488625338ef27445dacc849c1b6569563f9d0b20e3b5b20b0cd146d5927778",
+    "results/workflow-097-development-audit-006/snapshot/gnomon/item_1304243_store_32/round-18/project/experiments.jsonl": "af4878b6243c1ecb7e6b3f7198103b9f5752b77b9ae1c1797edcbd3979c11899",
+    "results/workflow-097-development-audit-006/snapshot/ledger/item_1304243_store_32/round-18/project/experiments.jsonl": "dab77ae57e12d6267e5ce9b101979e1ae8c20c31d6af1771170598616d727bf1",
+    "results/workflow-097-development-audit-006/snapshot/plain/item_1304243_store_32/round-19/project/experiments.jsonl": "1f2b502b3d942f6477c8e59699c9986eec4fb8995cf8025bd155e357f86ad3f0",
+    "results/workflow-097-development-audit-006/snapshot/gnomon/item_1304243_store_32/round-19/project/experiments.jsonl": "3ffa2f32e65743cb98cb2e4faef433b235c6773c44808b5ea24f6b67345a1dea",
+    "results/workflow-097-development-audit-006/snapshot/ledger/item_1304243_store_32/round-19/project/experiments.jsonl": "c400bea041edb67939020d9a10e18228b6e89fde7462cc329418ad6980a3d247",
+    "results/workflow-097-development-audit-006/snapshot/plain/item_1304243_store_32/round-20/project/experiments.jsonl": "dc6ee36bc0775d1c209e9daa239cdfd6f5a64e61b25d5214fcf0df47cfbcb53b",
+    "results/workflow-097-development-audit-006/snapshot/gnomon/item_1304243_store_32/round-20/project/experiments.jsonl": "9859e64284fb49f4d3326e3c210aa99db0aa63bec741940efe1a3ab402717997",
+    "results/workflow-097-development-audit-006/snapshot/ledger/item_1304243_store_32/round-20/project/experiments.jsonl": "60d1d020edc1747420196492751b09175eb473770b4e5512e7670e18d82322a6",
+    "results/workflow-097-development-audit-007/snapshot/plain/item_1304243_store_32/round-21/project/experiments.jsonl": "08a6f593612ec9c042f9f42fd43f527c2d856c1f3f649fbd2ce2d1708f32eddb",
+    "results/workflow-097-development-audit-006/snapshot/gnomon/item_1304243_store_32/round-21/project/experiments.jsonl": "dfc6e06537f10ebc5ddab43373c8e2fd48779f7ed9f91a6e8d9be7263e1e0990",
+    "results/workflow-097-development-audit-007/snapshot/ledger/item_1304243_store_32/round-21/project/experiments.jsonl": "4fe35e64bde2ea3f75f9acc327cf137f1c46229432561f42d398c98ab25ec670",
+    "results/workflow-097-development-audit-007/snapshot/plain/item_1304243_store_32/round-22/project/experiments.jsonl": "848b9428a43d69a2f0cfe2c4f8bede0902071b3930063ccd9b8d41feee80f2ac",
+    "results/workflow-097-development-audit-007/snapshot/gnomon/item_1304243_store_32/round-22/project/experiments.jsonl": "aa1a9b9f732004ce40390b98ce610d47af018f28dac7e234b50bb47c58ee465e",
+    "results/workflow-097-development-audit-007/snapshot/ledger/item_1304243_store_32/round-22/project/experiments.jsonl": "188e8fe0002647c3510618e4f09aeab2d42580ffe213517f8a9228045da09ad8",
+    "results/workflow-097-development-audit-007/snapshot/plain/item_1304243_store_32/round-23/project/experiments.jsonl": "eb9adb5d01951cdd11fc036380b86e636015159c391a9c23fabeefa0abdf6038",
+    "results/workflow-097-development-audit-007/snapshot/gnomon/item_1304243_store_32/round-23/project/experiments.jsonl": "09bdfc254729ed72d49a98002251bd3290a026714c42c8af7a45b082914193bc",
+    "results/workflow-097-development-audit-007/snapshot/ledger/item_1304243_store_32/round-23/project/experiments.jsonl": "262c9f3b26191976e29b57bb6d068580e7e812ef6890c0a71398b82c021b1d41",
+    "results/workflow-097-development-audit-007/snapshot/plain/item_1304243_store_32/round-24/project/experiments.jsonl": "eaefea91a5b28851699389a3ee8911d22abfa872777d07c778760bd28f09cc36",
+    "results/workflow-097-development-audit-007/snapshot/gnomon/item_1304243_store_32/round-24/project/experiments.jsonl": "dc44349505781e735dc6d3c5e848b6888e8f330be8515fb3f723bc182853e59f",
+    "results/workflow-097-development-audit-007/snapshot/ledger/item_1304243_store_32/round-24/project/experiments.jsonl": "be60fb6676092d4a338c36592eedbdaa58f84c339cade4d06c13ab7b2c6fb584",
+    "results/workflow-097-development-audit-007/snapshot/plain/item_1304243_store_32/round-25/project/experiments.jsonl": "9c56a67c09826858350637517a70e441598783efc710256a0ab12e91fc2b9bc7",
+    "results/workflow-097-development-audit-007/snapshot/gnomon/item_1304243_store_32/round-25/project/experiments.jsonl": "6ec9e178e05612afdb9873e7d149c8c24b136faae778fecb6be5bd35689a6d75",
+    "results/workflow-097-development-audit-007/snapshot/ledger/item_1304243_store_32/round-25/project/experiments.jsonl": "72cb91cb8a4820e4381d7e7c3e5c29d82839c9978dc482e2c30033e7cb455ac6",
+    "results/workflow-097-final-001/original/pilot/plain/item_1372862_store_12/round-0/project/experiments.jsonl": "81ae04908be743495547289622eec3c8f8978f9d6b20cbbbb74ab07f88b35c23",
+    "results/workflow-097-final-001/original/pilot/gnomon/item_1372862_store_12/round-0/project/experiments.jsonl": "f5261bba6bfd63e981e7a6c8df2b376af61f520932a0effa9bef091e87b5797b",
+    "results/workflow-097-final-001/original/pilot/ledger/item_1372862_store_12/round-0/project/experiments.jsonl": "8786f3cc96fda35d1a3a46f73e5ee43e4cb32600403a9c164174913310effb24",
+    "results/workflow-097-final-001/original/pilot/plain/item_1372862_store_12/round-1/project/experiments.jsonl": "60f1ff081ba7346901a62878437724fe6c7d563d505a7c38ed9a0bb065b156db",
+    "results/workflow-097-final-001/original/pilot/gnomon/item_1372862_store_12/round-1/project/experiments.jsonl": "d9cdbfb044fd8bce75825e87df864e2ab7ee537431abdf68af86cdd3b1a8a101",
+    "results/workflow-097-final-001/original/pilot/ledger/item_1372862_store_12/round-1/project/experiments.jsonl": "169b47d554f30c56361fe9436c0ece0857e047d1435f0d607e8c0a17f651ddeb",
+    "results/workflow-097-final-001/original/pilot/plain/item_1372862_store_12/round-2/project/experiments.jsonl": "42f8ed4adf050489b19fd02df784b5118191ba576620703e7a3a942cef08af59",
+    "results/workflow-097-final-001/original/pilot/gnomon/item_1372862_store_12/round-2/project/experiments.jsonl": "52fffa91c684877f3ba15226a6d8d53d414e69f1842c0ec34deb6c0f202c4223",
+    "results/workflow-097-final-001/original/pilot/ledger/item_1372862_store_12/round-2/project/experiments.jsonl": "95039691c745a63c16d807fcf309783a6bd7db04a25d0cff2a9c0b14def4bf7b",
+    "results/workflow-097-development-audit-007/snapshot/plain/item_1372862_store_12/round-3/project/experiments.jsonl": "83e85b1991ea8070a46d1fa94c146a8eaafae1bb1105be7a03886ce9a4e95251",
+    "results/workflow-097-development-audit-007/snapshot/gnomon/item_1372862_store_12/round-3/project/experiments.jsonl": "381a5f07baca7875824ce93b494f820acfd6c18768561969aacdbc2610da6f4c",
+    "results/workflow-097-development-audit-007/snapshot/ledger/item_1372862_store_12/round-3/project/experiments.jsonl": "434ffcfa50063d7d04584a2f92295683eb17d6e3c68ed46dea7eea770b005be3",
+    "results/workflow-097-development-audit-007/snapshot/plain/item_1372862_store_12/round-4/project/experiments.jsonl": "9594aa06742ddd4fdd4c8a461e21b156837d27c41ab9da086f59bcc230968526",
+    "results/workflow-097-development-audit-007/snapshot/gnomon/item_1372862_store_12/round-4/project/experiments.jsonl": "e8e5cae22d77f431c63a58eab3addddc8447138171029606801d1ca821e2530d",
+    "results/workflow-097-development-audit-007/snapshot/ledger/item_1372862_store_12/round-4/project/experiments.jsonl": "ee75459a04d1d6caceefbc472b0780ef1ee66feef22fbf1f0f9fde657c979be2",
+    "results/workflow-097-development-audit-008/snapshot/plain/item_1372862_store_12/round-5/project/experiments.jsonl": "9cbee23b4e040606ec00b84e1a65433c351f7533e5cf26a52b3c07b629aceec8",
+    "results/workflow-097-development-audit-008/snapshot/gnomon/item_1372862_store_12/round-5/project/experiments.jsonl": "5db36c5f2cc8516c8d82b212689497442d918f261cf29a7c934ad5a401dea286",
+    "results/workflow-097-development-audit-008/snapshot/ledger/item_1372862_store_12/round-5/project/experiments.jsonl": "cdabe4a2263d96846dbae4972e29874f226a7d60f1ae3f59bfd17f7ac7c1d107",
+    "results/workflow-097-development-audit-008/snapshot/plain/item_1372862_store_12/round-6/project/experiments.jsonl": "96f92400053d6edd698b42ef6fc89458b313098aabe4cd18f37285bb9a5093d1",
+    "results/workflow-097-development-audit-008/snapshot/gnomon/item_1372862_store_12/round-6/project/experiments.jsonl": "3542199949c4de4a994f0e4c5883875cd1b14111f0feff02683f0344a6d7368f",
+    "results/workflow-097-development-audit-008/snapshot/ledger/item_1372862_store_12/round-6/project/experiments.jsonl": "6806f5ea3e017dd4f8f8ddb3f9312a38adf08f8c06b94f275997793630e822b4",
+    "results/workflow-097-development-audit-008/snapshot/plain/item_1372862_store_12/round-7/project/experiments.jsonl": "c870f549cd37e02c17c93e38accc1c4cfb76446a9635bbefa04bf396ab18dd8f",
+    "results/workflow-097-development-audit-008/snapshot/gnomon/item_1372862_store_12/round-7/project/experiments.jsonl": "c68be75bb6ae6b64897386c3eee1e0cfbc6b07e6a5463a043c06dc9c75a3ab7b",
+    "results/workflow-097-development-audit-008/snapshot/ledger/item_1372862_store_12/round-7/project/experiments.jsonl": "96d12890cea9bcb132883707c2232d79b3debb24d3adfc9cd060d4c7f699b84a",
+    "results/workflow-097-development-audit-009/snapshot/plain/item_1372862_store_12/round-8/project/experiments.jsonl": "1881dddc7e11f8145cc617de1957572d2e4d20301a0248df985cea259cd118ec",
+    "results/workflow-097-development-audit-008/snapshot/gnomon/item_1372862_store_12/round-8/project/experiments.jsonl": "6806c7c3e9c0b529782d5b8fbcade56c02c46c268b9f4194d1374dc4001147cf",
+    "results/workflow-097-development-audit-008/snapshot/ledger/item_1372862_store_12/round-8/project/experiments.jsonl": "9480701731ceda4ae6d83c27a1c185b87d5aeed1ebdd90d0b85397c7a2eacc73",
+    "results/workflow-097-development-audit-009/snapshot/plain/item_1372862_store_12/round-9/project/experiments.jsonl": "2d7b118c8cbae77133292e51c4fbb0664e242a96b0393a5daff6fe32239a513a",
+    "results/workflow-097-development-audit-009/snapshot/gnomon/item_1372862_store_12/round-9/project/experiments.jsonl": "0da9ea1c82a62c87284d2985cef38101f8eecb2966aeac4891fd118b013335d1",
+    "results/workflow-097-development-audit-009/snapshot/ledger/item_1372862_store_12/round-9/project/experiments.jsonl": "f5d31561bf1897381501f437a69fac3727d617b9bcb205da46cfd86a4cdfb64e",
+    "results/workflow-097-development-audit-009/snapshot/plain/item_1372862_store_12/round-10/project/experiments.jsonl": "8083a7b50909dbfe3a0f62abcda0c93ae9b7c3934167aafc3d1f0d5acf144794",
+    "results/workflow-097-development-audit-009/snapshot/gnomon/item_1372862_store_12/round-10/project/experiments.jsonl": "3c3e3c038f8e562ab7f25a54675fd6b29dadd1c9a30945e6070f4c955a49040c",
+    "results/workflow-097-development-audit-009/snapshot/ledger/item_1372862_store_12/round-10/project/experiments.jsonl": "21296d7def6925f6849aa3200f81fc68329b9adbcdb0308d8788400a8071f915",
+    "results/workflow-097-development-audit-009/snapshot/plain/item_1372862_store_12/round-11/project/experiments.jsonl": "1c95cd2a37f371dfcfcdcb4e9412ab32325967d8771103c283b49411c14a652b",
+    "results/workflow-097-development-audit-009/snapshot/gnomon/item_1372862_store_12/round-11/project/experiments.jsonl": "a675655fe1b8c94bd0a049056820c5924a3996793a5b67885964ef14a512cb50",
+    "results/workflow-097-development-audit-009/snapshot/ledger/item_1372862_store_12/round-11/project/experiments.jsonl": "b3e9bd9d8069f33baeb1b462064985aeff3d4871d249be160abf2608e09fb45c",
+    "results/workflow-097-development-audit-009/snapshot/plain/item_1372862_store_12/round-12/project/experiments.jsonl": "d6dfccf97c45df74f94be45187cefef4b1705b30565b93a6a33be0f6a489e8ab",
+    "results/workflow-097-development-audit-010/snapshot/gnomon/item_1372862_store_12/round-12/project/experiments.jsonl": "ace636828db802ecb6ceae44ff6e96977f2fe006007dd1f0554996b509d68783",
+    "results/workflow-097-development-audit-009/snapshot/ledger/item_1372862_store_12/round-12/project/experiments.jsonl": "4408984c7d9f413f05530a89043121df94380c82c8d3ba88b80cc841ff04ce21",
+    "results/workflow-097-development-audit-010/snapshot/plain/item_1372862_store_12/round-13/project/experiments.jsonl": "980847208a0b8006d8209e061a00e7a9e0e5b6d0ce3a0e9d028ff57fb74488b7",
+    "results/workflow-097-development-audit-010/snapshot/gnomon/item_1372862_store_12/round-13/project/experiments.jsonl": "a6f6b6dabc8574dd71fea50d095ea0401f27f9d10a44d876949a2a50330bde5f",
+    "results/workflow-097-development-audit-010/snapshot/ledger/item_1372862_store_12/round-13/project/experiments.jsonl": "f22c400f128641eb3479cf9a5fe8a8e63c6954018851bdd623b83db6fa66c9e9",
+    "results/workflow-097-development-audit-010/snapshot/plain/item_1372862_store_12/round-14/project/experiments.jsonl": "a9e093685ae97fd00f8b09859149a7d2ce22170c580e39fe87d105273d69414a",
+    "results/workflow-097-development-audit-010/snapshot/gnomon/item_1372862_store_12/round-14/project/experiments.jsonl": "f46845cebcd297b41d05ec3aa74adf293e1ae81f3c062433ac5889c29d7d65f7",
+    "results/workflow-097-development-audit-010/snapshot/ledger/item_1372862_store_12/round-14/project/experiments.jsonl": "b36bfa96b721f510a37ad9d226655ae9604c48bb2189ee1736b9e1af8ad1e474",
+    "results/workflow-097-development-audit-010/snapshot/plain/item_1372862_store_12/round-15/project/experiments.jsonl": "ed6fbe2929e959ed9a708dcb206a0b79930d26d54252eb5cb95a5a56fe21078c",
+    "results/workflow-097-development-audit-010/snapshot/gnomon/item_1372862_store_12/round-15/project/experiments.jsonl": "0e35d37d5e004abaa6b6c5bddde89448ed3b77bd6ede6647bff608e938b8e9b8",
+    "results/workflow-097-development-audit-010/snapshot/ledger/item_1372862_store_12/round-15/project/experiments.jsonl": "2fd9dba799bf57997e46e710f2581d014cdd5d26b74481d2ddfd2d71efa93433",
+    "results/workflow-097-final-001/original/pilot/plain/item_1457251_store_14/round-0/project/experiments.jsonl": "fe4c97f409d5a485b7f99c46c2a01e9af7d35263765e57ffbeb46ef12c11cbee",
+    "results/workflow-097-final-001/original/pilot/gnomon/item_1457251_store_14/round-0/project/experiments.jsonl": "ce6cef7258b6069d9b40b45517f9bbbc31672d573f975ac736be360adfeae59f",
+    "results/workflow-097-final-001/original/pilot/ledger/item_1457251_store_14/round-0/project/experiments.jsonl": "1ebab511dfe4ffa081902601623b13852976351e8fee24fe251f9dbdfb0f4260",
+    "results/workflow-097-final-001/original/pilot/plain/item_1457251_store_14/round-1/project/experiments.jsonl": "e1ef837909012b15e9bc78c54ad4fa34e79a203b800b5048e0ba73aef81a50aa",
+    "results/workflow-097-final-001/original/pilot/gnomon/item_1457251_store_14/round-1/project/experiments.jsonl": "f3b60c8c243b179adce5f1a80990200cb068f7241d4dcd427d7de9f162f08c27",
+    "results/workflow-097-final-001/original/pilot/ledger/item_1457251_store_14/round-1/project/experiments.jsonl": "b20585e2b1555d59180b879ae06e38210b104cee34ac78a0f4586fd9362a44ab",
+    "results/workflow-097-final-001/original/pilot/plain/item_1457251_store_14/round-2/project/experiments.jsonl": "c047cf25a73b9621e8fecc245bea1efe602688620a9bd50a1a1f652a6f1744e7",
+    "results/workflow-097-final-001/original/pilot/gnomon/item_1457251_store_14/round-2/project/experiments.jsonl": "51d58a823274542af89afbcd0dc6b3438d491fe9fafb173db0eb6c8e56e11dea",
+    "results/workflow-097-final-001/original/pilot/ledger/item_1457251_store_14/round-2/project/experiments.jsonl": "64285ba9c72c12b3dddac7fb85577e72195aef43e90d0259ce0f07d42d2bca61",
+    "results/workflow-097-development-audit-008/snapshot/plain/item_1457251_store_14/round-3/project/experiments.jsonl": "0453b53ed7cd303f889ed1f3f4981242f2554d8f846c8d73999c03ace81da8e2",
+    "results/workflow-097-development-audit-008/snapshot/gnomon/item_1457251_store_14/round-3/project/experiments.jsonl": "04f451f6d6ec08b585adc51ae396147535f9222f33cc395606d457555f6e806f",
+    "results/workflow-097-development-audit-008/snapshot/ledger/item_1457251_store_14/round-3/project/experiments.jsonl": "5cc6bb1d27ac4431becf04f946bb72f9301eb0052c0b1bca48ba925802e4f189",
+    "results/workflow-097-development-audit-008/snapshot/plain/item_1457251_store_14/round-4/project/experiments.jsonl": "8bed4a43b7821dc4fe6b1aedd4696b9c6f87d39c41a35885a4f28ee99bbc9aa6",
+    "results/workflow-097-development-audit-008/snapshot/gnomon/item_1457251_store_14/round-4/project/experiments.jsonl": "53604e418f097cf9d984d4cf248f5e3b9863d635803cb4c6d8d0f5835b4a9a2f",
+    "results/workflow-097-development-audit-008/snapshot/ledger/item_1457251_store_14/round-4/project/experiments.jsonl": "a384e140e6bcd3f54ee1df5b20a2a91a757cf9545f7f9315c353acf442787cce",
+    "results/workflow-097-development-audit-008/snapshot/plain/item_1457251_store_14/round-5/project/experiments.jsonl": "90cd1ad9cca11a7bfdf0ffc1386b8b078978b1363d4d9091897abb99c6e71ac2",
+    "results/workflow-097-development-audit-008/snapshot/gnomon/item_1457251_store_14/round-5/project/experiments.jsonl": "4851f4f5f45bfe9b4baf3a4a9236be3f87aaf511d31a0dde9e9aae20028718b5",
+    "results/workflow-097-development-audit-008/snapshot/ledger/item_1457251_store_14/round-5/project/experiments.jsonl": "1c113421ef0ce4fd1a4d27e11a16f747218477714c0f5e1eb3cf3f88157ee350",
+    "results/workflow-097-development-audit-008/snapshot/plain/item_1457251_store_14/round-6/project/experiments.jsonl": "f65642ec3321e2aff17c6862e9a5da4f898dc9c1db798ac9e92ace25b42c51a4",
+    "results/workflow-097-development-audit-008/snapshot/gnomon/item_1457251_store_14/round-6/project/experiments.jsonl": "479fdf88fee6f9fa57ae4d8ed30e0609553e2c030ee9d8f54aa33f1c32317f04",
+    "results/workflow-097-development-audit-009/snapshot/ledger/item_1457251_store_14/round-6/project/experiments.jsonl": "593f493dd7c5433d4f2a33cc51e03f87014ba4554fd165f622e250d32904abcb",
+    "results/workflow-097-development-audit-009/snapshot/plain/item_1457251_store_14/round-7/project/experiments.jsonl": "7800a46f12ab78d87670e04db2b9731af3e0ecfbb3adb7cbab0bb3e1d347ec7f",
+    "results/workflow-097-development-audit-009/snapshot/gnomon/item_1457251_store_14/round-7/project/experiments.jsonl": "0e11e874a9d6699a3ee245f2a251f14fd613c93a92e0c8db4a0e18938275c60f",
+    "results/workflow-097-development-audit-009/snapshot/ledger/item_1457251_store_14/round-7/project/experiments.jsonl": "5101590a6b86040dc99bd827e30823790e21a31701fa4e487f7eafab7cb2906d",
+    "results/workflow-097-development-audit-009/snapshot/plain/item_1457251_store_14/round-8/project/experiments.jsonl": "3455a4c18a8541e369fa323b9e332cdcb4c49840a545e92397a157f31358cf1d",
+    "results/workflow-097-development-audit-009/snapshot/gnomon/item_1457251_store_14/round-8/project/experiments.jsonl": "ecee0be07723043b4830b14f42f7cc49e98fc6145b77604ee0b11d747de7b36b",
+    "results/workflow-097-development-audit-009/snapshot/ledger/item_1457251_store_14/round-8/project/experiments.jsonl": "0b6dcab040a5171ba5245cd23051e9c454ca467672d93b4637b79436a6faa58c",
+    "results/workflow-097-development-audit-009/snapshot/plain/item_1457251_store_14/round-9/project/experiments.jsonl": "718a46f29d7134693e44d00721d861f4ca8c7d5aee8a2f01508755a1e62d307e",
+    "results/workflow-097-development-audit-009/snapshot/gnomon/item_1457251_store_14/round-9/project/experiments.jsonl": "85ab686b31846715e099bc11e819b7b1e9dc9a875b3b904828490392fd9dd642",
+    "results/workflow-097-development-audit-009/snapshot/ledger/item_1457251_store_14/round-9/project/experiments.jsonl": "9dcbeed1978e898ec2aa92bc7fcdda1e5a8530361d1d4752212d8f6b0b173f68",
+    "results/workflow-097-development-audit-009/snapshot/plain/item_1457251_store_14/round-10/project/experiments.jsonl": "cd8158baa7e776dfb40f53b586aa366eef8b0a54ab1d58f62402cacb12879044",
+    "results/workflow-097-development-audit-009/snapshot/gnomon/item_1457251_store_14/round-10/project/experiments.jsonl": "2811d430635cf58a0ff542fc0bc805d7592bd61251f118ce988aac327c16d06b",
+    "results/workflow-097-development-audit-009/snapshot/ledger/item_1457251_store_14/round-10/project/experiments.jsonl": "09bb479e24cbcbbb6e4a30db7cedc18f044fca242513f58caa5bf2533e4daa81",
+    "results/workflow-097-development-audit-010/snapshot/plain/item_1457251_store_14/round-11/project/experiments.jsonl": "f6d7364bace863c5c04944751776038e157bfe2391c57887282b403761f7c3ec",
+    "results/workflow-097-development-audit-010/snapshot/gnomon/item_1457251_store_14/round-11/project/experiments.jsonl": "da81923c94200a01e19b7c63a8e6e85c674833bcfac5a886d3e3e7621f5a240a",
+    "results/workflow-097-development-audit-010/snapshot/ledger/item_1457251_store_14/round-11/project/experiments.jsonl": "03a9d512659d0f30b47266f3f4126895ad48bb7a9b123243e7e105bbb67eac09",
+    "results/workflow-097-development-audit-010/snapshot/plain/item_1457251_store_14/round-12/project/experiments.jsonl": "515164315896c1b697cfe9079976cefd9c7de0a69fc12cbbfaa4417a8372d23b",
+    "results/workflow-097-development-audit-010/snapshot/gnomon/item_1457251_store_14/round-12/project/experiments.jsonl": "553346072c899ed5fc6647e100144052b8efcc13602e3eeaa411df01dac7c888",
+    "results/workflow-097-development-audit-010/snapshot/ledger/item_1457251_store_14/round-12/project/experiments.jsonl": "c88d39c59483dc51431b25480d14f60951efb88f564e06d78d98ac0687949e72",
+    "results/workflow-097-development-audit-010/snapshot/plain/item_1457251_store_14/round-13/project/experiments.jsonl": "5c97047064909dbe5d02d512568896466c575112f1f4a8dbb39396fda74abe01",
+    "results/workflow-097-development-audit-010/snapshot/gnomon/item_1457251_store_14/round-13/project/experiments.jsonl": "d78b7eb665f5ccc4aae1c9b00d7bafa315bb7a402475e14103913d6fef3da113",
+    "results/workflow-097-development-audit-010/snapshot/ledger/item_1457251_store_14/round-13/project/experiments.jsonl": "ad342754d1d5d04af991ba7c9b890fa70cbb8012ecc7c3a03acef78b2c9b7134",
+    "results/workflow-097-development-audit-010/snapshot/plain/item_1457251_store_14/round-14/project/experiments.jsonl": "0d59a1d49f31122b7ab7dd468c07a5aaefd9e6c61735c66568042d3f33212816",
+    "results/workflow-097-development-audit-010/snapshot/gnomon/item_1457251_store_14/round-14/project/experiments.jsonl": "3b197bfc69583d20ce0ed5011d9a3ee73454be2303e6f87b58a473b0c3694242",
+    "results/workflow-097-development-audit-010/snapshot/ledger/item_1457251_store_14/round-14/project/experiments.jsonl": "e2cf368d8d24cd875ff8daebb11f8f8c34c5b3a4bcf7e0c0a2c843b49e83d9e9"
+  },
+  "source_files_unchanged": true,
+  "analyzer_sha256": "8e389aa75267f750439901bf2a1e7d000ebf4c4cedc67430985eb35e8d9ad1fe",
+  "per_case": [
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 0,
+      "origin": "2016-08-16T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.6448454479465352,
+          "best_executed_rmsle": 0.6448454479465352
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.6448454479465352,
+          "best_executed_rmsle": 0.6448454479465352
+        },
+        "ledger": {
+          "executed_forecasts": 4,
+          "selected_rmsle": 0.6528094515964845,
+          "best_executed_rmsle": 0.6448454479465352
+        }
+      },
+      "unique_executed_configurations": 5,
+      "best_executed_union_rmsle": 0.6448454479465352,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 5
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 1,
+      "origin": "2016-08-30T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.5308334089651892,
+          "best_executed_rmsle": 0.5198539869784269
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.5308334089651892,
+          "best_executed_rmsle": 0.5198539869784269
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.48625357392095925,
+          "best_executed_rmsle": 0.48625357392095925
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.48625357392095925,
+      "best_config_ids": [
+        "dad9469f1ab8a4ce"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 2,
+      "origin": "2016-09-13T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 1.325125610418538,
+          "best_executed_rmsle": 0.9341020335747072
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 1.325125610418538,
+          "best_executed_rmsle": 0.9341020335747072
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 1.3889501090582914,
+          "best_executed_rmsle": 0.9341020335747072
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.9341020335747072,
+      "best_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "unique_point_vectors": 3
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 3,
+      "origin": "2016-09-27T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.8215182023789181,
+          "best_executed_rmsle": 0.8215182023789181
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.8215182023789181,
+          "best_executed_rmsle": 0.8215182023789181
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.8215182023789181,
+          "best_executed_rmsle": 0.7252771659427564
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.7252771659427564,
+      "best_config_ids": [
+        "ab33ecb653037898"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 4,
+      "origin": "2016-10-11T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.8733644048653649,
+          "best_executed_rmsle": 0.8733644048653649
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.8733644048653649,
+          "best_executed_rmsle": 0.8733644048653649
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.8733644048653649,
+          "best_executed_rmsle": 0.8733644048653649
+        }
+      },
+      "unique_executed_configurations": 5,
+      "best_executed_union_rmsle": 0.8733644048653649,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 5
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 5,
+      "origin": "2016-10-25T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 6,
+          "selected_rmsle": 0.6879850336012912,
+          "best_executed_rmsle": 0.540779992988845
+        },
+        "gnomon": {
+          "executed_forecasts": 5,
+          "selected_rmsle": 0.6879850336012912,
+          "best_executed_rmsle": 0.540779992988845
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.6931448792579831,
+          "best_executed_rmsle": 0.6119382336008762
+        }
+      },
+      "unique_executed_configurations": 7,
+      "best_executed_union_rmsle": 0.540779992988845,
+      "best_config_ids": [
+        "c7a7a31e2fa9db47"
+      ],
+      "unique_point_vectors": 7
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 6,
+      "origin": "2016-11-08T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.6431099286767685,
+          "best_executed_rmsle": 0.6431099286767685
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.6431099286767685,
+          "best_executed_rmsle": 0.6431099286767685
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.6431099286767685,
+          "best_executed_rmsle": 0.6431099286767685
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.6431099286767685,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 3
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 7,
+      "origin": "2016-11-22T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.7500384962091119,
+          "best_executed_rmsle": 0.7500384962091119
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.7500384962091119,
+          "best_executed_rmsle": 0.7500384962091119
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.8087338529960167,
+          "best_executed_rmsle": 0.7967923947449866
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.7500384962091119,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 8,
+      "origin": "2016-12-06T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.6806092537734244,
+          "best_executed_rmsle": 0.5854657200704801
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.6806092537734244,
+          "best_executed_rmsle": 0.6806092537734244
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.6806092537734244,
+          "best_executed_rmsle": 0.6806092537734244
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.5854657200704801,
+      "best_config_ids": [
+        "c7a7a31e2fa9db47"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 9,
+      "origin": "2016-12-20T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 4,
+          "selected_rmsle": 1.0221609550159385,
+          "best_executed_rmsle": 1.0085561436721
+        },
+        "gnomon": {
+          "executed_forecasts": 4,
+          "selected_rmsle": 1.0221609550159385,
+          "best_executed_rmsle": 1.0085561436721
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 1.0572933293034694,
+          "best_executed_rmsle": 1.0572933293034694
+        }
+      },
+      "unique_executed_configurations": 5,
+      "best_executed_union_rmsle": 1.0085561436721,
+      "best_config_ids": [
+        "3df33682b95204d5"
+      ],
+      "unique_point_vectors": 5
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 10,
+      "origin": "2017-01-03T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.6308698773461942,
+          "best_executed_rmsle": 0.6202692748873436
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.6308698773461942,
+          "best_executed_rmsle": 0.6308698773461942
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.6308698773461942,
+          "best_executed_rmsle": 0.6308698773461942
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.6202692748873436,
+      "best_config_ids": [
+        "c7a7a31e2fa9db47"
+      ],
+      "unique_point_vectors": 3
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 11,
+      "origin": "2017-01-17T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.5516992785248077,
+          "best_executed_rmsle": 0.5516992785248077
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.6315793357566355,
+          "best_executed_rmsle": 0.5516992785248077
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.6315793357566355,
+          "best_executed_rmsle": 0.5516992785248077
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.5516992785248077,
+      "best_config_ids": [
+        "c7a7a31e2fa9db47"
+      ],
+      "unique_point_vectors": 3
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 12,
+      "origin": "2017-01-31T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.7981663017342245,
+          "best_executed_rmsle": 0.7903546384534699
+        },
+        "gnomon": {
+          "executed_forecasts": 4,
+          "selected_rmsle": 0.8050429325636215,
+          "best_executed_rmsle": 0.6917192571677597
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.7981663017342245,
+          "best_executed_rmsle": 0.7903546384534699
+        }
+      },
+      "unique_executed_configurations": 6,
+      "best_executed_union_rmsle": 0.6917192571677597,
+      "best_config_ids": [
+        "f7e9dfb9ccb13449"
+      ],
+      "unique_point_vectors": 6
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 13,
+      "origin": "2017-02-14T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.7906904198882062,
+          "best_executed_rmsle": 0.7906904198882062
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.8210010706656694,
+          "best_executed_rmsle": 0.7906904198882062
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.793453070361215,
+          "best_executed_rmsle": 0.7906904198882062
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.7906904198882062,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 14,
+      "origin": "2017-02-28T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 4,
+          "selected_rmsle": 0.724206183292462,
+          "best_executed_rmsle": 0.6176710815984218
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.724206183292462,
+          "best_executed_rmsle": 0.724206183292462
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.724206183292462,
+          "best_executed_rmsle": 0.724206183292462
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.6176710815984218,
+      "best_config_ids": [
+        "b12a9bcd0cd66bcb"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 15,
+      "origin": "2017-03-14T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.9258927396388305,
+          "best_executed_rmsle": 0.8113414200822194
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.8113414200822194,
+          "best_executed_rmsle": 0.8113414200822194
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.8113414200822194,
+          "best_executed_rmsle": 0.8113414200822194
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.8113414200822194,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 3
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 16,
+      "origin": "2017-03-28T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.5292732612967299,
+          "best_executed_rmsle": 0.43979719747589185
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.5292732612967299,
+          "best_executed_rmsle": 0.43979719747589185
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.5292732612967299,
+          "best_executed_rmsle": 0.5292732612967299
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.43979719747589185,
+      "best_config_ids": [
+        "c7a7a31e2fa9db47"
+      ],
+      "unique_point_vectors": 3
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 17,
+      "origin": "2017-04-11T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.5753322965957048,
+          "best_executed_rmsle": 0.557677685849829
+        },
+        "gnomon": {
+          "executed_forecasts": 4,
+          "selected_rmsle": 0.5169260986342336,
+          "best_executed_rmsle": 0.5169260986342336
+        },
+        "ledger": {
+          "executed_forecasts": 4,
+          "selected_rmsle": 0.5169260986342336,
+          "best_executed_rmsle": 0.5169260986342336
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.5169260986342336,
+      "best_config_ids": [
+        "dad9469f1ab8a4ce"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 18,
+      "origin": "2017-04-25T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 4,
+          "selected_rmsle": 0.7362162775303083,
+          "best_executed_rmsle": 0.5194654915980826
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.7785755015078955,
+          "best_executed_rmsle": 0.5194654915980826
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.7785755015078955,
+          "best_executed_rmsle": 0.5194654915980826
+        }
+      },
+      "unique_executed_configurations": 5,
+      "best_executed_union_rmsle": 0.5194654915980826,
+      "best_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "unique_point_vectors": 5
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 19,
+      "origin": "2017-05-09T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.7182226739418988,
+          "best_executed_rmsle": 0.7000988363094861
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.7182226739418988,
+          "best_executed_rmsle": 0.7000988363094861
+        },
+        "ledger": {
+          "executed_forecasts": 4,
+          "selected_rmsle": 0.7182226739418988,
+          "best_executed_rmsle": 0.7000988363094861
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.7000988363094861,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 20,
+      "origin": "2017-05-23T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.5230487875664691,
+          "best_executed_rmsle": 0.5230487875664691
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.5230487875664691,
+          "best_executed_rmsle": 0.5230487875664691
+        },
+        "ledger": {
+          "executed_forecasts": 4,
+          "selected_rmsle": 0.5230487875664691,
+          "best_executed_rmsle": 0.5230487875664691
+        }
+      },
+      "unique_executed_configurations": 5,
+      "best_executed_union_rmsle": 0.5230487875664691,
+      "best_config_ids": [
+        "c7a7a31e2fa9db47"
+      ],
+      "unique_point_vectors": 5
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 21,
+      "origin": "2017-06-06T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.6979152207393896,
+          "best_executed_rmsle": 0.5145505483166003
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.7041520013453145,
+          "best_executed_rmsle": 0.5145505483166003
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.7041520013453145,
+          "best_executed_rmsle": 0.5145505483166003
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.5145505483166003,
+      "best_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "unique_point_vectors": 3
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 22,
+      "origin": "2017-06-20T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 4,
+          "selected_rmsle": 0.9225447373070933,
+          "best_executed_rmsle": 0.8441618643837945
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.9225447373070933,
+          "best_executed_rmsle": 0.8441618643837945
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.9225447373070933,
+          "best_executed_rmsle": 0.9225447373070933
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.8441618643837945,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 23,
+      "origin": "2017-07-04T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.8460048854731828,
+          "best_executed_rmsle": 0.8460048854731828
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.8460048854731828,
+          "best_executed_rmsle": 0.8460048854731828
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.7942564400044206,
+          "best_executed_rmsle": 0.7942564400044206
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.7942564400044206,
+      "best_config_ids": [
+        "dad9469f1ab8a4ce"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 24,
+      "origin": "2017-07-18T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.7026924712879301,
+          "best_executed_rmsle": 0.7026924712879301
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.7026924712879301,
+          "best_executed_rmsle": 0.6667781306721795
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.6595133215221423,
+          "best_executed_rmsle": 0.6595133215221423
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.6595133215221423,
+      "best_config_ids": [
+        "dad9469f1ab8a4ce"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1047756_store_23",
+      "round": 25,
+      "origin": "2017-08-01T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.8684826217925438,
+          "best_executed_rmsle": 0.772781013752489
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.8684826217925438,
+          "best_executed_rmsle": 0.772781013752489
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.8029528758745577,
+          "best_executed_rmsle": 0.772781013752489
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.772781013752489,
+      "best_config_ids": [
+        "c7a7a31e2fa9db47"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 0,
+      "origin": "2016-08-16T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.1791339731170725,
+          "best_executed_rmsle": 0.1789120316587231
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.1791339731170725,
+          "best_executed_rmsle": 0.1791339731170725
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.1791339731170725,
+          "best_executed_rmsle": 0.1791339731170725
+        }
+      },
+      "unique_executed_configurations": 5,
+      "best_executed_union_rmsle": 0.1789120316587231,
+      "best_config_ids": [
+        "a4069c1b7b93fd25"
+      ],
+      "unique_point_vectors": 5
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 1,
+      "origin": "2016-08-30T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.24172748912946956,
+          "best_executed_rmsle": 0.24172748912946956
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.24172748912946956,
+          "best_executed_rmsle": 0.24172748912946956
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.24172748912946956,
+          "best_executed_rmsle": 0.24172748912946956
+        }
+      },
+      "unique_executed_configurations": 5,
+      "best_executed_union_rmsle": 0.24172748912946956,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 5
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 2,
+      "origin": "2016-09-13T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.1802660412158594,
+          "best_executed_rmsle": 0.1802660412158594
+        },
+        "gnomon": {
+          "executed_forecasts": 4,
+          "selected_rmsle": 0.1802660412158594,
+          "best_executed_rmsle": 0.17299031407964516
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.1802660412158594,
+          "best_executed_rmsle": 0.1802660412158594
+        }
+      },
+      "unique_executed_configurations": 5,
+      "best_executed_union_rmsle": 0.17299031407964516,
+      "best_config_ids": [
+        "03c5c6ff404b1d50"
+      ],
+      "unique_point_vectors": 5
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 3,
+      "origin": "2016-09-27T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.42899561467006525,
+          "best_executed_rmsle": 0.42899561467006525
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.42899561467006525,
+          "best_executed_rmsle": 0.42899561467006525
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.42899561467006525,
+          "best_executed_rmsle": 0.42899561467006525
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.42899561467006525,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 4,
+      "origin": "2016-10-11T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 4,
+          "selected_rmsle": 0.08624727007343573,
+          "best_executed_rmsle": 0.08624727007343573
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.08722781068023455,
+          "best_executed_rmsle": 0.07610145300777794
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.08624727007343573,
+          "best_executed_rmsle": 0.08624727007343573
+        }
+      },
+      "unique_executed_configurations": 7,
+      "best_executed_union_rmsle": 0.07610145300777794,
+      "best_config_ids": [
+        "dad9469f1ab8a4ce"
+      ],
+      "unique_point_vectors": 7
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 5,
+      "origin": "2016-10-25T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.36132735979231284,
+          "best_executed_rmsle": 0.36132735979231284
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.36132735979231284,
+          "best_executed_rmsle": 0.36132735979231284
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.36132735979231284,
+          "best_executed_rmsle": 0.36132735979231284
+        }
+      },
+      "unique_executed_configurations": 5,
+      "best_executed_union_rmsle": 0.36132735979231284,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 5
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 6,
+      "origin": "2016-11-08T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.07262704181327873,
+          "best_executed_rmsle": 0.07262704181327873
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.07262704181327873,
+          "best_executed_rmsle": 0.07262704181327873
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.07262704181327873,
+          "best_executed_rmsle": 0.07262704181327873
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.07262704181327873,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 3
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 7,
+      "origin": "2016-11-22T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 4,
+          "selected_rmsle": 0.06593449931731887,
+          "best_executed_rmsle": 0.0
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.0874874198712929,
+          "best_executed_rmsle": 0.0
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.0874874198712929,
+          "best_executed_rmsle": 0.0
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.0,
+      "best_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 8,
+      "origin": "2016-12-06T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.24508214118428012,
+          "best_executed_rmsle": 0.24508214118428012
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.2478543641963791,
+          "best_executed_rmsle": 0.2478543641963791
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.2478543641963791,
+          "best_executed_rmsle": 0.2478543641963791
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.24508214118428012,
+      "best_config_ids": [
+        "282fcc20124e9244"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 9,
+      "origin": "2016-12-20T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.17757463170041507,
+          "best_executed_rmsle": 0.17757463170041507
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.17757463170041507,
+          "best_executed_rmsle": 0.17757463170041507
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.17757463170041507,
+          "best_executed_rmsle": 0.17757463170041507
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.17757463170041507,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 3
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 10,
+      "origin": "2017-01-03T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.08764227213738825,
+          "best_executed_rmsle": 0.0
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.08764227213738825,
+          "best_executed_rmsle": 0.0
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.08764227213738825,
+          "best_executed_rmsle": 0.0
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.0,
+      "best_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "unique_point_vectors": 3
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 11,
+      "origin": "2017-01-17T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.12453337255235375,
+          "best_executed_rmsle": 0.12453337255235375
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.12453337255235375,
+          "best_executed_rmsle": 0.12453337255235375
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.12453337255235375,
+          "best_executed_rmsle": 0.12453337255235375
+        }
+      },
+      "unique_executed_configurations": 5,
+      "best_executed_union_rmsle": 0.12453337255235375,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 5
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 12,
+      "origin": "2017-01-31T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.09026621714209752,
+          "best_executed_rmsle": 0.09026621714209752
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.09026621714209752,
+          "best_executed_rmsle": 0.09026621714209752
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.09026621714209752,
+          "best_executed_rmsle": 0.09026621714209752
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.09026621714209752,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 13,
+      "origin": "2017-02-14T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.18041460968544915,
+          "best_executed_rmsle": 0.16964233440952206
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.18041460968544915,
+          "best_executed_rmsle": 0.17975300809262665
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.18041460968544915,
+          "best_executed_rmsle": 0.18041460968544915
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.16964233440952206,
+      "best_config_ids": [
+        "282fcc20124e9244"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 14,
+      "origin": "2017-02-28T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.23715677982813074,
+          "best_executed_rmsle": 0.23715677982813074
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.23715677982813074,
+          "best_executed_rmsle": 0.23715677982813074
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.23715677982813074,
+          "best_executed_rmsle": 0.23715677982813074
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.23715677982813074,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 3
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 15,
+      "origin": "2017-03-14T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.40879943104405025,
+          "best_executed_rmsle": 0.4070869076054379
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.40879943104405025,
+          "best_executed_rmsle": 0.40879943104405025
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.40879943104405025,
+          "best_executed_rmsle": 0.40879943104405025
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.4070869076054379,
+      "best_config_ids": [
+        "a4069c1b7b93fd25"
+      ],
+      "unique_point_vectors": 3
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 16,
+      "origin": "2017-03-28T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.2574450186399509,
+          "best_executed_rmsle": 0.2574450186399509
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.2574450186399509,
+          "best_executed_rmsle": 0.2574450186399509
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.2574450186399509,
+          "best_executed_rmsle": 0.23708193383065404
+        }
+      },
+      "unique_executed_configurations": 5,
+      "best_executed_union_rmsle": 0.23708193383065404,
+      "best_config_ids": [
+        "b508b90f44a42de6"
+      ],
+      "unique_point_vectors": 5
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 17,
+      "origin": "2017-04-11T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.32188019445646304,
+          "best_executed_rmsle": 0.32188019445646304
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.32188019445646304,
+          "best_executed_rmsle": 0.32188019445646304
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.3262059964458167,
+          "best_executed_rmsle": 0.3262059964458167
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.32188019445646304,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 18,
+      "origin": "2017-04-25T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.2550126616928281,
+          "best_executed_rmsle": 0.2550126616928281
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.2348550592419893,
+          "best_executed_rmsle": 0.2348550592419893
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.2550126616928281,
+          "best_executed_rmsle": 0.2550126616928281
+        }
+      },
+      "unique_executed_configurations": 5,
+      "best_executed_union_rmsle": 0.2348550592419893,
+      "best_config_ids": [
+        "dad9469f1ab8a4ce"
+      ],
+      "unique_point_vectors": 5
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 19,
+      "origin": "2017-05-09T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.07521083371088463,
+          "best_executed_rmsle": 0.07402803553578559
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.07402803553578559,
+          "best_executed_rmsle": 0.07402803553578559
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.07402803553578559,
+          "best_executed_rmsle": 0.06499214477257333
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.06499214477257333,
+      "best_config_ids": [
+        "c7a7a31e2fa9db47"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 20,
+      "origin": "2017-05-23T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.2420346316949476,
+          "best_executed_rmsle": 0.2420346316949476
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.2420346316949476,
+          "best_executed_rmsle": 0.2420346316949476
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.2420346316949476,
+          "best_executed_rmsle": 0.2420346316949476
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.2420346316949476,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 3
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 21,
+      "origin": "2017-06-06T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.20492272563629804,
+          "best_executed_rmsle": 0.1861389074027619
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.20241447840124915,
+          "best_executed_rmsle": 0.18648486490937008
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.1984577923451861,
+          "best_executed_rmsle": 0.1984577923451861
+        }
+      },
+      "unique_executed_configurations": 6,
+      "best_executed_union_rmsle": 0.1861389074027619,
+      "best_config_ids": [
+        "a4069c1b7b93fd25"
+      ],
+      "unique_point_vectors": 6
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 22,
+      "origin": "2017-06-20T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.3964206129942935,
+          "best_executed_rmsle": 0.3964206129942935
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.3964206129942935,
+          "best_executed_rmsle": 0.3866942930409749
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.3964206129942935,
+          "best_executed_rmsle": 0.3964206129942935
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.3866942930409749,
+      "best_config_ids": [
+        "b508b90f44a42de6"
+      ],
+      "unique_point_vectors": 3
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 23,
+      "origin": "2017-07-04T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.24833266726306172,
+          "best_executed_rmsle": 0.24833266726306172
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.24833266726306172,
+          "best_executed_rmsle": 0.24833266726306172
+        },
+        "ledger": {
+          "executed_forecasts": 4,
+          "selected_rmsle": 0.2574071964890172,
+          "best_executed_rmsle": 0.24833266726306172
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.24833266726306172,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 24,
+      "origin": "2017-07-18T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.3766794886159285,
+          "best_executed_rmsle": 0.3766794886159285
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.3766794886159285,
+          "best_executed_rmsle": 0.3738037225374377
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.3766794886159285,
+          "best_executed_rmsle": 0.3766794886159285
+        }
+      },
+      "unique_executed_configurations": 3,
+      "best_executed_union_rmsle": 0.3738037225374377,
+      "best_config_ids": [
+        "c7a7a31e2fa9db47"
+      ],
+      "unique_point_vectors": 3
+    },
+    {
+      "series_id": "item_1304243_store_32",
+      "round": 25,
+      "origin": "2017-08-01T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.3999874721667003,
+          "best_executed_rmsle": 0.3999874721667003
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.3999874721667003,
+          "best_executed_rmsle": 0.3999874721667003
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.3999874721667003,
+          "best_executed_rmsle": 0.3999874721667003
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.3999874721667003,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 0,
+      "origin": "2016-08-16T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 4,
+          "selected_rmsle": 0.5724006373904262,
+          "best_executed_rmsle": 0.5724006373904262
+        },
+        "gnomon": {
+          "executed_forecasts": 4,
+          "selected_rmsle": 0.5724006373904262,
+          "best_executed_rmsle": 0.5365446128874054
+        },
+        "ledger": {
+          "executed_forecasts": 4,
+          "selected_rmsle": 0.5724006373904262,
+          "best_executed_rmsle": 0.5365446128874054
+        }
+      },
+      "unique_executed_configurations": 6,
+      "best_executed_union_rmsle": 0.5365446128874054,
+      "best_config_ids": [
+        "282fcc20124e9244"
+      ],
+      "unique_point_vectors": 6
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 1,
+      "origin": "2016-08-30T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 4,
+          "selected_rmsle": 0.5214333194856963,
+          "best_executed_rmsle": 0.48928735923928246
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.5214333194856963,
+          "best_executed_rmsle": 0.498846989410846
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.48928735923928246,
+          "best_executed_rmsle": 0.48928735923928246
+        }
+      },
+      "unique_executed_configurations": 5,
+      "best_executed_union_rmsle": 0.48928735923928246,
+      "best_config_ids": [
+        "282fcc20124e9244"
+      ],
+      "unique_point_vectors": 5
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 2,
+      "origin": "2016-09-13T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.31032515446341663,
+          "best_executed_rmsle": 0.2416763489843939
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.2416763489843939,
+          "best_executed_rmsle": 0.2416763489843939
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.31032515446341663,
+          "best_executed_rmsle": 0.2416763489843939
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.2416763489843939,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 3,
+      "origin": "2016-09-27T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.07630911417210567,
+          "best_executed_rmsle": 0.0
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.14149205968175335,
+          "best_executed_rmsle": 0.0
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.14149205968175335,
+          "best_executed_rmsle": 0.0
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.0,
+      "best_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 4,
+      "origin": "2016-10-11T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.08783781200583572,
+          "best_executed_rmsle": 0.0
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.1223253847230396,
+          "best_executed_rmsle": 0.0
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.128051616655177,
+          "best_executed_rmsle": 0.0
+        }
+      },
+      "unique_executed_configurations": 5,
+      "best_executed_union_rmsle": 0.0,
+      "best_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "unique_point_vectors": 5
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 5,
+      "origin": "2016-10-25T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.3480896370085972,
+          "best_executed_rmsle": 0.3480896370085972
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.3480896370085972,
+          "best_executed_rmsle": 0.3480896370085972
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.3923984472017547,
+          "best_executed_rmsle": 0.3514994375079962
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.3480896370085972,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 6,
+      "origin": "2016-11-08T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.4460595386305033,
+          "best_executed_rmsle": 0.4460595386305033
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.3961642564103852,
+          "best_executed_rmsle": 0.3961642564103852
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.7180543185187105,
+          "best_executed_rmsle": 0.3961642564103852
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.3961642564103852,
+      "best_config_ids": [
+        "c7a7a31e2fa9db47"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 7,
+      "origin": "2016-11-22T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.2653014077141931,
+          "best_executed_rmsle": 0.2653014077141931
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.2994950036161679,
+          "best_executed_rmsle": 0.2653014077141931
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.2994950036161679,
+          "best_executed_rmsle": 0.2653014077141931
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.2653014077141931,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 8,
+      "origin": "2016-12-06T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.05767768083891833,
+          "best_executed_rmsle": 0.0
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.05767768083891833,
+          "best_executed_rmsle": 0.0
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.13912043633236912,
+          "best_executed_rmsle": 0.0
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.0,
+      "best_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 9,
+      "origin": "2016-12-20T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.10442016856050172,
+          "best_executed_rmsle": 0.0
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.10442016856050172,
+          "best_executed_rmsle": 0.0
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.057755464992138655,
+          "best_executed_rmsle": 0.0
+        }
+      },
+      "unique_executed_configurations": 5,
+      "best_executed_union_rmsle": 0.0,
+      "best_config_ids": [
+        "5ee336af9243f066"
+      ],
+      "unique_point_vectors": 5
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 10,
+      "origin": "2017-01-03T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.32750787110773955,
+          "best_executed_rmsle": 0.32052455304817135
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.336547146285478,
+          "best_executed_rmsle": 0.32750787110773955
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.32052455304817135,
+          "best_executed_rmsle": 0.32052455304817135
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.32052455304817135,
+      "best_config_ids": [
+        "282fcc20124e9244"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 11,
+      "origin": "2017-01-17T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.49097599224558874,
+          "best_executed_rmsle": 0.3303200685768701
+        },
+        "gnomon": {
+          "executed_forecasts": 4,
+          "selected_rmsle": 0.3715788675095532,
+          "best_executed_rmsle": 0.3604099315981803
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.3696712666839302,
+          "best_executed_rmsle": 0.3604099315981803
+        }
+      },
+      "unique_executed_configurations": 7,
+      "best_executed_union_rmsle": 0.3303200685768701,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 7
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 12,
+      "origin": "2017-01-31T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.5045808221688964,
+          "best_executed_rmsle": 0.5045808221688964
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.5045808221688964,
+          "best_executed_rmsle": 0.5012499443391978
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.5146859944368146,
+          "best_executed_rmsle": 0.5146859944368146
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.5012499443391978,
+      "best_config_ids": [
+        "282fcc20124e9244"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 13,
+      "origin": "2017-02-14T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 4,
+          "selected_rmsle": 0.39989221650502343,
+          "best_executed_rmsle": 0.3809890961714616
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.38455082612619795,
+          "best_executed_rmsle": 0.38455082612619795
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.4241056278839053,
+          "best_executed_rmsle": 0.4241056278839053
+        }
+      },
+      "unique_executed_configurations": 7,
+      "best_executed_union_rmsle": 0.3809890961714616,
+      "best_config_ids": [
+        "221b35eed2a5d209"
+      ],
+      "unique_point_vectors": 7
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 14,
+      "origin": "2017-02-28T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.41416754762325686,
+          "best_executed_rmsle": 0.41416754762325686
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.491995332597519,
+          "best_executed_rmsle": 0.4112001352173637
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.4112001352173637,
+          "best_executed_rmsle": 0.4112001352173637
+        }
+      },
+      "unique_executed_configurations": 6,
+      "best_executed_union_rmsle": 0.4112001352173637,
+      "best_config_ids": [
+        "282fcc20124e9244"
+      ],
+      "unique_point_vectors": 6
+    },
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 15,
+      "origin": "2017-03-14T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.5030288255224643,
+          "best_executed_rmsle": 0.47243287729259464
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.4822612311558141,
+          "best_executed_rmsle": 0.47243287729259464
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.47243287729259464,
+          "best_executed_rmsle": 0.47243287729259464
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.47243287729259464,
+      "best_config_ids": [
+        "282fcc20124e9244"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 0,
+      "origin": "2016-08-16T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.5026168607130874,
+          "best_executed_rmsle": 0.44984771796698253
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.5026168607130874,
+          "best_executed_rmsle": 0.4617357804033932
+        },
+        "ledger": {
+          "executed_forecasts": 4,
+          "selected_rmsle": 0.492984011654114,
+          "best_executed_rmsle": 0.44984771796698253
+        }
+      },
+      "unique_executed_configurations": 5,
+      "best_executed_union_rmsle": 0.44984771796698253,
+      "best_config_ids": [
+        "c7a7a31e2fa9db47"
+      ],
+      "unique_point_vectors": 5
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 1,
+      "origin": "2016-08-30T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.4822582615046281,
+          "best_executed_rmsle": 0.4822582615046281
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.5166813662305129,
+          "best_executed_rmsle": 0.5166813662305129
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.4822582615046281,
+          "best_executed_rmsle": 0.4822582615046281
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.4822582615046281,
+      "best_config_ids": [
+        "c7a7a31e2fa9db47"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 2,
+      "origin": "2016-09-13T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.5484852026916939,
+          "best_executed_rmsle": 0.5484852026916939
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.5562883246457961,
+          "best_executed_rmsle": 0.5562883246457961
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.5039396716714214,
+          "best_executed_rmsle": 0.5039396716714214
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.5039396716714214,
+      "best_config_ids": [
+        "4e41e048d5d137e0"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 3,
+      "origin": "2016-09-27T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 4,
+          "selected_rmsle": 0.4951503794882833,
+          "best_executed_rmsle": 0.4951503794882833
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.6027142274866089,
+          "best_executed_rmsle": 0.5690242068765021
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.5712485994064338,
+          "best_executed_rmsle": 0.5690242068765021
+        }
+      },
+      "unique_executed_configurations": 5,
+      "best_executed_union_rmsle": 0.4951503794882833,
+      "best_config_ids": [
+        "723e651adebd40dc"
+      ],
+      "unique_point_vectors": 5
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 4,
+      "origin": "2016-10-11T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.5676541294483873,
+          "best_executed_rmsle": 0.5163439071202958
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.5163439071202958,
+          "best_executed_rmsle": 0.5163439071202958
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.5676541294483873,
+          "best_executed_rmsle": 0.5411129222219057
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.5163439071202958,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 5,
+      "origin": "2016-10-25T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 5,
+          "selected_rmsle": 0.656471030156575,
+          "best_executed_rmsle": 0.6559641849365925
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.6957608808392561,
+          "best_executed_rmsle": 0.6957608808392561
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.6559641849365925,
+          "best_executed_rmsle": 0.6559641849365925
+        }
+      },
+      "unique_executed_configurations": 6,
+      "best_executed_union_rmsle": 0.6559641849365925,
+      "best_config_ids": [
+        "c7a7a31e2fa9db47"
+      ],
+      "unique_point_vectors": 6
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 6,
+      "origin": "2016-11-08T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.4201753356060427,
+          "best_executed_rmsle": 0.4201753356060427
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.4201753356060427,
+          "best_executed_rmsle": 0.4201753356060427
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.4201753356060427,
+          "best_executed_rmsle": 0.4201753356060427
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.4201753356060427,
+      "best_config_ids": [
+        "c7a7a31e2fa9db47"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 7,
+      "origin": "2016-11-22T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.3772058695897239,
+          "best_executed_rmsle": 0.3187337175690934
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.3187337175690934,
+          "best_executed_rmsle": 0.3187337175690934
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.3771214314893157,
+          "best_executed_rmsle": 0.3771214314893157
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.3187337175690934,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 8,
+      "origin": "2016-12-06T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 4,
+          "selected_rmsle": 0.4940417818822869,
+          "best_executed_rmsle": 0.4645583079904445
+        },
+        "gnomon": {
+          "executed_forecasts": 4,
+          "selected_rmsle": 0.4940417818822869,
+          "best_executed_rmsle": 0.4940417818822869
+        },
+        "ledger": {
+          "executed_forecasts": 4,
+          "selected_rmsle": 0.5092465998899894,
+          "best_executed_rmsle": 0.4940417818822869
+        }
+      },
+      "unique_executed_configurations": 7,
+      "best_executed_union_rmsle": 0.4645583079904445,
+      "best_config_ids": [
+        "723e651adebd40dc"
+      ],
+      "unique_point_vectors": 7
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 9,
+      "origin": "2016-12-20T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.8975133800467786,
+          "best_executed_rmsle": 0.8828459354531805
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.8975133800467786,
+          "best_executed_rmsle": 0.8828459354531805
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.8936408026188138,
+          "best_executed_rmsle": 0.8828459354531805
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.8828459354531805,
+      "best_config_ids": [
+        "c7a7a31e2fa9db47"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 10,
+      "origin": "2017-01-03T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 4,
+          "selected_rmsle": 0.49097119362804953,
+          "best_executed_rmsle": 0.4337625639325656
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.49097119362804953,
+          "best_executed_rmsle": 0.49097119362804953
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.4606677462636119,
+          "best_executed_rmsle": 0.4337625639325656
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.4337625639325656,
+      "best_config_ids": [
+        "4e41e048d5d137e0"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 11,
+      "origin": "2017-01-17T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 5,
+          "selected_rmsle": 0.327291508708522,
+          "best_executed_rmsle": 0.327291508708522
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.35278984594544877,
+          "best_executed_rmsle": 0.35278984594544877
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.34539872377727904,
+          "best_executed_rmsle": 0.34539872377727904
+        }
+      },
+      "unique_executed_configurations": 6,
+      "best_executed_union_rmsle": 0.327291508708522,
+      "best_config_ids": [
+        "723e651adebd40dc"
+      ],
+      "unique_point_vectors": 6
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 12,
+      "origin": "2017-01-31T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.6375844265328646,
+          "best_executed_rmsle": 0.6375844265328646
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.6375844265328646,
+          "best_executed_rmsle": 0.6375844265328646
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.6348354193322628,
+          "best_executed_rmsle": 0.6348354193322628
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.6348354193322628,
+      "best_config_ids": [
+        "4e41e048d5d137e0"
+      ],
+      "unique_point_vectors": 4
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 13,
+      "origin": "2017-02-14T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.4409096337095777,
+          "best_executed_rmsle": 0.4409096337095777
+        },
+        "gnomon": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.6763583510136979,
+          "best_executed_rmsle": 0.5237376784138678
+        },
+        "ledger": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.4409096337095777,
+          "best_executed_rmsle": 0.4409096337095777
+        }
+      },
+      "unique_executed_configurations": 5,
+      "best_executed_union_rmsle": 0.4409096337095777,
+      "best_config_ids": [
+        "c7a7a31e2fa9db47"
+      ],
+      "unique_point_vectors": 5
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 14,
+      "origin": "2017-02-28T00:00:00+00:00",
+      "per_arm": {
+        "plain": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.5708643366882621,
+          "best_executed_rmsle": 0.5492942316272087
+        },
+        "gnomon": {
+          "executed_forecasts": 2,
+          "selected_rmsle": 0.5492942316272087,
+          "best_executed_rmsle": 0.5492942316272087
+        },
+        "ledger": {
+          "executed_forecasts": 3,
+          "selected_rmsle": 0.5708643366882621,
+          "best_executed_rmsle": 0.5501155979225086
+        }
+      },
+      "unique_executed_configurations": 4,
+      "best_executed_union_rmsle": 0.5492942316272087,
+      "best_config_ids": [
+        "02279b66149d6867"
+      ],
+      "unique_point_vectors": 4
+    }
+  ],
+  "artifacts": {
+    "results/workflow-097-executed-opportunity-001/analyze.py": "8e389aa75267f750439901bf2a1e7d000ebf4c4cedc67430985eb35e8d9ad1fe",
+    "results/workflow-097-executed-opportunity-001/analyze-attempt-001.py": "0ef081f5603123ffebd67bbc0cb4621dc642f81739a03f7ccd24d80ff997746f",
+    "results/workflow-097-executed-opportunity-001/analyze.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/workflow-097-executed-opportunity-001/analyze.stderr": "bac51465c56272b55a1cc00e6981c28729dad5ad488801c6902fcb9249c14ebd",
+    "results/workflow-097-executed-opportunity-001/analyze-002.stdout": "6bb79fdda43dddc57190674e0215ac8bb1c872bce3ae4e67a122105a7d9ec56a",
+    "results/workflow-097-executed-opportunity-001/analyze-002.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/workflow-097-executed-opportunity-001/attempts.json": "1a398857b511ea75a967acd48f39cc5f69d2ab31070ae19ae014cdb71f327ec6",
+    "results/workflow-097-executed-opportunity-001/report.json": "130fa085ac21dc5be95d301760c69668bd8f1d2669d68245c7ee2a2929c5ae80"
+  },
+  "analysis_attempts": [
+    {
+      "argv": [
+        "python3",
+        "results/workflow-097-executed-opportunity-001/analyze.py"
+      ],
+      "exit_status": 1,
+      "source": "analyze-attempt-001.py",
+      "stdout": "analyze.stdout",
+      "stderr": "analyze.stderr",
+      "cause": "Diagnostic assumed Gnomon status field in plain Hermes execution records; original audited records unchanged."
+    },
+    {
+      "argv": [
+        "python3",
+        "results/workflow-097-executed-opportunity-001/analyze.py"
+      ],
+      "exit_status": 0,
+      "source": "analyze.py",
+      "stdout": "analyze-002.stdout",
+      "stderr": "analyze-002.stderr"
+    }
+  ]
+}
