@@ -1,0 +1,42 @@
+{
+  "status": "structural_replay_passed",
+  "counts": {
+    "audited_sessions": 186,
+    "ledger_sessions": 62,
+    "review_calls": 63,
+    "reviews_before_current_backtest": 62,
+    "reviews_without_checkpoint": 62,
+    "cold_reviews_without_catalog": 4,
+    "ledger_sessions_without_review": 0,
+    "reviews_with_eligible_recipes": 46,
+    "eligible_recipes": 137,
+    "displayed_recipes": 133,
+    "reviews_with_admissible_recipe": 0,
+    "admissible_sequential_recipes": 0,
+    "partial_pages": 1
+  },
+  "checks": 1089,
+  "originals_unchanged": true,
+  "engy_calls": 0,
+  "refits": 0,
+  "live_sources_changed": false,
+  "final_gate_opened": false,
+  "objective_established": false,
+  "forecast_selection_made": false,
+  "scope": "All actual ledger review calls in the fixed 186-session prefix; feasibility only, no accuracy claim.",
+  "protocol_freeze_commit": "123e8ca8",
+  "implementation_commit": "a3c95991",
+  "unit_tests": 10,
+  "promoted": false,
+  "limitation": "All 133 displayed calls require a checkpoint; none was immediately admissible.",
+  "evidence_sha256": {
+    "results/planning-recipes-106-offline-001/report.json": "3a5331bfd378774aa96283248cd9eed13526f37824ca8c5ba87fa2f25357af12",
+    "results/planning-recipes-106-offline-001/reviews.jsonl": "0fa59f2c27a8159deb2f3dee918c925acb352d5d587182e3483655040152bb98",
+    "results/planning-recipes-106-launch-001/command.json": "ee30baf764b5df788603bee759f3ec3321f584da835c1b60743280ab953b4c41",
+    "results/planning-recipes-106-launch-001/stdout": "6865ae3be89e5acb3f9203de4962a6688ef6b7a2bab830ecbfaf490a2195750c",
+    "results/planning-recipes-106-launch-001/stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/planning-recipes-106-tests-001/command.json": "143379d4d1f7990a207cadd705466b5f0e05e9d5ec2eff26182a4683ee89bbf6",
+    "results/planning-recipes-106-tests-001/stderr": "45629e08d8c41ba474e149425cf4477b6ed2d14afbd48b41a5dea35ddb36ae32"
+  },
+  "input_hash_count": 262
+}
