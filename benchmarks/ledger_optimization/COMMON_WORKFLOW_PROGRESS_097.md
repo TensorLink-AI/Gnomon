@@ -501,3 +501,47 @@ at 2026-09-15 05:50:40 UTC showed 286/312 completed sessions and a live controll
 all completed workflows were valid. This is distinct from the audited subset.
 The runtime, budgets, candidate-100 freeze, main/PyPI and unopened final-data
 gate remain unchanged. The objective is unestablished.
+
+## Complete disjoint session audit — batch 013
+
+The final 28 sessions passed 24,848 independent checks with no audit failures
+or shutdown gaps. The 86,996,246-byte archive and all 4,315 files were verified.
+The retained pilot and disjoint batches 001–013 now cover every one of the
+312 planned sessions exactly once, with 185,457 independent checks in total:
+all four series, 26 origins and three arms.
+All 104 workflows per arm are valid and complete. No success or accuracy
+filtering was applied. Terminal-archive reconciliation remains a separate step.
+
+| Arm | Mean per-case RMSLE | Reported tokens | API requests | Fits |
+|---|---:|---:|---:|---:|
+| Hermes | 0.477738 | 16,186,603 | 1,060 | 1,292 |
+| Hermes + Gnomon | 0.481893 | 16,357,228 | 1,038 | 1,152 |
+| Hermes + Gnomon + ledger | 0.481300 | 16,065,224 | 988 | 1,180 |
+
+Ledger has 0.1231% lower error than no-ledger Gnomon, with the frozen exploratory
+series-bootstrap 95% interval [-2.1853%, +1.6859%]. There are 31 wins, 26 losses
+and 47 ties. The interval crosses zero, and neither it nor the point estimate
+establishes the target. Relative to plain Hermes, ledger error is 0.7456% higher.
+These are four reused development series with one requested seed; the 2,000
+series-cluster resamples are exploratory, not untouched final confirmation.
+
+Ledger uses 1.79% fewer reported tokens and 4.82% fewer API requests than
+no-ledger Gnomon, but 2.43% more numerical attempts. All arms together used
+48,609,055 reported agent tokens across 3,086 requests, plus 312 readiness
+requests and 4,368 tokens. Three HTTP 502 attempts have unknown usage. Missing
+billing is not zero, and the reported token totals do not establish full cost.
+
+The last batch adds 272 requests and 4,392,327 reported tokens, no errors or
+usage gaps, plus 28 readiness requests and 392 tokens. Current-CV-minimum
+selections were 9/9 plain, 9/10 Gnomon and 8/9 ledger. Exceptions remain in the
+receipt; this descriptive agreement does not identify historical influence on
+exploration or justify a causal explanation. Audit and diagnostic each passed
+on their first execution; no session or forecast was rerun.
+
+Receipt: `evidence/workflow-097-development-audit-013.json`. At 06:49:58 UTC,
+the original worker had exited 0, complete.json confirmed 36 retained pilot plus
+276 new sessions with source unchanged, and AUDITED.json confirmed completion.
+The controller was still creating its terminal archive. Candidate 100 remains
+subject to the original terminal/inventory/independent-audit launch gates.
+Final/protected data remain unopened; main and PyPI are unchanged. The 20%
+objective remains unestablished.

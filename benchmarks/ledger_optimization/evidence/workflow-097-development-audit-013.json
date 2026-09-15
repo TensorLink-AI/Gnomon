@@ -1,0 +1,579 @@
+{
+  "status": "incremental_batch_independently_verified",
+  "new_sessions": 28,
+  "independent_audit_checks": 24848,
+  "audit_failures": [],
+  "shutdown_record_gaps": [],
+  "new_arms": {
+    "gnomon": {
+      "admission_api_calls": 10,
+      "admission_reported_tokens": 140,
+      "admission_wait_seconds": 15.454457527026534,
+      "api_calls": 96,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 0,
+      "checkpoint_publications": 20,
+      "cold_rmsle": null,
+      "corrections": 0,
+      "distinct_configs_per_task": 2.7,
+      "dollars": null,
+      "http_errors": 0,
+      "later_rmsle": 0.5397031788372306,
+      "ledger_reviews": 0,
+      "mature_rmsle": 0.5379088678038496,
+      "mean_rmsle": 0.5379088678038496,
+      "numerical_attempts": 108,
+      "numerical_successes": 108,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 10
+      },
+      "per_series": {
+        "item_1372862_store_12": 0.4768407124192052,
+        "item_1457251_store_14": 0.5786209713936125
+      },
+      "review_calls": 16,
+      "seconds": 1480.6133762784302,
+      "tasks": 10,
+      "tokens": 1515565,
+      "usage_complete": true,
+      "valid": 10,
+      "valid_only_rmsle": 0.5379088678038496,
+      "workflow_complete": 10
+    },
+    "ledger": {
+      "admission_api_calls": 9,
+      "admission_reported_tokens": 126,
+      "admission_wait_seconds": 11.420296872034669,
+      "api_calls": 84,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 0,
+      "checkpoint_publications": 18,
+      "cold_rmsle": null,
+      "corrections": 0,
+      "distinct_configs_per_task": 3.111111111111111,
+      "dollars": null,
+      "http_errors": 0,
+      "later_rmsle": 0.5405202109069268,
+      "ledger_reviews": 11,
+      "mature_rmsle": 0.5389015215420208,
+      "mean_rmsle": 0.5389015215420208,
+      "numerical_attempts": 112,
+      "numerical_successes": 112,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 9
+      },
+      "per_series": {
+        "item_1372862_store_12": 0.4768407124192052,
+        "item_1457251_store_14": 0.588550168840273
+      },
+      "review_calls": 11,
+      "seconds": 1566.92454331927,
+      "tasks": 9,
+      "tokens": 1480143,
+      "usage_complete": true,
+      "valid": 9,
+      "valid_only_rmsle": 0.5389015215420208,
+      "workflow_complete": 9
+    },
+    "plain": {
+      "admission_api_calls": 9,
+      "admission_reported_tokens": 126,
+      "admission_wait_seconds": 11.926079142838717,
+      "api_calls": 92,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 0,
+      "checkpoint_publications": 18,
+      "cold_rmsle": null,
+      "corrections": 0,
+      "distinct_configs_per_task": 3.2222222222222223,
+      "dollars": null,
+      "http_errors": 0,
+      "later_rmsle": 0.5377592664679425,
+      "ledger_reviews": 0,
+      "mature_rmsle": 0.537109759401624,
+      "mean_rmsle": 0.537109759401624,
+      "numerical_attempts": 116,
+      "numerical_successes": 116,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 9
+      },
+      "per_series": {
+        "item_1372862_store_12": 0.4491720092323346,
+        "item_1457251_store_14": 0.5810786344862687
+      },
+      "review_calls": 15,
+      "seconds": 1590.602206921205,
+      "tasks": 9,
+      "tokens": 1396619,
+      "usage_complete": true,
+      "valid": 9,
+      "valid_only_rmsle": 0.537109759401624,
+      "workflow_complete": 9
+    }
+  },
+  "combined_verified_sessions": 312,
+  "combined_matched_cases": 104,
+  "combined_matched": {
+    "plain": {
+      "mean_rmsle": 0.4777375868301168,
+      "tokens": 16186603,
+      "api_calls": 1060,
+      "numerical_attempts": 1292
+    },
+    "gnomon": {
+      "mean_rmsle": 0.4818928812826998,
+      "tokens": 16357228,
+      "api_calls": 1038,
+      "numerical_attempts": 1152
+    },
+    "ledger": {
+      "mean_rmsle": 0.4812996281821683,
+      "tokens": 16065224,
+      "api_calls": 988,
+      "numerical_attempts": 1180
+    }
+  },
+  "combined_completion": {
+    "plain": {
+      "completed": 104,
+      "valid": 104,
+      "full_workflows": 104
+    },
+    "gnomon": {
+      "completed": 104,
+      "valid": 104,
+      "full_workflows": 104
+    },
+    "ledger": {
+      "completed": 104,
+      "valid": 104,
+      "full_workflows": 104
+    }
+  },
+  "complete_disjoint_session_coverage": true,
+  "contrasts": {
+    "gnomon_vs_plain": {
+      "pairs": 104,
+      "relative_rmsle_reduction": -0.008697859593075341,
+      "relative_rmsle_status": "defined",
+      "wins": 19,
+      "losses": 31,
+      "exploratory_series_bootstrap_95_interval": [
+        -0.02237851710970573,
+        0.00022920844665719198
+      ],
+      "relative_interval_status": "defined",
+      "bootstrap_draws": 2000,
+      "undefined_relative_draws": 0,
+      "absolute_rmsle_reduction": -0.004155294452583003,
+      "exploratory_absolute_series_bootstrap_95_interval": [
+        -0.01085942166409537,
+        0.00011225264969222382
+      ],
+      "warning": "Only four reused development series, one requested seed: not confirmatory. No zero-control draw was discarded or assigned a relative improvement. Absolute differences are diagnostic, not a substitute target."
+    },
+    "ledger_vs_gnomon": {
+      "pairs": 104,
+      "relative_rmsle_reduction": 0.001231089156063847,
+      "relative_rmsle_status": "defined",
+      "wins": 31,
+      "losses": 26,
+      "exploratory_series_bootstrap_95_interval": [
+        -0.021852658867848485,
+        0.016859474724131074
+      ],
+      "relative_interval_status": "defined",
+      "bootstrap_draws": 2000,
+      "undefined_relative_draws": 0,
+      "absolute_rmsle_reduction": 0.0005932531005314878,
+      "exploratory_absolute_series_bootstrap_95_interval": [
+        -0.008442124158992814,
+        0.009451402281616061
+      ],
+      "warning": "Only four reused development series, one requested seed: not confirmatory. No zero-control draw was discarded or assigned a relative improvement. Absolute differences are diagnostic, not a substitute target."
+    },
+    "ledger_vs_plain": {
+      "pairs": 104,
+      "relative_rmsle_reduction": -0.007456062596385538,
+      "relative_rmsle_status": "defined",
+      "wins": 26,
+      "losses": 36,
+      "exploratory_series_bootstrap_95_interval": [
+        -0.026807812938894893,
+        0.002589734819200218
+      ],
+      "relative_interval_status": "defined",
+      "bootstrap_draws": 2000,
+      "undefined_relative_draws": 0,
+      "absolute_rmsle_reduction": -0.003562041352051515,
+      "exploratory_absolute_series_bootstrap_95_interval": [
+        -0.011180623557346836,
+        0.0018187911832959758
+      ],
+      "warning": "Only four reused development series, one requested seed: not confirmatory. No zero-control draw was discarded or assigned a relative improvement. Absolute differences are diagnostic, not a substitute target."
+    }
+  },
+  "decision_diagnostic": {
+    "plain": {
+      "sessions": 9,
+      "selected_current_cv_minimum": 9
+    },
+    "gnomon": {
+      "sessions": 10,
+      "selected_current_cv_minimum": 9
+    },
+    "ledger": {
+      "sessions": 9,
+      "selected_current_cv_minimum": 8
+    }
+  },
+  "non_minimum_cv_decisions": [
+    {
+      "arm": "gnomon",
+      "series_id": "item_1372862_store_12",
+      "round": 24,
+      "selected_config": {
+        "alpha": 1.0,
+        "lags": 28,
+        "model": "ridge",
+        "window": 730
+      },
+      "selected_cv_rmsle": 0.445484449734153,
+      "minimum_tested_cv_rmsle": 0.44303861668003514,
+      "selected_current_cv_minimum": false,
+      "configs_at_selection": [
+        {
+          "model": "seasonal",
+          "season": 7,
+          "cv_rmsle": 0.6455686074368077
+        },
+        {
+          "model": "ridge",
+          "window": 730,
+          "lags": 28,
+          "alpha": 1.0,
+          "cv_rmsle": 0.445484449734153
+        },
+        {
+          "model": "random_forest",
+          "window": 730,
+          "lags": 28,
+          "depth": 8,
+          "cv_rmsle": 0.44303861668003514
+        }
+      ],
+      "ledger_reviews": 0,
+      "event_log_sha256": "f9a52588f3bcbfaf48e4c4dd2a794a9042a8a92f4b195fb314824069030bc0a8"
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1372862_store_12",
+      "round": 25,
+      "selected_config": {
+        "alpha": 1.0,
+        "lags": 28,
+        "model": "ridge",
+        "window": 730
+      },
+      "selected_cv_rmsle": 0.4589066310431689,
+      "minimum_tested_cv_rmsle": 0.45152779495184364,
+      "selected_current_cv_minimum": false,
+      "configs_at_selection": [
+        {
+          "model": "seasonal",
+          "season": 7,
+          "cv_rmsle": 0.6525141483669848
+        },
+        {
+          "model": "ridge",
+          "window": 730,
+          "lags": 28,
+          "alpha": 1.0,
+          "cv_rmsle": 0.4589066310431689
+        },
+        {
+          "model": "random_forest",
+          "window": 365,
+          "lags": 14,
+          "depth": 8,
+          "cv_rmsle": 0.45152779495184364
+        }
+      ],
+      "ledger_reviews": 1,
+      "event_log_sha256": "0002550d8605e850819f3d85330630cfc003cc4068b2abae470b6f34628135ad"
+    }
+  ],
+  "transfer": {
+    "status": "verified",
+    "archive": {
+      "bytes": 86996246,
+      "sessions": 28,
+      "archive": "/root/gnomon-ledger-ml-v3/code/results/workflow-097-development-audit-013/snapshot.tar.gz",
+      "sha256": "9185e1ea0a8555c63ca99ea1a1900e59f8cfcd730e151779230a1a2cc4842f8e"
+    },
+    "chunks": [
+      {
+        "offset": 0,
+        "bytes": 2097152,
+        "sha256": "6492b6161ef3cb9d23fe6c6cb83a62963d05bf2e1b947771497a9e8b4fb92074"
+      },
+      {
+        "offset": 2097152,
+        "bytes": 2097152,
+        "sha256": "20f26990955a9fdc649d98de909c1074684e3fe511cd2683c024fb8ee19da7cc"
+      },
+      {
+        "offset": 4194304,
+        "bytes": 2097152,
+        "sha256": "1ea5413bc662d4fcbb63f5a4b49053fded9ca99147224ba9f3aab2a4f3da72c0"
+      },
+      {
+        "offset": 6291456,
+        "bytes": 2097152,
+        "sha256": "56a85850af08395110b9c3daeec625e1d94c760bcde385ad2b10fd0da7c7b953"
+      },
+      {
+        "offset": 8388608,
+        "bytes": 2097152,
+        "sha256": "01d69ee10f800f549c1d20bea1c2cc8e4b9605be409d59a4f5723ddcb600dcd1"
+      },
+      {
+        "offset": 10485760,
+        "bytes": 2097152,
+        "sha256": "167ba1d2136d0b4aacbf91f796a57c8a08488c7dcadb5d4d6df60752e57fbf79"
+      },
+      {
+        "offset": 12582912,
+        "bytes": 2097152,
+        "sha256": "8d2c76f4fa5cab4fbf91f50ae9b875924d189fb2822ec4f95d2b7c3bd919d6cc"
+      },
+      {
+        "offset": 14680064,
+        "bytes": 2097152,
+        "sha256": "f83b3c8b29a2b02987fbfade70ed8bfd526e49cb2d2c742563416295542a4173"
+      },
+      {
+        "offset": 16777216,
+        "bytes": 2097152,
+        "sha256": "1abd0f01baf63c3558cd174a6ced492fccd0c89557eb37c0f44c86acc81ac86b"
+      },
+      {
+        "offset": 18874368,
+        "bytes": 2097152,
+        "sha256": "2c17ca42c77bfaaf1cd83765eb5c2306cc9e60479cebcda4a91ae796ffdb715d"
+      },
+      {
+        "offset": 20971520,
+        "bytes": 2097152,
+        "sha256": "523e7cdbd042b89332fb5e66e4e994d2bed5b043c585ea714e8a2bca69f43936"
+      },
+      {
+        "offset": 23068672,
+        "bytes": 2097152,
+        "sha256": "c31273b518cbb22b80850c004d69de78fdc6bab59718592216446533e647e89a"
+      },
+      {
+        "offset": 25165824,
+        "bytes": 2097152,
+        "sha256": "0aeb83a5596cf0e2508c721382f85ce4c2bd106c027c8abe4e3e34e0f16ea32f"
+      },
+      {
+        "offset": 27262976,
+        "bytes": 2097152,
+        "sha256": "b0d5799cad779b583d52775f97cefef0b87f44e983c3f7b2e82dcf637bb29922"
+      },
+      {
+        "offset": 29360128,
+        "bytes": 2097152,
+        "sha256": "b5d7eb516c510f11dae3bd9dca828cc9fc0a615a82145ac63f95ccf21958e374"
+      },
+      {
+        "offset": 31457280,
+        "bytes": 2097152,
+        "sha256": "9fbd5e582cfe8f6920b7f1b2941b258ac52d6afcdce352f783e7f9b3cac7b814"
+      },
+      {
+        "offset": 33554432,
+        "bytes": 2097152,
+        "sha256": "3cdd03ba29ff132675345b124b38040e360254e826e24ffe868b5e43c5e3c231"
+      },
+      {
+        "offset": 35651584,
+        "bytes": 2097152,
+        "sha256": "bb92aec3dbd9f95c16b82170d85866cd948e0845489ec0cb39f143c9d76cb80b"
+      },
+      {
+        "offset": 37748736,
+        "bytes": 2097152,
+        "sha256": "e20dbef2a9178bd60cbc3417d3ee4e24c566b46df3d5144cda68f110b6f875ce"
+      },
+      {
+        "offset": 39845888,
+        "bytes": 2097152,
+        "sha256": "6fd5856dc01f3e95203c908328493ff8c5acec420627189d7be2716603af0375"
+      },
+      {
+        "offset": 41943040,
+        "bytes": 2097152,
+        "sha256": "3d05d86ed5ab01479daeacf8c838dea934c4fe8c6c5e9bdc23e695775ec5f3d1"
+      },
+      {
+        "offset": 44040192,
+        "bytes": 2097152,
+        "sha256": "1d426f7de92bb073ec742225d1c03a523d071f32ada76b5b692b817e69bdda97"
+      },
+      {
+        "offset": 46137344,
+        "bytes": 2097152,
+        "sha256": "ed1e7cebabd45dfcf697fed5733142268cc161fe98e22e25603e75c13e2f9f5a"
+      },
+      {
+        "offset": 48234496,
+        "bytes": 2097152,
+        "sha256": "a4242c2201f4da5ee427646f3eaf19a22a99e54b67ccb72577b74a497f494c93"
+      },
+      {
+        "offset": 50331648,
+        "bytes": 2097152,
+        "sha256": "36ef3fb3fae112300fc133615a2cae576d607a1c5d7955164393ab4bd1f76494"
+      },
+      {
+        "offset": 52428800,
+        "bytes": 2097152,
+        "sha256": "4bf4dec85a6d08ee27703e4c1dc948cb006fceec1d0876900cbb3c63b617103c"
+      },
+      {
+        "offset": 54525952,
+        "bytes": 2097152,
+        "sha256": "decd4e038ec1330a47d721127b4592e69f95e7cf3c5a67810bae128f4e5e9543"
+      },
+      {
+        "offset": 56623104,
+        "bytes": 2097152,
+        "sha256": "b261fb3d1372598a2689be972bec1878232c8b9b944557bfb5dd074e7bf38364"
+      },
+      {
+        "offset": 58720256,
+        "bytes": 2097152,
+        "sha256": "68cc2f52bf69ec3d75d73854f717e6306d5c0d8d514d25747e454dc18403edea"
+      },
+      {
+        "offset": 60817408,
+        "bytes": 2097152,
+        "sha256": "c883684f9c75872d2b4ee842ac2a3701928b7e092706595ccd0b8698d97aad06"
+      },
+      {
+        "offset": 62914560,
+        "bytes": 2097152,
+        "sha256": "1b7347a52055684d7dcc9ad9dcae202f8a18b48430921fe829d6f84cb5273b91"
+      },
+      {
+        "offset": 65011712,
+        "bytes": 2097152,
+        "sha256": "0bb55f85077b0cde726ecb3da292b316636afedc831a840f1e3484f6859a1760"
+      },
+      {
+        "offset": 67108864,
+        "bytes": 2097152,
+        "sha256": "946abd6a28ea76bcce139e9df80adca271010e198d5748b62b982e194162db6a"
+      },
+      {
+        "offset": 69206016,
+        "bytes": 2097152,
+        "sha256": "d1d70527693b586b0109100c0d79c973c2c408f56ad3cc99ff231f5e201b7c93"
+      },
+      {
+        "offset": 71303168,
+        "bytes": 2097152,
+        "sha256": "3d452a428f64f158c783826bcf8b5ec3911a1c183e535ac6263de5496d8fae90"
+      },
+      {
+        "offset": 73400320,
+        "bytes": 2097152,
+        "sha256": "847a0087ec85d18793cc2738fe29f29199fad27370835b4c0af04950f6932228"
+      },
+      {
+        "offset": 75497472,
+        "bytes": 2097152,
+        "sha256": "70074b6d7f9827b9d3b6bc46a577c4a4003510d10434c1312925a5df2163c3b9"
+      },
+      {
+        "offset": 77594624,
+        "bytes": 2097152,
+        "sha256": "d4234895badeda3698c3690588efe56881169035ab13372dc24a0fa8b627a7f2"
+      },
+      {
+        "offset": 79691776,
+        "bytes": 2097152,
+        "sha256": "e89cb248e957e9263ab38f1097be8fd6e2de3d5efcd9d3b08a69fc86de02c4c4"
+      },
+      {
+        "offset": 81788928,
+        "bytes": 2097152,
+        "sha256": "9a101e76ecc15569b8f24a84caa0c44b7ff41db5787104755315ec8fde1361fd"
+      },
+      {
+        "offset": 83886080,
+        "bytes": 2097152,
+        "sha256": "61fddebd94408e7189e48d2344e86a89fa16d4deeb693273c1512b4371f4bea0"
+      },
+      {
+        "offset": 85983232,
+        "bytes": 1013014,
+        "sha256": "bf748434398d383c742e40b3509fcc42784f8397e8c867e3f8d2bcef83446203"
+      }
+    ],
+    "files_verified": 4315
+  },
+  "costs": {
+    "sessions": 28,
+    "forwarded_requests": 272,
+    "returned_responses": 272,
+    "reported_tokens": 4392327,
+    "requests_without_reported_usage": 0,
+    "api_errors": 0,
+    "readiness_requests": 28,
+    "readiness_reported_tokens": 392,
+    "readiness_unknown_usage": 0,
+    "orphan_responses": 0
+  },
+  "evidence": {
+    "results/workflow-097-final-001/audit/report.json": "f8d98586e2ddb64a7eaaf06c73f1450652800cfc567f0d2ea68f6a4b9dceb7c6",
+    "results/workflow-097-development-audit-001/audit/report.json": "c3ad8f526ed2dba07ed394877c0bbbcd21e9213903ffe4da5a05781514afd67d",
+    "results/workflow-097-development-audit-002/audit/report.json": "7532e5a7da6a1f15e5e486f48847940a7dfe4ccb4a71b9c006c983bfddaa3e2b",
+    "results/workflow-097-development-audit-003/audit/report.json": "df4e5b5e2da4d46e80f63825457093f1d29755d41ccbd4c458386fba1c95504a",
+    "results/workflow-097-development-audit-004/audit/report.json": "21ea30a132c94779f3fb52b5b30044da85e7c5f9200155d26a91b8bf2b9d12e7",
+    "results/workflow-097-development-audit-005/audit/report.json": "d0cfe3e4c59764899602aa6bdb91d259539b56bd614b77a14bd2378cb9f420f5",
+    "results/workflow-097-development-audit-006/audit/report.json": "8f6c62c8683ed3d57f4f0bb7f51db9650f9482e0d93fd2ccaec4921ff55eda16",
+    "results/workflow-097-development-audit-007/audit/report.json": "68045201be05f0dada5a30b681a7a169fb64727ad851354dc0e3c05bf0274c6b",
+    "results/workflow-097-development-audit-008/audit/report.json": "446ac78bff9cfca13ad30bbd9e7e77beb247f4ff82ab3e61911367cfd97e72fb",
+    "results/workflow-097-development-audit-009/audit/report.json": "70690b2f71d0e3f71a3f45296003cd6cdc12a2c1057878ae786ea9eeddd9a990",
+    "results/workflow-097-development-audit-010/audit/report.json": "3932c1c4ac6f28e6fb47f6731e86ed68647c329cdc038ce2c1500e3505541a10",
+    "results/workflow-097-development-audit-011/audit/report.json": "3a39feb45d5199c4bbafb6f0ef67c3b590d9630536651e4ed445d56092d3683d",
+    "results/workflow-097-development-audit-012/audit/report.json": "4c48816cef9aed2b4c23c083d41d145b371ab1997247412515162c81d586e89e",
+    "results/workflow-097-development-audit-013/audit/report.json": "00f45516fb875338ccadd718ae061ea47b5d7443d56e45fdc5d5561ec2ff8a8d",
+    "/root/Gnomon/results/workflow-097-development-audit-013/snapshot.py": "5b9b37a9546b2e51fbd413b85a3ae52899377a3a94be4a10005843a3914e4bb4",
+    "/root/Gnomon/results/workflow-097-development-audit-013/collect.py": "9f3c67b4b6daec0859a6adfd3a5f795a5bc4c4d99d8973e58cc71ee5c4c2930b",
+    "/root/Gnomon/results/workflow-097-development-audit-013/analyze_local.py": "d414075f9f7a69f3dc057ec3b2495bfb7889bffdc5da5b580dfad10055df9516",
+    "/root/Gnomon/results/workflow-097-development-audit-013/summarize.py": "377576dc0f31655895892e4ce19c7983da563fa86a4fba4c4263deac1947eab6",
+    "/root/Gnomon/results/workflow-097-development-audit-013/decision_diagnostic.py": "2d7d1492c009d7e6062fed954a6f46cc0eb1dfb33b1be8c304a5d50d612f6cfe",
+    "/root/Gnomon/results/workflow-097-development-audit-013/decision-diagnostic.json": "b15653a6d5586ddd094f55ab0e196b43eb57d414cde0e2a21707a74d6cb52cdc",
+    "/root/Gnomon/results/workflow-097-development-audit-013/analyze.stdout": "18f5d1150afb8055d9b8a2a259f0578280916948d4e3ec55c8ca876c5da6a3b0",
+    "/root/Gnomon/results/workflow-097-development-audit-013/analyze.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/root/Gnomon/results/workflow-097-development-audit-013/diagnostic-attempts.json": "659efc2d6072ae4878941d039ddcd59a5275e81c602a7b7240d9e0ca080abe57",
+    "/root/Gnomon/results/workflow-097-development-audit-013/decision-diagnostic.stdout": "bd7ed14d779ff73910fc7c3aaf0221d58e5d2bda2aa0b1e22c201043a9342edf",
+    "/root/Gnomon/results/workflow-097-development-audit-013/decision-diagnostic.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "scope": "Complete disjoint session coverage: retained pilot plus all newly finished sessions in batches 001\u2013013. Terminal archive reconciliation remains separate. No success or accuracy filtering. Combined scores/costs use all-three intersection. Snapshots are subsets of the existing run, not additional paid experiments. CV agreement is descriptive, not causal evidence.",
+  "diagnostic_driver_attempts": [
+    {
+      "argv": [
+        "python3",
+        "results/workflow-097-development-audit-013/decision_diagnostic.py"
+      ],
+      "exit_status": 0
+    }
+  ],
+  "final_gate_opened": false,
+  "objective_established": false
+}
