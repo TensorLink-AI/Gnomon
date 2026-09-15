@@ -1,0 +1,20 @@
+{
+  "scope": "First seed of the full synthetic M5 host preflight, not paid accuracy evidence",
+  "seed": 7,
+  "stage": "complete",
+  "sessions": 624,
+  "retained_pilot_sessions": 72,
+  "new_sessions": 552,
+  "audit_checks": 461800,
+  "audit_failures": [],
+  "archive_sha256": "6c1d0486214bd58cd422d4067290f87fb6949a1d3a4a083a7b8ea8d87ffd3a04",
+  "archive_inventory_sha256": "65f7eb3d46eda65baeeab7beb51f56932b10d2102b57f5fcbb36e626ed226182",
+  "archived_files": 86264,
+  "terminal_sha256": "bb0e5cc0c972d3979a7efda7a9fc19afb717d0cc8a25252df84a1e200a506186",
+  "report_sha256": "252f756ea2e61ab82fc5cf08c2293d570b5ff42f52cb883ec70bc12e8c0968a9",
+  "full_two_seed_preflight_complete": false,
+  "seed_19_still_required": true,
+  "engy_calls": 0,
+  "final_gate_opened": false,
+  "objective_established": false
+}

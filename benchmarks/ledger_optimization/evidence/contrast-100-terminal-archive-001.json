@@ -1,0 +1,25 @@
+{
+  "archive_verified": true,
+  "archive_sha256": "91659e9eecac48a7a921ef8a1b21e501088bbf4ed82dfc99b6f3d2d020faa581",
+  "members": 51909,
+  "files": 51908,
+  "original_exit_status": 1,
+  "original_failure_preserved": true,
+  "extracted": false,
+  "provider_calls": 0,
+  "engy_calls": 0,
+  "final_gate_opened": false,
+  "local_evidence": "results/contrast-100-terminal-export-001",
+  "verified_archive_bytes": 591646151,
+  "original_finished_sha256": "4224d9052fc17efef6aa1934ed6c56006708c93bc9c4e46eba85f276bd786a9f",
+  "original_costs_sha256": "727ca8a79691d885204d1b2197d874df8c344fdbc7df1ae59a8b2e5b6b288472",
+  "verification_command": {
+    "argv": [
+      "python3",
+      "results/contrast-100-terminal-export-001/verify_archive.py"
+    ],
+    "exit_status": 0
+  },
+  "corrected_audit_still_pending": true,
+  "objective_established": false
+}
