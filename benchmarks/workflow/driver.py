@@ -27,7 +27,7 @@ if __package__ in (None, ""):
     sys.path[:0] = [str(root / "src"), str(root)]
 
 from benchmarks.common.openrouter import OpenRouterClient
-from benchmarks.workflow.bounded_agent import run_agent, WIRE_BYTES
+from benchmarks.workflow.bounded_agent import run_agent, model_visible_case, WIRE_BYTES
 from benchmarks.workflow.matched import ARMS, _keys
 from benchmarks.workflow.accounting import AttemptJournal, reported_cost_limit
 from benchmarks.workflow.agent_metrics import _decode_record
@@ -117,7 +117,7 @@ def run(case, *, allow_model_requests=False):
     with tempfile.TemporaryDirectory(prefix="gnomon-agent-") as workspace:
         def backend_factory():
             factory = getattr(importlib.import_module(module), name)
-            return factory(case=json.loads(json.dumps(public)), options=selected["options"],
+            return factory(case=model_visible_case(public), options=selected["options"],
                            workspace=Path(workspace), timeout=common["budget"]["timeout_seconds"])
         journal = AttemptJournal(Path(journal_spec["path"])) if journal_spec else None
         try:

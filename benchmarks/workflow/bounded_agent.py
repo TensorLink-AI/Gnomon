@@ -19,6 +19,23 @@ from .accounting import reported_cost_limit
 
 WIRE_BYTES = 1_048_576
 CONTEXT_BYTES = 4_194_304
+
+
+def model_visible_case(case):
+    """Keep repeat journal IDs out of explicitly identical model prompts."""
+    public = json.loads(_encode(case))
+    available = public.get("available_at_cutoff", {})
+    hidden = available.pop("hide_case_id_from_model", False)
+    retain = available.pop("retain_tool_results", False)
+    if type(hidden) is not bool:
+        raise ValueError("hide_case_id_from_model must be boolean")
+    if type(retain) is not bool:
+        raise ValueError("retain_tool_results must be boolean")
+    if hidden:
+        public.pop("id", None)
+    return public
+
+
 ANSWER_FIELDS = {"status", "support", "numbers", "choices", "facts", "disclosures", "claims"}
 SUBMIT = {"type": "function", "function": {
     "name": "submit_answer", "description": "Submit the final answer as the only tool call in this message.",
@@ -99,6 +116,8 @@ def run_agent(case, *, prompt, budget, client_factory, backend_factory, generati
                    "description": "Commit the current phase as the only tool call; the next phase is revealed afterward."}}
                    if journey else SUBMIT)
     case_id = case["id"]
+    retain_results = case.get("available_at_cutoff", {}).get("retain_tool_results", False)
+    retained_result_bytes = 0
     started = clock()
     deadline = started + limits["timeout_seconds"]
     calls, dispatched, rounds = 0, 0, 0
@@ -144,7 +163,7 @@ def run_agent(case, *, prompt, budget, client_factory, backend_factory, generati
             specs[name] = {"type": "function", "function": {
                 "name": name, "description": tool.get("description", ""), "parameters": tool["inputSchema"]}}
         messages = [{"role": "system", "content": prompt + "\nSubmit with submit_answer as a sole tool call."},
-                    {"role": "user", "content": _encode(case)}]
+                    {"role": "user", "content": _encode(model_visible_case(case))}]
         if journey:
             messages[0]["content"] += (f"\nThis task has {len(journey.phases)} ordered phases. "
                                        "submit_answer commits the current phase before revealing the next; "
@@ -271,6 +290,14 @@ def run_agent(case, *, prompt, budget, client_factory, backend_factory, generati
                         break
                     if name not in specs:
                         raise ValueError("unknown tool")
+                    if retain_results:
+                        encoded_arguments = _encode(arguments)
+                        entry["arguments_sha256"] = fingerprint(arguments)
+                        if retained_result_bytes + len(encoded_arguments.encode()) <= 131072:
+                            entry["arguments"] = json.loads(encoded_arguments)
+                            retained_result_bytes += len(encoded_arguments.encode())
+                        else:
+                            entry["arguments_omitted"] = "task receipt exceeded 128 KiB; digest retained"
                     if spending_stop():
                         termination = spending_stop()
                         break
@@ -286,6 +313,13 @@ def run_agent(case, *, prompt, budget, client_factory, backend_factory, generati
                     tool_costs[-1] = _charge(reply.cost_usd)
                     body = _encode(reply.value)
                     entry.update(status="returned", result_sha256=fingerprint(reply.value), response_bytes=len(body.encode()))
+                    if retain_results:
+                        size = len(body.encode())
+                        if retained_result_bytes + size <= 131072:
+                            entry["result"] = json.loads(body)
+                            retained_result_bytes += size
+                        else:
+                            entry["result_omitted"] = "task receipt exceeded 128 KiB; digest retained"
                 except Exception as error:
                     entry.update(status="error", error_type=type(error).__name__)
                     body = _encode({"status": "error", "error_type": type(error).__name__,

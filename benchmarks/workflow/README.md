@@ -4,6 +4,11 @@ Compare ordinary software, the lean Gnomon session and the same session with
 optional ledger/temporal tools. The agent chooses its tools, arguments and answers;
 the host does not manufacture or repair answers from tool results.
 
+The prospective [business-utility evaluations](business_utility/README.md) reuse
+this runner for leakage, repeatability and threshold-decision tasks. Protocols are
+committed; live 1.2.0 results remain pending. The threshold reference is explicitly
+benchmark-only, not a shipped capability.
+
 Start with [matched controls](MATCHED.md) and [experiment configuration](experiment/README.md).
 The [11-task cohort](cases/MATCHED_RETROSPECTIVE.md) combines retrospective forecast
 windows, quantity/decision/temporal tasks and committed multi-phase episodes.
