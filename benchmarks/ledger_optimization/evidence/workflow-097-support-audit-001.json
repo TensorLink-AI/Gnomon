@@ -1,0 +1,460 @@
+{
+  "runs": {
+    "093": {
+      "sessions": 12,
+      "sessions_with_current_review": 8,
+      "current_review_pages": 8,
+      "displayed_pair_session_incidences": 12,
+      "supported_pair_session_incidences": 10,
+      "unsupported_pair_session_incidences": 2,
+      "matched_pair_origin_incidences": 12,
+      "verification_checks": 76,
+      "rows": [
+        {
+          "series_id": "item_1047756_store_23",
+          "round": 0,
+          "current_origin_review_pages": 0,
+          "displayed_unique_pairs": 0,
+          "supported_pairs": 0,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 0,
+          "evidence": {}
+        },
+        {
+          "series_id": "item_1047756_store_23",
+          "round": 1,
+          "current_origin_review_pages": 1,
+          "displayed_unique_pairs": 1,
+          "supported_pairs": 1,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 1,
+          "evidence": {
+            "results/guarded-history-093-development-final-001/original/ledger/item_1047756_store_23/round-1/project/review-evidence/000000.json": "f9fa607ad39d561f0ab0df16b43e7fd6e2390bd73f5d33afb8a98635ededd7f3"
+          }
+        },
+        {
+          "series_id": "item_1047756_store_23",
+          "round": 2,
+          "current_origin_review_pages": 1,
+          "displayed_unique_pairs": 1,
+          "supported_pairs": 1,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 2,
+          "evidence": {
+            "results/guarded-history-093-development-final-001/original/ledger/item_1047756_store_23/round-2/project/review-evidence/000001.json": "4c759a92c4944024c5ecdf66b4634e6d055bf2f15de831eada6f8cc748b07c13"
+          }
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 0,
+          "current_origin_review_pages": 0,
+          "displayed_unique_pairs": 0,
+          "supported_pairs": 0,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 0,
+          "evidence": {}
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 1,
+          "current_origin_review_pages": 1,
+          "displayed_unique_pairs": 1,
+          "supported_pairs": 1,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 1,
+          "evidence": {
+            "results/guarded-history-093-development-final-001/original/ledger/item_1304243_store_32/round-1/project/review-evidence/000000.json": "8e1c419354902168faf3c5f5b0563726e67cccec6f8cbac8afe270058535aa19"
+          }
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 2,
+          "current_origin_review_pages": 1,
+          "displayed_unique_pairs": 1,
+          "supported_pairs": 1,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 2,
+          "evidence": {
+            "results/guarded-history-093-development-final-001/original/ledger/item_1304243_store_32/round-2/project/review-evidence/000001.json": "6c9171786624b77f6d86cd9b3ad2d1f889ecc2d4e877de8f6f93b311be035a87"
+          }
+        },
+        {
+          "series_id": "item_1372862_store_12",
+          "round": 0,
+          "current_origin_review_pages": 0,
+          "displayed_unique_pairs": 0,
+          "supported_pairs": 0,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 0,
+          "evidence": {}
+        },
+        {
+          "series_id": "item_1372862_store_12",
+          "round": 1,
+          "current_origin_review_pages": 1,
+          "displayed_unique_pairs": 1,
+          "supported_pairs": 1,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 1,
+          "evidence": {
+            "results/guarded-history-093-development-final-001/original/ledger/item_1372862_store_12/round-1/project/review-evidence/000000.json": "9edac8e56523a13b403c9f3c4700d2a94ad08eb79a73e11b0043cd51e8051c1b"
+          }
+        },
+        {
+          "series_id": "item_1372862_store_12",
+          "round": 2,
+          "current_origin_review_pages": 1,
+          "displayed_unique_pairs": 3,
+          "supported_pairs": 2,
+          "unsupported_pairs": 1,
+          "matched_pair_origin_incidences": 2,
+          "evidence": {
+            "results/guarded-history-093-development-final-001/original/ledger/item_1372862_store_12/round-2/project/review-evidence/000001.json": "9c8fe0b76d5c25f187c43562d98e4100a4309e550babec11d8527e2145c672f9"
+          }
+        },
+        {
+          "series_id": "item_1457251_store_14",
+          "round": 0,
+          "current_origin_review_pages": 0,
+          "displayed_unique_pairs": 0,
+          "supported_pairs": 0,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 0,
+          "evidence": {}
+        },
+        {
+          "series_id": "item_1457251_store_14",
+          "round": 1,
+          "current_origin_review_pages": 1,
+          "displayed_unique_pairs": 1,
+          "supported_pairs": 1,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 1,
+          "evidence": {
+            "results/guarded-history-093-development-final-001/original/ledger/item_1457251_store_14/round-1/project/review-evidence/000000.json": "93dc070c7f4610537b4862457e3e9bdb14d157171d7a98266e1e9357977cb080"
+          }
+        },
+        {
+          "series_id": "item_1457251_store_14",
+          "round": 2,
+          "current_origin_review_pages": 1,
+          "displayed_unique_pairs": 3,
+          "supported_pairs": 2,
+          "unsupported_pairs": 1,
+          "matched_pair_origin_incidences": 2,
+          "evidence": {
+            "results/guarded-history-093-development-final-001/original/ledger/item_1457251_store_14/round-2/project/review-evidence/000001.json": "c33c989722cc1f1bf525c167fef04ddbcdde4a47f39bde0f0d9934553ec97a04"
+          }
+        }
+      ]
+    },
+    "096": {
+      "sessions": 12,
+      "sessions_with_current_review": 8,
+      "current_review_pages": 9,
+      "displayed_pair_session_incidences": 53,
+      "supported_pair_session_incidences": 52,
+      "unsupported_pair_session_incidences": 1,
+      "matched_pair_origin_incidences": 64,
+      "verification_checks": 207,
+      "rows": [
+        {
+          "series_id": "item_1047756_store_23",
+          "round": 0,
+          "current_origin_review_pages": 0,
+          "displayed_unique_pairs": 0,
+          "supported_pairs": 0,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 0,
+          "evidence": {}
+        },
+        {
+          "series_id": "item_1047756_store_23",
+          "round": 1,
+          "current_origin_review_pages": 1,
+          "displayed_unique_pairs": 6,
+          "supported_pairs": 6,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 6,
+          "evidence": {
+            "results/collection-096-final-001/original/pilot/ledger/item_1047756_store_23/round-1/project/review-evidence/000000.json": "fe058b1b77ac2259ee2113dda30063489f06ebcc49486133702ec126927fd907"
+          }
+        },
+        {
+          "series_id": "item_1047756_store_23",
+          "round": 2,
+          "current_origin_review_pages": 2,
+          "displayed_unique_pairs": 6,
+          "supported_pairs": 6,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 9,
+          "evidence": {
+            "results/collection-096-final-001/original/pilot/ledger/item_1047756_store_23/round-2/project/review-evidence/000001.json": "22cfe34ae8ec52d94377120c4d370fc68ff1e8f4cae1c0cbb28db95b7f53bb94",
+            "results/collection-096-final-001/original/pilot/ledger/item_1047756_store_23/round-2/project/review-evidence/000002.json": "e7bc9d7d9988bc24814265d659864cd804ff8c4eb594b7647a9de5884da683e1"
+          }
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 0,
+          "current_origin_review_pages": 0,
+          "displayed_unique_pairs": 0,
+          "supported_pairs": 0,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 0,
+          "evidence": {}
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 1,
+          "current_origin_review_pages": 1,
+          "displayed_unique_pairs": 6,
+          "supported_pairs": 6,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 6,
+          "evidence": {
+            "results/collection-096-final-001/original/pilot/ledger/item_1304243_store_32/round-1/project/review-evidence/000000.json": "6889289a0821904154750f3002450d581d9c2fb0f64ff4757dde5631880f6337"
+          }
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 2,
+          "current_origin_review_pages": 1,
+          "displayed_unique_pairs": 10,
+          "supported_pairs": 9,
+          "unsupported_pairs": 1,
+          "matched_pair_origin_incidences": 12,
+          "evidence": {
+            "results/collection-096-final-001/original/pilot/ledger/item_1304243_store_32/round-2/project/review-evidence/000001.json": "66d0f4d0d19b9cbab8703f835238da45310c2a6c6e7406a4937314675e6987ae"
+          }
+        },
+        {
+          "series_id": "item_1372862_store_12",
+          "round": 0,
+          "current_origin_review_pages": 0,
+          "displayed_unique_pairs": 0,
+          "supported_pairs": 0,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 0,
+          "evidence": {}
+        },
+        {
+          "series_id": "item_1372862_store_12",
+          "round": 1,
+          "current_origin_review_pages": 1,
+          "displayed_unique_pairs": 6,
+          "supported_pairs": 6,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 6,
+          "evidence": {
+            "results/collection-096-final-001/original/pilot/ledger/item_1372862_store_12/round-1/project/review-evidence/000000.json": "2dd7b0769e038f4160c1723c1f1560c5c8d51c55f5a21b14be93e7313920b5ed"
+          }
+        },
+        {
+          "series_id": "item_1372862_store_12",
+          "round": 2,
+          "current_origin_review_pages": 1,
+          "displayed_unique_pairs": 6,
+          "supported_pairs": 6,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 9,
+          "evidence": {
+            "results/collection-096-final-001/original/pilot/ledger/item_1372862_store_12/round-2/project/review-evidence/000001.json": "cdfb995f4f69d1b5fe017df31cbe86460469374a6430541fedd936cacda3914d"
+          }
+        },
+        {
+          "series_id": "item_1457251_store_14",
+          "round": 0,
+          "current_origin_review_pages": 0,
+          "displayed_unique_pairs": 0,
+          "supported_pairs": 0,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 0,
+          "evidence": {}
+        },
+        {
+          "series_id": "item_1457251_store_14",
+          "round": 1,
+          "current_origin_review_pages": 1,
+          "displayed_unique_pairs": 3,
+          "supported_pairs": 3,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 3,
+          "evidence": {
+            "results/collection-096-final-001/original/pilot/ledger/item_1457251_store_14/round-1/project/review-evidence/000000.json": "73006e25750318d0d7a18e5c3963dab1e866ea7703787015f771c2132eb76fb5"
+          }
+        },
+        {
+          "series_id": "item_1457251_store_14",
+          "round": 2,
+          "current_origin_review_pages": 1,
+          "displayed_unique_pairs": 10,
+          "supported_pairs": 10,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 13,
+          "evidence": {
+            "results/collection-096-final-001/original/pilot/ledger/item_1457251_store_14/round-2/project/review-evidence/000001.json": "6c7eea3225b8099f9421f90238f2dd433b10eaaad4508482d56cb61f285da4ba"
+          }
+        }
+      ]
+    },
+    "097": {
+      "sessions": 12,
+      "sessions_with_current_review": 9,
+      "current_review_pages": 10,
+      "displayed_pair_session_incidences": 42,
+      "supported_pair_session_incidences": 42,
+      "unsupported_pair_session_incidences": 0,
+      "matched_pair_origin_incidences": 54,
+      "verification_checks": 179,
+      "rows": [
+        {
+          "series_id": "item_1047756_store_23",
+          "round": 0,
+          "current_origin_review_pages": 0,
+          "displayed_unique_pairs": 0,
+          "supported_pairs": 0,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 0,
+          "evidence": {}
+        },
+        {
+          "series_id": "item_1047756_store_23",
+          "round": 1,
+          "current_origin_review_pages": 1,
+          "displayed_unique_pairs": 6,
+          "supported_pairs": 6,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 6,
+          "evidence": {
+            "results/workflow-097-final-001/original/pilot/ledger/item_1047756_store_23/round-1/project/review-evidence/000000.json": "fa360d7be7ec590e5f5908de566dacc0c0a8e9cc966f091ae9a2653c9932d1ad"
+          }
+        },
+        {
+          "series_id": "item_1047756_store_23",
+          "round": 2,
+          "current_origin_review_pages": 1,
+          "displayed_unique_pairs": 6,
+          "supported_pairs": 6,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 9,
+          "evidence": {
+            "results/workflow-097-final-001/original/pilot/ledger/item_1047756_store_23/round-2/project/review-evidence/000001.json": "4366cd27dcc594378a9e3f4a3c0dc6bdeab4ad1e64fbeff8e12a13c70115dd34"
+          }
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 0,
+          "current_origin_review_pages": 0,
+          "displayed_unique_pairs": 0,
+          "supported_pairs": 0,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 0,
+          "evidence": {}
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 1,
+          "current_origin_review_pages": 1,
+          "displayed_unique_pairs": 3,
+          "supported_pairs": 3,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 3,
+          "evidence": {
+            "results/workflow-097-final-001/original/pilot/ledger/item_1304243_store_32/round-1/project/review-evidence/000000.json": "4288da9318e82b757e8bf54d359c92649a55d3de0789a8cd5efc9f09779a2915"
+          }
+        },
+        {
+          "series_id": "item_1304243_store_32",
+          "round": 2,
+          "current_origin_review_pages": 2,
+          "displayed_unique_pairs": 3,
+          "supported_pairs": 3,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 6,
+          "evidence": {
+            "results/workflow-097-final-001/original/pilot/ledger/item_1304243_store_32/round-2/project/review-evidence/000001.json": "fc80c1a751e47e58cb9aad6f9111ba10505012af767ca752cf2d8df75b185296",
+            "results/workflow-097-final-001/original/pilot/ledger/item_1304243_store_32/round-2/project/review-evidence/000002.json": "ceb84b9e3fc37a9ff3527d6aa58dd614cfc96b95f338701458d85533799a84f0"
+          }
+        },
+        {
+          "series_id": "item_1372862_store_12",
+          "round": 0,
+          "current_origin_review_pages": 1,
+          "displayed_unique_pairs": 0,
+          "supported_pairs": 0,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 0,
+          "evidence": {
+            "results/workflow-097-final-001/original/pilot/ledger/item_1372862_store_12/round-0/project/review-evidence/000000.json": "c6b0a050fe27e0bf6990a82d9c4678d0a58175d7e04de6c6f667dc647eaa9945"
+          }
+        },
+        {
+          "series_id": "item_1372862_store_12",
+          "round": 1,
+          "current_origin_review_pages": 1,
+          "displayed_unique_pairs": 6,
+          "supported_pairs": 6,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 6,
+          "evidence": {
+            "results/workflow-097-final-001/original/pilot/ledger/item_1372862_store_12/round-1/project/review-evidence/000001.json": "c409fa88529b6a3c28adedb93fb9df3f580b1d8c0e136ec729252150169f2557"
+          }
+        },
+        {
+          "series_id": "item_1372862_store_12",
+          "round": 2,
+          "current_origin_review_pages": 1,
+          "displayed_unique_pairs": 6,
+          "supported_pairs": 6,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 9,
+          "evidence": {
+            "results/workflow-097-final-001/original/pilot/ledger/item_1372862_store_12/round-2/project/review-evidence/000002.json": "b65fd899b1e1b129a01a7b1bdec04f0fef62f2ba3e10fd67bd3d006027c901df"
+          }
+        },
+        {
+          "series_id": "item_1457251_store_14",
+          "round": 0,
+          "current_origin_review_pages": 0,
+          "displayed_unique_pairs": 0,
+          "supported_pairs": 0,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 0,
+          "evidence": {}
+        },
+        {
+          "series_id": "item_1457251_store_14",
+          "round": 1,
+          "current_origin_review_pages": 1,
+          "displayed_unique_pairs": 6,
+          "supported_pairs": 6,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 6,
+          "evidence": {
+            "results/workflow-097-final-001/original/pilot/ledger/item_1457251_store_14/round-1/project/review-evidence/000000.json": "9211a2793903682c94a96fd4ed56f210f23f92ef5dce3d3099db290185fbe939"
+          }
+        },
+        {
+          "series_id": "item_1457251_store_14",
+          "round": 2,
+          "current_origin_review_pages": 1,
+          "displayed_unique_pairs": 6,
+          "supported_pairs": 6,
+          "unsupported_pairs": 0,
+          "matched_pair_origin_incidences": 9,
+          "evidence": {
+            "results/workflow-097-final-001/original/pilot/ledger/item_1457251_store_14/round-2/project/review-evidence/000001.json": "93a20c646c70d319810789f6668048cafa32b5195032c0f5faf182ab16d032d2"
+          }
+        }
+      ]
+    }
+  },
+  "scope": "First three origins on the same four reused development series. Counts refer only to pages actually returned, deduplicated within each session by pair; unseen pairs remain unknown. Pair/session and pair/origin incidences are not independent samples. No scores or future targets selected this cohort. This measures available paired evidence, not accuracy, causality, or a pure effect of collection because agent exploration also differs.",
+  "engy_calls": 0,
+  "fits": 0,
+  "final_gate_opened": false,
+  "evidence": {
+    "results/workflow-097-support-audit-001/audit.py": "e8ac5165b11129a63d313ea4823388f0081f08f300a16b524ac1cabd8f3908dd",
+    "results/workflow-097-support-audit-001/report.json": "0a72feb8b89897e70b876958fa66426bf8c919cec3f5c69df786cfef88acf4f5"
+  }
+}

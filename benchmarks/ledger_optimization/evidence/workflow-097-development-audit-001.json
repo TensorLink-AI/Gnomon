@@ -1,0 +1,290 @@
+{
+  "status": "first_resumed_sessions_independently_verified",
+  "new_sessions": 6,
+  "independent_audit_checks": 1937,
+  "audit_failures": [],
+  "shutdown_record_gaps": [],
+  "new_arms": {
+    "gnomon": {
+      "admission_api_calls": 2,
+      "admission_reported_tokens": 28,
+      "admission_wait_seconds": 3.23940996080637,
+      "api_calls": 20,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 0,
+      "checkpoint_publications": 4,
+      "cold_rmsle": 0.6252569085244917,
+      "corrections": 0,
+      "distinct_configs_per_task": 3,
+      "dollars": null,
+      "http_errors": 0,
+      "later_rmsle": null,
+      "ledger_reviews": 0,
+      "mature_rmsle": null,
+      "mean_rmsle": 0.6252569085244917,
+      "numerical_attempts": 24,
+      "numerical_successes": 24,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 2
+      },
+      "per_series": {
+        "item_1047756_store_23": 0.8215182023789181,
+        "item_1304243_store_32": 0.42899561467006525
+      },
+      "review_calls": 3,
+      "seconds": 187.90952160395682,
+      "tasks": 2,
+      "tokens": 302107,
+      "usage_complete": true,
+      "valid": 2,
+      "valid_only_rmsle": 0.6252569085244917,
+      "workflow_complete": 2
+    },
+    "ledger": {
+      "admission_api_calls": 2,
+      "admission_reported_tokens": 28,
+      "admission_wait_seconds": 2.6449471563100815,
+      "api_calls": 23,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 0,
+      "checkpoint_publications": 4,
+      "cold_rmsle": 0.6252569085244917,
+      "corrections": 0,
+      "distinct_configs_per_task": 3,
+      "dollars": null,
+      "http_errors": 0,
+      "later_rmsle": null,
+      "ledger_reviews": 2,
+      "mature_rmsle": null,
+      "mean_rmsle": 0.6252569085244917,
+      "numerical_attempts": 24,
+      "numerical_successes": 24,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 2
+      },
+      "per_series": {
+        "item_1047756_store_23": 0.8215182023789181,
+        "item_1304243_store_32": 0.42899561467006525
+      },
+      "review_calls": 2,
+      "seconds": 232.4560217615217,
+      "tasks": 2,
+      "tokens": 360077,
+      "usage_complete": true,
+      "valid": 2,
+      "valid_only_rmsle": 0.6252569085244917,
+      "workflow_complete": 2
+    },
+    "plain": {
+      "admission_api_calls": 2,
+      "admission_reported_tokens": 28,
+      "admission_wait_seconds": 2.468049732968211,
+      "api_calls": 19,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 0,
+      "checkpoint_publications": 4,
+      "cold_rmsle": 0.6252569085244917,
+      "corrections": 0,
+      "distinct_configs_per_task": 2.5,
+      "dollars": null,
+      "http_errors": 0,
+      "later_rmsle": null,
+      "ledger_reviews": 0,
+      "mature_rmsle": null,
+      "mean_rmsle": 0.6252569085244917,
+      "numerical_attempts": 20,
+      "numerical_successes": 20,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 2
+      },
+      "per_series": {
+        "item_1047756_store_23": 0.8215182023789181,
+        "item_1304243_store_32": 0.42899561467006525
+      },
+      "review_calls": 2,
+      "seconds": 176.37025150470436,
+      "tasks": 2,
+      "tokens": 265860,
+      "usage_complete": true,
+      "valid": 2,
+      "valid_only_rmsle": 0.6252569085244917,
+      "workflow_complete": 2
+    }
+  },
+  "resumption": [
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 3,
+      "prior_outcomes": 3,
+      "matured_production_executions": 7,
+      "matured_unselected_executions": 4,
+      "workflow_progress_audit": {
+        "audited_prefixes": 2,
+        "checks": 88,
+        "provider_calls_from_reminders": 0,
+        "reminder_requests": [
+          4,
+          8
+        ]
+      }
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 3,
+      "prior_outcomes": 3,
+      "matured_production_executions": 10,
+      "matured_unselected_executions": 7,
+      "workflow_progress_audit": {
+        "audited_prefixes": 2,
+        "checks": 88,
+        "provider_calls_from_reminders": 0,
+        "reminder_requests": [
+          4,
+          8
+        ]
+      }
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 3,
+      "prior_outcomes": 3,
+      "matured_production_executions": 10,
+      "matured_unselected_executions": 7,
+      "workflow_progress_audit": {
+        "audited_prefixes": 3,
+        "checks": 117,
+        "provider_calls_from_reminders": 0,
+        "reminder_requests": [
+          4,
+          8,
+          11
+        ]
+      }
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 3,
+      "prior_outcomes": 3,
+      "matured_production_executions": 9,
+      "matured_unselected_executions": 6,
+      "workflow_progress_audit": {
+        "audited_prefixes": 3,
+        "checks": 112,
+        "provider_calls_from_reminders": 0,
+        "reminder_requests": [
+          4,
+          8,
+          11
+        ]
+      }
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 3,
+      "prior_outcomes": 3,
+      "matured_production_executions": 8,
+      "matured_unselected_executions": 5,
+      "workflow_progress_audit": {
+        "audited_prefixes": 2,
+        "checks": 88,
+        "provider_calls_from_reminders": 0,
+        "reminder_requests": [
+          4,
+          8
+        ]
+      }
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 3,
+      "prior_outcomes": 3,
+      "matured_production_executions": 9,
+      "matured_unselected_executions": 6,
+      "workflow_progress_audit": {
+        "audited_prefixes": 2,
+        "checks": 83,
+        "provider_calls_from_reminders": 0,
+        "reminder_requests": [
+          4,
+          8
+        ]
+      }
+    }
+  ],
+  "combined_verified_sessions": 42,
+  "combined_arms": {
+    "plain": {
+      "sessions": 14,
+      "full_workflows": 14,
+      "mean_rmsle": 0.5207118017207568,
+      "tokens": 1890694
+    },
+    "gnomon": {
+      "sessions": 14,
+      "full_workflows": 14,
+      "mean_rmsle": 0.5188244746636829,
+      "tokens": 1867838
+    },
+    "ledger": {
+      "sessions": 14,
+      "full_workflows": 14,
+      "mean_rmsle": 0.5164892536436007,
+      "tokens": 1924932
+    }
+  },
+  "transfer": {
+    "status": "verified",
+    "archive": {
+      "bytes": 5070335,
+      "sessions": 6,
+      "archive": "/root/gnomon-ledger-ml-v3/code/results/workflow-097-development-audit-001/snapshot.tar.gz",
+      "sha256": "74c5d0f7f45fec3952b9bea171a31cfa63cde41315c3d77f3df98d19cafb6f48"
+    },
+    "chunks": [
+      {
+        "offset": 0,
+        "bytes": 2097152,
+        "sha256": "9712ce79bc4adf8136ba3b51f673053b1d0e2cf0a1f94e12fa71ab1248838ddc"
+      },
+      {
+        "offset": 2097152,
+        "bytes": 2097152,
+        "sha256": "df8d08e5c7d6bc713b760f7c25ddbe48a580a39bea1ffdf302e010673f52342b"
+      },
+      {
+        "offset": 4194304,
+        "bytes": 876031,
+        "sha256": "df0d148a593c245aaa364f4b6922be898b419ca2c5c679b858d5a4de444fba86"
+      }
+    ],
+    "files_verified": 656
+  },
+  "costs": {
+    "sessions": 6,
+    "forwarded_requests": 62,
+    "returned_responses": 62,
+    "reported_tokens": 928044,
+    "requests_without_reported_usage": 0,
+    "api_errors": 0,
+    "readiness_requests": 6,
+    "readiness_reported_tokens": 84,
+    "readiness_unknown_usage": 0,
+    "orphan_responses": 0
+  },
+  "evidence": {
+    "results/workflow-097-development-audit-001/snapshot.py": "bf118be21cdba8abf18911555cbf2635bdb7d17b4f0341f550e7e53108115438",
+    "results/workflow-097-development-audit-001/collect.py": "9f3c67b4b6daec0859a6adfd3a5f795a5bc4c4d99d8973e58cc71ee5c4c2930b",
+    "results/workflow-097-development-audit-001/analyze_local.py": "d414075f9f7a69f3dc057ec3b2495bfb7889bffdc5da5b580dfad10055df9516",
+    "results/workflow-097-development-audit-001/audit/report.json": "c3ad8f526ed2dba07ed394877c0bbbcd21e9213903ffe4da5a05781514afd67d",
+    "results/workflow-097-development-audit-001/costs.json": "84749c9dbd965ef38e7f1fbc810cfc506c55e609437423f227c33ad4691645f3"
+  },
+  "scope": "Six newly completed round-3 sessions, disjoint from the 36-session pilot. All captured without success filtering. Histories include both selected and unselected matured outcomes. Accumulated counts across histories are not independent statistical samples. Snapshot costs are part of the eventual continuation total, not additional experiments.",
+  "final_gate_opened": false,
+  "objective_established": false
+}
