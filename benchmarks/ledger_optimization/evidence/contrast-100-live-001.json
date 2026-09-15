@@ -1,0 +1,88 @@
+{
+  "at": "2026-09-15T07:02:50.415650+00:00",
+  "source_sha256": {
+    "controller": "a9d18807915c53aae3eb97c26bb6e9d54787e45722dacfde44e07311b7171c18",
+    "worker": "57e853cc13999037196b4e776412f44898b63b04ffa8a1e7efba185d30f1f5a1",
+    "accepted_launch": "5d701765f6ef9edfdd5ed7ebabc19a13268fe2074a297435ecd6aeaf6e02922e",
+    "predecessor_audit_exit": "e89df0eae5ec7db81135aed16463968955c578bcc4f2ec43172eff351f080c17",
+    "predecessor_audit_passed": "9217ff8a9d58e14d332bf88eacbfd1d3d644d28fa47000c75bf4798d833154a9",
+    "manifest": "4f2583ca60e38abfd9c89973dab1a4e75fba37c6977b66bdccf40875b4b61bf6"
+  },
+  "forwarded_requests": 28,
+  "returned_responses": 26,
+  "grades": 2,
+  "final_gate_opened": false,
+  "continuation_launched": false,
+  "status": "pilot_running_after_predecessor_audit",
+  "controller": {
+    "pid": 125645,
+    "start_ticks": "1559953639",
+    "boot_id": "998193f3-2771-4162-80e8-1a4887370f60",
+    "at": "2026-09-15T06:52:08.778939+00:00",
+    "controller_sha256": "295782f161171c45fc81dc1f4b124bf4dff94d167ac23d05dfedf4829f94bc0d",
+    "continuation_authorized": false,
+    "live": true
+  },
+  "worker": {
+    "pid": 125676,
+    "start_ticks": "1559953655",
+    "boot_id": "998193f3-2771-4162-80e8-1a4887370f60",
+    "live": true
+  },
+  "accepted_launch": {
+    "continuation_authorized": false,
+    "fresh_arm_state": true,
+    "launcher_sha256": "1b49851045b4e03320965ec60cde0f27ba3a800345d852fa4856871661b59b85",
+    "plan_sha256": "0d6e759270e23db8d54f5cc7a5a0009a8af366e8d9ace23cf66beb648b76bc27",
+    "predecessors": {
+      "accuracy_used_for_admission": false,
+      "costs_sha256": "8ba8052fb020c588dc13b93f8a6cba78a0a311f5e0b997b47caadcb8e32e0e9d",
+      "engy_calls": 0,
+      "files_verified": 41608,
+      "final_gate_opened": false,
+      "finished_sha256": "f860deeab1ac6b7d4275193f9607c6bedc1466a0b1b886d21c82a47f25d9d156",
+      "predecessor_terminal_verified": true,
+      "recheck_sha256": "9217ff8a9d58e14d332bf88eacbfd1d3d644d28fa47000c75bf4798d833154a9",
+      "report_sha256": "cb4f343367067c8d62bdf7e460d7773bcd67de4eef7ace7515d1fc4f6fa9f167",
+      "scope": "Terminal process and immutable audit/cohort checks; not candidate dispatch or a fresh numerical re-audit."
+    },
+    "preflight_sha256": "472a89ddf5e723791487e0adcdeb9a431b0341ad3cdc7966cbc52753b6f64259"
+  },
+  "predecessor_recheck": {
+    "passed": true,
+    "checks": 185457,
+    "sessions": 312,
+    "original_report_sha256": "cb4f343367067c8d62bdf7e460d7773bcd67de4eef7ace7515d1fc4f6fa9f167",
+    "rechecked_report_sha256": "cb4f343367067c8d62bdf7e460d7773bcd67de4eef7ace7515d1fc4f6fa9f167",
+    "engy_calls": 0,
+    "provider_calls": 0,
+    "final_gate_opened": false
+  },
+  "runtime": {
+    "model": "deepseek-v4.1-flash",
+    "build": {
+      "build_id": "1.2.0+ga38cd0cad353.s9723394ccb6d",
+      "commit": "a38cd0cad35383e5f10021abf3aa20d4c16923be",
+      "dirty": false,
+      "fingerprint_scope": "gnomon_python_sources",
+      "package_version": "1.2.0",
+      "provenance": "git",
+      "source_sha256": "9723394ccb6d9e11991b312e01bac47c767c69407b6b33d36971cb6e48b6a22e"
+    },
+    "planned": 36,
+    "arms": [
+      "gnomon",
+      "ledger",
+      "plain"
+    ],
+    "source_jobs_sha256": "cf7bdd21e216e84809edb8653710e0c0755402864201400c5749a8dbff00f561"
+  },
+  "objective_established": false,
+  "scope": "Actual candidate-100 three-arm pilot started after zero-call independent predecessor audit. Live request/grade counts are monitoring, not independently audited scores. No continuation or final evaluation started.",
+  "evidence": {
+    "results/contrast-100-live-001/observation.stdout": "60c88e86c025de7a72d8f5d37faeebd87ba85b2c036b3c2427b92fa90e04f3a9",
+    "results/contrast-100-live-001/observe.py": "c40d26c13e4c44ac1d6f12ab3a70aa79f3c380a9a168d75d137cdac5948822a5",
+    "results/contrast-100-live-001/observation.exit.json": "9391321df0de1f2ab5bc0d0e34ad0bcfd8967aa49557b081ddcedfd2b348d448",
+    "results/contrast-100-live-001/observation.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

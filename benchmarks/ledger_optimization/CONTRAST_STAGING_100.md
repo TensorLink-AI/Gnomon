@@ -20,6 +20,31 @@ not launch continuation. See `CONTRAST_WAIT_100.md` and
 `evidence/contrast-100-waiter-001.json`. The historical no-waiter statement below
 describes the earlier bundle-001 staging observation, not the current state.
 
+## Candidate pilot admitted on 2026-09-15
+
+The one-shot waiter dispatched the controller at 06:52:08 UTC after the original
+097 run terminated successfully. Before candidate execution, the launcher
+verified all 41,608 inventoried predecessor files and independently re-audited
+all 312 sessions. The 185,457 checks passed; the recomputed report hash exactly
+matched the original. That recheck made zero provider or Engy calls.
+
+At 07:02:50 UTC, the accepted-launch receipt identified plan 003, the frozen
+candidate sources, DeepSeek v4.1 Flash and Gnomon 1.2.0. Both controller and
+worker identities were live. The 36-session pilot had 28 forwarded requests,
+26 returned responses and two grades. These are live monitoring counts, not
+audited efficacy results. The preceding statements about no paid candidate
+sessions describe staging before this admission.
+
+The candidate gives all three arms a computed current-CV table. Only the ledger
+arm also receives a contrast with the historical review it already requested,
+including counts, age and disagreement. No extra query, model family or fit
+budget is introduced. The pilot's completion gate is independent of accuracy;
+continuation requires a separate verified admission. No automatic continuation,
+final-data access, merge or release occurred. The 20% objective is unestablished.
+
+Receipt: `evidence/contrast-100-live-001.json`. Controller PID 125645 and worker
+PID 125676 are bound to their boot and start identities in that receipt.
+
 ## Historical staging receipt for bundle 001
 
 
