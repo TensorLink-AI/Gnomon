@@ -1,0 +1,208 @@
+{
+  "status": "updated_descriptive_analysis_of_audited_development",
+  "observed_sessions": 186,
+  "independent_audit_checks": 227677,
+  "primary_all_matched": {
+    "matched_cases": 61,
+    "mean_rmsle": {
+      "plain": 0.484505294939318,
+      "gnomon": 0.472588298951803,
+      "ledger": 0.48251191970730833
+    },
+    "ledger_relative_improvement": -0.02099844786152305,
+    "relative_status": "defined",
+    "valid": {
+      "plain": 61,
+      "gnomon": 61,
+      "ledger": 61
+    },
+    "full_workflows": {
+      "plain": 61,
+      "gnomon": 61,
+      "ledger": 61
+    },
+    "fallbacks": {
+      "plain": 0,
+      "gnomon": 0,
+      "ledger": 0
+    }
+  },
+  "latest_per_series": {
+    "item_1047756_store_23": {
+      "through_round": 25,
+      "prior_outcomes": 25,
+      "matched_cases": 26,
+      "mean_rmsle": {
+        "plain": 0.765745996745474,
+        "gnomon": 0.7372559048112857,
+        "ledger": 0.7565638160384827
+      },
+      "ledger_relative_improvement": -0.026188886519856736,
+      "relative_status": "defined",
+      "valid": {
+        "plain": 26,
+        "gnomon": 26,
+        "ledger": 26
+      },
+      "full_workflows": {
+        "plain": 26,
+        "gnomon": 26,
+        "ledger": 26
+      },
+      "fallbacks": {
+        "plain": 0,
+        "gnomon": 0,
+        "ledger": 0
+      }
+    },
+    "item_1304243_store_32": {
+      "through_round": 25,
+      "prior_outcomes": 25,
+      "matched_cases": 26,
+      "mean_rmsle": {
+        "plain": 0.2302269632015805,
+        "gnomon": 0.23004211940852887,
+        "ledger": 0.2296146228784772
+      },
+      "ledger_relative_improvement": 0.001858340251562729,
+      "relative_status": "defined",
+      "valid": {
+        "plain": 26,
+        "gnomon": 26,
+        "ledger": 26
+      },
+      "full_workflows": {
+        "plain": 26,
+        "gnomon": 26,
+        "ledger": 26
+      },
+      "fallbacks": {
+        "plain": 0,
+        "gnomon": 0,
+        "ledger": 0
+      }
+    },
+    "item_1372862_store_12": {
+      "through_round": 4,
+      "prior_outcomes": 4,
+      "matched_cases": 5,
+      "mean_rmsle": {
+        "plain": 0.3068289609511323,
+        "gnomon": 0.29540047310845396,
+        "ledger": 0.3158660320524549
+      },
+      "ledger_relative_improvement": -0.0692807250057692,
+      "relative_status": "defined",
+      "valid": {
+        "plain": 5,
+        "gnomon": 5,
+        "ledger": 5
+      },
+      "full_workflows": {
+        "plain": 5,
+        "gnomon": 5,
+        "ledger": 5
+      },
+      "fallbacks": {
+        "plain": 0,
+        "gnomon": 0,
+        "ledger": 0
+      }
+    },
+    "item_1457251_store_14": {
+      "through_round": 3,
+      "prior_outcomes": 3,
+      "matched_cases": 4,
+      "mean_rmsle": {
+        "plain": 0.5313453069798297,
+        "gnomon": 0.5502838102006338,
+        "ledger": 0.5533143825106442
+      },
+      "ledger_relative_improvement": -0.005507289609166355,
+      "relative_status": "defined",
+      "valid": {
+        "plain": 4,
+        "gnomon": 4,
+        "ledger": 4
+      },
+      "full_workflows": {
+        "plain": 4,
+        "gnomon": 4,
+        "ledger": 4
+      },
+      "fallbacks": {
+        "plain": 0,
+        "gnomon": 0,
+        "ledger": 0
+      }
+    }
+  },
+  "observed_search": {
+    "arms": {
+      "plain": {
+        "matched_sessions": 61,
+        "mean_complete_cv_configs": 2.6557377049180326,
+        "family_exposure_sessions": {
+          "random_forest": 12,
+          "ridge": 61,
+          "seasonal": 61
+        },
+        "selected_cv_minimum_sessions": 61,
+        "selected_not_in_final_cv_sessions": 0
+      },
+      "gnomon": {
+        "matched_sessions": 61,
+        "mean_complete_cv_configs": 2.918032786885246,
+        "family_exposure_sessions": {
+          "random_forest": 7,
+          "ridge": 61,
+          "seasonal": 61
+        },
+        "selected_cv_minimum_sessions": 57,
+        "selected_not_in_final_cv_sessions": 0
+      },
+      "ledger": {
+        "matched_sessions": 61,
+        "mean_complete_cv_configs": 2.737704918032787,
+        "family_exposure_sessions": {
+          "random_forest": 11,
+          "ridge": 61,
+          "seasonal": 61
+        },
+        "selected_cv_minimum_sessions": 53,
+        "selected_not_in_final_cv_sessions": 0
+      }
+    },
+    "same_complete_cv_set_cases": 4,
+    "same_selected_config_cases": 29
+  },
+  "pending": [
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 5,
+      "missing_arms": [
+        "plain",
+        "ledger"
+      ]
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 4,
+      "missing_arms": [
+        "plain"
+      ]
+    }
+  ],
+  "cold_mature_threshold": null,
+  "causal_memory_claim": false,
+  "engy_calls": 0,
+  "provider_calls": 0,
+  "final_gate_opened": false,
+  "objective_established": false,
+  "evidence": {
+    "results/contrast-100-history-progress-003/analyze.py": "d7982bb85f1fff49e429835f217367faa9b2f5b544d2d6c86127d5dd89949985",
+    "results/contrast-100-history-progress-003/history.json": "dc799246a7f51ab8e730ab726bc27015adee7fb9ed8b05e4f4785092017db7d0",
+    "results/contrast-100-history-progress-003/exploration.json": "7edae07713d464756bd8fe7bdac44154aae0666a07170085bfeb06af328b16f2",
+    "results/contrast-100-history-progress-003/sources.json": "b357c04b7ac3a5e86f2e42505b05b478a5468baad100720ca5933d1ed57fc110"
+  }
+}

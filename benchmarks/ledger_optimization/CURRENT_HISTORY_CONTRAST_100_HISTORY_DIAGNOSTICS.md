@@ -1,5 +1,31 @@
 # Candidate 100: accumulated history and search diagnostics
 
+## Updated snapshot: 186 audited sessions, 61 matched cases
+
+The fourth audit expands the descriptive analysis without changing its rules.
+Two series now have all 26 matched origins; their cumulative ledger changes
+versus no-ledger are 2.62% worse (item 1047756/store 23) and 0.19% better
+(item 1304243/store 32). The remaining series have five and four matched
+origins. This still supplies no consistent accumulating advantage; neither
+completed series establishes the 20% objective.
+
+| Arm | Mean complete CV configurations | Sessions testing RF | Selected final CV minimum |
+|---|---:|---:|---:|
+| Hermes | 2.66 | 12/61 | 61/61 |
+| Hermes + Gnomon | 2.92 | 7/61 | 57/61 |
+| Hermes + Gnomon + ledger | 2.74 | 11/61 | 53/61 |
+
+All arms tested Ridge and seasonal models in every matched case. The two
+Gnomon arms explored identical complete sets in 4/61 cases and selected the
+same configuration in 29/61. These observed differences do not isolate a
+causal ledger effect on search or selection. The all-case and per-origin
+results, final-CV comparisons and input hashes are retained under
+`results/contrast-100-history-progress-003/`. The original snapshot below
+remains intact. Diagnostic 104 separately asks about hindsight opportunity
+among already executed configurations; it is not a deployable policy.
+
+## Earlier snapshot: 93 audited sessions
+
 These are post-hoc descriptions of 93 independently audited development
 sessions, with 30 complete three-arm cases. They do not change the running
 protocol, choose a mature-history cutoff, or open final data. Gnomon is the

@@ -1,0 +1,108 @@
+{
+  "status": "new_continuation_sessions_independently_verified",
+  "new_sessions": 93,
+  "new_audit_checks": 128144,
+  "combined_verified_sessions": 186,
+  "combined_audit_checks": 227677,
+  "combined_matched": {
+    "matched_cases": 61,
+    "mean_rmsle": {
+      "plain": 0.484505294939318,
+      "gnomon": 0.472588298951803,
+      "ledger": 0.48251191970730833
+    },
+    "ledger_relative_improvement": -0.02099844786152305,
+    "relative_status": "defined",
+    "valid": {
+      "plain": 61,
+      "gnomon": 61,
+      "ledger": 61
+    },
+    "full_workflows": {
+      "plain": 61,
+      "gnomon": 61,
+      "ledger": 61
+    },
+    "fallbacks": {
+      "plain": 0,
+      "gnomon": 0,
+      "ledger": 0
+    }
+  },
+  "pending": [
+    {
+      "series_id": "item_1372862_store_12",
+      "round": 5,
+      "missing_arms": [
+        "plain",
+        "ledger"
+      ]
+    },
+    {
+      "series_id": "item_1457251_store_14",
+      "round": 4,
+      "missing_arms": [
+        "plain"
+      ]
+    }
+  ],
+  "transfer": {
+    "status": "verified",
+    "archive": {
+      "bytes": 211366945,
+      "sessions": 93,
+      "archive": "/root/gnomon-ledger-ml-v3/code/results/contrast-100-development-audit-004/snapshot.tar.gz",
+      "sha256": "19bd01d207d22f7a5283fcc3b816f9b85ad62c9149c98169e798247fb069cfe7",
+      "recovery": "Existing archive verified in full after original SSH observation timeout; no snapshot or forecast regenerated."
+    },
+    "files_verified": 16678
+  },
+  "collection_recovery": "Initial SSH snapshot observation timed out after 60 seconds. Existing completed remote archive was independently streamed and verified against its inventory, then transferred without regenerating snapshot or forecasts. Original failure retained.",
+  "new_costs": {
+    "sessions": 93,
+    "forwarded_requests": 784,
+    "returned_responses": 784,
+    "reported_tokens": 14144325,
+    "requests_without_reported_usage": 1,
+    "api_errors": 1,
+    "readiness_requests": 93,
+    "readiness_reported_tokens": 1302,
+    "readiness_unknown_usage": 0,
+    "orphan_responses": 0
+  },
+  "billing_dollars": null,
+  "audit_amendment": "Same separately documented cache-replay correction from audit 002. Running worker and original terminal auditor remain unchanged.",
+  "scope": "Disjoint snapshot of every completed session with grade and memory receipts, no success/accuracy filtering. Combined means require all three arms. Development only.",
+  "new_provider_calls": 0,
+  "new_engy_calls": 0,
+  "forecast_restarts": 0,
+  "final_gate_opened": false,
+  "objective_established": false,
+  "input_reports": {
+    "results/contrast-100-final-001/audit/report.json": "03ed955f9b55b56606f1974780bd33ae50a86a5e38b709c3ee92b8f46aaa57b0",
+    "results/contrast-100-development-audit-001/audit/report.json": "c19f0f8869a5aabf20d68b908a470c0a579605088d051e8210c69d9b065d4b2b",
+    "results/contrast-100-development-audit-002/audit-cache-replay/report.json": "6c952075073e7ebe9b02a24112532333091ac467c81ca87615e68f31fa36a0dd",
+    "results/contrast-100-development-audit-003/audit-cache-replay/report.json": "57886183684df0595f349a2abcf08532d39eb3cbf3fab474ad0bd0c779ae85f5",
+    "/root/Gnomon/results/contrast-100-development-audit-004/audit-cache-replay/report.json": "6ceb48fde386b62d20349a7d79e95906f7d98c21dcb4e71eef6f25b8affbadfa"
+  },
+  "evidence": {
+    "/root/Gnomon/results/contrast-100-development-audit-004/collect.py": "babe306a552dad9827e5a1799c545c109553e9d01fa1364d37b6f9072ca360b7",
+    "/root/Gnomon/results/contrast-100-development-audit-004/snapshot.py": "de7f0bd5ed5e70b5480512c3fdfa77e79eefe8b02beb060adeabe263f52906a2",
+    "/root/Gnomon/results/contrast-100-development-audit-004/collect.exit.json": "690d587ce16944d93dc10146051d4208443a7d0829f5480f952c60435c4508e8",
+    "/root/Gnomon/results/contrast-100-development-audit-004/collect.stderr": "6f755ded2d0f7fa2f5fc9828cf43387dc3fc859a75747f61e66792767b62f882",
+    "/root/Gnomon/results/contrast-100-development-audit-004/verify_existing_archive.py": "2d7b067d1bf2ca0b77788274d007f7c2fb725a120bee09074bce4cf8d55923ea",
+    "/root/Gnomon/results/contrast-100-development-audit-004/verify-existing-archive.command.json": "232a7c3b54e1d395e6e67f631ea02dc49aedea9b03b5c994fbcd9b568cb28874",
+    "/root/Gnomon/results/contrast-100-development-audit-004/collect_resume.py": "1309b83a290de3b8f2c3f8d2d11b642df614e2bf539bae799daa3919d5c93741",
+    "/root/Gnomon/results/contrast-100-development-audit-004/collect-resume.exit.json": "b2fec0c90d036469dcb4141aee3e00e859c98817201545ffe7ee812ef61abc6c",
+    "/root/Gnomon/results/contrast-100-development-audit-004/snapshot.json": "0758fe72628ee4104a01d9be5386368c401b4bb850f4df8bc93c2901b444e2cf",
+    "/root/Gnomon/results/contrast-100-development-audit-004/transfer.json": "d67442b5f801b8cd182be0954dcdf087c51101d5431b18850d15ba56f529b634",
+    "/root/Gnomon/results/contrast-100-development-audit-004/analyze_corrected.py": "b57c3258972647706375dbfe5ef53882f821053ab3090849b81e98c576c984da",
+    "/root/Gnomon/results/contrast-100-development-audit-004/analyze-corrected.exit.json": "ae2c1f29aff8164e6725af4cd3e4308301219ef858a14335b56058a6d40c802e",
+    "/root/Gnomon/results/contrast-100-development-audit-004/audit-cache-replay/report.json": "6ceb48fde386b62d20349a7d79e95906f7d98c21dcb4e71eef6f25b8affbadfa",
+    "/root/Gnomon/results/contrast-100-development-audit-004/costs.json": "7d287f25958c26c6622d8e86b06591e89fcbc95bf20ea824d8d37dffe7f28660",
+    "/root/Gnomon/results/contrast-100-development-audit-004/combine.py": "01c8e3e7e37bc21b175a471c4947a0a1805e71236016229043cf3ad26e37ef32",
+    "/root/Gnomon/results/contrast-100-development-audit-004/combine.exit.json": "9677262404f7398f6f33f43a05c76f3765c906457eac71408570a8b776ec2e7f",
+    "/root/Gnomon/results/contrast-100-development-audit-004/combined.json": "e306623717c5d50b4cd797ad6c5afc7716b52dc7af7ec216532b6e844504e5d1",
+    "/root/Gnomon/results/contrast-100-development-audit-004/receipt.py": "aae477f8859f06ddb90a2a25e5f857e527721ee360b9bf8770e6b4d9652aedc4"
+  }
+}

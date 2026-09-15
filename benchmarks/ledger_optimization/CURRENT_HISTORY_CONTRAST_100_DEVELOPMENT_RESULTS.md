@@ -5,6 +5,29 @@ sessions under the same three-arm Gnomon 1.2.0/DeepSeek v4.1 Flash protocol. The
 pilot's negative result remains in the denominator. This is reused development
 data, not the reserved final evaluation. The 20% target remains unestablished.
 
+## Fourth continuation audit: 186 verified sessions
+
+The next disjoint batch contains 93 valid full workflows and passes 128,144
+independent checks. Combined coverage is 186 sessions and 227,677 checks. The
+61 complete three-arm cases have mean per-case RMSLE 0.484505 (Hermes), 0.472588
+(Gnomon), and 0.482512 (ledger): ledger is 2.10% worse than no-ledger. All 183
+matched sessions completed without fallback; three other sessions remain
+pending. These are audited snapshot counts, not the latest live progress.
+
+The new batch preserves 784 agent requests/responses, 14,144,325 reported
+tokens and one recovered API 502 with unknown usage. Its 93 readiness requests
+report 1,302 tokens. The failed request and its unknown cost remain included;
+the session completed successfully without a forecast-run restart. Dollar
+costs remain unknown. Collection and audit added no provider or Engy calls.
+
+The initial SSH observation timed out while preparing the evidence archive.
+The existing remote archive subsequently verified in full against its inventory
+and was transferred in 202 independently hashed chunks, all without chunk
+failures. All 16,678 files and the 211,366,945-byte archive verified. The original
+timeout, archive, scripts and corrected transfer are retained; no snapshot or
+forecast was regenerated. The same documented offline cache-order audit
+correction applies. Receipt: `evidence/contrast-100-development-audit-004.json`.
+
 ## Third continuation audit: 93 verified sessions
 
 The next disjoint batch contains 33 completed, valid workflows and passes
