@@ -43,3 +43,19 @@ probes, unit tests, process launch alone or partial progress.
 This is operational reliability evidence, not an accuracy experiment. It cannot
 establish ledger value or open the held-out final partition. The live paid
 candidate-100 run, main and PyPI remain unchanged.
+
+## First completed stage
+
+The tracked integration run `results/m5-ml-integrated-host-002` completed its
+seed-7 pilot: 72 valid full workflows, 576 actual local numerical fits, 288
+scripted replies, 434 integration assertions and 39,520 independent audit
+checks. The controller retained a verified 7,315-file archive and the
+continuation started from the preserved pilot. This is partial verification:
+both full continuations and the seed-19 pilot must still pass before the full
+integration receipt can enable paid dispatch. Count the reused pilot once,
+not once in each stage directory.
+
+Receipt: `evidence/m5-ml-integrated-host-pilot-001.json`. The initial detached
+launch failed before creating any sessions; that environment failure remains
+in `results/m5-ml-integrated-host-launch-001`. No forecast was repeated to
+recover from it.

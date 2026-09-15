@@ -1,0 +1,35 @@
+{
+  "status": "first_pilot_verified_full_integration_still_running",
+  "seed": 7,
+  "unique_sessions": 72,
+  "valid_full_workflows": 72,
+  "independent_audit_checks": 39520,
+  "integration_assertions": 434,
+  "scripted_model_replies": 288,
+  "numerical_fits": 576,
+  "engy_calls": 0,
+  "archive": {
+    "archive_sha256": "7c75bdadc2a8775bde507e208449b9fbbbe606cd1dff18c9992b4dd439638afc",
+    "inventory_sha256": "4603884968983dff31e04d85c06b8d7b4b8b589bb0cccdf294a827b10536bdd0",
+    "files": 7315
+  },
+  "remaining_stages": [
+    "seed-7 complete continuation",
+    "seed-19 pilot",
+    "seed-19 complete continuation"
+  ],
+  "full_integration_passed": false,
+  "paid_dispatch_enabled": false,
+  "final_gate_opened": false,
+  "objective_established": false,
+  "scope": "Real local worker/host integration on synthetic fixtures and scripted model replies. Pilot prefix is reused exactly once in continuation; do not add both stage file counts. No accuracy efficacy claim.",
+  "evidence": {
+    "results/m5-ml-integrated-host-002/seed-7/pilot-launch/FINISHED.json": "dd5d58003afe6bb2bb275aa5b58501561be46f6f04dc2beb7d1735d2d25bfd90",
+    "results/m5-ml-integrated-host-002/seed-7/pilot-launch/SHA256SUMS.json": "4603884968983dff31e04d85c06b8d7b4b8b589bb0cccdf294a827b10536bdd0",
+    "results/m5-ml-integrated-host-002/seed-7/pilot/report.json": "9b632353a99b821f5d2468d210601adb6cdc87cd0480cd58a1c61a9aa7d7fea9",
+    "results/m5-ml-integrated-host-002/seed-7/pilot/integration-checks.json": "d1ee9fc5af78daff2abf09929ce0b0dfbe0a71e95fdaa1af724e26989ef7e883",
+    "results/m5-ml-integrated-host-002/seed-7/pilot/integrated-probe.json": "4cb9e0374abe542e091b98a5133af8a859a4474b6476f336ed9c28206730c23d",
+    "results/m5-ml-integrated-host-002/seed-7/pilot/GATE.json": "1559ba642efc6d558f2ff8414ee2522d8959cd5bbef1fd5927d9e052d4993cce",
+    "results/m5-ml-integrated-host-002/seed-7/plan.json": "1e2bf4252378e15a55fa1a873247e551358971f43fc936143cad6f5cf61ca8a1"
+  }
+}
