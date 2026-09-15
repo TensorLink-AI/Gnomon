@@ -1,0 +1,68 @@
+{
+  "status": "development_context_support_verified_keep_undeployed",
+  "protocol_freeze": "d6663478",
+  "summary": {
+    "sessions": 30,
+    "latest_displayed_pairs": 56,
+    "pair_statuses": {
+      "no_history_contrast": 9,
+      "pair_on_supplied_page": 43,
+      "configuration_not_in_historical_catalog": 4
+    },
+    "pairs_with_four_unfiltered_origins": 22,
+    "selected_filter_counts": {
+      "None": 21,
+      "4": 8,
+      "3": 10,
+      "2": 2,
+      "0": 2
+    },
+    "pairs_with_supported_filtered_cohort": 14,
+    "supported_selected_cohorts_disagreeing_with_unfiltered": 0,
+    "supported_selected_cohorts_disagreeing_with_current_cv": 4,
+    "sessions_with_supported_filter": 10,
+    "request_context_checks_against_original_contract": 378,
+    "databases_verified_unchanged": 30
+  },
+  "verification": {
+    "passed": true,
+    "checks": 1552,
+    "eligible_pairs": 22,
+    "supported_filtered_pairs": 14,
+    "changed_winner_vs_unfiltered": 0,
+    "provider_calls": 0,
+    "engy_calls": 0,
+    "scope": "Independent filter/count/mean/winner reconstruction from retained profiles and per-origin scores, plus source rehash. Original profile function equivalence separately checked against frozen earlier context contract. No current forecast accuracy scoring."
+  },
+  "tests_passed": 6,
+  "original_failure": "First driver read evidence key from an indirect receipt; failed before counts. Corrected to referenced audit-003 receipt, retaining original script, error and exit.",
+  "provider_calls": 0,
+  "engy_calls": 0,
+  "fits": 0,
+  "final_gate_opened": false,
+  "objective_established": false,
+  "interpretation": "No supported selected cohort changes the unfiltered pair winner. No new accuracy or causal benefit claim; do not deploy this filter on this evidence.",
+  "evidence": {
+    "results/context-support-103-offline-001/analyze-first.py": "b3d6cd73b902301f39b4ccd5c7cc4f269886444a9a419586a52f31b9026450fa",
+    "results/context-support-103-offline-001/analyze-retry.command.json": "634f0c348d190f2e9873f6bb79e9d3f83fdf9f95c97e985d32b2322ab5bb82c5",
+    "results/context-support-103-offline-001/analyze-retry.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/context-support-103-offline-001/analyze-retry.stdout": "17e88d47cc65e9711358c4de1a56a90c3375860184475daef1ba08db607afaf4",
+    "results/context-support-103-offline-001/analyze.command.json": "e5ce0996bdc8e15597978a41e16a0810d8fd5de38712a1fc50480debb079b12d",
+    "results/context-support-103-offline-001/analyze.py": "e9a5ca86505a5e7cce8ecd92d888fd6705173bebb3f96b189aca02ea1c37c6e6",
+    "results/context-support-103-offline-001/analyze.stderr": "6776c03a1def3be15e505dc559317da8d3e9f4ba9b7ceb6c845783917dea8ce7",
+    "results/context-support-103-offline-001/analyze.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/context-support-103-offline-001/report.json": "da9957b354f2dac2ea8dc8b97b86cee4deafe04ef139ae74e74f68515f59beb0",
+    "results/context-support-103-offline-001/sources.json": "1673e65bf79d10f30050c9b680c8a8541b97e5d9318ea7b18e9e6d5370014363",
+    "results/context-support-103-offline-001/tests.command.json": "837d437b97d29920bf7efdfecf842ec93eb11a75529af0c549ce963db5645d8f",
+    "results/context-support-103-offline-001/tests.stderr": "ea7df51bf3c7262f06250e4eb26d4c33129c0f08cdbea4d2246407949a0e0bb6",
+    "results/context-support-103-offline-001/tests.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/context-support-103-offline-001/verification.json": "2a78fafb72cab1b2840cb717c924674f43a9ca8868faf90ede0551a6a6a1c2dd",
+    "results/context-support-103-offline-001/verify.command.json": "e07424f0a91b776deff22d01e7357fe174c12bc5d647d801ac22402a5078d7ff",
+    "results/context-support-103-offline-001/verify.py": "12c128f141b7419efd7295c5bdb8f0bc79a85accfbbc15124f412b74db79a139",
+    "results/context-support-103-offline-001/verify.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/context-support-103-offline-001/verify.stdout": "2a78fafb72cab1b2840cb717c924674f43a9ca8868faf90ede0551a6a6a1c2dd",
+    "benchmarks/ledger_optimization/context_support_103.py": "68985c91ab6421eb8a3677469c32a1695a4eaeb0b34705a402e21d3687e647c8",
+    "benchmarks/tests/test_context_support_103.py": "09681270c3258a5c3f397af3d8405f538077ad293b4ad6db003329d3c84ff26d",
+    "benchmarks/ledger_optimization/CONTEXT_SUPPORT_103.md": "1d8f43099204f1682ca5f9bac69fd4a468a757ea4726332a689bfff60108b98b"
+  }
+}
