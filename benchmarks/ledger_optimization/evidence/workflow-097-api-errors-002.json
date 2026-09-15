@@ -1,0 +1,83 @@
+{
+  "at": "2026-09-15T05:33:00.222586+00:00",
+  "errors": [
+    {
+      "response_path": "gnomon/item_1457251_store_14/round-18/api-01-response.json",
+      "error_type": "dict",
+      "error_fields": [
+        "message"
+      ],
+      "error_code": null,
+      "receipt": {
+        "seconds": 3.204212047159672,
+        "status": 502
+      },
+      "grade": {
+        "valid": true,
+        "workflow_complete": true,
+        "fallback_used": false,
+        "api_errors": 1,
+        "usage_complete": false,
+        "api_calls": 10,
+        "rmsle": 0.5731747172485502,
+        "cause": null
+      },
+      "grade_exists": true
+    },
+    {
+      "response_path": "gnomon/item_1372862_store_12/round-20/api-10-response.json",
+      "error_type": "dict",
+      "error_fields": [
+        "message"
+      ],
+      "error_code": null,
+      "receipt": {
+        "seconds": 8.712377974763513,
+        "status": 502
+      },
+      "grade": {
+        "valid": true,
+        "workflow_complete": true,
+        "fallback_used": false,
+        "api_errors": 1,
+        "usage_complete": false,
+        "api_calls": 11,
+        "rmsle": 0.5565676996209142,
+        "cause": null
+      },
+      "grade_exists": true
+    },
+    {
+      "response_path": "ledger/item_1047756_store_23/round-18/api-04-response.json",
+      "error_type": "dict",
+      "error_fields": [
+        "message"
+      ],
+      "error_code": null,
+      "receipt": {
+        "seconds": 15.212959306314588,
+        "status": 502
+      },
+      "grade": {
+        "valid": true,
+        "workflow_complete": true,
+        "fallback_used": false,
+        "api_errors": 1,
+        "usage_complete": false,
+        "api_calls": 11,
+        "rmsle": 0.7785755015078955,
+        "cause": null
+      },
+      "grade_exists": true
+    }
+  ],
+  "scope": "Read-only live error/grade observation; new affected sessions await full independent session audit. No session restarted.",
+  "final_gate_opened": false,
+  "additional_provider_calls": 0,
+  "artifacts": {
+    "results/workflow-097-development-audit-011/api-error-observation.py": "d1078dd03bb27a4250f48524cd9cec6045ed4277b558c8da2999c53193d3697c",
+    "results/workflow-097-development-audit-011/api-error-observation.stdout": "aa8e7c70eb309f69973a9ec7ef98d832824c59220525a5c0b4be53b263c82880",
+    "results/workflow-097-development-audit-011/api-error-observation.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/workflow-097-development-audit-011/api-error-observation-exit.json": "fbc2724935a13b44bf0de5980a618b57e4fdf8115686f6d5bafffdc10363d2b2"
+  }
+}

@@ -457,3 +457,12 @@ controller live at 270/312, all completed sessions valid/full. This live count
 is separate from the immutable 269-session audited subset. Candidate 100 remains
 frozen behind the predecessor completion/audit gates. Final/protected data,
 main and PyPI remain unchanged; the objective is unestablished.
+
+A later live observation at 05:33:00 UTC identified two additional HTTP 502s:
+Gnomon without ledger, item_1457251_store_14 round 18 (3.204 seconds), and
+item_1372862_store_12 round 20 (8.712 seconds). Both affected sessions have valid,
+complete workflow grades and no fallback, but usage is incomplete. They are
+outside this 269-session immutable audit and await the next full session audit.
+Together with the previously retained ledger HTTP 502, this gives three observed
+error attempts with unknown usage, not zero cost. No sessions were restarted.
+Receipt: `evidence/workflow-097-api-errors-002.json`.
