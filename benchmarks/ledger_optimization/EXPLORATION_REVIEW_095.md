@@ -16,7 +16,9 @@ identity, never score. Every supplied pair's loss, tie, disagreement or absence
 of matched evidence remains visible and referenced to the original full file.
 
 The next call backtests a known configuration on the current task. Admission
-requires exploration phase and three fits plus one final-fit reserve. Live lab
+requires exploration phase and the lab's declared fresh batch cost plus its
+final-fit reserve. `current.budget` must include `fresh_backtest_fits` and
+`reserved_final_fits`; omitted or invalid costs are rejected. Live lab
 admission must recheck time, phase and budget. A structurally runnable call is
 not permission to overrun that budget. Current facts must be captured together
 by the trusted caller; this renderer does not prove recording visibility or
@@ -69,3 +71,54 @@ Live 093 sources remain frozen and this module is not imported by them. Finish
 the paid run and queued synthetic seed integration before any next paid trial.
 Neither this prototype nor sparse-display 094 has a prospective accuracy result.
 Final holdout remains closed; main/PyPI are unchanged.
+
+## Actual 097 review contexts: no useful neighbors yet
+
+A later read-only replay uses all 23 ledger sessions from the independently
+audited 097 pilot and continuation batches 001–003. It reconstructs current
+anchors from successful start/backtest calls returned **before** each actual
+review, with the budget returned at that review. It authenticates each full
+evidence file and checks paired identities, origins, counts and aggregates.
+The common configuration validator comes from the exact frozen 097 capsule;
+no forecast function is imported or executed.
+
+| Observation | Count |
+|---|---:|
+| Actual review calls | 25 |
+| Reviews before any current backtest | 23 |
+| Cold reviews with no historical catalog | 4 |
+| Reviews with a currently tested anchor | 2 |
+| Proposed one-setting neighbors | 0 |
+| One-setting pairs on returned pages | 0 |
+
+These counts include every audited ledger session, not only favorable cases.
+They concern returned pages, not unqueried storage or the full configuration
+space. Most agents ask for history before choosing their current experiments,
+so a renderer requiring an already-tested current configuration is poorly
+timed for that use. Moreover, the displayed historical recipes differ in more
+than one setting or model family, so merely allowing earlier anchors would
+not establish a supported one-setting comparison on these pages. More paired
+history alone has not made this particular search index useful.
+
+Keep this prototype undeployed. Do not spend a prospective run testing its
+present behavior, and do not interpret its zero suggestions as evidence that
+the ledger has no useful broader recipe comparisons. A future retrieval design
+should serve the actual planning point and preserve complete recipe identity;
+it should not describe multi-setting observational differences as isolated
+parameter effects. Any candidate still needs a frozen prospective evaluation.
+
+The replay exposed an obsolete budget assumption in this undeployed prototype:
+093 used three CV fits, while 096/097 also collect an unselected production
+forecast. The renderer now reads the cost and reserve explicitly. A four-fit
+batch with four remaining fits is rejected when one final fit is reserved;
+five remaining fits admits it. Eight targeted tests passed, including changed
+reserves, malformed/missing costs, source preservation and unsupported evidence.
+No live source or budget changed.
+
+The first replay invocation encountered the correctly returned cold-start
+response without a schema/catalog. Its exception and original script are
+retained. The corrected replay verifies and counts that empty response instead
+of inventing anchors or skipping the session. Evidence and hashes are in
+`evidence/exploration-review-095-context-097-001.json`; raw inputs remain in the
+audited snapshots, and the executable replay is under the same `results/` name.
+This audit used no Engy calls and makes no accuracy claim.

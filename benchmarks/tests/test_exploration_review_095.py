@@ -39,7 +39,8 @@ def fixture():
               'pagination': {'shown_pairs': 2, 'all_pairs_included': False,
                              'next_call': {'operation': 'review', 'arguments': {'offset': 2}}}}
     current = {'query': deepcopy(query), 'tested_configurations': [{'config_id': ids[0], 'config': configs[0]}],
-               'budget': {'numerical_remaining': 4, 'phase': 'exploration'}}
+               'budget': {'numerical_remaining': 4, 'phase': 'exploration',
+                          'fresh_backtest_fits': 3, 'reserved_final_fits': 1}}
     return review, current, ids
 
 
@@ -113,6 +114,33 @@ class ExplorationReviewTests(unittest.TestCase):
         review['configuration_index'][ids[1]]['config']['alpha'] = 20.
         with self.assertRaises(ValueError):
             exploration_review(review, current, canonical)
+
+    def test_collection_cost_and_reserve_come_from_current_lab(self):
+        review, current, _ = fixture()
+        current['budget'].update(fresh_backtest_fits=4, numerical_remaining=4)
+        neighbors = exploration_review(review, current, canonical)['exploration']['neighbors']
+        self.assertTrue(neighbors)
+        for neighbor in neighbors:
+            self.assertFalse(neighbor['next_call']['admissible_now'])
+            self.assertEqual(neighbor['next_call']['required_fits'], 4)
+            self.assertEqual(neighbor['next_call']['final_fit_reserve'], 1)
+        current['budget']['numerical_remaining'] = 5
+        self.assertTrue(all(n['next_call']['admissible_now'] for n in
+                            exploration_review(review, current, canonical)['exploration']['neighbors']))
+        current['budget']['reserved_final_fits'] = 2
+        self.assertFalse(any(n['next_call']['admissible_now'] for n in
+                             exploration_review(review, current, canonical)['exploration']['neighbors']))
+        for field in ('fresh_backtest_fits', 'reserved_final_fits'):
+            saved = current['budget'][field]
+            for invalid in (True, -1, 1.5):
+                current['budget'][field] = invalid
+                with self.assertRaises(ValueError):
+                    exploration_review(review, current, canonical)
+            current['budget'][field] = saved
+            del current['budget'][field]
+            with self.assertRaises(KeyError):
+                exploration_review(review, current, canonical)
+            current['budget'][field] = saved
 
     def test_malformed_evidence_never_becomes_guidance(self):
         for bad in ('cycle', 'count', 'nan', 'duplicate'):

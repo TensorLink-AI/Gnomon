@@ -94,11 +94,15 @@ def exploration_review(review, current, canonicalize):
     remaining = budget['numerical_remaining']
     if type(remaining) is not int or remaining < 0:
         raise ValueError('Nonnegative numerical budget required')
+    required = budget['fresh_backtest_fits']
+    reserve = budget['reserved_final_fits']
+    if type(required) is not int or required <= 0 or type(reserve) is not int or reserve < 0:
+        raise ValueError('Positive fresh batch cost and nonnegative final reserve required')
     if budget['phase'] not in ('exploration', 'selection'):
         raise ValueError('Known lab phase required')
-    admissible = budget['phase'] == 'exploration' and remaining >= 4
+    admissible = budget['phase'] == 'exploration' and remaining >= required + reserve
     reason = ('selection_phase' if budget['phase'] != 'exploration'
-              else 'insufficient_fits_with_final_reserve' if remaining < 4 else None)
+              else 'insufficient_fits_with_final_reserve' if remaining < required + reserve else None)
     neighbors = []
     for anchor, base in sorted(tested.items()):
         for cid, row in sorted(catalog.items()):
@@ -129,7 +133,7 @@ def exploration_review(review, current, canonicalize):
                 'next_call': {'operation': 'backtest', 'arguments': {'config': deepcopy(config)},
                               'valid_for_task': deepcopy(query), 'runnable': True,
                               'admissible_now': admissible, 'blocked_reason': reason,
-                              'required_fits': 3, 'final_fit_reserve': 1},
+                              'required_fits': required, 'final_fit_reserve': reserve},
             })
     result = deepcopy(review)
     result['exploration'] = {
