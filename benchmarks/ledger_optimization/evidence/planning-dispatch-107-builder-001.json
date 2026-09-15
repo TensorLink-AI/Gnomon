@@ -1,0 +1,17 @@
+{
+  "status": "builder_tested_not_deployed",
+  "commit": "64bc65a4",
+  "tests": 15,
+  "test_command": "results/planning-bundle-107-tests-001/command.json",
+  "test_command_sha256": "df705e858925e5a5c42aef13f65b751619a71be99e85a6e7e8d25e46afc5028c",
+  "builder_sha256": "dc44989d8473e329fff78f9783ebe339530d3131693ea5fae095c661f3edd3a3",
+  "paid_reservation_made": false,
+  "engy_calls": 0,
+  "final_gate_opened": false,
+  "objective_established": false,
+  "remaining": [
+    "Full 312-session synthetic host proof and terminal archives",
+    "Completed original candidate-100 reconciliation",
+    "Build and verify bundle, original-host runtime admission, one-shot pilot"
+  ]
+}
