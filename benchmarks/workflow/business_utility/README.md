@@ -6,9 +6,10 @@ Hermes or another model through a second harness. The pre-registration commit is
 [Eval 3](EVAL3.md) and the prospective [amendments](AMENDMENTS.md).
 
 **Live results are pending.** The user requested a baseline on top of 1.2.0.
-Both this checkout and fetched origin/main declare 1.1.9; a 1.2.0 source ref has
-not been located. No release identity is manufactured by changing the version.
-No new live model trial, hosted forecast or Docker build was launched for this work.
+The pinned 1.2.0 wheel was subsequently found in remote evaluation assets, and
+86 checks passed against its verified sources on Targon. See [remote preparation](TARGON.md)
+for the deployment selection, image builds and remaining model-configuration gate.
+The original local development checks used 1.1.9 and are not relabelled.
 
 ## What runs now
 

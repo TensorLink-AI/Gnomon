@@ -15,9 +15,17 @@ import time
 GIB = 1024**3
 
 
-def memory_available(proc=Path("/proc")):
+def memory_available(proc=Path("/proc"), cgroup=Path("/sys/fs/cgroup")):
     values = dict(line.split(":", 1) for line in (proc / "meminfo").read_text().splitlines())
-    return int(values["MemAvailable"].split()[0])*1024
+    available = int(values["MemAvailable"].split()[0])*1024
+    # Container /proc/meminfo can report the physical host's much larger RAM.
+    # Treat charged file cache conservatively; do not assume it will be reclaimed.
+    boundary = cgroup / "memory.max"
+    if boundary.exists():
+        maximum = boundary.read_text().strip()
+        if maximum != "max":
+            available = min(available, max(0, int(maximum)-int((cgroup / "memory.current").read_text())))
+    return available
 
 
 def cpu_ticks(proc=Path("/proc")):
@@ -127,7 +135,8 @@ def run(args):
                 rss, count = descendants(process.pid, known)
                 available = memory_available()
                 log.write(json.dumps({"time_unix": time.time(), "host_cpu_percent": 100*(1-idle/total) if total else None,
-                    "host_available_bytes": available, "owned_process_rss_bytes": rss, "owned_process_count": count,
+                    "effective_available_bytes": available, "availability_basis": "minimum of host available and cgroup uncharged memory",
+                    "owned_process_rss_bytes": rss, "owned_process_count": count,
                     "container_memory": "separately capped by existing backend; not included in host descendant RSS"}) + "\n")
                 log.flush()
                 if resource_stop(available, rss):

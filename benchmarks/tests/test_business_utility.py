@@ -203,6 +203,18 @@ def test_monitor_thresholds_and_release_gate(monkeypatch):
         run(SimpleNamespace())
 
 
+def test_monitor_uses_container_memory_limit(tmp_path):
+    from benchmarks.workflow.business_utility.monitor import memory_available, GIB
+    proc, cg = tmp_path / "proc", tmp_path / "cgroup"
+    proc.mkdir(); cg.mkdir()
+    (proc / "meminfo").write_text("MemAvailable: 400000000 kB\n")
+    (cg / "memory.max").write_text(str(50*GIB))
+    (cg / "memory.current").write_text(str(49*GIB))
+    assert memory_available(proc, cg) == GIB
+    (cg / "memory.max").write_text("max")
+    assert memory_available(proc, cg) == 400000000*1024
+
+
 def test_monitor_stops_owned_separate_session_not_unrelated_process():
     import subprocess
     import sys
