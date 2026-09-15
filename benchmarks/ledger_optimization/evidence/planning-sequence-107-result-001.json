@@ -1,0 +1,92 @@
+{
+  "status": "structural_replay_and_synthetic_lab_passed",
+  "protocol_commit": "7fe5d1f2",
+  "implementation_commit": "80a21c57",
+  "replay": {
+    "status": "structural_sequence_replay_passed",
+    "counts": {
+      "review_calls": 63,
+      "cold_reviews": 4,
+      "reviews_without_checkpoint": 58,
+      "reviews_with_budget_feasible_first_action": 46,
+      "eligible_recipes": 91,
+      "displayed_recipes": 91,
+      "conditional_sequential_capacity": 91
+    },
+    "checks": 1082,
+    "originals_unchanged": true,
+    "engy_calls": 0,
+    "refits": 0,
+    "synthetic_lab_execution_completed": false,
+    "agent_efficacy_test_completed": false,
+    "live_sources_changed": false,
+    "final_gate_opened": false,
+    "objective_established": false,
+    "scope": "Conditional budget feasibility at actual review boundaries, not executed steps or an accuracy result."
+  },
+  "synthetic": {
+    "status": "synthetic_checkpoint_recipe_sequence_passed",
+    "checks": 175,
+    "synthetic_origins": 5,
+    "matured_origins_before_proposed_sequence": 4,
+    "numerical_attempts": 40,
+    "estimator_fits": 20,
+    "scripted_tool_commands": 21,
+    "proposed_sequence_numerical_attempts": 8,
+    "engy_calls": 0,
+    "original_frozen_sources_unchanged": true,
+    "prior_event_prefixes_preserved": true,
+    "final_gate_opened": false,
+    "objective_established": false,
+    "scope": "One scripted recipe plan through the frozen common lab and real published-1.2.0 ledger. Not an agent or accuracy comparison."
+  },
+  "postcheck": {
+    "passed": true,
+    "published_build": {
+      "build_id": "1.2.0+ga38cd0cad353.s9723394ccb6d",
+      "commit": "a38cd0cad35383e5f10021abf3aa20d4c16923be",
+      "dirty": false,
+      "fingerprint_scope": "gnomon_python_sources",
+      "package_version": "1.2.0",
+      "provenance": "git",
+      "source_sha256": "9723394ccb6d9e11991b312e01bac47c767c69407b6b33d36971cb6e48b6a22e"
+    },
+    "numerical_attempts": 40,
+    "numerical_results": 40,
+    "ridge_estimator_fits": 20,
+    "missing_results": 0,
+    "configuration_groups_with_three_cv_and_one_production": 10,
+    "experiment_log_sha256": "885197ab4d93c2fdd7c3cbf0af0f1e6e94b401b85760ce63e456335cc7e1e487",
+    "engy_calls": 0,
+    "refits": 0,
+    "final_gate_opened": false
+  },
+  "archive": {
+    "passed": true,
+    "files": 472,
+    "archive_members": 473,
+    "archive_bytes": 4375044,
+    "archive_sha256": "a11c4a3d7f8839b30a3aa1b803a1c076b07793f45edb12107f40ed62b4666ff3",
+    "inventory_sha256": "f29531107c7d5f6649e3be6085b5dcfa9287e4ba89507e30b1a681c872dfefb3",
+    "originals_unchanged": true,
+    "engy_calls": 0,
+    "refits": 0,
+    "final_gate_opened": false
+  },
+  "unit_tests": 18,
+  "agent_trial_started": false,
+  "objective_established": false,
+  "final_gate_opened": false,
+  "evidence_sha256": {
+    "results/planning-sequence-107-offline-001/report.json": "fcbe1df63e218611fa3e1eda508e9020606d1733978f3eded1a8958f2fbb19db",
+    "results/planning-sequence-107-offline-001/reviews.jsonl": "c51f4e885eccdecb8d1d0e2b21ee53b55b33921b3c859aa1e86be18cdf3e2e79",
+    "results/planning-sequence-107-synthetic-001/report.json": "5e3e08bfd6e293092f2bd99c9f30fdfc8ee3f4a2b8254b1ddc600050449aaf15",
+    "results/planning-sequence-107-synthetic-001/inputs.json": "fb105d89d650645fd11385085630ba0ccda566812ffa01ac2b1aae4037661959",
+    "results/planning-sequence-107-launch-001/command.json": "16c3ba3c7cf27b8d545311b0116b6be4ecae262e1bb1ef54ad4ed0ae2e8a1cef",
+    "results/planning-sequence-107-synthetic-launch-001/command.json": "58a41fcfeac99a63ce44f828f2208bad094abaa0a2affb4e75e30598c486d05f",
+    "results/planning-sequence-107-postcheck-001/command.json": "48b2cda375329e5a9b73f0b24d1e3f1c980fc2fc042eea32e27b0c0118c410c2",
+    "results/planning-sequence-107-postcheck-002/receipt.json": "5a73e3a381d27b342edab8470e89d8ecbc6ecdfc726f7acc7855f1bb1e251803",
+    "results/planning-sequence-107-archive-001/receipt.json": "ccad0297837e7de199213e952f7e10e568314e6203979a5c55f7c99b2fc67fd2",
+    "results/planning-sequence-107-tests-001/command.json": "2b16f92f5abd0e5b75f02fdbeaf49f8bc54dc03baeeeed675fd78cff588453d7"
+  }
+}
