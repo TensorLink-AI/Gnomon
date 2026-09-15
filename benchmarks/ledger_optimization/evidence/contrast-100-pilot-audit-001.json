@@ -1,0 +1,242 @@
+{
+  "status": "partial_pilot_sessions_independently_verified",
+  "sessions": 6,
+  "independent_audit_checks": 5391,
+  "audit_failures": [],
+  "shutdown_record_gaps": [],
+  "arms": {
+    "gnomon": {
+      "admission_api_calls": 2,
+      "admission_reported_tokens": 28,
+      "admission_wait_seconds": 2.51240368001163,
+      "api_calls": 18,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 0,
+      "checkpoint_publications": 4,
+      "cold_rmsle": 0.4159717123567785,
+      "corrections": 0,
+      "distinct_configs_per_task": 3,
+      "dollars": null,
+      "http_errors": 0,
+      "later_rmsle": null,
+      "ledger_reviews": 0,
+      "mature_rmsle": null,
+      "mean_rmsle": 0.4159717123567785,
+      "numerical_attempts": 24,
+      "numerical_successes": 24,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 2
+      },
+      "per_series": {
+        "item_1047756_store_23": 0.6528094515964845,
+        "item_1304243_store_32": 0.1791339731170725
+      },
+      "review_calls": 2,
+      "seconds": 202.8465248104185,
+      "tasks": 2,
+      "tokens": 226615,
+      "usage_complete": true,
+      "valid": 2,
+      "valid_only_rmsle": 0.4159717123567785,
+      "workflow_complete": 2
+    },
+    "ledger": {
+      "admission_api_calls": 2,
+      "admission_reported_tokens": 28,
+      "admission_wait_seconds": 8.24822279252112,
+      "api_calls": 17,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 0,
+      "checkpoint_publications": 4,
+      "cold_rmsle": 0.4176954352757716,
+      "corrections": 0,
+      "distinct_configs_per_task": 3,
+      "dollars": null,
+      "http_errors": 0,
+      "later_rmsle": null,
+      "ledger_reviews": 0,
+      "mature_rmsle": null,
+      "mean_rmsle": 0.4176954352757716,
+      "numerical_attempts": 24,
+      "numerical_successes": 24,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 2
+      },
+      "per_series": {
+        "item_1047756_store_23": 0.6562568974344707,
+        "item_1304243_store_32": 0.1791339731170725
+      },
+      "review_calls": 2,
+      "seconds": 191.4912842195481,
+      "tasks": 2,
+      "tokens": 210459,
+      "usage_complete": true,
+      "valid": 2,
+      "valid_only_rmsle": 0.4176954352757716,
+      "workflow_complete": 2
+    },
+    "plain": {
+      "admission_api_calls": 2,
+      "admission_reported_tokens": 28,
+      "admission_wait_seconds": 6.244761139154434,
+      "api_calls": 18,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 0,
+      "checkpoint_publications": 4,
+      "cold_rmsle": 0.4176954352757716,
+      "corrections": 0,
+      "distinct_configs_per_task": 3,
+      "dollars": null,
+      "http_errors": 0,
+      "later_rmsle": null,
+      "ledger_reviews": 0,
+      "mature_rmsle": null,
+      "mean_rmsle": 0.4176954352757716,
+      "numerical_attempts": 24,
+      "numerical_successes": 24,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 2
+      },
+      "per_series": {
+        "item_1047756_store_23": 0.6562568974344707,
+        "item_1304243_store_32": 0.1791339731170725
+      },
+      "review_calls": 2,
+      "seconds": 182.6105396822095,
+      "tasks": 2,
+      "tokens": 217994,
+      "usage_complete": true,
+      "valid": 2,
+      "valid_only_rmsle": 0.4176954352757716,
+      "workflow_complete": 2
+    }
+  },
+  "contrasts": {
+    "gnomon_vs_plain": {
+      "absolute_rmsle_reduction": 0.001723722918993087,
+      "bootstrap_draws": 2000,
+      "exploratory_absolute_series_bootstrap_95_interval": [
+        0.0,
+        0.003447445837986174
+      ],
+      "exploratory_series_bootstrap_95_interval": [
+        0.0,
+        0.005253195587678228
+      ],
+      "losses": 0,
+      "pairs": 2,
+      "relative_interval_status": "defined",
+      "relative_rmsle_reduction": 0.004126745885683514,
+      "relative_rmsle_status": "defined",
+      "undefined_relative_draws": 0,
+      "warning": "Only four reused development series, one requested seed: not confirmatory. No zero-control draw was discarded or assigned a relative improvement. Absolute differences are diagnostic, not a substitute target.",
+      "wins": 1
+    },
+    "ledger_vs_gnomon": {
+      "absolute_rmsle_reduction": -0.001723722918993087,
+      "bootstrap_draws": 2000,
+      "exploratory_absolute_series_bootstrap_95_interval": [
+        -0.003447445837986174,
+        0.0
+      ],
+      "exploratory_series_bootstrap_95_interval": [
+        -0.005280937384646078,
+        0.0
+      ],
+      "losses": 1,
+      "pairs": 2,
+      "relative_interval_status": "defined",
+      "relative_rmsle_reduction": -0.004143846487125291,
+      "relative_rmsle_status": "defined",
+      "undefined_relative_draws": 0,
+      "warning": "Only four reused development series, one requested seed: not confirmatory. No zero-control draw was discarded or assigned a relative improvement. Absolute differences are diagnostic, not a substitute target.",
+      "wins": 0
+    },
+    "ledger_vs_plain": {
+      "absolute_rmsle_reduction": 0.0,
+      "bootstrap_draws": 2000,
+      "exploratory_absolute_series_bootstrap_95_interval": [
+        0.0,
+        0.0
+      ],
+      "exploratory_series_bootstrap_95_interval": [
+        0.0,
+        0.0
+      ],
+      "losses": 0,
+      "pairs": 2,
+      "relative_interval_status": "defined",
+      "relative_rmsle_reduction": 0.0,
+      "relative_rmsle_status": "defined",
+      "undefined_relative_draws": 0,
+      "warning": "Only four reused development series, one requested seed: not confirmatory. No zero-control draw was discarded or assigned a relative improvement. Absolute differences are diagnostic, not a substitute target.",
+      "wins": 0
+    }
+  },
+  "annotation_audits": {
+    "plain": {
+      "sessions": 2,
+      "annotations": 14,
+      "checks": 1508
+    },
+    "gnomon": {
+      "sessions": 2,
+      "annotations": 14,
+      "checks": 1508
+    },
+    "ledger": {
+      "sessions": 2,
+      "annotations": 14,
+      "checks": 1510
+    }
+  },
+  "transfer": {
+    "status": "verified",
+    "archive": {
+      "bytes": 2612057,
+      "sessions": 6,
+      "archive": "/root/gnomon-ledger-ml-v3/code/results/contrast-100-pilot-audit-001/snapshot.tar.gz",
+      "sha256": "6dc7831de0b93dfe93e827b14b092094410a13e7aa473bb28cde9975ef4459e6"
+    },
+    "chunks": [
+      {
+        "offset": 0,
+        "bytes": 2097152,
+        "sha256": "f73cb58d89e487f266b0c0b563a815688f6d70ecd5da8f6e89f88195f7d58f4a"
+      },
+      {
+        "offset": 2097152,
+        "bytes": 514905,
+        "sha256": "fe0c362233f4adb4d2c2bce33a093d2c8763bf6f00c2bcc2a79ab0a1504353d6"
+      }
+    ],
+    "files_verified": 622
+  },
+  "costs": {
+    "sessions": 6,
+    "forwarded_requests": 53,
+    "returned_responses": 53,
+    "reported_tokens": 655068,
+    "requests_without_reported_usage": 0,
+    "api_errors": 0,
+    "readiness_requests": 6,
+    "readiness_reported_tokens": 84,
+    "readiness_unknown_usage": 0,
+    "orphan_responses": 0
+  },
+  "scope": "Every completed session in the snapshot, two matched first-origin cases; no success or accuracy filtering. Cold starts have no matured history, so these validate interface operation, not accumulated evidence benefit. Live pilot unchanged. Costs are a subset of the eventual pilot, not extra paid executions.",
+  "final_gate_opened": false,
+  "objective_established": false,
+  "evidence": {
+    "results/contrast-100-pilot-audit-001/snapshot.py": "dcc145d6b4dc8208d97b745e81145d07612193ab9a868f61f9824357433aed07",
+    "results/contrast-100-pilot-audit-001/collect.py": "be152370a36c0dd39fec318229e6a4fa3658a80579bfb005fb33cec0b2ff8be0",
+    "results/contrast-100-pilot-audit-001/analyze_local.py": "645417e99e7b651fbb9ea75b540c469c7a8899e64059dfb59d0f4a23fa373975",
+    "results/contrast-100-pilot-audit-001/snapshot.json": "7214b7de3d5d075f019425fd8b29e1a10469c99b02de4136052fd3f3ab75cdc0",
+    "results/contrast-100-pilot-audit-001/audit/report.json": "6eab240e33cc8ecde37fffa81be09bc47aa6559c0e0e7fa2f0b5a88ae3068c4f",
+    "results/contrast-100-pilot-audit-001/summary.json": "dccc3983382570c1b03a92dd791b5a021de132f8fbad78fa2d91a4415f869b94",
+    "results/contrast-100-pilot-audit-001/collect.stdout": "6cf9e9c612cea869aa9301c99d651fbc4626103cdb491263c6efa9fae324301c",
+    "results/contrast-100-pilot-audit-001/collect.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/contrast-100-pilot-audit-001/analyze.stdout": "dccc3983382570c1b03a92dd791b5a021de132f8fbad78fa2d91a4415f869b94",
+    "results/contrast-100-pilot-audit-001/analyze.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

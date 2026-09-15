@@ -45,6 +45,22 @@ final-data access, merge or release occurred. The 20% objective is unestablished
 Receipt: `evidence/contrast-100-live-001.json`. Controller PID 125645 and worker
 PID 125676 are bound to their boot and start identities in that receipt.
 
+The first six completed sessions subsequently passed 5,391 independent checks,
+with no audit failures or shutdown gaps. All 622 copied files and the archive
+hash verified. The audit independently reconstructs the current CV table and
+ranks from visible history, checks the available execution-log prefix, and checks
+the comparison against the last requested historical review. All six forecasts
+and workflows are valid. These are two matched cold-start cases with no matured
+history, so they establish interface correctness on this subset, not ledger value.
+
+Mean RMSLE is 0.417695 plain, 0.415972 Gnomon, and 0.417695 ledger. The snapshot
+contains 53 agent requests and 655,068 reported tokens, plus six readiness
+requests and 84 tokens; no errors or missing usage were observed. These requests
+belong to the running pilot and must not be counted again as audit costs. The
+collector and analyzer each passed on their first execution. Receipt:
+`evidence/contrast-100-pilot-audit-001.json`. The pilot remains incomplete and its
+completion gate is not yet established.
+
 ## Historical staging receipt for bundle 001
 
 
