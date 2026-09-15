@@ -61,6 +61,29 @@ collector and analyzer each passed on their first execution. Receipt:
 `evidence/contrast-100-pilot-audit-001.json`. The pilot remains incomplete and its
 completion gate is not yet established.
 
+The next disjoint snapshot contains ten additional sessions and passed 9,239
+checks. All 1,089 files verified; every forecast and workflow is valid. Together
+the snapshots cover 16 sessions and 14,630 checks. New sessions carry one or two
+prior outcomes, with three to seven matured production executions, including
+two to five previously unselected executions. No new fits were needed to carry
+that evidence forward.
+
+In the three newly audited ledger sessions, ten returned annotations reference
+a historical pair on the supplied page; four correctly disclose that a
+configuration is absent from the historical catalog; six have no complete
+current pair yet. These are repeated response annotations, not 20 independent
+historical samples. The audit verifies their facts and timing, not a causal
+benefit from presenting them.
+
+The combined comparison uses only four cases completed by all three arms:
+RMSLE 0.398576 plain, 0.389981 Gnomon and 0.390888 ledger. There is no observed
+ledger accuracy advantage on this small subset. The new batch contains 85
+agent requests and 1,240,910 reported tokens, plus ten readiness requests and
+140 tokens, with no errors or missing usage. Collector, analyzer and summary
+each passed on their first execution. Receipt:
+`evidence/contrast-100-pilot-audit-002.json`. The live pilot, its completion gate,
+and the unopened final evaluation remain unchanged.
+
 ## Historical staging receipt for bundle 001
 
 

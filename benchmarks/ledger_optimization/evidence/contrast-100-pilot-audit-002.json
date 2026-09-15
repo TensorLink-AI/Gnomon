@@ -1,0 +1,169 @@
+{
+  "new_sessions": 10,
+  "new_audit_checks": 9239,
+  "combined_sessions": 16,
+  "combined_audit_checks": 14630,
+  "matched_cases": 4,
+  "combined_matched": {
+    "plain": {
+      "mean_rmsle": 0.39857563732759155,
+      "tokens": 453902,
+      "api_calls": 35,
+      "numerical_attempts": 52
+    },
+    "gnomon": {
+      "mean_rmsle": 0.38998112194099643,
+      "tokens": 445289,
+      "api_calls": 34,
+      "numerical_attempts": 44
+    },
+    "ledger": {
+      "mean_rmsle": 0.39088837319975983,
+      "tokens": 468709,
+      "api_calls": 35,
+      "numerical_attempts": 48
+    }
+  },
+  "new_ledger_annotation_history_status": {
+    "no_comparison": 6,
+    "pair_on_supplied_page": 10,
+    "configuration_not_in_historical_catalog": 4
+  },
+  "new_maturation": [
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 1,
+      "prior_outcomes": 1,
+      "production_executions": 3,
+      "unselected_executions": 2
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 1,
+      "prior_outcomes": 1,
+      "production_executions": 3,
+      "unselected_executions": 2
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 2,
+      "prior_outcomes": 2,
+      "production_executions": 6,
+      "unselected_executions": 4
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 1,
+      "prior_outcomes": 1,
+      "production_executions": 3,
+      "unselected_executions": 2
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 2,
+      "prior_outcomes": 2,
+      "production_executions": 6,
+      "unselected_executions": 4
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 1,
+      "prior_outcomes": 1,
+      "production_executions": 3,
+      "unselected_executions": 2
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 1,
+      "prior_outcomes": 1,
+      "production_executions": 3,
+      "unselected_executions": 2
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 2,
+      "prior_outcomes": 2,
+      "production_executions": 7,
+      "unselected_executions": 5
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 1,
+      "prior_outcomes": 1,
+      "production_executions": 3,
+      "unselected_executions": 2
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 2,
+      "prior_outcomes": 2,
+      "production_executions": 6,
+      "unselected_executions": 4
+    }
+  ],
+  "transfer": {
+    "status": "verified",
+    "archive": {
+      "bytes": 5815093,
+      "sessions": 10,
+      "archive": "/root/gnomon-ledger-ml-v3/code/results/contrast-100-pilot-audit-002/snapshot.tar.gz",
+      "sha256": "333faa66bd3b7f8ff927dbdcac6e737985ed8d28be8d33c22e0648610276af94"
+    },
+    "chunks": [
+      {
+        "offset": 0,
+        "bytes": 2097152,
+        "sha256": "391952380a35767357849895ec621fb4f73b17a9a330a38edc993ad7c81aefe3"
+      },
+      {
+        "offset": 2097152,
+        "bytes": 2097152,
+        "sha256": "cec821476b0ce5d6a8f7303b7f9f3cfe636139713eb73f15fce608002ca8aa3c"
+      },
+      {
+        "offset": 4194304,
+        "bytes": 1620789,
+        "sha256": "c0a258609c0cb44e583aacfc9ecc38fa44fe3dcf049c5b5165bedac167609236"
+      }
+    ],
+    "files_verified": 1089
+  },
+  "new_costs": {
+    "sessions": 10,
+    "forwarded_requests": 85,
+    "returned_responses": 85,
+    "reported_tokens": 1240910,
+    "requests_without_reported_usage": 0,
+    "api_errors": 0,
+    "readiness_requests": 10,
+    "readiness_reported_tokens": 140,
+    "readiness_unknown_usage": 0,
+    "orphan_responses": 0
+  },
+  "scope": "Disjoint live pilot subsets. Matched aggregates use only all-three intersections without success filtering. Repeated annotations are not independent historical samples. Counts and numerical evidence integrity do not establish accuracy benefit.",
+  "final_gate_opened": false,
+  "objective_established": false,
+  "evidence": {
+    "/root/Gnomon/results/contrast-100-pilot-audit-002/summarize.py": "5fd5b3e3930ce15f0fe7f94e80200798d271618e2ebf10f196e9f5b18f240a4d",
+    "/root/Gnomon/results/contrast-100-pilot-audit-002/snapshot.py": "c87e9ff52c12be4b21e647ee674ab5c96c291ae6554f710e175a6ba713fa3d27",
+    "/root/Gnomon/results/contrast-100-pilot-audit-002/collect.py": "be152370a36c0dd39fec318229e6a4fa3658a80579bfb005fb33cec0b2ff8be0",
+    "/root/Gnomon/results/contrast-100-pilot-audit-002/analyze_local.py": "645417e99e7b651fbb9ea75b540c469c7a8899e64059dfb59d0f4a23fa373975",
+    "/root/Gnomon/results/contrast-100-pilot-audit-002/snapshot.json": "cae41d27fad41fab225f56482e3f1fe6f6a4d0c8f3ac24fcab046ede2cb276d4",
+    "/root/Gnomon/results/contrast-100-pilot-audit-002/audit/report.json": "2eb5f193f35ea33495d765a7573e46d9555533a190ad1f8795e65b9f7a591c43",
+    "/root/Gnomon/results/contrast-100-pilot-audit-002/collect.stdout": "dff11bfefd2adacc1d2480e3b6f1624bf342c2328e7df82c8dfeb99951d02d63",
+    "/root/Gnomon/results/contrast-100-pilot-audit-002/collect.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/root/Gnomon/results/contrast-100-pilot-audit-002/analyze.stdout": "b4b482d91dc59b8c6319d715e1bf87b2af8a77264a6e586573ab09ccdc6948ef",
+    "/root/Gnomon/results/contrast-100-pilot-audit-002/analyze.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/root/Gnomon/results/contrast-100-pilot-audit-001/audit/report.json": "6eab240e33cc8ecde37fffa81be09bc47aa6559c0e0e7fa2f0b5a88ae3068c4f"
+  }
+}

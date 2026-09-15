@@ -545,3 +545,37 @@ The controller was still creating its terminal archive. Candidate 100 remains
 subject to the original terminal/inventory/independent-audit launch gates.
 Final/protected data remain unopened; main and PyPI are unchanged. The 20%
 objective remains unestablished.
+
+## Terminal archive reconciled
+
+The original controller finished at 2026-09-15 06:52:08 UTC with exit 0. Its
+599,348,802-byte archive has SHA-256
+`8656b83c1aed98598ffefe0e2cdc7d35e7769ed5c04f9ba24f158847559eb950`.
+All 41,608 inventoried files verified locally. Every one of the 40,402 canonical
+session files agrees with the earlier immutable disjoint audits; those audits
+cover all 312 sessions exactly once and passed 185,457 checks. Their rows exactly
+match the terminal report. Arm totals, frozen exploratory contrasts and complete
+cost accounting were independently recomputed and agree with the terminal
+archive. The reconciler passed on its first execution.
+
+The final scores and interpretation above are unchanged: all 104 workflows per
+arm completed, and ledger reduced mean RMSLE by 0.1231% versus no-ledger Gnomon,
+with an interval crossing zero. The 20% target is not established. Costs remain
+3,086 agent requests and 48,609,055 reported tokens, plus 312 readiness requests
+and 4,368 tokens. Three API-error attempts have unknown usage; billing dollars
+remain unknown.
+
+Evidence transfer required recovery. The first reader used 8 MiB chunks; 66 of
+72 JSON responses were truncated by the SSH transport. The second reader used
+1 MiB chunks and verified 570 of 572 ranges; two SSH sessions terminated with
+exit 1. A fresh recovery directory retained and revalidated those 570 ranges,
+retrieved only the two missing ranges (each passed its first retry), and verified
+the complete archive and every file. All failed attempts remain retained. These
+were read-only evidence transfers with zero provider/Engy calls and no forecast
+or agent-session restarts.
+
+Receipt: `evidence/workflow-097-development-final-001.json`. The completed archive
+and verifier are under `results/workflow-097-development-final-003/`; transfer
+attempts 001 and 002 remain alongside it. Candidate 100 separately passed its
+full predecessor re-audit and started its frozen pilot; see
+`CONTRAST_STAGING_100.md`. Main/PyPI and final/protected data remain unchanged.

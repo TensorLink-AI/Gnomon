@@ -1,0 +1,465 @@
+{
+  "status": "complete_terminal_archive_independently_reconciled",
+  "at": "2026-09-15T07:18:14.231820+00:00",
+  "sessions": 312,
+  "verified_session_files": 40402,
+  "independent_session_audit_checks": 185457,
+  "remote_audit_checks": 185457,
+  "source_unchanged": true,
+  "arms": {
+    "gnomon": {
+      "admission_api_calls": 104,
+      "admission_reported_tokens": 1456,
+      "admission_wait_seconds": 177.87849693745375,
+      "api_calls": 1038,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 0,
+      "checkpoint_publications": 208,
+      "cold_rmsle": 0.5004843082787451,
+      "corrections": 0,
+      "distinct_configs_per_task": 2.769230769230769,
+      "dollars": null,
+      "http_errors": 2,
+      "later_rmsle": 0.5674231492249112,
+      "ledger_reviews": 0,
+      "mature_rmsle": 0.4960469201019325,
+      "mean_rmsle": 0.4818928812826998,
+      "numerical_attempts": 1152,
+      "numerical_successes": 1152,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 104
+      },
+      "per_series": {
+        "item_1047756_store_23": 0.7505213308350451,
+        "item_1304243_store_32": 0.22873508029177766,
+        "item_1372862_store_12": 0.3770286534928217,
+        "item_1457251_store_14": 0.5712864605111547
+      },
+      "review_calls": 142,
+      "seconds": 13059.901551488787,
+      "tasks": 104,
+      "tokens": 16357228,
+      "usage_complete": false,
+      "valid": 104,
+      "valid_only_rmsle": 0.4818928812826998,
+      "workflow_complete": 104
+    },
+    "ledger": {
+      "admission_api_calls": 104,
+      "admission_reported_tokens": 1456,
+      "admission_wait_seconds": 163.44744983315468,
+      "api_calls": 988,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 0,
+      "checkpoint_publications": 209,
+      "cold_rmsle": 0.49647438813116224,
+      "corrections": 0,
+      "distinct_configs_per_task": 2.8365384615384617,
+      "dollars": null,
+      "http_errors": 1,
+      "later_rmsle": 0.5583702395143479,
+      "ledger_reviews": 112,
+      "mature_rmsle": 0.486929993956583,
+      "mean_rmsle": 0.4812996281821683,
+      "numerical_attempts": 1180,
+      "numerical_successes": 1180,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 104
+      },
+      "per_series": {
+        "item_1047756_store_23": 0.7478795720538994,
+        "item_1304243_store_32": 0.22983587671498096,
+        "item_1372862_store_12": 0.3891654052985274,
+        "item_1457251_store_14": 0.5583176586612655
+      },
+      "review_calls": 116,
+      "seconds": 13420.118564939126,
+      "tasks": 104,
+      "tokens": 16065224,
+      "usage_complete": false,
+      "valid": 104,
+      "valid_only_rmsle": 0.4812996281821683,
+      "workflow_complete": 104
+    },
+    "plain": {
+      "admission_api_calls": 104,
+      "admission_reported_tokens": 1456,
+      "admission_wait_seconds": 168.74637733586133,
+      "api_calls": 1060,
+      "baseline_checkpoint_only": 0,
+      "blocked_api_requests": 0,
+      "checkpoint_publications": 208,
+      "cold_rmsle": 0.4913390448594365,
+      "corrections": 0,
+      "distinct_configs_per_task": 3.105769230769231,
+      "dollars": null,
+      "http_errors": 0,
+      "later_rmsle": 0.564107076943081,
+      "ledger_reviews": 0,
+      "mature_rmsle": 0.49116836757921684,
+      "mean_rmsle": 0.4777375868301168,
+      "numerical_attempts": 1292,
+      "numerical_successes": 1292,
+      "orchestration_stops": {
+        "checkpoint_workflow_complete": 104
+      },
+      "per_series": {
+        "item_1047756_store_23": 0.7508018759925791,
+        "item_1304243_store_32": 0.22867904043362824,
+        "item_1372862_store_12": 0.37464351931584916,
+        "item_1457251_store_14": 0.5568259115784107
+      },
+      "review_calls": 154,
+      "seconds": 13896.77431859076,
+      "tasks": 104,
+      "tokens": 16186603,
+      "usage_complete": true,
+      "valid": 104,
+      "valid_only_rmsle": 0.4777375868301168,
+      "workflow_complete": 104
+    }
+  },
+  "contrasts": {
+    "gnomon_vs_plain": {
+      "absolute_rmsle_reduction": -0.004155294452583003,
+      "bootstrap_draws": 2000,
+      "exploratory_absolute_series_bootstrap_95_interval": [
+        -0.01085942166409537,
+        0.00011225264969222382
+      ],
+      "exploratory_series_bootstrap_95_interval": [
+        -0.02237851710970573,
+        0.00022920844665719198
+      ],
+      "losses": 31,
+      "pairs": 104,
+      "relative_interval_status": "defined",
+      "relative_rmsle_reduction": -0.008697859593075341,
+      "relative_rmsle_status": "defined",
+      "undefined_relative_draws": 0,
+      "warning": "Only four reused development series, one requested seed: not confirmatory. No zero-control draw was discarded or assigned a relative improvement. Absolute differences are diagnostic, not a substitute target.",
+      "wins": 19
+    },
+    "ledger_vs_gnomon": {
+      "absolute_rmsle_reduction": 0.0005932531005314878,
+      "bootstrap_draws": 2000,
+      "exploratory_absolute_series_bootstrap_95_interval": [
+        -0.008442124158992814,
+        0.009451402281616061
+      ],
+      "exploratory_series_bootstrap_95_interval": [
+        -0.021852658867848485,
+        0.016859474724131074
+      ],
+      "losses": 26,
+      "pairs": 104,
+      "relative_interval_status": "defined",
+      "relative_rmsle_reduction": 0.001231089156063847,
+      "relative_rmsle_status": "defined",
+      "undefined_relative_draws": 0,
+      "warning": "Only four reused development series, one requested seed: not confirmatory. No zero-control draw was discarded or assigned a relative improvement. Absolute differences are diagnostic, not a substitute target.",
+      "wins": 31
+    },
+    "ledger_vs_plain": {
+      "absolute_rmsle_reduction": -0.003562041352051515,
+      "bootstrap_draws": 2000,
+      "exploratory_absolute_series_bootstrap_95_interval": [
+        -0.011180623557346836,
+        0.0018187911832959758
+      ],
+      "exploratory_series_bootstrap_95_interval": [
+        -0.026807812938894893,
+        0.002589734819200218
+      ],
+      "losses": 36,
+      "pairs": 104,
+      "relative_interval_status": "defined",
+      "relative_rmsle_reduction": -0.007456062596385538,
+      "relative_rmsle_status": "defined",
+      "undefined_relative_draws": 0,
+      "warning": "Only four reused development series, one requested seed: not confirmatory. No zero-control draw was discarded or assigned a relative improvement. Absolute differences are diagnostic, not a substitute target.",
+      "wins": 26
+    }
+  },
+  "costs": {
+    "stages": {
+      "retained_pilot": {
+        "sessions": 36,
+        "forwarded_requests": 361,
+        "returned_responses": 361,
+        "reported_tokens": 4755420,
+        "requests_without_reported_usage": 0,
+        "api_errors": 0,
+        "readiness_requests": 36,
+        "readiness_reported_tokens": 504,
+        "readiness_unknown_usage": 0,
+        "orphan_responses": 0
+      },
+      "continuation": {
+        "sessions": 276,
+        "forwarded_requests": 2725,
+        "returned_responses": 2725,
+        "reported_tokens": 43853635,
+        "requests_without_reported_usage": 3,
+        "api_errors": 3,
+        "readiness_requests": 276,
+        "readiness_reported_tokens": 3864,
+        "readiness_unknown_usage": 0,
+        "orphan_responses": 0
+      }
+    },
+    "deduplicated_total": {
+      "sessions": 312,
+      "forwarded_requests": 3086,
+      "returned_responses": 3086,
+      "reported_tokens": 48609055,
+      "requests_without_reported_usage": 3,
+      "api_errors": 3,
+      "readiness_requests": 312,
+      "readiness_reported_tokens": 4368,
+      "readiness_unknown_usage": 0,
+      "orphan_responses": 0
+    },
+    "arms": {
+      "plain": {
+        "sessions": 104,
+        "forwarded_requests": 1060,
+        "returned_responses": 1060,
+        "reported_tokens": 16186603,
+        "requests_without_reported_usage": 0,
+        "api_errors": 0,
+        "readiness_requests": 104,
+        "readiness_reported_tokens": 1456,
+        "readiness_unknown_usage": 0,
+        "orphan_responses": 0
+      },
+      "gnomon": {
+        "sessions": 104,
+        "forwarded_requests": 1038,
+        "returned_responses": 1038,
+        "reported_tokens": 16357228,
+        "requests_without_reported_usage": 2,
+        "api_errors": 2,
+        "readiness_requests": 104,
+        "readiness_reported_tokens": 1456,
+        "readiness_unknown_usage": 0,
+        "orphan_responses": 0
+      },
+      "ledger": {
+        "sessions": 104,
+        "forwarded_requests": 988,
+        "returned_responses": 988,
+        "reported_tokens": 16065224,
+        "requests_without_reported_usage": 1,
+        "api_errors": 1,
+        "readiness_requests": 104,
+        "readiness_reported_tokens": 1456,
+        "readiness_unknown_usage": 0,
+        "orphan_responses": 0
+      }
+    },
+    "billing_dollars": null,
+    "scope": "One canonical record per arm/series/origin. Unknown usage includes in-flight and unreported requests; it is not zero. Reported tokens include billed context again on each request and are not unique text tokens. Pilot and incremental continuation stages are disjoint."
+  },
+  "transfer": {
+    "passed": true,
+    "files_verified": 41608,
+    "archive_sha256": "8656b83c1aed98598ffefe0e2cdc7d35e7769ed5c04f9ba24f158847559eb950",
+    "archive_bytes": 599348802,
+    "finished": {
+      "complete": true,
+      "cause": null,
+      "exit_status": 0,
+      "retained_pilot_sessions": 36,
+      "new_sessions": 276,
+      "final_gate_opened": false,
+      "accuracy_used_for_completion": false,
+      "archive_sha256": "8656b83c1aed98598ffefe0e2cdc7d35e7769ed5c04f9ba24f158847559eb950",
+      "inventory_sha256": "a46d4bd84f73e0d2cd69789897d6557dcaa06c59fc8b5aebfc9172d918b3c807",
+      "files": 41608,
+      "at": "2026-09-15T06:52:08.397359+00:00",
+      "further_execution_launched": false
+    },
+    "chunk_bytes": 1048576,
+    "chunks": 572,
+    "forecast_restarts": 0
+  },
+  "read_recovery": {
+    "failed_attempts": [
+      {
+        "root": "results/workflow-097-development-final-001",
+        "verified_chunks": 6,
+        "failed_chunks": 66,
+        "chunks_sha256": "2383bc45c59acd43b9d066bd8849d9a75a375f3d11ad0991e59be3dec0e53f9d",
+        "stderr_sha256": "b51363f05b27206b9ec049836fbd4ac394aff722258b44e1b9b23dbe21325ad2",
+        "cause": "Oversized 8 MiB chunk JSON stdout truncated by transport",
+        "preserved": true
+      },
+      {
+        "root": "results/workflow-097-development-final-002",
+        "verified_chunks": 570,
+        "failed_chunks": 2,
+        "chunks_sha256": "b1750dbb0c711f272d68c4557d7f47a7a8eb89ee1fb055a5848f6bcb5b867cec",
+        "stderr_sha256": "1e468688d7281760691a9a7d0de2b75927334f39d0eb6eb60bf66966c4662454",
+        "cause": "Two 1 MiB SSH read sessions terminated with exit 1; other 570 ranges verified",
+        "preserved": true
+      }
+    ],
+    "final_reuse": {
+      "previous_root": "/root/Gnomon/results/workflow-097-development-final-002",
+      "chunks_sha256": "b1750dbb0c711f272d68c4557d7f47a7a8eb89ee1fb055a5848f6bcb5b867cec",
+      "reused_chunks": 570,
+      "retried_chunks": 2,
+      "maximum_read_attempts_per_missing_chunk": 3,
+      "forecast_restarts": 0
+    },
+    "missing_range_attempts": [
+      {
+        "offset": 92274688,
+        "attempt": 1,
+        "passed": true
+      },
+      {
+        "offset": 197132288,
+        "attempt": 1,
+        "passed": true
+      }
+    ],
+    "provider_calls": 0,
+    "engy_calls": 0,
+    "forecast_restarts": 0
+  },
+  "batch_audits": [
+    {
+      "receipt": "/root/Gnomon/benchmarks/ledger_optimization/evidence/workflow-097-final-001.json",
+      "receipt_sha256": "f59cc4df0742cf4816dba31912258c780a6ce983f9e7ae2a2b07dd24e8787798",
+      "report": "/root/Gnomon/results/workflow-097-final-001/audit/report.json",
+      "report_sha256": "f8d98586e2ddb64a7eaaf06c73f1450652800cfc567f0d2ea68f6a4b9dceb7c6",
+      "archive_sha256": "28d8a56cb3ee7734a6d876bc3448132953dfab590c903604eec52d9a35e41062",
+      "sessions": 36
+    },
+    {
+      "receipt": "/root/Gnomon/benchmarks/ledger_optimization/evidence/workflow-097-development-audit-001.json",
+      "receipt_sha256": "7974de237829ea2a80d51b93a3503a3859e2461853f2e593a47abed3f1f9dce3",
+      "report": "/root/Gnomon/results/workflow-097-development-audit-001/audit/report.json",
+      "report_sha256": "c3ad8f526ed2dba07ed394877c0bbbcd21e9213903ffe4da5a05781514afd67d",
+      "archive_sha256": "74c5d0f7f45fec3952b9bea171a31cfa63cde41315c3d77f3df98d19cafb6f48",
+      "sessions": 6
+    },
+    {
+      "receipt": "/root/Gnomon/benchmarks/ledger_optimization/evidence/workflow-097-development-audit-002.json",
+      "receipt_sha256": "9a8ffd1497bf200d8cafa2f9ca9e4bc5effa123c8082f333658be8ee92007af3",
+      "report": "/root/Gnomon/results/workflow-097-development-audit-002/audit/report.json",
+      "report_sha256": "7532e5a7da6a1f15e5e486f48847940a7dfe4ccb4a71b9c006c983bfddaa3e2b",
+      "archive_sha256": "8f2c511af3f7f413f3e955023fb53d71a70a69e5c3d3dbef43e06d11048e9a33",
+      "sessions": 15
+    },
+    {
+      "receipt": "/root/Gnomon/benchmarks/ledger_optimization/evidence/workflow-097-development-audit-003.json",
+      "receipt_sha256": "262aabc3ec9f074d64b11f9c6d4b852e20df3bd30b8cd8da5fb8ae8776f8aaf3",
+      "report": "/root/Gnomon/results/workflow-097-development-audit-003/audit/report.json",
+      "report_sha256": "df4e5b5e2da4d46e80f63825457093f1d29755d41ccbd4c458386fba1c95504a",
+      "archive_sha256": "8e44f0c3b46f035681ce69ca39389b1b15467c33d1ef2eacdea32944ccf10024",
+      "sessions": 11
+    },
+    {
+      "receipt": "/root/Gnomon/benchmarks/ledger_optimization/evidence/workflow-097-development-audit-004.json",
+      "receipt_sha256": "57f0a0aea4367db90552d8bf34bde2023ebc5d7cf30e30274baccb7b9a9ce03a",
+      "report": "/root/Gnomon/results/workflow-097-development-audit-004/audit/report.json",
+      "report_sha256": "21ea30a132c94779f3fb52b5b30044da85e7c5f9200155d26a91b8bf2b9d12e7",
+      "archive_sha256": "bfcf13dc8de7e5e80a257c494b299d7d8f4307fbbb6a0380db8a74afa14d8e75",
+      "sessions": 21
+    },
+    {
+      "receipt": "/root/Gnomon/benchmarks/ledger_optimization/evidence/workflow-097-development-audit-005.json",
+      "receipt_sha256": "4bb47cb1bea9a21c1e087cd2a444ccbb06f8a4fa6e0879132f53a304b07f4438",
+      "report": "/root/Gnomon/results/workflow-097-development-audit-005/audit/report.json",
+      "report_sha256": "d0cfe3e4c59764899602aa6bdb91d259539b56bd614b77a14bd2378cb9f420f5",
+      "archive_sha256": "a499e6c2b59b475e6194fee18747531a8512d21aca7440af40dae93d927bc333",
+      "sessions": 21
+    },
+    {
+      "receipt": "/root/Gnomon/benchmarks/ledger_optimization/evidence/workflow-097-development-audit-006.json",
+      "receipt_sha256": "823451f4d40c39d47fd49ca271e2eb9fa64357bc9ac8b655ad66d247f1056d21",
+      "report": "/root/Gnomon/results/workflow-097-development-audit-006/audit/report.json",
+      "report_sha256": "8f6c62c8683ed3d57f4f0bb7f51db9650f9482e0d93fd2ccaec4921ff55eda16",
+      "archive_sha256": "08a3524acab3bd1c2b1343cc9b11feaf7ae62c4e2eef529f1afeb805d3c4a8fe",
+      "sessions": 32
+    },
+    {
+      "receipt": "/root/Gnomon/benchmarks/ledger_optimization/evidence/workflow-097-development-audit-007.json",
+      "receipt_sha256": "f35cdd7c03e92aba13ff4bb89a7b4ea884d5df48f0521639e0ef427b15a0813f",
+      "report": "/root/Gnomon/results/workflow-097-development-audit-007/audit/report.json",
+      "report_sha256": "68045201be05f0dada5a30b681a7a169fb64727ad851354dc0e3c05bf0274c6b",
+      "archive_sha256": "89cbda6bf71f4539c6b76aa93c047735ef3af285596c2a9f275411d87afeb981",
+      "sessions": 36
+    },
+    {
+      "receipt": "/root/Gnomon/benchmarks/ledger_optimization/evidence/workflow-097-development-audit-008.json",
+      "receipt_sha256": "d1c633b66c4c38dd432713e22ab9753d2ddb654820aaef5797259330c790b805",
+      "report": "/root/Gnomon/results/workflow-097-development-audit-008/audit/report.json",
+      "report_sha256": "446ac78bff9cfca13ad30bbd9e7e77beb247f4ff82ab3e61911367cfd97e72fb",
+      "archive_sha256": "eec9b513d59356d583099b3b9a898d646e712b7e2914b92ec6830877306d7148",
+      "sessions": 24
+    },
+    {
+      "receipt": "/root/Gnomon/benchmarks/ledger_optimization/evidence/workflow-097-development-audit-009.json",
+      "receipt_sha256": "550309e91027dd96c09f293bab013893ac5e101d0e2391889768738800fe6962",
+      "report": "/root/Gnomon/results/workflow-097-development-audit-009/audit/report.json",
+      "report_sha256": "70690b2f71d0e3f71a3f45296003cd6cdc12a2c1057878ae786ea9eeddd9a990",
+      "archive_sha256": "14f64fd44ae438f7e9ee34b14753013d61d4ba422f54daae6793a418517ba485",
+      "sessions": 25
+    },
+    {
+      "receipt": "/root/Gnomon/benchmarks/ledger_optimization/evidence/workflow-097-development-audit-010.json",
+      "receipt_sha256": "1986199f1723a5cdd593751876c6645407e3dea57bda28a2ca6561d8940b9c2b",
+      "report": "/root/Gnomon/results/workflow-097-development-audit-010/audit/report.json",
+      "report_sha256": "3932c1c4ac6f28e6fb47f6731e86ed68647c329cdc038ce2c1500e3505541a10",
+      "archive_sha256": "d2ddcfd2634d5b98bef21884d060e150885c948b322004354c7448ea60e8ca01",
+      "sessions": 24
+    },
+    {
+      "receipt": "/root/Gnomon/benchmarks/ledger_optimization/evidence/workflow-097-development-audit-011.json",
+      "receipt_sha256": "ea40e8b58a8f3df55457b9da808d3b741f4a18484be50e09a605196c079175ec",
+      "report": "/root/Gnomon/results/workflow-097-development-audit-011/audit/report.json",
+      "report_sha256": "3a39feb45d5199c4bbafb6f0ef67c3b590d9630536651e4ed445d56092d3683d",
+      "archive_sha256": "3d58967f248d8cf99fa3c04d304c0c9a0f0cea8987b0df7818a18a93def7e178",
+      "sessions": 18
+    },
+    {
+      "receipt": "/root/Gnomon/benchmarks/ledger_optimization/evidence/workflow-097-development-audit-012.json",
+      "receipt_sha256": "c80c56a3850c4cec0ec77b9f298112910bfceefb0db83e373a7e906b1f21a5ca",
+      "report": "/root/Gnomon/results/workflow-097-development-audit-012/audit/report.json",
+      "report_sha256": "4c48816cef9aed2b4c23c083d41d145b371ab1997247412515162c81d586e89e",
+      "archive_sha256": "45992fd73c1a2f04fb37310216dfc2a4e497472048cd4c46b3e4fd82ca08c48d",
+      "sessions": 15
+    },
+    {
+      "receipt": "/root/Gnomon/benchmarks/ledger_optimization/evidence/workflow-097-development-audit-013.json",
+      "receipt_sha256": "becc6e527ff0cc4ba89dde5f412d422efb6739df49b05f3ba345bb9f994280bd",
+      "report": "/root/Gnomon/results/workflow-097-development-audit-013/audit/report.json",
+      "report_sha256": "00f45516fb875338ccadd718ae061ea47b5d7443d56e45fdc5d5561ec2ff8a8d",
+      "archive_sha256": "9185e1ea0a8555c63ca99ea1a1900e59f8cfcd730e151779230a1a2cc4842f8e",
+      "sessions": 28
+    }
+  ],
+  "evidence": {
+    "results/workflow-097-development-final-003/collect.py": "2a4315235244d2961f1fbc75fc3134cf54bc51ec50a4f5f60ae902ad981639a7",
+    "results/workflow-097-development-final-003/verify_disjoint.py": "f0f153ad54d515f2f5b2decc01ffcffeba485eccde43c469ad995352ffd0c92e",
+    "results/workflow-097-development-final-003/preparation.json": "cd6d9c284d1abb2ebe41aa3e16b43166d62931b5940655f8532569cf26427217",
+    "results/workflow-097-development-final-003/metadata.json": "52303b20a3330eea474631c7171168be141820a856fdd80c4dfd69a6715638b3",
+    "results/workflow-097-development-final-003/reuse.json": "0263f2b0d4f421d8c3af45e939b5e25cc38fd5e4384161645ba1f2c12b6bddd0",
+    "results/workflow-097-development-final-003/attempts.json": "fa3a3eea6c0c21308d44351070fde8e7077e24b9ac18901de16f54355612fd96",
+    "results/workflow-097-development-final-003/chunks.json": "640197e511baca2235545331b42b7785d6feb0c5dd1ed90b0e684bbd8cfb7e66",
+    "results/workflow-097-development-final-003/transfer.json": "70fe79bf8190c007a8eedc33181829c2aefe65d836c0ac84fe89336bb665632d",
+    "results/workflow-097-development-final-003/disjoint-verification.json": "72828bc5b1c0174c4d0343485ae85f8521f6dbf0b6a76421bca3e83a5240c570",
+    "results/workflow-097-development-final-003/collect.stdout": "e956131225b4e2ced3c13ef7cb028ae8f01990ca7d9c1db590c0b6f47d6ad527",
+    "results/workflow-097-development-final-003/collect.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/workflow-097-development-final-003/verify.stdout": "6e476862a59618087a7ac6cbc90fe5df818f29b20f27a45d6f5c891ccc162524",
+    "results/workflow-097-development-final-003/verify.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/workflow-097-development-final-003/execution-status.json": "8ae9dc4da663293cb2c708e7ee9cc3da6ea829d5f56a20b54229f212bd91e3dc"
+  },
+  "final_gate_opened": false,
+  "objective_established": false,
+  "scope": "Terminal archive reconciled against all independently audited disjoint session inputs and identical rows; aggregates and frozen exploratory contrasts recomputed. No session audit rerun. Development evidence only. Four reused series, one seed; no untouched final efficacy claim. Failed read-only transfers preserved, not additional paid experiments."
+}
