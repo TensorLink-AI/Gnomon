@@ -1,0 +1,99 @@
+{
+  "status": "completed_session_snapshot_independently_verified_pilot_still_live",
+  "snapshot_at": "2026-09-15T00:49:27.327168+00:00",
+  "sessions": 17,
+  "planned": 36,
+  "audit_checks": 3705,
+  "audit_failures": [],
+  "shutdown_record_gaps": [],
+  "arms": {
+    "gnomon": {
+      "completed": 5,
+      "valid": 5,
+      "full_workflows": 5,
+      "tokens": 564134,
+      "numerical_attempts": 60
+    },
+    "ledger": {
+      "completed": 6,
+      "valid": 6,
+      "full_workflows": 6,
+      "tokens": 791517,
+      "numerical_attempts": 76
+    },
+    "plain": {
+      "completed": 6,
+      "valid": 6,
+      "full_workflows": 6,
+      "tokens": 777081,
+      "numerical_attempts": 68
+    }
+  },
+  "all_three_matched_cases": 5,
+  "matched_mean_rmsle": {
+    "plain": 0.35536127207482515,
+    "gnomon": 0.35536127207482515,
+    "ledger": 0.34803810579596905
+  },
+  "workflow_reminder_prefixes_audited": 35,
+  "reminder_provider_calls": 0,
+  "costs": {
+    "sessions": 17,
+    "forwarded_requests": 166,
+    "returned_responses": 166,
+    "reported_tokens": 2132732,
+    "requests_without_reported_usage": 0,
+    "api_errors": 0,
+    "readiness_requests": 17,
+    "readiness_reported_tokens": 238,
+    "readiness_unknown_usage": 0,
+    "orphan_responses": 0
+  },
+  "transfer": {
+    "status": "verified",
+    "archive": {
+      "bytes": 9336077,
+      "sessions": 17,
+      "archive": "/root/gnomon-ledger-ml-v3/code/results/workflow-097-live-audit-001/snapshot.tar.gz",
+      "sha256": "a1146eff2915a7a45862a2cc726022179ea5e6c077726da530981b251f1ada37"
+    },
+    "chunks": [
+      {
+        "offset": 0,
+        "bytes": 2097152,
+        "sha256": "8d4337f4926571d86e02b1046d70088fb5ddef3e724175efa12245fb0be34513"
+      },
+      {
+        "offset": 2097152,
+        "bytes": 2097152,
+        "sha256": "24e1ebf22d72177f8d41f79f3125e60d19e77eeef4fbe7b17af66bd719c71765"
+      },
+      {
+        "offset": 4194304,
+        "bytes": 2097152,
+        "sha256": "e63633eedfe03710fedb42c5918550008f00a658520b4898fd84446c8a1a40c9"
+      },
+      {
+        "offset": 6291456,
+        "bytes": 2097152,
+        "sha256": "fc957ec6e8407d826d892e1f46095b4c12530982deb21ddcb788a6a31821ebe5"
+      },
+      {
+        "offset": 8388608,
+        "bytes": 947469,
+        "sha256": "d8583322abc8ee569755b5e2c80d83a3eaa038b97f7f30328f71e7dc1a6e8a35"
+      }
+    ],
+    "files_verified": 1717
+  },
+  "evidence": {
+    "results/workflow-097-live-audit-001/snapshot.py": "c9c9a78bd5b8d18594a5aed42cbc1730a17051cdf8d7d28bc03724f81ee3fcd4",
+    "results/workflow-097-live-audit-001/collect.py": "9f3c67b4b6daec0859a6adfd3a5f795a5bc4c4d99d8973e58cc71ee5c4c2930b",
+    "results/workflow-097-live-audit-001/analyze_local.py": "d414075f9f7a69f3dc057ec3b2495bfb7889bffdc5da5b580dfad10055df9516",
+    "results/workflow-097-live-audit-001/audit/report.json": "5452e66e1cbf398cfe7115404eedf93b9eeb651fbc618e1c4bc2a7c1f2c5df07",
+    "results/workflow-097-live-audit-001/costs.json": "fe1f11d2a763a52dca1d00bf112cbd06de1183e64e4728cb33803b66e87e7eb1"
+  },
+  "scope": "All finished sessions captured without outcome filtering. Partial development evidence; scores use only cases completed in all arms. Snapshot costs must not be added again to final totals. No live worker modifications or restarts.",
+  "final_gate_opened": false,
+  "objective_established": false
+}

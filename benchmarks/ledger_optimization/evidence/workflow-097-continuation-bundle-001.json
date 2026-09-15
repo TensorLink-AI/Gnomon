@@ -1,0 +1,35 @@
+{
+  "status": "built_not_deployed_or_launched",
+  "files": 37,
+  "archive_bytes": 368252,
+  "archive_sha256": "75ef5e04c52bc201a76916ff5ba17ab704924aefa55182a2be28c0392b745c2b",
+  "plan_sha256": "1398c649da651441d77a34ea3d5ea86ac5838170bb55c0d4690101b26a0b2665",
+  "continuation_preflight_sha256": "2aadec799ab8bbc653c8cf6d79792f59e14a9cfeb95d250b4394f8b66a15c01e",
+  "help_import_checks": [
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "-m",
+        "benchmarks.ledger_optimization.control_continuation_097",
+        "--help"
+      ],
+      "cwd": "/root/Gnomon/results/workflow-097-continuation-bundle-001/payload/code",
+      "exit_status": 0
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "-m",
+        "benchmarks.ledger_optimization.continue_collection_096",
+        "--help"
+      ],
+      "cwd": "/root/Gnomon/results/workflow-097-continuation-bundle-001/payload/code",
+      "exit_status": 0
+    }
+  ],
+  "engy_calls": 0,
+  "final_gate_opened": false,
+  "requires": "terminal 097 pilot gate and archive verification before any continuation",
+  "build_script_sha256": "3f8c7d92b6ebe118b7f5c4fde972c889a51a92d11aa2ff96bb5b05e84673dc24",
+  "payload_inventory_sha256": "6c6deb2b28c65e807522e8b823d78d63ee18c8c17b58f4f1bcac5093eed1fc9c"
+}

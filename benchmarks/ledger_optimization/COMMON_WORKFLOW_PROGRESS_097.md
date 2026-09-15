@@ -96,3 +96,9 @@ compare only matched arms within that run. Do not mix
 096 controls with 097 ledger results, rescue selective failures, loosen the old
 gate, or choose continuation based on accuracy. The final holdout remains closed
 and the 20% objective remains unmet.
+
+## First live independent audit
+
+The immutable snapshot in `results/workflow-097-live-audit-001` captured all 17 sessions with final grade and memory receipts, without success or accuracy filtering. All 1,717 files matched source hashes before and after copying and survived archive verification. The frozen 097 auditor passed 3,705 checks with zero integrity or shutdown failures. All 17 workflows completed; 166 requests had returned usage (2,132,732 tokens), with no API errors or missing usage. The receipt records common-case scores separately from unequal completed-arm counts. This snapshot is a subset of the ongoing pilot, not an additional experiment or cost total.
+
+The conditional continuation bundle is built locally at `results/workflow-097-continuation-bundle-001`, with source/proof hashes and isolated command-import checks. It has not been deployed or launched. Terminal pilot gate verification and independent complete evidence audit remain prerequisites. The final evaluation stays closed and the 20% objective remains unmet.
