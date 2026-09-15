@@ -126,3 +126,23 @@ All six completed full workflows, and all arms selected identical forecasts on t
 The next 15 finished sessions passed 5,925 checks with zero integrity or shutdown failures. All 1,690 snapshot files verified; all 15 completed full workflows. The batch is disjoint from the pilot and batch 001, bringing independently audited coverage to 57 unique sessions. Only the 18 completed three-arm cases are used for the combined score comparison.
 
 An independent reconstruction of the available CV results before selection found 4/5 current-CV-minimum choices in each arm. All three exceptions concerned the same round-4 task: Ridge mean 0.892492 versus seasonal 0.891061. Plain and ledger rationales explicitly preferred Ridge on two fold wins and the most recent fold despite the near tie. Gnomon-without-ledger incorrectly described the seasonal mean as about 0.972 and Ridge as the minimum. The selected forecast was identical across arms; this is evidence about explanation quality and deliberate tradeoffs, not a demonstrated ledger accuracy benefit. Exact rationales, hashes and before-selection calculations are retained.
+
+## Continuation audit 003 and origin tracing
+
+Another 11 completed sessions passed 5,180 independent checks with zero audit failures or shutdown gaps. All 1,264 copied files and the archive verified. The snapshot is disjoint from the pilot and previous two continuation batches, bringing independently audited coverage to 68 sessions. All completed full workflows. Every new decision selected its minimum tested current-CV mean. The first analyzer invocation omitted the repository import path and failed before analysis; its error is retained, and the corrected invocation passed. No experiment was rerun.
+
+On the same 22 cases completed by all three arms, the verified totals are:
+
+| Arm | Mean RMSLE | Reported tokens | API requests | Fits |
+|---|---:|---:|---:|---:|
+| Hermes | 0.492300 | 3,204,965 | 221 | 276 |
+| Hermes + Gnomon | 0.492123 | 3,175,883 | 224 | 252 |
+| Hermes + Gnomon + ledger | 0.493495 | 3,001,201 | 213 | 264 |
+
+Ledger is 0.28% worse in RMSLE with 5.50% fewer tokens than Gnomon without ledger at this development snapshot. Neither these partial scores nor token savings establish the 20% accuracy target. Unequal completed-arm counts are excluded from this matched comparison. The live run continues with its frozen settings; the final holdout stays closed.
+
+A separate read-only audit traced the round-4 no-ledger explanation above through the actual boundary responses. All 32 returned review/backtest records had correct origins and metrics, independently reproduced from their scored pairs. The current baseline folds are August 30 (0.697400), September 13 (0.934102), and September 27 (1.041682), mean 0.891061. The decision instead attributes an August-16 baseline value (1.178013) to September 13. Substituting that older origin reproduces its claimed approximate mean of 0.972. This supports an origin-mixing explanation, not an incorrect returned score, and does not expose the model's internal reasoning.
+
+The interface adds avoidable reconstruction effort: `start` computes the baseline folds but returns only checkpoint identity, while subsequent backtest calls return fold scores and their mean. The agent requested two historical review pages that did not contain the current baseline results. It also read only the first 4,096 of 5,932 characters of `previous_runs.json`; the next offset and total were correctly disclosed. A future common-arm variant could return the already computed baseline scores directly. That proposal adds no new evidence or numerical calls and must be tested prospectively; the live experiment has not been modified. All three arms selected the same forecast on this case, so correcting the explanation would not itself change its measured accuracy.
+
+Receipts: `evidence/workflow-097-development-audit-003.json` and `evidence/workflow-097-origin-diagnostic-001.json`. Raw evidence and executable diagnostic are retained under their named `results/` directories. These snapshots are subsets of the eventual full-run costs, not additional paid experiments.

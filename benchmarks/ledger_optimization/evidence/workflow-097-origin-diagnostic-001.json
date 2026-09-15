@@ -1,0 +1,313 @@
+{
+  "status": "verified",
+  "series_id": "item_1047756_store_23",
+  "origin": "2016-10-11T00:00:00+00:00",
+  "returned_metric_records_verified": 32,
+  "returned_records": [
+    {
+      "boundary_line": 5,
+      "operation": "review",
+      "execution_id": "6d914085-4f2f-48a8-b469-45e4de4572d0",
+      "origin": "2016-07-05T00:00:00+00:00",
+      "model": "seasonal",
+      "rmsle": 1.123246462399868
+    },
+    {
+      "boundary_line": 5,
+      "operation": "review",
+      "execution_id": "84687c77-e141-4e3f-9fb1-f30cb943194f",
+      "origin": "2016-07-19T00:00:00+00:00",
+      "model": "seasonal",
+      "rmsle": 0.8894141338108107
+    },
+    {
+      "boundary_line": 5,
+      "operation": "review",
+      "execution_id": "baaec816-d7c6-4c7a-a8d5-e0bccd4c70a1",
+      "origin": "2016-08-02T00:00:00+00:00",
+      "model": "seasonal",
+      "rmsle": 1.5994804271767913
+    },
+    {
+      "boundary_line": 5,
+      "operation": "review",
+      "execution_id": "26630ee5-134a-4021-9018-d58b05007fc0",
+      "origin": "2016-07-05T00:00:00+00:00",
+      "model": "ridge",
+      "rmsle": 0.6428898303195002
+    },
+    {
+      "boundary_line": 5,
+      "operation": "review",
+      "execution_id": "a2d2d662-f6ab-4d3d-a4e6-6e60cb0fab38",
+      "origin": "2016-07-19T00:00:00+00:00",
+      "model": "ridge",
+      "rmsle": 0.6431917800992504
+    },
+    {
+      "boundary_line": 5,
+      "operation": "review",
+      "execution_id": "94bc35d1-9e12-4c9a-bdc8-fc475c3995cc",
+      "origin": "2016-08-02T00:00:00+00:00",
+      "model": "ridge",
+      "rmsle": 0.5140897021600777
+    },
+    {
+      "boundary_line": 5,
+      "operation": "review",
+      "execution_id": "e9caba23-a522-4249-a266-2c5a9bbfd407",
+      "origin": "2016-08-16T00:00:00+00:00",
+      "model": "seasonal",
+      "rmsle": 1.1780131359730208
+    },
+    {
+      "boundary_line": 5,
+      "operation": "review",
+      "execution_id": "07a8cfac-56c6-4d0f-8f5b-576b7aba1f8b",
+      "origin": "2016-08-16T00:00:00+00:00",
+      "model": "ridge",
+      "rmsle": 0.6448454479465352
+    },
+    {
+      "boundary_line": 5,
+      "operation": "review",
+      "execution_id": "47ba714a-90fe-4cda-8544-938f6acc29d4",
+      "origin": "2016-07-19T00:00:00+00:00",
+      "model": "seasonal",
+      "rmsle": 0.8894141338108107
+    },
+    {
+      "boundary_line": 5,
+      "operation": "review",
+      "execution_id": "9ef626d8-56f4-463f-8c96-a0195bd2f68f",
+      "origin": "2016-08-02T00:00:00+00:00",
+      "model": "seasonal",
+      "rmsle": 1.5994804271767913
+    },
+    {
+      "boundary_line": 5,
+      "operation": "review",
+      "execution_id": "250f0af9-f1ae-4188-87c7-916acd594899",
+      "origin": "2016-08-16T00:00:00+00:00",
+      "model": "seasonal",
+      "rmsle": 1.1780131359730208
+    },
+    {
+      "boundary_line": 5,
+      "operation": "review",
+      "execution_id": "5670d97c-ae41-40c3-be49-c9c6f511a6fb",
+      "origin": "2016-07-19T00:00:00+00:00",
+      "model": "ridge",
+      "rmsle": 0.6431917800992504
+    },
+    {
+      "boundary_line": 5,
+      "operation": "review",
+      "execution_id": "87f97451-0669-4862-946b-ce8bc59d5df3",
+      "origin": "2016-08-02T00:00:00+00:00",
+      "model": "ridge",
+      "rmsle": 0.5140897021600777
+    },
+    {
+      "boundary_line": 5,
+      "operation": "review",
+      "execution_id": "8a158dd9-0daa-4ff8-948a-980c36602b6d",
+      "origin": "2016-08-16T00:00:00+00:00",
+      "model": "ridge",
+      "rmsle": 0.6448454479465352
+    },
+    {
+      "boundary_line": 5,
+      "operation": "review",
+      "execution_id": "da1c2dac-7ff7-4993-a20e-bf8ee926afe7",
+      "origin": "2016-07-19T00:00:00+00:00",
+      "model": "random_forest",
+      "rmsle": 0.6161970858881404
+    },
+    {
+      "boundary_line": 5,
+      "operation": "review",
+      "execution_id": "dc699090-2390-4809-bac6-f4dc1958583e",
+      "origin": "2016-08-02T00:00:00+00:00",
+      "model": "random_forest",
+      "rmsle": 0.5919057913519846
+    },
+    {
+      "boundary_line": 5,
+      "operation": "review",
+      "execution_id": "ab97f0ec-19bc-4512-9717-fdbb235499fe",
+      "origin": "2016-08-16T00:00:00+00:00",
+      "model": "random_forest",
+      "rmsle": 0.7464074238915297
+    },
+    {
+      "boundary_line": 5,
+      "operation": "review",
+      "execution_id": "77b40488-e577-4195-a1db-0aed4fdbb3b2",
+      "origin": "2016-08-30T00:00:00+00:00",
+      "model": "seasonal",
+      "rmsle": 0.6973999985520729
+    },
+    {
+      "boundary_line": 5,
+      "operation": "review",
+      "execution_id": "5718386e-855d-4b58-a032-127ac71126e4",
+      "origin": "2016-08-30T00:00:00+00:00",
+      "model": "ridge",
+      "rmsle": 0.5308334089651892
+    },
+    {
+      "boundary_line": 5,
+      "operation": "review",
+      "execution_id": "7420c137-dd06-45e4-81e4-96e1025967de",
+      "origin": "2016-08-30T00:00:00+00:00",
+      "model": "random_forest",
+      "rmsle": 0.5198539869784269
+    },
+    {
+      "boundary_line": 21,
+      "operation": "backtest",
+      "execution_id": "e02acf5c-5362-4874-8b5d-ade8427facf8",
+      "origin": "2016-08-30T00:00:00+00:00",
+      "model": "ridge",
+      "rmsle": 0.5308334089651892
+    },
+    {
+      "boundary_line": 21,
+      "operation": "backtest",
+      "execution_id": "f648d644-53a5-48b2-945d-e7e615495b7c",
+      "origin": "2016-09-13T00:00:00+00:00",
+      "model": "ridge",
+      "rmsle": 1.325125610418538
+    },
+    {
+      "boundary_line": 21,
+      "operation": "backtest",
+      "execution_id": "7e66712a-93fd-4d4e-84d5-ca07863ab309",
+      "origin": "2016-09-27T00:00:00+00:00",
+      "model": "ridge",
+      "rmsle": 0.8215182023789181
+    },
+    {
+      "boundary_line": 24,
+      "operation": "review",
+      "execution_id": "9e585fd4-3fc8-4e90-a214-30b1f079e793",
+      "origin": "2016-08-16T00:00:00+00:00",
+      "model": "random_forest",
+      "rmsle": 0.7464074238915297
+    },
+    {
+      "boundary_line": 24,
+      "operation": "review",
+      "execution_id": "f52df066-fee0-4986-bfd1-c94c5e093042",
+      "origin": "2016-08-30T00:00:00+00:00",
+      "model": "random_forest",
+      "rmsle": 0.5198539869784269
+    },
+    {
+      "boundary_line": 24,
+      "operation": "review",
+      "execution_id": "617c24a6-b95b-4b64-bc36-966e8faf389d",
+      "origin": "2016-09-13T00:00:00+00:00",
+      "model": "random_forest",
+      "rmsle": 1.4412974932920612
+    },
+    {
+      "boundary_line": 24,
+      "operation": "review",
+      "execution_id": "5a0c15ca-cd18-4855-81bc-37dbbb8f6a4b",
+      "origin": "2016-09-27T00:00:00+00:00",
+      "model": "seasonal",
+      "rmsle": 1.0416815173995755
+    },
+    {
+      "boundary_line": 24,
+      "operation": "review",
+      "execution_id": "a13146b6-9cbe-4897-88ee-8caa4031c928",
+      "origin": "2016-09-27T00:00:00+00:00",
+      "model": "ridge",
+      "rmsle": 0.8215182023789181
+    },
+    {
+      "boundary_line": 24,
+      "operation": "review",
+      "execution_id": "44a2aae4-95bc-44cb-9371-d61ac73f5de3",
+      "origin": "2016-09-27T00:00:00+00:00",
+      "model": "random_forest",
+      "rmsle": 0.9497615989161324
+    },
+    {
+      "boundary_line": 26,
+      "operation": "backtest",
+      "execution_id": "4fb4f6b2-77b2-481d-b972-a1f1d611e4ba",
+      "origin": "2016-08-30T00:00:00+00:00",
+      "model": "random_forest",
+      "rmsle": 0.5198539869784269
+    },
+    {
+      "boundary_line": 26,
+      "operation": "backtest",
+      "execution_id": "595225b8-a0ca-4725-a695-e0b161cfad97",
+      "origin": "2016-09-13T00:00:00+00:00",
+      "model": "random_forest",
+      "rmsle": 1.4412974932920612
+    },
+    {
+      "boundary_line": 26,
+      "operation": "backtest",
+      "execution_id": "8f61c7ca-8f8d-4464-944d-672bec5f5e0f",
+      "origin": "2016-09-27T00:00:00+00:00",
+      "model": "random_forest",
+      "rmsle": 0.9497615989161324
+    }
+  ],
+  "current_baseline_folds": [
+    {
+      "origin": "2016-08-30T00:00:00+00:00",
+      "rmsle": 0.6973999985520729
+    },
+    {
+      "origin": "2016-09-13T00:00:00+00:00",
+      "rmsle": 0.9341020335747072
+    },
+    {
+      "origin": "2016-09-27T00:00:00+00:00",
+      "rmsle": 1.0416815173995755
+    }
+  ],
+  "current_baseline_mean_rmsle": 0.8910611831754519,
+  "agent_claimed_baseline_mean_approximately": 0.972,
+  "agent_claimed_september_13_baseline_approximately": 1.178,
+  "actual_origin_of_approximately_1_178": "2016-08-16T00:00:00+00:00",
+  "mean_if_august_16_replaces_september_13": 0.9723648839748897,
+  "origin_mix_inference": "Replacing only September-13 with the returned August-16 baseline score reproduces the agent's approximately 0.972 mean. This arithmetic is consistent with mixing origins; it does not reveal the agent's internal process.",
+  "baseline_start_result_fields": [
+    "saved",
+    "checkpoint_id",
+    "execution_id",
+    "config",
+    "selection_after_comparison",
+    "previous_checkpoint_preserved"
+  ],
+  "previous_runs_reads": [
+    {
+      "path": "previous_runs.json",
+      "total_chars": 5932,
+      "next_offset": 4096,
+      "sha256": "2bbcd1b68e265c8bbe211c86c4f50558dbe5442d3e70ed8697fd21d6898cc804"
+    }
+  ],
+  "finding": "Every reviewed or backtested returned metric and origin matched its execution and independently recomputed RMSLE. The decision assigns an August-16 score to September-13 and misstates the current three-fold baseline mean. No incorrect returned metric was found in these responses.",
+  "interface_observation": "start computes the baseline folds but returns checkpoint identity without their scores. The agent requested two historical review pages, not the page containing the current baseline results, and read only the first 4096 of 5932 characters of previous_runs.json. Those limits were disclosed. A prospective common-arm baseline-score summary could reduce reconstruction effort.",
+  "limits": "One selected development case; not a measured frequency or causal test. This checks returned lab records and the partial file read, not every possible agent inference. All three arms selected the same Ridge forecast. No live source, decision, score, or budget was changed.",
+  "provider_calls": 0,
+  "engy_calls": 0,
+  "final_gate_opened": false,
+  "evidence": {
+    "results/workflow-097-development-audit-002/snapshot/gnomon/item_1047756_store_23/round-4/boundary-events.jsonl": "a3f8508febead08b7bef78b4dd7d8f3e69980086b32b1d5ef27c5dec226567c4",
+    "results/workflow-097-development-audit-002/snapshot/gnomon/item_1047756_store_23/round-4/project/experiments.jsonl": "acdf8e23f7651e4c61d0784f7a558c412d3d8c266fb125f9ac7c4f030c690f12",
+    "results/workflow-097-development-audit-002/snapshot/gnomon/item_1047756_store_23/round-4/project/decision.json": "238f10710baa5050cd12f04e1909f1c2ba1e46b9981084de2d56400e12f05c38",
+    "results/workflow-097-development-audit-002/snapshot/gnomon/item_1047756_store_23/round-4/project/previous_runs.json": "2bbcd1b68e265c8bbe211c86c4f50558dbe5442d3e70ed8697fd21d6898cc804",
+    "/root/Gnomon/results/workflow-097-origin-diagnostic-001/audit.py": "39165952e0e70dca96574f0e0963f04db1a8e451ef9eee6b24f5f95e56024e74"
+  }
+}
