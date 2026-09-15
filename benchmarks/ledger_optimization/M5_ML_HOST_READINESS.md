@@ -89,6 +89,12 @@ with different output directories. No production reservation exists. The plans
 still require actual host runtime/predecessor admission, launcher source binding
 and integrated execution checks; the current paid run remains unchanged.
 
+The cohort-aware launcher is now implemented; see `M5_ML_LAUNCHER.md`. It joins
+plan/predecessor/runtime admission, one-shot reservation, controller and copied
+prefix audit, and rejects the existing two-series proof as insufficient. The
+next required step is its exact-source eight-series/two-seed integration test
+and remote deployment bundle. No paid M5 dispatch is currently admitted.
+
 This is a code inspection of the current candidate-100 capsule and its existing
 launch helpers, together with the retained development-preparation receipt. It
 does not grant final access, launch M5 sessions, inspect reserved targets, or

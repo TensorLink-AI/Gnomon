@@ -1,0 +1,37 @@
+{
+  "status": "launcher_implemented_dispatch_closed_pending_full_integration",
+  "tests_passed": 37,
+  "new_launcher_tests": 5,
+  "real_cli_negative_probe": {
+    "passed": true,
+    "deliberate_cli_rejection": true,
+    "cause": "Existing two-series proof cannot authorize full host dispatch",
+    "output_created": false,
+    "controller_created": false,
+    "provider_calls": 0,
+    "engy_calls": 0,
+    "final_gate_opened": false
+  },
+  "remaining": "Exact-source integrated eight-series/two-seed concurrent worker/controller pilot+continuation test, terminal predecessor reconciliation if needed, and deployment bundle.",
+  "provider_calls": 0,
+  "engy_calls": 0,
+  "final_gate_opened": false,
+  "objective_established": false,
+  "evidence": {
+    "results/m5-ml-launcher-001/help.command.json": "60a01c8f676b239b97f30c8458c4f5760368fcf7c7b601b56373c50395e2c0c8",
+    "results/m5-ml-launcher-001/help.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/m5-ml-launcher-001/help.stdout": "98efd58dd589cb2ae7f24b7b43642028abd83257fe52cf15259a225ded0301c1",
+    "results/m5-ml-launcher-001/host-sources.json": "9b861809dca6b36ba6559233ceb416e8533d9741c4941caee13823aa9e036d60",
+    "results/m5-ml-launcher-001/reject-incomplete-proof.command.json": "53a621dbbf7668e8b544c6d220c0b6cac111aaeb352b968898f0a8dd1ca9566a",
+    "results/m5-ml-launcher-001/reject-incomplete-proof.stderr": "9118d3d736fee07e8cdf57bcb57108a29887979f28e3ff16aa64cdb5fa7c101e",
+    "results/m5-ml-launcher-001/reject-incomplete-proof.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/m5-ml-launcher-001/rejection-report.json": "a67382aeb1035b5edfb205b1d8063028089892af9c3622d7bf5ebd3699216dc1",
+    "results/m5-ml-launcher-001/tests.command.json": "ba3296a553ff8db0d87de440fa4a3f3db29fbac617dcb90e7bcb3c266b8c7790",
+    "results/m5-ml-launcher-001/tests.stderr": "36d2355e059e77104795536178e788c53590db7ab1ab6264103684e84f392496",
+    "results/m5-ml-launcher-001/tests.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "benchmarks/ledger_optimization/launch_m5_ml.py": "b1296e7b429929d576341f587f5b74ebf33934fc337b0819bd5994337b44d5b7",
+    "benchmarks/tests/test_launch_m5_ml.py": "8807b0247cd97093001f9d298a7cfb1ecf5c3b5313eea2966ddd18e624588588",
+    "benchmarks/ledger_optimization/M5_ML_LAUNCHER.md": "eb7c69e4058946b624cc4848d558e7e4c698606dc0dc104062693d742553ba7b",
+    "benchmarks/ledger_optimization/M5_ML_HOST_READINESS.md": "2deec6928aa2b778c6162238dba87c42c7572b4eaa61092c63a5d731114744a9"
+  }
+}
