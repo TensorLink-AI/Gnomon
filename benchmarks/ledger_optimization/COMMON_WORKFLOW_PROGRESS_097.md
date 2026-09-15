@@ -283,3 +283,39 @@ agent session was repeated. Both attempts are hashed in the receipt.
 Receipt: `evidence/workflow-097-development-audit-007.json`. Final/protected data
 remain unopened. The separately added four-arm synthetic final analysis closes
 the prior-ledger comparison requirement; it does not change this live experiment.
+
+
+## Continuation audit 008 and protocol correction
+
+The next 24 completed sessions passed 11,776 independent checks with no audit
+failures or shutdown gaps. The 31,058,894-byte snapshot archive and all 2,845 files
+were verified before analysis. Combined disjoint coverage is 202 sessions:
+67 plain, 68 Gnomon, 67 ledger; every one is valid and a full workflow. The table
+uses the same 66 matched cases in all three arms, including every outcome.
+
+| Arm | Matched mean RMSLE | Reported tokens | API requests | Fits |
+|---|---:|---:|---:|---:|
+| Hermes | 0.474953 | 10,142,510 | 674 | 780 |
+| Hermes + Gnomon | 0.477184 | 10,312,001 | 662 | 744 |
+| Hermes + Gnomon + ledger | 0.481002 | 9,880,019 | 624 | 740 |
+
+Ledger has 0.80% higher error and 4.19% fewer reported tokens than Gnomon without
+ledger. The historical unknown-usage attempt remains in the combined evidence;
+reported tokens are not complete billing. This new batch contains 244 forwarded
+and returned requests, 3,956,644 reported tokens, no API errors or missing usage,
+plus 24 readiness requests and 336 tokens. These are already-incurred costs of
+the same run, not new experiments.
+
+Current-CV-minimum selections were 6/8 plain, 7/8 Gnomon and 7/8 ledger. All
+exceptions are retained with their tested configurations. They occur in both
+ledger and control arms; departing from current CV alone does not demonstrate
+bad reasoning or an infrastructure defect. The candidate-100 worker is unchanged.
+
+Receipt: `evidence/workflow-097-development-audit-008.json`. Candidate-100 plan
+003/bundle 002 restores the agreed three-arm Gnomon 1.2.0 protocol. The four-arm
+planning statement at the end of audit 007 was mistaken and is superseded; its
+original evidence remains retained. See PLAN.md and
+`evidence/contrast-100-three-arm-correction-001.json`. No paid candidate-100 run
+has started. The original 097 controller remains responsible for finishing its
+312 sessions; it has not been restarted. Final/protected data remain unopened,
+the 20% objective remains unestablished, and main/PyPI are unchanged.
