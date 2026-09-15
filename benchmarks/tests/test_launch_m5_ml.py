@@ -21,7 +21,7 @@ class LaunchTests(unittest.TestCase):
                     'host_sources':launch.source_identity(),'plan_hashes':{str(k):v for k,v in launch.PLAN_HASHES.items()},
                     'runtime_inventory':self.plan['runtime_inventory'],'build':self.plan['build'],
                     'requested_seeds':[7,19],'series_per_seed':8,'pilot_sessions_per_seed':72,
-                    'resumed_sessions_per_seed':24,'full_workflows_per_seed':96,'parallel_series':2,
+                    'resumed_sessions_per_seed':552,'full_workflows_per_seed':624,'parallel_series':2,
                     'original_prefix_unchanged':True,'copied_prefix_audit_passed':True,
                     'cross_seed_state_isolated':True,'reservation_reentry_rejected':True,
                     'checks':[{'passed':True}]}
@@ -91,6 +91,16 @@ class LaunchTests(unittest.TestCase):
         for name in ('launch.json','development-process.json'):dump(controller/name,{'pid':1})
         with patch.object(launch.inputs,'PARENT_PLAN_SHA',launch.inputs.sha(parent)),patch.object(launch.terminal,'terminal',side_effect=ValueError('still live')):
             with self.assertRaisesRegex(ValueError,'still live'):launch.verify_predecessor(root,controller,parent)
+
+    def test_worker_reservation_cannot_be_consumed_twice(self):
+        registry=self.root/'registry';registry.mkdir();plan_path=self.root/'plan.json';dump(plan_path,{})
+        args=SimpleNamespace(reservation=registry/'reservation.json',plan=plan_path,stage='pilot',
+                             output=self.root/'output',launch=self.root/'launch')
+        dump(args.reservation,{'plan_sha256':launch.inputs.sha(plan_path),'stage':'pilot',
+                               'output':str(args.output),'controller':str(args.launch)})
+        plan={'dispatch_registry':str(registry)}
+        launch.consume_reservation(args,plan)
+        with self.assertRaises(FileExistsError):launch.consume_reservation(args,plan)
 
 
 if __name__=='__main__':unittest.main()

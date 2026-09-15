@@ -26,7 +26,8 @@ HOST_FILES = ('launch_m5_ml.py', 'm5_ml_launch_inputs.py', 'm5_ml_controller.py'
               'm5_ml_development_contract.py', 'm5_ml_adapter.py', 'm5_ml_panel.py',
               'continue_collection_096.py', 'continue_guarded_093.py',
               'launch_collection_096.py', 'control_collection_096.py',
-              'control_continuation_097.py', 'costs_guarded_093.py')
+              'control_continuation_097.py', 'costs_guarded_093.py',
+              'probe_m5_integrated_host.py', '../tests/test_m5_ml_development_contract.py')
 
 
 def source_identity():
@@ -60,8 +61,8 @@ def verify_host_preflight(path, plan):
             or proof.get('requested_seeds') != [7, 19]
             or proof.get('series_per_seed') != 8
             or proof.get('pilot_sessions_per_seed') != 72
-            or proof.get('resumed_sessions_per_seed') != 24
-            or proof.get('full_workflows_per_seed') != 96
+            or proof.get('resumed_sessions_per_seed') != 552
+            or proof.get('full_workflows_per_seed') != 624
             or proof.get('parallel_series') != 2
             or proof.get('original_prefix_unchanged') is not True
             or proof.get('copied_prefix_audit_passed') is not True
@@ -119,6 +120,19 @@ def prepare_copy(helper, pilot, output, files, manifest, jobs, manifest_bytes, j
         'accuracy_used_for_promotion': False})
     helper.run.dump(output/'host-jobs.json', jobs)
     return metadata
+
+
+def consume_reservation(args, plan):
+    if args.reservation is None:
+        raise ValueError('Prior one-shot reservation required')
+    reservation = read(args.reservation)
+    if (reservation.get('plan_sha256') != inputs.sha(args.plan) or reservation.get('stage') != args.stage
+            or reservation.get('output') != str(args.output.absolute())
+            or reservation.get('controller') != str(args.launch.absolute())
+            or args.reservation.parent != Path(plan['dispatch_registry'])):
+        raise ValueError('Reservation does not bind this worker command')
+    with args.reservation.with_suffix('.consumed.json').open('x') as stream:
+        json.dump({'at': datetime.now(timezone.utc).isoformat(), 'automatic_retry': False}, stream)
 
 
 def execute_stage(args, helper, plan, manifest_bytes, jobs_bytes, prefix):
@@ -244,17 +258,7 @@ def main():
     if args.credentials_file is None:
         raise ValueError('Explicit credential path required after all admission checks')
     if args.worker:
-        if args.reservation is None:
-            raise ValueError('Prior one-shot reservation required')
-        reservation=read(args.reservation)
-        if (reservation.get('plan_sha256')!=inputs.sha(args.plan) or reservation.get('stage')!=args.stage
-                or reservation.get('output')!=str(args.output.absolute())
-                or reservation.get('controller')!=str(args.launch.absolute())
-                or args.reservation.parent!=Path(plan['dispatch_registry'])):
-            raise ValueError('Reservation does not bind this worker command')
-        # Exclusive consumption also prevents manual reuse of a reserved child.
-        with args.reservation.with_suffix('.consumed.json').open('x') as stream:
-            json.dump({'at':datetime.now(timezone.utc).isoformat(),'automatic_retry':False},stream)
+        consume_reservation(args, plan)
         execute_stage(args,helper,plan,manifest_bytes,jobs_bytes,prefix)
     else:
         reservation=inputs.reserve_stage(args.plan,plan,stage=args.stage,output=args.output,controller=args.launch)

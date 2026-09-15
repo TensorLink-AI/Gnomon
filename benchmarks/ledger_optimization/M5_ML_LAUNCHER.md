@@ -38,7 +38,7 @@ are retained in `results/m5-ml-launcher-001`.
 **Paid dispatch remains closed.** The required integrated host proof must bind
 the current launcher/helper hashes and both frozen plan hashes, exercise eight
 synthetic series per seed with two concurrent series chains, retain 72 pilot
-plus 24 resumed full workflows per seed, prove unchanged/copied prefix state,
+plus 552 resumed full workflows per seed, prove unchanged/copied prefix state,
 seed isolation and reservation re-entry rejection. The existing separate
 two-series and controller probes cannot substitute for that test. A further
 source-bound bundle/remote deployment is needed before any paid dispatch.
