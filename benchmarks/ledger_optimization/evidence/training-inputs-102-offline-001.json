@@ -1,0 +1,58 @@
+{
+  "status": "undeployed_effective_training_input_prototype_verified",
+  "selection_coverage": {
+    "matched_cases": 30,
+    "selected_is_final_cv_winner": 27,
+    "selected_pair_has_history": 26,
+    "selected_pair_has_outside_cv_history": 16,
+    "selected_pair_has_disagreement": 10,
+    "selected_pair_has_outside_cv_disagreement": 6,
+    "selected_follows_any_conflicting_history": 3
+  },
+  "real_execution_probe": {
+    "passed": true,
+    "unique_execution_pairs": 144,
+    "same_effective_inputs": 114,
+    "different_effective_inputs": 30,
+    "same_inputs_max_point_delta": 0.0,
+    "different_inputs_max_point_delta": 1.491746263971507,
+    "databases_verified_unchanged": 26,
+    "provider_calls": 0,
+    "engy_calls": 0,
+    "scope": "Read-only authenticated execution-payload comparisons on existing development evidence. No fitting, policy change or final-data access. Equal effective inputs are not equal recording provenance."
+  },
+  "unit_tests": {
+    "count": 5,
+    "argv": [
+      "python3",
+      "-m",
+      "unittest",
+      "benchmarks.tests.test_training_inputs_102"
+    ],
+    "exit_status": 0,
+    "seconds": 0.06016849400020874
+  },
+  "original_paid_run_changed": false,
+  "additional_paid_calls": 0,
+  "objective_established": false,
+  "final_gate_opened": false,
+  "evidence": {
+    "results/training-inputs-102-offline-001/tests.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/training-inputs-102-offline-001/probe-sources.json": "0649af89b7613e475c1e44146034660e49c4f48c0c3591b7c7a631cbfa6bfaee",
+    "results/training-inputs-102-offline-001/probe.stdout": "3a03b39d5a527cee2444899b7c83911b0c94fab51f6b8d6cc918fd5eb01d7d05",
+    "results/training-inputs-102-offline-001/tests.command.json": "4b0fb64882ce6b6d092a5434b76ed8d49a6a5fe151590cedef94337df95438b4",
+    "results/training-inputs-102-offline-001/tests.stderr": "3872f5a85da677f909ec5c55a5821758c34e2394460567a29f8043b480cc1105",
+    "results/training-inputs-102-offline-001/probe.py": "fb801628d2fdb9a9379c26a7f63964314275590bd8c2975a993601f918f25981",
+    "results/training-inputs-102-offline-001/probe.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/training-inputs-102-offline-001/probe.json": "485aafbf501c64a9ec4b936cbd5cb89bf72908e70f50166143d8c886fd7d2ae6",
+    "results/training-inputs-102-offline-001/probe.command.json": "0b8bedd833190a8b6f74c4158acf255eb23b047f129035726ce6aaf36f9884a3",
+    "results/contrast-100-selection-coverage-001/analyze.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/contrast-100-selection-coverage-001/analyze.command.json": "1ee9edec57a6d9bbaf719b314684170baa051435f6d9fd46671163f5797790fa",
+    "results/contrast-100-selection-coverage-001/analyze.py": "e1fdeb0dd043b95f337211c3690c6033bbf064677d6ef57a3c1f876c60eed958",
+    "results/contrast-100-selection-coverage-001/analyze.stdout": "4f8988a37b981b469d37e435258a48a2b448c58cffdc13e42e9d661cf1840b0b",
+    "results/contrast-100-selection-coverage-001/report.json": "d6ec8765b23f862240fc31f2455c695409efc0a85587b21476b6adc4c46d92e1",
+    "results/contrast-100-selection-coverage-001/sources.json": "60fdbe8c0452dbf2907940cbf2c5ab9d4d124b5240895376098086932230b366",
+    "benchmarks/ledger_optimization/training_inputs_102.py": "6cc7748272307284e836c0c013bf651839e140981091f2159697279f254372b1",
+    "benchmarks/tests/test_training_inputs_102.py": "66b0de2df4f4e93afb042a5a89d19e317ab598cf51c74dc25a34b51a0b8b33ef"
+  }
+}
