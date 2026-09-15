@@ -1,0 +1,210 @@
+{
+  "status": "offline_verified_not_deployed",
+  "tests": {
+    "count": 10,
+    "exit_status": 0,
+    "path": "results/paired-consistency-098-checks-002"
+  },
+  "replay": {
+    "pages": 10,
+    "old_bytes": 49851,
+    "new_bytes": 60482,
+    "independently_rendered_windows": 43,
+    "aggregate_winner_has_origin_losses": 1,
+    "rows": [
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 1,
+        "source": "results/workflow-097-final-001/original/pilot/ledger/item_1047756_store_23/round-1/project/review-log.jsonl",
+        "line": 1,
+        "source_sha256": "6d46ada9e08b8ca6350d1d6c52ae7922cb8783a22f6eaf8eb93aad512527ca39",
+        "full_evidence": "results/workflow-097-final-001/original/pilot/ledger/item_1047756_store_23/round-1/project/review-evidence/000000.json",
+        "full_evidence_sha256": "fa360d7be7ec590e5f5908de566dacc0c0a8e9cc966f091ae9a2653c9932d1ad",
+        "output": "item_1047756_store_23-r1-page0.json",
+        "output_sha256": "7a5a20e77bd2ee49d9e8c423126350952755341a40b4203cf75c4c54624df72a",
+        "old_bytes": 6242,
+        "new_bytes": 7482,
+        "independently_rendered_windows": 6,
+        "aggregate_winner_has_origin_losses": 0
+      },
+      {
+        "series_id": "item_1047756_store_23",
+        "round": 2,
+        "source": "results/workflow-097-final-001/original/pilot/ledger/item_1047756_store_23/round-2/project/review-log.jsonl",
+        "line": 2,
+        "source_sha256": "0a70516f08ce93057f8defdf0969abb8dd72bde92ab6aec1470c9e79d829aace",
+        "full_evidence": "results/workflow-097-final-001/original/pilot/ledger/item_1047756_store_23/round-2/project/review-evidence/000001.json",
+        "full_evidence_sha256": "4366cd27dcc594378a9e3f4a3c0dc6bdeab4ad1e64fbeff8e12a13c70115dd34",
+        "output": "item_1047756_store_23-r2-page1.json",
+        "output_sha256": "2aae91029d0b9a22bf6d3c164b49ebc278dd928fc73ac4a60aa9efc139bbd17a",
+        "old_bytes": 6242,
+        "new_bytes": 7481,
+        "independently_rendered_windows": 6,
+        "aggregate_winner_has_origin_losses": 1
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 1,
+        "source": "results/workflow-097-final-001/original/pilot/ledger/item_1304243_store_32/round-1/project/review-log.jsonl",
+        "line": 1,
+        "source_sha256": "b84fc07f4d85f37f5efab1057519b2517271352b77a6eac7a400ad44e41d449a",
+        "full_evidence": "results/workflow-097-final-001/original/pilot/ledger/item_1304243_store_32/round-1/project/review-evidence/000000.json",
+        "full_evidence_sha256": "4288da9318e82b757e8bf54d359c92649a55d3de0789a8cd5efc9f09779a2915",
+        "output": "item_1304243_store_32-r1-page0.json",
+        "output_sha256": "9f41bb27bd922dbe26c115b3ca0bc503f381be498081a732cb07e9cdab3eeca4",
+        "old_bytes": 4056,
+        "new_bytes": 4984,
+        "independently_rendered_windows": 3,
+        "aggregate_winner_has_origin_losses": 0
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 2,
+        "source": "results/workflow-097-final-001/original/pilot/ledger/item_1304243_store_32/round-2/project/review-log.jsonl",
+        "line": 2,
+        "source_sha256": "b0dbbab0606800bc4b0a8fd9a3db59036499a5709416da7f51361b45cf6ab3c6",
+        "full_evidence": "results/workflow-097-final-001/original/pilot/ledger/item_1304243_store_32/round-2/project/review-evidence/000001.json",
+        "full_evidence_sha256": "fc80c1a751e47e58cb9aad6f9111ba10505012af767ca752cf2d8df75b185296",
+        "output": "item_1304243_store_32-r2-page1.json",
+        "output_sha256": "f9b349aa9294b72449f0c5c1f5cf67479092ddc0ee944514f8e36af1ffd3bf1f",
+        "old_bytes": 4058,
+        "new_bytes": 4986,
+        "independently_rendered_windows": 3,
+        "aggregate_winner_has_origin_losses": 0
+      },
+      {
+        "series_id": "item_1304243_store_32",
+        "round": 2,
+        "source": "results/workflow-097-final-001/original/pilot/ledger/item_1304243_store_32/round-2/project/review-log.jsonl",
+        "line": 3,
+        "source_sha256": "1ff8c9fae78d8d91de283c5e010f1d2511c73954170adf391222647f2b27d7e0",
+        "full_evidence": "results/workflow-097-final-001/original/pilot/ledger/item_1304243_store_32/round-2/project/review-evidence/000002.json",
+        "full_evidence_sha256": "ceb84b9e3fc37a9ff3527d6aa58dd614cfc96b95f338701458d85533799a84f0",
+        "output": "item_1304243_store_32-r2-page2.json",
+        "output_sha256": "4414fda2ff0ed6cd392aa1d17bce5103009f73dc32ff2d2a51def2eb80e119da",
+        "old_bytes": 2711,
+        "new_bytes": 3431,
+        "independently_rendered_windows": 1,
+        "aggregate_winner_has_origin_losses": 0
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 0,
+        "source": "results/workflow-097-final-001/original/pilot/ledger/item_1372862_store_12/round-0/project/review-log.jsonl",
+        "line": 1,
+        "source_sha256": "c50d569b69882cf3158c4dcce8df7f0f54bdae577572aec3c50ad11078443dd7",
+        "full_evidence": "results/workflow-097-final-001/original/pilot/ledger/item_1372862_store_12/round-0/project/review-evidence/000000.json",
+        "full_evidence_sha256": "c6b0a050fe27e0bf6990a82d9c4678d0a58175d7e04de6c6f667dc647eaa9945",
+        "output": "item_1372862_store_12-r0-page0.json",
+        "output_sha256": "f734dbedf88b759b49b6807b769e6c94cda117afb4263aac91f75c4fc1ae7d1f",
+        "old_bytes": 1580,
+        "new_bytes": 2196,
+        "independently_rendered_windows": 0,
+        "aggregate_winner_has_origin_losses": 0
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 1,
+        "source": "results/workflow-097-final-001/original/pilot/ledger/item_1372862_store_12/round-1/project/review-log.jsonl",
+        "line": 2,
+        "source_sha256": "6084100ecf54271a712b7876f1d0b92c30ff26d2f261218fd9ed1822b5272cd4",
+        "full_evidence": "results/workflow-097-final-001/original/pilot/ledger/item_1372862_store_12/round-1/project/review-evidence/000001.json",
+        "full_evidence_sha256": "c409fa88529b6a3c28adedb93fb9df3f580b1d8c0e136ec729252150169f2557",
+        "output": "item_1372862_store_12-r1-page1.json",
+        "output_sha256": "a7afe02dce1e8d0a19c8c476a030787d1e3f118bd131e332242ae5667e1ab3fb",
+        "old_bytes": 6238,
+        "new_bytes": 7478,
+        "independently_rendered_windows": 6,
+        "aggregate_winner_has_origin_losses": 0
+      },
+      {
+        "series_id": "item_1372862_store_12",
+        "round": 2,
+        "source": "results/workflow-097-final-001/original/pilot/ledger/item_1372862_store_12/round-2/project/review-log.jsonl",
+        "line": 3,
+        "source_sha256": "a7e044345e0def29df934593adc13ffee77e184e208c9779b7bfbe73560c906c",
+        "full_evidence": "results/workflow-097-final-001/original/pilot/ledger/item_1372862_store_12/round-2/project/review-evidence/000002.json",
+        "full_evidence_sha256": "b65fd899b1e1b129a01a7b1bdec04f0fef62f2ba3e10fd67bd3d006027c901df",
+        "output": "item_1372862_store_12-r2-page2.json",
+        "output_sha256": "30e2a213137a0aee8a044527194f733f880626e9163c9d2e0cf3af366c90e87a",
+        "old_bytes": 6240,
+        "new_bytes": 7480,
+        "independently_rendered_windows": 6,
+        "aggregate_winner_has_origin_losses": 0
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 1,
+        "source": "results/workflow-097-final-001/original/pilot/ledger/item_1457251_store_14/round-1/project/review-log.jsonl",
+        "line": 1,
+        "source_sha256": "cd065625f19016128f918a0ca8526b4ce55892b4f69bf8f581305b76838390a6",
+        "full_evidence": "results/workflow-097-final-001/original/pilot/ledger/item_1457251_store_14/round-1/project/review-evidence/000000.json",
+        "full_evidence_sha256": "9211a2793903682c94a96fd4ed56f210f23f92ef5dce3d3099db290185fbe939",
+        "output": "item_1457251_store_14-r1-page0.json",
+        "output_sha256": "41828f692567c8e9f9b463dbfce4687854371341b874710ca08b239908d400dd",
+        "old_bytes": 6241,
+        "new_bytes": 7481,
+        "independently_rendered_windows": 6,
+        "aggregate_winner_has_origin_losses": 0
+      },
+      {
+        "series_id": "item_1457251_store_14",
+        "round": 2,
+        "source": "results/workflow-097-final-001/original/pilot/ledger/item_1457251_store_14/round-2/project/review-log.jsonl",
+        "line": 2,
+        "source_sha256": "647dd3a9583f102ef02506327da2a95540da562eda5f1551cdb7079afa7cab0c",
+        "full_evidence": "results/workflow-097-final-001/original/pilot/ledger/item_1457251_store_14/round-2/project/review-evidence/000001.json",
+        "full_evidence_sha256": "93a20c646c70d319810789f6668048cafa32b5195032c0f5faf182ab16d032d2",
+        "output": "item_1457251_store_14-r2-page1.json",
+        "output_sha256": "0f04ea57e250a1f526d5d26993cf4ee689731c8177b2dbc577447edc2dcbfecf",
+        "old_bytes": 6243,
+        "new_bytes": 7483,
+        "independently_rendered_windows": 6,
+        "aggregate_winner_has_origin_losses": 0
+      }
+    ],
+    "engy_calls": 0,
+    "fits": 0,
+    "live_capsule_unchanged": true,
+    "scope": "Every current-origin review page in the completed 097 pilot, including repeat requests. Window/page counts overlap and are not independent samples. Semantic consistency and payload size only; no evidence of better agent decisions or accuracy. No live sources changed and no final targets accessed."
+  },
+  "iterations": [
+    {
+      "path": "results/paired-consistency-098-offline-001",
+      "default": "detailed",
+      "old_bytes": 49851,
+      "new_bytes": 74399
+    },
+    {
+      "path": "results/paired-consistency-098-offline-002",
+      "default": "counts",
+      "old_bytes": 49851,
+      "new_bytes": 60482
+    },
+    {
+      "path": "results/paired-consistency-098-offline-003",
+      "default": "counts",
+      "old_bytes": 49851,
+      "new_bytes": 60482,
+      "change": "Additional provider identity and pair-pointer validation"
+    }
+  ],
+  "motivation": {
+    "decision_path": "results/workflow-097-final-001/original/pilot/ledger/item_1047756_store_23/round-2/project/decision.json",
+    "decision_sha256": "a1aa19c5e2abd1502f9d343f150d64e03163a9f136a53c198325d67ddb88dd06",
+    "qualification": "Saved wording both matched windows is ambiguous; not a confirmed false claim about individual origins. Verified distinction: lower mean versus one win and one loss."
+  },
+  "sources": {
+    "benchmarks/ledger_optimization/paired_consistency_098.py": "8ce525b4d8786051d19c33fae2d83c68a8886c9995ec77dc8f5cc5ccf1665d1d",
+    "benchmarks/tests/test_paired_consistency_098.py": "bbda78c032a886e50a80d3c7e7e6f2faa4d37034254362ca98cf328b0dd5531b",
+    "results/paired-consistency-098-offline-003/replay.py": "68eb10caad7cec6a79e0089fc6d75f336fcd434768958444d3b4061945bbf060",
+    "results/paired-consistency-098-offline-003/report.json": "789d4b1cf8e4bbe9ada199821fb6a110d14aa1cf1c3f02d0d3ec0c5f715cd94e",
+    "results/paired-consistency-098-checks-002/command.json": "c7969bc99274ab38379a3d052491b8aa12ae4c62d7b8cfc54c20d4d72d31c723",
+    "results/paired-consistency-098-checks-002/stderr": "5bec898bf4415d63bc66be47d8498c13433bc16afac48d0965ad3bcad34c2ab7"
+  },
+  "live_deployed": false,
+  "engy_calls": 0,
+  "fits": 0,
+  "final_gate_opened": false,
+  "objective_established": false
+}
