@@ -61,3 +61,12 @@ heterogeneous bootstrap, row/panel/seed ordering invariance, shared circular
 blocks and repeated store draws, complete-grid rejection, invalid scores and
 flags, retained failed-workflow errors, and zero-control handling. They run no
 providers or agent requests and access no real M5 archive or reserved targets.
+
+## Full-objective reference comparison
+
+This original three-arm helper alone does not establish improvement over the
+prior ledger. `M5_ML_REFERENCE_ANALYSIS.md` defines the separate prospective
+four-arm numerical contract that retains plain Hermes and adds a frozen ledger
+reference. Existing three-arm outputs remain unchanged. The final reference
+implementation and complete fairness/runtime freeze are still required before
+any reserved data access.

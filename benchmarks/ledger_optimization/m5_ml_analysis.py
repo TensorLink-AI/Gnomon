@@ -20,7 +20,7 @@ BOOTSTRAP_SEED = 20260912
 BLOCK_LENGTH = 4
 
 
-def _cohort(panel, seeds, rows):
+def _cohort(panel, seeds, rows, *, arms=ARMS):
     if len(panel) != STORES * ITEMS_PER_STORE:
         raise ValueError('Require the original 24-series panel; no replacements')
     for entry in panel:
@@ -34,7 +34,7 @@ def _cohort(panel, seeds, rows):
         raise ValueError('Require eight store clusters with three items each')
     if len(seeds) != 2 or any(type(s) is not int for s in seeds) or len(set(seeds)) != 2:
         raise ValueError('Require two distinct prospectively frozen integer agent seeds')
-    expected = {(a, p['series_id'], r, s) for a in ARMS for p in panel
+    expected = {(a, p['series_id'], r, s) for a in arms for p in panel
                 for r in range(ROUNDS) for s in seeds}
     keyed = {}
     for row in rows:
@@ -79,8 +79,8 @@ def _reduction(control, treatment):
     return 1 - treatment / control if control else None
 
 
-def analyze(panel, seeds, rows):
-    """Analyze all 3,744 decisions, retaining failures and cold-start origins.
+def _analyze(panel, seeds, rows, *, arms=ARMS):
+    """Analyze the complete requested grid, retaining failures and cold starts.
 
     ``panel`` is the frozen identity metadata, not inferred from observed rows.
     ``seeds`` comes from the final freeze, not from successful completions.
@@ -88,7 +88,7 @@ def analyze(panel, seeds, rows):
     predeclared fallback for invalid executions. This helper cannot verify data
     provenance, leakage, model budgets, runtime versions or source immutability.
     """
-    keyed = _cohort(panel, seeds, rows)
+    keyed = _cohort(panel, seeds, rows, arms=arms)
     stores = sorted({p['store_id'] for p in panel})
     series = {store: sorted(p['series_id'] for p in panel if p['store_id'] == store)
               for store in stores}
@@ -96,13 +96,16 @@ def analyze(panel, seeds, rows):
     # exactly preserves equal per-case weights and keeps cluster members paired.
     cubes = {a: [[mean(keyed[a, item, r, seed]['rmsle']
                        for item in series[store] for seed in sorted(seeds))
-                  for r in range(ROUNDS)] for store in stores] for a in ARMS}
-    scores = {a: mean(row['rmsle'] for key, row in keyed.items() if key[0] == a) for a in ARMS}
-    draws = {control: [] for control in ('gnomon', 'plain')}
+                  for r in range(ROUNDS)] for store in stores] for a in arms}
+    scores = {a: mean(row['rmsle'] for key, row in keyed.items() if key[0] == a) for a in arms}
+    controls = ('gnomon', 'plain')
+    if 'ledger_reference' in arms:
+        controls += ('ledger_reference',)
+    draws = {control: [] for control in controls}
     rng = random.Random(BOOTSTRAP_SEED)
     for _ in range(REPLICATES):
         store_indices, origins = _draw(rng)
-        sample = {a: mean(cubes[a][s][r] for s in store_indices for r in origins) for a in ARMS}
+        sample = {a: mean(cubes[a][s][r] for s in store_indices for r in origins) for a in arms}
         for control in draws:
             draws[control].append(_reduction(sample[control], sample['ledger']))
     contrasts = {}
@@ -128,13 +131,13 @@ def analyze(panel, seeds, rows):
                           for key in sorted(keyed)]}
     return {
         'scope': 'Numerical analysis only; provenance and fairness need separate audits.',
-        'decisions': len(keyed), 'matched_cases_per_arm': len(keyed) // len(ARMS),
+        'decisions': len(keyed), 'matched_cases_per_arm': len(keyed) // len(arms),
         'mean_per_case_rmsle': scores, 'contrasts': contrasts,
         'completion': {a: {field: sum(row[field] for key, row in keyed.items() if key[0] == a)
-                           for field in ('valid', 'workflow_complete', 'fallback_used')} for a in ARMS},
-        'per_store_mean_rmsle': {store: {a: mean(cubes[a][s]) for a in ARMS}
+                           for field in ('valid', 'workflow_complete', 'fallback_used')} for a in arms},
+        'per_store_mean_rmsle': {store: {a: mean(cubes[a][s]) for a in arms}
                                  for s, store in enumerate(stores)},
-        'per_origin_mean_rmsle': [{a: mean(cubes[a][s][r] for s in range(STORES)) for a in ARMS}
+        'per_origin_mean_rmsle': [{a: mean(cubes[a][s][r] for s in range(STORES)) for a in arms}
                                   for r in range(ROUNDS)],
         'uncertainty': {'replicates': REPLICATES, 'seed': BOOTSTRAP_SEED,
                         'store_clusters': STORES, 'items_per_cluster': ITEMS_PER_STORE,
@@ -149,3 +152,12 @@ def analyze(panel, seeds, rows):
         'analysis_input_sha256': hashlib.sha256(json.dumps(canonical, sort_keys=True,
                                   separators=(',', ':'), allow_nan=False).encode()).hexdigest(),
     }
+
+
+def analyze(panel, seeds, rows):
+    """Original three-arm numerical analysis; unchanged public result contract.
+
+    This does not assess improvement over the prior ledger. Use the separate
+    four-arm analysis for the full objective, with independently audited scores.
+    """
+    return _analyze(panel, seeds, rows)

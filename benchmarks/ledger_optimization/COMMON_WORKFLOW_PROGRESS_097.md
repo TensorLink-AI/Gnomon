@@ -248,3 +248,38 @@ Receipt: `evidence/workflow-097-development-audit-006.json`. Subsequent live pol
 at 03:14:33 UTC confirmed the original controller running with 149/312 completed,
 all valid/full, and 49 matched cases. The 142 above are independently audited
 records, not that later monitoring snapshot. Final/protected data remain closed.
+
+## Continuation audit 007
+
+The next 36 newly finished sessions passed 27,045 independent checks with no
+audit failures or shutdown gaps. The 92,351,368-byte archive and all 5,223 files
+were verified. Disjoint audited coverage is now 178 sessions: plain 59, Gnomon 60,
+ledger 59, all valid and full workflows. Scores below use the same 59 matched cases.
+
+| Arm | Matched mean RMSLE | Reported tokens | API requests | Fits |
+|---|---:|---:|---:|---:|
+| Hermes | 0.469486 | 8,991,710 | 599 | 692 |
+| Hermes + Gnomon | 0.470629 | 9,109,644 | 591 | 672 |
+| Hermes + Gnomon + ledger | 0.470142 | 8,738,587 | 556 | 656 |
+
+Ledger has 0.10% lower RMSLE and 4.07% fewer reported tokens than Gnomon without
+ledger. This small interim difference is not a demonstrated 20% advantage. The
+combined totals retain the earlier unknown-usage attempt. The new batch itself
+contains 353 forwarded/returned requests, 5,811,487 reported tokens, no API errors
+or usage gaps, plus 36 readiness requests/504 tokens. These are costs already
+incurred in the same experiment, not new trials.
+
+All 12 plain and all 12 ledger decisions selected a current-CV minimum among
+tested configurations. Gnomon did so in 11/12; its exception was item 1047756/store
+23, round 25. These are descriptive diagnostics, not evidence of causation or a
+rule that overriding CV is wrong. The candidate-100 worker and trial plan remain
+unchanged and no candidate-100 paid session has started.
+
+A local diagnostic was accidentally invoked before the asynchronous analyzer
+had written report.json. It failed with FileNotFoundError and was retained;
+the diagnostic reran successfully after the audit completed. No forecast or
+agent session was repeated. Both attempts are hashed in the receipt.
+
+Receipt: `evidence/workflow-097-development-audit-007.json`. Final/protected data
+remain unopened. The separately added four-arm synthetic final analysis closes
+the prior-ledger comparison requirement; it does not change this live experiment.

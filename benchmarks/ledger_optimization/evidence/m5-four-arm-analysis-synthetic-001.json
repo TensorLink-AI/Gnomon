@@ -1,0 +1,44 @@
+{
+  "status": "prospective_four_arm_numerical_contract_tested_synthetically",
+  "tests": 11,
+  "decisions_required": 4992,
+  "arms": [
+    "plain",
+    "gnomon",
+    "ledger",
+    "ledger_reference"
+  ],
+  "original_three_arm_compatibility": {
+    "passed": true,
+    "scope": "Original and refactored three-arm dictionaries identical on heterogeneous synthetic fixture; no reserved data read.",
+    "original_source_sha256": "863ffed4261d0eec7af687aff9a96366043ae867b62e0aa063c94d34d4965dea",
+    "decisions": 3744,
+    "engy_calls": 0,
+    "provider_calls": 0
+  },
+  "reference_implementation_frozen": false,
+  "engy_calls": 0,
+  "provider_calls": 0,
+  "final_data_read": false,
+  "final_gate_opened": false,
+  "objective_established": false,
+  "evidence": {
+    "results/m5-four-arm-analysis-synthetic-001/verify-original.py": "e5100e981569ef9e6c4c5c80553d1db14756fcbfad8158cb8c476cbed11651c7",
+    "results/m5-four-arm-analysis-synthetic-001/original-three-arm.py": "863ffed4261d0eec7af687aff9a96366043ae867b62e0aa063c94d34d4965dea",
+    "results/m5-four-arm-analysis-synthetic-001/compatibility.json": "c4814b673044f169076f759e45e48ea5942285d9c86816c0da660d39229006ea",
+    "results/m5-four-arm-analysis-synthetic-001/tests.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/m5-four-arm-analysis-synthetic-001/final-tests.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/m5-four-arm-analysis-synthetic-001/expanded-tests.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/m5-four-arm-analysis-synthetic-001/compatibility.stdout": "cd7226ef4ec5961d895f268456528348d9c9d46a1b7241a396d087e654374e48",
+    "results/m5-four-arm-analysis-synthetic-001/expanded-tests.stderr": "55638fff7c65d38b70c4dfaf9c0c46f0f68b87316ab5838386f53654ca7a2137",
+    "results/m5-four-arm-analysis-synthetic-001/final-tests.stderr": "6e4209daf4079e60e162376097b3cc971b93c89175e3e4447ab0ac2e39c19b79",
+    "results/m5-four-arm-analysis-synthetic-001/tests.stderr": "6e3774141a6896e1bb2422a811670ea6a222a26d2a0c490184eb123bee783d67",
+    "results/m5-four-arm-analysis-synthetic-001/compatibility.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "benchmarks/ledger_optimization/m5_ml_analysis.py": "3da73eef710c469bf83887e1894583ed560bd7f365d903b9b37573ead39db2e2",
+    "benchmarks/ledger_optimization/m5_ml_reference_analysis.py": "07c3cf2f2ce8e309caba2904657b437418168e293138b38e0bbf29ac8105d5f3",
+    "benchmarks/ledger_optimization/M5_ML_ANALYSIS.md": "149164b8ef0f5d18f9ec2219618bde42c42f81ad7bcbba07fcff74cdcc77de05",
+    "benchmarks/ledger_optimization/M5_ML_REFERENCE_ANALYSIS.md": "d261631301e841be1dd6ac2f67b9ab4337c54afd3fdfc8c53a0d14a873fced0f",
+    "benchmarks/tests/test_m5_ml_reference_analysis.py": "756d6db4ec431b5e1ff97e3f073c7bfbedd96502dc5b2edd969e6f631f4af1fd"
+  },
+  "remaining": "Freeze and audit actual reference behavior, full final experiment sources and fairness/runtime contract before final access; development target not established."
+}
