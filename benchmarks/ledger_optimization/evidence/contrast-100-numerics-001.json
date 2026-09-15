@@ -1,0 +1,109 @@
+{
+  "status": "numerics_verified_boundary_reconciliation_pending",
+  "sessions": 312,
+  "matched_cases": 104,
+  "arms": {
+    "plain": {
+      "sessions": 104,
+      "mean_rmsle": 0.4891305539018427,
+      "valid": 104,
+      "workflow_complete": 104,
+      "fallbacks": 0,
+      "numerical_attempts": 1116
+    },
+    "gnomon": {
+      "sessions": 104,
+      "mean_rmsle": 0.477838621193496,
+      "valid": 104,
+      "workflow_complete": 104,
+      "fallbacks": 0,
+      "numerical_attempts": 1228
+    },
+    "ledger": {
+      "sessions": 104,
+      "mean_rmsle": 0.4893039730220508,
+      "valid": 104,
+      "workflow_complete": 104,
+      "fallbacks": 0,
+      "numerical_attempts": 1136
+    }
+  },
+  "contrasts": {
+    "ledger_vs_gnomon": {
+      "pairs": 104,
+      "relative_rmsle_reduction": -0.023994192432411188,
+      "relative_rmsle_status": "defined",
+      "wins": 19,
+      "losses": 39,
+      "exploratory_series_bootstrap_95_interval": [
+        -0.042506102887902575,
+        -0.008418339898401905
+      ],
+      "relative_interval_status": "defined",
+      "bootstrap_draws": 2000,
+      "undefined_relative_draws": 0,
+      "absolute_rmsle_reduction": -0.011465351828554793,
+      "exploratory_absolute_series_bootstrap_95_interval": [
+        -0.01955192889500157,
+        -0.003378774762107961
+      ],
+      "warning": "Only four reused development series, one requested seed: not confirmatory. No zero-control draw was discarded or assigned a relative improvement. Absolute differences are diagnostic, not a substitute target."
+    },
+    "ledger_vs_plain": {
+      "pairs": 104,
+      "relative_rmsle_reduction": -0.0003545456705265071,
+      "relative_rmsle_status": "defined",
+      "wins": 32,
+      "losses": 30,
+      "exploratory_series_bootstrap_95_interval": [
+        -0.01625217309209126,
+        0.009834123439069309
+      ],
+      "relative_interval_status": "defined",
+      "bootstrap_draws": 2000,
+      "undefined_relative_draws": 0,
+      "absolute_rmsle_reduction": -0.00017341912020812922,
+      "exploratory_absolute_series_bootstrap_95_interval": [
+        -0.006429102240638307,
+        0.006458648592982952
+      ],
+      "warning": "Only four reused development series, one requested seed: not confirmatory. No zero-control draw was discarded or assigned a relative improvement. Absolute differences are diagnostic, not a substitute target."
+    }
+  },
+  "max_score_recalculation_delta": 2.220446049250313e-16,
+  "costs": {
+    "sessions": 312,
+    "forwarded_requests": 2627,
+    "returned_responses": 2627,
+    "reported_tokens": 44975020,
+    "requests_without_reported_usage": 1,
+    "api_errors": 1,
+    "readiness_requests": 314,
+    "readiness_reported_tokens": 4368,
+    "readiness_unknown_usage": 2,
+    "orphan_responses": 0
+  },
+  "billing_dollars": null,
+  "archive_sha256": "91659e9eecac48a7a921ef8a1b21e501088bbf4ed82dfc99b6f3d2d020faa581",
+  "bootstrap_source_sha256": "d14cd92502abe853c57f4c7fd6fe971073f0d6264e9a14edb5c8a559eef3947c",
+  "script_sha256": "e84edc7212d25137e7b77fb67481f3bbfe70d5c8302db6a4dd98da25f3952277",
+  "provider_calls": 0,
+  "engy_calls": 0,
+  "full_boundary_audit_claimed": false,
+  "original_audit_failure_preserved": true,
+  "objective_established": false,
+  "final_gate_opened": false,
+  "limitations": [
+    "Four reused development series, one seed; exploratory, not held out.",
+    "Boundary reconciliation remains separately required."
+  ],
+  "report_sha256": "36653754e933f7f951dc5a8a0bf6f40ca2188a93d2086f5df4bbf6b612407343",
+  "rows_sha256": "e1f49d57401fbd1b90eb436156f8d877adb203dc632e03da0f5e36cf5b959215",
+  "command": {
+    "argv": [
+      "python3",
+      "results/contrast-100-arithmetic-001/verify.py"
+    ],
+    "exit_status": 0
+  }
+}
