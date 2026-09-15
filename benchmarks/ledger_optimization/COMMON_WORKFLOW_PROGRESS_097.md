@@ -174,3 +174,45 @@ simple matched historical averages did not improve over actual agent decisions.
 See `HISTORICAL_SELECTION_DIAGNOSTIC_099_RESULTS.md`. It neither changes these
 live scores nor establishes that richer context retrieval cannot help. No new
 fits were made by that diagnostic, and the final holdout remains closed.
+
+## Continuation audit 005
+
+The next 21 newly completed sessions passed 12,361 independent checks with no
+audit failures or shutdown gaps. The copied archive and all 2,711 files matched
+their source hashes. This disjoint snapshot brings audited coverage to 110
+sessions: plain 36, Gnomon 37, ledger 37, all valid and full workflows.
+
+| Arm | Matched mean RMSLE | Matched tokens | Matched API requests | Matched fits |
+|---|---:|---:|---:|---:|
+| Hermes | 0.476991 | 5,341,362 | 362 | 440 |
+| Hermes + Gnomon | 0.480212 | 5,312,360 | 362 | 412 |
+| Hermes + Gnomon + ledger | 0.481070 | 5,219,411 | 345 | 408 |
+
+These figures cover the same 36 cases completed by all three arms. Ledger has
+0.18% higher RMSLE and 1.75% fewer reported tokens than Gnomon without ledger.
+This remains incomplete development evidence, with no established accuracy
+benefit. The new batch incurred 202 model requests/responses and 3,242,256
+reported tokens, plus 21 readiness requests/294 tokens; no usage gaps or API
+errors. These costs are already part of the running experiment, not new trials.
+
+Current-CV-minimum choices were 6/6 plain, 7/8 Gnomon and 7/7 ledger in the new
+batch. The Gnomon exception was item 1047756/store 23, round 11: the same Ridge
+configuration chosen by the ledger agent in the previous audit. Both compared
+Ridge CV RMSLE 0.789591 with random forest 0.742632, with random forest winning
+all three current folds. The no-ledger decision also says random forest "lost
+fold 2" and immediately notes that 1.022 versus 1.057 is a win. It cites older
+matured Ridge evidence as its reason for selection. The numerical evidence was
+correct; that sentence is internally contradictory. The decision file is retained
+and hashed in the receipt.
+
+This is not evidence that the ledger uniquely caused a bad decision. The same
+forecast choice and explanation inconsistency occur without it, and overriding
+current CV is not inherently incorrect. Candidate 100's offline contrast may
+make the cohorts easier to compare, but its replay does not show behavioral or
+accuracy improvement. A prospective design should expose current-CV summaries
+equally across arms and isolate the additional historical contrast as the ledger
+treatment. The live 097 experiment has not been changed.
+
+Receipt: `evidence/workflow-097-development-audit-005.json`. At the subsequent
+02:27:17 UTC poll the original controller remained live with 112/312 completed;
+the independent snapshot above contains 110. Final/protected data remain closed.
