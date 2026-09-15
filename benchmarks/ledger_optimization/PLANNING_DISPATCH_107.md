@@ -41,3 +41,18 @@ preflight, which remains independently running.
 No paid candidate-107 reservation has been made at this commit. The complete
 host preflight and candidate-100 terminal reconciliation must exist before a
 source-bound admission manifest and dispatch bundle can be finalized.
+
+`build_planning_bundle_107.py` prepares that bundle only after the complete host
+proof and predecessor reconciliation exist. It verifies both original synthetic
+archives against their current evidence, copies the exact frozen plan, worker,
+proofs and transitive host imports, and checks the copied inputs in an isolated
+Python process. The archive includes a SHA-256 inventory; every member is read
+back and checked before a build receipt is written. No credentials, runtime,
+final dataset or stage reservation are bundled. Original-host process, archive
+and runtime checks remain required at dispatch.
+
+Six archive integrity tests reject changed bytes, duplicate/omitted/extra files
+and symlink substitutions. Together with the nine admission tests they pass
+with warnings treated as errors (`results/planning-bundle-107-tests-001`).
+The complete bundle build remains gated on the live host proof; these tests do
+not stand in for that proof or authorize a paid launch.
