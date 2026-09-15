@@ -216,3 +216,35 @@ treatment. The live 097 experiment has not been changed.
 Receipt: `evidence/workflow-097-development-audit-005.json`. At the subsequent
 02:27:17 UTC poll the original controller remained live with 112/312 completed;
 the independent snapshot above contains 110. Final/protected data remain closed.
+
+## Continuation audit 006
+
+The next 32 newly finished sessions passed 20,957 independent checks with no
+failures or shutdown gaps. The 71,708,080-byte archive and all 4,501 files were
+verified. Combined disjoint coverage is 142 sessions, all valid and full workflows:
+47 plain, 48 Gnomon, 47 ledger. Scores use only the same 47 cases in all three arms.
+
+| Arm | Matched mean RMSLE | Reported tokens | API requests | Fits |
+|---|---:|---:|---:|---:|
+| Hermes | 0.472702 | 7,033,815 | 475 | 568 |
+| Hermes + Gnomon | 0.471936 | 7,189,919 | 474 | 536 |
+| Hermes + Gnomon + ledger | 0.473114 | 6,834,997 | 445 | 524 |
+
+Ledger has 0.25% higher RMSLE and 4.94% fewer reported tokens than Gnomon without
+ledger. One API attempt has unknown usage, so these are reported totals, not an
+assertion of complete billing. The new batch contains 318 forwarded/returned
+requests, 5,049,288 reported tokens and one HTTP 502; readiness adds 32 requests
+and 448 tokens. The affected ledger session (item 1047756/store 23, round 18)
+completed validly without forecast fallback: 12 numerical successes, three
+backtested configurations and an explicit post-comparison selection. The 502
+receipt remains retained and usage_complete remains false. No rerun was needed.
+
+Current-CV-minimum choices were 10/11 plain, 11/11 Gnomon and 10/10 ledger in this
+batch. The plain exception is descriptive, not proof of an irrational selection;
+current CV and future performance are different evidence. This batch adds no
+claim of an accuracy benefit or causal evidence for candidate 100.
+
+Receipt: `evidence/workflow-097-development-audit-006.json`. Subsequent live poll
+at 03:14:33 UTC confirmed the original controller running with 149/312 completed,
+all valid/full, and 49 matched cases. The 142 above are independently audited
+records, not that later monitoring snapshot. Final/protected data remain closed.

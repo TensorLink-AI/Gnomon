@@ -6,7 +6,7 @@ import shutil
 import tempfile
 import unittest
 
-from benchmarks.ledger_optimization.contrast_capsule_100 import build, MODULES
+from benchmarks.ledger_optimization.contrast_capsule_100 import build, MODULES, AUDIT_MODULES
 
 
 SOURCE = Path('results/workflow-097-offline-002/capsule')
@@ -30,7 +30,10 @@ class ContrastCapsuleTests(unittest.TestCase):
             for module in MODULES:
                 raw = (package/module).read_bytes()
                 self.assertEqual(hashlib.sha256(raw).hexdigest(), first['sources'][module])
-                self.assertNotIn('from .', raw.decode())
+                compile(raw, module, 'exec')
+            self.assertTrue(set(AUDIT_MODULES) <= set(first['sources']))
+            self.assertIn('audit_annotations(p.parent)', (package/'analyze.py').read_text())
+            self.assertNotIn('contrast_audit_100.py', protected)
             with self.assertRaises(ValueError): build(SOURCE, root/'one')
         self.assertEqual(before, {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in SOURCE.rglob('*.py')})
 

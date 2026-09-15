@@ -1,0 +1,30 @@
+{
+  "status": "synthetic_worker_and_integrated_annotation_audit_passed",
+  "capsule_sha256": "ea0920fd92a5e888816a93ef3ef95c88dcea8482bd5a541bc987c7f78c082519",
+  "passed_sha256": "1cfa707163c4686bc23665908d4aed80041d77afdf63d8be76addf88ac6c651c",
+  "sessions": 6,
+  "probe_checks": 187,
+  "analyzer_checks": 3859,
+  "annotation_checks": 3174,
+  "annotation_count": 36,
+  "numerical_attempts": 48,
+  "scripted_responses": 30,
+  "engy_calls": 0,
+  "inventories": {
+    "results/contrast-capsule-100-offline-003-inventory.json": {
+      "files": 36,
+      "sha256": "6796a35f3b82bb8cf2f7bf612ef70a59ba865727fa01aba611969211238a44fc"
+    },
+    "results/contrast-capsule-100-worker-003-inventory.json": {
+      "files": 656,
+      "sha256": "b55db7225283d1dfcdb6d0c3640f75ef6be9324ca0d7aac72223bff680261005"
+    }
+  },
+  "final_gate_opened": false,
+  "objective_established": false,
+  "remaining": [
+    "terminal 097 audit",
+    "frozen prospective plan and pilot"
+  ],
+  "scope": "Real Hermes worker/transport/model integration with scripted replies. All arms receive identical current CV tables, baseline scores are exposed, artifact references are read through actual Hermes tool dispatch and hashes verified, and historical contrast appears only for the ledger arm after maturation. Original fit/request budgets retained. Not a paid or efficacy test."
+}

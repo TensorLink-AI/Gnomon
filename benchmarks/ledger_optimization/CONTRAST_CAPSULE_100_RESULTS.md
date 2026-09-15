@@ -67,3 +67,42 @@ followed by a fresh frozen candidate plan and prospective development gate.
 The committed receipt inventories the evidence and identifies both capsule
 hashes. Main, PyPI, the live worker and the untouched final set remain unchanged.
 The requested 20% accuracy advantage is still unestablished.
+
+## Independent annotation audit and third capsule
+
+The new `contrast_audit_100.py` reconstructs CV requests and actuals directly from
+visible CSVs, recalculates fold RMSLE, means and ranks, and checks task/provider/
+execution identities. It ties each annotation's log prefix to the fit count in
+that actual returned tool call. Historical overlays are checked against the last
+review actually returned at that boundary, not the final cached review. The
+existing compact renderer is reused only after its inputs have been independently
+checked; this is not an independent implementation of the renderer itself.
+
+On the six retained second-probe sessions it checked 36 annotations with 3,174
+assertions. Eight deliberate mutations were rejected: fabricated means, ranks,
+later log prefixes, missing annotations, corrupted artifacts, false artifacts
+with internally updated hashes, wrong actuals with rehashed prefixes, and false
+additional-fit accounting. Score/rank/artifact mutations update both redundant
+copies so rejection does not depend merely on copies disagreeing. Original source
+records remain byte-identical. The first mutation probe accidentally targeted an
+annotation from the prior synthetic origin; that out-of-scope change was correctly
+ignored. The corrected probe explicitly targets the current origin. Its failed
+attempt and copied artifacts remain in `contrast-audit-100-offline-001`.
+
+The third isolated capsule binds this audit into `analyze()` for every session.
+Generated shared modules support both flat worker imports and package imports
+used by the host analyzer. The auditor itself is host-only and source-hashed.
+A fresh real-Hermes synthetic run passed six full workflows, 187 probe checks
+and **3,859 analyzer checks**, comprising the existing 685 plus 3,174 annotation
+checks. The 45 unit tests also passed. This third probe adds 48 local numerical
+fits and 30 scripted replies, zero Engy requests. Across all three worker probes,
+the total is 144 local fits and 90 scripted replies; these are integration costs,
+not measured agent accuracy, token savings, or independent forecasting trials.
+
+Evidence: `results/contrast-audit-100-offline-002/report.json`,
+`results/contrast-capsule-100-offline-003/`, and
+`results/contrast-capsule-100-worker-003/`. Receipts and inventories preserve hashes.
+Independent annotation integration and the real worker check now pass. The
+remaining dispatch prerequisites are the terminal 097 audit and a fresh frozen
+prospective plan/pilot. The final holdout remains unopened and the 20% objective
+remains unestablished.

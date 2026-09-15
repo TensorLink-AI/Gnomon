@@ -2,12 +2,14 @@
 import ast
 import hashlib
 import json
+import re
 from pathlib import Path
 
 BASE_CAPSULE_SHA = '3b2220767e916c8977317e3916c7bb39b9b68a0717dc43156797e1a982e45dd3'
 MODULES = ('paired_consistency_098.py', 'current_cv_pair_100.py',
            'current_history_contrast_100.py', 'contrast_view_100.py',
            'contrast_records_100.py', 'contrast_annotations_100.py')
+AUDIT_MODULES = ('contrast_audit_100.py',)
 
 
 def build(source, output):
@@ -25,11 +27,13 @@ def build(source, output):
     if {name: digest(raw) for name, raw in content.items()} != parent['sources']:
         raise ValueError('Frozen 097 sources changed')
     fragments = {}
-    for name in MODULES:
+    for name in (*MODULES, *AUDIT_MODULES):
         raw = Path(__file__).with_name(name).read_bytes()
         fragments[name] = digest(raw)
         if name in content: raise ValueError('Unexpected source module collision')
-        content[name] = raw.decode().replace('from .', 'from ').encode()
+        content[name] = re.sub(r'^from \.(\w+) import (.+)$',
+            lambda m: 'if __package__:\n    from .'+m[1]+' import '+m[2]+
+                      '\nelse:\n    from '+m[1]+' import '+m[2], raw.decode(), flags=re.MULTILINE).encode()
     lab = content['lab.py'].decode()
     lab = lab.replace('import core\n', 'import core\nfrom contrast_annotations_100 import annotate\n', 1)
     marker = "            answer = {'status': 'ok', 'operation': args.operation, 'result': result, 'budget': budget()}\n"
@@ -45,6 +49,13 @@ def build(source, output):
     files = ast.literal_eval(node.value)
     runner = runner.replace(original, 'PROJECT_FILES='+repr((*files, *MODULES)), 1)
     content['run.py'] = runner.encode()
+    analyzer = content['analyze.py'].decode()
+    marker = '        rows.append(r)\n'
+    if analyzer.count(marker) != 1: raise ValueError('Unexpected analyzer row boundary')
+    analyzer = 'from .contrast_audit_100 import audit_annotations\n'+analyzer
+    analyzer = analyzer.replace(marker, "        r['contrast_annotation_audit'] = audit_annotations(p.parent)\n"+
+        "        checks += r['contrast_annotation_audit']['checks']\n"+marker)
+    content['analyze.py'] = analyzer.encode()
     content['TASK.md'] += (
         '\nSuccessful lab replies include evidence_summary with every complete current\n'
         'configuration, calculated CV ranks and fold scores, including the baseline.\n'

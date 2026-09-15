@@ -1,0 +1,60 @@
+{
+  "status": "independent_annotation_audit_passed",
+  "sessions": 6,
+  "annotations": 36,
+  "checks": 3174,
+  "tampering_cases": [
+    {
+      "case": "fabricated-mean",
+      "rejected": true,
+      "reason": "Annotation audit: independent current table and ranks"
+    },
+    {
+      "case": "fabricated-rank",
+      "rejected": true,
+      "reason": "Annotation audit: independent current table and ranks"
+    },
+    {
+      "case": "future-log-prefix",
+      "rejected": true,
+      "reason": "Annotation audit: no later fit attempts included"
+    },
+    {
+      "case": "missing-annotation",
+      "rejected": true,
+      "reason": "Annotation audit: every successful annotation retained"
+    },
+    {
+      "case": "corrupt-artifact",
+      "rejected": true,
+      "reason": "Annotation audit: stored artifact integrity"
+    },
+    {
+      "case": "self-consistent-false-artifact",
+      "rejected": true,
+      "reason": "Annotation audit: artifact contains only available current folds"
+    },
+    {
+      "case": "wrong-actuals-rehashed-prefix",
+      "rejected": true,
+      "reason": "Annotation audit: actuals equal visible targets"
+    },
+    {
+      "case": "false-extra-fit-accounting",
+      "rejected": true,
+      "reason": "Annotation audit: annotation declares no additional execution"
+    }
+  ],
+  "source_unchanged": true,
+  "evidence": {
+    "benchmarks/ledger_optimization/contrast_audit_100.py": "4d8b6ae22750f06df763c3e81f7ea35203619f78f94c91edfd9658f3608a9fe7",
+    "benchmarks/ledger_optimization/probe_contrast_audit_100.py": "afa6e63b08b42164e4928f2e3959127ea90bb7a7b536f5e742dd30984d7f5c98",
+    "results/contrast-audit-100-offline-002/report.json": "fcedb94c8645e7465defd6d08ccf6aaeb718022b7e97a016221fb1895c37d585",
+    "results/contrast-audit-100-offline-001/FAILED.txt": "e215cf432f3c3cb33b5b32255cb8370f234b9d539da291c70e33dc1585e12696"
+  },
+  "engy_calls": 0,
+  "provider_calls": 0,
+  "final_gate_opened": false,
+  "objective_established": false,
+  "scope": "Six real synthetic Hermes session artifacts; deliberate mutations on separate copies. No forecasting efficacy claim."
+}
