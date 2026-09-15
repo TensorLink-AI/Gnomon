@@ -66,13 +66,52 @@ losses and cannot establish the frequency of any behavior.
 ## Consequence for the next iteration
 
 Do not change candidate 100 while it runs or dispatch a new paid variant merely
-because of these interim losses. The next useful offline investigation is to
-measure which retrieved historical comparisons add evidence beyond the current
-three CV origins, and whether they cover the configurations actually considered.
-This distinguishes redundant evidence, missing comparable history and ignored
-history before designing a new ledger presentation. A proposed change must keep
+because of these interim losses. The follow-up below measures temporal coverage
+of retrieved comparisons before designing a new ledger presentation. It shows
+why origin overlap alone cannot classify evidence as redundant. A proposed change must keep
 the common model space, raw evidence access and budgets, be frozen before paid
 evaluation, and preserve this negative development result.
+
+### Historical coverage follow-up
+
+Among the 30 matched ledger sessions, 26 displayed at least one pair with
+historical evidence; 16 displayed a pair with origins outside the current CV
+window. Taking the latest available comparison for each displayed pair and
+deduplicating windows with identical origins gives 66 session/pair/cohorts:
+24 wholly within current CV dates and 42 containing additional dates. These
+counts repeat underlying observations across pairs and sessions; they are not
+independent sample sizes. They describe what was displayed, not everything
+retrievable from storage or what influenced the agent's choice.
+
+The 264 overlapping model/origin score comparisons have a maximum absolute
+RMSLE difference of 0.024436. A read-only payload comparison explains an important
+distinction: same configuration and origin need not mean the same request.
+For item 1047756/store 23 at origin September 13, the round-4 CV execution of
+Ridge(window730, lags28, alpha1) received 702 history rows; the original production
+execution received 730. Cutoff, target timestamps, future covariates, series and
+unit match. The shorter history and its past covariates exactly match the suffix
+of the longer history. Their request fingerprints differ. The common predictor
+uses the available suffix capped at `window`, so these are different effective
+training sets despite the same maximum-window configuration. No numerical
+rerun was needed to establish the request difference, and the database hash
+was unchanged after inspection. This is not evidence of a ledger scoring bug.
+
+Consequently, a future ledger comparison should distinguish **outside-CV
+origins**, **overlapping origins**, and **matching effective training inputs**.
+It must not merge or discount historical evidence solely because dates overlap.
+Current-CV effective training lengths should be disclosed equally to all arms;
+historical training provenance belongs alongside the ledger's stored executions.
+This is a proposed infrastructure clarification, not a dispatched candidate or
+proof it will improve selection. Next assess whether current comparison pairs
+cover the selected configurations and whether historical disagreements concern
+comparable training inputs before proposing a changed retrieval rule.
+
+The scripts authenticate prior audited annotation/report hashes, content-addressed
+comparison payloads and referenced review payloads before counting. Timestamp
+comparison normalizes timezone and precision. The original and follow-up
+programs, stdout/stderr, exit records, per-session results and input hashes are
+retained in `results/contrast-100-history-novelty-001/`. Compact receipt:
+`evidence/contrast-100-history-novelty-001.json`.
 
 Eight regression tests pass for all-case retention, pending groups, origin
 validation, order invariance, undefined ratios, configuration overlap, exact CV

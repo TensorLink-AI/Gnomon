@@ -1,0 +1,69 @@
+{
+  "summary": {
+    "matched_ledger_sessions": 30,
+    "sessions_with_history_for_any_displayed_pair": 26,
+    "sessions_with_any_history_origin_outside_current_cv": 16,
+    "distinct_session_pair_cohorts": 66,
+    "cohorts_contained_in_current_cv": 24,
+    "cohorts_with_outside_cv_origins": 42,
+    "overlap_score_comparisons": 264,
+    "max_overlap_score_delta": 0.02443581730066935
+  },
+  "scope": "Post-hoc audited development evidence. Latest available historical comparison per displayed pair; windows with identical origin cohorts deduplicated within each pair. Counts across pairs/sessions reuse observations and are not independent samples. Outside-CV origins mean temporal coverage, not incremental causal information. No target selection, new fits or paid calls.",
+  "provider_calls": 0,
+  "engy_calls": 0,
+  "final_gate_opened": false,
+  "training_boundary_example": {
+    "status": "different_training_histories_confirmed",
+    "series_id": "item_1047756_store_23",
+    "origin": "2016-09-13T00:00:00+00:00",
+    "config": {
+      "model": "ridge",
+      "window": 730,
+      "lags": 28,
+      "alpha": 1.0
+    },
+    "executions": {
+      "current_cv": {
+        "execution_id": "b5102efa-8736-4ee5-81e0-da75498dada3",
+        "fingerprint": "e110e2acdb680d55ed8e30d946a96a234329610e30193cf3553d092b97839933",
+        "history_count": 702,
+        "history_start": "2014-10-13T00:00:00+00:00",
+        "history_end": "2016-09-13T00:00:00+00:00"
+      },
+      "historical_production": {
+        "execution_id": "7665348f-6d8a-4812-acf4-f73a4507c016",
+        "fingerprint": "5d0b15f9c54bba62f39f53039042569930a37e7f02217e77535f1937465484e4",
+        "history_count": 730,
+        "history_start": "2014-09-15T00:00:00+00:00",
+        "history_end": "2016-09-13T00:00:00+00:00"
+      }
+    },
+    "same_future_timestamps": true,
+    "same_future_covariates": true,
+    "same_history_suffix_and_covariates": true,
+    "ledger_unchanged": true,
+    "source_hashes": {
+      "/root/Gnomon/results/contrast-100-development-audit-002/snapshot/ledger/item_1047756_store_23/round-4/project/ledger.db": "576eeefba45daad7820efe04ce8626661750fd1ed9d62fced004a2befc2470ac",
+      "results/contrast-100-development-audit-002/snapshot/ledger/item_1047756_store_23/round-4/project/core.py": "d6a6ae0b9cf0c46b2c840cf02e8705aefb64fda12c63ba946cebef6efdc55661",
+      "results/contrast-100-development-audit-002/snapshot/ledger/item_1047756_store_23/round-4/project/numerical.py": "a71b75f06ad69fcca06275046c5e74565b15d7d6dd2538df0fe827c448fc0413"
+    },
+    "interpretation": "Same origin/config does not imply the same training request. The current CV fold sees 702 rows from the current 730-row task slice; the original production request saw 730. The common predictor uses history[-window:], so this window=730 model has different effective training histories. This explains a plausible source of the observed score difference, not proof of a benefit from history. No numerical rerun was performed.",
+    "provider_calls": 0,
+    "engy_calls": 0
+  },
+  "objective_established": false,
+  "evidence": {
+    "results/contrast-100-history-novelty-001/training-boundary.command.json": "7ba17f9f17a1d1536a144caab14e55f0987a518d9b7b62337cfb6fe84be8b4f9",
+    "results/contrast-100-history-novelty-001/training-boundary.stdout": "4fe3cac807c81ccc66718b5a23ce3319409a87823ee7b1bf201ae21e5af085d8",
+    "results/contrast-100-history-novelty-001/analyze.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/contrast-100-history-novelty-001/training-boundary.json": "4fe3cac807c81ccc66718b5a23ce3319409a87823ee7b1bf201ae21e5af085d8",
+    "results/contrast-100-history-novelty-001/analyze.command.json": "5fea792a5a252ceffeca8ece27d94d24de834898b6c0b9a7826f426198942903",
+    "results/contrast-100-history-novelty-001/training-boundary.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/contrast-100-history-novelty-001/analyze.py": "7613659a374737be4c3ab13b0db50bf2be5fa9329be0480a239546990db6837e",
+    "results/contrast-100-history-novelty-001/training_boundary.py": "865b2719cc7b97f3e88c346b82a1187edf8c40fdb561d39d4ea2800b94c3a21b",
+    "results/contrast-100-history-novelty-001/analyze.stdout": "000b3c2e3a668f031e74eeeaeb651ea1edb835c45ef49d5da8e535f6bbf456c2",
+    "results/contrast-100-history-novelty-001/report.json": "95710324ad1c65003c3e63dad25cc1efbb625307e820ef08209a73516482e2eb",
+    "results/contrast-100-history-novelty-001/sources.json": "60fdbe8c0452dbf2907940cbf2c5ab9d4d124b5240895376098086932230b366"
+  }
+}
