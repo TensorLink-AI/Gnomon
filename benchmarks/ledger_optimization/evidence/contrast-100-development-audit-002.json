@@ -1,0 +1,297 @@
+{
+  "status": "new_continuation_sessions_independently_verified",
+  "new_sessions": 19,
+  "new_audit_checks": 21928,
+  "combined_verified_sessions": 60,
+  "combined_audit_checks": 59936,
+  "matched_cases": 20,
+  "combined_matched": {
+    "plain": {
+      "mean_rmsle": 0.5122446035334679,
+      "tokens": 2517023,
+      "api_calls": 171,
+      "numerical_attempts": 224
+    },
+    "gnomon": {
+      "mean_rmsle": 0.49870274167914386,
+      "tokens": 2589785,
+      "api_calls": 175,
+      "numerical_attempts": 228
+    },
+    "ledger": {
+      "mean_rmsle": 0.516325421093061,
+      "tokens": 2573279,
+      "api_calls": 171,
+      "numerical_attempts": 232
+    }
+  },
+  "new_maturation": [
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 4,
+      "prior_outcomes": 4,
+      "production_executions": 9,
+      "unselected_executions": 5
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 5,
+      "prior_outcomes": 5,
+      "production_executions": 14,
+      "unselected_executions": 9
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 6,
+      "prior_outcomes": 6,
+      "production_executions": 18,
+      "unselected_executions": 12
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 4,
+      "prior_outcomes": 4,
+      "production_executions": 11,
+      "unselected_executions": 7
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 5,
+      "prior_outcomes": 5,
+      "production_executions": 14,
+      "unselected_executions": 9
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 6,
+      "prior_outcomes": 6,
+      "production_executions": 17,
+      "unselected_executions": 11
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 4,
+      "prior_outcomes": 4,
+      "production_executions": 12,
+      "unselected_executions": 8
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 5,
+      "prior_outcomes": 5,
+      "production_executions": 16,
+      "unselected_executions": 11
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 6,
+      "prior_outcomes": 6,
+      "production_executions": 19,
+      "unselected_executions": 13
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 4,
+      "prior_outcomes": 4,
+      "production_executions": 12,
+      "unselected_executions": 8
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 5,
+      "prior_outcomes": 5,
+      "production_executions": 15,
+      "unselected_executions": 10
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 6,
+      "prior_outcomes": 6,
+      "production_executions": 18,
+      "unselected_executions": 12
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 4,
+      "prior_outcomes": 4,
+      "production_executions": 12,
+      "unselected_executions": 8
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 5,
+      "prior_outcomes": 5,
+      "production_executions": 15,
+      "unselected_executions": 10
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 6,
+      "prior_outcomes": 6,
+      "production_executions": 18,
+      "unselected_executions": 12
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 3,
+      "prior_outcomes": 3,
+      "production_executions": 9,
+      "unselected_executions": 6
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 4,
+      "prior_outcomes": 4,
+      "production_executions": 11,
+      "unselected_executions": 7
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 5,
+      "prior_outcomes": 5,
+      "production_executions": 14,
+      "unselected_executions": 9
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1304243_store_32",
+      "round": 6,
+      "prior_outcomes": 6,
+      "production_executions": 16,
+      "unselected_executions": 10
+    }
+  ],
+  "transfer": {
+    "status": "verified",
+    "archive": {
+      "bytes": 18632431,
+      "sessions": 19,
+      "archive": "/root/gnomon-ledger-ml-v3/code/results/contrast-100-development-audit-002/snapshot.tar.gz",
+      "sha256": "9a9f4c3e1cd7e2374e11ad3e3309cd0a029a9c4eb4b0e97f66f6910e2e3f6b6a"
+    },
+    "files_verified": 2417
+  },
+  "new_costs": {
+    "sessions": 19,
+    "forwarded_requests": 165,
+    "returned_responses": 165,
+    "reported_tokens": 2731063,
+    "requests_without_reported_usage": 0,
+    "api_errors": 0,
+    "readiness_requests": 20,
+    "readiness_reported_tokens": 266,
+    "readiness_unknown_usage": 1,
+    "orphan_responses": 0
+  },
+  "scope": "Complete pilot plus disjoint finished continuation sessions. Matched aggregates use only all-three intersections without success filtering; costs exclude copies and are part of the existing run, not new paid experiments. No final efficacy claim.",
+  "final_gate_opened": false,
+  "objective_established": false,
+  "evidence": {
+    "/root/Gnomon/results/contrast-100-development-audit-002/summarize.py": "191ed1920e07af593f9ddd35e41f04e404bb1379816e26dbea90afaf09c3456d",
+    "/root/Gnomon/results/contrast-100-development-audit-002/snapshot.py": "de9ef90164d3d8eb70c67d2940b2869bdff421f02a0d59f0de20822e3c56bb4c",
+    "/root/Gnomon/results/contrast-100-development-audit-002/collect.py": "4f7ea6bb9ffc6b1ef63ca3449031ee4e016b343c246c350b5b51aedd0316948c",
+    "/root/Gnomon/results/contrast-100-development-audit-002/analyze_local.py": "645417e99e7b651fbb9ea75b540c469c7a8899e64059dfb59d0f4a23fa373975",
+    "/root/Gnomon/results/contrast-100-development-audit-002/analyze_corrected.py": "b57c3258972647706375dbfe5ef53882f821053ab3090849b81e98c576c984da",
+    "benchmarks/ledger_optimization/contrast_audit_100.py": "6eac6aee07b4008da09bf0c1d5924264d019ceab3d6fd56a37a2805a9eaa6e0c",
+    "/root/Gnomon/results/contrast-100-development-audit-002/snapshot.json": "a57f106eff2da3b2ccbae289124e886ab642a2e28447d757cfdc346f5e94719f",
+    "/root/Gnomon/results/contrast-100-development-audit-002/audit-cache-replay/report.json": "6c952075073e7ebe9b02a24112532333091ac467c81ca87615e68f31fa36a0dd",
+    "/root/Gnomon/results/contrast-100-development-audit-002/collect.stdout": "8470cf947e84d2653b435a6c466201eccba1d5c70c2fc952283864ab950ed0c1",
+    "/root/Gnomon/results/contrast-100-development-audit-002/collect.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/root/Gnomon/results/contrast-100-development-audit-002/analyze-corrected.stdout": "7ba8af9a97f9444b373931f3a5560d307216589fdb592b3a0c902d3a63e45e0a",
+    "/root/Gnomon/results/contrast-100-development-audit-002/analyze-corrected.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/root/Gnomon/results/contrast-100-development-audit-002/analyze.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/root/Gnomon/results/contrast-100-development-audit-002/analyze.stderr": "f36e3e576c38fb44afd57dadeee53603bb5a1c61a0957e045af8d685a4c5987d",
+    "/root/Gnomon/results/contrast-100-final-001/audit/report.json": "03ed955f9b55b56606f1974780bd33ae50a86a5e38b709c3ee92b8f46aaa57b0",
+    "/root/Gnomon/results/contrast-100-development-audit-001/audit/report.json": "c19f0f8869a5aabf20d68b908a470c0a579605088d051e8210c69d9b065d4b2b",
+    "results/contrast-100-development-audit-002/diagnose.py": "011846cedd6455d7d979c0482a259d686c191e058a61067e9f63e3b8a0b09c46",
+    "results/contrast-100-development-audit-002/diagnosis.json": "ac106e65841fa7f46e787524327dc6d7fe27437196b45a8960223a203ba3a2e7",
+    "results/contrast-100-development-audit-002/analyze.exit.json": "09ded73fc548a57fb1cc39f034d0c9132e0153e247b8e055b7a74a71afdd6418",
+    "results/contrast-100-development-audit-002/analyze-corrected.exit.json": "fb04b8aa0e83e18d32d9d4f047b1c54a07abb481a920821ece9854ef8da93fd9",
+    "results/contrast-audit-cache-replay-100-001/tests.stderr": "8a984fea88451cc47286a97938ba6a34961b27ad04e0f5f398142002263806fe",
+    "results/contrast-audit-cache-replay-100-001/tests.exit.json": "e06e28b349bbf5cb800fbd2213e8520e170794ce534a6566bd57b731b7f058a0",
+    "results/contrast-audit-cache-replay-100-001/probe.py": "59bec5f32c5a88bd0abef437e941516c4bf5dc6de9355f5f07c75c20a4cc9161",
+    "results/contrast-audit-cache-replay-100-001/probe.json": "3bf79a3a389ba50de0a50ed418e3aca99ca2b622ee205d1d3b5ded142ad9edb1",
+    "benchmarks/tests/test_contrast_audit_100.py": "fa16d5df61e178fe2a6f33bfe810e1a625448e7347bca9371319564df685e9d3"
+  },
+  "audit_amendment": {
+    "kind": "offline_verifier_cache_replay_correction",
+    "initial_exit_status": 1,
+    "initial_failed_sessions": 4,
+    "diagnosis": "Distinct recent/lifetime groups retain correct facts but change display order when sorted-key review cache is reloaded. Original auditor reused in-memory review order.",
+    "changed_execution_or_metric_rules": false,
+    "frozen_worker_changed": false,
+    "exact_presentation_comparison_retained": true,
+    "regression_tests": {
+      "argv": [
+        "python3",
+        "-m",
+        "unittest",
+        "benchmarks.tests.test_contrast_audit_100",
+        "benchmarks.tests.test_contrast_annotations_100",
+        "benchmarks.tests.test_contrast_view_100",
+        "benchmarks.tests.test_current_history_contrast_100"
+      ],
+      "exit_status": 0,
+      "seconds": 0.12793356700012737
+    },
+    "test_count": 25,
+    "mutation_probe": {
+      "passed": true,
+      "positive": {
+        "checks": 775,
+        "annotations": 7,
+        "passed": true,
+        "scope": "CV facts independently reconstructed from visible CSVs; prefix attempt counts matched to actual lab responses. Established renderer verifies presentation only after input checks. No fits or queries."
+      },
+      "tampering": [
+        {
+          "case": "wrong-group-order",
+          "rejected": true,
+          "cause": "Annotation audit: presentation matches verified inputs and latest requested history"
+        },
+        {
+          "case": "fabricated-score",
+          "rejected": true,
+          "cause": "Annotation audit: presentation matches verified inputs and latest requested history"
+        },
+        {
+          "case": "fabricated-sample-count",
+          "rejected": true,
+          "cause": "Annotation audit: presentation matches verified inputs and latest requested history"
+        }
+      ],
+      "source_unchanged": true,
+      "provider_calls": 0,
+      "engy_calls": 0,
+      "scope": "Audit-only mutations of copies of one affected real development session; no live worker or original evidence changed."
+    },
+    "corrected_analyzer": {
+      "argv": [
+        "python3",
+        "-m",
+        "results.contrast-100-development-audit-002.analyze_corrected"
+      ],
+      "exit_status": 0,
+      "seconds": 28.076456164999854
+    },
+    "terminal_implication": "The running controller still contains the original auditor and may mark the eventual archive audit incomplete for this known verifier defect. Preserve that outcome and reconcile offline; do not restart agent sessions or rewrite the frozen source."
+  }
+}

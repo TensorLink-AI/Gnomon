@@ -14,6 +14,19 @@ from pathlib import Path
 from .contrast_view_100 import contrast_view
 
 
+def review_at_operation(review, operation):
+    """Replay the frozen annotator's cache serialization, preserving all facts.
+
+    A review call uses its in-memory reply. Later operations load the canonical
+    sort_keys=True JSON cache; that changes dictionary insertion order and thus
+    the order of distinct displayed history groups. Do not sort output arrays
+    or weaken exact presentation/artifact comparisons to accommodate this.
+    """
+    if review is None or operation == 'review':
+        return review
+    return json.loads(json.dumps(review, sort_keys=True, separators=(',', ':'), allow_nan=False))
+
+
 def audit_annotations(folder):
     folder = Path(folder); project = folder/'project'; checks = 0
     def check(label, value):
@@ -152,7 +165,8 @@ def audit_annotations(folder):
             check('stored artifact integrity', len(raw) == ref['bytes'] and hashlib.sha256(raw).hexdigest() == ref['sha256'])
             artifact = json.loads(raw)
             check('artifact contains only available current folds', equal(artifact['current'], {'query': query, 'runs': [complete[c] for c in pair]}))
-            kwargs = {'review': latest_review, 'full_evidence_bytes': read(latest_review['full_evidence']['path'])} if latest_review is not None else {}
+            replayed_review = review_at_operation(latest_review, args['operation'])
+            kwargs = {'review': replayed_review, 'full_evidence_bytes': read(replayed_review['full_evidence']['path'])} if replayed_review is not None else {}
             expected_view, expected_raw = contrast_view(artifact['current'], **kwargs)
             if reviewed and latest_review is None: expected_view['history_status'] = 'last_review_had_no_historical_catalog'
             check('presentation matches verified inputs and latest requested history', view == expected_view and raw == expected_raw)

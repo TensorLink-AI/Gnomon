@@ -5,6 +5,54 @@ sessions under the same three-arm Gnomon 1.2.0/DeepSeek v4.1 Flash protocol. The
 pilot's negative result remains in the denominator. This is reused development
 data, not the reserved final evaluation. The 20% target remains unestablished.
 
+## Second continuation audit: 60 verified sessions
+
+An additional disjoint batch of 19 completed sessions passed 21,928 independent
+checks after correcting an offline verifier defect described below. Together
+with the pilot and first batch, this covers 60 valid, complete workflows and
+59,936 checks. All 20 matched cases enter the following comparison:
+
+| Arm | Matched mean RMSLE | Matched reported tokens | API requests | Fits |
+|---|---:|---:|---:|---:|
+| Hermes | 0.512245 | 2,517,023 | 171 | 224 |
+| Hermes + Gnomon | 0.498703 | 2,589,785 | 175 | 228 |
+| Hermes + Gnomon + ledger | 0.516325 | 2,573,279 | 171 | 232 |
+
+Ledger is 3.53% worse than no-ledger on this developing matched subset. No
+accuracy target or final gate has passed. The run continues unchanged.
+
+The new batch contains 165 agent requests/responses and 2,731,063 reported
+tokens, with no agent API errors or missing agent usage. Its 20 readiness
+requests report 266 tokens; one has unknown usage. Audits make no Engy or
+provider calls. These are original-run costs, not additional audit costs.
+
+### Offline audit correction, with original failure retained
+
+The original audit exited 1 on a presentation comparison. A per-session
+diagnostic isolated four later-origin ledger sessions. Their recent and longer
+history windows first had different matched cohorts. The annotator uses an
+in-memory review during `review`, then reloads its sorted-key JSON cache on
+later operations. This changes the order of distinct labelled history groups.
+The auditor incorrectly reused the original dictionary order. Scores, labels,
+counts and the content-addressed evidence bytes matched; array order did not.
+
+`contrast_audit_100.review_at_operation` now reproduces that serialization
+boundary. Exact view equality and artifact-byte equality remain required;
+output arrays are not arbitrarily sorted or compared as sets. Twenty-five
+synthetic regression tests pass. On separate copies of an affected real
+session, reordered groups, fabricated scores and fabricated sample counts
+still reject after changing both response copies. Original evidence hashes
+remain unchanged. The corrected full analyzer then passed all 19 sessions.
+
+The frozen worker and its bundled original auditor were not edited. Its eventual
+controller audit may therefore report incomplete because of this known verifier
+defect; preserve that terminal record and reconcile with the separately hashed
+offline correction. Do not restart sessions or describe the original audit as
+passing. The raw failure, diagnosis, corrected audit and tests are retained in
+`results/contrast-100-development-audit-002/` and
+`results/contrast-audit-cache-replay-100-001/`. Receipt:
+`evidence/contrast-100-development-audit-002.json`.
+
 ## First continuation audit
 
 The first five completed continuation sessions passed 5,094 independent checks,
