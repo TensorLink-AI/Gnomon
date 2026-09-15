@@ -31,7 +31,8 @@ below still apply; the old helpers have not been silently relaxed or repurposed.
 Two-series state-copy/continuation and fixed full-cohort stage-count checks now
 pass separately; see `M5_ML_CONTINUATION.md`. These verify 18 retained plus six
 new synthetic workflows and the 72/552/624 stage boundaries. They do not yet
-cover the full dispatch/controller path or a second requested seed.
+cover the full dispatch/controller path. Both requested seeds are now exercised
+by the separate worker and continuation probes described below.
 
 The separate seed-19 full-worker integration now also passes; see
 `M5_ML_SEEDS.md`. It verifies six synthetic sessions, original and forwarded
@@ -39,8 +40,41 @@ seed settings, unchanged model outputs, runtime equality, and wrong-seed audit
 rejection. The two-series resumed-state test now also passes for seed 19, with
 cross-seed/source/runtime metadata rejection before copying. Joint prefix checks
 combine these identities with the complete 72-session cohort and score checks.
-Full operational continuation admission still needs terminal/archive, source-plan
-and one-shot controller verification; see `M5_ML_CONTINUATION.md`.
+Full operational continuation admission still needs the integrated controller,
+copied audit and one-shot dispatch path; see `M5_ML_CONTINUATION.md` and the
+terminal/archive checker below.
+
+## Terminal, archived-byte and source-plan checks
+
+`m5_ml_terminal_prefix.verify_terminal_prefix` now combines live-process identity
+checks, fixed development input authentication, exact prospective source/seed/
+runtime plan binding, the full 72-session pilot score/completion check and
+immutable terminal evidence. It checks both controller and child PID/start-tick/
+boot identities. A live predecessor, incomplete marker or missing/changed task
+rejects continuation. A reused PID is distinguished from the original process.
+
+The checker streams every tar member without extraction, requires exactly the
+manifested regular files, verifies their contents, and compares current pilot
+and controller bytes against the terminal inventory. Missing, duplicate, linked
+or altered members fail even if someone updates the outer archive hash. It
+rechecks source/state bytes after validation. No credentials are read or files
+copied by this checker. Passing it does not reserve or authorize dispatch.
+
+Twenty tests passed: ten new terminal/archive cases plus ten existing
+cohort/score checks. Synthetic 72-session fixtures exercise the combined path;
+only production input-hash authentication is mocked for those fixtures. The
+unmocked authenticator rejects those synthetic bytes. A separate real archive
+probe verified 1,766 retained files from the earlier 18-session seed-19 synthetic
+pilot, including the actual worker transcripts/state, and proved its source
+unchanged. That probe does not claim a complete 72-session operational run.
+No new forecasts or Engy calls ran. Evidence:
+`evidence/m5-ml-terminal-prefix-001.json`.
+
+Still required: wire these checks into the cohort-aware pilot/continuation
+launcher and archival controller, authenticate the complete prospective runtime/
+budget/preflight bundle, reserve dispatch once, re-audit the copied prefix and
+test the integrated multi-series launch path before any paid M5 experiment.
+Do not equate a passing terminal-prefix checker with those remaining steps.
 
 This is a code inspection of the current candidate-100 capsule and its existing
 launch helpers, together with the retained development-preparation receipt. It
