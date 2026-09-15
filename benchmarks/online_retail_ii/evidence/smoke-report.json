@@ -1,0 +1,147 @@
+{
+  "cache_hits": 180,
+  "cached_computations_are_not_new_fits": true,
+  "cases": 12,
+  "elapsed_seconds": 37.14010431600036,
+  "engy_calls": 0,
+  "final_evidence_opened": false,
+  "gnomon_agent_arm_executed": false,
+  "methods": {
+    "auto_arima_7": {
+      "aggregate_wape": 2.9582098654017717,
+      "cases": 12,
+      "clipped_points": 0,
+      "fallback_cases": 0,
+      "mean_mae": 6.532713452762246,
+      "mean_mase": 1.015388116569888,
+      "mean_rmsle": 1.3784240512005124,
+      "undefined_mase_cases": 0
+    },
+    "auto_ets_7": {
+      "aggregate_wape": 3.1747233852848336,
+      "cases": 12,
+      "clipped_points": 0,
+      "fallback_cases": 0,
+      "mean_mae": 7.010847475837341,
+      "mean_mase": 1.1130572815453645,
+      "mean_rmsle": 1.412496798563715,
+      "undefined_mase_cases": 0
+    },
+    "auto_theta_7": {
+      "aggregate_wape": 2.8031564289865014,
+      "cases": 12,
+      "clipped_points": 0,
+      "fallback_cases": 0,
+      "mean_mae": 6.1903037806785255,
+      "mean_mase": 1.3241918749014978,
+      "mean_rmsle": 1.427792467232089,
+      "undefined_mase_cases": 0
+    },
+    "croston_sba": {
+      "aggregate_wape": 2.9612458770448886,
+      "cases": 12,
+      "clipped_points": 0,
+      "fallback_cases": 0,
+      "mean_mae": 6.539417978474128,
+      "mean_mase": 1.003414779890017,
+      "mean_rmsle": 1.4356775949650025,
+      "undefined_mase_cases": 0
+    },
+    "cv_top3_ensemble": {
+      "aggregate_wape": 2.176579486681163,
+      "cases": 12,
+      "clipped_points": 4,
+      "fallback_cases": 0,
+      "mean_mae": 4.80661303308757,
+      "mean_mase": 0.8815116760984661,
+      "mean_rmsle": 1.1268337193783646,
+      "undefined_mase_cases": 0
+    },
+    "hist_gradient_boosting_log": {
+      "aggregate_wape": 1.8783115468684932,
+      "cases": 12,
+      "clipped_points": 13,
+      "fallback_cases": 0,
+      "mean_mae": 4.14793799933459,
+      "mean_mase": 0.7246651228982174,
+      "mean_rmsle": 1.0056006019718722,
+      "undefined_mase_cases": 0
+    },
+    "historical_recent4_diagnostic": {
+      "aggregate_wape": 2.138693193135072,
+      "cases": 12,
+      "clipped_points": 2,
+      "fallback_cases": 0,
+      "mean_mae": 4.722947468173285,
+      "mean_mase": 0.8327885181986793,
+      "mean_rmsle": 1.1139530200432675,
+      "undefined_mase_cases": 0
+    },
+    "last_value": {
+      "aggregate_wape": 2.4609164420485174,
+      "cases": 12,
+      "clipped_points": 0,
+      "fallback_cases": 0,
+      "mean_mae": 5.434523809523809,
+      "mean_mase": 1.5158708380251638,
+      "mean_rmsle": 1.1502873337859814,
+      "undefined_mase_cases": 0
+    },
+    "mean_28": {
+      "aggregate_wape": 3.4688101655756647,
+      "cases": 12,
+      "clipped_points": 0,
+      "fallback_cases": 0,
+      "mean_mae": 7.660289115646261,
+      "mean_mase": 1.4968641440230452,
+      "mean_rmsle": 1.5757857302754177,
+      "undefined_mase_cases": 0
+    },
+    "ridge_log": {
+      "aggregate_wape": 1.8761845198595606,
+      "cases": 12,
+      "clipped_points": 1,
+      "fallback_cases": 0,
+      "mean_mae": 4.143240814689863,
+      "mean_mase": 0.6898236652440549,
+      "mean_rmsle": 1.0072315927886992,
+      "undefined_mase_cases": 0
+    },
+    "rolling_cv_select": {
+      "aggregate_wape": 2.138693193135072,
+      "cases": 12,
+      "clipped_points": 2,
+      "fallback_cases": 0,
+      "mean_mae": 4.722947468173285,
+      "mean_mase": 0.8327885181986793,
+      "mean_rmsle": 1.1139530200432675,
+      "undefined_mase_cases": 0
+    },
+    "seasonal_naive_7": {
+      "aggregate_wape": 2.7035040431266846,
+      "cases": 12,
+      "clipped_points": 0,
+      "fallback_cases": 0,
+      "mean_mae": 5.970238095238095,
+      "mean_mase": 1.7270511966720588,
+      "mean_rmsle": 1.2804557622294972,
+      "undefined_mase_cases": 0
+    },
+    "weekday_mean_4": {
+      "aggregate_wape": 3.4919137466307277,
+      "cases": 12,
+      "clipped_points": 0,
+      "fallback_cases": 0,
+      "mean_mae": 7.711309523809525,
+      "mean_mase": 1.497883769598494,
+      "mean_rmsle": 1.5098451228265386,
+      "undefined_mase_cases": 0
+    }
+  },
+  "numerical_computations": 300,
+  "numerical_requests": 480,
+  "objective_established": false,
+  "plan_sha256": "dc5a6d8ac6097e9c5b8fbaad0d3d94e11169658f2e4db8d0dbf50532a5b6351e",
+  "scope": "development_smoke",
+  "status": "complete"
+}

@@ -1,0 +1,14 @@
+{
+  "gnomon_version": "1.2.0",
+  "heldout_opened": false,
+  "historical_ledger_numerical_refits": 0,
+  "independent_checks": 325,
+  "ledger_matches_host_metrics": true,
+  "methods": 13,
+  "missing_cases_retained": true,
+  "paid_agent_run": false,
+  "parity": true,
+  "passed": true,
+  "smoke_cases": 12,
+  "smoke_report_sha256": "1fb78c824d4aaef6e0cef28e9663569c19945ef3e000ad059c3f5091bbc7137c"
+}

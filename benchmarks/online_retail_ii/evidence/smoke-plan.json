@@ -1,0 +1,57 @@
+{
+  "code_sha256": {
+    "__init__.py": "0acb422c2dfc5132bd8f85b9fafc939aa5f1b87afdb1789c7e2129ab049a6645",
+    "__main__.py": "5311c68a6c6a16e0816832d815aabdfabdff2ec5901dbe2cf429d5fb9ee0bb94",
+    "agent.py": "19ad4b5cb1bea760767759e8f73944d325c165b52b9efcb800a4fcf3641dd0b3",
+    "data.py": "ded15337c63e24dce26aa74be5860568b1104df83283170f7069442d5ddb91c3",
+    "ledger.py": "e9df230ee34996e50933e0f0488e3463ffe779880763ccaef90c2784328fa4fc",
+    "models.py": "edf65e498d4031f742f0ebfd5f988f6e4eaddd58bab9c2a3286cca9cff618999",
+    "run.py": "c7216b103a6b3a4d3fa7510d604f053b522320325fd870adc001a796800da7c5",
+    "score.py": "752a2be019d963aba80c8c61f57b5432c2ad2ab7088029d4f9992fcb132a355a",
+    "test_benchmark.py": "9204211f2ac3aba715b175aadf7ad5259d0cca2bf5fb1bba31999236b1226df0"
+  },
+  "engy_calls": 0,
+  "gnomon_agent_arm_executed": false,
+  "models": [
+    "last_value",
+    "seasonal_naive_7",
+    "mean_28",
+    "weekday_mean_4",
+    "auto_ets_7",
+    "auto_arima_7",
+    "auto_theta_7",
+    "croston_sba",
+    "ridge_log",
+    "hist_gradient_boosting_log"
+  ],
+  "origins": [
+    0,
+    1
+  ],
+  "panel_sha256": "0263979a57995abc810bc80426c6759d82c03931ab7af6741c816749cad9dafd",
+  "phase": "development",
+  "planned_cases": 12,
+  "protocol_sha256": "7c45e03c864017ba98d99f724d6567939a0e17b7af262730111f2a1222c76a57",
+  "runtime": {
+    "gnomon-forecast": "1.2.0",
+    "numpy": "2.5.3",
+    "openpyxl": "3.1.5",
+    "pandas": "2.3.3",
+    "scikit-learn": "1.9.1",
+    "statsforecast": "2.1.1",
+    "statsmodels": "0.15.0"
+  },
+  "seeds": [
+    7
+  ],
+  "series": [
+    "20757",
+    "20958",
+    "20983",
+    "20992",
+    "21187",
+    "21429"
+  ],
+  "smoke": true,
+  "source_manifest_sha256": "b6dff4b044b84fa4182771c8306e7cb5fe59ec90705586cfaf4de51a25b1fb47"
+}

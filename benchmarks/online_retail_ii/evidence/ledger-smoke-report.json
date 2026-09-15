@@ -1,0 +1,308 @@
+{
+  "engy_calls": 0,
+  "excluded": [],
+  "gnomon_native_compare_history_metric": "mae",
+  "matched_origins": 1,
+  "metric": "mean_per_origin_rmsle",
+  "numerical_refits": 0,
+  "query_as_of": "2010-12-19T23:59:59+00:00",
+  "ranking": [
+    {
+      "mean_rmsle": 0.58460883943842,
+      "origins": 1,
+      "provider": "ridge_log",
+      "rank": 1,
+      "recent4_mean_rmsle": 0.58460883943842
+    },
+    {
+      "mean_rmsle": 0.6057628889593448,
+      "origins": 1,
+      "provider": "hist_gradient_boosting_log",
+      "rank": 2,
+      "recent4_mean_rmsle": 0.6057628889593448
+    },
+    {
+      "mean_rmsle": 0.7258496973098839,
+      "origins": 1,
+      "provider": "auto_arima_7",
+      "rank": 3,
+      "recent4_mean_rmsle": 0.7258496973098839
+    },
+    {
+      "mean_rmsle": 0.755937659578222,
+      "origins": 1,
+      "provider": "mean_28",
+      "rank": 4,
+      "recent4_mean_rmsle": 0.755937659578222
+    },
+    {
+      "mean_rmsle": 0.7591536706588158,
+      "origins": 1,
+      "provider": "croston_sba",
+      "rank": 5,
+      "recent4_mean_rmsle": 0.7591536706588158
+    },
+    {
+      "mean_rmsle": 0.8086006339918321,
+      "origins": 1,
+      "provider": "weekday_mean_4",
+      "rank": 6,
+      "recent4_mean_rmsle": 0.8086006339918321
+    },
+    {
+      "mean_rmsle": 0.9698249858571546,
+      "origins": 1,
+      "provider": "auto_ets_7",
+      "rank": 7,
+      "recent4_mean_rmsle": 0.9698249858571546
+    },
+    {
+      "mean_rmsle": 0.9707104411803946,
+      "origins": 1,
+      "provider": "auto_theta_7",
+      "rank": 8,
+      "recent4_mean_rmsle": 0.9707104411803946
+    },
+    {
+      "mean_rmsle": 1.2005661338529436,
+      "origins": 1,
+      "provider": "seasonal_naive_7",
+      "rank": 9,
+      "recent4_mean_rmsle": 1.2005661338529436
+    },
+    {
+      "mean_rmsle": 2.5400389003857775,
+      "origins": 1,
+      "provider": "last_value",
+      "rank": 10,
+      "recent4_mean_rmsle": 2.5400389003857775
+    }
+  ],
+  "recording_semantics": "simulated historical replay; not genuine recording timestamps",
+  "references": [
+    {
+      "actual_ids": [
+        "3cf33e78b06b930101fda66cfaac4d299fe99b350d29fdead7375caed18464ef",
+        "ffd3c554363df36d2e9b6daddd762f128596b61754e21532349cdce2775043cd",
+        "53bb1f0c9f631589c042b25ac2db116e36d0e207502f027362327d4c7e93b324",
+        "7726497f3f961f4b1331c0d80898edb13bf8a2c5f0d9be94b8f3b0b3ba70fa30",
+        "889648ccb499a13e73b251a73de850396e4c74d82b04bb5da913d91f1899af17",
+        "b203a1c01d9a5ba085b84e644f9bd28d9c92d42ab1cd8a8bdd3ff730033ecd1e",
+        "c8e3a1b667690fb97e4b5a91f5ba3866b1691dcf81c7f7b0be4a5c066b89cb3e",
+        "c0b7e8b95a1fecf16deada54b2a681f0526d4f1670a74c457f2dcd482bf2f2c0",
+        "c5b17b0f47ed92d878d78f967c29877f630d6f8b37d82399aa9236724b5a85e4",
+        "6a0fb2081da6d05c7506d50826c4fa1b8787d96d73cf24f02239780303ae87df",
+        "d291956cc6bad7b4d3852f922c38d834532782487ecd3f34bf21d895bb27d868",
+        "9c01f66e99230fee2a3a047154d33aa248d60c9b9e7911a63a0443945497fd6d",
+        "5bbd272ade1e5176bc83a80b4cf22f78b88e6dd27cdd7f43b68ccc608baf2697",
+        "ddfa13a6a9d07e4762e3ee1aff98ae723c2ecd60185be7c8c18beb51bb81850b"
+      ],
+      "execution_id": "bb0e3f57-765a-45c4-ba87-774fe917db13",
+      "origin": "2010-12-05T23:59:59.000000+00:00",
+      "provider": "last_value",
+      "rmsle": 2.5400389003857775
+    },
+    {
+      "actual_ids": [
+        "3cf33e78b06b930101fda66cfaac4d299fe99b350d29fdead7375caed18464ef",
+        "ffd3c554363df36d2e9b6daddd762f128596b61754e21532349cdce2775043cd",
+        "53bb1f0c9f631589c042b25ac2db116e36d0e207502f027362327d4c7e93b324",
+        "7726497f3f961f4b1331c0d80898edb13bf8a2c5f0d9be94b8f3b0b3ba70fa30",
+        "889648ccb499a13e73b251a73de850396e4c74d82b04bb5da913d91f1899af17",
+        "b203a1c01d9a5ba085b84e644f9bd28d9c92d42ab1cd8a8bdd3ff730033ecd1e",
+        "c8e3a1b667690fb97e4b5a91f5ba3866b1691dcf81c7f7b0be4a5c066b89cb3e",
+        "c0b7e8b95a1fecf16deada54b2a681f0526d4f1670a74c457f2dcd482bf2f2c0",
+        "c5b17b0f47ed92d878d78f967c29877f630d6f8b37d82399aa9236724b5a85e4",
+        "6a0fb2081da6d05c7506d50826c4fa1b8787d96d73cf24f02239780303ae87df",
+        "d291956cc6bad7b4d3852f922c38d834532782487ecd3f34bf21d895bb27d868",
+        "9c01f66e99230fee2a3a047154d33aa248d60c9b9e7911a63a0443945497fd6d",
+        "5bbd272ade1e5176bc83a80b4cf22f78b88e6dd27cdd7f43b68ccc608baf2697",
+        "ddfa13a6a9d07e4762e3ee1aff98ae723c2ecd60185be7c8c18beb51bb81850b"
+      ],
+      "execution_id": "8a40361f-9662-4542-8cd1-5d965516316e",
+      "origin": "2010-12-05T23:59:59.000000+00:00",
+      "provider": "seasonal_naive_7",
+      "rmsle": 1.2005661338529436
+    },
+    {
+      "actual_ids": [
+        "3cf33e78b06b930101fda66cfaac4d299fe99b350d29fdead7375caed18464ef",
+        "ffd3c554363df36d2e9b6daddd762f128596b61754e21532349cdce2775043cd",
+        "53bb1f0c9f631589c042b25ac2db116e36d0e207502f027362327d4c7e93b324",
+        "7726497f3f961f4b1331c0d80898edb13bf8a2c5f0d9be94b8f3b0b3ba70fa30",
+        "889648ccb499a13e73b251a73de850396e4c74d82b04bb5da913d91f1899af17",
+        "b203a1c01d9a5ba085b84e644f9bd28d9c92d42ab1cd8a8bdd3ff730033ecd1e",
+        "c8e3a1b667690fb97e4b5a91f5ba3866b1691dcf81c7f7b0be4a5c066b89cb3e",
+        "c0b7e8b95a1fecf16deada54b2a681f0526d4f1670a74c457f2dcd482bf2f2c0",
+        "c5b17b0f47ed92d878d78f967c29877f630d6f8b37d82399aa9236724b5a85e4",
+        "6a0fb2081da6d05c7506d50826c4fa1b8787d96d73cf24f02239780303ae87df",
+        "d291956cc6bad7b4d3852f922c38d834532782487ecd3f34bf21d895bb27d868",
+        "9c01f66e99230fee2a3a047154d33aa248d60c9b9e7911a63a0443945497fd6d",
+        "5bbd272ade1e5176bc83a80b4cf22f78b88e6dd27cdd7f43b68ccc608baf2697",
+        "ddfa13a6a9d07e4762e3ee1aff98ae723c2ecd60185be7c8c18beb51bb81850b"
+      ],
+      "execution_id": "831ab876-65e5-459d-969a-69f90cd805a7",
+      "origin": "2010-12-05T23:59:59.000000+00:00",
+      "provider": "mean_28",
+      "rmsle": 0.755937659578222
+    },
+    {
+      "actual_ids": [
+        "3cf33e78b06b930101fda66cfaac4d299fe99b350d29fdead7375caed18464ef",
+        "ffd3c554363df36d2e9b6daddd762f128596b61754e21532349cdce2775043cd",
+        "53bb1f0c9f631589c042b25ac2db116e36d0e207502f027362327d4c7e93b324",
+        "7726497f3f961f4b1331c0d80898edb13bf8a2c5f0d9be94b8f3b0b3ba70fa30",
+        "889648ccb499a13e73b251a73de850396e4c74d82b04bb5da913d91f1899af17",
+        "b203a1c01d9a5ba085b84e644f9bd28d9c92d42ab1cd8a8bdd3ff730033ecd1e",
+        "c8e3a1b667690fb97e4b5a91f5ba3866b1691dcf81c7f7b0be4a5c066b89cb3e",
+        "c0b7e8b95a1fecf16deada54b2a681f0526d4f1670a74c457f2dcd482bf2f2c0",
+        "c5b17b0f47ed92d878d78f967c29877f630d6f8b37d82399aa9236724b5a85e4",
+        "6a0fb2081da6d05c7506d50826c4fa1b8787d96d73cf24f02239780303ae87df",
+        "d291956cc6bad7b4d3852f922c38d834532782487ecd3f34bf21d895bb27d868",
+        "9c01f66e99230fee2a3a047154d33aa248d60c9b9e7911a63a0443945497fd6d",
+        "5bbd272ade1e5176bc83a80b4cf22f78b88e6dd27cdd7f43b68ccc608baf2697",
+        "ddfa13a6a9d07e4762e3ee1aff98ae723c2ecd60185be7c8c18beb51bb81850b"
+      ],
+      "execution_id": "851e0667-8314-4af3-9ed3-22c143f2910b",
+      "origin": "2010-12-05T23:59:59.000000+00:00",
+      "provider": "weekday_mean_4",
+      "rmsle": 0.8086006339918321
+    },
+    {
+      "actual_ids": [
+        "3cf33e78b06b930101fda66cfaac4d299fe99b350d29fdead7375caed18464ef",
+        "ffd3c554363df36d2e9b6daddd762f128596b61754e21532349cdce2775043cd",
+        "53bb1f0c9f631589c042b25ac2db116e36d0e207502f027362327d4c7e93b324",
+        "7726497f3f961f4b1331c0d80898edb13bf8a2c5f0d9be94b8f3b0b3ba70fa30",
+        "889648ccb499a13e73b251a73de850396e4c74d82b04bb5da913d91f1899af17",
+        "b203a1c01d9a5ba085b84e644f9bd28d9c92d42ab1cd8a8bdd3ff730033ecd1e",
+        "c8e3a1b667690fb97e4b5a91f5ba3866b1691dcf81c7f7b0be4a5c066b89cb3e",
+        "c0b7e8b95a1fecf16deada54b2a681f0526d4f1670a74c457f2dcd482bf2f2c0",
+        "c5b17b0f47ed92d878d78f967c29877f630d6f8b37d82399aa9236724b5a85e4",
+        "6a0fb2081da6d05c7506d50826c4fa1b8787d96d73cf24f02239780303ae87df",
+        "d291956cc6bad7b4d3852f922c38d834532782487ecd3f34bf21d895bb27d868",
+        "9c01f66e99230fee2a3a047154d33aa248d60c9b9e7911a63a0443945497fd6d",
+        "5bbd272ade1e5176bc83a80b4cf22f78b88e6dd27cdd7f43b68ccc608baf2697",
+        "ddfa13a6a9d07e4762e3ee1aff98ae723c2ecd60185be7c8c18beb51bb81850b"
+      ],
+      "execution_id": "125b4377-d2a8-4236-a872-1b1892d3b4e9",
+      "origin": "2010-12-05T23:59:59.000000+00:00",
+      "provider": "auto_ets_7",
+      "rmsle": 0.9698249858571546
+    },
+    {
+      "actual_ids": [
+        "3cf33e78b06b930101fda66cfaac4d299fe99b350d29fdead7375caed18464ef",
+        "ffd3c554363df36d2e9b6daddd762f128596b61754e21532349cdce2775043cd",
+        "53bb1f0c9f631589c042b25ac2db116e36d0e207502f027362327d4c7e93b324",
+        "7726497f3f961f4b1331c0d80898edb13bf8a2c5f0d9be94b8f3b0b3ba70fa30",
+        "889648ccb499a13e73b251a73de850396e4c74d82b04bb5da913d91f1899af17",
+        "b203a1c01d9a5ba085b84e644f9bd28d9c92d42ab1cd8a8bdd3ff730033ecd1e",
+        "c8e3a1b667690fb97e4b5a91f5ba3866b1691dcf81c7f7b0be4a5c066b89cb3e",
+        "c0b7e8b95a1fecf16deada54b2a681f0526d4f1670a74c457f2dcd482bf2f2c0",
+        "c5b17b0f47ed92d878d78f967c29877f630d6f8b37d82399aa9236724b5a85e4",
+        "6a0fb2081da6d05c7506d50826c4fa1b8787d96d73cf24f02239780303ae87df",
+        "d291956cc6bad7b4d3852f922c38d834532782487ecd3f34bf21d895bb27d868",
+        "9c01f66e99230fee2a3a047154d33aa248d60c9b9e7911a63a0443945497fd6d",
+        "5bbd272ade1e5176bc83a80b4cf22f78b88e6dd27cdd7f43b68ccc608baf2697",
+        "ddfa13a6a9d07e4762e3ee1aff98ae723c2ecd60185be7c8c18beb51bb81850b"
+      ],
+      "execution_id": "fa505e38-700e-445a-b216-99e56afca4fe",
+      "origin": "2010-12-05T23:59:59.000000+00:00",
+      "provider": "auto_arima_7",
+      "rmsle": 0.7258496973098839
+    },
+    {
+      "actual_ids": [
+        "3cf33e78b06b930101fda66cfaac4d299fe99b350d29fdead7375caed18464ef",
+        "ffd3c554363df36d2e9b6daddd762f128596b61754e21532349cdce2775043cd",
+        "53bb1f0c9f631589c042b25ac2db116e36d0e207502f027362327d4c7e93b324",
+        "7726497f3f961f4b1331c0d80898edb13bf8a2c5f0d9be94b8f3b0b3ba70fa30",
+        "889648ccb499a13e73b251a73de850396e4c74d82b04bb5da913d91f1899af17",
+        "b203a1c01d9a5ba085b84e644f9bd28d9c92d42ab1cd8a8bdd3ff730033ecd1e",
+        "c8e3a1b667690fb97e4b5a91f5ba3866b1691dcf81c7f7b0be4a5c066b89cb3e",
+        "c0b7e8b95a1fecf16deada54b2a681f0526d4f1670a74c457f2dcd482bf2f2c0",
+        "c5b17b0f47ed92d878d78f967c29877f630d6f8b37d82399aa9236724b5a85e4",
+        "6a0fb2081da6d05c7506d50826c4fa1b8787d96d73cf24f02239780303ae87df",
+        "d291956cc6bad7b4d3852f922c38d834532782487ecd3f34bf21d895bb27d868",
+        "9c01f66e99230fee2a3a047154d33aa248d60c9b9e7911a63a0443945497fd6d",
+        "5bbd272ade1e5176bc83a80b4cf22f78b88e6dd27cdd7f43b68ccc608baf2697",
+        "ddfa13a6a9d07e4762e3ee1aff98ae723c2ecd60185be7c8c18beb51bb81850b"
+      ],
+      "execution_id": "fcee76ea-729b-49f1-ae31-6b6b36593be8",
+      "origin": "2010-12-05T23:59:59.000000+00:00",
+      "provider": "auto_theta_7",
+      "rmsle": 0.9707104411803946
+    },
+    {
+      "actual_ids": [
+        "3cf33e78b06b930101fda66cfaac4d299fe99b350d29fdead7375caed18464ef",
+        "ffd3c554363df36d2e9b6daddd762f128596b61754e21532349cdce2775043cd",
+        "53bb1f0c9f631589c042b25ac2db116e36d0e207502f027362327d4c7e93b324",
+        "7726497f3f961f4b1331c0d80898edb13bf8a2c5f0d9be94b8f3b0b3ba70fa30",
+        "889648ccb499a13e73b251a73de850396e4c74d82b04bb5da913d91f1899af17",
+        "b203a1c01d9a5ba085b84e644f9bd28d9c92d42ab1cd8a8bdd3ff730033ecd1e",
+        "c8e3a1b667690fb97e4b5a91f5ba3866b1691dcf81c7f7b0be4a5c066b89cb3e",
+        "c0b7e8b95a1fecf16deada54b2a681f0526d4f1670a74c457f2dcd482bf2f2c0",
+        "c5b17b0f47ed92d878d78f967c29877f630d6f8b37d82399aa9236724b5a85e4",
+        "6a0fb2081da6d05c7506d50826c4fa1b8787d96d73cf24f02239780303ae87df",
+        "d291956cc6bad7b4d3852f922c38d834532782487ecd3f34bf21d895bb27d868",
+        "9c01f66e99230fee2a3a047154d33aa248d60c9b9e7911a63a0443945497fd6d",
+        "5bbd272ade1e5176bc83a80b4cf22f78b88e6dd27cdd7f43b68ccc608baf2697",
+        "ddfa13a6a9d07e4762e3ee1aff98ae723c2ecd60185be7c8c18beb51bb81850b"
+      ],
+      "execution_id": "568c2b33-c181-44bb-b99c-7f2d1fc9dd3e",
+      "origin": "2010-12-05T23:59:59.000000+00:00",
+      "provider": "croston_sba",
+      "rmsle": 0.7591536706588158
+    },
+    {
+      "actual_ids": [
+        "3cf33e78b06b930101fda66cfaac4d299fe99b350d29fdead7375caed18464ef",
+        "ffd3c554363df36d2e9b6daddd762f128596b61754e21532349cdce2775043cd",
+        "53bb1f0c9f631589c042b25ac2db116e36d0e207502f027362327d4c7e93b324",
+        "7726497f3f961f4b1331c0d80898edb13bf8a2c5f0d9be94b8f3b0b3ba70fa30",
+        "889648ccb499a13e73b251a73de850396e4c74d82b04bb5da913d91f1899af17",
+        "b203a1c01d9a5ba085b84e644f9bd28d9c92d42ab1cd8a8bdd3ff730033ecd1e",
+        "c8e3a1b667690fb97e4b5a91f5ba3866b1691dcf81c7f7b0be4a5c066b89cb3e",
+        "c0b7e8b95a1fecf16deada54b2a681f0526d4f1670a74c457f2dcd482bf2f2c0",
+        "c5b17b0f47ed92d878d78f967c29877f630d6f8b37d82399aa9236724b5a85e4",
+        "6a0fb2081da6d05c7506d50826c4fa1b8787d96d73cf24f02239780303ae87df",
+        "d291956cc6bad7b4d3852f922c38d834532782487ecd3f34bf21d895bb27d868",
+        "9c01f66e99230fee2a3a047154d33aa248d60c9b9e7911a63a0443945497fd6d",
+        "5bbd272ade1e5176bc83a80b4cf22f78b88e6dd27cdd7f43b68ccc608baf2697",
+        "ddfa13a6a9d07e4762e3ee1aff98ae723c2ecd60185be7c8c18beb51bb81850b"
+      ],
+      "execution_id": "b2fb96dc-8086-4288-af17-dfebecdd2165",
+      "origin": "2010-12-05T23:59:59.000000+00:00",
+      "provider": "ridge_log",
+      "rmsle": 0.58460883943842
+    },
+    {
+      "actual_ids": [
+        "3cf33e78b06b930101fda66cfaac4d299fe99b350d29fdead7375caed18464ef",
+        "ffd3c554363df36d2e9b6daddd762f128596b61754e21532349cdce2775043cd",
+        "53bb1f0c9f631589c042b25ac2db116e36d0e207502f027362327d4c7e93b324",
+        "7726497f3f961f4b1331c0d80898edb13bf8a2c5f0d9be94b8f3b0b3ba70fa30",
+        "889648ccb499a13e73b251a73de850396e4c74d82b04bb5da913d91f1899af17",
+        "b203a1c01d9a5ba085b84e644f9bd28d9c92d42ab1cd8a8bdd3ff730033ecd1e",
+        "c8e3a1b667690fb97e4b5a91f5ba3866b1691dcf81c7f7b0be4a5c066b89cb3e",
+        "c0b7e8b95a1fecf16deada54b2a681f0526d4f1670a74c457f2dcd482bf2f2c0",
+        "c5b17b0f47ed92d878d78f967c29877f630d6f8b37d82399aa9236724b5a85e4",
+        "6a0fb2081da6d05c7506d50826c4fa1b8787d96d73cf24f02239780303ae87df",
+        "d291956cc6bad7b4d3852f922c38d834532782487ecd3f34bf21d895bb27d868",
+        "9c01f66e99230fee2a3a047154d33aa248d60c9b9e7911a63a0443945497fd6d",
+        "5bbd272ade1e5176bc83a80b4cf22f78b88e6dd27cdd7f43b68ccc608baf2697",
+        "ddfa13a6a9d07e4762e3ee1aff98ae723c2ecd60185be7c8c18beb51bb81850b"
+      ],
+      "execution_id": "76671ad1-8130-4a1f-881d-3c915d6eb255",
+      "origin": "2010-12-05T23:59:59.000000+00:00",
+      "provider": "hist_gradient_boosting_log",
+      "rmsle": 0.6057628889593448
+    }
+  ],
+  "replayed_executions": 10,
+  "rmsle_calculated_from_referenced_pairs": true,
+  "source": "public_gnomon_matched_execution_and_actual_reads",
+  "status": "ok"
+}

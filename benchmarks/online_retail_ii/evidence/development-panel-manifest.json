@@ -1,0 +1,403 @@
+{
+  "customer_identifiers_exported": false,
+  "eligible_per_stratum": {
+    "frequent": 707,
+    "intermittent": 1049,
+    "sparse": 682
+  },
+  "final_targets_materialized": false,
+  "materialized_through": "2011-06-05",
+  "panel_sha256": "0263979a57995abc810bc80426c6759d82c03931ab7af6741c816749cad9dafd",
+  "phase": "development",
+  "planned_cases": 624,
+  "planned_origins": [
+    "2010-12-05",
+    "2010-12-19",
+    "2011-01-02",
+    "2011-01-16",
+    "2011-01-30",
+    "2011-02-13",
+    "2011-02-27",
+    "2011-03-13",
+    "2011-03-27",
+    "2011-04-10",
+    "2011-04-24",
+    "2011-05-08",
+    "2011-05-22"
+  ],
+  "protocol_sha256": "7c45e03c864017ba98d99f724d6567939a0e17b7af262730111f2a1222c76a57",
+  "recorded_times": "not_in_source",
+  "repeated_rows_within_owning_sheet": "retained",
+  "row_diagnostics": {
+    "Year 2009-2010": {
+      "accepted": 437513,
+      "before_complete_calendar": 14405,
+      "cancellation": 8312,
+      "non_product_stock_code": 1486,
+      "nonpositive_or_invalid_price": 1396,
+      "nonpositive_quantity": 2016,
+      "other_country": 37810,
+      "other_sheet_owns_date": 22523,
+      "rows_scanned": 525461
+    },
+    "Year 2010-2011": {
+      "accepted": 192254,
+      "after_phase_cutoff_not_used": 327418,
+      "cancellation": 3383,
+      "non_product_stock_code": 559,
+      "nonpositive_or_invalid_price": 636,
+      "nonpositive_quantity": 658,
+      "other_country": 17002,
+      "rows_scanned": 541910
+    }
+  },
+  "schema": "online-retail-ii-v1",
+  "selected_products": {
+    "20757": {
+      "active_fraction": 0.08913649025069638,
+      "active_weeks": 19,
+      "selection_hash": "04a3c7b1b71905233d6221c1a321d5df9d6094c40add74dcab840f7af3169cd8",
+      "stratum": "sparse",
+      "training_units": 389
+    },
+    "20958": {
+      "active_fraction": 0.027855153203342618,
+      "active_weeks": 10,
+      "selection_hash": "0364f251bd2fb1e432e9158c188ab9328638504bd1a299205f1ee9dbe02ce432",
+      "stratum": "sparse",
+      "training_units": 38
+    },
+    "20983": {
+      "active_fraction": 0.5181058495821727,
+      "active_weeks": 51,
+      "selection_hash": "03048619c26dbb291e03d364efbe7c25fe6c8763dbd6a9ef405433cce7e007c8",
+      "stratum": "frequent",
+      "training_units": 2893
+    },
+    "20992": {
+      "active_fraction": 0.298050139275766,
+      "active_weeks": 46,
+      "selection_hash": "00fdbf11465912aa2550c3ecc2f728ae15398794cf66c8ecaeb6670fcbd365e2",
+      "stratum": "intermittent",
+      "training_units": 1565
+    },
+    "21187": {
+      "active_fraction": 0.17827298050139276,
+      "active_weeks": 36,
+      "selection_hash": "004f256d548e4e6d61ee4fa7b8ae80e6a8cf2453bf399ed4cc163dfd1ab2f694",
+      "stratum": "intermittent",
+      "training_units": 887
+    },
+    "21190": {
+      "active_fraction": 0.2200557103064067,
+      "active_weeks": 36,
+      "selection_hash": "02bbf0e7f60739a68ff845d9b8485f305f89603a88e85528dfbd7cfadf8c42af",
+      "stratum": "intermittent",
+      "training_units": 589
+    },
+    "21277": {
+      "active_fraction": 0.06963788300835655,
+      "active_weeks": 21,
+      "selection_hash": "02306dd5805fa6ec04e19b985af5cc920e1b57149e40233d754befb616483d0c",
+      "stratum": "sparse",
+      "training_units": 31
+    },
+    "21358": {
+      "active_fraction": 0.2200557103064067,
+      "active_weeks": 41,
+      "selection_hash": "00fb2331f577dc4cf71a56e29ea44c7e6ff94c633869a57022336b72e150abaf",
+      "stratum": "intermittent",
+      "training_units": 544
+    },
+    "21394": {
+      "active_fraction": 0.027855153203342618,
+      "active_weeks": 9,
+      "selection_hash": "02a9eab314f0c1951f0871be91b1121db7d996da075a9f15d9dd35f3f857b24e",
+      "stratum": "sparse",
+      "training_units": 38
+    },
+    "21429": {
+      "active_fraction": 0.6685236768802229,
+      "active_weeks": 51,
+      "selection_hash": "02e26f2f8fa5873603b57b2796a4ff47adbae9ecc7cf0ce1df4bb51222541656",
+      "stratum": "frequent",
+      "training_units": 3140
+    },
+    "21625": {
+      "active_fraction": 0.3147632311977716,
+      "active_weeks": 49,
+      "selection_hash": "012e58ee8cfb466680bdc5db5ae67b2fda4b2c2e7a9fab9ac1978fc814d3c843",
+      "stratum": "frequent",
+      "training_units": 530
+    },
+    "21647": {
+      "active_fraction": 0.21727019498607242,
+      "active_weeks": 35,
+      "selection_hash": "00a3d6959940d7570efb5f2c57c302d103e96772ed72dd67d8f63eac7e2400d1",
+      "stratum": "intermittent",
+      "training_units": 645
+    },
+    "21927": {
+      "active_fraction": 0.17548746518105848,
+      "active_weeks": 25,
+      "selection_hash": "023e892f3b817c35fe109f9a3d3befe8a868efe4617fbff24c13995fb43ab45b",
+      "stratum": "intermittent",
+      "training_units": 625
+    },
+    "21974": {
+      "active_fraction": 0.5738161559888579,
+      "active_weeks": 51,
+      "selection_hash": "008c6d6abf03404c8f4488a7408e396e2820d339a30defc1f1f8745d31cfd5bd",
+      "stratum": "frequent",
+      "training_units": 4013
+    },
+    "21983": {
+      "active_fraction": 0.362116991643454,
+      "active_weeks": 49,
+      "selection_hash": "0379c8f96b3695e6fb4bfcb7db7c1c4f10ff1ec8f20c7fc603cdc11455967bf8",
+      "stratum": "frequent",
+      "training_units": 2959
+    },
+    "21984": {
+      "active_fraction": 0.38997214484679665,
+      "active_weeks": 48,
+      "selection_hash": "0640f8d3ad18112235f714393a13993991c9888b0180a8bb732e07e5a459a37b",
+      "stratum": "frequent",
+      "training_units": 16639
+    },
+    "22031": {
+      "active_fraction": 0.13649025069637882,
+      "active_weeks": 31,
+      "selection_hash": "002427c6fc63c381fa89dbf1021cf9b55432bb0f4e5d335f0dfba635fd866818",
+      "stratum": "intermittent",
+      "training_units": 561
+    },
+    "22060": {
+      "active_fraction": 0.2646239554317549,
+      "active_weeks": 48,
+      "selection_hash": "03acec53257c1801377ef8d3032480d1924cfbf6bcea6fd7d5bee503f46f9748",
+      "stratum": "intermittent",
+      "training_units": 471
+    },
+    "22084": {
+      "active_fraction": 0.5264623955431755,
+      "active_weeks": 51,
+      "selection_hash": "0583481d72b0fca9d14c8f48c30937ad25533b10a701369dd2e5fc63824d4b62",
+      "stratum": "frequent",
+      "training_units": 3429
+    },
+    "22086": {
+      "active_fraction": 0.36768802228412256,
+      "active_weeks": 39,
+      "selection_hash": "043a7573ec4c567547009589dd4b2481bc0089fce5a6037116159dabafb5c962",
+      "stratum": "frequent",
+      "training_units": 13415
+    },
+    "22091": {
+      "active_fraction": 0.28133704735376047,
+      "active_weeks": 43,
+      "selection_hash": "02eecbb50ca4bf4fcf6e71248696b127695c8fcaa6532da2449a53e161c17df2",
+      "stratum": "intermittent",
+      "training_units": 1092
+    },
+    "22131": {
+      "active_fraction": 0.5376044568245125,
+      "active_weeks": 50,
+      "selection_hash": "067f25bdcea8d42ce37fd6c9d35ee95bc7f80c387a585675987b8c723f221274",
+      "stratum": "frequent",
+      "training_units": 1369
+    },
+    "22309": {
+      "active_fraction": 0.2562674094707521,
+      "active_weeks": 43,
+      "selection_hash": "004ad82938b3ccf170f2b7bc0861f083c3c6fdf7c92e2605048a14583b2b3412",
+      "stratum": "intermittent",
+      "training_units": 478
+    },
+    "22348": {
+      "active_fraction": 0.637883008356546,
+      "active_weeks": 51,
+      "selection_hash": "00bc142eb743db94e503c5f835b2a0729cbdeb0529a4dcf4b5c2bede87a46817",
+      "stratum": "frequent",
+      "training_units": 6457
+    },
+    "22435": {
+      "active_fraction": 0.37604456824512533,
+      "active_weeks": 35,
+      "selection_hash": "0144604747bfc12803c12c6cdd25ed81f55be4c7c4384b47a53f378489859916",
+      "stratum": "frequent",
+      "training_units": 1798
+    },
+    "22496": {
+      "active_fraction": 0.22841225626740946,
+      "active_weeks": 38,
+      "selection_hash": "038395930ed4e37a6b7ba8265228d3d9f30035d7a7e469264beab6d19fd8e6de",
+      "stratum": "intermittent",
+      "training_units": 406
+    },
+    "22586": {
+      "active_fraction": 0.2479108635097493,
+      "active_weeks": 34,
+      "selection_hash": "044aed0d6a775eb7c1875f66a3e8570cf1e59b5b3bd6328a6ff32aebe8bbd95a",
+      "stratum": "intermittent",
+      "training_units": 1127
+    },
+    "35653": {
+      "active_fraction": 0.14206128133704735,
+      "active_weeks": 34,
+      "selection_hash": "011b05854d2ab2761545dd538dd010f06b2046de39e14e3e680dfeb926fc8bd1",
+      "stratum": "intermittent",
+      "training_units": 146
+    },
+    "44089C": {
+      "active_fraction": 0.027855153203342618,
+      "active_weeks": 10,
+      "selection_hash": "05c80cac4e7bd805d0fc1d43364124af4a39967494ee3a5aff7fc577532d854f",
+      "stratum": "sparse",
+      "training_units": 44
+    },
+    "47422": {
+      "active_fraction": 0.04735376044568245,
+      "active_weeks": 14,
+      "selection_hash": "01dfa660c5bf25a4cf944952d01f47e20d1ea2b7b5fca898e8b293ad3d3338b1",
+      "stratum": "sparse",
+      "training_units": 492
+    },
+    "47556B": {
+      "active_fraction": 0.6100278551532033,
+      "active_weeks": 49,
+      "selection_hash": "02d6f8375bd4a86d1d6cc3f1ee22595a7904931119dd1ebbe1335a32c60b3e94",
+      "stratum": "frequent",
+      "training_units": 2423
+    },
+    "72131": {
+      "active_fraction": 0.09192200557103064,
+      "active_weeks": 21,
+      "selection_hash": "057319a9b79f87928767846a7109f75acf34a0d5856585ff658b4ad7af55970b",
+      "stratum": "sparse",
+      "training_units": 613
+    },
+    "75013B": {
+      "active_fraction": 0.15877437325905291,
+      "active_weeks": 34,
+      "selection_hash": "004f5961199db166826b387af1d65f23cea3d4a09fb5ba3945e308fef533b6e4",
+      "stratum": "intermittent",
+      "training_units": 347
+    },
+    "82482": {
+      "active_fraction": 0.6044568245125348,
+      "active_weeks": 42,
+      "selection_hash": "0531c17505710da1a2ee97d518c15c36ed06cf8b54ac780fa6fb63cac9efc3c1",
+      "stratum": "frequent",
+      "training_units": 7335
+    },
+    "84665": {
+      "active_fraction": 0.05013927576601671,
+      "active_weeks": 17,
+      "selection_hash": "01171284bd4d158e6c06e8d21f72b40d9513cc558005394dcefce750c39006d8",
+      "stratum": "sparse",
+      "training_units": 121
+    },
+    "84795C": {
+      "active_fraction": 0.21727019498607242,
+      "active_weeks": 27,
+      "selection_hash": "044c65d4a2d3b3485ba76099d7186dc7659e063631ac07bf3dadc48c2d7744ef",
+      "stratum": "intermittent",
+      "training_units": 306
+    },
+    "84819": {
+      "active_fraction": 0.055710306406685235,
+      "active_weeks": 18,
+      "selection_hash": "051dcc892b0f947e57bc61bbe38ef530dc15e20afdd37595e8d4881227767e18",
+      "stratum": "sparse",
+      "training_units": 55
+    },
+    "84947": {
+      "active_fraction": 0.479108635097493,
+      "active_weeks": 50,
+      "selection_hash": "04766e0dcce04058513985cef20b4d44c39a39cd6cd9685e00bbeeb4b0e7afa8",
+      "stratum": "frequent",
+      "training_units": 7063
+    },
+    "84952B": {
+      "active_fraction": 0.036211699164345405,
+      "active_weeks": 10,
+      "selection_hash": "04ce66c3f0fa98999435cfffbe4157efb96f36ec2aca17476b97efa66608a00e",
+      "stratum": "sparse",
+      "training_units": 176
+    },
+    "84967B": {
+      "active_fraction": 0.03064066852367688,
+      "active_weeks": 10,
+      "selection_hash": "00ec8c92a4d4e9f6073ed752315dcd608311cea0648aaaddb7fc7ff53dfe8c21",
+      "stratum": "sparse",
+      "training_units": 24
+    },
+    "85049B": {
+      "active_fraction": 0.5153203342618384,
+      "active_weeks": 49,
+      "selection_hash": "0060fe3aa8b92c94ecdc9a9fd7e6be9aae787149f823f104d7c33259c52554a8",
+      "stratum": "frequent",
+      "training_units": 1470
+    },
+    "85062": {
+      "active_fraction": 0.35097493036211697,
+      "active_weeks": 50,
+      "selection_hash": "0392a29e59b1290fdd244bbd3cdae5d275fe5694ee1dcab6e0d5bce910d1afc1",
+      "stratum": "frequent",
+      "training_units": 1800
+    },
+    "85131A": {
+      "active_fraction": 0.15598885793871867,
+      "active_weeks": 30,
+      "selection_hash": "0035751a86f97a7e6cfb80577706a08c29e2c5d829423f0bfde968454fe55cca",
+      "stratum": "intermittent",
+      "training_units": 964
+    },
+    "90019A": {
+      "active_fraction": 0.0584958217270195,
+      "active_weeks": 18,
+      "selection_hash": "005ffb9b6756eb4ce2b4f62312bda2382d4d2c4e17da85befadeba3d6afa4df0",
+      "stratum": "sparse",
+      "training_units": 26
+    },
+    "90088": {
+      "active_fraction": 0.025069637883008356,
+      "active_weeks": 9,
+      "selection_hash": "01cb1dee0da1ca61abbc8007dd09685740cedf342717d34048fe14501efcee37",
+      "stratum": "sparse",
+      "training_units": 51
+    },
+    "90144": {
+      "active_fraction": 0.05013927576601671,
+      "active_weeks": 15,
+      "selection_hash": "045cd75be0c0014a91cd244317b6219328497c797680f377344b92e90eb4531e",
+      "stratum": "sparse",
+      "training_units": 31
+    },
+    "90214B": {
+      "active_fraction": 0.04456824512534819,
+      "active_weeks": 13,
+      "selection_hash": "022fa55dd94bffbfed8a5bf796f2fccd2264573ca4bc5c7dff81e77240327402",
+      "stratum": "sparse",
+      "training_units": 38
+    },
+    "90214M": {
+      "active_fraction": 0.08356545961002786,
+      "active_weeks": 19,
+      "selection_hash": "010e7a7bfbd5e25170a037239d95e6dc89e779e590c527ea30b2299cba36ed1b",
+      "stratum": "sparse",
+      "training_units": 78
+    }
+  },
+  "selection_end": "2010-11-30",
+  "series": 48,
+  "source_availability": "assumed_local_end_of_day",
+  "source_sha256": "572e36277c2390fbfde10664750731e0a86f55e33470d91919085f0408e67bfb",
+  "start": "2009-12-07",
+  "stock_availability": "unknown",
+  "target": "UK recorded gross positive-sale units per SKU/day",
+  "timezone": "Europe/London",
+  "unit": "units",
+  "workbook_sha256": "bcbe73b35f5b7babf197fb0cb983a11f5d9ff929078d4aa53d171b1f2df2e980"
+}
