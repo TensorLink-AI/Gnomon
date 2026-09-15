@@ -7,6 +7,12 @@ from benchmarks.ledger_optimization import launch_planning_107 as launch
 
 
 class AdmissionTests(unittest.TestCase):
+    def test_indirect_host_imports_are_source_bound(self):
+        sources = launch.dispatch_sources()
+        self.assertIn('m5_prepare.py', sources)
+        self.assertIn('reconcile_contrast_100.py', sources)
+        self.assertIn('launch_planning_107.py', sources)
+
     def proof(self):
         return {'passed': True, 'engy_calls': 0, 'synthetic_sessions': 312,
                 'retained_pilot_sessions': 72, 'new_continuation_sessions': 240,

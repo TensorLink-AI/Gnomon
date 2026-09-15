@@ -8,7 +8,8 @@ Before any reservation or credential access it verifies worker/protocol proof
 hashes, the complete 312-session synthetic host proof, both synthetic terminal
 archive identities, the synthetic plan's matching worker/runtime/stage settings,
 and the actual local runtime/build. An admission manifest additionally binds
-the launcher source, host proof, synthetic plan and predecessor reconciliation.
+the launcher source, its indirect host imports, host proof, synthetic plan and
+predecessor reconciliation.
 
 The narrow candidate-100 predecessor path preserves the original audit failure.
 It requires the original host boot, dead original controller/worker identities,
@@ -30,11 +31,11 @@ then checks copied state and re-audits it before reading credentials. Each stage
 is supervised and archived separately. Pilot quality, rather than accuracy,
 controls continuation. There is no automatic continuation to paid or final work.
 
-Eight admission tests pass, including pilot-only proof rejection, source drift,
+Nine admission tests pass, including pilot-only proof rejection, source drift,
 missing terminal evidence, count-type errors, duplicate reservations/workers,
-changed bindings and cross-stage reservation misuse. Raw attempts are retained
-under `results/planning-dispatch-107-tests-001` and `-002`; the latter also treats
-Python warnings as errors. These unit tests do not establish the full host
+changed bindings, indirect-import source binding and cross-stage reservation
+misuse. Raw attempts are retained under `results/planning-dispatch-107-tests-001`
+through `-003`; the latter two treat Python warnings as errors. These unit tests do not establish the full host
 preflight, which remains independently running.
 
 No paid candidate-107 reservation has been made at this commit. The complete

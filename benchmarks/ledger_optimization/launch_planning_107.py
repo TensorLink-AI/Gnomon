@@ -1,5 +1,6 @@
 """One-shot paid admission for the frozen candidate-107 development stages."""
 import argparse
+import ast
 import json
 import os
 from pathlib import Path
@@ -16,6 +17,21 @@ REMOTE_BASE = Path('/root/gnomon-ledger-ml-v3/code/results')
 REGISTRY = REMOTE_BASE/'planning-107-dispatch-registry-001'
 PATHS = {'pilot': (REMOTE_BASE/'planning-107-pilot-001', REMOTE_BASE/'planning-107-pilot-launch-001'),
          'complete': (REMOTE_BASE/'planning-107-development-001', REMOTE_BASE/'planning-107-continuation-launch-001')}
+
+
+def dispatch_sources():
+    """Bind indirect host imports too; worker code is bound by its capsule."""
+    root = Path(__file__).parent
+    queue = [Path(__file__).stem, *(Path(n).stem for n in host.source_identity())]; result = {}
+    while queue:
+        name = queue.pop(); path = root/(name+'.py')
+        if path.name in result: continue
+        result[path.name] = host.sha(path)
+        for node in ast.walk(ast.parse(path.read_bytes())):
+            if isinstance(node, ast.ImportFrom) and node.level == 1:
+                names = [node.module.split('.')[0]] if node.module else [n.name.split('.')[0] for n in node.names]
+                queue.extend(n for n in names if (root/(n+'.py')).is_file())
+    return result
 
 
 def validate_host_proof(proof, sources):
@@ -96,6 +112,7 @@ def verify_inputs(args):
     admission = host.read(args.admission)
     if (admission.get('plan_sha256') != PLAN_SHA
             or admission.get('launcher_sha256') != host.sha(__file__)
+            or admission.get('dispatch_sources') != dispatch_sources()
             or admission.get('host_preflight_sha256') != host.sha(args.host_preflight)
             or admission.get('host_test_plan_sha256') != host.sha(args.proofs/'host-test-plan')
             or admission.get('predecessor_receipt_sha256') != host.sha(args.predecessor_receipt/'receipt.json')
