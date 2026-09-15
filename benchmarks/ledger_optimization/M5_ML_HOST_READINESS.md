@@ -28,6 +28,11 @@ common temporal/promotion disclosures and descriptive two-store comparison.
 See `M5_ML_WORKER.md`. The launch/continuation and full resumed-state requirements
 below still apply; the old helpers have not been silently relaxed or repurposed.
 
+Two-series state-copy/continuation and fixed full-cohort stage-count checks now
+pass separately; see `M5_ML_CONTINUATION.md`. These verify 18 retained plus six
+new synthetic workflows and the 72/552/624 stage boundaries. They do not yet
+cover the full dispatch/controller path or a second requested seed.
+
 This is a code inspection of the current candidate-100 capsule and its existing
 launch helpers, together with the retained development-preparation receipt. It
 does not grant final access, launch M5 sessions, inspect reserved targets, or

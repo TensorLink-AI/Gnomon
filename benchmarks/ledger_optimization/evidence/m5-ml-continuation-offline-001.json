@@ -1,0 +1,89 @@
+{
+  "status": "offline_two_series_continuation_verified",
+  "passed": true,
+  "command": {
+    "argv": [
+      "python3",
+      "-m",
+      "benchmarks.ledger_optimization.probe_m5_continuation",
+      "--capsule",
+      "results/m5-ml-capsule-offline-001/capsule",
+      "--runtime",
+      "/root/Gnomon/results/m5-ml-runtime-restore-001/runtime",
+      "--output",
+      "results/m5-ml-continuation-offline-001/probe"
+    ],
+    "exit_status": 0,
+    "seconds": 268.68720057300015
+  },
+  "capsule_sha256": "e4a51304b46c87c2f83546eae07d983747ef9139db4975064098ebda88fc1f81",
+  "integration_checks": 224,
+  "independent_audit_checks": 13430,
+  "sessions": 24,
+  "retained_sessions": 18,
+  "new_sessions": 6,
+  "series": 2,
+  "requested_seed": 7,
+  "numerical_attempts": 192,
+  "scripted_responses": 96,
+  "engy_calls": 0,
+  "valid": 24,
+  "full_workflows": 24,
+  "synthetic_costs_deduplicated": {
+    "sessions": 24,
+    "forwarded_requests": 96,
+    "returned_responses": 96,
+    "reported_tokens": 0,
+    "requests_without_reported_usage": 0,
+    "api_errors": 0,
+    "readiness_requests": 24,
+    "readiness_reported_tokens": 0,
+    "readiness_unknown_usage": 0,
+    "orphan_responses": 0
+  },
+  "stage_checks": {
+    "command": {
+      "argv": [
+        "python3",
+        "-m",
+        "unittest",
+        "benchmarks.tests.test_m5_ml_stage_checks"
+      ],
+      "exit_status": 0,
+      "seconds": 1.0569799039999452
+    },
+    "tests": 8,
+    "pilot_sessions": 72,
+    "pilot_per_arm": 24,
+    "minimum_full_workflows_per_arm": 22,
+    "all_pilot_forecasts_valid": true,
+    "complete_development_sessions": 624,
+    "retained_pilot": 72,
+    "new_continuation": 552,
+    "accuracy_used_for_completion": false,
+    "all_failed_forecasts_retained_in_complete_development": true
+  },
+  "remaining": [
+    "full M5 launch and continuation operational gates",
+    "second-seed worker and resumed-state integration",
+    "prospective runtime/seed/budget freeze",
+    "complete eligible development result before any final access"
+  ],
+  "scope": "Separate two-series synthetic execution/state-transfer test and full-count synthetic stage-validation tests. Neither admits a paid run, tests a complete eight-series agent cohort, nor establishes efficacy. Original pilot and frozen worker unchanged.",
+  "final_gate_opened": false,
+  "execution_authorized": false,
+  "evidence": {
+    "results/m5-ml-continuation-offline-001/command.json": "9d961149e33bb5624f7debd192a5ce1f729f9e0a271c8f6923f2c821f090ac7f",
+    "results/m5-ml-continuation-offline-001/stdout": "e47e17435147a2a7664848224104bed66f4bc04794f7bf174bbafa8c4c7eab86",
+    "results/m5-ml-continuation-offline-001/stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/m5-ml-continuation-offline-001/probe/passed.json": "1e5166ebad62efa8da74c052fa38b335362bfa20bbcc0745b7614e5bf1b9deea",
+    "results/m5-ml-continuation-offline-001/probe/pilot/report.json": "fecc008c0600743d1adb4161a59e8c5f62555c7b0056c48f1d973823453881a2",
+    "results/m5-ml-continuation-offline-001/probe/resumed/report.json": "fc77e6c2502ef999216d476f4d06ac719a3c2014c617978481f80e120d7be79e",
+    "results/m5-ml-continuation-offline-001/costs.json": "6accbc936795092d17cc4540cd1ebbb69cb83311e5fc3447749a3bea9a233286",
+    "results/m5-ml-stage-checks-001/tests-002.stderr": "54a88e0d4b5079bcfb962cf359b74a663227d1c8f01e07e6e644cd4b9392fe90",
+    "results/m5-ml-stage-checks-001/tests-002.command.json": "7f1e3f04aa4df5c778fff86a56bcc2bf54d43b343740746d5216e45fff43aa1e",
+    "benchmarks/ledger_optimization/probe_m5_continuation.py": "997c0b0d71a480405545391f53034504be274056884ee938f8cc185f78283cd3",
+    "benchmarks/ledger_optimization/m5_ml_stage_checks.py": "c7085723cc138cd5c8ae36ce686a5a4569a6aa33f618ebb0e0e2b6cc1d8a87d3",
+    "benchmarks/tests/test_m5_ml_stage_checks.py": "6f18f514fe88a4d8f2b35bde479835f35f7502eace14270ab64698a0c391d3c9"
+  }
+}
