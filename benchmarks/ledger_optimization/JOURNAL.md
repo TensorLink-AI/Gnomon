@@ -1980,3 +1980,15 @@ The two fully matched cold-start cases tie in all arms (mean RMSLE 0.411990).
 Both controller and worker identities remained live. This checkpoint is retained
 in `evidence/planning-107-pilot-progress-001.json`; running-session usage and
 terminal integrity checks are not claimed complete.
+
+## Candidate 107 independent score verification
+
+Added a separate read-only arithmetic checker for both complete stage sizes.
+It authenticates the source jobs, retains all planned grades and fallback scores,
+checks task origins and fourteen-step forecasts, and recomputes the primary
+per-case mean and frozen cold/mature/late windows. It reuses the existing
+exploratory series bootstrap without changing any selection or admission rule.
+Six tests pass; all 312 complete synthetic host scores independently agree
+within 3.47e-18. Original input hashes remain unchanged; zero provider/API calls.
+See [PLANNING_SCORES_107.md](PLANNING_SCORES_107.md). The paid pilot remains
+unchanged and the objective remains unproven.

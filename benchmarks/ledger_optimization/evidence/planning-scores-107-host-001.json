@@ -1,0 +1,124 @@
+{
+  "sessions": 312,
+  "matched_cases": 104,
+  "arms": {
+    "plain": {
+      "sessions": 104,
+      "mean_rmsle": 0.01980070708331815,
+      "valid": 104,
+      "workflow_complete": 104,
+      "fallbacks": 0,
+      "cold": {
+        "cases": 16,
+        "mean_rmsle": 0.01958470392660529
+      },
+      "mature": {
+        "cases": 64,
+        "mean_rmsle": 0.01974327251612807
+      },
+      "late": {
+        "cases": 16,
+        "mean_rmsle": 0.018902885316839937
+      }
+    },
+    "gnomon": {
+      "sessions": 104,
+      "mean_rmsle": 0.01980070708331815,
+      "valid": 104,
+      "workflow_complete": 104,
+      "fallbacks": 0,
+      "cold": {
+        "cases": 16,
+        "mean_rmsle": 0.01958470392660529
+      },
+      "mature": {
+        "cases": 64,
+        "mean_rmsle": 0.01974327251612807
+      },
+      "late": {
+        "cases": 16,
+        "mean_rmsle": 0.018902885316839937
+      }
+    },
+    "ledger": {
+      "sessions": 104,
+      "mean_rmsle": 0.01980070708331815,
+      "valid": 104,
+      "workflow_complete": 104,
+      "fallbacks": 0,
+      "cold": {
+        "cases": 16,
+        "mean_rmsle": 0.01958470392660529
+      },
+      "mature": {
+        "cases": 64,
+        "mean_rmsle": 0.01974327251612807
+      },
+      "late": {
+        "cases": 16,
+        "mean_rmsle": 0.018902885316839937
+      }
+    }
+  },
+  "max_score_recalculation_delta": 3.469446951953614e-18,
+  "contrasts": {
+    "ledger_vs_gnomon": {
+      "pairs": 104,
+      "relative_rmsle_reduction": 0.0,
+      "relative_rmsle_status": "defined",
+      "wins": 0,
+      "losses": 0,
+      "exploratory_series_bootstrap_95_interval": [
+        0.0,
+        0.0
+      ],
+      "relative_interval_status": "defined",
+      "bootstrap_draws": 2000,
+      "undefined_relative_draws": 0,
+      "absolute_rmsle_reduction": 0.0,
+      "exploratory_absolute_series_bootstrap_95_interval": [
+        0.0,
+        0.0
+      ],
+      "warning": "Only four reused development series, one requested seed: not confirmatory. No zero-control draw was discarded or assigned a relative improvement. Absolute differences are diagnostic, not a substitute target."
+    },
+    "ledger_vs_plain": {
+      "pairs": 104,
+      "relative_rmsle_reduction": 0.0,
+      "relative_rmsle_status": "defined",
+      "wins": 0,
+      "losses": 0,
+      "exploratory_series_bootstrap_95_interval": [
+        0.0,
+        0.0
+      ],
+      "relative_interval_status": "defined",
+      "bootstrap_draws": 2000,
+      "undefined_relative_draws": 0,
+      "absolute_rmsle_reduction": 0.0,
+      "exploratory_absolute_series_bootstrap_95_interval": [
+        0.0,
+        0.0
+      ],
+      "warning": "Only four reused development series, one requested seed: not confirmatory. No zero-control draw was discarded or assigned a relative improvement. Absolute differences are diagnostic, not a substitute target."
+    }
+  },
+  "status": "arithmetic_verified",
+  "synthetic": true,
+  "stage": "complete",
+  "analyzer_sha256": "171fddde0740be91f2578cda3a5fe92ac3d5cf7a9ce88780a2afbcc760b704b6",
+  "bootstrap_source_sha256": "d14cd92502abe853c57f4c7fd6fe971073f0d6264e9a14edb5c8a559eef3947c",
+  "provider_calls": 0,
+  "engy_calls": 0,
+  "original_inputs_unchanged": true,
+  "full_integrity_audit_claimed": false,
+  "cost_audit_claimed": false,
+  "objective_established": false,
+  "final_gate_opened": false,
+  "limitations": [
+    "All planned cases including fallbacks remain in the primary mean.",
+    "Four reused development series and one requested seed; exploratory uncertainty only.",
+    "Independent host, archive, recipe and cost audits remain required."
+  ],
+  "report_sha256": "c04021cf39e7800ee0c62d5358822b003170eb5cad7ec1e6084043cebe2ad93d"
+}
