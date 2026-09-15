@@ -1,0 +1,43 @@
+{
+  "status": "full_synthetic_integration_running_not_passed",
+  "source_freeze": "6cfea946",
+  "tracked_attempt": "results/m5-ml-integrated-host-002",
+  "exec_session_id": 74499,
+  "observation": {
+    "status": "running_not_passed",
+    "at": "2026-09-15T12:06:32.923254+00:00",
+    "exec_session_id": 74499,
+    "cwd": "/root/Gnomon",
+    "exit_status": null,
+    "process": {
+      "pid": 2,
+      "start_ticks": "954393",
+      "boot_id": "d53c7482-9d6a-4f36-b9f1-cdf30229c86d",
+      "at": "2026-09-15T12:04:21.759790+00:00",
+      "automatic_retry": false
+    },
+    "completed_at_observation": 18,
+    "valid_at_observation": 18,
+    "full_workflows_at_observation": 18,
+    "requested_workflows": 1248,
+    "engy_calls": 0,
+    "final_gate_opened": false,
+    "prior_attempt": "Detached launch 001 lost its process before creating test output; retained separately. No stage or forecast restarted."
+  },
+  "focused_launcher_tests_passed": 6,
+  "complete_preflight_passed": false,
+  "engy_calls": 0,
+  "final_gate_opened": false,
+  "objective_established": false,
+  "evidence": {
+    "results/m5-ml-integrated-host-launch-002/observation.json": "6094f033cc975595d2266e3c69cb0bf699a22a8449e48482605585261c4b863b",
+    "results/m5-ml-integrated-host-launch-001/process.json": "a65f3aa12d1165f1a625c7e3d663b3c7d3ec0a4507d13f180f2194f449d4a02c",
+    "results/m5-ml-integrated-host-launch-001/observation.json": "f1a0b9ccf65123f125c47cae4558c96965bf4c584a0311200e5b00dd8b9e91ab",
+    "results/m5-ml-integrated-host-preparation-001/tests.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/m5-ml-integrated-host-preparation-001/help.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "results/m5-ml-integrated-host-preparation-001/help.stdout": "55534fe57711757e212d8d9aa73332d82e366a227b2773d0145022f2101878df",
+    "results/m5-ml-integrated-host-preparation-001/tests.command.json": "fb0a0a49084fcacaafb5a2657dff06d70371073b817fc438498fbd9d676bd955",
+    "results/m5-ml-integrated-host-preparation-001/tests.stderr": "9f5643858c15c5c1dd588fd07b2955c0f0ccd05525df0e8c2e071720c54f5b89",
+    "results/m5-ml-integrated-host-preparation-001/help.command.json": "338a7cbbf8c83db45709ae22cdf4f9bd1d5d01e7e3b85f94516255b44a0fa55d"
+  }
+}
