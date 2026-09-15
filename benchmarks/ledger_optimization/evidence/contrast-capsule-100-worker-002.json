@@ -1,0 +1,74 @@
+{
+  "candidate": "100_contrast_capsule",
+  "status": "synthetic_worker_passed_independent_annotation_audit_outstanding",
+  "deployed": false,
+  "capsules": {
+    "results/contrast-capsule-100-offline-001/capsule/capsule.json": "b27487e996a44ee6ad68fb8231f49142ca481f87b20593350e4aed576a546313",
+    "results/contrast-capsule-100-offline-002/capsule/capsule.json": "15104847f3a65eabdda5451fd823c84f3911d3fecd47821c5a2eff827e66f854"
+  },
+  "probes": [
+    {
+      "passed": true,
+      "checks": 143,
+      "existing_audit_checks": 685,
+      "numerical_attempts": 48,
+      "scripted_responses": 30
+    },
+    {
+      "passed": true,
+      "checks": 187,
+      "existing_audit_checks": 685,
+      "numerical_attempts": 48,
+      "scripted_responses": 30
+    }
+  ],
+  "local_numerical_attempts_total": 96,
+  "scripted_responses_total": 60,
+  "engy_calls": 0,
+  "unit_tests": {
+    "passed": 45,
+    "failed": 0
+  },
+  "evidence": [
+    {
+      "root": "results/contrast-capsule-100-offline-001",
+      "files": 42,
+      "inventory": "results/contrast-capsule-100-offline-001-inventory.json",
+      "inventory_sha256": "4c62463a2b95fc4ac68c4956bee4af7ea7ca5ead8f63b42119527e7276de723c"
+    },
+    {
+      "root": "results/contrast-capsule-100-offline-002",
+      "files": 42,
+      "inventory": "results/contrast-capsule-100-offline-002-inventory.json",
+      "inventory_sha256": "a2e14a5637906ed694034b6c0a8fc53ea53028fa8b196470242e2f6dfa425b0d"
+    },
+    {
+      "root": "results/contrast-capsule-100-worker-001",
+      "files": 656,
+      "inventory": "results/contrast-capsule-100-worker-001-inventory.json",
+      "inventory_sha256": "234d0b7a6c49bee447a57453ba6ff31cedbd50a4dfec7836dc205cd27eb7fdb8"
+    },
+    {
+      "root": "results/contrast-capsule-100-worker-002",
+      "files": 657,
+      "inventory": "results/contrast-capsule-100-worker-002-inventory.json",
+      "inventory_sha256": "9e834251221ccba4192b54ff2be9f544a9119f6301c1f7950ef0ea0c7808584b"
+    }
+  ],
+  "source_sha256": {
+    "benchmarks/ledger_optimization/CONTRAST_CAPSULE_100.md": "7fa882b9cb62f1926ef70abf4c63583db6b3055f2169670ea9f1d8b573f01716",
+    "benchmarks/ledger_optimization/CONTRAST_CAPSULE_100_RESULTS.md": "84aa1845a6b3146e420ae94b579a1c1d8bd5268c1fc783765f9a0b7cdce6fef1",
+    "benchmarks/ledger_optimization/contrast_annotations_100.py": "5fddf1a62d3a7a182873c583a74859db29dd69c642314063e32742c89a2012da",
+    "benchmarks/ledger_optimization/contrast_capsule_100.py": "eaac136c59b47de430b88bd8f8a8476c4beebb30484178467b2ed421cb97142f",
+    "benchmarks/ledger_optimization/probe_contrast_worker_100.py": "6bb5865e0c41f44dc833019208de4c5ee1cf14b869a9b48204b1437a046f2937",
+    "benchmarks/tests/test_contrast_annotations_100.py": "c63ebb3aaf16f36fe141ab6b5819caa470777480ba51f22e172f2e90ea20e9a2",
+    "benchmarks/tests/test_contrast_capsule_100.py": "bdf3ca0512f67e48c16b759c0c1cbb3ef6bd0aad64816dabd5f76be33ce6db47"
+  },
+  "outstanding": [
+    "independent annotation reconstruction at actual boundaries",
+    "terminal 097 audit",
+    "fresh prospective plan and development gate"
+  ],
+  "final_gate_opened": false,
+  "objective_established": false
+}
