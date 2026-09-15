@@ -146,3 +146,31 @@ A separate read-only audit traced the round-4 no-ledger explanation above throug
 The interface adds avoidable reconstruction effort: `start` computes the baseline folds but returns only checkpoint identity, while subsequent backtest calls return fold scores and their mean. The agent requested two historical review pages that did not contain the current baseline results. It also read only the first 4,096 of 5,932 characters of `previous_runs.json`; the next offset and total were correctly disclosed. A future common-arm variant could return the already computed baseline scores directly. That proposal adds no new evidence or numerical calls and must be tested prospectively; the live experiment has not been modified. All three arms selected the same forecast on this case, so correcting the explanation would not itself change its measured accuracy.
 
 Receipts: `evidence/workflow-097-development-audit-003.json` and `evidence/workflow-097-origin-diagnostic-001.json`. Raw evidence and executable diagnostic are retained under their named `results/` directories. These snapshots are subsets of the eventual full-run costs, not additional paid experiments.
+
+## Continuation audit 004
+
+The next 21 completed sessions (seven per arm) passed 10,548 checks with zero
+integrity failures or shutdown gaps. All 2,535 files matched the source and
+archive hashes. This snapshot is disjoint from the pilot and batches 001–003,
+bringing independently verified coverage to 89 sessions, all full workflows.
+
+| Arm | Matched mean RMSLE | Matched tokens | Matched API requests | Matched fits |
+|---|---:|---:|---:|---:|
+| Hermes | 0.475830 | 4,303,635 | 293 | 356 |
+| Hermes + Gnomon | 0.475792 | 4,283,124 | 295 | 328 |
+| Hermes + Gnomon + ledger | 0.478044 | 4,071,541 | 278 | 336 |
+
+These totals use only the same 29 cases completed by all three arms. Ledger has
+0.47% higher error with 4.94% fewer tokens than Gnomon without ledger. This is
+ongoing development evidence, not an established benefit or final result.
+
+Before-selection CV reconstruction finds minimum-tested-CV choices in 5/7 plain,
+7/7 Gnomon and 6/7 ledger sessions in this batch. Nonminimum choices are retained
+as observations, not treated automatically as errors; their rationales have not
+yet been audited. The receipt lists exact identities and scores.
+
+A separate fixed-rule replay on the earlier 68-session snapshot found that
+simple matched historical averages did not improve over actual agent decisions.
+See `HISTORICAL_SELECTION_DIAGNOSTIC_099_RESULTS.md`. It neither changes these
+live scores nor establishes that richer context retrieval cannot help. No new
+fits were made by that diagnostic, and the final holdout remains closed.
