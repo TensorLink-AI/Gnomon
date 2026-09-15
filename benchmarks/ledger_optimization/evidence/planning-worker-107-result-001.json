@@ -1,0 +1,59 @@
+{
+  "status": "synthetic_worker_and_independent_recipe_audit_passed_not_paid_efficacy",
+  "candidate": 107,
+  "gnomon_version": "1.2.0",
+  "sessions": 15,
+  "workflow_complete": 15,
+  "worker_assertions": 384,
+  "original_workflow_checks": 8745,
+  "new_recipe_audit_checks": 1891,
+  "existing_overlapping_cv_checks": 6443,
+  "counterexamples_rejected": 8,
+  "numerical_attempts": 120,
+  "scripted_model_responses": 90,
+  "engy_calls": 0,
+  "final_gate_opened": false,
+  "dispatch_ready": false,
+  "proofs": {
+    "worker": {
+      "path": "results/planning-worker-107-synthetic-001/passed.json",
+      "sha256": "b7477a4a201c85a75ef4a6ff4300f18f5bb42c1152def3bf7d220d7bcba9585e"
+    },
+    "original_workflow_audit": {
+      "path": "results/planning-audit-107-workflow-001/report.json",
+      "sha256": "328016c4ceba466ad206513b88edfac27a72313eb1e88c209ad6f03e1188d1ef"
+    },
+    "recipe_audit": {
+      "path": "results/planning-audit-107-synthetic-002/report.json",
+      "sha256": "a5cdc71d4ea3922227921b2b9176551c888d94a06605155150f63127e76a339d"
+    },
+    "fault_probe": {
+      "path": "results/planning-audit-107-faults-001/report.json",
+      "sha256": "3f15f0140f21ea381626a7545c84b1d43af28010c820165cfe06c454f676fe6d"
+    },
+    "archive": {
+      "path": "results/planning-worker-107-archive-001/report.json",
+      "sha256": "a10f933f197399be5224045aab453c7d2329fdc96538cc82c4060d6d59f06c6a"
+    }
+  },
+  "archive": {
+    "passed": true,
+    "archive": "/root/Gnomon/results/planning-worker-107-archive-001/evidence.tar.gz",
+    "archive_bytes": 17024809,
+    "archive_sha256": "ede23a4f6c8bd055055d7abfcab48d6f98a0b6e2b4e50e3d7d0cdc0607d36397",
+    "inventory_sha256": "6bcc036471475520784bdf1c1bb8e80521511cbbfede3670ea10765abd19ca58",
+    "original_files": 2815,
+    "verified_members": 2816,
+    "originals_unchanged": true,
+    "engy_calls": 0,
+    "numerical_calls": 0
+  },
+  "limitations": [
+    "Scripted responses are not a paid agent accuracy result.",
+    "Existing CV checks overlap with original workflow checks.",
+    "New launcher and prospective dispatch binding remain required."
+  ],
+  "failed_attempts": [
+    "results/planning-audit-107-launch-001/command.json"
+  ]
+}
