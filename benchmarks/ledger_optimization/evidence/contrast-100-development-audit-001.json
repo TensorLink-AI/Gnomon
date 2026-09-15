@@ -1,0 +1,120 @@
+{
+  "status": "new_continuation_sessions_independently_verified",
+  "new_sessions": 5,
+  "new_audit_checks": 5094,
+  "combined_verified_sessions": 41,
+  "combined_audit_checks": 38008,
+  "matched_cases": 13,
+  "combined_matched": {
+    "plain": {
+      "mean_rmsle": 0.5254619471178016,
+      "tokens": 1591617,
+      "api_calls": 113,
+      "numerical_attempts": 152
+    },
+    "gnomon": {
+      "mean_rmsle": 0.5307070282660474,
+      "tokens": 1524159,
+      "api_calls": 110,
+      "numerical_attempts": 136
+    },
+    "ledger": {
+      "mean_rmsle": 0.53307131544084,
+      "tokens": 1546090,
+      "api_calls": 111,
+      "numerical_attempts": 148
+    }
+  },
+  "new_maturation": [
+    {
+      "arm": "gnomon",
+      "series_id": "item_1047756_store_23",
+      "round": 3,
+      "prior_outcomes": 3,
+      "production_executions": 7,
+      "unselected_executions": 4
+    },
+    {
+      "arm": "gnomon",
+      "series_id": "item_1304243_store_32",
+      "round": 3,
+      "prior_outcomes": 3,
+      "production_executions": 8,
+      "unselected_executions": 5
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1047756_store_23",
+      "round": 3,
+      "prior_outcomes": 3,
+      "production_executions": 8,
+      "unselected_executions": 5
+    },
+    {
+      "arm": "ledger",
+      "series_id": "item_1304243_store_32",
+      "round": 3,
+      "prior_outcomes": 3,
+      "production_executions": 9,
+      "unselected_executions": 6
+    },
+    {
+      "arm": "plain",
+      "series_id": "item_1047756_store_23",
+      "round": 3,
+      "prior_outcomes": 3,
+      "production_executions": 10,
+      "unselected_executions": 7
+    }
+  ],
+  "transfer": {
+    "status": "verified",
+    "archive": {
+      "bytes": 4181543,
+      "sessions": 5,
+      "archive": "/root/gnomon-ledger-ml-v3/code/results/contrast-100-development-audit-001/snapshot.tar.gz",
+      "sha256": "d099e0a1c7394dbd88b1efad39cf60a89fd9e5a19383b593ceef5794a304ae4e"
+    },
+    "chunks": [
+      {
+        "offset": 0,
+        "bytes": 2097152,
+        "sha256": "c2c300346d0fe059950ea7114e53ebdbb85fe5afc877b83c9fe3387425b37e39"
+      },
+      {
+        "offset": 2097152,
+        "bytes": 2084391,
+        "sha256": "4a0e596d21a0de1b00bab8195fa252c6dba22bd65835eab201f1511bf0251199"
+      }
+    ],
+    "files_verified": 579
+  },
+  "new_costs": {
+    "sessions": 5,
+    "forwarded_requests": 42,
+    "returned_responses": 42,
+    "reported_tokens": 628627,
+    "requests_without_reported_usage": 0,
+    "api_errors": 0,
+    "readiness_requests": 5,
+    "readiness_reported_tokens": 70,
+    "readiness_unknown_usage": 0,
+    "orphan_responses": 0
+  },
+  "scope": "Complete pilot plus disjoint finished continuation sessions. Matched aggregates use only all-three intersections without success filtering; costs exclude copies and are part of the existing run, not new paid experiments. No final efficacy claim.",
+  "final_gate_opened": false,
+  "objective_established": false,
+  "evidence": {
+    "/root/Gnomon/results/contrast-100-development-audit-001/summarize.py": "6f91380c3db691c9901a856bff88611170154ca8776aa28c3f37a88d6b1e5052",
+    "/root/Gnomon/results/contrast-100-development-audit-001/snapshot.py": "1acc8a2fbdcb60ae9031979c273248ed7d5668fe5e2ff1db40ec5a85cb05d9d2",
+    "/root/Gnomon/results/contrast-100-development-audit-001/collect.py": "be152370a36c0dd39fec318229e6a4fa3658a80579bfb005fb33cec0b2ff8be0",
+    "/root/Gnomon/results/contrast-100-development-audit-001/analyze_local.py": "645417e99e7b651fbb9ea75b540c469c7a8899e64059dfb59d0f4a23fa373975",
+    "/root/Gnomon/results/contrast-100-development-audit-001/snapshot.json": "ff88f11cd5a51ac1faa0061987e1b92b88a8211a9ccdb6f52d27f70cbbd45d5f",
+    "/root/Gnomon/results/contrast-100-development-audit-001/audit/report.json": "c19f0f8869a5aabf20d68b908a470c0a579605088d051e8210c69d9b065d4b2b",
+    "/root/Gnomon/results/contrast-100-development-audit-001/collect.stdout": "fd0f8125521f47574019fa54c1f147f8b59a49eed6b8a965ee2fd59a79409555",
+    "/root/Gnomon/results/contrast-100-development-audit-001/collect.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/root/Gnomon/results/contrast-100-development-audit-001/analyze.stdout": "6b872ba6afc90be5d87f73a642cc18df9b6adcb820126cd3a9f13966407916de",
+    "/root/Gnomon/results/contrast-100-development-audit-001/analyze.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/root/Gnomon/results/contrast-100-final-001/audit/report.json": "03ed955f9b55b56606f1974780bd33ae50a86a5e38b709c3ee92b8f46aaa57b0"
+  }
+}
