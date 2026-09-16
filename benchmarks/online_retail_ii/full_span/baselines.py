@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 from .data import dump, load_panel, origin, PHASES, sha
-from benchmarks.online_retail_ii.models import CANDIDATES, forecast, metrics
+from .models import CANDIDATES, forecast, metrics, availability, MIN_HISTORY
 
 
 def fingerprint(series, history, dates, future):
@@ -32,7 +32,7 @@ def summarize(records):
             'mean_mae': float(np.mean([r['metrics']['mae'] for r in rows])),
             'mean_mase': float(np.mean(defined)) if defined else None, 'undefined_mase_cases': len(rows)-len(defined),
             'aggregate_wape': sum(r['metrics']['absolute_error_sum'] for r in rows)/total_actual if total_actual else None,
-            'fallback_cases': sum(r['fallback_used'] for r in rows), 'clipped_points': sum(r['clipped_points'] for r in rows)}
+            'unavailable_cases':sum(not r.get('available',True) for r in rows), 'fallback_cases': sum(r['fallback_used'] for r in rows), 'clipped_points': sum(r['clipped_points'] for r in rows)}
     return result
 
 
@@ -78,46 +78,51 @@ def run_baselines(panel, output, smoke=False):
         for series in sorted(selected):
             f = panels[series]; before = f[f.date.dt.date <= day]; after = f[(f.date.dt.date > day) & (f.date.dt.date <= day+timedelta(days=14))]
             y = before.value.to_numpy(dtype=float); actual = after.value.to_numpy(dtype=float)
-            if len(actual) != 14 or len(y) < 126:
+            if len(actual) != 14 or len(y) < 14:
                 raise ValueError('Incomplete visible history or scoring horizon')
             current, cv = {}, {}
+            available=availability(len(y))
+            cv_offsets=[offset for offset in (42,28,14) if len(y)-offset>=14]
             for model in CANDIDATES:
                 folds = []
-                for offset in (42, 28, 14):
+                for offset in cv_offsets:
+                    if len(y)-offset<MIN_HISTORY[model]:continue
                     train, target = y[:-offset], y[-offset:][:14]
                     prediction = numerical(series, model, train, day-timedelta(days=offset))
                     folds.append({'origin': (day-timedelta(days=offset)).isoformat(),
                                   'rmsle': metrics(prediction['point'], target, train)['rmsle'],
                                   'fallback_used': prediction['fallback_used'], 'error': prediction['error']})
-                cv[model] = {'folds': folds, 'mean_rmsle': float(np.mean([r['rmsle'] for r in folds])),
-                             'eligible': not any(r['fallback_used'] for r in folds)}
+                cv[model] = {'folds': folds, 'mean_rmsle': float(np.mean([r['rmsle'] for r in folds])) if folds else None,
+                             'eligible': bool(cv_offsets) and len(folds)==len(cv_offsets) and available[model]['available'] and not any(r['fallback_used'] for r in folds), 'fold_count':len(folds), 'model_availability':available[model]}
                 current[model] = numerical(series, model, y, day)
             ranked = sorted((m for m in CANDIDATES if cv[m]['eligible']), key=lambda m: (cv[m]['mean_rmsle'], CANDIDATES.index(m)))
-            if not ranked:
-                raise ValueError('No valid current-CV candidate')
+            selected_cv=ranked[0] if ranked else 'seasonal_naive_7'
+            cv_basis='matched_completed_folds' if ranked else 'cold_start_weekly_naive_no_eligible_cv'
             dates = before.date.dt.strftime('%Y-%m-%d').tolist(); future = after.date.dt.strftime('%Y-%m-%d').tolist()
             request_id = fingerprint(series, y, dates, future)
             case_id = f'{series}-{day.isoformat()}'
             case = output/'agent-cases'/case_id; case.mkdir(parents=True)
             before.rename(columns={'date':'timestamp','value':'value'})[['timestamp','value']].to_csv(case/'history.csv', index=False)
             dump(case/'task.json', {'case_id': case_id, 'series_id': series, 'unit': 'units', 'origin': day.isoformat(),
+                'model_availability':available, 'cv_available_folds':len(cv_offsets), 'cv_selection_basis':cv_basis,
                 'horizon': 14, 'future_timestamps': future, 'request_fingerprint': request_id, 'candidates': list(CANDIDATES),
                 'target': manifest['target'], 'availability': manifest['source_availability'],
                 'instruction': 'Select a typed executed forecast by execution_id. Current CV optimizes RMSLE. Do not infer stockouts or causal explanations from sales alone.'})
-            dump(case/'current-cv.json', {'metric': 'mean_fold_rmsle', 'candidates': cv, 'ranking': ranked})
+            dump(case/'current-cv.json', {'metric': 'mean_fold_rmsle', 'candidates': cv, 'ranking': ranked, 'available_folds':len(cv_offsets), 'selection_basis':cv_basis})
             matured = [r for r in history_evidence[series] if r['target_end'] <= day.isoformat()]
             dump(case/'matured-outcomes.json', {'as_of': day.isoformat(), 'records': matured,
                                               'availability_is_assumed': True})
             methods = dict(current)
-            methods['rolling_cv_select'] = {**current[ranked[0]], 'selected_provider': ranked[0]}
-            top = ranked[:3]
+            methods['rolling_cv_select'] = {**current[selected_cv], 'selected_provider':selected_cv, 'selection_basis':cv_basis}
+            top = ranked[:3] if ranked else ['seasonal_naive_7']
             methods['cv_top3_ensemble'] = {'provider': 'cv_top3_ensemble', 'members': top,
                 'point': np.expm1(np.mean([np.log1p(current[m]['point']) for m in top], axis=0)).tolist(),
                 'fallback_used': any(current[m]['fallback_used'] for m in top),
                 'clipped_points': sum(current[m]['clipped_points'] for m in top)}
-            chosen = ranked[0]
+            chosen = selected_cv
             if len(matured) >= 4:
-                chosen = min(CANDIDATES, key=lambda m: (np.mean([r['scores'][m] for r in matured[-4:]]), CANDIDATES.index(m)))
+                eligible_history=[m for m in CANDIDATES if available[m]['available'] and all(r['scores'][m] is not None and not r['fallbacks'][m] for r in matured[-4:])]
+                if eligible_history:chosen = min(eligible_history, key=lambda m: (np.mean([r['scores'][m] for r in matured[-4:]]), CANDIDATES.index(m)))
             methods['historical_recent4_diagnostic'] = {**current[chosen], 'selected_provider': chosen,
                                                        'matured_origins': len(matured), 'is_gnomon_agent_result': False}
             scores = {}
@@ -128,14 +133,14 @@ def run_baselines(panel, output, smoke=False):
                     **prediction, 'metrics': m}
                 rows.append(row)
                 if method in CANDIDATES:
-                    scores[method] = m['rmsle']
+                    scores[method] = m['rmsle'] if available[method]['available'] and not prediction['fallback_used'] else None
                 with (output/'host-scores.jsonl').open('a') as stream:
                     stream.write(json.dumps(row, allow_nan=False)+'\n')
             history_evidence[series].append({'origin': day.isoformat(), 'target_end': future[-1],
                 'future_timestamps': future, 'actual': actual.tolist(), 'scores': scores,
                 'predictions': {m: current[m]['point'] for m in CANDIDATES},
-                'fallbacks': {m: current[m]['fallback_used'] for m in CANDIDATES},
-                'models_sha256': sha((Path(__file__).parents[1]/'models.py'))})
+                'fallbacks': {m: current[m]['fallback_used'] for m in CANDIDATES}, 'availability':available,
+                'models_sha256': sha(Path(__file__).with_name('models.py'))})
             print(json.dumps({'case_complete': case_id, 'completed_cases': len(rows)//len(methods), 'planned_cases': plan['planned_cases']}), flush=True)
     report = {'status': 'complete', 'scope': 'full_span_smoke' if smoke else 'full_span',
         'cases': plan['planned_cases'], 'methods': summarize(rows), 'numerical_requests': attempts,

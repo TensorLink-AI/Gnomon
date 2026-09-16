@@ -1,7 +1,14 @@
 {
+  "passed": true,
+  "warmup_days": 14,
   "cases": 12,
   "methods": 13,
   "paid_calls": 0,
-  "passed": true,
-  "real_future_data_used": false
+  "real_future_data_used": false,
+  "cold_start_cv_folds": 0,
+  "second_origin_cv_folds": 1,
+  "direct_gnomon_parity": true,
+  "unavailable_models_excluded_from_ledger": true,
+  "unavailable_agent_call_numerical_attempts": 0,
+  "tests_passed": 28
 }

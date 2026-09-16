@@ -10,12 +10,12 @@ import subprocess
 import sys
 import time
 
-from benchmarks.online_retail_ii.agent import load_case, resolve
+from benchmarks.online_retail_ii.full_span.agent import load_case, resolve
 from benchmarks.online_retail_ii.full_span.data import dump, sha
-from benchmarks.online_retail_ii.ledger import build_history
-from benchmarks.online_retail_ii.models import forecast, metrics
+from benchmarks.online_retail_ii.full_span.ledger import build_history
+from benchmarks.online_retail_ii.full_span.models import forecast, metrics
 from benchmarks.online_retail_ii.full_span.baselines import fingerprint, summarize
-from benchmarks.online_retail_ii.agent_eval.transport import proxy, SECONDS, REQUEST_LIMIT, MAX_TOKENS, MODEL
+from benchmarks.online_retail_ii.full_span.transport import proxy, SECONDS, REQUEST_LIMIT, MAX_TOKENS, MODEL
 
 ARMS=('hermes','gnomon','ledger')
 SEEDS=(7,19)
@@ -65,7 +65,7 @@ def execute_one(args,case,arm,seed,key,frozen,stub=False):
                'gnomon':'Forecasts use the same numerical functions through Gnomon 1.2.0. Ledger disabled.',
                'ledger':'Forecasts use the same numerical functions through Gnomon 1.2.0. retail ledger returns verified lifetime/recent RMSLE and sample counts from the same matured outcomes.'}[arm]
     prompt=('Forecast recorded UK product sales, not latent demand. Select a model for the next 14 days. '
-        'All ten candidates are available. Optimize RMSLE; smaller is better. Current CV uses three earlier 14-day folds. '
+        'Ten candidates are registered; only those marked available may execute now. Optimize RMSLE; smaller is better. Current CV uses up to three completed earlier 14-day folds when history permits. No CV exists at the first origin. Inspect model_availability: do not request a model before its minimum observed history. Scores null mean unavailable, not zero error. '
         'You may inspect history and matured raw outcomes with retail. Never infer stockouts, promotions or causal patterns from zeros alone. '
         'Use retail forecast with provider, then retail select with its execution_id. Four numerical attempts, '
         '12 model requests, 3072 output tokens per request, 480 seconds, at most two correction turns within the SAME budget. '
@@ -81,7 +81,7 @@ def execute_one(args,case,arm,seed,key,frozen,stub=False):
     deadline=time.time()+SECONDS
     worker_python=args.plain_python if arm=='hermes' else args.gnomon_python
     with proxy(out,key,seed,deadline,stub) as url:
-        argv=[worker_python,'-m','benchmarks.online_retail_ii.agent_eval.worker',
+        argv=[worker_python,'-m','benchmarks.online_retail_ii.full_span.worker',
             '--case',str(case),'--output',str(out),'--numerical-python',sys.executable,'--repo',str(repo),
             '--arm',arm,'--base-url',url,'--prompt',str(out/'prompt.txt'),'--seed',str(seed),'--deadline',str(deadline)]
         dump(out/'command.json',{'argv':argv,'cwd':str(home),'timeout':SECONDS+45})
@@ -152,15 +152,15 @@ def run(args):
     root=Path(args.output).resolve();args.output=str(root)
     if root.exists():raise ValueError('Fresh one-shot output required; never overwrite/retry prior sessions')
     baseline=Path(args.baseline).resolve();plan=json.loads((baseline/'plan.json').read_text())
-    if plan['phase']!='full_span' or plan['planned_cases']!=2064 or plan['smoke']:
-        raise ValueError('Only the frozen 2064-case full-span exploratory replay is admitted')
+    if plan['phase']!='full_span' or plan['planned_cases']!=2448 or plan['smoke']:
+        raise ValueError('Only the frozen 2448-case full-span exploratory replay is admitted')
     if json.loads((baseline/'report.json').read_text())['status']!='complete':raise ValueError('Baseline incomplete')
     for package,version in plan['runtime'].items():
         if importlib.metadata.version(package)!=version:raise ValueError('Numerical runtime mismatch: '+package)
     for name,digest in plan['code_sha256'].items():
         if sha(repo/'benchmarks/online_retail_ii/full_span'/name)!=digest:raise ValueError('Baseline adapter drift: '+name)
     cases=sorted((baseline/'agent-cases').iterdir())
-    if len(cases)!=2064:raise ValueError('Incomplete case set')
+    if len(cases)!=2448:raise ValueError('Incomplete case set')
     frozen=source_files(repo)
     manifest=json.loads(Path(args.manifest).read_text())
     if sha(args.manifest)!=plan['source_manifest_sha256']:
@@ -179,8 +179,8 @@ def run(args):
     jobs=[(c,arm,seed) for day in origins for c in cases if case_tasks[c]['origin']==day for seed in SEEDS for arm in ARMS]
     pilot=[j for j in jobs if case_tasks[j[0]]['series_id'] in pilot_series and case_tasks[j[0]]['origin'] in origins[:2]]
     root.mkdir(parents=True)
-    frozen_plan={'model':MODEL,'gnomon':'1.2.0','arms':ARMS,'seeds':SEEDS,'cases_per_arm_seed':2064,
-        'planned_sessions':12384,'pilot_sessions':len(pilot),'pilot_series':pilot_series,'limits':{
+    frozen_plan={'model':MODEL,'gnomon':'1.2.0','arms':ARMS,'seeds':SEEDS,'cases_per_arm_seed':2448,
+        'planned_sessions':14688,'pilot_sessions':len(pilot),'pilot_series':pilot_series,'limits':{
         'api_requests':REQUEST_LIMIT,'output_tokens_per_request':MAX_TOKENS,'seconds':SECONDS,'numerical_attempts':4},
         'native_memory':'isolated_per_product_arm_seed_persistent_across_origins',
         'source_hashes':frozen,'runtime_inventory':runtimes,'baseline_plan_sha256':sha(baseline/'plan.json'),'stub':args.stub,
@@ -211,7 +211,7 @@ def run(args):
                     row['metrics']=metrics(row['point'],actuals[row['case_id']],history.value)
                     rows.append(row);done.add(tuple(map(str,j)))
                     with (root/'scores.jsonl').open('a') as stream:stream.write(json.dumps(row,allow_nan=False)+'\n')
-                    dump(root/'progress.json',{'completed_sessions':len(rows),'planned_sessions':12384,
+                    dump(root/'progress.json',{'completed_sessions':len(rows),'planned_sessions':14688,
                         'resolved':sum(r['resolved'] for r in rows),'summary':summarize(rows),
                         'stub':args.stub,'final_evidence_opened':True,'scope':'full_span_exploratory_not_untouched_final'})
                     print(json.dumps({'completed':len(rows),'case':row['case_id'],'arm':row['arm'],

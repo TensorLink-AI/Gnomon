@@ -29,7 +29,7 @@ def run(args):
         if any(sha(repo/p)!=digest for p,digest in inventory.items()):raise ValueError('Frozen sequel bundle changed')
     verify()
     dump(out/'plan.json',{'predecessor':args.predecessor,'source_inventory_sha256':sha(repo/'inventory.json'),
-        'archive_sha256':args.archive_sha256,'planned_periods':43,'planned_sessions':12384,
+        'archive_sha256':args.archive_sha256,'warmup_days':14,'planned_periods':51,'planned_sessions':14688,
         'fresh_memory':True,'wait_for_success':True,'source_archive_not_yet_opened':True,
         'scope':'separate_full_span_exploratory_replay'})
     while True:

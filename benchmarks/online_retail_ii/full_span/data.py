@@ -9,9 +9,9 @@ import zipfile
 
 from benchmarks.online_retail_ii.data import SOURCE_SHA, START, HEADERS, classify, dump, sha
 
-FIRST_ORIGIN=date(2010,4,11)
+FIRST_ORIGIN=date(2009,12,20)
 END=date(2011,12,4)
-PHASES={'full_span':range(43)}
+PHASES={'full_span':range(51)}
 
 def origin(index):return FIRST_ORIGIN+timedelta(days=14*index)
 def protocol_sha():return sha(Path(__file__).with_name('PROTOCOL.md'))
@@ -23,10 +23,10 @@ def cohort(daily):
         past={d:v for d,v in values.items() if START<=d<=FIRST_ORIGIN and v>0}
         if not past:continue
         dates=sorted(past);weeks=len({d-timedelta(days=d.weekday()) for d in dates})
-        if sum(past.values())<24 or weeks<8 or (dates[-1]-dates[0]).days<84 or (FIRST_ORIGIN-dates[-1]).days>=28:continue
-        fraction=len(dates)/126
+        if sum(past.values())<1:continue
+        fraction=len(dates)/14
         group='sparse' if fraction<=.1 else 'intermittent' if fraction<=.3 else 'frequent'
-        digest=hashlib.sha256(('online-retail-ii-full-span-v2:'+code).encode()).hexdigest()
+        digest=hashlib.sha256(('online-retail-ii-full-span-v3:'+code).encode()).hexdigest()
         buckets[group].append((digest,code))
         details[code]={'stratum':group,'active_fraction':fraction,'active_weeks':weeks,
             'training_units':sum(past.values()),'selection_hash':digest}
@@ -71,10 +71,10 @@ def prepare(archive,output):
     frame=pd.DataFrame([{'series_id':code,'date':stamp.date().isoformat(),'value':daily[code].get(stamp.date(),0)}
                         for code in sorted(selected) for stamp in calendar])
     frame.to_csv(output/'host-panel.csv',index=False)
-    manifest={'schema':'online-retail-ii-full-span-v2','phase':'full_span','source_sha256':SOURCE_SHA,
+    manifest={'schema':'online-retail-ii-full-span-v3','phase':'full_span','source_sha256':SOURCE_SHA,
         'protocol_sha256':protocol_sha(),'panel_sha256':sha(output/'host-panel.csv'),'selection_end':str(FIRST_ORIGIN),
         'materialized_through':str(END),'selected_products':selected,'eligible_per_stratum':counts,
-        'series':48,'planned_cases':2064,'planned_origins':[str(origin(i)) for i in range(43)],
+        'series':48,'planned_cases':2448,'planned_origins':[str(origin(i)) for i in range(51)],
         'row_diagnostics':diagnostics,'target':'UK recorded gross positive-sale units per SKU/day',
         'unit':'units','timezone':'Europe/London','source_availability':'assumed_local_end_of_day',
         'recorded_times':'not_in_source','stock_availability':'unknown','customer_identifiers_exported':False,
