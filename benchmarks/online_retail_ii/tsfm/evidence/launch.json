@@ -1,0 +1,38 @@
+{
+  "remote_host": "gnomon-arena",
+  "tsfm_root": "/root/online-retail-tsfm-002",
+  "direct_chronos2_root": "/root/online-retail-chronos2-001",
+  "existing_run_unchanged": "/root/online-retail-two-week-002",
+  "bundle_sha256": "4e7632d51f96aa8c130d13a72690660796fda8b18ec703f85897764f68e5f5c1",
+  "supervisor_pids": {
+    "ledger_tsfm": 1162518,
+    "chronos2_direct": 1162519
+  },
+  "first_startup": {
+    "root": "/root/online-retail-tsfm-001",
+    "failure": "advisory GET /models returned HTTP 404",
+    "agent_attempts": 0,
+    "forecast_calls_reused": 6
+  },
+  "preflight": {
+    "stub": true,
+    "real_hermes": true,
+    "gnomon": "1.2.0",
+    "sessions": 4,
+    "resolved": 4,
+    "paid_engy_calls": 0,
+    "both_tsfm_policies_verified": true
+  },
+  "chronos2_live_probe": {
+    "mode": "explicit",
+    "models_used": [
+      "chronos2"
+    ],
+    "horizon": 14,
+    "gnomon_imported": false
+  },
+  "local_checks": {
+    "passed": 40,
+    "failed": 0
+  }
+}
