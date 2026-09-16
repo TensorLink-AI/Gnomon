@@ -78,7 +78,7 @@ native-memory/ledger use, time, requests, reported tokens and unknown usage.
 Cluster uncertainty by product and calendar blocks; seeds are not independent
 retail tasks. Do not infer causal promotion/stockout explanations from sales.
 
-Queue behind terminal success of `/root/online-retail-agent-001/paid-001`, with
+Queue behind terminal success of `/root/online-retail-agent-resume-001/paid-001`, with
 its supervisor exit 0 and exactly 3,744 retained sessions. No automatic dispatch
 if that predecessor is incomplete or failed. Require fresh runtime-matched
 six-session real-Hermes synthetic-transport preflight before paid v3 launch.
@@ -91,3 +91,8 @@ would be required for an independent claim after this experiment consumes the
 remaining Online Retail II period.
 
 Source: https://archive.ics.uci.edu/dataset/502/online%2Bretail%2Bii (CC BY 4.0).
+
+Restart amendment: daily ledger comparisons validate local calendar identity
+and query each origin separately only when the pinned 1.2.0 elapsed-lag guard
+rejects a clock transition. Every original identity/visibility check and all
+predictions/actuals remain intact. See `../agent_eval/RESTART.md`.

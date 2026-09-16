@@ -1,0 +1,32 @@
+{
+  "before_after_dst_rankings_match_original_pairs": true,
+  "paid_calls": 0,
+  "resolved": 6,
+  "sessions": 6,
+  "source_hashes": {
+    "benchmarks/hermes_ml_checkpoint_v6/boundary_schemas_093.py": "a839a3727db20d487818fb318081e0e8bfc3434ccfc5f54b510807f60f833db9",
+    "benchmarks/hermes_ml_checkpoint_v6/execution_boundary_093.py": "bb96ab9dc4018b0a5a8daddf4ee19410b4aa9fed12006248e246f50ef36118fb",
+    "benchmarks/hermes_ml_checkpoint_v6/hermes_boundary_093.py": "0fd740aba17b96913bf97f9a19b6307b2e2f298429b8ae024569647116065051",
+    "benchmarks/ledger_optimization/execution_boundary_093.py": "bb96ab9dc4018b0a5a8daddf4ee19410b4aa9fed12006248e246f50ef36118fb",
+    "benchmarks/ledger_optimization/hermes_boundary_093.py": "0fd740aba17b96913bf97f9a19b6307b2e2f298429b8ae024569647116065051",
+    "benchmarks/online_retail_ii/__init__.py": "0acb422c2dfc5132bd8f85b9fafc939aa5f1b87afdb1789c7e2129ab049a6645",
+    "benchmarks/online_retail_ii/__main__.py": "5311c68a6c6a16e0816832d815aabdfabdff2ec5901dbe2cf429d5fb9ee0bb94",
+    "benchmarks/online_retail_ii/agent.py": "19ad4b5cb1bea760767759e8f73944d325c165b52b9efcb800a4fcf3641dd0b3",
+    "benchmarks/online_retail_ii/agent_eval/__init__.py": "31e2302a5ea6edd137ad12d8e209ba00279a66bded032218006b9efc737138f0",
+    "benchmarks/online_retail_ii/agent_eval/restart_preflight.py": "3d744cc3a5bf37f5796021246a4711ed672f814a1a36c84c03f179d3d6d4f2ce",
+    "benchmarks/online_retail_ii/agent_eval/resume.py": "d176c3207d80b0374f2b002886ce9abd47e050179482edfb5f833eda0ab6ecaf",
+    "benchmarks/online_retail_ii/agent_eval/run.py": "d66c759805ed18ea647eca46fce37fcfac34b23d74c9b3c6e250ba13632348d1",
+    "benchmarks/online_retail_ii/agent_eval/test_runner.py": "f1f718a7ecb53f87d13be7c81793a6039705d4795d3cf6670557983907cc4e12",
+    "benchmarks/online_retail_ii/agent_eval/transport.py": "77f53346598f19cd0aaa8fc32b96cb36dc0aa08ddbaf808f84d7b37012db264d",
+    "benchmarks/online_retail_ii/agent_eval/worker.py": "b75f7f8d2087b01bf2dc1689983e3196a23f49859110f16ac1f0b7eb71f9bf0d",
+    "benchmarks/online_retail_ii/calendar_history.py": "67299cbbd8656d828e9f869928348b10cac6302e1067cb6ec87bcc28d60af7f5",
+    "benchmarks/online_retail_ii/data.py": "ded15337c63e24dce26aa74be5860568b1104df83283170f7069442d5ddb91c3",
+    "benchmarks/online_retail_ii/ledger.py": "e9df230ee34996e50933e0f0488e3463ffe779880763ccaef90c2784328fa4fc",
+    "benchmarks/online_retail_ii/models.py": "edf65e498d4031f742f0ebfd5f988f6e4eaddd58bab9c2a3286cca9cff618999",
+    "benchmarks/online_retail_ii/resume_ledger.py": "16240464a47096698932553c34425aaa8b326bf0c8230adefcd1afd3c5932a0f",
+    "benchmarks/online_retail_ii/run.py": "c7216b103a6b3a4d3fa7510d604f053b522320325fd870adc001a796800da7c5",
+    "benchmarks/online_retail_ii/score.py": "752a2be019d963aba80c8c61f57b5432c2ad2ab7088029d4f9992fcb132a355a",
+    "benchmarks/online_retail_ii/test_benchmark.py": "9204211f2ac3aba715b175aadf7ad5259d0cca2bf5fb1bba31999236b1226df0"
+  },
+  "stub": true
+}

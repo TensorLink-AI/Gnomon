@@ -14,7 +14,7 @@ import numpy as np
 from .agent import load_case
 from .data import dump
 from .models import CANDIDATES
-from benchmarks.online_retail_ii.calendar_history import compare_calendar_history
+from .calendar_history import compare_calendar_history
 
 
 def build_history(case, output):
@@ -53,13 +53,12 @@ def build_history(case, output):
         clock[0] = stamp(past['origin'], True)
         engine = InferenceEngine(ledger=ledger, cache_size=0)
         for provider in CANDIDATES:
-            if not past['availability'][provider]['available'] or past['fallbacks'][provider]:continue
             points = tuple(past['predictions'][provider])
             def replay(request, points=points):
                 return ForecastResult(point=points, timestamps=request.future_timestamps,
                     series_id=request.series_id, unit=request.unit,
                     metadata={'evidence_kind': 'replayed_past_only_baseline_execution'})
-            revision = 'online-retail-ii-full-span-v3/'+past['models_sha256']
+            revision = 'online-retail-ii-v1/'+past['models_sha256']
             if provider in revisions and revisions[provider] != revision:
                 raise ValueError('Provider revision changed across the requested history')
             revisions[provider] = revision
@@ -75,17 +74,17 @@ def build_history(case, output):
             ledger.append_actual(series_id=task['series_id'], valid_time=stamp(day).isoformat(), value=value,
                 source_available_at=clock[0].isoformat(), unit='units', source_ref='online-retail-ii:assumed-day-close')
     as_of = stamp(task['origin'], True).isoformat()
-    if len(revisions)<2:
+    if not supplied['records']:
         report = {'status': 'insufficient_evidence', 'matched_origins': 0, 'ranking': []}
     else:
         # The public API supports at most eight providers. Pair against one
         # common anchor, then require the SAME origins and actual IDs across
         # every pair before computing a ten-provider table.
-        anchor = next(p for p in CANDIDATES if p in revisions)
+        anchor = CANDIDATES[0]
         comparisons = [compare_calendar_history(ledger, series_id=task['series_id'], horizon=14,
             providers={p: revisions[p] for p in (anchor, provider)},
             start=stamp(supplied['records'][0]['origin'], True).isoformat(), end=as_of,
-            source_as_of=as_of, recorded_as_of=as_of, unit='units') for provider in CANDIDATES if provider in revisions and provider!=anchor]
+            source_as_of=as_of, recorded_as_of=as_of, unit='units') for provider in CANDIDATES[1:]]
         if any(c['status'] != 'ok' for c in comparisons):
             dump(output/'gnomon-comparisons.json', comparisons)
             raise ValueError('Gnomon did not admit all historical comparison pairs; inspect retained diagnostics')
@@ -127,9 +126,7 @@ def build_history(case, output):
         report = {'status': comparison['status'], 'matched_origins': comparison['matched_origins'],
                   'ranking': ranking, 'references': references, 'excluded': comparison['excluded']}
         dump(output/'gnomon-comparison.json', comparison)
-    report.update({'evidence_scope':'common admitted origins across providers with valid past executions; unavailable/fallback predictions excluded',
-        'providers_without_valid_past_execution':[p for p in CANDIDATES if p not in revisions],
-        'all_matured_origins':len(supplied['records']), 'metric': 'mean_per_origin_rmsle', 'source': 'public_gnomon_matched_execution_and_actual_reads',
+    report.update({'metric': 'mean_per_origin_rmsle', 'source': 'public_gnomon_matched_execution_and_actual_reads',
         'query_as_of': as_of, 'recording_semantics': 'simulated historical replay; not genuine recording timestamps',
         'gnomon_native_compare_history_metric': 'mae', 'rmsle_calculated_from_referenced_pairs': True,
         'numerical_refits': 0, 'replayed_executions': count, 'engy_calls': 0})

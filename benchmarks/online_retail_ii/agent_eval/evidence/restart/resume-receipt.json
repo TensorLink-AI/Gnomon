@@ -1,0 +1,10 @@
+{
+  "completed_scores_reverified": true,
+  "no_paid_attempt_retried": true,
+  "pending_sessions": 960,
+  "previous": "/root/online-retail-agent-001/paid-001",
+  "previous_scores_sha256": "38257b5e2face601ca403b04ac339151b1ae5439733bd7301aa32ce55a526c35",
+  "recovered_unaggregated_sessions": 192,
+  "retained_sessions": 2784,
+  "abandoned_preparation_count": 96
+}

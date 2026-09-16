@@ -13,7 +13,7 @@ that preflight passes. The paid comparison retains the same 36-session
 accuracy-blind interface gate and all failures in its denominator.
 
 Nothing in the active `/root/online-retail-agent-001/code` bundle is modified.
-The sequel is isolated at `/root/online-retail-two-week-001`. Its `queue-001`
+The sequel is isolated at `/root/online-retail-two-week-002`. Its `queue-001`
 directory contains the plan, current stage, per-stage commands/logs/exits and
 terminal receipt. `paid-001/progress.json` becomes available only after the
 predecessor, preparation, baselines and preflight have completed. A waiting
@@ -44,3 +44,7 @@ The actual full-span Hermes preflight runs after the predecessor.
 This consumes the source dates previously reserved for validation/final.
 The full-span result is labelled exploratory, including previously observed
 development periods; it is not an untouched-final proof of the 20% target.
+
+The predecessor continuation is `/root/online-retail-agent-resume-001`.
+The calendar-history correction and retained-result recovery are documented in
+[the restart amendment](../agent_eval/RESTART.md).
