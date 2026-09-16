@@ -125,3 +125,12 @@ already held the full-arm diagnostic log. Use full-dispatch.log for the dispatch
 Preserve diagnostic logs and decisions. Start the frozen full-followup configuration
 once, directly through its existing dispatcher, after committing this correction;
 do not replay the gate. No prompt, budget, model or grading changes.
+
+2026-09-16, A13 (user-requested move to ROI): stop the original arena full
+follow-up and preserve its observations/journal as an interrupted trial. Restart
+as a separate exploratory run on wrk-tjdrfztojlsn (gnomon-arena-roi), using its
+verified prebuilt image IDs. The existing resume CLI would retry failed tasks;
+do not use it or merge the interrupted trial into the new comparison. Repeated
+cases remain exposed and all previous failures remain in their original records.
+Pin the actual destination images, code, environment and identical arm settings
+before new calls. Keep one worker and unchanged memory, task and cost limits.
