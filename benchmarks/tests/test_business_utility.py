@@ -353,3 +353,21 @@ def test_dispatch_stops_whole_run_on_unknown_spending(tmp_path, monkeypatch):
     assert dispatch.run(prepared, tmp_path / "out") == 1
     assert len(calls) == 1
     assert json.loads((tmp_path / "out/status.json").read_text())["cause"] == "unknown_accounting"
+
+
+def test_matched_report_without_primary_observations_keeps_effect_missing(corpus, tmp_path, monkeypatch):
+    from benchmarks.workflow import matched
+    from benchmarks.workflow.provenance import corpus_sha256
+    runs = tmp_path / "runs"
+    for evaluation in ("eval1", "eval2", "eval3"):
+        for arm in ("lean", "ordinary", "full"):
+            p = runs / evaluation / arm
+            p.mkdir(parents=True)
+            (p / "summary.json").write_text("{}")
+    monkeypatch.setattr(matched, "load_summary", lambda p: {"corpus_sha256": corpus_sha256(load_cases(corpus / (p.parent.name + '.jsonl')))})
+    monkeypatch.setattr(matched, "compare", lambda summaries: {"evidence_kind": "agent"})
+    build_report(corpus, runs, tmp_path / "report")
+    assert json.loads((tmp_path / 'report/eval2.json').read_text())["primary_effect"] is None
+    family = json.loads((tmp_path / 'report/familywise.json').read_text())
+    assert family["family_complete"] is False
+    assert family["comparisons"] == {}

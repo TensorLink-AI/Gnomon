@@ -229,10 +229,11 @@ def build_report(corpus, runs, output):
                   "claim": "No agent uplift established by unexecuted, scripted, partial or unverified trials."}
         if matched and matched["evidence_kind"] == "agent":
             result["status"] = "matched_requested_configuration"
-            family[evaluation] = {"unadjusted_p": paired_pvalue(primary(selected), primary("ordinary")),
-                "risk_difference": result["primary_effect"]["risk_difference"],
-                "failed_handoffs_nonincreasing": arms[selected]["failed_handoff"] <= arms["ordinary"]["failed_handoff"],
-                "business_outcomes_reduced": arms[selected]["bad_business_outcome"] < arms["ordinary"]["bad_business_outcome"]}
+            if result["primary_effect"] is not None:
+                family[evaluation] = {"unadjusted_p": paired_pvalue(primary(selected), primary("ordinary")),
+                    "risk_difference": result["primary_effect"]["risk_difference"],
+                    "failed_handoffs_nonincreasing": arms[selected]["failed_handoff"] <= arms["ordinary"]["failed_handoff"],
+                    "business_outcomes_reduced": arms[selected]["bad_business_outcome"] < arms["ordinary"]["bad_business_outcome"]}
         (output / (evaluation + ".json")).write_text(json.dumps(result, indent=2, allow_nan=False) + "\n")
         lines = [f"# {evaluation}: {result['status']}", "", "No measured agent result is available." if result["status"] == "pending" else "Provisional counts; see audit and limitations before interpreting.", "",
                  "| Arm | Bad business outcomes | Failed handoffs | Unauditable answers | Planned |", "|---|---:|---:|---:|---:|"]

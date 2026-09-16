@@ -169,3 +169,12 @@ completion separately; a retained malformed answer is still a task failure.
 A genuine API/network failure must stop the diagnostic and keep charges unknown.
 Do not automatically start another full sweep. All diagnostic evidence remains
 exploratory and separate from the interrupted trial.
+
+A15 reporting correction: after six live tasks all retained complete accounting,
+but the report crashed because the diagnostic's autonomous-only Eval2 subset has
+no fixed-policy primary comparison. Leave the missing effect null and omit that
+comparison from familywise testing. Fix reporting separately, retain all six
+observations, and run only the three still-unattempted Eval3 tasks with the exact
+original frozen agent code/configuration. No repeated model tasks or changes to
+grading criteria. Preserve the original supervisor exception as infrastructure
+history. This is a diagnostic subset edge case, not a measured effect.
