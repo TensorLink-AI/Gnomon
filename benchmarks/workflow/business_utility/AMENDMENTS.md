@@ -152,3 +152,20 @@ unknown spending remains unknown. No output/token/budget/model increase. These
 changes require a new frozen experiment before any subsequent scored run; the
 current run and its source remain intact. No full restart is authorized by this
 amendment itself. The diagnostic probes are excluded from efficacy denominators.
+
+2026-09-16, A15 (user requested completion of the fix): verify that a malformed
+model answer is retained with its measured cost and that the existing runner can
+execute subsequent tasks without an unknown-spend cascade. Then run a separately
+frozen nine-task live diagnostic, all three arms on these exposed cases:
+e1-pedestrian_counts_daily-1-clean;
+e2-pedestrian_counts_daily-0-autonomous-5;
+e3-pedestrian_counts_daily-4-below.
+These include previously failing locations, chosen before new outcomes. Keep
+model, budget, arm order, corpus content and scoring fixed except the A14 loop
+and diagnostics changes. No retries, no selecting alternate cases after outcomes.
+Success for the transport fix is complete measured accounting for all diagnostic
+tasks, with no malformed-history replay or unknown-spend cascade. Report answer
+completion separately; a retained malformed answer is still a task failure.
+A genuine API/network failure must stop the diagnostic and keep charges unknown.
+Do not automatically start another full sweep. All diagnostic evidence remains
+exploratory and separate from the interrupted trial.

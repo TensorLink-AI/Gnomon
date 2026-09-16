@@ -207,3 +207,26 @@ def test_filled_template_pins_same_controls_and_declared_actual_backends(tmp_pat
         "ordinary": "benchmarks.workflow.software_backend:SoftwareBackend",
         "lean": "benchmarks.workflow.service_backend:lean", "full": "benchmarks.workflow.service_backend:full"}
     assert provider["backends"]["lean"]["options"]["execution_options"] == {"ledger": True, "temporal": True}
+
+
+def test_malformed_model_output_does_not_block_following_tasks(experiment, tmp_path, monkeypatch):
+    malformed = call("submit_answer")
+    malformed["function"]["arguments"] = '{"status":'
+    failed, _, _ = execute(monkeypatch, [response(malformed, finish="length")])
+    assert failed.metadata["termination"] == "model_output_truncated"
+    cases, command, identity, requests = configured(experiment, tmp_path, limit=1.0)
+    path = tmp_path / "observations.jsonl"
+    journal = AttemptJournal(path.with_suffix(".attempts.sqlite3"))
+    try:
+        attempt = journal.start(failed.case_id, "initial")
+        journal.finish(attempt, {**receipt(failed, "initial"), "attempt_id": attempt})
+    finally:
+        journal.close()
+    rows = run_command(cases, command, 5, checkpoint_path=path, experiment=identity)
+    assert len(rows) == 3 and all(row.status == "answered" for row in rows)
+    assert len(requests) == 6
+    journal = AttemptJournal(path.with_suffix(".attempts.sqlite3"))
+    try:
+        assert journal.reported_spend()["total"] == pytest.approx(.07)
+    finally:
+        journal.close()
