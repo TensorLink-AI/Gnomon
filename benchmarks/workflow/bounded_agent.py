@@ -27,6 +27,9 @@ def model_visible_case(case):
     available = public.get("available_at_cutoff", {})
     hidden = available.pop("hide_case_id_from_model", False)
     retain = available.pop("retain_tool_results", False)
+    recovery = available.pop("allow_answer_format_recovery", False)
+    if type(recovery) is not bool:
+        raise ValueError("allow_answer_format_recovery must be boolean")
     if type(hidden) is not bool:
         raise ValueError("hide_case_id_from_model must be boolean")
     if type(retain) is not bool:
@@ -135,6 +138,8 @@ def run_agent(case, *, prompt, budget, client_factory, backend_factory, generati
     case_id = case["id"]
     retain_results = case.get("available_at_cutoff", {}).get("retain_tool_results", False)
     retained_result_bytes = 0
+    allow_recovery = case.get("available_at_cutoff", {}).get("allow_answer_format_recovery", False)
+    answer_format_recoveries = 0
     started = clock()
     deadline = started + limits["timeout_seconds"]
     calls, dispatched, rounds = 0, 0, 0
@@ -240,6 +245,7 @@ def run_agent(case, *, prompt, budget, client_factory, backend_factory, generati
                 break
             if not proposed:
                 messages.append({"role": "user", "content": "Use submit_answer for the final answer envelope."})
+            recovering_answer = False
             mixed_submit = any(call["function"]["name"] == "submit_answer" for call in proposed) and not submitted
             for call in proposed:
                 name = call["function"]["name"]
@@ -262,6 +268,28 @@ def run_agent(case, *, prompt, budget, client_factory, backend_factory, generati
                                  raw_arguments_sha256=fingerprint(raw),
                                  raw_arguments_bytes=len(raw.encode()) if isinstance(raw, str) else None,
                                  finish_reason=reason if reason in {"length", "stop", "tool_calls"} else "other")
+                    size = len(_encode(raw).encode())
+                    if retain_results and retained_result_bytes + size <= 131072:
+                        entry["raw_arguments"] = raw
+                        retained_result_bytes += size
+                    elif retain_results:
+                        entry["raw_arguments_omitted"] = "task receipt exceeded 128 KiB; digest retained"
+                    if (allow_recovery and submitted and answer_format_recoveries == 0
+                            and rounds < limits["max_rounds"] and tokens_known
+                            and tokens < limits["max_tokens"] and remaining() > 0
+                            and spending_stop() is None):
+                        # Quote the exact malformed output as text, never as a tool call.
+                        # No tools from this sole submission have been dispatched.
+                        messages[-1] = {"role": "assistant", "content": _encode({
+                            "malformed_submit_answer_arguments": raw, "original_content": content})}
+                        messages.append({"role": "user", "content":
+                            "Your previous submit_answer arguments were not a valid JSON object. "
+                            "Submit your answer again as a sole submit_answer call with valid JSON. "
+                            "Keep it concise. This correction uses your remaining task budget."})
+                        answer_format_recoveries += 1
+                        entry["recovery"] = "model_resubmission_with_original_output_quoted_as_text"
+                        recovering_answer = True
+                        termination = "cap:rounds"
                     break
                 try:
                     if mixed_submit:
@@ -354,6 +382,8 @@ def run_agent(case, *, prompt, budget, client_factory, backend_factory, generati
                     body = _encode({"status": "error", "error_type": type(error).__name__,
                                     "instruction": "Repair the request or submit an answer; no automatic tool retry occurred."})
                 messages.append({"role": "tool", "tool_call_id": call["id"], "content": body})
+            if recovering_answer:
+                continue
             if answer is not None or termination in {"model_output_truncated", "invalid_tool_arguments", "cap:tools", "cap:time", "cap:tokens", "cap:cost", "cost_usage_unmeasured", "usage_unmeasured", "episode_commit_error", "episode_reveal_error"}:
                 break
             if not tokens_known:
@@ -403,6 +433,7 @@ def run_agent(case, *, prompt, budget, client_factory, backend_factory, generati
                        "budget_exceeded": budget_exceeded,
                        **({"error": termination} if answer.status == "error" else {}),
                        "model_rounds": rounds, "dispatched_tool_calls": dispatched,
+                       "answer_format_recoveries": answer_format_recoveries,
                        "tool_inventory": inventory, "tool_inventory_sha256": fingerprint(inventory),
                        "backend_provenance": backend_provenance,
                        "trace": trace, "cleanup_errors": cleanup_errors, "limits": limits,

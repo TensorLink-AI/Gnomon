@@ -178,3 +178,22 @@ observations, and run only the three still-unattempted Eval3 tasks with the exac
 original frozen agent code/configuration. No repeated model tasks or changes to
 grading criteria. Preserve the original supervisor exception as infrastructure
 history. This is a diagnostic subset edge case, not a measured effect.
+
+A16 (user-requested malformed-answer recovery): enable at most one model-driven
+format correction per task, equally across arms. Applies only to a sole malformed
+submit_answer call, never mixed or executable tool batches. Preserve the original
+arguments in the bounded audit trace (with hash/omission marker if too large),
+quote the original invalid output as assistant text in subsequent model context,
+and ask for a valid JSON submission. Never send invalid tool-call history, invent
+corrected values, or turn it into a host-generated answer. All original time,
+token, round, tool and charge limits remain in force. No correction if budget or
+usage is exhausted/unknown. A second malformed answer remains a failed task.
+A recovered answer is identified explicitly by answer_format_recoveries; do not
+claim first-attempt success. Default off for other workflow experiments; enabled
+in the business-utility corpus. Prior runs remain unchanged.
+
+Validate with scripted regression cases and an excluded synthetic live transport
+check using the exact corrected message representation. That check starts from
+a supplied malformed string and tests whether the provider accepts the recovery
+history; it is not a spontaneous model failure, scored task or uplift experiment.
+No automatic full evaluation restart is part of this amendment.

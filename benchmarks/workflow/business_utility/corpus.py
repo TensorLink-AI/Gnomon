@@ -82,7 +82,7 @@ def portable_snapshot(rows, frequency, cutoff, text):
 def case(identifier, evaluation, w, question, available, numbers=(), choices=(), facts=(), oracle=None, tags=()):
     return {"schema_version": 2, "id": identifier, "kind": "synthetic",
             "domain": w["source"], "question": question,
-            "available_at_cutoff": {"hide_case_id_from_model": True, "retain_tool_results": True, "files_by_reference": True, **available},
+            "available_at_cutoff": {"hide_case_id_from_model": True, "retain_tool_results": True, "files_by_reference": True, "allow_answer_format_recovery": True, **available},
             "answer_schema": {"numbers": list(numbers), "choices": list(choices), "facts": list(facts)},
             "oracle": oracle or {},
             "tags": ["business-utility-v1", evaluation, "cluster:" + w["cluster"], *tags]}

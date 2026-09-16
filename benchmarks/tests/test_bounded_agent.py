@@ -297,3 +297,48 @@ def test_transport_failure_retains_safe_http_status(monkeypatch):
     assert result.cost_usd is None
     assert "private body" not in json.dumps(asdict(result))
     assert "sensitive reason" not in json.dumps(asdict(result))
+
+
+def enable_answer_recovery(monkeypatch):
+    monkeypatch.setitem(CASE, "available_at_cutoff", {"series": [3, 7],
+        "allow_answer_format_recovery": True, "retain_tool_results": True})
+
+
+def test_model_corrects_answer_using_valid_history_and_unchanged_budget(monkeypatch):
+    enable_answer_recovery(monkeypatch)
+    bad = call("submit_answer")
+    raw = '{"status":"answered","numbers":{"next":17}'
+    bad["function"]["arguments"] = raw
+    def correction(payload):
+        assert all("tool_calls" not in m for m in payload["messages"])
+        assert payload["messages"][-1]["role"] == "user"
+        quoted = json.loads(payload["messages"][-2]["content"])
+        assert quoted["malformed_submit_answer_arguments"] == raw
+        assert payload["max_tokens"] == 985
+        return response(submit(23))
+    result, requests, backend = execute(monkeypatch, [response(bad), correction])
+    assert result.status == "answered" and result.numbers["next"] == 23
+    assert result.cost_usd == .02 and len(requests) == 2
+    assert result.metadata["answer_format_recoveries"] == 1
+    assert result.metadata["trace"][0]["raw_arguments"] == raw
+    assert not backend.calls
+
+
+@pytest.mark.parametrize("rounds,expected_requests", [(1, 1), (4, 2)])
+def test_answer_correction_is_bounded_and_never_rewrites_invalid_output(monkeypatch, rounds, expected_requests):
+    enable_answer_recovery(monkeypatch)
+    bad = call("submit_answer")
+    bad["function"]["arguments"] = '{'
+    result, requests, _ = execute(monkeypatch, [response(bad), response(bad)], budget={"max_rounds": rounds})
+    assert result.status == "error" and result.metadata["termination"] == "invalid_tool_arguments"
+    assert len(requests) == expected_requests
+    assert result.cost_usd == .01 * expected_requests
+
+
+def test_answer_correction_cannot_cross_cost_limit(monkeypatch):
+    enable_answer_recovery(monkeypatch)
+    bad = call("submit_answer")
+    bad["function"]["arguments"] = '{'
+    result, requests, _ = execute(monkeypatch, [response(bad)], budget={"max_reported_cost_usd": .01})
+    assert len(requests) == 1 and result.status == "error"
+    assert result.metadata["answer_format_recoveries"] == 0
