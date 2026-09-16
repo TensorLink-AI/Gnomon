@@ -13,9 +13,11 @@ Main and the published package are unchanged.
 - Completed 325 additional checks on the real smoke outputs: independent
   RMSLE/MAE calculations, direct/Gnomon parity, retained missing-case denominator
   and Gnomon ledger RMSLE agreement with the original matured predictions.
-- Started the full 624-case development baseline run in
-  `results/online-retail-ii-baselines-001`. Its `report.json` is the completion
-  receipt; partial `host-scores.jsonl` is not a completed result.
+- Completed the full 624-case development baseline run in
+  `results/online-retail-ii-baselines-001`: 7,680 numerical computations, zero
+  model fallbacks, 1,276.8 seconds. Mean RMSLE: Ridge 0.64513, CV ensemble
+  0.65694, recent-four historical selector 0.66910, rolling CV selection
+  0.67980, seasonal naive 0.78483. These are numerical controls, not agent arms.
 
 ## Small smoke scores, not the agent experiment
 
@@ -53,11 +55,23 @@ overwritten. They are not the acceptance evidence for the final code. The raw
 ZIP, customer-level transactions, environment and full host outputs are not
 committed. The README describes rerunning from the supplied archive.
 
-## Remaining experiment work
+## Agent comparison
 
-Freeze and audit the actual Hermes runner's equal tools, information, native
-memory, numerical/token/time budgets and filesystem isolation. Run the three
-arms against these cases and score their host-owned typed executions. Freeze
-the selected implementation and automatic control on validation before the
-single final evaluation and clustered uncertainty analysis. The current scorer
-explicitly does not certify ledger use or agent budget compliance.
+The separate [guarded Hermes runner](agent_eval/RUN.md) now implements matched
+tools, information, memory and call/time budgets. Its local suite passes 22
+checks; the real pinned Hermes runtime passed a six-session, two-origin
+synthetic-transport preflight with native memory and direct/Gnomon parity.
+That preflight made no Engy calls and is not agent performance evidence.
+
+The paid run is supervised on Targon under `/root/online-retail-agent-001`:
+`paid-001` contains the 3,744-session plan and eventual scores, `launch-001`
+contains its controller admission/process/exit receipts. It begins with the
+36-session quality gate described in RUN.md, retaining those cases in the full
+denominator. Inspect `progress.json`, `pilot-gate.json` and `FINISHED.json` for
+actual completion; a launch is not a completed comparison. The deployed bundle
+SHA-256 is `e2eb66f0da4f0f9925f43c9b9436310dfc8dfc69f0da737ca3caf33f8cd304a2`.
+
+Validation, final selection, clustered uncertainty analysis and the 20% target
+remain uncompleted. The generic imported-submission scorer still does not
+certify ledger use or budgets; this controlled runner retains the actual tool
+and API evidence needed to audit those claims.

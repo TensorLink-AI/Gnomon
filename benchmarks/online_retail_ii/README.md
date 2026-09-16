@@ -8,9 +8,9 @@ accumulate. It uses real transaction data from the user-supplied
 The executable deliverable includes data preparation, ten numerical candidates,
 three selection controls, task exports, direct/Gnomon execution adapters, actual
 Gnomon ledger replay, and a scorer that retains unsuccessful cases. **The paid
-three-arm Hermes experiment is not executed by this module.** A controlled Hermes
-runner must enforce the budget and access contract below before its scores can
-be described as a fair agent comparison.
+three-arm Hermes experiment has a separate guarded runner**, described in
+[agent_eval/RUN.md](agent_eval/RUN.md). A baseline run or imported-submission
+score is never presented as a Hermes experiment.
 
 The [frozen protocol](PROTOCOL.md) is the authority for selection, splits and
 metrics. Do not revise it to fit observed scores. This is one retailer with
