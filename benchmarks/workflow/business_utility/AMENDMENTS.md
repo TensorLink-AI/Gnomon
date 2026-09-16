@@ -84,3 +84,22 @@ the lifecycle fixture's three-second command timeout. Increase that test's lifet
 to ten seconds and observation window to fourteen seconds, preserving its check
 that PID 1 terminates without host cleanup. This changes no live task limit;
 the registered 180-second task budget remains unchanged. Retain the initial log.
+
+2026-09-16, A10 (outcome-informed correction, user requested): stop trial-001 and
+retain all observations, skipped/error rows and partial passes. Eval1 lean answered
+0/80 (80 token stops); ordinary 14/80. Eval2 lean had one outer timeout followed by
+127 spending_usage_unmeasured rows, not 128 independent model failures. No uplift
+claim is supported. This follow-up reuses exposed cases and is exploratory;
+a new unseen corpus is required for subsequent confirmatory evidence.
+
+For the follow-up all arms receive file paths, sizes and SHA256 hashes in the
+initial prompt rather than duplicated file bodies. Full identical files remain
+materialized in every backend and accessible with Python. Increase cumulative
+reported token allowance from 32,000 to 128,000 equally across arms; retain 12
+rounds/tools, 2048 output tokens, temperature zero, model, cost limits and 180-second
+outer task deadline. The driver reserves min(15 seconds, 10% of outer deadline)
+for cleanup/accounting; agent/backend work gets the remaining 165 seconds here.
+Unknown spending still blocks further tasks; never fabricate zero charges.
+Freeze corrected code/config before follow-up outcomes. Run an explicitly labelled
+one-case-per-evaluation-per-arm diagnostic subset first, with no automatic retries.
+Do not merge its results with trial-001 or count it as confirmatory evidence.

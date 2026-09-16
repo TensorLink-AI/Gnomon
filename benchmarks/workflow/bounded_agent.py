@@ -36,6 +36,23 @@ def model_visible_case(case):
     return public
 
 
+def model_prompt_case(case):
+    """Reference materialized files without repeating their contents each round."""
+    public = model_visible_case(case)
+    available = public.get("available_at_cutoff", {})
+    compact = available.pop("files_by_reference", False)
+    if type(compact) is not bool:
+        raise ValueError("files_by_reference must be boolean")
+    if compact:
+        import hashlib
+        files = available.pop("files", {})
+        available["file_manifest"] = {
+            name: {"path": "/tmp/data/" + name, "bytes": len(value.encode()),
+                   "sha256": hashlib.sha256(value.encode()).hexdigest()}
+            for name, value in files.items()}
+    return public
+
+
 ANSWER_FIELDS = {"status", "support", "numbers", "choices", "facts", "disclosures", "claims"}
 SUBMIT = {"type": "function", "function": {
     "name": "submit_answer", "description": "Submit the final answer as the only tool call in this message.",
@@ -163,7 +180,7 @@ def run_agent(case, *, prompt, budget, client_factory, backend_factory, generati
             specs[name] = {"type": "function", "function": {
                 "name": name, "description": tool.get("description", ""), "parameters": tool["inputSchema"]}}
         messages = [{"role": "system", "content": prompt + "\nSubmit with submit_answer as a sole tool call."},
-                    {"role": "user", "content": _encode(model_visible_case(case))}]
+                    {"role": "user", "content": _encode(model_prompt_case(case))}]
         if journey:
             messages[0]["content"] += (f"\nThis task has {len(journey.phases)} ordered phases. "
                                        "submit_answer commits the current phase before revealing the next; "

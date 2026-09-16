@@ -255,3 +255,17 @@ def test_loop_can_quote_a_real_current_provider_result_without_host_recovery(mon
     result, _, _ = execute(monkeypatch, [response(call("gnomon_forecast", {
         "provider": "last_value", "request": {"history": [3, 7], "horizon": 1}})), read_response], Local())
     assert result.numbers["next"] == 7 and result.metadata["dispatched_tool_calls"] == 1
+
+
+def test_file_reference_prompt_preserves_materialized_backend_inputs():
+    from benchmarks.workflow.bounded_agent import model_prompt_case, model_visible_case
+    import hashlib
+    case = {**CASE, "available_at_cutoff": {"files_by_reference": True,
+            "files": {"observations.csv": "time,value\n1,7\n"}}}
+    prompt = model_prompt_case(case)
+    manifest = prompt["available_at_cutoff"]["file_manifest"]["observations.csv"]
+    assert manifest["path"] == "/tmp/data/observations.csv"
+    assert manifest["sha256"] == hashlib.sha256(b"time,value\n1,7\n").hexdigest()
+    assert "files" not in prompt["available_at_cutoff"]
+    assert model_visible_case(case)["available_at_cutoff"]["files"] == case["available_at_cutoff"]["files"]
+    assert model_prompt_case(CASE) == CASE

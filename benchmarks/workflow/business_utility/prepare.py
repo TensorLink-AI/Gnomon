@@ -48,7 +48,7 @@ def prepare(args):
             "generation": {"temperature": 0, "max_output_tokens": 2048},
             "prompt_file": "prompt.txt", "provider_config_file": "providers.json",
             "budget": {"timeout_seconds": 180, "jobs": 1, "infrastructure_retries": 0,
-                       "max_tool_calls": 12, "max_rounds": 12, "max_tokens": 32000,
+                       "max_tool_calls": 12, "max_rounds": 12, "max_tokens": 128000,
                        "max_reported_cost_usd": args.per_arm_stop}},
         "arms": {
             "ordinary": {"description": "Ordinary isolated Python and forecasting software.", "tool_contract": "Existing ordinary Python backend; exact computation allowed.", "guidance": guidance},

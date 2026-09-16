@@ -86,6 +86,9 @@ def run(case, *, allow_model_requests=False):
     if ("_spending_allowance_usd" in case) != (limit is not None):
         raise ValueError("reported-cost policy requires a runner allowance binding")
     budget = dict(common["budget"])
+    # Leave the outer runner time to receive accounting and clean up containers.
+    outer_timeout = budget["timeout_seconds"]
+    budget["timeout_seconds"] = outer_timeout - min(15, outer_timeout * 0.1)
     if limit is not None:
         allowance = case.get("_spending_allowance_usd")
         reported_cost_limit({"max_reported_cost_usd": allowance})
@@ -103,7 +106,7 @@ def run(case, *, allow_model_requests=False):
     opener = request.build_opener(request.ProxyHandler({}), NoRedirect())
     def client_factory():
         return OpenRouterClient(common["model"]["id"], api_key=token, base_url=url,
-                                timeout=common["budget"]["timeout_seconds"],
+                                timeout=budget["timeout_seconds"],
                                 request_opener=opener)
     private_episode = case.get("_private_episode")
     journal_spec = case.get("_episode_journal")
@@ -118,7 +121,7 @@ def run(case, *, allow_model_requests=False):
         def backend_factory():
             factory = getattr(importlib.import_module(module), name)
             return factory(case=model_visible_case(public), options=selected["options"],
-                           workspace=Path(workspace), timeout=common["budget"]["timeout_seconds"])
+                           workspace=Path(workspace), timeout=budget["timeout_seconds"])
         journal = AttemptJournal(Path(journal_spec["path"])) if journal_spec else None
         try:
             result = run_agent(public, prompt=prompt + "\n" + context["surface"]["guidance"],
