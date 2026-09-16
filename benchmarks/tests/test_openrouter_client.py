@@ -214,3 +214,15 @@ def test_invalid_deadlines_fail_before_transport(timeout):
     with pytest.raises(ValueError, match="timeout"):
         client.chat([], request_timeout=timeout)
     assert client.total_transport_attempts == 0
+
+
+def test_http_failure_exposes_only_structured_status(monkeypatch):
+    def http(*args, **kwargs):
+        raise urllib.error.HTTPError("https://example.invalid", 400, "private", {}, io.BytesIO(b"sensitive body"))
+    monkeypatch.setattr("urllib.request.urlopen", http)
+    client = OpenRouterClient("test", api_key="unused")
+    with pytest.raises(OpenRouterError) as caught:
+        client.chat([])
+    assert caught.value.diagnostic == {"code": "http_error", "http_status": 400}
+    assert client.usage_summary["cost_usd"] is None
+    assert "sensitive" not in str(caught.value)

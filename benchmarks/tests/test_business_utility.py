@@ -255,6 +255,7 @@ def test_dispatch_keeps_graded_failures_and_never_retries_infrastructure(tmp_pat
             destination.mkdir(parents=True)
             if returncode == 2:
                 (destination / "summary.json").write_text("{}")
+                (destination / "observations.jsonl").write_text("")
         def wait(self, **kwargs): return returncode
         def poll(self): return returncode
     monkeypatch.setattr(dispatch.subprocess, "Popen", Process)
@@ -331,3 +332,24 @@ def test_followup_dispatch_log_does_not_collide_with_full_arm(tmp_path, monkeypa
     assert (output / "full.log").exists()
     assert (output / "full-dispatch.log").exists()
     assert json.loads((output / "status.json").read_text())["state"] == "complete"
+
+
+def test_dispatch_stops_whole_run_on_unknown_spending(tmp_path, monkeypatch):
+    from benchmarks.workflow.business_utility import dispatch
+    prepared = tmp_path / "prepared"
+    prepared.mkdir()
+    (prepared / "launch-plan.json").write_text(json.dumps({"status": "ready", "evaluation_order": ["eval1", "eval2", "eval3"], "arm_order": ["lean", "ordinary", "full"]}))
+    calls = []
+    class Process:
+        def __init__(self, argv, **kwargs):
+            calls.append(argv)
+            dest = Path(argv[argv.index("--output-dir") + 1])
+            dest.mkdir(parents=True)
+            (dest / "summary.json").write_text("{}")
+            (dest / "observations.jsonl").write_text(json.dumps({"metadata": {"error": "spending_usage_unmeasured"}})+'\n')
+        def wait(self): return 2
+        def poll(self): return 2
+    monkeypatch.setattr(dispatch.subprocess, "Popen", Process)
+    assert dispatch.run(prepared, tmp_path / "out") == 1
+    assert len(calls) == 1
+    assert json.loads((tmp_path / "out/status.json").read_text())["cause"] == "unknown_accounting"

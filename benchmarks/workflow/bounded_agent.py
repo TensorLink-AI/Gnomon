@@ -252,6 +252,18 @@ def run_agent(case, *, prompt, budget, client_factory, backend_factory, generati
                 trace.append(entry)
                 try:
                     arguments = _decode_record(call["function"]["arguments"])
+                except (ValueError, TypeError) as error:
+                    # Malformed calls cannot safely be replayed as API history.
+                    # Keep this model failure and its measured usage; do not repair it.
+                    raw = call["function"]["arguments"]
+                    reason = getattr(response.choices[0], "finish_reason", None)
+                    termination = "model_output_truncated" if reason == "length" else "invalid_tool_arguments"
+                    entry.update(status="error", error_type=type(error).__name__,
+                                 raw_arguments_sha256=fingerprint(raw),
+                                 raw_arguments_bytes=len(raw.encode()) if isinstance(raw, str) else None,
+                                 finish_reason=reason if reason in {"length", "stop", "tool_calls"} else "other")
+                    break
+                try:
                     if mixed_submit:
                         raise ValueError("submit_answer must be the only tool call")
                     if name == "submit_answer":
@@ -342,14 +354,16 @@ def run_agent(case, *, prompt, budget, client_factory, backend_factory, generati
                     body = _encode({"status": "error", "error_type": type(error).__name__,
                                     "instruction": "Repair the request or submit an answer; no automatic tool retry occurred."})
                 messages.append({"role": "tool", "tool_call_id": call["id"], "content": body})
-            if answer is not None or termination in {"cap:tools", "cap:time", "cap:tokens", "cap:cost", "cost_usage_unmeasured", "usage_unmeasured", "episode_commit_error", "episode_reveal_error"}:
+            if answer is not None or termination in {"model_output_truncated", "invalid_tool_arguments", "cap:tools", "cap:time", "cap:tokens", "cap:cost", "cost_usage_unmeasured", "usage_unmeasured", "episode_commit_error", "episode_reveal_error"}:
                 break
             if not tokens_known:
                 termination = "usage_unmeasured"
                 break
     except Exception as error:
         termination = "driver_error"
-        trace.append({"status": "error", "error_type": type(error).__name__})
+        from benchmarks.common.openrouter import OpenRouterError
+        trace.append({"status": "error", "error_type": type(error).__name__,
+                      **({"transport": error.diagnostic} if isinstance(error, OpenRouterError) else {})})
     finally:
         if client is not None:
             try:

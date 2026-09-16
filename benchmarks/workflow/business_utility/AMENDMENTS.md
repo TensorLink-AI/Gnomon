@@ -134,3 +134,21 @@ do not use it or merge the interrupted trial into the new comparison. Repeated
 cases remain exposed and all previous failures remain in their original records.
 Pin the actual destination images, code, environment and identical arm settings
 before new calls. Keep one worker and unchanged memory, task and cost limits.
+
+2026-09-16, A14 (diagnosis; no full restart): ROI run stopped for investigation.
+Seven first arm failures were OpenRouterError; five immediately followed a
+JSONDecodeError on submit_answer. The driver discarded transport details.
+An excluded, pre-recorded two-request synthetic probe returned HTTP200 for a
+valid prior tool call and HTTP400 for malformed prior arguments; the provider
+explicitly required valid JSON in assistant tool-call history. Two other historic
+transport errors cannot be identified from the retained class-only logs.
+
+Do not resend malformed tool-call arguments as conversation history. End that
+task with invalid_tool_arguments (or model_output_truncated when finish_reason is
+length), retaining measured usage and failure in the denominator. No coercion or
+extra model request. Retain safe transport error codes/status without raw provider
+bodies; stop dispatch of subsequent arms if accounting is incomplete. Existing
+unknown spending remains unknown. No output/token/budget/model increase. These
+changes require a new frozen experiment before any subsequent scored run; the
+current run and its source remain intact. No full restart is authorized by this
+amendment itself. The diagnostic probes are excluded from efficacy denominators.

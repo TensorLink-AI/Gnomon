@@ -44,7 +44,13 @@ def _to_namespace(value: Any) -> Any:
 
 
 class OpenRouterError(RuntimeError):
-    """The single transport attempt failed."""
+    """The single transport attempt failed, with safe structured diagnostics."""
+
+    def __init__(self, message, *, code="transport_error", http_status=None):
+        super().__init__(message)
+        self.diagnostic = {"code": code}
+        if http_status is not None:
+            self.diagnostic["http_status"] = http_status
 
 
 class OpenRouterClient:
@@ -108,12 +114,12 @@ class OpenRouterClient:
                 with opener(request, timeout=timeout) as raw:
                     body = raw.read(RESPONSE_BYTES + 1)
                     if len(body) > RESPONSE_BYTES:
-                        raise OpenRouterError("LLM response exceeded the byte limit")
+                        raise OpenRouterError("LLM response exceeded the byte limit", code="response_too_large")
                     from benchmarks.workflow.agent_metrics import _decode_record
                     try:
                         result.append(_decode_record(body.decode("utf-8")))
                     except (ValueError, UnicodeError) as error:
-                        raise OpenRouterError("LLM response is not a bounded strict JSON object") from error
+                        raise OpenRouterError("LLM response is not a bounded strict JSON object", code="invalid_response_json") from error
             except BaseException as error:
                 result.append(error)
 
@@ -124,14 +130,14 @@ class OpenRouterClient:
             worker.start()
             worker.join(timeout)
             if worker.is_alive():
-                raise OpenRouterError(f"absolute request deadline exceeded after {timeout}s")
+                raise OpenRouterError(f"absolute request deadline exceeded after {timeout}s", code="request_deadline")
             if not result:
-                raise OpenRouterError("transport ended without a result")
+                raise OpenRouterError("transport ended without a result", code="missing_transport_result")
             if isinstance(result[0], BaseException):
                 raise result[0]
             parsed = result[0]
             if "error" in parsed:
-                raise OpenRouterError("provider returned an error")
+                raise OpenRouterError("provider returned an error", code="provider_error_envelope")
             self._account(parsed)
             response = _to_namespace(parsed)
             if not getattr(response, "provider", None):
@@ -139,7 +145,7 @@ class OpenRouterClient:
             return response
         except urllib.error.HTTPError as error:
             error.close()
-            raise OpenRouterError(f"LLM HTTP error {error.code}") from error
+            raise OpenRouterError(f"LLM HTTP error {error.code}", code="http_error", http_status=error.code) from error
         except (urllib.error.URLError, TimeoutError, OSError) as error:
             raise OpenRouterError("LLM transport failed") from error
         finally:

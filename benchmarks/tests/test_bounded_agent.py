@@ -105,10 +105,15 @@ def test_tool_failure_spend_and_error_survive_model_recovery(monkeypatch):
 @pytest.mark.parametrize("proposed", [call("unknown"), {**call("first"), "function": {
     "name": "first", "arguments": "not JSON"}}])
 def test_invalid_requests_consume_attempts_without_dispatch(monkeypatch, proposed):
-    result, _, backend = execute(monkeypatch, [response(proposed), response(submit())])
+    result, requests, backend = execute(monkeypatch, [response(proposed), response(submit())])
     assert result.tool_calls == 1 and backend.calls == []
     assert result.metadata["dispatched_tool_calls"] == 0
-    assert result.status == "answered"
+    malformed = proposed["function"]["arguments"] == "not JSON"
+    assert result.status == ("error" if malformed else "answered")
+    assert len(requests) == (1 if malformed else 2)
+    if malformed:
+        assert result.metadata["termination"] == "invalid_tool_arguments"
+        assert result.cost_usd == .01
 
 
 def test_tool_limit_stops_a_batched_response_before_extra_dispatch(monkeypatch):
@@ -269,3 +274,26 @@ def test_file_reference_prompt_preserves_materialized_backend_inputs():
     assert "files" not in prompt["available_at_cutoff"]
     assert model_visible_case(case)["available_at_cutoff"]["files"] == case["available_at_cutoff"]["files"]
     assert model_prompt_case(CASE) == CASE
+
+
+@pytest.mark.parametrize("finish,expected", [("length", "model_output_truncated"), ("tool_calls", "invalid_tool_arguments")])
+def test_malformed_arguments_end_task_with_known_cost_without_poisoning_next_request(monkeypatch, finish, expected):
+    malformed = call("submit_answer")
+    malformed["function"]["arguments"] = '{"status":"answered",'
+    result, requests, backend = execute(monkeypatch, [response(malformed, finish=finish)])
+    assert len(requests) == 1
+    assert result.status == "error" and result.metadata["termination"] == expected
+    assert result.cost_usd == .01
+    assert result.metadata["trace"][-1]["raw_arguments_bytes"] > 0
+    assert not backend.calls
+
+
+def test_transport_failure_retains_safe_http_status(monkeypatch):
+    import urllib.error
+    def fail(payload):
+        raise urllib.error.HTTPError("https://example.invalid", 400, "sensitive reason", {}, io.BytesIO(b"private body"))
+    result, requests, _ = execute(monkeypatch, [fail])
+    assert result.metadata["trace"][-1]["transport"] == {"code": "http_error", "http_status": 400}
+    assert result.cost_usd is None
+    assert "private body" not in json.dumps(asdict(result))
+    assert "sensitive reason" not in json.dumps(asdict(result))

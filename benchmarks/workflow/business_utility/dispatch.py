@@ -65,6 +65,18 @@ def run(prepared, output, *, credential_file=None):
                     status.update(state="blocked", returncode=code, cause="workflow_or_resource_stop")
                     save()
                     return 1
+                observations = destination / "observations.jsonl"
+                if not observations.exists():
+                    status.update(state="blocked", cause="missing_observations")
+                    save()
+                    return 1
+                rows = [json.loads(line) for line in observations.read_text().splitlines()]
+                if any(row.get("metadata", {}).get("error") == "spending_usage_unmeasured"
+                       or row.get("metadata", {}).get("resource_accounting", {}).get("budget_accounting_complete") is False
+                       for row in rows):
+                    status.update(state="blocked", cause="unknown_accounting", completed_pass_retained=True)
+                    save()
+                    return 1
                 status["completed_passes"].append({"evaluation": evaluation, "arm": arm, "returncode": code})
                 save()
             from .report import build_report
