@@ -64,7 +64,7 @@ def run(diagnostic, prepared, output, credential_file):
             return 2
         status["state"] = "full_running"
         save()
-        with (output / "full.log").open("x") as log:
+        with (output / "full-dispatch.log").open("x") as log:
             process = subprocess.Popen([sys.executable, "-m", "benchmarks.workflow.business_utility.dispatch",
                 "--prepared", str(prepared), "--output", str(output / "full")], env=env,
                 stdout=log, stderr=subprocess.STDOUT)

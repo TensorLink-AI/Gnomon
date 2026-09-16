@@ -118,3 +118,10 @@ and decision format, not uplift. Freeze before calls. Launch the full corrected
 exploratory sweep only if all six submit auditable decisions; otherwise retain
 failures and investigate. The full sweep reuses exposed cases and cannot provide
 fresh confirmatory evidence. Keep all previous runs separate.
+
+2026-09-16, A12 (launch-only correction): all six A11 diagnostic decisions passed.
+The supervisor then failed before the full dispatcher started because full.log
+already held the full-arm diagnostic log. Use full-dispatch.log for the dispatcher.
+Preserve diagnostic logs and decisions. Start the frozen full-followup configuration
+once, directly through its existing dispatcher, after committing this correction;
+do not replay the gate. No prompt, budget, model or grading changes.

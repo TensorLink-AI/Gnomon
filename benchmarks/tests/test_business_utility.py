@@ -300,3 +300,34 @@ def test_followup_gate_rejects_missing_and_invalid_decisions(corpus):
     assert not valid_decisions([c], audits, [bad])
     bad.choices["plan"] = "review" if error <= 1 else "approve"
     assert not valid_decisions([c], audits, [bad])
+
+
+def test_followup_dispatch_log_does_not_collide_with_full_arm(tmp_path, monkeypatch):
+    from benchmarks.workflow.business_utility import followup
+    prepared = tmp_path / "prepared"
+    prepared.mkdir()
+    (prepared / "providers.json").write_text(json.dumps({"llm": {"token_env": "TEST_KEY"}}))
+    (prepared / "launch-plan.json").write_text(json.dumps({"arm_order": ["lean", "ordinary", "full"]}))
+    (prepared / "corpus").mkdir()
+    (prepared / "corpus/private-audit.json").write_text("{}")
+    monkeypatch.setattr(followup, "credential", lambda *a: "test-only")
+    monkeypatch.setattr(followup, "load_cases", lambda *a: [])
+    monkeypatch.setattr(followup, "load_observations", lambda *a: [])
+    monkeypatch.setattr(followup, "valid_decisions", lambda *a: True)
+    calls = []
+    class Process:
+        def __init__(self, argv, **kwargs):
+            calls.append(argv)
+            if "--output-dir" in argv:
+                destination = Path(argv[argv.index("--output-dir") + 1])
+                destination.mkdir(parents=True)
+                (destination / "summary.json").write_text("{}")
+        def wait(self, **kwargs):
+            return 0
+    monkeypatch.setattr(followup.subprocess, "Popen", Process)
+    output = tmp_path / "run"
+    assert followup.run(prepared, prepared, output, "unused") == 0
+    assert len(calls) == 4
+    assert (output / "full.log").exists()
+    assert (output / "full-dispatch.log").exists()
+    assert json.loads((output / "status.json").read_text())["state"] == "complete"
