@@ -103,3 +103,18 @@ Unknown spending still blocks further tasks; never fabricate zero charges.
 Freeze corrected code/config before follow-up outcomes. Run an explicitly labelled
 one-case-per-evaluation-per-arm diagnostic subset first, with no automatic retries.
 Do not merge its results with trial-001 or count it as confirmatory evidence.
+
+2026-09-16, A11 (decision wire format, after A10 diagnostic): all nine A10
+answers completed, but all three Eval1 answers used choices.plan="plan".
+Explicitly document in every Eval1 prompt that choices.plan must be "approve"
+when reported_nmae <=1.0 and "review" otherwise, and that "plan" is a field
+name rather than an answer value. All arms receive the identical clarification.
+No parser coercion, answer rewriting, extra retry or grader relaxation is added.
+Original invalid answers remain invalid. All other A10 settings stay fixed.
+
+Before a larger exploratory follow-up, run the first clean/trap pair in Eval1
+across all three arms (six tasks). This exposed-case diagnostic tests completion
+and decision format, not uplift. Freeze before calls. Launch the full corrected
+exploratory sweep only if all six submit auditable decisions; otherwise retain
+failures and investigate. The full sweep reuses exposed cases and cannot provide
+fresh confirmatory evidence. Keep all previous runs separate.

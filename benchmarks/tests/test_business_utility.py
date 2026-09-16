@@ -265,3 +265,38 @@ def test_dispatch_keeps_graded_failures_and_never_retries_infrastructure(tmp_pat
     assert len(status["completed_passes"]) == expected_passes
     assert len(calls) == (9 if expected_passes else 1)
     assert all(argv[2] == "benchmarks.workflow.business_utility.monitor" for argv in calls)
+
+
+def test_capacity_decision_contract_and_invalid_value_remain_explicit(corpus):
+    import statistics
+    audits = json.loads((corpus / "private-audit.json").read_text())
+    for c in load_cases(corpus / "eval1.jsonl"):
+        assert '"plan" is the field name, not an allowed value' in c.question
+        assert '"approve"' in c.question and '"review"' in c.question
+        a = audits[c.id]
+        replay = a["causal_replay"]
+        nmae = statistics.fmean(abs(x-y) for x,y in zip(replay, c.available_at_cutoff["replay_actuals"])) / a["scale"]
+        numbers = {**{f"replay_{i+1}": x for i,x in enumerate(replay)},
+                   **{f"h{i+1}": 0.0 for i in range(4)}, "reported_nmae": nmae}
+        for value in ("approve", "review", "plan"):
+            answer = Observation(c.id, "answered", "supported", numbers=numbers, choices={"plan": value})
+            assert grade(c, a, answer)["unauditable"] == (value == "plan")
+
+
+def test_followup_gate_rejects_missing_and_invalid_decisions(corpus):
+    import statistics
+    from benchmarks.workflow.business_utility.followup import valid_decisions
+    c = load_cases(corpus / "eval1.jsonl")[0]
+    audits = json.loads((corpus / "private-audit.json").read_text())
+    replay = audits[c.id]["causal_replay"]
+    error = statistics.fmean(abs(x-y) for x,y in zip(replay, c.available_at_cutoff["replay_actuals"])) / audits[c.id]["scale"]
+    nums = {**{f"replay_{i+1}": v for i,v in enumerate(replay)}, **{f"h{i+1}": 0.0 for i in range(4)}, "reported_nmae": error}
+    good = Observation(c.id, "answered", "supported", numbers=nums, choices={"plan": "approve" if error <= 1 else "review"})
+    assert valid_decisions([c], audits, [good])
+    assert not valid_decisions([c], audits, [])
+    assert not valid_decisions([c], audits, [good, good])
+    bad = deepcopy(good)
+    bad.choices["plan"] = "plan"
+    assert not valid_decisions([c], audits, [bad])
+    bad.choices["plan"] = "review" if error <= 1 else "approve"
+    assert not valid_decisions([c], audits, [bad])

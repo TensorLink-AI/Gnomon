@@ -118,7 +118,9 @@ def eval1(w):
              "latest visible revision. Report the four one-step replay predictions and their MAE divided by scale "
              "as reported_nmae, using the supplied original replay_actuals as labels only. Also forecast four steps "
              "from as_of using the same last-value rule. Approve the capacity plan iff reported_nmae <=1.0; otherwise "
-             "review. Files are an explicit synthetic vintage overlay, not naturally observed publication metadata. "
+             'review. In submit_answer, choices must contain the key "plan" with the value "approve" '
+             'when reported_nmae <= 1.0, or "review" otherwise. "plan" is the field name, not an allowed value. '
+             "Files are an explicit synthetic vintage overlay, not naturally observed publication metadata. "
              "CSV and portable snapshot contain the same vintages; publication times constrain historical inputs. "
              "The four holdout actuals are not available. Files are under /tmp/data. Disclose limitations.")
         c = case(f"e1-{w['cluster']}-{'trap' if trap else 'clean'}", "eval1", w, q, public,
