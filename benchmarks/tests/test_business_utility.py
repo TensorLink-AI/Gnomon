@@ -371,3 +371,15 @@ def test_matched_report_without_primary_observations_keeps_effect_missing(corpus
     family = json.loads((tmp_path / 'report/familywise.json').read_text())
     assert family["family_complete"] is False
     assert family["comparisons"] == {}
+
+
+def test_task_health_stops_unknown_spend_and_five_consecutive_errors():
+    from benchmarks.workflow.business_utility.monitor import task_health
+    good = {"status": "answered", "metadata": {"answer_format_recoveries": 1}}
+    bad = {"status": "error", "metadata": {"termination": "invalid_tool_arguments"}}
+    assert task_health([bad, good])["stop_reason"] is None
+    assert task_health([bad] * 4)["stop_reason"] is None
+    assert task_health([good] + [bad] * 5)["stop_reason"] == "five_consecutive_task_errors"
+    assert task_health([bad] * 4 + [good, bad])["stop_reason"] is None
+    assert task_health([good])["answer_format_recoveries"] == 1
+    assert task_health([{"status": "error", "metadata": {"resource_accounting": {"budget_accounting_complete": False}}}])["stop_reason"] == "unknown_accounting"

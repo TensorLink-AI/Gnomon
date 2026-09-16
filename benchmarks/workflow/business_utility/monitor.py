@@ -90,6 +90,20 @@ def stop_group(process, known):
     process.wait()
 
 
+def task_health(rows):
+    """Summarize receipts and pause on unknown accounting or repeated errors."""
+    from collections import Counter
+    statuses = dict(Counter(row.get("status", "missing") for row in rows))
+    errors = dict(Counter(row.get("metadata", {}).get("termination", row.get("metadata", {}).get("error", "unspecified"))
+                          for row in rows if row.get("status") == "error"))
+    unknown = any(row.get("metadata", {}).get("resource_accounting", {}).get("budget_accounting_complete") is False
+                  or row.get("metadata", {}).get("error") == "spending_usage_unmeasured" for row in rows)
+    consecutive = len(rows) >= 5 and all(row.get("status") == "error" for row in rows[-5:])
+    return {"recorded": len(rows), "statuses": statuses, "errors": errors,
+            "answer_format_recoveries": sum(row.get("metadata", {}).get("answer_format_recoveries", 0) for row in rows),
+            "stop_reason": "unknown_accounting" if unknown else "five_consecutive_task_errors" if consecutive else None}
+
+
 def run(args):
     from gnomon.product_contract import __version__
     if __version__ != "1.2.0":
@@ -126,6 +140,7 @@ def run(args):
     process = subprocess.Popen(argv, start_new_session=True, preexec_fn=child_limits)
     known, last = {}, cpu_ticks()
     reason = None
+    observed_mtime = None
     try:
         with (output / "resources.jsonl").open("x") as log:
             while process.poll() is None:
@@ -143,6 +158,19 @@ def run(args):
                     reason = "registered_memory_stop"
                     stop_group(process, known)
                     break
+                observations = output / "observations.jsonl"
+                if observations.exists():
+                    stamp = observations.stat().st_mtime_ns
+                    if stamp != observed_mtime:
+                        rows = [json.loads(line) for line in observations.read_text().splitlines()]
+                        health = task_health(rows)
+                        from benchmarks.workflow.provenance import atomic_write_text
+                        atomic_write_text(output / "health.json", json.dumps({**health, "time_unix": time.time()}, indent=2) + "\n")
+                        observed_mtime = stamp
+                        if health["stop_reason"]:
+                            reason = health["stop_reason"]
+                            stop_group(process, known)
+                            break
                 time.sleep(2)
     except BaseException:
         stop_group(process, known)

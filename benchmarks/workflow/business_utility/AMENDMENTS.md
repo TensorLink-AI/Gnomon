@@ -197,3 +197,15 @@ check using the exact corrected message representation. That check starts from
 a supplied malformed string and tests whether the provider accepts the recovery
 history; it is not a spontaneous model failure, scored task or uplift experiment.
 No automatic full evaluation restart is part of this amendment.
+
+A17 (user authorized full rerun with monitoring): run a new, separately labelled
+864-task exploratory sweep on gnomon-arena-roi with A16 recovery and the corrected
+reporting. Freeze before calls; retain identical budgets/model/corpus across arms.
+Monitor resource samples every two seconds and write per-pass health summaries
+when observation files change. Stop on unknown accounting or five consecutive
+error observations, in addition to existing memory/task/cost limits. A stop is
+for investigation, not permission to erase failures or select successful reruns.
+Remaining tasks stay in the denominator. Retain all earlier interrupted runs.
+No automatic budget increases, task retries, model changes or edits to the frozen
+running source. If a fix is needed, preserve evidence and register its scope before
+continuation. This reused corpus remains exploratory, not fresh confirmation.
