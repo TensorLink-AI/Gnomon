@@ -1,0 +1,4 @@
+interface:
+  display_name: "Trade with Gnomon"
+  short_description: "Find cross-asset trends, size risk, and backtest honestly"
+  default_prompt: "Use $trade-with-gnomon to analyse the supplied assets, choose a simple strategy with a risk management plan, and backtest it against baselines."
