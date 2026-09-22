@@ -40,7 +40,7 @@ has not specified, and state that you did.
 | Costs | Equities 5 bps/side, FX 2 bps, futures 3 bps, crypto spot 10 bps, crypto perps 5 bps + funding |
 | Slippage | Equal to one side's cost unless the backtester models it |
 | Leverage | Gross ≤ 1.0× (no leverage) |
-| Risk profile | "Moderate" (see section 5) |
+| Risk profile | "Moderate" (see section 7) |
 | In-sample / out-of-sample | First 70% develop, last 30% held out, touched once |
 
 If the backtesting system has its own API, read its docs first and map: how to
@@ -101,7 +101,7 @@ are trending, is correlation rising (risk-off), which clusters dominate.
 
 ## 4. Check for forecast edge (optional but recommended)
 
-Before trusting any model forecast, backtest it against the random walk:
+Before trusting any price model, backtest it against the random walk:
 
 ```json
 {"name":"gnomon_evaluate","arguments":{"data_ref":"<data_ref>","series_id":"BTC-USD","candidates":["historical_mean"],"baseline":"last_value","horizon":5,"folds":8,"min_history":250,"budget":{"max_providers":4,"max_folds":8,"max_calls":32}}}
@@ -116,7 +116,54 @@ Before trusting any model forecast, backtest it against the random walk:
 - Lower forecast error is not profit. Only the trading backtest decides.
 - Count failed and partial folds; never re-run until a result looks good.
 
-## 5. Choose signals from the regime
+## 5. Forecast volatility and price (Gnomon)
+
+Run the models with `gnomon_forecast` on the same frozen data. Keep every
+`execution_id`: it is the evidence for the trade and what the ledger records.
+
+**A. Volatility forecast — always.** Price direction is close to a random walk;
+volatility clusters and is far more predictable. Use it for sizing.
+
+1. From the frozen prices, compute each asset's rolling realized volatility
+   (e.g. 20-bar σ of log returns, annualized), one value per bar, no lookahead.
+2. Write it to a file (`timestamp,symbol,vol20`) and inspect it like the prices,
+   with the same `as_of`, so it gets its own `data_ref`.
+3. Check the model against the baseline, as in section 4, with
+   `candidates` = your volatility model(s) and `baseline` = `last_value`
+   (last value = "volatility stays where it is").
+4. Forecast over the holding period with the winner, or `last_value` if nothing wins:
+
+```json
+{"name":"gnomon_forecast","arguments":{"provider":"<vol model or last_value>","data_ref":"<vol_data_ref>","series_id":"BTC-USD","horizon":5}}
+```
+
+Use the **mean of the forecast path** as `σ_i` in the sizing formula (section 7),
+taking the larger of forecast and trailing σ so that a forecast alone can never
+increase position size. If the forecast is far above trailing σ (> 1.5×), treat it as a
+high-vol regime. For a quick check without a file, pass the computed values
+directly as `request.history` (give a `series_id` such as `BTC-USD:vol20`).
+
+**B. Price forecast — only if section 4 found an edge.** Forecast with the model
+that beat `last_value`; request quantiles only if `gnomon_capabilities` says the
+provider supports them:
+
+```json
+{"name":"gnomon_forecast","arguments":{"provider":"<winning model>","data_ref":"<data_ref>","series_id":"BTC-USD","horizon":5,"quantiles":[0.1,0.5,0.9]}}
+```
+
+Use it in three limited ways, never as the sole entry signal:
+
+- **Filter:** take a trend/breakout trade only when the forecast return
+  `ln(forecast_end / latest)` points the same way.
+- **Cost check:** skip if the expected move is smaller than 2 × round-trip cost.
+- **Uncertainty:** with quantiles, set the stop no tighter than the 10%/90%
+  band, and halve size when the band is wider than 2 × the ATR stop.
+
+If there was no edge, skip B and say "no price forecast used: no model beat
+last_value". Do not forecast price with `historical_mean` on trending assets —
+it averages the whole history and is far from the current price.
+
+## 6. Choose signals from the regime
 
 Pick at most two signal families, with parameters fixed before testing.
 
@@ -131,7 +178,7 @@ Pick at most two signal families, with parameters fixed before testing.
 
 Use the same rules across all assets of a class; do not tune per asset.
 
-## 6. Risk management plan
+## 7. Risk management plan
 
 Every strategy output must contain this plan with numbers filled in.
 
@@ -139,6 +186,7 @@ Every strategy output must contain this plan with numbers filled in.
 
 ```
 weight_i = (target_portfolio_vol / sqrt(N_eff)) / σ_i          # N_eff = number of correlation clusters
+                                                                # σ_i = max(forecast σ, trailing σ), section 5A
 units_i  = min(weight_i × equity, max_position × equity) / price_i
 ```
 
@@ -177,7 +225,7 @@ trades whose size change is < 10–20% of the position to cut turnover. Never ad
 to a losing position. Fractional Kelly (≤ 0.25 × Kelly) is only a ceiling, never
 the sizing method. Liquidity: position ≤ 1% of average daily volume.
 
-## 7. Backtest protocol
+## 8. Backtest protocol
 
 1. Fix rules, parameters, costs and risk limits **before** running.
 2. Run on the development period with the supplied backtester. Signals at bar t,
@@ -211,7 +259,7 @@ drawdown within the profile's flat-and-review level, and better risk-adjusted
 return than buy-and-hold **or** materially lower drawdown for similar return.
 Otherwise recommend no trade, a smaller allocation, or a different signal family.
 
-## 8. Report
+## 9. Report
 
 Return this structure (Markdown or JSON):
 
@@ -219,6 +267,7 @@ Return this structure (Markdown or JSON):
 Data: source, universe, bars, as_of, repairs/gaps disclosed
 Market read: per-asset trend / vol regime / reversion / cluster; cross-asset summary
 Forecast edge: Gnomon study_id(s), candidate vs last_value, conclusion
+Forecasts: vol and price execution_id(s), provider, horizon, how each was used
 Strategy: signal family, exact rules, parameters, rebalance schedule
 Risk plan: profile, target vol, per-trade risk, heat, position & cluster caps,
            stops, drawdown/daily halts, leverage, asset-class adjustments
