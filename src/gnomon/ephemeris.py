@@ -61,8 +61,12 @@ class EphemerisProvider:
 
     def register_models(self, engine, *, prefix: str = "ephemeris/") -> list[str]:
         """Register currently enabled, healthy explicit models on an engine."""
+        return self.register_catalog(engine, self.models(), prefix=prefix)
+
+    def register_catalog(self, engine, rows, *, prefix="ephemeris/") -> list[str]:
+        """Register a validated live or saved catalog without network access."""
         registered = []
-        for row in self.models():
+        for row in rows:
             if row.get("enabled") is not True or row.get("healthy") is not True:
                 continue
             provider = EphemerisProvider(self.transport.base_url, model=row["name"],

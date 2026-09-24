@@ -128,6 +128,11 @@ class ResultReferences:
         summary = {key: value[key] for key in scalar_keys
             if key in value and type(value[key]) in (str, int, float, bool, type(None))
             and len(encode(value[key]).encode("utf-8")) <= 160}
+        onboarding = value.get('onboarding', {}).get('ephemeris') if isinstance(value.get('onboarding'), dict) else None
+        if isinstance(onboarding, dict):
+            summary['onboarding'] = {'ephemeris': {key: onboarding[key] for key in (
+                'optional', 'signup_url', 'connection_status', 'configured_in_session',
+                'connect_command', 'refresh_models_command', 'offer_policy', 'local_models_require_account') if key in onboarding}}
         readiness = value.get("routing_readiness")
         if isinstance(readiness, dict):
             summary["routing_readiness"] = {key: readiness[key] for key in (
@@ -171,7 +176,7 @@ class ResultReferences:
         # Preserve completion/coverage even if optional identifiers or rankings
         # consume the remaining response budget. Full evidence is still retained.
         essential = {key: summary[key] for key in (
-            "status", "operation", "scoring_status", "complete", "allow_partial", "routing_readiness",
+            "status", "operation", "scoring_status", "complete", "allow_partial", "routing_readiness", "onboarding",
             "fallback_used", "evidence_based", "routing_status", "recommendation", "reason", "next_step",
             "study_evidence_scope", 'operation_succeeded', 'task_completed', 'evidence_complete',
             'point_count', 'timestamp_count', 'horizon', 'cache_status', 'result_contract_validated') if key in summary}

@@ -76,6 +76,15 @@ def build_parser() -> argparse.ArgumentParser:
     errors.add_argument('--expanded-errors', dest='compact_errors', action='store_false', help='Include duplicate legacy rejection details')
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("schemas", help="List command and operator configuration schema entry points")
+    connect = commands.add_parser("connect", help="Optionally connect Ephemeris; show signup and save a private credential")
+    connect.add_argument("service", choices=["ephemeris"])
+    actions = connect.add_mutually_exclusive_group()
+    actions.add_argument("--status", action="store_true", help="Show local setup status without network access")
+    actions.add_argument("--refresh-models", action="store_true", help="Refresh the individual-model catalog with an authenticated GET; no forecast")
+    actions.add_argument("--check", action="store_true", help="Verify the saved key with an authenticated balance GET; no forecast")
+    actions.add_argument("--disconnect", action="store_true", help="Remove the saved local key; does not revoke the server key")
+    actions.add_argument("--token-stdin", action="store_true", help="Read a key from a secure stdin source; never pass keys as arguments")
+    connect.add_argument("--replace", action="store_true", help="Explicitly replace the saved key")
     caps = commands.add_parser("capabilities", help="List registered providers and enabled tools")
     caps.add_argument("--output", choices=("json",), default="json")
     caps.add_argument("--providers-config", help=_CONFIG_HELP)
@@ -463,6 +472,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "forecast":
             args.command = "infer"
         _validate_cli_args(args)
+        if args.command == "connect":
+            from .onboarding import connect
+            if args.replace and (args.status or args.check or args.disconnect or args.refresh_models):
+                raise _UsageError('--replace is only for saving a new key.', 'gnomon connect')
+            print(json.dumps(connect(args), indent=2))
+            return 0
         if args.command == "schemas":
             print(json.dumps({"schema_version": "1", "status": "ok", "schemas": _SCHEMA_COMMANDS}, indent=2))
             return 0
