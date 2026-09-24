@@ -1,0 +1,13 @@
+# Export these environment variables before running Gnomon:
+# EPHEMERIS_BASE_URL=https://ephemeris.cascade.industries/api/v1
+# EPHEMERIS_API_TOKEN=<your gateway API key>
+# Gnomon does not automatically load .env files.
+schema_version = 1
+
+[providers.ephemeris]
+kind = "ephemeris"
+base_url_env = "EPHEMERIS_BASE_URL"
+token_env = "EPHEMERIS_API_TOKEN"
+api_format = "gateway"
+mode = "route"
+discover = true
