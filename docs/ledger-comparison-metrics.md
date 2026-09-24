@@ -79,10 +79,6 @@ superiority, causal explanations or a mandate to select a provider. A small
 recent window may disagree with the longer window through noise or a real
 change; the caller still needs to assess relevance.
 
-The development experiment and its 20% improvement target are documented in
-[the protocol](../benchmarks/ledger_optimization/PLAN.md). Current results are
-development evidence; no 20% or held-out superiority claim has been established.
-
 ## Retrieve comparable experience without selecting a favorable subset
 
 `TemporalLedger.retrieve_context(...)` and ledger operation `retrieve_context`

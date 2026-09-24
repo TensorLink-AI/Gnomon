@@ -49,20 +49,12 @@ decision or lesson IDs; `data_ref` and `result_ref` expire with the MCP process.
 Hermes memory should contain concise context and retrieval references. Query the
 ledger again before treating an old ranking or lesson as current evidence.
 
-## Evaluation scope
+## Discovery and limits
 
-The isolated pilot under `benchmarks/hermes_ledger` uses real Hermes AIAgent,
-native file/terminal/skill/memory tools, Gnomon stdio MCP and Engy inference. A
-fresh process per checkpoint loads the same arm's persistent Hermes home.
-The control has the same raw records and a capable SQLite/Python reference query.
-This compares ledger-plus-skill against that control, not skill-only efficacy or
-forecast superiority. See the protocol and retained reports for exact versions
-and outcomes; MCP availability alone does not establish a performance benefit.
-
-The [first measured results](../benchmarks/hermes_ledger/RESULTS.md) did not show
-an advantage over the supplied SQL helper. They also found that Hermes
-`v2026.9.7` removes Gnomon's operation-schema branches from deferred tool
-descriptions. If a ledger description shows empty fields, inspect
+If an agent host omits operation-schema branches from tool descriptions, inspect
 `gnomon ledger --schema` through the CLI rather than guessing the operation.
 Context-filtered comparisons need `compare_context`; dropping that filter
 answers a different question even when the call succeeds.
+
+This integration supplies verifiable evidence and does not establish a
+forecasting or agent-performance advantage.
