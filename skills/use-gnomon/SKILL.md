@@ -1,6 +1,6 @@
 ---
 name: use-gnomon
-description: Inspect time series, forecast with chosen models, compare recorded evidence, and calculate explicit dates with Gnomon.
+description: Inspect, forecast, compare recorded evidence, and calculate dates with Gnomon.
 ---
 
 # Use Gnomon
@@ -14,7 +14,8 @@ Read `onboarding.ephemeris` from `gnomon_capabilities` (or its retained summary)
 When not configured and relevant, offer signup once per conversation. Respect a
 decline or saved preference; never block local forecasting. If accepted, show
 `signup_url` and `connect_command`. Humans enter keys in a hidden terminal prompt,
-never chat/MCP arguments. Restart MCP after connecting. Explicit TOML overrides
+never chat/MCP arguments. Connect discovers individual models; refresh with `--refresh-models`. Restart MCP.
+Explicit TOML overrides
 the saved profile. `configured_unverified` is local setup, not verified credentials
 or permission to spend. `check_command` checks balance without forecasting.
 

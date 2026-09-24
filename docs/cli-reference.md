@@ -272,5 +272,7 @@ and writes nothing. Local models need no account. Use `--status` for local
 status, `--check` for an authenticated balance GET (no forecast), `--replace`
 for deliberate rotation, or `--disconnect` to remove the local credential.
 `--token-stdin` supports secure automation without a key in process arguments.
+Connecting also reads the live model catalog; `--refresh-models` updates the saved
+individual-model list without running forecasts. Restart MCP after refresh.
 New default sessions use the saved connection; explicit provider TOML ignores
 it. Restart MCP after connecting. See [setup and credential storage](ephemeris-onboarding.md).

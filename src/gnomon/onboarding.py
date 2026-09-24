@@ -1,7 +1,10 @@
-"""Optional user-authorized Ephemeris setup. Discovery makes no network calls."""
+"""Optional user-authorized Ephemeris setup. Startup is offline; explicit connection/refresh reads the model catalog."""
 from __future__ import annotations
 
 import getpass
+import json
+import re
+from datetime import datetime, timezone
 import os
 from pathlib import Path
 import stat
@@ -84,9 +87,10 @@ def save_token(token, *, replace=False):
                 raise ForecastAdapterError('An Ephemeris connection already exists. Use --replace deliberately.') from None
     finally:
         tmp.unlink(missing_ok=True)
+    catalog_path().unlink(missing_ok=True)  # Rotated credentials must rediscover their catalog.
 
 
-def connection_info(provider_names=(), *, saved=False):
+def connection_info(provider_names=(), *, saved=False, catalog=None):
     names = sorted(provider_names)
     return {
         'optional': True, 'signup_url': SIGNUP_URL,
@@ -96,11 +100,86 @@ def connection_info(provider_names=(), *, saved=False):
         'local_models_require_account': False,
         'connect_command': 'gnomon connect ephemeris',
         'check_command': 'gnomon connect ephemeris --check',
+        'refresh_models_command': 'gnomon connect ephemeris --refresh-models',
+        'model_catalog': catalog or {'status': 'not_loaded'},
         'offer_policy': 'once_per_conversation_if_not_configured; respect a decline; do not block local forecasting',
         'agent_guidance': 'Offer optional Ephemeris models once. If the user wants them, show signup_url and connect_command. Never request an API key in chat or tool arguments. Configuration is not authorization to spend.',
         'restart_mcp_after_connect': True,
         'provider_calls': 0,
     }
+
+
+def catalog_path():
+    return credential_path().with_name('ephemeris-models.json')
+
+
+def clean_catalog(rows):
+    if not isinstance(rows, list) or len(rows) > 128:
+        raise ForecastAdapterError('Ephemeris catalog must contain at most 128 models.')
+    clean, seen = [], set()
+    for row in rows:
+        name = row.get('name') if isinstance(row, dict) else None
+        if (not isinstance(name, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,127}', name)
+                or name in {'ensemble', 'route'} or name in seen):
+            raise ForecastAdapterError('Ephemeris catalog contains invalid, duplicate or reserved model names.')
+        seen.add(name)
+        clean.append({'name': name, **{key: row.get(key) is True for key in ('enabled', 'healthy', 'covariates')}})
+    return clean
+
+
+def load_catalog():
+    path = catalog_path()
+    if not path.exists() and not path.is_symlink():
+        return {'status': 'not_discovered', 'models': []}
+    try:
+        _check_private(path.parent, directory=True)
+        _check_private(path)
+        fd = os.open(path, os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0))
+        with os.fdopen(fd) as handle:
+            data = json.loads(handle.read(65537))
+        rows = clean_catalog(data['models'])
+        fetched = data['retrieved_at']
+        if not isinstance(fetched, str) or len(fetched) > 64:
+            raise ValueError('invalid catalog date')
+        return {'status': 'cached', 'models': rows, 'retrieved_at': fetched,
+                'availability': 'last_discovery_only; forecast-time failures are not substituted'}
+    except (OSError, ValueError, KeyError, TypeError, ForecastAdapterError):
+        return {'status': 'unavailable', 'models': [], 'guidance': 'Run gnomon connect ephemeris --refresh-models.'}
+
+
+def refresh_models():
+    if not saved_connection():
+        raise ForecastAdapterError('No saved Ephemeris connection. Run gnomon connect ephemeris first.')
+    from .ephemeris import EphemerisProvider
+    from .http_transport import JSONTransport
+    provider = EphemerisProvider(GATEWAY_URL, api_format='gateway',
+                                transport=JSONTransport(GATEWAY_URL, token_file=credential_path()))
+    rows = clean_catalog(provider.models())
+    data = {'models': rows, 'retrieved_at': datetime.now(timezone.utc).isoformat()}
+    path = catalog_path()
+    if path.exists() or path.is_symlink():
+        _check_private(path)
+    fd, name = tempfile.mkstemp(prefix='.ephemeris-models-', dir=path.parent)
+    tmp = Path(name)
+    try:
+        with os.fdopen(fd, 'w') as handle:
+            json.dump(data, handle)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)
+    return {'status': 'refreshed', 'retrieved_at': data['retrieved_at'],
+            'providers': ['ephemeris/' + r['name'] for r in rows if r['enabled'] and r['healthy']],
+            'forecast_calls': 0, 'guidance': 'Restart MCP to load the refreshed individual models.'}
+
+
+def saved_info():
+    saved = saved_connection()
+    catalog = load_catalog() if saved else {'status': 'not_discovered', 'models': []}
+    summary = {key: value for key, value in catalog.items() if key != 'models'}
+    summary['providers'] = ['ephemeris/' + r['name'] for r in catalog['models'] if r['enabled'] and r['healthy']]
+    return connection_info(saved=saved, catalog=summary)
 
 
 def register_saved(session):
@@ -113,14 +192,22 @@ def register_saved(session):
         session.engine.register(name, EphemerisProvider(GATEWAY_URL, mode=mode,
                                 api_format='gateway', transport=transport), lifecycle='pretrained')
         session._ephemeris_providers.add(name)
+    catalog = load_catalog()
+    session._ephemeris_catalog = {key: value for key, value in catalog.items() if key != 'models'}
+    provider = EphemerisProvider(GATEWAY_URL, api_format='gateway',
+                                transport=JSONTransport(GATEWAY_URL, token_file=credential_path()))
+    session._ephemeris_providers.update(provider.register_catalog(session.engine, catalog['models']))
 
 
 def connect(args):
     if args.disconnect:
         if saved_connection():
             credential_path().unlink()
+        catalog_path().unlink(missing_ok=True)
         return {'status': 'ok', 'connection_status': 'not_configured',
                 'guidance': 'Local credential removed. Restart MCP. Revoke the API key on Ephemeris to invalidate other copies.'}
+    if args.refresh_models:
+        return {'status': 'ok', 'model_catalog': refresh_models()}
     if args.check:
         if not saved_connection():
             raise ForecastAdapterError('No saved Ephemeris connection. Run gnomon connect ephemeris first.')
@@ -129,13 +216,13 @@ def connect(args):
         return {'status': 'ok', 'connection_status': 'verified', 'balance_mc': response.get('balance_mc'),
                 'forecast_calls': 0, 'guidance': 'Authenticated balance check only; no forecast executed.'}
     if args.status:
-        return {'status': 'ok', 'ephemeris': connection_info(saved=saved_connection())}
+        return {'status': 'ok', 'ephemeris': saved_info()}
     if not args.token_stdin and not sys.stdin.isatty():
-        return {'status': 'ok', 'ephemeris': connection_info(saved=saved_connection()),
+        return {'status': 'ok', 'ephemeris': saved_info(),
                 'guidance': 'A human can sign up at signup_url, then run connect_command in a terminal for hidden key entry. No files changed.'}
     if saved_connection() and not args.replace:
-        return {'status': 'ok', 'ephemeris': connection_info(saved=True),
-                'guidance': 'Already configured. Use --check to verify, or --replace to change the key.'}
+        return {'status': 'ok', 'ephemeris': saved_info(),
+                'guidance': 'Already configured. Use --refresh-models for individual models, --check to verify, or --replace to change the key.'}
     if args.token_stdin:
         token = sys.stdin.read(4098).strip()
     else:
@@ -151,6 +238,11 @@ def connect(args):
         if not token:
             return {'status': 'ok', 'connection_status': 'cancelled', 'credential_saved': False}
     save_token(token, replace=args.replace)
+    try:
+        catalog = refresh_models()
+    except (ForecastAdapterError, OSError):
+        catalog = {'status': 'failed', 'providers': [], 'forecast_calls': 0,
+                   'guidance': 'Credential saved; model discovery failed. Run gnomon connect ephemeris --refresh-models. Router and ensemble remain configured; authentication is unverified.'}
     return {'status': 'ok', 'credential_saved': True,
-            'ephemeris': connection_info(saved=True),
-            'guidance': 'Saved locally with private permissions. New CLI/default Python sessions load ephemeris and ephemeris/ensemble. Restart MCP to load them. No network request or forecast was made.'}
+            'ephemeris': connection_info(saved=True, catalog=catalog),
+            'guidance': 'Saved locally with private permissions. New CLI/default Python sessions load ephemeris and ephemeris/ensemble. Discovered individual models are also loaded. Restart MCP. Only model catalog discovery was attempted; no forecast was made.'}

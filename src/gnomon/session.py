@@ -527,7 +527,7 @@ class GnomonSession:
         return {"schema_version": "1", "status": "ok", "runtime_version": __version__,
                 "build": build_info(),
                 "product_contract": product_claims(),
-                "onboarding": {"ephemeris": connection_info(self._ephemeris_providers)},
+                "onboarding": {"ephemeris": connection_info(self._ephemeris_providers, catalog=getattr(self, '_ephemeris_catalog', None))},
                 "interfaces": {"python": True, "cli": True, "mcp": True},
                 "operation_interfaces": {"routing": {'cli': True, 'python': True, 'mcp': self.ledger is not None},
                     "ledger": {'cli': True, 'python': True, 'mcp': self.ledger is not None},

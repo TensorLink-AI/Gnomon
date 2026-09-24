@@ -14,10 +14,13 @@ from gnomon.forecast_adapter import ForecastAdapterError
 from gnomon.http_transport import JSONTransport
 from gnomon import onboarding
 
+_REAL_CALL = JSONTransport.call
+
 
 @pytest.fixture(autouse=True)
 def profile(tmp_path, monkeypatch):
     monkeypatch.setenv('XDG_CONFIG_HOME', str(tmp_path/'config'))
+    monkeypatch.setattr(JSONTransport, 'call', Mock(return_value=[]))
     return onboarding.credential_path()
 
 
@@ -47,7 +50,7 @@ def test_noninteractive_guidance_never_reads_secret_or_writes(profile, monkeypat
 def test_connect_save_auto_load_and_explicit_config_override(profile, monkeypatch, capsys, tmp_path):
     token = 'test-token-not-a-real-credential'
     monkeypatch.setattr(sys, 'stdin', io.StringIO(token+'\n'))
-    monkeypatch.setattr(JSONTransport, 'call', Mock(side_effect=AssertionError('network')))
+    monkeypatch.setattr(JSONTransport, 'call', Mock(return_value=[]))
     assert main(['connect', 'ephemeris', '--token-stdin']) == 0
     out = capsys.readouterr().out
     assert token not in out
@@ -95,7 +98,8 @@ def test_invalid_secret_never_written(profile, token):
     assert not profile.exists()
 
 
-def test_saved_token_only_used_in_authorization_header(profile):
+def test_saved_token_only_used_in_authorization_header(profile, monkeypatch):
+    monkeypatch.setattr(JSONTransport, "call", _REAL_CALL)
     onboarding.save_token('private-test-token')
     transport = JSONTransport(onboarding.GATEWAY_URL, token_file=profile)
     response = Mock();response.read.return_value = b'{"balance_mc":"1234"}'
@@ -170,3 +174,93 @@ def test_symlinked_directory_and_relative_xdg_rejected(profile, tmp_path, monkey
     assert not (target/'ephemeris.token').exists()
     monkeypatch.setenv('XDG_CONFIG_HOME','relative')
     with pytest.raises(ForecastAdapterError):onboarding.credential_path()
+
+
+def test_connect_discovers_individual_models_and_startup_is_offline(profile, monkeypatch, capsys):
+    rows=[{'name':'chronos2','enabled':True,'healthy':True,'covariates':True,'private_metadata':'do-not-cache'},
+          {'name':'tirex2','enabled':True,'healthy':True},
+          {'name':'offline','enabled':True,'healthy':False},
+          {'name':'disabled','enabled':False,'healthy':True}]
+    call=Mock(return_value={'models':rows});monkeypatch.setattr(JSONTransport,'call',call)
+    monkeypatch.setattr(sys,'stdin',io.StringIO('catalog-test-token'))
+    assert main(['connect','ephemeris','--token-stdin'])==0
+    info=json.loads(capsys.readouterr().out)['ephemeris']
+    assert info['model_catalog']['providers']==['ephemeris/chronos2','ephemeris/tirex2']
+    call.assert_called_once_with('/models',allow_list=True)
+    assert 'do-not-cache' not in onboarding.catalog_path().read_text()
+    assert onboarding.catalog_path().stat().st_mode & 0o777==0o600
+    monkeypatch.setattr(JSONTransport,'call',Mock(side_effect=AssertionError('startup network')))
+    with GnomonSession.from_config() as s:
+        caps=s.capabilities()
+        assert set(caps['onboarding']['ephemeris']['providers'])=={'ephemeris','ephemeris/ensemble','ephemeris/chronos2','ephemeris/tirex2'}
+        assert caps['providers']['ephemeris/chronos2']['capabilities']['past_covariates'] is True
+        assert caps['providers']['ephemeris/tirex2']['capabilities']['past_covariates'] is False
+        assert caps['onboarding']['ephemeris']['model_catalog']['status']=='cached'
+
+
+def test_refresh_preserves_catalog_on_failure_then_replaces_it(profile, monkeypatch, capsys):
+    from gnomon.http_transport import InferenceHTTPError
+    onboarding.save_token('catalog-test-token')
+    monkeypatch.setattr(JSONTransport,'call',Mock(return_value=[{'name':'model-a','enabled':True,'healthy':True}]))
+    onboarding.refresh_models();before=onboarding.catalog_path().read_bytes()
+    monkeypatch.setattr(JSONTransport,'call',Mock(side_effect=InferenceHTTPError('service returned HTTP 502',status=502)))
+    assert main(['connect','ephemeris','--refresh-models'])==2
+    assert onboarding.catalog_path().read_bytes()==before
+    monkeypatch.setattr(JSONTransport,'call',Mock(return_value=[{'name':'model-b','enabled':True,'healthy':True}]))
+    assert main(['connect','ephemeris','--refresh-models'])==0
+    with GnomonSession.from_config() as s:
+        assert 'ephemeris/model-b' in s.capabilities()['providers']
+        assert 'ephemeris/model-a' not in s.capabilities()['providers']
+    assert main(['connect','ephemeris','--disconnect'])==0
+    assert not onboarding.catalog_path().exists()
+
+
+def test_connect_discovery_failure_keeps_key_and_reports_recovery(profile, monkeypatch, capsys):
+    from gnomon.http_transport import InferenceHTTPError
+    monkeypatch.setattr(JSONTransport,'call',Mock(side_effect=InferenceHTTPError('service returned HTTP 401',status=401)))
+    monkeypatch.setattr(sys,'stdin',io.StringIO('bad-credential'))
+    assert main(['connect','ephemeris','--token-stdin'])==0
+    answer=json.loads(capsys.readouterr().out)
+    assert answer['credential_saved']
+    assert answer['ephemeris']['model_catalog']['status']=='failed'
+    assert 'bad-credential' not in json.dumps(answer)
+    with GnomonSession.from_config() as s:
+        assert s.capabilities()['onboarding']['ephemeris']['providers']==['ephemeris','ephemeris/ensemble']
+
+
+@pytest.mark.parametrize('names',[['ensemble'],['../evil'],['same','same']])
+def test_reserved_invalid_or_duplicate_catalog_names_rejected(profile, monkeypatch, names):
+    onboarding.save_token('catalog-test-token')
+    monkeypatch.setattr(JSONTransport,'call',Mock(return_value=[{'name':n,'enabled':True,'healthy':True} for n in names]))
+    with pytest.raises(ForecastAdapterError):onboarding.refresh_models()
+    assert not onboarding.catalog_path().exists()
+
+
+def test_invalid_saved_catalog_does_not_block_local_models(profile):
+    onboarding.save_token('catalog-test-token')
+    path=onboarding.catalog_path();path.write_text('invalid json');path.chmod(0o600)
+    with GnomonSession.from_config() as s:
+        assert s.capabilities()['onboarding']['ephemeris']['model_catalog']['status']=='unavailable'
+        assert s.forecast('last_value',{'history':[1,2],'horizon':1})['result']['point']==(2,)
+
+
+def test_discovered_model_executes_explicitly_without_fallback(profile, monkeypatch):
+    from gnomon.http_transport import InferenceHTTPError
+    onboarding.save_token('catalog-test-token')
+    monkeypatch.setattr(JSONTransport,'call',Mock(return_value=[{'name':'chronos2','enabled':True,'healthy':True}]))
+    onboarding.refresh_models()
+    reply={'forecasts':[{'quantiles':{'0.5':[3.0,4.0]}}],
+           'meta':{'mode':'explicit','models_used':['chronos2']}}
+    call=Mock(return_value=reply);monkeypatch.setattr(JSONTransport,'call',call)
+    with GnomonSession.from_config() as session:
+        result=session.forecast('ephemeris/chronos2',{'history':[1,2,3],'horizon':2})
+        assert result['result']['point']==(3.,4.)
+        assert call.call_args.args[1]['mode']=='explicit'
+        assert call.call_args.args[1]['model']=='chronos2'
+        call.reset_mock();call.side_effect=InferenceHTTPError('service returned HTTP 503',status=503)
+        from gnomon.contracts import GnomonError
+        with pytest.raises(GnomonError) as failure:
+            session.forecast('ephemeris/chronos2',{'history':[1,2,3],'horizon':2})
+        assert failure.value.details['provider']=='ephemeris/chronos2'
+        assert call.call_count==1
+        assert call.call_args.args[1]['model']=='chronos2'

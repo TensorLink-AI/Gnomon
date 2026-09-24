@@ -132,7 +132,7 @@ class ResultReferences:
         if isinstance(onboarding, dict):
             summary['onboarding'] = {'ephemeris': {key: onboarding[key] for key in (
                 'optional', 'signup_url', 'connection_status', 'configured_in_session',
-                'connect_command', 'offer_policy', 'local_models_require_account') if key in onboarding}}
+                'connect_command', 'refresh_models_command', 'offer_policy', 'local_models_require_account') if key in onboarding}}
         readiness = value.get("routing_readiness")
         if isinstance(readiness, dict):
             summary["routing_readiness"] = {key: readiness[key] for key in (

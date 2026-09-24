@@ -19,6 +19,7 @@ local credential file, not an encrypted vault: protect your OS account and
 exclude the file from shared backups. The key is never printed in output.
 
 ```sh
+gnomon connect ephemeris --refresh-models # Update individual models; no forecast
 gnomon connect ephemeris --status     # Local configuration status; no network
 gnomon connect ephemeris --check      # Authenticated balance GET; no forecast
 gnomon connect ephemeris --replace    # Hidden prompt to rotate the local key
@@ -31,8 +32,19 @@ literal token in a shell command, transcript, repository or MCP argument.
 
 ## CLI, Python and MCP
 
-After setup, new CLI sessions and `GnomonSession.from_config()` load `ephemeris`
-(router) and `ephemeris/ensemble`, without catalog calls or paid forecasts.
+Connecting saves the key, then makes an authenticated `/models` GET. It caches
+model names and capability flags, not arbitrary catalog metadata. New CLI
+sessions and `GnomonSession.from_config()` load `ephemeris` (router),
+`ephemeris/ensemble`, and healthy enabled individual models such as
+`ephemeris/chronos2` from this saved catalog. Startup makes no catalog calls or
+paid forecasts. Names come from the service, not a hardcoded model list.
+
+Run `gnomon connect ephemeris --refresh-models` and restart MCP to update the
+list. Availability is as of discovery, not a promise of current health; Gnomon
+does not substitute another model when an explicit model fails. A failed
+refresh preserves the old catalog. Failed discovery on a new/rotated key leaves
+router and ensemble configured with a warning. Disconnect removes the saved
+catalog as well as the key.
 Restart a running MCP server to load them. This works with `gnomon mcp serve`
 and requires no additional TOML. An explicitly supplied `--providers-config`
 or Python TOML path ignores the saved connection: operator configuration stays
