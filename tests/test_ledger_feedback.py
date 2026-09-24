@@ -286,6 +286,63 @@ def test_history_does_not_choose_best_retry_or_mix_task_configurations(setup):
     assert result["status"] == "incompatible_evidence" and result["models"] == []
 
 
+@pytest.mark.parametrize("retry_history", [(1, 2), (99, 2)])
+@pytest.mark.parametrize("recorded_day", [3, 8])
+def test_late_retries_do_not_poison_prospective_origin(setup, retry_history, recorded_day):
+    ledger, engine = setup
+    original_ids = [engine.forecast(p, request()).execution_id for p in ("a", "b")]
+    set_clock(ledger, recorded_day)
+    late = [engine.forecast(p, request(history=retry_history)).execution_id for p in ("a", "b")]
+    set_clock(ledger, 8)
+    ledger.append_actual(actuals=[observation(3), observation(4)])
+    with sqlite3.connect(ledger.path) as connection:
+        before = list(connection.iterdump())
+    result = history(ledger)
+    with sqlite3.connect(ledger.path) as connection:
+        assert list(connection.iterdump()) == before
+    assert result["matched_origins"] == 1
+    assert [m["execution_id"] for m in result["origins"][0]["models"]] == original_ids
+    assert result["duplicates_ignored"] == 0
+    excluded = [e for e in result["excluded"] if e["reason"] == "forecast_not_recorded_before_target"]
+    assert {e["execution_id"] for e in excluded} == set(late)
+    assert all(e["forecast_recorded_at"] >= e["first_target"] for e in excluded)
+    assert result["provider_calls"] == 0
+
+
+def test_visible_late_retry_does_not_mask_genuine_prospective_ambiguity(setup):
+    ledger, engine = setup
+    for p in ("a", "b"):
+        engine.forecast(p, request())
+    set_clock(ledger, 2, 13)
+    engine.forecast("a", request(history=(99, 2)))
+    set_clock(ledger, 8)
+    engine.forecast("a", request(history=(77, 2)))
+    ledger.append_actual(actuals=[observation(3), observation(4)])
+    result = history(ledger)
+    assert result["matched_origins"] == 0
+    assert any(e["reason"] == "ambiguous_inputs_at_origin" for e in result["excluded"])
+    assert any(e["reason"] == "forecast_not_recorded_before_target" for e in result["excluded"])
+
+
+@pytest.mark.parametrize("late", [False, True])
+def test_provider_identity_conflict_is_checked_only_among_eligible_runs(setup, late):
+    ledger, engine = setup
+    original = engine.forecast("a", request())
+    engine.forecast("b", request())
+    set_clock(ledger, 8 if late else 2, 13)
+    changed = {**original.provider_identity, "deterministic": False}
+    ledger.record_execution(replace(original, execution_id="changed-identity", provider_identity=changed))
+    set_clock(ledger, 8, 14)
+    ledger.append_actual(actuals=[observation(3), observation(4)])
+    result = history(ledger)
+    assert result["matched_origins"] == int(late)
+    if late:
+        assert any(e["execution_id"] == "changed-identity" and
+                   e["reason"] == "forecast_not_recorded_before_target" for e in result["excluded"])
+    else:
+        assert any(e["reason"] == "provider_identity_changed" for e in result["excluded"])
+
+
 @pytest.mark.parametrize("kwargs", [{"providers": {"a": "latest", "b": "v1"}}, {"providers": {"a": "v1"}},
     {"providers": []}, {"providers": {"a": None, "b": "v1"}}, {"series_id": "__default__"},
     {"start": timestamp(5)}, {"end": timestamp(10)}, {"horizon": True}, {"recorded_as_of": "2025-01-09"}])

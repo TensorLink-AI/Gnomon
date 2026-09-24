@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 from datetime import datetime, timedelta
 from statistics import mean
 
@@ -9,6 +10,7 @@ from .contracts import GnomonError
 from .forecast_adapter import ForecastAdapterError
 from .ledger import _METRIC_VERSION, _bounded, _json, _time
 from .temporal import is_regular_step, normalise_frequency
+from .evidence_summary import comparison_summary, validate_comparison_options
 
 
 def _grid_shape(req):
@@ -31,7 +33,25 @@ def _grid_shape(req):
     return {"frequency": frequency, "origin_lag_microseconds": (origin - history_end) // timedelta(microseconds=1)}
 
 
-def compare_history(ledger, *, series_id, horizon, providers, start, end, source_as_of, recorded_as_of, unit, context_filters=None):
+def compare_history(ledger, *, series_id, horizon, providers, start, end, source_as_of, recorded_as_of, unit,
+                    context_filters=None, metric='mae', recent_origins=4, negative_predictions='reject',
+                    _connection=None, _time_cache=None, _execution_cache=None):
+    # Context retrieval visits nested cohorts in the same read snapshot. Reuse
+    # immutable parsing work only inside that call, never across ledger reads.
+    times = {} if _time_cache is None else _time_cache
+    executions = {} if _execution_cache is None else _execution_cache
+
+    def instant(value):
+        if not isinstance(value, str):
+            return _time(value)
+        if value in times:
+            return times[value]
+        result = _time(value)
+        if len(times) < 4096:
+            times[value] = result
+        return result
+
+    validate_comparison_options(metric, recent_origins, negative_predictions)
     if not isinstance(series_id, str) or not series_id or series_id == "__default__":
         raise ForecastAdapterError("comparison requires an explicit stable series_id", details={
             "rejected_fields": ["series_id"], "choices_required": {"series_id": "Select the stable named series used in recorded forecasts; __default__ is not eligible."}})
@@ -43,20 +63,24 @@ def compare_history(ledger, *, series_id, horizon, providers, start, end, source
         for p, v in providers.items()
     ):
         raise ForecastAdapterError("providers must map 2 to 8 distinct names to explicit revisions")
-    start, end, source, recorded = map(_time, (start, end, source_as_of, recorded_as_of))
+    start, end, source, recorded = map(instant, (start, end, source_as_of, recorded_as_of))
     if start > end or end > source:
         raise ForecastAdapterError("require start <= end <= source_as_of")
     answer = {"status": "insufficient_evidence", "series_id": series_id, "unit": unit, "horizon": horizon,
               "providers": providers, "start": start, "end": end, "source_as_of": source, "recorded_as_of": recorded,
-              "metric_version": _METRIC_VERSION, "aggregation": "mean_mae_over_complete_matched_origins",
+              "metric_version": _METRIC_VERSION if metric == 'mae' else 'rmsle/1',
+              "metric": metric, "aggregation": f"mean_{metric}_over_complete_matched_origins",
+              "negative_predictions": negative_predictions if metric == 'rmsle' else 'not_applicable',
+              "negative_actuals": "reject_origin" if metric == 'rmsle' else 'allowed',
               "matched_origins": 0, "n": 0, "models": [], "origins": [], "excluded": [], "duplicates_ignored": 0,
               "provider_calls": 0, "action_authorized": False, "model_identity_basis": "provider_declared_not_independently_attested",
               "next_step": "collect_matched_forecasts_with_explicit_budget"}
     origin_expr = "COALESCE(json_extract(p.payload_json, '$.request.cutoff'), " \
                   "json_extract(p.payload_json, '$.request.timestamps[#-1]'))"
-    with ledger._connect() as conn:
+    with ledger._connect() if _connection is None else nullcontext(_connection) as conn:
         # One SQLite read snapshot: every origin/candidate sees the same revisions.
-        conn.execute("BEGIN")
+        if _connection is None:
+            conn.execute("BEGIN")
         rows = conn.execute("SELECT e.execution_id, " + origin_expr + " AS origin, "
             "EXISTS(SELECT 1 FROM study_executions s JOIN studies t USING(study_id) "
             "WHERE s.execution_id=e.execution_id AND t.recorded_at<=?) AS study_run "
@@ -73,9 +97,11 @@ def compare_history(ledger, *, series_id, horizon, providers, start, end, source
             contexts = context_records(conn, series_id, recorded, start, end)
         groups = {}
         for row in rows:
-            run = ledger._execution(conn, row["execution_id"])
+            if row['execution_id'] not in executions:
+                executions[row['execution_id']] = ledger._execution(conn, row['execution_id'])
+            run = executions[row['execution_id']]
             try:
-                origin = _time(row["origin"])
+                origin = instant(row["origin"])
             except ForecastAdapterError:
                 answer["excluded"].append({"execution_id": run["execution_id"], "reason": "timezone_unresolved"})
                 continue
@@ -83,8 +109,24 @@ def compare_history(ledger, *, series_id, horizon, providers, start, end, source
                 continue
             reason = "not_production_evidence" if row["study_run"] else \
                      "provider_version_mismatch" if run["revision"] != providers[run["provider"]] else None
+            # Ex-ante eligibility belongs to each execution, before grouping
+            # retries. A later backtest must not invalidate an earlier forecast
+            # merely because it has a different input fingerprint.
+            first_target = None
+            if reason is None:
+                try:
+                    targets = [instant(t) for t in run["request"]["future_timestamps"]]
+                    first_target = min(targets) if targets else None
+                    if first_target is not None and run["recorded_at"] >= first_target:
+                        reason = "forecast_not_recorded_before_target"
+                except ForecastAdapterError:
+                    pass  # Existing validation retains unresolved-time diagnostics.
             if reason:
-                answer["excluded"].append({"execution_id": run["execution_id"], "origin": origin, "reason": reason})
+                answer["excluded"].append({"execution_id": run["execution_id"], "origin": origin, "reason": reason,
+                    **({"provider": run["provider"], "forecast_recorded_at": run["recorded_at"],
+                        "first_target": first_target,
+                        "guidance": "This execution was recorded at or after its first target; use an eligible prospective execution. Existing forecasts remain immutable."}
+                       if reason == "forecast_not_recorded_before_target" else {})})
                 continue
             groups.setdefault(origin, {}).setdefault(run["provider"], []).append(run)
         answer["observed_origins"] = len(groups)
@@ -105,8 +147,8 @@ def compare_history(ledger, *, series_id, horizon, providers, start, end, source
                 if not identity or identity.get("lifecycle") not in {"stateless", "fresh_per_request", "pretrained"}:
                     reason = "provider_identity_unrecorded"
                 try:
-                    future = [_time(t) for t in req["future_timestamps"]]
-                    history = [_time(t) for t in req["timestamps"]]
+                    future = [instant(t) for t in req["future_timestamps"]]
+                    history = [instant(t) for t in req["timestamps"]]
                     if not history:
                         reason = "missing_history_timestamps"
                     elif not future:
@@ -119,13 +161,13 @@ def compare_history(ledger, *, series_id, horizon, providers, start, end, source
                         reason = "forecast_not_recorded_before_target"
                     if origin > runs[0]["recorded_at"]:
                         reason = "forecast_origin_after_execution"
-                    if req["known_time_cutoff"] and _time(req["known_time_cutoff"]) > origin:
+                    if req["known_time_cutoff"] and instant(req["known_time_cutoff"]) > origin:
                         reason = "source_cutoff_after_origin"
-                    if req["recorded_time_cutoff"] and _time(req["recorded_time_cutoff"]) > runs[0]["recorded_at"]:
+                    if req["recorded_time_cutoff"] and instant(req["recorded_time_cutoff"]) > runs[0]["recorded_at"]:
                         reason = "recorded_cutoff_after_execution"
                     if identity and identity.get("lifecycle") == "pretrained":
                         training = runs[0]["result"]["metadata"].get("training_cutoff")
-                        if training is None or _time(training) > origin:
+                        if training is None or instant(training) > origin:
                             reason = "pretrained_training_cutoff_unattested_or_after_origin"
                 except ForecastAdapterError:
                     reason = "timezone_unresolved"
@@ -142,7 +184,8 @@ def compare_history(ledger, *, series_id, horizon, providers, start, end, source
                     causes.append(context_evidence)
             if reason is None:
                 try:
-                    comparison = ledger._compare(conn, selected, source, recorded)
+                    comparison = ledger._compare(conn, selected, source, recorded,
+                                                 metric=metric, negative_predictions=negative_predictions)
                     grid = _grid_shape(selected[0]["request"])
                     if comparison["n"] != horizon:
                         reason = "incomplete_actuals"
@@ -170,8 +213,13 @@ def compare_history(ledger, *, series_id, horizon, providers, start, end, source
         if count:
             answer["models"] = [{"provider": p, "revision": revision,
                 "mae": mean(next(m["mae"] for m in o["models"] if m["provider"] == p)
-                            for o in answer["origins"])} for p, revision in providers.items()]
+                            for o in answer["origins"]),
+                **({'rmsle': mean(next(m['rmsle'] for m in o['models'] if m['provider'] == p)
+                                  for o in answer['origins'])} if metric == 'rmsle' else {})}
+                for p, revision in providers.items()]
             answer.update(status="ok", next_step="consider_evidence_and_sample_count_before_model_selection")
         elif any(e["reason"] == "incomplete_actuals" for e in answer["excluded"]):
             answer["next_step"] = "supply_missing_actuals"
+        answer['evidence_summary'] = comparison_summary(answer['origins'], providers,
+                                                        metric=metric, recent_origins=recent_origins)
         return answer

@@ -237,7 +237,8 @@ READ_SCHEMA = {"type": "object", "additionalProperties": False, "required": ["re
 
 _LEDGER_PARAMETERS = {
     "search": ("series_id", "horizon", "provider", "unit", "start", "end", "status", "source_as_of", "recorded_as_of", "limit", "cursor"),
-    "compare_history": ("series_id", "horizon", "providers", "unit", "start", "end", "source_as_of", "recorded_as_of"),
+    "compare_history": ("series_id", "horizon", "providers", "unit", "start", "end", "source_as_of", "recorded_as_of",
+                        "metric", "recent_origins", "negative_predictions"),
     "study": ("study_id", "recorded_as_of"),
     "execution": ("execution_id",),
     "actuals_as_of": ("series_id", "source_as_of", "recorded_as_of", "unit"),
@@ -289,8 +290,11 @@ def configuration_schema():
             for k, v in asdict(ResultLimits()).items()},
             "description": "Response <= individual result <= retained bytes."},
         "providers": {"type": "object", "additionalProperties": {"type": "object",
-            "required": ["kind"], "properties": {"kind": {"enum": ["ephemeris", "callable", "factory"]}},
-            "description": "ephemeris: exactly one base_url/base_url_env; optional token_env, model, mode, combine, timeout, discover. "
+            "required": ["kind"], "properties": {"kind": {"enum": ["ephemeris", "callable", "factory"]},
+                "api_format": {"enum": ["auto", "gateway", "direct"], "default": "auto",
+                               "description": "Ephemeris wire format. Auto uses gateway for /api/v1 URLs, direct otherwise."}},
+            "description": "ephemeris: exactly one base_url/base_url_env; optional token_env, model, mode, combine, timeout, discover, api_format. "
+                           "api_format: auto (default; /api/v1 URLs use gateway), gateway, or direct. "
                            "callable/factory: entrypoint=module:attribute required; optional capabilities, revision, deterministic, lifecycle. "
                            "These operator fields load trusted Python or configure network providers."}},
     }
@@ -426,18 +430,18 @@ class GnomonSession:
         return session
 
     def _configure_provider(self, name, spec):
-        _strict(spec, {"kind", "base_url", "base_url_env", "token_env", "model", "mode", "combine", "timeout",
+        _strict(spec, {"kind", "base_url", "base_url_env", "token_env", "model", "mode", "combine", "timeout", "api_format",
                        "discover", "entrypoint", "capabilities", "revision", "deterministic", "lifecycle"}, {"kind"})
         kind = spec["kind"]
         if kind == "ephemeris":
-            _strict(spec, {"kind", "base_url", "base_url_env", "token_env", "model", "mode", "combine", "timeout", "discover"})
+            _strict(spec, {"kind", "base_url", "base_url_env", "token_env", "model", "mode", "combine", "timeout", "discover", "api_format"})
             if bool(spec.get("base_url")) == bool(spec.get("base_url_env")):
                 raise ForecastAdapterError("configure exactly one base_url or base_url_env")
             url = spec.get("base_url") or os.environ.get(spec["base_url_env"])
             if not url:
                 raise ForecastAdapterError("provider base URL environment variable is not set")
             provider = EphemerisProvider(url, **{key: spec[key] for key in (
-                "model", "mode", "combine", "token_env", "timeout") if key in spec})
+                "model", "mode", "combine", "token_env", "timeout", "api_format") if key in spec})
             self.engine.register(name, provider, lifecycle="pretrained")
             if spec.get("discover", False):
                 provider.register_models(self.engine, prefix=name + "/")
@@ -535,6 +539,10 @@ class GnomonSession:
                 "ledger": {"enabled": self.ledger is not None, "outcome_writes": self.allow_outcome_writes,
                            "decision_memory": {"operations": list(MEMORY_PARAMETERS),
                                "discovery": "gnomon ledger --schema", "example": "python -m gnomon.examples.decision_memory",
+                               "evidence_bridge": {"python": "gnomon.EvidenceMemory",
+                                   "hermes_adapter": "gnomon.HermesMemoryAdapter",
+                                   "example": "python -m gnomon.examples.memory_bridge",
+                                   "adapter_executes_external_writes": False},
                                "background_review": False, "external_memory_writes": "explicit caller-owned adapter only"},
                     'configured': self.ledger is not None or getattr(self, '_configured_ledger_path', None) is not None,
                     'exists': self.ledger.path.is_file() if self.ledger else Path(self._configured_ledger_path).is_file() if getattr(self, '_configured_ledger_path', None) else False,
@@ -981,6 +989,15 @@ def ledger_schema(*, allow_outcome_writes=False):
                              {"type": "string"})
             if operation in MEMORY_PARAMETERS and p in MEMORY_PROPERTIES:
                 properties[p] = deepcopy(MEMORY_PROPERTIES[p])
+            if operation in {'compare_history', 'compare_context', 'retrieve_context'} and p in {'metric', 'recent_origins', 'negative_predictions'}:
+                properties[p] = {
+                    'metric': {'enum': ['mae', 'rmsle'], 'default': 'mae',
+                        'description': 'Mean per-origin error on complete matched horizons. RMSLE uses natural log(1+x); this is not pooled RMSLE. Rankings/differences and recent/lifetime windows are returned in evidence_summary.'},
+                    'recent_origins': {'type': 'integer', 'minimum': 1, 'maximum': 1000, 'default': 4,
+                        'description': 'Latest N eligible matched origins inside this query; lifetime means the entire queried window.'},
+                    'negative_predictions': {'enum': ['reject', 'clip_zero'], 'default': 'reject',
+                        'description': 'RMSLE only: reject a whole matched origin with negative predictions, or explicitly clip predictions to zero. Negative actuals always exclude the whole origin.'},
+                }[p]
             if p == "unit":
                 properties[p]["description"] = (
                     "Exact unit label; omitted/null searches all units." if operation == "search" else
