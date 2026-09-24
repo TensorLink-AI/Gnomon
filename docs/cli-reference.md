@@ -276,3 +276,8 @@ Connecting also reads the live model catalog; `--refresh-models` updates the sav
 individual-model list without running forecasts. Restart MCP after refresh.
 New default sessions use the saved connection; explicit provider TOML ignores
 it. Restart MCP after connecting. See [setup and credential storage](ephemeris-onboarding.md).
+
+Hermes secure setup: `gnomon connect ephemeris --install-hermes-skill` installs the optional
+skill; after native capture, `gnomon connect ephemeris --from-env` imports
+`GNOMON_EPHEMERIS_API_TOKEN` without putting its value in command arguments.
+See [Ephemeris onboarding](ephemeris-onboarding.md#native-hermes-setup).

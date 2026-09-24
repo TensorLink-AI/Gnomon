@@ -222,3 +222,4 @@ fi
 printf '\nLocal forecasting is ready without an account.\n'
 printf 'Optional: access additional models with Ephemeris. Sign up: https://ephemeris.cascade.industries\n'
 printf 'To connect securely, run: gnomon connect ephemeris\n'
+printf 'Hermes native secure setup: gnomon connect ephemeris --install-hermes-skill\n'

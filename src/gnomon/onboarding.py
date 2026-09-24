@@ -15,6 +15,7 @@ from .forecast_adapter import ForecastAdapterError
 
 SIGNUP_URL = 'https://ephemeris.cascade.industries'
 GATEWAY_URL = SIGNUP_URL + '/api/v1'
+HERMES_TOKEN_ENV = 'GNOMON_EPHEMERIS_API_TOKEN'
 
 
 def credential_path():
@@ -99,11 +100,19 @@ def connection_info(provider_names=(), *, saved=False, catalog=None):
         'credential_validity': 'not_checked', 'balance': 'not_checked',
         'local_models_require_account': False,
         'connect_command': 'gnomon connect ephemeris',
+        'hermes_setup': {
+            'skill': 'connect-ephemeris',
+            'install_command': 'gnomon connect ephemeris --install-hermes-skill',
+            'credential_entry': 'Hermes native secure secret prompt; never chat or MCP arguments',
+            'completion_command': 'gnomon connect ephemeris --from-env',
+            'requires_user_opt_in': True,
+            'unsupported_surface': 'Use a local Hermes secure prompt or the hidden terminal connect command.',
+        },
         'check_command': 'gnomon connect ephemeris --check',
         'refresh_models_command': 'gnomon connect ephemeris --refresh-models',
         'model_catalog': catalog or {'status': 'not_loaded'},
         'offer_policy': 'once_per_conversation_if_not_configured; respect a decline; do not block local forecasting',
-        'agent_guidance': 'Offer optional Ephemeris models once. If the user wants them, show signup_url and connect_command. Never request an API key in chat or tool arguments. Configuration is not authorization to spend.',
+        'agent_guidance': 'Offer optional Ephemeris models once. If the user opts in, show signup_url. In Hermes install/load hermes_setup.skill for native secure entry; otherwise show connect_command. Never request an API key in chat or tool arguments. Configuration is not authorization to spend.',
         'restart_mcp_after_connect': True,
         'provider_calls': 0,
     }
@@ -200,6 +209,9 @@ def register_saved(session):
 
 
 def connect(args):
+    if args.install_hermes_skill:
+        from .hermes_setup import install_skills
+        return install_skills()
     if args.disconnect:
         if saved_connection():
             credential_path().unlink()
@@ -217,13 +229,18 @@ def connect(args):
                 'forecast_calls': 0, 'guidance': 'Authenticated balance check only; no forecast executed.'}
     if args.status:
         return {'status': 'ok', 'ephemeris': saved_info()}
-    if not args.token_stdin and not sys.stdin.isatty():
+    if not args.token_stdin and not args.from_env and not sys.stdin.isatty():
         return {'status': 'ok', 'ephemeris': saved_info(),
                 'guidance': 'A human can sign up at signup_url, then run connect_command in a terminal for hidden key entry. No files changed.'}
     if saved_connection() and not args.replace:
         return {'status': 'ok', 'ephemeris': saved_info(),
                 'guidance': 'Already configured. Use --refresh-models for individual models, --check to verify, or --replace to change the key.'}
-    if args.token_stdin:
+    if args.from_env:
+        token = os.environ.get(HERMES_TOKEN_ENV)
+        if not token:
+            raise ForecastAdapterError('Hermes has not supplied GNOMON_EPHEMERIS_API_TOKEN. Load connect-ephemeris in a Hermes interface with native secure secret entry. Never paste a key in chat.')
+        validate_token(token)
+    elif args.token_stdin:
         token = sys.stdin.read(4098).strip()
     else:
         print(f'Optional Ephemeris signup: {SIGNUP_URL}\nLocal models need no account. Paste your API key below; input is hidden.\nPaid forecasts require your authorization. Blank input cancels.', file=sys.stderr)

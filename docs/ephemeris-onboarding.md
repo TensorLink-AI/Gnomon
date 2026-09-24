@@ -4,6 +4,53 @@ Gnomon works locally without an account. Ephemeris provides optional remote
 forecasting models, which may incur usage charges. Signup is human-controlled:
 https://ephemeris.cascade.industries
 
+## Native Hermes setup
+
+After installing Gnomon, the agent can install the two packaged Hermes skills:
+
+```sh
+gnomon connect ephemeris --install-hermes-skill
+```
+
+This writes `use-gnomon` and `connect-ephemeris` under
+`$HERMES_HOME/skills` (default `~/.hermes/skills`). It never reads a key or
+changes MCP configuration, and refuses to overwrite different existing skills.
+Review/back up customized skills before replacing them. Restart Hermes if its
+skill index does not yet show newly installed skills.
+
+1. Hermes offers the optional signup link once; local forecasting needs no key.
+2. After the human opts in, the agent loads `connect-ephemeris`.
+3. Hermes's **native secure secret prompt** captures the key, outside the chat
+   transcript. The signup link is also in the prompt's help text. Supported
+   interactive Hermes clients use a masked prompt/secret overlay. Messaging
+   clients and older clients without this feature must use the hidden terminal
+   fallback; the agent must never ask for the key in chat.
+4. Hermes stores `GNOMON_EPHEMERIS_API_TOKEN` in its active profile's secret store
+   and passes the variable to terminal execution. The agent runs
+   `gnomon connect ephemeris --from-env`, containing no secret in its arguments.
+   Gnomon saves its private credential and discovers models without forecasting.
+5. Reload MCP with Hermes `/reload-mcp` (or restart), then verify the new providers
+   with `gnomon_capabilities`. The running MCP registry does not hot-reload.
+
+The human signs up and enters the key; the agent handles the connection command.
+No additional Gnomon credential tool is exposed to the model. This uses Hermes's
+[secure setup-on-load contract](https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/features/skills.md#secure-setup-on-load),
+not a password field disguised as chat input. The backend must run on the same
+host/user as Gnomon's MCP server; a remote sandbox's saved profile cannot
+configure a separate local MCP process. An explicit provider TOML still wins.
+
+`--from-env` reads only the fixed variable above, never a user-supplied variable
+name, and never implicitly replaces an existing Gnomon connection. Replacement
+requires `--replace`. Missing or invalid credentials fail without writing a
+profile or making a network request. No automatic environment import happens
+at startup. Declining/skipping setup leaves local providers available.
+
+There are two credential copies: Hermes's profile secret and Gnomon's private
+file. `--disconnect` removes only Gnomon's copy. Remove the Hermes secret through
+its secret settings and revoke the key on Ephemeris for full removal. Neither
+local store protects against arbitrary code running as the same OS user; the
+flow keeps the key out of routine chat, tool arguments and tool results.
+
 ## Human setup
 
 Run `gnomon connect ephemeris` in a terminal. It displays the signup link and
