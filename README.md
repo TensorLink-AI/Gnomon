@@ -107,3 +107,11 @@ of calibrated uncertainty. See [validation and limits](docs/agent-evaluation.md)
 *A gnomon is the part of a sundial that casts the shadow.*
 
 Decision memory: [structured summaries, context comparisons, outcome reviews and portable lessons](docs/decision-memory.md). Run `python -m gnomon.examples.decision_memory` in a fresh directory for the offline example.
+
+### Optional Ephemeris connection
+
+Local models need no account. To sign up for additional remote forecasting
+models and securely save your API key, run `gnomon connect ephemeris`.
+MCP capabilities expose the same optional signup link for agents; keys are
+entered in a human terminal, never in chat. See
+[connection setup](docs/ephemeris-onboarding.md).

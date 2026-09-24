@@ -219,3 +219,6 @@ if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
 else
   printf 'Run: gnomon capabilities\n'
 fi
+printf '\nLocal forecasting is ready without an account.\n'
+printf 'Optional: access additional models with Ephemeris. Sign up: https://ephemeris.cascade.industries\n'
+printf 'To connect securely, run: gnomon connect ephemeris\n'

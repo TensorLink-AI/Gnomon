@@ -339,6 +339,7 @@ class GnomonSession:
         self.engine = engine if engine is not None else InferenceEngine(ledger=ledger)
         if engine is not None and ledger is not None and engine.ledger is not ledger:
             raise ForecastAdapterError("session and engine must share the same ledger")
+        self._ephemeris_providers = set()
         self.allow_outcome_writes = allow_outcome_writes
         from .data_refs import DataReferences
         self.data = DataReferences(max_refs=max_data_refs, max_rows=max_data_rows)
@@ -355,7 +356,10 @@ class GnomonSession:
     def from_config(cls, path: str | Path | None = None, *, ledger_path: str | Path | None = None,
                     create_ledger: bool = True, ledger: TemporalLedger | None = None,
                     discovery_only: bool = False) -> "GnomonSession":
-        """Load built-ins and an explicitly supplied TOML path. No cwd config search.
+        """Load built-ins, plus optional saved Ephemeris when no TOML is supplied.
+
+        `gnomon connect ephemeris` opts into a private user profile. Explicit TOML
+        ignores that profile. No cwd config search or automatic network discovery.
 
         Relative paths resolve relative to the configuration file, not cwd.
         CLI ledger_path overrides resolve against cwd. Inspect settings without
@@ -413,6 +417,9 @@ class GnomonSession:
             adapter = StatisticalAdapter(name, predict)
             engine.register(name, adapter, revision=f"gnomon/{build_info()['build_id']}/{name}", deterministic=True)
         try:
+            if path is None:
+                from .onboarding import register_saved
+                register_saved(session)
             for name, spec in config.get("providers", {}).items():
                 try:
                     session._configure_provider(name, spec)
@@ -443,6 +450,7 @@ class GnomonSession:
             provider = EphemerisProvider(url, **{key: spec[key] for key in (
                 "model", "mode", "combine", "token_env", "timeout", "api_format") if key in spec})
             self.engine.register(name, provider, lifecycle="pretrained")
+            self._ephemeris_providers.add(name)
             if spec.get("discover", False):
                 provider.register_models(self.engine, prefix=name + "/")
         elif kind in {"callable", "factory"}:
@@ -512,12 +520,14 @@ class GnomonSession:
             from .diagnostics import shared_provider_schemas
             return shared_provider_schemas(self.capabilities(brief=False))
         from .diagnostics import CUTOFF_SEMANTICS
+        from .onboarding import connection_info
         providers = self.engine.capabilities()
         for provider in providers.values():
             provider["request_schema"] = provider_request_schema(provider["capabilities"])
         return {"schema_version": "1", "status": "ok", "runtime_version": __version__,
                 "build": build_info(),
                 "product_contract": product_claims(),
+                "onboarding": {"ephemeris": connection_info(self._ephemeris_providers)},
                 "interfaces": {"python": True, "cli": True, "mcp": True},
                 "operation_interfaces": {"routing": {'cli': True, 'python': True, 'mcp': self.ledger is not None},
                     "ledger": {'cli': True, 'python': True, 'mcp': self.ledger is not None},
@@ -918,7 +928,7 @@ class GnomonSession:
         tools = [
             {"name": "gnomon_read", "description": "Read exact retained result JSON text pages, optionally at a JSON pointer. Concatenate pages at next_offset; no provider calls. References expire with the session or LRU eviction.",
              "inputSchema": READ_SCHEMA},
-            {"name": "gnomon_capabilities", "description": "List this session's registered providers and storage capabilities.",
+            {"name": "gnomon_capabilities", "description": "List registered providers, storage capabilities, and optional Ephemeris signup/connection guidance. Offer signup at most once; never request credentials through MCP.",
              "inputSchema": {"type": "object", "properties": {'brief': {'type': 'boolean', 'default': True,
                 'description': 'Deduplicate provider request schemas using shared JSON references.'}}, "additionalProperties": False}},
             {"name": "gnomon_forecast", "description": "Execute a registered provider. Preserve completion as typed evidence; final_selection shows the provider/execution_id selection to return. No implicit backtest, calibration claim or action permission.",

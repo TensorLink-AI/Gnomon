@@ -1,25 +1,34 @@
 ---
 name: use-gnomon
-description: Use Gnomon to inspect time series, forecast with chosen models, compare historical evidence, retrieve forecast history, or perform exposed date and time calculations.
+description: Inspect time series, forecast with chosen models, compare recorded evidence, and calculate explicit dates with Gnomon.
 ---
 
 # Use Gnomon
 
-Follow the current session's schemas. Discover capabilities
-when provider names, supported inputs or storage are unknown. Respect the user's
-chosen model. Ephemeris is one optional connector, not the default forecasting path.
+Follow current schemas; discover capabilities when needed. Respect the user's
+model choice. Ephemeris is optional; local models need no account.
 
-## Default execution session
+## Optional Ephemeris signup
+
+Read `onboarding.ephemeris` from `gnomon_capabilities` (or its retained summary).
+When not configured and relevant, offer signup once per conversation. Respect a
+decline or saved preference; never block local forecasting. If accepted, show
+`signup_url` and `connect_command`. Humans enter keys in a hidden terminal prompt,
+never chat/MCP arguments. Restart MCP after connecting. Explicit TOML overrides
+the saved profile. `configured_unverified` is local setup, not verified credentials
+or permission to spend. `check_command` checks balance without forecasting.
+
+## Execution
 
 - Inspect file/store data with `gnomon_inspect`, using known column names.
   Reuse the frozen `data_ref`; select a returned series explicitly for panels.
-  Disclose knowledge-time assumptions, declared units and repairs.
+  Disclose known-time assumptions, units and repairs.
 - Use `gnomon_describe` for an exact observed statistic: mean, median, latest,
   minimum, maximum or sum. Start/end timestamps select an inclusive window.
   Do not substitute latest for average.
 - Forecast with an explicit registered `provider` and either a typed `request`
-  or `data_ref` plus positive `horizon`. If model choice is unspecified, clarify
-  when it matters or label a baseline as a reference, not the user's chosen model.
+  or `data_ref` plus positive `horizon`. Clarify unspecified model choices or
+  label a baseline explicitly.
 - Horizon counts grid steps: seven days means seven steps only on daily data.
   Clarify missing frequency/timezone semantics or disclose assumptions; do not
   invent dates. Covariates must meet provider capabilities and time cutoffs.
@@ -27,8 +36,7 @@ chosen model. Ephemeris is one optional connector, not the default forecasting p
   configuration, not tool arguments. Availability is not spending approval:
   remote inference and evaluation may incur charges.
 
-For supplied numeric history, inspection is unnecessary. This offline example
-uses the built-in `last_value` baseline:
+Numeric history needs no inspection. Baseline:
 
 ```json
 {"name":"gnomon_forecast","arguments":{"provider":"last_value","request":{"history":[10,12,11],"horizon":2}}}
@@ -38,13 +46,12 @@ Preserve provider/revision, uncertainty, snapshot and execution identifiers.
 Unknown weights or training cutoffs stay unknown. Do not silently drop unsupported
 inputs. Inference alone proves neither accuracy, calibration nor action authority.
 
-## Evaluation and retained evidence
+## Evaluation and evidence
 
-Use `gnomon_evaluate` for requested comparisons with explicit candidates, baseline,
-horizon and fold/budget settings. Respect operator ceilings and task scope; count
-failed and incomplete folds. Retrieve a saved study by calling the same tool with
-only `{"study_id":"<returned study_id>"}`; this does not rerun models. Without a
-ledger, study retention is bounded and session-local.
+Use `gnomon_evaluate` with explicit candidates, baseline, horizon and fold/budget
+settings. Respect ceilings; count failed/incomplete folds. The same tool with only
+`{"study_id":"<returned study_id>"}` retrieves without rerunning models. Without
+a ledger, retention is bounded and session-local.
 
 When `partial: true` accompanies `result_ref`, use `gnomon_read` for needed evidence.
 A JSON pointer selects a field. Otherwise concatenate `text` pages at `next_offset`
@@ -57,10 +64,10 @@ explicit source-availability and local-recording cutoffs. A baseline fallback me
 insufficient evidence, not a demonstrated win. Rescoring appends a new study;
 original predictions stay unchanged.
 
-Use `gnomon_ledger` only when exposed. Reads, score creation and outcome
-writes have different permissions; writes require operator authorization and user
-task scope. Keep valid time, source availability and recording time distinct.
-Recording a decision neither executes nor authorizes an action.
+Use `gnomon_ledger` only when exposed. Reads, scores and outcome writes have
+different permissions; writes require operator authorization and user task scope.
+Keep valid, source-availability and recording times distinct. Recording a
+decision neither executes nor authorizes it.
 
 Use ledger `search` across sessions; follow `next_cursor` with unchanged filters,
 even after empty pages. `ready` needs scoring, `stale` rescoring, `waiting` actuals.
@@ -75,13 +82,11 @@ Reads make no model calls. `next_step` grants no data-fetch, spending or action 
 
 ## Optional temporal calculations
 
-When exposed, `gnomon_temporal` handles date shifts, instant normalization, elapsed
-duration, half-open intervals and event ordering. Supply explicit facts, not an
-invented current time. Calendar days differ from elapsed 24-hour periods at clock
-changes. Local timestamps need a named timezone and ambiguous times an explicit
-fold; nonexistent times are rejected. Dates are not midnight instants. Timestamp
-ties establish neither causality nor source availability. Calculations do not
-verify the supplied facts.
+Use `gnomon_temporal` only when exposed. Supply explicit facts, not invented
+current times. Calendar days differ from elapsed 24 hours at clock changes.
+Local timestamps need a timezone and ambiguous times a fold; nonexistent times
+are rejected. Dates are not midnight instants. Ties prove neither causality nor
+source availability. Calculations do not verify supplied facts.
 
-For other analyses, use the user's chosen software. Do not invent Gnomon operations.
-Local models are loaded and owned by the operator's provider callable.
+Use the user's software for other analyses; never invent Gnomon operations.
+The operator owns and loads local model callables.

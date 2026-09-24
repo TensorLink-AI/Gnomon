@@ -58,3 +58,10 @@ answers a different question even when the call succeeds.
 
 This integration supplies verifiable evidence and does not establish a
 forecasting or agent-performance advantage.
+
+## Optional Ephemeris models
+
+The installed `use-gnomon` skill also describes optional signup through MCP
+capabilities. Hermes should offer signup once, show the human the returned link
+if accepted, and continue with local models if declined. See
+[Ephemeris connection setup](ephemeris-onboarding.md).

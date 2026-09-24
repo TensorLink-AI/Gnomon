@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Expose optional Ephemeris signup and local connection status through MCP
+  capabilities, including retained-response summaries and offer-once skill guidance.
+- Add `gnomon connect ephemeris` for hidden key entry, private local storage,
+  optional balance verification, rotation and disconnect. New default sessions
+  load saved connections; explicit operator TOML takes precedence.
+- Show optional Ephemeris setup after Bash installation. Local models remain
+  available without signup; setup makes no paid forecast calls.
+
 ## 1.2.0 — 2026-09-24
 
 - Support Ephemeris gateway and direct-service request formats, with explicit

@@ -34,7 +34,7 @@ class JSONTransport:
     URL/auth configuration belongs to the operator, not an agent tool argument.
     """
 
-    def __init__(self, base_url: str, *, token_env: str | None = None,
+    def __init__(self, base_url: str, *, token_env: str | None = None, token_file=None,
                  auth_header: str = "Authorization", auth_prefix: str = "Bearer ",
                  timeout: float = 30.0, get_retries: int = 1,
                  max_bytes: int = 8 * 1024 * 1024, allow_http: bool = False):
@@ -48,7 +48,7 @@ class JSONTransport:
             local = parsed.hostname.lower() == "localhost"
         if parsed.scheme == "http" and not (local or allow_http):
             raise ForecastAdapterError("non-loopback HTTP requires explicit allow_http=True")
-        if token_env and parsed.scheme == "http" and not local:
+        if (token_env or token_file) and parsed.scheme == "http" and not local:
             raise ForecastAdapterError("service credentials require HTTPS outside loopback")
         if token_env is not None and (not isinstance(token_env, str) or not token_env):
             raise ForecastAdapterError("token_env must name a nonempty environment variable")
@@ -62,6 +62,9 @@ class JSONTransport:
             raise ForecastAdapterError("get_retries must be between 0 and 3")
         if type(max_bytes) is not int or max_bytes < 1:
             raise ForecastAdapterError("max_bytes must be a positive integer")
+        if token_env and token_file:
+            raise ForecastAdapterError("configure one authentication source")
+        self.token_file = token_file
         self.base_url = base_url.rstrip("/")
         self.token_env, self.auth_header, self.auth_prefix = token_env, auth_header, auth_prefix
         self.timeout, self.get_retries, self.max_bytes = timeout, get_retries, max_bytes
@@ -72,8 +75,12 @@ class JSONTransport:
         if not re.fullmatch(r"/[a-zA-Z0-9_/-]*", path) or ".." in path or "//" in path:
             raise ForecastAdapterError("service path must be a fixed relative path")
         headers = {"Accept": "application/json", "Content-Type": "application/json"}
-        if self.token_env:
-            token = os.environ.get(self.token_env)
+        if self.token_env or self.token_file:
+            if self.token_file:
+                from .onboarding import read_token
+                token = read_token(self.token_file)
+            else:
+                token = os.environ.get(self.token_env)
             if not token or any(ch in token for ch in "\r\n"):
                 raise InferenceHTTPError("service authentication environment variable is missing or invalid")
             headers[self.auth_header] = self.auth_prefix + token
