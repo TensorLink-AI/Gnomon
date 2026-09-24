@@ -67,7 +67,8 @@ class JSONTransport:
         self.timeout, self.get_retries, self.max_bytes = timeout, get_retries, max_bytes
         self._opener = request.build_opener(_NoRedirect())
 
-    def call(self, path: str, payload: dict | None = None) -> dict:
+    def call(self, path: str, payload: dict | None = None, *,
+             allow_list: bool = False) -> dict | list:
         if not re.fullmatch(r"/[a-zA-Z0-9_/-]*", path) or ".." in path or "//" in path:
             raise ForecastAdapterError("service path must be a fixed relative path")
         headers = {"Accept": "application/json", "Content-Type": "application/json"}
@@ -92,7 +93,7 @@ class JSONTransport:
                     value = json.loads(raw)
                 except (ValueError, UnicodeError):
                     raise InferenceHTTPError("service returned invalid JSON") from None
-                if not isinstance(value, dict):
+                if not isinstance(value, dict) and not (allow_list and isinstance(value, list)):
                     raise InferenceHTTPError("service response must be a JSON object")
                 return value
             except error.HTTPError as exc:

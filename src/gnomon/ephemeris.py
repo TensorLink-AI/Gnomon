@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from typing import Any
+from urllib.parse import urlsplit
 
 from .forecast_adapter import (
     AdapterCapabilities, ForecastAdapterError, ForecastRequest, ForecastResult,
@@ -26,7 +27,14 @@ class EphemerisProvider:
     def __init__(self, base_url: str, *, model: str | None = None,
                  mode: str | None = None, combine: str = "vincentize",
                  token_env: str | None = None, timeout: float = 30.0,
+                 api_format: str = "auto",
                  transport: JSONTransport | None = None):
+        """Connect to the direct service or the customer gateway.
+
+        api_format='auto' selects gateway for URLs ending in /api/v1,
+        otherwise direct. Set gateway/direct explicitly for custom URL prefixes.
+        No format probing or automatic forecast retries are performed.
+        """
         mode = mode or ("explicit" if model else "route")
         if mode not in {"explicit", "route", "ensemble"} or (mode == "explicit") != bool(model):
             raise ForecastAdapterError("explicit mode requires a model; route/ensemble must not specify one")
@@ -35,13 +43,17 @@ class EphemerisProvider:
         self.model, self.mode, self.combine = model, mode, combine
         self.name = f"ephemeris/{model or mode}"
         self.transport = transport or JSONTransport(base_url, token_env=token_env, timeout=timeout)
+        if api_format not in {"auto", "gateway", "direct"}:
+            raise ForecastAdapterError("api_format must be auto, gateway, or direct")
+        self.api_format = ("gateway" if urlsplit(self.transport.base_url).path.rstrip("/").endswith("/api/v1")
+                           else "direct") if api_format == "auto" else api_format
         self.capabilities = AdapterCapabilities(quantiles=True, min_history=2,
                                                past_covariates=True, future_covariates=True)
 
     def models(self) -> list[dict[str, Any]]:
         """Read deployment discovery; never substitute the local TSFM list."""
-        response = self.transport.call("/models")
-        rows = response.get("models")
+        response = self.transport.call("/models", allow_list=True)
+        rows = response if isinstance(response, list) else response.get("models")
         if not isinstance(rows, list) or any(not isinstance(row, dict)
                 or not isinstance(row.get("name"), str) for row in rows):
             raise ForecastAdapterError("invalid Ephemeris models response")
@@ -53,7 +65,8 @@ class EphemerisProvider:
         for row in self.models():
             if row.get("enabled") is not True or row.get("healthy") is not True:
                 continue
-            provider = EphemerisProvider(self.transport.base_url, model=row["name"], transport=self.transport)
+            provider = EphemerisProvider(self.transport.base_url, model=row["name"],
+                                         api_format=self.api_format, transport=self.transport)
             provider.capabilities = replace(provider.capabilities,
                                             past_covariates=row.get("covariates") is True,
                                             future_covariates=row.get("covariates") is True)
@@ -103,6 +116,15 @@ class EphemerisProvider:
             payload["model"] = self.model
         if any(covariates):
             payload["covariates"] = covariates
+        if self.api_format == "gateway":
+            payload.pop("freq")
+            payload.pop("covariates", None)
+            payload["series"] = [
+                {"values": list(req.history),
+                 **({"freq": req.frequency} if req.frequency is not None else {}),
+                 **({"covariates": cov} if cov is not None else {})}
+                for req, cov in zip(requests, covariates)
+            ]
         response = self.transport.call("/forecast", payload)
         rows, meta = response.get("forecasts"), response.get("meta")
         if not isinstance(rows, list) or len(rows) != len(requests) or not isinstance(meta, dict):

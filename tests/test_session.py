@@ -137,8 +137,12 @@ def test_outcome_writes_are_a_startup_permission_not_a_tool_argument(tmp_path):
         assert scored["result"]["mae"] == 1
 
 
-def test_subprocess_cli_and_stdio_mcp_reach_configured_ephemeris(tmp_path, service):
+@pytest.mark.parametrize("gateway", [False, True])
+def test_subprocess_cli_and_stdio_mcp_reach_configured_ephemeris(tmp_path, service, gateway):
     url, state = service
+    state["gateway"] = gateway
+    if gateway:
+        url += "/api/v1"
     path = config(tmp_path, f'[providers.remote]\nkind="ephemeris"\nbase_url="{url}"\ndiscover=true\n')
     cli = subprocess.run([sys.executable, "-m", "gnomon.cli", "infer", "--providers-config", str(path),
                           "--provider", "remote/not-in-gnomon", "--request", json.dumps(request())],

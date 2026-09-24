@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.2.0 — 2026-09-24
+
+- Support Ephemeris gateway and direct-service request formats, with explicit
+  configuration, automatic gateway detection and model catalog discovery.
+- Add execution-bound evidence memory packets and a caller-owned Hermes adapter,
+  preserving original decisions and exposing revised outcome evidence.
+- Add metric-aligned MAE/RMSLE historical comparisons, calculated rankings, ties,
+  recent-versus-lifetime summaries and explicit context-cohort retrieval.
+- Include memory examples, ledger skills and integration documentation.
+- No evaluation datasets, experiment runners or benchmark performance claims
+  are included in this release change.
+
 ## 1.1.9 — 2026-09-10
 
 - Record concise execution-bound decision summaries with assumptions, invalidation

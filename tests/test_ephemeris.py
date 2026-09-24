@@ -18,17 +18,19 @@ def service():
             pass
         def do_GET(self):
             state["requests"].append(("GET", self.path, dict(self.headers), None))
-            self.respond({"models": [
+            models = [
                 {"name": "not-in-gnomon", "enabled": True, "healthy": True, "covariates": True},
                 {"name": "offline", "enabled": True, "healthy": False},
                 {"name": "disabled", "enabled": False, "healthy": True},
-            ]})
+            ]
+            self.respond(models if state.get("gateway") else {"models": models})
         def do_POST(self):
             body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             state["requests"].append(("POST", self.path, dict(self.headers), body))
+            series = [row["values"] for row in body["series"]] if state.get("gateway") else body["series"]
             response = {"forecasts": [
                 {"quantiles": {str(q): [row[-1] + q] * body["horizon"] for q in body["quantiles"]}}
-                for row in body["series"]
+                for row in series
             ], "meta": {"mode": body["mode"], "models_used": [body.get("model", "remote-chosen")],
                         "request_id": "remote-request", "notes": []}}
             if state.get("transform"):
@@ -85,6 +87,57 @@ def test_native_batch_named_covariates_and_series_alignment(service):
     assert len(state["requests"]) == 1
     assert state["requests"][0][3]["covariates"][0] == {
         "past": {"price": [10, 11], "holiday": [20, 21]}, "future": {"holiday": [22]}}
+
+
+@pytest.mark.parametrize("automatic", [True, False])
+def test_gateway_discovery_and_batch_contract(service, automatic):
+    url, state = service
+    state["gateway"] = True
+    provider = EphemerisProvider(url + "/api/v1/" if automatic else url,
+                                 api_format="auto" if automatic else "gateway")
+    engine = InferenceEngine()
+    assert provider.register_models(engine) == ["ephemeris/not-in-gnomon"]
+    req = ForecastRequest((1, 2), 1, frequency="D", series_id="one", unit="widgets",
+                          future_timestamps=("2025-01-03",), quantiles=(.1, .9),
+                          past_covariates=((10,), (11,)), past_covariate_names=("price",),
+                          future_covariates=((12,),), future_covariate_names=("price",))
+    results = engine.forecast_batch("ephemeris/not-in-gnomon",
+                                   [req, replace(req, history=(3, 4), series_id="two")])
+    assert [r.result.point for r in results] == [(2.5,), (4.5,)]
+    assert [r.result.series_id for r in results] == ["one", "two"]
+    assert all(r.result.unit == "widgets" and r.result.timestamps == r.request.future_timestamps for r in results)
+    body = state["requests"][-1][3]
+    assert "freq" not in body and "covariates" not in body
+    assert body["model"] == "not-in-gnomon"
+    assert body["series"][0] == {"values": [1, 2], "freq": "D", "covariates": {
+        "past": {"price": [10, 11]}, "future": {"price": [12]}}}
+    assert body["quantiles"] == [.1, .5, .9]
+
+
+def test_gateway_configuration_and_optional_frequency(service, tmp_path):
+    from gnomon import GnomonSession
+    url, state = service
+    state["gateway"] = True
+    config = tmp_path / "providers.toml"
+    config.write_text(f'[providers.remote]\nkind="ephemeris"\nbase_url="{url}"\n'
+                      'api_format="gateway"\ndiscover=true\n')
+    with GnomonSession.from_config(config) as session:
+        result = session.forecast("remote", {"history": [1, 2], "horizon": 1})
+    assert tuple(result["result"]["point"]) == (2.5,)
+    assert state["requests"][-1][3]["series"] == [{"values": [1.0, 2.0]}]
+
+
+def test_format_override_and_invalid_discovery(service):
+    url, state = service
+    provider = EphemerisProvider(url + "/api/v1", api_format="direct")
+    provider.forecast(ForecastRequest((1, 2), 1))
+    assert state["requests"][-1][3]["series"] == [[1, 2]]
+    for raw in (b'[1]', b'[{"name": 1}]', b'{"models": null}'):
+        state["raw"] = raw
+        with pytest.raises(ForecastAdapterError, match="models response"):
+            provider.models()
+    with pytest.raises(ForecastAdapterError, match="api_format"):
+        EphemerisProvider(url, api_format="invalid")
 
 
 @pytest.mark.parametrize("kwargs", [

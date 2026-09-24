@@ -49,11 +49,13 @@ path = "build_hook.py"
 
 [tool.hatch.build.targets.wheel.shared-data]
 "skills/use-gnomon" = "share/gnomon/skills/use-gnomon"
+"skills/use-gnomon-ledger" = "share/gnomon/skills/use-gnomon-ledger"
 
 [tool.hatch.build.targets.sdist]
 include = [
   "/src/gnomon",
   "/skills/use-gnomon",
+  "/skills/use-gnomon-ledger",
   "/README.md",
   "/LICENSE",
   "/CHANGELOG.md",

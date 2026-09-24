@@ -1,5 +1,8 @@
 # Decision summaries, context evidence and lessons
 
+For task-binding checks, portable evidence packets, revision-aware lesson recall
+and the Hermes adapter, see [the memory bridge](memory-bridge.md).
+
 Gnomon 1.1.9 links short decision summaries and versioned lessons to recorded
 forecasts. It verifies numerical evidence and preserves its history. Rationale,
 context labels and lessons remain caller assertions; a low error does not prove

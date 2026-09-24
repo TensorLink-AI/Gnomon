@@ -24,6 +24,7 @@ kind = "ephemeris"
 base_url_env = "EPHEMERIS_BASE_URL"
 token_env = "EPHEMERIS_API_TOKEN"
 mode = "route"
+api_format = "auto"  # /api/v1 URL: customer gateway; other URLs: direct service
 discover = true  # GET /models at startup; names become remote/<model>
 
 [providers.preferred]
@@ -46,6 +47,19 @@ service URLs, provider entrypoints, credentials and ledger paths are startup con
 Inspection reads caller-selected file/store paths.
 Built-in last_value, seasonal_naive and historical_mean references are registered
 by `from_config`, including when no file is supplied.
+
+Ephemeris has two wire formats. The [customer gateway](https://ephemeris.cascade.industries/docs)
+uses a base URL ending in `/api/v1`, per-series objects containing `values`, `freq`
+and optional `covariates`, and a model-list array. The direct inference service
+uses arrays of observations with top-level frequency/covariates. Gnomon selects
+the format from the URL path with `api_format="auto"`; for custom proxy paths,
+set `api_format="gateway"` or `"direct"` explicitly. Discovery accepts either
+the gateway model array or the direct service's `{"models": [...]}` envelope.
+No forecast is retried automatically to discover the format. Both formats retain
+quantile validation and request series/unit/timestamp identity. Configure the
+gateway's API key for gateway URLs, and the direct service's key for direct URLs.
+The gateway does not advertise a `/health` endpoint; use model discovery instead.
+Environment variables must be loaded by the caller; Gnomon does not read `.env` automatically.
 
 `enable_temporal=true` adds the independent `gnomon_temporal` tool at startup;
 ordinary discovery remains six tools (eight with a ledger). It does not change
