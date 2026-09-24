@@ -5,7 +5,7 @@ description: Inspect, forecast, compare recorded evidence, and calculate dates w
 
 # Use Gnomon
 
-Follow current schemas; discover capabilities when needed. Respect the user's
+Follow current schemas. Respect the user's
 model choice. Ephemeris is optional; local models need no account.
 
 ## Optional Ephemeris signup
@@ -13,8 +13,9 @@ model choice. Ephemeris is optional; local models need no account.
 Read `onboarding.ephemeris` from `gnomon_capabilities` (or its retained summary).
 When not configured and relevant, offer signup once per conversation. Respect a
 decline or saved preference; never block local forecasting. If accepted, show
-`signup_url` and `connect_command`. Humans enter keys in a hidden terminal prompt,
-never chat/MCP arguments. Connect discovers individual models; refresh with `--refresh-models`. Restart MCP.
+`signup_url`. In Hermes install/load `connect-ephemeris` via `hermes_setup`;
+otherwise use `connect_command` in a hidden terminal prompt. Never put keys in
+chat/MCP arguments. Connect discovers models. Reload MCP after setup.
 Explicit TOML overrides
 the saved profile. `configured_unverified` is local setup, not verified credentials
 or permission to spend. `check_command` checks balance without forecasting.

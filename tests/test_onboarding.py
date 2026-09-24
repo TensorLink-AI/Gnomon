@@ -264,3 +264,103 @@ def test_discovered_model_executes_explicitly_without_fallback(profile, monkeypa
         assert failure.value.details['provider']=='ephemeris/chronos2'
         assert call.call_count==1
         assert call.call_args.args[1]['model']=='chronos2'
+
+
+def test_hermes_env_capture_imports_without_exposing_key(profile, monkeypatch, capsys):
+    token = 'synthetic-hermes-secure-key'
+    monkeypatch.setenv(onboarding.HERMES_TOKEN_ENV, token)
+    monkeypatch.setattr(sys, 'stdin', io.StringIO('must-not-read'))
+    assert main(['connect', 'ephemeris', '--from-env']) == 0
+    captured = capsys.readouterr()
+    assert token not in captured.out + captured.err
+    assert json.loads(captured.out)['credential_saved'] is True
+    assert onboarding.read_token(profile) == token
+    assert profile.stat().st_mode & 0o777 == 0o600
+    assert sys.stdin.tell() == 0
+    JSONTransport.call.assert_called_once_with('/models', allow_list=True)
+    with GnomonSession.from_config() as s:
+        assert 'ephemeris/ensemble' in s.capabilities()['providers']
+
+
+@pytest.mark.parametrize('token', [None, '', 'invalid token', 'x' * 4097])
+def test_hermes_missing_or_invalid_secret_is_not_written(profile, monkeypatch, capsys, token):
+    if token is None:
+        monkeypatch.delenv(onboarding.HERMES_TOKEN_ENV, raising=False)
+    else:
+        monkeypatch.setenv(onboarding.HERMES_TOKEN_ENV, token)
+    assert main(['connect', 'ephemeris', '--from-env']) == 2
+    captured = capsys.readouterr()
+    if token:
+        assert token not in captured.out + captured.err
+    assert not profile.exists()
+    JSONTransport.call.assert_not_called()
+
+
+def test_hermes_does_not_implicitly_replace_or_auto_import(profile, monkeypatch, capsys):
+    monkeypatch.setenv(onboarding.HERMES_TOKEN_ENV, 'new-synthetic-key')
+    with GnomonSession.from_config() as s:
+        assert 'ephemeris' not in s.capabilities()['providers']
+    assert not profile.exists()
+    onboarding.save_token('existing-synthetic-key')
+    assert main(['connect', 'ephemeris', '--from-env']) == 0
+    assert onboarding.read_token(profile) == 'existing-synthetic-key'
+    JSONTransport.call.assert_not_called()
+    assert main(['connect', 'ephemeris', '--from-env', '--replace']) == 0
+    assert onboarding.read_token(profile) == 'new-synthetic-key'
+    assert 'synthetic-key' not in capsys.readouterr().out
+
+
+def test_hermes_skill_install_and_repeat_are_safe(profile, tmp_path, monkeypatch, capsys):
+    home = tmp_path / 'hermes'
+    monkeypatch.setenv('HERMES_HOME', str(home))
+    monkeypatch.setenv(onboarding.HERMES_TOKEN_ENV, 'never-read-this-key')
+    for _ in range(2):
+        assert main(['connect', 'ephemeris', '--install-hermes-skill']) == 0
+    output = capsys.readouterr().out
+    assert 'never-read-this-key' not in output
+    assert not profile.exists()
+    JSONTransport.call.assert_not_called()
+    import yaml
+    skill = (home / 'skills/connect-ephemeris/SKILL.md').read_text()
+    metadata = yaml.safe_load(skill.split('---')[1])
+    assert metadata['required_environment_variables'][0]['name'] == onboarding.HERMES_TOKEN_ENV
+    assert '--from-env' in skill
+    assert (home / 'skills/use-gnomon/SKILL.md').exists()
+
+
+def test_hermes_install_preserves_custom_skill_and_has_no_partial_changes(profile, tmp_path, monkeypatch, capsys):
+    home = tmp_path / 'hermes'
+    monkeypatch.setenv('HERMES_HOME', str(home))
+    target = home / 'skills/connect-ephemeris/SKILL.md'
+    target.parent.mkdir(parents=True)
+    target.write_text('my customization')
+    assert main(['connect', 'ephemeris', '--install-hermes-skill']) == 2
+    assert target.read_text() == 'my customization'
+    assert not (home / 'skills/use-gnomon').exists()
+    assert not profile.exists()
+
+
+def test_hermes_install_refuses_redirected_destinations(profile, tmp_path, monkeypatch, capsys):
+    home = tmp_path / 'hermes'
+    home.symlink_to(tmp_path, target_is_directory=True)
+    monkeypatch.setenv('HERMES_HOME', str(home))
+    assert main(['connect', 'ephemeris', '--install-hermes-skill']) == 2
+    assert not (tmp_path / 'skills').exists()
+    monkeypatch.setenv('HERMES_HOME', 'relative')
+    assert main(['connect', 'ephemeris', '--install-hermes-skill']) == 2
+
+
+def test_hermes_setup_discoverable_in_retained_capabilities(profile):
+    from gnomon.result_refs import ResultReferences, ResultLimits
+    with GnomonSession.from_config() as s:
+        caps = s.capabilities()
+        setup = caps['onboarding']['ephemeris']['hermes_setup']
+        assert setup['skill'] == 'connect-ephemeris'
+        assert setup['requires_user_opt_in'] is True
+    # The retained capabilities summary must carry the native setup path too.
+    refs = ResultReferences(ResultLimits(max_response_bytes=2048))
+    try:
+        retained = refs.project(caps)
+        assert retained['summary']['onboarding']['ephemeris']['hermes_setup'] == setup
+    finally:
+        refs.close()

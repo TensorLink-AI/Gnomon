@@ -77,6 +77,11 @@ Python, CLI and MCP share the same interface.
 Start with the [MCP quickstart](docs/quickstart-mcp.md)
 and [agent skill](skills/use-gnomon/SKILL.md).
 
+For Hermes, `gnomon connect ephemeris --install-hermes-skill` installs optional
+[native secure Ephemeris setup](docs/ephemeris-onboarding.md#native-hermes-setup).
+After opt-in, Hermes prompts privately for the key and the agent completes the
+connection; the key never needs to be pasted into chat.
+
 ## Optional connectors
 
 Ephemeris is one connector for remote time-series inference. Set its deployment

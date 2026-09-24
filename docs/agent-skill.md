@@ -11,3 +11,9 @@ evidence with the host's ordinary memory. See the [Hermes setup](hermes-ledger.m
 
 The skill does not install models, select credentials, grant spending permission
 or execute recorded decisions.
+
+For optional Ephemeris signup in Hermes, run
+`gnomon connect ephemeris --install-hermes-skill`. This installs `use-gnomon` and
+`connect-ephemeris` into the active Hermes profile. The companion skill uses
+Hermes native secure credential capture only after opt-in; it is separate so
+local forecasting never requires a key. See [secure setup](ephemeris-onboarding.md#native-hermes-setup).

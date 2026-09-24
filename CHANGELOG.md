@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add optional Hermes native secure Ephemeris setup, packaged companion skill,
+  explicit environment import, and credential-free setup discovery.
+
 - Expose optional Ephemeris signup and local connection status through MCP
   capabilities, including retained-response summaries and offer-once skill guidance.
 - Add `gnomon connect ephemeris` for hidden key entry, private local storage,

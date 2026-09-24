@@ -84,6 +84,8 @@ def build_parser() -> argparse.ArgumentParser:
     actions.add_argument("--check", action="store_true", help="Verify the saved key with an authenticated balance GET; no forecast")
     actions.add_argument("--disconnect", action="store_true", help="Remove the saved local key; does not revoke the server key")
     actions.add_argument("--token-stdin", action="store_true", help="Read a key from a secure stdin source; never pass keys as arguments")
+    actions.add_argument("--from-env", action="store_true", help="Import the key captured by Hermes from GNOMON_EPHEMERIS_API_TOKEN; never print or pass its value")
+    actions.add_argument("--install-hermes-skill", action="store_true", help="Install optional native Hermes secure-setup skills; does not read credentials")
     connect.add_argument("--replace", action="store_true", help="Explicitly replace the saved key")
     caps = commands.add_parser("capabilities", help="List registered providers and enabled tools")
     caps.add_argument("--output", choices=("json",), default="json")
@@ -474,7 +476,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         _validate_cli_args(args)
         if args.command == "connect":
             from .onboarding import connect
-            if args.replace and (args.status or args.check or args.disconnect or args.refresh_models):
+            if args.replace and (args.status or args.check or args.disconnect or args.refresh_models or args.install_hermes_skill):
                 raise _UsageError('--replace is only for saving a new key.', 'gnomon connect')
             print(json.dumps(connect(args), indent=2))
             return 0
