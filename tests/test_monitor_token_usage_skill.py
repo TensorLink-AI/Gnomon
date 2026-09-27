@@ -57,7 +57,10 @@ def hermes_payload(ended_at, tokens, *, request_id, session="s", model="m"):
 
 FAKE = '''
 from gnomon import ForecastResult
+from gnomon.forecast_adapter import ForecastAdapterError
 def forecast(req):
+    if req.season != 1:  # same contract as Gnomon's Ephemeris adapter
+        raise ForecastAdapterError("Ephemeris accepts a frequency hint, not an explicit seasonal period")
     base = sum(req.history[-7:]) / 7
     qs = tuple({q: base * (0.5 + q) for q in req.quantiles} for _ in range(req.horizon)) if req.quantiles else None
     return ForecastResult((base,) * req.horizon, qs, timestamps=req.future_timestamps,
@@ -181,6 +184,11 @@ def test_check_records_once_per_day_and_is_idempotent(hermes):
     assert code == 0, out
     assert "today forecast" in out and "+40 actual(s)" in out
     assert ledger_counts(hermes) == {"executions": 2, "actuals": 40, "evaluations": 0}
+    con = sqlite3.connect(hermes / "data/ledger.db")
+    seasons = dict(con.execute("SELECT json_extract(payload_json, '$.provider'),"
+                               " json_extract(payload_json, '$.request.season') FROM payloads").fetchall())
+    con.close()
+    assert seasons == {"fake": 1, "seasonal_naive": 7}  # models get only the frequency hint
 
     code, out = run(hermes, "check")
     assert code == 0, out
@@ -199,7 +207,8 @@ def seed_history(home, origins):
         session = GnomonSession.from_config(home / "providers.toml", ledger=ledger)
         try:
             for provider, quantiles in (("fake", (tu.LOW, 0.5, tu.HIGH)), ("seasonal_naive", ())):
-                request = tu.build_request(history, timezone.utc, tu.HORIZON, quantiles, "hermes/tokens")
+                request = tu.build_request(history, timezone.utc, tu.HORIZON, quantiles, "hermes/tokens",
+                                           seasonal=provider == "seasonal_naive")
                 assert session.forecast(provider, request)["status"] == "ok"
         finally:
             session.close()
@@ -377,7 +386,8 @@ def test_hourly_surge_alert_names_the_runaway_session(hermes, monkeypatch):
     session = GnomonSession.from_config(hermes / "providers.toml", ledger=ledger)
     try:
         for provider, quantiles in (("fake", (tu.LOW, 0.5, tu.HIGH)), ("seasonal_naive", ())):
-            request = tu.build_hourly_request(history, quantiles, "hermes/tokens/main-hourly")
+            request = tu.build_hourly_request(history, quantiles, "hermes/tokens/main-hourly",
+                                              seasonal=provider == "seasonal_naive")
             assert session.forecast(provider, request)["status"] == "ok"
     finally:
         session.close()

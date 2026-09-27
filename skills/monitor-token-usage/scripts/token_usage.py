@@ -357,20 +357,23 @@ def hour_stamp(h):
     return (h + HOUR).isoformat()
 
 
-def build_request(days, tz, horizon, quantiles, series_id):
+def build_request(days, tz, horizon, quantiles, series_id, seasonal=False):
+    """Daily request. Only the seasonal_naive baseline gets a seasonal period (a week):
+    models such as Ephemeris take the frequency as their hint and refuse an explicit period."""
     last = days[-1][0]
-    return {"history": [round(v) for _, v in days], "horizon": horizon, "season": 7,
+    return {"history": [round(v) for _, v in days], "horizon": horizon, **({"season": 7} if seasonal else {}),
             "frequency": "D", "series_id": series_id, "unit": UNIT,
             **({"quantiles": list(quantiles)} if quantiles else {}),
             "timestamps": [stamp(d, tz) for d, _ in days],
             "future_timestamps": [stamp(last + timedelta(days=k), tz) for k in range(1, horizon + 1)]}
 
 
-def build_hourly_request(hours, quantiles, series_id):
-    """Hourly request. The baseline repeats the same hour last week once two weeks exist, else yesterday."""
+def build_hourly_request(hours, quantiles, series_id, seasonal=False):
+    """Hourly request. The seasonal baseline repeats the same hour last week once two weeks
+    exist, else yesterday; models get only the frequency hint, as for daily requests."""
     last = hours[-1][0]
-    return {"history": [round(v) for _, v, _ in hours], "horizon": HOURLY_HORIZON,
-            "season": 168 if len(hours) >= 2 * 168 else 24, "frequency": "h",
+    season = {"season": 168 if len(hours) >= 2 * 168 else 24} if seasonal else {}
+    return {"history": [round(v) for _, v, _ in hours], "horizon": HOURLY_HORIZON, **season, "frequency": "h",
             "series_id": series_id, "unit": UNIT,
             **({"quantiles": list(quantiles)} if quantiles else {}),
             "timestamps": [hour_stamp(h) for h, _, _ in hours],
@@ -490,7 +493,8 @@ def record_forecasts(ctx, args):
                 out[role] = {"provider": provider, "recorded": "earlier",
                              "result": g.execution(existing[0]["execution_id"])}
                 continue
-            res = g.forecast(provider, build_request(days, ctx["tz"], HORIZON, quantiles, ctx["series_id"]))
+            res = g.forecast(provider, build_request(days, ctx["tz"], HORIZON, quantiles, ctx["series_id"],
+                                                     seasonal=role == "baseline"))
             out[role] = {"provider": provider, "recorded": "now", "result": res["result"]}
         except GnomonError as exc:
             out[role] = {"provider": provider, "error": str(exc)}
@@ -508,7 +512,8 @@ def record_hourly(ctx, args):
             if executions(g, series, provider, since):
                 out[role] = {"provider": provider, "recorded": "earlier"}
                 continue
-            g.forecast(provider, build_hourly_request(hours, quantiles, series.series_id))
+            g.forecast(provider, build_hourly_request(hours, quantiles, series.series_id,
+                                                      seasonal=role == "baseline"))
             out[role] = {"provider": provider, "recorded": "now"}
         except GnomonError as exc:
             out[role] = {"provider": provider, "error": str(exc)}
