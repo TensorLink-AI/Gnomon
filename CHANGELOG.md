@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Add the `monitor-token-usage` Hermes skill: daily token and cost projections
+  from Hermes `state.db`, a ledger-backed 7-day forecast record scored against
+  `seasonal_naive`, and no-agent cron scripts that alert when a day falls outside
+  its forecast range (with whether more or bigger LLM calls caused it) or a
+  projection exceeds a weekly budget. An optional `token-tracker` Hermes plugin
+  records the token counts of every main-agent LLM call for exact hourly views
+  and 24-hour forecasts, with hourly surge alerts that name the session
+  responsible, checked against Hermes's own totals.
+
 - Add optional Hermes native secure Ephemeris setup, packaged companion skill,
   explicit environment import, and credential-free setup discovery.
 

@@ -1,0 +1,5 @@
+name: token-tracker
+version: "1.0"
+description: Record token counts of every LLM call (no prompts or replies) for hourly usage tracking by the monitor-token-usage skill.
+provides_hooks:
+  - post_api_request
