@@ -82,7 +82,18 @@ hermes plugins enable token-tracker
 ```
 
    Records go to `~/.hermes/plugin-data/token-tracker/calls.db` (per profile).
-5. Schedule the two no-agent cron scripts. Hermes only runs scripts from
+5. Before scheduling, check the two things Telegram delivery depends on.
+   Otherwise the jobs are created but nothing reaches the user:
+   - **The gateway is running.** Hermes cron runs inside the gateway daemon
+     (`hermes gateway install` for a service, or `hermes gateway`).
+   - **Telegram is connected and has a home channel.** `deliver="telegram"`
+     sends to the home channel: the user sends `/sethome` in the chat that
+     should receive alerts (or sets `TELEGRAM_HOME_CHANNEL`).
+
+   If either is missing, ask the user to connect Telegram first, or schedule with
+   `deliver="local"` (output kept in `~/.hermes/cron/output/`) and switch later
+   with `cronjob(action="update", job_id=..., deliver="telegram")`.
+6. Schedule the two no-agent cron scripts. Hermes only runs scripts from
    `~/.hermes/scripts/`, so copy them there first:
 
 ```sh
@@ -96,9 +107,13 @@ cronjob(action="create", name="token-usage-daily", schedule="0 9 * * *",
         script="token-usage-daily.sh", no_agent=True, deliver="telegram")
 ```
 
-The alert script prints nothing unless something fires. Every 15 minutes catches
-a runaway loop within about an hour; without the plugin, every 6h is enough. Add options such as `--tz`
-by editing the `check` line in the copied scripts.
+Then run the daily job once now (`cronjob(action="run", job_id=...)`) and confirm
+the summary arrives in Telegram. Hermes reports a failed send as `delivery_failed`
+in `hermes cron list` and `hermes cron doctor`, and marks a job whose Telegram
+credentials are missing `blocked_config`. The alert job has no test message: it
+prints nothing unless something fires. Every 15 minutes catches a runaway loop
+within about an hour; without the plugin, every 6h is enough. Add options such as
+`--tz` by editing the `check` line in the copied scripts.
 
 ## Reporting results honestly
 
