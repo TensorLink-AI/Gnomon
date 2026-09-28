@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Add the `forecast-report` Hermes skill: forecast a CSV time series with an
+  Ephemeris model and a `seasonal_naive` baseline, backtest both on the last
+  horizon, record the live forecasts in a Gnomon ledger, and print a short
+  summary with a seaborn chart of actuals, forecast and 50%/90% ranges as a
+  `MEDIA:` attachment that Hermes delivers to Telegram.
+
 - Add the `monitor-token-usage` Hermes skill: daily token and cost projections
   from Hermes `state.db`, a ledger-backed 7-day forecast record scored against
   `seasonal_naive`, and no-agent cron scripts that alert when a day falls outside
