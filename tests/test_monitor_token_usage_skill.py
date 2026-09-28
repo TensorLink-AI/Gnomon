@@ -222,7 +222,9 @@ def test_check_scores_matured_forecasts_compares_baseline_and_flags_surge_once(h
     assert code == 0, out
     assert out.startswith("ALERT"), out
     assert f"SURGE {yesterday}" in out
-    assert "calls 30 vs 30/day avg" not in out and "(4.0×), tokens/call" in out
+    # The flat fake can also flag a weekend DIP depending on today's weekday; check the surge's own driver line.
+    surge = out.split(f"SURGE {yesterday}", 1)[1].splitlines()[1]
+    assert "calls 120 vs 30/day avg (4.0×), tokens/call" in surge, out
     assert "MAE than seasonal_naive over 8 paired 7-day forecast(s)" in out
     assert ledger_counts(hermes)["evaluations"] > 0
 
