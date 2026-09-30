@@ -33,6 +33,15 @@ return endpoints; do not append raw prices as their actuals.
 
 ## Evidence and measurement
 
+What the ledger establishes: Gnomon assigns local recording times through its
+configured clock (public writes accept no caller-supplied `recorded_at`); keeps
+outcome valid time, declared source availability and recording time separate;
+selects evidence at explicit cutoffs, so revised actuals change later reviews while
+saved lesson reviews keep their basis; and enforces matched requests, timing
+eligibility and exact context labels instead of widening cohorts. This holds only
+under a trusted clock and an intact, operator-controlled database; it does not prove
+source correctness or model training provenance.
+
 The ledger is a maintained implementation of temporal evidence contracts on SQLite.
 An SQL application can implement the same checks; storage technology is not the
 differentiator. The repository's `benchmarks/hermes_ledger/RESULTS.md`

@@ -66,7 +66,8 @@ means insufficient evidence. Rescoring appends a study; predictions stay unchang
 Use `gnomon_ledger` only when exposed. Reads, scores and outcome writes have
 different permissions; writes need operator authorization. Recording a decision
 neither executes nor authorizes it. For comparisons, reviews and lessons follow the
-[ledger skill](../use-gnomon-ledger/SKILL.md). `next_step` grants no authority.
+[ledger skill](../use-gnomon-ledger/SKILL.md) (packaged with Gnomon; install it if
+absent). `next_step` grants no authority.
 
 ## Optional temporal calculations
 

@@ -120,7 +120,8 @@ The second snippet is a template: supply its data variables from the validated
 dataset and calendar. Use Gnomon's `frequency` hint, not a made-up seasonal period,
 for Ephemeris. Discover explicit models rather than hard-coding a past catalog.
 Remote forecasts/evaluations may be billable; reuse saved results where possible.
-The current connector uses the median for points and does not attest weights revisions.
+The connector uses the median for points and attests no model revision; see the
+[ledger skill](../../use-gnomon-ledger/SKILL.md#bounded-recovery) for ranking it.
 
 To compare both providers, call `register_statsforecast(session)` in this same
 configured session, then use `session.evaluate` / `gnomon_evaluate` with explicit

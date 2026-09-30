@@ -147,9 +147,8 @@ summary does not submit an order. The server must have the same configured ledge
 as the forecast and `allow_outcome_writes=true`. Use the host's discovered tool
 name if it prefixes `gnomon_ledger`; inspect the operation schema before calling.
 
-The current Ephemeris connector lacks an attested revision. Its individual forecasts
-can still be recorded and reviewed, but strict `compare_history`/`compare_context`
-cannot rank them under an invented revision. Those operations also require eligible
-training cutoffs for pretrained providers and matching request features: a point-only
-baseline and a quantile-requested forecast are not
+Ephemeris forecasts can be recorded and reviewed; for ranking them see the
+[ledger skill](../../use-gnomon-ledger/SKILL.md#bounded-recovery). Strict comparisons
+also need eligible training cutoffs for pretrained providers and matching request
+features: a point-only baseline and a quantile-requested forecast are not
 automatically a matched cohort. Design comparable requests or disclose the limitation.

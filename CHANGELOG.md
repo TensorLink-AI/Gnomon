@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Clean up the packaged skills: consent before paid runs, plugin installs, restarts,
+  cron jobs and messages in the Hermes skills; a saved-connection-versus-TOML path in
+  Ephemeris setup; recovery and reporting sections where missing; one home for the
+  "Ephemeris cannot be ranked" caveat; trade and token-monitor detail moved into
+  references; corrected defaults, paths and links; and a skills index in
+  `docs/agent-skill.md`.
+
 - Document adaptive routing's episodic memory in full: feature formulas, scoring steps,
   choosing settings, every `routing` field, troubleshooting, the lookback-versus-horizon
   requirement, observation-counted windows, and a tested replay walkthrough on your own

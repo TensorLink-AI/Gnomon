@@ -6,9 +6,10 @@ description: Execute and save time-series forecasts with Gnomon's Python API, in
 # Forecast with Gnomon
 
 Use Gnomon to execute a forecast for the actual requested series and dates. Save a
-valid result early, then improve it within the remaining budget. The model choice
-is yours: built-ins are baselines, not a claim of superiority. Evaluate candidate
-methods against the user's metric on earlier observed windows; never use target
+valid result early, then improve it if time allows. The model choice is yours:
+built-ins are baselines, not a claim of superiority, and Ephemeris or StatsForecast
+are optional providers (see [setup](../setup-gnomon-ephemeris/SKILL.md)). Evaluate
+candidates against the user's metric on earlier observed windows; never use target
 outcomes. Inspect a small data summary rather than printing a long CSV.
 
 ## Correct API
@@ -21,12 +22,12 @@ Do not pass a model name or dictionary to `from_config`: its positional argument
 is a configuration **file path**. Do not invent `fit`, `predict`,
 `add_observations`, or `list_providers` on a session.
 
-## Execute and save a task forecast
+## Execute and save a forecast
 
-The following example uses an ordinary file layout: `history.csv` has
-`timestamp,value`, `future.csv` lists requested `timestamp` values, and `task.json`
-contains `series_id`, `unit` and `horizon`. Adapt paths and column mappings when
-inputs differ; preserve the task's identity, units and dates. It uses last value
+The example uses a simple file layout: `history.csv` has `timestamp,value`,
+`future.csv` lists the requested `timestamp` values, and `task.json` holds
+`series_id`, `unit` and `horizon`. Adapt paths and column mappings to the real
+inputs; preserve their identity, units and dates. It uses last value
 as a baseline; select any appropriate provider. For `seasonal_naive`, supply the
 season in **observations** (e.g. 7 only when the intended daily season is weekly).
 The other built-in is `historical_mean`.
@@ -65,7 +66,7 @@ submission = {
 Path("forecast.json").write_text(json.dumps(submission, indent=2))
 ```
 
-Run the task's output validator if one is supplied. Keep the last valid forecast
+If the user or task supplies an output check, run it. Keep the last valid forecast
 until a replacement is validated. A saved inference is not evidence of accuracy.
 
 Before finishing, confirm the saved file is the Gnomon execution you intend to
@@ -84,7 +85,7 @@ model when that is appropriate. Do not guess latent demand or causal effects.
 ## Custom predictions
 
 You may fit your own model with the available libraries. After computing its
-horizon-length `predictions` from task-visible data, register this return contract
+horizon-length `predictions` from data available before the forecast, register this return contract
 and reuse `request` and the saving pattern above:
 
 ```python
@@ -115,8 +116,8 @@ contract; it does not certify model accuracy or that the training data was valid
   illustrative dates. Help is available with `help(GnomonSession.forecast)`.
 
 After a specific API failure, make one task-preserving correction. If it still
-fails, retain any valid saved result and report the error; don't spend the whole
-budget guessing constructors or configuration schemas.
+fails, retain any valid saved result and report the error; don't keep guessing
+constructors or configuration schemas.
 
 Report the final method, its execution ID and how it was chosen. Do not describe a
 baseline fallback or an unsaved computation as the selected Gnomon forecast.
