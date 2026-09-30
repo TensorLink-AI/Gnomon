@@ -5,6 +5,7 @@ import json
 from math import expm1, log1p
 import os
 from pathlib import Path
+import math
 import re
 import ast
 from datetime import timedelta, timezone
@@ -355,3 +356,30 @@ def test_malformed_approval_cannot_record_live_intent(decisions, tmp_path, field
                 promotion_record=path, paper_ledger=paper)
     assert not (tmp_path / 'intent.json').exists()
     assert _decision_count(tmp_path / 'live.db') == 0
+
+
+def test_volatility_reference_runs_and_volatility_models_beat_last_value(tmp_path, monkeypatch, capsys):
+    import sys
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.syspath_prepend(str(SKILL / "scripts"))
+    [code] = re.findall(r"```python\n(.*?)\n```", (SKILL / "references/volatility.md").read_text(), re.S)
+    exec(compile(code, "references/volatility.md", "exec"), {"__name__": "volatility_example"})
+    lines = capsys.readouterr().out.strip().splitlines()
+    ratios = eval(lines[0].split(" best:")[0])
+    assert min(ratios["vol/ewma"], ratios["vol/har"]) < 0.95  # clustering makes volatility forecastable
+    intent = eval(lines[1])
+    assert 0 < intent["target_position"] <= 1 and intent["q05_bps"] < 0 < intent["q95_bps"]
+    assert 0 <= intent["p_move_above_cost"] <= 1 and intent["provider"].startswith("vol/")
+
+
+def test_volatility_helpers():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("volatility", SKILL / "scripts/volatility.py")
+    vol = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(vol)
+    assert vol.realised_volatility([3.0, 4.0, 1.0, 1.0, 1.0], 2) == [math.sqrt(17), math.sqrt(2)]  # leading partial dropped
+    assert vol.vol_target_position(20.0, 10.0) == 0.5 and vol.vol_target_position(5.0, 10.0) == 1.0
+    q = vol.return_quantiles(2.0, [])
+    assert q[0.5] == 0.0 and q[0.05] == -q[0.95]
+    up, down = vol.exceedance_probabilities(1.0, [-2.0, 0.0, 2.0] * 20, threshold=1.0)
+    assert up == down == 1 / 3

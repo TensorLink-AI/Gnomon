@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- `trade-with-gnomon` leads with its essence (forecast, record before any order, score
+  against outcomes, promote only on evidence and approval) and with volatility: a
+  tested worked example and `scripts/volatility.py` (realised volatility, EWMA and
+  HAR-RV forecasters as Gnomon providers, volatility-targeted sizing, return quantiles
+  and cost-exceedance probabilities). Direction views come after they beat zero.
 - Add the `route-with-gnomon` skill: when routing fits, replay on your own data against
   the best single model, configure a pooled episodic-memory router (Python or operator
   TOML), and read `evidence_level`, `effective_n` and neighbours. `trade-with-gnomon`
