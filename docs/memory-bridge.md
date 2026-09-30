@@ -167,3 +167,61 @@ demand. Applications can attach exact retrieval commands and hash-checked
 submitted-code references. A matching source artifact does not prove the file
 was executed. The bridge does not require model reuse, a particular experiment
 sequence, memory writing, or use of the optional arithmetic checker.
+
+## CLI, MCP and automatic recall
+
+Evidence recall is a general Gnomon feature. `gnomon memory` and the
+`gnomon_memory` MCP tool use the same read-only implementation. MCP exposes the
+tool when a ledger is configured. CLI reads require an existing ledger and skip
+configured provider imports and discovery. No model calls or ledger writes occur.
+
+```bash
+gnomon memory --providers-config providers.toml --arguments '{"operation":"recall","series_id":"sales","unit":"widgets","horizon":2,"source_as_of":"2026-01-23T00:00:00Z","recorded_as_of":"2026-01-23T00:00:00Z","limit":2}'
+gnomon memory --schema
+```
+
+Supply the identical argument object to `gnomon_memory`. `recall` requires
+series_id, unit (explicit null allowed), horizon and both evidence cutoffs;
+`decision` instead requires decision_id and both cutoffs. Recall returns saved
+lessons, not automatically generated lessons from every forecast. A new ledger
+has nothing to recall until lessons have been explicitly recorded.
+
+Responses include bounded JSON `context`, `returned`, and `truncated`. Context
+records preserve decision IDs, execution provenance, metrics, cutoffs and review
+calls. Narrative remains an unverified hypothesis. Default context limit is 6000
+characters, configurable from 1024 to 10000. Whole records are omitted to fit;
+use explicit decision review for full evidence. Retrieval is exact-scoped and
+ordered by recording time, not a ranking of model performance.
+
+Opt in to recall attached to forecast responses for Python, CLI and MCP:
+
+```toml
+ledger_path = "evidence.db"
+[memory]
+ledger_ref = "sales-project"
+auto_recall = true
+max_context_chars = 6000
+```
+
+The request must include series_id, a known_time_cutoff or cutoff, and an explicit
+recorded_time_cutoff. Otherwise the response reports recall as skipped. The
+recording cutoff is also capped at the ledger time before the new forecast.
+Recall does not change provider selection, predictions or trade permissions.
+It runs before the forecast and is returned alongside it for the agent's next
+decision; it is not an agent pre-turn hook. Backtest engine folds do not use this
+session convenience. Keep evaluation policies frozen and use point-in-time inputs.
+
+For pre-turn recall in Hermes, install the optional
+[Hermes plugin](../integrations/hermes/gnomon-memory/README.md). It works alongside
+either CLI or MCP forecasting. Installation and configuration are explicit;
+simply using Hermes does not enable ledger access. Native Hermes memory writes
+remain separate, explicit operations. No benchmark establishes a general
+forecast-accuracy benefit from enabling recall.
+
+## Neutral recall interface
+
+`EvidenceRecall(EvidenceMemory(...))` provides `recall`, `recall_compact` and
+`recall_brief` without a harness-specific adapter. `compact_evidence(packet)` is
+the public compact formatter. CLI and MCP consume these neutral interfaces.
+`HermesMemoryAdapter` retains the same recall methods for compatibility and adds
+only the explicit Hermes memory-update proposal format.

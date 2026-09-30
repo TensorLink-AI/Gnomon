@@ -41,7 +41,7 @@ def test_actual_tools_keep_original_schema_and_identical_ordinary_access(backend
     assert all("provider" in variant["required"] for variant in variants)
     assert all("input" not in variant["properties"] for variant in variants)
     assert backend.service.provenance["feature_arm"] in {"lean", "full"}
-    assert len(tools) == (10 if full else 7)
+    assert len(tools) == (11 if full else 7)  # full arm includes gnomon_memory with a ledger
     reply = backend.call("python", {"code": "import json; from pathlib import Path; print(json.loads(Path('/tmp/case.json').read_text())['available_at_cutoff']['series'])"}, timeout=5)
     assert reply.value["stdout"].strip() == "[3, 7]"
     capabilities = backend.call("gnomon_capabilities", {}, timeout=5).value

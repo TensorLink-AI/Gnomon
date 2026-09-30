@@ -35,7 +35,11 @@ def _grid_shape(req):
 
 def compare_history(ledger, *, series_id, horizon, providers, start, end, source_as_of, recorded_as_of, unit,
                     context_filters=None, metric='mae', recent_origins=4, negative_predictions='reject',
-                    _connection=None, _time_cache=None, _execution_cache=None):
+                    identity_policy='attested', _connection=None, _time_cache=None, _execution_cache=None):
+    """identity_policy='prospective_unattested' also admits providers whose revision is None and
+    pretrained providers without an attested training cutoff. Every admitted row must still be
+    recorded before its first target, so no target was observable; revision drift of an
+    unattested provider remains possible and is disclosed in `unattested_providers`."""
     # Context retrieval visits nested cohorts in the same read snapshot. Reuse
     # immutable parsing work only inside that call, never across ledger reads.
     times = {} if _time_cache is None else _time_cache
@@ -58,8 +62,12 @@ def compare_history(ledger, *, series_id, horizon, providers, start, end, source
     _bounded(horizon, "horizon", 1_000_000)
     if unit is not None and (not isinstance(unit, str) or not unit):
         raise ForecastAdapterError("unit must be a nonempty string or null")
+    if identity_policy not in ('attested', 'prospective_unattested'):
+        raise ForecastAdapterError("identity_policy must be attested or prospective_unattested")
+    unattested = identity_policy == 'prospective_unattested'
     if not isinstance(providers, dict) or not 2 <= len(providers) <= 8 or any(
-        not isinstance(p, str) or not p or not isinstance(v, str) or not v.strip() or v in {"latest", "unversioned"}
+        not isinstance(p, str) or not p or not (v is None and unattested) and (
+            not isinstance(v, str) or not v.strip() or v in {"latest", "unversioned"})
         for p, v in providers.items()
     ):
         raise ForecastAdapterError("providers must map 2 to 8 distinct names to explicit revisions")
@@ -75,6 +83,12 @@ def compare_history(ledger, *, series_id, horizon, providers, start, end, source
               "matched_origins": 0, "n": 0, "models": [], "origins": [], "excluded": [], "duplicates_ignored": 0,
               "provider_calls": 0, "action_authorized": False, "model_identity_basis": "provider_declared_not_independently_attested",
               "next_step": "collect_matched_forecasts_with_explicit_budget"}
+    if unattested:
+        answer.update(identity_policy=identity_policy,
+                      unattested_providers=sorted(p for p, v in providers.items() if v is None),
+                      identity_disclosure="Admitted rows were recorded before their first target; unattested "
+                                          "revisions may have changed within the window and pretrained training "
+                                          "cutoffs were not checked.")
     origin_expr = "COALESCE(json_extract(p.payload_json, '$.request.cutoff'), " \
                   "json_extract(p.payload_json, '$.request.timestamps[#-1]'))"
     with ledger._connect() if _connection is None else nullcontext(_connection) as conn:
@@ -148,12 +162,15 @@ def compare_history(ledger, *, series_id, horizon, providers, start, end, source
                     reason = "provider_identity_unrecorded"
                 try:
                     future = [instant(t) for t in req["future_timestamps"]]
-                    history = [instant(t) for t in req["timestamps"]]
-                    if not history:
+                    # Recorded requests passed strictly-increasing validation, so the
+                    # last history timestamp is the latest; parsing all of them costs
+                    # O(history) per execution and dominated router latency.
+                    history_end = instant(req["timestamps"][-1]) if req["timestamps"] else None
+                    if history_end is None:
                         reason = "missing_history_timestamps"
                     elif not future:
                         reason = "missing_future_timestamps"
-                    elif max(history) > origin:
+                    elif history_end > origin:
                         reason = "history_after_forecast_origin"
                     elif min(future) <= origin:
                         reason = "target_not_after_forecast_origin"
@@ -165,7 +182,7 @@ def compare_history(ledger, *, series_id, horizon, providers, start, end, source
                         reason = "source_cutoff_after_origin"
                     if req["recorded_time_cutoff"] and instant(req["recorded_time_cutoff"]) > runs[0]["recorded_at"]:
                         reason = "recorded_cutoff_after_execution"
-                    if identity and identity.get("lifecycle") == "pretrained":
+                    if identity and identity.get("lifecycle") == "pretrained" and not unattested:
                         training = runs[0]["result"]["metadata"].get("training_cutoff")
                         if training is None or instant(training) > origin:
                             reason = "pretrained_training_cutoff_unattested_or_after_origin"

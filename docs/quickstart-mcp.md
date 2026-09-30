@@ -9,7 +9,7 @@ to run `gnomon mcp serve` over stdio. No HTTP server is required.
 
 Omit the configuration argument for the three offline baselines.
 The default session exposes inspect, describe, capabilities, forecast, evaluate
-and read. A ledger adds ledger and route; `enable_temporal=true` adds temporal.
+and read. A ledger adds ledger, route and memory; `enable_temporal=true` adds temporal.
 All interfaces use the same execution contract.
 
 Retain each forecast's `completion` object and use `final_selection` for its
@@ -28,3 +28,27 @@ requires a ledger. Tool errors do not terminate the connection.
 Startup configuration owns provider entrypoints, endpoints, authentication, limits and write
 permissions. Agent arguments cannot enable them.
 [Configuration and full contracts](production/INFERENCE.md).
+
+## Exact schema discovery
+
+Tool declarations include top-level argument properties as well as canonical
+variants. If a host simplifies the declaration, retrieve the exact schema as
+ordinary tool-result data:
+
+```json
+{"name":"gnomon_capabilities","arguments":{"schema_tool":"gnomon_ledger","schema_variant":"review_decision"}}
+```
+
+Omit `schema_variant` to list variant IDs and get the complete schema. Operation
+names identify ledger operations; forecast/evaluation variants without an
+operation discriminator use the returned numeric string IDs. Discovery only
+returns tools and write operations enabled in the current session. Server-side
+validation remains strict even when the host displays a simplified schema.
+
+`gnomon_memory` recalls bounded evidence with explicit source and recording
+cutoffs. See [memory recall](memory-bridge.md#cli-mcp-and-automatic-recall) and the
+optional [Hermes integration](../integrations/hermes/gnomon-memory/README.md).
+
+Operator-configured routers appear under `gnomon_capabilities` → `ledger.routers` and
+are called through `gnomon_forecast` with the router's name as `provider`. See
+[adaptive routing](adaptive-routing.md).

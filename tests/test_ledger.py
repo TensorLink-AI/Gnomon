@@ -227,3 +227,21 @@ def test_ledger_rejects_naive_time_and_other_databases(setup, tmp_path):
         conn.execute("PRAGMA user_version=999")
     with pytest.raises(ForecastAdapterError, match="schema version"):
         TemporalLedger(ledger.path)
+
+
+def test_evidence_reads_use_origin_and_decision_indexes(tmp_path):
+    """Router and comparison reads must stay bounded by the window, not by the series' history."""
+    import sqlite3
+    TemporalLedger(tmp_path / "ledger.db")
+    conn = sqlite3.connect(tmp_path / "ledger.db")
+    origin = ("COALESCE(json_extract(p.payload_json, '$.request.cutoff'), "
+              "json_extract(p.payload_json, '$.request.timestamps[#-1]'))")
+    plan = " ".join(row[3] for row in conn.execute(
+        "EXPLAIN QUERY PLAN SELECT e.execution_id FROM executions e JOIN payloads p USING(payload_id) WHERE "
+        "json_extract(p.payload_json, '$.request.series_id')=? AND json_extract(p.payload_json, '$.request.horizon')=? "
+        "AND julianday(" + origin + ") BETWEEN julianday(?) AND julianday(?)", ("s", 1, "a", "b")))
+    assert "payloads_task_origin" in plan and "<expr>>?" in plan
+    plan = " ".join(row[3] for row in conn.execute(
+        "EXPLAIN QUERY PLAN SELECT 1 FROM decisions WHERE json_extract(payload_json, '$.inputs.kind') = ? AND "
+        "json_extract(payload_json, '$.inputs.series_id') = ? AND recorded_at BETWEEN ? AND ?", ("k", "s", "a", "b")))
+    assert "decisions_kind_series" in plan

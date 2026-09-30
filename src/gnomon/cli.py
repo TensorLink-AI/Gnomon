@@ -21,7 +21,7 @@ from .repair import REPAIR_HELP
 _CONFIG_HELP = 'Path to operator TOML (not JSON); e.g. ledger_path = "ledger.db". Relative paths resolve against the configuration file directory, not cwd.'
 _SERIES_HELP = ("Select an existing series, not a new label. Unlabeled input uses __default__; "
                 "use --series-column to read series labels from input.")
-_SCHEMA_COMMANDS = {name: f"gnomon {name} --schema" for name in ("infer", "evaluate", "route", "ledger", "temporal")}
+_SCHEMA_COMMANDS = {name: f"gnomon {name} --schema" for name in ("infer", "evaluate", "route", "ledger", "memory", "temporal")}
 _SCHEMA_COMMANDS["configuration"] = "gnomon capabilities --config-schema"
 _EXAMPLES = {
     "evaluate": '{"data":{"input":"data.csv"},"candidates":["historical_mean"],'
@@ -143,7 +143,7 @@ def build_parser() -> argparse.ArgumentParser:
     for name in ("start", "end"):
         describe.add_argument("--" + name)
     _input_options(describe)
-    for name in ("evaluate", "route", "ledger"):
+    for name in ("evaluate", "route", "ledger", "memory"):
         epilog = None
         if name in {"evaluate", "route"}:
             direct = ("gnomon evaluate --input data.gnomon --candidates historical_mean --baseline last_value "
@@ -267,6 +267,9 @@ def _arguments_schema(command):
     if command == "infer":
         from .session import REQUEST_SCHEMA
         return deepcopy(REQUEST_SCHEMA)
+    if command == "memory":
+        from .memory_api import MEMORY_SCHEMA
+        return deepcopy(MEMORY_SCHEMA)
     if command == "ledger":
         from .session import ledger_schema
         return {**ledger_schema(allow_outcome_writes=True), "description":
@@ -530,7 +533,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             with GnomonSession.from_config(getattr(args, "providers_config", None),
                                            ledger_path=getattr(args, "ledger_path", None),
                                            discovery_only=args.command == 'capabilities' or bool(getattr(args, 'preflight', False)),
-                                           create_ledger=args.command not in {"ledger", "route"}) as session:
+                                           memory_only=args.command == "memory",
+                                           create_ledger=args.command not in {"ledger", "route", "memory"}) as session:
                 if args.command == "mcp":
                     from .mcp_server import serve
                     return serve(session=session)

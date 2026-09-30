@@ -1,6 +1,6 @@
 ---
 name: connect-ephemeris
-description: Connect optional Ephemeris models to Gnomon after the user opts in, using Hermes native secure credential entry.
+description: Connect optional Ephemeris models to Gnomon after the user opts in, using Hermes native secure credential entry. Use when a Hermes user has opted in and needs to enter or rotate an Ephemeris API key; for provider TOML, MCP wiring or troubleshooting use setup-gnomon-ephemeris.
 required_environment_variables:
   - name: GNOMON_EPHEMERIS_API_TOKEN
     prompt: "Ephemeris API key (secure entry; blank skips setup)"

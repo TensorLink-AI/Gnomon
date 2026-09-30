@@ -70,7 +70,21 @@ def main() -> int:
             str(python), "-m", "pip", "install", "--no-index", "--no-deps",
             str(wheel),
         ])
-        assert environment.joinpath("share/gnomon/skills/use-gnomon/SKILL.md").is_file()
+        import re
+        from urllib.parse import unquote
+        shared = environment / "share/gnomon"
+        for skill in ("use-gnomon", "forecast-with-gnomon", "setup-gnomon-ephemeris", "trade-with-gnomon",
+                      "use-gnomon-ledger", "connect-ephemeris", "forecast-report", "monitor-token-usage"):
+            assert (shared / "skills" / skill / "SKILL.md").is_file(), skill
+        plugin = shared / "integrations/hermes/gnomon-memory"
+        for filename in ("plugin.yaml", "__init__.py", "README.md", "hermes-revision.txt"):
+            assert (plugin / filename).is_file(), filename
+        for document in shared.rglob("*.md"):
+            for target in re.findall(r"\[[^\]]*\]\(([^)]+)\)", document.read_text()):
+                if "://" in target or target.startswith("#"):
+                    continue
+                target = unquote(target.split("#", 1)[0])
+                assert (document.parent / target).exists(), (document, target)
         assert not environment.joinpath("share/gnomon/skills/use-gnomon/references/legacy-workflows.md").exists()
 
         if example_wheel is not None:
@@ -128,7 +142,7 @@ assert EphemerisProvider('https://example.invalid').name == 'ephemeris/route'
                 "arguments": {"operation": "execution", "execution_id": inferred["execution_id"]}}},
         ], cwd=root, providers_config=providers)
         assert {t["name"] for t in execution_mcp[1]["result"]["tools"]} == {
-            "gnomon_capabilities", "gnomon_forecast", "gnomon_ledger", "gnomon_inspect", "gnomon_describe", "gnomon_evaluate", "gnomon_route", "gnomon_read"}
+            "gnomon_capabilities", "gnomon_forecast", "gnomon_ledger", "gnomon_memory", "gnomon_inspect", "gnomon_describe", "gnomon_evaluate", "gnomon_route", "gnomon_read"}
         assert execution_mcp[2]["result"]["structuredContent"]["result"]["point"] == [2]
         assert execution_mcp[3]["result"]["structuredContent"]["result"]["request"]["history"] == [1, 2]
 

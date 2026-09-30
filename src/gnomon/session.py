@@ -268,11 +268,18 @@ _LEDGER_REQUIRED.update(MEMORY_REQUIRED)
 _OUTCOME_WRITES = {"append_actual", "record_decision", "append_decision_outcome"} | MEMORY_WRITES
 
 
+def _router_schema():
+    from .adaptive_router import ROUTER_SCHEMA
+    return deepcopy(ROUTER_SCHEMA)
+
+
 def configuration_schema():
     """Discover operator TOML keys without opening a ledger or loading providers."""
     from .backtesting import EvaluationBudget
     from .result_refs import ResultLimits
+    from .memory_api import MEMORY_CONFIG_SCHEMA
     fields = {
+        "memory": MEMORY_CONFIG_SCHEMA,
         "schema_version": {"const": 1, "default": 1},
         "ledger_path": {"type": "string", "description": "SQLite path relative to this TOML file. Relative paths resolve relative to the configuration file, not the current working directory."},
         "cache_size": {"type": "integer", "minimum": 0, "default": 0,
@@ -280,6 +287,15 @@ def configuration_schema():
                                       "Set cache_size = 8 in TOML, then GnomonSession.from_config('providers.toml'). "
                                       "Repeat the same deterministic, versioned provider request in that session to get a hit."},
         "allow_outcome_writes": {"type": "boolean", "default": False},
+        "routers": {"type": "object", "additionalProperties": _router_schema(),
+                    "description": "Adaptive routers usable as a provider name in forecast calls; each serves one of its "
+                                   "providers per forecast from matched ledger evidence and declared costs. Requires a ledger."},
+        "decision_context": {"type": "object", "maxProperties": 4, "additionalProperties": {
+            "type": "object", "additionalProperties": False, "required": ["value", "source_ref"],
+            "properties": {"value": {"type": "string"}, "source_ref": {"type": "string"}}},
+            "description": "Operator labels added to every CLI/MCP record_decision_summary, e.g. "
+                           "[decision_context.trading_mode] value = \"paper\", source_ref = \"operator-config\". "
+                           "Callers cannot set these keys; a ledger holding a different value for one is refused."},
         "enable_temporal": {"type": "boolean", "default": False},
         'compact_errors': {'type': 'boolean', 'default': True, 'description': 'Replace the legacy duplicate rejection payload with an /error reference. False restores expanded legacy errors.'},
         "max_data_refs": {"type": "integer", "minimum": 1, "default": 16},
@@ -326,9 +342,15 @@ class GnomonSession:
     def __init__(self, engine: InferenceEngine | None = None, *, ledger: TemporalLedger | None = None,
                  allow_outcome_writes: bool = False, max_data_refs: int = 16, max_data_rows: int = 100_000,
                  evaluation_limits: dict | None = None, result_limits: dict | None = None,
-                 enable_temporal: bool = False, compact_errors: bool = True):
+                 enable_temporal: bool = False, compact_errors: bool = True, memory: dict | None = None,
+                 decision_context: dict | None = None, routers: dict | None = None):
         if type(compact_errors) is not bool:
             raise ForecastAdapterError('compact_errors must be a boolean')
+        from .memory_api import MEMORY_CONFIG_SCHEMA
+        from .recovery import _matches
+        if memory is not None and not _matches(memory, MEMORY_CONFIG_SCHEMA):
+            raise ForecastAdapterError("Invalid memory configuration")
+        self.memory_config = deepcopy(memory or {})
         self.compact_errors = compact_errors
         if type(allow_outcome_writes) is not bool:
             raise ForecastAdapterError("allow_outcome_writes must be a boolean")
@@ -341,6 +363,16 @@ class GnomonSession:
             raise ForecastAdapterError("session and engine must share the same ledger")
         self._ephemeris_providers = set()
         self.allow_outcome_writes = allow_outcome_writes
+        self.routers = {}
+        if routers:
+            from .adaptive_router import validate_policy
+            if not isinstance(routers, dict):
+                raise ForecastAdapterError("routers must map names to router policies")
+            self.routers = {name: validate_policy(policy) for name, policy in routers.items()}
+        self.decision_context = {}
+        if decision_context is not None:
+            from .decision_memory import validate_operator_context
+            self.decision_context = validate_operator_context(decision_context)
         from .data_refs import DataReferences
         self.data = DataReferences(max_refs=max_data_refs, max_rows=max_data_rows)
         from .backtesting import EvaluationBudget
@@ -355,7 +387,7 @@ class GnomonSession:
     @classmethod
     def from_config(cls, path: str | Path | None = None, *, ledger_path: str | Path | None = None,
                     create_ledger: bool = True, ledger: TemporalLedger | None = None,
-                    discovery_only: bool = False) -> "GnomonSession":
+                    discovery_only: bool = False, memory_only: bool = False) -> "GnomonSession":
         """Load built-ins, plus optional saved Ephemeris when no TOML is supplied.
 
         `gnomon connect ephemeris` opts into a private user profile. Explicit TOML
@@ -380,6 +412,7 @@ class GnomonSession:
         ledger=TemporalLedger('evidence.db', clock=your_clock). Do not also
         configure a ledger path. discovery_only avoids opening the ledger;
         configured provider discovery may still initialize provider code.
+        memory_only=True skips configured providers and requires an existing ledger.
         """
         config, directory = {}, Path.cwd()
         if path is not None:
@@ -409,18 +442,19 @@ class GnomonSession:
             raise ForecastAdapterError('An explicit ledger cannot be combined with configured ledger paths or discovery_only.')
         engine = InferenceEngine(ledger=ledger, cache_size=config.get("cache_size", 0))
         session = cls(engine, ledger=ledger, allow_outcome_writes=config.get("allow_outcome_writes", False),
+                      decision_context=config.get("decision_context"), routers=config.get("routers"),
                       max_data_refs=config.get("max_data_refs", 16), max_data_rows=config.get("max_data_rows", 100_000),
                       evaluation_limits=config.get("evaluation_limits"), result_limits=config.get("result_limits"),
-                      enable_temporal=config.get("enable_temporal", False), compact_errors=config.get('compact_errors', True))
+                      enable_temporal=config.get("enable_temporal", False), compact_errors=config.get('compact_errors', True), memory=config.get('memory'))
         from .models import BASELINES, predict
         for name in sorted(BASELINES):
             adapter = StatisticalAdapter(name, predict)
             engine.register(name, adapter, revision=f"gnomon/{build_info()['build_id']}/{name}", deterministic=True)
         try:
-            if path is None:
+            if path is None and not memory_only:
                 from .onboarding import register_saved
                 register_saved(session)
-            for name, spec in config.get("providers", {}).items():
+            for name, spec in ({} if memory_only else config.get("providers", {})).items():
                 try:
                     session._configure_provider(name, spec)
                 except ForecastAdapterError as exc:
@@ -428,7 +462,7 @@ class GnomonSession:
                     exc.details.setdefault('rejected_fields', exc.details.get('unknown_fields', []))
                     raise
             if configured_ledger is not None and not discovery_only:
-                session.ledger = engine._ledger = TemporalLedger(configured_ledger, create=create_ledger)
+                session.ledger = engine._ledger = TemporalLedger(configured_ledger, create=create_ledger and not memory_only)
             session._configured_ledger_path = configured_ledger
             session._discovery_only = discovery_only
         except Exception:
@@ -529,7 +563,10 @@ class GnomonSession:
                 "product_contract": product_claims(),
                 "onboarding": {"ephemeris": connection_info(self._ephemeris_providers, catalog=getattr(self, '_ephemeris_catalog', None))},
                 "interfaces": {"python": True, "cli": True, "mcp": True},
-                "operation_interfaces": {"routing": {'cli': True, 'python': True, 'mcp': self.ledger is not None},
+                "memory": {"auto_recall": self.memory_config.get("auto_recall", False),
+                           "read_only": True, "schema_command": "gnomon memory --schema"},
+                "operation_interfaces": {"memory": {"cli": True, "python": True, "mcp": self.ledger is not None},
+                    "routing": {'cli': True, 'python': True, 'mcp': self.ledger is not None},
                     "ledger": {'cli': True, 'python': True, 'mcp': self.ledger is not None},
                     "rescore": {'cli': True, 'python': True, 'mcp': True, 'requires_ledger': True}},
                 "exit_semantics": EXIT_SEMANTICS,
@@ -547,6 +584,10 @@ class GnomonSession:
                                     "Repeat the same request in one session; see help(GnomonSession.from_config).",
                           "schema_command": "gnomon capabilities --config-schema"},
                 "ledger": {"enabled": self.ledger is not None, "outcome_writes": self.allow_outcome_writes,
+                           "decision_context": {k: v["value"] for k, v in self.decision_context.items()},
+                           "routers": {name: {"candidates": r["candidates"], "baseline": r["baseline"],
+                                              "metric": r["metric"], "identity_policy": r["identity_policy"]}
+                                       for name, r in self.routers.items()},
                            "decision_memory": {"operations": list(MEMORY_PARAMETERS),
                                "discovery": "gnomon ledger --schema", "example": "python -m gnomon.examples.decision_memory",
                                "evidence_bridge": {"python": "gnomon.EvidenceMemory",
@@ -573,8 +614,19 @@ class GnomonSession:
                                        'session.forecast("last_value", {"history":[1,2,3],"horizon":2}).')
         if type(verify) is not bool:
             raise ForecastAdapterError('verify must be a boolean')
+        if provider in self.routers:
+            if provider in self.engine._providers:
+                raise ForecastAdapterError(f"{provider} is both a router and a registered provider; rename one")
+            if verify:
+                raise ForecastAdapterError('verify applies to a statistical built-in, not a router')
+            from .adaptive_router import route_forecast
+            routed = request if isinstance(request, dict) else {
+                k: v for k, v in asdict(request).items() if v is not None}
+            return route_forecast(self, provider, self.routers[provider], routed)
         if verify and not isinstance(getattr(self.engine._providers.get(provider), 'target', None), StatisticalAdapter):
             raise ForecastAdapterError('verify requires a registered statistical built-in provider')
+        from .memory_api import automatic_recall
+        memory = automatic_recall(self.ledger, request, self.memory_config, self.ledger._now()) if self.ledger else None
         run = self.engine.forecast(provider, request, use_cache=use_cache)
         from .final_selection import FINAL_SELECTION_GUIDANCE
         canonical = run.completion()
@@ -601,7 +653,8 @@ class GnomonSession:
                     "history_end": run.request.timestamps[-1] if run.request.timestamps else None,
                 },
                 "evidence": run.evidence, "action_authorized": run.action_authorized,
-                "recorded": self.ledger is not None}
+                "recorded": self.ledger is not None,
+                **({"memory": memory} if memory is not None else {})}
 
     @_measured
     def evaluate(self, data_ref: str, *, budget: dict | None = None, **kwargs) -> dict:
@@ -679,9 +732,32 @@ class GnomonSession:
             error.details['execution_diagnostics'] = self._execution_delta(before)
             raise error from None
         result['execution_diagnostics'] = self._execution_delta(before)
-        if compact and name == 'gnomon_capabilities':
+        if compact and name == 'gnomon_capabilities' and 'schema' not in result:
             result.pop('cutoff_semantics', None)
             result['cutoff_semantics_command'] = 'gnomon capabilities'
+            # Keep compact discovery within one response: drop what `build` already states
+            # and optional features that are not configured (full capabilities keep them).
+            result.pop('version_semantics', None)
+            for key in ('decision_context', 'routers'):
+                if not result.get('ledger', {}).get(key):
+                    result.get('ledger', {}).pop(key, None)
+            if self.ledger is None or not result.get('memory', {}).get('auto_recall'):
+                result.pop('memory', None)  # the visible gnomon_memory tool already announces recall
+            # Paths and build strings vary by installation; if the compact view would still
+            # page, drop descriptive blocks that full capabilities keep, in a fixed order.
+            budget = self.results.limits.max_response_bytes - 256
+            droppable = [(result, 'exit_semantics'),
+                         (result.get('ledger', {}).get('decision_memory', {}), 'evidence_bridge'),
+                         (result, 'python_environment')]
+            omitted = []
+            for holder, key in droppable:
+                if len(json.dumps(result, separators=(',', ':'), default=str).encode()) <= budget:
+                    break
+                if key in holder:
+                    holder.pop(key)
+                    omitted.append(key)
+            if omitted:
+                result['omitted_for_size'] = {'fields': omitted, 'full_command': 'gnomon capabilities'}
             result['cache']['enable'] = 'Set cache_size in TOML; repeat within one session.'
             result['cache'].pop('statistics_scope', None)
             for provider in result['providers'].values():
@@ -725,7 +801,12 @@ class GnomonSession:
                 except (ValueError, TypeError) as exc:
                     raise GnomonError("INVALID_ARGUMENTS", str(exc), details=temporal_recovery(arguments)) from None
             if name == "gnomon_capabilities":
-                _strict(arguments, ('brief',))
+                _strict(arguments, ('brief', 'schema_tool', 'schema_variant'))
+                if 'schema_tool' in arguments:
+                    from .tool_schemas import describe_schema
+                    return describe_schema(self.tools(portable=False), arguments['schema_tool'], arguments.get('schema_variant'))
+                if 'schema_variant' in arguments:
+                    raise ForecastAdapterError('schema_variant requires schema_tool')
                 return self.capabilities(**arguments)
             if name == "gnomon_forecast":
                 if 'selected_provider' in arguments and 'provider' not in arguments and isinstance(arguments['selected_provider'], str):
@@ -794,6 +875,9 @@ class GnomonSession:
                         raise ForecastAdapterError('No preparation options are accepted with .gnomon input, even identical values. Inspect the original source to prepare a different snapshot.',
                             details={**frozen_recovery(arguments, rejected), 'rejected_arguments': {k: arguments[k] for k in sorted(rejected)}})
                 return getattr(self.data, "inspect" if name == "gnomon_inspect" else "describe")(**arguments)
+            if name == "gnomon_memory":
+                from .memory_api import memory_call
+                return memory_call(self.ledger, arguments, self.memory_config)
             if name == "gnomon_ledger":
                 return self._ledger_call(arguments)
             if name == "gnomon_route":
@@ -870,6 +954,8 @@ class GnomonSession:
                                  "--providers-config providers.toml, or set it when constructing GnomonSession."}])
         _strict(arguments, {"operation", *_LEDGER_PARAMETERS[operation]}, {"operation", *_LEDGER_REQUIRED[operation]})
         parameters = {k: v for k, v in arguments.items() if k != "operation"}
+        if operation == "record_decision_summary" and self.decision_context:
+            parameters["operator_context"] = self.decision_context
         if operation == "pending":
             now = self.ledger._now()
             for field in ("source_as_of", "recorded_as_of"):
@@ -924,12 +1010,13 @@ class GnomonSession:
                           review_ready=result['review_ready'])
         return answer
 
-    def tools(self) -> list[dict]:
+    def tools(self, *, portable=True) -> list[dict]:
         tools = [
             {"name": "gnomon_read", "description": "Read exact retained result JSON text pages, optionally at a JSON pointer. Concatenate pages at next_offset; no provider calls. References expire with the session or LRU eviction.",
              "inputSchema": READ_SCHEMA},
-            {"name": "gnomon_capabilities", "description": "List registered providers, storage capabilities, and optional Ephemeris signup/connection guidance. Offer signup at most once; never request credentials through MCP.",
-             "inputSchema": {"type": "object", "properties": {'brief': {'type': 'boolean', 'default': True,
+            {"name": "gnomon_capabilities", "description": "List registered providers, storage capabilities, and optional Ephemeris signup/connection guidance, or retrieve exact tool/operation schemas with schema_tool and schema_variant. Offer signup at most once; never request credentials through MCP.",
+             "inputSchema": {"type": "object", "properties": {"schema_tool": {"type": "string", "description": "Retrieve the exact schema of an exposed tool, without executing it."},
+                "schema_variant": {"type": "string", "description": "Operation name or variant ID from schema discovery."}, 'brief': {'type': 'boolean', 'default': True,
                 'description': 'Deduplicate provider request schemas using shared JSON references.'}}, "additionalProperties": False}},
             {"name": "gnomon_forecast", "description": "Execute a registered provider. Preserve completion as typed evidence; final_selection shows the provider/execution_id selection to return. No implicit backtest, calibration claim or action permission.",
              "inputSchema": FORECAST_SCHEMA},
@@ -945,10 +1032,15 @@ class GnomonSession:
             tools.append({"name": "gnomon_temporal", "description": "Calculate explicit dates/instants, half-open interval relations and stable event order. Local times require zones and ambiguous folds; no implicit now or causal inference.",
                           "inputSchema": TEMPORAL_SCHEMA})
         if self.ledger is not None:
+            from .memory_api import MEMORY_SCHEMA
+            tools.append({"name": "gnomon_memory", "description": "Recall bounded, scoped ledger lessons or review a decision at explicit evidence cutoffs. Read-only; narratives remain unverified hypotheses.", "inputSchema": MEMORY_SCHEMA})
             tools.append({"name": "gnomon_route", "description": "Recommend from one immutable matched study with explicit source/recorded cutoffs; rescore without model calls or action permission.",
                           "inputSchema": ROUTE_SCHEMA})
             tools.append({"name": "gnomon_ledger", "description": "Find forecasts and feedback status, compare matched production history, score named runs or record authorized actuals. Reads never run models; exact scoring retries reuse evidence.",
                           "inputSchema": ledger_schema(allow_outcome_writes=self.allow_outcome_writes)})
+        if portable:
+            from .tool_schemas import portable_schema
+            tools = [{**t, "inputSchema": portable_schema(t["inputSchema"])} for t in tools]
         return tools
 
     def close(self):

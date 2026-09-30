@@ -103,6 +103,11 @@ class TemporalLedger:
                 CREATE INDEX IF NOT EXISTS payloads_task ON payloads(
                     json_extract(payload_json, '$.request.series_id'),
                     json_extract(payload_json, '$.request.horizon'));
+                CREATE INDEX IF NOT EXISTS payloads_task_origin ON payloads(
+                    json_extract(payload_json, '$.request.series_id'),
+                    json_extract(payload_json, '$.request.horizon'),
+                    julianday(COALESCE(json_extract(payload_json, '$.request.cutoff'),
+                                       json_extract(payload_json, '$.request.timestamps[#-1]'))));
                 CREATE TABLE IF NOT EXISTS actuals (
                     actual_id TEXT PRIMARY KEY, series_id TEXT NOT NULL,
                     valid_time TEXT NOT NULL, source_available_at TEXT NOT NULL,
@@ -117,6 +122,9 @@ class TemporalLedger:
                 CREATE TABLE IF NOT EXISTS decisions (
                     decision_id TEXT PRIMARY KEY, recorded_at TEXT NOT NULL,
                     payload_json TEXT NOT NULL);
+                CREATE INDEX IF NOT EXISTS decisions_kind_series ON decisions(
+                    json_extract(payload_json, '$.inputs.kind'),
+                    json_extract(payload_json, '$.inputs.series_id'), recorded_at);
                 CREATE TABLE IF NOT EXISTS decision_outcomes (
                     outcome_id TEXT PRIMARY KEY,
                     decision_id TEXT NOT NULL REFERENCES decisions(decision_id),
@@ -654,12 +662,12 @@ class TemporalLedger:
         return {**json.loads(row[0]), "recorded_at": row[1], "outcomes": outcomes}
 
     def record_decision_summary(self, *, execution_id, rationale, assumptions,
-                                invalidation_conditions, context, evidence_refs=None):
+                                invalidation_conditions, context, evidence_refs=None, operator_context=None):
         """Record a bounded selection summary. Context carries source times and provenance."""
         from .decision_memory import record_decision_summary
         return record_decision_summary(self, execution_id=execution_id, rationale=rationale,
             assumptions=assumptions, invalidation_conditions=invalidation_conditions,
-            context=context, evidence_refs=evidence_refs)
+            context=context, evidence_refs=evidence_refs, operator_context=operator_context)
 
     def compare_context(self, *, series_id, horizon, providers, start, end,
                         source_as_of, recorded_as_of, context_filters, unit=None,

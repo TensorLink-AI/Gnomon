@@ -18,7 +18,7 @@ when you need one.
 Python 3.11–3.13. No required third-party dependencies.
 
 ```bash
-python -m pip install 'gnomon-forecast==1.2.0'
+python -m pip install 'gnomon-forecast==1.3.0'
 gnomon infer --provider last_value --request '{"history":[10,12,11],"horizon":2}'
 ```
 
@@ -88,6 +88,11 @@ Ephemeris is one connector for remote time-series inference. Set its deployment
 URL and credentials in operator configuration; they are never agent tool arguments.
 Local models work without it.
 See [connector setup](docs/production/INFERENCE.md#ephemeris).
+Agents can follow the portable [Ephemeris setup skill](skills/setup-gnomon-ephemeris/SKILL.md)
+for installation, credentials, MCP configuration and API documentation links.
+For trading research and execution workflows across brokers, exchanges and
+competitions, use [Trade with Gnomon](skills/trade-with-gnomon/SKILL.md), including
+StatsForecast and Ephemeris integration examples.
 
 ## Keep the history straight
 
@@ -120,3 +125,5 @@ models and securely save your API key, run `gnomon connect ephemeris`.
 MCP capabilities expose the same optional signup link for agents; keys are
 entered in a human terminal, never in chat. See
 [connection setup](docs/ephemeris-onboarding.md).
+
+Read-only evidence recall: [`gnomon memory` and `gnomon_memory`](docs/memory-bridge.md#cli-mcp-and-automatic-recall), with an optional [Hermes pre-turn plugin](integrations/hermes/gnomon-memory/README.md) for project-scoped automatic context.

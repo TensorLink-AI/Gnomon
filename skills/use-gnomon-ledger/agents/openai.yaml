@@ -1,0 +1,4 @@
+interface:
+  display_name: "Use the Gnomon ledger"
+  short_description: "Compare models on recorded history and review past decisions"
+  default_prompt: "Use $use-gnomon-ledger to compare the recorded forecasts for this series at explicit evidence cutoffs, reporting matched counts and exclusions."

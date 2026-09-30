@@ -1,6 +1,40 @@
 # Changelog
 
-## Unreleased
+## 1.3.0 — 2026-09-30
+
+- Add adaptive routing: an operator-configured router is used like a provider,
+  serves one of your models per forecast, and learns from matched, prospectively
+  recorded outcomes in the ledger, with declared dollar and latency costs, limits,
+  shadow sampling, pooled evidence across series and regime-conditioned evidence.
+  `replay_router` evaluates the same rule offline on one shared clock; live and
+  replay selections are identical in the parity checks.
+- Add episodic memory for routing: each forecast is described by features of its own
+  request (recorded at routing time), and providers are scored on the most similar
+  matured past origins across the pool. Responses include the effective sample size
+  and the supporting neighbours. On 96 Favorita series at a 56-day horizon with six
+  StatsForecast models, memory with pooling scored 0.794 relative MAE versus 0.812
+  for the best single model chosen once (bootstrap 95% CI of the difference
+  [-0.023, -0.012]); plain rolling selection did not beat that pick.
+- Routing serves the baseline with an explicit reason when the ledger refuses the
+  evidence window as incompatible, uses only outcomes available at the request's
+  point in time, and reads windows past the 1,000-execution comparison cap in parts.
+- Index recorded forecasts by series, horizon and origin, and decisions by kind and
+  series, so evidence reads are bounded by the window rather than the ledger's age.
+  Existing ledgers gain the indexes when next opened for writing.
+- `compare_history` accepts `identity_policy = "prospective_unattested"` to rank
+  providers without an attested revision (for example Ephemeris) from forecasts
+  recorded before their first target, disclosed in the response.
+- Operator `decision_context` labels (for example a trading mode) are injected into
+  decision summaries and cannot be overridden by callers.
+- Add read-only evidence recall through `gnomon memory` and `gnomon_memory`, optional
+  recall attached to forecast responses, harness-neutral `EvidenceRecall` and
+  `compact_evidence`, and an optional Hermes pre-turn plugin with a pinned
+  compatibility check.
+- `gnomon_capabilities` returns exact tool and operation schemas with `schema_tool`
+  and `schema_variant`, for hosts that strip schema branches.
+- Add the `trade-with-gnomon`, `setup-gnomon-ephemeris` and packaged
+  `forecast-with-gnomon` skills, agent interface files for every skill, explicit
+  "Use when" triggers, and worked ledger calls with bounded recovery guidance.
 
 - Add the `forecast-report` Hermes skill: forecast a CSV time series with an
   Ephemeris model and a `seasonal_naive` baseline, backtest both on the last

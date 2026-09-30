@@ -1,6 +1,6 @@
 ---
 name: monitor-token-usage
-description: Forecast and monitor the tokens and cost of Hermes's LLM calls with Gnomon (Ephemeris models optional), alert when a day or hour lands outside its forecast range and say what caused it (more calls, bigger calls, one runaway session), and report whether the model beats a free baseline.
+description: Forecast and monitor the tokens and cost of Hermes's LLM calls with Gnomon (Ephemeris models optional), alert when a day or hour lands outside its forecast range and say what caused it (more calls, bigger calls, one runaway session), and report whether the model beats a free baseline. Use when the user wants Hermes token or cost usage forecast, monitored or explained.
 ---
 
 # Monitor Hermes token usage

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Set up Gnomon with Ephemeris"
+  short_description: "Install Gnomon, configure Ephemeris and verify discovery"
+  default_prompt: "Use $setup-gnomon-ephemeris to configure Ephemeris for Gnomon and verify model discovery without running billable forecasts."

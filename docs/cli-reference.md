@@ -281,3 +281,26 @@ Hermes secure setup: `gnomon connect ephemeris --install-hermes-skill` installs 
 skill; after native capture, `gnomon connect ephemeris --from-env` imports
 `GNOMON_EPHEMERIS_API_TOKEN` without putting its value in command arguments.
 See [Ephemeris onboarding](ephemeris-onboarding.md#native-hermes-setup).
+
+## Read-only memory recall
+
+`gnomon memory --schema` shows the shared CLI/MCP argument schema.
+`gnomon memory --providers-config providers.toml --arguments @recall.json`
+reads an existing ledger without loading configured forecast providers.
+
+```json
+{"operation":"recall","series_id":"sales","unit":"widgets","horizon":2,"source_as_of":"2026-01-23T00:00:00Z","recorded_as_of":"2026-01-23T00:00:00Z","limit":2}
+```
+
+Use your task's scope and evidence cutoffs. `decision` takes a `decision_id`
+instead of series/unit/horizon. Results report bounded JSON `context`, `returned`
+and `truncated`; zero returned lessons is a successful empty read. No lessons,
+forecasts or external memory writes are created. See [memory bridge](memory-bridge.md).
+
+## Adaptive routing
+
+A router configured under `[routers."<name>"]` in the operator TOML is used like a
+provider: `gnomon infer --providers-config gnomon.toml --provider <name> --request
+request.json`. The reply adds `routing` (served provider, reason, utility table,
+shadow executions); `gnomon capabilities` lists routers under `ledger.routers`. See
+[adaptive routing](adaptive-routing.md).
