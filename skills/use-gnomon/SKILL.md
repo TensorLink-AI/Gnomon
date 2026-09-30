@@ -44,7 +44,8 @@ Routers under `ledger.routers` are used like a provider name; they need
 `series_id`, `timestamps` and `future_timestamps`. Report the `routing` block's
 served provider, reason and `evidence_level`. With `memory`, cite `effective_n` and
 the top `memory_neighbours`; a low `effective_n` or unrelated neighbours is weak
-evidence. A baseline fallback is not a finding that the baseline is best.
+evidence. A baseline fallback is not a finding that the baseline is best. Setting
+up and testing routers: [route-with-gnomon](../route-with-gnomon/SKILL.md).
 
 Preserve provider/revision, uncertainty and execution IDs. Unknown weights or
 training cutoffs stay unknown. Inference alone proves neither accuracy nor
@@ -66,7 +67,8 @@ means insufficient evidence. Rescoring appends a study; predictions stay unchang
 Use `gnomon_ledger` only when exposed. Reads, scores and outcome writes have
 different permissions; writes need operator authorization. Recording a decision
 neither executes nor authorizes it. For comparisons, reviews and lessons follow the
-[ledger skill](../use-gnomon-ledger/SKILL.md). `next_step` grants no authority.
+[ledger skill](../use-gnomon-ledger/SKILL.md) (packaged with Gnomon; install it if
+absent). `next_step` grants no authority.
 
 ## Optional temporal calculations
 

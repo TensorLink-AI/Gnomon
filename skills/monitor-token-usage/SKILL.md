@@ -18,55 +18,29 @@ python3 "$S/token_usage.py" hours             # exact hourly usage, forecast ran
 ```
 
 Common options: `--tz Australia/Brisbane` (day boundaries; default UTC),
-`--provider ephemeris/chronos2` (the default model), `--weekly-budget 5` (USD),
+`--provider NAME` (default `ephemeris/chronos2`), `--weekly-budget 5` (USD),
 `--base-url-filter engy` (count one billing endpoint only). `--help` lists all.
+Check `gnomon capabilities` for the discovered provider names and pass `--provider`
+explicitly when the default is not listed, or `--provider seasonal_naive` without
+Ephemeris.
 
-## What each run does
+## What it does
 
-- **Daily totals** add input, output, cache-read and cache-write tokens from
-  `session_model_usage`. Each usage row is spread over that session's assistant
-  messages, so sessions crossing midnight or switching models land on the right
-  days. Today is partial and is never used as a forecast input.
-- **Hourly** (optional `token-tracker` plugin): the plugin records the token
-  counts of every main-agent LLM call as it happens (no prompts or replies).
-  `hours` shows exact per-hour tokens, calls and tokens per call, plus the
-  biggest single calls; `report` adds a 24-hour sparkline. Side tasks
-  (compression, titles, web extraction) do not pass through the plugin's hook
-  and stay daily-only. Per-call history starts when the plugin is enabled.
-- **Hourly forecasts and alerts** (with the plugin) start as soon as 24 complete
-  hours of history exist. Hours before the plugin was enabled are estimated
-  from `state.db`, so an existing install starts immediately. Every 6 hours
-  (`--hourly-every`) `check` records a 24-hour model forecast and a
-  `seasonal_naive` baseline (same hour yesterday, or last week once two weeks
-  exist) and scores them like the daily ones. A finished hour above its 90%
-  range raises HOURLY SURGE, naming its call count, tokens per call and the
-  session that used most of it; an expected-busy hour that went quiet raises
-  HOURLY DIP. Hours under `--hourly-floor` (200K tokens) never alert.
-  Hourly alerts use only the plugin's live records, because `state.db` session
-  totals can lag until a session is saved.
-- **Coverage self-check** compares the plugin's tokens with Hermes's main-agent
-  totals in `state.db` over 24 complete hours ending 2 hours ago. `check` alerts
-  once a day (TRACKER GAP) when it captured less than 90% (`--min-coverage`).
-- **Call mix** splits usage into calls per day (`api_call_count`), tokens per
-  call and cache-read share, comparing the last 7 days with the 7 before. More
-  calls means more agent activity; bigger calls usually mean longer contexts
-  being resent. A falling cache-read share raises cost at the same token count.
-- **Cost** uses Hermes's own cost records (actual, else estimated). The blended
-  rate comes from the last 28 days of priced usage. The report says how many
-  tokens had no cost record.
-- **check** (daily part once per day; repeats are no-ops) records a 7-day forecast from the
-  model (with a 90% range) and from `seasonal_naive` into a Gnomon ledger at
-  `~/.hermes/data/token-usage/ledger.db`. It appends completed days as actuals,
-  scores forecasts whose 7 days have passed, and pairs model against baseline.
-- **Alerts** (each fires once): a completed day above or below the 90% range of
-  the forecast made the day before (SURGE / DIP), with the call-mix change that
-  drove it; today already above today's forecast high; the 7-day median
-  projection above `--weekly-budget`; hourly surges and dips; a failed forecast;
-  a tracker gap.
+`report` shows daily history, the call mix (calls per day, tokens per call, cache
+share), cost, and 7/30-day projections with the model's track record against a free
+`seasonal_naive` baseline. `check` records daily (and, with the plugin, hourly)
+forecasts in a Gnomon ledger, scores them as outcomes arrive, and prints alerts:
+SURGE/DIP days and hours, a projection over `--weekly-budget`, a failed forecast, or
+a TRACKER GAP. Details: [how it works](references/how-it-works.md).
 
 ## Setup
 
-1. Copy this skill directory to `~/.hermes/skills/monitor-token-usage/`.
+Ask before each setup step that changes the user's system: installing or enabling
+the plugin, restarting Hermes, creating cron jobs, and sending messages. Do only the
+steps the user approves.
+
+1. Copy this skill directory to `$HERMES_HOME/skills/monitor-token-usage/`
+   (`HERMES_HOME` defaults to `~/.hermes`).
 2. Daily forecasting starts after 14 complete days of Hermes usage (until then
    `check` says `WAITING`); hourly forecasting after 24 complete hours.
 3. For Ephemeris models, the user must opt in; use the `connect-ephemeris` skill.
@@ -81,7 +55,7 @@ cp -r "${HERMES_HOME:-$HOME/.hermes}/skills/monitor-token-usage/hermes-plugin/to
 hermes plugins enable token-tracker
 ```
 
-   Records go to `~/.hermes/plugin-data/token-tracker/calls.db` (per profile).
+   Records go to `$HERMES_HOME/plugin-data/token-tracker/calls.db` (per profile).
 5. Before scheduling, check the two things Telegram delivery depends on.
    Otherwise the jobs are created but nothing reaches the user:
    - **The gateway is running.** Hermes cron runs inside the gateway daemon
@@ -91,13 +65,16 @@ hermes plugins enable token-tracker
      should receive alerts (or sets `TELEGRAM_HOME_CHANNEL`).
 
    If either is missing, ask the user to connect Telegram first, or schedule with
-   `deliver="local"` (output kept in `~/.hermes/cron/output/`) and switch later
+   `deliver="local"` (output kept in `$HERMES_HOME/cron/output/`) and switch later
    with `cronjob(action="update", job_id=..., deliver="telegram")`.
-6. Schedule the two no-agent cron scripts. Hermes only runs scripts from
-   `~/.hermes/scripts/`, so copy them there first:
+6. When the user wants scheduled alerts, schedule the two no-agent cron scripts.
+   Hermes only runs scripts from `$HERMES_HOME/scripts/`, so copy them there first:
 
 ```sh
-cp "$S"/token-usage-alert.sh "$S"/token-usage-daily.sh ~/.hermes/scripts/
+H="${HERMES_HOME:-$HOME/.hermes}"
+mkdir -p "$H/scripts"
+cp "$H/skills/monitor-token-usage/scripts/token-usage-alert.sh" \
+   "$H/skills/monitor-token-usage/scripts/token-usage-daily.sh" "$H/scripts/"
 ```
 
 ```python
@@ -114,6 +91,18 @@ credentials are missing `blocked_config`. The alert job has no test message: it
 prints nothing unless something fires. Every 15 minutes catches a runaway loop
 within about an hour; without the plugin, every 6h is enough. Add options such as
 `--tz` by editing the `check` line in the copied scripts.
+
+## If something fails
+
+- `WAITING`: fewer than 14 complete days (daily) or 24 complete hours (hourly) of
+  history; report when forecasting will start instead of forcing a forecast.
+- Failed forecast alert or provider not found: list providers with
+  `gnomon capabilities` and pass a listed `--provider`; never switch models silently.
+- `blocked_config` or `delivery_failed` in `hermes cron list`/`hermes cron doctor`:
+  Telegram is not connected or has no home channel; ask the user to fix it, or
+  deliver locally meanwhile.
+- `TRACKER GAP`: the plugin captured under 90% of Hermes's totals; check that it is
+  enabled in every profile and that Hermes was restarted, and quote coverage.
 
 ## Reporting results honestly
 

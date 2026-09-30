@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Add the `route-with-gnomon` skill: when routing fits, replay on your own data against
+  the best single model, configure a pooled episodic-memory router (Python or operator
+  TOML), and read `evidence_level`, `effective_n` and neighbours. `trade-with-gnomon`
+  gains a "Choosing models with memory" section.
+- Clean up the packaged skills: consent before paid runs, plugin installs, restarts,
+  cron jobs and messages in the Hermes skills; a saved-connection-versus-TOML path in
+  Ephemeris setup; recovery and reporting sections where missing; one home for the
+  "Ephemeris cannot be ranked" caveat; trade and token-monitor detail moved into
+  references; corrected defaults, paths and links; and a skills index in
+  `docs/agent-skill.md`.
 - Fix the `token-tracker` Hermes plugin silently dropping calls under concurrent writes:
   WAL and schema setup now run once per database per process, writes wait up to 5 s for
   a lock and retry briefly, and a removed database is recreated.

@@ -10,9 +10,13 @@ required_environment_variables:
 
 # Connect Ephemeris in Hermes
 
+## When to load
+
 Load this skill only after the user accepts optional Ephemeris signup. Offer it
 once; respect a decline. Show https://ephemeris.cascade.industries first so the
 human can sign up and obtain a key. Never ask for a key in a chat message.
+
+## Capture the key
 
 Hermes handles this skill's declared credential with its native secure prompt.
 On supported interactive surfaces this is a masked prompt or secret overlay,
@@ -24,6 +28,8 @@ the environment, or Hermes `.env`. Do not pass it as an MCP argument.
 If setup is skipped, missing, or the host lacks secure entry, stop setup and
 continue local forecasting. Offer the existing hidden terminal command
 `gnomon connect ephemeris` as an alternative. Never fall back to chat entry.
+
+## Save and verify
 
 After successful native capture, execute exactly:
 
@@ -52,6 +58,22 @@ that overrides the saved profile: report this and do not rewrite operator config
 The available names include `ephemeris` (router), `ephemeris/ensemble`, and
 discovered `ephemeris/<model>` entries. Connecting does not authorize paid
 forecasts. Ask for task authorization before billable execution.
+
+## If something fails
+
+- Discovery or authentication failure: `gnomon connect ephemeris --check` verifies
+  the key with a balance request (no forecast); report the returned guidance
+  without printing secrets. `--status` shows local state only.
+- Providers missing after reload: an explicit providers TOML overrides the saved
+  connection; report it. `--refresh-models` updates the saved model list; reload MCP.
+- Different host than the MCP server: stop and say where to run the command.
+
+## Report
+
+Say whether the connection is saved and visible in `gnomon_capabilities`, which
+provider names appeared, and that no forecast was run or paid for.
+
+## Disconnect
 
 Disconnecting Gnomon removes its copy, not Hermes's saved secret. To fully remove
 access, remove GNOMON_EPHEMERIS_API_TOKEN through Hermes secret settings and

@@ -56,6 +56,7 @@ path = "build_hook.py"
 "skills/forecast-with-gnomon" = "share/gnomon/skills/forecast-with-gnomon"
 "skills/setup-gnomon-ephemeris" = "share/gnomon/skills/setup-gnomon-ephemeris"
 "skills/trade-with-gnomon" = "share/gnomon/skills/trade-with-gnomon"
+"skills/route-with-gnomon" = "share/gnomon/skills/route-with-gnomon"
 "integrations/hermes/gnomon-memory" = "share/gnomon/integrations/hermes/gnomon-memory"
 
 [tool.hatch.build.targets.sdist]
@@ -69,6 +70,7 @@ include = [
   "/skills/forecast-with-gnomon",
   "/skills/setup-gnomon-ephemeris",
   "/skills/trade-with-gnomon",
+  "/skills/route-with-gnomon",
   "/integrations/hermes/gnomon-memory",
   "/README.md",
   "/LICENSE",

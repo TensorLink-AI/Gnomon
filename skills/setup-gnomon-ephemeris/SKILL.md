@@ -6,16 +6,25 @@ description: Install Gnomon, configure its Ephemeris forecasting connector, conn
 # Set up Gnomon with Ephemeris
 
 This skill works with any agent that can run shell commands or connect to an MCP
-stdio server. Configure the connector in Gnomon's startup TOML; credentials and
-service URLs are not forecast tool arguments.
+stdio server. Credentials and service URLs are startup configuration, never forecast
+tool arguments.
+
+## Choose a path
+
+1. **Saved connection** (a person at a terminal, default sessions): `gnomon connect
+   ephemeris` prompts for the key with hidden input and saves it privately; in Hermes
+   use the [connect-ephemeris](../connect-ephemeris/SKILL.md) skill. It registers the
+   router, `ephemeris/ensemble` and discovered models.
+2. **Operator TOML** (custom deployments, injected environment, CI): configure the
+   provider table below. An explicit TOML overrides any saved connection; add
+   `mode = "ensemble"` to a provider for ensemble forecasts.
+
+Never ask the user to paste an API key into chat or tool arguments.
 
 ## API references
 
-- [Ephemeris API documentation](https://ephemeris.cascade.industries/docs)
-- [Ephemeris OpenAPI JSON](https://ephemeris.cascade.industries/openapi-m1.json)
-  — the download URL advertised by the documentation. On 2026-09-30 this URL
-  returned HTTP 404; if unavailable, use the docs page and check its current
-  OpenAPI link. Do not treat an unavailable specification as a working schema.
+- [Ephemeris API documentation](https://ephemeris.cascade.industries/docs); use its
+  current OpenAPI link, and do not treat an unavailable specification as a schema.
 - [Gnomon connector and configuration](https://github.com/TensorLink-AI/Gnomon/blob/main/docs/production/INFERENCE.md)
 
 Use Ephemeris docs for the remote API contract and Gnomon's installed schemas for
@@ -142,9 +151,9 @@ than rerunning inference.
 
 ## Next: related skills
 
-Load the skill matching the user's task instead of extending this one. Skills in
-the same Gnomon install are linked locally; the others are in the Gnomon repository
-(install a linked skill's whole directory, including scripts, before running it).
+Load the skill matching the user's task instead of extending this one. All are
+packaged with Gnomon; install a skill's whole directory, including scripts, before
+running it.
 
 - [Use Gnomon](../use-gnomon/SKILL.md): MCP forecasting, backtests and results.
 - [Use the ledger](../use-gnomon-ledger/SKILL.md): matched-history comparison and
@@ -152,14 +161,14 @@ the same Gnomon install are linked locally; the others are in the Gnomon reposit
 - [Trade with Gnomon](../trade-with-gnomon/SKILL.md): forecast-led trade decisions.
 - [Forecast with Gnomon](../forecast-with-gnomon/SKILL.md):
   Python API; use `GnomonSession.from_config("/absolute/path/providers.toml")`.
-- [Forecast report](https://github.com/TensorLink-AI/Gnomon/blob/main/skills/forecast-report/SKILL.md)
-  and [monitor token usage](https://github.com/TensorLink-AI/Gnomon/blob/main/skills/monitor-token-usage/SKILL.md):
-  Hermes-oriented charted reports and LLM usage/cost forecasting (not Ephemeris charges).
+- [Forecast report](../forecast-report/SKILL.md) and
+  [monitor token usage](../monitor-token-usage/SKILL.md): Hermes charted reports and
+  LLM usage/cost forecasting (not Ephemeris charges).
 
-This setup registers `ephemeris` (routing) and discovered `ephemeris/<model>`
-providers, not an `ephemeris/ensemble` alias. Ephemeris forecasts can be recorded
-and reviewed in the ledger, but `compare_history` cannot rank them yet: the
-connector reports no attested model revision or training cutoff. Loading another
+This TOML registers `ephemeris` (routing) and discovered `ephemeris/<model>`
+providers; `ephemeris/ensemble` comes from the saved connection or `mode = "ensemble"`.
+Ephemeris forecasts can be recorded and reviewed in the ledger; for ranking them see
+the [ledger skill](../use-gnomon-ledger/SKILL.md#bounded-recovery). Loading another
 skill does not authorize further billable inference, scheduled jobs or delivery.
 
 ## Troubleshoot
