@@ -4,6 +4,17 @@ Connect a local model through `ForecastRequest -> ForecastResult`, or load an
 Ephemeris provider from Gnomon's startup configuration. Install model libraries
 in the same Python environment as Gnomon and inspect its installed schemas.
 
+
+## Choosing providers
+
+- Reuse saved evidence where appropriate. Unless the user names models, choose a
+  target-appropriate baseline (zero return for returns, last value for volatility) and
+  one versioned candidate (StatsForecast or your own registered model).
+- Built-ins such as `historical_mean` are point-only: a quantile-based policy needs a
+  quantile provider, and a point-only comparison does not validate a quantile gate.
+- Use Ephemeris when requested or when its benefit justifies the cost; for ranking it,
+  see the [ledger skill](../../use-gnomon-ledger/SKILL.md#bounded-recovery).
+
 ## StatsForecast: local callable
 
 Install `gnomon-forecast`, `statsforecast` and `pandas` in a project environment

@@ -1,6 +1,6 @@
 ---
 name: trade-with-gnomon
-description: Make and review forecast-led trade decisions with Gnomon—forecast, record the decision in the ledger, then score it against realised outcomes. Use when researching, backtesting, or operating a trading strategy with local models, StatsForecast, or optional Ephemeris on a user-selected venue.
+description: Make and review forecast-led trade decisions with Gnomon—forecast (starting with volatility for sizing and risk), record the decision in the ledger, then score it against realised outcomes. Use when researching, backtesting, or operating a trading strategy with local models, StatsForecast, or optional Ephemeris on a user-selected venue.
 ---
 
 # Trade with Gnomon
@@ -10,6 +10,11 @@ exposure. Apply your reasoning to hypotheses, model choice, interpretation, sizi
 timing and abstention. Choose the strategy, targets and tools that fit the user's
 objective; StatsForecast and Ephemeris are independent options. Gnomon supplies
 forecast and decision evidence; the user's venue or backtest engine handles trades.
+
+**The essence.** Every trade decision rests on a Gnomon forecast with an execution ID,
+is recorded in the ledger before any order, and is scored against realised outcomes.
+A strategy moves from backtest to paper to live only on that evidence and the user's
+approval, and "no edge after costs" is a valid answer. Everything below serves this loop.
 
 ## The working loop
 
@@ -21,21 +26,16 @@ summary/actual/lesson writes through CLI/MCP require `allow_outcome_writes=true`
 If recording is unavailable, continue research, disclose the missing audit trail,
 and resolve setup before claiming the workflow is prospectively recorded.
 
-1. **Forecast.** Use `session.forecast` / `gnomon_forecast` with a named series,
-   exact units, history and target timestamps, and a decision-time cutoff. Keep
-   `execution_id`, provider/revision and the returned uncertainty. Select relevant
-   targets—prices, returns, spreads or volatility—and validate the policy using
-   those outputs. Reuse saved evidence where appropriate. Unless the user names
-   models, choose a target-appropriate baseline and one versioned candidate
-   (StatsForecast or your own registered model). Built-ins such as
-   `historical_mean` are point-only: a quantile-based policy needs a quantile
-   provider, and a point-only comparison does not validate a quantile gate. Use
-   Ephemeris when requested or when its benefit justifies the cost; for ranking it,
-   see the [ledger skill](../use-gnomon-ledger/SKILL.md#bounded-recovery). If a
-   router is configured (`ledger.routers`) or you build one (see memory below),
-   forecast through it and record its
-   reason, `evidence_level` and (with memory) `effective_n` in the rationale; size
-   down when evidence is weak. Never silently substitute an unavailable provider.
+1. **Forecast.** Volatility first: it forecasts well and drives sizing, risk limits
+   and return quantiles without a directional edge ([why and how](references/volatility.md));
+   add a direction view only after it beats a zero forecast after costs. Use
+   `session.forecast` / `gnomon_forecast` with a named series, exact units, history
+   and target timestamps and a decision-time cutoff; keep `execution_id`,
+   provider/revision and uncertainty. Unless the user names models, compare a
+   baseline with one versioned candidate ([providers](references/forecasting.md)).
+   Forecast through a router when one is configured or built (see memory below) and
+   record its reason, `evidence_level` and `effective_n`; size down on weak evidence.
+   Never silently substitute an unavailable provider.
 2. **Decide and record.** Turn forecasts into an explicit intent under the policy.
    In Python call `record_trade_decision` (`scripts/trade_decisions.py`), which checks
    mode, clock and live promotion; over CLI/MCP call `record_decision_summary` on a
@@ -65,7 +65,8 @@ and resolve setup before claiming the workflow is prospectively recorded.
    Version later lessons using `previous_lesson_id`. Let measured results guide
    the next experiment; one trade or cohort does not establish future superiority.
 
-Run the [worked lifecycle example](references/trade-lifecycle.md) for a log-return
+Start with the [volatility example](references/volatility.md) (`scripts/volatility.py`),
+then run the [worked lifecycle example](references/trade-lifecycle.md) for a log-return
 forecast, quantile-based intent, decision-linked client ID, delayed/revised actuals,
 context comparison and exported lesson. It is an offline API demonstration, not
 an endorsed strategy. Build real workflows from `scripts/trade_decisions.py`, not
@@ -76,7 +77,7 @@ and [venue/execution](references/venue-and-execution.md).
 ## Choosing models with memory
 
 With several related instruments and candidate models, let a Gnomon router choose per
-decision instead of fixing one model: `pool` the instruments and add `memory`, which
+decision instead of fixing one model (volatility models first): `pool` the instruments and add `memory`, which
 retrieves the most similar past situations (volatility, trend, level shift) across
 them and scores each model on what followed. In Python build it yourself with
 `GnomonSession(..., routers={...})`; over MCP ask the operator. Replay it on your
