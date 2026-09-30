@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Document adaptive routing's episodic memory in full: feature formulas, scoring steps,
+  choosing settings, every `routing` field, troubleshooting, the lookback-versus-horizon
+  requirement, observation-counted windows, and a tested replay walkthrough on your own
+  data. Clarify that router `memory` and `[memory]` evidence recall are separate.
+- Skills tell agents to report `evidence_level`, `effective_n` and memory neighbours, and
+  to treat weak memory evidence as weak.
+
 ## 1.3.0 — 2026-09-30
 
 - Add adaptive routing: an operator-configured router is used like a provider,

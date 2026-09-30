@@ -469,3 +469,16 @@ def test_replay_labels_regimes_from_timestamped_history_known_at_each_origin():
               "points": {"base": 1.0, "a": 1.0, "b": 1.0}} for i in (25, 35)]
     result = replay_router(folds, policy(context=spec), histories={"s": calm_then_wild})
     assert result["context_labels"] == {"volatility_ratio:bin0": 1, "volatility_ratio:bin1": 1}
+
+
+def test_documented_replay_walkthrough_runs(tmp_path, monkeypatch, capsys):
+    import re
+    from pathlib import Path
+    text = (Path(__file__).resolve().parents[1] / "docs/adaptive-routing.md").read_text()
+    section = text[text.index("### Evaluate a router on your own data"):]
+    code = re.search(r"```python\n(.*?)\n```", section, re.S).group(1)
+    monkeypatch.chdir(tmp_path)
+    exec(compile(code, "adaptive-routing.md", "exec"), {"__name__": "walkthrough"})
+    lines = dict(line.split(" ", 1) for line in capsys.readouterr().out.strip().splitlines())
+    assert set(lines) == {"pooled", "memory"}
+    assert "'memory':" in lines["memory"]  # memory evidence was used for some origins

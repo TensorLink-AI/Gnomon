@@ -71,6 +71,24 @@ Over MCP, start the server with the same config; agents call `gnomon_forecast` w
 `allow_outcome_writes = true` in the operator TOML. Agents cannot create or change
 routers; they are operator configuration.
 
+## Before you start
+
+- **Make the lookback longer than the horizon.** An origin becomes evidence only when
+  *all* its targets are known, so nothing inside a window shorter than the horizon can
+  ever mature. The default `lookback_seconds` is 7 days: at a 7-day or longer horizon
+  the router serves the baseline forever. Use at least horizon + enough origins to
+  score (for example 56-day horizon, daily origins: 200 days).
+- **Windows count observations, not days.** `short_window`/`long_window` in `context`
+  and `memory` are numbers of history values: 112 is 16 weeks of daily data but under
+  10 hours of 5-minute bars. Scale them to your frequency.
+- **Two different features are called memory.** `[routers."x".memory]` is this page's
+  episodic routing memory. The top-level `[memory]` table (`auto_recall`, `ledger_ref`)
+  is read-only evidence recall of recorded lessons; see
+  [memory bridge](memory-bridge.md). They are independent.
+- **Replay before deploying.** Run the rule on your own history first
+  ([walkthrough](#evaluate-a-router-on-your-own-data)); in our tests plain rolling
+  selection did not beat choosing one good model, while memory with a pool did.
+
 ## How the choice is made
 
 At each forecast the router asks `compare_history` for matched, prospectively
@@ -170,6 +188,60 @@ future_covariate = "onpromotion"   # optional known-future covariate for covaria
 `replay_router(..., covariates={series: {name: [(time, value), ...]}})` computes the same
 features from timestamped `histories`, so replay and live routing select identically.
 
+### Feature definitions
+
+Computed from the request's `history` values (not differences) at routing time. *S* is
+the last `short_window` values, *L* the last `long_window`; sd is the population standard
+deviation. All but `length_cycles` and `covariate_share` need at least `long_window`
+values, and are null when the stated denominator is zero.
+
+| Feature | Definition | Null when |
+|---|---|---|
+| `volatility_ratio` | log(max(sd(S), 0.001·sd(L)) / sd(L)), clipped to ±5 | sd(L) = 0 |
+| `trend` | mean of first differences within *S*, divided by sd(L), clipped to ±5 | sd(L) = 0 |
+| `seasonality` | lag-`season` autocorrelation over *L*: Σ(xₜ−m)(xₜ₊ₛ−m) / (sd(L)²·(len(L)−s)) | season = 1, len(L) < 2·season, sd(L) = 0 |
+| `zero_share` | share of zeros among observed values of *L* (mask = `mask_covariate` > 0) | no observed values |
+| `missing_share` | share of *L* with mask ≤ 0; without a mask, 1 − len(L)/expected steps from the median timestamp gap | neither mask nor enough timestamps |
+| `length_cycles` | log(min(n, 4·`long_window`) / `season`) | empty history |
+| `level_shift` | (mean(S) − mean(L)) / sd(L), clipped to ±5 | sd(L) = 0 |
+| `cv` | log(sd(L) / \|mean(L)\|), clipped to ±5 | sd(L) = 0 or mean(L) = 0 |
+| `covariate_share` | share of nonzero values of `future_covariate` over the forecast horizon | covariate absent |
+
+`length_cycles` is constant once every series has more than four long windows of
+history, so it only helps when some series are young.
+
+### Scoring in detail
+
+1. Candidates: matured episodes from this series and the pool inside the lookback whose
+   features were recorded under the same memory spec.
+2. Standardise each feature by the median and 1.4826 × MAD over those episodes (standard
+   deviation, then 1, when the MAD is zero), so no future data enters the scaling.
+3. Distance: Euclidean over features both vectors have, scaled by (all features / shared
+   features); episodes sharing fewer than half are skipped. Keep the `k` nearest.
+4. Weight: exp(−½(d/h)²) with h = median neighbour distance, × `own_weight` for the
+   forecast series, × 0.5^(age / `recency_half_life_days`) when set.
+5. Score(p) = Σ w·loss(p)/scaleₛ ÷ Σ w·loss(baseline)/scaleₛ, where scaleₛ is series s's
+   mean baseline loss over its visible episodes (the baseline scores 1.0).
+6. effective_n = (Σw)² / Σw². Below `min_effective_n` the router falls back to `context`,
+   then to all evidence. Otherwise the usual cost-adjusted utility, `limits` and
+   `min_improvement` decide.
+
+### Choosing settings
+
+- **Which evidence mode.** Start with `pool` + `memory` when you have several related
+  series; `memory` alone needs a long own history. `context` (one feature, fixed bins) is
+  the cheaper fallback. Plain rolling scores (neither) are mainly a baseline.
+- **Features.** The defaults are a reasonable start. In the Favorita study the dynamics
+  group (`volatility_ratio`, `trend`, `level_shift`) carried the gain; add
+  `covariate_share` when a known-future driver such as promotions matters. Check your
+  own ablations with replay rather than adding features by default.
+- **`k` and `min_effective_n`.** `k` should be a small fraction of the episodes in the
+  window (pool size × matured origins); `min_effective_n` guards against acting on a
+  handful of near-duplicates. We used k = 64, min_effective_n = 16 with pools of 5-96
+  series.
+- **Pool members** must share the unit and horizon. Up to 128 series; each is one
+  evidence read per forecast.
+
 ## Evidence, shadows and cost
 
 Only forecasts recorded before their first target count, so replays and backfills
@@ -196,6 +268,31 @@ the served provider, reason, the utility table, matched origins, shadow executio
 measured latencies, declared dollars for the call and `routing_decision_id`. That
 decision (`kind: adaptive_route/1`) is stored in the ledger with the evidence window,
 provider revisions and a `router_revision` hashed from the policy and revisions.
+
+| `routing` field | Meaning |
+|---|---|
+| `served_provider`, `reason`, `evidence_based` | what was served and why (`insufficient_evidence`, `baseline_error_zero`, `evidence_no_eligible_candidate` (all excluded by `limits`), `evidence_improvement_below_threshold`, `evidence_and_cost_favour_candidate`, `evidence_incompatible`, `evidence_unavailable`) |
+| `evidence_level` | `memory`, `context` or `all`; null when evidence could not be used |
+| `effective_n`, `memory_neighbours` | memory only: sample size and the top five neighbours (series, origin, distance, weight, best provider) |
+| `context_label`, `series_used`, `pool_failures` | regime label, series whose evidence counted, pool members that could not be read |
+| `table`, `matched_origins`, `evidence_window`, `evidence_as_of` | per-provider scores and utilities, evidence size, window and point-in-time cutoff |
+| `shadow_execution_ids`, `shadow_failures`, `measured_latency_seconds`, `declared_usd_this_call` | cost and shadow accounting |
+
+The stored decision's `inputs` also hold `context_label`/`context_spec_id` and
+`memory_features`/`memory_spec_id`, which later forecasts use to match episodes. A low
+`effective_n` or neighbours from unrelated series are reasons to treat a choice as weak
+evidence.
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| Always `insufficient_evidence` | `lookback_seconds` shorter than the horizon plus scoring origins; actuals not appended; `shadow_every = 0` | lengthen the lookback; append actuals; shadow |
+| `evidence_level` never `memory` | fewer matured episodes than `min_effective_n`; features null (history shorter than `long_window`, flat series); memory settings changed (older episodes carry another spec) | lower `min_effective_n` or add pool series; shorten `long_window`; wait for new episodes |
+| `evidence_incompatible` | task shape (for example `season`) or a provider revision changed inside the window | keep requests consistent, or let the window move past the change |
+| `evidence_unavailable` | the ledger could not be read or compared; see `evidence_error` | fix the reported error; the baseline is served meanwhile |
+| Slow routed calls | large pools, long lookbacks, long request histories | fewer pool series, shorter lookback, trim history to what models use |
+
 
 ## Evidence
 
@@ -233,8 +330,9 @@ series before relying on a router.
 ## Evaluate a router before relying on it
 
 `gnomon.adaptive_router.replay_router(folds, policy, histories)` replays the same selection
-rule over saved one-step folds from one or more series on a shared clock, using only
-folds whose targets have passed, labelling regimes from history known at each origin,
+rule over saved folds (one-step or multi-step) from one or more series on a shared clock,
+using only folds whose targets have all passed, computing labels and memory features from
+history known at each origin,
 and reports the router's score beside each fixed provider's, overall and per series. Folds come from a
 `gnomon_evaluate` study (`origin`, target time, actual and each provider's point). Times
 must carry a timezone and are compared as instants. Scores are mean per-fold losses
@@ -243,7 +341,67 @@ one-step folds; this is not an aggregate RMSLE over all folds. As in live compar
 a fold with a negative RMSLE prediction or actual is excluded (`excluded_folds`), not
 clipped.
 Replay is simulation evidence; judge a deployed router on prospectively recorded
-forecasts.
+forecasts. In our parity checks live routing through the ledger and replay chose the
+same model at every origin.
+
+### Evaluate a router on your own data
+
+Build folds with a Gnomon evaluation study per series, then replay each policy. Replays
+need many folds; the default evaluation budget allows 8, so raise it in the operator
+TOML.
+
+```python
+import csv, math
+from datetime import datetime, timedelta, timezone
+
+# Two small daily series; replace with your own CSVs (timestamp,value).
+start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+for name, phase in (("store-1", 0.0), ("store-2", 1.5)):
+    with open(f"{name}.csv", "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["timestamp", "value"])
+        for i in range(200):
+            w.writerow([(start + timedelta(days=i)).isoformat(), 50 + 10 * math.sin(i / 7 + phase) + (i % 5)])
+
+open("gnomon.toml", "w").write("schema_version = 1\n[evaluation_limits]\nmax_folds = 500\nmax_calls = 2000\n")
+
+from gnomon import GnomonSession
+from gnomon.adaptive_router import replay_router, validate_policy
+
+models = ["seasonal_naive", "last_value", "historical_mean"]
+folds, histories = [], {}
+with GnomonSession.from_config("gnomon.toml") as session:
+    for name in ("store-1", "store-2"):
+        ref = session.call("gnomon_inspect", {"input": f"{name}.csv", "unit": "units",
+                                              "purpose": "evaluate"}, compact=False)["data_ref"]
+        study = session.call("gnomon_evaluate", {"data_ref": ref, "baseline": models[0],
+                                                 "candidates": models[1:], "horizon": 7, "folds": 60,
+                                                 "stride": 1, "season": 7,
+                                                 "budget": {"max_folds": 60, "max_calls": 180}}, compact=False)
+        for fold in study["folds"]:
+            if fold["status"] != "complete":
+                continue
+            actuals = sorted(fold["actuals"], key=lambda a: a["valid_time"])
+            folds.append({"series_id": name, "origin": fold["origin"],
+                          "target_time": actuals[-1]["valid_time"],  # matures when the last target is known
+                          "actual": [a["value"] for a in actuals],
+                          "points": {p: list(fold["runs"][p]["point"]) for p in models}})
+        rows = list(csv.DictReader(open(f"{name}.csv")))
+        histories[name] = [(r["timestamp"], float(r["value"])) for r in rows]
+
+base = {"candidates": models[1:], "baseline": models[0], "min_origins": 5, "recent_origins": 20,
+        "lookback_seconds": 90 * 86400, "pool": {"series": ["store-1", "store-2"], "own_weight": 2.0}}
+memory = {"features": ["volatility_ratio", "trend", "level_shift", "cv"], "short_window": 7,
+          "long_window": 56, "k": 32, "min_effective_n": 8, "own_weight": 2.0}
+for label, policy in (("pooled", base), ("memory", {**base, "memory": memory})):
+    result = replay_router(folds, validate_policy(policy), histories)
+    print(label, round(result["router_score"], 3), result["fixed_provider_scores"], result["evidence_levels"])
+```
+
+Compare `router_score` with the best fixed provider, not only the baseline, and judge on
+origins after a warm-up. `return_decisions=True` adds each origin's choice, evidence level
+and label for held-out scoring; `covariates=` supplies the mask and future covariate for
+memory features.
 
 ## Cost of routing
 

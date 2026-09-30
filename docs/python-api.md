@@ -96,6 +96,14 @@ returns the full value. `session.forecast`, `session.evaluate` and
 executions, actual revisions, scores and decisions. They serve different purposes;
 neither turns a forecast or recorded decision into permission to act.
 
+Adaptive routing (`gnomon.adaptive_router`): pass `routers={"name": policy}` to
+`GnomonSession` (or `[routers."name"]` in TOML) and forecast with the router's name.
+`validate_policy(policy)` normalises and checks a policy; `replay_router(folds, policy,
+histories=None, *, return_decisions=False, covariates=None)` replays the same selection
+offline. Episodic-memory features come from `gnomon.episodic_memory.compute_features`
+(also used by replay), and `episodic_scores` performs the retrieval. See
+[adaptive routing](adaptive-routing.md), including a runnable replay walkthrough.
+
 Full contracts and runnable examples:
 [providers/session](production/INFERENCE.md), [ledger](production/OPERATIONS.md),
 [temporal calculations](production/TEMPORAL.md),
