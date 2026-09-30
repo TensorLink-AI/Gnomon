@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:gnomon:hosted:evidence-reference:1",
+  "title": "Proposed hosted durable evidence reference",
+  "description": "Identity only. Resolution requires separately authenticated project access. Not a currently implemented endpoint.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "service_id", "project_id", "ledger_id", "resource_type", "resource_id"],
+  "properties": {
+    "schema_version": {"const": "1"},
+    "service_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "ledger_id": {"$ref": "#/$defs/id"},
+    "resource_type": {"enum": ["dataset", "dataset_version", "execution", "decision", "actual", "review", "lesson", "export_receipt"]},
+    "resource_id": {"$ref": "#/$defs/id"},
+    "content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "$defs": {"id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"}}
+}
