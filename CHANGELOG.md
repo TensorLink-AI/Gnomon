@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Fix the `token-tracker` Hermes plugin silently dropping calls under concurrent writes:
+  WAL and schema setup now run once per database per process, writes wait up to 5 s for
+  a lock and retry briefly, and a removed database is recreated.
+
 - Document adaptive routing's episodic memory in full: feature formulas, scoring steps,
   choosing settings, every `routing` field, troubleshooting, the lookback-versus-horizon
   requirement, observation-counted windows, and a tested replay walkthrough on your own
