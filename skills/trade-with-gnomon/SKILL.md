@@ -36,8 +36,10 @@ and resolve setup before claiming the workflow is prospectively recorded.
    rank it until its connector reports a revision, but an operator router with
    `identity_policy = "prospective_unattested"` can, disclosed. If a router is
    configured (`ledger.routers` in capabilities), forecast through it: it serves the
-   model that ledger evidence and declared costs favour and shadows the rest. Never
-   silently substitute another provider for an unavailable one.
+   model that ledger evidence and declared costs favour and shadows the rest. Record
+   the routing reason, `evidence_level` and (with memory) `effective_n` in the
+   decision's rationale, and size down when the evidence is weak. Never silently
+   substitute another provider for an unavailable one.
 2. **Decide and record.** Translate forecasts into an explicit intent under the
    selected policy. In Python, call `record_trade_decision` from
    `scripts/trade_decisions.py`; it checks the mode, clock and live promotion, then

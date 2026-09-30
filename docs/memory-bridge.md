@@ -170,6 +170,9 @@ sequence, memory writing, or use of the optional arithmetic checker.
 
 ## CLI, MCP and automatic recall
 
+This `[memory]` recall of recorded lessons is separate from a router's episodic
+`memory` table, which selects models; see [adaptive routing](adaptive-routing.md#episodic-memory).
+
 Evidence recall is a general Gnomon feature. `gnomon memory` and the
 `gnomon_memory` MCP tool use the same read-only implementation. MCP exposes the
 tool when a ledger is configured. CLI reads require an existing ledger and skip
