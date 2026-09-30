@@ -296,6 +296,35 @@ def test_plugin_is_safe_under_concurrent_writers(tmp_path, monkeypatch):
     con.close()
 
 
+def test_plugin_keeps_every_write_under_heavy_contention(tmp_path, monkeypatch):
+    """Each call used to re-run WAL and schema setup under a 1 s lock timeout, so contended
+    writes could fail with "database is locked" and be dropped silently."""
+    _, hook = load_plugin(tmp_path, monkeypatch)
+    def worker(n):
+        for i in range(60):
+            fire(hook, **hermes_payload(1_800_000_000.0 + n * 1000 + i, 10, request_id=f"{n}-{i}"))
+    threads = [threading.Thread(target=worker, args=(n,)) for n in range(16)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    con = sqlite3.connect(tmp_path / "plugin-data/token-tracker/calls.db")
+    assert con.execute("SELECT count(*) FROM calls").fetchone()[0] == 960
+    con.close()
+
+
+def test_plugin_recreates_a_removed_database(tmp_path, monkeypatch):
+    _, hook = load_plugin(tmp_path, monkeypatch)
+    fire(hook, **hermes_payload(1_800_000_000.0, 10, request_id="a"))
+    db = tmp_path / "plugin-data/token-tracker/calls.db"
+    for suffix in ("", "-wal", "-shm"):
+        Path(f"{db}{suffix}").unlink(missing_ok=True)
+    fire(hook, **hermes_payload(1_800_000_001.0, 10, request_id="b"))
+    con = sqlite3.connect(db)
+    assert [r[0] for r in con.execute("SELECT api_request_id FROM calls")] == ["b"]
+    con.close()
+
+
 def track_calls(home, monkeypatch, *, keep=lambda i: True, since=0.0):
     """Replay each main-agent session in state.db through the plugin, one call per reply."""
     _, hook = load_plugin(home, monkeypatch)
