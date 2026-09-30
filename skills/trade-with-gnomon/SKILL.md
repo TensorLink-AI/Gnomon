@@ -32,7 +32,8 @@ and resolve setup before claiming the workflow is prospectively recorded.
    provider, and a point-only comparison does not validate a quantile gate. Use
    Ephemeris when requested or when its benefit justifies the cost; for ranking it,
    see the [ledger skill](../use-gnomon-ledger/SKILL.md#bounded-recovery). If a
-   router is configured (`ledger.routers`), forecast through it and record its
+   router is configured (`ledger.routers`) or you build one (see memory below),
+   forecast through it and record its
    reason, `evidence_level` and (with memory) `effective_n` in the rationale; size
    down when evidence is weak. Never silently substitute an unavailable provider.
 2. **Decide and record.** Turn forecasts into an explicit intent under the policy.
@@ -71,6 +72,18 @@ an endorsed strategy. Build real workflows from `scripts/trade_decisions.py`, no
 the demo harness's fixture clock or toy policy. Read only the references you need:
 [forecast providers](references/forecasting.md), [backtest engines](references/backtesting.md),
 and [venue/execution](references/venue-and-execution.md).
+
+## Choosing models with memory
+
+With several related instruments and candidate models, let a Gnomon router choose per
+decision instead of fixing one model: `pool` the instruments and add `memory`, which
+retrieves the most similar past situations (volatility, trend, level shift) across
+them and scores each model on what followed. In Python build it yourself with
+`GnomonSession(..., routers={...})`; over MCP ask the operator. Replay it on your
+backtest folds against the best single model first; if nothing beats a zero or naive
+forecast, no router will. Put each forecast's `evidence_level`, `effective_n` and top
+neighbours in the decision rationale, and size down when evidence is weak. Setup,
+settings and replay: [route-with-gnomon](../route-with-gnomon/SKILL.md).
 
 ## Backtest, paper, live
 

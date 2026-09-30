@@ -44,7 +44,8 @@ Routers under `ledger.routers` are used like a provider name; they need
 `series_id`, `timestamps` and `future_timestamps`. Report the `routing` block's
 served provider, reason and `evidence_level`. With `memory`, cite `effective_n` and
 the top `memory_neighbours`; a low `effective_n` or unrelated neighbours is weak
-evidence. A baseline fallback is not a finding that the baseline is best.
+evidence. A baseline fallback is not a finding that the baseline is best. Setting
+up and testing routers: [route-with-gnomon](../route-with-gnomon/SKILL.md).
 
 Preserve provider/revision, uncertainty and execution IDs. Unknown weights or
 training cutoffs stay unknown. Inference alone proves neither accuracy nor

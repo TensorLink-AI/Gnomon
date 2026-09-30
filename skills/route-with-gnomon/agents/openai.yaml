@@ -1,0 +1,4 @@
+interface:
+  display_name: "Route with Gnomon"
+  short_description: "Pick the right model per forecast from recorded outcomes and memory"
+  default_prompt: "Use $route-with-gnomon to replay a memory router on my series and tell me whether it beats the best single model."

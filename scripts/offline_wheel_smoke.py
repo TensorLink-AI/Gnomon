@@ -74,7 +74,8 @@ def main() -> int:
         from urllib.parse import unquote
         shared = environment / "share/gnomon"
         for skill in ("use-gnomon", "forecast-with-gnomon", "setup-gnomon-ephemeris", "trade-with-gnomon",
-                      "use-gnomon-ledger", "connect-ephemeris", "forecast-report", "monitor-token-usage"):
+                      "use-gnomon-ledger", "connect-ephemeris", "forecast-report", "monitor-token-usage",
+                      "route-with-gnomon"):
             assert (shared / "skills" / skill / "SKILL.md").is_file(), skill
         plugin = shared / "integrations/hermes/gnomon-memory"
         for filename in ("plugin.yaml", "__init__.py", "README.md", "hermes-revision.txt"):
