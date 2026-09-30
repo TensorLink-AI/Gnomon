@@ -53,9 +53,31 @@ def validate_context(context):
     return result
 
 
+def validate_operator_context(operator_context):
+    """Operator-configured labels: {key: {"value": str, "source_ref": str}}, at most 4."""
+    if operator_context is None:
+        return {}
+    if not isinstance(operator_context, dict) or len(operator_context) > 4:
+        _fail('decision_context', 'decision_context must map at most 4 keys to value/source_ref')
+    result = {}
+    for key, item in operator_context.items():
+        if not isinstance(item, dict) or set(item) != {'value', 'source_ref'}:
+            _fail('decision_context', 'Each decision_context entry requires exactly value and source_ref')
+        result[_text(key, 'decision_context.key', 128)] = {
+            'value': _text(item['value'], 'decision_context.value', 128),
+            'source_ref': _text(item['source_ref'], 'decision_context.source_ref', 480)}
+    return result
+
+
 def record_decision_summary(ledger, *, execution_id, rationale, assumptions,
-                            invalidation_conditions, context, evidence_refs=None):
-    """Record a concise hypothesis tied to one executed forecast; no action executed."""
+                            invalidation_conditions, context, evidence_refs=None, operator_context=None):
+    """Record a concise hypothesis tied to one executed forecast; no action executed.
+
+    operator_context adds operator-configured labels (for example a trading mode) to every
+    summary. Callers cannot supply those keys, and a ledger whose earlier decisions carry a
+    different value for one of them is refused, so one ledger holds one configured value.
+    """
+    operator_context = validate_operator_context(operator_context)
     execution_id = _text(execution_id, 'execution_id', 128)
     rationale = _text(rationale, 'rationale')
     assumptions = _texts(assumptions, 'assumptions')
@@ -76,6 +98,21 @@ def record_decision_summary(ledger, *, execution_id, rationale, assumptions,
         if not req.get('timestamps') or not req.get('future_timestamps') or req.get('series_id') in (None, '__default__'):
             _fail('execution_id', 'Decision summaries require a named series, history timestamps and future timestamps')
         origin = _time(req.get('cutoff') or req['timestamps'][-1])
+        for key, item in operator_context.items():
+            if any(label['key'] == key for label in context):
+                _fail('context.key', f'Context key {key!r} is set by operator configuration')
+            other = conn.execute(
+                "SELECT DISTINCT json_extract(c.value, '$.value') FROM decisions d, "
+                "json_each(d.payload_json, '$.inputs.context') c WHERE json_extract(c.value, '$.key') = ? "
+                "AND json_extract(c.value, '$.value') != ?", (key, item['value'])).fetchall()
+            if other:
+                _fail('decision_context', f'This ledger already holds {key}={sorted(r[0] for r in other)} decisions; '
+                                          f'configure a separate ledger for {key}={item["value"]}')
+            context.append({'key': key, 'value': item['value'], 'source_ref': 'operator:' + item['source_ref'],
+                            'valid_from': origin, 'valid_to': max(_time(t) for t in req['future_timestamps']),
+                            'source_available_at': min(origin, now), 'recorded_at': now})
+        if len(context) > 16:
+            _fail('context', 'context plus operator labels must total at most 16')
         for label in context:
             if label['source_available_at'] > now:
                 _fail('context.source_available_at', 'A recorded context assertion cannot claim future source availability; append it after it becomes available')

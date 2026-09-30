@@ -59,6 +59,21 @@ answers a different question even when the call succeeds.
 This integration supplies verifiable evidence and does not establish a
 forecasting or agent-performance advantage.
 
+## Optional automatic recall
+
+The general `gnomon memory` CLI and `gnomon_memory` MCP tool now expose read-only
+bridge recall. The [Hermes plugin](../integrations/hermes/gnomon-memory/README.md)
+adds scoped evidence before matching turns after explicit project configuration.
+See [memory bridge interfaces](memory-bridge.md#cli-mcp-and-automatic-recall) for
+cutoffs, limits and the distinct opt-in forecast-response attachment. Native
+Hermes memory files are not automatically written.
+
+Tool declarations now include portable top-level properties. For exact operation
+requirements, call `gnomon_capabilities` with `schema_tool="gnomon_ledger"` and
+`schema_variant="review_decision"` (or another exposed operation). This returns
+the canonical schema in tool-result data, independent of host schema reduction.
+The pinned compatibility test checks the real Hermes schema conversion path.
+
 ## Optional Ephemeris models
 
 The installed `use-gnomon` skill also describes optional signup through MCP

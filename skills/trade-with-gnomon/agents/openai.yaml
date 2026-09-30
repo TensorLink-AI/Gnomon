@@ -1,0 +1,4 @@
+interface:
+  display_name: "Trade with Gnomon"
+  short_description: "Forecast-led trade decisions recorded and scored in Gnomon's ledger"
+  default_prompt: "Use $trade-with-gnomon to research this strategy in paper mode: forecast, record the decision in the ledger, and review it against outcomes."

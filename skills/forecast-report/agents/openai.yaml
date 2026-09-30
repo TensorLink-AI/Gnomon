@@ -1,0 +1,4 @@
+interface:
+  display_name: "Forecast report"
+  short_description: "Forecast a series and send a summary with a chart"
+  default_prompt: "Use $forecast-report to forecast this series, compare it with a seasonal-naive baseline, and send me a summary and chart."

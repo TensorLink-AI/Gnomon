@@ -1,0 +1,5 @@
+name: gnomon-memory
+version: 0.1.0
+description: Project-scoped, read-only Gnomon evidence recall before matching turns.
+provides_hooks:
+  - pre_llm_call

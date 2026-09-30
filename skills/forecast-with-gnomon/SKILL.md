@@ -1,6 +1,6 @@
 ---
 name: forecast-with-gnomon
-description: Execute and save time-series forecasts with Gnomon's Python API, including built-ins and custom predictions. Use when Gnomon is available for a forecasting task.
+description: Execute and save time-series forecasts with Gnomon's Python API, including built-ins and your own registered models. Use when a forecasting task is done in Python with Gnomon installed (files in, forecast file out); for connected gnomon_* MCP tools use use-gnomon.
 ---
 
 # Forecast with Gnomon
@@ -52,7 +52,7 @@ request = {
     "series_id": meta["series_id"],
     "unit": meta["unit"],
 }
-provider = "last_value"  # Baseline example; choose using available evidence.
+provider = "last_value"  # Baseline example; retain it unless evaluation supports another model.
 with GnomonSession.from_config() as session:
     reply = session.forecast(provider, request)
 assert reply["status"] == "ok", reply
@@ -67,6 +67,17 @@ Path("forecast.json").write_text(json.dumps(submission, indent=2))
 
 Run the task's output validator if one is supplied. Keep the last valid forecast
 until a replacement is validated. A saved inference is not evidence of accuracy.
+
+Before finishing, confirm the saved file is the Gnomon execution you intend to
+submit. Predictions computed outside Gnomon must go through `session.forecast` via
+a registered provider (below), not be written straight to `forecast.json`:
+
+```python
+saved = json.loads(Path("forecast.json").read_text())
+run = json.loads(Path("execution.json").read_text())
+assert saved["execution_id"] == run["execution_id"] and saved["point"] == run["result"]["point"]
+print("final method:", saved["method"])  # Say so if this is still the baseline.
+```
 Gnomon's built-ins do not consume promotion or other covariates; use your own
 model when that is appropriate. Do not guess latent demand or causal effects.
 
@@ -106,3 +117,6 @@ contract; it does not certify model accuracy or that the training data was valid
 After a specific API failure, make one task-preserving correction. If it still
 fails, retain any valid saved result and report the error; don't spend the whole
 budget guessing constructors or configuration schemas.
+
+Report the final method, its execution ID and how it was chosen. Do not describe a
+baseline fallback or an unsaved computation as the selected Gnomon forecast.

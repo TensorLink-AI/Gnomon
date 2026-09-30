@@ -1,0 +1,4 @@
+interface:
+  display_name: "Forecast with Gnomon"
+  short_description: "Run and save forecasts with Gnomon's Python API"
+  default_prompt: "Use $forecast-with-gnomon to forecast this series in Python, save the Gnomon execution, and report the final method."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Monitor token usage"
+  short_description: "Forecast and explain Hermes token and cost usage"
+  default_prompt: "Use $monitor-token-usage to forecast my Hermes token usage and alert me when a day lands outside its range."

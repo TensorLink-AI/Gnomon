@@ -1,0 +1,4 @@
+interface:
+  display_name: "Connect Ephemeris"
+  short_description: "Opt in to Ephemeris models with secure key entry"
+  default_prompt: "Use $connect-ephemeris to connect Ephemeris models to Gnomon; I will enter the API key in the secure prompt."

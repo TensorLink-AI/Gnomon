@@ -1,6 +1,6 @@
 ---
 name: forecast-report
-description: Forecast any time series (sales, demand, load, revenue, traffic) with Gnomon and the Ephemeris ensemble (or a chosen model), backtest it against a seasonal-naive baseline, and send a short summary plus a seaborn chart of actuals, forecast and 50%/90% ranges, for example to Telegram.
+description: Forecast any time series (sales, demand, load, revenue, traffic) with Gnomon and the Ephemeris ensemble (or a chosen model), backtest it against a seasonal-naive baseline, and send a short summary plus a seaborn chart of actuals, forecast and 50%/90% ranges, for example to Telegram. Use when the user wants a one-off forecast of a series reported with a chart.
 ---
 
 # Forecast report

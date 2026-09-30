@@ -77,6 +77,27 @@ jobs:
           export GNOMON_TEST_SERVICE_IMAGE
           pytest -q benchmarks/tests/test_software_backend.py benchmarks/tests/test_service_backend.py benchmarks/tests/test_workflow_episodes.py benchmarks/tests/test_workflow_cohort.py
 
+  hermes-compatibility:
+    name: Pinned Hermes plugin and schema compatibility (no model calls)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Read the tested Hermes revision
+        run: echo "HERMES_REVISION=$(cat integrations/hermes/gnomon-memory/hermes-revision.txt)" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v6
+        with:
+          repository: NousResearch/hermes-agent
+          ref: ${{ env.HERMES_REVISION }}
+          path: .compat/hermes
+          persist-credentials: false
+      - name: Install isolated compatibility dependencies
+        run: python -m pip install -r integrations/hermes/compat-requirements.txt .
+      - name: Verify actual plugin loading, injection and model-visible schemas
+        run: python scripts/hermes_compat_probe.py --hermes-root .compat/hermes
+
   package:
     name: Build and smoke-test package
     runs-on: ubuntu-latest

@@ -26,7 +26,7 @@ classifiers = [
 [project.optional-dependencies]
 parquet = ["pyarrow>=15"]
 excel = ["openpyxl>=3.1"]
-dev = ["build>=1.2", "pytest>=8", "pyyaml>=6.0", "ruff>=0.12,<1"]
+dev = ["build>=1.2", "pytest>=8", "jsonschema>=4", "pyyaml>=6.0", "ruff>=0.12,<1"]
 
 
 [project.scripts]
@@ -53,6 +53,10 @@ path = "build_hook.py"
 "skills/use-gnomon-ledger" = "share/gnomon/skills/use-gnomon-ledger"
 "skills/monitor-token-usage" = "share/gnomon/skills/monitor-token-usage"
 "skills/forecast-report" = "share/gnomon/skills/forecast-report"
+"skills/forecast-with-gnomon" = "share/gnomon/skills/forecast-with-gnomon"
+"skills/setup-gnomon-ephemeris" = "share/gnomon/skills/setup-gnomon-ephemeris"
+"skills/trade-with-gnomon" = "share/gnomon/skills/trade-with-gnomon"
+"integrations/hermes/gnomon-memory" = "share/gnomon/integrations/hermes/gnomon-memory"
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -62,6 +66,10 @@ include = [
   "/skills/use-gnomon-ledger",
   "/skills/monitor-token-usage",
   "/skills/forecast-report",
+  "/skills/forecast-with-gnomon",
+  "/skills/setup-gnomon-ephemeris",
+  "/skills/trade-with-gnomon",
+  "/integrations/hermes/gnomon-memory",
   "/README.md",
   "/LICENSE",
   "/CHANGELOG.md",

@@ -257,7 +257,9 @@ def test_optional_tool_requires_startup_opt_in_and_closed_schema(tmp_path):
     with GnomonSession.from_config(config) as session:
         assert len(session.tools()) == 7
         assert session.capabilities()["temporal"]["enabled"] is True
-        assert session.tools()[-1]["inputSchema"] == TEMPORAL_SCHEMA
+        assert session.tools(portable=False)[-1]["inputSchema"] == TEMPORAL_SCHEMA
+        assert session.tools()[-1]["inputSchema"]["oneOf"] == TEMPORAL_SCHEMA["oneOf"]
+        assert "operation" in session.tools()[-1]["inputSchema"]["properties"]
     assert all(schema["additionalProperties"] is False for schema in TEMPORAL_SCHEMA["oneOf"])
     for bad in (1, "true", None):
         with pytest.raises(ValueError, match="boolean"):

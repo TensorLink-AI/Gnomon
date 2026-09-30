@@ -158,7 +158,7 @@ def test_subprocess_cli_and_stdio_mcp_reach_configured_ephemeris(tmp_path, servi
     assert mcp.returncode == 0, mcp.stderr
     listed, forecast = [json.loads(line)["result"] for line in mcp.stdout.splitlines()]
     assert {t["name"] for t in listed["tools"]} == {
-        "gnomon_capabilities", "gnomon_forecast", "gnomon_ledger", "gnomon_inspect", "gnomon_describe", "gnomon_evaluate", "gnomon_route", "gnomon_read"}
+        "gnomon_capabilities", "gnomon_forecast", "gnomon_ledger", "gnomon_memory", "gnomon_inspect", "gnomon_describe", "gnomon_evaluate", "gnomon_route", "gnomon_read"}
     assert forecast["structuredContent"]["result"]["point"] == [2.5]
     assert [r[0] for r in state["requests"]] == ["GET", "POST", "GET", "POST"]
 

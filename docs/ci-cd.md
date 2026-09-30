@@ -45,3 +45,19 @@ identify the same accepted commit.
 `container.yml` builds PR images and publishes on main/version tags. Registry
 publication is separate from PyPI. See [containers](containers.md) and never
 describe a successful build as a successful registry or package-index upload.
+
+## Hermes compatibility boundary
+
+The `hermes-compatibility` job loads the real upstream plugin manager and turn
+context code at `integrations/hermes/gnomon-memory/hermes-revision.txt`. Its
+separate dependency set is `integrations/hermes/compat-requirements.txt`; none
+of these packages become Gnomon runtime dependencies.
+
+Run `python scripts/hermes_compat_probe.py --hermes-root /path/to/pinned/hermes`
+in that test environment. The probe verifies the commit, uses a temporary Hermes
+home, discovers/enables/disables the plugin, composes API-bound user context,
+and checks fields through the actual MCP converter and schema sanitizer. It
+checks unrelated tasks, project mismatch, unsupported gateway platforms, empty
+recall and subprocess failure. It makes no model calls and does not test forecast
+quality. Updating the pin requires rerunning this probe and recording any API
+changes. Support currently covers project-local CLI sessions only.
